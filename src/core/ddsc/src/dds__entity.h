@@ -204,10 +204,10 @@ dds_return_t dds_entity_pin_for_delete (dds_entity_t hdl, bool explicit, bool fr
 DDS_EXPORT void dds_entity_unpin (dds_entity *e);
 
 /** @component generic_entity */
-dds_return_t dds_entity_lock (dds_entity_t hdl, dds_entity_kind_t kind, dds_entity **eptr);
+DDS_EXPORT dds_return_t dds_entity_lock (dds_entity_t hdl, dds_entity_kind_t kind, dds_entity **eptr);
 
 /** @component generic_entity */
-void dds_entity_unlock (dds_entity *e);
+DDS_EXPORT void dds_entity_unlock (dds_entity *e);
 
 /** @component generic_entity */
 dds_return_t dds_entity_observer_register (
