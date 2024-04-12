@@ -349,7 +349,9 @@ static bool ignore_local_p (const ddsi_guid_t *guid1, const ddsi_guid_t *guid2, 
     case DDS_IGNORELOCAL_NONE:
       break;
     case DDS_IGNORELOCAL_PARTICIPANT:
-      return memcmp (&guid1->prefix, &guid2->prefix, sizeof (guid1->prefix)) == 0;
+      if (memcmp (&guid1->prefix, &guid2->prefix, sizeof (guid1->prefix)) == 0)
+        return true;
+      break;
     case DDS_IGNORELOCAL_PROCESS:
       return true;
   }
@@ -358,7 +360,9 @@ static bool ignore_local_p (const ddsi_guid_t *guid1, const ddsi_guid_t *guid2, 
     case DDS_IGNORELOCAL_NONE:
       break;
     case DDS_IGNORELOCAL_PARTICIPANT:
-      return memcmp (&guid1->prefix, &guid2->prefix, sizeof (guid1->prefix)) == 0;
+      if (memcmp (&guid1->prefix, &guid2->prefix, sizeof (guid1->prefix)) == 0)
+        return true;
+      break;
     case DDS_IGNORELOCAL_PROCESS:
       return true;
   }
