@@ -15,7 +15,6 @@
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/string.h"
 #include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/static_assert.h"
@@ -31,7 +30,6 @@
 
 #include "config_env.h"
 #include "test_common.h"
-#include "psmx_dummy_public.h"
 #include "Array100.h"
 #include "DynamicData.h"
 #include "PsmxDataModels.h"
@@ -65,35 +63,17 @@ static void fail_too_much_data (void) { fail (); }
 #define TRACE_CATEGORY "discovery"
 #endif
 
-/**
- * @brief Create a participant object
- * 
- * @param[in] int_dom the domain id
- * @param[in] locator an array of 16 bytes, NULL if not used
- * @return dds_entity_t the participant
- */
-static dds_entity_t create_participant (dds_domainid_t int_dom, const uint8_t* locator)
+static dds_entity_t create_participant (dds_domainid_t int_dom)
 {
   assert (int_dom < MAX_DOMAINS);
+  const unsigned char *l = psmx_locators[int_dom].a;
   char *configstr;
-  char locator_str[74];
-  if ( locator == NULL ) {
-    locator_str[0] = 0;
-  } else {
-    const uint8_t *l = locator;
-    snprintf(
-      locator_str,
-      sizeof(locator_str),
-      "LOCATOR=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x;",
-      l[0], l[1], l[2], l[3], l[4], l[5], l[6], l[7], l[8], l[9], l[10], l[11], l[12], l[13], l[14], l[15]
-    );
-  }
   ddsrt_asprintf (&configstr, "\
 ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
 <General>\
   <AllowMulticast>spdp</AllowMulticast>\
   <Interfaces>\
-    <PubSubMessageExchange name=\"${CDDS_PSMX_NAME:-cdds}\" library=\"psmx_${CDDS_PSMX_NAME:-cdds}\" priority=\"1000000\" config=\"%sSERVICE_NAME=psmx%d;KEYED_TOPICS=true;\" />\
+    <PubSubMessageExchange name=\"${CDDS_PSMX_NAME:-cdds}\" library=\"psmx_${CDDS_PSMX_NAME:-cdds}\" priority=\"1000000\" config=\"LOCATOR=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x;SERVICE_NAME=psmx%d;KEYED_TOPICS=true;\" />\
   </Interfaces>\
 </General>\
 <Discovery>\
@@ -105,8 +85,8 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
   <OutputFile>cdds.log.%d</OutputFile>\
 </Tracing>\
 ",
-    locator_str,
-    locator ? (int) locator[0] : -1,   // This prevents Iceoryx and Cyclone-based plugins from forwarding across the "network"
+    l[0], l[1], l[2], l[3], l[4], l[5], l[6], l[7], l[8], l[9], l[10], l[11], l[12], l[13], l[14], l[15],
+    (int) l[0],   // This prevents Iceoryx and Cyclone-based plugins from forwarding across the "network"
     (int) int_dom // log file name
   );
   char *xconfigstr = ddsrt_expand_envvars (configstr, int_dom);
@@ -117,39 +97,6 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
   const dds_entity_t pp = dds_create_participant (int_dom, NULL, NULL);
   CU_ASSERT_FATAL (pp > 0);
   return pp;
-}
-
-static bool domain_pin(dds_entity_t domain, dds_domain** dom_out)
-{
-  dds_entity* x = NULL;
-  dds_return_t rc = dds_entity_pin(domain, &x);
-  if ( rc == DDS_RETCODE_OK ) {
-    if( dds_entity_kind(x) == DDS_KIND_DOMAIN ) {
-      *dom_out = (dds_domain*)x;
-      return true;
-    } else {
-      dds_entity_unpin(x);
-      return false;
-    }
-  }
-  return false;
-}
-
-static void domain_unpin(dds_domain* dom)
-{
-  assert(dom);
-  dds_entity_unpin((dds_entity*)dom);
-}
-
-static bool domain_get_psmx_locator(dds_entity_t domain, ddsi_locator_t* l_out)
-{
-  dds_domain* dom = NULL;
-  bool ret = domain_pin(domain, &dom);
-  if ( ret ) {
-    memcpy(l_out, dom->psmx_instances.instances[0]->locator, sizeof(ddsi_locator_t));
-    domain_unpin(dom);
-  }
-  return ret;
 }
 
 struct tracebuf {
@@ -688,7 +635,7 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, bo
   create_unique_topic_name ("test_psmx", topicname, sizeof (topicname));
   for (int i = 0; i < MAX_DOMAINS; i++)
   {
-    pp[i] = create_participant ((dds_domainid_t) i, psmx_locators[(dds_domainid_t) i].a); // FIXME: vary shm_enable for i > 0
+    pp[i] = create_participant ((dds_domainid_t) i); // FIXME: vary shm_enable for i > 0
     tp[i] = dds_create_topic (pp[i], tpdesc, topicname, NULL, NULL);
     CU_ASSERT_FATAL (tp[i] > 0);
     gvs[i] = get_domaingv (pp[i]);
@@ -1033,80 +980,6 @@ static bool eq_DynamicData_KMsg (const void *vsent, const void *vrecvd, bool val
   }
 }
 
-/** @brief Compare two sets of stats.
- * 
- * @param[in] mockstats1 first stats to compare
- * @param[in] mockstats2 second stats to compare
- * 
- * @return A bitmask to indicate which elements are different, zero if all are equal.
-*/
-static uint32_t dummy_mockstats_cmp(const dummy_mockstats_t* mockstats1, const dummy_mockstats_t* mockstats2)
-{
-  uint32_t cmp = 0;
-  uint32_t shift = 0;
-
-  cmp |= ((uint32_t)(mockstats1->cnt_type_qos_supported != mockstats2->cnt_type_qos_supported) << shift++);
-  cmp |= ((uint32_t)(mockstats1->cnt_create_topic != mockstats2->cnt_create_topic) << shift++);
-  cmp |= ((uint32_t)(mockstats1->cnt_delete_topic != mockstats2->cnt_delete_topic) << shift++);
-  cmp |= ((uint32_t)(mockstats1->cnt_deinit != mockstats2->cnt_deinit) << shift++);
-  cmp |= ((uint32_t)(mockstats1->cnt_get_node_id != mockstats2->cnt_get_node_id) << shift++);
-  cmp |= ((uint32_t)(mockstats1->cnt_supported_features != mockstats2->cnt_supported_features) << shift++);
-  cmp |= ((uint32_t)(mockstats1->cnt_create_endpoint != mockstats2->cnt_create_endpoint) << shift++);
-  cmp |= ((uint32_t)(mockstats1->cnt_delete_endpoint != mockstats2->cnt_delete_endpoint) << shift++);
-  cmp |= ((uint32_t)(mockstats1->cnt_request_loan != mockstats2->cnt_request_loan) << shift++);
-  cmp |= ((uint32_t)(mockstats1->cnt_write != mockstats2->cnt_write) << shift++);
-  cmp |= ((uint32_t)(mockstats1->cnt_take != mockstats2->cnt_take) << shift++);
-  cmp |= ((uint32_t)(mockstats1->cnt_on_data_available != mockstats2->cnt_on_data_available) << shift++);
-  return cmp;
-}
-
-/** @brief Convert a set of stats to a string.
- * 
- * Truncates the output string if the string buffer capacity is too small.
- * 
- * @param[in] dmock stats to convert
- * @param[out] str_out string buffer to write the string into
- * @param[in] str_capacity number of bytes the string buffer can hold
- * 
- * @return Upon successful return, it returns the number of characters printed
- *         (excluding the null byte used to end output to strings).
- *         If an output error is encountered, a negative value is returned.
-*/
-static int dummy_mockstats_tostring(const dummy_mockstats_t* dmock, char* str_out, size_t str_capacity)
-{
-  return snprintf(
-    str_out,
-    str_capacity,
-    "\
-  type_qos_supported: %i\n\
-  create_topic: %i\n\
-  delete_topic: %i\n\
-  deinit: %i\n\
-  get_node_id: %i\n\
-  supported_features: %i\n\
-  \n\
-  create_endpoint: %i\n\
-  delete_endpoint: %i\n\
-  \n\
-  request_loan: %i\n\
-  write: %i\n\
-  take: %i\n\
-  on_data_available: %i\n",
-    dmock->cnt_type_qos_supported,
-    dmock->cnt_create_topic,
-    dmock->cnt_delete_topic,
-    dmock->cnt_deinit,
-    dmock->cnt_get_node_id,
-    dmock->cnt_supported_features,
-    dmock->cnt_create_endpoint,
-    dmock->cnt_delete_endpoint,
-    dmock->cnt_request_loan,
-    dmock->cnt_write,
-    dmock->cnt_take,
-    dmock->cnt_on_data_available
-  );
-}
-
 CU_Test(ddsc_psmx, one_writer, .timeout = 240)
 {
   failed = false;
@@ -1215,7 +1088,7 @@ CU_Test(ddsc_psmx, one_writer_forwardcdr_dynsize_strkey, .timeout = 240)
 CU_Test(ddsc_psmx, return_loan)
 {
   dds_return_t rc;
-  const dds_entity_t pp = create_participant (0, psmx_locators[0].a);
+  const dds_entity_t pp = create_participant (0);
   char topicname[100];
   create_unique_topic_name ("test_psmx", topicname, sizeof (topicname));
   const dds_entity_t tp = dds_create_topic (pp, &Array100_desc, topicname, NULL, NULL);
@@ -1240,7 +1113,7 @@ CU_Test(ddsc_psmx, return_loan)
 CU_Test(ddsc_psmx, partition_xtalk)
 {
   dds_return_t rc;
-  const dds_entity_t pp = create_participant (0, psmx_locators[0].a);
+  const dds_entity_t pp = create_participant (0);
   char topicname[100];
   create_unique_topic_name ("test_psmx", topicname, sizeof (topicname));
   const dds_entity_t tp = dds_create_topic (pp, &PsmxType1_desc, topicname, NULL, NULL);
@@ -1345,7 +1218,7 @@ CU_Test (ddsc_psmx, basic)
   dds_entity_t participant, topic, writer, reader;
   bool psmx_enabled;
 
-  participant = create_participant (0, psmx_locators[0].a);
+  participant = create_participant (0);
   CU_ASSERT_FATAL (participant > 0);
 
   char topicname[100];
@@ -1392,164 +1265,6 @@ CU_Test (ddsc_psmx, basic)
   dds_delete (dds_get_parent (participant));
 }
 
-/// @brief Check that shared memory can be enabled (when supported) and the used locator can be set.
-/// @methodology
-/// - Check that the data types I'm planning to use are actually suitable for use with shared memory.
-/// - Expectation: They are memcopy-safe.
-/// 
-/// - Create a configuration with a psmx interface and specify the locator.
-/// - Create a domain using this configuration.
-/// - Check the locator used by the psmx instance.
-/// - Expectation: The locator is the same as specified in the config for the domain.
-/// - Query whether shared memory is supported.
-/// - Assert that there is exactly one psmx instance.
-/// - Assert that the psmx instance has a nonempty instance_name.
-/// - Create some entities
-/// - Check if shared memory is enabled.
-/// - Expectation: Shared memory is enabled iff the psmx interface supports it (use queried value).
-/// - Delete the domain
-/// - Check the function call counts of the dummy psmx.
-/// - Expectation: The counts match expectations. In particular, create counts must match their delete counterpart.
-/// 
-/// - Create a configuration with a psmx interface capable of shared memory and don't specify a locator.
-/// - Create a domain using this configuration.
-/// - Query whether shared memory is supported.
-/// - Assert that there is exactly one psmx instance.
-/// - Assert that the psmx instance has a nonempty instance_name.
-/// - Create some entities
-/// - Check if shared memory is enabled.
-/// - Expectation: Shared memory is enabled iff the psmx interface supports it (use queried value).
-/// - Delete the domain
-/// - Check the function call counts of the dummy psmx.
-/// - Expectation: The counts match expectations. In particular, create counts must match their delete counterpart.
-/// 
-CU_Test(ddsc_psmxif, shared_memory)
-{
-  const char* CDDS_PSMX_NAME = NULL;
-  ddsrt_getenv("CDDS_PSMX_NAME", &CDDS_PSMX_NAME);
-  ddsrt_setenv("CDDS_PSMX_NAME", "dummy"); // Make `create_participant()` use the dummy psmx.
-  dummy_mockstats_t dmock, dmock_expected;
-  char strbuf1[512];
-  char strbuf2[512];
-  size_t strbuf_size = sizeof(strbuf1);
-  {
-    // Check that the data types I'm planning to use are actually suitable for use with shared memory.
-    dds_data_type_properties_t props;
-    props = dds_stream_data_types(SC_Model_desc.m_ops);
-    CU_ASSERT_FATAL((props & DDS_DATA_TYPE_IS_MEMCPY_SAFE) == DDS_DATA_TYPE_IS_MEMCPY_SAFE);
-    props = dds_stream_data_types(PsmxType1_desc.m_ops);
-    CU_ASSERT_FATAL((props & DDS_DATA_TYPE_IS_MEMCPY_SAFE) == DDS_DATA_TYPE_IS_MEMCPY_SAFE);
-  }
-
-  const dds_domainid_t domainId = 3;
-  bool supports_shared_memory = false; // Overwritten by `plugin's supported_features()`.
-  bool specify_locator[] = {true, false};
-  uint8_t locator_in[16];
-  memset(locator_in, 0x0, sizeof(locator_in)); // Avoid warning 'uninitialized value'.
-  ((uint64_t*)locator_in)[0] = (uint64_t)0x4a4d203df6996395;
-  ((uint64_t*)locator_in)[1] = (uint64_t)0xe1412fbecc2de4b6;
-
-  int N = sizeof(specify_locator) / sizeof(specify_locator[0]);
-  for (int i = 0; i < N; ++i)
-  {
-    const uint8_t* locator = specify_locator[i] ? locator_in : NULL;
-    dds_entity_t participant = create_participant(domainId, locator);
-    CU_ASSERT_FATAL(participant > 0);
-    dds_entity_t domain = dds_get_parent(participant);
-    CU_ASSERT_FATAL(domain > 0);
-    if ( specify_locator[i] ) {
-      // Check that I get the same locator that I provided with the config.
-      ddsi_locator_t locator_out;
-      CU_ASSERT_FATAL(domain_get_psmx_locator(domain, &locator_out));
-      CU_ASSERT_FATAL(memcmp(locator_in, locator_out.address, sizeof(locator_out.address)) == 0);
-    }
-
-    {
-      // Query whether shared memory is supported.
-      dds_domain* dom = NULL;
-      CU_ASSERT_FATAL(domain_pin(domain, &dom));
-      CU_ASSERT_FATAL(dom->psmx_instances.length == 1); // There shall be exactly one psmx instance.
-      struct dummy_psmx* dpsmx = (struct dummy_psmx*)dom->psmx_instances.instances[0];
-      dpsmx->mockstats_get_ownership(&dmock);
-
-      // The psmx must have an instance_name that is not an empty string.
-      CU_ASSERT_FATAL(dpsmx->c.instance_name != NULL && strcmp(dpsmx->c.instance_name, "") != 0);
-      supports_shared_memory = ((dpsmx->c.ops.supported_features(&dpsmx->c) & DDS_PSMX_FEATURE_SHARED_MEMORY) == DDS_PSMX_FEATURE_SHARED_MEMORY);
-      domain_unpin(dom);
-    }
-    dds_entity_t writer1, reader1, writer2, reader2;
-    {
-      char topicname[100];
-      dds_qos_t* qos = dds_create_qos();
-
-      create_unique_topic_name("shared_memory", topicname, sizeof(topicname));
-      dds_entity_t topic1 = dds_create_topic(participant, &SC_Model_desc, topicname, qos, NULL);
-      CU_ASSERT_FATAL(topic1 > 0);
-
-      writer1 = dds_create_writer(participant, topic1, qos, NULL);
-      CU_ASSERT_FATAL(writer1 > 0);
-
-      reader1 = dds_create_reader(participant, topic1, qos, NULL);
-      CU_ASSERT_FATAL(reader1 > 0);
-
-      create_unique_topic_name("shared_memory", topicname, sizeof(topicname));
-      dds_entity_t topic2 = dds_create_topic(participant, &PsmxType1_desc, topicname, qos, NULL);
-      CU_ASSERT_FATAL(topic2 > 0);
-
-      writer2 = dds_create_writer(participant, topic2, qos, NULL);
-      CU_ASSERT_FATAL(writer2 > 0);
-
-      reader2 = dds_create_reader(participant, topic2, qos, NULL);
-      CU_ASSERT_FATAL(reader2 > 0);
-      dds_delete_qos(qos);
-    }
-
-    {
-      // Check that shared memory is enabled when it should, and not enabled when it shouldn't.
-      bool psmx_enabled;
-      psmx_enabled = endpoint_has_psmx_enabled(writer1);
-      CU_ASSERT_FATAL(psmx_enabled);
-      CU_ASSERT_FATAL(dds_is_shared_memory_available(writer1) == supports_shared_memory);
-
-      psmx_enabled = endpoint_has_psmx_enabled(reader1);
-      CU_ASSERT_FATAL(psmx_enabled);
-      CU_ASSERT_FATAL(dds_is_shared_memory_available(reader1) == supports_shared_memory);
-
-      psmx_enabled = endpoint_has_psmx_enabled(writer2);
-      CU_ASSERT_FATAL(psmx_enabled);
-      CU_ASSERT_FATAL(dds_is_shared_memory_available(writer2) == supports_shared_memory);
-
-      psmx_enabled = endpoint_has_psmx_enabled(reader2);
-      CU_ASSERT_FATAL(psmx_enabled);
-      CU_ASSERT_FATAL(dds_is_shared_memory_available(reader2) == supports_shared_memory);
-    }
-    dds_delete(domain);
-
-    // Check number of calls against expected counts.
-    memset(&dmock_expected, 0, sizeof(dummy_mockstats_t));
-    dmock_expected.cnt_type_qos_supported = 10;
-    dmock_expected.cnt_create_topic = 2;
-    dmock_expected.cnt_delete_topic = 2;
-    dmock_expected.cnt_deinit = 1;
-    dmock_expected.cnt_get_node_id = 1;
-    dmock_expected.cnt_supported_features = 5;
-    dmock_expected.cnt_create_endpoint = 4;
-    dmock_expected.cnt_delete_endpoint = 4;
-    dmock_expected.cnt_on_data_available = 2; // This is perhaps unexpected, see below.
-    /*
-    NOTE: The `on_data_available` is triggered in
-    `dds_create_reader_int()`, even if no samples have been received at all.
-    */
-    uint32_t cmp = dummy_mockstats_cmp(&dmock, &dmock_expected);
-    if( cmp != 0 ){
-      dummy_mockstats_tostring(&dmock, strbuf1, strbuf_size);
-      dummy_mockstats_tostring(&dmock_expected, strbuf2, strbuf_size);
-      printf("actual calls:\n%s\nexpected calls:\n%s\n", strbuf1, strbuf2);
-      CU_ASSERT_FATAL(cmp == 0);
-    }
-  }
-}
-
 CU_Test (ddsc_psmx, zero_copy)
 {
   const struct {
@@ -1562,7 +1277,7 @@ CU_Test (ddsc_psmx, zero_copy)
   };
   dds_return_t rc;
 
-  const dds_entity_t pp = create_participant (0, psmx_locators[0].a);
+  const dds_entity_t pp = create_participant (0);
   CU_ASSERT_FATAL (pp > 0);
   for (size_t k = 0; k < sizeof (cases) / sizeof (cases[0]); k++)
   {
@@ -1758,7 +1473,7 @@ CU_Test (ddsc_psmx, writer_loan)
   };
   dds_return_t rc;
 
-  const dds_entity_t pp = create_participant (0, psmx_locators[0].a);
+  const dds_entity_t pp = create_participant (0);
   CU_ASSERT_FATAL (pp > 0);
   for (size_t k = 0; k < sizeof (cases) / sizeof (cases[0]); k++)
   {

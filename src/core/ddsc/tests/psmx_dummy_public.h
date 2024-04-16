@@ -16,7 +16,15 @@
 extern "C" {
 #endif
 
+typedef struct dynamic_array_s{
+  uint32_t _maximum;
+  uint32_t _length;
+  void* _buffer;
+}dynamic_array_t;
+
 typedef struct dummy_mockstats_s{
+  int cnt_create_psmx;
+
   // dds_psmx_ops
   int cnt_type_qos_supported;
   int cnt_create_topic;
@@ -34,12 +42,20 @@ typedef struct dummy_mockstats_s{
   int cnt_write;
   int cnt_take;
   int cnt_on_data_available;
+
+  // Exposed internals
+  char* config;
+  dynamic_array_t topics;
+  dynamic_array_t endpoints;
 }dummy_mockstats_t;
 
-struct dummy_psmx {
-  struct dds_psmx c;
-  void (*mockstats_get_ownership)(dummy_mockstats_t*);
-};
+typedef struct dummy_psmx {
+  dds_psmx_t c;
+  dummy_mockstats_t* (*mockstats_get_ptr)();
+}dummy_psmx_t;
+
+DDS_EXPORT void dummy_topics_alloc(dummy_mockstats_t* mockstats, uint32_t topics_capacity);
+DDS_EXPORT void dummy_endpoints_alloc(dummy_mockstats_t* mockstats, uint32_t endpoints_capacity);
 
 #if defined (__cplusplus)
 }
