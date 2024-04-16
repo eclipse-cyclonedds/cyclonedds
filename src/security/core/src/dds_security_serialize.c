@@ -631,22 +631,20 @@ DDS_Security_Deserialize_PropertySeq(
        sequence is 4+1+(3 pad)+4+1 = 13 bytes.  Just use 8 because it is way faster
        and just as good for checking that the length value isn't completely ridiculous. */
     const uint32_t minpropsize = (uint32_t) (2 * sizeof (uint32_t));
-    int r = 1;
     uint32_t length;
-
     if (!DDS_Security_Deserialize_uint32_t(dser, &length)) {
         return 0;
-    } else if (length > dser->remain / minpropsize) {
-        return 0;
-    } else if (length > 0) {
-        DDS_Security_PropertySeq_deinit(seq);
-        seq->_length = seq->_maximum = length;
-        seq->_buffer = DDS_Security_PropertySeq_allocbuf(seq->_length);
-        for (uint32_t i = 0; i < seq->_length && r; i++) {
-            r = DDS_Security_Deserialize_Property(dser, &seq->_buffer[i]);
-        }
     }
-
+    if (length > dser->remain / minpropsize) {
+        return 0;
+    }
+    DDS_Security_PropertySeq_deinit(seq);
+    seq->_length = seq->_maximum = length;
+    seq->_buffer = (seq->_length == 0) ? NULL : DDS_Security_PropertySeq_allocbuf(seq->_length);
+    int r = 1;
+    for (uint32_t i = 0; i < seq->_length && r; i++) {
+        r = DDS_Security_Deserialize_Property(dser, &seq->_buffer[i]);
+    }
     return r;
 }
 
@@ -659,22 +657,20 @@ DDS_Security_Deserialize_BinaryPropertySeq(
        Just use 8 because it is way faster and just as good for checking that the length
        value isn't completely ridiculous. */
     const uint32_t minpropsize = (uint32_t) (2 * sizeof (uint32_t));
-    int r = 1;
     uint32_t length;
-
     if (!DDS_Security_Deserialize_uint32_t(dser, &length)) {
         return 0;
-    } else if (length > dser->remain / minpropsize) {
-        return 0;
-    } else if (length > 0) {
-        DDS_Security_BinaryPropertySeq_deinit(seq);
-        seq->_length = seq->_maximum = length;
-        seq->_buffer = DDS_Security_BinaryPropertySeq_allocbuf(seq->_length);
-        for (uint32_t i = 0; i < seq->_length && r; i++) {
-            r = DDS_Security_Deserialize_BinaryProperty(dser, &seq->_buffer[i]);
-        }
     }
-
+    if (length > dser->remain / minpropsize) {
+        return 0;
+    }
+    DDS_Security_BinaryPropertySeq_deinit(seq);
+    seq->_length = seq->_maximum = length;
+    seq->_buffer = (seq->_length == 0) ? NULL : DDS_Security_BinaryPropertySeq_allocbuf(seq->_length);
+    int r = 1;
+    for (uint32_t i = 0; i < seq->_length && r; i++) {
+        r = DDS_Security_Deserialize_BinaryProperty(dser, &seq->_buffer[i]);
+    }
     return r;
 }
 
