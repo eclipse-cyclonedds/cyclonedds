@@ -76,7 +76,7 @@ ddsrt_sockaddr_get_size(const struct sockaddr *const sa)
       break;
 #elif defined(__APPLE__) || defined(__FreeBSD__)
     case AF_LINK:
-      sz = sizeof(struct sockaddr_dl);
+      sz = ((const struct sockaddr_dl *) sa)->sdl_len;
       break;
 #endif /* __linux */
     default:
