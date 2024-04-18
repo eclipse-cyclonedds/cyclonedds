@@ -14,10 +14,16 @@ include(GenerateExportHeader)
 
 message(STATUS "Building Iceoryx PSMX plugin")
 
+set(psmx_iox_sources
+  src/psmx_iox_impl.cpp
+  include/psmx_iox_impl.hpp
+  src/machineid.cpp
+  src/machineid.hpp)
+
 if(BUILD_SHARED_LIBS)
-  add_library(psmx_iox SHARED "src/psmx_iox_impl.cpp" "include/psmx_iox_impl.hpp")
+  add_library(psmx_iox SHARED ${psmx_iox_sources})
 else()
-  add_library(psmx_iox OBJECT "src/psmx_iox_impl.cpp" "include/psmx_iox_impl.hpp")
+  add_library(psmx_iox OBJECT ${psmx_iox_sources})
   set_property(GLOBAL APPEND PROPERTY cdds_plugin_list psmx_iox)
   set_property(GLOBAL PROPERTY psmx_iox_symbols iox_create_psmx)
 endif()

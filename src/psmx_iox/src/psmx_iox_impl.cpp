@@ -28,9 +28,9 @@
 #include "iceoryx_posh/popo/untyped_subscriber.hpp"
 #include "iceoryx_posh/popo/listener.hpp"
 #include "iceoryx_posh/runtime/posh_runtime.hpp"
-#include "iceoryx_posh/runtime/service_discovery.hpp"
 
 #include "psmx_iox_impl.hpp"
+#include "machineid.hpp"
 
 #define ERROR_PREFIX "=== [ICEORYX] "
 
@@ -92,9 +92,8 @@ static bool is_wildcard_partition(const char *str)
 
 struct iox_psmx : public dds_psmx_t
 {
-  iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service_name, const std::optional<dds_psmx_node_identifier_t>& node_id_override, bool support_keyed_topics);
+  iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service_name, const dds_psmx_node_identifier_t& node_id, bool support_keyed_topics);
   ~iox_psmx();
-  void discover_node_id(dds_psmx_node_identifier_t node_id_fallback);
   bool _support_keyed_topics;
   iox::capro::IdString_t _service_name;
   std::unique_ptr<iox::popo::Listener> _listener;  //the listener needs to be created after iox runtime has been initialized
@@ -102,7 +101,7 @@ struct iox_psmx : public dds_psmx_t
   std::shared_ptr<iox::popo::UntypedPublisher> _node_id_publisher;
 };
 
-iox_psmx::iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service_name, const std::optional<dds_psmx_node_identifier_t>& node_id_override, bool support_keyed_topics) :
+iox_psmx::iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service_name, const dds_psmx_node_identifier_t& node_id, bool support_keyed_topics) :
   dds_psmx_t {
     .ops = psmx_ops,
     .instance_name = dds_string_dup ("CycloneDDS-IOX-PSMX"),
@@ -121,14 +120,7 @@ iox_psmx::iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service
   iox::runtime::PoshRuntime::initRuntime(iox_runtime_name);
   _listener = std::unique_ptr<iox::popo::Listener>(new iox::popo::Listener());
 
-  if (node_id_override.has_value())
-    _node_id = node_id_override.value();
-  else
-  {
-    dds_psmx_node_identifier_t node_id_fallback = { 0 };
-    memcpy(node_id_fallback.x, &instance_hash, sizeof (instance_hash));
-    discover_node_id(node_id_fallback);
-  }
+  _node_id = node_id;
   dds_psmx_init_generic(this);
 }
 
@@ -138,39 +130,6 @@ iox_psmx::~iox_psmx()
   {
     std::cerr << ERROR_PREFIX "error during dds_psmx_cleanup_generic" << std::endl;
     assert(false);
-  }
-}
-
-void iox_psmx::discover_node_id(dds_psmx_node_identifier_t node_id_fallback)
-{
-  const iox::capro::IdString_t disctopic{"CycloneDDS-IOX-PSMX node_id discovery"};
-  iox::runtime::ServiceDiscovery serviceDiscovery;
-  unsigned int node_ids_present = 0;
-  iox::capro::IdString_t outstr;
-  serviceDiscovery.findService(_service_name,
-                               disctopic,
-                               iox::capro::Wildcard,
-                               [&node_ids_present, &outstr](const iox::capro::ServiceDescription& s) {
-                                 node_ids_present++;
-                                 outstr = s.getEventIDString();
-                               },
-                               iox::popo::MessagingPattern::PUB_SUB);
-  if (node_ids_present > 1)
-  {
-    std::cerr << ERROR_PREFIX "inconsistency during node id creation" << std::endl;
-    assert(false);
-  }
-  else if (node_ids_present == 1)
-  {
-    _node_id = to_node_identifier(outstr).value();
-  }
-  else
-  {
-    char tentative_node_id_str[33];
-    for (uint32_t n = 0; n < 16; n++)
-      snprintf(tentative_node_id_str + 2 * n, sizeof(tentative_node_id_str) - 2 * n, "%02" PRIx8, node_id_fallback.x[n]);
-    _node_id = node_id_fallback;
-    _node_id_publisher = std::shared_ptr<iox::popo::UntypedPublisher>(new iox::popo::UntypedPublisher({_service_name, disctopic, tentative_node_id_str}));
   }
 }
 
@@ -692,9 +651,11 @@ dds_return_t iox_create_psmx(struct dds_psmx **psmx, dds_psmx_instance_id_t inst
   std::optional<dds_psmx_node_identifier_t> node_id = std::nullopt;
   if (opt_node_id.has_value()) {
     node_id = to_node_identifier(opt_node_id.value());
-    if (!node_id.has_value())
-      return DDS_RETCODE_ERROR;
+  } else {
+    node_id = get_machineid ();
   }
+  if (!node_id.has_value())
+    return DDS_RETCODE_ERROR;
 
   auto opt_keyed_topics = get_config_option_value(config, "KEYED_TOPICS", true);
   bool keyed_topics = false;
@@ -705,6 +666,6 @@ dds_return_t iox_create_psmx(struct dds_psmx **psmx, dds_psmx_instance_id_t inst
       return DDS_RETCODE_ERROR;
   }
 
-  *psmx = new iox_psmx::iox_psmx(instance_id, service_name, node_id, keyed_topics);
+  *psmx = new iox_psmx::iox_psmx(instance_id, service_name, node_id.value(), keyed_topics);
   return *psmx ? DDS_RETCODE_OK :  DDS_RETCODE_ERROR;
 }
