@@ -51,6 +51,8 @@ typedef dds_return_t (*dds_psmx_create_fn) (
   const char *config // PSMX specific configuration
 );
 
+char *dds_pubsub_message_exchange_configstr (const char *config);
+
 dds_return_t dds_pubsub_message_exchange_init (const struct ddsi_domaingv *gv, struct dds_domain *domain);
 
 dds_return_t dds_pubsub_message_exchange_fini (struct dds_domain *domain);
