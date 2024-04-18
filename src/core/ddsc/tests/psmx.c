@@ -26,6 +26,7 @@
 #include "ddsi__xevent.h"
 #include "dds__entity.h"
 #include "dds__serdata_default.h"
+#include "dds__psmx.h"
 
 #include "config_env.h"
 #include "test_common.h"
@@ -1570,4 +1571,41 @@ CU_Test (ddsc_psmx, writer_loan)
     CU_ASSERT_FATAL (rc == 0);
   }
   dds_delete (dds_get_parent (pp));
+}
+
+CU_Test (ddsc_psmx, configstr)
+{
+  static const struct { const char *in; const char *out; } cases[] = {
+    { "", "" },
+    { ";", NULL },
+    { "X", NULL },
+    { "=", NULL },
+    { "=Y", NULL },
+    { "X;Y", NULL },
+    { "X=", "X=;" },
+    { "X=3", "X=3;" },
+    { "X=3;", "X=3;" },
+    { "X=3;;", NULL },
+    { "X=3;YY=456", "X=3;YY=456;" },
+    { "X=3;YY=456;", "X=3;YY=456;" },
+    { "X=3;YY=4\\56;", "X=3;YY=4\\56;" },
+    { "X=3;;YY=4\\56;", NULL },
+    { "X\\=3;", NULL },
+    { "X=3;\\", NULL },
+    { "X=3\\", NULL },
+    { "X=3\\\\", "X=3\\\\;" },
+    { "X=3\\;Y=", "X=3\\;Y=;" },
+    { "CYCLONEDDS_=", NULL },
+    { "CYCLONEDDS_X=", NULL },
+    { "X=3;CYCLONEDDS_=", NULL },
+    { "X=3;CYCLONEDDS_X=", NULL }
+  };
+  for (size_t i = 0; i < sizeof (cases) / sizeof (cases[0]); i++) {
+    char *p = dds_pubsub_message_exchange_configstr (cases[i].in);
+    CU_ASSERT_FATAL ((p == NULL) == (cases[i].out == NULL));
+    if (p) {
+      CU_ASSERT_FATAL (strcmp (p, cases[i].out) == 0);
+      ddsrt_free (p);
+    }
+  }
 }

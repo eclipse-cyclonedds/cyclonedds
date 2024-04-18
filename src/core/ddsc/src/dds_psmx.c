@@ -13,6 +13,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/dynlib.h"
 #include "dds/ddsrt/mh3.h"
+#include "dds/ddsrt/io.h"
 #include "dds/ddsi/ddsi_locator.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_endpoint.h"
@@ -213,19 +214,82 @@ static dds_psmx_instance_id_t get_psmx_instance_id (const struct ddsi_domaingv *
   return ddsrt_mh3 (config_name, strlen (config_name), hashed_id);
 }
 
-static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, struct ddsi_config_psmx *config, struct dds_psmx **out, ddsrt_dynlib_t *lib_handle)
+char *dds_pubsub_message_exchange_configstr (const char *config)
+{
+  // Check syntax: only KEY=VALUE pairs separated by ;, with backslash an escape character
+  // We make no assumptions on the names of the keys or their values, except that no keys
+  // may have CYCLONEDDS_ as a prefix, contain an escape character or an equals sign.
+  const char *kstart = config; // init to pacify compiler
+  enum { START, KEY0, KEY, VALUE_NORM, VALUE_ESCAPED } cs = START;
+  for (const char *c = config; *c; c++) {
+    switch (cs) {
+      case START: // start of string, signalled for acceptance check
+      case KEY0: // first character of key
+        kstart = c;
+        if (*c == '=') // key may not be empty
+          goto malformed;
+        cs = KEY;
+        // falls through
+      case KEY: // following characters of key
+        if (*c == ';' || *c == '\\') // key may not contain ; or backslash
+          goto malformed;
+        if (*c == '=') { // key may not have CYCLONEDDS_ as prefix
+          cs = VALUE_NORM;
+          if (c - kstart >= 11 && memcmp (kstart, "CYCLONEDDS_", 11) == 0)
+            goto malformed;
+        }
+        break;
+      case VALUE_NORM: // non-escaped characters in value
+        if (*c == ';' || *c == '\0') // ; -> next key (end of string same)
+          cs = KEY0;
+        else if (*c == '\\') // escape next character
+          cs = VALUE_ESCAPED;
+        break;
+      case VALUE_ESCAPED: // anything goes
+        cs = VALUE_NORM; // but only for this one character
+        break;
+    }
+  }
+  switch (cs)
+  {
+    case START:      // empty config string is ok
+    case KEY0:       // looking at the next key (after ';')
+    case VALUE_NORM: // end of value, we accept a missing ';' at the end
+      break;
+    default:
+      goto malformed;
+  }
+
+  char *configstr = NULL;
+  // Config checking verifies structure of config string and absence of any CYCLONEDDS_
+  // We append a semicolon if the original config string did not end on one
+  ddsrt_asprintf (&configstr, "%s%s", config, (cs == VALUE_NORM) ? ";" : "");
+  return configstr;
+
+malformed:
+  return NULL;
+}
+
+static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, const struct ddsi_config_psmx *config, struct dds_psmx **out, ddsrt_dynlib_t *lib_handle)
 {
   dds_psmx_create_fn creator = NULL;
   const char *lib_name;
   ddsrt_dynlib_t handle;
   char load_fn[100];
-  dds_return_t ret;
+  dds_return_t ret = DDS_RETCODE_ERROR;
   struct dds_psmx *psmx_instance = NULL;
 
   if (!config->library || config->library[0] == '\0')
     lib_name = config->name;
   else
     lib_name = config->library;
+
+  char *configstr;
+  if ((configstr = dds_pubsub_message_exchange_configstr (config->config)) == NULL)
+  {
+    GVERROR ("Configuration for PSMX instance '%s' is invalid\n", config->name);
+    goto err_configstr;
+  }
 
   if ((ret = ddsrt_dlopen (lib_name, true, &handle)) != DDS_RETCODE_OK)
   {
@@ -243,7 +307,7 @@ static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, struct d
     goto err_dlsym;
   }
 
-  if ((ret = creator (&psmx_instance, get_psmx_instance_id (gv, config->name), config->config)) != DDS_RETCODE_OK)
+  if ((ret = creator (&psmx_instance, get_psmx_instance_id (gv, config->name), configstr)) != DDS_RETCODE_OK)
   {
     GVERROR ("Failed to initialize PSMX instance '%s'.\n", config->name);
     goto err_init;
@@ -251,12 +315,15 @@ static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, struct d
   psmx_instance->priority = config->priority.value;
   *out = psmx_instance;
   *lib_handle = handle;
+  ddsrt_free (configstr);
   return DDS_RETCODE_OK;
 
 err_init:
 err_dlsym:
   ddsrt_dlclose (handle);
 err_dlopen:
+  ddsrt_free (configstr);
+err_configstr:
   return ret;
 }
 
