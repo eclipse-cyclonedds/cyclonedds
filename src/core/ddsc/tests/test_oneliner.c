@@ -26,7 +26,9 @@
 #include "dds/ddsi/ddsi_xevent.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_participant.h"
+#include "dds/ddsi/ddsi_gc.h"
 #include "ddsi__lease.h"
+#include "ddsi__participant.h"
 #include "ddsi__proxy_participant.h"
 #include "dds/dds.h"
 #include "dds__types.h"
@@ -1807,6 +1809,18 @@ static void dodeaf (struct oneliner_ctx *ctx)
   dodeaf_maybe_imm (ctx, immediate);
 }
 
+static void wait_for_cleanup (struct oneliner_ctx *ctx, dds_entity_t recovering_participant_handle, const ddsi_guid_t *guid)
+{
+  dds_entity *xprime;
+  dds_return_t ret;
+  if ((ret = dds_entity_pin (recovering_participant_handle, &xprime)) < 0)
+    error_dds (ctx, ret, "wait_for_cleanup: pin participant failed %"PRId32, recovering_participant_handle);
+  struct ddsi_domaingv * const gv = &xprime->m_domain->gv;
+  while (ddsi_is_deleted_participant_guid (gv->deleted_participants, guid, DDSI_DELETED_PPGUID_LOCAL | DDSI_DELETED_PPGUID_REMOTE))
+    dds_sleepfor (DDS_MSECS (10));
+  dds_entity_unpin (xprime);
+}
+
 static void dohearing_maybe_imm (struct oneliner_ctx *ctx, bool immediate)
 {
   char const * const mode = immediate ? "hearing!" : "hearing";
@@ -1823,6 +1837,9 @@ static void dohearing_maybe_imm (struct oneliner_ctx *ctx, bool immediate)
   if (immediate)
   {
     // speed up the process by forcing SPDP publication on the remote
+    // better wait until our local GC completed because we block
+    // rediscovery of the remote participant while we're still cleaning
+    // up after it
     for (int i = 0; i < (int) (sizeof (ctx->doms) / sizeof (ctx->doms[0])); i++)
     {
       if (i == ent / 9 || ctx->es[9*i] == 0)
@@ -1831,6 +1848,7 @@ static void dohearing_maybe_imm (struct oneliner_ctx *ctx, bool immediate)
       struct ddsi_participant *pp;
       if ((ret = dds_entity_pin (ctx->es[9*i], &xprime)) < 0)
         error_dds (ctx, ret, "%s: pin counterpart participant failed %"PRId32, mode, ctx->es[9*i]);
+      wait_for_cleanup (ctx, ctx->es[ent], &xprime->m_guid);
       ddsi_thread_state_awake (ddsi_lookup_thread_state (), &xprime->m_domain->gv);
       if ((pp = ddsi_entidx_lookup_participant_guid (xprime->m_domain->gv.entity_index, &xprime->m_guid)) != NULL)
         ddsi_resched_xevent_if_earlier (pp->spdp_xevent, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_MSECS (100)));
