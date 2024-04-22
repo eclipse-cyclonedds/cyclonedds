@@ -13,6 +13,7 @@
 #
 
 source fuzz/fuzz_sample_deser/prepare.sh
+source fuzz/fuzz_handshake/prepare.sh
 (
 mkdir build
 cd build
