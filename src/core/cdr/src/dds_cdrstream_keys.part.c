@@ -65,7 +65,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const st
           break;
         }
         default:
-          abort ();
+          ddsrt_abort ();
       }
       break;
     }
@@ -77,7 +77,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const st
     }
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
       // FIXME: implement support for sequences and unions as part of the key
-      abort ();
+      ddsrt_abort ();
       break;
     }
   }
@@ -114,7 +114,7 @@ void dds_stream_write_keyBO (DDS_OSTREAM_T * __restrict os, enum dds_cdr_key_ser
           break;
         }
         default:
-          abort ();
+          ddsrt_abort ();
           break;
       }
     }
@@ -191,7 +191,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream
         ops++;
         break;
       case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM:
-        abort ();
+        ddsrt_abort ();
         break;
     }
   }
@@ -290,7 +290,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t * __
           msz <<= (lc - 4);
         break;
       default:
-        abort ();
+        ddsrt_abort ();
         break;
     }
 
@@ -332,7 +332,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t * __re
         ops++;
         break;
       case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM:
-        abort ();
+        ddsrt_abort ();
         break;
       case DDS_OP_DLC:
         ops = dds_stream_extract_keyBO_from_data_delimited (is, os, allocator, op0, ops, mutable_member_or_parent, n_keys, keys_remaining);
@@ -411,7 +411,7 @@ static void dds_stream_extract_keyBO_from_key_optimized (dds_istream_t * __restr
         break;
       }
       default:
-        abort ();
+        ddsrt_abort ();
         break;
     }
   }

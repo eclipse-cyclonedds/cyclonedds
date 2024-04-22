@@ -34,7 +34,7 @@ static bool dds_stream_write_enum_valueBO (DDS_OSTREAM_T * __restrict os, const 
       dds_os_put4BO (os, allocator, val);
       break;
     default:
-      abort ();
+      ddsrt_abort ();
   }
   return true;
 }
@@ -72,7 +72,7 @@ static bool dds_stream_write_bitmask_valueBO (DDS_OSTREAM_T * __restrict os, con
       break;
     }
     default:
-      abort ();
+      ddsrt_abort ();
   }
   return true;
 }
@@ -126,7 +126,7 @@ static bool dds_stream_write_enum_arrBO (DDS_OSTREAM_T * __restrict os, const st
       }
       break;
     default:
-      abort ();
+      ddsrt_abort ();
   }
   return true;
 }
@@ -176,7 +176,7 @@ static bool dds_stream_write_bitmask_arrBO (DDS_OSTREAM_T * __restrict os, const
       break;
     }
     default:
-      abort ();
+      ddsrt_abort ();
   }
   return true;
 }
@@ -271,7 +271,7 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
         break;
       }
       case DDS_OP_VAL_EXT:
-        abort (); /* op type EXT as sequence subtype not supported */
+        ddsrt_abort (); /* op type EXT as sequence subtype not supported */
         return NULL;
     }
   }
@@ -347,7 +347,7 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
       break;
     }
     case DDS_OP_VAL_EXT:
-      abort (); /* op type EXT as array subtype not supported */
+      ddsrt_abort (); /* op type EXT as array subtype not supported */
       break;
   }
 
@@ -388,7 +388,7 @@ static bool dds_stream_write_union_discriminantBO (DDS_OSTREAM_T * __restrict os
         return false;
       break;
     default:
-      abort ();
+      ddsrt_abort ();
   }
   return true;
 }
@@ -436,7 +436,7 @@ static const uint32_t *dds_stream_write_uniBO (DDS_OSTREAM_T * __restrict os, co
           return NULL;
         break;
       case DDS_OP_VAL_EXT:
-        abort (); /* op type EXT as union subtype not supported */
+        ddsrt_abort (); /* op type EXT as union subtype not supported */
         break;
     }
   }
@@ -503,7 +503,7 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, DDS_OSTREAM_T * __
       ops += jmp ? jmp : 3;
       break;
     }
-    case DDS_OP_VAL_STU: abort (); break; /* op type STU only supported as subtype */
+    case DDS_OP_VAL_STU: ddsrt_abort (); break; /* op type STU only supported as subtype */
   }
   return ops;
 }
@@ -578,7 +578,7 @@ static const uint32_t *dds_stream_write_pl_memberlistBO (DDS_OSTREAM_T * __restr
         break;
       }
       default:
-        abort (); /* other ops not supported at this point */
+        ddsrt_abort (); /* other ops not supported at this point */
         break;
     }
   }
@@ -618,7 +618,7 @@ static const uint32_t *dds_stream_write_implBO (DDS_OSTREAM_T * __restrict os, c
         ops++;
         break;
       case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM:
-        abort ();
+        ddsrt_abort ();
         break;
       case DDS_OP_DLC:
         assert (((struct dds_ostream *)os)->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
