@@ -14,6 +14,7 @@
 
 #include "dds/dds.h"
 #include "dds/ddsrt/environ.h"
+#include "dds/ddsrt/process.h"
 #include "test_common.h"
 
 enum check_mode {
@@ -242,7 +243,7 @@ static int32_t resource_limits_cnv (const int v, const int f, const int o)
     case 0: l = v % 2; break;
     case 1: l = (v/2) % 2; break;
     case 2: l = (v/4) % 2; break;
-    default: abort ();
+    default: ddsrt_abort ();
   }
   // 1000: so resource limits are always greater than what is required for the history settings used in this test
   // o: offset so we can put in unique values for "resource limits" and "durability service resource limits"

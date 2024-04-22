@@ -138,7 +138,7 @@ static void get_type (dds_entity_t entity, ddsi_typeid_t **type_id, char **type_
     *type_name = ddsrt_strdup (wr->xqos->type_name);
   }
   else
-    abort ();
+    ddsrt_abort ();
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   dds_entity_unpin (e);
 }

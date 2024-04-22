@@ -17,6 +17,7 @@
 #include "ddsi__thread.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_tkmap.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsc/dds_rhc.h"
 
 #include "test_common.h"
@@ -97,7 +98,7 @@ static struct ddsi_domaingv *get_gv (dds_entity_t e)
   struct ddsi_domaingv *gv;
   dds_entity *x;
   if (dds_entity_pin (e, &x) < 0)
-    abort ();
+    ddsrt_abort ();
   gv = &x->m_domain->gv;
   dds_entity_unpin (x);
   return gv;

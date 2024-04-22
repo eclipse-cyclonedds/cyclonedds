@@ -16,6 +16,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/environ.h"
+#include "dds/ddsrt/process.h"
 #include "test_common.h"
 #include "test_oneliner.h"
 
@@ -56,7 +57,7 @@ static void dummy_cb (void)
   // Used as a listener function in checking merging of listeners,
   // and for that purpose, casting it to whatever function type is
   // required is ok.  It is not supposed to ever be called.
-  abort ();
+  ddsrt_abort ();
 }
 
 #undef DEFINE_STATUS_CALLBACK

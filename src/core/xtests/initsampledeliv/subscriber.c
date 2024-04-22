@@ -9,6 +9,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 #include "dds/dds.h"
+#include "dds/ddsrt/process.h"
 #include "InitSampleDelivData.h"
 #include <stdio.h>
 #include <string.h>
@@ -20,7 +21,7 @@ static void oops (const char *file, int line)
 {
   fflush (stdout);
   fprintf (stderr, "%s:%d\n", file, line);
-  abort ();
+  ddsrt_abort ();
 }
 
 #define oops() oops(__FILE__, __LINE__)

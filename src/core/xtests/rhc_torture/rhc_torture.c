@@ -146,7 +146,7 @@ static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct dds
     char si_u = (sd->statusinfo & DDSI_STATUSINFO_UNREGISTER) ? 'U' : '.';
     memset (&d, 0, sizeof (d));
     if (!ddsi_serdata_to_sample (sd, &d, NULL, NULL))
-      abort ();
+      ddsrt_abort ();
     (void) print_tstamp (buf, sizeof (buf), sd->timestamp.v);
     if (sd->kind == SDK_KEY)
       printf ("STORE %c%c %16"PRIx64" %16"PRIx64" %2"PRId32" %6s %s\n", si_u, si_d, iid, wr->e.iid, d.k, "_", buf);
@@ -338,14 +338,14 @@ static void rdtkcond (struct dds_rhc *rhc, dds_readcond *cond, const struct chec
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   if (max > 0 && cnt > max) {
     printf ("%s TOO MUCH DATA (%d > %d)\n", opname, cnt, max);
-    abort ();
+    ddsrt_abort ();
   } else if (cnt > 0) {
     if (print) print_seq (cnt, rres_iseq, rres_mseq);
   } else if (cnt == 0) {
     if (print) printf ("(no data)\n");
   } else {
     printf ("%s ERROR %d\n", opname, cnt);
-    abort ();
+    ddsrt_abort ();
   }
 
   for (int i = 0; i < cnt; i++)
@@ -358,7 +358,7 @@ static void rdtkcond (struct dds_rhc *rhc, dds_readcond *cond, const struct chec
     if (!rres_iseq[i].valid_data)
     {
       if (rres_mseq[i].x != 0 || rres_mseq[i].y != 0 || rres_mseq[i].s != NULL)
-        abort ();
+        ddsrt_abort ();
     }
   }
 
@@ -370,50 +370,50 @@ static void rdtkcond (struct dds_rhc *rhc, dds_readcond *cond, const struct chec
       switch (cond->m_sample_states)
       {
         case DDS_SST_READ:
-          if (rres_iseq[i].sample_state != DDS_READ_SAMPLE_STATE) abort ();
+          if (rres_iseq[i].sample_state != DDS_READ_SAMPLE_STATE) ddsrt_abort ();
           break;
         case DDS_SST_NOT_READ:
-          if (rres_iseq[i].sample_state != DDS_NOT_READ_SAMPLE_STATE) abort ();
+          if (rres_iseq[i].sample_state != DDS_NOT_READ_SAMPLE_STATE) ddsrt_abort ();
           break;
       }
       switch (cond->m_view_states)
       {
         case DDS_VST_NEW:
-          if (rres_iseq[i].view_state != DDS_NEW_VIEW_STATE) abort ();
+          if (rres_iseq[i].view_state != DDS_NEW_VIEW_STATE) ddsrt_abort ();
           break;
         case DDS_VST_OLD:
-          if (rres_iseq[i].view_state != DDS_NOT_NEW_VIEW_STATE) abort ();
+          if (rres_iseq[i].view_state != DDS_NOT_NEW_VIEW_STATE) ddsrt_abort ();
           break;
       }
       switch (cond->m_instance_states)
       {
         case DDS_IST_ALIVE:
-          if (rres_iseq[i].instance_state != DDS_ALIVE_INSTANCE_STATE) abort ();
+          if (rres_iseq[i].instance_state != DDS_ALIVE_INSTANCE_STATE) ddsrt_abort ();
           break;
         case DDS_IST_NOT_ALIVE_NO_WRITERS:
-          if (rres_iseq[i].instance_state != DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE) abort ();
+          if (rres_iseq[i].instance_state != DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE) ddsrt_abort ();
           break;
         case DDS_IST_NOT_ALIVE_DISPOSED:
-          if (rres_iseq[i].instance_state != DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE) abort ();
+          if (rres_iseq[i].instance_state != DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE) ddsrt_abort ();
           break;
         case DDS_IST_NOT_ALIVE_NO_WRITERS | DDS_IST_NOT_ALIVE_DISPOSED:
           if (rres_iseq[i].instance_state != DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE && rres_iseq[i].instance_state != DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE)
-            abort ();
+            ddsrt_abort ();
           break;
         case DDS_IST_ALIVE | DDS_IST_NOT_ALIVE_NO_WRITERS:
           if (rres_iseq[i].instance_state != DDS_ALIVE_INSTANCE_STATE && rres_iseq[i].instance_state != DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE)
-            abort ();
+            ddsrt_abort ();
           break;
         case DDS_IST_ALIVE | DDS_IST_NOT_ALIVE_DISPOSED:
           if (rres_iseq[i].instance_state != DDS_ALIVE_INSTANCE_STATE && rres_iseq[i].instance_state != DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE)
-            abort ();
+            ddsrt_abort ();
           break;
       }
       if (cond->m_query.m_filter)
       {
         /* invalid samples don't get the attributes zero'd out in the result, though the keys are guaranteed to be set; maybe I should change that and guarantee that the fields are 0 ... */
         if (!cond->m_query.m_filter (&rres_mseq[i]))
-          abort ();
+          ddsrt_abort ();
       }
     }
   }
@@ -551,7 +551,7 @@ static dds_readcond *get_condaddr (dds_entity_t x)
 {
   struct dds_entity *e;
   if (dds_entity_lock (x, DDS_KIND_DONTCARE, &e) < 0)
-    abort();
+    ddsrt_abort();
   assert (dds_entity_kind (e) == DDS_KIND_COND_READ || dds_entity_kind (e) == DDS_KIND_COND_QUERY);
   dds_entity_unlock (e);
   return (dds_readcond *) e;
@@ -562,7 +562,7 @@ static void print_cond_w_addr (const char *label, dds_entity_t x)
   char buf[100];
   struct dds_entity *e;
   if (dds_entity_lock (x, DDS_KIND_DONTCARE, &e) < 0)
-    abort();
+    ddsrt_abort();
   assert (dds_entity_kind (e) == DDS_KIND_COND_READ || dds_entity_kind (e) == DDS_KIND_COND_QUERY);
   print_condmask (buf, sizeof (buf), (dds_readcond *) e);
   printf ("%s: %"PRId32" => %p %s\n", label, x, (void *) e, buf);
@@ -580,7 +580,7 @@ static struct ddsi_domaingv *get_gv (dds_entity_t e)
   struct ddsi_domaingv *gv;
   dds_entity *x;
   if (dds_entity_pin (e, &x) < 0)
-    abort ();
+    ddsrt_abort ();
   gv = &x->m_domain->gv;
   dds_entity_unpin (x);
   return gv;
@@ -603,7 +603,7 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
   {
     struct dds_entity *x;
     if (dds_entity_lock (rd[i], DDS_KIND_READER, &x) < 0)
-      abort ();
+      ddsrt_abort ();
     dds_reader *rdp = (dds_reader *) x;
     rhc[i] = rdp->m_rhc;
     dds_entity_unlock (x);
@@ -649,7 +649,7 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
         {
           assert (ci / 32 < (int) (sizeof (rd) / sizeof (rd[0])));
           conds[ci] = create_cond (rd[ci / 32], stab[s] | vtab[v] | itab[i], ((ci % 2) == 0) ? filter0 : filter1);
-          if (conds[ci] <= 0) abort ();
+          if (conds[ci] <= 0) ddsrt_abort ();
           rhcconds[ci] = get_condaddr (conds[ci]);
           if (print) {
             char buf[19];
@@ -972,7 +972,7 @@ int main (int argc, char **argv)
     ddsrt_threadattr_t tattr;
     ddsrt_threadattr_init (&tattr);
     if (ddsrt_thread_create (&stttid, "stacktracethread", &tattr, stacktracethread, &sttarg) != 0)
-      abort ();
+      ddsrt_abort ();
   }
 
   printf ("%"PRId64" prng seed %u first %d count %d print %d xchecks %d\n", dds_time (), seed, first, count, print, xchecks);
@@ -996,7 +996,7 @@ int main (int argc, char **argv)
   assert (ddsrt_atomic_ldvoidp (&mainthread->gv) != NULL);
   {
     struct dds_topic *x;
-    if (dds_topic_pin (tp, &x) < 0) abort();
+    if (dds_topic_pin (tp, &x) < 0) ddsrt_abort();
     mdtype = ddsi_sertype_ref (x->m_stype);
     dds_topic_unpin (x);
   }

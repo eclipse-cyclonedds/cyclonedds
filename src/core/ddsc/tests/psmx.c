@@ -17,6 +17,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/environ.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsrt/static_assert.h"
 
 #include "dds/dds.h"
@@ -280,7 +281,7 @@ static void print (struct tracebuf *tb, const char *fmt, ...)
 {
   //return;
   if (tb->pos >= sizeof (tb->buf))
-    abort ();
+    ddsrt_abort ();
 
   va_list ap;
   va_start (ap, fmt);
