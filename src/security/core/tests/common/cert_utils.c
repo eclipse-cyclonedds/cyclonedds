@@ -25,8 +25,8 @@ static X509 * get_x509(int not_valid_before, int not_valid_after, const char * c
   X509 * cert = X509_new ();
   CU_ASSERT_FATAL (cert != NULL);
   ASN1_INTEGER_set (X509_get_serialNumber (cert), 1);
-  X509_gmtime_adj (X509_get_notBefore (cert), not_valid_before);
-  X509_gmtime_adj (X509_get_notAfter (cert), not_valid_after);
+  X509_gmtime_adj (X509_getm_notBefore (cert), not_valid_before);
+  X509_gmtime_adj (X509_getm_notAfter (cert), not_valid_after);
 
   X509_NAME * name = X509_get_subject_name (cert);
   X509_NAME_add_entry_by_txt (name, "C",  MBSTRING_ASC, (unsigned char *) "NL", -1, -1, 0);

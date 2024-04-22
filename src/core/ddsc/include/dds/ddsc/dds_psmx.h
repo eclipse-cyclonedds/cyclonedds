@@ -11,6 +11,9 @@
 /**
  * @defgroup psmx (Publish Subscribe Message Exchange)
  * @ingroup dds
+ * The Publish Subscribe Message Exchange (PSMX) interface allows implementing additional methods of pub-sub data-exchange
+ * as an alternative to Cyclone's networked transport. The PSMX interface allows to load implementations as plugins,
+ * so there is no need for compile-time linking.
  */
 #ifndef DDS_PSMX_H
 #define DDS_PSMX_H
@@ -34,6 +37,7 @@ struct dds_psmx_endpoint_list_elem;
 
 /**
  * @brief Type of the PSMX endpoint
+ * @ingroup psmx
  */
 typedef enum dds_psmx_endpoint_type {
   DDS_PSMX_ENDPOINT_TYPE_UNSET,
@@ -43,6 +47,7 @@ typedef enum dds_psmx_endpoint_type {
 
 /**
  * @brief Identifier for the PSMX instance
+ * @ingroup psmx
  */
 typedef uint32_t dds_psmx_instance_id_t;
 
@@ -55,6 +60,7 @@ typedef uint32_t dds_psmx_features_t;
 
 /**
  * @brief describes the data which is transferred in addition to just the sample
+ * @ingroup psmx
  */
 typedef struct dds_psmx_metadata {
   dds_loaned_sample_state_t sample_state;
@@ -70,6 +76,7 @@ typedef struct dds_psmx_metadata {
 
 /**
  * @brief identifier used to distinguish between PSMX instances on nodes
+ * @ingroup psmx
  */
 typedef struct dds_psmx_node_identifier
 {
@@ -78,6 +85,7 @@ typedef struct dds_psmx_node_identifier
 
 /**
  * @brief Definition for function that checks QoS support
+ * @ingroup psmx
  *
  * Definition for function that checks whether the provided QoS
  * is supported by the PSMX implementation.
@@ -92,7 +100,7 @@ typedef bool (*dds_psmx_type_qos_supported_fn) (struct dds_psmx *psmx_instance, 
 
 /**
  * @brief Definition for function to create a topic
- *
+ * @ingroup psmx
  * Definition for a function that is called to create a new topic
  * for a PSMX instance.
  *
@@ -110,7 +118,7 @@ typedef struct dds_psmx_topic * (* dds_psmx_create_topic_fn) (
 
 /**
  * @brief Definition for function to destruct a topic
- *
+ * @ingroup psmx
  * Definition for a function that is called on topic destruction.
  *
  * @param[in] psmx_topic  The PSMX topic to destruct
@@ -121,7 +129,7 @@ typedef dds_return_t (*dds_psmx_delete_topic_fn) (struct dds_psmx_topic *psmx_to
 
 /**
  * @brief Function definition for pubsub message exchange cleanup
- *
+ * @ingroup psmx
  * @param[in] psmx_instance  the psmx instance to de-initialize
  * @returns a DDS return code
  */
@@ -129,7 +137,7 @@ typedef dds_return_t (* dds_psmx_deinit_fn) (struct dds_psmx *psmx_instance);
 
 /**
  * @brief Definition for PSMX locator generation function
- *
+ * @ingroup psmx
  * Returns a locator which is unique between nodes, but identical for instances on
  * the same node
  *
@@ -140,7 +148,7 @@ typedef dds_psmx_node_identifier_t (* dds_psmx_get_node_identifier_fn) (const st
 
 /**
  * @brief Definition for PSMX function to get supported features
- *
+ * @ingroup psmx
  * Returns an integer with the flags set for the features that are
  * supported by the provided PSMX instance.
  *
@@ -152,6 +160,7 @@ typedef dds_psmx_features_t (* dds_psmx_supported_features_fn) (const struct dds
 
 /**
  * @brief functions which are used on a PSMX instance
+ * @ingroup psmx
  */
 typedef struct dds_psmx_ops {
   dds_psmx_type_qos_supported_fn   type_qos_supported;
@@ -164,6 +173,7 @@ typedef struct dds_psmx_ops {
 
 /**
  * @brief Definition of function to create an endpoint for a topic
+ * @ingroup psmx
  *
  * @param[in] psmx_topic  The PSMX topic to create the endpoint for
  * @param[in] endpoint_type  The type of endpoint to create (publisher or subscriber)
@@ -173,6 +183,7 @@ typedef struct dds_psmx_endpoint * (* dds_psmx_create_endpoint_fn) (struct dds_p
 
 /**
  * @brief Definition of function to delete an PSMX endpoint
+ * @ingroup psmx
  *
  * @param[in] psmx_endpoint  The endpoint to be deleted
  * @returns a DDS return code
@@ -181,6 +192,7 @@ typedef dds_return_t (* dds_psmx_delete_endpoint_fn) (struct dds_psmx_endpoint *
 
 /**
  * @brief functions which are used on a PSMX topic
+ * @ingroup psmx
  */
 typedef struct dds_psmx_topic_ops {
   dds_psmx_create_endpoint_fn        create_endpoint;
@@ -190,6 +202,7 @@ typedef struct dds_psmx_topic_ops {
 
 /**
  * @brief Definition for function to requests a loan from the PSMX
+ * @ingroup psmx
  *
  * @param[in] psmx_endpoint   the endpoint to loan from
  * @param[in] size_requested  the size of the loan requested
@@ -199,6 +212,7 @@ typedef dds_loaned_sample_t * (* dds_psmx_endpoint_request_loan_fn) (struct dds_
 
 /**
  * @brief Definition of function to write data on a PSMX endpoint
+ * @ingroup psmx
  *
  * @param[in] psmx_endpoint    The endpoint to publish the data on
  * @param[in] data    The data to publish
@@ -208,6 +222,7 @@ typedef dds_return_t (* dds_psmx_endpoint_write_fn) (struct dds_psmx_endpoint *p
 
 /**
  * @brief Definition of function to take data from an PSMX endpoint
+ * @ingroup psmx
  *
  * Used in a poll based implementation.
  *
@@ -218,6 +233,7 @@ typedef dds_loaned_sample_t * (* dds_psmx_endpoint_take_fn) (struct dds_psmx_end
 
 /**
  * @brief Definition of function to set the a callback function on an PSMX endpoint
+ * @ingroup psmx
  *
  * @param[in] psmx_endpoint the endpoint to set the callback function on
  * @param[in] reader        the DDS reader associated with the endpoint
@@ -227,6 +243,7 @@ typedef dds_return_t (* dds_psmx_endpoint_on_data_available_fn) (struct dds_psmx
 
 /**
  * @brief Functions that are used on a PSMX endpoint
+ * @ingroup psmx
  */
 typedef struct dds_psmx_endpoint_ops {
   dds_psmx_endpoint_request_loan_fn       request_loan;
@@ -237,6 +254,7 @@ typedef struct dds_psmx_endpoint_ops {
 
 /**
  * @brief the top-level entry point on the PSMX is bound to a specific implementation of a PSMX
+ * @ingroup psmx
  */
 typedef struct dds_psmx {
   dds_psmx_ops_t ops; //!< associated functions
@@ -249,6 +267,7 @@ typedef struct dds_psmx {
 
 /**
  * @brief the topic-level PSMX
+ * @ingroup psmx
  *
  * this will exchange data for readers and writers which are matched through discovery
  * will only exchange a single type of data
@@ -265,6 +284,7 @@ typedef struct dds_psmx_topic {
 
 /**
  * @brief the definition of one instance of a dds reader/writer using a PSMX instance
+ * @ingroup psmx
  */
 typedef struct dds_psmx_endpoint {
   dds_psmx_endpoint_ops_t ops; //!< associated functions
@@ -275,6 +295,7 @@ typedef struct dds_psmx_endpoint {
 
 /**
  * @brief adds a topic to the list
+ * @ingroup psmx
  *
  * will create the first list entry if it does not yet exist
  *
@@ -286,6 +307,7 @@ DDS_EXPORT dds_return_t dds_add_psmx_topic_to_list (struct dds_psmx_topic *psmx_
 
 /**
  * @brief removes a topic from the list
+ * @ingroup psmx
  *
  * will set the pointer to the list to null if the last entry is removed
  *
@@ -297,6 +319,7 @@ DDS_EXPORT dds_return_t dds_remove_psmx_topic_from_list (struct dds_psmx_topic *
 
 /**
  * @brief adds an endpoint to the list
+ * @ingroup psmx
  *
  * will create the first list entry if it does not yet exist
  *
@@ -308,6 +331,7 @@ DDS_EXPORT dds_return_t dds_add_psmx_endpoint_to_list (struct dds_psmx_endpoint 
 
 /**
  * @brief removes an endpoint from the list
+ * @ingroup psmx
  *
  * will set the pointer to the list to null if the last entry is removed
  *
@@ -319,6 +343,7 @@ DDS_EXPORT dds_return_t dds_remove_psmx_endpoint_from_list (struct dds_psmx_endp
 
 /**
  * @brief initialization function for PSMX instance
+ * @ingroup psmx
  *
  * Should be called from all constructors of class which inherit from dds_psmx_t
  *
@@ -329,6 +354,7 @@ DDS_EXPORT dds_return_t dds_psmx_init_generic (struct dds_psmx *psmx);
 
 /**
  * @brief cleanup function for a PSMX instance
+ * @ingroup psmx
  *
  * Should be called from all destructors of classes which inherit from dds_psmx_t
  *
@@ -339,6 +365,7 @@ DDS_EXPORT dds_return_t dds_psmx_cleanup_generic (struct dds_psmx *psmx);
 
 /**
  * @brief init function for topic
+ * @ingroup psmx
  *
  * Should be called from all constructors of classes which inherit from struct dds_psmx_topic
  *
@@ -354,6 +381,7 @@ DDS_EXPORT dds_return_t dds_psmx_topic_init_generic (struct dds_psmx_topic *psmx
 
 /**
  * @brief cleanup function for a topic
+ * @ingroup psmx
  *
  * Should be called from all destructors of classes which inherit from struct dds_psmx_topic
  *
@@ -365,6 +393,7 @@ DDS_EXPORT dds_return_t dds_psmx_topic_cleanup_generic(struct dds_psmx_topic *ps
 
 /**
  * @brief Gets the supported features for a PSMX instance
+ * @ingroup psmx
  *
  * Returns the set of supported features for the provided PSMX instance.
  *

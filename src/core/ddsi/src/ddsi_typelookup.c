@@ -276,7 +276,12 @@ void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
 
   DDS_Builtin_TypeLookup_Request req;
   memset (&req, 0, sizeof (req));
-  ddsi_serdata_to_sample (d, &req, NULL, NULL);
+  if (!ddsi_serdata_to_sample (d, &req, NULL, NULL))
+  {
+    GVTRACE (" handle-tl-req deserialization failed");
+    return;
+  }
+
   if (req.data._d != DDS_Builtin_TypeLookup_getTypes_HashId)
   {
     GVTRACE (" handle-tl-req wr "PGUIDFMT " unknown req-type %"PRIi32, PGUID (from_guid (&req.header.requestId.writer_guid)), req.data._d);
@@ -384,7 +389,11 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
 
   DDS_Builtin_TypeLookup_Reply reply;
   memset (&reply, 0, sizeof (reply));
-  ddsi_serdata_to_sample (d, &reply, NULL, NULL);
+  if (!ddsi_serdata_to_sample (d, &reply, NULL, NULL))
+  {
+    GVTRACE (" handle-tl-req deserialization failed");
+    return;
+  }
   if (reply.return_data._d != DDS_Builtin_TypeLookup_getTypes_HashId)
   {
     GVTRACE (" handle-tl-reply wr "PGUIDFMT " unknown reply-type %"PRIi32, PGUID (from_guid (&reply.header.relatedRequestId.writer_guid)), reply.return_data._d);

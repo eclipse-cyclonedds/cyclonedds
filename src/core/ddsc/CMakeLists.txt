@@ -51,6 +51,12 @@ prepend(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
 if(ENABLE_TYPELIB)
   list(APPEND srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/dds_dynamic_type.c")
 endif()
+if(ENABLE_QOS_PROVIDER)
+  list(APPEND srcs_ddsc
+    "${CMAKE_CURRENT_LIST_DIR}/src/dds_sysdef_parser.c"
+    "${CMAKE_CURRENT_LIST_DIR}/src/dds_sysdef_validation.c"
+    "${CMAKE_CURRENT_LIST_DIR}/src/dds_qos_provider.c")
+endif()
 
 prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds__builtin.h
@@ -81,6 +87,10 @@ prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds__loaned_sample.h
   dds__heap_loan.h
   dds__psmx.h
+  dds__sysdef_model.h
+  dds__sysdef_parser.h
+  dds__sysdef_validation.h
+  dds__qos_provider.h
 )
 
 prepend(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>/dds/"
@@ -103,6 +113,9 @@ prepend(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<
 
 if(ENABLE_TYPELIB)
   list(APPEND hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>/dds/ddsc/dds_public_dynamic_type.h")
+endif()
+if(ENABLE_QOS_PROVIDER)
+  list(APPEND hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>/dds/ddsc/dds_public_qos_provider.h")
 endif()
 
 generate_export_header(
@@ -133,7 +146,6 @@ install(
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   COMPONENT dev)
 
-# TODO: improve test inclusion.
-if((BUILD_TESTING) AND (BUILD_IDLC) AND ((NOT DEFINED MSVC_VERSION) OR (MSVC_VERSION GREATER "1800")))
+if((BUILD_TESTING) AND ((NOT DEFINED MSVC_VERSION) OR (MSVC_VERSION GREATER "1800")))
   add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/tests")
 endif()

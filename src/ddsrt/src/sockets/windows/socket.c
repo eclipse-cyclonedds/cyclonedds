@@ -19,6 +19,9 @@
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/time.h"
 
+// Has to be included after most of windows has been included, it seems
+#include <Mswsock.h>
+
 #ifdef ddsrt_select
 #undef ddsrt_select /* See sockets.h for details. */
 #endif
@@ -95,6 +98,43 @@ ddsrt_socket(ddsrt_socket_t *sockptr, int domain, int type, int protocol)
   }
 
   return DDS_RETCODE_ERROR;
+}
+
+void
+ddsrt_socket_ext_init(
+  ddsrt_socket_ext_t *sockext,
+  ddsrt_socket_t sock)
+{
+  sockext->sock = sock;
+  // It is not clear to me whether each socket gets the same WSARecvMsg function pointer
+  // so we have to request it for every socket.  It is clear to me that one mustn't try it
+  // on a SOCK_STREAM socket
+  int type;
+  int length = sizeof (int);
+  getsockopt (sock, SOL_SOCKET, SO_TYPE, (char *) &type, &length);
+  if (type == SOCK_STREAM)
+  {
+    sockext->wsarecvmsg = 0;
+  }
+  else
+  {
+    GUID wsarecvmsg_guid = WSAID_WSARECVMSG;
+    DWORD dwBytesReturned = 0;
+    if (WSAIoctl (sockext->sock, SIO_GET_EXTENSION_FUNCTION_POINTER,
+                  &wsarecvmsg_guid, sizeof (wsarecvmsg_guid),
+                  &sockext->wsarecvmsg, sizeof (sockext->wsarecvmsg),
+                  &dwBytesReturned, NULL, NULL) != 0)
+    {
+      sockext->wsarecvmsg = 0;
+    }
+  }
+}
+
+void
+ddsrt_socket_ext_fini(
+  ddsrt_socket_ext_t *sockext)
+{
+  (void)sockext;
 }
 
 dds_return_t
@@ -496,46 +536,82 @@ ddsrt_recv(
   return recv_error_to_retcode(WSAGetLastError());
 }
 
+/* Compile time check to ensure iovec matches WSABUF. */
+struct iovec_matches_WSABUF {
+  char sizeof_matches[sizeof(ddsrt_iovec_t) == sizeof(WSABUF) ? 1 : -1];
+  char base_off_matches[offsetof(ddsrt_iovec_t, iov_base) == offsetof(WSABUF, buf) ? 1 : -1];
+  char base_size_matches[sizeof(((ddsrt_iovec_t *)8)->iov_base) == sizeof(((WSABUF *)8)->buf) ? 1 : -1];
+  char len_off_matches[offsetof(ddsrt_iovec_t, iov_len) == offsetof(WSABUF, len) ? 1 : -1];
+  char len_size_matches[sizeof(((ddsrt_iovec_t *)8)->iov_len) == sizeof(((WSABUF *)8)->len) ? 1 : -1];
+};
+
 dds_return_t
 ddsrt_recvmsg(
-  ddsrt_socket_t sock,
+  const ddsrt_socket_ext_t *sockext,
   ddsrt_msghdr_t *msg,
   int flags,
   ssize_t *rcvd)
 {
-  int err, n;
-
   assert(msg != NULL);
-  assert(msg->msg_iovlen == 1);
-  assert(msg->msg_controllen == 0);
-  assert(msg->msg_iov[0].iov_len < INT_MAX);
-
-  msg->msg_flags = 0;
-  n = recvfrom(
-    sock,
-    msg->msg_iov[0].iov_base,
-    (int)msg->msg_iov[0].iov_len,
-    flags,
-    msg->msg_name,
-   &msg->msg_namelen);
-
-  if (n != -1) {
-    *rcvd = n;
-    return DDS_RETCODE_OK;
+  if (sockext->wsarecvmsg)
+  {
+    WSAMSG wsamsg = {
+      .name = (LPSOCKADDR) msg->msg_name,
+      .namelen = (INT) msg->msg_namelen,
+      .lpBuffers = (LPWSABUF) msg->msg_iov,
+      .dwBufferCount = (DWORD) msg->msg_iovlen,
+      .Control = {
+        .len = (ULONG) msg->msg_controllen,
+        .buf = (CHAR *) msg->msg_control,
+      },
+      .dwFlags = 0
+    };
+    DWORD n;
+    if (sockext->wsarecvmsg (sockext->sock, &wsamsg, &n, NULL, 0) != 0)
+    {
+      int err = WSAGetLastError();
+      return recv_error_to_retcode(err);
+    }
+    else
+    {
+      msg->msg_flags = wsamsg.dwFlags;
+      msg->msg_controllen = wsamsg.Control.len;
+      *rcvd = (ssize_t) n;
+      return DDS_RETCODE_OK;
+    }
   }
+  else
+  {
+    assert(msg->msg_iovlen == 1);
+    assert(msg->msg_iov[0].iov_len < INT_MAX);
+    msg->msg_flags = 0;
+    int n = recvfrom(
+            sockext->sock,
+            msg->msg_iov[0].iov_base,
+            (int)msg->msg_iov[0].iov_len,
+            flags,
+            msg->msg_name,
+            &msg->msg_namelen);
+    msg->msg_controllen = 0;
 
-  err = WSAGetLastError();
-  if (err == WSAEMSGSIZE) {
-    /* Windows returns an error for too-large messages, UNIX expects the
-       original size and the MSG_TRUNC flag. MSDN states it is truncated, which
-       presumably means it returned as much of the message as it could. Return
-       that the message was one byte larger than the available space and set
-       MSG_TRUNC. */
-    *rcvd = msg->msg_iov[0].iov_len + 1;
-    msg->msg_flags |= MSG_TRUNC;
+    if (n != -1) {
+      *rcvd = n;
+      return DDS_RETCODE_OK;
+    }
+
+    int err = WSAGetLastError();
+    if (err == WSAEMSGSIZE) {
+      /* Windows returns an error for too-large messages, UNIX expects the
+         original size and the MSG_TRUNC flag. MSDN states it is truncated, which
+         presumably means it returned as much of the message as it could. Return
+         that the message was one byte larger than the available space and set
+         MSG_TRUNC. */
+      *rcvd = msg->msg_iov[0].iov_len + 1;
+      msg->msg_flags |= MSG_TRUNC;
+    }
+
+    return recv_error_to_retcode(err);
   }
-
-  return recv_error_to_retcode(err);
 }
 
 static dds_return_t
@@ -606,15 +682,6 @@ ddsrt_send(
   return send_error_to_retcode(WSAGetLastError());
 }
 
-/* Compile time check to ensure iovec matches WSABUF. */
-struct iovec_matches_WSABUF {
-  char sizeof_matches[sizeof(ddsrt_iovec_t) == sizeof(WSABUF) ? 1 : -1];
-  char base_off_matches[offsetof(ddsrt_iovec_t, iov_base) == offsetof(WSABUF, buf) ? 1 : -1];
-  char base_size_matches[sizeof(((ddsrt_iovec_t *)8)->iov_base) == sizeof(((WSABUF *)8)->buf) ? 1 : -1];
-  char len_off_matches[offsetof(ddsrt_iovec_t, iov_len) == offsetof(WSABUF, len) ? 1 : -1];
-  char len_size_matches[sizeof(((ddsrt_iovec_t *)8)->iov_len) == sizeof(((WSABUF *)8)->len) ? 1 : -1];
-};
-
 dds_return_t
 ddsrt_sendmsg(
   ddsrt_socket_t sock,
@@ -628,6 +695,8 @@ ddsrt_sendmsg(
   assert(msg != NULL);
   assert(msg->msg_controllen == 0);
 
+  // msg_iov -> WSABUF* cast validity is checked by compile-time
+  // checks defined above in "struct iovec_matches_WSABUF"
   ret = WSASendTo(
         sock,
         (WSABUF *)msg->msg_iov,

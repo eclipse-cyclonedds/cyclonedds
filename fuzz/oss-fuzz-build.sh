@@ -12,15 +12,16 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 
+source fuzz/fuzz_sample_deser/prepare.sh
 (
 mkdir build
 cd build
 cmake \
     -DBUILD_IDLC=ON \
-    -DBUILD_TESTING=ON \
+    -DEXPORT_ALL_SYMBOLS=ON \
     -DBUILD_SHARED_LIBS=OFF \
     -DBUILD_EXAMPLES=NO \
-    -DENABLE_SECURITY=NO \
+    -DENABLE_SECURITY=ON \
     -DENABLE_SSL=NO \
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
     -DCMAKE_INSTALL_PREFIX=/usr/local ..

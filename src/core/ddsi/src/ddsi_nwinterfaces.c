@@ -224,6 +224,7 @@ static enum maybe_add_interface_result maybe_add_interface (struct ddsi_domaingv
   if ((dst->name = ddsrt_strdup (ifa->name)) == NULL)
     return MAI_OUT_OF_MEMORY;
   dst->priority = loopback ? 2 : 0;
+  dst->allow_multicast = DDSI_AMC_DEFAULT;
   dst->prefer_multicast = 0;
   *qout = q;
   return MAI_ADDED;
@@ -369,6 +370,7 @@ static bool add_matching_interface (struct ddsi_domaingv *gv, struct interface_p
   }
 
   act_iface->prefer_multicast = ((unsigned) cfg_iface->cfg.prefer_multicast) & 1;
+  act_iface->allow_multicast = cfg_iface->cfg.allow_multicast;
 
   if (!cfg_iface->cfg.priority.isdefault)
     act_iface->priority = cfg_iface->cfg.priority.value;
@@ -404,6 +406,62 @@ static void log_arbitrary_selection (struct ddsi_domaingv *gv, const struct ddsi
   for (size_t i = 0; i < maxq_count; i++)
     GVLOG (DDS_LC_INFO, "%s%s", (i == 0) ? "" : ", ", interfaces[maxq_list[i]].name);
   GVLOG (DDS_LC_INFO, "\n");
+}
+
+static bool set_and_check_link_local (struct ddsi_domaingv *gv)
+{
+  gv->using_link_local_intf = false;
+  for (int i = 0; i < gv->n_interfaces; i++)
+  {
+    if (!gv->interfaces[i].link_local)
+      continue;
+    else if (!gv->using_link_local_intf)
+      gv->using_link_local_intf = true;
+    else
+    {
+      GVERROR ("multiple interfaces selected with at least one having a link-local address\n");
+      return false;
+    }
+  }
+  return true;
+}
+
+static bool set_and_check_allow_multicast (struct ddsi_domaingv *gv)
+{
+  for (int i = 0; i < gv->n_interfaces; i++)
+  {
+    struct ddsi_network_interface * const act_iface = &gv->interfaces[i];
+    if (act_iface->allow_multicast == DDSI_AMC_DEFAULT)
+    {
+      if (!act_iface->mc_capable)
+        act_iface->allow_multicast = 0;
+      else if (gv->config.allowMulticast != DDSI_AMC_DEFAULT)
+      {
+        assert ((gv->config.allowMulticast & DDSI_AMC_DEFAULT) == 0);
+        act_iface->allow_multicast = gv->config.allowMulticast;
+      }
+      else if (act_iface->mc_flaky)
+      {
+        act_iface->allow_multicast = DDSI_AMC_SPDP;
+        GVLOG (DDS_LC_CONFIG, "%s: presumed flaky multicast, use for SPDP only\n", act_iface->name);
+      }
+      else
+      {
+        GVLOG (DDS_LC_CONFIG, "%s: presumed robust multicast support, use for everything\n", act_iface->name);
+        act_iface->allow_multicast = DDSI_AMC_TRUE;
+      }
+    }
+    assert ((act_iface->allow_multicast & DDSI_AMC_DEFAULT) == 0);
+    if (!act_iface->mc_capable)
+    {
+      if (act_iface->prefer_multicast || act_iface->allow_multicast)
+      {
+        GVERROR ("interface %s: not multicast capable but prefer_multicast and/or allow_multicast set\n", act_iface->name);
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 int ddsi_gather_network_interfaces (struct ddsi_domaingv *gv)
@@ -483,19 +541,10 @@ int ddsi_gather_network_interfaces (struct ddsi_domaingv *gv)
     ddsrt_free(matches);
   }
 
-  gv->using_link_local_intf = false;
-  for (int i = 0; i < gv->n_interfaces && ok; i++)
-  {
-    if (!gv->interfaces[i].link_local)
-      continue;
-    else if (!gv->using_link_local_intf)
-      gv->using_link_local_intf = true;
-    else
-    {
-      GVERROR ("multiple interfaces selected with at least one having a link-local address\n");
-      ok = false;
-    }
-  }
+  if (ok && !set_and_check_link_local (gv))
+    ok = false;
+  if (ok && !set_and_check_allow_multicast (gv))
+    ok = false;
 
   for (size_t i = 0; i < n_interfaces; i++)
     if (interfaces[i].name)
@@ -517,7 +566,20 @@ int ddsi_gather_network_interfaces (struct ddsi_domaingv *gv)
 
   GVLOG (DDS_LC_CONFIG, "selected interfaces: ");
   for (int i = 0; i < gv->n_interfaces; i++)
-    GVLOG (DDS_LC_CONFIG, "%s%s (index %"PRIu32" priority %"PRId32")", (i == 0) ? "" : ", ", gv->interfaces[i].name, gv->interfaces[i].if_index, gv->interfaces[i].priority);
+  {
+    char flagstr[100] = "";
+    int flagpos = 0;
+    if (gv->interfaces[i].allow_multicast & DDSI_AMC_SPDP)
+      flagpos += snprintf (flagstr + flagpos, sizeof (flagstr) - (size_t) flagpos, "%sspdp", (flagpos > 0) ? "," : "");
+    if (gv->interfaces[i].allow_multicast & DDSI_AMC_ASM)
+      flagpos += snprintf (flagstr + flagpos, sizeof (flagstr) - (size_t) flagpos, "%sasm", (flagpos > 0) ? "," : "");
+    if (gv->interfaces[i].allow_multicast & DDSI_AMC_SSM)
+      flagpos += snprintf (flagstr + flagpos, sizeof (flagstr) - (size_t) flagpos, "%sssm", (flagpos > 0) ? "," : "");
+    (void) flagpos;
+    GVLOG (DDS_LC_CONFIG, "%s%s (index %"PRIu32" priority %"PRId32" mc {%s})",
+           (i == 0) ? "" : ", ", gv->interfaces[i].name, gv->interfaces[i].if_index, gv->interfaces[i].priority,
+           flagstr);
+  }
   GVLOG (DDS_LC_CONFIG, "\n");
   return 1;
 }

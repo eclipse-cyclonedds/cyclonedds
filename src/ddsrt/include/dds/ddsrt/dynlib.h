@@ -64,6 +64,12 @@ ddsrt_dlopen(
     bool translate,
     ddsrt_dynlib_t *handle) ddsrt_nonnull_all;
 
+dds_return_t
+ddsrt_platform_dlopen(
+    const char *name,
+    bool translate,
+    ddsrt_dynlib_t *handle) ddsrt_nonnull_all;
+
 /**
  * @brief Close the library.
  *
@@ -84,6 +90,10 @@ ddsrt_dlopen(
  */
 dds_return_t
 ddsrt_dlclose(
+    ddsrt_dynlib_t handle);
+
+dds_return_t
+ddsrt_platform_dlclose(
     ddsrt_dynlib_t handle);
 
 /**
@@ -107,6 +117,12 @@ ddsrt_dlclose(
  */
 dds_return_t
 ddsrt_dlsym(
+    ddsrt_dynlib_t handle,
+    const char *symbol,
+    void **address);
+
+dds_return_t
+ddsrt_platform_dlsym(
     ddsrt_dynlib_t handle,
     const char *symbol,
     void **address);
@@ -135,6 +151,11 @@ ddsrt_dlsym(
  */
 dds_return_t
 ddsrt_dlerror(
+    char *buf,
+    size_t buflen);
+
+dds_return_t
+ddsrt_platform_dlerror(
     char *buf,
     size_t buflen);
 

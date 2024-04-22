@@ -10,7 +10,8 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 cmake_minimum_required(VERSION 3.16)
-project(CycloneDDS VERSION 0.11.0 LANGUAGES C)
+# C++ is only for Iceoryx plugin
+project(CycloneDDS VERSION 0.11.0 LANGUAGES C CXX)
 
 # Set a default build type if none was specified
 set(default_build_type "RelWithDebInfo")
@@ -27,6 +28,28 @@ if(CMAKE_CROSSCOMPILING)
   set(not_crosscompiling OFF)
 else()
   set(not_crosscompiling ON)
+endif()
+
+# By default we do shared libraries (we really prefer shared libraries because of the
+# plugins for IDLC, security, PSMX, ...)
+#
+# For static builds, we recommend doing a regular shared library build first, then
+# building the static Cyclone library with CMAKE_CROSSCOMPILING set.  This avoids the
+# dynamic linking in IDLC of something involving the static library, and that in turn
+# avoids a position-dependent/position-independent mess.
+#
+# Note that on Linux that mess can be partially resolved by defining
+#
+#  CMAKE_POSITION_INDEPENDENT_CODE=1
+#
+# resulting in a PIC static library, but that is in turn incompatible with the
+# system-provided static libraries for OpenSSL.  So much easier to avoid it for the rare
+# case where it is needed.
+#
+# It appears that on macOS, all code is position independent and it'll work regardless.
+option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
+if(NOT BUILD_SHARED_LIBS AND NOT CMAKE_CROSSCOMPILING)
+  message(WARNING "It is probably best to build a static library as-if cross compiling (e.g., use -DCMAKE_CROSSCOMPILING=1 -DCMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME} -DCMAKE_PREFIX_PATH=<path to shared-library build>)")
 endif()
 
 # By default don't treat warnings as errors, else anyone building it with a different compiler that
@@ -111,6 +134,10 @@ elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
   if(${WERROR})
     add_compile_options(-Werror)
     add_link_options(-Werror)
+    if(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0 AND CMAKE_C_COMPILER_VERSION VERSION_LESS 13.2)
+      add_compile_options(-Wno-error=stringop-overflow -Wno-error=array-bounds)
+      add_link_options(-Wno-error=stringop-overflow -Wno-error=array-bounds)
+    endif()
   endif()
   if("${CMAKE_GENERATOR}" STREQUAL "Ninja")
     add_compile_options(-fdiagnostics-color=always)
@@ -219,6 +246,10 @@ set(MEMORYCHECK_COMMAND_OPTIONS "--track-origins=yes --leak-check=full --trace-c
 # library so we can actually build the tests.
 option(BUILD_TESTING "Build the testing tree." OFF)
 
+# For special-purpose builds it can be useful to export all symbols from the library,
+# like we do when building the tests.
+option(EXPORT_ALL_SYMBOLS "Export all symbols from the library." OFF)
+
 # Include the xtests for idlc. These tests use the idl compiler (C back-end) to
 # compile an idl file at (test) runtime, and use the C compiler to build a test
 # application for the generated types, that is executed to do the actual testing.
@@ -316,6 +347,10 @@ install(
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
   COMPONENT dev
 )
+install(
+  FILES "${CycloneDDS_SOURCE_DIR}/cmake/Modules/Generate.cmake"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}/idlc"
+  COMPONENT dev)
 
 # Generated file paths
 # although the following files are generated, they are checked into source

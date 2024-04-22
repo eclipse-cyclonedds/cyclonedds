@@ -364,7 +364,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 
   if ((rc = dds_ensure_valid_data_representation (wqos, tp->m_stype->allowed_data_representation, false)) != DDS_RETCODE_OK)
     goto err_data_repr;
-  if ((rc = dds_ensure_valid_psmx_instances (wqos, DDS_PSMX_ENDPOINT_TYPE_WRITER, tp->m_stype->data_type_props, &pub->m_entity.m_domain->psmx_instances)) != DDS_RETCODE_OK)
+  if ((rc = dds_ensure_valid_psmx_instances (wqos, DDS_PSMX_ENDPOINT_TYPE_WRITER, tp->m_stype, &pub->m_entity.m_domain->psmx_instances)) != DDS_RETCODE_OK)
     goto err_psmx;
 
   if ((rc = ddsi_xqos_valid (&gv->logconfig, wqos)) < 0 || (rc = validate_writer_qos(wqos)) != DDS_RETCODE_OK)
@@ -419,7 +419,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   // we can have another look.
   wr->whc_batch = wqos->writer_batching.batch_updates || gv->config.whc_batch;
 
-  if ((rc = dds_endpoint_add_psmx_endpoint (&wr->m_endpoint, wqos, tp->m_ktopic ? &tp->m_ktopic->psmx_topics : NULL, DDS_PSMX_ENDPOINT_TYPE_WRITER)) != DDS_RETCODE_OK)
+  if ((rc = dds_endpoint_add_psmx_endpoint (&wr->m_endpoint, wqos, &tp->m_ktopic->psmx_topics, DDS_PSMX_ENDPOINT_TYPE_WRITER)) != DDS_RETCODE_OK)
     goto err_pipe_open;
 
   struct ddsi_sertype *sertype = ddsi_sertype_derive_sertype (tp->m_stype, data_representation,

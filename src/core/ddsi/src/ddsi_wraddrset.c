@@ -68,10 +68,14 @@ static void cover_makeroom (struct cover **c, int rdidx)
   {
     // why 60? why not ... we only get here if the redundant networking trick is enabled
     const int chunk = 60;
-    (*c) = ddsrt_realloc (*c, cover_size ((*c)->nreaders + chunk, (*c)->nlocs));
+    const int old_nreaders = (*c)->nreaders;
     (*c)->nreaders += chunk;
+    (*c) = ddsrt_realloc (*c, cover_size ((*c)->nreaders, (*c)->nlocs));
     if ((*c)->rdnames)
       (*c)->rdnames = ddsrt_realloc ((*c)->rdnames, (size_t) (*c)->nreaders * sizeof (*(*c)->rdnames));
+    for (int i = old_nreaders; i < (*c)->nreaders; i++)
+      for (int j = 0; j < (*c)->nlocs; j++)
+        (*c)->m[i * (*c)->nlocs + j] = 0xff;
   }
 }
 
@@ -320,9 +324,7 @@ static const int32_t cost_discarded = 1;
 
 // Cost associated with delivering another time to a reader that has
 // already been covered by a (selected) PSMX locator.
-// Currently, it is quite painful when this happens because it can
-// lead to user observable stuttering.
-static const int32_t cost_redundant_psmx = 1000000;
+static const int32_t cost_redundant_psmx = 0;
 
 // Cost associated with delivering data for the first time (slightly
 // negative cost makes it possible to give a slightly higher initial

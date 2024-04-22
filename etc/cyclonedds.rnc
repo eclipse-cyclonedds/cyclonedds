@@ -91,9 +91,9 @@ CycloneDDS configuration""" ] ]
         & [ a:documentation [ xml:lang="en" """
 <p>This element specifies the DDSI participant index used by this instance of the Cyclone DDS service for discovery purposes. Only one such participant id is used, independent of the number of actual DomainParticipants on the node. It is either:</p>
 <ul><li><i>auto</i>: which will attempt to automatically determine an available participant index (see also Discovery/MaxAutoParticipantIndex), or</li>
-<li>a non-negative integer less than 120, or</li>
-<li><i>none</i>:, which causes it to use arbitrary port numbers for unicast sockets which entirely removes the constraints on the participant index but makes unicast discovery impossible.</li></ul>
-<p>The default value is: <code>none</code></p>""" ] ]
+<li>a non-negative integer, or</li>
+<li><i>none</i>: which causes it to use arbitrary port numbers for unicast sockets which entirely removes the constraints on the participant index but makes unicast discovery impossible, or</li><li><i>default</i>: use <i>none</i> if multicast discovery is used on all selected network interfaces, else <i>auto</i>.</li></ul>
+<p>The default value is: <code>default</code></p>""" ] ]
         element ParticipantIndex {
           text
         }?
@@ -101,6 +101,15 @@ CycloneDDS configuration""" ] ]
 <p>This element statically configures addresses for discovery.</p>""" ] ]
         element Peers {
           [ a:documentation [ xml:lang="en" """
+<p>This attribute determines controls the localhost will automatically be added to the list of peers:.</p>
+<ul><li><i>false</i>: never</li>
+<li><i>true</i>: always</li>
+<li><i>default</i>: if multicast discovery is unavailable<li></ul>
+<p>The default value is: <code>default</code></p>""" ] ]
+          attribute AddLocalhost {
+            xsd:boolean
+          }?
+          & [ a:documentation [ xml:lang="en" """
 <p>This element statically configures addresses for discovery.</p>""" ] ]
           element Peer {
             [ a:documentation [ xml:lang="en" """
@@ -181,18 +190,17 @@ CycloneDDS configuration""" ] ]
 <p>The General element specifies overall Cyclone DDS service settings.</p>""" ] ]
       element General {
         [ a:documentation [ xml:lang="en" """
-<p>This element controls whether Cyclone DDS uses multicasts for data traffic.</p>
+<p>This element controls the default for the per-network interface setting whether Cyclone DDS uses multicasts for discovery and data traffic.</p>
 <p>It is a comma-separated list of some of the following keywords: "spdp", "asm", "ssm", or either of "false" or "true", or "default".</p>
 <ul>
 <li><i>spdp</i>: enables the use of ASM (any-source multicast) for participant discovery, joining the multicast group on the discovery socket, transmitting SPDP messages to this group, but never advertising nor using any multicast address in any discovery message, thus forcing unicast communications for all endpoint discovery and user data.</li>
 <li><i>asm</i>: enables the use of ASM for all traffic, including receiving SPDP but not transmitting SPDP messages via multicast</li>
-<li><i>ssm</i>: enables the use of SSM (source-specific multicast) for all non-SPDP traffic (if supported)</li>
-</ul>
-<p>When set to "false" all multicasting is disabled. The default, "true" enables the full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.</p>
-<p>"default" maps on spdp if the network is a WiFi network, on true if it is a wired network</p>
+<li><i>ssm</i>: enables the use of SSM (source-specific multicast) for all non-SPDP traffic (if supported)</li></ul>
+<p>When set to "false" all multicasting is disabled; "true"enables the full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.</p>
+<p>The special value "default" maps on spdp if the network is a WiFi network, on true if it is a wired network</p>
 <p>The default value is: <code>default</code></p>""" ] ]
         element AllowMulticast {
-          xsd:token { pattern = "default|((false|spdp|asm|ssm|true)(,(false|spdp|asm|ssm|true))*)" }
+          xsd:token { pattern = "default|((false|spdp|asm|ssm|true|default)(,(false|spdp|asm|ssm|true|default))*)" }
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This element allows setting the SO_DONTROUTE option for outgoing packets to bypass the local routing tables. This is generally useful only when the routing tables cannot be trusted, which is highly unusual.</p>
@@ -248,6 +256,19 @@ CycloneDDS configuration""" ] ]
 <p>The default value is: <code>&lt;empty&gt;</code></p>""" ] ]
             attribute address {
               text
+            }?
+            & [ a:documentation [ xml:lang="en" """
+<p>This element controls whether Cyclone DDS uses multicasts for data traffic on this interface.</p>
+<p>It is a comma-separated list of some of the following keywords: "spdp", "asm", "ssm", or either of "false" or "true", or "default".</p>
+<ul>
+<li><i>spdp</i>: enables the use of ASM (any-source multicast) for participant discovery, joining the multicast group on the discovery socket, transmitting SPDP messages to this group, but never advertising nor using any multicast address in any discovery message, thus forcing unicast communications for all endpoint discovery and user data.</li>
+<li><i>asm</i>: enables the use of ASM for all traffic, including receiving SPDP but not transmitting SPDP messages via multicast</li>
+<li><i>ssm</i>: enables the use of SSM (source-specific multicast) for all non-SPDP traffic (if supported)</li></ul>
+<p>When set to "false" all multicasting is disabled; "true"enables the full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.</p>
+<p>The special value "default" takes the value from the globalGeneral/AllowMulticast setting.</p>
+<p>The default value is: <code>default</code></p>""" ] ]
+            attribute allow_multicast {
+              xsd:token { pattern = "default|((false|spdp|asm|ssm|true|default)(,(false|spdp|asm|ssm|true|default))*)" }
             }?
             & [ a:documentation [ xml:lang="en" """
 <p>If set to "true" an interface is automatically selected. Specifying a name or an address when automatic is set is considered an error.</p>
@@ -462,6 +483,12 @@ CycloneDDS configuration""" ] ]
           xsd:token { pattern = "((whc|rhc|xevent|all)(,(whc|rhc|xevent|all))*)|" }
         }?
         & [ a:documentation [ xml:lang="en" """
+<p>Whether to enable the IP_PKTINFO on UDP sockets to get hold of the packet destination address and interface on which it was received. This allows for better filtering on discovery packets, but comes at a small performance penalty.</p>
+<p>The default value is: <code>true</code></p>""" ] ]
+        element ExtendedPacketInfo {
+          xsd:boolean
+        }?
+        & [ a:documentation [ xml:lang="en" """
 <p>When true, include keyhashes in outgoing data for topics with keys.</p>
 <p>The default value is: <code>false</code></p>""" ] ]
         element GenerateKeyhash {
@@ -559,7 +586,7 @@ CycloneDDS configuration""" ] ]
           xsd:integer
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element controls whether all traffic is handled by a single receive thread (false) or whether multiple receive threads may be used to improve latency (true). By default it is disabled on Windows because it appears that one cannot count on being able to send packets to oneself, which is necessary to stop the thread during shutdown. Currently multiple receive threads are only used for connectionless transport (e.g., UDP) and ManySocketsMode not set to single (the default).</p>
+<p>This element controls whether all traffic is handled by a single receive thread (false) or whether multiple receive threads may be used to improve latency (true). The value "default" currently maps to false because of firewalls potentially blocking the packets it sends to itself to interrupt the blocking reads during termination.</p><p>Currently multiple receive threads are only used for connectionless transport (e.g., UDP) and ManySocketsMode not set to single (the default).</p>
 <p>The default value is: <code>default</code></p>""" ] ]
         element MultipleReceiveThreads {
           [ a:documentation [ xml:lang="en" """
@@ -712,12 +739,6 @@ CycloneDDS configuration""" ] ]
           element XmitLossiness {
             xsd:integer
           }?
-        }?
-        & [ a:documentation [ xml:lang="en" """
-<p>This element controls whether the response to a newly discovered participant is sent as a unicasted SPDP packet instead of rescheduling the periodic multicasted one. There is no known benefit to setting this to <i>false</i>.</p>
-<p>The default value is: <code>true</code></p>""" ] ]
-        element UnicastResponseToSPDPMessages {
-          xsd:boolean
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>Do not use.</p>
@@ -1237,15 +1258,20 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
 <li><i>radmin</i>: receive buffer administration</li>
 <li><i>timing</i>: periodic reporting of CPU loads per thread</li>
 <li><i>traffic</i>: periodic reporting of total outgoing data</li>
+<li><i>throttle</i>: tracing of throttling events</li>
 <li><i>whc</i>: tracing of writer history cache changes</li>
+<li><i>rhc</i>: tracing of reader history cache changes</li>
 <li><i>tcp</i>: tracing of TCP-specific activity</li>
 <li><i>topic</i>: tracing of topic definitions</li>
-<li><i>plist</i>: tracing of discovery parameter list interpretation</li></ul>
-<p>In addition, there is the keyword <i>trace</i> that enables all but <i>radmin</i>, <i>topic</i>, <i>plist</i> and <i>whc</i></p>.
+<li><i>plist</i>: tracing of discovery parameter list interpretation</li>
+<li><i>content</i>: tracing of sample contents</li>
+<li><i>malformed</i>: dump malformed full packet as warning</li>
+</ul>
+<p>In addition, there is the keyword <i>trace</i> that enables: <i>fatal</i>, <i>error</i>, <i>warning</i>, <i>info</i>, <i>config</i>, <i>discovery</i>, <i>data</i>, <i>trace</i>, <i>timing</i>, <i>traffic</i>, <i>tcp</i>, <i>throttle</i>, <i>content</i>.</p>.
 <p>The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful is <i>trace</i>.</p>
 <p>The default value is: <code>&lt;empty&gt;</code></p>""" ] ]
         element Category {
-          xsd:token { pattern = "((fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|shm|trace)(,(fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|shm|trace))*)|" }
+          xsd:token { pattern = "((fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|malformed|trace)(,(fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|malformed|trace))*)|" }
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This option specifies where the logging is printed to. Note that <i>stdout</i> and <i>stderr</i> are treated as special values, representing "standard out" and "standard error" respectively. No file is created unless logging categories are enabled using the Tracing/Verbosity or Tracing/EnabledCategory settings.</p>
@@ -1283,14 +1309,14 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
   duration_inf = xsd:token { pattern = "inf|0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([num]?s|min|hr|day)" }
   memsize = xsd:token { pattern = "0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([kMG]i?)?B" }
 }
-# generated from ddsi_config.h[570f67bd3080674a4bad53d9580a8bb7ad1e6e4d] 
+# generated from ddsi_config.h[007a7968df8cbc42a122109bd139ac85bab0f6c9] 
 # generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] 
-# generated from ddsi__cfgelems.h[13337a006d5313519c88c3f3643f27992840cfd3] 
-# generated from ddsi_config.c[efeae198a5e12ca8977a655216470564b5c44b64] 
+# generated from ddsi__cfgelems.h[607a8f573eb5d87d6f93b1d9bce2947f29da56dc] 
+# generated from ddsi_config.c[d4ef67f90737b1bf8ae94ad932774fa015e3a2cf] 
 # generated from _confgen.h[e32eabfc35e9f3a7dcb63b19ed148c0d17c6e5fc] 
 # generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] 
 # generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] 
 # generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] 
-# generated from generate_rst.c[c35cdcdfc0bd4f10a801204a6cc5d540af696b6e] 
+# generated from generate_rst.c[3c4b523fbb57c8e4a7e247379d06a8021ccc21c4] 
 # generated from generate_xsd.c[6b6818d7f17a35d56c376c04ec1410427f34c0f0] 
 # generated from generate_defconfig.c[63ca9d8ae2f1ce2e761c9d4c0510a45eb062d830] 

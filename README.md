@@ -114,7 +114,7 @@ In order to build Cyclone DDS you need a Linux, Mac or Windows 10 machine (or, w
   * C compiler (most commonly GCC on Linux, Visual Studio on Windows, Xcode on macOS);
   * Optionally GIT version control system;
   * [CMake](https://cmake.org/download/), version 3.16 or later;
-  * Optionally [OpenSSL](https://www.openssl.org/), preferably version 1.1;
+  * Optionally [OpenSSL](https://www.openssl.org/), we recommend a fully patched and supported version but 1.1.1 will still work;
   * Optionally [Eclipse Iceoryx](https://iceoryx.io) version 2.0 for shared memory and zero-copy support;
   * Optionally [Bison](https://www.gnu.org/software/bison/) parser generator. A cached source is checked into the repository.
 
@@ -148,6 +148,7 @@ There are some configuration options specified using CMake defines in addition t
 * `-DENABLE_SOURCE_SPECIFIC_MULTICAST=NO`: to disable support for source-specific multicast (disabling this and `-DENABLE_IPV6=NO` may be needed for QNX builds)
 * `-DENABLE_IPV6=NO`: to disable ipv6 support (disabling this and `-DENABLE_SOURCE_SPECIFIC_MULTICAST=NO` may be needed for QNX builds)
 * `-DBUILD_IDLC_XTESTS=NO`: Include a set of tests for the IDL compiler that use the C back-end to compile an idl file at (test) runtime, and use the C compiler to build a test application for the generated types, that is executed to do the actual testing (not supported on Windows)
+* `-DENABLE_QOS_PROVIDER=NO`: to disable support for qos provider
 
 ### For application developers
 

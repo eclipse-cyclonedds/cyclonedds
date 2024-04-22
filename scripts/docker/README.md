@@ -5,8 +5,8 @@ Additionally you can also build a docker image with pre-built cyclonedds example
 
 # Bulid docker image 
 There are two docker images you can build.  
-- **ubuntu:cyclonedds** : ubuntu bionic based image that contains dependencies to build cyclonedds. 
-- **cyclonedds:latest** : ubuntu bionic based image with pre-built cyclonedds core & applications (based on the checked out revision).
+- **ubuntu:cyclonedds** : ubuntu jammy based image that contains dependencies to build cyclonedds. 
+- **cyclonedds:latest** : ubuntu jammy based image with pre-built cyclonedds core & applications (based on the checked out revision).
 
 ## How to build the images
 

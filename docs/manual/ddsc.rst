@@ -22,6 +22,7 @@ C API reference
    api/basics
    api/entity
    api/qos
+   api/qosprovider
    api/domain
    api/topic
    api/data
@@ -31,3 +32,5 @@ C API reference
    api/serialization
    api/internal
    api/deprecated
+   api/psmx
+   api/dynamic

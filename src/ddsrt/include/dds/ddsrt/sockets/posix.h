@@ -37,6 +37,10 @@ typedef int ddsrt_socket_t;
 #define DDSRT_INVALID_SOCKET (-1)
 #define PRIdSOCK "d"
 
+typedef struct ddsrt_socket_ext {
+  ddsrt_socket_t sock;
+} ddsrt_socket_ext_t;
+
 #if LWIP_SOCKET
 # define DDSRT_HAVE_SSM         0
 # define IFF_UP               0x1
@@ -65,7 +69,7 @@ typedef int ddsrt_socket_t;
 # define IP_MULTICAST_LOOP  34
 
 struct ip_mreq {
-    struct in_addr imr_multiaddr; 
+    struct in_addr imr_multiaddr;
     struct in_addr imr_interface;
 };
 

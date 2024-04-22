@@ -16,12 +16,43 @@ struct NSC_Model {
   string a,b,c;
 };
 
+@nested
+struct PsmxType1xy {
+  long x;
+  octet y;
+};
+
+// A memcpy-able type where fields are laid differently in C
+// and CDR:
+// offset
+//         C   CDR
+// x.x     0   0
+// x.y     4   4
+// x.z     8   5
+//
+// size   12   6
 struct PsmxType1 {
-  long	long_1;
-  long	long_2;
-  long	long_3;
+  PsmxType1xy xy;
+  octet z;
 };
 
 struct PsmxKeySupportCheck {
   @key long k;
+};
+
+struct PsmxLoanTest0 {
+  PsmxType1xy xy;
+  @key octet z;
+};
+
+struct PsmxLoanTest1 {
+  PsmxType1xy xy;
+  @key octet z;
+  string str;
+};
+
+struct PsmxLoanTest2 {
+  PsmxType1xy xy;
+  @key octet z;
+  @key string str;
 };

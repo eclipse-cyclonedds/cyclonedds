@@ -3575,7 +3575,7 @@ void ddsi_xqos_init_empty (dds_qos_t *dest)
 }
 
 const dds_qos_t ddsi_default_qos_reader = {
-  .present = DDSI_QP_PRESENTATION | DDSI_QP_DURABILITY | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_LIVELINESS | DDSI_QP_DESTINATION_ORDER | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS | DDSI_QP_TRANSPORT_PRIORITY | DDSI_QP_OWNERSHIP | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_TOPIC_DATA | DDSI_QP_GROUP_DATA | DDSI_QP_USER_DATA | DDSI_QP_PARTITION | DDSI_QP_RELIABILITY | DDSI_QP_TIME_BASED_FILTER | DDSI_QP_ADLINK_READER_DATA_LIFECYCLE | DDSI_QP_ADLINK_READER_LIFESPAN | DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT | DDSI_QP_DATA_REPRESENTATION,
+  .present = DDSI_QP_PRESENTATION | DDSI_QP_DURABILITY | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_LIVELINESS | DDSI_QP_DESTINATION_ORDER | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS | DDSI_QP_OWNERSHIP | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_TOPIC_DATA | DDSI_QP_GROUP_DATA | DDSI_QP_USER_DATA | DDSI_QP_PARTITION | DDSI_QP_RELIABILITY | DDSI_QP_TIME_BASED_FILTER | DDSI_QP_ADLINK_READER_DATA_LIFECYCLE | DDSI_QP_ADLINK_READER_LIFESPAN | DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT | DDSI_QP_DATA_REPRESENTATION,
   .aliased = DDSI_QP_DATA_REPRESENTATION,
   .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
   .presentation.coherent_access = 0,
@@ -3591,7 +3591,6 @@ const dds_qos_t ddsi_default_qos_reader = {
   .resource_limits.max_samples = DDS_LENGTH_UNLIMITED,
   .resource_limits.max_instances = DDS_LENGTH_UNLIMITED,
   .resource_limits.max_samples_per_instance = DDS_LENGTH_UNLIMITED,
-  .transport_priority.value = 0,
   .ownership.kind = DDS_OWNERSHIP_SHARED,
   .ignorelocal.value = DDS_IGNORELOCAL_NONE,
   .topic_data.length = 0,
@@ -3663,7 +3662,7 @@ const dds_qos_t ddsi_default_qos_writer = {
 };
 
 const dds_qos_t ddsi_default_qos_topic = {
-  .present = DDSI_QP_PRESENTATION | DDSI_QP_DURABILITY | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_LIVELINESS | DDSI_QP_DESTINATION_ORDER | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS | DDSI_QP_TRANSPORT_PRIORITY | DDSI_QP_OWNERSHIP | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_DURABILITY_SERVICE | DDSI_QP_RELIABILITY | DDSI_QP_LIFESPAN | DDSI_QP_DATA_REPRESENTATION,
+  .present = DDSI_QP_PRESENTATION | DDSI_QP_DURABILITY | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_LIVELINESS | DDSI_QP_DESTINATION_ORDER | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS | DDSI_QP_TOPIC_DATA | DDSI_QP_TRANSPORT_PRIORITY | DDSI_QP_OWNERSHIP | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_DURABILITY_SERVICE | DDSI_QP_RELIABILITY | DDSI_QP_LIFESPAN | DDSI_QP_DATA_REPRESENTATION,
   .aliased = DDSI_QP_DATA_REPRESENTATION,
   .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
   .presentation.coherent_access = 0,
@@ -3679,6 +3678,8 @@ const dds_qos_t ddsi_default_qos_topic = {
   .resource_limits.max_samples = DDS_LENGTH_UNLIMITED,
   .resource_limits.max_instances = DDS_LENGTH_UNLIMITED,
   .resource_limits.max_samples_per_instance = DDS_LENGTH_UNLIMITED,
+  .topic_data.length = 0,
+  .topic_data.value = NULL,
   .transport_priority.value = 0,
   .ownership.kind = DDS_OWNERSHIP_SHARED,
   .ignorelocal.value = DDS_IGNORELOCAL_NONE,
@@ -3696,11 +3697,12 @@ const dds_qos_t ddsi_default_qos_topic = {
 };
 
 const dds_qos_t ddsi_default_qos_publisher_subscriber = {
-  .present = DDSI_QP_GROUP_DATA | DDSI_QP_PARTITION | DDSI_QP_ADLINK_ENTITY_FACTORY,
+  .present = DDSI_QP_GROUP_DATA | DDSI_QP_PARTITION | DDSI_QP_PRESENTATION | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_ADLINK_ENTITY_FACTORY,
   .aliased = 0,
   .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
   .presentation.coherent_access = 0,
   .presentation.ordered_access = 0,
+  .ignorelocal.value = DDS_IGNORELOCAL_NONE,
   .entity_factory.autoenable_created_entities = 1,
   .group_data.length = 0,
   .group_data.value = NULL,

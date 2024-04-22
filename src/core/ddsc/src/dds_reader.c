@@ -573,7 +573,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
   if ((rc = dds_ensure_valid_data_representation (rqos, tp->m_stype->allowed_data_representation, false)) != DDS_RETCODE_OK)
     goto err_data_repr;
-  if ((rc = dds_ensure_valid_psmx_instances (rqos, DDS_PSMX_ENDPOINT_TYPE_READER, tp->m_stype->data_type_props, &sub->m_entity.m_domain->psmx_instances)) != DDS_RETCODE_OK)
+  if ((rc = dds_ensure_valid_psmx_instances (rqos, DDS_PSMX_ENDPOINT_TYPE_READER, tp->m_stype, &sub->m_entity.m_domain->psmx_instances)) != DDS_RETCODE_OK)
     goto err_psmx;
 
   if ((rc = ddsi_xqos_valid (&gv->logconfig, rqos)) < 0 || (rc = validate_reader_qos(rqos)) != DDS_RETCODE_OK)
@@ -637,7 +637,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   }
   dds_entity_add_ref_locked (&tp->m_entity);
 
-  if ((rc = dds_endpoint_add_psmx_endpoint (&rd->m_endpoint, rqos, tp->m_ktopic ? &tp->m_ktopic->psmx_topics : NULL, DDS_PSMX_ENDPOINT_TYPE_READER)) != DDS_RETCODE_OK)
+  if ((rc = dds_endpoint_add_psmx_endpoint (&rd->m_endpoint, rqos, &tp->m_ktopic->psmx_topics, DDS_PSMX_ENDPOINT_TYPE_READER)) != DDS_RETCODE_OK)
     goto err_create_endpoint;
 
   /* FIXME: listeners can come too soon ... should set mask based on listeners

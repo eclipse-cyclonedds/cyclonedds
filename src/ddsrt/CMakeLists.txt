@@ -78,6 +78,7 @@ set(headers
 set(sources
   "${source_dir}/src/atomics.c"
   "${source_dir}/src/avl.c"
+  "${source_dir}/src/dynlib.c"
   "${source_dir}/src/bits.c"
   "${source_dir}/src/bswap.c"
   "${source_dir}/src/io.c"
@@ -300,7 +301,7 @@ else()
     if(CMAKE_C_COMPILER_ID STREQUAL "SunPro")
       target_link_libraries(ddsrt INTERFACE socket nsl)
     elseif(CMAKE_SYSTEM_NAME MATCHES QNX)
-      target_link_libraries(ddsrt INTERFACE socket)
+      target_link_libraries(ddsrt INTERFACE socket m)
     endif()
   endif()
 endif()
@@ -309,13 +310,17 @@ endif()
 set(DDSRT_WITH_LWIP ${WITH_LWIP})
 set(DDSRT_WITH_FREERTOS ${WITH_FREERTOS})
 
-foreach(feature SSL SECURITY LIFESPAN DEADLINE_MISSED NETWORK_PARTITIONS
-                SSM TYPELIB TYPE_DISCOVERY TOPIC_DISCOVERY)
+foreach(feature TCP_TLS SECURITY LIFESPAN DEADLINE_MISSED NETWORK_PARTITIONS
+                SSM TYPELIB TYPE_DISCOVERY TOPIC_DISCOVERY QOS_PROVIDER)
   set(DDS_HAS_${feature} ${ENABLE_${feature}})
 endforeach()
 
 if(BUILD_TESTING)
   set(DDS_ALLOW_NESTED_DOMAIN 1)
+endif()
+
+if (NOT BUILD_SHARED_LIBS)
+  set(DDS_IS_STATIC_LIBRARY 1)
 endif()
 
 configure_file(include/dds/config.h.in include/dds/config.h)

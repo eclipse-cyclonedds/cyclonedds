@@ -349,7 +349,9 @@ static bool ignore_local_p (const ddsi_guid_t *guid1, const ddsi_guid_t *guid2, 
     case DDS_IGNORELOCAL_NONE:
       break;
     case DDS_IGNORELOCAL_PARTICIPANT:
-      return memcmp (&guid1->prefix, &guid2->prefix, sizeof (guid1->prefix)) == 0;
+      if (memcmp (&guid1->prefix, &guid2->prefix, sizeof (guid1->prefix)) == 0)
+        return true;
+      break;
     case DDS_IGNORELOCAL_PROCESS:
       return true;
   }
@@ -358,7 +360,9 @@ static bool ignore_local_p (const ddsi_guid_t *guid1, const ddsi_guid_t *guid2, 
     case DDS_IGNORELOCAL_NONE:
       break;
     case DDS_IGNORELOCAL_PARTICIPANT:
-      return memcmp (&guid1->prefix, &guid2->prefix, sizeof (guid1->prefix)) == 0;
+      if (memcmp (&guid1->prefix, &guid2->prefix, sizeof (guid1->prefix)) == 0)
+        return true;
+      break;
     case DDS_IGNORELOCAL_PROCESS:
       return true;
   }
@@ -937,8 +941,7 @@ void ddsi_reader_add_connection (struct ddsi_reader *rd, struct ddsi_proxy_write
     {
       /* pwr->supports_ssm is set if ddsi_addrset_contains_ssm(pwr->ssm), so
        any_ssm must succeed. */
-      if (!ddsi_addrset_any_uc (pwr->c.as, &m->ssm_src_loc))
-        assert (0);
+      ddsi_addrset_any_uc (pwr->c.as, &m->ssm_src_loc);
       if (!ddsi_addrset_any_ssm (rd->e.gv, pwr->c.as, &m->ssm_mc_loc))
         assert (0);
       /* FIXME: for now, assume that the ports match for datasock_mc --
@@ -1027,7 +1030,7 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
   ELOGDISC (pwr, "  ddsi_proxy_writer_add_connection(pwr "PGUIDFMT" rd "PGUIDFMT")",
             PGUID (pwr->e.guid), PGUID (rd->e.guid));
   m->rd_guid = rd->e.guid;
-  m->tcreate = ddsrt_time_monotonic ();
+  m->tcreate = tnow;
 
   /* We track the last heartbeat count value per reader--proxy-writer
      pair, so that we can correctly handle directed heartbeats. The

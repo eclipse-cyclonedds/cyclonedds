@@ -30,7 +30,7 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->domainTag = "";
   cfg->extDomainId.isdefault = 1;
   cfg->ds_grace_period = INT64_C (30000000000);
-  cfg->participantIndex = INT32_C (-2);
+  cfg->participantIndex = INT32_C (-3);
   cfg->maxAutoParticipantIndex = INT32_C (9);
   cfg->spdpMulticastAddressString = "239.255.0.1";
   cfg->spdp_interval.isdefault = 1;
@@ -51,7 +51,6 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->defrag_unreliable_maxsamples = UINT32_C (4);
   cfg->defrag_reliable_maxsamples = UINT32_C (16);
   cfg->besmode = INT32_C (1);
-  cfg->unicast_response_to_spdp_messages = INT32_C (1);
   cfg->synchronous_delivery_latency_bound = INT64_C (9223372036854775807);
   cfg->retransmit_merging_period = INT64_C (5000000);
   cfg->const_hb_intv_sched = INT64_C (100000000);
@@ -84,11 +83,12 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->max_rexmit_burst_size = UINT32_C (1048576);
   cfg->init_transmit_extra_pct = UINT32_C (4294967295);
   cfg->max_frags_in_rexmit_of_sample = UINT32_C (1);
+  cfg->extended_packet_info = INT32_C (1);
   cfg->tcp_nodelay = INT32_C (1);
   cfg->tcp_port = INT32_C (-1);
   cfg->tcp_read_timeout = INT64_C (2000000000);
   cfg->tcp_write_timeout = INT64_C (2000000000);
-#ifdef DDS_HAS_SSL
+#ifdef DDS_HAS_TCP_TLS
   cfg->ssl_verify = INT32_C (1);
   cfg->ssl_verify_client = INT32_C (1);
   cfg->ssl_keystore = "keystore";
@@ -97,16 +97,16 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->ssl_rand_file = "";
   cfg->ssl_min_version.major = 1;
   cfg->ssl_min_version.minor = 3;
-#endif /* DDS_HAS_SSL */
+#endif /* DDS_HAS_TCP_TLS */
 }
-/* generated from ddsi_config.h[570f67bd3080674a4bad53d9580a8bb7ad1e6e4d] */
+/* generated from ddsi_config.h[007a7968df8cbc42a122109bd139ac85bab0f6c9] */
 /* generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] */
-/* generated from ddsi__cfgelems.h[13337a006d5313519c88c3f3643f27992840cfd3] */
-/* generated from ddsi_config.c[efeae198a5e12ca8977a655216470564b5c44b64] */
+/* generated from ddsi__cfgelems.h[607a8f573eb5d87d6f93b1d9bce2947f29da56dc] */
+/* generated from ddsi_config.c[d4ef67f90737b1bf8ae94ad932774fa015e3a2cf] */
 /* generated from _confgen.h[e32eabfc35e9f3a7dcb63b19ed148c0d17c6e5fc] */
 /* generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] */
 /* generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] */
 /* generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] */
-/* generated from generate_rst.c[c35cdcdfc0bd4f10a801204a6cc5d540af696b6e] */
+/* generated from generate_rst.c[3c4b523fbb57c8e4a7e247379d06a8021ccc21c4] */
 /* generated from generate_xsd.c[6b6818d7f17a35d56c376c04ec1410427f34c0f0] */
 /* generated from generate_defconfig.c[63ca9d8ae2f1ce2e761c9d4c0510a45eb062d830] */

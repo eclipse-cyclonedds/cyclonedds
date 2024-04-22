@@ -17,7 +17,7 @@
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/string.h"
 
-dds_return_t ddsrt_dlopen (const char *name, bool translate, ddsrt_dynlib_t *handle)
+dds_return_t ddsrt_platform_dlopen (const char *name, bool translate, ddsrt_dynlib_t *handle)
 {
   assert (handle);
   *handle = NULL;
@@ -45,13 +45,13 @@ dds_return_t ddsrt_dlopen (const char *name, bool translate, ddsrt_dynlib_t *han
   return *handle != NULL ? DDS_RETCODE_OK : DDS_RETCODE_ERROR;
 }
 
-dds_return_t ddsrt_dlclose (ddsrt_dynlib_t handle)
+dds_return_t ddsrt_platform_dlclose (ddsrt_dynlib_t handle)
 {
   assert (handle);
   return (dlclose (handle) == 0) ? DDS_RETCODE_OK : DDS_RETCODE_ERROR;
 }
 
-dds_return_t ddsrt_dlsym (ddsrt_dynlib_t handle, const char *symbol, void **address)
+dds_return_t ddsrt_platform_dlsym (ddsrt_dynlib_t handle, const char *symbol, void **address)
 {
   assert (handle);
   assert (address);
@@ -60,7 +60,7 @@ dds_return_t ddsrt_dlsym (ddsrt_dynlib_t handle, const char *symbol, void **addr
   return (*address == NULL) ? DDS_RETCODE_ERROR : DDS_RETCODE_OK;
 }
 
-dds_return_t ddsrt_dlerror (char *buf, size_t buflen)
+dds_return_t ddsrt_platform_dlerror (char *buf, size_t buflen)
 {
   assert (buf);
   assert (buflen);

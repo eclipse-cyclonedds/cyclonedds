@@ -250,7 +250,6 @@ DDS_Security_Serialize_string(
 
     memcpy(&(ser->buffer[ser->offset]), str, len);
     ser->offset += len;
-    serbuffer_align(ser, sizeof(uint32_t));
 }
 
 static void
@@ -550,16 +549,14 @@ DDS_Security_Deserialize_string(
     if (dser->remain < sz) {
         return 0;
     }
-
-    if (sz > 0 && (dser->cursor[sz-1] == 0)) {
-       *value = ddsrt_strdup((char *)dser->cursor);
-       /* Consider padding */
-       sz = alignup_size(sz, sizeof(uint32_t));
-       dser->cursor += sz;
-       dser->remain -= sz;
-    } else {
-       *value = ddsrt_strdup("");
+    if (sz == 0 || dser->cursor[sz-1] != 0) {
+        return 0;
     }
+
+    ddsrt_free (*value);
+    *value = ddsrt_strdup((char *)dser->cursor);
+    dser->cursor += sz;
+    dser->remain -= sz;
     return 1;
 }
 
@@ -584,24 +581,25 @@ DDS_Security_Deserialize_OctetSeq(
      DDS_Security_Deserializer dser,
      DDS_Security_OctetSeq *seq)
 {
-    if (!DDS_Security_Deserialize_uint32_t(dser, &seq->_length)) {
+    uint32_t length;
+    if (!DDS_Security_Deserialize_uint32_t(dser, &length)) {
         return 0;
     }
 
-    if (dser->remain < seq->_length) {
+    if (dser->remain < length) {
         return 0;
     }
 
-    if (seq->_length > 0) {
-        /* Consider padding */
-        size_t a_size = alignup_size(seq->_length, sizeof(uint32_t));
+    ddsrt_free (seq->_buffer);
+    seq->_length = seq->_maximum = length;
+    if (seq->_length == 0) {
+        seq->_buffer = NULL;
+    } else {
         seq->_buffer = ddsrt_malloc(seq->_length);
         memcpy(seq->_buffer, dser->cursor, seq->_length);
-        dser->cursor += a_size;
-        dser->remain -= a_size;
-    } else {
-        seq->_buffer = NULL;
     }
+    dser->cursor += seq->_length;
+    dser->remain -= seq->_length;
     return 1;
 }
 
@@ -633,21 +631,20 @@ DDS_Security_Deserialize_PropertySeq(
        sequence is 4+1+(3 pad)+4+1 = 13 bytes.  Just use 8 because it is way faster
        and just as good for checking that the length value isn't completely ridiculous. */
     const uint32_t minpropsize = (uint32_t) (2 * sizeof (uint32_t));
-    int r = 1;
-    uint32_t i;
-
-    if (!DDS_Security_Deserialize_uint32_t(dser, &seq->_length)) {
+    uint32_t length;
+    if (!DDS_Security_Deserialize_uint32_t(dser, &length)) {
         return 0;
-    } else if (seq->_length > dser->remain / minpropsize) {
-        seq->_length = 0;
-        return 0;
-    } else if (seq->_length > 0) {
-        seq->_buffer = DDS_Security_PropertySeq_allocbuf(seq->_length);
-        for (i = 0; i < seq->_length && r; i++) {
-            r = DDS_Security_Deserialize_Property(dser, &seq->_buffer[i]);
-        }
     }
-
+    if (length > dser->remain / minpropsize) {
+        return 0;
+    }
+    DDS_Security_PropertySeq_deinit(seq);
+    seq->_length = seq->_maximum = length;
+    seq->_buffer = (seq->_length == 0) ? NULL : DDS_Security_PropertySeq_allocbuf(seq->_length);
+    int r = 1;
+    for (uint32_t i = 0; i < seq->_length && r; i++) {
+        r = DDS_Security_Deserialize_Property(dser, &seq->_buffer[i]);
+    }
     return r;
 }
 
@@ -660,21 +657,20 @@ DDS_Security_Deserialize_BinaryPropertySeq(
        Just use 8 because it is way faster and just as good for checking that the length
        value isn't completely ridiculous. */
     const uint32_t minpropsize = (uint32_t) (2 * sizeof (uint32_t));
-    int r = 1;
-    uint32_t i;
-
-    if (!DDS_Security_Deserialize_uint32_t(dser, &seq->_length)) {
+    uint32_t length;
+    if (!DDS_Security_Deserialize_uint32_t(dser, &length)) {
         return 0;
-    } else if (seq->_length > dser->remain / minpropsize) {
-        seq->_length = 0;
-        return 0;
-    } else if (seq->_length > 0) {
-        seq->_buffer = DDS_Security_BinaryPropertySeq_allocbuf(seq->_length);
-        for (i = 0; i < seq->_length && r; i++) {
-            r = DDS_Security_Deserialize_BinaryProperty(dser, &seq->_buffer[i]);
-        }
     }
-
+    if (length > dser->remain / minpropsize) {
+        return 0;
+    }
+    DDS_Security_BinaryPropertySeq_deinit(seq);
+    seq->_length = seq->_maximum = length;
+    seq->_buffer = (seq->_length == 0) ? NULL : DDS_Security_BinaryPropertySeq_allocbuf(seq->_length);
+    int r = 1;
+    for (uint32_t i = 0; i < seq->_length && r; i++) {
+        r = DDS_Security_Deserialize_BinaryProperty(dser, &seq->_buffer[i]);
+    }
     return r;
 }
 
@@ -715,15 +711,13 @@ DDS_Security_Deserialize_BuiltinTopicKey(
      DDS_Security_Deserializer dser,
      DDS_Security_BuiltinTopicKey_t key)
 {
-    int r = DDS_Security_Deserialize_uint32_t(dser, (uint32_t *)&key[0]) &&
-        DDS_Security_Deserialize_uint32_t(dser, (uint32_t *)&key[1]) &&
-        DDS_Security_Deserialize_uint32_t(dser, (uint32_t *)&key[2]);
-
-    /* guid is 16 bytes, so skip the last 4 bytes */
-    dser->cursor += 4;
-    dser->remain -= 4;
-
-    return r;
+    /* guid is 16 bytes but BuiltinTopicKey is 3 uint32_t:s, so skip the last 4 bytes */
+    uint32_t entity_id;
+    return
+      DDS_Security_Deserialize_uint32_t(dser, &key[0]) &&
+      DDS_Security_Deserialize_uint32_t(dser, &key[1]) &&
+      DDS_Security_Deserialize_uint32_t(dser, &key[2]) &&
+      DDS_Security_Deserialize_uint32_t(dser, &entity_id);
 }
 
 static int
@@ -749,10 +743,14 @@ DDS_Security_Deserialize_ParticipantBuiltinTopicData(
         DDS_Security_Deserialize_align(dser, 4);
         r = DDS_Security_Deserialize_uint16(dser, &pid) &&
             DDS_Security_Deserialize_uint16(dser, &len);
-
-        if (r && (len <= dser->remain)) {
-            const unsigned char *next_cursor = dser->cursor + len;
-
+        if (!r) {
+            DDS_Security_Exception_set(ex, "Deserialization", DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED,
+                  "Deserialize parameter header failed");
+        } else if (len > dser->remain) {
+            DDS_Security_Exception_set(ex, "Deserialization", DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED,
+                  "Deserialize parameter failed: payload too long for buffer");
+            r = 0;
+        } else {
             switch (pid) {
             case PID_PARTICIPANT_GUID:
                 r = DDS_Security_Deserialize_BuiltinTopicKey(dser, pdata->key);
@@ -780,25 +778,12 @@ DDS_Security_Deserialize_ParticipantBuiltinTopicData(
                 dser->remain -= len;
                 break;
             }
-
-            if (r) {
-                if (dser->cursor != next_cursor) {
-                    DDS_Security_Exception_set(ex, "Deserialization", DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED,
-                            "Deserialize PID 0x%x failed: internal_size %d != external_size %d", pid, (int)len + (int)(dser->cursor - next_cursor), (int)len);
-                    r = 0;
-                }
-            } else {
+            if (!r) {
                 DDS_Security_Exception_set(ex, "Deserialization", DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED,
                         "Deserialize PID 0x%x failed: parsing failed", pid);
             }
-        } else {
-            if (!r) {
-                DDS_Security_Exception_set(ex, "Deserialization", DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED,
-                        "Deserialize parameter header failed");
-            }
         }
     } while (r && !ready && dser->remain > 0);
-
     return ready;
 }
 

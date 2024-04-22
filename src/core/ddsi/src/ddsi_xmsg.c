@@ -225,6 +225,9 @@ void ddsi_xmsgpool_free (struct ddsi_xmsgpool *pool)
    (see below), transmits them, and releases them.
 */
 
+static void *ddsi_xmsg_append_impl (struct ddsi_xmsg *m, struct ddsi_xmsg_marker *marker, size_t sz)
+  ddsrt_nonnull ((1)) ddsrt_attribute_returns_nonnull;
+
 static void ddsi_xmsg_reinit (struct ddsi_xmsg *m, enum ddsi_xmsg_kind kind)
 {
   m->sz = 0;
@@ -513,7 +516,7 @@ void ddsi_xmsg_submsg_replace(struct ddsi_xmsg *msg, struct ddsi_xmsg_marker sm_
   /* Adjust the message size to the new sub-message. */
   if (old_len < new_len)
   {
-    ddsi_xmsg_append(msg, NULL, new_len - old_len);
+    (void) ddsi_xmsg_append_impl (msg, NULL, new_len - old_len);
   }
   else if (old_len > new_len)
   {
@@ -581,7 +584,7 @@ void *ddsi_xmsg_submsg_from_marker (struct ddsi_xmsg *msg, struct ddsi_xmsg_mark
   return msg->data->payload + marker.offset;
 }
 
-void *ddsi_xmsg_append (struct ddsi_xmsg *m, struct ddsi_xmsg_marker *marker, size_t sz)
+static void *ddsi_xmsg_append_impl (struct ddsi_xmsg *m, struct ddsi_xmsg_marker *marker, size_t sz)
 {
   static const size_t a = 4;
 
@@ -610,6 +613,11 @@ void *ddsi_xmsg_append (struct ddsi_xmsg *m, struct ddsi_xmsg_marker *marker, si
     marker->offset = m->sz;
   m->sz += sz;
   return p;
+}
+
+void *ddsi_xmsg_append (struct ddsi_xmsg *m, struct ddsi_xmsg_marker *marker, size_t sz)
+{
+  return ddsi_xmsg_append_impl (m, marker, sz);
 }
 
 void ddsi_xmsg_shrink (struct ddsi_xmsg *m, struct ddsi_xmsg_marker marker, size_t sz)
@@ -717,7 +725,7 @@ void ddsi_xmsg_setdst_prd (struct ddsi_xmsg *m, const struct ddsi_proxy_reader *
   if (!prd->redundant_networking)
   {
     ddsi_xlocator_t loc;
-    ddsi_addrset_any_uc_else_mc_nofail (prd->c.as, &loc);
+    ddsi_addrset_any_uc (prd->c.as, &loc);
     ddsi_xmsg_setdst1 (prd->e.gv, m, &prd->e.guid.prefix, &loc);
   }
   else
@@ -738,7 +746,7 @@ void ddsi_xmsg_setdst_pwr (struct ddsi_xmsg *m, const struct ddsi_proxy_writer *
   if (!pwr->redundant_networking)
   {
     ddsi_xlocator_t loc;
-    ddsi_addrset_any_uc_else_mc_nofail (pwr->c.as, &loc);
+    ddsi_addrset_any_uc (pwr->c.as, &loc);
     ddsi_xmsg_setdst1 (pwr->e.gv, m, &pwr->e.guid.prefix, &loc);
   }
   else
@@ -898,7 +906,7 @@ void ddsi_xmsg_setwriterseq_fragid (struct ddsi_xmsg *msg, const ddsi_guid_t *wr
   msg->kindspecific.data.wrfragid = wrfragid;
 }
 
-void *ddsi_xmsg_addpar_bo (struct ddsi_xmsg *m, ddsi_parameterid_t pid, size_t len, enum ddsrt_byte_order_selector bo)
+static void *ddsi_xmsg_addpar_bo_impl (struct ddsi_xmsg *m, ddsi_parameterid_t pid, size_t len, enum ddsrt_byte_order_selector bo)
 {
   const size_t len4 = (len + 3) & ~(size_t)3; /* must alloc a multiple of 4 */
   ddsi_parameter_t *phdr;
@@ -916,9 +924,14 @@ void *ddsi_xmsg_addpar_bo (struct ddsi_xmsg *m, ddsi_parameterid_t pid, size_t l
   return p;
 }
 
+void *ddsi_xmsg_addpar_bo (struct ddsi_xmsg *m, ddsi_parameterid_t pid, size_t len, enum ddsrt_byte_order_selector bo)
+{
+  return ddsi_xmsg_addpar_bo_impl (m, pid, len, bo);
+}
+
 void *ddsi_xmsg_addpar (struct ddsi_xmsg *m, ddsi_parameterid_t pid, size_t len)
 {
-  return ddsi_xmsg_addpar_bo(m, pid, len, DDSRT_BOSEL_NATIVE);
+  return ddsi_xmsg_addpar_bo_impl (m, pid, len, DDSRT_BOSEL_NATIVE);
 }
 
 void ddsi_xmsg_addpar_keyhash (struct ddsi_xmsg *m, const struct ddsi_serdata *serdata, bool force_md5)
@@ -954,12 +967,12 @@ void ddsi_xmsg_addpar_statusinfo (struct ddsi_xmsg *m, unsigned statusinfo)
 
 void ddsi_xmsg_addpar_sentinel (struct ddsi_xmsg * m)
 {
-  ddsi_xmsg_addpar (m, DDSI_PID_SENTINEL, 0);
+  ddsi_xmsg_addpar_bo_impl (m, DDSI_PID_SENTINEL, 0, DDSRT_BOSEL_NATIVE);
 }
 
 void ddsi_xmsg_addpar_sentinel_bo (struct ddsi_xmsg * m, enum ddsrt_byte_order_selector bo)
 {
-  ddsi_xmsg_addpar_bo (m, DDSI_PID_SENTINEL, 0, bo);
+  ddsi_xmsg_addpar_bo_impl (m, DDSI_PID_SENTINEL, 0, bo);
 }
 
 int ddsi_xmsg_addpar_sentinel_ifparam (struct ddsi_xmsg * m)
@@ -1179,7 +1192,6 @@ static void ddsi_xpack_send1v (const ddsi_xlocator_t *loc, void * varg)
 static void ddsi_xpack_send_real (struct ddsi_xpack *xp)
 {
   struct ddsi_domaingv const * const gv = xp->gv;
-  size_t calls;
 
   assert (xp->msgfrags == NULL || xp->msgfrags->niov <= DDSI_XMSG_MAX_MESSAGE_IOVECS);
 
@@ -1200,23 +1212,34 @@ static void ddsi_xpack_send_real (struct ddsi_xpack *xp)
     }
   }
 
+  size_t calls = 0;
   GVTRACE (" [");
-  if (xp->dstmode == NN_XMSG_DST_ONE)
+  switch (xp->dstmode)
   {
-    calls = 1;
-    (void) ddsi_xpack_send1 (&xp->dstaddr.loc, xp);
-  }
-  else
-  {
-    /* Send to all addresses in as - as ultimately references the writer's
-       address set, which is currently replaced rather than changed whenever
-       it is updated, but that might not be something we want to guarantee */
-    calls = 0;
-    if (xp->dstaddr.all.as)
-    {
-      calls = ddsi_addrset_forall_count (xp->dstaddr.all.as, ddsi_xpack_send1v, xp);
-      ddsi_unref_addrset (xp->dstaddr.all.as);
-    }
+    case NN_XMSG_DST_UNSET:
+      assert (0);
+      break;
+    case NN_XMSG_DST_ONE:
+      (void) ddsi_xpack_send1 (&xp->dstaddr.loc, xp);
+      calls++;
+      break;
+    case NN_XMSG_DST_ALL:
+      /* Send to all addresses in as - as ultimately references the writer's
+         address set, which is currently replaced rather than changed whenever
+         it is updated, but that might not be something we want to guarantee */
+      if (xp->dstaddr.all.as)
+      {
+        calls = ddsi_addrset_forall_count (xp->dstaddr.all.as, ddsi_xpack_send1v, xp);
+        ddsi_unref_addrset (xp->dstaddr.all.as);
+      }
+      break;
+    case NN_XMSG_DST_ALL_UC:
+      if (xp->dstaddr.all_uc.as)
+      {
+        calls = ddsi_addrset_forall_uc_count (xp->dstaddr.all_uc.as, ddsi_xpack_send1v, xp);
+        ddsi_unref_addrset (xp->dstaddr.all_uc.as);
+      }
+      break;
   }
   GVTRACE (" ]\n");
   if (calls)
@@ -1228,8 +1251,6 @@ static void ddsi_xpack_send_real (struct ddsi_xpack *xp)
 }
 
 #define SENDQ_MAX 200
-#define SENDQ_HW 10
-#define SENDQ_LW 0
 
 static uint32_t ddsi_xpack_sendq_thread (void *vgv)
 {
@@ -1249,7 +1270,7 @@ static uint32_t ddsi_xpack_sendq_thread (void *vgv)
     else
     {
       gv->sendq_head = xp->sendq_next;
-      if (--gv->sendq_length == SENDQ_LW)
+      if (--gv->sendq_length == 0)
         ddsrt_cond_broadcast (&gv->sendq_cond);
       ddsrt_mutex_unlock (&gv->sendq_lock);
       ddsi_xpack_send_real (xp);
@@ -1298,9 +1319,7 @@ void ddsi_xpack_sendq_fini (struct ddsi_domaingv *gv)
 void ddsi_xpack_send (struct ddsi_xpack *xp, bool immediately)
 {
   if (!xp->async_mode)
-  {
     ddsi_xpack_send_real (xp);
-  }
   else
   {
     struct ddsi_domaingv * const gv = xp->gv;
@@ -1315,18 +1334,14 @@ void ddsi_xpack_send (struct ddsi_xpack *xp, bool immediately)
     ddsi_xpack_reinit (xp);
     xp1->sendq_next = NULL;
     ddsrt_mutex_lock (&gv->sendq_lock);
-    if (immediately || gv->sendq_length > SENDQ_LW)
+    if (immediately || gv->sendq_length == 0)
       ddsrt_cond_broadcast (&gv->sendq_cond);
     if (gv->sendq_length >= SENDQ_MAX)
-    {
-        ddsrt_cond_wait (&gv->sendq_cond, &gv->sendq_lock);
-    }
+      ddsrt_cond_wait (&gv->sendq_cond, &gv->sendq_lock);
     if (gv->sendq_head)
       gv->sendq_tail->sendq_next = xp1;
     else
-    {
       gv->sendq_head = xp1;
-    }
     gv->sendq_tail = xp1;
     gv->sendq_length++;
     ddsrt_mutex_unlock (&gv->sendq_lock);

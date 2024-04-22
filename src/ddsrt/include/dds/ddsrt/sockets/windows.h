@@ -14,6 +14,11 @@ typedef SOCKET ddsrt_socket_t;
 #define DDSRT_INVALID_SOCKET (INVALID_SOCKET)
 #define PRIdSOCK PRIuPTR
 
+typedef struct ddsrt_socket_ext_t {
+  ddsrt_socket_t sock;
+  LPFN_WSARECVMSG wsarecvmsg;
+} ddsrt_socket_ext_t;
+
 #if defined(NTDDI_VERSION) && \
     defined(_WIN32_WINNT_WS03) && \
     (NTDDI_VERSION >= _WIN32_WINNT_WS03)

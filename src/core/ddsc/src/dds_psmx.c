@@ -196,10 +196,13 @@ dds_loaned_sample_t * dds_psmx_endpoint_request_loan (struct dds_psmx_endpoint *
 {
   assert (psmx_endpoint->ops.request_loan);
   dds_loaned_sample_t *loaned_sample = psmx_endpoint->ops.request_loan (psmx_endpoint, sz);
-  loaned_sample->metadata->sample_state = DDS_LOANED_SAMPLE_STATE_UNITIALIZED;
-  loaned_sample->metadata->sample_size = sz;
-  loaned_sample->metadata->instance_id = psmx_endpoint->psmx_topic->psmx_instance->instance_id;
-  loaned_sample->metadata->data_type = psmx_endpoint->psmx_topic->data_type;
+  if (loaned_sample)
+  {
+    loaned_sample->metadata->sample_state = DDS_LOANED_SAMPLE_STATE_UNITIALIZED;
+    loaned_sample->metadata->sample_size = sz;
+    loaned_sample->metadata->instance_id = psmx_endpoint->psmx_topic->psmx_instance->instance_id;
+    loaned_sample->metadata->data_type = psmx_endpoint->psmx_topic->data_type;
+  }
   return loaned_sample;
 }
 

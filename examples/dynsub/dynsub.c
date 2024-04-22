@@ -121,6 +121,7 @@ static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_
     {
       // not sure whether this is at all possible
       info = malloc (sizeof (*info));
+      assert (info);
       *info = (struct typeinfo){ .key = { .key = (uintptr_t) *xtypeobj }, .typeobj = &(*xtypeobj)->_u.complete, .release = *xtypeobj, .align = align, .size = size };
       type_cache_add (info);
     }

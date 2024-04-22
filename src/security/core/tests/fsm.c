@@ -424,12 +424,12 @@ CU_Test(ddssec_fsm, create, .init = fsm_control_init, .fini = fsm_control_fini)
   CU_ASSERT (visited_auth == 0xff);
   ddsrt_mutex_unlock (&g_lock);
 
-  /* Check correct callback parameter passing (from fsm to user defined methods) */
-  CU_ASSERT(correct_arg && correct_fsm);
   dds_security_fsm_free (fsm_auth);
 
   /* Check whether timeout callback has NOT been invoked */
+  /* Check correct callback parameter passing (from fsm to user defined methods) */
   ddsrt_mutex_lock (&g_lock);
+  CU_ASSERT (correct_arg && correct_fsm);
   CU_ASSERT (visited_timeout == 0);
   ddsrt_mutex_unlock (&g_lock);
 }

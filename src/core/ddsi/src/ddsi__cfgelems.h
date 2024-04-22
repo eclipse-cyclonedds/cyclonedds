@@ -70,8 +70,39 @@ static struct cfgelem network_interface_attributes[] = {
       "system. If set to 'true', the interface will be assumed to be multicast capable "
       "even when the interface flags returned by the operating system state it is not "
       "(this provides a workaround for some platforms). If set to 'false', the interface "
-      "will never be used for multicast.</p>")
-  ),
+      "will never be used for multicast.</p>"
+    )),
+  LIST("allow_multicast", NULL, 1, "default",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.allow_multicast),
+    FUNCTIONS(0, uf_allow_multicast, 0, pf_allow_multicast),
+    DESCRIPTION(
+      "<p>This element controls whether Cyclone DDS uses multicasts for data "
+      "traffic on this interface.</p>\n"
+      "<p>It is a comma-separated list of some of the following keywords: "
+      "\"spdp\", \"asm\", \"ssm\", or either of \"false\" or \"true\", or "
+      "\"default\".</p>\n"
+      "<ul>\n"
+      "<li><i>spdp</i>: "
+      "enables the use of ASM (any-source multicast) for participant "
+      "discovery, joining the multicast group on the discovery socket, "
+      "transmitting SPDP messages to this group, but never advertising nor "
+      "using any multicast address in any discovery message, thus forcing "
+      "unicast communications for all endpoint discovery and user data."
+      "</li>\n"
+      "<li><i>asm</i>: "
+      "enables the use of ASM for all traffic, including receiving SPDP but "
+      "not transmitting SPDP messages via multicast"
+      "</li>\n"
+      "<li><i>ssm</i>: "
+      "enables the use of SSM (source-specific multicast) for all non-SPDP "
+      "traffic (if supported)"
+      "</li></ul>\n"
+      "<p>When set to \"false\" all multicasting is disabled; \"true\""
+      "enables the full use of multicasts. Listening for multicasts can "
+      "be controlled by General/MulticastRecvNetworkInterfaceAddresses.</p>\n"
+      "<p>The special value \"default\" takes the value from the global"
+      "General/AllowMulticast setting.</p>"),
+    VALUES("false","spdp","asm","ssm","true","default")),
   END_MARKER
 };
 
@@ -218,7 +249,8 @@ static struct cfgelem general_cfgelems[] = {
     MEMBER(allowMulticast),
     FUNCTIONS(0, uf_allow_multicast, 0, pf_allow_multicast),
     DESCRIPTION(
-      "<p>This element controls whether Cyclone DDS uses multicasts for data "
+      "<p>This element controls the default for the per-network interface "
+      "setting whether Cyclone DDS uses multicasts for discovery and data "
       "traffic.</p>\n"
       "<p>It is a comma-separated list of some of the following keywords: "
       "\"spdp\", \"asm\", \"ssm\", or either of \"false\" or \"true\", or "
@@ -238,14 +270,13 @@ static struct cfgelem general_cfgelems[] = {
       "<li><i>ssm</i>: "
       "enables the use of SSM (source-specific multicast) for all non-SPDP "
       "traffic (if supported)"
-      "</li>\n"
-      "</ul>\n"
-      "<p>When set to \"false\" all multicasting is disabled. The default, "
-      "\"true\" enables the full use of multicasts. Listening for multicasts can "
+      "</li></ul>\n"
+      "<p>When set to \"false\" all multicasting is disabled; \"true\""
+      "enables the full use of multicasts. Listening for multicasts can "
       "be controlled by General/MulticastRecvNetworkInterfaceAddresses.</p>\n"
-      "<p>\"default\" maps on spdp if the network is a WiFi network, on true "
-      "if it is a wired network</p>"),
-    VALUES("false","spdp","asm","ssm","true")),
+      "<p>The special value \"default\" maps on spdp if the network is a "
+      "WiFi network, on true if it is a wired network</p>"),
+    VALUES("false","spdp","asm","ssm","true","default")),
   BOOL(DEPRECATED("PreferMulticast"), NULL, 1, "false",
     MEMBER(depr_prefer_multicast),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
@@ -1231,14 +1262,6 @@ static struct cfgelem internal_cfgelems[] = {
       "and calculating round trip times. This is non-standard behaviour. The "
       "measured latencies are quite noisy and are currently not used "
       "anywhere.</p>")),
-  BOOL("UnicastResponseToSPDPMessages", NULL, 1, "true",
-    MEMBER(unicast_response_to_spdp_messages),
-    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
-    DESCRIPTION(
-      "<p>This element controls whether the response to a newly discovered "
-      "participant is sent as a unicasted SPDP packet instead of "
-      "rescheduling the periodic multicasted one. There is no known benefit "
-      "to setting this to <i>false</i>.</p>")),
   INT("SynchronousDeliveryPriorityThreshold", NULL, 1, "0",
     MEMBER(synchronous_delivery_priority_threshold),
     FUNCTIONS(0, uf_int, 0, pf_int),
@@ -1525,10 +1548,10 @@ static struct cfgelem internal_cfgelems[] = {
     DESCRIPTION(
     "<p>This element controls whether all traffic is handled by a single "
     "receive thread (false) or whether multiple receive threads may be used "
-    "to improve latency (true). By default it is disabled on Windows because "
-    "it appears that one cannot count on being able to send packets to "
-    "oneself, which is necessary to stop the thread during shutdown. "
-    "Currently multiple receive threads are only used for connectionless "
+    "to improve latency (true). The value \"default\" currently maps to "
+    "false because of firewalls potentially blocking the packets it sends "
+    "to itself to interrupt the blocking reads during termination.</p>"
+    "<p>Currently multiple receive threads are only used for connectionless "
     "transport (e.g., UDP) and ManySocketsMode not set to single (the "
     "default).</p>"),
     VALUES("false","true","default")),
@@ -1551,6 +1574,14 @@ static struct cfgelem internal_cfgelems[] = {
     NOMEMBER,
     NOFUNCTIONS,
     DESCRIPTION("<p>Setting for controlling the size of transmitting bursts.</p>")),
+  BOOL("ExtendedPacketInfo", NULL, 1, "true",
+    MEMBER(extended_packet_info),
+    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
+    DESCRIPTION(
+      "<p>Whether to enable the IP_PKTINFO on UDP sockets to get hold of the packet "
+      "destination address and interface on which it was received. This allows "
+      "for better filtering on discovery packets, but comes at a small performance "
+      "penalty.</p>")),
   LIST("EnableExpensiveChecks", NULL, 1, "",
     MEMBER(enabled_xchecks),
     FUNCTIONS(0, uf_xcheck, 0, pf_xcheck),
@@ -1698,7 +1729,7 @@ static struct cfgelem tcp_cfgelems[] = {
   END_MARKER
 };
 
-#ifdef DDS_HAS_SSL
+#ifdef DDS_HAS_TCP_TLS
 static struct cfgelem ssl_cfgelems[] = {
   BOOL("Enable", NULL, 1, "false",
     MEMBER(ssl_enable),
@@ -1827,6 +1858,20 @@ static struct cfgelem discovery_peers_cfgelems[] = {
   END_MARKER
 };
 
+static struct cfgelem discovery_peers_cfgattrs[] = {
+  BOOL("AddLocalhost", NULL, 1, "default",
+    MEMBER(add_localhost_to_peers),
+    FUNCTIONS(0, uf_boolean_default, 0, pf_boolean_default),
+    DESCRIPTION(
+      "<p>This attribute determines controls the localhost will automatically "
+      "be added to the list of peers:.</p>\n"
+      "<ul><li><i>false</i>: never</li>\n"
+      "<li><i>true</i>: always</li>\n"
+      "<li><i>default</i>: if multicast discovery is unavailable<li></ul>"
+    )),
+  END_MARKER
+};
+
 static struct cfgelem discovery_cfgelems[] = {
   STRING("Tag", NULL, 1, "",
     MEMBER(domainTag),
@@ -1853,13 +1898,13 @@ static struct cfgelem discovery_cfgelems[] = {
       "disappears, allowing reconnection without loss of data when the "
       "discovery service restarts (or another instance takes over).</p>"),
     UNIT("duration_inf")),
-  GROUP("Peers", discovery_peers_cfgelems, NULL, 1,
+  GROUP("Peers", discovery_peers_cfgelems, discovery_peers_cfgattrs, 1,
     NOMEMBER,
     NOFUNCTIONS,
     DESCRIPTION(
       "<p>This element statically configures addresses for discovery.</p>"
     )),
-  STRING("ParticipantIndex", NULL, 1, "none",
+  STRING("ParticipantIndex", NULL, 1, "default",
     MEMBER(participantIndex),
     FUNCTIONS(0, uf_participantIndex, 0, pf_participantIndex),
     DESCRIPTION(
@@ -1870,10 +1915,12 @@ static struct cfgelem discovery_cfgelems[] = {
       "<ul><li><i>auto</i>: which will attempt to automatically determine an "
       "available participant index "
       "(see also Discovery/MaxAutoParticipantIndex), or</li>\n"
-      "<li>a non-negative integer less than 120, or</li>\n"
-      "<li><i>none</i>:, which causes it to use arbitrary port numbers for "
+      "<li>a non-negative integer, or</li>\n"
+      "<li><i>none</i>: which causes it to use arbitrary port numbers for "
       "unicast sockets which entirely removes the constraints on the "
-      "participant index but makes unicast discovery impossible.</li></ul>"
+      "participant index but makes unicast discovery impossible, or</li>"
+      "<li><i>default</i>: use <i>none</i> if multicast discovery is used on all "
+      "selected network interfaces, else <i>auto</i>.</li></ul>"
     )),
   INT("MaxAutoParticipantIndex", NULL, 1, "9",
     MEMBER(maxAutoParticipantIndex),
@@ -1958,13 +2005,19 @@ static struct cfgelem tracing_cfgelems[] = {
       "<li><i>radmin</i>: receive buffer administration</li>\n"
       "<li><i>timing</i>: periodic reporting of CPU loads per thread</li>\n"
       "<li><i>traffic</i>: periodic reporting of total outgoing data</li>\n"
+      "<li><i>throttle</i>: tracing of throttling events</li>\n"
       "<li><i>whc</i>: tracing of writer history cache changes</li>\n"
+      "<li><i>rhc</i>: tracing of reader history cache changes</li>\n"
       "<li><i>tcp</i>: tracing of TCP-specific activity</li>\n"
       "<li><i>topic</i>: tracing of topic definitions</li>\n"
-      "<li><i>plist</i>: tracing of discovery parameter list interpretation</li>"
+      "<li><i>plist</i>: tracing of discovery parameter list interpretation</li>\n"
+      "<li><i>content</i>: tracing of sample contents</li>\n"
+      "<li><i>malformed</i>: dump malformed full packet as warning</li>\n"
       "</ul>\n"
-      "<p>In addition, there is the keyword <i>trace</i> that enables all "
-      "but <i>radmin</i>, <i>topic</i>, <i>plist</i> and <i>whc</i></p>.\n"
+      "<p>In addition, there is the keyword <i>trace</i> that enables: "
+      "<i>fatal</i>, <i>error</i>, <i>warning</i>, <i>info</i>, <i>config</i>, "
+      "<i>discovery</i>, <i>data</i>, <i>trace</i>, <i>timing</i>, <i>traffic</i>, "
+      "<i>tcp</i>, <i>throttle</i>, <i>content</i>.</p>.\n"
       "<p>The categorisation of tracing output is incomplete and hence most "
       "of the verbosity levels and categories are not of much use in the "
       "current release. This is an ongoing process and here we describe the "
@@ -1973,7 +2026,7 @@ static struct cfgelem tracing_cfgelems[] = {
     VALUES(
       "fatal","error","warning","info","config","discovery","data","radmin",
       "timing","traffic","topic","tcp","plist","whc","throttle","rhc",
-      "content","shm","trace"
+      "content","malformed","trace"
     )),
   ENUM("Verbosity", NULL, 1, "none",
     NOMEMBER,
@@ -2134,7 +2187,7 @@ static struct cfgelem domain_cfgelems[] = {
       "<p>The TCP element allows you to specify various parameters related to "
       "running DDSI over TCP.</p>"
     )),
-#ifdef DDS_HAS_SSL
+#ifdef DDS_HAS_TCP_TLS
   GROUP("SSL", ssl_cfgelems, NULL, 1,
     NOMEMBER,
     NOFUNCTIONS,
@@ -2142,7 +2195,7 @@ static struct cfgelem domain_cfgelems[] = {
       "<p>The SSL element allows specifying various parameters related to "
       "using SSL/TLS for DDSI over TCP.</p>"
     ),
-    BEHIND_FLAG("DDS_HAS_SSL")
+    BEHIND_FLAG("DDS_HAS_TCP_TLS")
   ),
 #endif
   GROUP("SharedMemory", shmem_cfgelems, NULL, 1,
@@ -2177,7 +2230,7 @@ static struct cfgelem root_cfgelems[] = {
   MOVED("DDSSecurity", "CycloneDDS/Domain/Security"),
 #endif
   MOVED("SharedMemory", "CycloneDDS/Domain/SharedMemory"),
-#if DDS_HAS_SSL
+#if DDS_HAS_TCP_TLS
   MOVED("SSL", "CycloneDDS/Domain/SSL"),
 #endif
   MOVED("DDSI2E|DDSI2", "CycloneDDS/Domain"),

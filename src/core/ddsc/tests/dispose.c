@@ -177,9 +177,11 @@ CU_TheoryDataPoints(ddsc_writedispose, non_writers) = {
 };
 CU_Theory((dds_entity_t *writer), ddsc_writedispose, non_writers, .init=disposing_init, .fini=disposing_fini)
 {
+    Space_Type1 data = { 0, 22, 22 };
     dds_return_t ret;
+
     DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
-    ret = dds_writedispose(*writer, NULL);
+    ret = dds_writedispose(*writer, &data);
     DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_ILLEGAL_OPERATION);
 }
@@ -347,9 +349,10 @@ CU_TheoryDataPoints(ddsc_writedispose_ts, non_writers) = {
 };
 CU_Theory((dds_entity_t *writer), ddsc_writedispose_ts, non_writers, .init=disposing_init, .fini=disposing_fini)
 {
+    Space_Type1 data = { 0, 22, 22 };
     dds_return_t ret;
     DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
-    ret = dds_writedispose_ts(*writer, NULL, g_present);
+    ret = dds_writedispose_ts(*writer, &data, g_present);
     DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_ILLEGAL_OPERATION);
 }

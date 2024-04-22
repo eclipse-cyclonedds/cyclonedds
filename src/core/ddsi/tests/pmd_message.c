@@ -190,8 +190,10 @@ static void create_fake_proxy_participant (void)
     HDR (DDSI_PID_PARTICIPANT_LEASE_DURATION, 8),   SER32BE (100), SER32BE (0),
     SENTINEL
   };
-  ddsi_locator_t srcloc;
-  ddsi_conn_locator (gv.xmit_conns[0], &srcloc);
+  struct ddsi_network_packet_info pktinfo;
+  ddsi_conn_locator (gv.xmit_conns[0], &pktinfo.src);
+  pktinfo.dst.kind = DDSI_LOCATOR_KIND_INVALID;
+  pktinfo.if_index = 0;
   const ddsi_guid_t proxypp_guid = {
     .prefix = ddsi_ntoh_guid_prefix ((ddsi_guid_prefix_t){ .s = { TEST_GUIDPREFIX_BYTES } }),
     .entityid = { .u = DDSI_ENTITYID_PARTICIPANT }
@@ -206,7 +208,7 @@ static void create_fake_proxy_participant (void)
   memcpy (buf, spdp_pkt, sizeof (spdp_pkt));
   size += sizeof (spdp_pkt);
   ddsi_rmsg_setsize (rmsg, (uint32_t) size);
-  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, size, buf, &srcloc);
+  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, size, buf, &pktinfo);
   ddsi_rmsg_commit (rmsg);
   // wait until SPDP message has been processed
   wait_for_dqueue ();
@@ -279,15 +281,17 @@ static void send_pmd_message (uint32_t seqlo, uint16_t encoding, uint16_t option
   // Process the packet we so carefully constructed above as if it was received
   // over the network.  Stack is deaf (and mute), so there is no risk that the
   // message gets dropped because some buffer is full
-  ddsi_locator_t srcloc;
-  ddsi_conn_locator (gv.xmit_conns[0], &srcloc);
+  struct ddsi_network_packet_info pktinfo;
+  ddsi_conn_locator (gv.xmit_conns[0], &pktinfo.src);
+  pktinfo.dst.kind = DDSI_LOCATOR_KIND_INVALID;
+  pktinfo.if_index = 0;
   struct ddsi_rmsg *rmsg = ddsi_rmsg_new (rbufpool);
   unsigned char *buf = (unsigned char *) DDSI_RMSG_PAYLOAD (rmsg);
   size_t size = 0;
   memcpy (buf, pmd_pkt, sizeof (pmd_pkt));
   size += sizeof (pmd_pkt) - 24 + act_payload_size;
   ddsi_rmsg_setsize (rmsg, (uint32_t) size);
-  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, size, buf, &srcloc);
+  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, size, buf, &pktinfo);
   ddsi_rmsg_commit (rmsg);
   // wait until PMD message has been processed
   wait_for_dqueue ();

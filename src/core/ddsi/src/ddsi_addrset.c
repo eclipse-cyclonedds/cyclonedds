@@ -122,7 +122,7 @@ void ddsi_set_unspec_xlocator (ddsi_xlocator_t *loc)
   ddsi_set_unspec_locator (&loc->c);
 }
 
-int ddsi_is_unspec_locator (const ddsi_locator_t *loc)
+bool ddsi_is_unspec_locator (const ddsi_locator_t *loc)
 {
   static const ddsi_locator_t zloc = { .kind = 0 };
   return (loc->kind == DDSI_LOCATOR_KIND_INVALID &&
@@ -130,13 +130,13 @@ int ddsi_is_unspec_locator (const ddsi_locator_t *loc)
           memcmp (&zloc.address, loc->address, sizeof (zloc.address)) == 0);
 }
 
-int ddsi_is_unspec_xlocator (const ddsi_xlocator_t *loc)
+bool ddsi_is_unspec_xlocator (const ddsi_xlocator_t *loc)
 {
   return ddsi_is_unspec_locator (&loc->c);
 }
 
 #ifdef DDS_HAS_SSM
-int ddsi_addrset_contains_ssm (const struct ddsi_domaingv *gv, const struct ddsi_addrset *as)
+bool ddsi_addrset_contains_ssm (const struct ddsi_domaingv *gv, const struct ddsi_addrset *as)
 {
   struct ddsi_addrset_node *n;
   ddsrt_avl_citer_t it;
@@ -146,14 +146,14 @@ int ddsi_addrset_contains_ssm (const struct ddsi_domaingv *gv, const struct ddsi
     if (ddsi_is_ssm_mcaddr (gv, &n->loc.c))
     {
       UNLOCK (as);
-      return 1;
+      return true;
     }
   }
   UNLOCK (as);
-  return 0;
+  return false;
 }
 
-int ddsi_addrset_any_ssm (const struct ddsi_domaingv *gv, const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
+bool ddsi_addrset_any_ssm (const struct ddsi_domaingv *gv, const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
 {
   struct ddsi_addrset_node *n;
   ddsrt_avl_citer_t it;
@@ -164,14 +164,14 @@ int ddsi_addrset_any_ssm (const struct ddsi_domaingv *gv, const struct ddsi_addr
     {
       *dst = n->loc;
       UNLOCK (as);
-      return 1;
+      return true;
     }
   }
   UNLOCK (as);
-  return 0;
+  return false;
 }
 
-int ddsi_addrset_any_non_ssm_mc (const struct ddsi_domaingv *gv, const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
+bool ddsi_addrset_any_non_ssm_mc (const struct ddsi_domaingv *gv, const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
 {
   struct ddsi_addrset_node *n;
   ddsrt_avl_citer_t it;
@@ -182,22 +182,13 @@ int ddsi_addrset_any_non_ssm_mc (const struct ddsi_domaingv *gv, const struct dd
     {
       *dst = n->loc;
       UNLOCK (as);
-      return 1;
+      return true;
     }
   }
   UNLOCK (as);
-  return 0;
+  return false;
 }
 #endif
-
-int ddsi_addrset_purge (struct ddsi_addrset *as)
-{
-  LOCK (as);
-  ddsrt_avl_cfree (&addrset_treedef, &as->ucaddrs, ddsrt_free);
-  ddsrt_avl_cfree (&addrset_treedef, &as->mcaddrs, ddsrt_free);
-  UNLOCK (as);
-  return 0;
-}
 
 static void add_xlocator_to_addrset_impl (const struct ddsi_domaingv *gv, struct ddsi_addrset *as, const ddsi_xlocator_t *loc)
 {
@@ -374,97 +365,93 @@ size_t ddsi_addrset_count_mc (const struct ddsi_addrset *as)
   }
 }
 
-int ddsi_addrset_empty_uc (const struct ddsi_addrset *as)
+bool ddsi_addrset_empty_uc (const struct ddsi_addrset *as)
 {
-  int isempty;
+  bool isempty;
   LOCK (as);
   isempty = ddsrt_avl_cis_empty (&as->ucaddrs);
   UNLOCK (as);
   return isempty;
 }
 
-int ddsi_addrset_empty_mc (const struct ddsi_addrset *as)
+bool ddsi_addrset_empty_mc (const struct ddsi_addrset *as)
 {
-  int isempty;
+  bool isempty;
   LOCK (as);
   isempty = ddsrt_avl_cis_empty (&as->mcaddrs);
   UNLOCK (as);
   return isempty;
 }
 
-int ddsi_addrset_empty (const struct ddsi_addrset *as)
+bool ddsi_addrset_empty (const struct ddsi_addrset *as)
 {
-  int isempty;
+  bool isempty;
   LOCK (as);
   isempty = ddsrt_avl_cis_empty (&as->ucaddrs) && ddsrt_avl_cis_empty (&as->mcaddrs);
   UNLOCK (as);
   return isempty;
 }
 
-static int ddsi_addrset_any_uc_locked (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
+bool ddsi_addrset_contains_non_psmx_uc (const struct ddsi_addrset *as)
 {
-  if (ddsrt_avl_cis_empty (&as->ucaddrs))
-    return 0;
-  else
+  bool have_non_psmx_uc = false;
+  LOCK (as);
+  ddsrt_avl_citer_t it;
+  for (const struct ddsi_addrset_node *n = ddsrt_avl_citer_first (&addrset_treedef, &as->ucaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
   {
-    // FIXME: almost just as broken as it was: because we need to do multiple addresses if
-    // redundant_networking, and otherwise should use whatever wraddrset()'s calculations
-    // would yield.  This is merely a band-aid.
-    const struct ddsi_addrset_node *n = ddsrt_avl_croot_non_empty (&addrset_treedef, &as->ucaddrs);
+    if (n->loc.c.kind != DDSI_LOCATOR_KIND_PSMX)
+    {
+      have_non_psmx_uc = true;
+      break;
+    }
+  }
+  UNLOCK (as);
+  return have_non_psmx_uc;
+}
+
+void ddsi_addrset_any_uc (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
+{
+#ifndef NDEBUG
+  dst->c.kind = DDSI_LOCATOR_KIND_INVALID;
+#endif
+  LOCK (as);
+  const struct ddsi_addrset_node *n = ddsrt_avl_croot_non_empty (&addrset_treedef, &as->ucaddrs);
+  if (n->loc.c.kind != DDSI_LOCATOR_KIND_PSMX)
+  {
+    *dst = n->loc;
+    goto done;
+  }
+  ddsrt_avl_citer_t it;
+  for (n = ddsrt_avl_citer_first (&addrset_treedef, &as->ucaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
+  {
     if (n->loc.c.kind != DDSI_LOCATOR_KIND_PSMX)
     {
       *dst = n->loc;
-      return 1;
+      goto done;
     }
-    ddsrt_avl_citer_t it;
-    for (n = ddsrt_avl_citer_first (&addrset_treedef, &as->ucaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
-    {
-      if (n->loc.c.kind != DDSI_LOCATOR_KIND_PSMX)
-      {
-        *dst = n->loc;
-        return 1;
-      }
-    }
-    return 0;
   }
-}
-
-int ddsi_addrset_any_uc (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
-{
-  LOCK (as);
-  int r = ddsi_addrset_any_uc_locked (as, dst);
+done:
   UNLOCK (as);
-  return r;
+  // SPDP, SEDP processing check the address sets and reject any remote entity that doesn't
+  // have a non-PSMX unicast address
+  assert (dst->c.kind != DDSI_LOCATOR_KIND_INVALID);
 }
 
-int ddsi_addrset_any_mc (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
+bool ddsi_addrset_any_mc (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
 {
   LOCK (as);
   if (ddsrt_avl_cis_empty (&as->mcaddrs))
   {
     UNLOCK (as);
-    return 0;
+    return false;
   }
   else
   {
     const struct ddsi_addrset_node *n = ddsrt_avl_croot_non_empty (&addrset_treedef, &as->mcaddrs);
     *dst = n->loc;
     UNLOCK (as);
-    return 1;
+    return true;
   }
-}
-
-void ddsi_addrset_any_uc_else_mc_nofail (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
-{
-  LOCK (as);
-  if (!ddsi_addrset_any_uc_locked (as, dst))
-  {
-    // FIXME: any uc can fail, but only if there are no addresses other than PSMX, we should escape disaster
-    assert (!ddsrt_avl_cis_empty (&as->mcaddrs));
-    const struct ddsi_addrset_node *n = ddsrt_avl_croot_non_empty (&addrset_treedef, &as->mcaddrs);
-    *dst = n->loc;
-  }
-  UNLOCK (as);
 }
 
 struct addrset_forall_helper_arg
@@ -499,36 +486,15 @@ void ddsi_addrset_forall (struct ddsi_addrset *as, ddsi_addrset_forall_fun_t f, 
   (void) ddsi_addrset_forall_count (as, f, arg);
 }
 
-size_t ddsi_addrset_forall_uc_else_mc_count (struct ddsi_addrset *as, ddsi_addrset_forall_fun_t f, void *arg)
+size_t ddsi_addrset_forall_uc_count (struct ddsi_addrset *as, ddsi_addrset_forall_fun_t f, void *arg)
 {
   struct addrset_forall_helper_arg arg1;
   size_t count;
   arg1.f = f;
   arg1.arg = arg;
   LOCK (as);
-  if (!ddsrt_avl_cis_empty (&as->ucaddrs))
-  {
-    ddsrt_avl_cconst_walk (&addrset_treedef, &as->ucaddrs, addrset_forall_helper, &arg1);
-    count = ddsrt_avl_ccount (&as->ucaddrs);
-  }
-  else
-  {
-    ddsrt_avl_cconst_walk (&addrset_treedef, &as->mcaddrs, addrset_forall_helper, &arg1);
-    count = ddsrt_avl_ccount (&as->mcaddrs);
-  }
-  UNLOCK (as);
-  return count;
-}
-
-size_t ddsi_addrset_forall_mc_count (struct ddsi_addrset *as, ddsi_addrset_forall_fun_t f, void *arg)
-{
-  struct addrset_forall_helper_arg arg1;
-  size_t count;
-  arg1.f = f;
-  arg1.arg = arg;
-  LOCK (as);
-  ddsrt_avl_cconst_walk (&addrset_treedef, &as->mcaddrs, addrset_forall_helper, &arg1);
-  count = ddsrt_avl_ccount (&as->mcaddrs);
+  ddsrt_avl_cconst_walk (&addrset_treedef, &as->ucaddrs, addrset_forall_helper, &arg1);
+  count = ddsrt_avl_ccount (&as->ucaddrs);
   UNLOCK (as);
   return count;
 }
@@ -597,14 +563,14 @@ static int addrset_eq_onesidederr1 (const ddsrt_avl_ctree_t *at, const ddsrt_avl
   }
 }
 
-int ddsi_addrset_eq_onesidederr (const struct ddsi_addrset *a, const struct ddsi_addrset *b)
+bool ddsi_addrset_eq_onesidederr (const struct ddsi_addrset *a, const struct ddsi_addrset *b)
 {
-  int iseq;
   if (a == b)
-    return 1;
+    return true;
   if (a == NULL || b == NULL)
-    return 0;
+    return false;
   LOCK (a);
+  bool iseq;
   if (TRYLOCK (b))
   {
     iseq =
@@ -618,7 +584,7 @@ int ddsi_addrset_eq_onesidederr (const struct ddsi_addrset *a, const struct ddsi
        just decide it isn't worth the bother. Which it isn't because
        it doesn't have to be an exact check on equality. A possible
        improvement would be to use an rwlock. */
-    iseq = 0;
+    iseq = false;
   }
   UNLOCK (a);
   return iseq;

@@ -63,6 +63,10 @@
 #include "dds/security/core/dds_security_shared_secret.h"
 #endif
 
+#ifdef DDS_HAS_QOS_PROVIDER
+#include "dds/ddsc/dds_public_qos_provider.h"
+#endif
+
 #include "dds/ddsc/dds_internal_api.h"
 #include "dds/ddsc/dds_loaned_sample.h"
 #include "dds/ddsc/dds_rhc.h"
@@ -71,9 +75,14 @@
 
 #include "dds/cdr/dds_cdrstream.h"
 
-#include "dds__write.h" // dds_write_impl
+#include "dds__write.h" // dds_write_impl, dds_writecdr_impl
 
 DDSRT_WARNING_DEPRECATED_OFF
+DDSRT_WARNING_GNUC_OFF (unused-result)
+DDSRT_WARNING_CLANG_OFF (unused-result)
+
+DDSRT_WARNING_CLANG_OFF(unused-result)
+DDSRT_WARNING_GNUC_OFF(unused-result)
 
 #ifdef DDS_HAS_SECURITY
 static void test_DDS_Security_Exception_vset (void *ptr, const char *msg, ...)
@@ -610,6 +619,13 @@ int main (int argc, char **argv)
   DDS_Security_get_secret_size_from_secret_handle (1);
 #endif
 
+#ifdef DDS_HAS_QOS_PROVIDER
+  dds_create_qos_provider(ptr,ptr);
+  dds_create_qos_provider_scope(ptr,ptr,ptr);
+  dds_qos_provider_get_qos(ptr,0,ptr,ptr);
+  dds_delete_qos_provider(ptr);
+#endif
+
   // ddsi_sertype.h
   struct dds_type_consistency_enforcement_qospolicy tce = { 0, false, false, false, false, false };
   ddsi_sertype_v0 (ptr);
@@ -1056,6 +1072,7 @@ int main (int argc, char **argv)
 
   // dds__write.h
   dds_write_impl (ptr, ptr, 0, (dds_write_action) 0);
+  dds_writecdr_impl (ptr, ptr, ptr, false);
 
   return 0;
 }
