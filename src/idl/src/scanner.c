@@ -436,7 +436,7 @@ scan_pp_number(idl_pstate_t *pstate, const char *cur, const char **lim)
 }
 
 static int32_t
-scan_identifier(idl_pstate_t *pstate, const char *cur, const char **lim)
+scan_identifier(idl_pstate_t *pstate, const char *cur, const char **lim, bool allow_leading_underscores)
 {
   int32_t cnt = 0;
 
@@ -451,6 +451,19 @@ scan_identifier(idl_pstate_t *pstate, const char *cur, const char **lim)
       return IDL_RETCODE_NEED_REFILL;
     cur += cnt;
   } while (cnt);
+
+  /* scan_identifier is only called when looking at alpha|_ */
+  const char *tok = pstate->scanner.cursor;
+  assert(cur - tok > 0);
+  if (!allow_leading_underscores) {
+    if (cur - tok == 1 && tok[0] == '_') {
+      error(pstate, tok, "'_' is not a valid identifier");
+      return IDL_RETCODE_SYNTAX_ERROR;
+    } else if (cur - tok >= 2 && tok[0] == '_' && tok[1] == '_') {
+      error(pstate, tok, "At most one leading underscore allowed in an identifier");
+      return IDL_RETCODE_SYNTAX_ERROR;
+    }
+  }
 
   switch (pstate->scanner.state) {
     case IDL_SCAN_ANNOTATION:
@@ -592,7 +605,7 @@ scan(idl_pstate_t *pstate, idl_lexeme_t *lex)
       if (chr == '.' && have_digit(pstate, next(pstate, cur))) {
         code = scan_pp_number(pstate, cur, &lim);
       } else if (have_alpha(pstate, cur) || chr == '_') {
-        code = scan_identifier(pstate, cur, &lim);
+        code = scan_identifier(pstate, cur, &lim, true);
       } else if (have_digit(pstate, cur)) {
         code = scan_pp_number(pstate, cur, &lim);
       } else if (have(pstate, cur, "::")) {
@@ -611,7 +624,7 @@ scan(idl_pstate_t *pstate, idl_lexeme_t *lex)
         /* idl_stroull takes care of decimal vs. octal vs. hexadecimal */
         code = scan_integer_literal(pstate, cur, &lim);
       } else if (have_alpha(pstate, cur) || chr == '_') {
-        code = scan_identifier(pstate, cur, &lim);
+        code = scan_identifier(pstate, cur, &lim, false);
       } else if (have(pstate, cur, "::") > 0) {
         code = scan_scope(pstate, cur, &lim);
       } else if ((cnt = have(pstate, cur, "<<")) > 0) {
