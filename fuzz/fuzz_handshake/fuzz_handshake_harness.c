@@ -16,6 +16,8 @@
 #include <ddsi__vendor.h>
 #include <ddsi__protocol.h>
 #include <ddsi__security_util.h>
+#include <ddsi__xevent.h>
+#include <ddsi__gc.h>
 #include <dds__qos.h>
 #include <dds/ddsi/ddsi_iid.h>
 #include <dds/ddsi/ddsi_init.h>
@@ -26,7 +28,6 @@
 #include <dds/security/core/dds_security_fsm.h>
 #include <dds/security/core/dds_security_utils.h>
 #include <dds/security/core/dds_security_serialize.h>
-#include <common/config_env.h>
 #include <common/test_identity.h>
 
 #include <openssl/pem.h>
@@ -39,16 +40,16 @@ const char *sec_config =
     "  <Tracing><Verbosity>finest</></>"
     "  <Security>"
     "    <Authentication>"
-    "      <Library initFunction=\"init_test_authentication_wrapped\" finalizeFunction=\"finalize_test_authentication_wrapped\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"
+    "      <Library initFunction=\"init_authentication\" finalizeFunction=\"finalize_authentication\" path=\"dds_security_auth\"/>"
     "      <IdentityCertificate>data:," TEST_IDENTITY1_CERTIFICATE "</IdentityCertificate>"
     "      <PrivateKey>data:," TEST_IDENTITY1_PRIVATE_KEY "</PrivateKey>"
     "      <IdentityCA>data:," TEST_IDENTITY_CA1_CERTIFICATE "</IdentityCA>"
     "    </Authentication>"
     "    <Cryptographic>"
-    "      <Library initFunction=\"init_test_cryptography_all_ok\" finalizeFunction=\"finalize_test_cryptography_all_ok\" path=\"" WRAPPERLIB_PATH("dds_security_cryptography_wrapper") "\"/>"
+    "      <Library initFunction=\"init_crypto\" finalizeFunction=\"finalize_crypto\" path=\"dds_security_crypto\"/>"
     "    </Cryptographic>"
     "    <AccessControl>"
-    "      <Library initFunction=\"init_test_access_control_wrapped\" finalizeFunction=\"finalize_test_access_control_wrapped\" path=\"" WRAPPERLIB_PATH("dds_security_access_control_wrapper") "\"/>"
+    "      <Library initFunction=\"init_access_control\" finalizeFunction=\"finalize_access_control\" path=\"dds_security_ac\"/>"
     "      <Governance></Governance>"
     "      <PermissionsCA></PermissionsCA>"
     "      <Permissions></Permissions>"
@@ -65,6 +66,17 @@ EVP_PKEY *g_private_key;
 #define FUZZ_HANDSHAKE_EVENT_HANDLED (-4)
 ddsrt_atomic_uint32_t g_fsm_done;
 ddsrt_atomic_uint32_t g_fuzz_events;
+
+static ddsrt_dynlib_t auth_plugin_handle;
+
+typedef DDS_Security_ValidationResult_t (*dhpkey2oct_t)(EVP_PKEY *, int, unsigned char **, uint32_t *, DDS_Security_SecurityException *);
+static dhpkey2oct_t dh_public_key_to_oct_ptr = NULL;
+
+typedef DDS_Security_ValidationResult_t (*gendhkeys_t)(EVP_PKEY **, int, DDS_Security_SecurityException *);
+static gendhkeys_t generate_dh_keys_ptr = NULL;
+
+typedef DDS_Security_ValidationResult_t (*cvas_t)(bool, EVP_PKEY *, const unsigned char *, const size_t, unsigned char **, size_t *, DDS_Security_SecurityException *);
+static cvas_t create_validate_asymmetrical_signature_ptr = NULL;
 
 struct {
     struct ddsi_participant *pp;
@@ -90,7 +102,7 @@ bool fuzz_handshake_init()
     thrst = ddsi_lookup_thread_state ();
     assert (thrst->state == DDSI_THREAD_STATE_LAZILY_CREATED);
     thrst->state = DDSI_THREAD_STATE_ALIVE;
-    thrst->vtime.v = DDSI_VTIME_NEST_MASK;
+    thrst->vtime.v = 0;
     ddsrt_atomic_stvoidp (&thrst->gv, &gv);
     memset(&gv, 0, sizeof(gv));
     ddsi_config_init_default(&gv.config);
@@ -102,11 +114,25 @@ bool fuzz_handshake_init()
 
     //FILE *fp = fopen("/dev/stdout", "w");
     //dds_log_cfg_init(&gv.logconfig, 1, DDS_LC_TRACE | DDS_LC_ERROR | DDS_LC_WARNING, NULL, fp);
-    
+
     // Disable logging
     dds_log_cfg_init(&gv.logconfig, 1, 0, NULL, NULL);
 
+    // We use a statically linked build, all functions we need to lookup need to be
+    // exported from the plugin
+    //
+    // See src/security/builtin_plugins/authentication/CMakeLists.txt
+    if (ddsrt_dlopen("dds_security_auth", true, &auth_plugin_handle) != DDS_RETCODE_OK)
+      abort();
+    if (ddsrt_dlsym(auth_plugin_handle, "generate_dh_keys", (void **)&generate_dh_keys_ptr) != DDS_RETCODE_OK)
+      abort();
+    if (ddsrt_dlsym(auth_plugin_handle, "dh_public_key_to_oct", (void **)&dh_public_key_to_oct_ptr) != DDS_RETCODE_OK)
+      abort();
+    if (ddsrt_dlsym(auth_plugin_handle, "create_validate_asymmetrical_signature", (void **)&create_validate_asymmetrical_signature_ptr) != DDS_RETCODE_OK)
+      abort();
+
     // Create participant
+    ddsi_thread_state_awake(ddsi_lookup_thread_state(), &gv);
     {
         ddsi_plist_t pplist;
         ddsi_plist_init_empty(&pplist);
@@ -121,6 +147,7 @@ bool fuzz_handshake_init()
         harness.pp = ddsi_entidx_lookup_participant_guid(gv.entity_index, &g_ppguid);
         ddsi_plist_fini(&pplist);
     }
+    ddsi_thread_state_asleep(ddsi_lookup_thread_state());
 
     return true;
 }
@@ -206,6 +233,7 @@ void fuzz_handshake_reset(bool initiate_remote) {
     ddsi_add_locator_to_addrset(&gv,as, &loc);
     assert(!ddsi_addrset_empty_uc(as));
 
+    ddsi_thread_state_awake(ddsi_lookup_thread_state(), &gv);
     if (!ddsi_new_proxy_participant(&gv,
             &g_proxy_ppguid,
             DDSI_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER|
@@ -223,8 +251,9 @@ void fuzz_handshake_reset(bool initiate_remote) {
     }
 
     harness.proxy_pp = ddsi_entidx_lookup_proxy_participant_guid(gv.entity_index, &g_proxy_ppguid);
+    ddsi_thread_state_asleep(ddsi_lookup_thread_state());
     ddsi_plist_fini(&pplist);
-    
+
     harness.hs = ddsi_handshake_find(harness.pp, harness.proxy_pp);
     if (harness.hs == NULL) abort();
 
@@ -232,31 +261,20 @@ void fuzz_handshake_reset(bool initiate_remote) {
     // and the handshake fsm thread.
     dds_security_fsm_set_debug(harness.hs->fsm, fsm_debug_func);
     harness.hs->end_cb = hs_end_cb;
+    ddsi_handshake_release(harness.hs);
 }
 
 void fuzz_handshake_handle_timeout(void) {
     dds_security_fsm_dispatch(harness.hs->fsm, DDS_SECURITY_FSM_EVENT_TIMEOUT, false);
 }
 
-typedef DDS_Security_ValidationResult_t (*dhpkey2oct_t)(EVP_PKEY *, int, unsigned char **, uint32_t *, DDS_Security_SecurityException *);
-dhpkey2oct_t dh_public_key_to_oct = NULL;
-
-typedef DDS_Security_ValidationResult_t (*gendhkeys_t)(EVP_PKEY **, int, DDS_Security_SecurityException *);
-gendhkeys_t generate_dh_keys = NULL;
-
 static DDS_Security_ValidationResult_t create_dh_key(int algo, unsigned char **data, uint32_t *len) {
     EVP_PKEY *key;
     DDS_Security_SecurityException ex = {0};
-
-    if (generate_dh_keys == NULL)
-        generate_dh_keys = dlsym(NULL, "generate_dh_keys");
-
-    DDS_Security_ValidationResult_t result = generate_dh_keys(&key, algo, &ex);
+    DDS_Security_ValidationResult_t result = generate_dh_keys_ptr(&key, algo, &ex);
     if (result != DDS_SECURITY_VALIDATION_OK) goto out;
 
-    if (dh_public_key_to_oct == NULL)
-        dh_public_key_to_oct = dlsym(NULL, "dh_public_key_to_oct");
-    result = dh_public_key_to_oct(key, algo, data, len, &ex);
+    result = dh_public_key_to_oct_ptr(key, algo, data, len, &ex);
 out:
     EVP_PKEY_free(key);
     DDS_Security_Exception_reset(&ex);
@@ -272,7 +290,7 @@ void fuzz_handshake_handle_request(ddsi_dataholder_t *token) {
 
     for (uint32_t i = 0; i < token->binary_properties.n; i++) {
         dds_binaryproperty_t *binprop = &token->binary_properties.props[i];
-        // To avoid fuzzing openssl, always use a valid certificate 
+        // To avoid fuzzing openssl, always use a valid certificate
         if (strcmp(binprop->name, "c.id") == 0) {
             free(binprop->value.value);
             binprop->value.length = strlen(TEST_IDENTITY3_CERTIFICATE);
@@ -280,8 +298,6 @@ void fuzz_handshake_handle_request(ddsi_dataholder_t *token) {
         }
         // Provide a valid dh public key
         if (strcmp(binprop->name, "dh1") == 0) {
-            if (dh_public_key_to_oct == NULL)
-                dh_public_key_to_oct = dlsym(NULL, "dh_public_key_to_oct");
             unsigned char *data;
             uint32_t len;
             if (create_dh_key(1, &data, &len) == DDS_SECURITY_VALIDATION_OK) {
@@ -294,9 +310,6 @@ void fuzz_handshake_handle_request(ddsi_dataholder_t *token) {
     ddsi_handshake_handle_message(harness.hs, harness.pp, harness.proxy_pp, &msg);
 }
 
-typedef DDS_Security_ValidationResult_t (*cvas_t)(bool, EVP_PKEY *, const unsigned char *, const size_t, unsigned char **, size_t *, DDS_Security_SecurityException *);
-cvas_t create_validate_asymmetrical_signature = NULL;
-
 static void create_signature(const DDS_Security_BinaryProperty_t **bprops, uint32_t n_bprops, unsigned char **signature, size_t *signatureLen)
 {
     unsigned char *buffer;
@@ -305,9 +318,7 @@ static void create_signature(const DDS_Security_BinaryProperty_t **bprops, uint3
     DDS_Security_Serialize_BinaryPropertyArray(serializer, bprops, n_bprops);
     DDS_Security_Serializer_buffer(serializer, &buffer, &size);
     DDS_Security_SecurityException ex;
-    if (create_validate_asymmetrical_signature == NULL)
-        create_validate_asymmetrical_signature = dlsym(NULL, "create_validate_asymmetrical_signature");
-    (void) create_validate_asymmetrical_signature(true, g_private_key, buffer, size, signature, signatureLen, &ex);
+    (void) create_validate_asymmetrical_signature_ptr(true, g_private_key, buffer, size, signature, signatureLen, &ex);
     free(buffer);
     DDS_Security_Serializer_free(serializer);
 }
@@ -344,7 +355,6 @@ static void create_hash(const DDS_Security_DataHolder *dh, DDS_Security_BinaryPr
     bprop->value._maximum = SHA256_DIGEST_LENGTH;
     bprop->value._buffer = hash;
     DDS_Security_BinaryPropertySeq_deinit(&seq);
-    free(tokens);
 }
 
 void fuzz_handshake_handle_reply(ddsi_dataholder_t *token) {
@@ -371,7 +381,7 @@ void fuzz_handshake_handle_reply(ddsi_dataholder_t *token) {
     // First fix up the values necessary for the hash
     for (uint32_t i = 0; i < token->binary_properties.n; i++) {
         dds_binaryproperty_t *binprop = &token->binary_properties.props[i];
-        // To avoid fuzzing openssl, always use a valid certificate 
+        // To avoid fuzzing openssl, always use a valid certificate
         if (strcmp(binprop->name, "c.id") == 0) {
             free(binprop->value.value);
             binprop->value.length = strlen(TEST_IDENTITY3_CERTIFICATE);
@@ -385,9 +395,6 @@ void fuzz_handshake_handle_reply(ddsi_dataholder_t *token) {
         }
         // Provide a valid dh public key
         if ((strcmp(binprop->name, "dh2") == 0) && kagree_algo) {
-            if (dh_public_key_to_oct == NULL)
-                dh_public_key_to_oct = dlsym(NULL, "dh_public_key_to_oct");
-
             int algo = 1;
             if (strncmp((const char *)kagree_algo->value._buffer, "ECDH+prime256v1-CEUM", kagree_algo->value._length) == 0) algo = 2;
             unsigned char *data;
@@ -414,7 +421,7 @@ void fuzz_handshake_handle_reply(ddsi_dataholder_t *token) {
         if (strcmp(binprop->name, "signature") == 0 && hash_c1 && c1 && c2 && dh1 && c2 && dh2 && hash_c2.value._buffer) {
             unsigned char *signature;
             size_t signatureLen;
-            const DDS_Security_BinaryProperty_t *bprops[] = { &hash_c2, c2, dh2, c1, dh1, hash_c1}; 
+            const DDS_Security_BinaryProperty_t *bprops[] = { &hash_c2, c2, dh2, c1, dh1, hash_c1};
             create_signature(bprops, 6, &signature, &signatureLen);
             free(binprop->value.value);
             binprop->value.length = (uint32_t) signatureLen;
@@ -469,7 +476,7 @@ void fuzz_handshake_handle_final(ddsi_dataholder_t *token) {
         if (strcmp(binprop->name, "signature") == 0 && hash_c1 && c1 && c2 && dh1 && c2 && dh2 && hash_c2) {
             unsigned char *signature;
             size_t signatureLen;
-            const DDS_Security_BinaryProperty_t *bprops[] = { hash_c1, c1, dh1, c2, dh2, hash_c2 }; 
+            const DDS_Security_BinaryProperty_t *bprops[] = { hash_c1, c1, dh1, c2, dh2, hash_c2 };
             create_signature(bprops, 6, &signature, &signatureLen);
             free(binprop->value.value);
             binprop->value.length = (uint32_t) signatureLen;
@@ -481,7 +488,9 @@ void fuzz_handshake_handle_final(ddsi_dataholder_t *token) {
 }
 
 void fuzz_handshake_handle_crypto_tokens(void) {
+    ddsi_thread_state_awake(ddsi_lookup_thread_state(), &gv);
     ddsi_handshake_crypto_tokens_received(harness.hs);
+    ddsi_thread_state_asleep(ddsi_lookup_thread_state());
 }
 
 void fuzz_handshake_wait_for_event(uint32_t event) {
@@ -493,7 +502,25 @@ void fuzz_handshake_wait_for_completion(void) {
     dds_security_fsm_dispatch(harness.hs->fsm, DDS_SECURITY_FSM_EVENT_DELETE, false);
     while(ddsrt_atomic_ld32(&g_fsm_done) == 0) {}
     ddsrt_wctime_t timestamp = { .v = dds_time() };
+    ddsi_thread_state_awake(ddsi_lookup_thread_state(), &gv);
     ddsi_delete_proxy_participant_by_guid(&gv, &g_proxy_ppguid, timestamp, 1);
+    ddsi_thread_state_asleep(ddsi_lookup_thread_state());
     harness.proxy_pp = NULL;
     harness.hs = NULL;
+
+    // To actually delete all we created we need to step the what is normally
+    // done by 4 different threads in the background (multi-stage cleanup via
+    // the GC involves bubbles sent through the delivery queues; and then one
+    // has to "send" the messages queued by the handshake code).
+    bool x;
+    do {
+      x = false;
+      if (ddsi_gcreq_queue_step (gv.gcreq_queue))
+        x = true;
+      if (ddsi_dqueue_step_deaf (gv.builtins_dqueue))
+        x = true;
+      if (ddsi_dqueue_step_deaf (gv.user_dqueue))
+        x = true;
+      ddsi_xeventq_step (gv.xevents);
+    } while (x);
 }

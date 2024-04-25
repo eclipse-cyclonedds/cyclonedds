@@ -27,6 +27,12 @@ else()
   add_library(dds_security_auth OBJECT ${sources} ${private_headers})
   set_property(GLOBAL APPEND PROPERTY cdds_plugin_list dds_security_auth)
   set_property(GLOBAL PROPERTY dds_security_auth_symbols init_authentication finalize_authentication)
+  if(DEFINED ENV{LIB_FUZZING_ENGINE})
+    set_property(GLOBAL APPEND PROPERTY dds_security_auth_symbols
+      generate_dh_keys
+      dh_public_key_to_oct
+      create_validate_asymmetrical_signature)
+  endif()
 endif()
 
 generate_export_header(

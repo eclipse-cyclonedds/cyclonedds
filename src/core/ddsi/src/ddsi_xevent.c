@@ -592,6 +592,19 @@ static void handle_xevents (struct ddsi_thread_state * const thrst, struct ddsi_
   ASSERT_MUTEX_HELD (&xevq->lock);
 }
 
+void ddsi_xeventq_step (struct ddsi_xeventq *evq)
+{
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  struct ddsi_xpack * const xp = ddsi_xpack_new (evq->gv, false);
+  ddsi_thread_state_awake (thrst, evq->gv);
+  ddsrt_mutex_lock (&evq->lock);
+  handle_xevents (thrst, evq, xp, ddsrt_time_monotonic ());
+  ddsrt_mutex_unlock (&evq->lock);
+  ddsi_thread_state_asleep (thrst);
+  ddsi_xpack_send (xp, true);
+  ddsi_xpack_free (xp);
+}
+
 static uint32_t xevent_thread (struct ddsi_xeventq * xevq)
 {
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();

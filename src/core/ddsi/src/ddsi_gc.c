@@ -99,6 +99,40 @@ static int threads_vtime_check (const struct ddsi_domaingv *gv, uint32_t *nivs, 
   return *nivs == 0;
 }
 
+bool ddsi_gcreq_queue_step (struct ddsi_gcreq_queue *q)
+{
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  struct ddsi_gcreq *gcreq = NULL;
+  ddsrt_mutex_lock (&q->lock);
+  while ((gcreq = q->first) != NULL)
+  {
+    q->first = gcreq->next;
+    ddsrt_mutex_unlock (&q->lock);
+    if (!threads_vtime_check (q->gv, &gcreq->nvtimes, gcreq->vtimes))
+    {
+      /* Give up immediately instead of waiting: this exists to make less-threaded
+         (test/fuzzing) code possible.  (I don't think this case can occur in a single
+         threaded process, but it might if a some threads exist.) */
+      break;
+    }
+    else
+    {
+      ddsi_thread_state_awake (thrst, q->gv);
+      gcreq->cb (gcreq);
+      ddsi_thread_state_asleep (thrst);
+    }
+    ddsrt_mutex_lock (&q->lock);
+  }
+  if (gcreq)
+  {
+    gcreq->next = q->first;
+    q->first = gcreq;
+  }
+  const bool ret = q->first != NULL;
+  ddsrt_mutex_unlock (&q->lock);
+  return ret;
+}
+
 static uint32_t gcreq_queue_thread (struct ddsi_gcreq_queue *q)
 {
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
@@ -191,7 +225,6 @@ static uint32_t gcreq_queue_thread (struct ddsi_gcreq_queue *q)
 struct ddsi_gcreq_queue *ddsi_gcreq_queue_new (struct ddsi_domaingv *gv)
 {
   struct ddsi_gcreq_queue *q = ddsrt_malloc (sizeof (*q));
-
   q->first = q->last = NULL;
   q->terminate = 0;
   q->count = 0;
@@ -231,7 +264,7 @@ void ddsi_gcreq_queue_free (struct ddsi_gcreq_queue *q)
   if (q->thrst)
   {
     /* Create a no-op not dependent on any thread */
-  gcreq = ddsi_gcreq_new (q, ddsi_gcreq_free);
+    gcreq = ddsi_gcreq_new (q, ddsi_gcreq_free);
     gcreq->nvtimes = 0;
 
     ddsrt_mutex_lock (&q->lock);

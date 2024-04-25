@@ -4,18 +4,36 @@
 #
 # sudo apt install clang libfuzzer-14-dev (replace 14 with clang version)
 
-set -ex
-
+err=
 if [ ! -f ../src/core/ddsi/src/ddsi_receive.c -o ! -d ../fuzz ] ; then
     echo "This expects to be run in a build directory that is a subdirectory of the Cyclone repo" 2>&1
-    exit 1
+    err=1
 fi
 if [ -z "$CYCLONEDDS_HOME" ] ; then
     echo "Need CYCLONEDDS_HOME to be set" 2>&1
+    err=1
 fi
 if [ -z "$CYCLONEDDS_PYTHON" -o ! -d "$CYCLONEDDS_PYTHON/tests/support_modules/fuzz_tools" ] ; then
     echo "need CYCLONEDDS_PYTHON to point to the cyclone python binding sources" 2>&1
-    exit 1
+    err=1
+fi
+[ -n "$err" ] && exit 1
+
+set -ex
+
+# hopefully Cyclone will never gain a "libprotobuf-mutator" or "LPM" subdirectory so that
+# we can keep populate it to match oss-fuzz here and not have to deal with
+# absl/utf8_range/protobuf horrors any more than this
+if [ ! -d ../LPM ] ; then
+    [ ! -d ../libprotobuf-mutator ] && \
+         git clone --depth 1 https://github.com/google/libprotobuf-mutator.git
+    mkdir ../LPM
+    (cd ../LPM && \
+         cmake ../libprotobuf-mutator -GNinja \
+               -DLIB_PROTO_MUTATOR_DOWNLOAD_PROTOBUF=ON \
+               -DLIB_PROTO_MUTATOR_TESTING=OFF \
+               -DCMAKE_BUILD_TYPE=Release && \
+         ninja)
 fi
 
 export PATH="$CYCLONEDDS_HOME/bin:$PATH"
@@ -37,7 +55,7 @@ cmake -G Ninja \
       -DBUILD_SHARED_LIBS=OFF \
       -DBUILD_EXAMPLES=NO \
       -DENABLE_SECURITY=ON \
-      -DENABLE_SSL=NO \
+      -DENABLE_SSL=ON \
       -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_IDLC=NO \
       -DBUILD_DDSPERF=NO \

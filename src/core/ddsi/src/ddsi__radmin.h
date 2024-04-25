@@ -238,6 +238,10 @@ int ddsi_dqueue_is_full (struct ddsi_dqueue *q);
 /** @component receive_buffers */
 void ddsi_dqueue_wait_until_empty_if_full (struct ddsi_dqueue *q);
 
+/** @brief processes everything currently enqueued, dropping all data
+    @component receive_buffers */
+bool ddsi_dqueue_step_deaf (struct ddsi_dqueue *q);
+
 
 /** @component receive_buffers */
 void ddsi_defrag_stats (struct ddsi_defrag *defrag, uint64_t *discarded_bytes);
