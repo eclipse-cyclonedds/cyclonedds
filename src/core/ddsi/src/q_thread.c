@@ -284,7 +284,7 @@ static struct thread_state *grow_thread_states (void)
   return &x->thrst[0];
 }
 
-static struct thread_state *get_available_thread_slot ()
+static struct thread_state *get_available_thread_slot (void)
 {
   struct thread_states_list *cur;
   uint32_t i;

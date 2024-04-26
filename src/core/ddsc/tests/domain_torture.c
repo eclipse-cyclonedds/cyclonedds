@@ -53,7 +53,7 @@ static uint32_t create_participants_thread (void *varg)
 }
 
 
-static void participant_creation_torture()
+static void participant_creation_torture(void)
 {
   dds_return_t rc;
   ddsrt_thread_t tids[N_THREADS];

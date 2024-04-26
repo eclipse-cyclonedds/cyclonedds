@@ -336,8 +336,8 @@ bool q_omg_get_writer_security_info(const struct ddsi_writer *wr, nn_security_in
  * @param[in] wr Writer to determine the publication writer from.
  *
  * @returns unsigned
- * @retval NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER
- * @retval NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER
+ * @retval NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER \emptydescription
+ * @retval NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER \emptydescription
  */
 unsigned determine_publication_writer(const struct ddsi_writer *wr);
 
@@ -407,8 +407,8 @@ bool q_omg_get_reader_security_info(const struct ddsi_reader *rd, nn_security_in
  * @param[in] rd Reader to determine the subscription writer from.
  *
  * @returns unsigned
- * @retval NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER
- * @retval NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER
+ * @retval NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER \emptydescription
+ * @retval NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER \emptydescription
  */
 unsigned determine_subscription_writer(const struct ddsi_reader *rd);
 
@@ -422,7 +422,7 @@ unsigned determine_subscription_writer(const struct ddsi_reader *rd);
  * @param[in] tp Topic to determine the writer from.
  *
  * @returns unsigned
- * @retval NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER
+ * @retval NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER \emptydescription
  */
 unsigned determine_topic_writer(const struct ddsi_topic *tp);
 #endif /* DDS_HAS_TOPIC_DISCOVERY */

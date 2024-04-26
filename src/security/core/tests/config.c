@@ -113,7 +113,7 @@ static void set_logger_exp(const void * log_expected, const char * _extract_line
   dds_set_trace_sink(&logger, (void*)log_expected);
 }
 
-static void reset_logger()
+static void reset_logger(void)
 {
   dds_set_log_sink(NULL, NULL);
   dds_set_trace_sink(NULL, NULL);
