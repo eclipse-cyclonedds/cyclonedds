@@ -85,6 +85,7 @@ thread_main(
   void *arg)
 {
   int pushed = 0;
+  (void) pushed;
   int popped = 0;
   int execute = 0;
   struct thread_argument *targ = (struct thread_argument *)arg;

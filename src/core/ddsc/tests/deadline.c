@@ -384,6 +384,7 @@ CU_Theory((int32_t n_inst, uint8_t unreg_nth, uint8_t dispose_nth), ddsc_deadlin
     /* FIXME: should unregistered instances cause deadline expirations? I do think so
        and that is what it actually implemented
        if they shouldn't: n_alive = n_inst - n_dispose - n_unreg */
+    (void) n_unreg;
     n_alive = n_inst - n_dispose;
 
     /* Sleep deadline_dur + 50% and check missed deadline count */
