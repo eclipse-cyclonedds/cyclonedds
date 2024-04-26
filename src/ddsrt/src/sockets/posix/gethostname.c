@@ -32,6 +32,10 @@
 #endif
 
 #if DDSRT_HAVE_GETHOSTNAME
+#if __ZEPHYR__ && !CONFIG_NET_HOSTNAME_ENABLE
+#undef HOST_NAME_MAX
+#define HOST_NAME_MAX (strlen(net_hostname_get()))
+#endif
 #ifndef HOST_NAME_MAX
 #define HOST_NAME_MAX 256
 #endif

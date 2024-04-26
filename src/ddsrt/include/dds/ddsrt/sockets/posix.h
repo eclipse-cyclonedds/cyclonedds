@@ -60,10 +60,7 @@ typedef struct ddsrt_socket_ext {
 # define INADDR_LOOPBACK 0x7f000001 /* 127.0.0.1 */
 # define IN_MULTICAST(a) ((((long int) (a)) & 0xf0000000) == 0xe0000000)
 
-/* socket options */
-# define IP_ADD_MEMBERSHIP  35
-# define IP_DROP_MEMBERSHIP 36
-/* Ignored? */
+/* Ignored socket options */
 # define IP_MULTICAST_IF    32
 # define IP_MULTICAST_TTL   33
 # define IP_MULTICAST_LOOP  34
@@ -86,17 +83,9 @@ struct ip_mreq {
 # define IN6_IS_ADDR_LINKLOCAL(a)   (((a)->s6_addr[0] & 0xff) == 0xfe && ((a)->s6_addr[1] & 0xc0) == 0x80)
 # define IN6_IS_ADDR_MULTICAST(a)   (((a)->s6_addr[0] & 0xff) == 0xff)
 
-struct ipv6_mreq {
-  struct in6_addr ipv6mr_multiaddr;
-  unsigned int    ipv6mr_interface;
-};
-
 /* socket options */
 # define IPV6_JOIN_GROUP        91
 # define IPV6_LEAVE_GROUP       92
-/* ignored? */
-# define IPV6_MULTICAST_HOPS    93
-# define IPV6_UNICAST_HOPS      94
 # define IPV6_MULTICAST_IF      95
 # define IPV6_MULTICAST_LOOP    96
 #endif

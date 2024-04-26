@@ -213,6 +213,7 @@ void ddsi_rebuild_writer_addrset (struct ddsi_writer *wr)
   ELOGDISC (wr, " (burst size %"PRIu32" rexmit %"PRIu32")\n", wr->init_burst_size_limit, wr->rexmit_burst_size_limit);
 }
 
+#ifdef DDS_HAS_SSM
 static bool nwpart_includes_ssm_enabled_interfaces (const struct ddsi_domaingv *gv, const struct ddsi_config_networkpartition_listelem *np)
   ddsrt_nonnull ((1));
 
@@ -241,6 +242,7 @@ static bool nwpart_includes_ssm_enabled_interfaces (const struct ddsi_domaingv *
     return false;
   }
 }
+#endif
 
 static void writer_get_alive_state_locked (struct ddsi_writer *wr, struct ddsi_alive_state *st)
 {

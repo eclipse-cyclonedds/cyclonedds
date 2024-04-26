@@ -17,8 +17,6 @@
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/attributes.h"
 
-#if DDSRT_HAVE_DYNLIB
-
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -64,11 +62,13 @@ ddsrt_dlopen(
     bool translate,
     ddsrt_dynlib_t *handle) ddsrt_nonnull_all;
 
+#if DDSRT_HAVE_DYNLIB
 dds_return_t
 ddsrt_platform_dlopen(
     const char *name,
     bool translate,
     ddsrt_dynlib_t *handle) ddsrt_nonnull_all;
+#endif
 
 /**
  * @brief Close the library.
@@ -92,9 +92,11 @@ dds_return_t
 ddsrt_dlclose(
     ddsrt_dynlib_t handle);
 
+#if DDSRT_HAVE_DYNLIB
 dds_return_t
 ddsrt_platform_dlclose(
     ddsrt_dynlib_t handle);
+#endif
 
 /**
  * @brief Get the memory address of a symbol.
@@ -121,11 +123,13 @@ ddsrt_dlsym(
     const char *symbol,
     void **address);
 
+#if DDSRT_HAVE_DYNLIB
 dds_return_t
 ddsrt_platform_dlsym(
     ddsrt_dynlib_t handle,
     const char *symbol,
     void **address);
+#endif
 
 /**
  * @brief Get the most recent library related error.
@@ -154,15 +158,15 @@ ddsrt_dlerror(
     char *buf,
     size_t buflen);
 
+#if DDSRT_HAVE_DYNLIB
 dds_return_t
 ddsrt_platform_dlerror(
     char *buf,
     size_t buflen);
+#endif
 
 #if defined (__cplusplus)
 }
 #endif
-
-#endif /* DDSRT_HAVE_DYNLIB */
 
 #endif /* DDSRT_DYNLIB_H */
