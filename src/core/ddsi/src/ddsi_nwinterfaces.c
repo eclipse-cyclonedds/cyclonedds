@@ -573,8 +573,10 @@ int ddsi_gather_network_interfaces (struct ddsi_domaingv *gv)
       flagpos += snprintf (flagstr + flagpos, sizeof (flagstr) - (size_t) flagpos, "%sspdp", (flagpos > 0) ? "," : "");
     if (gv->interfaces[i].allow_multicast & DDSI_AMC_ASM)
       flagpos += snprintf (flagstr + flagpos, sizeof (flagstr) - (size_t) flagpos, "%sasm", (flagpos > 0) ? "," : "");
+#ifdef DDS_HAS_SSM
     if (gv->interfaces[i].allow_multicast & DDSI_AMC_SSM)
       flagpos += snprintf (flagstr + flagpos, sizeof (flagstr) - (size_t) flagpos, "%sssm", (flagpos > 0) ? "," : "");
+#endif
     (void) flagpos;
     GVLOG (DDS_LC_CONFIG, "%s%s (index %"PRIu32" priority %"PRId32" mc {%s})",
            (i == 0) ? "" : ", ", gv->interfaces[i].name, gv->interfaces[i].if_index, gv->interfaces[i].priority,

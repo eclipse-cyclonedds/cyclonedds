@@ -222,8 +222,8 @@ uint32_t ddsi_sertype_compute_serdata_basehash (const struct ddsi_serdata_ops *o
 
 uint16_t ddsi_sertype_get_native_enc_identifier (uint32_t enc_version, uint32_t enc_format)
 {
-#define CONCAT_(a,b) (a ## b)
-#define CONCAT(id,suffix) CONCAT_(id,suffix)
+#define ENC_CONCAT_(a,b) (a ## b)
+#define ENC_CONCAT(id,suffix) ENC_CONCAT_(id,suffix)
 
 #if (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN)
 #define SUFFIX _LE
@@ -235,20 +235,20 @@ uint16_t ddsi_sertype_get_native_enc_identifier (uint32_t enc_version, uint32_t 
   {
     case DDSI_RTPS_CDR_ENC_VERSION_1:
       if (enc_format == DDSI_RTPS_CDR_ENC_FORMAT_PL)
-        return CONCAT(DDSI_RTPS_PL_CDR, SUFFIX);
-      return CONCAT(DDSI_RTPS_CDR, SUFFIX);
+        return ENC_CONCAT(DDSI_RTPS_PL_CDR, SUFFIX);
+      return ENC_CONCAT(DDSI_RTPS_CDR, SUFFIX);
     case DDSI_RTPS_CDR_ENC_VERSION_2:
       if (enc_format == DDSI_RTPS_CDR_ENC_FORMAT_PL)
-        return CONCAT(DDSI_RTPS_PL_CDR2, SUFFIX);
+        return ENC_CONCAT(DDSI_RTPS_PL_CDR2, SUFFIX);
       if (enc_format == DDSI_RTPS_CDR_ENC_FORMAT_DELIMITED)
-        return CONCAT(DDSI_RTPS_D_CDR2, SUFFIX);
-      return CONCAT(DDSI_RTPS_CDR2, SUFFIX);
+        return ENC_CONCAT(DDSI_RTPS_D_CDR2, SUFFIX);
+      return ENC_CONCAT(DDSI_RTPS_CDR2, SUFFIX);
     default:
       abort (); /* unsupported */
   }
 #undef SUFFIX
-#undef CONCAT
-#undef CONCAT_
+#undef ENC_CONCAT
+#undef ENC_CONCAT_
 }
 
 uint16_t ddsi_sertype_extensibility_enc_format (enum dds_cdr_type_extensibility type_extensibility)

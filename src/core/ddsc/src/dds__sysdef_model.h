@@ -12,6 +12,7 @@
 
 #include "dds/dds.h"
 #include "dds/ddsi/ddsi_xqos.h"
+#include "dds/ddsrt/sockets.h"
 
 #if defined (__cplusplus)
 extern "C" {

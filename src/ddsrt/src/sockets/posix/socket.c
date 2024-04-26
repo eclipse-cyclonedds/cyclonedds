@@ -331,39 +331,11 @@ ddsrt_setsockopt(
       /* ignored */
       return DDS_RETCODE_OK;
     case IPV6_JOIN_GROUP:
+      optname = IPV6_ADD_MEMBERSHIP;
+      break;
     case IPV6_LEAVE_GROUP:
-    {
-      struct net_if *iface = NULL;
-      struct ipv6_mreq *mreq = (struct ipv6_mreq*)optval;
-      struct net_if_mcast_addr *maddr;
-      assert(level == IPPROTO_IPV6);
-      iface = net_if_get_by_index(mreq->ipv6mr_interface);
-      if (iface) {
-        maddr = net_if_ipv6_maddr_lookup(&(mreq->ipv6mr_multiaddr), &iface);
-        if (optname == IPV6_JOIN_GROUP) {
-          if (maddr) {
-            /* already joined */
-            return DDS_RETCODE_ERROR;
-          } else {
-            maddr = net_if_ipv6_maddr_add(iface, &(mreq->ipv6mr_multiaddr));
-            if (maddr) {
-              net_if_ipv6_maddr_join(iface, maddr);
-              net_if_mcast_monitor(iface, &(maddr->address), true);
-              return DDS_RETCODE_OK;
-            }
-          }
-        } else if (optname == IPV6_LEAVE_GROUP) {
-          if (maddr) {
-            if (net_if_ipv6_maddr_rm(iface, &(mreq->ipv6mr_multiaddr))) {
-              net_if_ipv6_maddr_leave(iface, maddr);
-              net_if_mcast_monitor(iface, &(maddr->address), false);
-              return DDS_RETCODE_OK;
-            }
-          }
-        }
-      }
-      return DDS_RETCODE_ERROR;
-    }
+      optname = IPV6_DROP_MEMBERSHIP;
+      break;
 #endif /* DDSRT_HAVE_IPV6 */
     case IP_PKTINFO:
     case IP_MULTICAST_IF:
@@ -371,49 +343,6 @@ ddsrt_setsockopt(
     case IP_MULTICAST_LOOP:
       /* ignored */
       return DDS_RETCODE_OK;
-    case IP_ADD_MEMBERSHIP:
-    case IP_DROP_MEMBERSHIP:
-    {
-      struct net_if *iface = NULL;
-      struct ip_mreq *mreq = (struct ip_mreq*)optval;
-      struct net_if_mcast_addr *maddr;
-      assert(level == IPPROTO_IP);
-      if (net_if_ipv4_addr_lookup(&(mreq->imr_interface), &iface)) {
-#if defined(CONFIG_NET_IPV4_IGMP)
-        int rc = -1;
-        if (optname == IP_ADD_MEMBERSHIP) {
-          rc = net_ipv4_igmp_join(iface, &(mreq->imr_multiaddr));
-        } else {
-          rc = net_ipv4_igmp_leave(iface, &(mreq->imr_multiaddr));
-        }
-        return (rc < 0) ? DDS_RETCODE_ERROR : DDS_RETCODE_OK;
-#else
-        maddr = net_if_ipv4_maddr_lookup(&(mreq->imr_multiaddr), &iface);
-        if (optname == IP_ADD_MEMBERSHIP) {
-          if (maddr && maddr->is_used) {
-            /* already joined */
-            return DDS_RETCODE_ERROR;
-          } else {
-            maddr = net_if_ipv4_maddr_add(iface, &(mreq->imr_multiaddr));
-            if (maddr) {
-              net_if_ipv4_maddr_join(iface, maddr);
-              net_if_mcast_monitor(iface, &(maddr->address), true);
-              return DDS_RETCODE_OK;
-            }
-          }
-        } else if (optname == IP_DROP_MEMBERSHIP) {
-          if (maddr) {
-            if (net_if_ipv4_maddr_rm(iface, &(mreq->imr_multiaddr))) {
-              net_if_ipv4_maddr_leave(iface, maddr);
-              net_if_mcast_monitor(iface, &(maddr->address), false);
-              return DDS_RETCODE_OK;
-            }
-          }
-        }
-#endif /* CONFIG_NET_IPV4_IGMP */
-      }
-      return DDS_RETCODE_ERROR;
-    }
   }
 #endif /* __ZEPHYR__ */
 

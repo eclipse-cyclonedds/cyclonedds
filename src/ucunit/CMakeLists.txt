@@ -38,7 +38,7 @@ add_executable(test_ucunit)
 target_sources(test_ucunit PRIVATE tests/test_ucunit.c)
 target_link_libraries(test_ucunit CycloneDDS::ucunit)
 
-add_test(NAME ucunit COMMAND $<TARGET_FILE_DIR:test_ucunit>/test_ucunit)
+add_test(NAME ucunit COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR} $<TARGET_FILE_DIR:test_ucunit>/test_ucunit)
 
 if (NOT BUILD_SHARED_LIBS)
   install(

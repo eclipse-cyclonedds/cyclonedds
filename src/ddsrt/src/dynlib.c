@@ -106,7 +106,11 @@ dds_return_t ddsrt_dlopen (const char *name, bool translate, ddsrt_dynlib_t *han
       return DDS_RETCODE_OK;
     }
   }
+#if DDSRT_HAVE_DYNLIB
   return ddsrt_platform_dlopen (name, translate, handle);
+#else
+  return DDS_RETCODE_UNSUPPORTED;
+#endif
 }
 
 dds_return_t ddsrt_dlclose (ddsrt_dynlib_t handle)
@@ -114,7 +118,11 @@ dds_return_t ddsrt_dlclose (ddsrt_dynlib_t handle)
   for (size_t i = 0; static_dlopen_table[i].name; i++)
     if (handle == (ddsrt_dynlib_t) static_dlopen_table[i].syms)
       return DDS_RETCODE_OK;
+#if DDSRT_HAVE_DYNLIB
   return ddsrt_platform_dlclose (handle);
+#else
+  return DDS_RETCODE_UNSUPPORTED
+#endif
 }
 
 static dds_return_t fake_dlsym (ddsrt_dynlib_t handle, const char *symbol, void **address)
@@ -134,34 +142,58 @@ dds_return_t ddsrt_dlsym (ddsrt_dynlib_t handle, const char *symbol, void **addr
   for (size_t i = 0; static_dlopen_table[i].name; i++)
     if (handle == (ddsrt_dynlib_t) static_dlopen_table[i].syms)
       return fake_dlsym (handle, symbol, address);
+#if DDSRT_HAVE_DYNLIB
   return ddsrt_platform_dlsym (handle, symbol, address);
+#else
+  return DDS_RETCODE_UNSUPPORTED
+#endif
 }
 
 dds_return_t ddsrt_dlerror (char *buf, size_t buflen)
 {
+#if DDSRT_HAVE_DYNLIB
   return ddsrt_platform_dlerror (buf, buflen);
+#else
+  return DDS_RETCODE_UNSUPPORTED
+#endif
 }
 
 #else
 
 dds_return_t ddsrt_dlopen (const char *name, bool translate, ddsrt_dynlib_t *handle)
 {
+#if DDSRT_HAVE_DYNLIB
   return ddsrt_platform_dlopen (name, translate, handle);
+#else
+  return DDS_RETCODE_UNSUPPORTED;
+#endif
 }
 
 dds_return_t ddsrt_dlclose (ddsrt_dynlib_t handle)
 {
+#if DDSRT_HAVE_DYNLIB
   return ddsrt_platform_dlclose (handle);
+#else
+  return DDS_RETCODE_UNSUPPORTED;
+#endif
 }
 
 dds_return_t ddsrt_dlsym (ddsrt_dynlib_t handle, const char *symbol, void **address)
 {
+#if DDSRT_HAVE_DYNLIB
   return ddsrt_platform_dlsym (handle, symbol, address);
+#else
+  return DDS_RETCODE_UNSUPPORTED;
+#endif
 }
 
 dds_return_t ddsrt_dlerror (char *buf, size_t buflen)
 {
+#if DDSRT_HAVE_DYNLIB
   return ddsrt_platform_dlerror (buf, buflen);
+#else
+  return DDS_RETCODE_UNSUPPORTED;
+#endif
 }
 
 #endif

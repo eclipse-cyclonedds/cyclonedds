@@ -718,7 +718,11 @@ static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_lo
     struct ipv6_mreq ipv6mreq;
     memset (&ipv6mreq, 0, sizeof (ipv6mreq));
     ipv6mreq.ipv6mr_multiaddr = mcip.a6.sin6_addr;
+#if __ZEPHYR__
+    ipv6mreq.ipv6mr_ifindex = interf ? interf->if_index : 0;
+#else
     ipv6mreq.ipv6mr_interface = interf ? interf->if_index : 0;
+#endif
     rc = ddsrt_setsockopt (socket, IPPROTO_IPV6, join ? IPV6_JOIN_GROUP : IPV6_LEAVE_GROUP, &ipv6mreq, sizeof (ipv6mreq));
   }
   else
