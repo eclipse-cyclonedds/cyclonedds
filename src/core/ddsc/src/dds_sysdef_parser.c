@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <string.h>
 
+#include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/strtol.h"
@@ -18,7 +19,6 @@
 #include "dds/ddsrt/xmlparser.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsi/ddsi_unused.h"
-#include "dds/ddsi/ddsi_domaingv.h"
 
 #include "dds__sysdef_model.h"
 #include "dds__sysdef_parser.h"
@@ -1601,6 +1601,38 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UNUSED_
   return ret;
 }
 
+static const unsigned char base64_dtable[256] = { 
+  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 62, 63, 62, 62, 63, 52, 53, 54, 55,
+  56, 57, 58, 59, 60, 61,  0,  0,  0,  0,  0,  0,  0,  0,  1,  2,  3,  4,  5,  6,
+  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,  0,
+  0,  0,  0, 63,  0, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+  41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51 };
+
+static uint32_t b64_decode (const unsigned char *text, const uint32_t sz, unsigned char **buff)
+{
+  unsigned char *padd = (unsigned char *) strchr((char*)text, '=');
+  uint32_t buff_len = (padd != NULL? (uint32_t)(padd-text): sz) * 3U/4U;
+  *buff = (unsigned char *) ddsrt_malloc(buff_len);
+  (void) memset (*buff, 0, buff_len);
+
+  for (size_t i = 0, j = 0; i < sz && j < buff_len; i+=4, j+=3)
+  {
+    unsigned char chunk[3] = {0x00, 0x00, 0x00};
+    uint32_t tmp = (uint32_t)(base64_dtable[text[i]] << 0x06U) | base64_dtable[text[i+1]]; 
+    uint32_t safe = tmp & 0x0FU;
+    chunk[0] = (unsigned char)(tmp >> 0x04U);
+    tmp = (safe << 0x0CU) | ((uint32_t)(base64_dtable[text[i+2]] << 0x06U) | base64_dtable[text[i+3]]);
+    chunk[2] = (unsigned char)(tmp & 0xFFU);
+    chunk[1] = (unsigned char)(tmp >> 0x08U);
+    size_t cp_sz = (buff_len - j) < 3? buff_len - j: 3; 
+    (void) memcpy(*buff+j, chunk, cp_sz);
+  } 
+
+  return buff_len;
+}
+
 #define QOS_PARAM_SET_NUMERIC_UNLIMITED(policy, param, param_field, type) \
     static int set_ ## policy ## _ ## param (struct parse_sysdef_state * const pstate, struct dds_sysdef_QOS_POLICY_ ## policy *qp, const char *value, int line) \
     { \
@@ -1656,10 +1688,10 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UNUSED_
     static int set_ ## policy ## _ ## param (struct parse_sysdef_state * const pstate, struct dds_sysdef_QOS_POLICY_ ## policy *qp, const char *value, int line) \
     { \
       (void) pstate; (void) line; \
-      /* FIXME: base 64 decode */ \
-      qp->values.param_data_field = ddsrt_memdup (value, strlen (value)); \
-      qp->values.param_length_field = (uint32_t) strlen (value); \
-      return SD_PARSE_RESULT_OK; \
+      int ret = SD_PARSE_RESULT_OK; \
+      uint32_t buff_sz = b64_decode((const unsigned char *)value, (uint32_t)strlen(value), &qp->values.param_data_field); \
+      qp->values.param_length_field = buff_sz; \
+      return ret; \
     }
 
 static int set_DESTINATIONORDER_KIND (struct parse_sysdef_state * const pstate, struct dds_sysdef_QOS_POLICY_DESTINATIONORDER *qp, const char *value, int line)

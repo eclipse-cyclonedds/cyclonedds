@@ -10,8 +10,8 @@
 #ifndef DDS_SYSDEF_PARSER_H
 #define DDS_SYSDEF_PARSER_H
 
-#include "dds/dds.h"
 #include "dds/ddsrt/log.h"
+#include "dds/ddsrt/retcode.h"
 
 #if defined (__cplusplus)
 extern "C" {
