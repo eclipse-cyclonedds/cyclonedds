@@ -47,15 +47,6 @@ static int is_wildcard_partition (const char *str)
 
 static dds_return_t validate_qos (dds_qos_t *qos, const char *qos_location)
 {
-  // History
-  dds_history_kind_t history_kind;
-  int32_t history_depth;
-  if (dds_qget_history (qos, &history_kind, &history_depth) && (history_kind != DDS_HISTORY_KEEP_LAST || history_depth < 0))
-  {
-    SYSDEF_ERROR ("Unsupported history kind or depth (%s)\n", qos_location);
-    goto failed;
-  }
-
   // Partition
   uint32_t n_partitions;
   char **partitions;
