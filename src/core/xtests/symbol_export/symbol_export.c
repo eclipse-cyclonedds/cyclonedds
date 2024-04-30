@@ -36,6 +36,7 @@
 #include "dds/ddsrt/strtol.h"
 #include "dds/ddsrt/xmlparser.h"
 #include "dds/ddsrt/io.h"
+#include "dds/ddsrt/ifaddrs.h"
 #if DDSRT_HAVE_FILESYSTEM
 #include "dds/ddsrt/filesystem.h"
 #endif
@@ -1068,6 +1069,10 @@ int main (int argc, char **argv)
   // ddsrt/io.h
   test_ddsrt_vasprintf (ptr, " ");
   ddsrt_asprintf (ptr, " ");
+
+  // ddsrt/ifaddrs.h
+  ddsrt_getifaddrs (ptr, ptr);
+  ddsrt_freeifaddrs (ptr);
 
   // dds__write.h
   dds_write_impl (ptr, ptr, 0, (dds_write_action) 0);
