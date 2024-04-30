@@ -58,7 +58,7 @@ typedef struct ddsrt_ifaddrs ddsrt_ifaddrs_t;
  * @param[in] afs an array of address families
  * @return a DDS_RETCODE (OK, ERROR, OUT_OF_RESOURCES, NOT_ALLOWED)
  */
-dds_return_t
+DDS_EXPORT dds_return_t
 ddsrt_getifaddrs(
   ddsrt_ifaddrs_t **ifap,
   const int *afs);
@@ -68,7 +68,7 @@ ddsrt_getifaddrs(
  * 
  * @param[in] ifa the interface addresses to free
  */
-void
+DDS_EXPORT void
 ddsrt_freeifaddrs(
   ddsrt_ifaddrs_t *ifa);
 
