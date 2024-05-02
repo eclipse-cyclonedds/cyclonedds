@@ -17,6 +17,7 @@
 #include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/static_assert.h"
+#include "dds/ddsrt/process.h"
 
 #include "dds/dds.h"
 #include "dds/ddsi/ddsi_serdata.h"
@@ -374,7 +375,7 @@ static void sd_to_ser (const struct ddsi_serdata *serdata_common, size_t off, si
 
 static bool sdx_to_sample (const struct sdx *sd, enum ddsi_serdata_kind kind, struct sampletype *s, void **bufptr, void *buflim)
 {
-  if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
+  if (bufptr) ddsrt_abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   s->key = dds_realloc (s->key, sd->keysz);
   memcpy (s->key, sd->data.key, sd->keysz);
   if (kind == SDK_DATA)
@@ -393,7 +394,7 @@ static bool sd_to_sample (const struct ddsi_serdata *serdata_common, void *sampl
 
 static bool sdx_untyped_to_sample (const struct sdx *sd, struct sampletype *s, void **bufptr, void *buflim)
 {
-  if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
+  if (bufptr) ddsrt_abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   s->key = dds_realloc (s->key, sd->keysz);
   memcpy (s->key, sd->data.key, sd->keysz);
   return true;

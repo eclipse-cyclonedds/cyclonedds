@@ -13,6 +13,7 @@
 #include "dds/features.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/md5.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
@@ -1679,7 +1680,7 @@ void ddsi_xt_type_fini (struct ddsi_domaingv *gv, struct xt_type *xt, bool inclu
       ddsi_type_unref_locked (gv, xt->_u.alias.related_type);
       break;
     case DDS_XTypes_TK_ANNOTATION:
-      abort (); /* FIXME: not implemented */
+      ddsrt_abort(); /* FIXME: not implemented */
       break;
     case DDS_XTypes_TK_STRUCTURE:
       if (xt->_u.structure.base_type)
@@ -2185,7 +2186,7 @@ static bool xt_is_plain_collection_equiv_kind (const struct xt_type *t, DDS_XTyp
     case DDS_XTypes_TK_MAP:
       return t->_u.map.c.ek == ek;
     default:
-      abort ();
+      ddsrt_abort();
   }
 }
 
@@ -2226,7 +2227,7 @@ static DDS_XTypes_LBound xt_string_bound (const struct xt_type *t)
     case DDS_XTypes_TK_STRING16:
       return t->_u.str16.bound;
     default:
-      abort (); /* not supported */
+      ddsrt_abort(); /* not supported */
   }
 }
 
@@ -2784,7 +2785,7 @@ static ddsi_typeid_kind_t ddsi_typeid_kind_impl (const struct DDS_XTypes_TypeIde
             element_kind = ddsi_typeid_kind_impl (type_id->_u.map_ldefn.element_identifier);
           break;
         default:
-          abort ();
+          ddsrt_abort();
       }
       switch (element_kind) {
         case DDSI_TYPEID_KIND_MINIMAL:
@@ -2989,7 +2990,7 @@ void ddsi_xt_get_typeobject_kind_impl (const struct xt_type *xt, struct DDS_XTyp
         break;
       }
       case DDS_XTypes_TK_ANNOTATION:
-        abort (); /* FIXME: not implemented */
+        ddsrt_abort(); /* FIXME: not implemented */
         break;
       case DDS_XTypes_TK_STRUCTURE:
       {
@@ -3103,7 +3104,7 @@ void ddsi_xt_get_typeobject_kind_impl (const struct xt_type *xt, struct DDS_XTyp
         break;
       }
       default:
-        abort (); /* not supported */
+        ddsrt_abort(); /* not supported */
         break;
     }
   }
@@ -3125,7 +3126,7 @@ void ddsi_xt_get_typeobject_kind_impl (const struct xt_type *xt, struct DDS_XTyp
         break;
       }
       case DDS_XTypes_TK_ANNOTATION:
-        abort (); /* FIXME: not implemented */
+        ddsrt_abort(); /* FIXME: not implemented */
         break;
       case DDS_XTypes_TK_STRUCTURE:
       {
@@ -3247,7 +3248,7 @@ void ddsi_xt_get_typeobject_kind_impl (const struct xt_type *xt, struct DDS_XTyp
         break;
       }
       default:
-        abort (); /* not supported */
+        ddsrt_abort(); /* not supported */
         break;
     }
   }

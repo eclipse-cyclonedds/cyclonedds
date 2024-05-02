@@ -18,6 +18,7 @@
 
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/time.h"
+#include "dds/ddsrt/process.h"
 
 void ddsrt_mutex_init (ddsrt_mutex_t *mutex)
 {
@@ -30,7 +31,7 @@ void ddsrt_mutex_destroy (ddsrt_mutex_t *mutex)
   assert (mutex != NULL);
 
   if (pthread_mutex_destroy (&mutex->mutex) != 0)
-    abort();
+    ddsrt_abort();
 }
 
 void ddsrt_mutex_lock (ddsrt_mutex_t *mutex)
@@ -38,7 +39,7 @@ void ddsrt_mutex_lock (ddsrt_mutex_t *mutex)
   assert (mutex != NULL);
 
   if (pthread_mutex_lock (&mutex->mutex) != 0)
-    abort();
+    ddsrt_abort();
 }
 
 bool
@@ -49,7 +50,7 @@ ddsrt_mutex_trylock (ddsrt_mutex_t *mutex)
 
   err = pthread_mutex_trylock (&mutex->mutex);
   if (err != 0 && err != EBUSY)
-    abort();
+    ddsrt_abort();
   return (err == 0);
 }
 
@@ -59,7 +60,7 @@ ddsrt_mutex_unlock (ddsrt_mutex_t *mutex)
   assert (mutex != NULL);
 
   if (pthread_mutex_unlock (&mutex->mutex) != 0)
-    abort();
+    ddsrt_abort();
 }
 
 void
@@ -76,7 +77,7 @@ ddsrt_cond_destroy (ddsrt_cond_t *cond)
   assert (cond != NULL);
 
   if (pthread_cond_destroy (&cond->cond) != 0)
-    abort();
+    ddsrt_abort();
 }
 
 void
@@ -86,7 +87,7 @@ ddsrt_cond_wait (ddsrt_cond_t *cond, ddsrt_mutex_t *mutex)
   assert (mutex != NULL);
 
   if (pthread_cond_wait (&cond->cond, &mutex->mutex) != 0)
-    abort();
+    ddsrt_abort();
 }
 
 bool
@@ -118,7 +119,7 @@ ddsrt_cond_waituntil(
       break;
   }
 
-  abort();
+  ddsrt_abort();
   return false;
 }
 
@@ -141,7 +142,7 @@ ddsrt_cond_signal (ddsrt_cond_t *cond)
   assert (cond != NULL);
 
   if (pthread_cond_signal (&cond->cond) != 0)
-    abort();
+    ddsrt_abort();
 }
 
 void
@@ -150,7 +151,7 @@ ddsrt_cond_broadcast (ddsrt_cond_t *cond)
   assert (cond != NULL);
 
   if (pthread_cond_broadcast (&cond->cond) != 0)
-    abort();
+    ddsrt_abort();
 }
 
 void
@@ -160,11 +161,11 @@ ddsrt_rwlock_init (ddsrt_rwlock_t *rwlock)
 
 #if __SunOS_5_6
   if (pthread_mutex_init(&rwlock->rwlock, NULL) != 0)
-    abort();
+    ddsrt_abort();
 #else
   /* process-shared attribute is set to PTHREAD_PROCESS_PRIVATE by default */
   if (pthread_rwlock_init(&rwlock->rwlock, NULL) != 0)
-    abort();
+    ddsrt_abort();
 #endif
 }
 
@@ -174,10 +175,10 @@ ddsrt_rwlock_destroy (ddsrt_rwlock_t *rwlock)
   assert(rwlock != NULL);
 #if __SunOS_5_6
   if (pthread_mutex_destroy(&rwlock->rwlock) != 0)
-    abort();
+    ddsrt_abort();
 #else
   if (pthread_rwlock_destroy(&rwlock->rwlock) != 0)
-    abort();
+    ddsrt_abort();
 #endif
 }
 

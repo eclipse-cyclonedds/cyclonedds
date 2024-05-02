@@ -17,6 +17,8 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"
+#include "dds/ddsrt/process.h"
+#include "dds/ddsrt/static_assert.h"
 #include "dds/ddsrt/static_assert.h"
 
 #define MAX_ID_LEN (10)
@@ -299,7 +301,7 @@ static void vlog (const struct ddsrt_log_cfg_impl *cfg, uint32_t cat, uint32_t d
   vlog1 (cfg, cat, domid, file, line, func, fmt, ap);
   unlock_sink ();
   if (cat & DDS_LC_FATAL)
-    abort();
+    ddsrt_abort();
 }
 
 void dds_log_cfg (const struct ddsrt_log_cfg *cfg, uint32_t cat, const char *file, uint32_t line, const char *func, const char *fmt, ...)

@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include "dds/features.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_serdata.h"
@@ -1242,7 +1243,7 @@ static dds_return_t get_ops_aggrtype (struct typebuilder_aggregated_type *tb_agg
       }
       break;
     default:
-      abort ();
+      ddsrt_abort();
   }
 
   // mutable types have an RTS instruction per member
@@ -1373,7 +1374,7 @@ static dds_return_t resolve_ops_offsets_aggrtype (const struct typebuilder_aggre
       ret = resolve_ops_offsets_union (&tb_aggrtype->detail._union, ops);
       break;
     default:
-      abort ();
+      ddsrt_abort();
   }
   return ret;
 }
@@ -1486,7 +1487,7 @@ static dds_return_t get_keys_aggrtype (struct typebuilder_data *tbd, struct type
       ret = DDS_RETCODE_OK;
       break;
     default:
-      abort ();
+      ddsrt_abort();
   }
   return ret;
 }
@@ -1671,7 +1672,7 @@ static dds_return_t set_implicit_keys_aggrtype (struct typebuilder_aggregated_ty
       ret = DDS_RETCODE_OK;
       break;
     default:
-      abort ();
+      ddsrt_abort();
   }
   return ret;
 }

@@ -17,6 +17,7 @@
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_thread.h"
+#include "dds/ddsrt/process.h"
 
 static void dds_readcond_close (dds_entity *e) ddsrt_nonnull_all;
 
@@ -60,7 +61,7 @@ dds_readcond *dds_create_readcond_impl (dds_reader *rd, dds_entity_kind_t kind, 
   {
     /* FIXME: current entity management code can't deal with an error late in the creation of the
        entity because it doesn't allow deleting it again ... */
-    abort();
+    ddsrt_abort();
   }
   return cond;
 }

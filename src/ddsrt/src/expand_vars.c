@@ -77,7 +77,7 @@ static char *expand_var (const char *name, char op, const char *alt, expand_fn e
         case '+':
             return val && *val ? expand (alt, lookup, data, depth + 1) : ddsrt_strdup ("");
         default:
-            abort ();
+            ddsrt_abort();
             return NULL;
     }
 }

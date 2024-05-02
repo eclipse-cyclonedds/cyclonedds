@@ -16,6 +16,7 @@
 #include <setjmp.h>
 
 #include "dds/ddsrt/align.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/heap.h"
@@ -119,7 +120,7 @@ static void dummy_cb (void)
   // Used as a listener function in checking merging of listeners,
   // and for that purpose, casting it to whatever function type is
   // required is ok.  It is not supposed to ever be called.
-  abort ();
+  ddsrt_abort ();
 }
 
 #undef DEFINE_STATUS_CALLBACK
@@ -176,7 +177,7 @@ static const void *advance (const void *status, size_t *off, char code)
       align = dds_alignof (dds_sample_rejected_status_kind); size = sizeof (dds_sample_rejected_status_kind);
       break;
     default:
-      abort ();
+      ddsrt_abort ();
   }
   *off = (*off + align - 1) & ~(align - 1);
   const void *p = (const char *) status + *off;
@@ -979,7 +980,7 @@ static void make_entity1 (struct oneliner_ctx *ctx, int ent, dds_listener_t *lis
       ctx->es[ent] = dds_create_writer (ctx->es[9*domid+2], ctx->tps[domid], ctx->entqos, list);
       break;
     default:
-      abort ();
+      ddsrt_abort ();
   }
   mprintf (ctx, " = %"PRId32, ctx->es[ent]);
   if (ctx->es[ent] <= 0)
@@ -1019,7 +1020,7 @@ static void setlistener (struct oneliner_ctx *ctx, struct oneliner_lex *l, int l
       case 10: dds_lset_sample_lost (list, sample_lost_cb); break;
       case 11: dds_lset_sample_rejected (list, sample_rejected_cb); break;
       case 12: dds_lset_subscription_matched (list, subscription_matched_cb); break;
-      default: abort ();
+      default: ddsrt_abort ();
     }
   } while (l && (ll = parse_listener1 (l)) >= 0);
   if (ctx->es[ent] == 0)
@@ -1463,7 +1464,7 @@ static int checkstatus (struct oneliner_ctx *ctx, int ll, int ent, struct onelin
   const char *sep = "(";
   size_t off = 0;
   if (nexttok (argl, NULL) != '(')
-    abort ();
+    ddsrt_abort ();
   while (*d)
   {
     const void *p = advance (status, &off, *d);

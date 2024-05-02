@@ -17,6 +17,7 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/mh3.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/cdr/dds_cdrstream.h"
@@ -716,7 +717,7 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
   const struct dds_serdata_default *d = (const struct dds_serdata_default *)serdata_common;
   const struct dds_sertype_default *tp = (const struct dds_sertype_default *) d->c.type;
   dds_istream_t is;
-  if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
+  if (bufptr) ddsrt_abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   if (d->c.loan != NULL &&
       tp->c.is_memcpy_safe &&
       (d->c.loan->metadata->sample_state == DDS_LOANED_SAMPLE_STATE_RAW_DATA ||
@@ -746,7 +747,7 @@ static bool serdata_default_untyped_to_sample_cdr (const struct ddsi_sertype *se
   assert (d->c.kind == SDK_KEY);
   assert (d->c.ops == sertype_common->serdata_ops);
   assert (DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier));
-  if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
+  if (bufptr) ddsrt_abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   dds_istream_init (&is, d->key.keysize, serdata_default_keybuf (d), DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_stream_read_key (&is, sample, &dds_cdrstream_default_allocator, &tp->type);
   return true; /* FIXME: can't conversion to sample fail? */

@@ -23,7 +23,7 @@
  * executes it.  Any failures, be it because of error codes coming out of the Cyclone
  * calls or expected values being wrong cause it to fail the test via CU_ASSERT_FATAL.
  * While it is doing this, it outputs the test steps to stdout including some actual
- * values. An invalid program is mostly reported by calling abort(). It is geared towards
+ * values. An invalid program is mostly reported by calling ddsrt_abort(). It is geared towards
  * checking for listener invocations and the effects on statuses.
  *
  * Entities in play:

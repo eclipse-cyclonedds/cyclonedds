@@ -27,7 +27,7 @@ void ddsrt_mutex_init(ddsrt_mutex_t *mutex)
   assert(mutex != NULL);
 
   if ((sem = xSemaphoreCreateMutex()) == NULL) {
-    abort();
+    ddsrt_abort();
   }
 
   (void)memset(mutex, 0, sizeof(*mutex));
@@ -136,11 +136,11 @@ void ddsrt_cond_init(ddsrt_cond_t *cond)
   assert(cond != NULL);
 
   if (ddsrt_tasklist_init(&tasks) == -1) {
-    abort();
+    ddsrt_abort();
   }
   if ((sem = xSemaphoreCreateMutex()) == NULL) {
     ddsrt_tasklist_fini(&tasks);
-    abort();
+    ddsrt_abort();
   }
 
   (void)memset(cond, 0, sizeof(*cond));
@@ -178,7 +178,7 @@ ddsrt_cond_waitfor(
 
   switch ((rc = cond_timedwait(cond, mutex, reltime))) {
     case DDS_RETCODE_OUT_OF_RESOURCES:
-      abort();
+      ddsrt_abort();
     case DDS_RETCODE_TIMEOUT:
       return false;
     default:
@@ -207,7 +207,7 @@ ddsrt_cond_waituntil(
 
   switch ((rc = cond_timedwait(cond, mutex, reltime))) {
     case DDS_RETCODE_OUT_OF_RESOURCES:
-      abort();
+      ddsrt_abort();
     case DDS_RETCODE_TIMEOUT:
       return false;
     default:
@@ -256,11 +256,11 @@ void ddsrt_rwlock_init(ddsrt_rwlock_t *rwlock)
   assert(rwlock != NULL);
 
   if (ddsrt_tasklist_init(&tasks) == -1) {
-    abort();
+    ddsrt_abort();
   }
   if ((sem = xSemaphoreCreateMutex()) == NULL) {
     ddsrt_tasklist_fini(&tasks);
-    abort();
+    ddsrt_abort();
   }
 
   memset(rwlock, 0, sizeof(*rwlock));

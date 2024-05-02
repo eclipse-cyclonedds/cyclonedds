@@ -17,6 +17,7 @@
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_typewrap.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsc/dds_opcodes.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "idl/string.h"
@@ -34,7 +35,7 @@ static void *calloc_no_fail (size_t count, size_t size)
   assert (count > 0 && size > 0);
   void *p = calloc (count, size);
   if (p == NULL)
-    abort ();
+    ddsrt_abort();
   return p;
 }
 

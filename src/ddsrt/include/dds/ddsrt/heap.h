@@ -49,7 +49,7 @@ ddsrt_set_allocator(
  *
  * @param[in]  size  The size, in bytes, of the block of memory to allocate.
  *
- * @returns A pointer to the allocated block of memory. abort() is called if
+ * @returns A pointer to the allocated block of memory. ddsrt_abort() is called if
  *          not enough free memory was available.
  */
 DDS_EXPORT void *
@@ -85,7 +85,7 @@ ddsrt_attribute_alloc_size((1));
  * A non-NULL pointer, that must be freed is always returned, even if the sum
  * @count and @size equals zero.
  *
- * @returns A pointer to the allocated memory. abort() is called if not enough
+ * @returns A pointer to the allocated memory. ddsrt_abort() is called if not enough
  *          free memory was available.
  */
 DDS_EXPORT void *
@@ -123,7 +123,7 @@ ddsrt_attribute_alloc_size((1,2));
  * pointed to by memblk and returns a pointer as if ddsrt_malloc_s(0) was
  * invoked. The returned pointer must be free'd with ddsrt_free.
  *
- * @returns A pointer to reallocated memory. Calls abort() if not enough free
+ * @returns A pointer to reallocated memory. Calls ddsrt_abort() if not enough free
  *          memory was available.
  */
 DDS_EXPORT void *

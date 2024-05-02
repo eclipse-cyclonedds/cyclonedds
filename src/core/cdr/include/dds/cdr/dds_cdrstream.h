@@ -13,6 +13,7 @@
 
 #include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/static_assert.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsc/dds_data_type_properties.h"
 #include "dds/dds.h"
 
