@@ -1435,18 +1435,26 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UNUSED_
       case ELEMENT_KIND_QOS_POLICY_DURABILITY:
         ELEM_CLOSE_QOS_POLICY(DURABILITY, "Durability");
         break;
-      case ELEMENT_KIND_QOS_POLICY_DURABILITYSERVICE:
+      case ELEMENT_KIND_QOS_POLICY_DURABILITYSERVICE: {
+        struct dds_sysdef_QOS_POLICY_DURABILITYSERVICE *tmp_qp = (struct dds_sysdef_QOS_POLICY_DURABILITYSERVICE *) pstate->current;
+        if ((tmp_qp->populated & QOS_POLICY_DURABILITYSERVICE_PARAM_HISTORY_KIND) && tmp_qp->values.history.kind == DDS_HISTORY_KEEP_ALL)
+          tmp_qp->populated |= QOS_POLICY_DURABILITYSERVICE_PARAM_HISTORY_DEPTH;
         ELEM_CLOSE_QOS_POLICY(DURABILITYSERVICE, "Durability Service");
         break;
+      }
       case ELEMENT_KIND_QOS_POLICY_DURABILITYSERVICE_SERVICE_CLEANUP_DELAY:
         ELEM_CLOSE_QOS_DURATION_PROPERTY(DURABILITYSERVICE, SERVICE_CLEANUP_DELAY, service_cleanup_delay);
         break;
       case ELEMENT_KIND_QOS_POLICY_GROUPDATA:
         ELEM_CLOSE_QOS_POLICY(GROUPDATA, "Group Data");
         break;
-      case ELEMENT_KIND_QOS_POLICY_HISTORY:
+      case ELEMENT_KIND_QOS_POLICY_HISTORY: {
+        struct dds_sysdef_QOS_POLICY_HISTORY *tmp_qp = (struct dds_sysdef_QOS_POLICY_HISTORY *) pstate->current;
+        if ((tmp_qp->populated & QOS_POLICY_HISTORY_PARAM_KIND) && tmp_qp->values.kind == DDS_HISTORY_KEEP_ALL)
+          tmp_qp->populated |= QOS_POLICY_HISTORY_PARAM_DEPTH;
         ELEM_CLOSE_QOS_POLICY(HISTORY, "History");
         break;
+      }
       case ELEMENT_KIND_QOS_POLICY_LATENCYBUDGET:
         ELEM_CLOSE_QOS_POLICY(LATENCYBUDGET, "Latency Budget");
         break;
@@ -1990,9 +1998,10 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
     case ELEMENT_KIND_QOS_POLICY_DURABILITYSERVICE_HISTORY_KIND:
       QOS_PARAM_DATA (DURABILITYSERVICE, HISTORY_KIND);
       break;
-    case ELEMENT_KIND_QOS_POLICY_DURABILITYSERVICE_HISTORY_DEPTH:
+    case ELEMENT_KIND_QOS_POLICY_DURABILITYSERVICE_HISTORY_DEPTH:{
       QOS_PARAM_DATA (DURABILITYSERVICE, HISTORY_DEPTH);
       break;
+    }
     case ELEMENT_KIND_QOS_POLICY_DURABILITYSERVICE_RESOURCE_LIMIT_MAX_SAMPLES:
       QOS_PARAM_DATA (DURABILITYSERVICE, RESOURCE_LIMIT_MAX_SAMPLES);
       break;
@@ -2011,9 +2020,10 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
     case ELEMENT_KIND_QOS_POLICY_HISTORY_KIND:
       QOS_PARAM_DATA (HISTORY, KIND);
       break;
-    case ELEMENT_KIND_QOS_POLICY_HISTORY_DEPTH:
+    case ELEMENT_KIND_QOS_POLICY_HISTORY_DEPTH: {
       QOS_PARAM_DATA (HISTORY, DEPTH);
       break;
+    }
     case ELEMENT_KIND_QOS_POLICY_LIVELINESS_KIND:
       QOS_PARAM_DATA (LIVELINESS, KIND);
       break;
