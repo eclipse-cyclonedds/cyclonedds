@@ -37,90 +37,12 @@
 
 static void free_strings(uint32_t len, char** strings)
 {
-    if (len != 0 && strings != NULL) {
-        for (uint32_t i = 0; i < len; i++) {
-            dds_free(strings[i]);
-        }
-    }
-    dds_free(strings);
-}
-
-/**
- * @brief Create a participant object, providing a configuration to choose the psmx interface.
- * 
- * @param[in] int_dom the domain id
- * @param[in] cdds_psmx_name the name of the psmx interface to use
- * @param[in] locator an array of 16 bytes, NULL if not used
- * @return dds_entity_t the participant
- */
-static char* create_config(dds_domainid_t int_dom, const char* cdds_psmx_name, const uint8_t* locator)
-{
-  char *configstr;
-  char locator_str[74];
-  if ( locator == NULL ) {
-    locator_str[0] = 0;
-  } else {
-    const uint8_t *l = locator;
-    snprintf(
-      locator_str,
-      sizeof(locator_str),
-      "LOCATOR=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x;",
-      l[0], l[1], l[2], l[3], l[4], l[5], l[6], l[7], l[8], l[9], l[10], l[11], l[12], l[13], l[14], l[15]
-    );
-  }
-  ddsrt_asprintf (&configstr, "\
-${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
-<General>\
-  <AllowMulticast>spdp</AllowMulticast>\
-  <Interfaces>\
-    <PubSubMessageExchange name=\"%s\" library=\"psmx_%s\" priority=\"1000000\" config=\"%sSERVICE_NAME=psmx%d;KEYED_TOPICS=true;\" />\
-  </Interfaces>\
-</General>\
-<Discovery>\
-  <Tag>${CYCLONEDDS_PID}</Tag>\
-  <ExternalDomainId>0</ExternalDomainId>\
-</Discovery>\
-<Tracing>\
-  <OutputFile>cdds.log.%d</OutputFile>\
-</Tracing>\
-",
-    cdds_psmx_name,
-    cdds_psmx_name,
-    locator_str,
-    locator ? (int) locator[0] : -1, // This prevents plugins from forwarding across the "network".
-    (int) int_dom // log file name
-  );
-  char *xconfigstr = ddsrt_expand_envvars (configstr, int_dom);
-  ddsrt_free (configstr);
-  return xconfigstr;
-}
-
-static bool endpoint_has_psmx_enabled (dds_entity_t rd_or_wr)
-{
-  dds_return_t rc;
-  struct dds_entity *x;
-  bool psmx_enabled = false;
-  rc = dds_entity_pin (rd_or_wr, &x);
-  CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
-  switch (dds_entity_kind (x))
-  {
-    case DDS_KIND_READER: {
-      struct dds_reader const * const rd = (struct dds_reader *) x;
-      psmx_enabled = (rd->m_endpoint.psmx_endpoints.length > 0);
-      break;
-    }
-    case DDS_KIND_WRITER: {
-      struct dds_writer const * const wr = (struct dds_writer *) x;
-      psmx_enabled = (wr->m_endpoint.psmx_endpoints.length > 0);
-      break;
-    }
-    default: {
-      CU_ASSERT_FATAL (dds_entity_kind (x) == DDS_KIND_READER || dds_entity_kind (x) == DDS_KIND_WRITER);
-      break;
+  if (len != 0 && strings != NULL) {
+    for (uint32_t i = 0; i < len; i++) {
+      dds_free(strings[i]);
     }
   }
-  dds_entity_unpin (x);
-  return psmx_enabled;
+  dds_free(strings);
 }
 
 /** @brief Convert a set of stats to a string.
@@ -173,6 +95,29 @@ static int dummy_mockstats_tostring(const dummy_mockstats_t* dmock, char* str_ou
   );
 }
 
+static dds_entity_t create_participant(dds_domainid_t domainId)
+{
+  char configstr[] = "\
+${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
+<General>\
+<AllowMulticast>spdp</AllowMulticast>\
+<Interfaces>\
+  <PubSubMessageExchange name=\"dummy\" library=\"psmx_dummy\" priority=\"1000000\" config=\"LOCATOR=4a4d203df6996395e1412fbecc2de4b6;SERVICE_NAME=service_psmx_dummy;KEYED_TOPICS=true;\" />\
+</Interfaces>\
+</General>\
+<Tracing>\
+<OutputFile>cdds.log.0</OutputFile>\
+</Tracing>\
+";
+  char* configstr_in = ddsrt_expand_envvars (configstr, domainId);
+  const dds_entity_t domain = dds_create_domain(domainId, configstr_in);
+  ddsrt_free(configstr_in);
+  CU_ASSERT_FATAL(domain > 0);
+  const dds_entity_t participant = dds_create_participant(domainId, NULL, NULL);
+  CU_ASSERT_FATAL(participant > 0);
+  return participant;
+}
+
 /// @brief Check that creating a domain with more than one psmx interface fails.
 /// @methodology
 /// - Create a config string with two psmx interfaces.
@@ -182,18 +127,15 @@ static int dummy_mockstats_tostring(const dummy_mockstats_t* dmock, char* str_ou
 CU_Test(ddsc_psmxif, config_multiple_psmx)
 {
   dds_domainid_t domainId = 0;
-  const char* cdds_psmx_name1 = "dummy";
-  const char* cdds_psmx_name2 = "iox";
   char* configstr_in = NULL;
   {
-    char *configstr;
-    ddsrt_asprintf (&configstr, "\
+    char configstr[] = "\
 ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
 <General>\
   <AllowMulticast>spdp</AllowMulticast>\
   <Interfaces>\
-    <PubSubMessageExchange name=\"%s\" library=\"psmx_%s\" priority=\"1000000\" config=\"SERVICE_NAME=psmx%d;KEYED_TOPICS=true;\" />\
-    <PubSubMessageExchange name=\"%s\" library=\"psmx_%s\" priority=\"1000000\" config=\"SERVICE_NAME=psmx%d;KEYED_TOPICS=true;\" />\
+    <PubSubMessageExchange name=\"dummy\" library=\"psmx_dummy\" priority=\"1000000\" config=\"SERVICE_NAME=psmx0;KEYED_TOPICS=true;\" />\
+    <PubSubMessageExchange name=\"iox\" library=\"psmx_iox\" priority=\"1000000\" config=\"SERVICE_NAME=psmx0;KEYED_TOPICS=true;\" />\
   </Interfaces>\
 </General>\
 <Discovery>\
@@ -201,59 +143,89 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
   <ExternalDomainId>0</ExternalDomainId>\
 </Discovery>\
 <Tracing>\
-  <OutputFile>cdds.log.%d</OutputFile>\
+  <OutputFile>cdds.log.0</OutputFile>\
 </Tracing>\
-  ",
-      cdds_psmx_name1,
-      cdds_psmx_name1,
-      -1, // This prevents plugins from forwarding across the "network".
-      cdds_psmx_name2,
-      cdds_psmx_name2,
-      -1, // This prevents plugins from forwarding across the "network".
-      (int) domainId // log file name
-    );
-    char *xconfigstr = ddsrt_expand_envvars(configstr, domainId);
-    ddsrt_free(configstr);
-    configstr_in = xconfigstr;
+  ";
+    configstr_in = ddsrt_expand_envvars(configstr, domainId);
   }
   const dds_entity_t domain = dds_create_domain (domainId, configstr_in);
   CU_ASSERT_FATAL(domain <= 0);
 }
 
-/// @brief Check that shared memory can be enabled (when supported) and the used locator can be set.
+static void assert_psmx_instance_name(dds_entity_t endpt, const char* name_expected)
+{
+  dds_qos_t* qos = dds_create_qos();
+  dds_get_qos(endpt, qos);
+  uint32_t strs_len = 0;
+  char** strs = NULL;
+  CU_ASSERT_FATAL(dds_qget_psmx_instances(qos, &strs_len, &strs));
+  CU_ASSERT_FATAL(strs_len == 1 && strcmp(strs[0], name_expected) == 0);
+  free_strings(strs_len, strs);
+  dds_delete_qos(qos);
+}
+
+/// @brief Check that the instance_name is as provided from dummy_create_psmx().
+/// @methodology
+/// - Create domain with a config containing the name for the psmx instance.
+/// - Create readers and writers.
+/// - Using the QoS interface, for each endpoint check that the instance_name is correct.
+/// 
+CU_Test(ddsc_psmxif, instance_name)
+{
+  const dds_domainid_t domainId = 0;
+  dds_entity_t participant = create_participant(domainId);
+  dds_entity_t domain = dds_get_parent(participant);
+  dummy_mockstats_t* dmock = dummy_mockstats_get_ptr();
+
+  dds_entity_t writer1 = 0, reader1 = 0, writer2 = 0, reader2 = 0;
+
+  char topicname[100];
+  dummy_topics_alloc(dmock, 2);
+  dummy_endpoints_alloc(dmock, 4);
+
+  create_unique_topic_name("shared_memory", topicname, sizeof(topicname));
+  dds_entity_t topic1 = dds_create_topic(participant, &SC_Model_desc, topicname, NULL, NULL);
+  CU_ASSERT_FATAL(topic1 > 0);
+  create_unique_topic_name("shared_memory", topicname, sizeof(topicname));
+  dds_entity_t topic2 = dds_create_topic(participant, &PsmxType1_desc, topicname, NULL, NULL);
+  CU_ASSERT_FATAL(topic2 > 0);
+
+  writer1 = dds_create_writer(participant, topic1, NULL, NULL);
+  CU_ASSERT_FATAL(writer1 > 0);
+  assert_psmx_instance_name(writer1, "dummy_psmx");
+  reader1 = dds_create_reader(participant, topic1, NULL, NULL);
+  CU_ASSERT_FATAL(reader1 > 0);
+  assert_psmx_instance_name(reader1, "dummy_psmx");
+  writer2 = dds_create_writer(participant, topic2, NULL, NULL);
+  CU_ASSERT_FATAL(writer2 > 0);
+  assert_psmx_instance_name(writer2, "dummy_psmx");
+  reader2 = dds_create_reader(participant, topic2, NULL, NULL);
+  CU_ASSERT_FATAL(reader2 > 0);
+  assert_psmx_instance_name(reader2, "dummy_psmx");
+  dds_delete(domain);
+}
+
+/// @brief Check that shared memory availability and entity and loan pointers are correctly propagated through the psmx interface.
 /// @methodology
 /// - Check that the data types I'm planning to use are actually suitable for use with shared memory.
 /// - Expectation: They are memcopy-safe.
 /// 
-/// - Create a configuration with a psmx interface and specify the locator.
+/// - Create a configuration with a psmx interface.
 /// - Create a domain using this configuration.
-/// - Check the locator used by the psmx instance.
-/// - Expectation: The locator is the same as specified in the config for the domain.
-/// - Query whether shared memory is supported.
 /// - Assert that there is exactly one psmx instance.
-/// - Assert that the psmx instance has a nonempty instance_name.
+/// - Decide whether shared memory is supported (communicated to the dummy psmx).
 /// - Create some entities
-/// - Check if shared memory is enabled.
-/// - Expectation: Shared memory is enabled iff the psmx interface supports it (use queried value).
-/// - Delete the domain
-/// - Check the function call counts of the dummy psmx.
-/// - Expectation: The counts match expectations. In particular, create counts must match their delete counterpart.
-/// 
-/// - Create a configuration with a psmx interface capable of shared memory and don't specify a locator.
-/// - Create a domain using this configuration.
-/// - Query whether shared memory is supported.
-/// - Assert that there is exactly one psmx instance.
-/// - Assert that the psmx instance has a nonempty instance_name.
-/// - Create some entities
-/// - Check if shared memory is enabled.
-/// - Expectation: Shared memory is enabled iff the psmx interface supports it (use queried value).
+/// - Assert that the psmx_topic created during dummy_psmx_create_topic, is propagated to dummy_psmx_create_endpoint().
+/// - Assert that the psmx_endpoint created during dummy_psmx_create_endpoint(), is propagated to dummy_psmx_request_loan(), dummy_psmx_write(), dummy_psmx_delete_endpoint().
+/// - Assert that the loan created during dummy_psmx_request_loan(), is propagated to dummy_psmx_write().
+/// - Check if shared memory is available.
+/// - Expectation: Shared memory is available iff the psmx interface supports it (check for the false and the true case).
 /// - Delete the domain
 /// - Check the function call counts of the dummy psmx.
 /// - Expectation: The counts match expectations. In particular, create counts must match their delete counterpart.
 /// 
 CU_Test(ddsc_psmxif, shared_memory)
 {
-  dummy_mockstats_t* dmock = NULL;
   char strbuf[512];
   const size_t strbuf_size = sizeof(strbuf);
   {
@@ -265,155 +237,103 @@ CU_Test(ddsc_psmxif, shared_memory)
     CU_ASSERT_FATAL((props & DDS_DATA_TYPE_IS_MEMCPY_SAFE) == DDS_DATA_TYPE_IS_MEMCPY_SAFE);
   }
 
-  const dds_domainid_t domainId = 0;
-  bool supports_shared_memory_expected = true;
-  dds_psmx_endpoint_t* psmx_endpt_expected = NULL;
-  dds_psmx_topic_t* psmx_topic_expected = NULL;
-  bool specify_locator[] = {true, false};
-  uint8_t locator_in[16];
-  memset(locator_in, 0x0, sizeof(locator_in)); // Avoid warning 'uninitialized value'.
-  ((uint64_t*)locator_in)[0] = (uint64_t)0x4a4d203df6996395;
-  ((uint64_t*)locator_in)[1] = (uint64_t)0xe1412fbecc2de4b6;
-
-  int N = sizeof(specify_locator) / sizeof(specify_locator[0]);
-  for (int i = 0; i < N; ++i)
-  {
-    const uint8_t* locator = specify_locator[i] ? locator_in : NULL;
-    char* configstr_in = create_config(domainId, "dummy", locator);
-    const dds_entity_t domain = dds_create_domain(domainId, configstr_in);
-    CU_ASSERT_FATAL(domain > 0);
-    const dds_entity_t participant = dds_create_participant(domainId, NULL, NULL);
-    CU_ASSERT_FATAL(participant > 0);
+  for (size_t i = 0; i < 2; ++i) {
+    const dds_domainid_t domainId = 0;
+    dds_entity_t participant = create_participant(domainId);
+    dds_entity_t domain = dds_get_parent(participant);
+    dummy_mockstats_t* dmock = dummy_mockstats_get_ptr();
+    CU_ASSERT_FATAL(dmock->cnt_create_psmx == 1); // Confirm the dummy psmx has been loaded.
     {
-      // Query whether shared memory is supported.
-      dds_domain* dom = NULL;
-      {
-        dds_entity* x = NULL;
-        dds_return_t rc = dds_entity_pin(domain, &x);
-        CU_ASSERT_FATAL(rc == DDS_RETCODE_OK && dds_entity_kind(x) == DDS_KIND_DOMAIN);
-        dom = (dds_domain*)x;
-      }
-      assert(dom->psmx_instances.length >= 1);
-      struct dummy_psmx* dpsmx = (struct dummy_psmx*)dom->psmx_instances.instances[0];
-      dmock = dpsmx->mockstats_get_ptr();
-      CU_ASSERT_FATAL(dmock->cnt_create_psmx == 1); // Confirm the dummy psmx has been loaded.
-      dds_entity_unpin(&dom->m_entity);
+      // Assert that there is exactly one psmx instance.
+      dds_entity* x = NULL;
+      CU_ASSERT_FATAL(dds_entity_pin(domain, &x) == DDS_RETCODE_OK && dds_entity_kind(x) == DDS_KIND_DOMAIN);
+      CU_ASSERT_FATAL(((dds_domain*)x)->psmx_instances.length == 1);
+      dds_entity_unpin(x);
     }
+
+    bool supports_shared_memory_expected = (bool)i;
+    dmock->supports_shared_memory = supports_shared_memory_expected;
+
+    dds_psmx_topic_t* psmx_topic_expected = NULL;
+    dds_psmx_endpoint_t* psmx_endpt_expected = NULL;
+    dds_psmx_endpoint_t* delete_endpoint_expected[4];
+    memset(delete_endpoint_expected, 0x0, sizeof(delete_endpoint_expected));
+    size_t delete_endpoint_idx = 0;
+    const size_t endpt_cnt = sizeof(delete_endpoint_expected) / sizeof(delete_endpoint_expected[0]);
+
     // Check that the config string passed to `dds_create_domain()` has been correctly forwarded to the dummy psmx.
-    CU_ASSERT_FATAL(strstr(configstr_in, dmock->config) != NULL); // dmock->config is a substring of the original xml.
-    ddsrt_free(configstr_in);
+    char dmock_config_expected[] = "LOCATOR=4a4d203df6996395e1412fbecc2de4b6;SERVICE_NAME=service_psmx_dummy;KEYED_TOPICS=true;";
+    CU_ASSERT_FATAL(strcmp(dmock->config, dmock_config_expected) == 0);
 
+    void* sample = NULL;
     dds_entity_t writer1 = 0, reader1 = 0, writer2 = 0, reader2 = 0;
-    {
-      char topicname[100];
-      dummy_topics_alloc(dmock, 2);
-      dummy_endpoints_alloc(dmock, 4);
 
-      create_unique_topic_name("shared_memory", topicname, sizeof(topicname));
-      psmx_topic_expected = (dds_psmx_topic_t*)dmock->topics._buffer + dmock->topics._length;
-      dds_entity_t topic1 = dds_create_topic(participant, &SC_Model_desc, topicname, NULL, NULL);
-      CU_ASSERT_FATAL(topic1 > 0);
-      {
-        dds_entity* x = NULL;
-        dds_return_t rc = dds_entity_pin(topic1, &x);
-        CU_ASSERT_FATAL(rc == DDS_RETCODE_OK && dds_entity_kind(x) == DDS_KIND_TOPIC);
-        struct dds_psmx_topics_set* topics_set = &((dds_topic*)x)->m_ktopic->psmx_topics;
-        CU_ASSERT_FATAL(topics_set->length == 1 && topics_set->topics[0] == psmx_topic_expected);
-        dds_entity_unpin(x);
-      }
+    char topicname[100];
+    dummy_topics_alloc(dmock, 2);
+    dummy_endpoints_alloc(dmock, endpt_cnt);
 
-      psmx_endpt_expected = (dds_psmx_endpoint_t*)dmock->endpoints._buffer + dmock->endpoints._length;
-      writer1 = dds_create_writer(participant, topic1, NULL, NULL);
-      CU_ASSERT_FATAL(writer1 > 0);
-      {
-        dds_entity* x = NULL;
-        dds_return_t rc = dds_entity_pin(writer1, &x);
-        CU_ASSERT_FATAL(rc == DDS_RETCODE_OK && dds_entity_kind(x) == DDS_KIND_WRITER);
-        struct dds_psmx_endpoints_set* endpt_set = &((dds_writer*)x)->m_endpoint.psmx_endpoints;
-        CU_ASSERT_FATAL(endpt_set->length == 1 && endpt_set->endpoints[0] == psmx_endpt_expected);
-        dds_entity_unpin(x);
-      }
+    create_unique_topic_name("shared_memory", topicname, sizeof(topicname));
+    psmx_topic_expected = (dds_psmx_topic_t*)dmock->topics._buffer + dmock->topics._length;
+    dds_entity_t topic1 = dds_create_topic(participant, &SC_Model_desc, topicname, NULL, NULL);
+    CU_ASSERT_FATAL(topic1 > 0);
 
-      psmx_endpt_expected = (dds_psmx_endpoint_t*)dmock->endpoints._buffer + dmock->endpoints._length;
-      reader1 = dds_create_reader(participant, topic1, NULL, NULL);
-      CU_ASSERT_FATAL(reader1 > 0);
-      {
-        // Check the dummy psmx instance_name.
-        dds_qos_t* qos = dds_create_qos();
-        dds_get_qos(reader1, qos);
-        uint32_t strs_len = 0;
-        char** strs = NULL;
-        CU_ASSERT_FATAL(dds_qget_psmx_instances(qos, &strs_len, &strs));
-        CU_ASSERT_FATAL(strs_len == 1 && strcmp(strs[0], "dummy_psmx") == 0);
-        free_strings(strs_len, strs);
-        dds_delete_qos(qos);
-      }
-      {
-        dds_entity* x = NULL;
-        dds_return_t rc = dds_entity_pin(reader1, &x);
-        CU_ASSERT_FATAL(rc == DDS_RETCODE_OK && dds_entity_kind(x) == DDS_KIND_READER);
-        struct dds_psmx_endpoints_set* endpt_set = &((dds_reader*)x)->m_endpoint.psmx_endpoints;
-        CU_ASSERT_FATAL(endpt_set->length == 1 && endpt_set->endpoints[0] == psmx_endpt_expected);
-        dds_entity_unpin(x);
-      }
+    psmx_endpt_expected = (dds_psmx_endpoint_t*)dmock->endpoints._buffer + dmock->endpoints._length;
+    delete_endpoint_expected[delete_endpoint_idx++] = psmx_endpt_expected;
+    writer1 = dds_create_writer(participant, topic1, NULL, NULL);
+    CU_ASSERT_FATAL(writer1 > 0);
+    CU_ASSERT_FATAL(dmock->create_endpoint_rcv_topic == psmx_topic_expected);
+    CU_ASSERT_FATAL(dds_request_loan(writer1, &sample) == DDS_RETCODE_OK);
+    CU_ASSERT_FATAL(dmock->request_loan_rcv_endpt == psmx_endpt_expected);
+    dmock->write_rcv_loan = NULL;
+    CU_ASSERT_FATAL(dds_write(writer1, sample) == DDS_RETCODE_OK);
+    CU_ASSERT_FATAL(dmock->write_rcv_endpt == psmx_endpt_expected);
+    CU_ASSERT_FATAL(dmock->write_rcv_loan == &dmock->loan);
 
-      create_unique_topic_name("shared_memory", topicname, sizeof(topicname));
-      psmx_topic_expected = (dds_psmx_topic_t*)dmock->topics._buffer + dmock->topics._length;
-      dds_entity_t topic2 = dds_create_topic(participant, &PsmxType1_desc, topicname, NULL, NULL);
-      CU_ASSERT_FATAL(topic2 > 0);
-      {
-        dds_entity* x = NULL;
-        dds_return_t rc = dds_entity_pin(topic2, &x);
-        CU_ASSERT_FATAL(rc == DDS_RETCODE_OK && dds_entity_kind(x) == DDS_KIND_TOPIC);
-        struct dds_psmx_topics_set* topics_set = &((dds_topic*)x)->m_ktopic->psmx_topics;
-        CU_ASSERT_FATAL(topics_set->length == 1 && topics_set->topics[0] == psmx_topic_expected);
-        dds_entity_unpin(x);
-      }
+    psmx_endpt_expected = (dds_psmx_endpoint_t*)dmock->endpoints._buffer + dmock->endpoints._length;
+    delete_endpoint_expected[delete_endpoint_idx++] = psmx_endpt_expected;
+    reader1 = dds_create_reader(participant, topic1, NULL, NULL);
+    CU_ASSERT_FATAL(reader1 > 0);
+    CU_ASSERT_FATAL(dmock->create_endpoint_rcv_topic == psmx_topic_expected);
 
-      psmx_endpt_expected = (dds_psmx_endpoint_t*)dmock->endpoints._buffer + dmock->endpoints._length;
-      writer2 = dds_create_writer(participant, topic2, NULL, NULL);
-      CU_ASSERT_FATAL(writer2 > 0);
-      {
-        dds_entity* x = NULL;
-        dds_return_t rc = dds_entity_pin(writer2, &x);
-        CU_ASSERT_FATAL(rc == DDS_RETCODE_OK && dds_entity_kind(x) == DDS_KIND_WRITER);
-        struct dds_psmx_endpoints_set* endpt_set = &((dds_writer*)x)->m_endpoint.psmx_endpoints;
-        CU_ASSERT_FATAL(endpt_set->length == 1 && endpt_set->endpoints[0] == psmx_endpt_expected);
-        dds_entity_unpin(x);
-      }
+    create_unique_topic_name("shared_memory", topicname, sizeof(topicname));
+    psmx_topic_expected = (dds_psmx_topic_t*)dmock->topics._buffer + dmock->topics._length;
+    dds_entity_t topic2 = dds_create_topic(participant, &PsmxType1_desc, topicname, NULL, NULL);
+    CU_ASSERT_FATAL(topic2 > 0);
 
-      psmx_endpt_expected = (dds_psmx_endpoint_t*)dmock->endpoints._buffer + dmock->endpoints._length;
-      reader2 = dds_create_reader(participant, topic2, NULL, NULL);
-      CU_ASSERT_FATAL(reader2 > 0);
-      {
-        dds_entity* x = NULL;
-        dds_return_t rc = dds_entity_pin(reader2, &x);
-        CU_ASSERT_FATAL(rc == DDS_RETCODE_OK && dds_entity_kind(x) == DDS_KIND_READER);
-        struct dds_psmx_endpoints_set* endpt_set = &((dds_reader*)x)->m_endpoint.psmx_endpoints;
-        CU_ASSERT_FATAL(endpt_set->length == 1 && endpt_set->endpoints[0] == psmx_endpt_expected);
-        dds_entity_unpin(x);
-      }
-    }
+    psmx_endpt_expected = (dds_psmx_endpoint_t*)dmock->endpoints._buffer + dmock->endpoints._length;
+    delete_endpoint_expected[delete_endpoint_idx++] = psmx_endpt_expected;
+    writer2 = dds_create_writer(participant, topic2, NULL, NULL);
+    CU_ASSERT_FATAL(writer2 > 0);
+    CU_ASSERT_FATAL(dmock->create_endpoint_rcv_topic == psmx_topic_expected);
+    CU_ASSERT_FATAL(dds_request_loan(writer2, &sample) == DDS_RETCODE_OK);
+    CU_ASSERT_FATAL(dmock->request_loan_rcv_endpt == psmx_endpt_expected);
+    dmock->write_rcv_loan = NULL;
+    CU_ASSERT_FATAL(dds_write(writer2, sample) == DDS_RETCODE_OK);
+    CU_ASSERT_FATAL(dmock->write_rcv_endpt == psmx_endpt_expected);
+    CU_ASSERT_FATAL(dmock->write_rcv_loan == &dmock->loan);
 
-    {
-      // Check that shared memory is enabled when it should, and not enabled when it shouldn't.
-      bool psmx_enabled;
-      psmx_enabled = endpoint_has_psmx_enabled(writer1);
-      CU_ASSERT_FATAL(psmx_enabled);
-      CU_ASSERT_FATAL(dds_is_shared_memory_available(writer1) == supports_shared_memory_expected);
+    psmx_endpt_expected = (dds_psmx_endpoint_t*)dmock->endpoints._buffer + dmock->endpoints._length;
+    delete_endpoint_expected[delete_endpoint_idx++] = psmx_endpt_expected;
+    reader2 = dds_create_reader(participant, topic2, NULL, NULL);
+    CU_ASSERT_FATAL(reader2 > 0);
+    CU_ASSERT_FATAL(dmock->create_endpoint_rcv_topic == psmx_topic_expected);
 
-      psmx_enabled = endpoint_has_psmx_enabled(reader1);
-      CU_ASSERT_FATAL(psmx_enabled);
-      CU_ASSERT_FATAL(dds_is_shared_memory_available(reader1) == supports_shared_memory_expected);
+    // Check that shared memory is available when it should, and not available when it shouldn't.
+    CU_ASSERT_FATAL(dds_is_shared_memory_available(writer1) == supports_shared_memory_expected);
+    CU_ASSERT_FATAL(dds_is_shared_memory_available(reader1) == supports_shared_memory_expected);
+    CU_ASSERT_FATAL(dds_is_shared_memory_available(writer2) == supports_shared_memory_expected);
+    CU_ASSERT_FATAL(dds_is_shared_memory_available(reader2) == supports_shared_memory_expected);
 
-      psmx_enabled = endpoint_has_psmx_enabled(writer2);
-      CU_ASSERT_FATAL(psmx_enabled);
-      CU_ASSERT_FATAL(dds_is_shared_memory_available(writer2) == supports_shared_memory_expected);
-
-      psmx_enabled = endpoint_has_psmx_enabled(reader2);
-      CU_ASSERT_FATAL(psmx_enabled);
-      CU_ASSERT_FATAL(dds_is_shared_memory_available(reader2) == supports_shared_memory_expected);
-    }
+    // Check that psmx_endpoint pointers originally from `dummy_psmx_create_endpoint()`, end up in `dummy_psmx_delete_endpoint()`.
+    CU_ASSERT_FATAL(delete_endpoint_idx == endpt_cnt);
+    dds_delete(reader2);
+    CU_ASSERT_FATAL(dmock->delete_endpoint_rcv_endpt == delete_endpoint_expected[--delete_endpoint_idx]);
+    dds_delete(writer2);
+    CU_ASSERT_FATAL(dmock->delete_endpoint_rcv_endpt == delete_endpoint_expected[--delete_endpoint_idx]);
+    dds_delete(reader1);
+    CU_ASSERT_FATAL(dmock->delete_endpoint_rcv_endpt == delete_endpoint_expected[--delete_endpoint_idx]);
+    dds_delete(writer1);
+    CU_ASSERT_FATAL(dmock->delete_endpoint_rcv_endpt == delete_endpoint_expected[--delete_endpoint_idx]);
     dds_delete(domain);
 
     // Check number of calls against expected counts.
@@ -432,10 +352,9 @@ CU_Test(ddsc_psmxif, shared_memory)
     CU_ASSERT_FATAL(dmock->cnt_create_endpoint == 4);
     CU_ASSERT_FATAL(dmock->cnt_delete_endpoint == 4);
 
-    CU_ASSERT_FATAL(dmock->cnt_request_loan == 0);
-    CU_ASSERT_FATAL(dmock->cnt_write == 0);
+    CU_ASSERT_FATAL(dmock->cnt_request_loan == 2);
+    CU_ASSERT_FATAL(dmock->cnt_write == 2);
     CU_ASSERT_FATAL(dmock->cnt_take == 0);
     CU_ASSERT_FATAL(dmock->cnt_on_data_available == 2);
-    dmock = NULL;
   }
 }

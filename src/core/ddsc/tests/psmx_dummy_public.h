@@ -17,8 +17,8 @@ extern "C" {
 #endif
 
 typedef struct dynamic_array_s{
-  uint32_t _maximum;
-  uint32_t _length;
+  size_t _maximum;
+  size_t _length;
   void* _buffer;
 }dynamic_array_t;
 
@@ -44,18 +44,23 @@ typedef struct dummy_mockstats_s{
   int cnt_on_data_available;
 
   // Exposed internals
+  bool supports_shared_memory;
   char* config;
   dynamic_array_t topics;
   dynamic_array_t endpoints;
+  dds_loaned_sample_t loan;
+  dds_psmx_metadata_t loan_metadata;
+
+  dds_psmx_topic_t* create_endpoint_rcv_topic;
+  dds_psmx_endpoint_t* delete_endpoint_rcv_endpt;
+  dds_psmx_endpoint_t* request_loan_rcv_endpt;
+  dds_psmx_endpoint_t* write_rcv_endpt;
+  dds_loaned_sample_t* write_rcv_loan;
 }dummy_mockstats_t;
 
-typedef struct dummy_psmx {
-  dds_psmx_t c;
-  dummy_mockstats_t* (*mockstats_get_ptr)();
-}dummy_psmx_t;
-
-DDS_EXPORT void dummy_topics_alloc(dummy_mockstats_t* mockstats, uint32_t topics_capacity);
-DDS_EXPORT void dummy_endpoints_alloc(dummy_mockstats_t* mockstats, uint32_t endpoints_capacity);
+DDS_EXPORT dummy_mockstats_t* dummy_mockstats_get_ptr(void);
+DDS_EXPORT void dummy_topics_alloc(dummy_mockstats_t* mockstats, size_t topics_capacity);
+DDS_EXPORT void dummy_endpoints_alloc(dummy_mockstats_t* mockstats, size_t endpoints_capacity);
 
 #if defined (__cplusplus)
 }
