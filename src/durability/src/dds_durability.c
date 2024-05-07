@@ -141,14 +141,40 @@ err:
   return -1;
 }
 
+static int dc_stringify_request_key (char *buf, size_t n, const DurableSupport_request_key *key)
+{
+  size_t i = 0;
+  int l;
+  char rguid_str[37];
+
+  if (buf == NULL) {
+    goto err;
+  }
+  if (key == NULL) {
+    buf[0] = '\0';
+    return 0;
+  }
+  if ((l = snprintf(buf+i, n-i, "\"key\":{\"rguid\":\"%s\"}", dc_stringify_id(key->rguid, rguid_str))) < 0) {
+    goto err;
+  }
+  i += (size_t)l;
+  if (i >= n) {
+    /* truncated */
+    buf[n-1] = '\0';
+  }
+  return (int)i;
+err:
+  DDS_ERROR("dc_stringify_request_key failed");
+  return -1;
+}
+
 static int dc_stringify_request (char *buf, size_t n, const DurableSupport_request *request, bool valid_data)
 {
   size_t i = 0;
   int l;
-  char id_str[37];
-  char rguid_str[37];
   int64_t sec;
   uint32_t msec;
+  char id_str[37];
 
   if (buf == NULL) {
     goto err;
@@ -157,26 +183,46 @@ static int dc_stringify_request (char *buf, size_t n, const DurableSupport_reque
     buf[0] = '\0';
     return 0;
   }
+  buf[i++] = '{';
+  if ((l = dc_stringify_request_key(buf+i, n-i, &request->key)) < 0) {
+    goto err;
+  }
+  i += (size_t)l;
+  if (i >= n) {
+    goto trunc;
+  }
+  /* print non-key fields for valid data */
   if (valid_data) {
-    /* also print non-key fields */
+    if ((l = snprintf(buf+i, n-i, ", \"client\":\"%s\"", dc_stringify_id(request->client, id_str))) < 0) {
+      goto err;
+    }
+    i += (size_t)l;
+    if (i >= n) {
+      goto trunc;
+    }
     if (request->timeout == DDS_INFINITY) {
-      if ((l = snprintf(buf+i, n-i, "{\"client\":\"%s\", \"rguid\":\"%s\", \"partition\":\"%s\", \"tpname\":\"%s\", \"type_id\":\"%s\", \"timeout\":\"never\"}", dc_stringify_id(request->client, id_str), dc_stringify_id(request->rguid, rguid_str), request->partition, request->tpname, request->type_id)) < 0) {
+      if ((l = snprintf(buf+i, n-i, ", \"timeout\":\"never\"")) < 0) {
         goto err;
       }
     } else {
       sec = (int64_t)(request->timeout / DDS_NSECS_IN_SEC);
       msec = (uint32_t)((request->timeout % DDS_NSECS_IN_SEC) / DDS_NSECS_IN_MSEC);
-      if ((l = snprintf(buf+i, n-i, "{\"client\":\"%s\", \"partition\":\"%s\", \"tpname\":\"%s\", \"type_id\":\"%s\", \"timeout\":%" PRId64 ".%03" PRIu32 "}", dc_stringify_id(request->client, id_str), request->partition, request->tpname, request->type_id, sec, msec)) < 0) {
+      if ((l = snprintf(buf+i, n-i, ", \"timeout\":%" PRId64 ".%03" PRIu32, sec, msec)) < 0) {
         goto err;
       }
     }
-  } else {
-    /* only print key fields */
-    if ((l = snprintf(buf+i, n-i, "{\"client\":\"%s\", \"partition\":\"%s\", \"tpname\":\"%s\", \"type_id\":\"%s\"}", dc_stringify_id(request->client, id_str), request->partition, request->tpname, request->type_id)) < 0) {
-      goto err;
+    i += (size_t)l;
+    if (i >= n) {
+      goto trunc;
     }
   }
-  i += (size_t)l;
+  if (i < n) {
+    buf[i++] = '}';
+  }
+  if (i < n) {
+    buf[i] = '\0';
+  }
+trunc:
   if (i >= n) {
     /* truncated */
     buf[n-1] = '\0';
@@ -187,48 +233,39 @@ err:
   return -1;
 }
 
-static int dc_stringify_response (char *buf, size_t n, const DurableSupport_response *response)
+static int dc_stringify_response_set (char *buf, size_t n, const DurableSupport_response_set_t *response_set)
 {
-  size_t i = 0;
+  size_t i = 0, j;
   int l;
   char id_str[37];
-  char blob_str[64];
+  bool first = true;
 
   if (buf == NULL) {
     goto err;
   }
-  if (response == NULL) {
+  if (response_set == NULL) {
     buf[0] = '\0';
     return 0;
   }
-  if ((l = snprintf(buf+i, n-i, "{\"id\":\"%s\", \"type\":\"%s\", \"content\":{", dc_stringify_id(response->id, id_str), dc_responsetype_image(response->body._d))) < 0) {
+  if ((l = snprintf(buf+i, n-i, "{\"delivery_id\":%" PRIu64 ", \"partition\":\"%s\", \"tpname\":\"%s\", \"type_id\":\"%s\", \"flags\":\"0x%04" PRIx32 "\", \"guids\":[", response_set->delivery_id, response_set->partition, response_set->tpname, response_set->type_id, response_set->flags)) < 0) {
     goto err;
   }
   i += (size_t)l;
   if (i >= n) {
     goto trunc;
   }
-  switch (response->body._d) {
-    case DurableSupport_RESPONSETYPE_SET :
-      if ((l = snprintf(buf+i, n-i, "\"delivery_id\":%" PRIu64 ",\"partition\":\"%s\", \"tpname\":\"%s\", \"type_id\":\"%s\", \"flags\":\"0x%04" PRIx32 "\"", response->body._u.set.delivery_id, response->body._u.set.partition, response->body._u.set.tpname, response->body._u.set.type_id, response->body._u.set.flags)) < 0) {
-        goto err;
-      }
-      i += (size_t)l;
-      break;
-    case DurableSupport_RESPONSETYPE_DATA :
-      if (dc_blob_image(response->body._u.data.blob, blob_str, sizeof(blob_str)) < 0) {
-        goto err;
-      }
-      if ((l = snprintf(buf+i, n-i, "\"blob\":\"%s\"", blob_str)) < 0) {
-        goto err;
-      }
-      i += (size_t)l;
-      break;
-    default:
+  for(j=0; j < response_set->guids._length; j++) {
+    if ((l = snprintf(buf+i, n-i, "%s\"%s\"", (first) ? "" : ",", dc_stringify_id(response_set->guids._buffer[j], id_str))) < 0) {
       goto err;
+    }
+    i += (size_t)l;
+    if (i >= n) {
+      goto trunc;
+    }
+    first = false;
   }
   if (i < n) {
-    buf[i++] = '}';
+    buf[i++] = ']';
   }
   if (i < n) {
     buf[i++] = '}';
@@ -240,7 +277,94 @@ trunc:
   }
   return (int)i;
 err:
-  DDS_ERROR("dc_stringify_response failed, type: %" PRIu16 ", buf: %s\n", response->body._d, !buf ? "NULL" : buf);
+  DDS_ERROR("dc_stringify_response_set failed");
+  return -1;
+}
+
+static int dc_stringify_response_data (char *buf, size_t n, const DurableSupport_response_data_t *response_data)
+{
+  size_t i = 0;
+  int l;
+  char blob_str[64];
+
+  if (buf == NULL) {
+    goto err;
+  }
+  if (response_data == NULL) {
+    buf[0] = '\0';
+    return 0;
+  }
+  if (dc_blob_image(response_data->blob, blob_str, sizeof(blob_str)) < 0) {
+    goto err;
+  }
+  if ((l = snprintf(buf+i, n-i, "{\"blob\":\"%s\"", blob_str)) < 0) {
+    goto err;
+  }
+  i += (size_t)l;
+  if (i >= n) {
+    goto trunc;
+  }
+  if (i < n) {
+    buf[i++] = '}';
+  }
+trunc:
+  if (i >= n) {
+    /* truncated */
+    buf[n-1] = '\0';
+  }
+  return (int)i;
+err:
+  DDS_ERROR("dc_stringify_response_data failed");
+  return -1;
+}
+
+static int dc_stringify_response (char *buf, size_t n, const DurableSupport_response *response)
+{
+  size_t i = 0;
+  int l;
+  char id_str[37];
+
+  if (buf == NULL) {
+    goto err;
+  }
+  if (response == NULL) {
+    buf[0] = '\0';
+    return 0;
+  }
+  if ((l = snprintf(buf+i, n-i, "{\"id\":\"%s\", \"type\":\"%s\", \"content\":", dc_stringify_id(response->id, id_str), dc_responsetype_image(response->body._d))) < 0) {
+    goto err;
+  }
+  i += (size_t)l;
+  if (i >= n) {
+    goto trunc;
+  }
+  switch (response->body._d) {
+    case DurableSupport_RESPONSETYPE_SET :
+      if ((l = dc_stringify_response_set(buf+i, n-i, &response->body._u.set)) < 0) {
+        goto err;
+      }
+      i += (size_t)l;
+      break;
+    case DurableSupport_RESPONSETYPE_DATA :
+      if ((l = dc_stringify_response_data(buf+i, n-i, &response->body._u.data)) < 0) {
+        goto err;
+      }
+      i += (size_t)l;
+      break;
+    default:
+      goto err;
+  }
+  if (i < n) {
+    buf[i++] = '}';
+  }
+trunc:
+  if (i >= n) {
+    /* truncated */
+    buf[n-1] = '\0';
+  }
+  return (int)i;
+err:
+  DDS_ERROR("dc_stringify_response failed");
   return -1;
 }
 
@@ -269,145 +393,224 @@ static void cleanup_server (void *n)
 
 static const ddsrt_avl_ctreedef_t server_td = DDSRT_AVL_CTREEDEF_INITIALIZER(offsetof (struct server_t, node), offsetof (struct server_t, id), cmp_server, 0);
 
-struct proxy_set_reader_key_t {
-  dds_guid_t guid;  /* guid of the reader */
+struct delivery_reader_key_t {
+  dds_guid_t rguid;
 };
 
-static int cmp_proxy_set_reader (const void *a, const void *b)
-{
-  struct proxy_set_reader_key_t *k1 = (struct proxy_set_reader_key_t *)a;
-  struct proxy_set_reader_key_t *k2 = (struct proxy_set_reader_key_t *)b;
+struct delivery_reader_t {
+  ddsrt_avl_node_t node;  /* represents a node in the tree of delivery reader */
+  struct delivery_reader_key_t key;  /* key of a delivery reader */
+};
 
-  return memcmp(k1->guid.v, k2->guid.v, 16);
+static int cmp_delivery_reader (const void *a, const void *b)
+{
+  struct delivery_reader_key_t *k1 = (struct delivery_reader_key_t *)a;
+  struct delivery_reader_key_t *k2 = (struct delivery_reader_key_t *)b;
+
+  return memcmp(k1->rguid.v, k2->rguid.v, 16);
 }
 
-struct proxy_set_reader_t {
-  ddsrt_avl_node_t node;
-  struct proxy_set_reader_key_t key;
-  dds_entity_t reader;
-  struct dds_rhc *rhc;
-};
-
-static void cleanup_proxy_set_reader (void *n)
+static void cleanup_delivery_reader (void *n)
 {
-  struct proxy_set_reader_t *proxy_set_reader = (struct proxy_set_reader_t *)n;
-
-  ddsrt_free(proxy_set_reader);
+  struct delivery_reader_t *rd = (struct delivery_reader_t *)n;
+  ddsrt_free(rd);
 }
 
-static const ddsrt_avl_ctreedef_t proxy_set_reader_td = DDSRT_AVL_CTREEDEF_INITIALIZER(offsetof (struct proxy_set_reader_t, node), offsetof (struct proxy_set_reader_t, key), cmp_proxy_set_reader, 0);
+static const ddsrt_avl_ctreedef_t delivery_readers_td = DDSRT_AVL_CTREEDEF_INITIALIZER(offsetof (struct delivery_reader_t, node), offsetof (struct delivery_reader_t, key), cmp_delivery_reader, 0);
 
-struct proxy_set_key_t {
-  char *partition;   /* partition name */
-  char *tpname;  /* topic name */
-  char *type_id;  /* type id */
+struct delivery_request_key_t {
+  dds_guid_t guid; /* the guid of the reader that requested historical data */
 };
 
-struct proxy_set_t {
-  ddsrt_avl_node_t node;  /* represents a node in the tree of pending requests */
-  struct proxy_set_key_t key;  /* key of a proxy set */
-  ddsrt_avl_ctree_t readers;  /* the tree of readers and their rhc that have an interest in this proxy set */
-  uint64_t seq;  /* the sequence number of the outstanding request for this proxy set, 0 if no outstanding request */
-};
-
-static int cmp_proxy_set (const void *a, const void *b)
-{
-  struct proxy_set_key_t *k1 = (struct proxy_set_key_t *)a;
-  struct proxy_set_key_t *k2 = (struct proxy_set_key_t *)b;
-  int cmp;
-
-  /* compare partition */
-  if ((cmp = strcmp(k1->partition, k2->partition)) < 0) {
-    return -1;
-  } else if (cmp > 0) {
-    return 1;
-  }
-  /* compare topic */
-  if ((cmp = strcmp(k1->tpname, k2->tpname)) < 0) {
-    return -1;
-  } else if (cmp > 0) {
-    return 1;
-  }
-  /* compare type id */
-  if ((cmp = strcmp(k1->type_id, k2->type_id)) < 0) {
-    return -1;
-  } else if (cmp > 0) {
-    return 1;
-  }
-  return 0;
-}
-
-static void cleanup_proxy_set (void *n)
-{
-  struct proxy_set_t *proxy_set = (struct proxy_set_t *)n;
-
-  ddsrt_avl_cfree(&proxy_set_reader_td,  &proxy_set->readers, cleanup_proxy_set_reader);
-  ddsrt_free(proxy_set->key.partition);
-  ddsrt_free(proxy_set->key.tpname);
-  ddsrt_free(proxy_set->key.type_id);
-  ddsrt_free(proxy_set);
-}
-
-static const ddsrt_avl_ctreedef_t proxy_set_td = DDSRT_AVL_CTREEDEF_INITIALIZER(offsetof (struct proxy_set_t, node), offsetof (struct proxy_set_t, key), cmp_proxy_set, 0);
-
-struct pending_request_key_t {
-  uint64_t seq;  /* the sequence number of the request */
-};
-
-/* This represents a request for data for a proxy set.
- * Such request will lead to the publication of a transient-local
- * autodisposed request topic to a DS. Requests are keyed by a monotonically
- * increasing sequence number.
- * Requests can expire when no answer is received within the specified
- * expiration time. In this case the request will be disposed to prevent
- * that a DS reacts to an already expired request.
+/* This represents a request for historical data from a client to a ds.
+ * Such delivery request will lead to the publication of a transient-local
+ * autodisposed request topic to a DS. A delivery requests is keyed by the
+ * guid of the reader guid that request the historical data.
+ * Delivery requests carry an expiration time. When the expiration time
+ * expires, the delivery request will be disposed and is not available
+ * any more for late joining ds's.
  *
  * LH: to check: is it really necessary to allow expiration of requests?
  * If a request is transient-local, autodisposed then there is no need
  * to expire a request. Only if you want to request data from a different
  * ds we should dispose the current requests, create another request reader
  * that connects to another ds, and republish the requests. */
-struct pending_request_t {
-  ddsrt_avl_node_t node;  /* represents a node in the tree of pending requests */
+
+struct delivery_request_t {
+  ddsrt_avl_node_t node;  /* represents a node in the tree of delivery requests */
   ddsrt_fibheap_node_t fhnode;  /* represents a node in the priority queue */
-  struct pending_request_key_t key;  /* sequence number of the request */
-  struct proxy_set_t *proxy_set; /* the proxy set associated with the request */
-  dds_time_t exp_time;  /* request expiration time */
+  struct delivery_request_key_t key;  /* key of the delivery request; represents the reader that requested historical data */
+  dds_entity_t reader; /* the reader entity that requested historical data */
+  dds_time_t exp_time;  /* delivery request expiration time */
 };
 
-static int cmp_pending_request (const void *a, const void *b)
+static int dc_stringify_delivery_request_key (char *buf, size_t n, const struct delivery_request_key_t *key)
 {
-  struct pending_request_key_t *k1 = (struct pending_request_key_t *)a;
-  struct pending_request_key_t *k2 = (struct pending_request_key_t *)b;
+  size_t i = 0;
+  int l;
+  char guid_str[37];
 
-  return (k1->seq < k2->seq) ? -1 : ((k1->seq > k2->seq) ? 1 : 0);
+  if (buf == NULL) {
+    goto err;
+  }
+  if (key == NULL) {
+    buf[0] = '\0';
+    return 0;
+  }
+  if ((l = snprintf(buf+i, n-i, "\"key\":{\"guid\":\"%s\"}", dc_stringify_id(key->guid.v, guid_str))) < 0) {
+    goto err;
+  }
+  i += (size_t)l;
+  if (i >= n) {
+    /* truncated */
+    buf[n-1] = '\0';
+  }
+  return (int)i;
+err:
+  DDS_ERROR("dc_stringify_delivery_request_key failed");
+  return -1;
 }
 
-static void cleanup_pending_request (void *n)
+static int dc_stringify_delivery_request (char *buf, size_t n, const struct delivery_request_t *dr)
 {
-  struct pending_request_t *pr = (struct pending_request_t *)n;
-  ddsrt_free(pr);
+  size_t i = 0;
+  int l;
+  int64_t sec;
+  uint32_t msec;
+
+  if (buf == NULL) {
+    goto err;
+  }
+  if (dr == NULL) {
+    buf[0] = '\0';
+    return 0;
+  }
+  buf[i++] = '{';
+  if ((l = dc_stringify_delivery_request_key(buf+i, n-i, &dr->key)) < 0) {
+    goto err;
+  }
+  i += (size_t)l;
+  if (i >= n) {
+    goto trunc;
+  }
+  if ((l = snprintf(buf+i, n-i, ", \", reader\":%" PRId32, dr->reader)) < 0) {
+    goto err;
+  }
+  i += (size_t)l;
+  if (i >= n) {
+    goto trunc;
+  }
+  if (dr->exp_time == DDS_INFINITY) {
+    if ((l = snprintf(buf+i, n-i, ", \"exp_time\":\"never\"")) < 0) {
+      goto err;
+    }
+  } else {
+    sec = (int64_t)(dr->exp_time / DDS_NSECS_IN_SEC);
+    msec = (uint32_t)((dr->exp_time % DDS_NSECS_IN_SEC) / DDS_NSECS_IN_MSEC);
+    if ((l = snprintf(buf+i, n-i, ", \"exp_time\":%" PRId64 ".%03" PRIu32, sec, msec)) < 0) {
+      goto err;
+    }
+  }
+  i += (size_t)l;
+  if (i >= n) {
+    goto trunc;
+  }
+  buf[i++]='}';
+  if (i < n) {
+    buf[i] = '\0';
+  }
+trunc:
+  if (i >= n) {
+    /* truncated */
+    buf[n-1] = '\0';
+  }
+  return (int)i;
+err:
+  DDS_ERROR("dc_stringify_delivery_request failed");
+  return -1;
+}
+
+static int cmp_delivery_request (const void *a, const void *b)
+{
+  struct delivery_request_key_t *k1 = (struct delivery_request_key_t *)a;
+  struct delivery_request_key_t *k2 = (struct delivery_request_key_t *)b;
+
+  return memcmp(k1->guid.v, k2->guid.v, 16);
+}
+
+static void cleanup_delivery_request (void *n)
+{
+  struct delivery_request_t *dr = (struct delivery_request_t *)n;
+  ddsrt_free(dr);
 }
 
 static int cmp_exp_time (const void *a, const void *b)
 {
-  struct pending_request_t *pr1 = (struct pending_request_t *)a;
-  struct pending_request_t *pr2 = (struct pending_request_t *)b;
+  struct delivery_request_t *dr1 = (struct delivery_request_t *)a;
+  struct delivery_request_t *dr2 = (struct delivery_request_t *)b;
 
-  return (pr1->exp_time < pr2->exp_time) ? -1 : ((pr1->exp_time > pr2->exp_time) ? 1 : 0);
+  return (dr1->exp_time < dr2->exp_time) ? -1 : ((dr1->exp_time > dr2->exp_time) ? 1 : 0);
 }
 
-static const ddsrt_avl_ctreedef_t pending_requests_td = DDSRT_AVL_CTREEDEF_INITIALIZER(offsetof (struct pending_request_t, node), offsetof (struct pending_request_t, key), cmp_pending_request, 0);
+static const ddsrt_avl_ctreedef_t delivery_requests_td = DDSRT_AVL_CTREEDEF_INITIALIZER(offsetof (struct delivery_request_t, node), offsetof (struct delivery_request_t, key), cmp_delivery_request, 0);
 
-static const ddsrt_fibheap_def_t pending_requests_fd = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct pending_request_t, fhnode), cmp_exp_time);
+static const ddsrt_fibheap_def_t delivery_requests_fd = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct delivery_request_t, fhnode), cmp_exp_time);
 
 
 struct delivery_ctx_t {
   ddsrt_avl_node_t node;
-  DurableSupport_id_t id; /* id of the ds; key of the delivery context */
+  DurableSupport_id_t id; /* id of the ds that delivers the data; key of the delivery context */
   uint64_t delivery_id;  /* the id of the delivery by this ds; this is a monotonic increased sequence number */
-  struct proxy_set_t *proxy_set; /* current proxy_set for which responses are being received, NULL if not known */
+  ddsrt_avl_ctree_t readers; /* tree of reader guids for which this delivery is intended */
 };
+
+static int dc_stringify_delivery_ctx (char *buf, size_t n, const struct delivery_ctx_t *delivery_ctx)
+{
+  size_t i = 0;
+  int l;
+  char id_str[37];
+  struct delivery_reader_t *delivery_reader;
+  ddsrt_avl_citer_t it;
+  bool first = true;
+
+  if (buf == NULL) {
+    goto err;
+  }
+  if (delivery_ctx == NULL) {
+    buf[0] = '\0';
+    return 0;
+  }
+  if ((l = snprintf(buf+i, n-i, "{\"id\":\"%s\", \"readers\":[", dc_stringify_id(delivery_ctx->id, id_str))) < 0) {
+    goto err;
+  }
+  i += (size_t)l;
+  if (i >= n) {
+    goto trunc;
+  }
+  for (delivery_reader = ddsrt_avl_citer_first (&delivery_readers_td, &delivery_ctx->readers, &it); delivery_reader; delivery_reader = ddsrt_avl_citer_next (&it)) {
+    if ((l = snprintf(buf+i, n-i, "%s%s", (first) ? "" : ",", dc_stringify_id(delivery_reader->key.rguid.v, id_str))) < 0) {
+      goto err;
+    }
+    i += (size_t)l;
+    if (i >= n) {
+      goto trunc;
+    }
+    first = false;
+  }
+  if ((l = snprintf(buf+i, n-i, "]}")) < 0) {
+    goto err;
+  }
+  i += (size_t)l;
+trunc:
+  if (i >= n) {
+    /* truncated */
+    buf[n-1] = '\0';
+  }
+  return (int)i;
+err:
+  DDS_ERROR("dc_stringify_delivery_ctx failed");
+  return -1;
+}
 
 static int delivery_ctx_cmp (const void *a, const void *b)
 {
@@ -416,7 +619,8 @@ static int delivery_ctx_cmp (const void *a, const void *b)
 
 static void cleanup_delivery_ctx (void *n)
 {
-  struct delivery_ctx *delivery_ctx = (struct delivery_ctx *)n;
+  struct delivery_ctx_t *delivery_ctx = (struct delivery_ctx_t *)n;
+  ddsrt_avl_cfree(&delivery_readers_td,  &delivery_ctx->readers, cleanup_delivery_reader);
   ddsrt_free(delivery_ctx);
 }
 
@@ -464,7 +668,7 @@ struct com_t {
   dds_entity_t rd_participant; /* participant reader */
   dds_entity_t rd_subinfo; /* DCPSSubscription reader */
   dds_entity_t rc_subinfo; /* DCPSSubscription read condition */
-  dds_entity_t pending_request_guard;  /* trigger expiration of pending request */
+  dds_entity_t delivery_request_guard;  /* trigger expiration of delivery request */
   dds_listener_t *status_listener; /* listener on status topic */
   dds_entity_t ws;
 };
@@ -500,13 +704,12 @@ struct dc_t {
   dds_listener_t *subinfo_listener;  /* listener to detect remote containers */
   dds_listener_t *quorum_listener; /* listener to check if a quorum is reached */
   dds_listener_t *request_listener; /* listener to check if request reader is available */
-  ddsrt_avl_ctree_t pending_requests; /* tree containing pending requests  */
-  ddsrt_fibheap_t pending_requests_fh; /* priority queue for pending requests, prioritized by expiry time */
-  ddsrt_mutex_t pending_request_mutex; /* pending request queue mutex */
-  ddsrt_cond_t pending_request_cond; /* pending request condition */
+  ddsrt_avl_ctree_t delivery_requests; /* tree containing delivery requests  */
+  ddsrt_fibheap_t delivery_requests_fh; /* priority queue for delivery requests, prioritized by expiry time */
+  ddsrt_mutex_t delivery_request_mutex; /* delivery request queue mutex */
+  ddsrt_cond_t delivery_request_cond; /* delivery request condition */
   dds_instance_handle_t selected_request_reader_ih; /* instance handle to matched request reader, DDS_HANDLE_NIL if not available */
   ddsrt_avl_ctree_t matched_request_readers; /* tree containing the request readers on a ds that match with my request writer */
-  ddsrt_avl_ctree_t proxy_sets; /* tree containing the sets for which data has to be provided by a ds */
   uint32_t nr_of_matched_dc_requests; /* indicates the number of matched dc_request readers for the dc_request writer of this client */
   struct delivery_ctx_t *delivery_ctx;  /* reference to current delivery context, NULL if none */
   ddsrt_avl_ctree_t delivery_ctxs; /* table of delivery contexts, keyed by ds id */
@@ -1073,13 +1276,13 @@ static struct com_t *dc_com_new (struct dc_t *dc, const dds_domainid_t domainid,
     DDS_ERROR("failed to create dc subinfo read condition [%s]\n", dds_strretcode(-com->rc_subinfo));
     goto err_rc_subinfo;
   }
-  /* create pending reuqest guard condition */
-  if ((com->pending_request_guard = dds_create_guardcondition(com->participant)) < 0) {
-    DDS_ERROR("failed to create guard condition [%s]\n", dds_strretcode(-com->pending_request_guard));
-    goto err_create_pending_request_guard_condition;
+  /* create delivery request guard condition */
+  if ((com->delivery_request_guard = dds_create_guardcondition(com->participant)) < 0) {
+    DDS_ERROR("failed to create delivery guard condition [%s]\n", dds_strretcode(-com->delivery_request_guard));
+    goto err_create_delivery_request_guard_condition;
   }
-  if ((ret = dds_set_guardcondition(com->pending_request_guard, false)) < 0) {
-    DDS_ERROR("failed to initialize guard condition [%s]\n", dds_strretcode(-ret));
+  if ((ret = dds_set_guardcondition(com->delivery_request_guard, false)) < 0) {
+    DDS_ERROR("failed to initialize delivery guard condition [%s]\n", dds_strretcode(-ret));
     goto err_set_guard_condition;
   }
   /* create waitset and attach read conditions */
@@ -1087,9 +1290,9 @@ static struct com_t *dc_com_new (struct dc_t *dc, const dds_domainid_t domainid,
     DDS_ERROR("failed to create dc waitset [%s]\n", dds_strretcode(-com->ws));
     goto err_waitset;
   }
-  if ((ret = dds_waitset_attach (com->ws, com->pending_request_guard, com->pending_request_guard)) < 0) {
-    DDS_ERROR("failed to attach pending request guard condition to waitset [%s]\n", dds_strretcode(-ret));
-    goto err_attach_pending_request_guard;
+  if ((ret = dds_waitset_attach (com->ws, com->delivery_request_guard, com->delivery_request_guard)) < 0) {
+    DDS_ERROR("failed to attach delivery request guard condition to waitset [%s]\n", dds_strretcode(-ret));
+    goto err_attach_delivery_request_guard;
   }
   if ((ret = dds_waitset_attach (com->ws, com->rc_status, com->rd_status)) < 0) {
     DDS_ERROR("failed to attach dc status reader to waitset [%s]\n", dds_strretcode(-ret));
@@ -1123,12 +1326,12 @@ err_attach_ws:
 err_attach_rd_response:
   dds_waitset_detach(com->ws, com->rc_status);
 err_attach_rd_status:
-  dds_waitset_detach(com->ws, com->pending_request_guard);
-err_attach_pending_request_guard:
+  dds_waitset_detach(com->ws, com->delivery_request_guard);
+err_attach_delivery_request_guard:
   dds_delete(com->ws);
 err_waitset:
-  dds_delete(com->pending_request_guard);
-err_create_pending_request_guard_condition:
+  dds_delete(com->delivery_request_guard);
+err_create_delivery_request_guard_condition:
 err_set_guard_condition:
   dds_delete(com->rc_subinfo);
 err_rc_subinfo:
@@ -1201,7 +1404,7 @@ static void dc_com_free (struct com_t *com)
 
 #define MAX_TOPIC_NAME_SIZE                  255
 
-static dds_return_t dc_com_request_write (struct com_t *com, const dds_guid_t rguid, const char *partition, const char *tpname, const char *type_id)
+static dds_return_t dc_com_request_write (struct com_t *com, const dds_guid_t rguid)
 {
   /* note: we allow doing a request for volatile readers */
   DurableSupport_request *request;
@@ -1211,11 +1414,8 @@ static dds_return_t dc_com_request_write (struct com_t *com, const dds_guid_t rg
   size_t len;
 
   request = DurableSupport_request__alloc();
+  memcpy(request->key.rguid, rguid.v, 16);
   memcpy(request->client, dc.cfg.id, 16);
-  memcpy(request->rguid, rguid.v, 16);
-  request->partition = ddsrt_strdup(partition);
-  request->tpname = ddsrt_strdup(tpname);
-  request->type_id = ddsrt_strdup(type_id);
   request->timeout = DDS_INFINITY;
   l = dc_stringify_request(str, sizeof(str), request, true);
   assert(l > 0);
@@ -1304,42 +1504,6 @@ static int dc_process_status (dds_entity_t rd, struct dc_t *dc)
 #undef MAX_SAMPLES
 }
 
-static struct proxy_set_t *dc_create_proxy_set (struct dc_t *dc, const char *partition, const char *tpname, const char *type_id)
-{
-  struct proxy_set_t *proxy_set = NULL;
-
-  assert(partition);
-  assert(tpname);
-  proxy_set = (struct proxy_set_t *)ddsrt_malloc(sizeof(struct proxy_set_t));
-  proxy_set->key.partition = ddsrt_strdup(partition);
-  proxy_set->key.tpname =  ddsrt_strdup(tpname);
-  proxy_set->key.type_id = ddsrt_strdup(type_id);
-  proxy_set->seq = 0; /* no pending request yet */
-  ddsrt_avl_cinit(&proxy_set_reader_td, &proxy_set->readers);
-  ddsrt_avl_cinsert(&proxy_set_td, &dc->proxy_sets, proxy_set);
-  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "proxy set '%s.%s<%s>' created\n", proxy_set->key.partition, proxy_set->key.tpname, proxy_set->key.type_id);
-  return proxy_set;
-}
-
-static struct proxy_set_t *dc_get_proxy_set (struct dc_t *dc, const char *partition, const char *tpname, const char *type_id, bool autocreate)
-{
-  struct proxy_set_key_t key;
-  struct proxy_set_t *proxy_set;
-
-  assert(partition);
-  assert(tpname);
-  key.partition = ddsrt_strdup(partition);
-  key.tpname = ddsrt_strdup(tpname);
-  key.type_id = ddsrt_strdup(type_id);
-  if (((proxy_set = ddsrt_avl_clookup (&proxy_set_td, &dc->proxy_sets, &key)) == NULL) && autocreate) {
-    proxy_set = dc_create_proxy_set(dc, partition, tpname, type_id);
-  }
-  ddsrt_free(key.partition);
-  ddsrt_free(key.tpname);
-  ddsrt_free(key.type_id);
-  return proxy_set;
-}
-
 /* lookup the delivery context for the ds identified by id
  * if not found and autocreate=true, then create the delivery context */
 static struct delivery_ctx_t *dc_get_delivery_ctx (struct dc_t *dc, DurableSupport_id_t id, bool autocreate)
@@ -1351,88 +1515,131 @@ static struct delivery_ctx_t *dc_get_delivery_ctx (struct dc_t *dc, DurableSuppo
   } else  if (((delivery_ctx = ddsrt_avl_clookup (&delivery_ctx_td, &dc->delivery_ctxs, id)) == NULL) && autocreate) {
     delivery_ctx = ddsrt_malloc(sizeof(struct delivery_ctx_t));
     memcpy(delivery_ctx->id,id,16);
-    delivery_ctx->delivery_id = 0;
-    delivery_ctx->proxy_set = NULL;
+    ddsrt_avl_cinit(&delivery_readers_td, &delivery_ctx->readers);
     ddsrt_avl_cinsert(&delivery_ctx_td, &dc->delivery_ctxs, delivery_ctx);
   }
   return delivery_ctx;
 }
 
-/* Remove the current delivery */
-static void dc_remove_current_delivery (struct dc_t *dc)
+/* Remove the delivery identified by id */
+static void dc_remove_delivery_ctx (struct dc_t *dc, DurableSupport_id_t id)
 {
   struct delivery_ctx_t *delivery_ctx;
   ddsrt_avl_dpath_t dpath;
 
-  if (dc->delivery_ctx) {
-
-    if ((delivery_ctx = ddsrt_avl_clookup_dpath(&delivery_ctx_td, &dc->delivery_ctxs, dc->delivery_ctx->id, &dpath)) != NULL) {
-      assert(dc->delivery_ctx == delivery_ctx);
-      /* remove the delivery ctx from the tree */
-      ddsrt_avl_cdelete_dpath(&delivery_ctx_td, &dc->delivery_ctxs, delivery_ctx, &dpath);
-      cleanup_delivery_ctx(delivery_ctx);
+  if ((delivery_ctx = ddsrt_avl_clookup_dpath(&delivery_ctx_td, &dc->delivery_ctxs, id, &dpath)) != NULL) {
+    ddsrt_avl_cdelete_dpath(&delivery_ctx_td, &dc->delivery_ctxs, delivery_ctx, &dpath);
+    if (delivery_ctx == dc->delivery_ctx) {
+      dc->delivery_ctx = NULL;
     }
-    /* reset the current delivery ctx */
-    dc->delivery_ctx = NULL;
+    cleanup_delivery_ctx(delivery_ctx);
   }
 }
 
-/* Abort the current delivery (i.e., dc->delivery_ctx) */
-static void dc_abort_current_delivery (struct dc_t *dc)
+static struct delivery_reader_t *create_delivery_reader (dds_guid_t *guid)
 {
-  char id_str[37];
+  struct delivery_reader_t *delivery_reader;
 
-  assert(dc->delivery_ctx);
-  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "aborting delivery %" PRIu64 " from ds \"%s\"\n",
-    dc->delivery_ctx->delivery_id, dc_stringify_id(dc->delivery_ctx->id, id_str));
-  /* todo: reschedule the proxy set */
-
-  /* remove the current delivery ctx */
-  dc_remove_current_delivery(dc);
+  delivery_reader = ddsrt_malloc(sizeof(struct  delivery_reader_t));
+  memcpy(delivery_reader->key.rguid.v, guid->v, 16);
+  return delivery_reader;
 }
 
-/* open the delivery context for the ds identified by id */
-static void dc_open_delivery (struct dc_t *dc,  DurableSupport_response *response)
+static struct delivery_reader_t *dc_get_reader_from_delivery_ctx (struct delivery_ctx_t *delivery_ctx, DurableSupport_id_t id, bool autocreate)
 {
-  char id_str[37];
-  uint64_t delivery_id;
+  struct delivery_reader_t *delivery_reader;
+  ddsrt_avl_ipath_t path;
+  dds_guid_t key;
 
-  assert(response);
-  assert(response->body._u.set.flags & DC_FLAG_SET_BEGIN);
-  delivery_id = response->body._u.set.delivery_id;
-  /* now create the new delivery context */
-  if ((dc->delivery_ctx = dc_get_delivery_ctx(dc, response->id, true)) == NULL) {
-    DDS_ERROR("unable to create an delivery context for ds \"%s\" and delivery id %" PRIu64 "\n", dc_stringify_id(response->id, id_str), delivery_id);
-    abort();
+  memcpy(key.v, id, 16);
+  /* create a container for the topic */
+  if (((delivery_reader = ddsrt_avl_clookup_ipath(&delivery_readers_td, &delivery_ctx->readers, &key, &path)) == NULL) && (autocreate)) {
+    delivery_reader = create_delivery_reader(&key);
+    ddsrt_avl_cinsert_ipath(&delivery_readers_td, &delivery_ctx->readers, delivery_reader, &path);
   }
-  /* set the delivery_id and proxy set for this delivery context */
-  dc->delivery_ctx->delivery_id = delivery_id;
-  if ((dc->delivery_ctx->proxy_set = dc_get_proxy_set(dc, response->body._u.set.partition, response->body._u.set.tpname, response->body._u.set.type_id, false)) == NULL) {
-    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "no proxy set for \"%s.%s<%s>\" found, ignore delivery\n", response->body._u.set.partition, response->body._u.set.tpname, response->body._u.set.type_id);
-    /* abort this delivery context */
-    dc_abort_current_delivery(dc);
-    return;
-  }
-  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "delivery %" PRIu64 " from ds \"%s\" for set \"%s.%s<%s>\" opened\n",
-      delivery_id, dc_stringify_id(dc->delivery_ctx->id, id_str), dc->delivery_ctx->proxy_set->key.partition, dc->delivery_ctx->proxy_set->key.tpname, dc->delivery_ctx->proxy_set->key.type_id);
+  return delivery_reader;
 }
 
 /* close the current delivery context for the ds identified by id */
 static void dc_close_delivery (struct dc_t *dc, DurableSupport_id_t id, DurableSupport_response_set_t *response_set)
 {
   char id_str[37];
+  char str[1024];
 
-  DC_UNUSED_ARG(response_set);
-  DC_UNUSED_ARG(id);
   assert(response_set);
   assert(response_set->flags & DC_FLAG_SET_END);
-  assert(memcmp(dc->delivery_ctx->id,id,16) == 0);
-  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "delivery %" PRIu64 " from ds \"%s\" for set \"%s.%s\" closed\n",
-    dc->delivery_ctx->delivery_id, dc_stringify_id(dc->delivery_ctx->id, id_str), dc->delivery_ctx->proxy_set->key.partition, dc->delivery_ctx->proxy_set->key.tpname);
-  /* todo: mark the proxy set as complete */
-
+  /* lookup the align context for this aligner */
+  if ((dc->delivery_ctx = dc_get_delivery_ctx(dc, id, false)) == NULL) {
+    /* There exists a delivery context for the ds that produced the response. */
+    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "unable to close delivery for ds \"%s\"\n", dc_stringify_id(id, id_str));
+    return;
+  }
+  /* there exists a delivery context for the ds identified by id, close this delivery context */
+  (void)dc_stringify_delivery_ctx(str, sizeof(str), dc->delivery_ctx);
+  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "close delivery %s\n", str);
   /* remove current delivery ctx */
-  dc_remove_current_delivery(dc);
+  dc_remove_delivery_ctx(dc, id);
+}
+
+/* Abort the current delivery context for the ds identified by id
+ *
+ * The current delivery is aborted when a new response set is received without the
+ * previous set being ended correctly. */
+static void dc_abort_delivery (struct dc_t *dc, DurableSupport_id_t id, DurableSupport_response_set_t *response_set)
+{
+  char id_str[37];
+  char str[1024];
+
+  DC_UNUSED_ARG(response_set);
+  /* lookup the align context for this aligner */
+  if ((dc->delivery_ctx = dc_get_delivery_ctx(dc, id, false)) == NULL) {
+    /* There exists a delivery context for the ds that produced the response. */
+    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "unable to abort delivery for unknown delivery from ds \"%s\"\n", dc_stringify_id(id, id_str));
+    return;
+  }
+  assert(memcmp(dc->delivery_ctx->id,id,16) == 0);
+  (void)dc_stringify_delivery_ctx(str, sizeof(str), dc->delivery_ctx);
+  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "abort delivery %s", str);
+  /* remove current delivery ctx */
+  dc_remove_delivery_ctx(dc, id);
+}
+
+/* open the delivery context for the ds identified by id */
+static void dc_open_delivery (struct dc_t *dc,  DurableSupport_id_t id, DurableSupport_response_set_t *response_set)
+{
+  char id_str[37];
+  char str[1024];
+  uint32_t i;
+
+  assert(response_set);
+  assert(response_set->flags & DC_FLAG_SET_BEGIN);
+  /* lookup the align context for this aligner */
+  if ((dc->delivery_ctx = dc_get_delivery_ctx(dc, id, false)) != NULL) {
+    /* There already exists a delivery context for the ds that produced the response.
+     * Implicitly abort it before opening a new one.*/
+    dc_abort_delivery(dc, id, response_set);
+  }
+  /* Now create the new delivery context */
+  if ((dc->delivery_ctx = dc_get_delivery_ctx(dc, id, true)) == NULL) {
+    DDS_ERROR("unable to create an delivery context for ds \"%s\"\n", dc_stringify_id(id, id_str));
+    abort();
+  }
+  assert(dc->delivery_ctx);
+  /* Collect the readers for which the response is intended in the delivery context.
+   * A response set usually carries a non-empty set of reader guids without duplicates.
+   * However, whenever a response set accidentally contains duplicate reader guids or
+   * no readers at all, we don't want this to cause any trouble, so we will handle
+   * these cases as well.
+   * In case a response contains duplicate reader guids, then we will administrate
+   * the reader only once.
+   * In case a response is published with an empty reader list, the readers in the
+   * delivery context will be empty. Any response data belonging to such set will simply
+   * not be delivered to any reader. */
+  for (i=0; i < response_set->guids._length; i++) {
+    (void)dc_get_reader_from_delivery_ctx(dc->delivery_ctx, response_set->guids._buffer[i], true);
+  }
+  (void)dc_stringify_delivery_ctx(str, sizeof(str), dc->delivery_ctx);
+  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "open delivery %s\n", str);
 }
 
 static void dc_process_set_response_begin(struct dc_t *dc, DurableSupport_response *response)
@@ -1446,39 +1653,18 @@ static void dc_process_set_response_begin(struct dc_t *dc, DurableSupport_respon
     assert(memcmp(dc->delivery_ctx->id, response->id, 16) == 0);
     DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "current open delivery %" PRIu64 " has missed an end\n", dc->delivery_ctx->delivery_id);
     /* abort the currently open delivery */
-    dc_abort_current_delivery(dc);
+    dc_abort_delivery(dc, dc->delivery_ctx->id, &response->body._u.set);
   }
   assert(dc->delivery_ctx == NULL);
   /* open the new delivery */
-  dc_open_delivery(dc, response);
+  dc_open_delivery(dc, response->id, &response->body._u.set);
 }
 
 static void dc_process_set_response_end (struct dc_t *dc, DurableSupport_response *response)
 {
-  char id_str[37];
-
-  /* A response set end is received. Lookup the existing delivery context for this ds */
-  if ((dc->delivery_ctx = dc_get_delivery_ctx(dc, response->id, false)) != NULL) {
-    assert(memcmp(dc->delivery_ctx->id, response->id, 16) == 0);
-    /* verify that this response set end belongs the currently opened delivery.
-     * by comparing the delivery_id. If they do not match, then this response
-     * set end does not belong to the currently opened set. This means that
-     * delivery of the currently opened set has failed and needs to be aborted. */
-    if (dc->delivery_ctx->delivery_id != response->body._u.set.delivery_id) {
-      DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "current open delivery %" PRIu64 " does not belong to end delivery %" PRIu64 "\n",
-          dc->delivery_ctx->delivery_id, response->body._u.set.delivery_id);
-      /* abort the currently open delivery */
-      dc_abort_current_delivery(dc);
-    } else {
-      /* the end belongs to the correct begin; we have received all data for the set
-       * and can properly close the delivery */
-      dc_close_delivery(dc, response->id, &response->body._u.set);
-    }
-  } else {
-    /* an end was received without a begin; no need to abort */
-    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "end delivery %" PRIu64 " from ds \"%s\" for set \"%s.%s\" received, but no corresponding open delivery found\n",
-        response->body._u.set.delivery_id, dc_stringify_id(response->id, id_str), response->body._u.set.partition, response->body._u.set.tpname);
-  }
+  assert(response);
+  assert(response->body._d == DurableSupport_RESPONSETYPE_SET);
+  dc_close_delivery(dc, response->id, &response->body._u.set);
 }
 
 static void dc_process_set_response_not_found(struct dc_t *dc, DurableSupport_response *response)
@@ -1505,12 +1691,6 @@ static void dc_process_set_response (struct dc_t *dc, DurableSupport_response *r
     DDS_ERROR("invalid response set flag 0x%04" PRIx32, response->body._u.set.flags);
   }
 }
-
-#if 0
-int dc_deliver_blob ()
-{
-}
-#endif
 
 /* todo: this function is hared between ds and client */
 static enum ddsi_serdata_kind get_serdata_kind (uint8_t kind)
@@ -1543,7 +1723,6 @@ static enum ddsi_serdata_kind get_serdata_kind (uint8_t kind)
 
 static void dc_process_data_response (struct dc_t *dc, DurableSupport_response *response)
 {
-  struct proxy_set_t *proxy_set = NULL;
   ddsrt_avl_citer_t it;
   const struct ddsi_sertype *sertype;
   struct ddsi_serdata *serdata;
@@ -1556,24 +1735,22 @@ static void dc_process_data_response (struct dc_t *dc, DurableSupport_response *
   dds_guid_t wguid;
   dds_return_t ret = DDS_RETCODE_OK;
   bool autodispose = 0;
-  struct proxy_set_reader_t *proxy_set_rd;
   char id_str[37];
+  struct delivery_reader_t *delivery_reader;
 
   /* TODO:
    * A DS also has a response reader (by virtue of the CycloneDDS instance it runs).
-   * Currently, a DS therefore also receives responses that it sends itself.
-   * Because they is no proxy set the data is not injected, but I still like
-   * to have that a ds never receives responses. */
+   * A DS therefore also receives responses that it sends to itself.
+   * Preferably we should prevent that the responses are end up at DSs.
+   * In any case, if responses do end up a DS, then the DS should ignore it.  */
   if ((dc->delivery_ctx = dc_get_delivery_ctx(dc, response->id, false)) == NULL) {
     /* There is no delivery context for this data, which means that this node
      * did not request data for this set. If we do receive data, then we
      * can safely ignore it. */
     return;
   }
-  if ((proxy_set = dc->delivery_ctx->proxy_set) == NULL) {
-    /* There is no proxy set for this data, which means that this node
-     * did not request data for this set. If we do receive data, then we
-     * can safely ignore it. */
+  if (ddsrt_avl_cis_empty(&dc->delivery_ctx->readers)) {
+    /* There are no readers to deliver the data to. */
     return;
   }
   /* A response_set begin has been received. Because data delivery is reliable,
@@ -1595,16 +1772,30 @@ static void dc_process_data_response (struct dc_t *dc, DurableSupport_response *
   serdata_size = response_size - serdata_offset;
   data_out.iov_len = serdata_size;
   data_out.iov_base = response->body._u.data.blob._buffer + serdata_offset;
-  /* now deliver the data to the local readers that have an interest in the data */
-  for (proxy_set_rd = ddsrt_avl_citer_first (&proxy_set_reader_td, &proxy_set->readers, &it); proxy_set_rd; proxy_set_rd = ddsrt_avl_citer_next (&it)) {
-    dds_entity_t reader = proxy_set_rd->reader;
+  /* Now deliver the data to the local readers. */
+  for (delivery_reader = ddsrt_avl_citer_first (&delivery_readers_td, &dc->delivery_ctx->readers, &it); delivery_reader; delivery_reader = ddsrt_avl_citer_next (&it)) {
+    /* take the guid and lookup the reader entity that requested the delivery */
+    /* check if the reader still exists by lookup the entity */
+    struct delivery_request_t *dr;
+    struct delivery_request_key_t key;
+    dds_entity_t reader;
+
+    memcpy(key.guid.v, delivery_reader->key.rguid.v, 16);
+    if ((dr = ddsrt_avl_clookup(&delivery_requests_td, &dc->delivery_requests, &key)) == NULL) {
+      /* Unable to find a delivery request for this reader, so
+       * we cannot resolve the reader entity associated with the guid.
+       * Evidently, we cannot inject data into the rhc of a reader
+       * that we cannot resolve. */
+      continue;
+    }
+    reader = dr->reader;
     /* in order to insert the data in the rhc of the reader we first
      * need to resolve the type of the reader */
     if ((ret = dds_get_entity_sertype (reader, &sertype)) < 0) {
-      /* We failed to get the sertype. If it happens I do not consider
-       * this my problem, it is a problem in CycloneDDS.
-       * For now I silently ignore the data. After all, I cannot
-       * deliver the data to this reader! */
+      /* We failed to get the sertype of the reader., so we cannot
+       * This could be because the reader does not exist any more,
+       * but frankly I don't about the reason. All that matters is
+       * that we cannot inject data into the rhc of this reader. */
       continue;
     }
     /* get the serdata */
@@ -1619,7 +1810,7 @@ static void dc_process_data_response (struct dc_t *dc, DurableSupport_response *
     serdata->timestamp.v = wt;
     memcpy(&serdata->writer_guid, &wguid, 16);
     if ((ret = dds_reader_store_historical_serdata(reader, wguid, autodispose, serdata)) != DDS_RETCODE_OK) {
-      DDS_ERROR("Failed to deliver historical data to reader \"%s\" [%s]\n", dc_stringify_id(proxy_set_rd->key.guid.v, id_str), dds_strretcode(ret));
+      DDS_ERROR("Failed to deliver historical data to reader \"%s\" [%s]\n", dc_stringify_id(dr->key.guid.v, id_str), dds_strretcode(ret));
       goto err_store_historical_serdata;
     }
     ddsi_serdata_to_ser_unref(serdata, &data_out);
@@ -1680,120 +1871,78 @@ static int dc_process_response (dds_entity_t rd, struct dc_t *dc)
 #undef MAX_SAMPLES
 }
 
-/* add the reader tree of readers for this proxy set */
-static void dc_register_reader_to_proxy_set (struct dc_t *dc, struct proxy_set_t *proxy_set, dds_guid_t guid, dds_entity_t reader, struct dds_rhc *rhc)
+static void dc_delete_delivery_request (struct dc_t *dc, dds_guid_t rguid)
 {
-  struct proxy_set_reader_t *proxy_set_rd;
-  struct proxy_set_reader_key_t key;
-  char id_str[37];
+  struct delivery_request_t *dr;
+  struct delivery_request_key_t key;
+  ddsrt_avl_dpath_t dpath;
+  char dr_str[512];
 
-  key.guid = guid;
-  if ((proxy_set_rd = ddsrt_avl_clookup (&proxy_set_reader_td, &proxy_set->readers, &key)) == NULL) {
-    proxy_set_rd = (struct proxy_set_reader_t *)ddsrt_malloc(sizeof(struct proxy_set_reader_t));
-    proxy_set_rd->key.guid = guid;
-    proxy_set_rd->reader = reader;
-    proxy_set_rd->rhc = rhc;
-    ddsrt_avl_cinsert(&proxy_set_reader_td, &proxy_set->readers, proxy_set_rd);
-    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "reader \"%s\" added to proxy set '%s.%s'\n", dc_stringify_id(guid.v, id_str), proxy_set->key.partition, proxy_set->key.tpname);
+  memcpy(key.guid.v, rguid.v, 16);
+  if ((dr = ddsrt_avl_clookup_dpath (&delivery_requests_td, &dc->delivery_requests, &key, &dpath)) != NULL) {
+    ddsrt_avl_cdelete_dpath(&delivery_requests_td, &dc->delivery_requests, dr, &dpath);
+    (void)dc_stringify_delivery_request(dr_str, sizeof(dr_str), dr);
+    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "delete delivery request %s\n", dr_str);
+    cleanup_delivery_request(dr);
   }
-  assert(proxy_set_rd->rhc == rhc);
 }
 
-static void dc_create_proxy_sets_for_reader (struct dc_t *dc, dds_entity_t reader, struct dds_rhc *rhc)
+static struct delivery_request_t *dc_insert_delivery_request (struct dc_t *dc, dds_entity_t reader, dds_guid_t rguid)
 {
-  dds_entity_t topic;
+  struct delivery_request_t *dr;
+  struct delivery_request_key_t key;
+  ddsrt_avl_ipath_t ipath;
+  char dr_str[512];
   dds_return_t rc;
-  char tpname[MAX_TOPIC_NAME_SIZE];
-  dds_qos_t *rqos;
-  uint32_t plen, i;
-  char **partitions;
-  struct proxy_set_t *proxy_set = NULL;
-  dds_guid_t rguid;
-  char id_str[37];
-  dds_typeinfo_t *typeinfo;
-  ddsi_typeid_t *tid = NULL;
-  struct ddsi_typeid_str tidstr = { 0 };
 
-  if ((rc = dds_get_typeinfo(reader, &typeinfo)) != DDS_RETCODE_OK) {
-    DDS_ERROR("Unable to retrieve typeinfo [%s]\n", dds_strretcode(-rc));
-    goto err_get_typeinfo;
-  }
-  if ((tid = ddsi_typeinfo_typeid(typeinfo, DDSI_TYPEID_KIND_COMPLETE)) == NULL) {
-    DDS_ERROR("Unable to retrieve typeid [%s]\n", dds_strretcode(-rc));
-    goto err_typeid;
-  }
-  (void)ddsi_make_typeid_str(&tidstr, tid);
-  /* get reader guid */
-  if ((rc = dds_get_guid(reader, &rguid)) < DDS_RETCODE_OK) {
-    DDS_ERROR("Unable to retrieve the guid of the reader [%s]\n", dds_strretcode(-rc));
-    goto err_get_guid;
-  }
-  (void)dc_stringify_id(rguid.v, id_str);
-  /* get topic name */
-  if ((topic = dds_get_topic(reader)) < 0) {
-    DDS_ERROR("Unable to get topic from reader [%s]\n", dds_strretcode(-topic));
-    goto err_get_topic;
-  }
-  if ((rc = dds_get_name(topic, tpname, sizeof(tpname))) < 0) {
-    DDS_ERROR("Failed to get topic name [%s]\n", dds_strretcode(-rc));
-    goto err_get_name;
-  } else if (rc > MAX_TOPIC_NAME_SIZE) {
-    DDS_ERROR("Name for topic '%s...', name too long\n", tpname);
-    goto err_get_name_size;
-  }
-  /* get partitions of the reader */
-  if ((rqos = dds_create_qos()) == NULL) {
-    DDS_ERROR("Failed to allocate reader qos\n");
-    goto err_alloc_rqos;
-  }
-  if ((rc = dds_get_qos(reader, rqos)) < 0) {
-    DDS_ERROR("Failed to get topic qos [%s]\n", dds_strretcode(rc));
-    goto err_get_qos;
-  }
-  if (!dds_qget_partition(rqos, &plen, &partitions)) {
-    DDS_ERROR("failed to get partitions from qos\n");
-    goto err_qget_partition;
-  }
-  /* for each partition create a proxy set if it does not exist yet
-   * and request data for the proxy set (if not done so already) */
-  for (i=0; i < plen; i++) {
-    proxy_set = dc_get_proxy_set(dc, partitions[i], tpname, tidstr.str, true);
-    assert(proxy_set);
-    /* Add the reader and rhc to this proxy set.
-     * We do this BEFORE we send the request, so that we are sure
-     * that when we receive the response (possibly immediately after
-     * sending the request) the reader and rhc are present */
-    dc_register_reader_to_proxy_set(dc, proxy_set, rguid, reader, rhc);
-    /* send a request for this proxy set */
-    if ((rc = dc_com_request_write(dc->com, rguid, proxy_set->key.partition, proxy_set->key.tpname, proxy_set->key.type_id)) != DDS_RETCODE_OK) {
-      DDS_ERROR("Failed to publish dc_request for proxy set %s.%s\n", proxy_set->key.partition, proxy_set->key.tpname);
-      /* We failed to request data for this proxy set.
-        * We could do several things now, e.g., 1) try again until we succeed,
-        * 2) notify the application that no historical data could be retrieved,
-        * or 3) commit suicide because we cannot guarantee eventual consistency.
-        * For now, I choose for the latter. After all, it is expected that sending
-        * a request should never fails. */
-       abort();
+  memcpy(key.guid.v, rguid.v, 16);
+  if ((dr = ddsrt_avl_clookup_ipath (&delivery_requests_td, &dc->delivery_requests, &key, &ipath)) == NULL) {
+    dr = ddsrt_malloc(sizeof(struct delivery_request_t));
+    memcpy(dr->key.guid.v, rguid.v, 16);
+    dr->reader = reader;
+    dr->exp_time = DDS_NEVER;
+    (void)dc_stringify_delivery_request(dr_str, sizeof(dr_str), dr);
+    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "create delivery request %s\n", dr_str);
+    ddsrt_avl_cinsert_ipath(&delivery_requests_td, &dc->delivery_requests, dr, &ipath);
+    ddsrt_fibheap_insert(&delivery_requests_fd, &dc->delivery_requests_fh, dr);
+    if (dr == ddsrt_fibheap_min(&delivery_requests_fd, &dc->delivery_requests_fh)) {
+      /* delivery request added to the front, trigger guard condition */
+      if ((rc = dds_set_guardcondition(dc->com->delivery_request_guard, true)) < 0) {
+        DDS_ERROR("failed to set delivery request guard to true [%s]", dds_strretcode(rc));
+      }
     }
   }
-  dc_free_partitions(plen, partitions);
-  dds_delete_qos(rqos);
-  dds_free_typeinfo(typeinfo);
-  ddsrt_free(tid);
+  return dr;
+}
+
+static void dc_send_request_for_reader (struct dc_t *dc, dds_entity_t reader, struct dds_rhc *rhc)
+{
+  dds_return_t rc;
+  dds_guid_t rguid;
+
+  (void)rhc;
+  if ((rc = dds_get_guid(reader, &rguid)) < DDS_RETCODE_OK) {
+    DDS_ERROR("Unable to retrieve the guid of the reader [%s]", dds_strretcode(-rc));
+    goto err_get_guid;
+  }
+  /* Administrate the outstanding request.
+   * This is used a.o. to correlate reader guids to actual readers. */
+  dc_insert_delivery_request(dc, reader, rguid);
+  /* Publish the quest */
+  if ((rc = dc_com_request_write(dc->com, rguid)) != DDS_RETCODE_OK) {
+    DDS_ERROR("Failed to publish dc_request [%s]", dds_strretcode(-rc));
+    /* We failed to request data for this proxy set.
+     * We could do several things now, e.g., 1) try again until we succeed,
+     * 2) notify the application that no historical data could be retrieved,
+     * or 3) commit suicide because we cannot guarantee eventual consistency.
+     * For now, I choose for the latter. After all, it is expected that sending
+     * a request should never fail. */
+    dc_delete_delivery_request(dc, rguid);
+    abort();
+  }
   return;
 
-err_qget_partition:
-err_get_qos:
-  dds_delete_qos(rqos);
-err_alloc_rqos:
-err_get_name_size:
-err_get_name:
-err_get_topic:
 err_get_guid:
-  ddsrt_free(tid);
-err_typeid:
-  dds_free_typeinfo(typeinfo);
-err_get_typeinfo:
   return;
 }
 
@@ -1828,30 +1977,28 @@ err_last_subscription_handle:
   return;
 }
 
-/* dispose the request for the proxy set */
-static void dc_dispose_reader_request (struct dc_t *dc, struct proxy_set_t *proxy_set)
+/* dispose the delivery request */
+static void dc_dispose_delivery_request (struct dc_t *dc, struct delivery_request_t *dr)
 {
   dds_return_t rc;
   dds_instance_handle_t ih;
   DurableSupport_request request;
+  char id_str[37];
 
-  /* create a dummy request containing the key fields to retrieve the instance handle */
-  memcpy(request.client, dc->cfg.id, 16);
-  request.partition = ddsrt_strdup(proxy_set->key.partition);
-  request.tpname = ddsrt_strdup(proxy_set->key.tpname);
+  DC_UNUSED_ARG(dr);
+  /* create a dummy request containing the reader guid that  */
+  memcpy(request.key.rguid, dr->key.guid.v, 16);
   if ((ih = dds_lookup_instance(dc->com->wr_request, &request)) == DDS_HANDLE_NIL) {
-    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "dc_request for proxy set %s.%s not found, unable to dispose\n", request.partition, request.tpname);
-    goto err_dispose_reader_request;
+    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "no delivery request for reader \"%s\" found, unable to dispose\n", dc_stringify_id(request.key.rguid, id_str));
+    goto err_dispose_delivery_request;
   }
   if ((rc = dc_com_request_dispose(dc->com, ih)) != DDS_RETCODE_OK) {
-    DDS_ERROR("failed to dispose dc_request for proxy set %s.%s [%s]\n", request.partition, request.tpname, dds_strretcode(-rc));
-    goto err_dispose_reader_request;
+    DDS_ERROR("failed to dispose delivery request for reader \"%s\" [%s]\n", dc_stringify_id(request.key.rguid, id_str), dds_strretcode(-rc));
+    goto err_dispose_delivery_request;
   }
   /* LH: todo: use dc_stringify_request, but only print the keys */
-  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "dispose dc_request {\"client\":\"%s\", \"partition\":\"%s\", \"tpname\":\"%s\"}\n", dc->cfg.id_str, request.partition, request.tpname);
-err_dispose_reader_request:
-  ddsrt_free(request.partition);
-  ddsrt_free(request.tpname);
+  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "dispose delivery request for reader \"%s\"\n", dc_stringify_id(request.key.rguid, id_str));
+err_dispose_delivery_request:
   return;
 }
 
@@ -1913,7 +2060,7 @@ static void default_request_writer_matched_cb (dds_entity_t writer, dds_publicat
     if (dc_is_ds_endpoint(dc->com, ep, dc->cfg.ident)) {
       /* A dc_request reader on a data container has matched with the dc_request writer.
        * From now on it is allowed to publish requests.
-       * In case there are any pending requests, we can sent them now */
+       * In case there are any delivery requests, we can sent them now */
       dc_add_matched_request_reader(dc, ep, ih);
     }
     dds_builtintopic_free_endpoint(ep);
@@ -1923,40 +2070,42 @@ static void default_request_writer_matched_cb (dds_entity_t writer, dds_publicat
   }
 }
 
-/* handle expired pending request and determine the next timeout */
-static void dc_process_pending_request_guard (struct dc_t *dc, dds_time_t *timeout)
+/* handle expired delivery request and determine the next timeout */
+static void dc_process_delivery_request_guard (struct dc_t *dc, dds_time_t *timeout)
 {
   dds_return_t ret;
-  struct pending_request_t *pr;
+  struct delivery_request_t *dr;
   dds_time_t now = dds_time();
+  char dr_str[256];
 
-  ddsrt_mutex_lock(&dc->pending_request_mutex);
+  ddsrt_mutex_lock(&dc->delivery_request_mutex);
   do {
-    pr = ddsrt_fibheap_min(&pending_requests_fd, &dc->pending_requests_fh);
-    if ((pr == NULL) || (now < pr->exp_time)) {
-      /* there is no pending request, or the first pending request is not yet expired */
+    dr = ddsrt_fibheap_min(&delivery_requests_fd, &dc->delivery_requests_fh);
+    if ((dr == NULL) || (now < dr->exp_time)) {
+      /* there is no delivery request, or the first delivery request has not yet expired */
       break;
     }
-    /* The head is expired. Remove the pending request from the priority queue
+    /* The head is expired. Remove the delivery request from the priority queue
      * and dispose it to prevent that a DS reacts to an expired request */
-    if ((pr = ddsrt_fibheap_extract_min(&pending_requests_fd, &dc->pending_requests_fh)) != NULL) {
-      DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "process pending request %" PRIu64 "\n", pr->key.seq);
-      dc_dispose_reader_request(dc, pr->proxy_set);
-      cleanup_pending_request(pr);
+    if ((dr = ddsrt_fibheap_extract_min(&delivery_requests_fd, &dc->delivery_requests_fh)) != NULL) {
+      (void)dc_stringify_delivery_request(dr_str, sizeof(dr_str), dr);
+      DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "process delivery request \"%s\"\n", dr_str);
+      dc_dispose_delivery_request(dc, dr);
+      dc_delete_delivery_request(dc, dr->key.guid);
     }
   } while (true);
   /* recalculate the remaining timeout */
-  *timeout = (pr == NULL) ? DDS_NEVER : pr->exp_time;
-  if ((ret = dds_set_guardcondition(dc->com->pending_request_guard, false)) < 0) {
-    DDS_ERROR("failed to set pending request guard to false [%s]", dds_strretcode(ret));
+  *timeout = (dr == NULL) ? DDS_NEVER : dr->exp_time;
+  if ((ret = dds_set_guardcondition(dc->com->delivery_request_guard, false)) < 0) {
+    DDS_ERROR("failed to set delivery request guard to false [%s]", dds_strretcode(ret));
   }
   if (*timeout != DDS_NEVER) {
     dds_duration_t tnext = *timeout - now;
     int64_t sec = (int64_t)(tnext / DDS_NSECS_IN_SEC);
     uint32_t usec = (uint32_t)((tnext % DDS_NSECS_IN_SEC) / DDS_NSECS_IN_USEC);
-    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "next pending request timeout at %" PRId64 ".%06" PRIu32 "s\n", sec, usec);
+    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "next delivery request timeout at %" PRId64 ".%06" PRIu32 "s\n", sec, usec);
   }
-  ddsrt_mutex_unlock(&dc->pending_request_mutex);
+  ddsrt_mutex_unlock(&dc->delivery_request_mutex);
 }
 
 static uint32_t recv_handler (void *a)
@@ -1978,13 +2127,13 @@ static uint32_t recv_handler (void *a)
           dc_process_status(dc->com->rd_status, dc);
         } else if (wsresults[j] == dc->com->rd_response) {
           dc_process_response(dc->com->rd_response, dc);
-        } else if (wsresults[j] == dc->com->pending_request_guard) {
-          dc_process_pending_request_guard(dc, &timeout);
+        } else if (wsresults[j] == dc->com->delivery_request_guard) {
+          dc_process_delivery_request_guard(dc, &timeout);
         }
       }
     } else {
       /* timeout */
-      dc_process_pending_request_guard(dc, &timeout);
+      dc_process_delivery_request_guard(dc, &timeout);
     }
   }
   DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "stop durable client thread\n");
@@ -2038,7 +2187,7 @@ static dds_return_t activate_request_listener (struct dc_t *dc)
       if (dc_is_ds_endpoint(dc->com, ep, dc->cfg.ident)) {
         /* A dc_request reader on a DS has matched with the dc_request writer.
          * From now on it is allowed to publish requests.
-         * In case there are any pending requests, we can sent them now */
+         * In case there are any delivery requests, we can sent them now */
         dc_add_matched_request_reader(dc, ep, rd_ihs[i]);
       }
       dds_builtintopic_free_endpoint(ep);
@@ -2081,11 +2230,10 @@ dds_return_t dds_durability_init (const dds_domainid_t domainid, struct ddsi_dom
   ddsrt_avl_cinit(&delivery_ctx_td, &dc.delivery_ctxs);
   ddsrt_avl_cinit(&server_td, &dc.servers);
   ddsrt_avl_cinit(&matched_request_readers_td, &dc.matched_request_readers);
-  ddsrt_avl_cinit(&pending_requests_td, &dc.pending_requests);
-  ddsrt_fibheap_init(&pending_requests_fd, &dc.pending_requests_fh);
-  ddsrt_avl_cinit(&proxy_set_td, &dc.proxy_sets);
-  ddsrt_mutex_init(&dc.pending_request_mutex);
-  ddsrt_cond_init(&dc.pending_request_cond);
+  ddsrt_avl_cinit(&delivery_requests_td, &dc.delivery_requests);
+  ddsrt_fibheap_init(&delivery_requests_fd, &dc.delivery_requests_fh);
+  ddsrt_mutex_init(&dc.delivery_request_mutex);
+  ddsrt_cond_init(&dc.delivery_request_cond);
   /* create the quorum listener */
   if ((dc.quorum_listener = dds_create_listener(&dc)) == NULL) {
     DDS_ERROR("failed to create quorum listener\n");
@@ -2117,10 +2265,9 @@ err_com_new:
 err_create_request_listener:
   dds_delete_listener(dc.quorum_listener);
 err_create_quorum_listener:
-  ddsrt_cond_destroy(&dc.pending_request_cond);
-  ddsrt_mutex_destroy(&dc.pending_request_mutex);
-  ddsrt_avl_cfree(&proxy_set_td,  &dc.proxy_sets, cleanup_proxy_set);
-  ddsrt_avl_cfree(&pending_requests_td,  &dc.pending_requests, cleanup_pending_request);
+  ddsrt_cond_destroy(&dc.delivery_request_cond);
+  ddsrt_mutex_destroy(&dc.delivery_request_mutex);
+  ddsrt_avl_cfree(&delivery_requests_td,  &dc.delivery_requests, cleanup_delivery_request);
   ddsrt_avl_cfree(&matched_request_readers_td,  &dc.matched_request_readers, cleanup_matched_request_reader);
   ddsrt_avl_cfree(&server_td,  &dc.servers, cleanup_server);
   ddsrt_free(dc.cfg.ident);
@@ -2159,11 +2306,10 @@ dds_return_t dds_durability_fini (void)
     dds_delete_listener(dc.quorum_listener);
     dc_com_free(dc.com);
     ddsrt_avl_cfree(&delivery_ctx_td,  &dc.delivery_ctxs, cleanup_delivery_ctx);
-    ddsrt_cond_destroy(&dc.pending_request_cond);
-    ddsrt_mutex_destroy(&dc.pending_request_mutex);
-    ddsrt_avl_cfree(&proxy_set_td,  &dc.proxy_sets, cleanup_proxy_set);
+    ddsrt_cond_destroy(&dc.delivery_request_cond);
+    ddsrt_mutex_destroy(&dc.delivery_request_mutex);
     ddsrt_avl_cfree(&matched_request_readers_td,  &dc.matched_request_readers, cleanup_matched_request_reader);
-    ddsrt_avl_cfree(&pending_requests_td,  &dc.pending_requests, cleanup_pending_request);
+    ddsrt_avl_cfree(&delivery_requests_td,  &dc.delivery_requests, cleanup_delivery_request);
     ddsrt_avl_cfree(&server_td,  &dc.servers, cleanup_server);
     ddsrt_free(dc.cfg.ident);
   }
@@ -2173,76 +2319,6 @@ dds_return_t dds_durability_fini (void)
 bool dds_durability_is_terminating (void)
 {
   return (ddsrt_atomic_ld32(&dc.termflag) > 0);
-}
-
-dds_return_t dds_durability_new_local_reader (dds_entity_t reader, struct dds_rhc *rhc)
-{
-  dds_durability_kind_t dkind;
-  dds_qos_t *qos, *parqos;
-  dds_return_t rc = DDS_RETCODE_ERROR;
-
-  /* check if the reader is a durable reader from a "real" user application,
-   * if so, send a request to obtain historical data */
-  assert(reader);
-  qos = dds_create_qos();
-  if ((rc = dds_get_qos(reader, qos)) < 0) {
-    DDS_ERROR("failed to get qos from reader [%s]\n", dds_strretcode(rc));
-    goto err_get_qos;
-  }
-  if (!dds_qget_durability(qos, &dkind)) {
-    DDS_ERROR("failed to retrieve durability qos\n");
-    goto err_qget_durability;
-  }
-  if ((dkind == DDS_DURABILITY_TRANSIENT) || (dkind == DDS_DURABILITY_PERSISTENT)) {
-    dds_entity_t par;
-    void *userdata;
-    size_t size = 0;
-
-    /* Creation of a durable reader must only lead to the publication
-     * of a dc_request when the reader is a "real" application reader.
-     * If the reader belongs to a participant that carries user data
-     * containing the IDENT, then the reader is a data container.
-     * We don't need to generate dc_requests for data containers */
-    if ((par = dds_get_participant(reader)) < 0) {
-      DDS_ERROR("Unable to retrieve the participant of the reader [%s]\n", dds_strretcode(rc));
-      goto err_get_participant;
-    }
-    if ((parqos = dds_create_qos()) == NULL) {
-      DDS_ERROR("Failed to allocate qos\n");
-      goto err_alloc_parqos;
-    }
-    if ((rc = dds_get_qos(par, parqos)) < 0) {
-      DDS_ERROR("Failed to get topic qos [%s]", dds_strretcode(rc));
-      goto err_get_parqos;
-    }
-    if (!dds_qget_userdata(parqos, &userdata, &size)) {
-      DDS_ERROR("Unable to retrieve the participant's user data for reader\n");
-      goto err_qget_userdata;
-    }
-    if ((size != strlen(dc.cfg.ident)) || (userdata == NULL)  || (strcmp(userdata, dc.cfg.ident) != 0)) {
-      /* the user data of the participant for this durable reader does
-       * not contain the ident, so the endpoint is not from a remote DS.
-       * We can now publish a dc_request for this durable reader. The
-       * dc_request is published as a transient-local topic. This means
-       * that a late joining DS will receive the DS as long as the request
-       * is not yet disposed. */
-      dc_create_proxy_sets_for_reader(&dc, reader, rhc);
-    }
-    dds_free(userdata);
-    dds_delete_qos(parqos);
-  }
-  dds_delete_qos(qos);
-  return rc;
-
-err_qget_userdata:
-err_get_parqos:
-  dds_delete_qos(parqos);
-err_alloc_parqos:
-err_get_participant:
-err_qget_durability:
-err_get_qos:
-  dds_delete_qos(qos);
-  return rc;
 }
 
 /* Returns TRUE if the entity is an application entity, false otherwise */
@@ -2291,6 +2367,44 @@ err_get_participant_qos:
 err_get_participant:
   dds_delete_qos(pqos);
   return true;
+}
+
+dds_return_t dds_durability_new_local_reader (dds_entity_t reader, struct dds_rhc *rhc)
+{
+  dds_durability_kind_t dkind;
+  dds_qos_t *qos;
+  dds_return_t rc = DDS_RETCODE_ERROR;
+
+  /* check if the reader is a durable reader from a "real" user application,
+   * if so, send a request to obtain historical data */
+  assert(reader);
+  qos = dds_create_qos();
+  if ((rc = dds_get_qos(reader, qos)) < 0) {
+    DDS_ERROR("failed to get qos from reader [%s]\n", dds_strretcode(rc));
+    goto err_get_qos;
+  }
+  if (!dds_qget_durability(qos, &dkind)) {
+    DDS_ERROR("failed to retrieve durability qos\n");
+    goto err_qget_durability;
+  }
+  if ((dkind == DDS_DURABILITY_TRANSIENT) || (dkind == DDS_DURABILITY_PERSISTENT)) {
+    if (is_application_entity(&dc, reader)) {
+      /* the user data of the participant for this durable reader does
+       * not contain the ident, so the endpoint is not from a remote DS.
+       * We can now publish a dc_request for this durable reader. The
+       * dc_request is published as a transient-local topic. This means
+       * that a late joining DS will receive the DS as long as the request
+       * is not yet disposed. */
+      dc_send_request_for_reader(&dc, reader, rhc);
+    }
+  }
+  dds_delete_qos(qos);
+  return rc;
+
+err_qget_durability:
+err_get_qos:
+  dds_delete_qos(qos);
+  return rc;
 }
 
 /* check if the writer is a durable application writer, and if so, we need to keep track of the quorum */
