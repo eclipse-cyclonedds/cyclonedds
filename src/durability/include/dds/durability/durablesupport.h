@@ -285,10 +285,15 @@ typedef uint64_t DurableSupport_delivery_id_t;
 #define DurableSupport_delivery_id_t__alloc() \
 ((DurableSupport_delivery_id_t*) dds_alloc (sizeof (DurableSupport_delivery_id_t)));
 
+typedef struct DurableSupport_request_key
+{
+  DurableSupport_id_t rguid;
+} DurableSupport_request_key;
+
 typedef struct DurableSupport_request
 {
+  struct DurableSupport_request_key key;
   DurableSupport_id_t client;
-  DurableSupport_id_t rguid;
   char * partition;
   char * tpname;
   char * type_id;
@@ -305,9 +310,27 @@ dds_sample_free ((d), &DurableSupport_request_desc, (o))
 
 #define DurableSupport_RESPONSETYPE_SET 1
 #define DurableSupport_RESPONSETYPE_DATA 2
+#ifndef DDS_SEQUENCE_DURABLESUPPORT_ID_T_DEFINED
+#define DDS_SEQUENCE_DURABLESUPPORT_ID_T_DEFINED
+typedef struct dds_sequence_DurableSupport_id_t
+{
+  uint32_t _maximum;
+  uint32_t _length;
+  DurableSupport_id_t *_buffer;
+  bool _release;
+} dds_sequence_DurableSupport_id_t;
+
+#define dds_sequence_DurableSupport_id_t__alloc() \
+((dds_sequence_DurableSupport_id_t*) dds_alloc (sizeof (dds_sequence_DurableSupport_id_t)));
+
+#define dds_sequence_DurableSupport_id_t_allocbuf(l) \
+((DurableSupport_id_t *) dds_alloc ((l) * sizeof (DurableSupport_id_t)))
+#endif /* DDS_SEQUENCE_DURABLESUPPORT_ID_T_DEFINED */
+
 typedef struct DurableSupport_response_set_t
 {
   DurableSupport_delivery_id_t delivery_id;
+  dds_sequence_DurableSupport_id_t guids;
   char * partition;
   char * tpname;
   char * type_id;
