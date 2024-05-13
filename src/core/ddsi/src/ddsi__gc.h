@@ -51,6 +51,9 @@ bool ddsi_gcreq_queue_start (struct ddsi_gcreq_queue *q);
 /** @component garbage_collector */
 int ddsi_gcreq_requeue (struct ddsi_gcreq *gcreq, ddsi_gcreq_cb_t cb);
 
+/** @component garbage_collector */
+bool ddsi_gcreq_queue_step (struct ddsi_gcreq_queue *q);
+
 #if defined (__cplusplus)
 }
 #endif

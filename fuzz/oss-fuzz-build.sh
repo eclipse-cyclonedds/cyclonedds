@@ -13,8 +13,9 @@
 #
 
 source fuzz/fuzz_sample_deser/prepare.sh
+source fuzz/fuzz_handshake/prepare.sh
 (
-mkdir build
+mkdir build || echo "build directory already exists"
 cd build
 cmake \
     -DBUILD_IDLC=ON \
@@ -22,7 +23,7 @@ cmake \
     -DBUILD_SHARED_LIBS=OFF \
     -DBUILD_EXAMPLES=NO \
     -DENABLE_SECURITY=ON \
-    -DENABLE_SSL=NO \
+    -DENABLE_SSL=ON \
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
     -DCMAKE_INSTALL_PREFIX=/usr/local ..
 cmake --build .

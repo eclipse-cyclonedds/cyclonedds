@@ -2506,6 +2506,53 @@ static enum dqueue_elem_kind dqueue_elem_kind (const struct ddsi_rsample_chain_e
     return DQEK_BUBBLE;
 }
 
+bool ddsi_dqueue_step_deaf (struct ddsi_dqueue *q)
+{
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  struct ddsi_rsample_chain sc;
+  ddsrt_mutex_lock (&q->lock);
+  while ((sc = q->sc).first != NULL)
+  {
+    q->sc.first = q->sc.last = NULL;
+    ddsrt_mutex_unlock (&q->lock);
+
+    ddsi_thread_state_awake (thrst, q->gv);
+    while (sc.first)
+    {
+      struct ddsi_rsample_chain_elem *e = sc.first;
+      sc.first = e->next;
+      ddsi_thread_state_awake_to_awake_no_nest (thrst);
+      switch (dqueue_elem_kind (e))
+      {
+        case DQEK_DATA:
+        case DQEK_GAP:
+          ddsi_fragchain_unref (e->fragchain);
+          break;
+        case DQEK_BUBBLE: {
+          struct ddsi_dqueue_bubble *b = (struct ddsi_dqueue_bubble *) e->sampleinfo;
+          switch (b->kind)
+          {
+            case DDSI_DQBK_STOP:
+            case DDSI_DQBK_RDGUID:
+              break;
+            case DDSI_DQBK_CALLBACK:
+              b->u.cb.cb (b->u.cb.arg);
+              break;
+              break;
+          }
+          ddsrt_free (b);
+          break;
+        }
+      }
+    }
+    ddsi_thread_state_asleep (thrst);
+    ddsrt_mutex_lock (&q->lock);
+  }
+  const bool ret = q->sc.first != NULL;
+  ddsrt_mutex_unlock (&q->lock);
+  return ret;
+}
+
 static uint32_t dqueue_thread (struct ddsi_dqueue *q)
 {
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();

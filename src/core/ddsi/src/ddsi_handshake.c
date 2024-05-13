@@ -37,7 +37,6 @@
 #define HSEXCEPTION(e, ...) \
   ddsi_omg_log_exception(&handshake->gv->logconfig, DDS_LC_WARNING, e, __FILE__, __LINE__, DDS_FUNCTION, __VA_ARGS__)
 
-
 #define VERBOSE_HANDSHAKE_DEBUG
 
 #if 1
@@ -1003,7 +1002,6 @@ static struct ddsi_handshake * ddsi_handshake_create(struct ddsi_participant *pp
 
   handshake = ddsrt_malloc(sizeof(struct ddsi_handshake));
   memset(handshake, 0, sizeof(struct ddsi_handshake));
-
   ddsrt_mutex_init(&handshake->lock);
   handshake->auth = ddsi_omg_participant_get_authentication(pp);
   ddsrt_atomic_st32(&handshake->refc, 1);

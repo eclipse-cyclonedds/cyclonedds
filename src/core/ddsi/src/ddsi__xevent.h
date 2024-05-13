@@ -38,10 +38,16 @@ struct ddsi_xeventq *ddsi_xeventq_new (struct ddsi_domaingv *gv, size_t max_queu
 /**
  * @component timed_events
  *
- * ddsi_xeventq_free calls callback handlers with t = NEVER, at which point
- * they are required to free whatever memory is claimed for the argument
- * and call ddsi_delete_xevent.
+ * ddsi_xeventq_step invokes all currently pending callbacks and sends any queued
+ * messages.
  *
+ * @param evq the event queue
+ */
+void ddsi_xeventq_step (struct ddsi_xeventq *evq);
+
+/**
+ * @component timed_events
+ * @remark: calls ddsi_xeventq_drain
  * @param evq the event queue
  */
 void ddsi_xeventq_free (struct ddsi_xeventq *evq);

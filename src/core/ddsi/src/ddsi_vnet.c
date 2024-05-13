@@ -64,6 +64,15 @@ static int ddsi_vnet_conn_locator (struct ddsi_tran_factory * vfact, struct ddsi
   return 0;
 }
 
+static ssize_t ddsi_vnet_conn_write (struct ddsi_tran_conn * conn_cmn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags)
+{
+  (void) conn_cmn; (void) dst; (void) flags;
+  ddsrt_iov_len_t n = 0;
+  for (size_t i = 0; i < msgfrags->niov; i++)
+    n += msgfrags->iov[i].iov_len;
+  return (ssize_t) n;
+}
+
 static dds_return_t ddsi_vnet_create_conn (struct ddsi_tran_conn **conn_out, struct ddsi_tran_factory * fact_cmn, uint32_t port, const struct ddsi_tran_qos *qos)
 {
   (void) port;
@@ -79,7 +88,7 @@ static dds_return_t ddsi_vnet_create_conn (struct ddsi_tran_conn **conn_out, str
   x->m_base.m_base.m_handle_fn = ddsi_vnet_conn_handle;
   x->m_base.m_locator_fn = ddsi_vnet_conn_locator;
   x->m_base.m_read_fn = 0;
-  x->m_base.m_write_fn = 0;
+  x->m_base.m_write_fn = ddsi_vnet_conn_write;
   x->m_base.m_disable_multiplexing_fn = 0;
 
   DDS_CTRACE (&fact->m_base.gv->logconfig, "ddsi_vnet_create_conn intf %s kind %s\n", x->m_base.m_interf->name, fact->m_base.m_typename);
