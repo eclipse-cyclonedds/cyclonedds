@@ -112,7 +112,8 @@ bool ddsi_gcreq_queue_step (struct ddsi_gcreq_queue *q)
     {
       /* Give up immediately instead of waiting: this exists to make less-threaded
          (test/fuzzing) code possible.  (I don't think this case can occur in a single
-         threaded process, but it might if a some threads exist.) */
+         threaded process, but it might if some threads exist.) */
+      ddsrt_mutex_lock (&q->lock);
       break;
     }
     else
