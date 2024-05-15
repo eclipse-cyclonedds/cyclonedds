@@ -9,21 +9,21 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
+#include "durablesupport.h"
+#include "dds/durability/dds_durability_private.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/durability/dds_durability.h"
-#include "dds/durability/durablesupport.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/log.h"
 #include "ddsc/dds.h"
-#include <string.h>
-#include "dds__writer.h"
+#include "../src/dds__writer.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_typelib.h"
+#include <string.h>
 
 #define DEFAULT_QOURUM                       1
 #define DEFAULT_IDENT                        "durable_support"
@@ -1392,11 +1392,15 @@ err_alloc_com:
   return NULL;
 }
 
-static void dc_com_free (struct com_t *com)
+static void dc_com_free (struct com_t *com, dds_entity_t* pp_out)
 {
   assert(com);
   DDS_CLOG(DDS_LC_DUR, &dc.gv->logconfig, "destroying dc infrastructure\n");
-  dds_delete(com->participant);
+  if ( pp_out == NULL ){
+    dds_delete(com->participant);
+  } else {
+    *pp_out = com->participant;
+  }
   ddsrt_free(com);
   dc.com = NULL;
   return;
@@ -2204,7 +2208,7 @@ err_get_guid:
   return DDS_RETCODE_ERROR;
 }
 
-dds_return_t dds_durability_init (const dds_domainid_t domainid, struct ddsi_domaingv *gv)
+static dds_return_t dds_durability_init (const dds_domainid_t domainid, struct ddsi_domaingv *gv)
 {
   dds_return_t rc;
 
@@ -2259,7 +2263,7 @@ dds_return_t dds_durability_init (const dds_domainid_t domainid, struct ddsi_dom
   return DDS_RETCODE_OK;
 
 err_recv_thread:
-  dc_com_free(dc.com);
+  dc_com_free(dc.com, NULL);
 err_com_new:
   dds_delete_listener(dc.request_listener);
 err_create_request_listener:
@@ -2277,9 +2281,9 @@ err_create_quorum_listener:
 }
 
 /* make sure that dc terminates when the last participant is destroyed */
-dds_return_t dds_durability_fini (void)
+static dds_entity_t _dds_durability_fini (void)
 {
-  dds_return_t rc = DDS_RETCODE_OK;
+  dds_entity_t pp_out = 0;
   uint32_t refcount;
 
   /* The durable client is deinitialized when the last participant is about
@@ -2289,12 +2293,13 @@ dds_return_t dds_durability_fini (void)
   refcount = ddsrt_atomic_dec32_nv(&dc.refcount);
   if (refcount != 2) {
     /* skip */
-     return DDS_RETCODE_OK;
+     return pp_out;
   }
   if (dc.com) {
     /* indicate the the durable client is terminating */
     ddsrt_atomic_st32 (&dc.termflag, 1);
     /* force the dc thread to terminate */
+    dds_return_t rc;
     if ((rc = dds_waitset_set_trigger(dc.com->ws, true)) < 0) {
       DDS_ERROR("failed to trigger dc recv thread [%s]", dds_strretcode(rc));
     }
@@ -2304,7 +2309,7 @@ dds_return_t dds_durability_fini (void)
     }
     dds_delete_listener(dc.request_listener);
     dds_delete_listener(dc.quorum_listener);
-    dc_com_free(dc.com);
+    dc_com_free(dc.com, &pp_out); // Participant must be deleted outside the plugin.
     ddsrt_avl_cfree(&delivery_ctx_td,  &dc.delivery_ctxs, cleanup_delivery_ctx);
     ddsrt_cond_destroy(&dc.delivery_request_cond);
     ddsrt_mutex_destroy(&dc.delivery_request_mutex);
@@ -2313,10 +2318,10 @@ dds_return_t dds_durability_fini (void)
     ddsrt_avl_cfree(&server_td,  &dc.servers, cleanup_server);
     ddsrt_free(dc.cfg.ident);
   }
-  return DDS_RETCODE_OK;
+  return pp_out;
 }
 
-bool dds_durability_is_terminating (void)
+static bool dds_durability_is_terminating (void)
 {
   return (ddsrt_atomic_ld32(&dc.termflag) > 0);
 }
@@ -2369,7 +2374,7 @@ err_get_participant:
   return true;
 }
 
-dds_return_t dds_durability_new_local_reader (dds_entity_t reader, struct dds_rhc *rhc)
+static dds_return_t dds_durability_new_local_reader (dds_entity_t reader, struct dds_rhc *rhc)
 {
   dds_durability_kind_t dkind;
   dds_qos_t *qos;
@@ -2408,7 +2413,7 @@ err_get_qos:
 }
 
 /* check if the writer is a durable application writer, and if so, we need to keep track of the quorum */
-dds_return_t dds_durability_new_local_writer (dds_entity_t writer)
+static dds_return_t dds_durability_new_local_writer (dds_entity_t writer)
 {
   dds_durability_kind_t dkind;
   dds_qos_t *wqos;
@@ -2508,7 +2513,7 @@ err_writer_lock:
  *   DDS_RETCODE_OK             if quorum is reached
  *   DDS_PRECONDITION_NOT_MET   otherwise
  */
-dds_return_t dds_durability_wait_for_quorum (dds_entity_t writer)
+static dds_return_t dds_durability_wait_for_quorum (dds_entity_t writer)
 {
   dds_return_t ret = DDS_RETCODE_ERROR;
   ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
@@ -2548,8 +2553,18 @@ dds_return_t dds_durability_wait_for_quorum (dds_entity_t writer)
 }
 
 /* get the configured quorum */
-uint32_t dds_durability_get_quorum (void)
+static uint32_t dds_durability_get_quorum (void)
 {
   return dc.cfg.quorum;
 }
 
+void dds_durability_creator(dds_durability_t* ds)
+{
+  ds->dds_durability_init = dds_durability_init;
+  ds->_dds_durability_fini = _dds_durability_fini;
+  ds->dds_durability_get_quorum = dds_durability_get_quorum;
+  ds->dds_durability_new_local_reader = dds_durability_new_local_reader;
+  ds->dds_durability_new_local_writer = dds_durability_new_local_writer;
+  ds->dds_durability_wait_for_quorum = dds_durability_wait_for_quorum;
+  ds->dds_durability_is_terminating = dds_durability_is_terminating;
+}

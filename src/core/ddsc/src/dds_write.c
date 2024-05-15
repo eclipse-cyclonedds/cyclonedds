@@ -31,10 +31,6 @@
 #include "dds__loaned_sample.h"
 #include "dds__psmx.h"
 
-#ifdef DDS_HAS_DURABILITY
-#include "dds/durability/dds_durability.h"
-#endif
-
 struct ddsi_serdata_plain { struct ddsi_serdata p; };
 struct ddsi_serdata_any   { struct ddsi_serdata a; };
 
@@ -47,6 +43,11 @@ dds_return_t dds_write (dds_entity_t writer, const void *data)
     return DDS_RETCODE_BAD_PARAMETER;
 
 #ifdef DDS_HAS_DURABILITY
+  if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
+    return ret;
+  dds_durability_t* dc = &wr->m_entity.m_domain->dc;
+  dds_writer_unlock (wr);
+
   /* determine if the quorum of durable services for the writer is fulfilled.
    *
    * LH: This implementation may be suboptimal, because determining whether the
@@ -54,7 +55,8 @@ dds_return_t dds_write (dds_entity_t writer, const void *data)
    * within the same writer lock. So after the quorum has been established,
    * and before the data is published, the quorum could have been dropped again.
    * Chances for this to happen are slim, but still ... */
-  if ((ret = dds_durability_wait_for_quorum(writer)) != DDS_RETCODE_OK) {
+  assert(dc->dds_durability_wait_for_quorum);
+  if ((ret = dc->dds_durability_wait_for_quorum(writer)) != DDS_RETCODE_OK) {
     return ret;
   }
 #endif

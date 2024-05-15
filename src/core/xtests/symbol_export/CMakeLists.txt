@@ -18,7 +18,8 @@ target_include_directories(symbol_export_test PRIVATE
     "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../cdr/include>")
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../cdr/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../durability/include>")
 
 if (ENABLE_SECURITY)
     target_link_libraries(symbol_export_test PRIVATE security_api)
