@@ -58,10 +58,6 @@ if(ENABLE_SECURITY)
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>)
 endif()
 
-if(ENABLE_DURABILITY)
-  target_link_libraries(ddsc PRIVATE "$<BUILD_INTERFACE:durability>")
-endif()
-
 include(cdr/CMakeLists.txt)
 include(ddsi/CMakeLists.txt)
 include(ddsc/CMakeLists.txt)
@@ -93,7 +89,8 @@ target_compile_definitions(
   $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_COMPILE_DEFINITIONS>>)
 target_include_directories(
   ddsc PUBLIC
-  $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>)
+  $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>
+  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/durability/include>)
 
 # SOVERSION should increase on incompatible ABI change
 set_target_properties(ddsc PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})

@@ -39,10 +39,6 @@
 #include "dds__statistics.h"
 #include "dds__psmx.h"
 
-#ifdef DDS_HAS_DURABILITY
-#include "dds/durability/dds_durability.h"
-#endif
-
 DECL_ENTITY_LOCK_UNLOCK (dds_writer)
 
 #define DDS_WRITER_STATUS_MASK                                   \
@@ -428,13 +424,14 @@ static dds_entity_t dds_create_writer_int (dds_entity_t participant_or_publisher
   if ((rc = dds_endpoint_add_psmx_endpoint (&wr->m_endpoint, wqos, &tp->m_ktopic->psmx_topics, DDS_PSMX_ENDPOINT_TYPE_WRITER)) != DDS_RETCODE_OK)
     goto err_pipe_open;
 
-#if DDS_HAS_DURABILITY
+#ifdef DDS_HAS_DURABILITY
   /* quorum applies only to durable writers.
    * By default quorum reached for volatile and transient-local writers
    * For durable writer the quorum is initially reached when quorum threshold == 0
    * (but we'll likely prohibit this case as an invalid configuration because
    * it may lead to eventual inconsistencies).  */
-  uint32_t quorum = dds_durability_get_quorum();
+  assert(wr->m_entity.m_domain->dc.dds_durability_get_quorum);
+  uint32_t quorum = wr->m_entity.m_domain->dc.dds_durability_get_quorum();
   wr->quorum_reached = true;
   if (wqos->durability.kind >= DDS_DURABILITY_TRANSIENT) {
     wr->quorum_reached = (quorum == 0);
@@ -479,7 +476,8 @@ static dds_entity_t dds_create_writer_int (dds_entity_t participant_or_publisher
   dds_publisher_unlock (pub);
 
 #ifdef DDS_HAS_DURABILITY
-  dds_durability_new_local_writer(writer);
+  assert(wr->m_entity.m_domain->dc.dds_durability_new_local_writer);
+  wr->m_entity.m_domain->dc.dds_durability_new_local_writer(writer);
 #endif
 
   // start async thread if not already started and the latency budget is non zero

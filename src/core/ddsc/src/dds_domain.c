@@ -128,6 +128,9 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   if ((ret = dds_pubsub_message_exchange_init (&domain->gv, domain)) != DDS_RETCODE_OK)
     goto fail_psmx_init;
 
+  if ((ret = dds_durability_load (&domain->dc, &domain->gv)) != DDS_RETCODE_OK)
+    goto fail_durability_init;
+
   struct ddsi_psmx_instance_locators psmx_locators;
   psmx_locators.length = domain->psmx_instances.length;
   psmx_locators.instances = dds_alloc (domain->psmx_instances.length * sizeof (*psmx_locators.instances));
@@ -207,6 +210,7 @@ fail_ddsi_init:
     domain->psmx_instances.instances[i]->ops.deinit(domain->psmx_instances.instances[i]);
     domain->psmx_instances.instances[i] = NULL;
   }
+fail_durability_init:
 fail_psmx_init:
 fail_ddsi_config:
   if (domain->cfgst)
@@ -337,6 +341,7 @@ static dds_return_t dds_domain_free (dds_entity *vdomain)
 
   ddsi_fini (&domain->gv);
 
+  dds_durability_unload (&domain->dc);
   (void) dds_pubsub_message_exchange_fini (domain);
 
   dds_serdatapool_free (domain->serpool);
