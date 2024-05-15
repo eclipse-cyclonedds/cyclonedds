@@ -426,7 +426,7 @@ static void * sample_init_ext (void)
   TestIdl_MsgExt *msg = ddsrt_malloc (sizeof (*msg));
   msg->f1 = ddsrt_strdup (RND_STR32);
 
-  msg->f2 = ddsrt_malloc (sizeof (*msg->f2) + 1);
+  msg->f2 = ddsrt_malloc (sizeof (*msg->f2));
   ddsrt_strlcpy (*msg->f2, RND_STR32, sizeof (*msg->f2));
 
   msg->f3 = ddsrt_malloc (sizeof (*msg->f3));
@@ -558,7 +558,7 @@ static void * sample_init_opt (void)
   }
   if (RND_INT32 % 2)
   {
-    msg->f4 = ddsrt_malloc (sizeof (*msg->f4) + 1);
+    msg->f4 = ddsrt_malloc (sizeof (*msg->f4));
     ddsrt_strlcpy (*msg->f4, RND_STR32, sizeof (*msg->f4));
   }
   if (RND_INT32 % 2)
