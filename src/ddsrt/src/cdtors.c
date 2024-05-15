@@ -13,6 +13,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/random.h"
+#include "dds/ddsrt/misc.h"
 
 #if _WIN32
 /* Sockets API initialization is only necessary on Microsoft Windows. The
@@ -31,6 +32,9 @@ static ddsrt_cond_t init_cond;
 
 void ddsrt_init (void)
 {
+#if defined __GNUC__ && __GNUC__ >= 14
+  DDSRT_WARNING_GNUC_OFF(analyzer-infinite-loop)
+#endif
   uint32_t v;
   v = ddsrt_atomic_inc32_nv(&init_status);
 retry:
@@ -59,6 +63,9 @@ retry:
     }
     goto retry;
   }
+#if defined __GNUC__ && __GNUC__ >= 14
+  DDSRT_WARNING_GNUC_ON(analyzer-infinite-loop)
+#endif
 }
 
 void ddsrt_fini (void)
