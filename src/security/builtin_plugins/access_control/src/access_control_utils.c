@@ -430,6 +430,10 @@ bool ac_fnmatch(const char* pat, const char* str)
         return true;
       while (*str != '\0')
       {
+        // Recursive call only after consuming some pattern and therefore not infinite
+        // Moreover, preceding loop guarantees that the recursive call doesn't start with '*'
+        // The assert makes a false positive warning from the gcc 14.1 analyzer go away
+        assert(*pat != '*');
         ret = ac_fnmatch(pat, str);
         if (ret)
           return true;
