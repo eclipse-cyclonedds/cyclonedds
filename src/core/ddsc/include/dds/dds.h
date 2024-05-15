@@ -976,13 +976,27 @@ dds_set_listener(dds_entity_t entity, const dds_listener_t * listener);
  * @ingroup domain_participant
  * @component participant
  *
- * If domain is set (not DDS_DOMAIN_DEFAULT) then it must match if the domain has also
- * been configured or an error status will be returned.
- * Currently only a single domain can be configured by providing configuration file.
- * If no configuration file exists, the default domain is configured as 0.
+ * This function creates a new participant in the specified domain id, implicitly creating
+ * a domain entity if one doesn't exist for the specified domain id.  The domain entity
+ * can exist as a consequence of the existence of another participant in it, or because it
+ * was explicitly created using @ref dds_create_domain or @ref
+ * dds_create_domain_with_rawconfig.  If the domain entity has not been created yet, a new
+ * domain entity is created using a configuration taken from the CYCLONEDDS_URI
+ * environment variable.
  *
+ * The domain id may be specified as DDS_DOMAIN_DEFAULT, in which case the behaviour
+ * depends on whether some domain entity already exists or not.  If there is at least one,
+ * the one with the lowest id will be used.  If there are none, one is created with the
+ * domain id taken from the first domain id specified in the configuration file (i.e.,
+ * with a Domain element with the id attribute not "any"), and if no domain id is
+ * specified in the configuration file, domain id 0 is used.
  *
- * @param[in]  domain The domain in which to create the participant (can be DDS_DOMAIN_DEFAULT). DDS_DOMAIN_DEFAULT is for using the domain in the configuration.
+ * The domain configuration is constructed by amending the default configuration with the
+ * Domain configuration (fragments) for which the domain id is specifed as "any" and those
+ * for which the domain id matches the specified domain id (not DDS_DOMAIN_DEFAULT) in the
+ * order in which they are encountered in the configuration.
+ *
+ * @param[in]  domain The domain in which to create the participant.
  * @param[in]  qos The QoS to set on the new participant (can be NULL).
  * @param[in]  listener Any listener functions associated with the new participant (can be NULL).
 
@@ -1018,43 +1032,22 @@ dds_create_participant(
  * @ingroup domain
  * @component domain
  *
- * To explicitly create a domain based on a configuration passed as a string.
+ * To explicitly create a domain based on a configuration passed as a string.  A domain
+ * created in this manner must be explicitly deleted by calling @ref dds_delete on the
+ * domain (or on DDS_CYCLONEDDS_HANDLE).
  *
- * It will not be created if a domain with the given domain id already exists.
- * This could have been created implicitly by a dds_create_participant().
+ * It will not be created if a domain with the given domain id already exists.  This could
+ * have been created implicitly by a previous call to this function, @ref
+ * dds_create_participant or @ref dds_create_domain_with_rawconfig.
  *
- * Please be aware that the given domain_id always takes precedence over the
- * configuration.
- *
- * | domain_id | domain id in config | result                        |
- * |:----------|:--------------------|:------------------------------|
- * | n         | any (or absent)     | n, config is used             |
- * | n         | m == n              | n, config is used             |
- * | n         | m != n              | n, config is ignored: default |
- *
- * Config models:
- *  -# @code{xml}
- *     <CycloneDDS>
- *        <Domain id="X">...</Domain>
- *        <!-- <Domain .../> -->
- *      </CycloneDDS>
- *      @endcode
- *      where ... is all that can today be set in children of CycloneDDS
- *      with the exception of the id
- *  -# @code{xml}
- *     <CycloneDDS>
- *        <Domain><Id>X</Id></Domain>
- *        <!-- more things here ... -->
- *     </CycloneDDS>
- *     @endcode
- *     Legacy form, domain id must be the first element in the file with
- *     a value (if nothing has been set previously, it a warning is good
- *     enough)
+ * The domain configuration is constructed by amending the default configuration with the
+ * Domain configuration (fragments) for which the domain id is specifed as "any" and those
+ * for which the domain id matches the specified domain id in the order in which they are
+ * encountered in the configuration.
  *
  * Using NULL or "" as config will create a domain with default settings.
  *
- *
- * @param[in]  domain The domain to be created. DEFAULT_DOMAIN is not allowed.
+ * @param[in]  domain The domain to be created. DDS_DEFAULT_DOMAIN is not allowed.
  * @param[in]  config A configuration string containing file names and/or XML fragments representing the configuration.
  *
  * @returns A valid entity handle or an error code.
@@ -1076,19 +1069,21 @@ dds_create_domain(const dds_domainid_t domain, const char *config);
  * @component domain
  * @unstable
  *
- * To explicitly create a domain based on a configuration passed as a raw
- * initializer rather than as an XML string. This allows bypassing the XML
- * parsing, but tightly couples the initializing to implementation.  See
- * dds/ddsi/ddsi_config.h:ddsi_config_init_default for a way to initialize
- * the default configuration.
+ * To explicitly create a domain based on a configuration passed as a raw initializer
+ * rather than as an XML string. This allows bypassing the XML parsing, but tightly
+ * couples the initializing to implementation.  See
+ * dds/ddsi/ddsi_config.h:ddsi_config_init_default for a way to initialize the default
+ * configuration.  A domain created in this manner must be explicitly deleted by calling
+ * @ref dds_delete on the domain (or on DDS_CYCLONEDDS_HANDLE).
  *
- * It will not be created if a domain with the given domain id already exists.
- * This could have been created implicitly by a dds_create_participant().
+ * It will not be created if a domain with the given domain id already exists.  This could
+ * have been created implicitly by a previous call to this function, @ref
+ * dds_create_participant or @ref dds_create_domain_with_rawconfig.
  *
  * Please be aware that the given domain_id always takes precedence over the
  * configuration.
  *
- * @param[in]  domain The domain to be created. DEFAULT_DOMAIN is not allowed.
+ * @param[in]  domain The domain to be created. DDS_DEFAULT_DOMAIN is not allowed.
  * @param[in]  config A configuration initializer.  The lifetime of any pointers
  *             in config must be at least that of the lifetime of the domain.
  *
