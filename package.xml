@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
     <name>cyclonedds</name>
-    <version>0.10.4</version>
+    <version>0.10.5</version>
     <description>Eclipse Cyclone DDS is a very performant and robust open-source DDS implementation. Cyclone DDS is developed completely in the open as an Eclipse IoT project.</description>
     <maintainer email="cyclonedds-dev@eclipse.org">Eclipse Foundation, Inc.</maintainer>
     <license>Eclipse Public License 2.0</license>

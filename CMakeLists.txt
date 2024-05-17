@@ -10,7 +10,7 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 cmake_minimum_required(VERSION 3.16)
-project(CycloneDDS VERSION 0.10.4 LANGUAGES C)
+project(CycloneDDS VERSION 0.10.5 LANGUAGES C)
 
 # Set a default build type if none was specified
 set(default_build_type "RelWithDebInfo")
