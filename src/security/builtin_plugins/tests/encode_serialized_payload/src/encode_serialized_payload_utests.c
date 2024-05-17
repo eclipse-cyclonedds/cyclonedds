@@ -543,7 +543,7 @@ static void encode_serialized_payload_check(uint32_t key_size, bool encrypted)
   DDS_Security_SecurityException exception = {NULL, 0, 0};
   DDS_Security_OctetSeq encoded_buffer = {0, 0, NULL};
   DDS_Security_OctetSeq extra_inline_qos;
-  DDS_Security_OctetSeq encoded_payload;
+  DDS_Security_OctetSeq encoded_payload = {0, 0, NULL};
   DDS_Security_OctetSeq plain_buffer;
   session_key_material *session_keys;
   struct crypto_header *header = NULL;
