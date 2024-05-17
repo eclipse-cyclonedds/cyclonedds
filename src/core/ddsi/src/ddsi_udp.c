@@ -726,14 +726,24 @@ static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_lo
     rc = ddsrt_setsockopt (socket, IPPROTO_IPV6, join ? IPV6_JOIN_GROUP : IPV6_LEAVE_GROUP, &ipv6mreq, sizeof (ipv6mreq));
   }
   else
-#endif
+#endif /* DDSRT_HAVE_IPV6 */
   {
+#if __ZEPHYR__
+    struct ip_mreqn mreq;
+    mreq.imr_ifindex = 0;
+    if (interf) {
+      memcpy (&mreq.imr_address, interf->loc.address + 12, sizeof (mreq.imr_address));
+    else
+      mreq.imr_address.s_addr = htonl (INADDR_ANY);
+#else
     struct ip_mreq mreq;
-    mreq.imr_multiaddr = mcip.a4.sin_addr;
     if (interf)
       memcpy (&mreq.imr_interface, interf->loc.address + 12, sizeof (mreq.imr_interface));
     else
       mreq.imr_interface.s_addr = htonl (INADDR_ANY);
+#endif
+
+    mreq.imr_multiaddr = mcip.a4.sin_addr;
     rc = ddsrt_setsockopt (socket, IPPROTO_IP, join ? IP_ADD_MEMBERSHIP : IP_DROP_MEMBERSHIP, &mreq, sizeof (mreq));
   }
   return (rc == DDS_RETCODE_OK) ? 0 : -1;

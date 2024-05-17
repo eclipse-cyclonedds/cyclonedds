@@ -65,11 +65,6 @@ typedef struct ddsrt_socket_ext {
 # define IP_MULTICAST_TTL   33
 # define IP_MULTICAST_LOOP  34
 
-struct ip_mreq {
-    struct in_addr imr_multiaddr;
-    struct in_addr imr_interface;
-};
-
 /* for ddsrt_getifaddrs */
 # define IFF_UP              0x1
 # define IFF_BROADCAST       0x2
