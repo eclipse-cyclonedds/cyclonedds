@@ -46,6 +46,8 @@ extern "C" {
 #define SD_PARSE_RESULT_INVALID_REF -5
 #define SD_PARSE_RESULT_DUPLICATE -6
 
+#define SD_REF_SEPARATOR "::"
+
 /**
  * @defgroup sysdef_parser (SysdefParser)
  */
