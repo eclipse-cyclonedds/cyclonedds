@@ -179,6 +179,9 @@ struct parse_sysdef_state {
   char err_msg[MAX_ERRMSG_SZ];
 };
 
+static bool dds_sysdef_is_valid_identifier_syntax (const char *name);
+
+
 static bool str_to_int32 (const char *str, int32_t *value)
 {
   char *endptr;
@@ -613,6 +616,7 @@ static int init_qos (UNUSED_ARG (struct parse_sysdef_state * const pstate), stru
     } while (0)
 
 #define PROC_ATTR_NAME(type) PROC_ATTR_STRING(type, "name", name, dds_sysdef_is_valid_identifier_syntax)
+#define PROC_ATTR_TYPE_NAME(type,attr_name,param_field) PROC_ATTR_STRING(type, attr_name, param_field, is_valid_type_name)
 
 #define _PROC_ATTR_INTEGER(type, attr_type, attr_name, param_field, param_populated_bit) \
     do { \
@@ -778,7 +782,7 @@ static int proc_attr_resolve_topic_ref (struct parse_sysdef_state * const pstate
 static int split_ref (const char *ref, char **lib, char **local_name)
 {
   int ret = SD_PARSE_RESULT_OK;
-  const char *sep = "::";
+  const char *sep = SD_REF_SEPARATOR;
   const char *spos = strstr (ref, sep);
   if (spos != NULL)
   {
@@ -931,6 +935,29 @@ static int dds_sysdef_parse_hex (const char* hex, unsigned char* bytes)
   return SD_PARSE_RESULT_OK;
 }
 
+static bool is_valid_type_name (const char *value)
+{
+  bool result = true;
+  const char *spos = NULL;
+  for (const char *str = value; result; str = spos + strlen (SD_REF_SEPARATOR))
+  {
+    spos = strstr (str, SD_REF_SEPARATOR);
+    if (spos == NULL)
+    {
+      result = dds_sysdef_is_valid_identifier_syntax (str);
+      break;
+    }
+
+    char *part = ddsrt_strndup (str, (size_t) (spos - str));
+    /* A leading :: (empty first part) is not allowed; the type name
+       syntax used in the XML must matches the type name used in the
+       type object */
+    result = dds_sysdef_is_valid_identifier_syntax (part);
+    ddsrt_free (part);
+  }
+  return result;
+}
+
 static int proc_attr_type_identifier (struct parse_sysdef_state * const pstate, const char *value, unsigned char **identifier)
 {
   (void) pstate;
@@ -1011,7 +1038,7 @@ static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *n
     {
       // Type library
       case ELEMENT_KIND_TYPE:
-        PROC_ATTR_NAME(dds_sysdef_type);
+        PROC_ATTR_TYPE_NAME(dds_sysdef_type, "name", name);
         PROC_ATTR_FN(dds_sysdef_type, "identifier", identifier, proc_attr_type_identifier);
         break;
 
@@ -1049,7 +1076,7 @@ static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *n
         PROC_ATTR_FN(dds_sysdef_participant, "guid_prefix", guid_prefix, proc_attr_guid_prefix);
         break;
       case ELEMENT_KIND_REGISTER_TYPE:
-        PROC_ATTR_NAME(dds_sysdef_register_type);
+        PROC_ATTR_TYPE_NAME(dds_sysdef_register_type, "name", name);
         PROC_ATTR_FN(dds_sysdef_register_type, "type_ref", type_ref, proc_attr_resolve_type_ref);
         break;
       case ELEMENT_KIND_PARTICIPANT_LIB:
@@ -1616,7 +1643,7 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UNUSED_
   return ret;
 }
 
-static const unsigned char base64_dtable[256] = { 
+static const unsigned char base64_dtable[256] = {
   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0, 62, 63, 62, 62, 63, 52, 53, 54, 55,
@@ -1635,15 +1662,15 @@ static uint32_t b64_decode (const unsigned char *text, const uint32_t sz, unsign
   for (size_t i = 0, j = 0; i < sz && j < buff_len; i+=4, j+=3)
   {
     unsigned char chunk[3] = {0x00, 0x00, 0x00};
-    uint32_t tmp = (uint32_t)(base64_dtable[text[i]] << 0x06U) | base64_dtable[text[i+1]]; 
+    uint32_t tmp = (uint32_t)(base64_dtable[text[i]] << 0x06U) | base64_dtable[text[i+1]];
     uint32_t safe = tmp & 0x0FU;
     chunk[0] = (unsigned char)(tmp >> 0x04U);
     tmp = (safe << 0x0CU) | ((uint32_t)(base64_dtable[text[i+2]] << 0x06U) | base64_dtable[text[i+3]]);
     chunk[2] = (unsigned char)(tmp & 0xFFU);
     chunk[1] = (unsigned char)(tmp >> 0x08U);
-    size_t cp_sz = (buff_len - j) < 3? buff_len - j: 3; 
+    size_t cp_sz = (buff_len - j) < 3? buff_len - j: 3;
     (void) memcpy(*buff+j, chunk, cp_sz);
-  } 
+  }
 
   return buff_len;
 }
@@ -1950,7 +1977,7 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
   struct parse_sysdef_state * const pstate = varg;
   int ret = SD_PARSE_RESULT_OK;
   if (pstate == NULL) {
-    return SD_PARSE_RESULT_ERR; 
+    return SD_PARSE_RESULT_ERR;
   }
 
   if (!pstate->current) {
