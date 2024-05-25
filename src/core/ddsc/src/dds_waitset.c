@@ -64,8 +64,9 @@ static dds_return_t dds_waitset_wait_impl (dds_entity_t waitset, dds_attach_t *x
 
   /* Move any previously but no longer triggering entities back to the observed list */
   ddsrt_mutex_lock (&ws->wait_lock);
+  size_t previous_ntriggered = ws->ntriggered;
   ws->ntriggered = 0;
-  for (size_t i = 0; i < ws->nentities; i++)
+  for (size_t i = 0; i < previous_ntriggered; i++)
   {
     if (is_triggered (ws->entities[i].entity))
     {
