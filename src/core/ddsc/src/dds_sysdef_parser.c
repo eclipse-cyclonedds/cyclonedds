@@ -503,6 +503,13 @@ static void fini_conf_tsn_ip_tuple (struct xml_element *node)
   ddsrt_free (conf->source_ip_address);
 }
 
+static void fini_conf_tsn_mac_addresses (struct xml_element *node)
+{
+  struct dds_sysdef_tsn_ieee802_mac_addresses *conf = (struct dds_sysdef_tsn_ieee802_mac_addresses *) node;
+  ddsrt_free (conf->source_mac_address);
+  ddsrt_free (conf->destination_mac_address);
+}
+
 static void fini_conf_tsn_data_frame_specification (struct xml_element *node)
 {
   struct dds_sysdef_tsn_data_frame_specification *conf = (struct dds_sysdef_tsn_data_frame_specification *) node;
@@ -2137,6 +2144,18 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
       }
       break;
     }
+    case ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_VLAN_TAG_PRIORITY_CODE_POINT:
+      PARENT_PARAM_DATA_NUMERIC(ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_VLAN_TAG, dds_sysdef_tsn_ieee802_vlan_tag, uint8, priority_code_point, SYSDEF_TSN_VLAN_TAG_PRIORITY_CODE_POINT_PARAM_VALUE);
+      break;
+    case ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_VLAN_TAG_VLAN_ID:
+      PARENT_PARAM_DATA_NUMERIC(ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_VLAN_TAG, dds_sysdef_tsn_ieee802_vlan_tag, uint16, vlan_id, SYSDEF_TSN_VLAN_TAG_VLAN_ID_PARAM_VALUE);
+      break;
+    case ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES_DESTINATION_MAC_ADDRESS:
+      PARENT_PARAM_DATA_STRING(ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES, dds_sysdef_tsn_ieee802_mac_addresses, destination_mac_address);
+      break;
+    case ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES_SOURCE_MAC_ADDRESS:
+      PARENT_PARAM_DATA_STRING(ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES, dds_sysdef_tsn_ieee802_mac_addresses, source_mac_address);
+      break;
     case ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_IPV4_TUPLE_SOURCE_IP_ADDRESS:
       PARENT_PARAM_DATA_STRING(ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_IPV4_TUPLE, dds_sysdef_tsn_ip_tuple, source_ip_address);
       break;
@@ -2625,11 +2644,23 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
       else if (ddsrt_strcasecmp (name, "tsn_listener") == 0)
         CREATE_NODE_LIST (pstate, dds_sysdef_tsn_listener_configuration, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_LISTENER, NO_INIT, fini_conf_tsn_listener, tsn_listener_configurations, dds_sysdef_tsn_configuration, ELEMENT_KIND_DEPLOYMENT_CONF_TSN, pstate->current);
       else if (ddsrt_strcasecmp (name, "data_frame_specification") == 0)
-        CREATE_NODE_LIST (pstate, dds_sysdef_tsn_data_frame_specification, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC, NO_INIT, fini_conf_tsn_data_frame_specification, data_frame_specification, dds_sysdef_tsn_talker_configuration, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER, pstate->current);
+        CREATE_NODE_SINGLE (pstate, dds_sysdef_tsn_data_frame_specification, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC, NO_INIT, fini_conf_tsn_data_frame_specification, data_frame_specification, dds_sysdef_tsn_talker_configuration, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER, pstate->current);
+      else if (ddsrt_strcasecmp (name, "vlan_tag") == 0)
+        CREATE_NODE_SINGLE (pstate, dds_sysdef_tsn_ieee802_vlan_tag, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_VLAN_TAG, NO_INIT, NO_FINI, vlan_tag, dds_sysdef_tsn_data_frame_specification, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC, pstate->current);
+      else if (ddsrt_strcasecmp (name, "priority_code_point") == 0)
+        CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_VLAN_TAG_PRIORITY_CODE_POINT, NO_INIT, NO_FINI, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_VLAN_TAG, pstate->current);
+      else if (ddsrt_strcasecmp (name, "vlan_id") == 0)
+        CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_VLAN_TAG_VLAN_ID, NO_INIT, NO_FINI, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_VLAN_TAG, pstate->current);
+      else if (ddsrt_strcasecmp (name, "mac_addresses") == 0)
+        CREATE_NODE_SINGLE (pstate, dds_sysdef_tsn_ieee802_mac_addresses, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES, NO_INIT, fini_conf_tsn_mac_addresses, mac_addresses, dds_sysdef_tsn_data_frame_specification, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC, pstate->current);
+      else if (ddsrt_strcasecmp (name, "destination_mac_address") == 0)
+        CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES_DESTINATION_MAC_ADDRESS, NO_INIT, NO_FINI, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES, pstate->current);
+      else if (ddsrt_strcasecmp (name, "source_mac_address") == 0)
+        CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES_SOURCE_MAC_ADDRESS, NO_INIT, NO_FINI, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES, pstate->current);
       else if (ddsrt_strcasecmp (name, "ipv4_tuple") == 0)
-        CREATE_NODE_LIST (pstate, dds_sysdef_tsn_ip_tuple, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_IPV4_TUPLE, NO_INIT, fini_conf_tsn_ip_tuple, ipv4_tuple, dds_sysdef_tsn_data_frame_specification, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC, pstate->current);
+        CREATE_NODE_SINGLE (pstate, dds_sysdef_tsn_ip_tuple, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_IPV4_TUPLE, NO_INIT, fini_conf_tsn_ip_tuple, ipv4_tuple, dds_sysdef_tsn_data_frame_specification, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC, pstate->current);
       else if (ddsrt_strcasecmp (name, "ipv6_tuple") == 0)
-        CREATE_NODE_LIST (pstate, dds_sysdef_tsn_ip_tuple, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_IPV6_TUPLE, NO_INIT, fini_conf_tsn_ip_tuple, ipv6_tuple, dds_sysdef_tsn_data_frame_specification, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC, pstate->current);
+        CREATE_NODE_SINGLE (pstate, dds_sysdef_tsn_ip_tuple, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_IPV6_TUPLE, NO_INIT, fini_conf_tsn_ip_tuple, ipv6_tuple, dds_sysdef_tsn_data_frame_specification, ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC, pstate->current);
       else if (ddsrt_strcasecmp (name, "source_ip_address") == 0)
       {
         if (pstate->current->kind == ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_IPV4_TUPLE)
