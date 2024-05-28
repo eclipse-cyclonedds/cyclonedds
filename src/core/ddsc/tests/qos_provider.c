@@ -391,12 +391,13 @@ static uint32_t b64_encode (const unsigned char *text, const uint32_t sz, unsign
   for (size_t i = 0, j = 0; i < buff_len && j < sz; i+=4, j+=3)
   {
     unsigned char chunk[4] = {0x00, 0x00, 0x00, 0x00};
-    chunk[0] = base64_etable[(text[j] >> 0x02U)];
-    chunk[2] = base64_etable[((text[j+1] & 0x0FU) << 0x02U) | (text[j+2] & 0xC0U) >> 0x06U];
-    chunk[1] = base64_etable[((text[j] & 0x03U) << 0x04U) | (text[j+1] >> 0x04U)];
-    chunk[3] = base64_etable[text[j+2] & 0x3FU];
-    size_t cp_sz = (sz - j) < 3? (sz - j) + 1: 4U;
-    (void) memcpy(*(buff)+i, chunk, cp_sz);
+    size_t cp_sz = (sz - j);
+    unsigned char tmp[3] = {text[j], (cp_sz > 1)? text[j+1]: 0x00, (cp_sz > 2)? text[j+2]: 0x00};
+    chunk[3] = base64_etable[tmp[2] & 0x3FU];
+    chunk[2] = base64_etable[((tmp[1] & 0x0FU) << 0x02U) | (tmp[2] & 0xC0U) >> 0x06U];
+    chunk[1] = base64_etable[((tmp[0] & 0x03U) << 0x04U) | (tmp[1] >> 0x04U)];
+    chunk[0] = base64_etable[(tmp[0] >> 0x02U)];
+    (void) memcpy(*(buff)+i, chunk, cp_sz > 3? cp_sz + 1: 4U);
   }
 
   return buff_len;
