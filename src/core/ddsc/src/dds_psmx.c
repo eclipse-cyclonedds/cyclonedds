@@ -549,8 +549,8 @@ dds_return_t dds_request_loan_of_size (dds_entity_t writer, size_t size, void **
   dds_entity *e;
   dds_return_t ret = DDS_RETCODE_OK;
 
-  if (dds_entity_pin (writer, &e) != DDS_RETCODE_OK)
-    return false;
+  if ((ret = dds_entity_pin (writer, &e)) != DDS_RETCODE_OK)
+    return ret;
 
   if (dds_entity_kind (e) == DDS_KIND_WRITER)
     ret = dds_request_writer_loan ((struct dds_writer *) e, DDS_WRITER_LOAN_RAW, (uint32_t) size, sample);
