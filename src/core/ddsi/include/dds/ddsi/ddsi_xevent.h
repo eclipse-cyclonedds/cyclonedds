@@ -55,6 +55,19 @@ void ddsi_delete_xevent (struct ddsi_xevent *ev)
 int ddsi_resched_xevent_if_earlier (struct ddsi_xevent *ev, ddsrt_mtime_t tsched)
   ddsrt_nonnull_all;
 
+/** @brief returns whether or not the event is scheduled
+ * @component timed_events
+ *
+ * @remark: may be called from inside the event handler
+ *
+ * @param[in] ev the event for which to check whether it is scheduled
+ *
+ * @retval 0 not scheduled
+ * @retval 1 scheduled
+ */
+int ddsi_xevent_is_scheduled (struct ddsi_xevent *ev)
+  ddsrt_nonnull_all;
+
 /** @brief creates a new event object on the given event queue for invoking `cb` in the
  *   future on the thread handling this queue
  * @component timed_events

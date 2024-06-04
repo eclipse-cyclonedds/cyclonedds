@@ -1227,7 +1227,7 @@ static void handle_Heartbeat_helper (struct ddsi_pwr_rd_match * const wn, struct
   if (arg->directed_heartbeat)
     wn->directed_heartbeat = 1;
 
-  ddsi_sched_acknack_if_needed (wn->acknack_xevent, pwr, wn, arg->tnow_mt, true);
+  ddsi_sched_acknack_if_needed (wn->acknack_xevent, pwr, wn, arg->tnow_mt);
 }
 
 static int handle_Heartbeat (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, struct ddsi_rmsg *rmsg, const ddsi_rtps_heartbeat_t *msg, ddsrt_wctime_t timestamp, ddsi_rtps_submessage_kind_t prev_smid)
