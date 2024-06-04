@@ -27,7 +27,8 @@ struct ddsi_pwr_rd_match;
 struct ddsi_proxy_writer;
 
 enum ddsi_add_acknack_result {
-  AANR_SUPPRESSED_ACK,  //!< sending nothing: too short a time since the last ACK
+  AANR_SILENT_ACK,      //!< sending nothing: too short a time since the last ACK
+  AANR_SILENT_NACK,     //!< sending nothing, even though there are things to NACK
   AANR_ACK,             //!< sending an ACK and there's nothing to NACK
   AANR_SUPPRESSED_NACK, //!< sending an ACK even though there are things to NACK
   AANR_NACK,            //!< sending a NACK, possibly also a NACKFRAG
@@ -53,7 +54,7 @@ struct ddsi_add_acknack_info {
 
 
 /** @component incoming_rtps */
-void ddsi_sched_acknack_if_needed (struct ddsi_xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow, bool avoid_suppressed_nack);
+void ddsi_sched_acknack_if_needed (struct ddsi_xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow);
 
 struct ddsi_acknack_xevent_cb_arg {
   ddsi_guid_t pwr_guid;

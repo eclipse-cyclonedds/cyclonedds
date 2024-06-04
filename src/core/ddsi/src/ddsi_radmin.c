@@ -2376,7 +2376,7 @@ int ddsi_reorder_wantsample (const struct ddsi_reorder *reorder, ddsi_seqno_t se
   return (s == NULL || s->u.reorder.maxp1 <= seq);
 }
 
-unsigned ddsi_reorder_nackmap (const struct ddsi_reorder *reorder, ddsi_seqno_t base, ddsi_seqno_t maxseq, struct ddsi_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail)
+enum ddsi_reorder_nackmap_result ddsi_reorder_nackmap (const struct ddsi_reorder *reorder, ddsi_seqno_t base, ddsi_seqno_t maxseq, struct ddsi_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail)
 {
   /* reorder->next_seq-1 is the last one we delivered, so the last one
      we ack; maxseq is the latest sample we know exists.  Valid bitmap
@@ -2384,6 +2384,7 @@ unsigned ddsi_reorder_nackmap (const struct ddsi_reorder *reorder, ddsi_seqno_t 
      that we allow length-0 bitmaps here as well.  Map->numbits is
      bounded by max(based on sequence numbers, maxsz). */
   assert (maxsz <= 256);
+  assert (base >= 1);
   /* not much point in requesting more data than we're willing to store
      (it would be ok if we knew we'd be able to keep up) */
   if (maxsz > reorder->max_samples)
@@ -2404,17 +2405,31 @@ unsigned ddsi_reorder_nackmap (const struct ddsi_reorder *reorder, ddsi_seqno_t 
     DDS_CERROR (reorder->logcfg, "ddsi_reorder_nackmap: incorrect max sequence number supplied (maxseq %"PRIu64" base %"PRIu64")\n", maxseq, base);
     maxseq = base - 1;
   }
-
+  
+  // starting point for bitmap: ACK what we delivered
   map->bitmap_base = ddsi_to_seqno (base);
+  // if maxseq == base-1 we want an empty bitmap because we delivered everything we know to exist
+  // if maxseq == base, we want a bitmap of size 1 to NACK the one sample with seqno == base
+  // ...
+  // numbits = min((maxseq+1 - base), maxsz) does that, albeit with the caveat that it may be
+  // longer than ultimately useful if some of the samples in the tail are stored in the reorder
+  // buffer
   if (maxseq + 1 - base > maxsz)
     map->numbits = maxsz;
   else
     map->numbits = (uint32_t) (maxseq + 1 - base);
-  ddsi_bitset_zero (map->numbits, mapbits);
+  // Early out if nothing to NACK
+  if (map->numbits == 0)
+    return DDSI_REORDER_NACKMAP_ACK;
 
+  ddsi_bitset_zero (map->numbits, mapbits);
+  // Reorder buffer can be treated as a sequence of intervals of available samples with gaps in
+  // between and with a gap between base and the first interval.  The bitmap is clear, we only
+  // need to set the bits corresponding to the gaps in the range [base, base+numbits).
   struct ddsi_rsample *iv = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
   assert (iv == NULL || iv->u.reorder.min > base);
   ddsi_seqno_t i = base;
+  ddsi_seqno_t last_nacked_p1 = 0;
   while (iv && i < base + map->numbits)
   {
     for (; i < base + map->numbits && i < iv->u.reorder.min; i++)
@@ -2422,20 +2437,46 @@ unsigned ddsi_reorder_nackmap (const struct ddsi_reorder *reorder, ddsi_seqno_t 
       uint32_t x = (uint32_t) (i - base);
       ddsi_bitset_set (map->numbits, mapbits, x);
     }
+    last_nacked_p1 = i;
     i = iv->u.reorder.maxp1;
     iv = ddsrt_avl_find_succ (&reorder_sampleivtree_treedef, &reorder->sampleivtree, iv);
   }
-  if (notail && i < base + map->numbits)
-    map->numbits = (uint32_t) (i - base);
-  else
+  if (!notail)
   {
+    // Not "notail" (the normal case): NACK all remaining sequence numbers that we know
+    // exist and that fit in the bitmap.
     for (; i < base + map->numbits; i++)
     {
       uint32_t x = (uint32_t) (i - base);
       ddsi_bitset_set (map->numbits, mapbits, x);
     }
+    return DDSI_REORDER_NACKMAP_NACK;
   }
-  return map->numbits;
+  else if (last_nacked_p1 == 0)
+  {
+    // "notail", empty reorder: it probably makes more sense to NACK one sample than to
+    // NACK nothing at all (given that "notail" still results in NACKs when the reorder
+    // buffer is not empty).
+    map->numbits = 1;
+    ddsi_bitset_set (map->numbits, mapbits, 0);
+    return DDSI_REORDER_NACKMAP_NACK;
+  }
+  else if (last_nacked_p1 > base)
+  {
+    // "notail", non-empty reorder, at least one bit set: truncate after the last bit we set
+    assert (last_nacked_p1 > base);
+    map->numbits = (uint32_t) (last_nacked_p1 - base);
+    assert (ddsi_bitset_isset (map->numbits, mapbits, map->numbits - 1));
+    return DDSI_REORDER_NACKMAP_NACK;
+  }
+  else
+  {
+    // "notail", non-empty reorder, no bit set: that should mean that the delivery is behind
+    // by more than the bitmap can hold.  Make a bitmap with a trailing 0 so we can tell the
+    // different cases apart just from looking at an ACKNACK.
+    map->numbits = 1;
+    return DDSI_REORDER_NACKMAP_SUPPRESSED_NACK;
+  }
 }
 
 ddsi_seqno_t ddsi_reorder_next_seq (const struct ddsi_reorder *reorder)

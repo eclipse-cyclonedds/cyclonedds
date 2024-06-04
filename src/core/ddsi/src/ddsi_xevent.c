@@ -345,6 +345,16 @@ int ddsi_resched_xevent_if_earlier (struct ddsi_xevent *ev, ddsrt_mtime_t tsched
   return is_resched;
 }
 
+int ddsi_xevent_is_scheduled (struct ddsi_xevent *ev)
+{
+  struct ddsi_xeventq *evq = ev->evq;
+  int is_scheduled;
+  ddsrt_mutex_lock (&evq->lock);
+  is_scheduled = (ev->tsched.v != TSCHED_DELETE && ev->tsched.v != DDS_NEVER);
+  ddsrt_mutex_unlock (&evq->lock);
+  return is_scheduled;
+}
+
 #ifndef NDEBUG
 bool ddsi_delete_xevent_pending (struct ddsi_xevent *ev)
 {

@@ -198,8 +198,14 @@ void ddsi_reorder_drop_upto (struct ddsi_reorder *reorder, ddsi_seqno_t maxp1); 
 /** @component receive_buffers */
 int ddsi_reorder_wantsample (const struct ddsi_reorder *reorder, ddsi_seqno_t seq);
 
+enum ddsi_reorder_nackmap_result {
+  DDSI_REORDER_NACKMAP_ACK,            //!< Nothing to ACK, bitmap length = 0
+  DDSI_REORDER_NACKMAP_NACK,           //!< Some bits set in bitmap, bitmap length \> 0
+  DDSI_REORDER_NACKMAP_SUPPRESSED_NACK //!< No bits set in bitmap even though there are things to NACK, bitmap length \> 0
+};
+
 /** @component receive_buffers */
-unsigned ddsi_reorder_nackmap (const struct ddsi_reorder *reorder, ddsi_seqno_t base, ddsi_seqno_t maxseq, struct ddsi_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail);
+enum ddsi_reorder_nackmap_result ddsi_reorder_nackmap (const struct ddsi_reorder *reorder, ddsi_seqno_t base, ddsi_seqno_t maxseq, struct ddsi_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail);
 
 /** @component receive_buffers */
 ddsi_seqno_t ddsi_reorder_next_seq (const struct ddsi_reorder *reorder);
