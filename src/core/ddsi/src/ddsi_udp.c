@@ -731,7 +731,7 @@ static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_lo
 #if __ZEPHYR__
     struct ip_mreqn mreq;
     mreq.imr_ifindex = 0;
-    if (interf) {
+    if (interf)
       memcpy (&mreq.imr_address, interf->loc.address + 12, sizeof (mreq.imr_address));
     else
       mreq.imr_address.s_addr = htonl (INADDR_ANY);
