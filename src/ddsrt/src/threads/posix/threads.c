@@ -50,6 +50,9 @@ typedef struct {
 #include <mach/task_info.h>
 #include <mach/vm_map.h>
 #include <AvailabilityMacros.h>
+#ifndef MAXTHREADNAMESIZE
+#define MAXTHREADNAMESIZE (64)
+#endif /* MAXTHREADNAMESIZE */
 #elif defined(__sun)
 #define MAXTHREADNAMESIZE (31)
 #elif defined(__FreeBSD__)
