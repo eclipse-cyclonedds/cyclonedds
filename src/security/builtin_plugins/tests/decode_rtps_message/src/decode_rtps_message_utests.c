@@ -385,7 +385,7 @@ static unsigned char submsg_header_endianness_flag (enum ddsrt_byte_order_select
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
   return (unsigned char) ((bo == DDSRT_BOSEL_BE) ? 0 : DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS);
 #else
-  return (unsigned char) ((bo == DDSRT_BO_LE) ? DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS : 0);
+  return (unsigned char) ((bo == DDSRT_BOSEL_LE) ? DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS : 0);
 #endif
 }
 
