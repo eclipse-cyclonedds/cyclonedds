@@ -450,6 +450,9 @@ fatal_error_exit:
         fclose( fp_out);
     if (fp_err && fp_err != stderr)
         fclose( fp_err);
+    clean_system();
+    if (in_file != NULL)
+      free(in_file);
 
     if (mcpp_debug & MEMORY)
         print_heap();
