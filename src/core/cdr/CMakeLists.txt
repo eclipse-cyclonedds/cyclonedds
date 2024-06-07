@@ -16,7 +16,9 @@ if(NOT ${CMAKE_PROJECT_NAME} STREQUAL "CycloneDDS")
 endif()
 
 set(srcs_cdr
-  "${CMAKE_CURRENT_LIST_DIR}/src/dds_cdrstream.c")
+  "${CMAKE_CURRENT_LIST_DIR}/src/dds_cdrstream.c"
+  "${CMAKE_CURRENT_LIST_DIR}/src/dds_cdrstream_keys.part.h"
+  "${CMAKE_CURRENT_LIST_DIR}/src/dds_cdrstream_write.part.h")
 
 set(hdrs_private_cdr
   "${CMAKE_CURRENT_LIST_DIR}/include/dds/cdr/dds_cdrstream.h")
