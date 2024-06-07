@@ -583,6 +583,30 @@ dds_entity_t dds_create_topic_impl (
     struct dds_psmx *psmx = dom->psmx_instances.instances[i];
     if (!psmx->ops.type_qos_supported (psmx, DDS_PSMX_ENDPOINT_TYPE_UNSET, sertype_registered->data_type_props, new_qos))
       continue;
+
+    // Check if the topic is in the forbiddenTopics or NOT in the onlyForTopics list, depending
+    // on which one is used.
+    // First off, topics not mentioned are allowed iff only_for_topics is unused
+    bool allowed_by_config = !psmx->only_for_topics[0];
+    // Then any topic in only_for_topics is allowed
+    for (char **topic = psmx->only_for_topics; *topic; topic++) {
+      if (strcmp(ktp->name, *topic) == 0) {
+        allowed_by_config = true;
+        break;
+      }
+    }
+    // And any topic in forbidden_topics is forbidden
+    for (char **topic = psmx->forbidden_topics; *topic; topic++) {
+      if (strcmp(ktp->name, *topic) == 0) {
+        allowed_by_config = false;
+        break;
+      }
+    }
+
+    if (!allowed_by_config) {
+      continue;
+    }
+
     struct dds_psmx_topic *psmx_topic = psmx->ops.create_topic (psmx, ktp->name, sertype_registered->type_name, sertype_registered->data_type_props);
     if (psmx_topic == NULL)
     {

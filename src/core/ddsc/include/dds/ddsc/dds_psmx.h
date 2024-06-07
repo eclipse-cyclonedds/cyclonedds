@@ -260,6 +260,8 @@ typedef struct dds_psmx {
   dds_psmx_ops_t ops; //!< associated functions
   const char *instance_name; //!< name of this PSMX instance
   int32_t priority; //!< priority of choosing this interface
+  char ** only_for_topics; //!< See ddsi_config_psmx. Format is nullptr-terminated array of separately allocated char*
+  char ** forbidden_topics; //!< See ddsi_config_psmx. Format is nullptr-terminated array of separately allocated char*
   const struct ddsi_locator *locator; //!< the locator for this PSMX instance
   dds_psmx_instance_id_t instance_id; //!< the identifier of this PSMX instance
   struct dds_psmx_topic_list_elem *psmx_topics; //!< associated topics

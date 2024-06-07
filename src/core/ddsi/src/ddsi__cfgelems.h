@@ -134,6 +134,21 @@ static struct cfgelem psmx_attributes[] = {
       "This has no meaning in CycloneDDS itself, and its parsing is deferred to the"
       "PSMX implementation.</p>"
     )),
+  STRING("forbiddenTopics", NULL, 1, "",
+    MEMBEROF(ddsi_config_psmx_listelem, cfg.forbidden_topics),
+    FUNCTIONS(if_topic_array, uf_topic_array, ff_topic_array, pf_topic_array),
+    DESCRIPTION(
+      "<p>A comma-separated list of topics that should never use this psmx."
+      "Mutually exclusive with onlyForTopics.</p>"
+    )),
+  STRING("onlyForTopics", NULL, 1, "",
+    MEMBEROF(ddsi_config_psmx_listelem, cfg.only_for_topics),
+    FUNCTIONS(if_topic_array, uf_topic_array, ff_topic_array, pf_topic_array),
+    DESCRIPTION(
+      "<p>A comma-separated list of all the topics that should use this PSMX."
+      "This option can be used to restrict the PSMX to a selected list of topics."
+      "Mutually exclusive with forbiddenTopics.</p>"
+    )),
   END_MARKER
 };
 
