@@ -139,9 +139,11 @@ static const uint32_t *dds_stream_skip_default (char * __restrict data, const st
 static const uint32_t *dds_stream_extract_key_from_data1 (dds_istream_t * __restrict is, dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator,
   const uint32_t * const __restrict op0, const uint32_t * __restrict ops, bool mutable_member, bool mutable_member_or_parent,
   uint32_t n_keys, uint32_t * __restrict keys_remaining);
+#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
 static const uint32_t *dds_stream_extract_keyBE_from_data1 (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator,
   const uint32_t * const __restrict op0, const uint32_t * __restrict ops, bool mutable_member, bool mutable_member_or_parent,
   uint32_t n_keys, uint32_t * __restrict keys_remaining);
+#endif
 static const uint32_t *stream_normalize_data_impl (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops, bool is_mutable_member, enum cdr_data_kind cdr_kind) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static const uint32_t *dds_stream_read_impl (dds_istream_t * __restrict is, char * __restrict data, const struct dds_cdrstream_allocator * __restrict allocator, const uint32_t * __restrict ops, bool is_mutable_member, enum cdr_data_kind cdr_kind, enum sample_data_state sample_state);
 static const uint32_t *stream_free_sample_adr (uint32_t insn, void * __restrict data, const struct dds_cdrstream_allocator * __restrict allocator, const uint32_t * __restrict ops);
@@ -274,10 +276,12 @@ static uint32_t dds_cdr_alignto_clear_and_resize (dds_ostream_t * __restrict os,
   }
 }
 
+#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
 static uint32_t dds_cdr_alignto_clear_and_resizeBE (dds_ostreamBE_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, align_t a, uint32_t extra)
 {
   return dds_cdr_alignto_clear_and_resize (&os->x, allocator, a, extra);
 }
+#endif
 
 uint32_t dds_cdr_alignto4_clear_and_resize (dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, uint32_t xcdr_version)
 {
@@ -1461,6 +1465,11 @@ bool dds_stream_write_sampleBE (dds_ostreamBE_t * __restrict os, const struct dd
 
 #else /* if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN */
 
+bool dds_stream_write_sample (dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const void * __restrict data, const struct dds_cdrstream_desc * __restrict desc)
+{
+  return dds_stream_write_sampleBE ((dds_ostreamBE_t *) os, allocator, data, desc);
+}
+
 bool dds_stream_write_sampleLE (dds_ostreamLE_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const void * __restrict data, const struct dds_cdrstream_desc * __restrict desc)
 {
   return dds_stream_writeLE (os, allocator, data, desc->ops.ops) != NULL;
@@ -1471,7 +1480,7 @@ bool dds_stream_write_sampleBE (dds_ostreamBE_t * __restrict os, const struct dd
   size_t opt_size = os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1 ? desc->opt_size_xcdr1 : desc->opt_size_xcdr2;
   if (opt_size && desc->align && (((struct dds_ostream *)os)->m_index % desc->align) == 0)
   {
-    dds_os_put_bytes ((struct dds_ostream *)os, data, (uint32_t) opt_size);
+    dds_os_put_bytes ((struct dds_ostream *)os, allocator, data, (uint32_t) opt_size);
     return true;
   }
   else
@@ -3604,7 +3613,6 @@ static void dds_stream_swap_copy (void * __restrict vdst, const void * __restric
     }
   }
 }
-#endif
 
 static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const uint32_t * __restrict ops, uint16_t key_offset_count, const uint32_t * key_offset_insn)
 {
@@ -3682,6 +3690,7 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t * __restric
     }
   }
 }
+#endif
 
 static void dds_stream_extract_key_from_data_skip_subtype (dds_istream_t * __restrict is, uint32_t num, uint32_t insn, uint32_t subtype, const uint32_t * __restrict subops)
 {
@@ -3980,9 +3989,19 @@ static void dds_stream_swap_if_needed_insituBE (void * __restrict vbuf, uint32_t
 
 #else /* if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN */
 
-void dds_stream_write_keyBE (dds_ostreamBE_t * __restrict os, const char * __restrict sample, const struct dds_cdrstream_allocator * __restrict allocator, const struct dds_cdrstream_desc * __restrict desc)
+void dds_stream_write_keyBE (dds_ostreamBE_t * __restrict os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict sample, const struct dds_cdrstream_desc * __restrict desc)
 {
-  dds_stream_write_key (&os->x, allocator, sample, desc);
+  dds_stream_write_key (&os->x, ser_kind, allocator, sample, desc);
+}
+
+bool dds_stream_extract_keyBE_from_data (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const struct dds_cdrstream_desc * __restrict desc)
+{
+  return dds_stream_extract_key_from_data (is, &os->x, allocator, desc);
+}
+
+void dds_stream_extract_keyBE_from_key (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator * __restrict allocator, const struct dds_cdrstream_desc * __restrict desc)
+{
+  dds_stream_extract_key_from_key (is, &os->x, ser_kind, allocator, desc);
 }
 
 #endif /* if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN */
