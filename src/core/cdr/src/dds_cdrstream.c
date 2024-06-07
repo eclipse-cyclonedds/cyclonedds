@@ -1422,17 +1422,17 @@ static inline void dds_stream_to_LE_insitu (void * __restrict vbuf, uint32_t siz
 
 // Little-endian
 #define NAME_BYTE_ORDER_EXT LE
-#include "dds_cdrstream_write.part.c"
+#include "dds_cdrstream_write.part.h"
 #undef NAME_BYTE_ORDER_EXT
 
 // Big-endian
 #define NAME_BYTE_ORDER_EXT BE
-#include "dds_cdrstream_write.part.c"
+#include "dds_cdrstream_write.part.h"
 #undef NAME_BYTE_ORDER_EXT
 
 // Native-endian
 #define NAME_BYTE_ORDER_EXT
-#include "dds_cdrstream_write.part.c"
+#include "dds_cdrstream_write.part.h"
 #undef NAME_BYTE_ORDER_EXT
 
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
@@ -3963,7 +3963,7 @@ static inline void dds_stream_swap_if_needed_insitu (void * __restrict vbuf, uin
 
 // Native endianness
 #define NAME_BYTE_ORDER_EXT
-#include "dds_cdrstream_keys.part.c"
+#include "dds_cdrstream_keys.part.h"
 #undef NAME_BYTE_ORDER_EXT
 
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
@@ -3975,7 +3975,7 @@ static void dds_stream_swap_if_needed_insituBE (void * __restrict vbuf, uint32_t
 
 // Big-endian implementation
 #define NAME_BYTE_ORDER_EXT BE
-#include "dds_cdrstream_keys.part.c"
+#include "dds_cdrstream_keys.part.h"
 #undef NAME_BYTE_ORDER_EXT
 
 #else /* if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN */
