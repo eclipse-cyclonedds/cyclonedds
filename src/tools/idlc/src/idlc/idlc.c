@@ -59,6 +59,7 @@ static struct {
   const char *lang;
   const char *output_dir; /* path to write completed files */
   const char* base_dir; /* Path to start reconstruction of dir structure */
+  const char* idlpy_overwrite; /*Path to idlpy*/
   int compile;
   int preprocess;
   int keylist;
@@ -630,6 +631,9 @@ static const idlc_option_t *compopts[] = {
     IDLC_STRING, { .string = &config.output_dir }, 'o', "", "<directory>",
     "Set the output directory for compiled files." },
   &(idlc_option_t){
+    IDLC_STRING, { .string = &config.idlpy_overwrite }, 'y', "", "<path>",
+    "Path to idlpy-lib, can only be used when generating for python." },
+  &(idlc_option_t){
     IDLC_STRING, { .string = &config.base_dir }, 'b', "", "<directory>",
     "Enable directory reconstruction starting from <base_dir> "
     "Attempts to recreate directory structure matching input. "
@@ -672,6 +676,30 @@ static const char *figure_language(int argc, char **argv)
   return lang;
 }
 
+static const char *figure_idlpy_overwrite(int argc, char **argv)
+{
+  const char *idlpy_path = "";
+
+  for (int i=1; i < argc; ) {
+    if (argv[i][0] != '-' || argv[i][1] == '\0')
+      break;
+    if (strcmp(argv[i], "--") == 0)
+      break;
+    if (argv[i][1] == 'y') {
+      if (argv[i][2] != '\0')
+        idlpy_path = &argv[i][2];
+      else if (++i < argc)
+        idlpy_path = &argv[i][0];
+      break;
+    } else if (argv[i++][2] == '\0') {
+      /* assume argument if not option */
+      i += (i < argc && argv[i][0] != '-');
+    }
+  }
+
+  return idlpy_path;
+}
+
 #define xstr(s) str(s)
 #define str(s) #s
 
@@ -705,8 +733,9 @@ int main(int argc, char *argv[])
 
   /* determine which generator to use */
   lang = figure_language(argc, argv);
+  const char *idlpy_overwrite = figure_idlpy_overwrite(argc, argv);
   memset(&gen, 0, sizeof(gen));
-  if (idlc_load_generator(&gen, lang) == -1)
+  if (idlc_load_generator(&gen, lang, idlpy_overwrite) == -1)
     fprintf(stderr, "%s: cannot load generator %s\n", prog, lang);
 
   config.argc = 0;

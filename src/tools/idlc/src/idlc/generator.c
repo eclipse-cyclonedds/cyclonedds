@@ -146,7 +146,7 @@ static int run_library_locator(const char *command, char **out_output) {
   return -1;
 }
 
-int idlc_load_generator(idlc_generator_plugin_t *plugin, const char *lang)
+int idlc_load_generator(idlc_generator_plugin_t *plugin, const char *lang, const char *idlpy_overwrite)
 {
   char buf[64], *file = NULL;
   const char *path;
@@ -164,10 +164,14 @@ int idlc_load_generator(idlc_generator_plugin_t *plugin, const char *lang)
         correct idlpy library.
    */
   if (idl_strcasecmp(lang, "py") == 0) {
-    if (run_library_locator("python3 -m cyclonedds.__idlc__", &file) != 0) {
-      return -1;
+    if (idlpy_overwrite != NULL && strlen(idlpy_overwrite) > 0) {
+      path = idlpy_overwrite;
+    } else {
+      if (run_library_locator("python3 -m cyclonedds.__idlc__", &file) != 0) {
+        return -1;
+      }
+      path = (const char*) file;
     }
-    path = (const char*) file;
   }
 
   /* figure out if user passed library or language */
