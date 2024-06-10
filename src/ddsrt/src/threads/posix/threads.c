@@ -49,6 +49,10 @@ typedef struct {
 #include <mach/task.h>
 #include <mach/task_info.h>
 #include <mach/vm_map.h>
+#include <AvailabilityMacros.h>
+#ifndef MAXTHREADNAMESIZE
+#define MAXTHREADNAMESIZE (64)
+#endif /* MAXTHREADNAMESIZE */
 #elif defined(__sun)
 #define MAXTHREADNAMESIZE (31)
 #elif defined(__FreeBSD__)
@@ -455,9 +459,9 @@ ddsrt_gettid(void)
 #elif defined(__FreeBSD__) && (__FreeBSD__ >= 9)
   /* FreeBSD >= 9.0 */
   tid = pthread_getthreadid_np();
-#elif defined(__APPLE__) && !(defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && \
-                                      __MAC_OS_X_VERSION_MIN_REQUIRED < 1060)
-  /* macOS >= 10.6 */
+#elif defined(__APPLE__) && !defined(__POWERPC__) && \
+  !(defined(MAC_OS_X_VERSION_MIN_REQUIRED) && MAC_OS_X_VERSION_MIN_REQUIRED < 1060)
+  /* macOS >= 10.6, but for ppc this symbol is unavailable */
   pthread_threadid_np(NULL, &tid);
 #elif defined(__VXWORKS__)
   tid = taskIdSelf();

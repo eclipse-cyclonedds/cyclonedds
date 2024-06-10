@@ -12,6 +12,10 @@
 #define __APPLE_USE_RFC_3542
 #define _GNU_SOURCE
 
+#ifdef __APPLE__
+#include <AvailabilityMacros.h>
+#endif
+
 #include <assert.h>
 #include <string.h>
 #include "dds/ddsrt/atomics.h"
@@ -500,7 +504,9 @@ static dds_return_t set_mc_options_transmit_ipv6 (struct ddsi_domaingv const * c
 
 static dds_return_t set_mc_options_transmit_ipv4_if (struct ddsi_domaingv const * const gv, struct ddsi_network_interface const * const intf, ddsrt_socket_t sock)
 {
-#if (defined(__linux) || defined(__APPLE__)) && !LWIP_SOCKET
+/* ip_mreqn is available on macOS 10.7+ */
+#if ((defined(__APPLE__) && defined(MAC_OS_X_VERSION_10_7) && (MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_7)) \
+  || defined(__linux)) && !LWIP_SOCKET
   if (gv->config.use_multicast_if_mreqn)
   {
     struct ip_mreqn mreqn;
