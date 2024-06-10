@@ -1352,7 +1352,12 @@ static int handle_Heartbeat (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow
             // use the advertised first sequence number in the WHC
             struct ddsi_reorder *ro = wn->u.not_in_sync.reorder;
             if ((res = ddsi_reorder_gap (&sc, ro, gap, 1, firstseq, &refc_adjust)) > 0)
-              ddsi_dqueue_enqueue1 (pwr->dqueue, &wn->rd_guid, &sc, res);
+            {
+              if (pwr->deliver_synchronously)
+                deliver_user_data_synchronously (&sc, &wn->rd_guid);
+              else
+                ddsi_dqueue_enqueue1 (pwr->dqueue, &wn->rd_guid, &sc, res);
+            }
             if (ddsi_from_seqno (msg->lastSN) > wn->last_seq)
             {
               wn->last_seq = ddsi_from_seqno (msg->lastSN);
