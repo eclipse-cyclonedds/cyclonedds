@@ -328,10 +328,15 @@ static bool read_submsg_header (tainted_input_buffer_t *input, uint8_t smid, dds
   if (hdr->octetsToNextHeader > (size_t) (input->endp - input->ptr))
     return false;
 
-  // silly C can't deal with assignment to *submsg_view in any way because of endp
+  // Silly C can't deal with assignment to *submsg_view in any way because of endp
   // memcpy to the rescue!
+  //
+  // Using the address of the literal directly in the argument to memcpy causes a compilation error
+  // on ancient macOS, presumably memcpy is defined as a macro. The extra pair of parentheses fixes
+  // it.
+  //
   // coverity[store_writes_const_field]
-  memcpy (submsg_view, &(tainted_input_buffer_t){ .ptr = input->ptr, .endp = input->ptr + hdr->octetsToNextHeader }, sizeof (*submsg_view));
+  memcpy (submsg_view, (&(tainted_input_buffer_t){ .ptr = input->ptr, .endp = input->ptr + hdr->octetsToNextHeader }), sizeof (*submsg_view));
   input->ptr += hdr->octetsToNextHeader;
   return true;
 }
