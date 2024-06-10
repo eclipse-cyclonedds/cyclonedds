@@ -2073,21 +2073,21 @@ CU_Test (ddsc_cdrstream, skip_default)
     dds_cdrstream_desc_from_topic_desc (&desc_sub, tests[i].desc_sub);
     assert (desc_sub.ops.ops);
 
-    dds_ostreamLE_t os = { .x.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
+    dds_ostream_t os = { .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
     uint8_t *sample_pub = ddsrt_malloc (desc_pub.size);
     memset (sample_pub, 0xef, desc_pub.size); // assumes no pointers (strings, sequences, @external, @optional) in pub type
-    bool ret = dds_stream_write_sampleLE (&os, &dds_cdrstream_default_allocator, sample_pub, &desc_pub);
+    bool ret = dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, sample_pub, &desc_pub);
     CU_ASSERT_FATAL (ret);
 
     uint8_t *sample_sub = ddsrt_malloc (desc_sub.size);
     memset (sample_sub, 0xbe, desc_sub.size);
     tests[i].init_sub (sample_sub);
-    dds_istream_t is = { .m_buffer = os.x.m_buffer, .m_index = 0, .m_size = os.x.m_size, .m_xcdr_version = os.x.m_xcdr_version };
+    dds_istream_t is = { .m_buffer = os.m_buffer, .m_index = 0, .m_size = os.m_size, .m_xcdr_version = os.m_xcdr_version };
     dds_stream_read_sample (&is, sample_sub, &dds_cdrstream_default_allocator, &desc_sub);
     tests[i].check_sub (sample_sub);
 
     // clean-up
-    dds_ostream_fini (&os.x, &dds_cdrstream_default_allocator);
+    dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
     ddsrt_free (sample_pub);
     dds_stream_free_sample (sample_sub, &dds_cdrstream_default_allocator, desc_sub.ops.ops);
     ddsrt_free (sample_sub);
