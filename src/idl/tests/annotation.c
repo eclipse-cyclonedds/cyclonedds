@@ -1236,28 +1236,49 @@ static void validate_limit(const idl_literal_t *lit, double to_test, double gran
 {
   assert(lit);
   double fval = 0;
-  idl_type_t type = idl_type(lit);
-  if (type & IDL_INTEGER_TYPE) {
-    if (type & IDL_UNSIGNED)
-      fval = (double)lit->value.uint64;
-    else
+  switch (idl_type(lit)) {
+    case IDL_INT8:
+      fval = (double)lit->value.int8;
+      break;
+    case IDL_INT16:
+    case IDL_SHORT:
+      fval = (double)lit->value.int16;
+      break;
+    case IDL_INT32:
+    case IDL_LONG:
+      fval = (double)lit->value.int32;
+      break;
+    case IDL_INT64:
+    case IDL_LLONG:
       fval = (double)lit->value.int64;
-  } else {
-    switch (type) {
-      case IDL_FLOAT:
-        fval = (double)lit->value.flt;
-        break;
-      case IDL_DOUBLE:
-        fval = (double)lit->value.dbl;
-        break;
-      case IDL_LDOUBLE:
-        fval = (double)lit->value.ldbl;
-        break;
-      default:
-        CU_ASSERT(false);
-    }
+      break;
+    case IDL_UINT8:
+      fval = (double)lit->value.uint8;
+      break;
+    case IDL_UINT16:
+    case IDL_USHORT:
+      fval = (double)lit->value.uint16;
+      break;
+    case IDL_UINT32:
+    case IDL_ULONG:
+      fval = (double)lit->value.uint32;
+      break;
+    case IDL_UINT64:
+    case IDL_ULLONG:
+      fval = (double)lit->value.uint64;
+      break;
+    case IDL_FLOAT:
+      fval = (double)lit->value.flt;
+      break;
+    case IDL_DOUBLE:
+      fval = (double)lit->value.dbl;
+      break;
+    case IDL_LDOUBLE:
+      fval = (double)lit->value.ldbl;
+      break;
+    default:
+      CU_ASSERT(false);
   }
-
   CU_ASSERT_DOUBLE_EQUAL(fval, to_test, granularity);
 }
 
