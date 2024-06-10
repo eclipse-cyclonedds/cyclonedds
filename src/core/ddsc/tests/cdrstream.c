@@ -634,7 +634,7 @@ static void sample_free_opt (void *s)
 /* @appendable */
 typedef struct TestIdl_AppendableUnion0
 {
-  int32_t _d;
+  int8_t _d;
   union
   {
     uint32_t field1;
