@@ -39,6 +39,22 @@
 #define UDP_MC_ADDRESS_PREFIX_BITS 4
 DDSRT_STATIC_ASSERT (DDSI_LOCATOR_UDPv4MCGEN_INDEX_MASK_BITS <= 32 - UDP_MC_ADDRESS_PREFIX_BITS);
 
+// At some point, macOS added "struct in_pktinfo", but I don't know exactly when.  Snow Leopard doesn't have it
+// so let's set the cutoff at 10.7
+//
+// The remaining logic seems to work well for the supported platforms
+#if defined __APPLE__
+#  if defined MAC_OS_X_VERSION_MIN_REQUIRED && MAC_OS_X_VERSION_MIN_REQUIRED < 1070
+#    define PACKET_DESTINATION_INFO 0
+#  endif
+#endif
+#ifndef PACKET_DESTINATION_INFO
+#  if defined CMSG_SPACE && (defined IP_PKTINFO || (DDSRT_HAVE_IPV6 && defined IPV6_PKTINFO))
+#    define PACKET_DESTINATION_INFO 1
+#  else
+#    define PACKET_DESTINATION_INFO 0
+#  endif
+#endif
 
 union addr {
   struct sockaddr_storage x;
@@ -75,6 +91,7 @@ static void addr_to_loc (const struct ddsi_tran_factory *tran, ddsi_locator_t *d
 
 static void translate_pktinfo (struct ddsi_network_packet_info *pktinfo, ddsrt_msghdr_t *msghdr_in, uint32_t port, bool ipv6)
 {
+#if PACKET_DESTINATION_INFO
   // msghdr_in is not const .... because ... Linux ...
   // for the rest: I hate Windows, with good reason.
 #ifndef _WIN32
@@ -87,7 +104,6 @@ static void translate_pktinfo (struct ddsi_network_packet_info *pktinfo, ddsrt_m
 #endif
 #endif
   // in_addr / in6_addr, so the conversion functions that deal with sockaddr are not applicable
-#ifdef CMSG_SPACE // skip everything if control message supported not defined
 #if DDSRT_HAVE_IPV6 && defined IPV6_PKTINFO
   if (ipv6)
   {
@@ -106,7 +122,7 @@ static void translate_pktinfo (struct ddsi_network_packet_info *pktinfo, ddsrt_m
   }
 #else
   (void) ipv6;
-#endif // HAVE_IPV6 && IPV6_PKTINFO
+#endif // DDSRT_HAVE_IPV6 && defined IPV6_PKTINFO
 #if defined IP_PKTINFO
   for (struct cmsghdr *cmsg = CMSG_FIRSTHDR (msghdr); cmsg != NULL; cmsg = CMSG_NXTHDR (msghdr, cmsg))
   {
@@ -121,8 +137,12 @@ static void translate_pktinfo (struct ddsi_network_packet_info *pktinfo, ddsrt_m
       return;
     }
   }
-#endif
-#endif // CMSG_SPACE
+#endif // defined IP_PKTINFO
+#else // PACKET_DESTINATION_INFO
+  (void) ipv6;
+  (void) msghdr_in;
+  (void) port;
+#endif // PACKET_DESTINATION_INFO
   // early outs as soon as packet info has been set, so if we get here, we don't know anything
   pktinfo->dst.kind = DDSI_LOCATOR_KIND_INVALID;
   pktinfo->if_index = 0;
@@ -133,15 +153,17 @@ static ssize_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned ch
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   struct ddsi_domaingv * const gv = conn->m_base.m_base.gv;
   union addr src;
-#ifdef CMSG_SPACE
+#if PACKET_DESTINATION_INFO
   union in_pktinfo_4_6 {
+#if defined IP_PKTINFO
     struct in_pktinfo ip4;
-#if DDSRT_HAVE_IPV6
+#endif
+#if DDSRT_HAVE_IPV6 && defined IPV6_PKTINFO
     struct in6_pktinfo ip6;
 #endif
   };
   char incmsg[CMSG_SPACE (sizeof (union in_pktinfo_4_6))];
-#endif
+#endif // PACKET_DESTINATION_INFO
   ddsrt_iovec_t msg_iov = {
     .iov_base = (void *) buf,
     .iov_len = (ddsrt_iov_len_t) len /* Windows uses unsigned, POSIX (except Linux) int */
@@ -151,11 +173,11 @@ static ssize_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned ch
     .msg_namelen = (socklen_t) sizeof (src),
     .msg_iov = &msg_iov,
     .msg_iovlen = 1
-#ifdef CMSG_SPACE
+#if PACKET_DESTINATION_INFO
     ,
       .msg_controllen = sizeof (incmsg),
       .msg_control = incmsg
-#endif
+#endif // PACKET_DESTINATION_INFO
     // accrights/control implicitly initialised to 0
     // msg_flags is an out parameter anyway
   };
