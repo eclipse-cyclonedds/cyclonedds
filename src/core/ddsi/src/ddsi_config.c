@@ -696,7 +696,7 @@ static int if_network_partition (struct ddsi_cfgst *cfgst, void *parent, struct 
   new->interface_names = NULL;
   new->uc_addresses = NULL;
   new->asm_addresses = NULL;
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   new->ssm_addresses = NULL;
 #endif
   new->name = NULL;
@@ -1279,7 +1279,7 @@ static void ff_networkAddresses (struct ddsi_cfgst *cfgst, void *parent, struct 
   ddsrt_free (*elem);
 }
 
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
 static const char *allow_multicast_names[] = { "false", "spdp", "asm", "ssm", "true", NULL };
 static const uint32_t allow_multicast_codes[] = { DDSI_AMC_FALSE, DDSI_AMC_SPDP, DDSI_AMC_ASM, DDSI_AMC_SSM, DDSI_AMC_TRUE };
 #else

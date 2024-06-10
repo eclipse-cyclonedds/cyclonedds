@@ -23,9 +23,6 @@
 /* Whether or not support for network partitions is included */
 #cmakedefine DDS_HAS_NETWORK_PARTITIONS 1
 
-/* Whether or not support for source-specific multicast is included */
-#cmakedefine DDS_HAS_SSM 1
-
 /* Whether or not features dependent on OpenSSL are included */
 #cmakedefine DDS_HAS_TCP_TLS 1
 

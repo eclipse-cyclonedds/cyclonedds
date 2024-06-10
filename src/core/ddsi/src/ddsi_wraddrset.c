@@ -207,7 +207,7 @@ static struct ddsi_addrset *wras_collect_all_locs (const struct ddsi_writer *wr)
   }
   if (!ddsi_addrset_empty (all_addrs))
   {
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
     if (wr->supports_ssm && wr->ssm_as)
       ddsi_copy_addrset_into_addrset_mc (wr->e.gv, all_addrs, wr->ssm_as);
 #endif
@@ -439,7 +439,7 @@ static int move_loopback_forward (struct ddsi_domaingv const * const gv, struct 
 
 static unsigned multicast_indicator (struct ddsi_domaingv const * const gv, const ddsi_xlocator_t *l)
 {
-#if DDS_HAS_SSM
+#if DDSRT_HAVE_SSM
   if (ddsi_is_ssm_mcaddr (gv, &l->c))
     return CI_MULTICAST_SSM;
 #endif
@@ -509,7 +509,7 @@ static bool wras_calc_cover (const struct ddsi_writer *wr, const struct locset *
     if ((prd = ddsi_entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) == NULL)
       continue;
     ass[0] = prd->c.as;
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
     if (prd->favours_ssm && wr->supports_ssm)
       ass[1] = wr->ssm_as;
 #endif

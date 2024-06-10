@@ -146,7 +146,7 @@ void ddsi_set_unspec_xlocator (ddsi_xlocator_t *loc)
   ddsrt_nonnull_all;
 
 
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
 
 /** @component locators */
 bool ddsi_addrset_contains_ssm (const struct ddsi_domaingv *gv, const struct ddsi_addrset *as)
@@ -168,7 +168,7 @@ void ddsi_copy_addrset_into_addrset_no_ssm_mc (const struct ddsi_domaingv *gv, s
 void ddsi_copy_addrset_into_addrset_no_ssm (const struct ddsi_domaingv *gv, struct ddsi_addrset *as, const struct ddsi_addrset *asadd)
   ddsrt_nonnull_all;
 
-#endif /* DDS_HAS_SSM */
+#endif /* DDSRT_HAVE_SSM */
 
 #if defined (__cplusplus)
 }

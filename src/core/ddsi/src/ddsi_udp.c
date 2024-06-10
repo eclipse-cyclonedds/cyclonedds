@@ -777,7 +777,7 @@ static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_lo
   return (rc == DDS_RETCODE_OK) ? 0 : -1;
 }
 
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
 static int joinleave_ssm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf)
 {
   dds_return_t rc;
@@ -815,7 +815,7 @@ static int ddsi_udp_join_mc (struct ddsi_tran_conn * conn_cmn, const ddsi_locato
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   (void) srcloc;
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   if (srcloc)
     return joinleave_ssm_mcgroup (conn->m_sockext.sock, 1, srcloc, mcloc, interf);
   else
@@ -827,7 +827,7 @@ static int ddsi_udp_leave_mc (struct ddsi_tran_conn * conn_cmn, const ddsi_locat
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   (void) srcloc;
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   if (srcloc)
     return joinleave_ssm_mcgroup (conn->m_sockext.sock, 0, srcloc, mcloc, interf);
   else
@@ -902,7 +902,7 @@ static int ddsi_udp_is_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_
   }
 }
 
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
 static int ddsi_udp_is_ssm_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc)
 {
   (void) tran;
@@ -1068,7 +1068,7 @@ int ddsi_udp_init (struct ddsi_domaingv*gv)
   fact->fact.m_leave_mc_fn = ddsi_udp_leave_mc;
   fact->fact.m_is_loopbackaddr_fn = ddsi_udp_is_loopbackaddr;
   fact->fact.m_is_mcaddr_fn = ddsi_udp_is_mcaddr;
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   fact->fact.m_is_ssm_mcaddr_fn = ddsi_udp_is_ssm_mcaddr;
 #endif
   fact->fact.m_is_nearby_address_fn = ddsi_ipaddr_is_nearby_address;

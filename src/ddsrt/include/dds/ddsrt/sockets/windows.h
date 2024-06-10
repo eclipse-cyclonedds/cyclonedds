@@ -19,14 +19,6 @@ typedef struct ddsrt_socket_ext_t {
   LPFN_WSARECVMSG wsarecvmsg;
 } ddsrt_socket_ext_t;
 
-#if defined(NTDDI_VERSION) && \
-    defined(_WIN32_WINNT_WS03) && \
-    (NTDDI_VERSION >= _WIN32_WINNT_WS03)
-#define DDSRT_HAVE_SSM 1
-#else
-#define DDSRT_HAVE_SSM 0
-#endif
-
 #define IFF_POINTOPOINT IFF_POINTTOPOINT
 
 // Required when compiling with mingw-w64.

@@ -219,7 +219,7 @@ void ddsi_rebuild_writer_addrset (struct ddsi_writer *wr)
   ELOGDISC (wr, " (burst size %"PRIu32" rexmit %"PRIu32")\n", wr->init_burst_size_limit, wr->rexmit_burst_size_limit);
 }
 
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
 static bool nwpart_includes_ssm_enabled_interfaces (const struct ddsi_domaingv *gv, const struct ddsi_config_networkpartition_listelem *np)
   ddsrt_nonnull ((1));
 
@@ -869,7 +869,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
   wr->network_partition = ddsi_get_nwpart_from_mapping (&gv->logconfig, &gv->config, wr->xqos, wr->xqos->topic_name);
 #endif /* DDS_HAS_NETWORK_PARTITIONS */
 
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   /* Writer supports SSM if it is mapped to a network partition for
      which the address set includes an SSM address.  If it supports
      SSM, it arbitrarily selects one SSM address from the address set
@@ -1144,7 +1144,7 @@ static void gc_delete_writer (struct ddsi_gcreq *gcreq)
 #ifdef DDS_HAS_SECURITY
   ddsi_omg_security_deregister_writer (wr);
 #endif
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   if (wr->ssm_as)
     ddsi_unref_addrset (wr->ssm_as);
 #endif
@@ -1431,7 +1431,7 @@ static void reader_init_network_partition (struct ddsi_reader *rd)
     {
       rd->uc_as = np->uc_addresses;
       rd->mc_as = np->asm_addresses;
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
       if (np->ssm_addresses != NULL && nwpart_includes_ssm_enabled_interfaces (gv, np))
         rd->favours_ssm = 1;
 #endif
@@ -1445,7 +1445,7 @@ static void reader_init_network_partition (struct ddsi_reader *rd)
       for (const struct ddsi_networkpartition_address *a = rd->mc_as; a != NULL; a = a->next)
         join_mcast_helper (gv, gv->data_conn_mc, &a->loc);
     }
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
     else
     {
       /* Note: SSM requires NETWORK_PARTITIONS; if network partitions
@@ -1456,7 +1456,7 @@ static void reader_init_network_partition (struct ddsi_reader *rd)
     }
 #endif
   }
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   if (rd->favours_ssm)
     ELOGDISC (rd, "READER "PGUIDFMT" ssm=%d\n", PGUID (rd->e.guid), rd->favours_ssm);
 #endif
@@ -1521,7 +1521,7 @@ dds_return_t ddsi_new_reader (struct ddsi_reader **rd_out, const struct ddsi_gui
   rd->request_keyhash = rd->type->request_keyhash;
   rd->init_acknack_count = 1;
   rd->num_writers = 0;
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   rd->favours_ssm = 0;
 #endif
 #ifdef DDS_HAS_SECURITY

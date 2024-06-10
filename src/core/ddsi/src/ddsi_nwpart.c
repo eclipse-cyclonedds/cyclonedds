@@ -31,7 +31,7 @@ struct nwpart_iter {
   bool ok;
   struct ddsi_networkpartition_address **nextp_uc;
   struct ddsi_networkpartition_address **nextp_asm;
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   struct ddsi_networkpartition_address **nextp_ssm;
 #endif
 };
@@ -154,7 +154,7 @@ static void ddsi_free_config_nwpart_addresses_one (struct ddsi_config_networkpar
   struct ddsi_networkpartition_address **ps[] = {
     &np->uc_addresses,
     &np->asm_addresses
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
     , &np->ssm_addresses
 #endif
   };
@@ -199,7 +199,7 @@ static struct ddsi_config_networkpartition_listelem *nwpart_iter_next (struct nw
   it->next_nwp = nwp->next;
   it->nextp_uc = &nwp->uc_addresses;
   it->nextp_asm = &nwp->asm_addresses;
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   it->nextp_ssm = &nwp->ssm_addresses;
 #endif
   return nwp;
@@ -222,7 +222,7 @@ static void nwpart_iter_append_address (struct nwpart_iter *it, const char *tok,
 
   if (ddsi_is_mcaddr (it->gv, loc))
   {
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
     nextpp = ddsi_is_ssm_mcaddr (it->gv, loc) ? &it->nextp_ssm : &it->nextp_asm;
 #else
     nextpp = &it->nextp_asm;
@@ -353,7 +353,7 @@ static bool nwpart_has_multicast (const struct ddsi_config_networkpartition_list
 {
   if (np->asm_addresses)
     return true;
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   if (np->ssm_addresses)
     return true;
 #endif

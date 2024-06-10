@@ -763,7 +763,7 @@ int main (int argc, char **argv)
 
   // ddsi/ddsi_proxy_endpoint.h
   ddsi_new_proxy_writer (ptr, ptr2, ptr3, ptr4, ptr5, ptr6, ptr7, ptr8, ddsrt_time_wallclock(), 0);
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   ddsi_new_proxy_reader (ptr, ptr2, ptr3, ptr4, ptr5, ptr6, ddsrt_time_wallclock(), 0, 0);
 #else
   ddsi_new_proxy_reader (ptr, ptr2, ptr3, ptr4, ptr5, ptr6, ddsrt_time_wallclock(), 0);

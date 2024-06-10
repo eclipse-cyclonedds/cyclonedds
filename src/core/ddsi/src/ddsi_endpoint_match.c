@@ -627,7 +627,7 @@ void ddsi_free_rd_pwr_match (struct ddsi_domaingv *gv, const ddsi_guid_t *rd_gui
 #else
     (void) rd_guid;
 #endif
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
     if (!ddsi_is_unspec_xlocator (&m->ssm_mc_loc))
     {
       assert (ddsi_is_mcaddr (gv, &m->ssm_mc_loc.c));
@@ -636,7 +636,7 @@ void ddsi_free_rd_pwr_match (struct ddsi_domaingv *gv, const ddsi_guid_t *rd_gui
         GVWARNING ("failed to leave network partition ssm group\n");
     }
 #endif
-#if !(defined DDS_HAS_SECURITY || defined DDS_HAS_SSM)
+#if !(defined DDS_HAS_SECURITY || defined DDSRT_HAVE_SSM)
     (void) gv;
 #endif
     ddsrt_free (m);
@@ -936,7 +936,7 @@ void ddsi_reader_add_connection (struct ddsi_reader *rd, struct ddsi_proxy_write
     rd->num_writers++;
     ddsrt_mutex_unlock (&rd->e.lock);
 
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
     if (rd->favours_ssm && pwr->supports_ssm)
     {
       /* pwr->supports_ssm is set if ddsi_addrset_contains_ssm(pwr->ssm), so

@@ -20,6 +20,7 @@
 #cmakedefine DDSRT_HAVE_RUSAGE 1
 
 #cmakedefine DDSRT_HAVE_IPV6 1
+#cmakedefine DDSRT_HAVE_SSM 1
 #cmakedefine DDSRT_HAVE_DNS 1
 #cmakedefine DDSRT_HAVE_GETADDRINFO 1
 #cmakedefine DDSRT_HAVE_GETHOSTBYNAME_R 1

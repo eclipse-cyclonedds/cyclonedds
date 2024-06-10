@@ -394,7 +394,7 @@ static int set_spdp_address (struct ddsi_domaingv *gv)
     rc = string_to_default_locator (gv, &gv->loc_spdp_mc, gv->m_factory->m_default_spdp_address, port, 1, "SPDP address");
     assert (rc > 0);
   }
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   if (gv->loc_spdp_mc.kind != DDSI_LOCATOR_KIND_INVALID && ddsi_is_ssm_mcaddr (gv, &gv->loc_spdp_mc))
   {
     GVERROR ("%s: SPDP address may not be an SSM address\n", gv->config.spdpMulticastAddressString);
@@ -669,7 +669,7 @@ static void joinleave_spdp_defmcip_helper (const ddsi_xlocator_t *loc, void *var
   struct joinleave_spdp_defmcip_helper_arg *arg = varg;
   if (!ddsi_is_mcaddr (arg->gv, &loc->c))
     return;
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   /* Can't join SSM until we actually have a source */
   if (ddsi_is_ssm_mcaddr (arg->gv, &loc->c))
     return;
@@ -1367,7 +1367,7 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
     GVLOG (DDS_LC_CONFIG, "extmask: %s%s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->extmask), gv->extmask.kind != DDSI_LOCATOR_KIND_UDPv4 ? " (not applicable)" : "");
     GVLOG (DDS_LC_CONFIG, "SPDP MC: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->loc_spdp_mc));
     GVLOG (DDS_LC_CONFIG, "default MC: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->loc_default_mc));
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
     GVLOG (DDS_LC_CONFIG, "SSM support included\n");
 #endif
   }

@@ -42,21 +42,19 @@ typedef struct ddsrt_socket_ext {
 } ddsrt_socket_ext_t;
 
 #if LWIP_SOCKET
-# define DDSRT_HAVE_SSM         0
 # define IFF_UP               0x1
 # define IFF_BROADCAST        0x2
 # define IFF_LOOPBACK         0x8
 # define IFF_POINTOPOINT     0x10
 # define IFF_MULTICAST     0x1000
 #elif __SunOS_5_6
-# define DDSRT_HAVE_SSM         0
+// nothing needed so far
 #elif __ZEPHYR__
 /* In Zephyr, a network interface can join a multi-cast group only once.
    So setsockopt is called only for the first socket to join a group, other sockets
    for the same group will be skipped */
 #define DDSRT_MCGROUP_JOIN_ONCE 1
 
-# define DDSRT_HAVE_SSM         0
 # define INADDR_LOOPBACK 0x7f000001 /* 127.0.0.1 */
 # define IN_MULTICAST(a) ((((long int) (a)) & 0xf0000000) == 0xe0000000)
 
@@ -85,8 +83,8 @@ typedef struct ddsrt_socket_ext {
 # define IPV6_MULTICAST_LOOP    96
 #endif
 
-#else
-# define DDSRT_HAVE_SSM         1
+#else // Unix/Windows/...
+// nothing needed so far
 #endif /* LWIP_SOCKET */
 
 typedef struct msghdr ddsrt_msghdr_t;

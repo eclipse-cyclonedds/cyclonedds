@@ -64,7 +64,7 @@ struct ddsi_rd_pwr_match {
   unsigned pwr_alive: 1; /* tracks pwr's alive state */
   unsigned via_psmx: 1; /* true iff there is a common psmx locator */
   uint32_t pwr_alive_vclock; /* used to ensure progress */
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   ddsi_xlocator_t ssm_mc_loc;
   ddsi_xlocator_t ssm_src_loc;
 #endif

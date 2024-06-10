@@ -135,7 +135,7 @@ bool ddsi_is_unspec_xlocator (const ddsi_xlocator_t *loc)
   return ddsi_is_unspec_locator (&loc->c);
 }
 
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
 bool ddsi_addrset_contains_ssm (const struct ddsi_domaingv *gv, const struct ddsi_addrset *as)
 {
   struct ddsi_addrset_node *n;
@@ -301,7 +301,7 @@ void ddsi_copy_addrset_into_addrset (const struct ddsi_domaingv *gv, struct ddsi
   ddsi_copy_addrset_into_addrset_mc (gv, as, asadd);
 }
 
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
 void ddsi_copy_addrset_into_addrset_no_ssm_mc (const struct ddsi_domaingv *gv, struct ddsi_addrset *as, const struct ddsi_addrset *asadd)
 {
   struct ddsi_addrset_node *n;
