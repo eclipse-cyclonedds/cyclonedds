@@ -3665,11 +3665,7 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t * __restric
       dds_cdr_alignto_clear_and_resizeBE (os, allocator, cdr_align, num * elem_size);
       void const * const src = is->m_buffer + is->m_index;
       void * const dst = os->x.m_buffer + os->x.m_index;
-#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
       dds_stream_swap_copy (dst, src, elem_size, num);
-#else
-      memcpy (dst, src, num * elem_size);
-#endif
       os->x.m_index += num * elem_size;
       is->m_index += num * elem_size;
 
