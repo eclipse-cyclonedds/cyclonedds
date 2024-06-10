@@ -828,7 +828,10 @@ annotate_datarepresentation(
   assert(annotation_appl->parameters);
   idl_literal_t *literal = annotation_appl->parameters->const_expr;
   assert(idl_type(literal) == IDL_BITMASK);
-  allowable_data_representations_t val = (allowable_data_representations_t)literal->value.uint32;  //native type of datarepresentation is uint32_t
+  //native type of datarepresentation is uint32_t
+  //idlc internally represents all bitmask constants as 64-bits
+  assert (literal->value.uint64 <= UINT32_MAX);
+  allowable_data_representations_t val = (allowable_data_representations_t)literal->value.uint64;
 
   if (0 == val) {
     idl_error(pstate, idl_location(annotation_appl),
