@@ -84,13 +84,13 @@ typedef struct ddsi_security_info ddsi_security_info_t;
 #endif /* DDS_HAS_SECURITY */
 
 
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
 
 typedef struct ddsi_reader_favours_ssm {
   uint32_t state; /* default is false */
 } ddsi_reader_favours_ssm_t;
 
-#endif /* DDS_HAS_SSM */
+#endif /* DDSRT_HAVE_SSM */
 
 
 typedef struct ddsi_adlink_participant_version_info
@@ -141,7 +141,7 @@ typedef struct ddsi_plist {
   ddsi_token_t identity_status_token;
   ddsi_datatags_t data_tags;
 #endif
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   ddsi_reader_favours_ssm_t reader_favours_ssm;
 #endif
   uint32_t domain_id;

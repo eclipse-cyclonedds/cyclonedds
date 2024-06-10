@@ -23,7 +23,7 @@
 */
 #include "dds/features.h"
 
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   #ifndef DDS_HAS_NETWORK_PARTITIONS
     #error "SSM requires NETWORK_PARTITIONS"
   #endif
@@ -32,6 +32,6 @@
   #ifndef DDSRT_HAVE_SSM
     #error "DDSRT_HAVE_SSM should be defined"
   #elif ! DDSRT_HAVE_SSM
-    #undef DDS_HAS_SSM
+    #undef DDSRT_HAVE_SSM
   #endif
 #endif

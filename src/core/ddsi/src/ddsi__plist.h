@@ -54,7 +54,7 @@ struct ddsi_xmsg;
 #define PP_ADLINK_PARTICIPANT_VERSION_INFO      ((uint64_t)1 << 26)
 #define PP_ADLINK_TYPE_DESCRIPTION              ((uint64_t)1 << 27)
 // ((uint64_t)1 << 28) is available
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
 #define PP_READER_FAVOURS_SSM                   ((uint64_t)1 << 29)
 #endif
 #define PP_DOMAIN_ID                            ((uint64_t)1 << 30)

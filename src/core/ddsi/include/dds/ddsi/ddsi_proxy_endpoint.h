@@ -69,7 +69,7 @@ struct ddsi_proxy_writer {
   unsigned alive: 1; /* iff 1, the proxy writer is alive (lease for this proxy writer is not expired); field may be modified only when holding both pwr->e.lock and pwr->c.proxypp->e.lock */
   unsigned filtered: 1; /* iff 1, builtin proxy writer uses content filter, which affects heartbeats and gaps. */
   unsigned redundant_networking: 1; /* 1 iff requests receiving data on all advertised interfaces */
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   unsigned supports_ssm: 1; /* iff 1, this proxy writer supports SSM */
 #endif
   unsigned local_psmx: 1; /* whether this is a proxy writer for a local PSMX */
@@ -92,7 +92,7 @@ struct ddsi_proxy_reader {
   unsigned is_fict_trans_reader: 1; /* only true when it is certain that is a fictitious transient data reader (affects built-in topic generation) */
   unsigned requests_keyhash: 1; /* 1 iff this reader would like to receive keyhashes */
   unsigned redundant_networking: 1; /* 1 iff requests receiving data on all advertised interfaces */
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   unsigned favours_ssm: 1; /* iff 1, this proxy reader favours SSM when available */
 #endif
   unsigned local_psmx: 1; /*whether this is a proxy reader for a local PSMX*/
@@ -138,7 +138,7 @@ DDS_EXPORT int ddsi_new_proxy_writer (struct ddsi_proxy_writer **proxy_writer, s
  */
 DDS_EXPORT int ddsi_new_proxy_reader (struct ddsi_proxy_reader **proxy_reader, struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const struct ddsi_plist *plist, ddsrt_wctime_t timestamp, ddsi_seqno_t seq
 
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
 , int favours_ssm
 #endif
 );

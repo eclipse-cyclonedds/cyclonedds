@@ -1984,7 +1984,7 @@ static dds_return_t dvx_endpoint_guid (void * __restrict dst, const struct dd * 
   }
 }
 
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
 static dds_return_t dvx_reader_favours_ssm (void * __restrict dst, const struct dd * __restrict dd)
 {
   uint32_t * const favours_ssm = dst;
@@ -2055,7 +2055,7 @@ static const struct piddesc piddesc_omg[] = {
   PP  (BUILTIN_ENDPOINT_SET,                builtin_endpoint_set, Xu),
   PP  (KEYHASH,                             keyhash, XK),
   PPV (ENDPOINT_GUID,                       endpoint_guid, XG),
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   PPV (READER_FAVOURS_SSM,                  reader_favours_ssm, Xu),
 #endif
 #ifdef DDS_HAS_SECURITY

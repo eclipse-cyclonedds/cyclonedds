@@ -92,7 +92,7 @@ struct ddsi_writer
   unsigned test_suppress_heartbeat : 1; /* iff 1, the writer suppresses all periodic heartbeats */
   unsigned test_suppress_flush_on_sync_heartbeat : 1; /* iff 1, the writer never flushes because of a piggy-backed heartbeat */
   unsigned test_drop_outgoing_data : 1; /* iff 1, the writer drops outgoing data, forcing the readers to request a retransmit */
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   unsigned supports_ssm: 1;
   struct ddsi_addrset *ssm_as;
 #endif
@@ -148,7 +148,7 @@ struct ddsi_reader
   unsigned reliable: 1; /* 1 iff reader is reliable */
   unsigned handle_as_transient_local: 1; /* 1 iff reader wants historical data from proxy writers */
   unsigned request_keyhash: 1; /* really controlled by the sertype */
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   unsigned favours_ssm: 1; /* iff 1, this reader favours SSM */
 #endif
   ddsi_count_t init_acknack_count; /* initial value for "count" (i.e. ACK seq num) for newly matched proxy writers */

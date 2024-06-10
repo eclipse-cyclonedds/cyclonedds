@@ -160,7 +160,7 @@ static void proxy_endpoint_common_fini (struct ddsi_entity_common *e, struct dds
   ddsi_entity_common_fini (e);
 }
 
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
 static void addrset_interfaces_allow_ssm_helper (const ddsi_xlocator_t *xloc, void *vssm_allowed)
 {
   bool *ssm_allowed = vssm_allowed;
@@ -280,7 +280,7 @@ int ddsi_new_proxy_writer (struct ddsi_proxy_writer **proxy_writer, struct ddsi_
   isreliable = (pwr->c.xqos->reliability.kind != DDS_RELIABILITY_BEST_EFFORT);
   pwr->have_seen_heartbeat = !isreliable;
   pwr->local_matching_inprogress = 1;
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   pwr->supports_ssm = (ddsi_addrset_contains_ssm (gv, as) && addrset_interfaces_allow_ssm (as)) ? 1 : 0;
 #endif
   pwr->local_psmx = proxy_is_local_psmx(gv, as);
@@ -368,7 +368,7 @@ void ddsi_update_proxy_writer (struct ddsi_proxy_writer *pwr, ddsi_seqno_t seq, 
     pwr->c.seq = seq;
     if (! ddsi_addrset_eq_onesidederr (pwr->c.as, as))
     {
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
       pwr->supports_ssm = (ddsi_addrset_contains_ssm (pwr->e.gv, as) && addrset_interfaces_allow_ssm (as)) ? 1 : 0;
 #endif
       ddsi_unref_addrset (pwr->c.as);
@@ -572,7 +572,7 @@ int ddsi_proxy_writer_set_notalive (struct ddsi_proxy_writer *pwr, bool notify)
 /* PROXY-READER ----------------------------------------------------- */
 
 int ddsi_new_proxy_reader (struct ddsi_proxy_reader **proxy_reader, struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const ddsi_plist_t *plist, ddsrt_wctime_t timestamp, ddsi_seqno_t seq
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
 , int favours_ssm
 #endif
 )
@@ -600,7 +600,7 @@ int ddsi_new_proxy_reader (struct ddsi_proxy_reader **proxy_reader, struct ddsi_
   }
 
   prd->deleting = 0;
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   prd->favours_ssm = (favours_ssm && addrset_interfaces_allow_ssm (as)) ? 1 : 0;
 #endif
   prd->local_psmx = proxy_is_local_psmx (gv, as);

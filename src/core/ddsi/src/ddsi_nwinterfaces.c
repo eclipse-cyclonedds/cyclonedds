@@ -573,7 +573,7 @@ int ddsi_gather_network_interfaces (struct ddsi_domaingv *gv)
       flagpos += snprintf (flagstr + flagpos, sizeof (flagstr) - (size_t) flagpos, "%sspdp", (flagpos > 0) ? "," : "");
     if (gv->interfaces[i].allow_multicast & DDSI_AMC_ASM)
       flagpos += snprintf (flagstr + flagpos, sizeof (flagstr) - (size_t) flagpos, "%sasm", (flagpos > 0) ? "," : "");
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
     if (gv->interfaces[i].allow_multicast & DDSI_AMC_SSM)
       flagpos += snprintf (flagstr + flagpos, sizeof (flagstr) - (size_t) flagpos, "%sssm", (flagpos > 0) ? "," : "");
 #endif

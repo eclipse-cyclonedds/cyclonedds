@@ -226,7 +226,7 @@ static void ddsi_wraddrset_some_cases (int casenumber, int cost, bool wr_psmx, c
         ddsi_add_xlocator_to_addrset (&gv, rd_as, &(ddsi_xlocator_t){ .conn = &fake_conn, .c = psmxloc[i] });
       }
       struct ddsi_proxy_reader *proxy_reader;
-#if DDS_HAS_SSM
+#if DDSRT_HAVE_SSM
       ddsi_new_proxy_reader (&proxy_reader, &gv, &rdppguid[i][j], &rdguid, rd_as, &plist_rd, ddsrt_time_wallclock (), 1, false);
 #else
       ddsi_new_proxy_reader (&proxy_reader, &gv, &rdppguid[i][j], &rdguid, rd_as, &plist_rd, ddsrt_time_wallclock (), 1);

@@ -87,7 +87,7 @@ struct ddsi_config_networkpartition_listelem {
   char *interface_names;
   struct ddsi_networkpartition_address *uc_addresses;
   struct ddsi_networkpartition_address *asm_addresses;
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   struct ddsi_networkpartition_address *ssm_addresses;
 #endif
 };
@@ -143,7 +143,7 @@ struct ddsi_config_prune_deleted_ppant {
 #define DDSI_AMC_FALSE 0u
 #define DDSI_AMC_SPDP 1u
 #define DDSI_AMC_ASM 2u
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
 #define DDSI_AMC_SSM 4u
 #define DDSI_AMC_TRUE (DDSI_AMC_SPDP | DDSI_AMC_ASM | DDSI_AMC_SSM)
 #else

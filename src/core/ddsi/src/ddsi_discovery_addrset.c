@@ -31,7 +31,7 @@ void ddsi_interface_set_init (ddsi_interface_set_t *intfs)
 static uint32_t allow_multicast_mask_from_locator (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc)
 {
   uint32_t mask = 0;
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
   if (ddsi_is_ssm_mcaddr (gv, loc))
     mask |= DDSI_AMC_SSM;
   else if (ddsi_is_mcaddr (gv, loc))

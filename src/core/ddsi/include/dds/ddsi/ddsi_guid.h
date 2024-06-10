@@ -12,6 +12,7 @@
 #define DDSI_GUID_H
 
 #include <stdint.h>
+#include "dds/export.h"
 
 #if defined (__cplusplus)
 extern "C" {

@@ -309,7 +309,7 @@ typedef union ddsi_rtps_submessage {
 #define DDSI_PID_PARTICIPANT_SECURITY_INFO           0x1005u
 #define DDSI_PID_IDENTITY_STATUS_TOKEN               0x1006u
 
-#ifdef DDS_HAS_SSM
+#ifdef DDSRT_HAVE_SSM
 /* To indicate whether a reader favours the use of SSM.  Iff the
    reader favours SSM, it will use SSM if available. */
 #define DDSI_PID_READER_FAVOURS_SSM                  0x72u
