@@ -24,23 +24,12 @@ jobs:
     vmImage: $(image)
   strategy:
     matrix:
-      #gcc-12.2 is the first version of gcc's static analyzer that accepts this code
-      #without -Wno-analyzer-malloc-leak without any false positives.  Ubuntu is far
-      #behind in gcc versions, and so falling back to macOS is the most pragmatic
-      #option at this time.
-      #'Ubuntu 22.04 LTS with GCC 12 (Debug, x86_64)':
-      #  image: ubuntu-22.04
-      #  analyzer: on
-      #  # not enabling "undefined" because of some false positives
-      #  sanitizer: address
-      #  cc: gcc-12
-      #  coverage: on
-      'Ubuntu 20.04 LTS with GCC 10 (Release, x86_64)':
+      'Ubuntu 20.04 LTS (Release, x86_64)':
         image: ubuntu-20.04
         build_type: Release
         sanitizer: undefined
-        cc: gcc-10
-      'Ubuntu 22.04 LTS with GCC 13 (Debug, x86_64, Iceoryx)':
+        cc: gcc
+      'Ubuntu 22.04 LTS (Debug, x86_64, Iceoryx)':
         image: ubuntu-22.04
         # No address sanitizer because of this in test run:
         #  Shadow memory range interleaves with an existing memory mapping.
@@ -49,13 +38,13 @@ jobs:
         #  range.
         sanitizer: undefined
         iceoryx: on
-        cc: gcc-13
+        cc: gcc
         coverage: on
-      'Ubuntu 22.04 LTS with GCC 13 (Release, x86_64)':
+      'Ubuntu 22.04 LTS (Release, x86_64)':
         image: ubuntu-22.04
         build_type: Release
         sanitizer: undefined
-        cc: gcc-13
+        cc: gcc
       'Ubuntu 22.04 LTS with GCC 12 (Debug, x86_64, security only)':
         image: ubuntu-22.04
         sanitizer: address,undefined
@@ -71,39 +60,37 @@ jobs:
         cc: gcc-12
         testing: off
         idlc_xtests: off
-      'Ubuntu 22.04 LTS with Clang 15 (Debug, x86_64)':
+      'Ubuntu 22.04 LTS with Clang (Debug, x86_64)':
         image: ubuntu-22.04
         analyzer: on
         sanitizer: address,undefined
-        cc: clang-15
-      'Ubuntu 22.04 LTS with Clang 15 (Debug, x86_64, no security)':
+        cc: clang
+      'Ubuntu 22.04 LTS with Clang (Debug, x86_64, no security)':
         image: ubuntu-22.04
         sanitizer: address,undefined
         security: off
-        cc: clang-15
-      'Ubuntu 22.04 LTS with Clang 15 (Release, x86_64, no topic discovery)':
+        cc: clang
+      'Ubuntu 22.04 LTS with Clang (Release, x86_64, no topic discovery)':
         image: ubuntu-22.04
         build_type: Release
         sanitizer: undefined
         topic_discovery: off
         idlc_xtests: off # temporary disabled because of passing -t option to idlc in this test for recursive types
-        cc: clang-15
-      'macOS 13 with Clang 15 (Debug, x86_64)':
-        image: macos-13
+        cc: clang
+      'macOS 14 with Clang (Debug, x86_64)':
+        image: macos-14
         sanitizer: address,undefined
         deadline_update_skip: on
         cc: clang
-      'macOS 13 with Clang 15 (Release, x86_64)':
-        image: macos-13
+        coverage: on
+      'macOS 14 with Clang (Release, x86_64)':
+        image: macos-14
         build_type: Release
         sanitizer: undefined
-        deadline_update_skip: on
         cc: clang
-        coverage: on
-      'macOS 13 with gcc 13 (Debug, analyzer, x86_64)':
-        image: macos-13
-        deadline_update_skip: on
-        cc: gcc-13
+      'macOS 14 with GCC 14 (Debug, analyzer, x86_64)':
+        image: macos-14
+        cc: gcc-14
         analyzer: on
       # 32-bit Windows: without SSL/security because Chocolateley only provides 64-bit OpenSSL
       'Windows 2022 with Visual Studio 2022 (Debug, x86, no security)':
@@ -113,7 +100,6 @@ jobs:
         security: off
         idlc_xtests: off
         generator: 'Visual Studio 17 2022'
-        toolset: v141
       'Windows 2022 with Visual Studio 2022 (Debug, x86_64)':
         image: windows-2022
         idlc_xtests: off
