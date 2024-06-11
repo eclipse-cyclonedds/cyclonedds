@@ -7,32 +7,25 @@
 # http://www.eclipse.org/org/documents/edl-v10.php.
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
-#
-set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}")
-set(binary_dir "${CMAKE_CURRENT_BINARY_DIR}")
 
-add_library(durability INTERFACE)
-
-target_include_directories(
-  durability INTERFACE
-    "$<BUILD_INTERFACE:${source_dir}/include>"
-    "$<BUILD_INTERFACE:${source_dir}/src>"
-    "$<BUILD_INTERFACE:${binary_dir}/include>")
-
-set(headers
-  "${source_dir}/include/dds/durability/dds_durability.h"
-  "${source_dir}/include/dds/durability/durablesupport.h")
-
-set(sources
-  "${source_dir}/src/dds_durability.c"
-  "${source_dir}/src/durablesupport.c")
-  
-target_sources(durability INTERFACE ${headers} ${sources})
+idlc_generate(TARGET dcidl FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/durablesupport.idl")
+add_library(durability SHARED "${CMAKE_CURRENT_SOURCE_DIR}/src/dds_durability.c")
+set_property(TARGET durability PROPERTY C_VISIBILITY_PRESET hidden)
+target_include_directories(durability PRIVATE
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>"
+  "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/ddsrt/include>"
+  "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/core/ddsc/include>"
+  "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/core/ddsi/include>"
+  "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/core/cdr/include>"
+  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/ddsrt/include>"
+  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core/include>"
+)
+target_link_libraries(durability PRIVATE dcidl)
 
 install(
-  DIRECTORY
-      "${source_dir}/include/"
-      "${binary_dir}/include/"
-  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-  COMPONENT dev
-  FILES_MATCHING PATTERN "*.h")
+  TARGETS durability
+  EXPORT "${PROJECT_NAME}"
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)

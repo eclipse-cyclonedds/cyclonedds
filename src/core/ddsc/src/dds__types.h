@@ -24,6 +24,7 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds/ddsc/dds_psmx.h"
+#include "dds/durability/dds_durability_public.h"
 #include "dds__handles.h"
 #include "dds__loaned_sample.h"
 
@@ -306,6 +307,7 @@ typedef struct dds_domain {
   struct dds_serdatapool *serpool;
 
   struct dds_psmx_set psmx_instances;
+  dds_durability_t dc; // Durability client
 } dds_domain;
 
 typedef struct dds_subscriber {

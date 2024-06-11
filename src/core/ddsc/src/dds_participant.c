@@ -27,10 +27,6 @@
 #include "dds__builtin.h"
 #include "dds__qos.h"
 
-#ifdef DDS_HAS_DURABILITY
-#include "dds/durability/dds_durability.h"
-#endif
-
 DECL_ENTITY_LOCK_UNLOCK (dds_participant)
 
 #define DDS_PARTICIPANT_STATUS_MASK    (0u)
@@ -62,9 +58,7 @@ static dds_return_t dds_participant_delete (dds_entity *e)
     DDS_CERROR (&e->m_domain->gv.logconfig, "dds_participant_delete: internal error %"PRId32"\n", ret);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
-#ifdef DDS_HAS_DURABILITY
-  (void)dds_durability_fini();
-#endif
+  dds_durability_fini(&e->m_domain->dc);
 
   /* todo It seems incorrect that dds_participant_delete()
    * always returns DDS_RETCODE_OK, even if an error has
@@ -179,8 +173,9 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
 
 #ifdef DDS_HAS_DURABILITY
+  assert(dom->dc.dds_durability_init);
   if (ret > 0) {
-    (void)dds_durability_init (domain, &dom->gv);
+    (void)dom->dc.dds_durability_init (domain, &dom->gv);
   }
 #endif
 
