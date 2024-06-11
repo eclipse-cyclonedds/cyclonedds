@@ -2517,7 +2517,7 @@ static char *   norm_path(
  * open_file().
  */
 {
-#if !defined (__clang__) && defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 1300 && ((__GNUC__ * 100) + __GNUC_MINOR__) < 1302
+#if !defined (__clang__) && defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 1100 && ((__GNUC__ * 100) + __GNUC_MINOR__) < 1302
 _Pragma("GCC diagnostic push")
 _Pragma("GCC diagnostic ignored \"-Wstringop-overread\"")
 #endif
