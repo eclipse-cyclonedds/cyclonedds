@@ -36,22 +36,30 @@
 static dds_entity_t participant;
 
 
-// Helper function to wait for a DCPSPublication to show up with the desired topic name, then calls
-// dds_find_topic to create a topic for that data writer's type up the retrieves the type object.
+// Helper function to wait for a DCPSPublication/DCPSSubscription to show up with the desired topic name,
+// then calls dds_find_topic to create a topic for that data writer's/reader's type up the retrieves the
+// type object.
 static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_t timeout, dds_entity_t *topic, DDS_XTypes_TypeObject **xtypeobj)
 {
   const dds_entity_t waitset = dds_create_waitset (participant);
   const dds_entity_t dcpspublication_reader = dds_create_reader (participant, DDS_BUILTIN_TOPIC_DCPSPUBLICATION, NULL, NULL);
   const dds_entity_t dcpspublication_readcond = dds_create_readcondition (dcpspublication_reader, DDS_ANY_STATE);
-  (void) dds_waitset_attach (waitset, dcpspublication_readcond, 0);
+  const dds_entity_t dcpssubscription_reader = dds_create_reader (participant, DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, NULL, NULL);
+  const dds_entity_t dcpssubscription_readcond = dds_create_readcondition (dcpssubscription_reader, DDS_ANY_STATE);
+  (void) dds_waitset_attach (waitset, dcpspublication_readcond, dcpspublication_reader);
+  (void) dds_waitset_attach (waitset, dcpssubscription_readcond, dcpssubscription_reader);
   const dds_time_t abstimeout = (timeout == DDS_INFINITY) ? DDS_NEVER : dds_time () + timeout;
   dds_return_t ret = DDS_RETCODE_OK;
   *xtypeobj = NULL;
-  while (*xtypeobj == NULL && dds_waitset_wait_until (waitset, NULL, 0, abstimeout) > 0)
+  struct ppc ppc;
+  ppc_init (&ppc);
+  dds_attach_t triggered_reader_x;
+  while (*xtypeobj == NULL && dds_waitset_wait_until (waitset, &triggered_reader_x, 1, abstimeout) > 0)
   {
     void *epraw = NULL;
     dds_sample_info_t si;
-    if (dds_take (dcpspublication_reader, &epraw, &si, 1, 1) <= 0)
+    dds_entity_t triggered_reader = (dds_entity_t) triggered_reader_x;
+    if (dds_take (triggered_reader, &epraw, &si, 1, 1) <= 0)
       continue;
     dds_builtintopic_endpoint_t *ep = epraw;
     const dds_typeinfo_t *typeinfo = NULL;
@@ -77,27 +85,27 @@ static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_
         if ((ret = dds_create_topic_descriptor(DDS_FIND_SCOPE_GLOBAL, participant, typeinfo, DDS_SECS (10), &descriptor)) < 0)
         {
           fprintf (stderr, "dds_create_topic_descriptor: %s\n", dds_strretcode (ret));
-          dds_return_loan (dcpspublication_reader, &epraw, 1);
+          dds_return_loan (triggered_reader, &epraw, 1);
           goto error;
         }
         if ((*topic = dds_create_topic (participant, descriptor, ep->topic_name, ep->qos, NULL)) < 0)
         {
           fprintf (stderr, "dds_create_topic_descriptor: %s (be sure to enable topic discovery in the configuration)\n", dds_strretcode (*topic));
           dds_delete_topic_descriptor (descriptor);
-          dds_return_loan (dcpspublication_reader, &epraw, 1);
+          dds_return_loan (triggered_reader, &epraw, 1);
           goto error;
         }
         dds_delete_topic_descriptor (descriptor);
       }
       // The topic suffices for creating a reader, but we also need the TypeObject to make sense of the data
-      if ((*xtypeobj = load_type_with_deps (participant, typeinfo)) == NULL)
+      if ((*xtypeobj = load_type_with_deps (participant, typeinfo, &ppc)) == NULL)
       {
         fprintf (stderr, "loading type with all dependencies failed\n");
-        dds_return_loan (dcpspublication_reader, &epraw, 1);
+        dds_return_loan (triggered_reader, &epraw, 1);
         goto error;
       }
     }
-    dds_return_loan (dcpspublication_reader, &epraw, 1);
+    dds_return_loan (triggered_reader, &epraw, 1);
   }
   if (*xtypeobj)
   {
@@ -128,6 +136,7 @@ static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_
   }
 error:
   dds_delete (dcpspublication_reader);
+  dds_delete (dcpssubscription_reader);
   dds_delete (waitset);
   return (*xtypeobj != NULL) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
 }
