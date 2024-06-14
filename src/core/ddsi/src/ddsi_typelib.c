@@ -469,35 +469,43 @@ static void set_type_invalid (struct ddsi_domaingv *gv, struct ddsi_type *type)
 
 dds_return_t ddsi_type_add_typeobj (struct ddsi_domaingv *gv, struct ddsi_type *type, const struct DDS_XTypes_TypeObject *type_obj)
 {
-  dds_return_t ret = DDS_RETCODE_OK;
-  if (type->state != DDSI_TYPE_RESOLVED)
+  if (type->state == DDSI_TYPE_RESOLVED)
+    return DDS_RETCODE_OK;
+
+  dds_return_t ret;
+  ddsi_typeid_t type_id;
+  ret = ddsi_typeobj_get_hash_id (type_obj, &type_id);
+  if (ret != DDS_RETCODE_OK)
   {
-    ddsi_typeid_t type_id;
-    int cmp = -1;
-    if ((ret = ddsi_typeobj_get_hash_id (type_obj, &type_id))
-        || (ret = (cmp = ddsi_typeid_compare (&type->xt.id, &type_id)) ? DDS_RETCODE_BAD_PARAMETER : DDS_RETCODE_OK)
-        || (ret = ddsi_xt_type_add_typeobj (gv, &type->xt, type_obj))
-    ) {
-      if (cmp == 0)
-      {
-        /* Mark this type and all types that (indirectly) depend on this type
-           invalid, because at this point we know that the type object that matches
-           the type id for this type is invalid (except in case of a hash collision
-           and a different valid type object exists with the same id) */
-        set_type_invalid (gv, type);
-      }
-      else
-      {
-        /* In case the object does not match the type id, reset the type's state to
-           unresolved so that it can de resolved in case the correct type object
-           is received */
-        type->state = DDSI_TYPE_UNRESOLVED;
-      }
-    }
-    else
-      type->state = DDSI_TYPE_RESOLVED;
+    /* In case the object does not match the type id, reset the type's state to
+       unresolved so that it can de resolved in case the correct type object
+       is received */
+    type->state = DDSI_TYPE_UNRESOLVED;
+    return ret;
   }
-  return ret;
+
+  if (ddsi_typeid_compare (&type->xt.id, &type_id) != 0)
+  {
+    /* In case the object does not match the type id, reset the type's state to
+       unresolved so that it can de resolved in case the correct type object
+       is received */
+    type->state = DDSI_TYPE_UNRESOLVED;
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
+
+  ret = ddsi_xt_type_add_typeobj (gv, &type->xt, type_obj);
+  if (ret != DDS_RETCODE_OK)
+  {
+    /* Mark this type and all types that (indirectly) depend on this type
+       invalid, because at this point we know that the type object that matches
+       the type id for this type is invalid (except in case of a hash collision
+       and a different valid type object exists with the same id) */
+    set_type_invalid (gv, type);
+    return ret;
+  }
+
+  type->state = DDSI_TYPE_RESOLVED;
+  return DDS_RETCODE_OK;
 }
 
 static dds_return_t ddsi_type_register_dep_impl (struct ddsi_domaingv *gv, const ddsi_typeid_t *src_type_id, struct ddsi_type **dst_dep_type, const struct DDS_XTypes_TypeIdentifier *dep_tid, bool from_type_info)
