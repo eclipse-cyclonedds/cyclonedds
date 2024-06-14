@@ -187,6 +187,14 @@ const DDS_XTypes_CompleteTypeObject *get_complete_typeobj_for_hashid (const DDS_
   return &info->typeobj->_u.complete;
 }
 
+const DDS_XTypes_MinimalTypeObject *get_minimal_typeobj_for_hashid (const DDS_XTypes_EquivalenceHash hashid)
+{
+  struct type_hashid_map *info;
+  if ((info = lookup_hashid (hashid)) == NULL)
+    abort ();
+  return &info->typeobj->_u.minimal;
+}
+
 static void build_typecache_ti (const DDS_XTypes_TypeIdentifier *typeid, size_t *align, size_t *size)
 {
   if (build_typecache_simple (typeid->_d, align, size))
@@ -447,6 +455,7 @@ static bool load_deps_simple (uint8_t disc)
 }
 
 static bool load_deps_to (dds_entity_t participant, const DDS_XTypes_CompleteTypeObject *typeobj);
+static bool load_deps_to_min (dds_entity_t participant, const DDS_XTypes_MinimalTypeObject *typeobj);
 
 static bool load_deps_ti (dds_entity_t participant, const DDS_XTypes_TypeIdentifier *typeid)
 {
@@ -483,6 +492,26 @@ static bool load_deps_ti (dds_entity_t participant, const DDS_XTypes_TypeIdentif
         info->lineno = 0;
         type_hashid_map_add (info);
         return load_deps_to (participant, &xtypeobj->_u.complete);
+      }
+    }
+    case DDS_XTypes_EK_MINIMAL: {
+      struct type_hashid_map templ, *info;
+      memcpy (templ.id, typeid->_u.equivalence_hash, sizeof (templ.id));
+      if (type_hashid_map_lookup (&templ) != NULL)
+        return true;
+      else
+      {
+        dds_typeobj_t *typeobj;
+        if (dds_get_typeobj (participant, (const dds_typeid_t *) typeid, 0, &typeobj) < 0)
+          return load_deps_failed ();
+        DDS_XTypes_TypeObject * const xtypeobj = (DDS_XTypes_TypeObject *) typeobj;
+        info = malloc (sizeof (*info));
+        assert (info);
+        memcpy (info->id, typeid->_u.equivalence_hash, sizeof (info->id));
+        info->typeobj = xtypeobj;
+        info->lineno = 0;
+        type_hashid_map_add (info);
+        return load_deps_to_min (participant, &xtypeobj->_u.minimal);
       }
     }
     default: {
@@ -534,7 +563,48 @@ static bool load_deps_to (dds_entity_t participant, const DDS_XTypes_CompleteTyp
   }
 }
 
-DDS_XTypes_TypeObject *load_type_with_deps (dds_entity_t participant, const dds_typeinfo_t *typeinfo)
+static bool load_deps_to_min (dds_entity_t participant, const DDS_XTypes_MinimalTypeObject *typeobj)
+{
+  if (load_deps_simple (typeobj->_d))
+    return true;
+  switch (typeobj->_d)
+  {
+    case DDS_XTypes_TK_ALIAS:
+      return load_deps_ti (participant, &typeobj->_u.alias_type.body.common.related_type);
+    case DDS_XTypes_TK_ENUM:
+    case DDS_XTypes_TK_BITMASK:
+      return true;
+    case DDS_XTypes_TK_SEQUENCE:
+      return load_deps_ti (participant, &typeobj->_u.sequence_type.element.common.type);
+    case DDS_XTypes_TK_STRUCTURE: {
+      const DDS_XTypes_MinimalStructType *t = &typeobj->_u.struct_type;
+      if (!load_deps_ti (participant, &t->header.base_type))
+        return load_deps_failed ();
+      for (uint32_t i = 0; i < t->member_seq._length; i++) {
+        if (!load_deps_ti (participant, &t->member_seq._buffer[i].common.member_type_id))
+          return load_deps_failed ();
+      }
+      return true;
+    }
+    case DDS_XTypes_TK_UNION: {
+      const DDS_XTypes_MinimalUnionType *t = &typeobj->_u.union_type;
+      if (!load_deps_ti (participant, &t->discriminator.common.type_id))
+        return load_deps_failed ();
+      for (uint32_t i = 0; i < t->member_seq._length; i++) {
+        if (!load_deps_ti (participant, &t->member_seq._buffer[i].common.type_id))
+          return load_deps_failed ();
+      }
+      return true;
+    }
+    default: {
+      printf ("type object discriminant %u encountered, sorry\n", (unsigned) typeobj->_d);
+      abort ();
+      return load_deps_failed ();
+    }
+  }
+}
+
+DDS_XTypes_TypeObject *load_type_with_deps (dds_entity_t participant, const dds_typeinfo_t *typeinfo, struct ppc *ppc)
 {
   DDS_XTypes_TypeInformation const * const xtypeinfo = (DDS_XTypes_TypeInformation *) typeinfo;
   if (!load_deps_ti (participant, &xtypeinfo->complete.typeid_with_size.type_id))
@@ -543,5 +613,21 @@ DDS_XTypes_TypeObject *load_type_with_deps (dds_entity_t participant, const dds_
   memcpy (templ.id, &xtypeinfo->complete.typeid_with_size.type_id._u.equivalence_hash, sizeof (templ.id));
   if ((info = type_hashid_map_lookup (&templ)) == NULL)
     return NULL;
+  if (ppc)
+  ppc_print_ti (ppc, &xtypeinfo->complete.typeid_with_size.type_id);
+  return (DDS_XTypes_TypeObject *) info->typeobj;
+}
+
+DDS_XTypes_TypeObject *load_type_with_deps_min (dds_entity_t participant, const dds_typeinfo_t *typeinfo, struct ppc *ppc)
+{
+  DDS_XTypes_TypeInformation const * const xtypeinfo = (DDS_XTypes_TypeInformation *) typeinfo;
+  if (!load_deps_ti (participant, &xtypeinfo->minimal.typeid_with_size.type_id))
+    return NULL;
+  struct type_hashid_map templ, *info;
+  memcpy (templ.id, &xtypeinfo->minimal.typeid_with_size.type_id._u.equivalence_hash, sizeof (templ.id));
+  if ((info = type_hashid_map_lookup (&templ)) == NULL)
+    return NULL;
+  if (ppc)
+    ppc_print_ti (ppc, &xtypeinfo->minimal.typeid_with_size.type_id);
   return (DDS_XTypes_TypeObject *) info->typeobj;
 }
