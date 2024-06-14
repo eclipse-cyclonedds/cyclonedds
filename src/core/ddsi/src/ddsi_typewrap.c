@@ -2161,7 +2161,7 @@ static struct xt_type *xt_type_keyholder (struct ddsi_domaingv *gv, const struct
       {
         /* Rule: If T is a structure with no key members, then KeyHolder(T) adds a key designator to each member. */
         for (uint32_t i = 0; i < t->_u.structure.members.length; i++)
-          t->_u.structure.members.seq[i].flags |= DDS_XTypes_IS_KEY;
+          tkh->_u.structure.members.seq[i].flags |= DDS_XTypes_IS_KEY;
       }
       return tkh;
     }
