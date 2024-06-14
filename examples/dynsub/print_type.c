@@ -385,7 +385,7 @@ void ppc_print_to (struct ppc *ppc, const DDS_XTypes_CompleteTypeObject *typeobj
     }
     case DDS_XTypes_TK_BITMASK: {
       const DDS_XTypes_CompleteBitmaskType *x = &typeobj->_u.bitmask_type;
-      ppc_print (ppc, "ENUM typename=%s bit_bound=%"PRIu32" ", x->header.detail.type_name, x->header.common.bit_bound);
+      ppc_print (ppc, "BITMASK typename=%s bit_bound=%"PRIu32" ", x->header.detail.type_name, x->header.common.bit_bound);
       ppc_print_typeflags (ppc, x->bitmask_flags);
       ppc_print_typedetail_sans_name (ppc, &x->header.detail);
       ppc_print (ppc, "\n");
