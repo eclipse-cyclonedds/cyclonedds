@@ -54,11 +54,15 @@ void type_cache_free (void);
 
 struct type_hashid_map *lookup_hashid (const DDS_XTypes_EquivalenceHash hashid);
 const DDS_XTypes_CompleteTypeObject *get_complete_typeobj_for_hashid (const DDS_XTypes_EquivalenceHash hashid);
+const DDS_XTypes_MinimalTypeObject *get_minimal_typeobj_for_hashid (const DDS_XTypes_EquivalenceHash hashid);
 void build_typecache_to (const DDS_XTypes_CompleteTypeObject *typeobj, size_t *align, size_t *size);
-DDS_XTypes_TypeObject *load_type_with_deps (dds_entity_t participant, const dds_typeinfo_t *typeinfo);
+DDS_XTypes_TypeObject *load_type_with_deps (dds_entity_t participant, const dds_typeinfo_t *typeinfo, struct ppc *ppc);
+DDS_XTypes_TypeObject *load_type_with_deps_min (dds_entity_t participant, const dds_typeinfo_t *typeinfo, struct ppc *ppc);
 
 void ppc_init (struct ppc *ppc);
+void ppc_print_ti (struct ppc *ppc, const DDS_XTypes_TypeIdentifier *typeid);
 void ppc_print_to (struct ppc *ppc, const DDS_XTypes_CompleteTypeObject *typeobj);
+void ppc_print_to_min (struct ppc *ppc, const DDS_XTypes_MinimalTypeObject *typeobj);
 
 void print_sample (bool valid_data, const void *sample, const DDS_XTypes_CompleteTypeObject *typeobj);
 

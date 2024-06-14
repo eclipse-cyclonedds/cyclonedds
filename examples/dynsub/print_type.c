@@ -247,7 +247,7 @@ static bool ppc_print_simple (struct ppc *ppc, const uint8_t disc)
   return false;
 }
 
-static void ppc_print_ti (struct ppc *ppc, const DDS_XTypes_TypeIdentifier *typeid)
+void ppc_print_ti (struct ppc *ppc, const DDS_XTypes_TypeIdentifier *typeid)
 {
   if (ppc_print_simple (ppc, typeid->_d))
     return;
@@ -333,6 +333,22 @@ static void ppc_print_ti (struct ppc *ppc, const DDS_XTypes_TypeIdentifier *type
         ppc_print (ppc, "\n");
         info->lineno = ppc_lineno (ppc);
         ppc_print_to (ppc, get_complete_typeobj_for_hashid (typeid->_u.equivalence_hash));
+      }
+      ppc_outdent (ppc);
+      break;
+    }
+    case DDS_XTypes_EK_MINIMAL: {
+      ppc_print (ppc, "MINIMAL id=");
+      ppc_print_equivhash (ppc, typeid->_u.equivalence_hash);
+      ppc_indent (ppc);
+      struct type_hashid_map *info = lookup_hashid (typeid->_u.equivalence_hash);
+      if (info->lineno)
+        ppc_print (ppc, ": See line %d\n", info->lineno);
+      else
+      {
+        ppc_print (ppc, "\n");
+        info->lineno = ppc_lineno (ppc);
+        ppc_print_to_min (ppc, get_minimal_typeobj_for_hashid (typeid->_u.equivalence_hash));
       }
       ppc_outdent (ppc);
       break;
@@ -474,6 +490,134 @@ void ppc_print_to (struct ppc *ppc, const DDS_XTypes_CompleteTypeObject *typeobj
         ppc_print (ppc, "\n");
         ppc_indent (ppc);
         ppc_print_memberdetail_sans_name (ppc, &m->detail);
+        ppc_print_ti (ppc, &m->common.type_id);
+        ppc_outdent (ppc);
+        ppc_outdent (ppc);
+      }
+      ppc_outdent (ppc);
+      break;
+    }
+    default: {
+      printf ("type object discriminant %u encountered, sorry\n", (unsigned) typeobj->_d);
+      abort ();
+    }
+  }
+}
+
+void ppc_print_to_min (struct ppc *ppc, const DDS_XTypes_MinimalTypeObject *typeobj)
+{
+  if (ppc_print_simple (ppc, typeobj->_d))
+    return;
+  switch (typeobj->_d)
+  {
+    case DDS_XTypes_TK_ALIAS: {
+      const DDS_XTypes_MinimalAliasType *x = &typeobj->_u.alias_type;
+      ppc_print (ppc, "ALIAS ");
+      ppc_print_typeflags (ppc, x->alias_flags);
+      ppc_print (ppc, "\n");
+      ppc_indent (ppc);
+      ppc_print_memberflags (ppc, x->body.common.related_flags);
+      ppc_print (ppc, "\n");
+      ppc_print_ti (ppc, &x->body.common.related_type);
+      ppc_outdent (ppc);
+      break;
+    }
+    case DDS_XTypes_TK_ENUM: {
+      const DDS_XTypes_MinimalEnumeratedType *x = &typeobj->_u.enumerated_type;
+      ppc_print (ppc, "ENUM bit_bound=%"PRIu32" ", x->header.common.bit_bound);
+      ppc_print_typeflags (ppc, x->enum_flags);
+      ppc_print (ppc, "\n");
+      ppc_indent (ppc);
+      for (uint32_t i = 0; i < x->literal_seq._length; i++)
+      {
+        const DDS_XTypes_MinimalEnumeratedLiteral *l = &x->literal_seq._buffer[i];
+        ppc_print (ppc, "%02"PRIx8"%02"PRIx8"%02"PRIx8"%02"PRIx8" = %"PRId32" ", l->detail.name_hash[0], l->detail.name_hash[1], l->detail.name_hash[2], l->detail.name_hash[3], l->common.value);
+        ppc_print_memberflags (ppc, l->common.flags);
+        ppc_print (ppc, "\n");
+      }
+      ppc_outdent (ppc);
+      break;
+    }
+    case DDS_XTypes_TK_BITMASK: {
+      const DDS_XTypes_MinimalBitmaskType *x = &typeobj->_u.bitmask_type;
+      ppc_print (ppc, "BITMASK bit_bound=%"PRIu32" ", x->header.common.bit_bound);
+      ppc_print_typeflags (ppc, x->bitmask_flags);
+      ppc_print (ppc, "\n");
+      ppc_indent (ppc);
+      for (uint32_t i = 0; i < x->flag_seq._length; i++)
+      {
+        const DDS_XTypes_MinimalBitflag *l = &x->flag_seq._buffer[i];
+        ppc_print (ppc, "%02"PRIx8"%02"PRIx8"%02"PRIx8"%02"PRIx8" = %"PRId32" ", l->detail.name_hash[0], l->detail.name_hash[1], l->detail.name_hash[2], l->detail.name_hash[3], l->common.position);
+        ppc_print_memberflags (ppc, l->common.flags);
+        ppc_print (ppc, "\n");
+      }
+      ppc_outdent (ppc);
+      break;
+    }
+    case DDS_XTypes_TK_SEQUENCE: {
+      const DDS_XTypes_MinimalSequenceType *x = &typeobj->_u.sequence_type;
+      ppc_print (ppc, "SEQUENCE bound=%"PRIu32" ", x->header.common.bound);
+      ppc_print_typeflags (ppc, x->collection_flag);
+      ppc_print_memberflags (ppc, x->element.common.element_flags);
+      ppc_print (ppc, "\n");
+      ppc_indent (ppc);
+      ppc_print_ti (ppc, &x->element.common.type);
+      ppc_outdent (ppc);
+      break;
+    }
+    case DDS_XTypes_TK_STRUCTURE: {
+      const DDS_XTypes_MinimalStructType *t = &typeobj->_u.struct_type;
+      ppc_print (ppc, "STRUCTURE ");
+      ppc_print_typeflags (ppc, t->struct_flags);
+      ppc_print (ppc, "\n");
+      ppc_indent (ppc);
+      if (t->header.base_type._d != DDS_XTypes_TK_NONE)
+      {
+        ppc_print (ppc, "basetype=\n");
+        ppc_indent (ppc);
+        ppc_print_ti (ppc, &t->header.base_type);
+        ppc_outdent (ppc);
+      }
+      for (uint32_t i = 0; i < t->member_seq._length; i++)
+      {
+        const DDS_XTypes_MinimalStructMember *m = &t->member_seq._buffer[i];
+        ppc_print (ppc, "name_hash=%02"PRIx8"%02"PRIx8"%02"PRIx8"%02"PRIx8" ", m->detail.name_hash[0], m->detail.name_hash[1], m->detail.name_hash[2], m->detail.name_hash[3]);
+        ppc_print (ppc, "memberid=0x%"PRIx32" ", m->common.member_id);
+        ppc_print_memberflags (ppc, m->common.member_flags);
+        ppc_print (ppc, "\n");
+        ppc_indent (ppc);
+        ppc_print_ti (ppc, &m->common.member_type_id);
+        ppc_outdent (ppc);
+      }
+      ppc_outdent (ppc);
+      break;
+    }
+    case DDS_XTypes_TK_UNION: {
+      const DDS_XTypes_MinimalUnionType *t = &typeobj->_u.union_type;
+      ppc_print (ppc, "UNION ");
+      ppc_print_typeflags (ppc, t->union_flags);
+      ppc_print (ppc, "\n");
+      ppc_indent (ppc);
+      ppc_print (ppc, "discriminator=");
+      ppc_indent (ppc);
+      const DDS_XTypes_MinimalDiscriminatorMember *disc = &t->discriminator;
+      ppc_print_memberflags (ppc, disc->common.member_flags);
+      ppc_print (ppc, " ");
+      ppc_print_ti (ppc, &disc->common.type_id);
+      ppc_outdent (ppc);
+      for (uint32_t i = 0; i < t->member_seq._length; i++)
+      {
+        const DDS_XTypes_MinimalUnionMember *m = &t->member_seq._buffer[i];
+        if (m->common.label_seq._length == 0)
+          ppc_print (ppc, "default:\n");
+        for (uint32_t j = 0; j < m->common.label_seq._length; j++)
+          ppc_print (ppc, "case %"PRIu32":\n", m->common.label_seq._buffer[j]);
+        ppc_indent (ppc);
+        ppc_print (ppc, "name_hash=%02"PRIx8"%02"PRIx8"%02"PRIx8"%02"PRIx8" ", m->detail.name_hash[0], m->detail.name_hash[1], m->detail.name_hash[2], m->detail.name_hash[3]);
+        ppc_print (ppc, "memberid=0x%"PRIx32" ", m->common.member_id);
+        ppc_print_memberflags (ppc, m->common.member_flags);
+        ppc_print (ppc, "\n");
+        ppc_indent (ppc);
         ppc_print_ti (ppc, &m->common.type_id);
         ppc_outdent (ppc);
         ppc_outdent (ppc);

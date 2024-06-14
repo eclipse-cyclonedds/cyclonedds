@@ -104,17 +104,17 @@ static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_
         dds_return_loan (triggered_reader, &epraw, 1);
         goto error;
       }
+      if (load_type_with_deps_min (participant, typeinfo, &ppc) == NULL)
+      {
+        fprintf (stderr, "loading minimal type with all dependencies failed\n");
+        dds_return_loan (triggered_reader, &epraw, 1);
+        goto error;
+      }
     }
     dds_return_loan (triggered_reader, &epraw, 1);
   }
   if (*xtypeobj)
   {
-    {
-      struct ppc ppc;
-      ppc_init (&ppc);
-      ppc_print_to (&ppc, &(*xtypeobj)->_u.complete);
-    }
-
     // If we got the type object, populate the type cache
     size_t align, size;
     build_typecache_to (&(*xtypeobj)->_u.complete, &align, &size);
