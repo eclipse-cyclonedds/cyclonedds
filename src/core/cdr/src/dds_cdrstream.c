@@ -2870,6 +2870,10 @@ static const uint32_t *normalize_uni (char * __restrict data, uint32_t * __restr
 static const uint32_t *stream_normalize_adr (uint32_t insn, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops, bool is_mutable_member, enum cdr_data_kind cdr_kind) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static const uint32_t *stream_normalize_adr (uint32_t insn, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops, bool is_mutable_member, enum cdr_data_kind cdr_kind)
 {
+  const bool is_key = (insn & DDS_OP_FLAG_KEY);
+  if (cdr_kind == CDR_KIND_KEY && !is_key)
+    return dds_stream_skip_adr (insn, ops);
+
   if (op_type_optional (insn))
   {
     bool present = true;
@@ -2881,10 +2885,6 @@ static const uint32_t *stream_normalize_adr (uint32_t insn, char * __restrict da
     if (!present)
       return dds_stream_skip_adr (insn, ops);
   }
-
-  const bool is_key = (insn & DDS_OP_FLAG_KEY);
-  if (cdr_kind == CDR_KIND_KEY && !is_key)
-    return dds_stream_skip_adr (insn, ops);
 
   switch (DDS_OP_TYPE (insn))
   {
