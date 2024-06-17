@@ -12,6 +12,7 @@
 
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/retcode.h"
+#include "dds/export.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -85,7 +86,7 @@ struct dds_sysdef_type_metadata_admin;
 *
 * @return a DDS return code
 */
-dds_return_t dds_sysdef_init_sysdef (FILE *fp, struct dds_sysdef_system **sysdef, uint32_t lib_scope);
+DDS_EXPORT_INTERNAL_FUNCTION dds_return_t dds_sysdef_init_sysdef (FILE *fp, struct dds_sysdef_system **sysdef, uint32_t lib_scope);
 
 /**
 * @brief Initialize System definition from `xml` string.
@@ -100,7 +101,7 @@ dds_return_t dds_sysdef_init_sysdef (FILE *fp, struct dds_sysdef_system **sysdef
 *
 * @return a DDS return code
 */
-dds_return_t dds_sysdef_init_sysdef_str (const char *raw, struct dds_sysdef_system **sysdef, uint32_t lib_scope);
+DDS_EXPORT_INTERNAL_FUNCTION dds_return_t dds_sysdef_init_sysdef_str (const char *raw, struct dds_sysdef_system **sysdef, uint32_t lib_scope);
 
 /**
 * @brief Finalize System definition.
@@ -112,7 +113,7 @@ dds_return_t dds_sysdef_init_sysdef_str (const char *raw, struct dds_sysdef_syst
 * @param[in] sysdef - Pointer to dds_sysdef_system structure.
 *
 */
-void dds_sysdef_fini_sysdef (struct dds_sysdef_system *sysdef);
+DDS_EXPORT_INTERNAL_FUNCTION void dds_sysdef_fini_sysdef (struct dds_sysdef_system *sysdef);
 
 /**
 * @brief Initialize System definition for data types.
@@ -126,7 +127,7 @@ void dds_sysdef_fini_sysdef (struct dds_sysdef_system *sysdef);
 *
 * @return a DDS return code
 */
-dds_return_t dds_sysdef_init_data_types (FILE *fp, struct dds_sysdef_type_metadata_admin **type_meta_data);
+DDS_EXPORT_INTERNAL_FUNCTION dds_return_t dds_sysdef_init_data_types (FILE *fp, struct dds_sysdef_type_metadata_admin **type_meta_data);
 
 /**
 * @brief Finalize System definition for data types.
@@ -138,7 +139,7 @@ dds_return_t dds_sysdef_init_data_types (FILE *fp, struct dds_sysdef_type_metada
 * @param[in,out] type_meta_data - Pointer dds_sysdef_type_metadata_admin structure.
 *
 */
-void dds_sysdef_fini_data_types (struct dds_sysdef_type_metadata_admin *type_meta_data);
+DDS_EXPORT_INTERNAL_FUNCTION void dds_sysdef_fini_data_types (struct dds_sysdef_type_metadata_admin *type_meta_data);
 
 #if defined (__cplusplus)
 }

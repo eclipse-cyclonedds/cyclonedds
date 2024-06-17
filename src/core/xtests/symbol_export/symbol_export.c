@@ -92,6 +92,7 @@
 
 #include "dds__write.h"
 #include "dds__entity.h"
+#include "dds__sysdef_parser.h"
 
 DDSRT_WARNING_DEPRECATED_OFF
 DDSRT_WARNING_GNUC_OFF (unused-result)
@@ -1168,6 +1169,13 @@ int main (int argc, char **argv)
   dds_entity_unpin (ptr);
   dds_entity_lock (0, 0, ptr);
   dds_entity_unlock (ptr);
+
+  // dds__sysdef_parser.h
+  dds_sysdef_init_sysdef (ptr, ptr2, 0);
+  dds_sysdef_init_sysdef_str (ptr, ptr2, 0);
+  dds_sysdef_fini_sysdef (ptr);
+  dds_sysdef_init_data_types (ptr, ptr2);
+  dds_sysdef_fini_data_types (ptr);
 
   return 0;
 }
