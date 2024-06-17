@@ -75,14 +75,16 @@ static bool print_sample1_simple (const unsigned char *sample, const uint8_t dis
 
 static const char *get_string_pointer (const unsigned char *sample, const DDS_XTypes_TypeIdentifier *typeid, struct context *c)
 {
-  bool bounded;
+  uint32_t bound;
   if (typeid->_d == DDS_XTypes_TI_STRING8_SMALL)
-    bounded = typeid->_u.string_sdefn.bound != 0;
+    bound = typeid->_u.string_sdefn.bound;
   else
-    bounded = typeid->_u.string_ldefn.bound != 0;
+    bound = typeid->_u.string_ldefn.bound;
   // must always call align for its side effects
-  if (bounded)
-    return align (sample, c, _Alignof (char), sizeof (char));
+  if (bound != 0)
+  {
+    return align (sample, c, _Alignof (char), bound + 1);
+  }
   else
   {
     // if not "valid_data" and not a key field, this'll be a null pointer
@@ -90,7 +92,7 @@ static const char *get_string_pointer (const unsigned char *sample, const DDS_XT
   }
 }
 
-static void print_sample1_ti (const unsigned char *sample, const DDS_XTypes_TypeIdentifier *typeid, struct context *c, const char *sep, const char *label, bool is_base_type)
+static void print_sample1_ti (const unsigned char *sample, const DDS_XTypes_TypeIdentifier *typeid, uint32_t rank, struct context *c, const char *sep, const char *label, bool is_base_type)
 {
   if (print_sample1_simple (sample, typeid->_d, c, sep, label, NULL))
     return;
@@ -120,9 +122,41 @@ static void print_sample1_ti (const unsigned char *sample, const DDS_XTypes_Type
         sep = "";
         for (uint32_t i = 0; i < p->_length; i++)
         {
-          print_sample1_ti (p->_buffer, et, &c1, sep, NULL, false);
+          print_sample1_ti (p->_buffer, et, 0, &c1, sep, NULL, false);
           sep = ",";
         }
+        printf ("]");
+      }
+      break;
+    }
+    case DDS_XTypes_TI_PLAIN_ARRAY_SMALL:
+    case DDS_XTypes_TI_PLAIN_ARRAY_LARGE: {
+      const DDS_XTypes_TypeIdentifier *et;
+      uint32_t m, n;
+      if (typeid->_d == DDS_XTypes_TI_PLAIN_ARRAY_SMALL) {
+        et = typeid->_u.array_sdefn.element_identifier;
+        m = typeid->_u.array_sdefn.array_bound_seq._length;
+        n = typeid->_u.array_sdefn.array_bound_seq._buffer[rank];
+      } else {
+        et = typeid->_u.array_ldefn.element_identifier;
+        m = typeid->_u.array_ldefn.array_bound_seq._length;
+        n = typeid->_u.array_ldefn.array_bound_seq._buffer[rank];
+      }
+      if (c->key || c->valid_data) {
+        printf ("%s", sep);
+        if (label) printf ("\"%s\":", label);
+        printf ("[");
+      }
+      sep = "";
+      for (uint32_t i = 0; i < n; i++)
+      {
+        if (rank + 1 < m)
+          print_sample1_ti (sample, typeid, rank + 1, c, "", NULL, is_base_type);
+        else
+          print_sample1_ti (sample, et, 0, c, sep, NULL, is_base_type);
+        sep = ",";
+      }
+      if (c->key || c->valid_data) {
         printf ("]");
       }
       break;
@@ -142,7 +176,7 @@ static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_Comp
   switch (typeobj->_d)
   {
     case DDS_XTypes_TK_ALIAS: {
-      print_sample1_ti (sample, &typeobj->_u.alias_type.body.common.related_type, c, sep, label, false);
+      print_sample1_ti (sample, &typeobj->_u.alias_type.body.common.related_type, 0, c, sep, label, false);
       break;
     }
     case DDS_XTypes_TK_SEQUENCE: {
@@ -155,7 +189,7 @@ static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_Comp
       sep = "";
       for (uint32_t i = 0; i < p->_length; i++)
       {
-        print_sample1_ti ((const unsigned char *) p->_buffer, et, &c1, sep, NULL, false);
+        print_sample1_ti ((const unsigned char *) p->_buffer, et, 0, &c1, sep, NULL, false);
         sep = ",";
         if (c1.offset % c1.maxalign)
           c1.offset += c1.maxalign - (c1.offset % c1.maxalign);
@@ -174,25 +208,27 @@ static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_Comp
       sep = "";
       if (t->header.base_type._d != DDS_XTypes_TK_NONE)
       {
-        print_sample1_ti (p, &t->header.base_type, &c1, sep, NULL, true);
+        print_sample1_ti (p, &t->header.base_type, 0, &c1, sep, NULL, true);
         sep = ",";
       }
       for (uint32_t i = 0; i < t->member_seq._length; i++)
       {
         const DDS_XTypes_CompleteStructMember *m = &t->member_seq._buffer[i];
-        if (m->common.member_flags & DDS_XTypes_IS_OPTIONAL) {
-          void const * const *p1 = (const void *) align (p, &c1, _Alignof (void *), sizeof (void *));
-          if (*p1 == NULL) {
-            printf ("%s", sep);
-            if (*m->detail.name) printf ("\"%s\":", m->detail.name);
-            printf ("(nothing)");
-          } else {
-            struct context c2 = { .valid_data = c->valid_data, .key = false, .offset = 0, .maxalign = 1 };
-            print_sample1_ti (*p1, &m->common.member_type_id, &c2, sep, *m->detail.name ? m->detail.name : NULL, false);
-          }
-        } else {
+        if (!(m->common.member_flags & DDS_XTypes_IS_OPTIONAL)) {
           c1.key = c->key && m->common.member_flags & DDS_XTypes_IS_KEY;
-          print_sample1_ti (p, &m->common.member_type_id, &c1, sep, *m->detail.name ? m->detail.name : NULL, false);
+          print_sample1_ti (p, &m->common.member_type_id, 0, &c1, sep, *m->detail.name ? m->detail.name : NULL, false);
+        } else {
+          void const * const *p1 = (const void *) align (p, &c1, _Alignof (void *), sizeof (void *));
+          if (c->valid_data) { // optional is never a key
+            if (*p1 == NULL) {
+              printf ("%s", sep);
+              if (*m->detail.name) printf ("\"%s\":", m->detail.name);
+              printf ("(nothing)");
+            } else {
+              struct context c2 = { .valid_data = c->valid_data, .key = false, .offset = 0, .maxalign = 1 };
+              print_sample1_ti (*p1, &m->common.member_type_id, 0, &c2, sep, *m->detail.name ? m->detail.name : NULL, false);
+            }
+          }
         }
         sep = ",";
       }
@@ -245,7 +281,7 @@ static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_Comp
         for (uint32_t l = 0; l < m->common.label_seq._length; l++)
         {
           if (m->common.label_seq._buffer[l] == disc_value)
-            print_sample1_ti (p, &m->common.type_id, &c1, sep, *m->detail.name ? m->detail.name : NULL, false);
+            print_sample1_ti (p, &m->common.type_id, 0, &c1, sep, *m->detail.name ? m->detail.name : NULL, false);
         }
       }
       printf ("}");
