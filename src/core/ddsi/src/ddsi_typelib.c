@@ -1377,6 +1377,31 @@ bool ddsi_type_resolved (struct ddsi_domaingv *gv, const struct ddsi_type *type,
   return ret;
 }
 
+static const char *ddsi_non_assignability_code_str (enum ddsi_non_assignability_code code)
+{
+  switch (code)
+  {
+    case DDSI_NONASSIGN_ASSIGNABLE: assert (0); break;
+    case DDSI_NONASSIGN_TYPE_UNRESOLVED: return "type unresolved";
+    case DDSI_NONASSIGN_INCOMPATIBLE_TYPE: return "incompatible type";
+    case DDSI_NONASSIGN_DIFFERENT_EXTENSIBILITY: return "different extensibility";
+    case DDSI_NONASSIGN_WR_TYPE_NOT_DELIMITED: return "wr type not delimited";
+    case DDSI_NONASSIGN_NAME_HASH_DIFFERS: return "name hash differs";
+    case DDSI_NONASSIGN_MISSING_CASE: return "missing case/enum label";
+    case DDSI_NONASSIGN_NUMBER_OF_MEMBERS: return "number of members/enum labels";
+    case DDSI_NONASSIGN_KEY_DIFFERS: return "key annotation differs";
+    case DDSI_NONASSIGN_NO_OVERLAP: return "no common members/labels";
+    case DDSI_NONASSIGN_STRUCT_MUST_UNDERSTAND: return "must understand mismatch";
+    case DDSI_NONASSIGN_STRUCT_OPTIONAL: return "optional mismatch";
+    case DDSI_NONASSIGN_STRUCT_MEMBER_MISMATCH: return "member mismatch";
+    case DDSI_NONASSIGN_KEY_INCOMPATIBLE: return "key incompatible";
+    case DDSI_NONASSIGN_BOUND: return "incompatible bound";
+    case DDSI_NONASSIGN_UNKNOWN: return "unknown";
+  }
+  return "(invalid code)";
+};
+
+
 bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type_pair *rd_type_pair, uint32_t rd_resolved, const struct ddsi_type_pair *wr_type_pair, uint32_t wr_resolved, const dds_type_consistency_enforcement_qospolicy_t *tce)
 {
   if (!rd_type_pair || !wr_type_pair)
@@ -1385,8 +1410,25 @@ bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type_p
   const struct xt_type
     *rd_xt = (rd_resolved == DDS_XTypes_EK_BOTH || rd_resolved == DDS_XTypes_EK_MINIMAL) ? &rd_type_pair->minimal->xt : &rd_type_pair->complete->xt,
     *wr_xt = (wr_resolved == DDS_XTypes_EK_BOTH || wr_resolved == DDS_XTypes_EK_MINIMAL) ? &wr_type_pair->minimal->xt : &wr_type_pair->complete->xt;
-  bool assignable = ddsi_xt_is_assignable_from (gv, rd_xt, wr_xt, tce);
+  struct ddsi_non_assignability_reason reason;
+  bool assignable = ddsi_xt_is_assignable_from (gv, rd_xt, wr_xt, tce, &reason);
   ddsrt_mutex_unlock (&gv->typelib_lock);
+
+  if (!assignable)
+  {
+    struct ddsi_typeid_str trdstr, twrstr;
+    struct ddsi_typeid_str t1str, t2str;
+    // not supposed to perform an assignability check while there are still unresolved types involved
+    const uint32_t lc_cat = DDS_LC_DISCOVERY | (reason.code == DDSI_NONASSIGN_TYPE_UNRESOLVED ? DDS_LC_WARNING : 0);
+    GVLOG (lc_cat, "assignability check failed: rd type %s wr type %s, t1=%s (%s) t2=%s (%s) id %"PRIu32": %s\n",
+           ddsi_make_typeid_str (&trdstr, &rd_xt->id),
+           ddsi_make_typeid_str (&twrstr, &wr_xt->id),
+           reason.t1 ? ddsi_make_typeid_str (&t1str, &reason.t1->id) : "(none)",
+           reason.t1 ? ddsi_typekind_descr (reason.t1->_d) : "",
+           reason.t2 ? ddsi_make_typeid_str (&t2str, &reason.t2->id) : "(none)",
+           reason.t2 ? ddsi_typekind_descr (reason.t2->_d) : "",
+           reason.id, ddsi_non_assignability_code_str (reason.code));
+  }
   return assignable;
 }
 

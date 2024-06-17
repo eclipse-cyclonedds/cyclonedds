@@ -1968,6 +1968,7 @@ static void xt_bitflag_seq_copy (struct xt_bitflag_seq *dst, const struct xt_bit
   }
 }
 
+ddsrt_nonnull_all
 void ddsi_xt_copy (struct ddsi_domaingv *gv, struct xt_type *dst, const struct xt_type *src)
 {
   if (!ddsi_typeid_is_none (&src->id))
@@ -2045,6 +2046,7 @@ void ddsi_xt_copy (struct ddsi_domaingv *gv, struct xt_type *dst, const struct x
   }
 }
 
+ddsrt_nonnull_all ddsrt_attribute_returns_nonnull
 static struct xt_type * xt_dup (struct ddsi_domaingv *gv, const struct xt_type *src)
 {
   struct xt_type *dst = ddsrt_calloc (1, sizeof (*dst));
@@ -2052,24 +2054,44 @@ static struct xt_type * xt_dup (struct ddsi_domaingv *gv, const struct xt_type *
   return dst;
 }
 
+ddsrt_nonnull_all
 static bool xt_has_basetype (const struct xt_type *t)
 {
   assert (t->_d == DDS_XTypes_TK_STRUCTURE);
   return t->_u.structure.base_type != NULL;
 }
 
-static struct xt_type *xt_expand_basetype (struct ddsi_domaingv *gv, const struct xt_type *t)
+ddsrt_nonnull ((1, 3))
+static bool xt_non_assignable (struct ddsi_non_assignability_reason *reason, enum ddsi_non_assignability_code code, const struct xt_type *t1, const struct xt_type *t2, uint32_t id)
+{
+  reason->code = code;
+  reason->id = id;
+  reason->t1 = t1;
+  reason->t2 = t2;
+  return false;
+}
+
+ddsrt_nonnull ((1, 2))
+static bool xt_is_assignable_check_resolved (const struct xt_type *t, struct ddsi_non_assignability_reason *reason, const struct xt_type *basetype, uint32_t id)
+{
+  assert (basetype == NULL || ddsi_xt_is_resolved (basetype));
+  if (ddsi_xt_is_resolved (t))
+    return true;
+  if (basetype)
+    return xt_non_assignable (reason, DDSI_NONASSIGN_TYPE_UNRESOLVED, basetype, t, id);
+  else
+    return xt_non_assignable (reason, DDSI_NONASSIGN_TYPE_UNRESOLVED, t, NULL, id);
+}
+
+ddsrt_nonnull_all
+static struct xt_type *xt_expand_basetype (struct ddsi_domaingv *gv, const struct xt_type *t, struct ddsi_non_assignability_reason *reason)
 {
   assert (t->_d == DDS_XTypes_TK_STRUCTURE);
   assert (t->_u.structure.base_type);
   const struct xt_type *b = ddsi_xt_unalias (&t->_u.structure.base_type->xt);
-  if (ddsi_xt_is_unresolved (b))
-  {
-    struct ddsi_typeid_str tidstr;
-    GVWARNING ("assignability check: base type %s unresolved in xt_expand_basetype\n", ddsi_make_typeid_str (&tidstr, &b->id));
+  if (!xt_is_assignable_check_resolved (b, reason, t, 0))
     return NULL;
-  }
-  struct xt_type *te = xt_has_basetype (b) ? xt_expand_basetype (gv, b) : xt_dup (gv, t);
+  struct xt_type *te = xt_has_basetype (b) ? xt_expand_basetype (gv, b, reason) : xt_dup (gv, t);
   if (!te)
     return NULL;
   struct xt_struct_member_seq *ms = &te->_u.structure.members;
@@ -2318,12 +2340,18 @@ static bool xt_is_equivalent_minimal (const struct xt_type *t1, const struct xt_
   return false;
 }
 
-static bool xt_is_strongly_assignable_from (struct ddsi_domaingv *gv, const struct xt_type *t1a, const struct xt_type *t2a, const dds_type_consistency_enforcement_qospolicy_t *tce)
+ddsrt_nonnull_all
+static bool xt_is_assignable_from_impl (struct ddsi_domaingv *gv, const struct xt_type *rd_xt, const struct xt_type *wr_xt, const dds_type_consistency_enforcement_qospolicy_t *tce, struct ddsi_non_assignability_reason *reason);
+
+ddsrt_nonnull_all
+static bool xt_is_strongly_assignable_from (struct ddsi_domaingv *gv, const struct xt_type *t1a, const struct xt_type *t2a, const dds_type_consistency_enforcement_qospolicy_t *tce, struct ddsi_non_assignability_reason *reason)
 {
   const struct xt_type *t1 = ddsi_xt_unalias (t1a), *t2 = ddsi_xt_unalias (t2a);
   if (xt_is_equivalent_minimal (t1, t2))
     return true;
-  return xt_is_delimited (gv, t2) && ddsi_xt_is_assignable_from (gv, t1, t2, tce);
+  if (xt_is_delimited (gv, t2))
+    return xt_is_assignable_from_impl (gv, t1, t2, tce, reason);
+  return xt_non_assignable (reason, DDSI_NONASSIGN_WR_TYPE_NOT_DELIMITED, t1, t2, 0);
 }
 
 static bool xt_bounds_eq (const struct DDS_XTypes_LBoundSeq *a, const struct DDS_XTypes_LBoundSeq *b)
@@ -2335,11 +2363,13 @@ static bool xt_bounds_eq (const struct DDS_XTypes_LBoundSeq *a, const struct DDS
   return !memcmp (a->_buffer, b->_buffer, a->_length * sizeof (*a->_buffer));
 }
 
+ddsrt_nonnull_all
 static bool xt_namehash_eq (const DDS_XTypes_NameHash *n1, const DDS_XTypes_NameHash *n2)
 {
   return !memcmp (n1, n2, sizeof (*n1));
 }
 
+ddsrt_nonnull_all
 static bool xt_union_label_selects (const struct DDS_XTypes_UnionCaseLabelSeq *ls1, const struct DDS_XTypes_UnionCaseLabelSeq *ls2)
 {
   /* UnionCaseLabelSeq is ordered by value (as noted in typeobject idl) */
@@ -2356,6 +2386,7 @@ static bool xt_union_label_selects (const struct DDS_XTypes_UnionCaseLabelSeq *l
   return false;
 }
 
+ddsrt_nonnull_all
 static bool xt_union_labels_match (const struct DDS_XTypes_UnionCaseLabelSeq *ls1, const struct DDS_XTypes_UnionCaseLabelSeq *ls2)
 {
   /* UnionCaseLabelSeq is ordered by value (as noted in typeobject idl) */
@@ -2365,13 +2396,14 @@ static bool xt_union_labels_match (const struct DDS_XTypes_UnionCaseLabelSeq *ls
   return true;
 }
 
-static bool xt_is_assignable_from_enum (const struct xt_type *t1, const struct xt_type *t2)
+ddsrt_nonnull_all
+static bool xt_is_assignable_from_enum (const struct xt_type *t1, const struct xt_type *t2, struct ddsi_non_assignability_reason *reason)
 {
   assert (t1->_d == DDS_XTypes_TK_ENUM);
   assert (t2->_d == DDS_XTypes_TK_ENUM);
   // Note: extensibility flags not defined, see https://issues.omg.org/issues/DDSXTY14-24
   if (xt_get_extensibility (t1) != xt_get_extensibility (t2))
-    return false;
+    return xt_non_assignable (reason, DDSI_NONASSIGN_DIFFERENT_EXTENSIBILITY, t1, t2, 0);
   /* Members are ordered by increasing value (XTypes 1.3 spec 7.3.4.5) */
   uint32_t i1 = 0, i2 = 0, i1_max = t1->_u.enum_type.literals.length, i2_max = t2->_u.enum_type.literals.length;
   while (i1 < i1_max && i2 < i2_max)
@@ -2381,34 +2413,35 @@ static bool xt_is_assignable_from_enum (const struct xt_type *t1, const struct x
     {
       /* FIXME: implement @ignore_literal_names */
       if (!xt_namehash_eq (&l1->detail.name_hash, &l2->detail.name_hash))
-        return false;
+        return xt_non_assignable (reason, DDSI_NONASSIGN_NAME_HASH_DIFFERS, t1, t2, (uint32_t) l1->value);
       i1++;
       i2++;
     }
     else if (xt_get_extensibility (t1) == DDS_XTypes_IS_FINAL)
-      return false;
+      return xt_non_assignable (reason, DDSI_NONASSIGN_MISSING_CASE, t1, t2, (uint32_t) l1->value);
     else if (l1->value < l2->value)
       i1++;
     else
       i2++;
   }
   if ((i1 != i1_max || i2 != i2_max) && xt_get_extensibility (t1) == DDS_XTypes_IS_FINAL)
-    return false;
+    return xt_non_assignable (reason, DDSI_NONASSIGN_NUMBER_OF_MEMBERS, t1, t2, 0);
   return true;
 }
 
-static bool xt_is_assignable_from_union (struct ddsi_domaingv *gv, const struct xt_type *t1, const struct xt_type *t2, const dds_type_consistency_enforcement_qospolicy_t *tce)
+ddsrt_nonnull_all
+static bool xt_is_assignable_from_union (struct ddsi_domaingv *gv, const struct xt_type *t1, const struct xt_type *t2, const dds_type_consistency_enforcement_qospolicy_t *tce, struct ddsi_non_assignability_reason *reason)
 {
   assert (t1->_d == DDS_XTypes_TK_UNION);
   assert (t2->_d == DDS_XTypes_TK_UNION);
   if (xt_get_extensibility (t1) != xt_get_extensibility (t2))
-    return false;
-  if (!xt_is_strongly_assignable_from (gv, ddsi_xt_unalias (&t1->_u.union_type.disc_type->xt), ddsi_xt_unalias (&t2->_u.union_type.disc_type->xt), tce))
+    return xt_non_assignable (reason, DDSI_NONASSIGN_DIFFERENT_EXTENSIBILITY, t1, t2, 0);
+  if (!xt_is_strongly_assignable_from (gv, ddsi_xt_unalias (&t1->_u.union_type.disc_type->xt), ddsi_xt_unalias (&t2->_u.union_type.disc_type->xt), tce, reason))
     return false;
 
   /* Rule: Either the discriminators of both T1 and T2 are keys or neither are keys. */
   if ((t1->_u.union_type.disc_flags & DDS_XTypes_IS_KEY) != (t2->_u.union_type.disc_flags & DDS_XTypes_IS_KEY))
-    return false;
+    return xt_non_assignable (reason, DDSI_NONASSIGN_KEY_DIFFERS, t1, t2, 0);
 
   /* Note that union members are ordered by their member index (=ordering in idl) and not by their member ID */
   uint32_t i1_max = t1->_u.union_type.members.length, i2_max = t2->_u.union_type.members.length;
@@ -2429,15 +2462,15 @@ static bool xt_is_assignable_from_union (struct ddsi_domaingv *gv, const struct 
 
         /* Rule: Any members in T1 and T2 that have the same name also have the same ID and any members
         with the same ID also have the same name. */
-        if (!xt_namehash_eq (&m1->detail.name_hash, &m2->detail.name_hash) && (!tce || !tce->ignore_member_names))
-          return false;
+        if (!xt_namehash_eq (&m1->detail.name_hash, &m2->detail.name_hash) && !tce->ignore_member_names)
+          return xt_non_assignable (reason, DDSI_NONASSIGN_NAME_HASH_DIFFERS, t1, t2, m1->id);
       }
 
       /* Rule: If T1 and T2 both have default labels, the type associated with T1 default member is assignable from
           the type associated with T2 default member. */
       if ((m1->flags & DDS_XTypes_IS_DEFAULT) && (m2->flags & DDS_XTypes_IS_DEFAULT))
       {
-        if (!ddsi_xt_is_assignable_from (gv, m1t, m2t, tce))
+        if (!xt_is_assignable_from_impl (gv, m1t, m2t, tce, reason))
           return false;
       }
 
@@ -2453,14 +2486,14 @@ static bool xt_is_assignable_from_union (struct ddsi_domaingv *gv, const struct 
       assignable from the type of the T2 default member. */
     if (!(m1->flags & DDS_XTypes_IS_DEFAULT) && !t1_selects_t2_member && def_m2)
     {
-      if (!ddsi_xt_is_assignable_from (gv, m1t, ddsi_xt_unalias (&def_m2->type->xt), tce))
+      if (!xt_is_assignable_from_impl (gv, m1t, ddsi_xt_unalias (&def_m2->type->xt), tce, reason))
         return false;
     }
 
     /* Rule: If T1 (and therefore T2) extensibility is final or prevent type widening is set then the
        set of labels is identical. */
-    if ((xt_get_extensibility (t1) == DDS_XTypes_IS_FINAL || (tce && tce->prevent_type_widening)) && (!m2_id_match || !m2_labels_match))
-      return false;
+    if ((xt_get_extensibility (t1) == DDS_XTypes_IS_FINAL || tce->prevent_type_widening) && (!m2_id_match || !m2_labels_match))
+      return xt_non_assignable (reason, DDSI_NONASSIGN_MISSING_CASE, t1, t2, 0);
     if (t1_selects_t2_member)
       any_match = true;
   } /* loop T1 members */
@@ -2482,31 +2515,34 @@ static bool xt_is_assignable_from_union (struct ddsi_domaingv *gv, const struct 
       if (m1->flags & DDS_XTypes_IS_DEFAULT)
         def_m1 = m1;
     }
-    if ((sel_m1 || def_m1) && !ddsi_xt_is_assignable_from (gv, ddsi_xt_unalias (sel_m1 ? &sel_m1->type->xt : &def_m1->type->xt), ddsi_xt_unalias(&m2->type->xt), tce))
+    if ((sel_m1 || def_m1) && !xt_is_assignable_from_impl (gv, ddsi_xt_unalias (sel_m1 ? &sel_m1->type->xt : &def_m1->type->xt), ddsi_xt_unalias(&m2->type->xt), tce, reason))
       return false;
-    if (!sel_m1 && tce && tce->prevent_type_widening)
-      return false;
+    if (!sel_m1 && tce->prevent_type_widening)
+      return xt_non_assignable (reason, DDSI_NONASSIGN_MISSING_CASE, t1, t2, m2->id);
   }
 
   /* Rule: [extensibility is final], otherwise, they have at least one common label other than the default label. */
   if (!any_match)
-    return false;
+    return xt_non_assignable (reason, DDSI_NONASSIGN_NO_OVERLAP, t1, t2, 0);
   return true;
 }
 
-static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct xt_type *t1, const struct xt_type *t2, const dds_type_consistency_enforcement_qospolicy_t *tce)
+ddsrt_nonnull_all
+static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct xt_type *t1, const struct xt_type *t2, const dds_type_consistency_enforcement_qospolicy_t *tce, struct ddsi_non_assignability_reason *reason)
 {
   assert (t1->_d == DDS_XTypes_TK_STRUCTURE);
   assert (t2->_d == DDS_XTypes_TK_STRUCTURE);
   bool result = false;
   struct xt_type *te1 = (struct xt_type *) t1, *te2 = (struct xt_type *) t2;
-  if (xt_get_extensibility (t1) != xt_get_extensibility (t2))
+  if (xt_get_extensibility (t1) != xt_get_extensibility (t2)) {
+    xt_non_assignable (reason, DDSI_NONASSIGN_DIFFERENT_EXTENSIBILITY, t1, t2, 0);
     goto struct_failed;
+  }
   if (xt_has_basetype (t1))
-    if ((te1 = xt_expand_basetype (gv, t1)) == NULL)
+    if ((te1 = xt_expand_basetype (gv, t1, reason)) == NULL)
       goto struct_failed;
   if (xt_has_basetype (t2))
-    if ((te2 = xt_expand_basetype (gv, t2)) == NULL)
+    if ((te2 = xt_expand_basetype (gv, t2, reason)) == NULL)
       goto struct_failed;
   /* Note that struct members are ordered by their member index (=ordering in idl) and not by their member ID (although the
       TypeObject idl states that its ordered by member_id...) */
@@ -2516,12 +2552,8 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
   {
     const struct xt_struct_member *m1 = &te1->_u.structure.members.seq[i1];
     const struct xt_type *m1t = ddsi_xt_unalias (&m1->type->xt);
-    if (ddsi_xt_is_unresolved (m1t))
-    {
-      struct ddsi_typeid_str tidstr;
-      GVWARNING ("assignability check: member %"PRIu32" type %s unresolved in xt_is_assignable_from_struct\n", m1->id, ddsi_make_typeid_str (&tidstr, &m1t->id));
+    if (!xt_is_assignable_check_resolved (m1t, reason, t1, m1->id))
       goto struct_failed;
-    }
 
     bool match = false,
       m1_opt = (m1->flags & DDS_XTypes_IS_OPTIONAL),
@@ -2536,33 +2568,35 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
         any_member_match = true;
         match = true;
         const struct xt_type *m2t = ddsi_xt_unalias (&m2->type->xt);
-        if (ddsi_xt_is_unresolved (m2t))
-        {
-          struct ddsi_typeid_str tidstr;
-          GVWARNING ("assignability check: member %"PRIu32" type %s unresolved in xt_is_assignable_from_struct\n", m2->id, ddsi_make_typeid_str (&tidstr, &m2t->id));
+        if (!xt_is_assignable_check_resolved (m2t, reason, t2, m2->id))
           goto struct_failed;
-        }
 
         /* Rule: "Any members in T1 and T2 that have the same name also have the same ID and any members with the
             same ID also have the same name." */
-        if (!xt_namehash_eq (&m1->detail.name_hash, &m2->detail.name_hash) && (!tce || !tce->ignore_member_names))
+        if (!xt_namehash_eq (&m1->detail.name_hash, &m2->detail.name_hash) && !tce->ignore_member_names)
+        {
+          xt_non_assignable (reason, DDSI_NONASSIGN_NAME_HASH_DIFFERS, t1, t2, m1->id);
           goto struct_failed;
+        }
 
         /* Rule: "For any member m2 in T2, if there is a member m1 in T1 with the same member ID, then the type
             KeyErased(m1.type) is-assignable from the type KeyErased(m2.type) */
         struct xt_type *m1_ke = xt_type_key_erased (gv, m1t),
           *m2_ke = xt_type_key_erased (gv, m2t);
-        bool ke_assignable = ddsi_xt_is_assignable_from (gv, m1_ke, m2_ke, tce);
+        bool ke_assignable = xt_is_assignable_from_impl (gv, m1_ke, m2_ke, tce, reason);
         ddsi_xt_type_fini (gv, m1_ke, true);
         ddsrt_free (m1_ke);
         ddsi_xt_type_fini (gv, m2_ke, true);
         ddsrt_free (m2_ke);
-
         if (!ke_assignable)
           goto struct_failed;
+
         /* Rule: "For any string key member m2 in T2, the m1 member of T1 with the same member ID verifies m1.type.length >= m2.type.length. */
         if (m2_k && xt_is_string (m2t) && !xt_check_bound (xt_string_bound (m1t), xt_string_bound (m2t)))
+        {
+          xt_non_assignable (reason, DDSI_NONASSIGN_KEY_INCOMPATIBLE, m1t, m2t, m1->id);
           goto struct_failed;
+        }
         /* Rule: "For any enumerated key member m2 in T2, the m1 member of T1 with the same member ID verifies that all
             literals in m2.type appear as literals in m1.type" */
         if (m2_k && xt_is_enumerated (m2t))
@@ -2571,30 +2605,36 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
           while (ki1 < ki1_max && ki2 < ki2_max)
           {
             struct xt_enum_literal *kl1 = &m1t->_u.enum_type.literals.seq[ki1], *kl2 = &m2t->_u.enum_type.literals.seq[ki2];
-            if (kl1->value == kl2->value)
-            {
+            if (kl1->value == kl2->value) {
               ki1++;
               ki2++;
-            }
-            else if (kl1->value < kl2->value)
+            } else if (kl1->value < kl2->value) {
               ki1++;
-            else
+            } else {
+              xt_non_assignable (reason, DDSI_NONASSIGN_KEY_INCOMPATIBLE, m1t, m2t, m1->id);
               goto struct_failed;
+            }
           }
         }
 
         /* Rule: "For any sequence or map key member m2 in T2, the m1 member of T1 with the same member ID verifies m1.type.length >= m2.type.length" */
         if (m2_k && m2t->_d == DDS_XTypes_TK_SEQUENCE && !xt_check_bound (m1t->_u.seq.bound, m2t->_u.seq.bound))
+        {
+          xt_non_assignable (reason, DDSI_NONASSIGN_KEY_INCOMPATIBLE, m1t, m2t, m1->id);
           goto struct_failed;
+        }
         if (m2_k && m2t->_d == DDS_XTypes_TK_MAP && !xt_check_bound (m1t->_u.map.bound, m2t->_u.map.bound))
+        {
+          xt_non_assignable (reason, DDSI_NONASSIGN_KEY_INCOMPATIBLE, m1t, m2t, m1->id);
           goto struct_failed;
+        }
         /* Rule: "For any structure or union key member m2 in T2, the m1 member of T1 with the same member ID verifies that KeyHolder(m1.type)
             isassignable-from KeyHolder(m2.type)." */
         if (m2_k && (m2t->_d == DDS_XTypes_TK_STRUCTURE || m2t->_d == DDS_XTypes_TK_UNION))
         {
           struct xt_type *m1_kh = xt_type_keyholder (gv, m1t),
             *m2_kh = xt_type_keyholder (gv, m2t);
-          bool kh_assignable = ddsi_xt_is_assignable_from (gv, m1_kh, m2_kh, tce);
+          bool kh_assignable = xt_is_assignable_from_impl (gv, m1_kh, m2_kh, tce, reason);
           ddsi_xt_type_fini (gv, m1_kh, true);
           ddsrt_free (m1_kh);
           ddsi_xt_type_fini (gv, m2_kh, true);
@@ -2618,16 +2658,12 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
               {
                 const struct xt_type *km1_t = ddsi_xt_unalias (&km1->type->xt),
                   *km2_t = ddsi_xt_unalias (&km2->type->xt);
-                if (ddsi_xt_is_unresolved (km1_t) || ddsi_xt_is_unresolved (km2_t))
-                {
-                  struct ddsi_typeid_str tidstr;
-                  GVWARNING ("assignability check: union member %"PRIu32" type %s unresolved in xt_is_assignable_from_struct\n",
-                      (ddsi_xt_is_unresolved (km1_t) ? km1 : km2)->id, ddsi_make_typeid_str (&tidstr, &(ddsi_xt_is_unresolved (km1_t) ? km1_t : km2_t)->id));
+                if (!xt_is_assignable_check_resolved (km1_t, reason, t1, m1->id) ||
+                    !xt_is_assignable_check_resolved (km2_t, reason, t2, m2->id))
                   goto struct_failed;
-                }
                 struct xt_type *km1_kh = xt_type_keyholder (gv, km1_t),
                   *km2_kh = xt_type_keyholder (gv, km2_t);
-                bool kh_assignable = ddsi_xt_is_assignable_from (gv, km1_kh, km2_kh, tce);
+                bool kh_assignable = xt_is_assignable_from_impl (gv, km1_kh, km2_kh, tce, reason);
                 ddsi_xt_type_fini (gv, km1_kh, true);
                 ddsrt_free (km1_kh);
                 ddsi_xt_type_fini (gv, km2_kh, true);
@@ -2645,11 +2681,17 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
     /* Rule (for T1 members): "Members for which both optional is false and must_understand is true in either T1 or T2 appear (i.e., have a
         corresponding member of the same member ID) in both T1 and T2. */
     if (!m1_opt && m1_mu && !match)
+    {
+      xt_non_assignable (reason, DDSI_NONASSIGN_STRUCT_MUST_UNDERSTAND, t1, m1t, m1->id);
       goto struct_failed;
+    }
     /* Rule (for T1 members): "Members marked as key in either T1 or T2 appear (i.e., have a corresponding member of the same member ID)
         in both T1 and T2." */
     if (m1_k && !match)
+    {
+      xt_non_assignable (reason, DDSI_NONASSIGN_KEY_DIFFERS, t1, t2, 0);
       goto struct_failed;
+    }
     /* Rules:
         - if T1 is appendable, then members with the same member_index have the same member ID, the same setting for the
           optional attribute and the T1 member type is strongly assignable from the T2 member type
@@ -2657,16 +2699,26 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
     struct xt_struct_member *m2 = &te2->_u.structure.members.seq[i1];
     if ((xt_get_extensibility (te1) == DDS_XTypes_IS_APPENDABLE && i1 < i2_max) || xt_get_extensibility (te1) == DDS_XTypes_IS_FINAL)
     {
-      if (i1 >= i2_max)
+      if (i1 >= i2_max) {
+        xt_non_assignable (reason, DDSI_NONASSIGN_NUMBER_OF_MEMBERS, t1, t2, 0);
         goto struct_failed;
-      if (m1->id != m2->id || (m1->flags & DDS_XTypes_IS_OPTIONAL) != (m2->flags & DDS_XTypes_IS_OPTIONAL) || !xt_is_strongly_assignable_from (gv, m1t, ddsi_xt_unalias (&m2->type->xt), tce))
+      } else if (m1->id != m2->id) {
+        xt_non_assignable (reason, DDSI_NONASSIGN_STRUCT_MEMBER_MISMATCH, t1, t2, m1->id);
         goto struct_failed;
+      } else if ((m1->flags & DDS_XTypes_IS_OPTIONAL) != (m2->flags & DDS_XTypes_IS_OPTIONAL)) {
+        xt_non_assignable (reason, DDSI_NONASSIGN_STRUCT_OPTIONAL, t1, t2, m1->id);
+        goto struct_failed;
+      } else if (!xt_is_strongly_assignable_from (gv, m1t, ddsi_xt_unalias (&m2->type->xt), tce, reason)) {
+        goto struct_failed;
+      }
     }
     /* if T1 is final, or prevent type-widening is set: ... [continued] in addition T1 and T2 have the same set of member IDs */
-    if ((xt_get_extensibility (te1) == DDS_XTypes_IS_FINAL || (tce && tce->prevent_type_widening && !(m2->flags & DDS_XTypes_IS_OPTIONAL))) && !match)
+    if ((xt_get_extensibility (te1) == DDS_XTypes_IS_FINAL || (tce->prevent_type_widening && !(m2->flags & DDS_XTypes_IS_OPTIONAL))) && !match)
+    {
+      xt_non_assignable (reason, DDSI_NONASSIGN_NUMBER_OF_MEMBERS, t1, t2, m2->id);
       goto struct_failed;
+    }
   } /* for members in T1 */
-
 
   /* Rules (for T2 members):
       - Members for which both optional is false and must_understand is true in either T1 or T2 appear (i.e., have a corresponding member
@@ -2681,17 +2733,23 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
     if ((!(m2->flags & DDS_XTypes_IS_OPTIONAL) && (m2->flags & DDS_XTypes_IS_MUST_UNDERSTAND))
         || (m2->flags & DDS_XTypes_IS_KEY)
         || xt_get_extensibility (te1) == DDS_XTypes_IS_FINAL
-        || (tce && tce->prevent_type_widening && !(m2->flags & DDS_XTypes_IS_OPTIONAL)))
+        || (tce->prevent_type_widening && !(m2->flags & DDS_XTypes_IS_OPTIONAL)))
     {
       for (uint32_t i1 = i2; !match && i1 < i1_max + i2; i1++)
         match = (te1->_u.structure.members.seq[i1 % i1_max].id == m2->id);
       if (!match)
+      {
+        xt_non_assignable (reason, DDSI_NONASSIGN_STRUCT_MEMBER_MISMATCH, t1, t2, m2->id);
         goto struct_failed;
+      }
     }
   }
   /* Rule: There is at least one member m1 of T1 and one corresponding member m2 of T2 such that m1.id == m2.id */
   if (!any_member_match)
+  {
+    xt_non_assignable (reason, DDSI_NONASSIGN_NO_OVERLAP, t1, t2, 0);
     goto struct_failed;
+  }
   result = true;
 
 struct_failed:
@@ -2708,69 +2766,94 @@ struct_failed:
   return result;
 }
 
-bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type *rd_xt, const struct xt_type *wr_xt, const dds_type_consistency_enforcement_qospolicy_t *tce)
+ddsrt_nonnull_all
+static bool xt_is_assignable_from_bitmask (const struct xt_type *t1, const struct xt_type *t2, struct ddsi_non_assignability_reason *reason)
+{
+  const struct xt_type *t_bm = t1->_d == DDS_XTypes_TK_BITMASK ? t1 : t2;
+  const struct xt_type *t_other = t1->_d == DDS_XTypes_TK_BITMASK ? t2 : t1;
+  DDS_XTypes_BitBound bb = t_bm->_u.bitmask.bit_bound;
+  enum ddsi_non_assignability_code code = DDSI_NONASSIGN_BOUND;
+  switch (t_other->_d)
+  {
+    case DDS_XTypes_TK_BITMASK:
+      if (bb == t_other->_u.bitmask.bit_bound)
+        return true;
+      break;
+    case DDS_XTypes_TK_UINT8:
+      if (bb >= 1 && bb <= 8)
+        return true;
+      break;
+    case DDS_XTypes_TK_UINT16:
+      if (bb >= 9 && bb <= 16)
+        return true;
+      break;
+    case DDS_XTypes_TK_UINT32:
+      if (bb >= 17 && bb <= 32)
+        return true;
+      break;
+    case DDS_XTypes_TK_UINT64:
+      if (bb >= 33 && bb <= 64)
+        return true;
+      break;
+    default:
+      code = DDSI_NONASSIGN_INCOMPATIBLE_TYPE;
+      break;
+  }
+  return xt_non_assignable (reason, code, t1, t2, 0);
+}
+
+static bool xt_is_assignable_from_impl (struct ddsi_domaingv *gv, const struct xt_type *rd_xt, const struct xt_type *wr_xt, const dds_type_consistency_enforcement_qospolicy_t *tce, struct ddsi_non_assignability_reason *reason)
 {
   const struct xt_type *t1 = ddsi_xt_unalias (rd_xt), *t2 = ddsi_xt_unalias (wr_xt);
-  if (ddsi_xt_is_unresolved (t1) || ddsi_xt_is_unresolved (t2))
-  {
-    struct ddsi_typeid_str tidstr;
-    GVWARNING ("assignability check: unresolved type %s in ddsi_xt_is_assignable_from\n", ddsi_make_typeid_str (&tidstr, &(ddsi_xt_is_unresolved (t1) ? t1 : t2)->id));
+  if (!xt_is_assignable_check_resolved (t1, reason, NULL, 0) || !xt_is_assignable_check_resolved (t2, reason, NULL, 0))
     return false;
-  }
 
   if (xt_is_equivalent_minimal (t1, t2))
     return true;
 
   /* Bitmask type: must be equal, except bitmask can be assigned to uint types and vv */
   if (t1->_d == DDS_XTypes_TK_BITMASK || t2->_d == DDS_XTypes_TK_BITMASK)
-  {
-    const struct xt_type *t_bm = t1->_d == DDS_XTypes_TK_BITMASK ? t1 : t2;
-    const struct xt_type *t_other = t1->_d == DDS_XTypes_TK_BITMASK ? t2 : t1;
-    DDS_XTypes_BitBound bb = t_bm->_u.bitmask.bit_bound;
-    switch (t_other->_d)
-    {
-      case DDS_XTypes_TK_BITMASK:
-        return bb == t_other->_u.bitmask.bit_bound;
-      case DDS_XTypes_TK_UINT8:
-        return bb >= 1 && bb <= 8;
-      case DDS_XTypes_TK_UINT16:
-        return bb >= 9 && bb <= 16;
-      case DDS_XTypes_TK_UINT32:
-        return bb >= 17 && bb <= 32;
-      case DDS_XTypes_TK_UINT64:
-        return bb >= 33 && bb <= 64;
-      default:
-        return false;
-    }
-  }
+    return xt_is_assignable_from_bitmask (t1, t2, reason);
+
   /* Enum type */
   if (t1->_d == DDS_XTypes_TK_ENUM && t2->_d == DDS_XTypes_TK_ENUM)
-    return xt_is_assignable_from_enum (t1, t2);
+    return xt_is_assignable_from_enum (t1, t2, reason);
 
   /* String types: character type must be assignable, bound not checked for assignability, unless ignore_string_bounds is false */
-  if ((t1->_d == DDS_XTypes_TK_STRING8 && t2->_d == DDS_XTypes_TK_STRING8))
-    return !tce || tce->ignore_string_bounds || xt_check_bound (t1->_u.str8.bound, t2->_u.str8.bound);
-  if ((t1->_d == DDS_XTypes_TK_STRING16 && t2->_d == DDS_XTypes_TK_STRING16))
-    return !tce || tce->ignore_string_bounds || xt_check_bound (t1->_u.str16.bound, t2->_u.str16.bound);
+  if ((t1->_d == DDS_XTypes_TK_STRING8 && t2->_d == DDS_XTypes_TK_STRING8)) {
+    if (tce->ignore_string_bounds || xt_check_bound (t1->_u.str8.bound, t2->_u.str8.bound))
+      return true;
+    return xt_non_assignable (reason, DDSI_NONASSIGN_BOUND, t1, t2, 0);
+  }
+  if ((t1->_d == DDS_XTypes_TK_STRING16 && t2->_d == DDS_XTypes_TK_STRING16)) {
+    if (tce->ignore_string_bounds || xt_check_bound (t1->_u.str16.bound, t2->_u.str16.bound))
+      return true;
+    return xt_non_assignable (reason, DDSI_NONASSIGN_BOUND, t1, t2, 0);
+  }
 
   /* Collection types */
-  if (t1->_d == DDS_XTypes_TK_ARRAY && t2->_d == DDS_XTypes_TK_ARRAY)
-    return xt_bounds_eq (&t1->_u.array.bounds, &t2->_u.array.bounds)
-      && xt_is_strongly_assignable_from (gv, &t1->_u.array.c.element_type->xt, &t2->_u.array.c.element_type->xt, tce);
-  if (t1->_d == DDS_XTypes_TK_SEQUENCE && t2->_d == DDS_XTypes_TK_SEQUENCE)
-    return (!tce || tce->ignore_sequence_bounds || xt_check_bound (t1->_u.seq.bound, t2->_u.seq.bound))
-      && xt_is_strongly_assignable_from (gv, &t1->_u.seq.c.element_type->xt, &t2->_u.seq.c.element_type->xt, tce);
-  if (t1->_d == DDS_XTypes_TK_MAP && t2->_d == DDS_XTypes_TK_MAP)
-    return xt_is_strongly_assignable_from (gv, &t1->_u.map.key_type->xt, &t2->_u.map.key_type->xt, tce)
-      && xt_is_strongly_assignable_from (gv, &t1->_u.map.c.element_type->xt, &t2->_u.map.c.element_type->xt, tce);
+  if (t1->_d == DDS_XTypes_TK_ARRAY && t2->_d == DDS_XTypes_TK_ARRAY) {
+    if (xt_bounds_eq (&t1->_u.array.bounds, &t2->_u.array.bounds))
+      return xt_is_strongly_assignable_from (gv, &t1->_u.array.c.element_type->xt, &t2->_u.array.c.element_type->xt, tce, reason);
+    return xt_non_assignable (reason, DDSI_NONASSIGN_BOUND, t1, t2, 0);
+  }
+  if (t1->_d == DDS_XTypes_TK_SEQUENCE && t2->_d == DDS_XTypes_TK_SEQUENCE) {
+    if (tce->ignore_sequence_bounds || xt_check_bound (t1->_u.seq.bound, t2->_u.seq.bound))
+      return xt_is_strongly_assignable_from (gv, &t1->_u.seq.c.element_type->xt, &t2->_u.seq.c.element_type->xt, tce, reason);
+    return xt_non_assignable (reason, DDSI_NONASSIGN_BOUND, t1, t2, 0);
+  }
+  if (t1->_d == DDS_XTypes_TK_MAP && t2->_d == DDS_XTypes_TK_MAP) {
+    return xt_is_strongly_assignable_from (gv, &t1->_u.map.key_type->xt, &t2->_u.map.key_type->xt, tce, reason)
+      && xt_is_strongly_assignable_from (gv, &t1->_u.map.c.element_type->xt, &t2->_u.map.c.element_type->xt, tce, reason);
+  }
 
   // Aggregated types
   if (t1->_d == DDS_XTypes_TK_UNION && t2->_d == DDS_XTypes_TK_UNION)
-    return xt_is_assignable_from_union (gv, t1, t2, tce);
+    return xt_is_assignable_from_union (gv, t1, t2, tce, reason);
   if (t1->_d == DDS_XTypes_TK_STRUCTURE && t2->_d == DDS_XTypes_TK_STRUCTURE)
-    return xt_is_assignable_from_struct (gv, t1, t2, tce);
+    return xt_is_assignable_from_struct (gv, t1, t2, tce, reason);
 
-  return false;
+  return xt_non_assignable (reason, DDSI_NONASSIGN_INCOMPATIBLE_TYPE, t1, t2, 0);
 }
 
 static ddsi_typeid_kind_t ddsi_typeid_kind_impl (const struct DDS_XTypes_TypeIdentifier *type_id)
@@ -2826,6 +2909,16 @@ static ddsi_typeid_kind_t ddsi_typeid_kind_impl (const struct DDS_XTypes_TypeIde
     }
   }
   return kind;
+}
+
+bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type *rd_xt, const struct xt_type *wr_xt, const dds_type_consistency_enforcement_qospolicy_t *tce, struct ddsi_non_assignability_reason *reason)
+{
+  reason->code = DDSI_NONASSIGN_ASSIGNABLE;
+  if (xt_is_assignable_from_impl (gv, rd_xt, wr_xt, tce, reason))
+    return true;
+  if (reason->code == DDSI_NONASSIGN_ASSIGNABLE)
+    xt_non_assignable (reason, DDSI_NONASSIGN_UNKNOWN, rd_xt, wr_xt, 0);
+  return false;
 }
 
 ddsi_typeid_kind_t ddsi_typeid_kind (const ddsi_typeid_t *type_id)

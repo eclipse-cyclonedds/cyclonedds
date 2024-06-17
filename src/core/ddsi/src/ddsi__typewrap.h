@@ -66,22 +66,55 @@ void ddsi_xt_get_typeobject (const struct xt_type *xt, ddsi_typeobj_t *to);
 void ddsi_xt_type_fini (struct ddsi_domaingv *gv, struct xt_type *xt, bool include_typeid);
 
 /** @component xtypes_wrapper */
-bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type *rd_xt, const struct xt_type *wr_xt, const dds_type_consistency_enforcement_qospolicy_t *tce);
+
+enum ddsi_non_assignability_code {
+  DDSI_NONASSIGN_ASSIGNABLE,
+  DDSI_NONASSIGN_TYPE_UNRESOLVED,
+  DDSI_NONASSIGN_INCOMPATIBLE_TYPE,
+  DDSI_NONASSIGN_DIFFERENT_EXTENSIBILITY,
+  DDSI_NONASSIGN_WR_TYPE_NOT_DELIMITED,
+  DDSI_NONASSIGN_NAME_HASH_DIFFERS,
+  DDSI_NONASSIGN_MISSING_CASE,
+  DDSI_NONASSIGN_NUMBER_OF_MEMBERS,
+  DDSI_NONASSIGN_KEY_DIFFERS,
+  DDSI_NONASSIGN_NO_OVERLAP,
+  DDSI_NONASSIGN_STRUCT_MUST_UNDERSTAND,
+  DDSI_NONASSIGN_STRUCT_OPTIONAL,
+  DDSI_NONASSIGN_STRUCT_MEMBER_MISMATCH,
+  DDSI_NONASSIGN_KEY_INCOMPATIBLE,
+  DDSI_NONASSIGN_BOUND,
+  DDSI_NONASSIGN_UNKNOWN
+};
+
+struct ddsi_non_assignability_reason {
+  enum ddsi_non_assignability_code code;
+  const struct xt_type *t1;
+  const struct xt_type *t2;
+  uint32_t id;
+};
+
+bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type *rd_xt, const struct xt_type *wr_xt, const dds_type_consistency_enforcement_qospolicy_t *tce, struct ddsi_non_assignability_reason *reason)
+  ddsrt_nonnull_all;
 
 /** @component xtypes_wrapper */
-dds_return_t ddsi_xt_validate (struct ddsi_domaingv *gv, const struct xt_type *t);
+dds_return_t ddsi_xt_validate (struct ddsi_domaingv *gv, const struct xt_type *t)
+  ddsrt_nonnull_all;
 
 /** @component xtypes_wrapper */
-bool ddsi_xt_is_unresolved (const struct xt_type *t);
+bool ddsi_xt_is_unresolved (const struct xt_type *t)
+  ddsrt_nonnull_all;
 
 /** @component xtypes_wrapper */
-bool ddsi_xt_is_resolved (const struct xt_type *t);
+bool ddsi_xt_is_resolved (const struct xt_type *t)
+  ddsrt_nonnull_all;
 
 /** @component xtypes_wrapper */
-void ddsi_xt_copy (struct ddsi_domaingv *gv, struct xt_type *dst, const struct xt_type *src);
+void ddsi_xt_copy (struct ddsi_domaingv *gv, struct xt_type *dst, const struct xt_type *src)
+  ddsrt_nonnull_all;
 
 /** @component xtypes_wrapper */
-void ddsi_xt_get_namehash (DDS_XTypes_NameHash name_hash, const char *name);
+void ddsi_xt_get_namehash (DDS_XTypes_NameHash name_hash, const char *name)
+  ddsrt_nonnull_all;
 
 #if defined (__cplusplus)
 }
