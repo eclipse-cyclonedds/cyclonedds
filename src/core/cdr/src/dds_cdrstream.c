@@ -1837,12 +1837,13 @@ static inline const uint32_t *stream_skip_member (uint32_t insn, char * __restri
 static inline const uint32_t *dds_stream_read_adr (uint32_t insn, dds_istream_t * __restrict is, char * __restrict data, const struct dds_cdrstream_allocator * __restrict allocator, const uint32_t * __restrict ops, bool is_mutable_member, enum cdr_data_kind cdr_kind, enum sample_data_state sample_state)
 {
   void *addr = data + ops[1];
-  if (!stream_is_member_present (insn, is, is_mutable_member))
-    return stream_skip_member (insn, data, addr, allocator, ops, sample_state);
 
   const bool is_key = (insn & DDS_OP_FLAG_KEY);
   if (cdr_kind == CDR_KIND_KEY && !is_key)
     return dds_stream_skip_adr (insn, ops);
+
+  if (!stream_is_member_present (insn, is, is_mutable_member))
+    return stream_skip_member (insn, data, addr, allocator, ops, sample_state);
 
   if (op_type_external (insn))
     dds_stream_alloc_external (ops, insn, &addr, allocator, &sample_state);
@@ -4300,15 +4301,16 @@ static const uint32_t *prtf_uni (char * __restrict *buf, size_t *bufsize, dds_is
 
 static const uint32_t * dds_stream_print_adr (char * __restrict *buf, size_t * __restrict bufsize, uint32_t insn, dds_istream_t * __restrict is, const uint32_t * __restrict ops, bool is_mutable_member, enum cdr_data_kind cdr_kind)
 {
+  const bool is_key = (insn & DDS_OP_FLAG_KEY);
+  if (cdr_kind == CDR_KIND_KEY && !is_key)
+    return dds_stream_skip_adr (insn, ops);
+
   if (!stream_is_member_present (insn, is, is_mutable_member))
   {
     (void) prtf (buf, bufsize, "NULL");
     return dds_stream_skip_adr (insn, ops);
   }
 
-  const bool is_key = (insn & DDS_OP_FLAG_KEY);
-  if (cdr_kind == CDR_KIND_KEY && !is_key)
-    return dds_stream_skip_adr (insn, ops);
   switch (DDS_OP_TYPE (insn))
   {
     case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
