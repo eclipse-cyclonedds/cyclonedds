@@ -2066,8 +2066,13 @@ static bool xt_non_assignable (struct ddsi_non_assignability_reason *reason, enu
 {
   reason->code = code;
   reason->id = id;
-  reason->t1 = t1;
-  reason->t2 = t2;
+  reason->t1_id = t1->id.x;
+  reason->t1_typekind = t1->_d;
+  if (t2)
+  {
+    reason->t2_id = t2->id.x;
+    reason->t2_typekind = t2->_d;
+  }
   return false;
 }
 
@@ -2914,6 +2919,8 @@ static ddsi_typeid_kind_t ddsi_typeid_kind_impl (const struct DDS_XTypes_TypeIde
 bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type *rd_xt, const struct xt_type *wr_xt, const dds_type_consistency_enforcement_qospolicy_t *tce, struct ddsi_non_assignability_reason *reason)
 {
   reason->code = DDSI_NONASSIGN_ASSIGNABLE;
+  reason->t1_typekind = 0;
+  reason->t2_typekind = 0;
   if (xt_is_assignable_from_impl (gv, rd_xt, wr_xt, tce, reason))
     return true;
   if (reason->code == DDSI_NONASSIGN_ASSIGNABLE)

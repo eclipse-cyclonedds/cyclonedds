@@ -1423,10 +1423,10 @@ bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type_p
     GVLOG (lc_cat, "assignability check failed: rd type %s wr type %s, t1=%s (%s) t2=%s (%s) id %"PRIu32": %s\n",
            ddsi_make_typeid_str (&trdstr, &rd_xt->id),
            ddsi_make_typeid_str (&twrstr, &wr_xt->id),
-           reason.t1 ? ddsi_make_typeid_str (&t1str, &reason.t1->id) : "(none)",
-           reason.t1 ? ddsi_typekind_descr (reason.t1->_d) : "",
-           reason.t2 ? ddsi_make_typeid_str (&t2str, &reason.t2->id) : "(none)",
-           reason.t2 ? ddsi_typekind_descr (reason.t2->_d) : "",
+           reason.t1_typekind ? ddsi_make_typeid_str_impl (&t1str, &reason.t1_id) : "(none)",
+           reason.t1_typekind ? ddsi_typekind_descr (reason.t1_typekind) : "",
+           reason.t2_typekind ? ddsi_make_typeid_str_impl (&t2str, &reason.t2_id) : "(none)",
+           reason.t2_typekind ? ddsi_typekind_descr (reason.t2_typekind) : "",
            reason.id, ddsi_non_assignability_code_str (reason.code));
   }
   return assignable;
