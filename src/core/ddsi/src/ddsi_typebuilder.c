@@ -1500,15 +1500,19 @@ static int key_id_cmp (const void *va, const void *vb)
   for (uint32_t n = 0; n < (*a)->path->n_parts; n++)
   {
     assert (n < (*b)->path->n_parts);
-    if ((*a)->path->parts[n].kind == KEY_PATH_PART_INHERIT_MUTABLE)
+    switch ((*a)->path->parts[n].kind)
     {
-      /* a derived type cannot add keys, so all keys must have an INHERIT_MUTABLE
-         kind part at this index */
-      assert ((*b)->path->parts[n].kind == KEY_PATH_PART_INHERIT_MUTABLE);
-      continue;
+      case KEY_PATH_PART_INHERIT:
+      case KEY_PATH_PART_INHERIT_MUTABLE:
+        /* a derived type cannot add keys, so all keys must have an INHERIT_MUTABLE
+           kind part at this index */
+        assert ((*b)->path->parts[n].kind == (*a)->path->parts[n].kind);
+        break;
+      case KEY_PATH_PART_REGULAR:
+        if ((*a)->path->parts[n].member->member_id != (*b)->path->parts[n].member->member_id)
+          return (*a)->path->parts[n].member->member_id < (*b)->path->parts[n].member->member_id ? -1 : 1;
+        break;
     }
-    if ((*a)->path->parts[n].member->member_id != (*b)->path->parts[n].member->member_id)
-      return (*a)->path->parts[n].member->member_id < (*b)->path->parts[n].member->member_id ? -1 : 1;
   }
   assert ((*a)->path->n_parts == (*b)->path->n_parts);
   return 0;
