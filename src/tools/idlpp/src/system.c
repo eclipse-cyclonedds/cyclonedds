@@ -3291,8 +3291,6 @@ found_name:
     }
 #endif
     if (open_include( filename, (delim == '"'), next)) {
-        /* 'fname' should not be free()ed, it is used as file->         */
-        /*      real_fname and has been registered into fnamelist[]     */
         free( filename);
         return  TRUE;
     }
