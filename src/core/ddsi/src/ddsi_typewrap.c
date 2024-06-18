@@ -640,9 +640,9 @@ static dds_return_t xt_valid_struct_member_ids (struct ddsi_domaingv *gv, const 
       ids[--cnt1] = t1->_u.structure.members.seq[n].id;
   }
   qsort (ids, cnt, sizeof (*ids), xt_member_id_cmp);
-  for (uint32_t n = 0; n < cnt - 1; n++)
+  for (uint32_t n = 1; n < cnt; n++)
   {
-    if (ids[n] == ids[n + 1])
+    if (ids[n] == ids[n - 1])
     {
       GVTRACE ("duplicate member id %"PRIu32" in struct\n", ids[n]);
       ret = DDS_RETCODE_BAD_PARAMETER;
