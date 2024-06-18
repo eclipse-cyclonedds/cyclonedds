@@ -88,8 +88,10 @@ enum ddsi_non_assignability_code {
 
 struct ddsi_non_assignability_reason {
   enum ddsi_non_assignability_code code;
-  const struct xt_type *t1;
-  const struct xt_type *t2;
+  DDS_XTypes_TypeIdentifier t1_id;
+  DDS_XTypes_TypeIdentifier t2_id;
+  uint8_t t1_typekind;
+  uint8_t t2_typekind;
   uint32_t id;
 };
 
