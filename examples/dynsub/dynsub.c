@@ -80,7 +80,7 @@ static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_
       // as an approximation of the topic QoS.
       if ((*topic = dds_find_topic (DDS_FIND_SCOPE_GLOBAL, participant, ep->topic_name, typeinfo, DDS_SECS (2))) < 0)
       {
-        fprintf (stderr, "dds_find_topic: %s ... continuing on the assumptions that topic discovery is disabled\n", dds_strretcode (*topic));
+        fprintf (stderr, "dds_find_topic: %s ... continuing on the assumption that topic discovery is disabled\n", dds_strretcode (*topic));
         dds_topic_descriptor_t *descriptor;
         if ((ret = dds_create_topic_descriptor(DDS_FIND_SCOPE_GLOBAL, participant, typeinfo, DDS_SECS (10), &descriptor)) < 0)
         {
