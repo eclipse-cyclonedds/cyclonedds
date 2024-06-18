@@ -554,16 +554,18 @@ static struct ddsi_xmsg *make_preemptive_acknack (struct ddsi_xevent *ev, struct
     (ddsi_count_t *) ((char *) an + offsetof (ddsi_rtps_acknack_t, bits) + DDSI_SEQUENCE_NUMBER_SET_BITS_SIZE (0));
   *countp = 0;
   ddsi_xmsg_submsg_setnext (msg, sm_marker);
+
+  // print before security gets to it: it can delete the message
+  // numbits is always 0 here, so need to print the bitmap
+  ETRACE (pwr, "acknack "PGUIDFMT" -> "PGUIDFMT": #%"PRIu32":%"PRId64"/%"PRIu32":\n",
+          PGUID (rwn->rd_guid), PGUID (pwr->e.guid), *countp,
+          ddsi_from_seqno (an->readerSNState.bitmap_base), an->readerSNState.numbits);
+
   ddsi_security_encode_datareader_submsg (msg, sm_marker, pwr, &rwn->rd_guid);
 
   rwn->t_last_ack = tnow;
   const dds_duration_t new_intv = preemptive_acknack_interval (rwn);
   (void) ddsi_resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_ack, new_intv));
-
-  // numbits is always 0 here, so need to print the bitmap
-  ETRACE (pwr, "acknack "PGUIDFMT" -> "PGUIDFMT": #%"PRIu32":%"PRId64"/%"PRIu32":\n",
-          PGUID (rwn->rd_guid), PGUID (pwr->e.guid), *countp,
-          ddsi_from_seqno (an->readerSNState.bitmap_base), an->readerSNState.numbits);
   return msg;
 }
 
