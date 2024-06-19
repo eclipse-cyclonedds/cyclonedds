@@ -237,13 +237,9 @@ enum ddsi_config_entity_naming_mode {
   DDSI_ENTITY_NAMING_DEFAULT_FANCY
 };
 
-// The array is stored as size + pointer to pointer array.
-// If size is zero, the pointer is NULL rather than a pointer to an empty array.
-// The pointed-to strings are allocated right after the array, so
-// a simple `free(topics)` frees everything
-struct ddsi_config_topic_array {
-  size_t size;
-  char **topics;
+struct ddsi_config_topic_pattern_listelem {
+  struct ddsi_config_topic_pattern_listelem *next;
+  const char *pattern;
 };
 
 struct ddsi_config_psmx {
@@ -251,8 +247,8 @@ struct ddsi_config_psmx {
   char *library;
   char *config;
   struct ddsi_config_maybe_int32 priority;
-  struct ddsi_config_topic_array forbidden_topics;
-  struct ddsi_config_topic_array only_for_topics;
+  struct ddsi_config_topic_pattern_listelem *forbidden_topics;
+  struct ddsi_config_topic_pattern_listelem *only_for_topics;
 };
 
 struct ddsi_config_psmx_listelem {

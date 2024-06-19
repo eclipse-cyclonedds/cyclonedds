@@ -53,7 +53,6 @@ void gendef_pf_transport_selector (FILE *fp, void *parent, struct cfgelem const 
 void gendef_pf_many_sockets_mode (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_standards_conformance (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_shm_loglevel (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
-void gendef_pf_topic_array (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 
 struct cfgunit {
   const char *name;

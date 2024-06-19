@@ -197,7 +197,6 @@ DU(deaf_mute);
 DUPF(min_tls_version);
 #endif
 DUPF(shm_loglevel);
-DUPF(topic_array);
 #undef DUPF
 #undef DU
 #undef PF
@@ -205,7 +204,6 @@ DUPF(topic_array);
 #define DF(fname) static void fname (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 DF(ff_free);
 DF(ff_networkAddresses);
-DF(ff_topic_array);
 #undef DF
 
 #define DI(fname) static int fname (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
@@ -221,7 +219,7 @@ DI(if_thread_properties);
 #ifdef DDS_HAS_SECURITY
 DI(if_omg_security);
 #endif
-DI(if_topic_array);
+DI(if_topic_pattern_list);
 #undef DI
 
 /* drop extra information, i.e. DESCRIPTION, RANGE, UNIT and VALUES */
@@ -1285,40 +1283,11 @@ static void ff_networkAddresses (struct ddsi_cfgst *cfgst, void *parent, struct 
   ddsrt_free (*elem);
 }
 
-static int if_topic_array(struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem) {
-  struct ddsi_config_topic_array * elem = cfg_address (cfgst, parent, cfgelem);
-  elem->size = 0;
-  elem->topics = NULL;
+static int if_topic_pattern_list(struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem) {
+  struct ddsi_config_topic_pattern_listelem * new = if_common (cfgst, parent, cfgelem, sizeof(*new));
+  if (new == NULL)
+    return -1;
   return 0;
-}
-
-static enum update_result uf_topic_array (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG(int first), const char *value) {
-  struct ddsi_config_topic_array * elem = cfg_address (cfgst, parent, cfgelem);
-  free(elem->topics);
-  if (*value == '\0') {
-    elem->size = 0;
-    elem->topics = NULL;
-  } else {
-    elem->topics = split_at_comma(value, &elem->size);
-  }
-  return URES_SUCCESS;
-}
-
-static void ff_topic_array (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem) {
-  struct ddsi_config_topic_array * elem = cfg_address (cfgst, parent, cfgelem);
-  free(elem->topics);
-}
-
-static void pf_topic_array (struct ddsi_cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), uint32_t sources) {
-  struct ddsi_config_topic_array * elem = cfg_address (cfgst, parent, cfgelem);
-  if (elem->size == 0) {
-    // Just passing "" produces a "zero-length format string" warning
-    cfg_logelem (cfgst, sources, "%s", "");
-  } else {
-    for (size_t i = 0; i < elem->size; ++i) {
-      cfg_logelem (cfgst, sources, "%s", elem->topics[i]);
-    }
-  }
 }
 
 #ifdef DDSRT_HAVE_SSM

@@ -193,18 +193,6 @@ void gendef_pf_standards_conformance (FILE *out, void *parent, struct cfgelem co
 void gendef_pf_shm_loglevel (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
   gendef_pf_int (out, parent, cfgelem);
 }
-void gendef_pf_topic_array (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
-  struct ddsi_config_topic_array * elem = cfg_address (parent, cfgelem);
-  if (elem->size == 0) {
-    // The default zero-initialization does the right thing, nothing to do here
-  } else {
-    // Creating an initializer out of a dds_config_topic_array is a bit involved (we'd need to
-    // glue the topics back together with commas and also set up the allocation just like split_at_comma
-    // does it). At the same time, it's probably not useful. So restrict the gendef to empty arrays for now
-    // and implement this once it's actually needed.
-    fprintf(out, "#error \"Non-empty topic arrays not supported in default config\"\n");
-  }
-}
 
 static void gen_defaults (FILE *out, void *parent, struct cfgelem const * const cfgelem)
 {

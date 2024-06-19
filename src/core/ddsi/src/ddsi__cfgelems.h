@@ -106,6 +106,34 @@ static struct cfgelem network_interface_attributes[] = {
   END_MARKER
 };
 
+static struct cfgelem topic_pattern_cfgattr[] = {
+  STRING("value", NULL, 1, NULL,
+    MEMBEROF(ddsi_config_topic_pattern_listelem, pattern),
+    FUNCTIONS(0, uf_string, ff_free, pf_string),
+    DESCRIPTION("")),
+  END_MARKER
+};
+
+static struct cfgelem only_for_topics_cfgelem[] = {
+  STRING("Pattern", topic_pattern_cfgattr, INT_MAX, NULL,
+  MEMBEROF(ddsi_config_psmx_listelem, cfg.only_for_topics),
+        FUNCTIONS(if_topic_pattern_list, 0, 0, 0),
+    DESCRIPTION(
+      "<p>A pattern (with ? and * wildcards) that is matched against topics. </p>"
+    )),
+  END_MARKER
+};
+
+static struct cfgelem forbidden_topics_cfgelem[] = {
+  STRING("Pattern", topic_pattern_cfgattr, INT_MAX, NULL,
+  MEMBEROF(ddsi_config_psmx_listelem, cfg.forbidden_topics),
+        FUNCTIONS(if_topic_pattern_list, 0, 0, 0),
+    DESCRIPTION(
+      "<p>A pattern (with ? and * wildcards) that is matched against topics. </p>"
+    )),
+  END_MARKER
+};
+
 static struct cfgelem psmx_attributes[] = {
   STRING("name", NULL, 1, "",
     MEMBEROF(ddsi_config_psmx_listelem, cfg.name),
@@ -134,20 +162,23 @@ static struct cfgelem psmx_attributes[] = {
       "This has no meaning in CycloneDDS itself, and its parsing is deferred to the"
       "PSMX implementation.</p>"
     )),
-  STRING("forbiddenTopics", NULL, 1, "",
-    MEMBEROF(ddsi_config_psmx_listelem, cfg.forbidden_topics),
-    FUNCTIONS(if_topic_array, uf_topic_array, ff_topic_array, pf_topic_array),
+  END_MARKER
+};
+
+static struct cfgelem psmx_cfgelems[] = {
+  GROUP("forbiddenTopics", forbidden_topics_cfgelem, NULL, 1,
+    NOMEMBER,
+    NOFUNCTIONS,
     DESCRIPTION(
-      "<p>A comma-separated list of topics that should never use this psmx."
-      "Mutually exclusive with onlyForTopics.</p>"
+      "<p>A list of topics that should never use this psmx. "
+      "Mutually exclusive with onlyForTopics. </p>"
     )),
-  STRING("onlyForTopics", NULL, 1, "",
-    MEMBEROF(ddsi_config_psmx_listelem, cfg.only_for_topics),
-    FUNCTIONS(if_topic_array, uf_topic_array, ff_topic_array, pf_topic_array),
+  GROUP("onlyForTopics", only_for_topics_cfgelem, NULL, 1,
+    NOMEMBER,
+    NOFUNCTIONS,
     DESCRIPTION(
-      "<p>A comma-separated list of all the topics that should use this PSMX."
-      "This option can be used to restrict the PSMX to a selected list of topics."
-      "Mutually exclusive with forbiddenTopics.</p>"
+      "<p>A list of topics that should never use this psmx. "
+      "Mutually exclusive with onlyForTopics. </p>"
     )),
   END_MARKER
 };
@@ -161,7 +192,7 @@ static struct cfgelem interfaces_cfgelems[] = {
       "to autoselect the interface CycloneDDS considers the highest quality. If "
       "autodetermine=\"false\" (the default), you must specify the name and/or address "
       "attribute. If you specify both, they must match the same interface.</p>")),
-  GROUP("PubSubMessageExchange", NULL, psmx_attributes, INT_MAX,
+  GROUP("PubSubMessageExchange", psmx_cfgelems, psmx_attributes, INT_MAX,
     MEMBER(psmx_instances),
     FUNCTIONS(if_psmx, 0, 0, 0),
     DESCRIPTION(
