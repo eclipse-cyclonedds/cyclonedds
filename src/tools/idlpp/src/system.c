@@ -1406,9 +1406,11 @@ Version:
     /* Normalize the path-list  */
     if (*in_pp && ! str_eq( *in_pp, "-")) {
         char *  tmp = norm_path( null, *in_pp, FALSE, FALSE);
-        if (tmp)                        /* The file exists          */
+        if (tmp) {                       /* The file exists          */
+            free(*in_pp);
             *in_pp = tmp;
             /* Else mcpp_main() will diagnose *in_pp and exit   */
+        }
     }
     if (! (mcpp_debug & MACRO_CALL)) {
         /* -K option alters behavior of -v option   */
@@ -2224,7 +2226,8 @@ static char *   set_files(
 #if SYS_FAMILY == SYS_WIN
         cp = bsl2sl( cp);
 #endif
-        *in_pp = cp;
+        *in_pp = xmalloc( strlen(cp) + 1);  /* Need a new buffer    */
+        strcpy( *in_pp, cp);
     }
     if (mcpp_optind < argc && argv[ mcpp_optind][ 0] != '-'
             && *out_pp == NULL) {

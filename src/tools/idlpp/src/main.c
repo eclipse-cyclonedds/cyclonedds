@@ -391,7 +391,8 @@ int     main
 #endif
         }
     } else {
-        in_file = stdin_name;
+        in_file = xmalloc( strlen( stdin_name) + 1);
+        strcpy( in_file, stdin_name);
     }
     /* Open output file, "-" means stdout.  */
     if (out_file != NULL && ! str_eq( out_file, "-")) {
@@ -435,11 +436,6 @@ int     main
 
 fatal_error_exit:
 #if MCPP_LIB
-    /* Free malloced memory */
-    if (mcpp_debug & MACRO_CALL) {
-        if (in_file != stdin_name)
-            free( in_file);
-    }
     clear_filelist();
     clear_symtable();
 #endif
@@ -452,7 +448,7 @@ fatal_error_exit:
         fclose( fp_err);
     clean_system();
     if (in_file != NULL)
-      free(in_file);
+        free( in_file);
 
     if (mcpp_debug & MEMORY)
         print_heap();
