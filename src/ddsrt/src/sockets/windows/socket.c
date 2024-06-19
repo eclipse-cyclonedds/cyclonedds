@@ -570,6 +570,7 @@ ddsrt_recvmsg(
     if (sockext->wsarecvmsg (sockext->sock, &wsamsg, &n, NULL, 0) != 0)
     {
       int err = WSAGetLastError();
+      *rcvd = (ssize_t) n;
       return recv_error_to_retcode(err);
     }
     else
