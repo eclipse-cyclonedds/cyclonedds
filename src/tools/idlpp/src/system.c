@@ -3291,8 +3291,7 @@ found_name:
     }
 #endif
     if (open_include( filename, (delim == '"'), next)) {
-        /* 'fname' should not be free()ed, it is used as file->         */
-        /*      real_fname and has been registered into fnamelist[]     */
+        free( filename);
         return  TRUE;
     }
 
@@ -3612,6 +3611,7 @@ search:
         put_depend( fullname);          /* Output dependency line   */
 
 true:
+    free( fullname);
     return  TRUE;
 false:
     free( fullname);
@@ -3680,7 +3680,7 @@ static const char *     set_fname(
     fnamelen = strlen( filename);
     for (fnamep = fnamelist; fnamep < fname_end; fnamep++) {
         if (fnamep->len == fnamelen && str_case_eq( fnamep->name, filename))
-            return  filename;           /* Already registered       */
+            return  fnamep->name;           /* Already registered       */
     }
     fname_end->name = xmalloc( fnamelen + 1);
     filename = strcpy( (char *)fname_end->name, filename);
@@ -5086,3 +5086,8 @@ void    clear_filelist( void)
 }
 #endif
 
+void clean_system(void)
+{
+  if (sharp_filename != NULL)
+    free(sharp_filename);
+}

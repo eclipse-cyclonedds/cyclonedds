@@ -507,6 +507,7 @@ extern int      (* mcpp_fprintf)( MCPP_OUTDEST od, const char * format, ...)
         MCPP_ATTRIBUTE_FORMAT_PRINTF(2, 3);
 
 /* system.c */
+extern void     clean_system(void);
 extern void     do_options( int argc, char ** argv, char ** in_pp
         , char ** out_pp);
                 /* Process command line args    */
