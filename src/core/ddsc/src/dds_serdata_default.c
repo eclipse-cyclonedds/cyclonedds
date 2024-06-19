@@ -913,7 +913,8 @@ static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertyp
   else
     return NULL;
 
-  struct dds_serdata_default *d = serdata_default_new_size (tp, kind, md->sample_size, xcdr_version);
+  const uint32_t pad = ddsrt_fromBE2u (md->cdr_options) & DDS_CDR_HDR_PADDING_MASK;
+  struct dds_serdata_default *d = serdata_default_new_size (tp, kind, md->sample_size + pad, xcdr_version);
   d->c.statusinfo = md->statusinfo;
   d->c.timestamp.v = md->timestamp;
   if (md->cdr_identifier == DDSI_RTPS_SAMPLE_NATIVE)
