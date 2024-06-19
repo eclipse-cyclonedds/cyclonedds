@@ -3680,7 +3680,7 @@ static const char *     set_fname(
     fnamelen = strlen( filename);
     for (fnamep = fnamelist; fnamep < fname_end; fnamep++) {
         if (fnamep->len == fnamelen && str_case_eq( fnamep->name, filename))
-            return  filename;           /* Already registered       */
+            return  fnamep->name;           /* Already registered       */
     }
     fname_end->name = xmalloc( fnamelen + 1);
     filename = strcpy( (char *)fname_end->name, filename);
