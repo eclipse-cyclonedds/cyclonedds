@@ -28,6 +28,7 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_entity_index.h"
+#include "dds/ddsi/ddsi_misc.h"
 #include "dds/ddsi/ddsi_thread.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_iid.h"
@@ -587,17 +588,18 @@ dds_entity_t dds_create_topic_impl (
     // Check if the topic is in the forbiddenTopics or NOT in the onlyForTopics list, depending
     // on which one is used.
     // First off, topics not mentioned are allowed iff only_for_topics is unused
-    bool allowed_by_config = !psmx->only_for_topics[0];
+    bool allowed_by_config = psmx->only_for_topics[0] == NULL;
     // Then any topic in only_for_topics is allowed
-    for (char **topic = psmx->only_for_topics; *topic; topic++) {
-      if (strcmp(ktp->name, *topic) == 0) {
+    for (char **pattern = psmx->only_for_topics; *pattern; pattern++) {
+      printf("Matching %s against pattern %s\n", ktp->name, *pattern);
+      if (ddsi_patmatch(*pattern, ktp->name)) {
         allowed_by_config = true;
         break;
       }
     }
     // And any topic in forbidden_topics is forbidden
-    for (char **topic = psmx->forbidden_topics; *topic; topic++) {
-      if (strcmp(ktp->name, *topic) == 0) {
+    for (char **pattern = psmx->forbidden_topics; *pattern; pattern++) {
+      if (ddsi_patmatch(*pattern, ktp->name)) {
         allowed_by_config = false;
         break;
       }

@@ -338,10 +338,20 @@ static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, const st
     goto err_init;
   }
 
-  psmx_instance->only_for_topics = psmx_instance->forbidden_topics = NULL;
   // Copy over either the only_for_topics or the forbidden_topics list, switching to nullptr-terminated array of separately-allocated strings
-  struct ddsi_config_topic_pattern_listelem * pattern_list = config->only_for_topics ? config->only_for_topics : config->forbidden_topics;
-  char *** pattern_array_ptr = config->only_for_topics ? &psmx_instance->only_for_topics : &psmx_instance->forbidden_topics;
+  struct ddsi_config_topic_pattern_listelem * pattern_list;
+  char *** pattern_array_ptr;
+
+  if (config->only_for_topics) {
+    pattern_list = config->only_for_topics;
+    pattern_array_ptr = &psmx_instance->only_for_topics;
+    psmx_instance->forbidden_topics = ddsrt_calloc_s(1, sizeof(char*));
+  } else if (config->forbidden_topics) {
+    pattern_list = config->forbidden_topics;
+    pattern_array_ptr = &psmx_instance->forbidden_topics;
+    psmx_instance->only_for_topics = ddsrt_calloc_s(1, sizeof(char*));
+  }
+
   size_t list_size = 0;
   for (struct ddsi_config_topic_pattern_listelem * elem = pattern_list;
        elem;

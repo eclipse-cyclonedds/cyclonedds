@@ -65,9 +65,6 @@ int ddsi_guid_prefix_eq (const ddsi_guid_prefix_t *a, const ddsi_guid_prefix_t *
 /** @component misc */
 int ddsi_guid_eq (const struct ddsi_guid *a, const struct ddsi_guid *b);
 
-/** @component misc */
-int ddsi_patmatch (const char *pat, const char *str);
-
 #if defined (__cplusplus)
 }
 #endif
