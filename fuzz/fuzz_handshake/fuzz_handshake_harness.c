@@ -142,6 +142,7 @@ bool fuzz_handshake_init()
         ddsi_xqos_mergein_missing (&pplist.qos, new_qos, ~(uint64_t)0);
         dds_delete_qos(new_qos);
 
+        ddsi_generate_participant_guid (&g_ppguid, &gv);
         dds_return_t ret = ddsi_new_participant(&g_ppguid, &gv, 0, &pplist);
         if(ret != DDS_RETCODE_OK) abort();
         harness.pp = ddsi_entidx_lookup_participant_guid(gv.entity_index, &g_ppguid);
@@ -214,12 +215,10 @@ void fuzz_handshake_reset(bool initiate_remote) {
         g_proxy_ppguid.prefix.s[0] = 0xff;
         g_proxy_ppguid.prefix.s[1] = 0xff;
         g_proxy_ppguid.prefix.s[2] = 0xff;
-        g_proxy_ppguid.prefix.s[3] = 0xff;
     } else {
         g_proxy_ppguid.prefix.s[0] = 0x00;
         g_proxy_ppguid.prefix.s[1] = 0x00;
         g_proxy_ppguid.prefix.s[2] = 0x00;
-        g_proxy_ppguid.prefix.s[3] = 0x00;
     }
 
     ddsrt_wctime_t timestamp = { .v = dds_time() };
@@ -234,7 +233,7 @@ void fuzz_handshake_reset(bool initiate_remote) {
     assert(!ddsi_addrset_empty_uc(as));
 
     ddsi_thread_state_awake(ddsi_lookup_thread_state(), &gv);
-    if (!ddsi_new_proxy_participant(&gv,
+    if (!ddsi_new_proxy_participant(&harness.proxy_pp, &gv,
             &g_proxy_ppguid,
             DDSI_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER|
             DDSI_BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_ANNOUNCER|DDSI_BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_DETECTOR,
@@ -249,8 +248,6 @@ void fuzz_handshake_reset(bool initiate_remote) {
             0)) {
         abort();
     }
-
-    harness.proxy_pp = ddsi_entidx_lookup_proxy_participant_guid(gv.entity_index, &g_proxy_ppguid);
     ddsi_thread_state_asleep(ddsi_lookup_thread_state());
     ddsi_plist_fini(&pplist);
 
