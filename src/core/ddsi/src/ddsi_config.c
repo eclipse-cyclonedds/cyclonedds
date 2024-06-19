@@ -667,7 +667,6 @@ static int if_thread_properties (struct ddsi_cfgst *cfgst, void *parent, struct 
   struct ddsi_config_thread_properties_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
   if (new == NULL)
     return -1;
-  new->name = NULL;
   return 0;
 }
 
@@ -676,8 +675,6 @@ static int if_network_interfaces(struct ddsi_cfgst *cfgst, void *parent, struct 
   struct ddsi_config_network_interface_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
   if (new == NULL)
     return -1;
-  new->cfg.name = NULL;
-  new->cfg.address = NULL;
   return 0;
 }
 
@@ -686,7 +683,6 @@ static int if_psmx(struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const 
   struct ddsi_config_psmx_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
   if (new == NULL)
     return -1;
-  memset(&new->cfg, 0, sizeof(new->cfg));
   return 0;
 }
 
@@ -696,14 +692,6 @@ static int if_network_partition (struct ddsi_cfgst *cfgst, void *parent, struct 
   struct ddsi_config_networkpartition_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
   if (new == NULL)
     return -1;
-  new->address_string = NULL;
-  new->interface_names = NULL;
-  new->uc_addresses = NULL;
-  new->asm_addresses = NULL;
-#ifdef DDSRT_HAVE_SSM
-  new->ssm_addresses = NULL;
-#endif
-  new->name = NULL;
   return 0;
 }
 
@@ -712,7 +700,6 @@ static int if_ignored_partition (struct ddsi_cfgst *cfgst, void *parent, struct 
   struct ddsi_config_ignoredpartition_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
   if (new == NULL)
     return -1;
-  new->DCPSPartitionTopic = NULL;
   return 0;
 }
 
@@ -721,9 +708,6 @@ static int if_partition_mapping (struct ddsi_cfgst *cfgst, void *parent, struct 
   struct ddsi_config_partitionmapping_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
   if (new == NULL)
     return -1;
-  new->DCPSPartitionTopic = NULL;
-  new->networkPartition = NULL;
-  new->partition = NULL;
   return 0;
 }
 #endif /* DDS_HAS_NETWORK_PARTITIONS */
@@ -733,7 +717,6 @@ static int if_peer (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const
   struct ddsi_config_peer_listelem *new = if_common (cfgst, parent, cfgelem, sizeof (*new));
   if (new == NULL)
     return -1;
-  new->peer = NULL;
   return 0;
 }
 
@@ -743,7 +726,6 @@ static int if_omg_security (struct ddsi_cfgst *cfgst, void *parent, struct cfgel
   struct ddsi_config_omg_security_listelem *new = if_common (cfgst, parent, cfgelem, sizeof (*new));
   if (new == NULL)
     return -1;
-  memset(&new->cfg, 0, sizeof(new->cfg));
   return 0;
 }
 #endif
