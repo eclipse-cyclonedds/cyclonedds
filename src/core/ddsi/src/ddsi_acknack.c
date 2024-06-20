@@ -257,7 +257,7 @@ static enum ddsi_add_acknack_result get_acknack_info (const struct ddsi_proxy_wr
       result = (bitmap_result == DDSI_REORDER_NACKMAP_ACK) ? AANR_ACK : AANR_SUPPRESSED_NACK;
       break;
     }
-      
+
     case DDSI_REORDER_NACKMAP_NACK: {
       // [seq_base:0 .. seq_end_p1:0) + [seq_end_p1:frag_base .. seq_end_p1:frag_end_p1) if frag_end_p1 > 0
       const ddsi_seqno_t seq_base = ddsi_from_seqno (info->acknack.set.bitmap_base);
@@ -266,12 +266,12 @@ static enum ddsi_add_acknack_result get_acknack_info (const struct ddsi_proxy_wr
       const ddsi_seqno_t seq_end_p1 = seq_base + info->acknack.set.numbits;
       const uint32_t frag_base = (info->nackfrag.seq > 0) ? info->nackfrag.set.bitmap_base : 0;
       const uint32_t frag_end_p1 = (info->nackfrag.seq > 0) ? info->nackfrag.set.bitmap_base + info->nackfrag.set.numbits : 0;
-      
+
       /* Let caller know whether it is a nack, and, in steady state, set
          final to prevent a response if it isn't.  The initial
          (pre-emptive) acknack is different: it'd be nice to get a
          heartbeat in response.
-       
+
          Who cares about an answer to an acknowledgment!? -- actually,
          that'd a very useful feature in combination with directed
          heartbeats, or somesuch, to get reliability guarantees. */
@@ -279,7 +279,7 @@ static enum ddsi_add_acknack_result get_acknack_info (const struct ddsi_proxy_wr
       nack_summary->frag_end_p1 = frag_end_p1;
       nack_summary->seq_base = seq_base;
       nack_summary->frag_base = frag_base;
-      
+
       // [seq_base:0 .. seq_end_p1:0) and [seq_end_p1:frag_base .. seq_end_p1:frag_end_p1) if frag_end_p1 > 0
       if (seq_base > rwn->last_nack.seq_end_p1 || (seq_base == rwn->last_nack.seq_end_p1 && frag_base >= rwn->last_nack.frag_end_p1))
       {
@@ -322,6 +322,10 @@ static enum ddsi_add_acknack_result get_acknack_info (const struct ddsi_proxy_wr
       break;
     }
   }
+
+  // all cases of enum ddsi_reorder_nackmap_result are covered above, so:
+  // result initialization is dead code (but needed because C and some compilers) and:
+  assert (result == AANR_ACK || result == AANR_NACK || result == AANR_SUPPRESSED_NACK);
 
   if (result == AANR_ACK || result == AANR_SUPPRESSED_NACK)
   {
@@ -384,6 +388,7 @@ void ddsi_sched_acknack_if_needed (struct ddsi_xevent *ev, struct ddsi_proxy_wri
   }
 }
 
+#ifndef NDEBUG
 static bool need_to_eventually_nack (enum ddsi_add_acknack_result aanr)
 {
   switch (aanr)
@@ -399,26 +404,42 @@ static bool need_to_eventually_nack (enum ddsi_add_acknack_result aanr)
   }
   return true;
 }
+#endif
 
-static bool need_to_eventually_nack_intv (const struct ddsi_domaingv *gv, enum ddsi_add_acknack_result aanr, int64_t *intv)
+static void resched_acknack_if_data_missing (struct ddsi_xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow, const enum ddsi_add_acknack_result aanr)
 {
   switch (aanr)
   {
-    case AANR_SILENT_ACK:
     case AANR_ACK:
-      assert (!need_to_eventually_nack (aanr));
-      return false;
+      // Sending something, nothing missing so no need to reschedule
+      break;
+
+    case AANR_SILENT_ACK:
+      // Not sending anything, nothing missing so no need to reschedule
+      break;
+
     case AANR_NACK:
     case AANR_NACKFRAG_ONLY:
-      *intv = gv->config.auto_resched_nack_delay;
+      // Sending a retransmit request now, reschedule because requesting data isn't a guarantee
+      // we'll get it.
+      (void) ddsi_resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (tnow, pwr->e.gv->config.auto_resched_nack_delay));
       break;
+
     case AANR_SILENT_NACK:
-    case AANR_SUPPRESSED_NACK:
-      *intv = gv->config.nack_delay;
+    case AANR_SUPPRESSED_NACK: {
+      // Not sending anything or only sending an ACK, despite knowing we are missing data.
+      //
+      // Rate-limit spontaneous (or "illegal") NACKs, do any further processing only if enough
+      // time has passed, else bail out after rescheduling it for the time at which we are
+      // willing to send it
+      const int64_t intv = pwr->e.gv->config.nack_delay;
+      ddsrt_mtime_t tnext = ddsrt_mtime_add_duration (rwn->t_last_nack, intv);
+      if (tnext.v < tnow.v)
+        tnext = ddsrt_mtime_add_duration (tnow, intv);
+      ddsi_resched_xevent_if_earlier (ev, tnext);
       break;
+    }
   }
-  assert (need_to_eventually_nack (aanr));
-  return true;
 }
 
 static struct ddsi_xmsg *make_and_resched_acknack (struct ddsi_xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow)
@@ -433,44 +454,19 @@ static struct ddsi_xmsg *make_and_resched_acknack (struct ddsi_xevent *ev, struc
                       tnow.v >= ddsrt_mtime_add_duration (rwn->t_last_ack, gv->config.ack_delay).v,
                       tnow.v >= ddsrt_mtime_add_duration (rwn->t_last_nack, gv->config.nack_delay).v);
 
-  // Trivial case: no data missing, suppressing an ACK now because of the rate
-  if (aanr == AANR_SILENT_ACK)
-    return NULL;
-
-  // Reschedule if there is data missing
-  if (rwn->heartbeat_since_ack || rwn->heartbeatfrag_since_ack)
+  // Reschedule in cases there is data missing, bail out if not sending anything at all
+  resched_acknack_if_data_missing (ev, pwr, rwn, tnow, aanr);
+  switch (aanr)
   {
-    // Responding to a heartbeat, so reschedule if there's something to NACK, then continue
-    // sending ACKNACK / NACK_FRAG
-    int64_t intv = 0;
-    if (need_to_eventually_nack_intv (gv, aanr, &intv))
-      (void) ddsi_resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (tnow, intv));
-  }
-  else
-  {
-    // Not really allowed to send an ACKNACK by the spec, except we do it sometimes to recover
-    // from packet loss after an asymmetrical disconnect where the writer never has any reason
-    // to send a heartbeat
-    if (!need_to_eventually_nack (aanr))
-    {
-      // If there's nothing to NACK, don't send anything and don't reschedule
+    case AANR_SILENT_ACK:
+    case AANR_SILENT_NACK:
+      assert (!need_to_eventually_nack (aanr) || ddsi_xevent_is_scheduled (ev));
       return NULL;
-    }
-    else
-    {
-      // Rate-limit spontaneous (or "illegal") NACKs, do any further processing only if enough
-      // time has passed, else bail out after rescheduling it for the time at which we are
-      // willing to send it
-      const int64_t intv = gv->config.auto_resched_nack_delay;
-      const ddsrt_mtime_t tsend = ddsrt_mtime_add_duration (rwn->t_last_nack, intv);
-      const ddsrt_mtime_t trepeat = ddsrt_mtime_add_duration (tnow, intv);
-      if (tnow.v < tsend.v)
-      {
-        (void) ddsi_resched_xevent_if_earlier (ev, tsend);
-        return NULL;
-      }
-      (void) ddsi_resched_xevent_if_earlier (ev, trepeat);
-    }
+    case AANR_ACK:
+    case AANR_NACK:
+    case AANR_NACKFRAG_ONLY:
+    case AANR_SUPPRESSED_NACK:
+      break;
   }
 
   // Committing to sending a message in response: update the state.  Note that there's still a
@@ -529,7 +525,7 @@ static struct ddsi_xmsg *make_and_resched_acknack (struct ddsi_xevent *ev, struc
   {
     case AANR_SILENT_ACK:
     case AANR_SILENT_NACK:
-      // no message: caught by the size = 0 check
+      // can't be reached because of early returns
       assert (0);
       break;
     case AANR_ACK:
