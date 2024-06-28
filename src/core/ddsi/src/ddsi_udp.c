@@ -184,49 +184,49 @@ static ssize_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned ch
   (void) allow_spurious;
 
   dds_return_t rc;
-  ssize_t nrecv = 0;
+  ssize_t nrecv;
   do {
     rc = ddsrt_recvmsg (&conn->m_sockext, &msghdr, 0, &nrecv);
   } while (rc == DDS_RETCODE_INTERRUPTED);
 
-  if (nrecv > 0)
+  if (rc != DDS_RETCODE_OK)
   {
-    if (pktinfo)
-    {
-      addr_to_loc (conn->m_base.m_factory, &pktinfo->src, &src);
-      translate_pktinfo (pktinfo, &msghdr, conn->m_base.m_base.m_port, src.a.sa_family == AF_INET6);
-    }
-
-    if (gv->pcap_fp)
-    {
-      union addr dest;
-      socklen_t dest_len = sizeof (dest);
-      if (ddsrt_getsockname (conn->m_sockext.sock, &dest.a, &dest_len) != DDS_RETCODE_OK)
-        memset (&dest, 0, sizeof (dest));
-      ddsi_write_pcap_received (gv, ddsrt_time_wallclock (), &src.x, &dest.x, buf, (size_t) nrecv);
-    }
-
-    /* Check for udp packet truncation */
-#if ! DDSRT_MSGHDR_FLAGS
-    const bool trunc_flag = false;
-#elif defined MSG_CTRUNC
-    const bool trunc_flag = (msghdr.msg_flags & (MSG_TRUNC | MSG_CTRUNC)) != 0;
-#else
-    const bool trunc_flag = (msghdr.msg_flags & MSG_TRUNC) != 0;
-#endif
-    if ((size_t) nrecv > len || trunc_flag)
-    {
-      char addrbuf[DDSI_LOCSTRLEN];
-      ddsi_locator_t tmp;
-      addr_to_loc (conn->m_base.m_factory, &tmp, &src);
-      ddsi_locator_to_string (addrbuf, sizeof (addrbuf), &tmp);
-      GVWARNING ("%s => %d truncated to %d\n", addrbuf, (int) nrecv, (int) len);
-    }
+    if (rc != DDS_RETCODE_BAD_PARAMETER && rc != DDS_RETCODE_NO_CONNECTION)
+      GVERROR ("UDP recvmsg sock %d: ret %d retcode %"PRId32"\n", (int) conn->m_sockext.sock, (int) nrecv, rc);
+    return -1;
   }
-  else if (rc != DDS_RETCODE_BAD_PARAMETER && rc != DDS_RETCODE_NO_CONNECTION)
+
+  assert (rc == DDS_RETCODE_OK && nrecv >= 0);
+  if (pktinfo)
   {
-    GVERROR ("UDP recvmsg sock %d: ret %d retcode %"PRId32"\n", (int) conn->m_sockext.sock, (int) nrecv, rc);
-    nrecv = -1;
+    addr_to_loc (conn->m_base.m_factory, &pktinfo->src, &src);
+    translate_pktinfo (pktinfo, &msghdr, conn->m_base.m_base.m_port, src.a.sa_family == AF_INET6);
+  }
+
+  if (gv->pcap_fp)
+  {
+    union addr dest;
+    socklen_t dest_len = sizeof (dest);
+    if (ddsrt_getsockname (conn->m_sockext.sock, &dest.a, &dest_len) != DDS_RETCODE_OK)
+      memset (&dest, 0, sizeof (dest));
+    ddsi_write_pcap_received (gv, ddsrt_time_wallclock (), &src.x, &dest.x, buf, (size_t) nrecv);
+  }
+
+  /* Check for udp packet truncation */
+#if ! DDSRT_MSGHDR_FLAGS
+  const bool trunc_flag = false;
+#elif defined MSG_CTRUNC
+  const bool trunc_flag = (msghdr.msg_flags & (MSG_TRUNC | MSG_CTRUNC)) != 0;
+#else
+  const bool trunc_flag = (msghdr.msg_flags & MSG_TRUNC) != 0;
+#endif
+  if ((size_t) nrecv > len || trunc_flag)
+  {
+    char addrbuf[DDSI_LOCSTRLEN];
+    ddsi_locator_t tmp;
+    addr_to_loc (conn->m_base.m_factory, &tmp, &src);
+    ddsi_locator_to_string (addrbuf, sizeof (addrbuf), &tmp);
+    GVWARNING ("%s => %d truncated to %d\n", addrbuf, (int) nrecv, (int) len);
   }
   return nrecv;
 }
