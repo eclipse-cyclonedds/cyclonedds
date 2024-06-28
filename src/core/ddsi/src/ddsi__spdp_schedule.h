@@ -36,7 +36,7 @@ dds_return_t ddsi_spdp_register_participant (struct spdp_admin *adm, const struc
 void ddsi_spdp_unregister_participant (struct spdp_admin *adm, const struct ddsi_participant *pp)
   ddsrt_nonnull_all;
 
-dds_return_t ddsi_spdp_ref_locator (struct spdp_admin *adm, const ddsi_xlocator_t *xloc, dds_duration_t prune_delay)
+dds_return_t ddsi_spdp_ref_locator (struct spdp_admin *adm, const ddsi_xlocator_t *xloc, bool discovered)
   ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 void ddsi_spdp_unref_locator (struct spdp_admin *adm, const ddsi_xlocator_t *xloc, bool on_lease_expiry)

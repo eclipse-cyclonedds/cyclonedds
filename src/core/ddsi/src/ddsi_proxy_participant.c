@@ -67,7 +67,7 @@ static void maybe_update_as_disc_for_proxypp (struct ddsi_domaingv *gv, const st
     switch (op)
     {
       case MUADFPOP_ADD:
-        if (ddsi_spdp_ref_locator (gv->spdp_schedule, &loc, gv->config.spdp_prune_delay_discovered) != DDS_RETCODE_OK)
+        if (ddsi_spdp_ref_locator (gv->spdp_schedule, &loc, true) != DDS_RETCODE_OK)
           abort (); // FIXME: propagate and delete proxy participant
         break;
       case MUADFPOP_REMOVE_ON_DELETE:
