@@ -105,13 +105,13 @@ X
 struct spdp_loc_common {
   ddsrt_avl_node_t avlnode; // indexed on address
   ddsi_xlocator_t xloc; // the address
-  dds_duration_t prune_delay;
+  bool discovered; // true iff we discovered the existence of this locator through discovery
+  ddsrt_mtime_t tprune; // pruning only occurs for "aging" locators; set to 0 when discovering a new address
 };
 
 struct spdp_loc_aging {
   struct spdp_loc_common c;
   ddsrt_mtime_t tsched; // time at which to ping this locator again
-  ddsrt_mtime_t tprune; // decremented, entry is deleted when it reaches 0
 };
 
 struct spdp_loc_live {
@@ -173,6 +173,8 @@ static dds_return_t add_peer_address_xlocator (struct spdp_admin *adm, const dds
   // be any live addresses yet.
   assert (ddsrt_avl_is_empty (&adm->live));
   dds_return_t ret = DDS_RETCODE_OK;
+  const ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
+  const ddsrt_mtime_t tprune = ddsrt_mtime_add_duration (tnow, prune_delay);
   union spdp_loc_union *n;
   ddsrt_mutex_lock (&adm->lock);
   union {
@@ -182,15 +184,14 @@ static dds_return_t add_peer_address_xlocator (struct spdp_admin *adm, const dds
   if ((n = ddsrt_avl_lookup_ipath (&spdp_loc_td, &adm->aging, xloc, &avlpath.ip)) != NULL)
   {
     // duplicate: take the maximum prune_delay, that seems a reasonable-enough approach
-    if (prune_delay > n->c.prune_delay)
-      n->c.prune_delay = prune_delay;
+    if (tprune.v > n->c.tprune.v)
+      n->c.tprune = tprune;
   }
   else if ((n = ddsrt_malloc_s (sizeof (*n))) != NULL)
   {
-    const ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
     n->c.xloc = *xloc;
-    n->c.prune_delay = prune_delay;
-    n->aging.tprune = ddsrt_mtime_add_duration (tnow, prune_delay);
+    n->c.tprune = tprune;
+    n->c.discovered = false;
     // FIXME: initial schedule, should be "NEVER" in the absence of participants (but that isn't going to happen)
     n->aging.tsched = ddsrt_mtime_add_duration (tnow, DDS_MSECS (100));
     ddsrt_avl_insert_ipath (&spdp_loc_td, &adm->aging, n, &avlpath.ip);
@@ -382,7 +383,7 @@ static dds_return_t populate_initial_addresses (struct spdp_admin *adm, bool add
       char buf[DDSI_LOCSTRLEN];
       GVLOG (DDS_LC_CONFIG, "interface %s has spdp multicast enabled, adding %s (never expiring)\n",
              gv->interfaces[i].name, ddsi_xlocator_to_string (buf, sizeof (buf), &xloc));
-      rc = ddsi_spdp_ref_locator (adm, &xloc, DDS_INFINITY);
+      rc = ddsi_spdp_ref_locator (adm, &xloc, false);
     }
   }
   return rc;
@@ -502,10 +503,12 @@ void ddsi_spdp_unregister_participant (struct spdp_admin *adm, const struct ddsi
   ddsrt_mutex_unlock (&adm->lock);
 }
 
-dds_return_t ddsi_spdp_ref_locator (struct spdp_admin *adm, const ddsi_xlocator_t *xloc, dds_duration_t prune_delay)
+dds_return_t ddsi_spdp_ref_locator (struct spdp_admin *adm, const ddsi_xlocator_t *xloc, bool discovered)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   union spdp_loc_union *n;
+  char locstr[DDSI_LOCSTRLEN];
+  struct ddsi_domaingv * const gv = adm->gv;
   ddsrt_mutex_lock (&adm->lock);
   union {
     ddsrt_avl_ipath_t ip;
@@ -517,18 +520,22 @@ dds_return_t ddsi_spdp_ref_locator (struct spdp_admin *adm, const ddsi_xlocator_
     n->live.proxypp_refc = 1;
     n->live.lease_expiry_occurred = false;
     ddsrt_avl_insert (&spdp_loc_td, &adm->live, n);
+    GVTRACE ("spdp: ref aging loc %s, now live (refc = %"PRIu32", tprune = %"PRId64")\n", ddsi_xlocator_to_string (locstr, sizeof (locstr), xloc), n->live.proxypp_refc, n->c.tprune.v);
   }
   else if ((n = ddsrt_avl_lookup_ipath (&spdp_loc_td, &adm->live, xloc, &avlpath.ip)) != NULL)
   {
     n->live.proxypp_refc++;
+    GVTRACE ("spdp: ref live loc %s (refc = %"PRIu32", tprune = %"PRId64")\n", ddsi_xlocator_to_string (locstr, sizeof (locstr), xloc), n->live.proxypp_refc, n->c.tprune.v);
   }
   else if ((n = ddsrt_malloc_s (sizeof (*n))) != NULL)
   {
     n->c.xloc = *xloc;
-    n->c.prune_delay = prune_delay;
+    n->c.tprune.v = 0;
+    n->c.discovered = discovered;
     n->live.proxypp_refc = 1;
     n->live.lease_expiry_occurred = false;
     ddsrt_avl_insert_ipath (&spdp_loc_td, &adm->live, n, &avlpath.ip);
+    GVTRACE ("spdp: new live loc %s (refc = %"PRIu32", tprune = %"PRId64")\n", ddsi_xlocator_to_string (locstr, sizeof (locstr), xloc), n->live.proxypp_refc, n->c.tprune.v);
   }
   else
   {
@@ -545,35 +552,55 @@ void ddsi_spdp_unref_locator (struct spdp_admin *adm, const ddsi_xlocator_t *xlo
   union spdp_loc_union *n;
   ddsrt_mutex_lock (&adm->lock);
   ddsrt_avl_dpath_t dp;
+  char locstr[DDSI_LOCSTRLEN];
+  struct ddsi_domaingv * const gv = adm->gv;
   n = ddsrt_avl_lookup_dpath (&spdp_loc_td, &adm->live, xloc, &dp);
   assert (n != NULL);
   assert (n->live.proxypp_refc > 0);
   if (on_lease_expiry)
     n->live.lease_expiry_occurred = true;
-  if (--n->live.proxypp_refc == 0)
+  if (--n->live.proxypp_refc > 0)
+  {
+    GVTRACE ("spdp: unref live loc %s (refc = %"PRIu32", tprune = %"PRId64")\n", ddsi_xlocator_to_string (locstr, sizeof (locstr), xloc), n->live.proxypp_refc, n->c.tprune.v);
+  }
+  else
   {
     ddsrt_avl_delete_dpath (&spdp_loc_td, &adm->live, n, &dp);
     assert (ddsrt_avl_lookup (&spdp_loc_td, &adm->aging, xloc) == NULL);
-    // If all proxy participants informed us they were being deleted, then we don't need to
-    // start aging it
-    //
-    // What if it is shortly after startup and we'd still be pinging it if there hadn't been
-    // a proxy participant at this address?  It is unicast, so if there are others it is
-    // reasonable to assume they would all have discovered us at the same time (true for
-    // Cyclone anyway) and so there won't be anything at this locator until a new one is
-    // created.  For that case, we can reasonably rely on that new one.
-    if (!n->live.lease_expiry_occurred || n->c.prune_delay == 0)
+    const ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
+    if (!n->live.lease_expiry_occurred && n->c.discovered)
+    {
+      // If all proxy participants at the locator informed us they were being deleted,
+      // and the address is one we discovered, drop it immediately (on the assumption
+      // that next time it is used, we'll discover it again)
+      GVTRACE ("spdp: drop live loc %s: delete (explicit, discovered)\n", ddsi_xlocator_to_string (locstr, sizeof (locstr), xloc));
       ddsrt_free (n);
+    }
+    else if (!n->live.lease_expiry_occurred && n->c.tprune.v <= tnow.v)
+    {
+      // What if it is shortly after startup and we'd still be pinging it if there hadn't been
+      // a proxy participant at this address?  It is unicast, so if there are others it is
+      // reasonable to assume they would all have discovered us at the same time (true for
+      // Cyclone anyway) and so there won't be anything at this locator until a new one is
+      // created.  For that case, we can reasonably rely on that new one.
+
+      // FIXME: do I want really to drop it immediately even if the address was configured and wouldn't have expired yet? no, right?
+      GVTRACE ("spdp: drop live loc %s: delete (%s, tprune = %"PRId64")\n", ddsi_xlocator_to_string (locstr, sizeof (locstr), xloc), n->live.lease_expiry_occurred ? "implicit" : "explicit", n->c.tprune.v);
+      ddsrt_free (n);
+    }
     else
     {
       // FIXME: Discovery/Peers: user needs to set timeout for each locator, that should be used here for those in the initial set
       // FIXME: for those learnt along the way, an appropriate configuration setting needs to be added (here 10 times/10 minutes)
       // the idea is to ping at least several (10) times and keep trying for at least several (10) minutes
       const dds_duration_t base_intv = adm->gv->config.spdp_interval.isdefault ? DDS_SECS (30) : adm->gv->config.spdp_interval.value;
-      const ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
-      n->aging.tprune = ddsrt_mtime_add_duration (tnow, n->c.prune_delay);
+      ddsrt_mtime_t tprune = ddsrt_mtime_add_duration (tnow, gv->config.spdp_prune_delay_discovered);
+      if (tprune.v > n->c.tprune.v)
+        n->c.tprune = tprune;
       n->aging.tsched = ddsrt_mtime_add_duration (tnow, base_intv);
       ddsrt_avl_insert (&spdp_loc_td, &adm->aging, n);
+      GVTRACE ("spdp: drop live loc %s: now aging (tprune = %"PRId64")\n", ddsi_xlocator_to_string (locstr, sizeof (locstr), xloc), n->c.tprune.v);
+      ddsi_resched_xevent_if_earlier (adm->aging_xev, (n->aging.tsched.v < n->c.tprune.v) ? n->aging.tsched : n->c.tprune);
     }
   }
   ddsrt_mutex_unlock (&adm->lock);
@@ -655,10 +682,10 @@ static ddsrt_mtime_t spdp_do_aging_locators (struct spdp_admin *adm, struct ddsi
   while (n != NULL)
   {
     struct spdp_loc_aging * const nextn = ddsrt_avl_find_succ (&spdp_loc_td, &adm->aging, n);
-    if (n->tprune.v <= tnow.v)
+    if (n->c.tprune.v <= tnow.v)
     {
       char buf[DDSI_LOCSTRLEN];
-      GVLOGDISC("pruning SPDP locator %s\n", ddsi_xlocator_to_string (buf, sizeof (buf), &n->c.xloc));
+      GVLOGDISC("spdp: prune loc %s\n", ddsi_xlocator_to_string (buf, sizeof (buf), &n->c.xloc));
       ddsrt_avl_delete (&spdp_loc_td, &adm->aging, n);
       ddsrt_free (n);
     }
@@ -688,11 +715,11 @@ static ddsrt_mtime_t spdp_do_aging_locators (struct spdp_admin *adm, struct ddsi
         const dds_duration_t base_intv = gv->config.spdp_interval.isdefault ? DDS_SECS (30) : gv->config.spdp_interval.value;
         n->tsched = ddsrt_mtime_add_duration (tnow, base_intv);
       }
-      // Next time we should look at the aging locators: the first to be scheduled or pruned
+      // Next time to look at the aging locators again: the first to be scheduled or pruned
       if (n->tsched.v < t_sched.v)
         t_sched = n->tsched;
-      if (n->tprune.v <= t_sched.v)
-        t_sched = n->tprune;
+      if (n->c.tprune.v <= t_sched.v)
+        t_sched = n->c.tprune;
     }
     n = nextn;
   }
