@@ -545,6 +545,72 @@ struct iovec_matches_WSABUF {
   char len_size_matches[sizeof(((ddsrt_iovec_t *)8)->iov_len) == sizeof(((WSABUF *)8)->len) ? 1 : -1];
 };
 
+static dds_return_t
+ddsrt_recvmsg_wsarecvmsg(
+  const ddsrt_socket_ext_t *sockext,
+  ddsrt_msghdr_t *msg,
+  int flags,
+  ssize_t *rcvd)
+{
+  WSAMSG wsamsg = {
+    .name = (LPSOCKADDR) msg->msg_name,
+    .namelen = (INT) msg->msg_namelen,
+    .lpBuffers = (LPWSABUF) msg->msg_iov,
+    .dwBufferCount = (DWORD) msg->msg_iovlen,
+    .Control = {
+      .len = (ULONG) msg->msg_controllen,
+      .buf = (CHAR *) msg->msg_control,
+    },
+    .dwFlags = 0
+  };
+  DWORD n;
+  int err;
+  if (sockext->wsarecvmsg (sockext->sock, &wsamsg, &n, NULL, 0) == 0 || (err = WSAGetLastError()) == WSAEMSGSIZE)
+  {
+    // WSAEMSGSIZE is not an error for us: we look at (msg_flags & MSG_TRUNC)
+    msg->msg_flags = wsamsg.dwFlags;
+    msg->msg_controllen = wsamsg.Control.len;
+    *rcvd = (ssize_t) n;
+    return DDS_RETCODE_OK;
+  }
+  else
+  {
+    return recv_error_to_retcode(err);
+  }
+}
+
+static dds_return_t
+ddsrt_recvmsg_recvfrom(
+  const ddsrt_socket_ext_t *sockext,
+  ddsrt_msghdr_t *msg,
+  int flags,
+  ssize_t *rcvd)
+{
+  assert(msg->msg_iovlen == 1);
+  assert(msg->msg_iov[0].iov_len < INT_MAX);
+  msg->msg_flags = 0;
+  int n = recvfrom(
+          sockext->sock,
+          msg->msg_iov[0].iov_base,
+          (int)msg->msg_iov[0].iov_len,
+          flags,
+          msg->msg_name,
+          &msg->msg_namelen);
+  msg->msg_controllen = 0;
+  *rcvd = n;
+  if (n != SOCKET_ERROR)
+    return DDS_RETCODE_OK;
+
+  int err = WSAGetLastError();
+  if (err == WSAEMSGSIZE) {
+    // WSAEMSGSIZE is not an error for us: we look at (msg_flags & MSG_TRUNC)
+    msg->msg_flags |= MSG_TRUNC;
+    return DDS_RETCODE_OK;
+  } else {
+    return recv_error_to_retcode(err);
+  }
+}
+
 dds_return_t
 ddsrt_recvmsg(
   const ddsrt_socket_ext_t *sockext,
@@ -554,64 +620,9 @@ ddsrt_recvmsg(
 {
   assert(msg != NULL);
   if (sockext->wsarecvmsg)
-  {
-    WSAMSG wsamsg = {
-      .name = (LPSOCKADDR) msg->msg_name,
-      .namelen = (INT) msg->msg_namelen,
-      .lpBuffers = (LPWSABUF) msg->msg_iov,
-      .dwBufferCount = (DWORD) msg->msg_iovlen,
-      .Control = {
-        .len = (ULONG) msg->msg_controllen,
-        .buf = (CHAR *) msg->msg_control,
-      },
-      .dwFlags = 0
-    };
-    DWORD n;
-    if (sockext->wsarecvmsg (sockext->sock, &wsamsg, &n, NULL, 0) != 0)
-    {
-      int err = WSAGetLastError();
-      return recv_error_to_retcode(err);
-    }
-    else
-    {
-      msg->msg_flags = wsamsg.dwFlags;
-      msg->msg_controllen = wsamsg.Control.len;
-      *rcvd = (ssize_t) n;
-      return DDS_RETCODE_OK;
-    }
-  }
+    return ddsrt_recvmsg_wsarecvmsg (sockext, msg, flags, rcvd);
   else
-  {
-    assert(msg->msg_iovlen == 1);
-    assert(msg->msg_iov[0].iov_len < INT_MAX);
-    msg->msg_flags = 0;
-    int n = recvfrom(
-            sockext->sock,
-            msg->msg_iov[0].iov_base,
-            (int)msg->msg_iov[0].iov_len,
-            flags,
-            msg->msg_name,
-            &msg->msg_namelen);
-    msg->msg_controllen = 0;
-
-    if (n != -1) {
-      *rcvd = n;
-      return DDS_RETCODE_OK;
-    }
-
-    int err = WSAGetLastError();
-    if (err == WSAEMSGSIZE) {
-      /* Windows returns an error for too-large messages, UNIX expects the
-         original size and the MSG_TRUNC flag. MSDN states it is truncated, which
-         presumably means it returned as much of the message as it could. Return
-         that the message was one byte larger than the available space and set
-         MSG_TRUNC. */
-      *rcvd = msg->msg_iov[0].iov_len + 1;
-      msg->msg_flags |= MSG_TRUNC;
-    }
-
-    return recv_error_to_retcode(err);
-  }
+    return ddsrt_recvmsg_recvfrom (sockext, msg, flags, rcvd);
 }
 
 static dds_return_t

@@ -280,7 +280,7 @@ ddsrt_recv(
  * @param[in] sockext the socket
  * @param[out] msg the message received
  * @param[in] flags flags for special options
- * @param[out] rcvd number of bytes received
+ * @param[out] rcvd number of bytes received (>= 0 if return == OK, undefined if return != OK)
  * @return a DDS_RETCODE (OK, ERROR, TRY_AGAIN, BAD_PARAMETER, NO_CONNECTION, INTERRUPTED, OUT_OF_RESOURCES, ILLEGAL_OPERATION)
  *
  * See @ref ddsrt_sendmsg
