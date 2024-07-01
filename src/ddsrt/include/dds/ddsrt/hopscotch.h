@@ -215,18 +215,11 @@ struct ddsrt_chh_bucket;
  * @brief Embedded data version of @ref ddsrt_hh_iter.
  * @see ddsrt_chh_iter_first
  */
-#if ! ddsrt_has_feature_thread_sanitizer
 struct ddsrt_chh_iter {
   struct ddsrt_chh_bucket *bs;
   uint32_t size;
   uint32_t cursor;
 };
-#else
-struct ddsrt_chh_iter {
-  struct ddsrt_chh *chh;
-  struct ddsrt_hh_iter it;
-};
-#endif
 
 /**
  * @brief Concurrent version of @ref ddsrt_hh_new
