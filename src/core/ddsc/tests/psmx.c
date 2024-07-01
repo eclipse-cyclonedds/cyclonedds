@@ -113,22 +113,13 @@ static bool endpoint_has_psmx_enabled (dds_entity_t rd_or_wr)
   bool psmx_enabled = false;
   rc = dds_entity_pin (rd_or_wr, &x);
   CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
-  switch (dds_entity_kind (x))
-  {
-    case DDS_KIND_READER: {
-      struct dds_reader const * const rd = (struct dds_reader *) x;
-      psmx_enabled = (rd->m_endpoint.psmx_endpoints.length > 0);
-      break;
-    }
-    case DDS_KIND_WRITER: {
-      struct dds_writer const * const wr = (struct dds_writer *) x;
-      psmx_enabled = (wr->m_endpoint.psmx_endpoints.length > 0);
-      break;
-    }
-    default: {
-      CU_ASSERT_FATAL (dds_entity_kind (x) == DDS_KIND_READER || dds_entity_kind (x) == DDS_KIND_WRITER);
-      break;
-    }
+  if ( dds_entity_kind (x) == DDS_KIND_READER ) {
+    struct dds_reader const * const rd = (struct dds_reader *) x;
+    psmx_enabled = (rd->m_endpoint.psmx_endpoints.length > 0);
+  } else {
+    CU_ASSERT_FATAL(dds_entity_kind (x) == DDS_KIND_WRITER);
+    struct dds_writer const * const wr = (struct dds_writer *) x;
+    psmx_enabled = (wr->m_endpoint.psmx_endpoints.length > 0);
   }
   dds_entity_unpin (x);
   return psmx_enabled;
@@ -1208,6 +1199,32 @@ CU_Test(ddsc_psmx, partition_xtalk)
   CU_ASSERT_FATAL (rc == 0);
 }
 
+/// @brief Check that shared memory is not supported by endpoints created from a default Cyclone domain.
+/// @methodology
+/// - Create endpoints with a from a default domain.
+/// - Assert that shared memory is not available.
+CU_Test(ddsc_psmx, no_shared_memory)
+{
+  dds_entity_t participant, topic, writer, reader;
+
+  participant = dds_create_participant(0, NULL, NULL);
+  CU_ASSERT_FATAL(participant > 0);
+
+  char topicname[100];
+  create_unique_topic_name("test_psmx_no_shared_memory", topicname, sizeof(topicname));
+  topic = dds_create_topic(participant, &SC_Model_desc, topicname, NULL, NULL);
+  CU_ASSERT_FATAL(topic > 0);
+
+  writer = dds_create_writer(participant, topic, NULL, NULL);
+  CU_ASSERT_FATAL(writer > 0);
+
+  reader = dds_create_reader(participant, topic, NULL, NULL);
+  CU_ASSERT_FATAL(reader > 0);
+
+  CU_ASSERT_FATAL(!dds_is_shared_memory_available(writer));
+  CU_ASSERT_FATAL(!dds_is_shared_memory_available(reader));
+  dds_delete(dds_get_parent(participant));
+}
 
 #define MAX_SAMPLES 8
 CU_Test (ddsc_psmx, basic)
