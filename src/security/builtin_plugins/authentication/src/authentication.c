@@ -716,14 +716,17 @@ DDS_Security_ValidationResult_t validate_local_identity(dds_security_authenticat
     unsigned char hash_buffer[20], hash_buffer_trusted[20];
     DDS_Security_ValidationResult_t result = DDS_SECURITY_VALIDATION_FAILED;
 
-    X509_digest(identityCA, digest, hash_buffer, &size);
-    for (unsigned i = 0; i < implementation->trustedCAList.length; ++i)
-    {
-      X509_digest(implementation->trustedCAList.buffer[i], digest, hash_buffer_trusted, &size);
-      if (memcmp(hash_buffer_trusted, hash_buffer, 20) == 0)
+    // OpenSSL return value type int: 1 = success, 0 = fail
+    int digest_result = X509_digest(identityCA, digest, hash_buffer, &size);
+    if (digest_result) {
+      for (unsigned i = 0; i < implementation->trustedCAList.length; ++i)
       {
-        result = DDS_SECURITY_VALIDATION_OK;
-        break;
+        digest_result = X509_digest(implementation->trustedCAList.buffer[i], digest, hash_buffer_trusted, &size);
+        if (digest_result && (memcmp(hash_buffer_trusted, hash_buffer, 20) == 0)) // Do not compare potentially uninitialized values
+        {
+          result = DDS_SECURITY_VALIDATION_OK;
+          break;
+        }
       }
     }
     if (result != DDS_SECURITY_VALIDATION_OK)
