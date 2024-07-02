@@ -237,11 +237,18 @@ enum ddsi_config_entity_naming_mode {
   DDSI_ENTITY_NAMING_DEFAULT_FANCY
 };
 
+struct ddsi_config_topic_pattern_listelem {
+  struct ddsi_config_topic_pattern_listelem *next;
+  const char *pattern;
+};
+
 struct ddsi_config_psmx {
   char *name;
   char *library;
   char *config;
   struct ddsi_config_maybe_int32 priority;
+  struct ddsi_config_topic_pattern_listelem *forbidden_topics;
+  struct ddsi_config_topic_pattern_listelem *only_for_topics;
 };
 
 struct ddsi_config_psmx_listelem {

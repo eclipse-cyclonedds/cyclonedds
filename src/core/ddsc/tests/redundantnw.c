@@ -19,6 +19,7 @@
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsi/ddsi_misc.h"
 
 #include "dds__entity.h"
 #include "ddsi__addrset.h"

@@ -14,6 +14,7 @@
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsi/ddsi_misc.h"
 #include "ddsi__misc.h"
 #include "dds/security/dds_security_api_defs.h"
 #include "common/config_env.h"
