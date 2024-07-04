@@ -431,13 +431,11 @@ struct dds_sysdef_register_type {
 };
 
 #define SYSDEF_DOMAIN_DOMAIN_ID_PARAM_VALUE (1 << 0u)
-#define SYSDEF_DOMAIN_PARTICIPANT_INDEX_PARAM_VALUE (1 << 1u)
 #define SYSDEF_DOMAIN_PARAMS (SYSDEF_DOMAIN_DOMAIN_ID_PARAM_VALUE)
 struct dds_sysdef_domain {
   struct xml_element xmlnode;
   uint32_t domain_id;
   char *name;
-  int32_t participant_index;
   struct dds_sysdef_register_type *register_types;
   struct dds_sysdef_topic *topics;
   uint32_t populated;
@@ -450,39 +448,30 @@ struct dds_sysdef_domain_lib {
 };
 
 /* Participant library */
-struct dds_sysdef_endpoint {
+struct dds_sysdef_entity {
   struct xml_element xmlnode;
   char *name;
-  uint32_t entity_key;
 };
 
-#define SYSDEF_WRITER_ENTITY_KEY_PARAM_VALUE (1 << 0u)
-#define SYSDEF_WRITER_PARAMS (SYSDEF_WRITER_ENTITY_KEY_PARAM_VALUE)
 struct dds_sysdef_writer {
   struct xml_element xmlnode;
   char *name;
-  uint32_t entity_key;
   struct dds_sysdef_topic *topic;
   struct dds_sysdef_qos *qos;
   uint32_t populated;
 };
-DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_writer, xmlnode) == offsetof (struct dds_sysdef_endpoint, xmlnode));
-DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_writer, name) == offsetof (struct dds_sysdef_endpoint, name));
-DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_writer, entity_key) == offsetof (struct dds_sysdef_endpoint, entity_key));
+DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_writer, xmlnode) == offsetof (struct dds_sysdef_entity, xmlnode));
+DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_writer, name) == offsetof (struct dds_sysdef_entity, name));
 
-#define SYSDEF_READER_ENTITY_KEY_PARAM_VALUE (1 << 0u)
-#define SYSDEF_READER_PARAMS (SYSDEF_READER_ENTITY_KEY_PARAM_VALUE)
 struct dds_sysdef_reader {
   struct xml_element xmlnode;
   char *name;
-  uint32_t entity_key;
   struct dds_sysdef_topic *topic;
   struct dds_sysdef_qos *qos;
   uint32_t populated;
 };
-DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_reader, xmlnode) == offsetof (struct dds_sysdef_endpoint, xmlnode));
-DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_reader, name) == offsetof (struct dds_sysdef_endpoint, name));
-DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_reader, entity_key) == offsetof (struct dds_sysdef_endpoint, entity_key));
+DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_reader, xmlnode) == offsetof (struct dds_sysdef_entity, xmlnode));
+DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_reader, name) == offsetof (struct dds_sysdef_entity, name));
 
 struct dds_sysdef_publisher {
   struct xml_element xmlnode;
@@ -490,6 +479,8 @@ struct dds_sysdef_publisher {
   struct dds_sysdef_qos *qos;
   struct dds_sysdef_writer *writers;
 };
+DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_publisher, xmlnode) == offsetof (struct dds_sysdef_entity, xmlnode));
+DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_publisher, name) == offsetof (struct dds_sysdef_entity, name));
 
 struct dds_sysdef_subscriber {
   struct xml_element xmlnode;
@@ -497,14 +488,12 @@ struct dds_sysdef_subscriber {
   struct dds_sysdef_qos *qos;
   struct dds_sysdef_reader *readers;
 };
+DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_subscriber, xmlnode) == offsetof (struct dds_sysdef_entity, xmlnode));
+DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_subscriber, name) == offsetof (struct dds_sysdef_entity, name));
 
 enum dds_sysdef_participant_parent_kind {
   DDS_SYSDEF_PARTICIPANT_PARENT_KIND_APPLICATION,
   DDS_SYSDEF_PARTICIPANT_PARENT_KIND_PARTICIPANTLIB
-};
-
-struct dds_sysdef_participant_guid_prefix {
-  uint32_t p;
 };
 
 struct dds_sysdef_participant {
@@ -513,7 +502,6 @@ struct dds_sysdef_participant {
   struct dds_sysdef_qos *qos;
   struct dds_sysdef_domain *domain_ref;
   struct dds_sysdef_participant *base;
-  struct dds_sysdef_participant_guid_prefix *guid_prefix;
 
   struct dds_sysdef_register_type *register_types;
   struct dds_sysdef_topic *topics;
