@@ -429,7 +429,6 @@ static void fini_participant (struct xml_element *node)
   free_node (participant->qos);
   free_node (participant->register_types);
   ddsrt_free (participant->name);
-  ddsrt_free (participant->guid_prefix);
 }
 
 static void fini_participant_lib (struct xml_element *node)
@@ -971,24 +970,6 @@ static int proc_attr_type_identifier (struct parse_sysdef_state * const pstate, 
   return SD_PARSE_RESULT_OK;
 }
 
-static int proc_attr_guid_prefix (struct parse_sysdef_state * const pstate, const char *value, struct dds_sysdef_participant_guid_prefix **prefix)
-{
-  (void) pstate;
-  if (strlen (value) != 2 * sizeof (struct dds_sysdef_participant_guid_prefix))
-    return SD_PARSE_RESULT_ERR;
-
-  if (*prefix != NULL)
-    return SD_PARSE_RESULT_DUPLICATE;
-
-  *prefix = ddsrt_malloc (sizeof (**prefix));
-  union { struct dds_sysdef_participant_guid_prefix p; unsigned char d[sizeof (struct dds_sysdef_participant_guid_prefix)]; } u = {.p = {0}};
-  if (dds_sysdef_parse_hex (value, u.d) != SD_PARSE_RESULT_OK)
-    return SD_PARSE_RESULT_ERR;
-
-  (*prefix)->p = ddsrt_fromBE4u (u.p.p);
-  return SD_PARSE_RESULT_OK;
-}
-
 static bool is_alpha (char c)
 {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
@@ -1067,13 +1048,11 @@ static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *n
       case ELEMENT_KIND_DOMAIN:
         PROC_ATTR_NAME(dds_sysdef_domain);
         PROC_ATTR_UINT32(dds_sysdef_domain, "domain_id", domain_id, SYSDEF_DOMAIN_DOMAIN_ID_PARAM_VALUE);
-        PROC_ATTR_INT32(dds_sysdef_domain, "participant_index", participant_index, SYSDEF_DOMAIN_PARTICIPANT_INDEX_PARAM_VALUE);
         break;
       case ELEMENT_KIND_PARTICIPANT:
         PROC_ATTR_NAME(dds_sysdef_participant);
         PROC_ATTR_FN(dds_sysdef_participant, "domain_ref", domain_ref, proc_attr_resolve_domain_ref);
         PROC_ATTR_FN(dds_sysdef_participant, "base_name", base, proc_attr_resolve_participant_ref);
-        PROC_ATTR_FN(dds_sysdef_participant, "guid_prefix", guid_prefix, proc_attr_guid_prefix);
         break;
       case ELEMENT_KIND_REGISTER_TYPE:
         PROC_ATTR_TYPE_NAME(dds_sysdef_register_type, "name", name);
@@ -1095,12 +1074,10 @@ static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *n
       case ELEMENT_KIND_WRITER:
         PROC_ATTR_NAME(dds_sysdef_writer);
         PROC_ATTR_FN(dds_sysdef_writer, "topic_ref", topic, proc_attr_resolve_topic_ref);
-        PROC_ATTR_UINT32(dds_sysdef_writer, "entity_key", entity_key, SYSDEF_WRITER_ENTITY_KEY_PARAM_VALUE);
         break;
       case ELEMENT_KIND_READER:
         PROC_ATTR_NAME(dds_sysdef_reader);
         PROC_ATTR_FN(dds_sysdef_reader, "topic_ref", topic, proc_attr_resolve_topic_ref);
-        PROC_ATTR_UINT32(dds_sysdef_reader, "entity_key", entity_key, SYSDEF_READER_ENTITY_KEY_PARAM_VALUE);
         break;
 
       // Application library
@@ -1606,12 +1583,10 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UNUSED_
       case ELEMENT_KIND_WRITER:
         ELEM_CLOSE_REQUIRE_ATTR (dds_sysdef_writer, "name", name);
         ELEM_CLOSE_REQUIRE_ATTR (dds_sysdef_writer, "topic_ref", topic);
-        ELEM_CLOSE_REQUIRE_ATTR_POPULATED (dds_sysdef_writer, "writer", SYSDEF_WRITER_PARAMS);
         break;
       case ELEMENT_KIND_READER:
         ELEM_CLOSE_REQUIRE_ATTR (dds_sysdef_reader, "name", name);
         ELEM_CLOSE_REQUIRE_ATTR (dds_sysdef_reader, "topic_ref", topic);
-        ELEM_CLOSE_REQUIRE_ATTR_POPULATED (dds_sysdef_reader, "reader", SYSDEF_READER_PARAMS);
         break;
       case ELEMENT_KIND_APPLICATION_LIB:
         ELEM_CLOSE_REQUIRE_ATTR (dds_sysdef_application_lib, "name", name);
