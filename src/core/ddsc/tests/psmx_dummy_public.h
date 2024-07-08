@@ -12,6 +12,8 @@
 #ifndef PSMX_DUMMY_PUBLIC_H
 #define PSMX_DUMMY_PUBLIC_H
 
+#include "dds/psmx_dummy/export.h"
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -58,9 +60,9 @@ typedef struct dummy_mockstats_s{
   dds_loaned_sample_t* write_rcv_loan;
 }dummy_mockstats_t;
 
-DDS_EXPORT dummy_mockstats_t* dummy_mockstats_get_ptr(void);
-DDS_EXPORT void dummy_topics_alloc(dummy_mockstats_t* mockstats, size_t topics_capacity);
-DDS_EXPORT void dummy_endpoints_alloc(dummy_mockstats_t* mockstats, size_t endpoints_capacity);
+PSMX_DUMMY_EXPORT dummy_mockstats_t* dummy_mockstats_get_ptr(void);
+PSMX_DUMMY_EXPORT void dummy_topics_alloc(dummy_mockstats_t* mockstats, size_t topics_capacity);
+PSMX_DUMMY_EXPORT void dummy_endpoints_alloc(dummy_mockstats_t* mockstats, size_t endpoints_capacity);
 
 #if defined (__cplusplus)
 }

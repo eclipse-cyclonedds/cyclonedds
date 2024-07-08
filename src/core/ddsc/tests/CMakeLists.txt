@@ -159,15 +159,10 @@ if(ENABLE_QOS_PROVIDER)
 endif()
 
 # PSMX dummy implementation for interface testing
-set(
-  psmx_dummy_sources
-  "psmx_dummy_impl.c"
-  "psmx_dummy_impl.h"
-)
 if(BUILD_SHARED_LIBS)
-  add_library(psmx_dummy SHARED ${psmx_dummy_sources})
+  add_library(psmx_dummy SHARED "psmx_dummy_impl.c")
 else()
-  add_library(psmx_dummy OBJECT ${psmx_dummy_sources})
+  add_library(psmx_dummy OBJECT "psmx_dummy_impl.c")
   set_property(GLOBAL APPEND PROPERTY cdds_plugin_list psmx_dummy)
   set_property(GLOBAL PROPERTY psmx_dummy_symbols dummy_create_psmx)
 endif()
@@ -199,6 +194,7 @@ add_cunit_executable(cunit_ddsc ${ddsc_test_sources})
 target_include_directories(
   cunit_ddsc PRIVATE
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/src>"

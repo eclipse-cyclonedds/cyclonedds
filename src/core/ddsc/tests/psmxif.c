@@ -149,6 +149,7 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
     configstr_in = ddsrt_expand_envvars(configstr, domainId);
   }
   const dds_entity_t domain = dds_create_domain (domainId, configstr_in);
+  ddsrt_free(configstr_in);
   CU_ASSERT_FATAL(domain <= 0);
 }
 

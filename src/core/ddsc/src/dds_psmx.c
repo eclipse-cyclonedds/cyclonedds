@@ -327,40 +327,32 @@ err_configstr:
   return ret;
 }
 
-static int compare_psmx_prio (const void *va, const void *vb)
-{
-  const struct dds_psmx *psmx1 = va;
-  const struct dds_psmx *psmx2 = vb;
-  return (psmx1->priority == psmx2->priority) ? 0 : ((psmx1->priority < psmx2->priority) ? 1 : -1);
-}
-
 dds_return_t dds_pubsub_message_exchange_init (const struct ddsi_domaingv *gv, struct dds_domain *domain)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   if (gv->config.psmx_instances != NULL)
   {
     struct ddsi_config_psmx_listelem *iface = gv->config.psmx_instances;
-    while (iface && domain->psmx_instances.length < DDS_MAX_PSMX_INSTANCES)
-    {
-      GVLOG(DDS_LC_INFO, "Loading PSMX instances %s\n", iface->cfg.name);
-      struct dds_psmx *psmx = NULL;
-      ddsrt_dynlib_t lib_handle;
-      if (psmx_instance_load (gv, &iface->cfg, &psmx, &lib_handle) == DDS_RETCODE_OK)
-      {
-        domain->psmx_instances.instances[domain->psmx_instances.length] = psmx;
-        domain->psmx_instances.lib_handles[domain->psmx_instances.length] = lib_handle;
-        domain->psmx_instances.length++;
+    if ( iface != NULL ) {
+      if ( iface->next != NULL ) {
+        ret = DDS_RETCODE_UNSUPPORTED; // Only one psmx interface is supported.
+      }else{
+        GVLOG(DDS_LC_INFO, "Loading PSMX instances %s\n", iface->cfg.name);
+        struct dds_psmx *psmx = NULL;
+        ddsrt_dynlib_t lib_handle;
+        if (psmx_instance_load (gv, &iface->cfg, &psmx, &lib_handle) == DDS_RETCODE_OK)
+        {
+          domain->psmx_instances.instances[domain->psmx_instances.length] = psmx;
+          domain->psmx_instances.lib_handles[domain->psmx_instances.length] = lib_handle;
+          domain->psmx_instances.length++;
+        }
+        else
+        {
+          GVERROR ("error loading PSMX instance \"%s\"\n", iface->cfg.name);
+          ret = DDS_RETCODE_ERROR;
+        }
       }
-      else
-      {
-        GVERROR ("error loading PSMX instance \"%s\"\n", iface->cfg.name);
-        ret = DDS_RETCODE_ERROR;
-        break;
-      }
-      iface = iface->next;
     }
-
-    qsort (domain->psmx_instances.instances, domain->psmx_instances.length, sizeof (*domain->psmx_instances.instances), compare_psmx_prio);
   }
   return ret;
 }
