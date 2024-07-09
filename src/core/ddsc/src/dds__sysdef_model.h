@@ -21,7 +21,7 @@ extern "C" {
 #define TYPE_HASH_LENGTH 14
 
 struct dds_sysdef_type_metadata {
-  unsigned char *type_hash;
+  char *type_name;
   size_t type_info_cdr_sz;
   unsigned char *type_info_cdr;
   size_t type_map_cdr_sz;
@@ -33,7 +33,7 @@ struct dds_sysdef_type_metadata_admin {
 };
 
 struct xml_element;
-struct dds_sysdef_type;
+struct dds_sysdef_type_external;
 struct dds_sysdef_type_lib;
 struct dds_sysdef_qos;
 struct dds_sysdef_qos_profile;
@@ -55,7 +55,7 @@ enum element_kind
   ELEMENT_KIND_DDS,
 
   ELEMENT_KIND_TYPE_LIB,
-  ELEMENT_KIND_TYPE,
+  ELEMENT_KIND_TYPE_REF_EXTERNAL,
 
   ELEMENT_KIND_QOS_LIB,
   ELEMENT_KIND_QOS_PROFILE,
@@ -220,10 +220,14 @@ struct xml_element
 };
 
 /* Type library */
+enum dds_sysdef_type_kind {
+  DDS_SYSDEF_TYPE_REF_EXTERNAL
+};
+
 struct dds_sysdef_type {
   struct xml_element xmlnode;
   char *name;
-  unsigned char *identifier;
+  enum dds_sysdef_type_kind kind;
   struct dds_sysdef_type_lib *parent;
 };
 

@@ -13,6 +13,7 @@
 
 #include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/strtol.h"
 #include "dds/ddsrt/hopscotch.h"
@@ -289,7 +290,6 @@ static void fini_type (struct xml_element *node)
 {
   struct dds_sysdef_type *type = (struct dds_sysdef_type *) node;
   ddsrt_free (type->name);
-  ddsrt_free (type->identifier);
 }
 
 static void fini_type_lib (struct xml_element *node)
@@ -590,6 +590,13 @@ static int init_qos (UNUSED_ARG (struct parse_sysdef_state * const pstate), stru
       return SD_PARSE_RESULT_SYNTAX_ERR;
   }
   sdqos->kind = qos_kind;
+  return 0;
+}
+
+static int init_type_external_ref (UNUSED_ARG (struct parse_sysdef_state * const pstate), struct xml_element *node)
+{
+  struct dds_sysdef_type *sdtype = (struct dds_sysdef_type *) node;
+  sdtype->kind = DDS_SYSDEF_TYPE_REF_EXTERNAL;
   return 0;
 }
 
@@ -957,19 +964,6 @@ static bool is_valid_type_name (const char *value)
   return result;
 }
 
-static int proc_attr_type_identifier (struct parse_sysdef_state * const pstate, const char *value, unsigned char **identifier)
-{
-  (void) pstate;
-  if (*identifier != NULL)
-    return SD_PARSE_RESULT_DUPLICATE;
-  if (strlen (value) != 2 * TYPE_HASH_LENGTH)
-    return SD_PARSE_RESULT_ERR;
-  *identifier = ddsrt_malloc (TYPE_HASH_LENGTH);
-  if (dds_sysdef_parse_hex (value, *identifier) != SD_PARSE_RESULT_OK)
-    return SD_PARSE_RESULT_ERR;
-  return SD_PARSE_RESULT_OK;
-}
-
 static bool is_alpha (char c)
 {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
@@ -1018,9 +1012,8 @@ static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *n
     switch (pstate->current->kind)
     {
       // Type library
-      case ELEMENT_KIND_TYPE:
+      case ELEMENT_KIND_TYPE_REF_EXTERNAL:
         PROC_ATTR_TYPE_NAME(dds_sysdef_type, "name", name);
-        PROC_ATTR_FN(dds_sysdef_type, "identifier", identifier, proc_attr_type_identifier);
         break;
 
       // QoS library
@@ -1543,9 +1536,8 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UNUSED_
         t->periodicity = DDS_SECS (d->sec) + d->nsec;
         break;
       }
-      case ELEMENT_KIND_TYPE:
+      case ELEMENT_KIND_TYPE_REF_EXTERNAL:
         ELEM_CLOSE_REQUIRE_ATTR (dds_sysdef_type, "name", name);
-        ELEM_CLOSE_REQUIRE_ATTR (dds_sysdef_type, "identifier", identifier);
         break;
       case ELEMENT_KIND_QOS_LIB:
         ELEM_CLOSE_REQUIRE_ATTR (dds_sysdef_qos_lib, "name", name);
@@ -2299,8 +2291,8 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
       // Type library
       if (ddsrt_strcasecmp (name, "types") == 0)
         CREATE_NODE_SINGLE (pstate, dds_sysdef_type_lib, ELEMENT_KIND_TYPE_LIB, NO_INIT, fini_type_lib, type_libs, dds_sysdef_system, ELEMENT_KIND_DDS, pstate->current);
-      else if (ddsrt_strcasecmp (name, "struct") == 0)
-        CREATE_NODE_LIST (pstate, dds_sysdef_type, ELEMENT_KIND_TYPE, NO_INIT, fini_type, types, dds_sysdef_type_lib, ELEMENT_KIND_TYPE_LIB, pstate->current);
+      else if (ddsrt_strcasecmp (name, "external_type_ref") == 0)
+        CREATE_NODE_LIST (pstate, dds_sysdef_type, ELEMENT_KIND_TYPE_REF_EXTERNAL, init_type_external_ref, fini_type, types, dds_sysdef_type_lib, ELEMENT_KIND_TYPE_LIB, pstate->current);
     }
 
     if (pstate->scope & SYSDEF_SCOPE_QOS_LIB)
@@ -2871,21 +2863,20 @@ struct parse_type_state {
 static bool type_equal (const void *a, const void *b)
 {
   const struct dds_sysdef_type_metadata *type_a = a, *type_b = b;
-  return memcmp (type_a->type_hash, type_b->type_hash, sizeof (TYPE_HASH_LENGTH)) == 0;
+  return strcmp (type_a->type_name, type_b->type_name) == 0;
 }
 
 static uint32_t type_hash (const void *t)
 {
   const struct dds_sysdef_type_metadata *type = t;
-  uint32_t hash32;
-  memcpy (&hash32, type->type_hash, sizeof (hash32));
+  uint32_t hash32 = ddsrt_mh3 (type->type_name, strlen (type->type_name), 0);
   return hash32;
 }
 
 static void free_type_meta_data (struct dds_sysdef_type_metadata *tmd)
 {
-  if (tmd->type_hash != NULL)
-    ddsrt_free (tmd->type_hash);
+  if (tmd->type_name != NULL)
+    ddsrt_free (tmd->type_name);
   if (tmd->type_info_cdr != NULL)
     ddsrt_free (tmd->type_info_cdr);
   if (tmd->type_map_cdr != NULL)
@@ -2983,9 +2974,9 @@ static int proc_type_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UN
   }
   else if (pstate->scope == PARSE_TYPE_SCOPE_TYPE_ENTRY)
   {
-    if (pstate->current->type_hash == NULL)
+    if (pstate->current->type_name == NULL)
     {
-      PARSER_ERROR (pstate, line, "Type identifier not set");
+      PARSER_ERROR (pstate, line, "Type name not set");
       ret = SD_PARSE_RESULT_ERR;
       free_type_meta_data (pstate->current);
     }
@@ -3046,25 +3037,10 @@ static int proc_type_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
   switch (pstate->scope)
   {
     case PARSE_TYPE_SCOPE_TYPE_ENTRY:
-      if (ddsrt_strcasecmp(name, "type_identifier") == 0)
+      if (strcmp(name, "name") == 0)
       {
-        if (strlen (value) != 2 * TYPE_HASH_LENGTH)
-        {
-          PARSER_ERROR (pstate, line, "Invalid type identifier length");
-          ret = SD_PARSE_RESULT_SYNTAX_ERR;
-          free_type_meta_data (pstate->current);
-        }
-        else
-        {
-          pstate->current->type_hash = ddsrt_malloc (TYPE_HASH_LENGTH);
-          if ((ret = dds_sysdef_parse_hex (value, pstate->current->type_hash)) != SD_PARSE_RESULT_OK)
-          {
-            PARSER_ERROR (pstate, line, "Invalid type identifier");
-            free_type_meta_data (pstate->current);
-          }
-          else
-            attr_processed = true;
-        }
+        pstate->current->type_name = ddsrt_strdup (value);
+        attr_processed = true;
       }
       break;
     default:
