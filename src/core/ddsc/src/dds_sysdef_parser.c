@@ -11,7 +11,6 @@
 #include <assert.h>
 #include <string.h>
 
-#include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/string.h"
@@ -2802,7 +2801,21 @@ static dds_return_t sysdef_parse(struct ddsrt_xmlp_state *xmlps, struct parse_sy
   return ret;
 }
 
-dds_return_t dds_sysdef_init_sysdef (FILE *fp, struct dds_sysdef_system **sysdef, uint32_t lib_scope)
+typedef struct ddsrt_xmlp_state * (*sysdef_xmlp_new_t) (void *src, void *pstate, struct ddsrt_xmlp_callbacks *cb);
+
+static struct ddsrt_xmlp_state *sysdef_xmlp_new_file(void *fp, void *pstate, struct ddsrt_xmlp_callbacks *cb)
+{
+  return ddsrt_xmlp_new_file(fp, pstate, cb);
+}
+
+static struct ddsrt_xmlp_state *sysdef_xmlp_new_string(void *xml, void *pstate, struct ddsrt_xmlp_callbacks *cb)
+{
+  return ddsrt_xmlp_new_string(xml, pstate, cb);
+}
+
+static dds_return_t dds_sysdef_init_sysdef_impl (
+  void *argv, struct dds_sysdef_system **sysdef, uint32_t lib_scope,
+  sysdef_xmlp_new_t sysdef_xmlp_new_fn)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   struct parse_sysdef_state pstate = { .sysdef = NULL, .scope = lib_scope};
@@ -2814,28 +2827,20 @@ dds_return_t dds_sysdef_init_sysdef (FILE *fp, struct dds_sysdef_system **sysdef
     .error = proc_error
   };
 
-  struct ddsrt_xmlp_state *xmlps = ddsrt_xmlp_new_file (fp, &pstate, &cb);
+  struct ddsrt_xmlp_state *xmlps = sysdef_xmlp_new_fn (argv, &pstate, &cb);
   ret = sysdef_parse(xmlps, &pstate, sysdef);
   ddsrt_xmlp_free (xmlps);
   return ret;
 }
 
-dds_return_t dds_sysdef_init_sysdef_str (const char *raw, struct dds_sysdef_system **sysdef, uint32_t lib_scope)
+dds_return_t dds_sysdef_init_sysdef (FILE *fp, struct dds_sysdef_system **sysdef, uint32_t lib_scope)
 {
-  dds_return_t ret = DDS_RETCODE_OK;
-  struct parse_sysdef_state pstate = { .sysdef = NULL, .scope = lib_scope};
-  struct ddsrt_xmlp_callbacks cb = {
-    .attr = proc_attr,
-    .elem_close = proc_elem_close,
-    .elem_data = proc_elem_data,
-    .elem_open = proc_elem_open,
-    .error = proc_error
-  };
+  return dds_sysdef_init_sysdef_impl(fp, sysdef, lib_scope, &sysdef_xmlp_new_file);
+}
 
-  struct ddsrt_xmlp_state *xmlps = ddsrt_xmlp_new_string (raw, &pstate, &cb);
-  ret = sysdef_parse(xmlps, &pstate, sysdef);
-  ddsrt_xmlp_free (xmlps);
-  return ret;
+dds_return_t dds_sysdef_init_sysdef_str (const char *xml, struct dds_sysdef_system **sysdef, uint32_t lib_scope)
+{
+  return dds_sysdef_init_sysdef_impl((char *)xml, sysdef, lib_scope, &sysdef_xmlp_new_string);
 }
 
 void dds_sysdef_fini_sysdef (struct dds_sysdef_system *sysdef)
@@ -3069,7 +3074,9 @@ static void proc_type_error (void *varg, const char *msg, int line)
   }
 }
 
-dds_return_t dds_sysdef_init_data_types (FILE *fp, struct dds_sysdef_type_metadata_admin **type_meta_data)
+static dds_return_t dds_sysdef_init_data_types_impl (
+  void *src, struct dds_sysdef_type_metadata_admin **type_meta_data,
+  sysdef_xmlp_new_t sysdef_xmlp_new_fn)
 {
   struct parse_type_state pstate = { 0 };
   struct ddsrt_xmlp_callbacks cb = {
@@ -3080,7 +3087,7 @@ dds_return_t dds_sysdef_init_data_types (FILE *fp, struct dds_sysdef_type_metada
     .error = proc_type_error
   };
 
-  struct ddsrt_xmlp_state *xmlps = ddsrt_xmlp_new_file (fp, &pstate, &cb);
+  struct ddsrt_xmlp_state *xmlps = sysdef_xmlp_new_fn (src, &pstate, &cb);
 
   dds_return_t ret = DDS_RETCODE_OK;
   if ((ret = ddsrt_xmlp_parse (xmlps)) != SD_PARSE_RESULT_OK) {
@@ -3096,6 +3103,16 @@ dds_return_t dds_sysdef_init_data_types (FILE *fp, struct dds_sysdef_type_metada
 
   ddsrt_xmlp_free (xmlps);
   return ret;
+}
+
+dds_return_t dds_sysdef_init_data_types (FILE *fp, struct dds_sysdef_type_metadata_admin **type_meta_data)
+{
+  return dds_sysdef_init_data_types_impl(fp, type_meta_data, &sysdef_xmlp_new_file);
+}
+
+dds_return_t dds_sysdef_init_data_types_str (const char *xml, struct dds_sysdef_type_metadata_admin **type_meta_data)
+{
+  return dds_sysdef_init_data_types_impl((char *)xml, type_meta_data, &sysdef_xmlp_new_string);
 }
 
 static void free_type_meta_data_wrap (void *vnode, void *varg)
