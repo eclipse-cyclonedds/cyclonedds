@@ -63,6 +63,7 @@ set(ddsc_test_sources
     "nwpart.c"
     "participant.c"
     "pp_lease_dur.c"
+    "psmxif.c"
     "publisher.c"
     "qos.c"
     "qosmatch.c"
@@ -157,10 +158,43 @@ if(ENABLE_QOS_PROVIDER)
     "qos_provider.c")
 endif()
 
+# PSMX dummy implementation for interface testing
+if(BUILD_SHARED_LIBS)
+  add_library(psmx_dummy SHARED "psmx_dummy_impl.c")
+else()
+  add_library(psmx_dummy OBJECT "psmx_dummy_impl.c")
+  set_property(GLOBAL APPEND PROPERTY cdds_plugin_list psmx_dummy)
+  set_property(GLOBAL PROPERTY psmx_dummy_symbols dummy_create_psmx)
+endif()
+generate_export_header(psmx_dummy BASE_NAME PSMX_DUMMY EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/psmx_dummy/export.h")
+target_include_directories(
+  psmx_dummy PRIVATE
+  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/ddsrt/include>"
+  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src/core/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../ddsrt/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
+)
+if(BUILD_SHARED_LIBS)
+  target_link_libraries(psmx_dummy PRIVATE ddsc)
+else()
+  install(
+    TARGETS psmx_dummy
+    EXPORT "${PROJECT_NAME}"
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
+endif()
+
+
 add_cunit_executable(cunit_ddsc ${ddsc_test_sources})
 target_include_directories(
   cunit_ddsc PRIVATE
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/src>"
@@ -181,6 +215,7 @@ target_link_libraries(cunit_ddsc PRIVATE
   CdrStreamSkipDefault
   CdrStreamDataTypeInfo
   PsmxDataModels
+  psmx_dummy
   DynamicData
   Array100
   CdrStreamKeySize
@@ -243,7 +278,6 @@ target_include_directories(
 
 target_link_libraries(oneliner PRIVATE RoundTrip Space ddsc)
 
-
 # PSMX implementation with Cyclone as transport, for testing
 if (BUILD_SHARED_LIBS)
   idlc_generate(TARGET psmx_cdds_data FILES psmx_cdds_data.idl)
@@ -258,10 +292,6 @@ if (BUILD_SHARED_LIBS)
   target_link_libraries(psmx_cdds PRIVATE ddsc psmx_cdds_data)
 
   generate_export_header(psmx_cdds BASE_NAME PSMX_CDDS EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/psmx_cdds/export.h")
-
-  install(TARGETS psmx_cdds
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 endif()
 
 # If Iceoryx is available, then also run all PSMX tests using Iceoryx.  Colcon complicates
