@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "dds/features.h"
+#include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/hopscotch.h"
@@ -33,6 +34,7 @@
 #include "dds__psmx.h"
 
 static dds_return_t dds_domain_free (dds_entity *vdomain);
+static enum dds_domain_lifecycle LIFECYCLE_STATE = DDS_DOMAIN_LIFECYCLE_INITIALISATION;
 
 const struct dds_entity_deriver dds_entity_deriver_domain = {
   .interrupt = dds_entity_deriver_dummy_interrupt,
@@ -439,6 +441,54 @@ void dds_write_set_batch (bool enable)
   dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
 }
 
+dds_return_t dds_set_domain_lifecycle(const dds_entity_t domain, const enum dds_domain_lifecycle state) {
+    dds_return_t result = DDS_RETCODE_ERROR;
+    if (dds_init () < 0) {
+        result = DDS_RETCODE_PRECONDITION_NOT_MET;
+    } else {
+        if (DDS_CYCLONEDDS_HANDLE == domain) {
+            switch (state) {
+            case DDS_DOMAIN_LIFECYCLE_OPERATIONAL:
+                // Only initialisation->operational is valid
+                if (LIFECYCLE_STATE == DDS_DOMAIN_LIFECYCLE_INITIALISATION) {
+                  result = ddsrt_lock();
+                  if (result == DDS_RETCODE_OK) {
+                    LIFECYCLE_STATE = state;
+                  } // else result is the error from ddsrt_lock()
+                } else { // only allow init->operational
+                  result = DDS_RETCODE_PRECONDITION_NOT_MET;
+                }
+                break;
+            case DDS_DOMAIN_LIFECYCLE_INITIALISATION:
+                result = DDS_RETCODE_PRECONDITION_NOT_MET;
+                break;
+            default: // for MISRA compliance, no fall through :(
+                result = DDS_RETCODE_PRECONDITION_NOT_MET;
+                break;
+            }
+        } else {
+          result = DDS_RETCODE_ILLEGAL_OPERATION;
+        }
+    }
+    return result;
+}
+
+dds_return_t dds_get_domain_lifecycle(const dds_entity_t domain, enum dds_domain_lifecycle *state) {
+  dds_return_t result = DDS_RETCODE_OK;
+  if (NULL == state) {
+    result = DDS_RETCODE_PRECONDITION_NOT_MET;
+  } else {
+    if (DDS_CYCLONEDDS_HANDLE == domain) {
+      *state = LIFECYCLE_STATE;
+    } else {
+      result = DDS_RETCODE_BAD_PARAMETER;
+    }
+  }
+  return result;
+}
+
+
+
 #ifdef DDS_HAS_TYPE_DISCOVERY
 
 dds_return_t dds_get_typeobj (dds_entity_t entity, const dds_typeid_t *type_id, dds_duration_t timeout, dds_typeobj_t **type_obj)
@@ -489,5 +539,4 @@ dds_return_t dds_free_typeobj (dds_typeobj_t *type_obj)
   (void) type_obj;
   return DDS_RETCODE_UNSUPPORTED;
 }
-
 #endif /* DDS_HAS_TYPE_DISCOVERY */

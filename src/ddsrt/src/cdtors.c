@@ -93,6 +93,16 @@ void ddsrt_fini (void)
   }
 }
 
+dds_return_t ddsrt_lock (void) {
+  dds_return_t dds_result = DDS_RETCODE_OK;
+  return dds_result;
+}
+
+dds_return_t ddsrt_unlock (void) {
+  dds_return_t dds_result = DDS_RETCODE_OK;
+  return dds_result;
+}
+
 ddsrt_mutex_t *ddsrt_get_singleton_mutex(void)
 {
   return &init_mutex;
