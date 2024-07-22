@@ -91,6 +91,11 @@ static dds_return_t dds_reader_delete (dds_entity *e)
   dds_rhc_free (rd->m_rhc);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
+  // Destroy mutex and condition variable for wfhd
+  // LH: Not sure if this is the right spot to destroy
+  ddsrt_mutex_destroy(&rd->wfhd_mutex);
+  ddsrt_cond_destroy(&rd->wfhd_cond);
+
   dds_loan_pool_free (rd->m_heap_loan_cache);
   dds_loan_pool_free (rd->m_loans);
 
@@ -713,6 +718,10 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   // Ownership of rqos is transferred to reader entity
   own_rqos = false;
 
+  // Initialize mutex and condition variable for wfhd
+  ddsrt_mutex_init (&rd->wfhd_mutex);
+  ddsrt_cond_init (&rd->wfhd_cond);
+
   // assume DATA_ON_READERS is materialized in the subscriber:
   // - changes to it won't be propagated to this reader until after it has been added to the subscriber's children
   // - data can arrive once `new_reader` is called, requiring raising DATA_ON_READERS if materialized
@@ -963,7 +972,9 @@ dds_return_t dds_reader_wait_for_historical_data (dds_entity_t reader, dds_durat
   dds_reader *rd;
   dds_return_t ret;
   (void) max_wait;
-  if ((ret = dds_reader_lock (reader, &rd)) != DDS_RETCODE_OK)
+  bool call_wfhd = false;
+
+  if ((ret = dds_reader_lock(reader, &rd)) != DDS_RETCODE_OK)
     return ret;
   switch (rd->m_entity.m_qos->durability.kind)
   {
@@ -974,9 +985,13 @@ dds_return_t dds_reader_wait_for_historical_data (dds_entity_t reader, dds_durat
       break;
     case DDS_DURABILITY_TRANSIENT:
     case DDS_DURABILITY_PERSISTENT:
+      call_wfhd = true;
       break;
   }
   dds_reader_unlock(rd);
+  if (call_wfhd) {
+    ret = rd->m_entity.m_domain->dc.dds_durability_wait_for_historical_data(reader, max_wait);
+  }
   return ret;
 }
 
