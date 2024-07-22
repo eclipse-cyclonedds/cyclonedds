@@ -19,7 +19,7 @@
 extern "C" {
 #endif
 
-typedef struct dds_durability{
+typedef struct dds_durability {
   ddsrt_dynlib_t lib_handle;
   dds_return_t (*dds_durability_init) (const dds_domainid_t domain, struct ddsi_domaingv *gv);
   dds_entity_t (*_dds_durability_fini) (void);
@@ -27,8 +27,9 @@ typedef struct dds_durability{
   dds_return_t (*dds_durability_new_local_reader) (dds_entity_t reader, struct dds_rhc *rhc);
   dds_return_t (*dds_durability_new_local_writer) (dds_entity_t writer);
   dds_return_t (*dds_durability_wait_for_quorum) (dds_entity_t writer);
+  dds_return_t (*dds_durability_wait_for_historical_data) (dds_entity_t reader, dds_duration_t max_wait);
   bool (*dds_durability_is_terminating) (void);
-}dds_durability_t;
+} dds_durability_t;
 
 void dds_durability_fini (dds_durability_t* dc);
 dds_return_t dds_durability_load (dds_durability_t* dc, const struct ddsi_domaingv* gv);

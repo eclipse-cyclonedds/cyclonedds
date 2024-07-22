@@ -397,6 +397,10 @@ typedef struct dds_reader {
   struct dds_loan_pool *m_loans; /* administration of outstanding loans */
   struct dds_loan_pool *m_heap_loan_cache;
 
+  /* Mutex and condition variable for wfhd; only available for readers */
+  ddsrt_mutex_t wfhd_mutex;
+  ddsrt_cond_t wfhd_cond;
+
   /* Status metrics */
   dds_sample_rejected_status_t m_sample_rejected_status;
   dds_liveliness_changed_status_t m_liveliness_changed_status;
