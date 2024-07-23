@@ -930,7 +930,7 @@ static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertyp
     case DDS_LOANED_SAMPLE_STATE_RAW_DATA:
       if (d->hdr.identifier != DDSI_RTPS_SAMPLE_NATIVE)
       {
-        serdata_default_free (&d->c);
+        ddsi_serdata_unref (&d->c);
         return NULL;
       }
       d->c.loan = loaned_sample;
@@ -945,7 +945,7 @@ static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertyp
       // FIXME: how much do we trust PSMX-provided data? If we *really* trust it, we can skip this
       if (!dds_stream_normalize (loaned_sample->sample_ptr, md->sample_size, false, xcdr_version, &tp->type, just_key, &actual_size))
       {
-        serdata_default_free (&d->c);
+        ddsi_serdata_unref (&d->c);
         return NULL;
       }
       serdata_default_append_blob (&d, actual_size, loaned_sample->sample_ptr);
@@ -953,7 +953,7 @@ static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertyp
       dds_istream_init (&is, actual_size, d->data, xcdr_version);
       if (!gen_serdata_key_from_cdr (&is, &d->key, tp, just_key))
       {
-        serdata_default_free (&d->c);
+        ddsi_serdata_unref (&d->c);
         return NULL;
       }
       break;
