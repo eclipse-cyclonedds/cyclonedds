@@ -52,6 +52,11 @@ typedef enum update_result (*update_fun_t) (struct ddsi_cfgst *cfgst, void *pare
 typedef void (*free_fun_t) (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem);
 typedef void (*print_fun_t) (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources);
 
+// Split the given string at commas. Returns a freshly allocated char* array pointing to the
+// split words and returns the number of words found in *nwords. The pointed-to strings are
+// contained in the returned allocation, so a single `free` on the return value frees everything
+static char **split_at_comma (const char *str, size_t *nwords);
+
 struct unit {
   const char *name;
   int64_t multiplier;
@@ -214,6 +219,7 @@ DI(if_thread_properties);
 #ifdef DDS_HAS_SECURITY
 DI(if_omg_security);
 #endif
+DI(if_topic_pattern_list);
 #undef DI
 
 /* drop extra information, i.e. DESCRIPTION, RANGE, UNIT and VALUES */
@@ -661,7 +667,6 @@ static int if_thread_properties (struct ddsi_cfgst *cfgst, void *parent, struct 
   struct ddsi_config_thread_properties_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
   if (new == NULL)
     return -1;
-  new->name = NULL;
   return 0;
 }
 
@@ -670,8 +675,6 @@ static int if_network_interfaces(struct ddsi_cfgst *cfgst, void *parent, struct 
   struct ddsi_config_network_interface_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
   if (new == NULL)
     return -1;
-  new->cfg.name = NULL;
-  new->cfg.address = NULL;
   return 0;
 }
 
@@ -680,9 +683,6 @@ static int if_psmx(struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const 
   struct ddsi_config_psmx_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
   if (new == NULL)
     return -1;
-  new->cfg.name = NULL;
-  new->cfg.library = NULL;
-  new->cfg.config = NULL;
   return 0;
 }
 
@@ -692,14 +692,6 @@ static int if_network_partition (struct ddsi_cfgst *cfgst, void *parent, struct 
   struct ddsi_config_networkpartition_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
   if (new == NULL)
     return -1;
-  new->address_string = NULL;
-  new->interface_names = NULL;
-  new->uc_addresses = NULL;
-  new->asm_addresses = NULL;
-#ifdef DDSRT_HAVE_SSM
-  new->ssm_addresses = NULL;
-#endif
-  new->name = NULL;
   return 0;
 }
 
@@ -708,7 +700,6 @@ static int if_ignored_partition (struct ddsi_cfgst *cfgst, void *parent, struct 
   struct ddsi_config_ignoredpartition_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
   if (new == NULL)
     return -1;
-  new->DCPSPartitionTopic = NULL;
   return 0;
 }
 
@@ -717,9 +708,6 @@ static int if_partition_mapping (struct ddsi_cfgst *cfgst, void *parent, struct 
   struct ddsi_config_partitionmapping_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
   if (new == NULL)
     return -1;
-  new->DCPSPartitionTopic = NULL;
-  new->networkPartition = NULL;
-  new->partition = NULL;
   return 0;
 }
 #endif /* DDS_HAS_NETWORK_PARTITIONS */
@@ -729,7 +717,6 @@ static int if_peer (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const
   struct ddsi_config_peer_listelem *new = if_common (cfgst, parent, cfgelem, sizeof (*new));
   if (new == NULL)
     return -1;
-  new->peer = NULL;
   return 0;
 }
 
@@ -739,7 +726,6 @@ static int if_omg_security (struct ddsi_cfgst *cfgst, void *parent, struct cfgel
   struct ddsi_config_omg_security_listelem *new = if_common (cfgst, parent, cfgelem, sizeof (*new));
   if (new == NULL)
     return -1;
-  memset(&new->cfg, 0, sizeof(new->cfg));
   return 0;
 }
 #endif
@@ -1277,6 +1263,13 @@ static void ff_networkAddresses (struct ddsi_cfgst *cfgst, void *parent, struct 
   for (int i = 0; (*elem)[i]; i++)
     ddsrt_free ((*elem)[i]);
   ddsrt_free (*elem);
+}
+
+static int if_topic_pattern_list(struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem) {
+  struct ddsi_config_topic_pattern_listelem * new = if_common (cfgst, parent, cfgelem, sizeof(*new));
+  if (new == NULL)
+    return -1;
+  return 0;
 }
 
 #ifdef DDSRT_HAVE_SSM

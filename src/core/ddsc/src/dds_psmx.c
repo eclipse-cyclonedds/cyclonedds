@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/string.h"
 #include "dds/ddsrt/dynlib.h"
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/io.h"
@@ -26,6 +27,8 @@
 
 static struct dds_psmx_endpoint * psmx_create_endpoint (struct dds_psmx_topic *psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type);
 static dds_return_t psmx_delete_endpoint (struct dds_psmx_endpoint *psmx_endpoint);
+
+void deep_cleanup_topic_array(char **topic_array);
 
 dds_return_t dds_add_psmx_topic_to_list (struct dds_psmx_topic *psmx_topic, struct dds_psmx_topic_list_elem **list)
 {
@@ -82,6 +85,14 @@ dds_return_t dds_remove_psmx_topic_from_list (struct dds_psmx_topic *psmx_topic,
   }
 
   return ret;
+}
+
+// Free all members of a nullptr-terminated array of separately allocated char pointers
+void deep_cleanup_topic_array(char **topic_array) {
+  for (char * topic = *topic_array; topic; topic++) {
+    ddsrt_free((void*)topic);
+  }
+  ddsrt_free((void*)topic_array);
 }
 
 dds_return_t dds_add_psmx_endpoint_to_list (struct dds_psmx_endpoint *psmx_endpoint, struct dds_psmx_endpoint_list_elem **list)
@@ -163,6 +174,12 @@ dds_return_t dds_psmx_cleanup_generic (struct dds_psmx *psmx)
   dds_return_t ret = DDS_RETCODE_OK;
   dds_free ((void *) psmx->instance_name);
   dds_free ((void *) psmx->locator);
+
+  deep_cleanup_topic_array(psmx->only_for_topics);
+  psmx->only_for_topics = NULL;
+
+  deep_cleanup_topic_array(psmx->forbidden_topics);
+  psmx->forbidden_topics = NULL;
 
   while (ret == DDS_RETCODE_OK && psmx->psmx_topics)
     ret = dds_remove_psmx_topic_from_list (psmx->psmx_topics->topic, &psmx->psmx_topics);
@@ -313,11 +330,67 @@ static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, const st
     goto err_init;
   }
   psmx_instance->priority = config->priority.value;
+
+  if (config->only_for_topics && config->forbidden_topics) {
+    ret = DDS_RETCODE_UNSUPPORTED;
+    GVERROR ("Failed to initialize PSMX instance '%s': conflicting options only_for_topics and forbidden_topics were both present",
+             config->name);
+    goto err_init;
+  }
+
+  // Copy over either the only_for_topics or the forbidden_topics list, switching to nullptr-terminated array of separately-allocated strings
+  struct ddsi_config_topic_pattern_listelem * pattern_list;
+  char *** pattern_array_ptr;
+
+  if (config->only_for_topics) {
+    pattern_list = config->only_for_topics;
+    pattern_array_ptr = &psmx_instance->only_for_topics;
+    psmx_instance->forbidden_topics = ddsrt_calloc_s(1, sizeof(char*));
+  } else if (config->forbidden_topics) {
+    pattern_list = config->forbidden_topics;
+    pattern_array_ptr = &psmx_instance->forbidden_topics;
+    psmx_instance->only_for_topics = ddsrt_calloc_s(1, sizeof(char*));
+  }
+
+  size_t list_size = 0;
+  for (struct ddsi_config_topic_pattern_listelem * elem = pattern_list;
+       elem;
+       elem = elem->next) {
+    list_size++;
+  }
+
+
+  // Allocate +1 for the final nullptr terminator
+  *pattern_array_ptr = ddsrt_calloc_s(list_size + 1, sizeof(char*));
+  if (!*pattern_array_ptr) {
+    GVERROR ("Failed to initialize PSMX instance '%s': out of memory",
+             config->name);
+    goto err_init;
+  }
+
+
+  const struct ddsi_config_topic_pattern_listelem * elem = pattern_list;
+  for (int i = 0; elem; i++, elem = elem->next) {
+    (*pattern_array_ptr)[i] = ddsrt_strdup(elem->pattern);
+    if ((*pattern_array_ptr)[i] == NULL) {
+      GVERROR ("Failed to initialize PSMX instance '%s': out of memory",
+             config->name);
+      goto err_topic_arrays_oom;
+    }
+  }
+
   *out = psmx_instance;
   *lib_handle = handle;
   ddsrt_free (configstr);
   return DDS_RETCODE_OK;
 
+err_topic_arrays_oom:
+  if (psmx_instance->only_for_topics) {
+    deep_cleanup_topic_array(psmx_instance->only_for_topics);
+  }
+  if (psmx_instance->forbidden_topics) {
+    deep_cleanup_topic_array(psmx_instance->forbidden_topics);
+  }
 err_init:
 err_dlsym:
   ddsrt_dlclose (handle);
