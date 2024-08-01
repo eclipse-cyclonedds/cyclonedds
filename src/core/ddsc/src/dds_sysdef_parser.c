@@ -973,20 +973,21 @@ static bool is_alphanum (char c)
   return is_alpha (c) || (c >= '0' && c <= '9');
 }
 
-static bool is_valid_identifier_char (char c)
+static bool is_valid_identifier_char (char c, bool allow_underscore)
 {
-  return is_alphanum (c) || c == '_';
+  return is_alphanum (c) || (allow_underscore && c == '_');
 }
 
 static bool dds_sysdef_is_valid_identifier_syntax (const char *name)
 {
-  if (strlen (name) == 0)
+  size_t len = strlen (name);
+  if (len == 0)
     return false;
-  if (!is_alpha (name[0]))
+  if (!is_alpha (name[0]) || !is_valid_identifier_char (name[len - 1], false))
     return false;
-  for (size_t i = 1; i < strlen (name); i++)
+  for (size_t i = 1; i < len; i++)
   {
-    if (!is_valid_identifier_char (name[i]))
+    if (!is_valid_identifier_char (name[i], name[i - 1] != '_'))
       return false;
   }
   return true;
