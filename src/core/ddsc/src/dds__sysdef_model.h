@@ -540,14 +540,15 @@ struct dds_sysdef_mac_addr {
   uint8_t addr[6];
 };
 struct dds_sysdef_ip_addr {
+  struct xml_element xmlnode;
   struct sockaddr_storage addr;
 };
 struct dds_sysdef_node {
   struct xml_element xmlnode;
   char *name;
   char *hostname;
-  struct dds_sysdef_ip_addr *ipv4_addr;
-  struct dds_sysdef_ip_addr *ipv6_addr;
+  struct dds_sysdef_ip_addr *ipv4_addrs;
+  struct dds_sysdef_ip_addr *ipv6_addrs;
   struct dds_sysdef_mac_addr *mac_addr;
 };
 
