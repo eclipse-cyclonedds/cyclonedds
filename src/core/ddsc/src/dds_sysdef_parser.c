@@ -456,8 +456,8 @@ static void fini_node (struct xml_element *node)
   struct dds_sysdef_node *n = (struct dds_sysdef_node *) node;
   ddsrt_free (n->name);
   ddsrt_free (n->hostname);
-  ddsrt_free (n->ipv4_addr);
-  ddsrt_free (n->ipv6_addr);
+  free_node (n->ipv4_addrs);
+  free_node (n->ipv6_addrs);
   ddsrt_free (n->mac_addr);
 }
 
@@ -1928,18 +1928,16 @@ static int parse_mac_addr (const char *value, struct dds_sysdef_mac_addr **mac_a
   return SD_PARSE_RESULT_OK;
 }
 
-static int parse_ipv4_addr (const char *value, struct dds_sysdef_ip_addr **ipv4_addr)
+static int parse_ipv4_addr (const char *value, struct dds_sysdef_ip_addr *ipv4_addr)
 {
-  *ipv4_addr = ddsrt_malloc (sizeof (**ipv4_addr));
-  if (ddsrt_sockaddrfromstr (AF_INET, value, (struct sockaddr *) &(*ipv4_addr)->addr) != 0)
+  if (ddsrt_sockaddrfromstr (AF_INET, value, (struct sockaddr *) &ipv4_addr->addr) != 0)
     return SD_PARSE_RESULT_ERR;
   return SD_PARSE_RESULT_OK;
 }
 
-static int parse_ipv6_addr (const char *value, struct dds_sysdef_ip_addr **ipv6_addr)
+static int parse_ipv6_addr (const char *value, struct dds_sysdef_ip_addr *ipv6_addr)
 {
-  *ipv6_addr = ddsrt_malloc (sizeof (**ipv6_addr));
-  if (ddsrt_sockaddrfromstr (AF_INET6, value, (struct sockaddr *) &(*ipv6_addr)->addr) != 0)
+  if (ddsrt_sockaddrfromstr (AF_INET6, value, (struct sockaddr *) &ipv6_addr->addr) != 0)
     return SD_PARSE_RESULT_ERR;
   return SD_PARSE_RESULT_OK;
 }
@@ -2100,13 +2098,8 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
       break;
     case ELEMENT_KIND_NODE_IPV4_ADDRESS: {
       assert (pstate->current->parent->kind == ELEMENT_KIND_NODE);
-      struct dds_sysdef_node *node = (struct dds_sysdef_node *) pstate->current->parent;
-      if (node->ipv4_addr != NULL)
-      {
-        PARSER_ERROR (pstate, line, "Parameter 'ipv4_addr' already set");
-        ret = SD_PARSE_RESULT_SYNTAX_ERR;
-      }
-      else if (parse_ipv4_addr (value, &node->ipv4_addr) != SD_PARSE_RESULT_OK)
+      struct dds_sysdef_ip_addr *node = (struct dds_sysdef_ip_addr *) pstate->current;
+      if (parse_ipv4_addr (value, node) != SD_PARSE_RESULT_OK)
       {
         PARSER_ERROR (pstate, line, "Invalid value for parameter 'ipv4_addr'");
         ret = SD_PARSE_RESULT_SYNTAX_ERR;
@@ -2115,13 +2108,8 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
     }
     case ELEMENT_KIND_NODE_IPV6_ADDRESS: {
       assert (pstate->current->parent->kind == ELEMENT_KIND_NODE);
-      struct dds_sysdef_node *node = (struct dds_sysdef_node *) pstate->current->parent;
-      if (node->ipv6_addr != NULL)
-      {
-        PARSER_ERROR (pstate, line, "Parameter 'ipv6_addr' already set");
-        ret = SD_PARSE_RESULT_SYNTAX_ERR;
-      }
-      else if (parse_ipv6_addr (value, &node->ipv6_addr) != SD_PARSE_RESULT_OK)
+      struct dds_sysdef_ip_addr *node = (struct dds_sysdef_ip_addr *) pstate->current;
+      if (parse_ipv6_addr (value, node) != SD_PARSE_RESULT_OK)
       {
         PARSER_ERROR (pstate, line, "Invalid value for parameter 'ipv6_addr'");
         ret = SD_PARSE_RESULT_SYNTAX_ERR;
@@ -2618,9 +2606,9 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
       else if (ddsrt_strcasecmp (name, "hostname") == 0)
         CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_NODE_HOSTNAME, NO_INIT, NO_FINI, ELEMENT_KIND_NODE, pstate->current);
       else if (ddsrt_strcasecmp (name, "ipv4_address") == 0)
-        CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_NODE_IPV4_ADDRESS, NO_INIT, NO_FINI, ELEMENT_KIND_NODE, pstate->current);
+        CREATE_NODE_LIST (pstate, dds_sysdef_ip_addr, ELEMENT_KIND_NODE_IPV4_ADDRESS, NO_INIT, NO_FINI, ipv4_addrs, dds_sysdef_node, ELEMENT_KIND_NODE, pstate->current);
       else if (ddsrt_strcasecmp (name, "ipv6_address") == 0)
-        CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_NODE_IPV6_ADDRESS, NO_INIT, NO_FINI, ELEMENT_KIND_NODE, pstate->current);
+        CREATE_NODE_LIST (pstate, dds_sysdef_ip_addr, ELEMENT_KIND_NODE_IPV6_ADDRESS, NO_INIT, NO_FINI, ipv6_addrs, dds_sysdef_node, ELEMENT_KIND_NODE, pstate->current);
       else if (ddsrt_strcasecmp (name, "mac_address") == 0)
         CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_NODE_MAC_ADDRESS, NO_INIT, NO_FINI, ELEMENT_KIND_NODE, pstate->current);
     }
