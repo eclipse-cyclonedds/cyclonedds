@@ -983,9 +983,14 @@ static bool dds_sysdef_is_valid_identifier_syntax (const char *name)
   size_t len = strlen (name);
   if (len == 0)
     return false;
-  if (!is_alpha (name[0]) || !is_valid_identifier_char (name[len - 1], false))
+  // First character must be alpha
+  if (!is_alpha (name[0]))
     return false;
-  for (size_t i = 1; i < len; i++)
+  // Last character must be alphanum, underscore not allowed
+  if (!is_alphanum (name[len - 1]))
+    return false;
+  // Other characters can be alphanum or underscore, but multiple consecutive underscores not allowed
+  for (size_t i = 1; i < len - 1; i++)
   {
     if (!is_valid_identifier_char (name[i], name[i - 1] != '_'))
       return false;
