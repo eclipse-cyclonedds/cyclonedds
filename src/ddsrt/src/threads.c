@@ -11,6 +11,7 @@
 #include <assert.h>
 
 #include "dds/ddsrt/threads.h"
+#include "dds/ddsrt/heap.h"
 
 void
 ddsrt_threadattr_init (
@@ -19,5 +20,7 @@ ddsrt_threadattr_init (
   assert(attr != NULL);
   attr->schedClass = DDSRT_SCHED_DEFAULT;
   attr->schedPriority = 0;
+  attr->schedAffinityN = 0;
+  attr->schedAffinitySet = NULL;
   attr->stackSize = 0;
 }

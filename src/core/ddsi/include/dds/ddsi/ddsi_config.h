@@ -120,12 +120,18 @@ struct ddsi_config_maybe_duration {
   dds_duration_t value;
 };
 
+struct ddsi_config_uint32_array {
+  uint32_t n;
+  uint32_t *xs;
+};
+
 struct ddsi_config_thread_properties_listelem {
   struct ddsi_config_thread_properties_listelem *next;
   char *name;
   ddsrt_sched_t sched_class;
   struct ddsi_config_maybe_int32 schedule_priority;
   struct ddsi_config_maybe_uint32 stack_size;
+  struct ddsi_config_uint32_array affinity;
 };
 
 struct ddsi_config_peer_listelem

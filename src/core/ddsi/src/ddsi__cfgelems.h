@@ -846,6 +846,16 @@ static struct cfgelem thread_properties_sched_cfgelems[] = {
       "special privileges from the underlying operating system to be able to "
       "assign some of the privileged priorities.</p>"
     )),
+  STRING("Affinity", NULL, 1, "",
+    MEMBEROF(ddsi_config_thread_properties_listelem, affinity),
+    FUNCTIONS(0, uf_uint32_array, ff_uint32_array, pf_uint32_array),
+    DESCRIPTION(
+      "<p>This element specifies the thread affinity using a string of "
+      "comma-separated unsigned 32-bit integers. The notional meaning "
+      "of the string is that it lists the IDs of the CPU cores to use, "
+      "but some platforms may use a different mapping. Ignored if "
+      "unsupported by the platform.</p>"
+    )),
   END_MARKER
 };
 

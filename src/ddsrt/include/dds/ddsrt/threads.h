@@ -68,6 +68,9 @@ typedef struct {
   ddsrt_sched_t schedClass;
   /** Specifies the thread priority */
   int32_t schedPriority;
+  /** Specifies thread affinity, N = 0, Set = NULL or N > 0 and Set[0..N-1] contains N CPU ids */
+  uint32_t schedAffinityN;
+  uint32_t *schedAffinitySet;
   /** Specifies the thread stack size */
   uint32_t stackSize;
 } ddsrt_threadattr_t;

@@ -334,6 +334,8 @@ static dds_return_t create_thread_int (struct ddsi_thread_state **ts1_out, const
     tattr.schedClass = tprops->sched_class; /* explicit default value in the enum */
     if (!tprops->stack_size.isdefault)
       tattr.stackSize = tprops->stack_size.value;
+    tattr.schedAffinityN = tprops->affinity.n;
+    tattr.schedAffinitySet = tprops->affinity.xs;
   }
   if (gv)
   {
