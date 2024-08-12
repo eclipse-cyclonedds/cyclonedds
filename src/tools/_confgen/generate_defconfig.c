@@ -193,6 +193,14 @@ void gendef_pf_standards_conformance (FILE *out, void *parent, struct cfgelem co
 void gendef_pf_shm_loglevel (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
   gendef_pf_int (out, parent, cfgelem);
 }
+void gendef_pf_uint32_array (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
+  (void) out;
+  struct ddsi_config_uint32_array const * const p = cfg_address (parent, cfgelem);
+  if (p->n != 0) {
+    fprintf (stderr, "generate_defconfig internal error: non-empty uint32_array not handled\n");
+    abort ();
+  }
+}
 
 static void gen_defaults (FILE *out, void *parent, struct cfgelem const * const cfgelem)
 {

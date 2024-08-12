@@ -410,6 +410,28 @@ ddsrt_thread_create (
     }
 #endif
   }
+  
+#if defined __linux
+  if (tattr.schedAffinityN > 0)
+  {
+    cpu_set_t cpuset;
+    CPU_ZERO (&cpuset);
+    for (uint32_t i = 0; i < tattr.schedAffinityN; i++)
+    {
+      if (tattr.schedAffinitySet[i] >= CPU_SETSIZE)
+      {
+        DDS_ERROR ("os_threadCreate(%s): CPU id %"PRIu32" out of range when setting affinity\n", name, tattr.schedAffinitySet[i]);
+        goto err;
+      }
+      CPU_SET(tattr.schedAffinitySet[i], &cpuset);
+    }
+    if ((result = pthread_attr_setaffinity_np (&pattr, sizeof (cpuset), &cpuset)) != 0)
+    {
+      DDS_ERROR("ddsrt_thread_create(%s): pthread_attr_setinheritsched(EXPLICIT) failed with error %d\n", name, result);
+      goto err;
+    }
+  }
+#endif
 
   /* Construct context structure & start thread */
   ctx = ddsrt_malloc (sizeof (thread_context_t));

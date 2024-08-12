@@ -192,6 +192,7 @@ DU(deaf_mute);
 DUPF(min_tls_version);
 #endif
 DUPF(shm_loglevel);
+DUPF(uint32_array);
 #undef DUPF
 #undef DU
 #undef PF
@@ -199,6 +200,7 @@ DUPF(shm_loglevel);
 #define DF(fname) static void fname (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 DF(ff_free);
 DF(ff_networkAddresses);
+DF(ff_uint32_array);
 #undef DF
 
 #define DI(fname) static int fname (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
@@ -1593,6 +1595,72 @@ static void pf_participantIndex (struct ddsi_cfgst *cfgst, void *parent, struct 
 static enum update_result uf_deaf_mute (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
 {
   return uf_boolean (cfgst, parent, cfgelem, first, value);
+}
+
+static enum update_result uf_uint32_array (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  struct ddsi_config_uint32_array * const elem = cfg_address (cfgst, parent, cfgelem);
+  if (*value == 0) // Short-circuit the common, trivial case of an empty string
+  {
+    elem->n = 0;
+    elem->xs = NULL;
+    return URES_SUCCESS;
+  }
+  else
+  {
+    const char *v = strchr (value, ',');
+    uint32_t maxn = 1;
+    while (v)
+    {
+      maxn++;
+      v = strchr (v + 1, ',');
+    }
+    uint32_t *xs = ddsrt_malloc (maxn * sizeof (*xs));
+    uint32_t idx = 0;
+    char *valuecopy = ddsrt_strdup (value), *cursor = valuecopy, *tok;
+    while ((tok = ddsrt_strsep (&cursor, ",")) != NULL)
+    {
+      assert (idx < maxn);
+      int64_t i64;
+      enum update_result res = uf_int64_unit (cfgst, &i64, tok, NULL, 1, 0, UINT32_MAX);
+      if (res != URES_SUCCESS)
+      {
+        ddsrt_free (valuecopy);
+        ddsrt_free (xs);
+        return res;
+      }
+      assert (i64 >= 0 && i64 <= UINT32_MAX);
+      xs[idx++] = (uint32_t) i64;
+    }
+    elem->n = idx;
+    elem->xs = xs;
+    ddsrt_free (valuecopy);
+    return URES_SUCCESS;
+  }
+}
+
+static void ff_uint32_array (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+{
+  struct ddsi_config_uint32_array * const elem = cfg_address (cfgst, parent, cfgelem);
+  ddsrt_free (elem->xs);
+}
+
+static void pf_uint32_array (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
+{
+  struct ddsi_config_uint32_array const * const elem = cfg_address (cfgst, parent, cfgelem);
+  size_t bufsize = 11 * elem->n + 1;
+  char *buf = ddsrt_malloc (bufsize);
+  size_t pos = 0;
+  buf[0] = 0;
+  // pos < bufsize by construction (uint32_t: 10 digits + 1 for a comma, the extra byte is there for the n = 0 case)
+  for (uint32_t i = 0; i < elem->n; i++)
+  {
+    int n = snprintf (buf + pos, bufsize - pos, "%s%"PRIu32, (i > 0 ? "," : ""), elem->xs[i]);
+    if (n > 0)
+      pos += (size_t) n;
+  }
+  cfg_logelem (cfgst, sources, "%s", buf);
+  ddsrt_free (buf);
 }
 
 static struct ddsi_cfgst_node *lookup_or_create_elem_record (struct ddsi_cfgst *cfgst, struct cfgelem const * const cfgelem, void *parent, uint32_t source)
