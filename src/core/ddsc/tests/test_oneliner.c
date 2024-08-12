@@ -511,9 +511,15 @@ static bool read_kvarg_3len (struct oneliner_lex *l, void *dst)
   return true;
 }
 
+static bool read_kvarg_isterm (struct oneliner_lex *l2)
+{
+  int tok = peektok (l2, NULL);
+  return tok == ',' || tok == ')' || tok == '/';
+}
+
 static bool read_kvarg (const struct kvarg *ks, size_t sizeof_ks, struct oneliner_lex *l, int *v, void *arg)
 {
-  // l points at name, *inp is , or ) terminated; *l unchanged when false
+  // l points at name, *inp is , or / or ) terminated; *l unchanged when false
   const struct kvarg *kend = ks + sizeof_ks / sizeof (*ks);
   struct oneliner_lex l1 = *l;
   advancetok (&l1);
@@ -525,7 +531,7 @@ static bool read_kvarg (const struct kvarg *ks, size_t sizeof_ks, struct oneline
     {
       assert (k->arg != 0 && k->def == 0);
       struct oneliner_lex l2 = l1;
-      if (k->arg (&l2, arg) && (peektok (&l2, NULL) == ',' || peektok (&l2, NULL) == ')'))
+      if (k->arg (&l2, arg) && read_kvarg_isterm (&l2))
       {
         *l = l2;
         return true;
@@ -540,7 +546,7 @@ static bool read_kvarg (const struct kvarg *ks, size_t sizeof_ks, struct oneline
       /* skip symbol */
       struct oneliner_lex l2 = l1;
       l2.inp += k->klen;
-      if (peektok (&l2, NULL) == ',' || peektok (&l2, NULL) == ')')
+      if (read_kvarg_isterm (&l2))
       {
         if (k->arg == 0 || k->def != 0)
         {
@@ -551,7 +557,7 @@ static bool read_kvarg (const struct kvarg *ks, size_t sizeof_ks, struct oneline
       }
       else if (k->arg != 0 && nexttok (&l2, NULL) == ':')
       {
-        if (k->arg (&l2, arg) && (peektok (&l2, NULL) == ',' || peektok (&l2, NULL) == ')'))
+        if (k->arg (&l2, arg) && read_kvarg_isterm (&l2))
         {
           *l = l2;
           return true;
