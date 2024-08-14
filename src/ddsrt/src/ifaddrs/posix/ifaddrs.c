@@ -113,7 +113,7 @@ static enum ddsrt_iftype guess_iftype (const struct ifaddrs *sys_ifa)
     switch (IFM_TYPE (ifmr.ifm_active))
     {
       case IFM_ETHER:
-#if !defined __FreeBSD__
+#if !defined __FreeBSD__ && !defined __QNXNTO__
       case IFM_TOKEN:
       case IFM_FDDI:
 #endif
