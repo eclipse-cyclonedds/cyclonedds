@@ -723,11 +723,7 @@ void ddsi_xmsg_setdst_prd (struct ddsi_xmsg *m, const struct ddsi_proxy_reader *
   // only accepting endpoints that have an address
   assert (m->dstmode == NN_XMSG_DST_UNSET);
   if (!prd->redundant_networking)
-  {
-    ddsi_xlocator_t loc;
-    ddsi_addrset_any_uc (prd->c.as, &loc);
-    ddsi_xmsg_setdst1 (prd->e.gv, m, &prd->e.guid.prefix, &loc);
-  }
+    ddsi_xmsg_setdst1 (prd->e.gv, m, &prd->e.guid.prefix, &prd->c.loc_uc);
   else
   {
     // FIXME: maybe I should work on the merging instead ...
@@ -744,11 +740,7 @@ void ddsi_xmsg_setdst_pwr (struct ddsi_xmsg *m, const struct ddsi_proxy_writer *
   // only accepting endpoints that have an address
   assert (m->dstmode == NN_XMSG_DST_UNSET);
   if (!pwr->redundant_networking)
-  {
-    ddsi_xlocator_t loc;
-    ddsi_addrset_any_uc (pwr->c.as, &loc);
-    ddsi_xmsg_setdst1 (pwr->e.gv, m, &pwr->e.guid.prefix, &loc);
-  }
+    ddsi_xmsg_setdst1 (pwr->e.gv, m, &pwr->e.guid.prefix, &pwr->c.loc_uc);
   else
   {
     // FIXME: maybe I should work on the merging instead ...

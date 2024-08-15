@@ -37,6 +37,7 @@ struct ddsi_proxy_endpoint_common
   struct ddsi_proxy_endpoint_common *prev_ep; /* prev / -- this is in arbitrary ordering */
   struct dds_qos *xqos; /* proxy endpoint QoS lives here; FIXME: local ones should have it moved to common as well */
   struct ddsi_addrset *as; /* address set to use for communicating with this endpoint */
+  ddsi_xlocator_t loc_uc; /* preferred address for sending unicast */
   ddsi_guid_t group_guid; /* 0:0:0:0 if not available */
   ddsi_vendorid_t vendor; /* cached from proxypp->vendor */
   ddsi_seqno_t seq; /* sequence number of most recent SEDP message */
