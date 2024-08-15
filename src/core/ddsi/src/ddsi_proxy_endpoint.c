@@ -15,6 +15,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
+#include "ddsi__addrset.h"
 #include "ddsi__entity.h"
 #include "ddsi__endpoint_match.h"
 #include "ddsi__entity_index.h"
@@ -78,6 +79,39 @@ void ddsi_proxy_writer_get_alive_state (struct ddsi_proxy_writer *pwr, struct dd
   ddsrt_mutex_unlock (&pwr->e.lock);
 }
 
+static void determine_preferred_uc_locator_helper (const ddsi_xlocator_t *loc, void *vdst)
+{
+  ddsi_xlocator_t * const dst = vdst;
+  if (loc->c.kind != DDSI_LOCATOR_KIND_PSMX)
+  {
+    if (ddsi_is_unspec_xlocator (dst) || loc->conn->m_interf->priority > dst->conn->m_interf->priority)
+      *dst = *loc;
+  }
+}
+
+static void determine_preferred_uc_locator (ddsi_xlocator_t *dst, struct ddsi_addrset *as)
+{
+  // we require unicast addresses and check this in the validation of incoming discovery messages
+  assert (ddsi_addrset_count_uc (as) > 0);
+
+  // Pick the interface with the highest priority, and in case of a tie, the first
+  //
+  // This is mostly equivalent to what gets computed for the writer address set, but not entirely:
+  // that factors in some additional costs and may end up picking a lower priority interface if it
+  // considers it less costly. For example, if there are two interfaces with almost the same priority
+  // a whole bunch of readers, unicast-only for the higher priority one and multicast for the lower
+  // priority one, then it can end up using the lower priority interface.
+  //
+  // The reader is not privy to the inputs of the writer, so it can't hope to do the same thing. It
+  // could update this address based on incoming packets, though, and that would make the reader
+  // adjust to the writer. I suspect that'd be overkill.
+  //
+  // (Similar considerations hold for writers sending data to one reader only.)
+  ddsi_set_unspec_xlocator (dst);
+  (void) ddsi_addrset_forall_uc_count (as, determine_preferred_uc_locator_helper, dst);
+  assert (!ddsi_is_unspec_xlocator (dst));
+}
+
 static int proxy_endpoint_common_init (struct ddsi_entity_common *e, struct ddsi_proxy_endpoint_common *c, enum ddsi_entity_kind kind, const struct ddsi_guid *guid, ddsrt_wctime_t tcreate, ddsi_seqno_t seq, struct ddsi_proxy_participant *proxypp, struct ddsi_addrset *as, const ddsi_plist_t *plist)
 {
   int ret;
@@ -90,6 +124,7 @@ static int proxy_endpoint_common_init (struct ddsi_entity_common *e, struct ddsi
   ddsi_entity_common_init (e, proxypp->e.gv, guid, kind, tcreate, proxypp->vendor, false);
   c->xqos = ddsi_xqos_dup (&plist->qos);
   c->as = ddsi_ref_addrset (as);
+  determine_preferred_uc_locator (&c->loc_uc, as);
   c->vendor = proxypp->vendor;
   c->seq = seq;
 #ifdef DDS_HAS_TYPELIB

@@ -92,10 +92,6 @@ bool ddsi_addrset_any_mc (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
   ddsrt_nonnull_all;
 
 /** @component locators */
-void ddsi_addrset_any_uc_else_mc_nofail (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
-  ddsrt_nonnull_all;
-
-/** @component locators */
 bool ddsi_addrset_contains_non_psmx_uc (const struct ddsi_addrset *as)
   ddsrt_nonnull_all;
 
