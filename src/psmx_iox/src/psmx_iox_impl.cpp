@@ -20,6 +20,7 @@
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/random.h"
 #include "dds/ddsrt/strtol.h"
+#include "dds/ddsrt/threads.h"
 #include "dds/ddsc/dds_loaned_sample.h"
 #include "dds/ddsc/dds_psmx.h"
 
@@ -92,7 +93,7 @@ static bool is_wildcard_partition(const char *str)
 
 struct iox_psmx : public dds_psmx_t
 {
-  iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service_name, const dds_psmx_node_identifier_t& node_id, bool support_keyed_topics, bool allow_nondisc_wr);
+  iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service_name, const dds_psmx_node_identifier_t& node_id, bool support_keyed_topics, bool allow_nondisc_wr, int prio, uint64_t affinity);
   ~iox_psmx();
   bool _support_keyed_topics;
   bool _allow_nondisc_wr;
@@ -100,9 +101,12 @@ struct iox_psmx : public dds_psmx_t
   std::unique_ptr<iox::popo::Listener> _listener;  //the listener needs to be created after iox runtime has been initialized
   dds_psmx_node_identifier_t _node_id = { 0 };
   std::shared_ptr<iox::popo::UntypedPublisher> _node_id_publisher;
+  int thread_prio;
+  uint64_t thread_affinity;
+  bool set_thread_attr;
 };
 
-iox_psmx::iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service_name, const dds_psmx_node_identifier_t& node_id, bool support_keyed_topics, bool allow_nondisc_wr) :
+iox_psmx::iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service_name, const dds_psmx_node_identifier_t& node_id, bool support_keyed_topics, bool allow_nondisc_wr, int prio, uint64_t affinity) :
   dds_psmx_t {
     .ops = psmx_ops,
     .instance_name = dds_string_dup ("CycloneDDS-IOX-PSMX"),
@@ -123,6 +127,9 @@ iox_psmx::iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service
   _listener = std::unique_ptr<iox::popo::Listener>(new iox::popo::Listener());
 
   _node_id = node_id;
+  thread_prio = prio;
+  thread_affinity = affinity;
+  set_thread_attr = (prio != 0);
   dds_psmx_init_generic(this);
 }
 
@@ -540,9 +547,76 @@ static dds_loaned_sample_t * iox_take(struct dds_psmx_endpoint * psmx_endpoint)
   return loaned_sample;
 }
 
+static dds_return_t set_thread_priority(ddsrt_thread_t thread, int priority)
+{
+#if defined(__linux)
+  int r;
+  struct sched_param param;
+  param.sched_priority = priority;
+
+  if ((priority < sched_get_priority_min(SCHED_FIFO)) || (priority > sched_get_priority_max(SCHED_FIFO)))
+  {
+    std::cerr << ERROR_PREFIX "failed to set thread priority: "<< priority <<" is out of acceptable range" << std::endl;
+    return DDS_RETCODE_ERROR;
+  }
+
+	if ((r = pthread_setschedparam(thread.v, SCHED_FIFO, &param)) != 0)
+	{
+	  std::cerr << ERROR_PREFIX "set thread priority failed with error " << r << std::endl;
+    return DDS_RETCODE_ERROR;
+	}
+#elif
+	DDSRT_UNUSED_ARG(thread);
+  DDSRT_UNUSED_ARG(priority);
+#endif
+  return DDS_RETCODE_OK;
+}
+
+static dds_return_t set_thread_affinity(ddsrt_thread_t thread, uint64_t affinity)
+{
+#if defined(__linux)
+  int r;
+  cpu_set_t cpuset;
+  long np = sysconf(_SC_NPROCESSORS_CONF);
+
+  if (affinity == 0)
+    return DDS_RETCODE_OK;
+
+  CPU_ZERO(&cpuset);
+  for (int i = 0; i < np; i++)
+  {
+    if (affinity & (1<<i))
+      CPU_SET(i, &cpuset);
+  }
+
+  if ((r = pthread_setaffinity_np(thread.v, sizeof(cpuset), &cpuset)) != 0)
+  {
+    std::cerr << ERROR_PREFIX "set thread affinity failed with error " << r << std::endl;
+    return DDS_RETCODE_ERROR;
+  }
+#elif defined(_WIN32)
+  DDSRT_UNUSED_ARG(thread);
+  DDSRT_UNUSED_ARG(affinity);
+#endif
+
+  return DDS_RETCODE_OK;
+}
+
 static void on_incoming_data_callback(iox::popo::UntypedSubscriber * subscriber, iox_psmx_endpoint * psmx_endpoint)
 {
   psmx_endpoint->lock.lock();
+
+  assert(psmx_endpoint->psmx_topic);
+  assert(psmx_endpoint->psmx_topic->psmx_instance);
+  struct iox_psmx *psmx = static_cast<struct iox_psmx *>(psmx_endpoint->psmx_topic->psmx_instance);
+
+  if (psmx->set_thread_attr)
+  {
+    (void)set_thread_priority(ddsrt_thread_self(), psmx->thread_prio);
+    (void)set_thread_affinity(ddsrt_thread_self(), psmx->thread_affinity);
+    psmx->set_thread_attr = false;
+  }
+
   while (subscriber->hasData())
   {
     subscriber->take().and_then([psmx_endpoint](auto& sample) {
@@ -658,6 +732,36 @@ static std::optional<dds_psmx_node_identifier_t> to_node_identifier(const std::s
   return id;
 }
 
+static std::optional<uint64_t> to_affinity(const std::string& str)
+{
+  uint64_t bits = 0;
+  char *copy = dds_string_dup (str.c_str()), *cursor = copy, *tok;
+
+  while ((tok = ddsrt_strsep (&cursor, ":")) != nullptr)
+  {
+    int v,e;
+    if (strlen(tok) == 0)
+      continue;
+    char *f = ddsrt_strsep(&tok, "-");
+    v = atoi(f);
+    if (v > 0 && v <= 64) {
+      bits |= 1 << (v-1);
+    } else {
+      return std::nullopt;
+    }
+    if (tok != nullptr) {
+      e = atoi(tok);
+      if (e > v && e <= 64) {
+        int i;
+        for (i = v+1; i <= e; ++i) {
+          bits |= 1 << (i-1);
+        }
+      }
+    }
+  }
+  return bits;
+}
+
 dds_return_t iox_create_psmx(struct dds_psmx **psmx, dds_psmx_instance_id_t instance_id, const char *config)
 {
   assert(psmx);
@@ -708,6 +812,20 @@ dds_return_t iox_create_psmx(struct dds_psmx **psmx, dds_psmx_instance_id_t inst
       return DDS_RETCODE_ERROR;
   }
 
-  *psmx = new iox_psmx::iox_psmx(instance_id, service_name, node_id.value(), keyed_topics, allow_nondisc_wr);
+  int thread_prio = 0;
+  auto opt_thread_prio = get_config_option_value(config, "SCHED_PRIO");
+  if (opt_thread_prio.has_value()) {
+    thread_prio = std::stoi(opt_thread_prio.value());
+  }
+
+  uint64_t thread_affinity = 0;
+  std::optional<uint64_t> affinity = std::nullopt;
+  auto opt_thread_affinity = get_config_option_value(config, "AFFINITY");
+  if (opt_thread_affinity.has_value())
+    affinity = to_affinity(opt_thread_affinity.value());
+  if (affinity.has_value())
+    thread_affinity = affinity.value();
+
+  *psmx = new iox_psmx::iox_psmx(instance_id, service_name, node_id.value(), keyed_topics, allow_nondisc_wr, thread_prio, thread_affinity);
   return *psmx ? DDS_RETCODE_OK :  DDS_RETCODE_ERROR;
 }
