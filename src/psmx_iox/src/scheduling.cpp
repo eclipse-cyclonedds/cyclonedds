@@ -25,6 +25,8 @@ namespace iox_psmx { namespace sched {
 #if defined(__linux) || defined(__APPLE__)
 static bool valid_priority(prioclass_t cl, int prio)
 {
+  if (cl == SCHED_OTHER)
+    return (prio == 0);
   return (prio >= sched_get_priority_min(cl) && prio <= sched_get_priority_max(cl));
 }
 #elif defined(_WIN32)
@@ -56,6 +58,12 @@ static bool valid_priority(prioclass_t cl, int prio)
 }
 #endif
 
+static void trim(std::string &s)
+{
+  s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+  s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
+}
+
 bool sched_info_setpriority(sched_info& si, const std::string& x)
 {
   size_t priostart = x.find(':');
@@ -74,6 +82,7 @@ bool sched_info_setpriority(sched_info& si, const std::string& x)
   else
   {
     std::string cstr = x.substr(0, priostart);
+    trim(cstr);
     std::transform(cstr.begin(), cstr.end(), cstr.begin(), [](unsigned char c){ return std::toupper(c); });
 #if defined(__linux) || defined(__APPLE_)
     if (cstr == "OTHER")         cl = SCHED_OTHER;
