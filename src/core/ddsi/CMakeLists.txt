@@ -139,6 +139,7 @@ set(hdrs_ddsi
   ddsi_xevent.h
   ddsi_xmsg.h
   ddsi_psmx.h
+  ddsi_misc.h
 )
 
 set(hdrs_private_ddsi

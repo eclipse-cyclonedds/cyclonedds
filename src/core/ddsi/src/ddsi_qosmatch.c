@@ -16,6 +16,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_qosmatch.h"
+#include "dds/ddsi/ddsi_misc.h"
 #include "ddsi__typelookup.h"
 #include "ddsi__misc.h"
 #include "ddsi__typelib.h"

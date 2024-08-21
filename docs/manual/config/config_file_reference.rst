@@ -655,6 +655,7 @@ The default value is: ``default``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Attributes: :ref:`config<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@config]>`, :ref:`library<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@library]>`, :ref:`name<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@name]>`, :ref:`priority<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@priority]>`
+Children: :ref:`forbiddenTopics<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/forbiddenTopics>`, :ref:`onlyForTopics<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/onlyForTopics>`
 
 This element defines a PSMX.
 
@@ -705,6 +706,76 @@ Text
 This attribute specifies the interface priority (decimal integer or default). The default value for a PSMX is 0.
 
 The default value is: ``default``
+
+
+.. _`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/forbiddenTopics`:
+
+//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/forbiddenTopics
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Children: :ref:`Pattern<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/forbiddenTopics/Pattern>`
+
+A list of topics that should never use this psmx. Mutually exclusive with onlyForTopics. 
+
+
+.. _`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/forbiddenTopics/Pattern`:
+
+//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/forbiddenTopics/Pattern
+____________________________________________________________________________________
+
+Attributes: :ref:`value<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/forbiddenTopics/Pattern[@value]>`
+
+Text
+
+A pattern (with ? and \* wildcards) that is matched against topics. 
+
+The default value is: ``<empty>``
+
+
+.. _`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/forbiddenTopics/Pattern[@value]`:
+
+//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/forbiddenTopics/Pattern[@value]
+____________________________________________________________________________________________
+
+Text
+
+
+The default value is: ``<empty>``
+
+
+.. _`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/onlyForTopics`:
+
+//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/onlyForTopics
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Children: :ref:`Pattern<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/onlyForTopics/Pattern>`
+
+A list of topics that should never use this psmx. Mutually exclusive with onlyForTopics. 
+
+
+.. _`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/onlyForTopics/Pattern`:
+
+//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/onlyForTopics/Pattern
+__________________________________________________________________________________
+
+Attributes: :ref:`value<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/forbiddenTopics/Pattern[@value]>`
+
+Text
+
+A pattern (with ? and \* wildcards) that is matched against topics. 
+
+The default value is: ``<empty>``
+
+
+.. _`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/forbiddenTopics/Pattern[@value]`:
+
+//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/forbiddenTopics/Pattern[@value]
+____________________________________________________________________________________________
+
+Text
+
+
+The default value is: ``<empty>``
 
 
 .. _`//CycloneDDS/Domain/General/MaxMessageSize`:
@@ -2704,10 +2775,10 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 The default value is: ``none``
 
 ..
-   generated from ddsi_config.h[83ad19f1a665710b0c82b3ac6b861e6c8e83913f] 
+   generated from ddsi_config.h[9296f1e4eceda8b8514e7859c5584f1cda35412c] 
    generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] 
-   generated from ddsi__cfgelems.h[194217161977869610495a7889bbc1e6bc976ce1] 
-   generated from ddsi_config.c[a439a20e32fe327db26f2f10028d0056e46c1a0b] 
+   generated from ddsi__cfgelems.h[714f801d2988b476694a198097d36169f7e5e129] 
+   generated from ddsi_config.c[6fa39d18f6f0d241b7592a0dc23741e2a934ff2e] 
    generated from _confgen.h[e32eabfc35e9f3a7dcb63b19ed148c0d17c6e5fc] 
    generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] 
    generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] 

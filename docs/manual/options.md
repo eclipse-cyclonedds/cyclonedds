@@ -438,6 +438,7 @@ The default value is: `default`
 
 ##### //CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange
 Attributes: [config](#cycloneddsdomaingeneralinterfacespubsubmessageexchangeconfig), [library](#cycloneddsdomaingeneralinterfacespubsubmessageexchangelibrary), [name](#cycloneddsdomaingeneralinterfacespubsubmessageexchangename), [priority](#cycloneddsdomaingeneralinterfacespubsubmessageexchangepriority)
+Children: [forbiddenTopics](#cycloneddsdomaingeneralinterfacespubsubmessageexchangeforbiddentopics), [onlyForTopics](#cycloneddsdomaingeneralinterfacespubsubmessageexchangeonlyfortopics)
 
 This element defines a PSMX.
 
@@ -472,6 +473,52 @@ Text
 This attribute specifies the interface priority (decimal integer or default). The default value for a PSMX is 0.
 
 The default value is: `default`
+
+
+###### //CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/forbiddenTopics
+Children: [Pattern](#cycloneddsdomaingeneralinterfacespubsubmessageexchangeforbiddentopicspattern)
+
+A list of topics that should never use this psmx. Mutually exclusive with onlyForTopics. 
+
+
+####### //CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/forbiddenTopics/Pattern
+Attributes: [value](#cycloneddsdomaingeneralinterfacespubsubmessageexchangeforbiddentopicspatternvalue)
+
+Text
+
+A pattern (with ? and \* wildcards) that is matched against topics. 
+
+The default value is: `<empty>`
+
+
+####### //CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/forbiddenTopics/Pattern[@value]
+Text
+
+
+The default value is: `<empty>`
+
+
+###### //CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/onlyForTopics
+Children: [Pattern](#cycloneddsdomaingeneralinterfacespubsubmessageexchangeonlyfortopicspattern)
+
+A list of topics that should never use this psmx. Mutually exclusive with onlyForTopics. 
+
+
+####### //CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/onlyForTopics/Pattern
+Attributes: [value](#cycloneddsdomaingeneralinterfacespubsubmessageexchangeforbiddentopicspatternvalue)
+
+Text
+
+A pattern (with ? and \* wildcards) that is matched against topics. 
+
+The default value is: `<empty>`
+
+
+####### //CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange/forbiddenTopics/Pattern[@value]
+Text
+
+
+The default value is: `<empty>`
 
 
 #### //CycloneDDS/Domain/General/MaxMessageSize
@@ -1898,10 +1945,10 @@ While none prevents any message from being written to a DDSI2 log file.
 The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful verbosity levels are config, fine and finest.
 
 The default value is: `none`
-<!--- generated from ddsi_config.h[83ad19f1a665710b0c82b3ac6b861e6c8e83913f] -->
+<!--- generated from ddsi_config.h[9296f1e4eceda8b8514e7859c5584f1cda35412c] -->
 <!--- generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] -->
-<!--- generated from ddsi__cfgelems.h[194217161977869610495a7889bbc1e6bc976ce1] -->
-<!--- generated from ddsi_config.c[a439a20e32fe327db26f2f10028d0056e46c1a0b] -->
+<!--- generated from ddsi__cfgelems.h[714f801d2988b476694a198097d36169f7e5e129] -->
+<!--- generated from ddsi_config.c[6fa39d18f6f0d241b7592a0dc23741e2a934ff2e] -->
 <!--- generated from _confgen.h[e32eabfc35e9f3a7dcb63b19ed148c0d17c6e5fc] -->
 <!--- generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] -->
 <!--- generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] -->
