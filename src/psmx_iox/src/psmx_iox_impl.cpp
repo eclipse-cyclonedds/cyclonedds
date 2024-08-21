@@ -20,6 +20,7 @@
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/random.h"
 #include "dds/ddsrt/strtol.h"
+#include "dds/ddsrt/threads.h"
 #include "dds/ddsc/dds_loaned_sample.h"
 #include "dds/ddsc/dds_psmx.h"
 
@@ -31,6 +32,7 @@
 
 #include "psmx_iox_impl.hpp"
 #include "machineid.hpp"
+#include "scheduling.hpp"
 
 #define ERROR_PREFIX "=== [ICEORYX] "
 
@@ -92,7 +94,7 @@ static bool is_wildcard_partition(const char *str)
 
 struct iox_psmx : public dds_psmx_t
 {
-  iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service_name, const dds_psmx_node_identifier_t& node_id, bool support_keyed_topics, bool allow_nondisc_wr);
+  iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service_name, const dds_psmx_node_identifier_t& node_id, bool support_keyed_topics, bool allow_nondisc_wr, sched::sched_info sched_info);
   ~iox_psmx();
   bool _support_keyed_topics;
   bool _allow_nondisc_wr;
@@ -100,9 +102,13 @@ struct iox_psmx : public dds_psmx_t
   std::unique_ptr<iox::popo::Listener> _listener;  //the listener needs to be created after iox runtime has been initialized
   dds_psmx_node_identifier_t _node_id = { 0 };
   std::shared_ptr<iox::popo::UntypedPublisher> _node_id_publisher;
+  sched::sched_info _sched_info;
 };
 
-iox_psmx::iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service_name, const dds_psmx_node_identifier_t& node_id, bool support_keyed_topics, bool allow_nondisc_wr) :
+// Whether Iceoryx listener thread(s) need to set the priority
+static thread_local bool sched_info_set = false;
+
+iox_psmx::iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service_name, const dds_psmx_node_identifier_t& node_id, bool support_keyed_topics, bool allow_nondisc_wr, sched::sched_info sched_info) :
   dds_psmx_t {
     .ops = psmx_ops,
     .instance_name = dds_string_dup ("CycloneDDS-IOX-PSMX"),
@@ -114,7 +120,8 @@ iox_psmx::iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service
   _support_keyed_topics{support_keyed_topics},
   _allow_nondisc_wr{allow_nondisc_wr},
   _service_name{iox::capro::IdString_t(iox::cxx::TruncateToCapacity, service_name)},
-  _listener{}
+  _listener{},
+  _sched_info{sched_info}
 {
   uint64_t instance_hash = (uint64_t) ddsrt_random() << 32 | ddsrt_random();
   char iox_runtime_name[64];
@@ -542,6 +549,16 @@ static dds_loaned_sample_t * iox_take(struct dds_psmx_endpoint * psmx_endpoint)
 
 static void on_incoming_data_callback(iox::popo::UntypedSubscriber * subscriber, iox_psmx_endpoint * psmx_endpoint)
 {
+  assert(psmx_endpoint->psmx_topic);
+  assert(psmx_endpoint->psmx_topic->psmx_instance);
+  struct iox_psmx *psmx = static_cast<struct iox_psmx *>(psmx_endpoint->psmx_topic->psmx_instance);
+
+  if (!sched_info_set) {
+    sched_info_set = true;
+    if (!sched_info_apply(psmx->_sched_info))
+      std::cerr << ERROR_PREFIX "failed to apply scheduling settings" << std::endl;
+  }
+
   psmx_endpoint->lock.lock();
   while (subscriber->hasData())
   {
@@ -605,7 +622,7 @@ static void iox_loaned_sample_free(dds_loaned_sample_t *loan)
 static std::optional<std::string> get_config_option_value(const char *conf, const char *option_name, bool tolower = false)
 {
   char *copy = dds_string_dup (conf), *cursor = copy, *tok;
-  while ((tok = ddsrt_strsep (&cursor, ",/|;")) != nullptr)
+  while ((tok = ddsrt_strsep (&cursor, ";")) != nullptr)
   {
     if (strlen(tok) == 0)
       continue;
@@ -708,6 +725,22 @@ dds_return_t iox_create_psmx(struct dds_psmx **psmx, dds_psmx_instance_id_t inst
       return DDS_RETCODE_ERROR;
   }
 
-  *psmx = new iox_psmx::iox_psmx(instance_id, service_name, node_id.value(), keyed_topics, allow_nondisc_wr);
+  iox_psmx::sched::sched_info si;
+  auto opt_sched_prio = get_config_option_value(config, "PRIORITY");
+  if (opt_sched_prio.has_value()) {
+    if (!iox_psmx::sched::sched_info_setpriority (si, opt_sched_prio.value())) {
+      std::cerr << ERROR_PREFIX "invalid value for PRIORITY" << std::endl;
+      return DDS_RETCODE_ERROR;
+    }
+  }
+  auto opt_sched_affinity = get_config_option_value(config, "AFFINITY");
+  if (opt_sched_affinity.has_value()) {
+    if (!iox_psmx::sched::sched_info_setaffinity (si, opt_sched_affinity.value())) {
+      std::cerr << ERROR_PREFIX "invalid value for AFFINITY" << std::endl;
+      return DDS_RETCODE_ERROR;
+    }
+  }
+
+  *psmx = new iox_psmx::iox_psmx(instance_id, service_name, node_id.value(), keyed_topics, allow_nondisc_wr, si);
   return *psmx ? DDS_RETCODE_OK :  DDS_RETCODE_ERROR;
 }
