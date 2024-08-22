@@ -44,7 +44,7 @@
 #include <net/ethernet.h>
 #elif defined(__QNXNTO__)
 #define DDSI_BPF_IS_CLONING_DEV (1)
-#include <sys/nto_version.h>
+#include <sys/neutrino.h>
 #if _NTO_VERSION < 800
 #include <net/if_ether.h>
 #else
