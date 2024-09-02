@@ -2665,11 +2665,12 @@ This element enables individual logging categories. These are enabled in additio
  * topic: tracing of topic definitions
 
  * plist: tracing of discovery parameter list interpretation
- * durability: tracing of durable data
 
  * content: tracing of sample contents
 
  * malformed: dump malformed full packet as warning
+
+ * durability: tracing of durable data
 
  * user: all user-defined tracing categories
 
@@ -2743,11 +2744,11 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 The default value is: ``none``
 
 ..
-   generated from ddsi_config.h[c86e7819dea81365c20acec4519abc2a022feca8] 
+   generated from ddsi_config.h[059f0d7bd76b557f73e670e06322d044d46960e6] 
    generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] 
-   generated from ddsi__cfgelems.h[fb5382bc6dbb34bca275d20c3c4282f948318862] 
-   generated from ddsi_config.c[95a436fb315153cae24f6d95f7e924e1004882e1] 
-   generated from _confgen.h[e32eabfc35e9f3a7dcb63b19ed148c0d17c6e5fc] 
+   generated from ddsi__cfgelems.h[e6ac71277081b300188897a4713ff9a7d3406cb2] 
+   generated from ddsi_config.c[edeb55de48ff9746fa3a088b871308194dcd5ab5] 
+   generated from _confgen.h[9554f1d72645c0b8bb66ffbfbc3c0fb664fc1a43] 
    generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] 
    generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] 
    generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] 
