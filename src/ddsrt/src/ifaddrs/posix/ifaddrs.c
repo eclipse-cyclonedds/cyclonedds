@@ -161,33 +161,36 @@ static bool is_the_kernel_likely_lying_about_multicast (const ddsrt_ifaddrs_t *i
     struct sockaddr gen;
     struct sockaddr_in ipv4;
     struct sockaddr_in6 ipv6;
-  } addr, mcaddr;
-  memset (&addr, 0, sizeof (addr));
+  } ifaddr, bindaddr, mcaddr;
+  memset (&ifaddr, 0, sizeof (ifaddr));
+  memset (&bindaddr, 0, sizeof (bindaddr));
   memset (&mcaddr, 0, sizeof (mcaddr));
   // Multicast address: abuse DDSI's default address because we need to pick something
   if (ipv6) {
-    addr.ipv6 = *((struct sockaddr_in6 *) ifa->addr);
-    addr.ipv6.sin6_port = 0;
-    mcaddr = addr;
+    ifaddr.ipv6 = *((struct sockaddr_in6 *) ifa->addr);
+    ifaddr.ipv6.sin6_port = 0;
+    bindaddr = ifaddr;
+    mcaddr = ifaddr;
     if (inet_pton (mcaddr.gen.sa_family, "ff02::ffff:239.255.0.1", &mcaddr.ipv6.sin6_addr) != 1)
       goto out;
   } else {
-    addr.ipv4 = *((struct sockaddr_in *) ifa->addr);
-    addr.ipv4.sin_addr.s_addr = htonl (INADDR_ANY); // because we can't receive multicasts otherwise
-    addr.ipv4.sin_port = 0;
-    mcaddr = addr;
+    ifaddr.ipv4 = *((struct sockaddr_in *) ifa->addr);
+    ifaddr.ipv4.sin_port = 0;
+    bindaddr = ifaddr;
+    bindaddr.ipv4.sin_addr.s_addr = htonl (INADDR_ANY); // because we can't receive multicasts otherwise
+    mcaddr = ifaddr;
     if (inet_pton (mcaddr.gen.sa_family, "239.255.0.1", &mcaddr.ipv4.sin_addr) != 1)
       goto out;
   }
-  if (bind (sock, &addr.gen, addrsz) < 0)
+  if (bind (sock, &bindaddr.gen, addrsz) < 0)
     goto out;
-  if (getsockname (sock, &addr.gen, &addrsz) < 0)
+  if (getsockname (sock, &bindaddr.gen, &addrsz) < 0)
     goto out;
   if (ipv6)
   {
     const unsigned hops = 0;
     struct ipv6_mreq ipv6mreq;
-    mcaddr.ipv6.sin6_port = addr.ipv6.sin6_port;
+    mcaddr.ipv6.sin6_port = bindaddr.ipv6.sin6_port;
     memset (&ipv6mreq, 0, sizeof (ipv6mreq));
     ipv6mreq.ipv6mr_multiaddr = mcaddr.ipv6.sin6_addr;
     ipv6mreq.ipv6mr_interface = ifa->index;
@@ -200,11 +203,11 @@ static bool is_the_kernel_likely_lying_about_multicast (const ddsrt_ifaddrs_t *i
   {
     const unsigned char ttl = 0;
     struct ip_mreq mreq;
-    mcaddr.ipv4.sin_port = addr.ipv4.sin_port;
+    mcaddr.ipv4.sin_port = bindaddr.ipv4.sin_port;
     mreq.imr_multiaddr = mcaddr.ipv4.sin_addr;
-    mreq.imr_interface = addr.ipv4.sin_addr;
+    mreq.imr_interface = ifaddr.ipv4.sin_addr;
     if (setsockopt (sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof (mreq)) != 0 ||
-        setsockopt (sock, IPPROTO_IP, IP_MULTICAST_IF, &addr.ipv4.sin_addr, sizeof (addr.ipv4.sin_addr)) != 0 ||
+        setsockopt (sock, IPPROTO_IP, IP_MULTICAST_IF, &ifaddr.ipv4.sin_addr, sizeof (ifaddr.ipv4.sin_addr)) != 0 ||
         setsockopt (sock, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof (ttl)) != 0)
       goto out;
   }
