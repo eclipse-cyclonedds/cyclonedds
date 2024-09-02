@@ -576,6 +576,7 @@ fail_tkmap_lookup:
   return ret;
 }
 
+
 static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscriber, dds_entity_t topic, dds_guid_t *guid, const dds_qos_t *qos, const dds_listener_t *listener, struct dds_rhc *rhc)
 {
   dds_subscriber *sub = NULL;

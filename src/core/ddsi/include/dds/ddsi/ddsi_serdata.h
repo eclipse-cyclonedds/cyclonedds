@@ -167,6 +167,12 @@ typedef uint64_t (*ddsi_serdata_get_sequencenumber_t) (const struct ddsi_serdata
 /* Get the reference to the guid of the writer that published the serdata */
 typedef ddsi_guid_t * (*ddsi_serdata_get_writer_guid_t) (const struct ddsi_serdata *d);
 
+/* Sequence number of the sample as advertised by the publisher */
+typedef uint64_t (*ddsi_serdata_get_sequencenumber_t) (const struct ddsi_serdata *d);
+
+/* Get the reference to the guid of the writer that published the serdata */
+typedef ddsi_guid_t * (*ddsi_serdata_get_writer_guid_t) (const struct ddsi_serdata *d);
+
 // Used for taking a loaned sample and constructing a serdata around this
 // takes over ownership of loan on success (leaves it unchanged on failure)
 typedef struct ddsi_serdata* (*ddsi_serdata_from_loan_t) (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample, struct dds_loaned_sample *loaned_sample, bool will_require_cdr)
