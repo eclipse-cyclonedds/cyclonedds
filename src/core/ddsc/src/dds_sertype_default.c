@@ -231,15 +231,18 @@ static dds_ostream_t ostream_from_buffer(void *buffer, size_t size, uint16_t wri
 //       data to a stream.
 //       This should be (almost...) O(1), there may be issues with
 //       sequences of nontrivial types where it will depend on the number of elements.
-static size_t sertype_default_get_serialized_size (const struct ddsi_sertype *type, const void *sample)
+static dds_return_t sertype_default_get_serialized_size (const struct ddsi_sertype *type, const void *sample, size_t *size, uint16_t *enc_identifier)
 {
   // We do not count the CDR header here.
   struct ddsi_serdata *serdata = ddsi_serdata_from_sample(type, SDK_DATA, sample);
   if (serdata == NULL)
-    return SIZE_MAX;
-  size_t serialized_size = ddsi_serdata_size(serdata) - sizeof(struct dds_cdr_header);
+    return DDS_RETCODE_BAD_PARAMETER;
+  struct dds_cdr_header hdr;
+  ddsi_serdata_to_ser (serdata, 0, sizeof(struct dds_cdr_header), &hdr);
+  *size = ddsi_serdata_size(serdata) - sizeof(struct dds_cdr_header) - ddsrt_fromBE2u (hdr.options);
+  *enc_identifier = hdr.identifier;
   ddsi_serdata_unref(serdata);
-  return serialized_size;
+  return DDS_RETCODE_OK;
 }
 
 static bool sertype_default_serialize_into (const struct ddsi_sertype *type, const void *sample, void* dst_buffer, size_t dst_size)

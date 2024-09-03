@@ -674,7 +674,7 @@ int main (int argc, char **argv)
   ddsi_sertype_typemap (ptr);
   ddsi_sertype_typeinfo (ptr);
   ddsi_sertype_derive_sertype (ptr, 0, tce);
-  ddsi_sertype_get_serialized_size (ptr, ptr);
+  ddsi_sertype_get_serialized_size (ptr, ptr, ptr, ptr);
   ddsi_sertype_serialize_into (ptr, ptr, ptr, 0);
 
   // ddsi_serdata.h
