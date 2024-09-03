@@ -231,25 +231,33 @@ static dds_ostream_t ostream_from_buffer(void *buffer, size_t size, uint16_t wri
 //       data to a stream.
 //       This should be (almost...) O(1), there may be issues with
 //       sequences of nontrivial types where it will depend on the number of elements.
-static dds_return_t sertype_default_get_serialized_size (const struct ddsi_sertype *type, const void *sample, size_t *size, uint16_t *enc_identifier)
+static dds_return_t sertype_default_get_serialized_size (const struct ddsi_sertype *type, enum ddsi_serdata_kind sdkind, const void *sample, size_t *size, uint16_t *enc_identifier)
 {
   // We do not count the CDR header here.
-  struct ddsi_serdata *serdata = ddsi_serdata_from_sample(type, SDK_DATA, sample);
+  struct ddsi_serdata *serdata = ddsi_serdata_from_sample (type, sdkind, sample);
   if (serdata == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
   struct dds_cdr_header hdr;
-  ddsi_serdata_to_ser (serdata, 0, sizeof(struct dds_cdr_header), &hdr);
-  *size = ddsi_serdata_size(serdata) - sizeof(struct dds_cdr_header) - ddsrt_fromBE2u (hdr.options);
+  ddsi_serdata_to_ser (serdata, 0, sizeof (struct dds_cdr_header), &hdr);
+  *size = ddsi_serdata_size (serdata) - sizeof (struct dds_cdr_header) - ddsrt_fromBE2u (hdr.options);
   *enc_identifier = hdr.identifier;
   ddsi_serdata_unref(serdata);
   return DDS_RETCODE_OK;
 }
 
-static bool sertype_default_serialize_into (const struct ddsi_sertype *type, const void *sample, void* dst_buffer, size_t dst_size)
+static bool sertype_default_serialize_into (const struct ddsi_sertype *type, enum ddsi_serdata_kind sdkind, const void *sample, void* dst_buffer, size_t dst_size)
 {
   const struct dds_sertype_default *type_default = (const struct dds_sertype_default *)type;
-  dds_ostream_t os = ostream_from_buffer(dst_buffer, dst_size, type_default->write_encoding_version);
-  return dds_stream_write_sample(&os, &dds_cdrstream_default_allocator, sample, &type_default->type);
+  dds_ostream_t os = ostream_from_buffer (dst_buffer, dst_size, type_default->write_encoding_version);
+  if (sdkind == SDK_KEY)
+  {
+    dds_stream_write_key (&os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, sample, &type_default->type);
+    return true;
+  }
+  else
+  {
+    return dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, sample, &type_default->type);
+  }
 }
 
 const struct ddsi_sertype_ops dds_sertype_ops_default = {

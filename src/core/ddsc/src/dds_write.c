@@ -631,11 +631,10 @@ static struct dds_loaned_sample *dds_write_impl_make_serialized_loan (const stru
 ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
 static struct dds_loaned_sample *dds_write_impl_serialize_into_loan (const struct dds_writer *wr, const struct ddsi_sertype *sertype, enum ddsi_serdata_kind sdkind, const void *data, dds_time_t timestamp, uint32_t statusinfo)
 {
-  assert (sdkind == SDK_DATA); // FIXME: because ddsi_sertype_serialize_into can't do key-only (at the moment)
   assert (wr->m_endpoint.psmx_endpoints.length == 1); // FIXME: support multiple PSMX instances
   size_t loan_size_unpadded;
   uint16_t enc_identifier;
-  if (ddsi_sertype_get_serialized_size (sertype, data, &loan_size_unpadded, &enc_identifier) != 0)
+  if (ddsi_sertype_get_serialized_size (sertype, sdkind, data, &loan_size_unpadded, &enc_identifier) != 0)
     return NULL;
   const uint32_t pad_mask = 3u;
   const uint32_t loan_size_padded = ((uint32_t) loan_size_unpadded + pad_mask) & ~pad_mask;
@@ -646,7 +645,7 @@ static struct dds_loaned_sample *dds_write_impl_serialize_into_loan (const struc
   md->sample_state = (sdkind == SDK_KEY) ? DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY : DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA;
   md->cdr_identifier = enc_identifier;
   md->cdr_options = ddsrt_toBE2u ((uint16_t) (loan_size_padded - loan_size_unpadded));
-  ddsi_sertype_serialize_into (sertype, data, loan->sample_ptr, loan_size_unpadded);
+  ddsi_sertype_serialize_into (sertype, sdkind, data, loan->sample_ptr, loan_size_unpadded);
   dds_write_impl_set_loan_writeinfo (wr, loan, timestamp, statusinfo);
   return loan;
 }
@@ -705,7 +704,7 @@ static dds_return_t dds_write_impl_psmxloan_serdata (struct dds_writer *wr, cons
         }
         return DDS_RETCODE_OK;
       case DDS_LOAN_ORIGIN_KIND_HEAP:
-        if (use_only_psmx && sdkind == SDK_DATA && sertype->ops->get_serialized_size)
+        if (use_only_psmx && sertype->ops->get_serialized_size)
         {
           // short-circuit possible without requiring a serdata
           *serdata = NULL;
@@ -757,7 +756,7 @@ static dds_return_t dds_write_impl_psmxloan_serdata (struct dds_writer *wr, cons
     }
     return DDS_RETCODE_ERROR;
   }
-  else if (use_only_psmx && (sertype->is_memcpy_safe || (sdkind == SDK_DATA && sertype->ops->get_serialized_size)))
+  else if (use_only_psmx && (sertype->is_memcpy_safe || sertype->ops->get_serialized_size))
   {
     assert (wr->m_endpoint.psmx_endpoints.length == 1); // FIXME: support multiple PSMX instances
     *serdata = NULL;
