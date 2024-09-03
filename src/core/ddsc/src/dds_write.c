@@ -628,6 +628,29 @@ static struct dds_loaned_sample *dds_write_impl_make_serialized_loan (const stru
   return loan;
 }
 
+ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
+static struct dds_loaned_sample *dds_write_impl_serialize_into_loan (const struct dds_writer *wr, const struct ddsi_sertype *sertype, enum ddsi_serdata_kind sdkind, const void *data, dds_time_t timestamp, uint32_t statusinfo)
+{
+  assert (sdkind == SDK_DATA); // FIXME: because ddsi_sertype_serialize_into can't do key-only (at the moment)
+  assert (wr->m_endpoint.psmx_endpoints.length == 1); // FIXME: support multiple PSMX instances
+  size_t loan_size_unpadded;
+  uint16_t enc_identifier;
+  if (ddsi_sertype_get_serialized_size (sertype, data, &loan_size_unpadded, &enc_identifier) != 0)
+    return NULL;
+  const uint32_t pad_mask = 3u;
+  const uint32_t loan_size_padded = ((uint32_t) loan_size_unpadded + pad_mask) & ~pad_mask;
+  struct dds_loaned_sample * const loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], loan_size_padded);
+  if (loan == NULL)
+    return NULL;
+  struct dds_psmx_metadata * const md = loan->metadata;
+  md->sample_state = (sdkind == SDK_KEY) ? DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY : DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA;
+  md->cdr_identifier = enc_identifier;
+  md->cdr_options = ddsrt_toBE2u ((uint16_t) (loan_size_padded - loan_size_unpadded));
+  ddsi_sertype_serialize_into (sertype, data, loan->sample_ptr, loan_size_unpadded);
+  dds_write_impl_set_loan_writeinfo (wr, loan, timestamp, statusinfo);
+  return loan;
+}
+
 ddsrt_attribute_warn_unused_result ddsrt_nonnull ((1, 3))
 static struct ddsi_serdata *dds_write_impl_make_serdata (const struct ddsi_sertype *sertype, enum ddsi_serdata_kind sdkind, const void *data, struct dds_loaned_sample *heap_loan, dds_time_t timestamp, uint32_t statusinfo)
 {
@@ -682,7 +705,19 @@ static dds_return_t dds_write_impl_psmxloan_serdata (struct dds_writer *wr, cons
         }
         return DDS_RETCODE_OK;
       case DDS_LOAN_ORIGIN_KIND_HEAP:
-        if (wr->m_endpoint.psmx_endpoints.length == 0)
+        if (use_only_psmx && sdkind == SDK_DATA && sertype->ops->get_serialized_size)
+        {
+          // short-circuit possible without requiring a serdata
+          *serdata = NULL;
+          *psmx_loan = dds_write_impl_serialize_into_loan (wr, sertype, sdkind, data, timestamp, statusinfo);
+          dds_loaned_sample_unref (loan);
+          if (*psmx_loan == NULL)
+          {
+            // It is either no memory or invalid data, we've historically gambled on it being invalid data
+            return DDS_RETCODE_BAD_PARAMETER;
+          }
+        }
+        else if (wr->m_endpoint.psmx_endpoints.length == 0)
         {
           // no PSMX, so local readers and/or network; keeping the loan makes sense for local readers
           *psmx_loan = NULL;
@@ -722,11 +757,14 @@ static dds_return_t dds_write_impl_psmxloan_serdata (struct dds_writer *wr, cons
     }
     return DDS_RETCODE_ERROR;
   }
-  else if (use_only_psmx && sertype->is_memcpy_safe)
+  else if (use_only_psmx && (sertype->is_memcpy_safe || (sdkind == SDK_DATA && sertype->ops->get_serialized_size)))
   {
     assert (wr->m_endpoint.psmx_endpoints.length == 1); // FIXME: support multiple PSMX instances
     *serdata = NULL;
-    *psmx_loan = dds_write_impl_make_raw_loan (wr, data, sdkind, timestamp, statusinfo);
+    if (sertype->is_memcpy_safe)
+      *psmx_loan = dds_write_impl_make_raw_loan (wr, data, sdkind, timestamp, statusinfo);
+    else
+      *psmx_loan = dds_write_impl_serialize_into_loan (wr, sertype, sdkind, data, timestamp, statusinfo);
     return (*psmx_loan != NULL) ? DDS_RETCODE_OK : DDS_RETCODE_OUT_OF_RESOURCES;
   }
   else
@@ -791,8 +829,9 @@ dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t timest
   //     1. is_memcpy_safe
   //       - allocate PSMX loan, memcpy, deliver loan via PSMX
   //     2. not is_memcpy_safe
-  //       - get_serialized_size (key/sample), allocate PSMX loan, serialize_into, free serdata
+  //       - get_serialized_size (key/sample), allocate PSMX loan, serialize_into
   //       - deliver loan via PSMX
+  //       note: if get_serialized_size is 0, treat as case III.b instead
   //   b. psmx && others
   //     1. is_memcpy_safe
   //       - allocate PSMX loan, memcpy, deliver loan via PSMX
