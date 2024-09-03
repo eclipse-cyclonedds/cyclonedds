@@ -32,6 +32,12 @@ struct ddsi_domaingv;
 struct ddsi_typeid;
 struct ddsi_type_pair;
 
+enum ddsi_serdata_kind {
+  SDK_EMPTY,
+  SDK_KEY,
+  SDK_DATA
+};
+
 #define DDSI_SERTYPE_REGISTERING 0x40000000u // set prior to setting gv
 #define DDSI_SERTYPE_REGISTERED  0x80000000u // set after setting gv
 #define DDSI_SERTYPE_REFC_MASK   0x0fffffffu
