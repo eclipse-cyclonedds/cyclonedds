@@ -2333,8 +2333,8 @@ static bool normalize_bool (char * __restrict data, uint32_t * __restrict off, u
   if (*off == size)
     return normalize_error_bool ();
   uint8_t b = *((uint8_t *) (data + *off));
-  if (b > 1)
-    return normalize_error_bool ();
+  if (b > 1) // correct the representation of true
+    *((uint8_t *) (data + *off)) = 1;
   (*off)++;
   return true;
 }
@@ -2345,8 +2345,8 @@ static bool read_and_normalize_bool (bool * __restrict val, char * __restrict da
   if (*off == size)
     return normalize_error_bool ();
   uint8_t b = *((uint8_t *) (data + *off));
-  if (b > 1)
-    return normalize_error_bool ();
+  if (b > 1) // correct the representation of true
+    *((uint8_t *) (data + *off)) = 1;
   *val = b;
   (*off)++;
   return true;

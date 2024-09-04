@@ -12,9 +12,7 @@ static const uint32_t *dds_stream_write_implBO (DDS_OSTREAM_T * __restrict os, c
 
 static inline bool dds_stream_write_bool_valueBO (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const uint8_t val)
 {
-  if (val > 1)
-    return false;
-  dds_os_put1BO (os, allocator, val);
+  dds_os_put1BO (os, allocator, val != 0);
   return true;
 }
 
@@ -366,7 +364,7 @@ static bool dds_stream_write_union_discriminantBO (DDS_OSTREAM_T * __restrict os
   switch (type)
   {
     case DDS_OP_VAL_BLN:
-      *disc = *((const uint8_t *) addr);
+      *disc = *((const uint8_t *) addr) != 0;
       if (!dds_stream_write_bool_valueBO (os, allocator, (uint8_t) *disc))
         return false;
       break;
