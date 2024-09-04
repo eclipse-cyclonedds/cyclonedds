@@ -214,6 +214,14 @@ static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_s
   return (struct ddsi_sertype *) derived_sertype;
 }
 
+// The write path got improved to avoid constructing a serdata in case it must serialize
+// while sending only via PSMX, but the sertype_default implementation currently is so
+// inefficient that it is worse than the fallback if it isn't available.
+//
+// Therefore it is better to disable it until cdrstream gets a proper implementation
+#define USE_GET_SERIALIZED_SIZE 0
+
+#if USE_GET_SERIALIZED_SIZE
 // move to cdr_stream?
 static dds_ostream_t ostream_from_buffer(void *buffer, size_t size, uint16_t write_encoding_version)
 {
@@ -259,6 +267,7 @@ static bool sertype_default_serialize_into (const struct ddsi_sertype *type, enu
     return dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, sample, &type_default->type);
   }
 }
+#endif
 
 const struct ddsi_sertype_ops dds_sertype_ops_default = {
   .version = ddsi_sertype_v0,
@@ -279,8 +288,13 @@ const struct ddsi_sertype_ops dds_sertype_ops_default = {
   .type_info = 0,
 #endif
   .derive_sertype = sertype_default_derive_sertype,
+#if USE_GET_SERIALIZED_SIZE
   .get_serialized_size = sertype_default_get_serialized_size,
   .serialize_into = sertype_default_serialize_into
+#else
+  .get_serialized_size = NULL,
+  .serialize_into = NULL
+#endif
 };
 
 dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct dds_sertype_default *st, const dds_topic_descriptor_t *desc, uint16_t min_xcdrv, dds_data_representation_id_t data_representation)
