@@ -1867,11 +1867,13 @@ CU_Test (ddsc_cdrstream, check_optimize)
     { D(t5),    16,    0, "XCDR2 uses 4 byte alignment for 64 bits types" },
     { D(t5a),    0,    0, "array of non-primitive type is currently not optimized (FIXME: could be optimized for XCDR1?)" },
     { D(t6),    16,   16, "CDR and memory have equal alignment" },
+    { D(t6a),    0,    0, "CDR and memory have equal alignment but boolean prevents optimization" },
     { D(t7),     0,    0, "field f2 is 1-byte aligned in CDR (because of 1-byte type in nested type), but 2-byte in memory" },
     { D(t8),     0,    0, "type of f2 is appendable" },
     { D(t9),     3,    0, "bitmask (bit bound 8) array (dheader in v2)" },
     { D(t10),   12,    0, "enum (bit bound 32) array (dheader in v2)" },
     { D(t11),  410,  410, "final type with array" },
+    { D(t11a),   0,    0, "final type with array but boolean prevents optimization" },
     { D(t12),    4,    4, "32 bits bitmask" },
     { D(t13),    1,    1, "8 bit bitmask" },
     { D(t14),    8,    8, "64 bits bitmask" },
@@ -1888,6 +1890,9 @@ CU_Test (ddsc_cdrstream, check_optimize)
     { D(t25),    0,    0, "union type currently not optimized" },
     { D(t26),    0,    0, "union type member currently not optimized" },
     { D(t27),   16,    0, "inheritance, base members before derived type members, xcdr2 has 4 byte alignment for long long" },
+    { D(t28),    0,    0, "array of booleans" },
+    { D(t29),    0,    0, "boolean in extended struct" },
+    { D(t30),    0,    0, "boolean in base struct" }
   };
 
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)

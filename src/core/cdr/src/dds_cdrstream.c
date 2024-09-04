@@ -630,7 +630,10 @@ static uint32_t dds_stream_check_optimize1 (const struct dds_cdrstream_desc * __
 
     switch (DDS_OP_TYPE (insn))
     {
-      case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+      case DDS_OP_VAL_BLN:
+        // rejecting "memcpy" if there's a boolean, because we want to guarantee true comes out as 1, not something != 0
+        return 0;
+      case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
         if (!check_optimize_impl (xcdr_version, ops, get_primitive_size (DDS_OP_TYPE (insn)), 1, &off, member_offs))
           return 0;
         ops += 2;
@@ -648,7 +651,10 @@ static uint32_t dds_stream_check_optimize1 (const struct dds_cdrstream_desc * __
       case DDS_OP_VAL_ARR:
         switch (DDS_OP_SUBTYPE (insn))
         {
-          case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+          case DDS_OP_VAL_BLN:
+            // rejecting "memcpy" if there's a boolean, because we want to guarantee true comes out as 1, not something != 0
+            return 0;
+          case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
             if (!check_optimize_impl (xcdr_version, ops, get_primitive_size (DDS_OP_SUBTYPE (insn)), ops[2], &off, member_offs))
               return 0;
             ops += 3;
