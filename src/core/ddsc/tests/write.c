@@ -171,30 +171,47 @@ CU_Test(ddsc_write, invalid_data)
 {
     dds_return_t status;
     dds_entity_t par, top, wri;
-    Space_simpletypes st_data = {
-        .l = -1,
-        .ll = -1,
-        .us = 1,
-        .ul = 1,
-        .ull = 1,
-        .f = 1.0f,
-        .d = 1.0f,
-        .c = '1',
-        .b = true,
-        .o = 1,
-        .s = "This string is exactly so long that it would previously trigger CHAM-405. If this string is shortened exactly one character, all is well. Since it is fixed now, there doesn't need to be any further investigation."
+    Space_invalid_data st_data[] = {
+      { .o1 = { ._length = 2, ._buffer = (uint8_t[]){1,2} },
+        .e1 = (Space_invalid_data_enum) 0,
+        .bm1 = 0,
+        .exto = &(uint8_t){0} },
+      { .o1 = { ._length = 1, ._buffer = NULL },
+        .e1 = (Space_invalid_data_enum) 0,
+        .bm1 = 0,
+        .exto = &(uint8_t){0} },
+      { .o1 = { ._length = 1, ._buffer = (uint8_t[]){1} },
+        .e1 = (Space_invalid_data_enum) 1,
+        .bm1 = 0,
+        .exto = &(uint8_t){0} },
+      { .o1 = { ._length = 1, ._buffer = (uint8_t[]){1} },
+        .e1 = (Space_invalid_data_enum) 0,
+        .bm1 = 2,
+        .exto = &(uint8_t){0} },
+      { .o1 = { ._length = 1, ._buffer = (uint8_t[]){1} },
+        .e1 = (Space_invalid_data_enum) 0,
+        .bm1 = 0,
+        .exto = NULL },
+      { .o1 = { ._length = 1, ._buffer = (uint8_t[]){1} },
+        .e1 = (Space_invalid_data_enum) 0,
+        .bm1 = 0,
+        .exto = NULL },
     };
-    memset (&st_data, 0xff, sizeof (st_data)); // make something invalid that the serialiser should reject
 
     par = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(par > 0);
-    top = dds_create_topic(par, &Space_simpletypes_desc, "SimpleTypes", NULL, NULL);
+    char topicname[100];
+    create_unique_topic_name ("RoundTrip", topicname, sizeof (topicname));
+    top = dds_create_topic(par, &Space_invalid_data_desc, topicname, NULL, NULL);
     CU_ASSERT_FATAL(top > 0);
     wri = dds_create_writer(par, top, NULL, NULL);
     CU_ASSERT_FATAL(wri > 0);
 
-    status = dds_write(wri, &st_data);
-    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
+    for (size_t i = 0; i < sizeof (st_data) / sizeof (st_data[0]); i++)
+    {
+        status = dds_write(wri, &st_data[i]);
+        CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
+    }
 
     dds_delete(wri);
     dds_delete(top);

@@ -1,0 +1,50 @@
+// Copyright(c) 2024 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
+module CdrStreamChecking {
+  // sequence length, null pointer for non-empty sequence
+  @final struct t1 { sequence<octet, 1> f1; };
+
+  // out-of-bound enum
+  @final enum en2 { E2_1 };
+  @final struct t2 { en2 f1; };
+
+  // out-of-bound bitmask
+  @final bitmask bm3 { B3_1 };
+  @final struct t3 { bm3 f1; };
+
+  // null pointers (only first rejects a null pointer: Cyclone accepts strings to be null)
+  @final struct t4 { @external octet f1; };
+  @final struct t4a { @external @optional octet f1; };
+  @final struct t4b { @external string f1; };
+
+  // external union member: may not be null, unless it is a string
+  @nested @final union u5 switch (long) {
+    case 0: @external octet c0;
+    case 1: @external string c1;
+  };
+  @final struct t5 { u5 f1; };
+
+  // boolean: accept anything, but must turn into 0 or 1
+  // use t6x for constructing sample
+  @final struct t6 { boolean f1; };
+  @final struct t6x { octet f1; };
+
+  // union over boolean: must correctly map !=0 to case true
+  // use t7x for constructing sample
+  @nested @final union u7 switch (boolean) {
+    case true: octet c1;
+  };
+  @final struct t7 { u7 f1; };
+  @nested @final union u7x switch (octet) {
+    case 1: octet c1;
+  };
+  @final struct t7x { u7x f1; };
+};

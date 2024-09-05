@@ -27,6 +27,8 @@
 #include "CdrStreamKeySize.h"
 #include "CdrStreamKeyExt.h"
 #include "CdrStreamDataTypeInfo.h"
+#include "CdrStreamChecking.h"
+#include "mem_ser.h"
 
 #define DDS_DOMAINID1 0
 #define DDS_DOMAINID2 1
@@ -2253,3 +2255,101 @@ CU_Test(ddsc_cdrstream, init_sequence_in_external_struct)
   ddsrt_free (sample);
   dds_cdrstream_desc_fini (&descr, &dds_cdrstream_default_allocator);
 }
+
+
+#define D(n) (&CdrStreamChecking_ ## n ## _desc)
+#define C(n) &(CdrStreamChecking_ ## n)
+CU_Test (ddsc_cdrstream, check_write_reject)
+{
+  // Most are for checking it rejects something, but for example with @external
+  // it needs to accept null pointers in some cases.  Hence the handful of cases
+  // that are expected to result in correct CDR
+  const struct {
+    const dds_topic_descriptor_t *desc;
+    const void *sample;
+    const char *description;
+    uint32_t cdrsize_if_ok;
+    const uint8_t *cdr_if_ok;
+  } tests[] = {
+    { D(t1), C(t1){.f1={._length=2,._buffer=(uint8_t[]){1,2}}}, "oversize sequence" },
+    { D(t1), C(t1){.f1={._length=1,._buffer=NULL}}, "non-empty sequence with null pointer" },
+    { D(t2), C(t2){.f1=(CdrStreamChecking_en2)1}, "out-of-range enum" },
+    { D(t3), C(t3){.f1=2}, "out-of-range bitmask" },
+    { D(t4), C(t4){.f1=NULL}, "@external w/ null pointer" },
+    { D(t4a), C(t4a){.f1=NULL}, "@external @optional w/ null pointer", 1, (uint8_t[]){0} },
+    { D(t4b), C(t4b){.f1=NULL}, "@external string w/ null pointer", 5, (uint8_t[]){SER32(1),0} },
+    { D(t5), C(t5){.f1={._d=0,._u={.c0=NULL}}}, "union with @external w/ null pointer" },
+    { D(t5), C(t5){.f1={._d=1,._u={.c1=NULL}}}, "union with @external string w/ null pointer", 9, (uint8_t[]){1, 0,0,0, SER32(1),0} },
+    { D(t6), C(t6x){.f1=0}, "boolean 0", 1, (uint8_t[]){0} },
+    { D(t6), C(t6x){.f1=1}, "boolean 1", 1, (uint8_t[]){1} },
+    { D(t6), C(t6x){.f1=2}, "boolean 2", 1, (uint8_t[]){1} },
+    { D(t6), C(t6x){.f1=255}, "boolean 255", 1, (uint8_t[]){1} },
+    { D(t7), C(t7x){.f1={._d=0,._u={.c1=3}}}, "disc bool 0", 1, (uint8_t[]){0} },
+    { D(t7), C(t7x){.f1={._d=1,._u={.c1=3}}}, "disc bool 1", 2, (uint8_t[]){1,3} },
+    { D(t7), C(t7x){.f1={._d=2,._u={.c1=3}}}, "disc bool 2", 2, (uint8_t[]){1,3} },
+    { D(t7), C(t7x){.f1={._d=255,._u={.c1=3}}}, "disc bool 255", 2, (uint8_t[]){1,3} }
+  };
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    printf("running test for desc %s: %s\n", tests[i].desc->m_typename, tests[i].description);
+
+    struct dds_cdrstream_desc desc;
+    dds_cdrstream_desc_from_topic_desc (&desc, tests[i].desc);
+    assert (desc.ops.ops);
+
+    dds_ostream_t os = { .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
+    bool ret = dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, tests[i].sample, &desc);
+    CU_ASSERT_FATAL ((tests[i].cdrsize_if_ok == 0 && !ret) || (tests[i].cdrsize_if_ok != 0 && ret));
+    if (ret)
+    {
+      CU_ASSERT_FATAL (os.m_index == tests[i].cdrsize_if_ok);
+      CU_ASSERT_FATAL (memcmp (tests[i].cdr_if_ok, os.m_buffer, os.m_index) == 0);
+    }
+
+    dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+  }
+}
+#undef C
+#undef D
+
+
+#define D(n) (&CdrStreamChecking_ ## n ## _desc)
+CU_Test (ddsc_cdrstream, check_normalize_boolean)
+{
+  // Need to verify that stream_normalize cleans up the booleans
+  const struct {
+    const dds_topic_descriptor_t *desc;
+    const char *description;
+    uint32_t cdrsize;
+    const uint8_t *cdr;
+    const uint8_t *ncdr;
+  } tests[] = {
+    { D(t6), "boolean 0", 1, (uint8_t[]){0}, (uint8_t[]){0} },
+    { D(t6), "boolean 1", 1, (uint8_t[]){1}, (uint8_t[]){1} },
+    { D(t6), "boolean 2", 1, (uint8_t[]){2}, (uint8_t[]){1} },
+    { D(t6), "boolean 255", 1, (uint8_t[]){255}, (uint8_t[]){1} },
+    { D(t7), "disc bool 0", 1, (uint8_t[]){0}, (uint8_t[]){0} },
+    { D(t7), "disc bool 1", 2, (uint8_t[]){1,3}, (uint8_t[]){1,3} },
+    { D(t7), "disc bool 2", 2, (uint8_t[]){2,3}, (uint8_t[]){1,3} },
+    { D(t7), "disc bool 255", 2, (uint8_t[]){255,3}, (uint8_t[]){1,3} }
+  };
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    printf("running test for desc %s: %s\n", tests[i].desc->m_typename, tests[i].description);
+
+    struct dds_cdrstream_desc desc;
+    dds_cdrstream_desc_from_topic_desc (&desc, tests[i].desc);
+    assert (desc.ops.ops);
+
+    void *cdr = ddsrt_memdup (tests[i].cdr, tests[i].cdrsize);
+    uint32_t act_size;
+    bool ret = dds_stream_normalize (cdr, tests[i].cdrsize, false, DDSI_RTPS_CDR_ENC_VERSION_2, &desc, false, &act_size);
+    CU_ASSERT_FATAL (ret && act_size == tests[i].cdrsize);
+    CU_ASSERT_FATAL (memcmp (cdr, tests[i].ncdr, tests[i].cdrsize) == 0);
+    ddsrt_free (cdr);
+    dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+  }
+}
+#undef D
