@@ -198,6 +198,8 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
   const uint32_t num = seq->_length;
   if (bound && num > bound)
     return NULL;
+  if (num > 0 && seq->_buffer == NULL)
+    return NULL;
 
   dds_os_put4BO (os, allocator, num);
 
@@ -407,7 +409,8 @@ static const uint32_t *dds_stream_write_uniBO (DDS_OSTREAM_T * __restrict os, co
     {
       assert (DDS_OP (jeq_op[0]) == DDS_OP_JEQ4);
       valaddr = *(char **) valaddr;
-      assert (valaddr);
+      if (valaddr == NULL)
+        return NULL;
     }
 
     switch (valtype)
@@ -442,7 +445,11 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, DDS_OSTREAM_T * __
 {
   const void *addr = data + ops[1];
   if (op_type_external (insn) || op_type_optional (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR)
+  {
     addr = *(char **) addr;
+    if (addr == NULL && !(op_type_optional (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR))
+      return NULL;
+  }
 
   const bool is_key = (insn & DDS_OP_FLAG_KEY);
   if (cdr_kind == CDR_KIND_KEY && !is_key)
