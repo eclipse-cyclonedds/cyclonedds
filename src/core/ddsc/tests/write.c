@@ -14,6 +14,7 @@
 #include "RoundTrip.h"
 #include "Space.h"
 #include "test_oneliner.h"
+#include "test_util.h"
 
 #include "dds/dds.h"
 #include "dds/ddsrt/io.h"
@@ -36,7 +37,9 @@ setup(void)
 {
     participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(participant > 0);
-    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, "RoundTrip", NULL, NULL);
+    char topicname[100];
+    create_unique_topic_name ("RoundTrip", topicname, sizeof (topicname));
+    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, topicname, NULL, NULL);
     CU_ASSERT_FATAL(topic > 0);
     publisher = dds_create_publisher(participant, NULL, NULL);
     CU_ASSERT_FATAL(publisher > 0);
@@ -149,7 +152,9 @@ CU_Test(ddsc_write, simpletypes)
 
     par = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(par > 0);
-    top = dds_create_topic(par, &Space_simpletypes_desc, "SimpleTypes", NULL, NULL);
+    char topicname[100];
+    create_unique_topic_name ("RoundTrip", topicname, sizeof (topicname));
+    top = dds_create_topic(par, &Space_simpletypes_desc, topicname, NULL, NULL);
     CU_ASSERT_FATAL(top > 0);
     wri = dds_create_writer(par, top, NULL, NULL);
     CU_ASSERT_FATAL(wri > 0);
