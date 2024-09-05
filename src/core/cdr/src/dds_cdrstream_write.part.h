@@ -197,10 +197,7 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
 
   const uint32_t num = seq->_length;
   if (bound && num > bound)
-  {
-    dds_ostreamBO_fini (os, allocator);
     return NULL;
-  }
 
   dds_os_put4BO (os, allocator, num);
 
