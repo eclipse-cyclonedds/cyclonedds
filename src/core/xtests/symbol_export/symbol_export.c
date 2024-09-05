@@ -509,6 +509,9 @@ int main (int argc, char **argv)
   dds_stream_write_sampleLE (ptr, ptr2, ptr3, ptr4);
   dds_stream_write_sampleBE (ptr, ptr2, ptr3, ptr4);
 
+  dds_stream_getsize_sample (ptr, ptr, 0);
+  dds_stream_getsize_key (0, ptr, ptr, 0);
+
   dds_stream_read (ptr, ptr2, ptr3, ptr4);
   dds_stream_read_key (ptr, ptr2, ptr3, ptr4);
 

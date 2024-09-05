@@ -85,6 +85,9 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const st
 
 void dds_stream_write_keyBO (DDS_OSTREAM_T * __restrict os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict sample, const struct dds_cdrstream_desc * __restrict desc)
 {
+#ifndef NDEBUG
+  const size_t check_start_index = ((dds_ostream_t *)os)->m_index;
+#endif
   if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE) && ser_kind == DDS_CDR_KEY_SERIALIZATION_SAMPLE)
   {
     /* For types with key fields in aggregated types with appendable or mutable
@@ -119,6 +122,10 @@ void dds_stream_write_keyBO (DDS_OSTREAM_T * __restrict os, enum dds_cdr_key_ser
       }
     }
   }
+#ifndef NDEBUG
+  const size_t check_size = dds_stream_getsize_key (ser_kind, sample, desc, ((dds_ostream_t *)os)->m_xcdr_version);
+  assert (check_size == ((dds_ostream_t *)os)->m_index - check_start_index);
+#endif
 }
 
 static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator,

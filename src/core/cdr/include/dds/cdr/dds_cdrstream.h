@@ -235,6 +235,14 @@ DDS_EXPORT size_t dds_stream_print_key (dds_istream_t * __restrict is, const str
 DDS_EXPORT size_t dds_stream_print_sample (dds_istream_t * __restrict is, const struct dds_cdrstream_desc * __restrict desc, char * __restrict buf, size_t size);
 
 /** @component cdr_serializer */
+DDS_EXPORT size_t dds_stream_getsize_sample (const char * __restrict data, const struct dds_cdrstream_desc * __restrict desc, uint32_t xcdr_version)
+  ddsrt_nonnull_all;
+
+/** @component cdr_serializer */
+DDS_EXPORT size_t dds_stream_getsize_key (enum dds_cdr_key_serialization_kind ser_kind, const char * __restrict sample, const struct dds_cdrstream_desc * __restrict desc, uint32_t xcdr_version)
+  ddsrt_nonnull_all;
+
+/** @component cdr_serializer */
 uint16_t dds_stream_minimum_xcdr_version (const uint32_t * __restrict ops);
 
 /** @component cdr_serializer */
