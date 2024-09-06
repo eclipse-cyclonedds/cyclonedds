@@ -1932,13 +1932,14 @@ static struct cfgelem discovery_cfgelems[] = {
       "<li><i>default</i>: use <i>none</i> if multicast discovery is used on all "
       "selected network interfaces, else <i>auto</i>.</li></ul>"
     )),
-  INT("MaxAutoParticipantIndex", NULL, 1, "9",
+  INT("MaxAutoParticipantIndex", NULL, 1, "99",
     MEMBER(maxAutoParticipantIndex),
     FUNCTIONS(0, uf_natint, 0, pf_int),
     DESCRIPTION(
       "<p>This element specifies the maximum DDSI participant index selected "
       "by this instance of the Cyclone DDS service if the "
-      "Discovery/ParticipantIndex is \"auto\".</p>"
+      "Discovery/ParticipantIndex is \"auto\". This also determines the range "
+      "of port numbers pinged by default for unicast participant discovery.</p>"
     )),
   STRING("SPDPMulticastAddress", NULL, 1, "239.255.0.1",
     MEMBER(spdpMulticastAddressString),
