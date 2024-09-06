@@ -1974,9 +1974,9 @@ static void dds_stream_getsize_key_impl (struct getsize_state * __restrict st, c
   assert (insn_key_ok_p (insn));
   void *addr = (char *) src + ops[1];
 
-  if (op_type_external (insn))
+  if (op_type_external (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR)
   {
-    addr = *((char **) addr);
+    addr = *(char **) addr;
     if (addr == NULL && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR)
       return;
   }
@@ -1990,7 +1990,7 @@ static void dds_stream_getsize_key_impl (struct getsize_state * __restrict st, c
     case DDS_OP_VAL_8BY: getsize_reserve (st, 8); break;
     case DDS_OP_VAL_ENU:
     case DDS_OP_VAL_BMK: getsize_reserve (st, DDS_OP_TYPE_SZ (insn)); break;
-    case DDS_OP_VAL_STR: dds_stream_getsize_string (st, *(char **) addr); break;
+    case DDS_OP_VAL_STR: dds_stream_getsize_string (st, addr); break;
     case DDS_OP_VAL_BST: dds_stream_getsize_string (st, addr); break;
     case DDS_OP_VAL_ARR: {
       const uint32_t num = ops[2];
