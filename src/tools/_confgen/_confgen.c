@@ -382,8 +382,10 @@ static int generate_list_pattern(struct cfgelem *elem)
   lst[pos++] = '\0';
   assert(pos == size);
   size_t patsz = 8 + strlen(val) + 2 * strlen(lst);
-  if ((pat = malloc (patsz)) == NULL)
+  if ((pat = malloc (patsz)) == NULL) {
+    free (lst);
     return -1;
+  }
   if (strlen(val) != 0)
     snprintf(pat, patsz, "%s|(%s(,%s)*)", val, lst, lst);
   else
