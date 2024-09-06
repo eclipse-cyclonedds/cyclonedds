@@ -1421,7 +1421,8 @@ static void deepcopy_sample_contents (const dds_topic_descriptor_t *tpdesc, void
   dds_cdrstream_desc_from_topic_desc (&desc, tpdesc);
   struct dds_ostream os;
   dds_ostream_init (&os, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
-  dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, input, &desc);
+  if (!dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, input, &desc))
+    abort ();
   struct dds_istream is;
   dds_istream_init (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
   memset (output, 0, desc.size);
@@ -1461,8 +1462,10 @@ static bool data_equal (const dds_topic_descriptor_t *tpdesc, const void *a, con
   }
   else
   {
-    dds_stream_write_sample (&osa, &dds_cdrstream_default_allocator, a, &desc);
-    dds_stream_write_sample (&osb, &dds_cdrstream_default_allocator, b, &desc);
+    if (!dds_stream_write_sample (&osa, &dds_cdrstream_default_allocator, a, &desc))
+      abort ();
+    if (!dds_stream_write_sample (&osb, &dds_cdrstream_default_allocator, b, &desc))
+      abort ();
   }
   const bool eq = (osa.m_index == osb.m_index) && memcmp (osa.m_buffer, osb.m_buffer, osa.m_index) == 0;
   dds_ostream_fini (&osa, &dds_cdrstream_default_allocator);
