@@ -2287,26 +2287,51 @@ CU_Test (ddsc_cdrstream, check_write_reject)
     { D(t7), C(t7x){.f1={._d=0,._u={.c1=3}}}, "disc bool 0", 1, (uint8_t[]){0} },
     { D(t7), C(t7x){.f1={._d=1,._u={.c1=3}}}, "disc bool 1", 2, (uint8_t[]){1,3} },
     { D(t7), C(t7x){.f1={._d=2,._u={.c1=3}}}, "disc bool 2", 2, (uint8_t[]){1,3} },
-    { D(t7), C(t7x){.f1={._d=255,._u={.c1=3}}}, "disc bool 255", 2, (uint8_t[]){1,3} }
+    { D(t7), C(t7x){.f1={._d=255,._u={.c1=3}}}, "disc bool 255", 2, (uint8_t[]){1,3} },
+    { D(t8), C(t8x){.f1={0,0}}, "boolean arr 0", 2, (uint8_t[]){0,0} },
+    { D(t8), C(t8x){.f1={1,1}}, "boolean arr 1", 2, (uint8_t[]){1,1} },
+    { D(t8), C(t8x){.f1={1,2}}, "boolean arr 2", 2, (uint8_t[]){1,1} },
+    { D(t8), C(t8x){.f1={255,2}}, "boolean arr 255", 2, (uint8_t[]){1,1} }
   };
 
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
+    const uint32_t xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
     printf("running test for desc %s: %s\n", tests[i].desc->m_typename, tests[i].description);
 
     struct dds_cdrstream_desc desc;
     dds_cdrstream_desc_from_topic_desc (&desc, tests[i].desc);
     assert (desc.ops.ops);
 
-    dds_ostream_t os = { .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
+    size_t size = dds_stream_getsize_sample (tests[i].sample, &desc, xcdr_version);
+    dds_ostream_t os = { .m_xcdr_version = xcdr_version };
     bool ret = dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, tests[i].sample, &desc);
-    CU_ASSERT_FATAL ((tests[i].cdrsize_if_ok == 0 && !ret) || (tests[i].cdrsize_if_ok != 0 && ret));
-    if (ret)
+    CU_ASSERT_FATAL (ret == (tests[i].cdr_if_ok != NULL));
+    if (tests[i].cdr_if_ok)
     {
+      CU_ASSERT_FATAL (size == os.m_index);
       CU_ASSERT_FATAL (os.m_index == tests[i].cdrsize_if_ok);
       CU_ASSERT_FATAL (memcmp (tests[i].cdr_if_ok, os.m_buffer, os.m_index) == 0);
     }
 
+    if (desc.keys.nkeys)
+    {
+      // Repeat with key serialization: type and data are so simple that the result should
+      // be exactly the same as for the full sample. The point is to check that the key
+      // serialization handling also handles these edge cases correctly.
+      size = dds_stream_getsize_key (DDS_CDR_KEY_SERIALIZATION_SAMPLE, tests[i].sample, &desc, xcdr_version);
+      os.m_index = 0;
+      ret = dds_stream_write_key (&os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, tests[i].sample, &desc);
+      CU_ASSERT_FATAL (ret == (tests[i].cdr_if_ok != NULL));
+      if (tests[i].cdr_if_ok)
+      {
+        CU_ASSERT_FATAL (size == os.m_index);
+        CU_ASSERT_FATAL (os.m_index == tests[i].cdrsize_if_ok);
+        CU_ASSERT_FATAL (memcmp (tests[i].cdr_if_ok, os.m_buffer, os.m_index) == 0);
+      }
+    }
+
+    dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
     dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
   }
 }
@@ -2332,7 +2357,11 @@ CU_Test (ddsc_cdrstream, check_normalize_boolean)
     { D(t7), "disc bool 0", 1, (uint8_t[]){0}, (uint8_t[]){0} },
     { D(t7), "disc bool 1", 2, (uint8_t[]){1,3}, (uint8_t[]){1,3} },
     { D(t7), "disc bool 2", 2, (uint8_t[]){2,3}, (uint8_t[]){1,3} },
-    { D(t7), "disc bool 255", 2, (uint8_t[]){255,3}, (uint8_t[]){1,3} }
+    { D(t7), "disc bool 255", 2, (uint8_t[]){255,3}, (uint8_t[]){1,3} },
+    { D(t8), "boolean arr 0", 2, (uint8_t[]){0,0}, (uint8_t[]){0,0} },
+    { D(t8), "boolean arr 1", 2, (uint8_t[]){1,1}, (uint8_t[]){1,1} },
+    { D(t8), "boolean arr 2", 2, (uint8_t[]){1,2}, (uint8_t[]){1,1} },
+    { D(t8), "boolean arr 255", 2, (uint8_t[]){255,1}, (uint8_t[]){1,1} }
   };
 
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
@@ -2348,6 +2377,12 @@ CU_Test (ddsc_cdrstream, check_normalize_boolean)
     bool ret = dds_stream_normalize (cdr, tests[i].cdrsize, false, DDSI_RTPS_CDR_ENC_VERSION_2, &desc, false, &act_size);
     CU_ASSERT_FATAL (ret && act_size == tests[i].cdrsize);
     CU_ASSERT_FATAL (memcmp (cdr, tests[i].ncdr, tests[i].cdrsize) == 0);
+    if (desc.keys.nkeys)
+    {
+      ret = dds_stream_normalize (cdr, tests[i].cdrsize, true, DDSI_RTPS_CDR_ENC_VERSION_2, &desc, false, &act_size);
+      CU_ASSERT_FATAL (ret && act_size == tests[i].cdrsize);
+      CU_ASSERT_FATAL (memcmp (cdr, tests[i].ncdr, tests[i].cdrsize) == 0);
+    }
     ddsrt_free (cdr);
     dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
   }

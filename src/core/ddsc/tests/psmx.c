@@ -1454,8 +1454,10 @@ static bool data_equal (const dds_topic_descriptor_t *tpdesc, const void *a, con
   dds_ostream_init (&osb, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
   if (justkey)
   {
-    dds_stream_write_key (&osa, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, a, &desc);
-    dds_stream_write_key (&osb, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, b, &desc);
+    if (!dds_stream_write_key (&osa, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, a, &desc))
+      abort ();
+    if (!dds_stream_write_key (&osb, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, b, &desc))
+      abort ();
   }
   else
   {

@@ -307,7 +307,8 @@ static bool gen_serdata_key (const struct dds_sertype_default *type, struct dds_
     switch (input_kind)
     {
       case GSKIK_SAMPLE:
-        dds_stream_write_key (&os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, input, &type->type);
+        if (!dds_stream_write_key (&os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, input, &type->type))
+          return false;
         break;
       case GSKIK_CDRSAMPLE:
         if (!dds_stream_extract_key_from_data (input, &os, &dds_cdrstream_default_allocator, &type->type))
@@ -578,9 +579,11 @@ static struct dds_serdata_default *serdata_default_from_sample_cdr_common (const
     case SDK_EMPTY:
       ostream_add_to_serdata_default (&os, &d);
       break;
-    case SDK_KEY:
-      dds_stream_write_key (&os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, sample, &tp->type);
+    case SDK_KEY: {
+      const bool ok = dds_stream_write_key (&os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, sample, &tp->type);
       ostream_add_to_serdata_default (&os, &d);
+      if (!ok)
+        goto error;
 
       /* FIXME: detect cases where the XCDR1 and 2 representations are equal,
          so that we could alias the XCDR1 key from d->data */
@@ -607,6 +610,7 @@ static struct dds_serdata_default *serdata_default_from_sample_cdr_common (const
           goto error;
       }
       break;
+    }
     case SDK_DATA: {
       const bool ok = dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, sample, &tp->type);
       // `os` aliased what was in `d`, but was changed and may have moved.

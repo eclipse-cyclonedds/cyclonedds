@@ -8,8 +8,8 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const uint32_t *ops, const void *src, uint16_t key_offset_count, const uint32_t * key_offset_insn);
-static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const uint32_t *ops, const void *src, uint16_t key_offset_count, const uint32_t * key_offset_insn)
+ddsrt_attribute_warn_unused_result
+static bool dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const uint32_t *ops, const void *src, uint16_t key_offset_count, const uint32_t * key_offset_insn)
 {
   uint32_t insn = *ops;
   assert (DDS_OP (insn) == DDS_OP_ADR);
@@ -20,7 +20,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const st
   {
     addr = *(char **) addr;
     if (addr == NULL && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR)
-      return;
+      return false;
   }
 
   switch (DDS_OP_TYPE (insn))
@@ -31,10 +31,12 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const st
     case DDS_OP_VAL_4BY: dds_os_put4BO (os, allocator, *((uint32_t *) addr)); break;
     case DDS_OP_VAL_8BY: dds_os_put8BO (os, allocator, *((uint64_t *) addr)); break;
     case DDS_OP_VAL_ENU:
-      (void) dds_stream_write_enum_valueBO (os, allocator, insn, *((uint32_t *) addr), ops[2]);
+      if (!dds_stream_write_enum_valueBO (os, allocator, insn, *((uint32_t *) addr), ops[2]))
+        return false;
       break;
     case DDS_OP_VAL_BMK:
-      (void) dds_stream_write_bitmask_valueBO (os, allocator, insn, addr, ops[2], ops[3]);
+      if (!dds_stream_write_bitmask_valueBO (os, allocator, insn, addr, ops[2], ops[3]))
+        return false;
       break;
     case DDS_OP_VAL_STR: dds_stream_write_stringBO (os, allocator, addr); break;
     case DDS_OP_VAL_BST: dds_stream_write_stringBO (os, allocator, addr); break;
@@ -63,10 +65,13 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const st
             dds_os_reserve4BO (os, allocator);
             offs = ((struct dds_ostream *)os)->m_index;
           }
+          bool ok;
           if (DDS_OP_SUBTYPE (insn) == DDS_OP_VAL_ENU)
-            (void) dds_stream_write_enum_arrBO (os, allocator, insn, (const uint32_t *) addr, num, ops[3]);
+            ok = dds_stream_write_enum_arrBO (os, allocator, insn, (const uint32_t *) addr, num, ops[3]);
           else
-            (void) dds_stream_write_bitmask_arrBO (os, allocator, insn, (const uint32_t *) addr, num, ops[3], ops[4]);
+            ok = dds_stream_write_bitmask_arrBO (os, allocator, insn, (const uint32_t *) addr, num, ops[3], ops[4]);
+          if (!ok)
+            return false;
           /* write DHEADER */
           if (xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
             *((uint32_t *) (((struct dds_ostream *)os)->m_buffer + offs - 4)) = to_BO4u(((struct dds_ostream *)os)->m_index - offs);
@@ -80,7 +85,8 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const st
     case DDS_OP_VAL_EXT: {
       assert (key_offset_count > 0);
       const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]) + *key_offset_insn;
-      dds_stream_write_keyBO_impl (os, allocator, jsr_ops, addr, --key_offset_count, ++key_offset_insn);
+      if (!dds_stream_write_keyBO_impl (os, allocator, jsr_ops, addr, --key_offset_count, ++key_offset_insn))
+        return false;
       break;
     }
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
@@ -89,9 +95,10 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const st
       break;
     }
   }
+  return true;
 }
 
-void dds_stream_write_keyBO (DDS_OSTREAM_T * __restrict os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict sample, const struct dds_cdrstream_desc * __restrict desc)
+bool dds_stream_write_keyBO (DDS_OSTREAM_T * __restrict os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict sample, const struct dds_cdrstream_desc * __restrict desc)
 {
 #ifndef NDEBUG
   const size_t check_start_index = ((dds_ostream_t *)os)->m_index;
@@ -100,7 +107,8 @@ void dds_stream_write_keyBO (DDS_OSTREAM_T * __restrict os, enum dds_cdr_key_ser
   {
     /* For types with key fields in aggregated types with appendable or mutable
        extensibility, write the key CDR using the regular write functions */
-    (void) dds_stream_write_implBO (os, allocator, sample, desc->ops.ops, false, CDR_KIND_KEY);
+    if (dds_stream_write_implBO (os, allocator, sample, desc->ops.ops, false, CDR_KIND_KEY) == NULL)
+      return false;
   }
   else
   {
@@ -117,11 +125,13 @@ void dds_stream_write_keyBO (DDS_OSTREAM_T * __restrict os, enum dds_cdr_key_ser
         case DDS_OP_KOF: {
           uint16_t n_offs = DDS_OP_LENGTH (*insnp);
           assert (n_offs > 0);
-          dds_stream_write_keyBO_impl (os, allocator, desc->ops.ops + insnp[1], sample, --n_offs, insnp + 2);
+          if (!dds_stream_write_keyBO_impl (os, allocator, desc->ops.ops + insnp[1], sample, --n_offs, insnp + 2))
+            return false;
           break;
         }
         case DDS_OP_ADR: {
-          dds_stream_write_keyBO_impl (os, allocator, insnp, sample, 0, NULL);
+          if (!dds_stream_write_keyBO_impl (os, allocator, insnp, sample, 0, NULL))
+            return false;
           break;
         }
         default:
@@ -134,6 +144,7 @@ void dds_stream_write_keyBO (DDS_OSTREAM_T * __restrict os, enum dds_cdr_key_ser
   const size_t check_size = dds_stream_getsize_key (ser_kind, sample, desc, ((dds_ostream_t *)os)->m_xcdr_version);
   assert (check_size == ((dds_ostream_t *)os)->m_index - check_start_index);
 #endif
+  return true;
 }
 
 static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator,
@@ -374,7 +385,11 @@ bool dds_stream_extract_keyBO_from_data (dds_istream_t * __restrict is, DDS_OSTR
     void *sample = allocator->malloc (desc->size);
     memset (sample, 0, desc->size);
     (void) dds_stream_read (is, sample, allocator, desc->ops.ops);
-    dds_stream_write_keyBO (os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, allocator, sample, desc);
+    if (!dds_stream_write_keyBO (os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, allocator, sample, desc))
+    {
+      // can't happen given normalized input (and it has to be normalized, else dds_stream_read may not be used)
+      abort ();
+    }
     dds_stream_free_sample (sample, allocator, desc->ops.ops);
     allocator->free (sample);
   }
@@ -399,10 +414,16 @@ static void dds_stream_extract_keyBO_from_key_impl (dds_istream_t * __restrict i
   void *sample = allocator->malloc (desc->size);
   memset (sample, 0, desc->size);
   (void) dds_stream_read_impl (is, sample, allocator, desc->ops.ops, false, CDR_KIND_KEY, SAMPLE_DATA_INITIALIZED);
+  bool ok;
   if (ser_kind == DDS_CDR_KEY_SERIALIZATION_KEYHASH)
-    dds_stream_write_keyBE ((dds_ostreamBE_t *) os, ser_kind, allocator, sample, desc);
+    ok = dds_stream_write_keyBE ((dds_ostreamBE_t *) os, ser_kind, allocator, sample, desc);
   else
-    dds_stream_write_keyBO (os, ser_kind, allocator, sample, desc);
+    ok = dds_stream_write_keyBO (os, ser_kind, allocator, sample, desc);
+  if (!ok)
+  {
+    // input must have been proven correct (using normalize), so write can't run into invalid data
+    abort ();
+  }
   dds_stream_free_sample (sample, allocator, desc->ops.ops);
   allocator->free (sample);
 }

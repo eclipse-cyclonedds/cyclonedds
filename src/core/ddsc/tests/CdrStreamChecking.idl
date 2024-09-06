@@ -14,16 +14,16 @@ module CdrStreamChecking {
 
   // out-of-bound enum
   @final enum en2 { E2_1 };
-  @final struct t2 { en2 f1; };
+  @final struct t2 { @key en2 f1; };
 
   // out-of-bound bitmask
   @final bitmask bm3 { B3_1 };
-  @final struct t3 { bm3 f1; };
+  @final struct t3 { @key bm3 f1; };
 
   // null pointers (only first rejects a null pointer: Cyclone accepts strings to be null)
-  @final struct t4 { @external octet f1; };
+  @final struct t4 { @key @external octet f1; };
   @final struct t4a { @external @optional octet f1; };
-  @final struct t4b { @external string f1; };
+  @final struct t4b { @key @external string f1; };
 
   // external union member: may not be null, unless it is a string
   @nested @final union u5 switch (long) {
@@ -34,7 +34,7 @@ module CdrStreamChecking {
 
   // boolean: accept anything, but must turn into 0 or 1
   // use t6x for constructing sample
-  @final struct t6 { boolean f1; };
+  @final struct t6 { @key boolean f1; };
   @final struct t6x { octet f1; };
 
   // union over boolean: must correctly map !=0 to case true
@@ -47,4 +47,9 @@ module CdrStreamChecking {
     case 1: octet c1;
   };
   @final struct t7x { u7x f1; };
+
+  // boolean array: accept anything, but must turn into 0 or 1
+  // use t8x for constructing sample
+  @final struct t8 { @key boolean f1[2]; };
+  @final struct t8x { octet f1[2]; };
 };

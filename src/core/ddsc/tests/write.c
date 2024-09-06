@@ -169,34 +169,34 @@ CU_Test(ddsc_write, simpletypes)
 
 CU_Test(ddsc_write, invalid_data)
 {
+    const struct { Space_invalid_data x; bool invalidkey; } tests[] = {
+        {
+            .x = { .o1={._length=2, ._buffer=(uint8_t[]){1,2}}, .e1=(Space_invalid_data_enum)0, .bm1=0, .exto=&(uint8_t){0} },
+            .invalidkey = false
+        },
+        {
+            .x = { .o1={._length=1, ._buffer=NULL}, .e1=(Space_invalid_data_enum)0, .bm1=0, .exto=&(uint8_t){0} },
+            .invalidkey = false
+        },
+        {
+            .x = { .o1={._length=1, ._buffer=(uint8_t[]){1}}, .e1=(Space_invalid_data_enum)1, .bm1=0, .exto=&(uint8_t){0} },
+            .invalidkey = true
+        },
+        {
+            .x = { .o1 = {._length=1, ._buffer=(uint8_t[]){1}}, .e1=(Space_invalid_data_enum)0, .bm1=2, .exto=&(uint8_t){0} },
+            .invalidkey = true
+        },
+        {
+            .x = { .o1={._length=1, ._buffer=(uint8_t[]){1}}, .e1=(Space_invalid_data_enum)0, .bm1=0, .exto=NULL },
+            .invalidkey = true
+        },
+        {
+            .x = { .o1={._length=1, ._buffer=(uint8_t[]){1}}, .e1=(Space_invalid_data_enum)0, .bm1=0, .exto=NULL },
+            .invalidkey = true
+        }
+    };
     dds_return_t status;
     dds_entity_t par, top, wri;
-    Space_invalid_data st_data[] = {
-      { .o1 = { ._length = 2, ._buffer = (uint8_t[]){1,2} },
-        .e1 = (Space_invalid_data_enum) 0,
-        .bm1 = 0,
-        .exto = &(uint8_t){0} },
-      { .o1 = { ._length = 1, ._buffer = NULL },
-        .e1 = (Space_invalid_data_enum) 0,
-        .bm1 = 0,
-        .exto = &(uint8_t){0} },
-      { .o1 = { ._length = 1, ._buffer = (uint8_t[]){1} },
-        .e1 = (Space_invalid_data_enum) 1,
-        .bm1 = 0,
-        .exto = &(uint8_t){0} },
-      { .o1 = { ._length = 1, ._buffer = (uint8_t[]){1} },
-        .e1 = (Space_invalid_data_enum) 0,
-        .bm1 = 2,
-        .exto = &(uint8_t){0} },
-      { .o1 = { ._length = 1, ._buffer = (uint8_t[]){1} },
-        .e1 = (Space_invalid_data_enum) 0,
-        .bm1 = 0,
-        .exto = NULL },
-      { .o1 = { ._length = 1, ._buffer = (uint8_t[]){1} },
-        .e1 = (Space_invalid_data_enum) 0,
-        .bm1 = 0,
-        .exto = NULL },
-    };
 
     par = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(par > 0);
@@ -207,10 +207,16 @@ CU_Test(ddsc_write, invalid_data)
     wri = dds_create_writer(par, top, NULL, NULL);
     CU_ASSERT_FATAL(wri > 0);
 
-    for (size_t i = 0; i < sizeof (st_data) / sizeof (st_data[0]); i++)
+    for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
     {
-        status = dds_write(wri, &st_data[i]);
+        status = dds_write(wri, &tests[i].x);
         CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
+
+        if (tests[i].invalidkey)
+        {
+            status = dds_dispose(wri, &tests[i].x);
+            CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
+        }
     }
 
     dds_delete(wri);

@@ -236,14 +236,9 @@ static bool sertype_default_serialize_into (const struct ddsi_sertype *tpcmn, en
     .m_xcdr_version = tp->write_encoding_version
   };
   if (sdkind == SDK_KEY)
-  {
-    dds_stream_write_key (&os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &no_allocator, sample, &tp->type);
-    return true;
-  }
+    return dds_stream_write_key (&os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &no_allocator, sample, &tp->type);
   else
-  {
     return dds_stream_write_sample (&os, &no_allocator, sample, &tp->type);
-  }
 }
 
 const struct ddsi_sertype_ops dds_sertype_ops_default = {

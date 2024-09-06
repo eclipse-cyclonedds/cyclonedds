@@ -154,7 +154,11 @@ int main(int argc, char **argv)
 
       // write key
       dds_ostream_t os_wr_key = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
-      dds_stream_write_key (&os_wr_key, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, msg_wr, &cdrstream_desc);
+      if (!dds_stream_write_key (&os_wr_key, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, msg_wr, &cdrstream_desc))
+      {
+        printf("write key failed\n");
+        return 1;
+      }
 
       // extract key from key
       dds_istream_t is_key_from_key = { os_wr_key.m_buffer, os_wr_key.m_size, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
