@@ -16,8 +16,12 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const st
   assert (insn_key_ok_p (insn));
   void *addr = (char *) src + ops[1];
 
-  if (op_type_external (insn))
-    addr = *((char **) addr);
+  if (op_type_external (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR)
+  {
+    addr = *(char **) addr;
+    if (addr == NULL && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR)
+      return;
+  }
 
   switch (DDS_OP_TYPE (insn))
   {
@@ -32,7 +36,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const st
     case DDS_OP_VAL_BMK:
       (void) dds_stream_write_bitmask_valueBO (os, allocator, insn, addr, ops[2], ops[3]);
       break;
-    case DDS_OP_VAL_STR: dds_stream_write_stringBO (os, allocator, *(char **) addr); break;
+    case DDS_OP_VAL_STR: dds_stream_write_stringBO (os, allocator, addr); break;
     case DDS_OP_VAL_BST: dds_stream_write_stringBO (os, allocator, addr); break;
     case DDS_OP_VAL_ARR: {
       const uint32_t num = ops[2];
