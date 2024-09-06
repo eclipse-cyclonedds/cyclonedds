@@ -690,7 +690,11 @@ void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid
       ddsi_delete_xevent (pp->pmd_update_xevent);
 
     // FIXME: locking
-    update_participant_spdp_sample (pp, false);
+    if (update_participant_spdp_sample (pp, false) != DDS_RETCODE_OK)
+    {
+      // Pretty much harmless to fail at this: the others will eventually see a lease expiry
+      GVTRACE ("failed to construct dispose/unregister SPDP sample for participant "PGUIDFMT"\n", PGUID (pp->e.guid));
+    }
     ddsi_spdp_unregister_participant (gv->spdp_schedule, pp);
     ddsi_serdata_unref (pp->spdp_serdata);
 
@@ -997,9 +1001,16 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
 
   if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS) || !(flags & RTPS_PF_NO_PRIVILEGED_PP))
   {
-    update_participant_spdp_sample (pp, true);
-    if (ddsi_spdp_register_participant (gv->spdp_schedule, pp) != 0)
+    if (update_participant_spdp_sample (pp, true) != DDS_RETCODE_OK)
+    {
+      GVTRACE ("failed to construct dispose/unregister SPDP sample for participant "PGUIDFMT"\n", PGUID (pp->e.guid));
       abort (); // FIXME
+    }
+    if (ddsi_spdp_register_participant (gv->spdp_schedule, pp) != DDS_RETCODE_OK)
+    {
+      GVTRACE ("failed to register participant "PGUIDFMT" with SPDP scheduling\n", PGUID (pp->e.guid));
+      abort (); // FIXME
+    }
 
     ddsrt_mtime_t tsched = (pp->plist->qos.liveliness.lease_duration == DDS_INFINITY) ? DDSRT_MTIME_NEVER : (ddsrt_mtime_t){0};
     struct ddsi_write_pmd_message_xevent_cb_arg arg = { .pp_guid = pp->e.guid };
@@ -1045,7 +1056,13 @@ void ddsi_update_participant_plist (struct ddsi_participant *pp, const ddsi_plis
 {
   ddsrt_mutex_lock (&pp->e.lock);
   if (ddsi_update_qos_locked (&pp->e, &pp->plist->qos, &plist->qos, ddsrt_time_wallclock ()))
-    update_participant_spdp_sample_locked (pp, true);
+  {
+    if (update_participant_spdp_sample_locked (pp, true) != DDS_RETCODE_OK)
+    {
+      ETRACE (pp, "failed to construct updated SPDP sample for participant "PGUIDFMT" after QoS update\n", PGUID (pp->e.guid));
+      abort (); // can't undo QoS update, but can't published updated QoS either ...
+    }
+  }
   ddsrt_mutex_unlock (&pp->e.lock);
   ddsi_spdp_force_republish (pp->e.gv->spdp_schedule, pp, NULL);
 }

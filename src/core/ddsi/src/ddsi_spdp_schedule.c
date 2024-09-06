@@ -105,12 +105,13 @@ X
 struct spdp_loc_common {
   ddsrt_avl_node_t avlnode; // indexed on address
   ddsi_xlocator_t xloc; // the address
+  dds_duration_t prune_delay;
 };
 
 struct spdp_loc_aging {
   struct spdp_loc_common c;
   ddsrt_mtime_t tsched; // time at which to ping this locator again
-  uint32_t age; // decremented, entry is deleted when it reaches 0
+  ddsrt_mtime_t tprune; // decremented, entry is deleted when it reaches 0
 };
 
 struct spdp_loc_live {
@@ -149,6 +150,10 @@ struct spdp_admin {
   ddsrt_avl_tree_t pp;
 };
 
+struct handle_locators_xevent_arg {
+  struct spdp_admin *adm;
+};
+
 static int compare_xlocators_vwrap (const void *va, const void *vb) {
   return ddsi_compare_xlocators (va, vb);
 }
@@ -162,7 +167,7 @@ static int compare_spdp_pp (const void *va, const void *vb) {
 static const ddsrt_avl_treedef_t spdp_loc_td = DDSRT_AVL_TREEDEF_INITIALIZER(offsetof (union spdp_loc_union, c.avlnode), offsetof (union spdp_loc_union, c.xloc), compare_xlocators_vwrap, NULL);
 static const ddsrt_avl_treedef_t spdp_pp_td = DDSRT_AVL_TREEDEF_INITIALIZER(offsetof (struct spdp_pp, avlnode), 0, compare_spdp_pp, NULL);
 
-static dds_return_t add_peer_address_xlocator (struct spdp_admin *adm, const ddsi_xlocator_t *xloc)
+static dds_return_t add_peer_address_xlocator (struct spdp_admin *adm, const ddsi_xlocator_t *xloc, dds_duration_t prune_delay)
 {
   // Used for initial addresses only.  These are all inserted as "aging" so there cannot
   // be any live addresses yet.
@@ -176,10 +181,18 @@ static dds_return_t add_peer_address_xlocator (struct spdp_admin *adm, const dds
   } avlpath;
   if ((n = ddsrt_avl_lookup_ipath (&spdp_loc_td, &adm->aging, xloc, &avlpath.ip)) != NULL)
   {
+    // duplicate: take the maximum prune_delay, that seems a reasonable-enough approach
+    if (prune_delay > n->c.prune_delay)
+      n->c.prune_delay = prune_delay;
   }
   else if ((n = ddsrt_malloc_s (sizeof (*n))) != NULL)
   {
+    const ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
     n->c.xloc = *xloc;
+    n->c.prune_delay = prune_delay;
+    n->aging.tprune = ddsrt_mtime_add_duration (tnow, prune_delay);
+    // FIXME: initial schedule, should be "NEVER" in the absence of participants (but that isn't going to happen)
+    n->aging.tsched = ddsrt_mtime_add_duration (tnow, DDS_MSECS (100));
     ddsrt_avl_insert_ipath (&spdp_loc_td, &adm->aging, n, &avlpath.ip);
   }
   else
@@ -190,7 +203,7 @@ static dds_return_t add_peer_address_xlocator (struct spdp_admin *adm, const dds
   return ret;
 }
 
-static dds_return_t add_peer_address_ports_interface (struct spdp_admin *adm, const ddsi_locator_t *loc)
+static dds_return_t add_peer_address_ports_interface (struct spdp_admin *adm, const ddsi_locator_t *loc, dds_duration_t prune_delay)
 {
   struct ddsi_domaingv const * const gv = adm->gv;
   dds_return_t rc = DDS_RETCODE_OK;
@@ -204,7 +217,7 @@ static dds_return_t add_peer_address_ports_interface (struct spdp_admin *adm, co
       if (ddsi_factory_supports (gv->xmit_conns[i]->m_factory, loc->kind))
         rc = add_peer_address_xlocator (adm, &(const ddsi_xlocator_t) {
           .conn = gv->xmit_conns[i],
-          .c = *loc });
+          .c = *loc }, prune_delay);
     }
   }
   else
@@ -235,13 +248,13 @@ static dds_return_t add_peer_address_ports_interface (struct spdp_admin *adm, co
       const int i = (interf_idx >= 0) ? interf_idx : fallback_interf_idx;
       rc = add_peer_address_xlocator (adm, &(const ddsi_xlocator_t) {
         .conn = gv->xmit_conns[i],
-        .c = *loc });
+        .c = *loc }, prune_delay);
     }
   }
   return rc;
 }
 
-static dds_return_t add_peer_address_ports (struct spdp_admin *adm, ddsi_locator_t *loc)
+static dds_return_t add_peer_address_ports (struct spdp_admin *adm, ddsi_locator_t *loc, dds_duration_t prune_delay)
 {
   struct ddsi_domaingv const * const gv = adm->gv;
   struct ddsi_tran_factory * const tran = ddsi_factory_find_supported_kind (gv, loc->kind);
@@ -268,19 +281,19 @@ static dds_return_t add_peer_address_ports (struct spdp_admin *adm, ddsi_locator
   }
 
   GVLOG (DDS_LC_CONFIG, "add_peer_address: add %s", ddsi_locator_to_string (buf, sizeof (buf), loc));
-  rc = add_peer_address_ports_interface (adm, loc);
+  rc = add_peer_address_ports_interface (adm, loc, prune_delay);
   for (int32_t i = 1; i < maxidx && rc == DDS_RETCODE_OK; i++)
   {
     ddsi_tran_set_locator_port (tran, loc, ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, i));
     if (i + 1 == maxidx)
       GVLOG (DDS_LC_CONFIG, " ... :%"PRIu32, loc->port);
-    rc = add_peer_address_ports_interface (adm, loc);
+    rc = add_peer_address_ports_interface (adm, loc, prune_delay);
   }
-  GVLOG (DDS_LC_CONFIG, "\n");
+  GVLOG (DDS_LC_CONFIG, " (prune delay %"PRId64")\n", prune_delay);
   return rc;
 }
 
-static dds_return_t add_peer_address (struct spdp_admin *adm, const char *addrs)
+static dds_return_t add_peer_address (struct spdp_admin *adm, const char *addrs, dds_duration_t prune_delay)
 {
   DDSRT_WARNING_MSVC_OFF(4996);
   struct ddsi_domaingv const * const gv = adm->gv;
@@ -305,7 +318,7 @@ static dds_return_t add_peer_address (struct spdp_admin *adm, const char *addrs)
         GVERROR ("add_peer_address: %s: address family mismatch\n", a);
         goto error;
     }
-    if ((rc = add_peer_address_ports (adm, &loc)) < 0)
+    if ((rc = add_peer_address_ports (adm, &loc, prune_delay)) < 0)
     {
       goto error;
     }
@@ -322,7 +335,8 @@ static dds_return_t add_peer_addresses (struct spdp_admin *adm, const struct dds
   dds_return_t rc = DDS_RETCODE_OK;
   while (list && rc == DDS_RETCODE_OK)
   {
-    rc = add_peer_address (adm, list->peer);
+    const dds_duration_t prune_delay = list->prune_delay.isdefault ? adm->gv->config.spdp_prune_delay_initial : list->prune_delay.value;
+    rc = add_peer_address (adm, list->peer, prune_delay);
     list = list->next;
   }
   return rc;
@@ -332,29 +346,44 @@ static dds_return_t populate_initial_addresses (struct spdp_admin *adm, bool add
 {
   struct ddsi_domaingv const * const gv = adm->gv;
   dds_return_t rc = DDS_RETCODE_OK;
-  for (int i = 0; i < gv->n_interfaces && rc == DDS_RETCODE_OK; i++)
+
+  // There is no difference in the resulting configuration if the config.peers gets added
+  // first or the automatic localhost is: because it takes the maximum of the prune delay.
+  if (rc == DDS_RETCODE_OK && gv->config.peers)
   {
-    if ((gv->interfaces[i].allow_multicast & DDSI_AMC_SPDP) &&
-        ddsi_factory_supports (gv->xmit_conns[i]->m_factory, gv->loc_spdp_mc.kind))
-    {
-      const ddsi_xlocator_t xloc = { .conn = gv->xmit_conns[i], .c = gv->loc_spdp_mc };
-      // multicast discovery addresses never expire
-      rc = ddsi_spdp_ref_locator (adm, &xloc);
-    }
+    rc = add_peer_addresses (adm, gv->config.peers);
   }
   if (rc == DDS_RETCODE_OK && add_localhost)
   {
     struct ddsi_config_peer_listelem peer_local;
     char local_addr[DDSI_LOCSTRLEN];
     ddsi_locator_to_string_no_port (local_addr, sizeof (local_addr), &gv->interfaces[0].loc);
-    GVTRACE ("adding self (%s)\n", local_addr);
+    GVLOG (DDS_LC_CONFIG, "adding self (%s)\n", local_addr);
     peer_local.next = NULL;
     peer_local.peer = local_addr;
+    peer_local.prune_delay.isdefault = true;
     rc = add_peer_addresses (adm, &peer_local);
   }
-  if (rc == DDS_RETCODE_OK && gv->config.peers)
+
+  // Add default multicast addresses for interfaces on which multicast SPDP is enabled only
+  // once all initial addresses have been added: that way, "add_peer_addresses" can assert
+  // that the live tree is still empty and trivially guarantee the invariant that the set of
+  // live ones is disjoint from the set of aging ones.
+  //
+  // ddsi_spdp_ref_locator takes care to move addresses over from the aging ones to the live
+  // ones, and so we need not worry about someone adding the multicast as a peer.
+  for (int i = 0; rc == DDS_RETCODE_OK && i < gv->n_interfaces; i++)
   {
-    rc = add_peer_addresses (adm, gv->config.peers);
+    if ((gv->interfaces[i].allow_multicast & DDSI_AMC_SPDP) &&
+        ddsi_factory_supports (gv->xmit_conns[i]->m_factory, gv->loc_spdp_mc.kind))
+    {
+      const ddsi_xlocator_t xloc = { .conn = gv->xmit_conns[i], .c = gv->loc_spdp_mc };
+      // multicast discovery addresses never expire
+      char buf[DDSI_LOCSTRLEN];
+      GVLOG (DDS_LC_CONFIG, "interface %s has spdp multicast enabled, adding %s (never expiring)\n",
+             gv->interfaces[i].name, ddsi_xlocator_to_string (buf, sizeof (buf), &xloc));
+      rc = ddsi_spdp_ref_locator (adm, &xloc, DDS_INFINITY);
+    }
   }
   return rc;
 }
@@ -373,18 +402,20 @@ struct spdp_admin *ddsi_spdp_scheduler_new (struct ddsi_domaingv *gv, bool add_l
   if (populate_initial_addresses (adm, add_localhost) != DDS_RETCODE_OK)
   {
     ddsrt_avl_free (&spdp_loc_td, &adm->live, ddsrt_free);
-    // FIXME: need to do aging of initial locators, too
     ddsrt_avl_free (&spdp_loc_td, &adm->aging, ddsrt_free);
     ddsrt_mutex_destroy (&adm->lock);
     ddsrt_free (adm);
     return NULL;
   }
-
-  // from here on we potentially have multiple threads messing with `adm`
-  const ddsrt_mtime_t t_sched = ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_MSECS (0));
-  adm->aging_xev = ddsi_qxev_callback (gv->xevents, t_sched, ddsi_spdp_handle_aging_locators_xevent_cb, NULL, 0, true);
-  adm->live_xev = ddsi_qxev_callback (gv->xevents, t_sched, ddsi_spdp_handle_live_locators_xevent_cb, NULL, 0, true);
-  return adm;
+  else
+  {
+    // from here on we potentially have multiple threads messing with `adm`
+    const ddsrt_mtime_t t_sched = ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_MSECS (0));
+    struct handle_locators_xevent_arg arg = { .adm = adm };
+    adm->aging_xev = ddsi_qxev_callback (adm->gv->xevents, t_sched, ddsi_spdp_handle_aging_locators_xevent_cb, &arg, sizeof (arg), true);
+    adm->live_xev = ddsi_qxev_callback (adm->gv->xevents, t_sched, ddsi_spdp_handle_live_locators_xevent_cb, &arg, sizeof (arg), true);
+    return adm;
+  }
 }
 
 void ddsi_spdp_scheduler_delete (struct spdp_admin *adm)
@@ -471,7 +502,7 @@ void ddsi_spdp_unregister_participant (struct spdp_admin *adm, const struct ddsi
   ddsrt_mutex_unlock (&adm->lock);
 }
 
-dds_return_t ddsi_spdp_ref_locator (struct spdp_admin *adm, const ddsi_xlocator_t *xloc)
+dds_return_t ddsi_spdp_ref_locator (struct spdp_admin *adm, const ddsi_xlocator_t *xloc, dds_duration_t prune_delay)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   union spdp_loc_union *n;
@@ -494,6 +525,7 @@ dds_return_t ddsi_spdp_ref_locator (struct spdp_admin *adm, const ddsi_xlocator_
   else if ((n = ddsrt_malloc_s (sizeof (*n))) != NULL)
   {
     n->c.xloc = *xloc;
+    n->c.prune_delay = prune_delay;
     n->live.proxypp_refc = 1;
     n->live.lease_expiry_occurred = false;
     ddsrt_avl_insert_ipath (&spdp_loc_td, &adm->live, n, &avlpath.ip);
@@ -530,7 +562,7 @@ void ddsi_spdp_unref_locator (struct spdp_admin *adm, const ddsi_xlocator_t *xlo
     // reasonable to assume they would all have discovered us at the same time (true for
     // Cyclone anyway) and so there won't be anything at this locator until a new one is
     // created.  For that case, we can reasonably rely on that new one.
-    if (!n->live.lease_expiry_occurred)
+    if (!n->live.lease_expiry_occurred || n->c.prune_delay == 0)
       ddsrt_free (n);
     else
     {
@@ -538,8 +570,9 @@ void ddsi_spdp_unref_locator (struct spdp_admin *adm, const ddsi_xlocator_t *xlo
       // FIXME: for those learnt along the way, an appropriate configuration setting needs to be added (here 10 times/10 minutes)
       // the idea is to ping at least several (10) times and keep trying for at least several (10) minutes
       const dds_duration_t base_intv = adm->gv->config.spdp_interval.isdefault ? DDS_SECS (30) : adm->gv->config.spdp_interval.value;
-      n->aging.age = (base_intv < 1 || base_intv >= DDS_SECS (60)) ? 10 : (uint32_t) (DDS_SECS (600) / base_intv);
-      n->aging.tsched = ddsrt_mtime_add_duration (ddsrt_time_monotonic (), base_intv);
+      const ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
+      n->aging.tprune = ddsrt_mtime_add_duration (tnow, n->c.prune_delay);
+      n->aging.tsched = ddsrt_mtime_add_duration (tnow, base_intv);
       ddsrt_avl_insert (&spdp_loc_td, &adm->aging, n);
     }
   }
@@ -613,52 +646,53 @@ static void resend_spdp (struct ddsi_xpack *xp, const struct ddsi_participant *p
 ddsrt_nonnull_all
 static ddsrt_mtime_t spdp_do_aging_locators (struct spdp_admin *adm, struct ddsi_xpack *xp, ddsrt_mtime_t tnow)
 {
+  struct ddsi_domaingv * const gv = adm->gv;
   const dds_duration_t t_coalesce = DDS_SECS (1); // aging, so low rate
   const ddsrt_mtime_t t_cutoff = ddsrt_mtime_add_duration (tnow, t_coalesce);
   ddsrt_mtime_t t_sched = DDSRT_MTIME_NEVER;
   ddsrt_mutex_lock (&adm->lock);
-  struct spdp_loc_aging *n = ddsrt_avl_find_max (&spdp_loc_td, &adm->aging);
+  struct spdp_loc_aging *n = ddsrt_avl_find_min (&spdp_loc_td, &adm->aging);
   while (n != NULL)
   {
     struct spdp_loc_aging * const nextn = ddsrt_avl_find_succ (&spdp_loc_td, &adm->aging, n);
-    if (t_cutoff.v < n->tsched.v)
+    if (n->tprune.v <= tnow.v)
     {
-      if (n->tsched.v < t_sched.v)
-        t_sched = n->tsched;
+      char buf[DDSI_LOCSTRLEN];
+      GVLOGDISC("pruning SPDP locator %s\n", ddsi_xlocator_to_string (buf, sizeof (buf), &n->c.xloc));
+      ddsrt_avl_delete (&spdp_loc_td, &adm->aging, n);
+      ddsrt_free (n);
     }
     else
     {
-      ddsrt_avl_iter_t it;
-      for (struct spdp_pp *ppn = ddsrt_avl_iter_first (&spdp_pp_td, &adm->pp, &it); ppn; ppn = ddsrt_avl_iter_next (&it))
-        resend_spdp (xp, ppn->pp, &(struct resend_spdp_dst){ .kind = RSDK_LOCATOR, .u = { .xloc = &n->c.xloc }});
-      // Why do we keep trying an address where there used to be one if there's no one anymore? Well,
-      // there might be someone else in the same situation with the cable cut ...
-      //
-      // That of course is interesting only if the disappearance of that node was detected by a lease
-      // expiration.  If all participants behind the locator tell us they will be gone, it is a
-      // different situation: then we can (possibly) delete it immedialy.
-      //
-      // There is also the case of the initial set of addresses, there we (probably) want to drop the
-      // rate over time, but let's not do so now.
-      //
-      // So the strategy is to resend for a long time with a decreasing frequency
-      // default interval is 30s FIXME: tweak configurability
-      // exponential back-off would be the classic trick but is very rapid
-      // in this case, arguably, just pinging at the default frequency for
-      // a limited amount of time seems to make more sense
-      if (--n->age == 0)
+      if (n->tsched.v <= t_cutoff.v)
       {
-        ddsrt_avl_delete (&spdp_loc_td, &adm->aging, n);
-        ddsrt_free (n);
-      }
-      else
-      {
+        ddsrt_avl_iter_t it;
+        for (struct spdp_pp *ppn = ddsrt_avl_iter_first (&spdp_pp_td, &adm->pp, &it); ppn; ppn = ddsrt_avl_iter_next (&it))
+          resend_spdp (xp, ppn->pp, &(struct resend_spdp_dst){ .kind = RSDK_LOCATOR, .u = { .xloc = &n->c.xloc }});
+        // Why do we keep trying an address where there used to be one if there's no one anymore? Well,
+        // there might be someone else in the same situation with the cable cut ...
+        //
+        // That of course is interesting only if the disappearance of that node was detected by a lease
+        // expiration.  If all participants behind the locator tell us they will be gone, it is a
+        // different situation: then we can (possibly) delete it immedialy.
+        //
+        // There is also the case of the initial set of addresses, there we (probably) want to drop the
+        // rate over time, but let's not do so now.
+        //
+        // So the strategy is to resend for a long time with a decreasing frequency
+        // default interval is 30s FIXME: tweak configurability
+        // exponential back-off would be the classic trick but is very rapid
+        // in this case, arguably, just pinging at the default frequency for
+        // a limited amount of time seems to make more sense
         // FIXME: this base_intv thing needs to be done smarter, or else combined with other places
-        const dds_duration_t base_intv = adm->gv->config.spdp_interval.isdefault ? DDS_SECS (30) : adm->gv->config.spdp_interval.value;
+        const dds_duration_t base_intv = gv->config.spdp_interval.isdefault ? DDS_SECS (30) : gv->config.spdp_interval.value;
         n->tsched = ddsrt_mtime_add_duration (tnow, base_intv);
-        if (n->tsched.v < t_sched.v)
-          t_sched = n->tsched;
       }
+      // Next time we should look at the aging locators: the first to be scheduled or pruned
+      if (n->tsched.v < t_sched.v)
+        t_sched = n->tsched;
+      if (n->tprune.v <= t_sched.v)
+        t_sched = n->tprune;
     }
     n = nextn;
   }
@@ -723,15 +757,17 @@ static ddsrt_mtime_t spdp_do_live_locators (struct spdp_admin *adm, struct ddsi_
 
 void ddsi_spdp_handle_aging_locators_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *xev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
 {
-  (void) varg;
-  const ddsrt_mtime_t t_sched = spdp_do_aging_locators (gv->spdp_schedule, xp, tnow);
+  struct handle_locators_xevent_arg * const arg = varg;
+  (void) gv;
+  const ddsrt_mtime_t t_sched = spdp_do_aging_locators (arg->adm, xp, tnow);
   ddsi_resched_xevent_if_earlier (xev, t_sched);
 }
 
 void ddsi_spdp_handle_live_locators_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *xev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
 {
-  (void) varg;
-  const ddsrt_mtime_t t_sched = spdp_do_live_locators (gv->spdp_schedule, xp, tnow);
+  struct handle_locators_xevent_arg * const arg = varg;
+  (void) gv;
+  const ddsrt_mtime_t t_sched = spdp_do_live_locators (arg->adm, xp, tnow);
   ddsi_resched_xevent_if_earlier (xev, t_sched);
 }
 

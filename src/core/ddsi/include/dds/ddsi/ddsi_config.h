@@ -138,6 +138,7 @@ struct ddsi_config_peer_listelem
 {
   struct ddsi_config_peer_listelem *next;
   char *peer;
+  struct ddsi_config_maybe_duration prune_delay;
 };
 
 struct ddsi_config_prune_deleted_ppant {
@@ -305,6 +306,8 @@ struct ddsi_config
   char *defaultMulticastAddressString;
   struct ddsi_config_maybe_duration spdp_interval;
   int64_t spdp_response_delay_max;
+  int64_t spdp_prune_delay_initial;
+  int64_t spdp_prune_delay_discovered;
   int64_t lease_duration;
   int64_t const_hb_intv_sched;
   int64_t const_hb_intv_sched_min;

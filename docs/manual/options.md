@@ -67,7 +67,7 @@ The default value is: `lax`
 
 
 ### //CycloneDDS/Domain/Discovery
-Children: [DSGracePeriod](#cycloneddsdomaindiscoverydsgraceperiod), [DefaultMulticastAddress](#cycloneddsdomaindiscoverydefaultmulticastaddress), [EnableTopicDiscoveryEndpoints](#cycloneddsdomaindiscoveryenabletopicdiscoveryendpoints), [ExternalDomainId](#cycloneddsdomaindiscoveryexternaldomainid), [LeaseDuration](#cycloneddsdomaindiscoveryleaseduration), [MaxAutoParticipantIndex](#cycloneddsdomaindiscoverymaxautoparticipantindex), [ParticipantIndex](#cycloneddsdomaindiscoveryparticipantindex), [Peers](#cycloneddsdomaindiscoverypeers), [Ports](#cycloneddsdomaindiscoveryports), [SPDPInterval](#cycloneddsdomaindiscoveryspdpinterval), [SPDPMulticastAddress](#cycloneddsdomaindiscoveryspdpmulticastaddress), [Tag](#cycloneddsdomaindiscoverytag)
+Children: [DSGracePeriod](#cycloneddsdomaindiscoverydsgraceperiod), [DefaultMulticastAddress](#cycloneddsdomaindiscoverydefaultmulticastaddress), [DiscoveredLocatorPruneDelay](#cycloneddsdomaindiscoverydiscoveredlocatorprunedelay), [EnableTopicDiscoveryEndpoints](#cycloneddsdomaindiscoveryenabletopicdiscoveryendpoints), [ExternalDomainId](#cycloneddsdomaindiscoveryexternaldomainid), [InitialLocatorPruneDelay](#cycloneddsdomaindiscoveryinitiallocatorprunedelay), [LeaseDuration](#cycloneddsdomaindiscoveryleaseduration), [MaxAutoParticipantIndex](#cycloneddsdomaindiscoverymaxautoparticipantindex), [ParticipantIndex](#cycloneddsdomaindiscoveryparticipantindex), [Peers](#cycloneddsdomaindiscoverypeers), [Ports](#cycloneddsdomaindiscoveryports), [SPDPInterval](#cycloneddsdomaindiscoveryspdpinterval), [SPDPMulticastAddress](#cycloneddsdomaindiscoveryspdpmulticastaddress), [Tag](#cycloneddsdomaindiscoverytag)
 
 The Discovery element allows you to specify various parameters related to the discovery of peers.
 
@@ -90,6 +90,16 @@ This element specifies the default multicast address for all traffic other than 
 The default value is: `auto`
 
 
+#### //CycloneDDS/Domain/Discovery/DiscoveredLocatorPruneDelay
+Number-with-unit
+
+This element specifies the time for which discovered (unicast) participant locators are pinged after a participant at that address disappeared because of a lease expiry. Locators for participants for which notice of graceful termination was received are not retained.
+
+Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
+
+The default value is: `60s`
+
+
 #### //CycloneDDS/Domain/Discovery/EnableTopicDiscoveryEndpoints
 Boolean
 
@@ -104,6 +114,16 @@ Text
 An override for the domain id is used to discovery and determine the port number mapping. This allows the creating of multiple domains in a single process while making them appear as a single domain on the network. The value "default" disables the override.
 
 The default value is: `default`
+
+
+#### //CycloneDDS/Domain/Discovery/InitialLocatorPruneDelay
+Number-with-unit
+
+This element specifies the default time for configured peer locators are initially ping and after disappearance of the last participant at that address until it is pruned. It can be overridden for individual peers.
+
+Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
+
+The default value is: `30s`
 
 
 #### //CycloneDDS/Domain/Discovery/LeaseDuration
@@ -157,7 +177,7 @@ The default value is: `default`
 
 
 ##### //CycloneDDS/Domain/Discovery/Peers/Peer
-Attributes: [Address](#cycloneddsdomaindiscoverypeerspeeraddress)
+Attributes: [Address](#cycloneddsdomaindiscoverypeerspeeraddress), [PruneDelay](#cycloneddsdomaindiscoverypeerspeerprunedelay)
 
 This element statically configures addresses for discovery.
 
@@ -168,6 +188,16 @@ Text
 This element specifies an IP address to which discovery packets must be sent, in addition to the default multicast address (see also General/AllowMulticast). Both hostnames and a numerical IP address are accepted; the hostname or IP address may be suffixed with :PORT to explicitly set the port to which it must be sent. Multiple Peers may be specified.
 
 The default value is: `<empty>`
+
+
+##### //CycloneDDS/Domain/Discovery/Peers/Peer[@PruneDelay]
+Number-with-unit
+
+This element specifies the duration for which the locator must be pinged for participant discovery before it is pruned as a useless address. The value "default" means the value in Discovery/InitialLocatorPruneDelay is used.
+
+Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
+
+The default value is: `default`
 
 
 #### //CycloneDDS/Domain/Discovery/Ports
@@ -1906,10 +1936,10 @@ While none prevents any message from being written to a DDSI2 log file.
 The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful verbosity levels are config, fine and finest.
 
 The default value is: `none`
-<!--- generated from ddsi_config.h[e6e75c7c07b3b91a92715063cfd8abdd0fbd8b08] -->
+<!--- generated from ddsi_config.h[dbf9996a8b49da8e7cb4b62ab157ba80a073cd81] -->
 <!--- generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] -->
-<!--- generated from ddsi__cfgelems.h[7adb2155a65c329d28b242cef936bbfc08e76118] -->
-<!--- generated from ddsi_config.c[8d7ef0ae962a47cb2138de27ac0f6751e3393c66] -->
+<!--- generated from ddsi__cfgelems.h[a8b3ad5170f4e86fd7c1f29c5677c332930ea6a4] -->
+<!--- generated from ddsi_config.c[94a98ea7709bca260c9cfb5cf43396b0d5e3c953] -->
 <!--- generated from _confgen.h[9554f1d72645c0b8bb66ffbfbc3c0fb664fc1a43] -->
 <!--- generated from _confgen.c[86c631048046ed4e14c46dba40e5253b50a748fe] -->
 <!--- generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] -->
