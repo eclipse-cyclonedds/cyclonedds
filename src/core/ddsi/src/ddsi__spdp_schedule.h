@@ -21,7 +21,7 @@ extern "C" {
 struct spdp_admin; // ddsi_participant::e.lock gets locked while spdp_admin::lock is held
 struct ddsi_proxy_reader;
 
-struct spdp_admin *ddsi_spdp_scheduler_new (struct ddsi_domaingv *gv)
+struct spdp_admin *ddsi_spdp_scheduler_new (struct ddsi_domaingv *gv, bool add_localhost)
   ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 void ddsi_spdp_scheduler_delete (struct spdp_admin *adm)

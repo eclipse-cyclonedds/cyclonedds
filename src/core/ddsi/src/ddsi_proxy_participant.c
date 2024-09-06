@@ -727,7 +727,7 @@ static void purge_helper (const ddsi_xlocator_t *n, void * varg)
     ddsi_delete_proxy_participant_by_guid (data->proxypp->e.gv, &data->proxypp->e.guid, data->timestamp, 1);
 }
 
-void ddsi_purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocator_t *loc, bool delete_from_as_disc)
+void ddsi_purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocator_t *loc)
 {
   /* FIXME: check whether addr:port can't be reused for a new connection by the time we get here. */
   /* NOTE: This function exists for the sole purpose of cleaning up after closing a TCP connection in ddsi_tcp_close_conn and the state of the calling thread could be anything at this point. Because of that we do the unspeakable and toggle the thread state conditionally. We can't afford to have it in "asleep", as that causes a race with the garbage collector. */
@@ -742,11 +742,6 @@ void ddsi_purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocato
   while ((data.proxypp = ddsi_entidx_enum_proxy_participant_next (&est)) != NULL)
     ddsi_addrset_forall (data.proxypp->as_meta, purge_helper, &data);
   ddsi_entidx_enum_proxy_participant_fini (&est);
-
-  /* Shouldn't try to keep pinging clients once they're gone */
-  if (delete_from_as_disc)
-    ddsi_remove_from_addrset (gv, gv->as_disc, loc);
-
   ddsi_thread_state_asleep (thrst);
 }
 

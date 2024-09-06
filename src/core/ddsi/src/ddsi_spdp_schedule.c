@@ -28,6 +28,7 @@
 #include "ddsi__security_omg.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__plist.h"
+#include "ddsi__portmapping.h"
 #include "ddsi__proxy_participant.h"
 #include "ddsi__topic.h"
 #include "ddsi__vendor.h"
@@ -161,26 +162,204 @@ static int compare_spdp_pp (const void *va, const void *vb) {
 static const ddsrt_avl_treedef_t spdp_loc_td = DDSRT_AVL_TREEDEF_INITIALIZER(offsetof (union spdp_loc_union, c.avlnode), offsetof (union spdp_loc_union, c.xloc), compare_xlocators_vwrap, NULL);
 static const ddsrt_avl_treedef_t spdp_pp_td = DDSRT_AVL_TREEDEF_INITIALIZER(offsetof (struct spdp_pp, avlnode), 0, compare_spdp_pp, NULL);
 
-struct add_as_disc_helper_arg {
-  struct spdp_admin *adm;
-  bool all_ok;
-};
-
-static void add_as_disc_helper (const ddsi_xlocator_t *loc, void *varg)
+static dds_return_t add_peer_address_xlocator (struct spdp_admin *adm, const ddsi_xlocator_t *xloc)
 {
-  struct add_as_disc_helper_arg * const arg = varg;
-  // FIXME: some but not all initial locators need to go into aging
-  if (arg->all_ok && ddsi_spdp_ref_locator (arg->adm, loc) != DDS_RETCODE_OK)
-    arg->all_ok = false;
+  // Used for initial addresses only.  These are all inserted as "aging" so there cannot
+  // be any live addresses yet.
+  assert (ddsrt_avl_is_empty (&adm->live));
+  dds_return_t ret = DDS_RETCODE_OK;
+  union spdp_loc_union *n;
+  ddsrt_mutex_lock (&adm->lock);
+  union {
+    ddsrt_avl_ipath_t ip;
+    ddsrt_avl_dpath_t dp;
+  } avlpath;
+  if ((n = ddsrt_avl_lookup_ipath (&spdp_loc_td, &adm->aging, xloc, &avlpath.ip)) != NULL)
+  {
+  }
+  else if ((n = ddsrt_malloc_s (sizeof (*n))) != NULL)
+  {
+    n->c.xloc = *xloc;
+    ddsrt_avl_insert_ipath (&spdp_loc_td, &adm->aging, n, &avlpath.ip);
+  }
+  else
+  {
+    ret = DDS_RETCODE_OUT_OF_RESOURCES;
+  }
+  ddsrt_mutex_unlock (&adm->lock);
+  return ret;
 }
 
-static void remove_as_disc_helper (const ddsi_xlocator_t *loc, void *varg)
+static dds_return_t add_peer_address_ports_interface (struct spdp_admin *adm, const ddsi_locator_t *loc)
 {
-  struct spdp_admin * const adm = varg;
-  ddsi_spdp_unref_locator (adm, loc, false);
+  struct ddsi_domaingv const * const gv = adm->gv;
+  dds_return_t rc = DDS_RETCODE_OK;
+  if (ddsi_is_unspec_locator (loc))
+    return rc;
+  if (ddsi_is_mcaddr (gv, loc))
+  {
+    // multicast: use all transmit connections
+    for (int i = 0; i < gv->n_interfaces && rc == DDS_RETCODE_OK; i++)
+    {
+      if (ddsi_factory_supports (gv->xmit_conns[i]->m_factory, loc->kind))
+        rc = add_peer_address_xlocator (adm, &(const ddsi_xlocator_t) {
+          .conn = gv->xmit_conns[i],
+          .c = *loc });
+    }
+  }
+  else
+  {
+    // unicast: assume the kernel knows how to route it from any connection
+    // if it doesn't match a local interface
+    int interf_idx = -1, fallback_interf_idx = -1;
+    for (int i = 0; i < gv->n_interfaces && interf_idx < 0; i++)
+    {
+      if (!ddsi_factory_supports (gv->xmit_conns[i]->m_factory, loc->kind))
+        continue;
+      switch (ddsi_is_nearby_address (gv, loc, (size_t) gv->n_interfaces, gv->interfaces, NULL))
+      {
+        case DNAR_SELF:
+        case DNAR_LOCAL:
+          interf_idx = i;
+          break;
+        case DNAR_DISTANT:
+          if (fallback_interf_idx < 0)
+            fallback_interf_idx = i;
+          break;
+        case DNAR_UNREACHABLE:
+          break;
+      }
+    }
+    if (interf_idx >= 0 || fallback_interf_idx >= 0)
+    {
+      const int i = (interf_idx >= 0) ? interf_idx : fallback_interf_idx;
+      rc = add_peer_address_xlocator (adm, &(const ddsi_xlocator_t) {
+        .conn = gv->xmit_conns[i],
+        .c = *loc });
+    }
+  }
+  return rc;
 }
 
-struct spdp_admin *ddsi_spdp_scheduler_new (struct ddsi_domaingv *gv)
+static dds_return_t add_peer_address_ports (struct spdp_admin *adm, ddsi_locator_t *loc)
+{
+  struct ddsi_domaingv const * const gv = adm->gv;
+  struct ddsi_tran_factory * const tran = ddsi_factory_find_supported_kind (gv, loc->kind);
+  assert (tran != NULL);
+  char buf[DDSI_LOCSTRLEN];
+  int32_t maxidx;
+  dds_return_t rc = DDS_RETCODE_OK;
+
+  // check whether port number, address type and mode make sense, and prepare the
+  // locator by patching the first port number to use if none is given
+  if (ddsi_tran_get_locator_port (tran, loc) != DDSI_LOCATOR_PORT_INVALID)
+  {
+    maxidx = 0;
+  }
+  else if (ddsi_is_mcaddr (gv, loc))
+  {
+    ddsi_tran_set_locator_port (tran, loc, ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, 0));
+    maxidx = 0;
+  }
+  else
+  {
+    ddsi_tran_set_locator_port (tran, loc, ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, 0));
+    maxidx = gv->config.maxAutoParticipantIndex;
+  }
+
+  GVLOG (DDS_LC_CONFIG, "add_peer_address: add %s", ddsi_locator_to_string (buf, sizeof (buf), loc));
+  rc = add_peer_address_ports_interface (adm, loc);
+  for (int32_t i = 1; i < maxidx && rc == DDS_RETCODE_OK; i++)
+  {
+    ddsi_tran_set_locator_port (tran, loc, ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, i));
+    if (i + 1 == maxidx)
+      GVLOG (DDS_LC_CONFIG, " ... :%"PRIu32, loc->port);
+    rc = add_peer_address_ports_interface (adm, loc);
+  }
+  GVLOG (DDS_LC_CONFIG, "\n");
+  return rc;
+}
+
+static dds_return_t add_peer_address (struct spdp_admin *adm, const char *addrs)
+{
+  DDSRT_WARNING_MSVC_OFF(4996);
+  struct ddsi_domaingv const * const gv = adm->gv;
+  char *addrs_copy, *cursor, *a;
+  dds_return_t rc = DDS_RETCODE_ERROR;
+  addrs_copy = ddsrt_strdup (addrs);
+  cursor = addrs_copy;
+  while ((a = ddsrt_strsep (&cursor, ",")) != NULL)
+  {
+    ddsi_locator_t loc;
+    switch (ddsi_locator_from_string (gv, &loc, a, gv->m_factory))
+    {
+      case AFSR_OK:
+        break;
+      case AFSR_INVALID:
+        GVERROR ("add_peer_address: %s: not a valid address\n", a);
+        goto error;
+      case AFSR_UNKNOWN:
+        GVERROR ("add_peer_address: %s: unknown address\n", a);
+        goto error;
+      case AFSR_MISMATCH:
+        GVERROR ("add_peer_address: %s: address family mismatch\n", a);
+        goto error;
+    }
+    if ((rc = add_peer_address_ports (adm, &loc)) < 0)
+    {
+      goto error;
+    }
+  }
+  rc = DDS_RETCODE_OK;
+ error:
+  ddsrt_free (addrs_copy);
+  return rc;
+  DDSRT_WARNING_MSVC_ON(4996);
+}
+
+static dds_return_t add_peer_addresses (struct spdp_admin *adm, const struct ddsi_config_peer_listelem *list)
+{
+  dds_return_t rc = DDS_RETCODE_OK;
+  while (list && rc == DDS_RETCODE_OK)
+  {
+    rc = add_peer_address (adm, list->peer);
+    list = list->next;
+  }
+  return rc;
+}
+
+static dds_return_t populate_initial_addresses (struct spdp_admin *adm, bool add_localhost)
+{
+  struct ddsi_domaingv const * const gv = adm->gv;
+  dds_return_t rc = DDS_RETCODE_OK;
+  for (int i = 0; i < gv->n_interfaces && rc == DDS_RETCODE_OK; i++)
+  {
+    if ((gv->interfaces[i].allow_multicast & DDSI_AMC_SPDP) &&
+        ddsi_factory_supports (gv->xmit_conns[i]->m_factory, gv->loc_spdp_mc.kind))
+    {
+      const ddsi_xlocator_t xloc = { .conn = gv->xmit_conns[i], .c = gv->loc_spdp_mc };
+      // multicast discovery addresses never expire
+      rc = ddsi_spdp_ref_locator (adm, &xloc);
+    }
+  }
+  if (rc == DDS_RETCODE_OK && add_localhost)
+  {
+    struct ddsi_config_peer_listelem peer_local;
+    char local_addr[DDSI_LOCSTRLEN];
+    ddsi_locator_to_string_no_port (local_addr, sizeof (local_addr), &gv->interfaces[0].loc);
+    GVTRACE ("adding self (%s)\n", local_addr);
+    peer_local.next = NULL;
+    peer_local.peer = local_addr;
+    rc = add_peer_addresses (adm, &peer_local);
+  }
+  if (rc == DDS_RETCODE_OK && gv->config.peers)
+  {
+    rc = add_peer_addresses (adm, gv->config.peers);
+  }
+  return rc;
+}
+
+struct spdp_admin *ddsi_spdp_scheduler_new (struct ddsi_domaingv *gv, bool add_localhost)
 {
   struct spdp_admin *adm;
   if ((adm = ddsrt_malloc_s (sizeof (*adm))) == NULL)
@@ -191,9 +370,7 @@ struct spdp_admin *ddsi_spdp_scheduler_new (struct ddsi_domaingv *gv)
   ddsrt_avl_init (&spdp_loc_td, &adm->live);
   ddsrt_avl_init (&spdp_pp_td, &adm->pp);
 
-  struct add_as_disc_helper_arg arg = { .adm = adm, .all_ok = true };
-  ddsi_addrset_forall (gv->as_disc, add_as_disc_helper, &arg);
-  if (!arg.all_ok)
+  if (populate_initial_addresses (adm, add_localhost) != DDS_RETCODE_OK)
   {
     ddsrt_avl_free (&spdp_loc_td, &adm->live, ddsrt_free);
     // FIXME: need to do aging of initial locators, too
@@ -212,13 +389,18 @@ struct spdp_admin *ddsi_spdp_scheduler_new (struct ddsi_domaingv *gv)
 
 void ddsi_spdp_scheduler_delete (struct spdp_admin *adm)
 {
-  // FIXME: Initial addresses may still be around, probably should invert it, check refc=1, check present in as_disc, then free
-  ddsi_addrset_forall (adm->gv->as_disc, remove_as_disc_helper, adm);
-  assert (ddsrt_avl_is_empty (&adm->live));
   assert (ddsrt_avl_is_empty (&adm->pp));
+#ifndef NDEBUG
+  {
+    ddsrt_avl_iter_t it;
+    for (struct spdp_loc_live *n = ddsrt_avl_iter_first (&spdp_loc_td, &adm->live, &it); n; n = ddsrt_avl_iter_next (&it))
+      assert (n->proxypp_refc == 1);
+  }
+#endif
   ddsi_delete_xevent (adm->aging_xev);
   ddsi_delete_xevent (adm->live_xev);
   // intrusive data structures, can simply free everything
+  ddsrt_avl_free (&spdp_loc_td, &adm->live, ddsrt_free);
   ddsrt_avl_free (&spdp_loc_td, &adm->aging, ddsrt_free);
   ddsrt_mutex_destroy (&adm->lock);
   ddsrt_free (adm);
