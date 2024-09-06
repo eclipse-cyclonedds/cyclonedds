@@ -1857,10 +1857,8 @@ static const uint32_t *dds_stream_getsize_delimited (struct getsize_state * __re
   return ops;
 }
 
-static bool dds_stream_getsize_pl_member (uint32_t mid, struct getsize_state * __restrict st, const char * __restrict data, const uint32_t * __restrict ops)
+static bool dds_stream_getsize_pl_member (struct getsize_state * __restrict st, const char * __restrict data, const uint32_t * __restrict ops)
 {
-  assert (!(mid & ~EMHEADER_MEMBERID_MASK));
-
   /* get flags from first member op */
   uint32_t flags = DDS_OP_FLAGS (ops[0]);
   bool is_key = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
@@ -1896,8 +1894,7 @@ static const uint32_t *dds_stream_getsize_pl_memberlist (struct getsize_state * 
         }
         else if (is_member_present (data, plm_ops))
         {
-          uint32_t member_id = ops[1];
-          if (!dds_stream_getsize_pl_member (member_id, st, data, plm_ops))
+          if (!dds_stream_getsize_pl_member (st, data, plm_ops))
             return NULL;
         }
         ops += 2;
