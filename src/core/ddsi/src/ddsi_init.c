@@ -1072,6 +1072,54 @@ static void set_locator_port_if_not_unspec_locator (const struct ddsi_domaingv *
   }
 }
 
+static void decide_participant_index_and_add_localhost_to_peers (struct ddsi_domaingv *gv, bool *add_localhost_to_initial_peers)
+{
+  *add_localhost_to_initial_peers = false;
+#ifndef NDEBUG
+  for (int i = 0; i < gv->n_interfaces; i++)
+  {
+    // sanity check that by now we have eliminated "default" from allow_multicast and
+    // that no bits in allow_multicast are set if the interface is not capable of
+    // handling multicast
+    assert ((gv->interfaces[i].allow_multicast & DDSI_AMC_DEFAULT) == 0);
+    assert (gv->interfaces[i].allow_multicast == 0 || gv->interfaces[i].mc_capable);
+  }
+#endif
+  bool all_allow_spdp_mc = true, none_allow_spdp_mc = true;
+  for (int i = 0; i < gv->n_interfaces; i++)
+  {
+    if (gv->interfaces[i].allow_multicast & DDSI_AMC_SPDP)
+      none_allow_spdp_mc = false;
+    else
+      all_allow_spdp_mc = false;
+  }
+  if (gv->config.participantIndex == DDSI_PARTICIPANT_INDEX_DEFAULT)
+  {
+    if (all_allow_spdp_mc && gv->config.peers == NULL)
+    {
+      GVTRACE ("all interfaces allow spdp multicast, no peers defined: defaulting participant index to \"none\"\n");
+      gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_NONE;
+    } else if (all_allow_spdp_mc)
+    {
+      GVTRACE ("all interfaces allow spdp multicast, but peers defined: defaulting participant index to \"auto\"\n");
+      gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_AUTO;
+    }
+    else
+    {
+      GVTRACE ("some interfaces disallow spdp multicast: defaulting participant index to \"auto\"\n");
+      gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_AUTO;
+    }
+  }
+  if (gv->config.add_localhost_to_peers == DDSI_BOOLDEF_TRUE ||
+      (none_allow_spdp_mc && gv->config.add_localhost_to_peers != DDSI_BOOLDEF_FALSE))
+  {
+    // add self to as_disc, but only once we have everything set up to actually do that
+    if (gv->config.add_localhost_to_peers == DDSI_BOOLDEF_DEFAULT)
+      GVTRACE ("No multicast SPDP, adding localhost to peers\n");
+    *add_localhost_to_initial_peers = true;
+  }
+}
+
 int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psmx_locators)
 {
   uint32_t port_disc_uc = 0;
@@ -1216,53 +1264,8 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
   //
   // No interfaces allow SPDP multicast:
   // - default ppidx = AUTO, default peers = { localhost }
-  //
-  // MaxAutoParticipantIndex -> 100  -+
-  // UnicastSPDPInterval -> 30s       |_ perhaps adding something like this
-  //   @silentports -> 5min           |  would make sense?
-  //   @dropafter -> 30min           -+
-  bool add_localhost_to_initial_peers = false;
-  if (gv->config.participantIndex == DDSI_PARTICIPANT_INDEX_DEFAULT)
-  {
-#ifndef NDEBUG
-    for (int i = 0; i < gv->n_interfaces; i++)
-    {
-      // sanity check that by now we have eliminated "default" from allow_multicast and
-      // that no bits in allow_multicast are set if the interface is not capable of
-      // handling multicast
-      assert ((gv->interfaces[i].allow_multicast & DDSI_AMC_DEFAULT) == 0);
-      assert (gv->interfaces[i].allow_multicast == 0 || gv->interfaces[i].mc_capable);
-    }
-#endif
-    bool all_allow_spdp_mc = true, none_allow_spdp_mc = true;
-    for (int i = 0; i < gv->n_interfaces; i++)
-    {
-      if (gv->interfaces[i].allow_multicast & DDSI_AMC_SPDP)
-        none_allow_spdp_mc = false;
-      else
-        all_allow_spdp_mc = false;
-    }
-    if (all_allow_spdp_mc && gv->config.peers == NULL)
-    {
-      GVTRACE ("all interfaces allow spdp multicast, no peers defined: defaulting participant index to \"none\"\n");
-      gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_NONE;
-    } else if (all_allow_spdp_mc)
-    {
-      GVTRACE ("all interfaces allow spdp multicast, but peers defined: defaulting participant index to \"auto\"\n");
-      gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_AUTO;
-    }
-    else
-    {
-      GVTRACE ("some interfaces disallow spdp multicast: defaulting participant index to \"auto\"\n");
-      gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_AUTO;
-    }
-    if (gv->config.add_localhost_to_peers == DDSI_BOOLDEF_TRUE ||
-        (none_allow_spdp_mc && gv->config.add_localhost_to_peers != DDSI_BOOLDEF_FALSE))
-    {
-      // add self to as_disc, but only once we have everything set up to actually do that
-      add_localhost_to_initial_peers = true;
-    }
-  }
+  bool add_localhost_to_initial_peers;
+  decide_participant_index_and_add_localhost_to_peers (gv, &add_localhost_to_initial_peers);
 
   if (set_recvips (gv) < 0)
     goto err_set_recvips;
