@@ -205,7 +205,6 @@ struct ddsi_domaingv {
     Initial discovery address set, and the current discovery address
     set. These are the addresses that SPDP pings get sent to.
   */
-  struct ddsi_addrset *as_disc;
   struct spdp_admin *spdp_schedule;
 
   ddsrt_mutex_t lock;

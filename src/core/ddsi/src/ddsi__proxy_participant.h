@@ -50,7 +50,7 @@ int ddsi_update_proxy_participant_plist_locked (struct ddsi_proxy_participant *p
 void ddsi_proxy_participant_reassign_lease (struct ddsi_proxy_participant *proxypp, struct ddsi_lease *newlease);
 
 /** @component ddsi_proxy_participant */
-void ddsi_purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocator_t *loc, bool delete_from_as_disc);
+void ddsi_purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocator_t *loc);
 
 /** @component ddsi_proxy_participant */
 int ddsi_ref_proxy_participant (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_endpoint_common *c);
