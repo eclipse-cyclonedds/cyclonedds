@@ -3080,6 +3080,19 @@ static bool normalize_string (char * __restrict data, uint32_t * __restrict off,
   return true;
 }
 
+static bool normalize_boolarray (char * __restrict data, uint32_t * __restrict off, uint32_t size, uint32_t num) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+static bool normalize_boolarray (char * __restrict data, uint32_t * __restrict off, uint32_t size, uint32_t num)
+{
+  if ((*off = check_align_prim_many (*off, size, 0, 0, num)) == UINT32_MAX)
+    return false;
+  uint8_t * const xs = (uint8_t *) (data + *off);
+  for (uint32_t i = 0; i < num; i++)
+    if (xs[i] > 1)
+      xs[i] = 1;
+  *off += num;
+  return true;
+}
+
 static bool normalize_primarray (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t num, enum dds_stream_typecode type, uint32_t xcdr_version) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static bool normalize_primarray (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t num, enum dds_stream_typecode type, uint32_t xcdr_version)
 {
@@ -3319,7 +3332,7 @@ static const uint32_t *normalize_arr (char * __restrict data, uint32_t * __restr
   switch (subtype)
   {
     case DDS_OP_VAL_BLN:
-      if (!normalize_enumarray (data, off, size1, bswap, 1, num, 1))
+      if (!normalize_boolarray (data, off, size1, num))
         return NULL;
       ops += 3;
       break;
