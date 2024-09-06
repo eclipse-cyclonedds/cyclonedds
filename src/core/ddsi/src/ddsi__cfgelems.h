@@ -1855,6 +1855,15 @@ static struct cfgelem discovery_peer_cfgattrs[] = {
       "explicitly set the port to which it must be sent. Multiple Peers may "
       "be specified.</p>"
     )),
+  STRING("PruneDelay", NULL, 1, "default",
+    MEMBEROF(ddsi_config_peer_listelem, prune_delay),
+    FUNCTIONS(0, uf_maybe_duration_inf, 0, pf_maybe_duration),
+    DESCRIPTION(
+      "<p>This element specifies the duration for which the locator must "
+      "be pinged for participant discovery before it is pruned as a useless "
+      "address. The value \"default\" means the value in "
+      "Discovery/InitialLocatorPruneDelay is used.</p>"),
+    UNIT("duration_inf")),
   END_MARKER
 };
 
@@ -1968,6 +1977,25 @@ static struct cfgelem discovery_cfgelems[] = {
       "traffic other than participant discovery packets. It defaults to "
       "Discovery/SPDPMulticastAddress.</p>"
     )),
+  STRING("InitialLocatorPruneDelay", NULL, 1, "30s",
+    MEMBER(spdp_prune_delay_initial),
+    FUNCTIONS(0, uf_duration_inf, 0, pf_duration),
+    DESCRIPTION(
+      "<p>This element specifies the default time for configured "
+      "peer locators are initially ping and after disappearance of the "
+      "last participant at that address until it is pruned. It can be "
+      "overridden for individual peers.</p>"),
+    UNIT("duration_inf")),
+  STRING("DiscoveredLocatorPruneDelay", NULL, 1, "60s",
+    MEMBER(spdp_prune_delay_discovered),
+    FUNCTIONS(0, uf_duration_inf, 0, pf_duration),
+    DESCRIPTION(
+      "<p>This element specifies the time for which discovered (unicast) "
+      "participant locators are pinged after a participant at that "
+      "address disappeared because of a lease expiry. Locators for "
+      "participants for which notice of graceful termination was received "
+      "are not retained.</p>"),
+    UNIT("duration_inf")),
   GROUP("Ports", discovery_ports_cfgelems, NULL, 1,
     NOMEMBER,
     NOFUNCTIONS,

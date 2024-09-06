@@ -1128,6 +1128,8 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
     case DDSI_TRANS_TCP6:
       gv->config.publish_uc_locators = (gv->config.tcp_port != -1);
       gv->config.enable_uc_locators = 1;
+      /* Discovery on TCP works different, there's no point in trying to ping client ports after they have disappeared */
+      gv->config.spdp_prune_delay_discovered = 0;
       /* TCP affects what features are supported/required */
       gv->config.many_sockets_mode = DDSI_MSM_SINGLE_UNICAST;
       if (ddsi_tcp_init (gv) < 0)

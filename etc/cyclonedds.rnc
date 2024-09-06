@@ -64,6 +64,13 @@ CycloneDDS configuration""" ] ]
           text
         }?
         & [ a:documentation [ xml:lang="en" """
+<p>This element specifies the time for which discovered (unicast) participant locators are pinged after a participant at that address disappeared because of a lease expiry. Locators for participants for which notice of graceful termination was received are not retained.</p>
+<p>Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.</p>
+<p>The default value is: <code>60s</code></p>""" ] ]
+        element DiscoveredLocatorPruneDelay {
+          duration_inf
+        }?
+        & [ a:documentation [ xml:lang="en" """
 <p>This element controls whether the built-in endpoints for topic discovery are created and used to exchange topic discovery information.</p>
 <p>The default value is: <code>false</code></p>""" ] ]
         element EnableTopicDiscoveryEndpoints {
@@ -74,6 +81,13 @@ CycloneDDS configuration""" ] ]
 <p>The default value is: <code>default</code></p>""" ] ]
         element ExternalDomainId {
           text
+        }?
+        & [ a:documentation [ xml:lang="en" """
+<p>This element specifies the default time for configured peer locators are initially ping and after disappearance of the last participant at that address until it is pruned. It can be overridden for individual peers.</p>
+<p>Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.</p>
+<p>The default value is: <code>30s</code></p>""" ] ]
+        element InitialLocatorPruneDelay {
+          duration_inf
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This setting controls the default participant lease duration.<p>
@@ -118,6 +132,13 @@ CycloneDDS configuration""" ] ]
             attribute Address {
               text
             }
+            & [ a:documentation [ xml:lang="en" """
+<p>This element specifies the duration for which the locator must be pinged for participant discovery before it is pruned as a useless address. The value "default" means the value in Discovery/InitialLocatorPruneDelay is used.</p>
+<p>Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.</p>
+<p>The default value is: <code>default</code></p>""" ] ]
+            attribute PruneDelay {
+              duration_inf
+            }?
           }*
         }?
         & [ a:documentation [ xml:lang="en" """
@@ -1319,10 +1340,10 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
   duration_inf = xsd:token { pattern = "inf|0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([num]?s|min|hr|day)" }
   memsize = xsd:token { pattern = "0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([kMG]i?)?B" }
 }
-# generated from ddsi_config.h[e6e75c7c07b3b91a92715063cfd8abdd0fbd8b08] 
+# generated from ddsi_config.h[dbf9996a8b49da8e7cb4b62ab157ba80a073cd81] 
 # generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] 
-# generated from ddsi__cfgelems.h[7adb2155a65c329d28b242cef936bbfc08e76118] 
-# generated from ddsi_config.c[8d7ef0ae962a47cb2138de27ac0f6751e3393c66] 
+# generated from ddsi__cfgelems.h[a8b3ad5170f4e86fd7c1f29c5677c332930ea6a4] 
+# generated from ddsi_config.c[94a98ea7709bca260c9cfb5cf43396b0d5e3c953] 
 # generated from _confgen.h[9554f1d72645c0b8bb66ffbfbc3c0fb664fc1a43] 
 # generated from _confgen.c[86c631048046ed4e14c46dba40e5253b50a748fe] 
 # generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] 
