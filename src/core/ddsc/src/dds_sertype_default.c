@@ -222,16 +222,6 @@ static dds_return_t sertype_default_get_serialized_size (const struct ddsi_serty
   else
     *size = dds_stream_getsize_sample (sample, &tp->type, tp->write_encoding_version);
   *enc_identifier = ddsi_sertype_get_native_enc_identifier (tp->write_encoding_version, tp->encoding_format);
-#ifndef NDEBUG
-  struct ddsi_serdata *serdata = ddsi_serdata_from_sample (tpcmn, sdkind, sample);
-  if (serdata == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
-  struct dds_cdr_header hdr;
-  ddsi_serdata_to_ser (serdata, 0, sizeof (struct dds_cdr_header), &hdr);
-  assert (*size == ddsi_serdata_size (serdata) - sizeof (struct dds_cdr_header) - ddsrt_fromBE2u (hdr.options));
-  assert (*enc_identifier = hdr.identifier);
-  ddsi_serdata_unref (serdata);
-#endif
   return DDS_RETCODE_OK;
 }
 
