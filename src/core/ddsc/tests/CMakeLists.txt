@@ -78,6 +78,7 @@ set(ddsc_test_sources
     "read_instance.c"
     "redundantnw.c"
     "register.c"
+    "spdp.c"
     "subscriber.c"
     "take_instance.c"
     "time.c"
