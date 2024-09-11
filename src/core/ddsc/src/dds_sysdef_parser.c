@@ -57,6 +57,7 @@
   QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_TRANSPORTPRIORITY, WR, TP)
   QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_USERDATA, RD, WR, PP)
   QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_WRITERDATALIFECYCLE, WR)
+  QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_WRITERBATCHING, WR)
 
 #undef PP
 #undef SUB
@@ -1394,6 +1395,16 @@ static void qset_WRITERDATALIFECYCLE (dds_qos_t *qos, struct dds_sysdef_QOS_POLI
   dds_qset_writer_data_lifecycle (qos, qp->values.autodispose_unregistered_instances);
 }
 
+static bool qget_WRITERBATCHING (dds_qos_t *qos)
+{
+  return dds_qget_writer_batching (qos, NULL);
+}
+
+static void qset_WRITERBATCHING (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_WRITERBATCHING *qp)
+{
+  dds_qset_writer_batching (qos, qp->values.batch_updates);
+}
+
 #define _ELEM_CLOSE_REQUIRE_ATTR(type,attr_name,current,element_name) \
       do { \
         struct type *t = (struct type *) current; \
@@ -1529,6 +1540,9 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UNUSED_
         break;
       case ELEMENT_KIND_QOS_POLICY_WRITERDATALIFECYCLE:
         ELEM_CLOSE_QOS_POLICY(WRITERDATALIFECYCLE, "Writer Data Life-cycle");
+        break;
+      case ELEMENT_KIND_QOS_POLICY_WRITERBATCHING:
+        ELEM_CLOSE_QOS_POLICY(WRITERBATCHING, "Writer Batching");
         break;
       case ELEMENT_KIND_QOS_POLICY_ENTITYFACTORY:
         //ELEM_CLOSE_QOS_POLICY(ENTITYFACTORY, "Entity factory");
@@ -1843,6 +1857,7 @@ QOS_PARAM_SET_NUMERIC_UNLIMITED(RESOURCELIMITS, MAX_INSTANCES, max_instances, in
 QOS_PARAM_SET_NUMERIC_UNLIMITED(RESOURCELIMITS, MAX_SAMPLES_PER_INSTANCE, max_samples_per_instance, int32)
 QOS_PARAM_SET_NUMERIC(TRANSPORTPRIORITY, VALUE, value, int32)
 QOS_PARAM_SET_BOOLEAN(WRITERDATALIFECYCLE, AUTODISPOSE_UNREGISTERED_INSTANCES, autodispose_unregistered_instances)
+QOS_PARAM_SET_BOOLEAN(WRITERBATCHING, BATCH_UPDATES, batch_updates)
 QOS_PARAM_SET_BASE64(GROUPDATA, VALUE, value, length)
 QOS_PARAM_SET_BASE64(TOPICDATA, VALUE, value, length)
 QOS_PARAM_SET_BASE64(USERDATA, VALUE, value, length)
@@ -2089,6 +2104,9 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
       break;
     case ELEMENT_KIND_QOS_POLICY_WRITERDATALIFECYCLE_AUTODISPOSE_UNREGISTERED_INSTANCES:
       QOS_PARAM_DATA (WRITERDATALIFECYCLE, AUTODISPOSE_UNREGISTERED_INSTANCES);
+      break;
+    case ELEMENT_KIND_QOS_POLICY_WRITERBATCHING_BATCH_UPDATES:
+      QOS_PARAM_DATA (WRITERBATCHING, BATCH_UPDATES);
       break;
     case ELEMENT_KIND_QOS_POLICY_USERDATA_VALUE:
       QOS_PARAM_DATA (USERDATA, VALUE);
@@ -2396,6 +2414,8 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_USERDATA, ELEMENT_KIND_QOS_POLICY_USERDATA, NO_INIT, fini_qos_userdata, pstate->current);
       else if (ddsrt_strcasecmp (name, "writer_data_lifecycle") == 0)
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_WRITERDATALIFECYCLE, ELEMENT_KIND_QOS_POLICY_WRITERDATALIFECYCLE, NO_INIT, NO_FINI, pstate->current);
+      else if (ddsrt_strcasecmp (name, "writer_batching") == 0)
+        CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_WRITERBATCHING, ELEMENT_KIND_QOS_POLICY_WRITERBATCHING, NO_INIT, NO_FINI, pstate->current);
 
       // QoS policy parameters
       else if (ddsrt_strcasecmp (name, "period") == 0)
@@ -2468,6 +2488,8 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
         CREATE_NODE_DURATION (pstate, dds_sysdef_qos_duration_property, ELEMENT_KIND_QOS_POLICY_TIMEBASEDFILTER_MINIMUM_SEPARATION, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_TIMEBASEDFILTER, pstate->current);
       else if (ddsrt_strcasecmp (name, "autodispose_unregistered_instances") == 0)
         CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_WRITERDATALIFECYCLE_AUTODISPOSE_UNREGISTERED_INSTANCES, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_WRITERDATALIFECYCLE, pstate->current);
+      else if (ddsrt_strcasecmp (name, "batch_updates") == 0)
+        CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_WRITERBATCHING_BATCH_UPDATES, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_WRITERBATCHING, pstate->current);
       else if (ddsrt_strcasecmp (name, "autoenable_created_entities") == 0)
         CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_ENTITYFACTORY_AUTOENABLE_CREATED_ENTITIES, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_ENTITYFACTORY, pstate->current);
       else if (ddsrt_strcasecmp (name, "kind") == 0)
