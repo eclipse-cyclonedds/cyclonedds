@@ -620,9 +620,8 @@ static dds_return_t xt_valid_struct_member_ids (struct ddsi_domaingv *gv, const 
     cnt += t1->_u.structure.members.length;
   if (cnt == 0 && !t->_u.structure.base_type)
   {
-    GVTRACE ("struct has no members\n");
-    ret = DDS_RETCODE_BAD_PARAMETER;
-    goto failed;
+    ret = DDS_RETCODE_OK;
+    goto empty;
   }
 
   DDS_XTypes_MemberId *ids = ddsrt_malloc (cnt * sizeof (*ids));
@@ -653,6 +652,7 @@ static dds_return_t xt_valid_struct_member_ids (struct ddsi_domaingv *gv, const 
 failed_duplicate:
   ddsrt_free (ids);
 failed:
+empty:
   return ret;
 }
 
