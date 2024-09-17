@@ -566,20 +566,21 @@ CU_Test (ddsc_dynamic_type, no_members, .init = dynamic_type_init, .fini = dynam
   // Struct without members
   dds_dynamic_type_t dstruct = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "t" });
   ret = dds_dynamic_type_register (&dstruct, &type_info);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  dds_free_typeinfo (type_info);
   dds_dynamic_type_unref (&dstruct);
 
   // Struct with basetype without members
   dds_dynamic_type_t dbasestruct = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "b" });
   dstruct = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "t", .base_type = DDS_DYNAMIC_TYPE_SPEC (dbasestruct) });
-  CU_ASSERT_EQUAL_FATAL (dstruct.ret, DDS_RETCODE_BAD_PARAMETER);
-  dds_dynamic_type_unref (&dbasestruct);
+  CU_ASSERT_EQUAL_FATAL (dstruct.ret, DDS_RETCODE_OK);
+  dds_dynamic_type_unref (&dstruct);
 
   // Struct with substruct without members
   dds_dynamic_type_t dsubstruct = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "s" });
   dstruct = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "t" });
   ret = dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER(dsubstruct, "m1"));
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
   dds_dynamic_type_unref (&dstruct);
 
   // Union without members
