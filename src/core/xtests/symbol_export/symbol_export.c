@@ -509,6 +509,9 @@ int main (int argc, char **argv)
   dds_stream_write_sampleLE (ptr, ptr2, ptr3, ptr4);
   dds_stream_write_sampleBE (ptr, ptr2, ptr3, ptr4);
 
+  dds_stream_getsize_sample (ptr, ptr, 0);
+  dds_stream_getsize_key (0, ptr, ptr, 0);
+
   dds_stream_read (ptr, ptr2, ptr3, ptr4);
   dds_stream_read_key (ptr, ptr2, ptr3, ptr4);
 
@@ -674,8 +677,8 @@ int main (int argc, char **argv)
   ddsi_sertype_typemap (ptr);
   ddsi_sertype_typeinfo (ptr);
   ddsi_sertype_derive_sertype (ptr, 0, tce);
-  ddsi_sertype_get_serialized_size (ptr, ptr);
-  ddsi_sertype_serialize_into (ptr, ptr, ptr, 0);
+  ddsi_sertype_get_serialized_size (ptr, SDK_DATA, ptr, ptr, ptr);
+  ddsi_sertype_serialize_into (ptr, SDK_DATA, ptr, ptr, 0);
 
   // ddsi_serdata.h
   ddsi_serdata_init (ptr, ptr, 0);

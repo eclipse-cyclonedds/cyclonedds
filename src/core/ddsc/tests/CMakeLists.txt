@@ -25,6 +25,7 @@ idlc_generate(TARGET CdrStreamOptimize FILES CdrStreamOptimize.idl WARNINGS no-i
 idlc_generate(TARGET CdrStreamSkipDefault FILES CdrStreamSkipDefault.idl)
 idlc_generate(TARGET CdrStreamKeySize FILES CdrStreamKeySize.idl)
 idlc_generate(TARGET CdrStreamKeyExt FILES CdrStreamKeyExt.idl)
+idlc_generate(TARGET CdrStreamChecking FILES CdrStreamChecking.idl)
 idlc_generate(TARGET SerdataData FILES SerdataData.idl)
 idlc_generate(TARGET PsmxDataModels FILES PsmxDataModels.idl WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET CdrStreamDataTypeInfo FILES CdrStreamDataTypeInfo.idl WARNINGS no-implicit-extensibility)
@@ -214,6 +215,7 @@ target_link_libraries(cunit_ddsc PRIVATE
   CdrStreamOptimize
   CdrStreamSkipDefault
   CdrStreamDataTypeInfo
+  CdrStreamChecking
   PsmxDataModels
   psmx_dummy
   DynamicData

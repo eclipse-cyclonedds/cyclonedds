@@ -25,12 +25,6 @@ extern "C" {
 struct ddsi_rdata;
 struct dds_loaned_sample;
 
-enum ddsi_serdata_kind {
-  SDK_EMPTY,
-  SDK_KEY,
-  SDK_DATA
-};
-
 struct ddsi_serdata {
   const struct ddsi_serdata_ops *ops; /* cached from type->serdata_ops */
   uint32_t hash;

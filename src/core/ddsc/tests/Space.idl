@@ -43,4 +43,19 @@ module Space {
     @key
     string              s;
   };
+
+  enum invalid_data_enum {
+    IDE0
+  };
+
+  bitmask invalid_data_bitmask {
+    IDB0
+  };
+
+  struct invalid_data {
+    sequence<octet, 1> o1;
+    @key invalid_data_enum e1;
+    @key invalid_data_bitmask bm1;
+    @key @external octet exto;
+  };
 };

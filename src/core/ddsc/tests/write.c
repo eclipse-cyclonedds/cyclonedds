@@ -14,6 +14,7 @@
 #include "RoundTrip.h"
 #include "Space.h"
 #include "test_oneliner.h"
+#include "test_util.h"
 
 #include "dds/dds.h"
 #include "dds/ddsrt/io.h"
@@ -36,7 +37,9 @@ setup(void)
 {
     participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(participant > 0);
-    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, "RoundTrip", NULL, NULL);
+    char topicname[100];
+    create_unique_topic_name ("RoundTrip", topicname, sizeof (topicname));
+    topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, topicname, NULL, NULL);
     CU_ASSERT_FATAL(topic > 0);
     publisher = dds_create_publisher(participant, NULL, NULL);
     CU_ASSERT_FATAL(publisher > 0);
@@ -149,7 +152,9 @@ CU_Test(ddsc_write, simpletypes)
 
     par = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(par > 0);
-    top = dds_create_topic(par, &Space_simpletypes_desc, "SimpleTypes", NULL, NULL);
+    char topicname[100];
+    create_unique_topic_name ("RoundTrip", topicname, sizeof (topicname));
+    top = dds_create_topic(par, &Space_simpletypes_desc, topicname, NULL, NULL);
     CU_ASSERT_FATAL(top > 0);
     wri = dds_create_writer(par, top, NULL, NULL);
     CU_ASSERT_FATAL(wri > 0);
@@ -164,32 +169,55 @@ CU_Test(ddsc_write, simpletypes)
 
 CU_Test(ddsc_write, invalid_data)
 {
+    const struct { Space_invalid_data x; bool invalidkey; } tests[] = {
+        {
+            .x = { .o1={._length=2, ._buffer=(uint8_t[]){1,2}}, .e1=(Space_invalid_data_enum)0, .bm1=0, .exto=&(uint8_t){0} },
+            .invalidkey = false
+        },
+        {
+            .x = { .o1={._length=1, ._buffer=NULL}, .e1=(Space_invalid_data_enum)0, .bm1=0, .exto=&(uint8_t){0} },
+            .invalidkey = false
+        },
+        {
+            .x = { .o1={._length=1, ._buffer=(uint8_t[]){1}}, .e1=(Space_invalid_data_enum)1, .bm1=0, .exto=&(uint8_t){0} },
+            .invalidkey = true
+        },
+        {
+            .x = { .o1 = {._length=1, ._buffer=(uint8_t[]){1}}, .e1=(Space_invalid_data_enum)0, .bm1=2, .exto=&(uint8_t){0} },
+            .invalidkey = true
+        },
+        {
+            .x = { .o1={._length=1, ._buffer=(uint8_t[]){1}}, .e1=(Space_invalid_data_enum)0, .bm1=0, .exto=NULL },
+            .invalidkey = true
+        },
+        {
+            .x = { .o1={._length=1, ._buffer=(uint8_t[]){1}}, .e1=(Space_invalid_data_enum)0, .bm1=0, .exto=NULL },
+            .invalidkey = true
+        }
+    };
     dds_return_t status;
     dds_entity_t par, top, wri;
-    Space_simpletypes st_data = {
-        .l = -1,
-        .ll = -1,
-        .us = 1,
-        .ul = 1,
-        .ull = 1,
-        .f = 1.0f,
-        .d = 1.0f,
-        .c = '1',
-        .b = true,
-        .o = 1,
-        .s = "This string is exactly so long that it would previously trigger CHAM-405. If this string is shortened exactly one character, all is well. Since it is fixed now, there doesn't need to be any further investigation."
-    };
-    memset (&st_data, 0xff, sizeof (st_data)); // make something invalid that the serialiser should reject
 
     par = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(par > 0);
-    top = dds_create_topic(par, &Space_simpletypes_desc, "SimpleTypes", NULL, NULL);
+    char topicname[100];
+    create_unique_topic_name ("RoundTrip", topicname, sizeof (topicname));
+    top = dds_create_topic(par, &Space_invalid_data_desc, topicname, NULL, NULL);
     CU_ASSERT_FATAL(top > 0);
     wri = dds_create_writer(par, top, NULL, NULL);
     CU_ASSERT_FATAL(wri > 0);
 
-    status = dds_write(wri, &st_data);
-    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
+    for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+    {
+        status = dds_write(wri, &tests[i].x);
+        CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
+
+        if (tests[i].invalidkey)
+        {
+            status = dds_dispose(wri, &tests[i].x);
+            CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
+        }
+    }
 
     dds_delete(wri);
     dds_delete(top);

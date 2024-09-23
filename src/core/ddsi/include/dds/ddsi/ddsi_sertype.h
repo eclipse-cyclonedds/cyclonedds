@@ -32,6 +32,12 @@ struct ddsi_domaingv;
 struct ddsi_typeid;
 struct ddsi_type_pair;
 
+enum ddsi_serdata_kind {
+  SDK_EMPTY,
+  SDK_KEY,
+  SDK_DATA
+};
+
 #define DDSI_SERTYPE_REGISTERING 0x40000000u // set prior to setting gv
 #define DDSI_SERTYPE_REGISTERED  0x80000000u // set after setting gv
 #define DDSI_SERTYPE_REFC_MASK   0x0fffffffu
@@ -107,19 +113,14 @@ typedef void (*ddsi_sertype_free_samples_t) (const struct ddsi_sertype *d, void 
 /* Gets the type identifier of the requested kind (minimal or complete) for this sertype */
 typedef ddsi_typeid_t * (*ddsi_sertype_typeid_t) (const struct ddsi_sertype *tp, ddsi_typeid_kind_t kind);
 
-/* Compute the serialized size based on the sertype information and the sample */
-// Note: size_t maximum is reserved as error value
-typedef size_t (*ddsi_sertype_get_serialized_size_t)(
-    const struct ddsi_sertype *d, const void *sample);
+/* Compute the (unpadded) size of the CDR based on the sertype information and the sample (plus used encoding) */
+typedef dds_return_t (*ddsi_sertype_get_serialized_size_t) (const struct ddsi_sertype *tp, enum ddsi_serdata_kind sdkind, const void *sample, size_t *size, uint16_t *enc_identifier);
 
 /* Serialize into a destination buffer */
 // Note that we assume the destination buffer is large enough (we do not necessarily check)
 // The required size can be obtained with ddsi_sertype_get_serialized_size_t
 // Returns true if the serialization succeeds, false otherwise.
-typedef bool (*ddsi_sertype_serialize_into_t)(const struct ddsi_sertype *d,
-                                              const void *sample,
-                                              void *dst_buffer,
-                                              size_t dst_size);
+typedef bool (*ddsi_sertype_serialize_into_t)(const struct ddsi_sertype *d, enum ddsi_serdata_kind sdkind, const void *sample, void *dst_buffer, size_t dst_size);
 
 /* Gets the type map for this sertype */
 typedef ddsi_typemap_t * (*ddsi_sertype_typemap_t) (const struct ddsi_sertype *tp);
@@ -283,13 +284,13 @@ DDS_INLINE_EXPORT inline struct ddsi_sertype * ddsi_sertype_derive_sertype (cons
 }
 
 /** @component typesupport_if */
-DDS_INLINE_EXPORT inline size_t ddsi_sertype_get_serialized_size(const struct ddsi_sertype *tp, const void *sample) {
-  return tp->ops->get_serialized_size(tp, sample);
+DDS_INLINE_EXPORT inline dds_return_t ddsi_sertype_get_serialized_size(const struct ddsi_sertype *tp, enum ddsi_serdata_kind sdkind, const void *sample, size_t *size, uint16_t *enc_identifier) {
+  return tp->ops->get_serialized_size(tp, sdkind, sample, size, enc_identifier);
 }
 
 /** @component typesupport_if */
-DDS_INLINE_EXPORT inline bool ddsi_sertype_serialize_into(const struct ddsi_sertype *tp, const void *sample, void *dst_buffer, size_t dst_size) {
-  return tp->ops->serialize_into(tp, sample, dst_buffer, dst_size);
+DDS_INLINE_EXPORT inline bool ddsi_sertype_serialize_into(const struct ddsi_sertype *tp, enum ddsi_serdata_kind sdkind, const void *sample, void *dst_buffer, size_t dst_size) {
+  return tp->ops->serialize_into(tp, sdkind, sample, dst_buffer, dst_size);
 }
 
 #if defined (__cplusplus)

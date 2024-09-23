@@ -214,39 +214,31 @@ static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_s
   return (struct ddsi_sertype *) derived_sertype;
 }
 
-// move to cdr_stream?
-static dds_ostream_t ostream_from_buffer(void *buffer, size_t size, uint16_t write_encoding_version)
+static dds_return_t sertype_default_get_serialized_size (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind sdkind, const void *sample, size_t *size, uint16_t *enc_identifier)
 {
-  dds_ostream_t os;
-  os.m_buffer = buffer;
-  os.m_size = (uint32_t) size;
-  os.m_index = 0;
-  os.m_xcdr_version = write_encoding_version;
-  return os;
+  const struct dds_sertype_default *tp = (const struct dds_sertype_default *) tpcmn;
+  if (sdkind == SDK_KEY)
+    *size = dds_stream_getsize_key (DDS_CDR_KEY_SERIALIZATION_SAMPLE, sample, &tp->type, tp->write_encoding_version);
+  else
+    *size = dds_stream_getsize_sample (sample, &tp->type, tp->write_encoding_version);
+  *enc_identifier = ddsi_sertype_get_native_enc_identifier (tp->write_encoding_version, tp->encoding_format);
+  return DDS_RETCODE_OK;
 }
 
-// placeholder implementation
-// TODO: implement efficiently (we now actually serialize to get the size)
-//       This is similar to serializing but instead counting bytes instead of writing
-//       data to a stream.
-//       This should be (almost...) O(1), there may be issues with
-//       sequences of nontrivial types where it will depend on the number of elements.
-static size_t sertype_default_get_serialized_size (const struct ddsi_sertype *type, const void *sample)
+static bool sertype_default_serialize_into (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind sdkind, const void *sample, void *dst_buffer, size_t dst_size)
 {
-  // We do not count the CDR header here.
-  struct ddsi_serdata *serdata = ddsi_serdata_from_sample(type, SDK_DATA, sample);
-  if (serdata == NULL)
-    return SIZE_MAX;
-  size_t serialized_size = ddsi_serdata_size(serdata) - sizeof(struct dds_cdr_header);
-  ddsi_serdata_unref(serdata);
-  return serialized_size;
-}
-
-static bool sertype_default_serialize_into (const struct ddsi_sertype *type, const void *sample, void* dst_buffer, size_t dst_size)
-{
-  const struct dds_sertype_default *type_default = (const struct dds_sertype_default *)type;
-  dds_ostream_t os = ostream_from_buffer(dst_buffer, dst_size, type_default->write_encoding_version);
-  return dds_stream_write_sample(&os, &dds_cdrstream_default_allocator, sample, &type_default->type);
+  static const struct dds_cdrstream_allocator no_allocator = { NULL, NULL, NULL };
+  const struct dds_sertype_default *tp = (const struct dds_sertype_default *) tpcmn;
+  dds_ostream_t os = {
+    .m_buffer = dst_buffer,
+    .m_size = (uint32_t) dst_size,
+    .m_index = 0,
+    .m_xcdr_version = tp->write_encoding_version
+  };
+  if (sdkind == SDK_KEY)
+    return dds_stream_write_key (&os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &no_allocator, sample, &tp->type);
+  else
+    return dds_stream_write_sample (&os, &no_allocator, sample, &tp->type);
 }
 
 const struct ddsi_sertype_ops dds_sertype_ops_default = {

@@ -831,7 +831,13 @@ static dds_return_t ser_type_information (struct ddsi_xmsg *xmsg, ddsi_parameter
   ddsi_typeinfo_t const * const * x = deser_generic_src (src, &srcoff, plist_alignof (ddsi_typeinfo_t *));
 
   dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
-  (void) dds_stream_write_with_byte_order (&os, &dds_cdrstream_default_allocator, (const void *) *x, DDS_XTypes_TypeInformation_desc.m_ops, bo);
+  if (!dds_stream_write_with_byte_order (&os, &dds_cdrstream_default_allocator, (const void *) *x, DDS_XTypes_TypeInformation_desc.m_ops, bo))
+  {
+    // There are two possible errors from serializing: bad input and running out of
+    // memory.  The input here is generated internally and can be assumed to be valid.
+    dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  }
   char * const p = ddsi_xmsg_addpar_bo (xmsg, pid, os.m_index, bo);
   memcpy (p, os.m_buffer, os.m_index);
   dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
