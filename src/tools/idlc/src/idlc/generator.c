@@ -162,10 +162,15 @@ int idlc_load_generator(idlc_generator_plugin_t *plugin, const char *lang)
         the python cyclonedds package has a __idlc__ module that prints the path when executed. The
         'python3' executable is always guaranteed to point to the active python so we always get the
         correct idlpy library.
+
+        On Windows there is no "python3.exe", the windows python installer always creates "python.exe",
+        so we simply try again with "python".
    */
   if (idl_strcasecmp(lang, "py") == 0) {
     if (run_library_locator("python3 -m cyclonedds.__idlc__", &file) != 0) {
-      return -1;
+      if (run_library_locator("python -m cyclonedds.__idlc__", &file) != 0) {
+        return -1;
+      }
     }
     path = (const char*) file;
   }
