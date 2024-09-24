@@ -283,10 +283,10 @@ static dds_return_t add_peer_address_ports (struct spdp_admin *adm, ddsi_locator
 
   GVLOG (DDS_LC_CONFIG, "add_peer_address: add %s", ddsi_locator_to_string (buf, sizeof (buf), loc));
   rc = add_peer_address_ports_interface (adm, loc, prune_delay);
-  for (int32_t i = 1; i < maxidx && rc == DDS_RETCODE_OK; i++)
+  for (int32_t i = 1; i <= maxidx && rc == DDS_RETCODE_OK; i++)
   {
     ddsi_tran_set_locator_port (tran, loc, ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, i));
-    if (i + 1 == maxidx)
+    if (i == maxidx)
       GVLOG (DDS_LC_CONFIG, " ... :%"PRIu32, loc->port);
     rc = add_peer_address_ports_interface (adm, loc, prune_delay);
   }
