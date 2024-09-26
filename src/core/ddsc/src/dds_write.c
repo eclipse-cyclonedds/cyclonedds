@@ -455,82 +455,6 @@ static dds_return_t dds_write_impl_deliver_via_ddsi (struct ddsi_thread_state * 
   return ret;
 }
 
-dds_return_t dds_request_writer_loan (dds_writer *wr, enum dds_writer_loan_type loan_type, uint32_t sz, void **sample)
-{
-  dds_return_t ret = DDS_RETCODE_ERROR;
-
-  ddsrt_mutex_lock (&wr->m_entity.m_mutex);
-  // We don't bother the PSMX interface with types that contain pointers, but we do
-  // support the programming model of borrowing memory first via the "heap" loans.
-  //
-  // One should expect the latter performance to be worse than the a plain write.
-  // FIXME: allow multiple psmx instances
-  assert (wr->m_endpoint.psmx_endpoints.length <= 1);
-
-  dds_loaned_sample_t *loan = NULL;
-  switch (loan_type)
-  {
-    case DDS_WRITER_LOAN_RAW:
-      if (wr->m_endpoint.psmx_endpoints.length > 0)
-      {
-        if ((loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], sz)) != NULL)
-          ret = DDS_RETCODE_OK;
-      }
-      break;
-
-    case DDS_WRITER_LOAN_REGULAR:
-      if (wr->m_endpoint.psmx_endpoints.length > 0 && wr->m_topic->m_stype->is_memcpy_safe)
-      {
-        if ((loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], wr->m_topic->m_stype->sizeof_type)) != NULL)
-          ret = DDS_RETCODE_OK;
-      }
-      else
-        ret = dds_heap_loan (wr->m_topic->m_stype, DDS_LOANED_SAMPLE_STATE_UNITIALIZED, &loan);
-      break;
-  }
-
-  if (ret == DDS_RETCODE_OK)
-  {
-    assert (loan != NULL);
-    if ((ret = dds_loan_pool_add_loan (wr->m_loans, loan)) != DDS_RETCODE_OK)
-      dds_loaned_sample_unref (loan);
-    else
-      *sample = loan->sample_ptr;
-  }
-  ddsrt_mutex_unlock (&wr->m_entity.m_mutex);
-  return ret;
-}
-
-dds_return_t dds_return_writer_loan (dds_writer *wr, void **samples_ptr, int32_t n_samples)
-{
-  dds_return_t ret = DDS_RETCODE_OK;
-  ddsrt_mutex_lock (&wr->m_entity.m_mutex);
-  for (int32_t i = 0; i < n_samples && samples_ptr[i] != NULL; i++)
-  {
-    dds_loaned_sample_t * const loan = dds_loan_pool_find_and_remove_loan (wr->m_loans, samples_ptr[i]);
-    if (loan != NULL)
-    {
-      dds_loaned_sample_unref (loan);
-      samples_ptr[i] = NULL;
-    }
-    else if (i == 0)
-    {
-      // match reader version of the loan: if first entry is bogus, abort with
-      // precondition not met ...
-      ret = DDS_RETCODE_PRECONDITION_NOT_MET;
-      break;
-    }
-    else
-    {
-      // ... if any other entry is bogus, continue releasing loans and return
-      // bad parameter
-      ret = DDS_RETCODE_BAD_PARAMETER;
-    }
-  }
-  ddsrt_mutex_unlock (&wr->m_entity.m_mutex);
-  return ret;
-}
-
 ddsrt_nonnull_all
 static bool dds_write_impl_use_only_psmx (dds_writer *wr)
 {
@@ -578,56 +502,6 @@ static dds_return_t dds_write_impl_deliver_via_psmx (struct dds_loaned_sample *l
   return ret;
 }
 
-ddsrt_nonnull_all
-static void dds_write_impl_set_loan_writeinfo (const struct dds_writer *wr, struct dds_loaned_sample *loan, dds_time_t timestamp, uint32_t statusinfo)
-{
-  assert (loan->metadata->sample_state != DDS_LOANED_SAMPLE_STATE_UNITIALIZED);
-  struct dds_psmx_metadata *md = loan->metadata;
-  memcpy (&md->guid, &wr->m_entity.m_guid, sizeof (md->guid));
-  md->timestamp = timestamp;
-  md->statusinfo = statusinfo;
-}
-
-ddsrt_attribute_warn_unused_result  ddsrt_nonnull_all
-static struct dds_loaned_sample *dds_write_impl_make_raw_loan (const struct dds_writer *wr, const void *data, enum ddsi_serdata_kind sdkind, dds_time_t timestamp, uint32_t statusinfo)
-{
-  struct ddsi_sertype const * const sertype = wr->m_wr->type;
-  assert (sertype->is_memcpy_safe);
-  assert (wr->m_endpoint.psmx_endpoints.length == 1); // FIXME: support multiple PSMX instances
-  struct dds_loaned_sample * const loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], sertype->sizeof_type);
-  if (loan == NULL)
-    return NULL;
-  struct dds_psmx_metadata * const md = loan->metadata;
-  md->sample_state = (sdkind == SDK_KEY) ? DDS_LOANED_SAMPLE_STATE_RAW_KEY : DDS_LOANED_SAMPLE_STATE_RAW_DATA;
-  md->cdr_identifier = DDSI_RTPS_SAMPLE_NATIVE;
-  md->cdr_options = 0;
-  if (sdkind == SDK_DATA || sertype->has_key)
-    memcpy (loan->sample_ptr, data, sertype->sizeof_type);
-  dds_write_impl_set_loan_writeinfo (wr, loan, timestamp, statusinfo);
-  return loan;
-}
-
-ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
-static struct dds_loaned_sample *dds_write_impl_make_serialized_loan (const struct dds_writer *wr, const struct ddsi_serdata *sd)
-{
-  assert (wr->m_endpoint.psmx_endpoints.length == 1); // FIXME: support multiple PSMX instances
-  assert (ddsi_serdata_size (sd) >= 4);
-  const uint32_t loan_size = ddsi_serdata_size (sd) - 4;
-  struct dds_loaned_sample * const loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], loan_size);
-  if (loan == NULL)
-    return NULL;
-  struct dds_psmx_metadata * const md = loan->metadata;
-  md->sample_state = (sd->kind == SDK_KEY) ? DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY : DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA;
-  struct { uint16_t identifier, options; } header;
-  ddsi_serdata_to_ser (sd, 0, 4, &header);
-  md->cdr_identifier = header.identifier;
-  md->cdr_options = header.options;
-  if (loan_size > 0)
-    ddsi_serdata_to_ser (sd, 4, loan_size, loan->sample_ptr);
-  dds_write_impl_set_loan_writeinfo (wr, loan, sd->timestamp.v, sd->statusinfo);
-  return loan;
-}
-
 ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
 static struct dds_loaned_sample *dds_write_impl_serialize_into_loan (const struct dds_writer *wr, const struct ddsi_sertype *sertype, enum ddsi_serdata_kind sdkind, const void *data, dds_time_t timestamp, uint32_t statusinfo)
 {
@@ -646,7 +520,7 @@ static struct dds_loaned_sample *dds_write_impl_serialize_into_loan (const struc
   md->cdr_identifier = enc_identifier;
   md->cdr_options = ddsrt_toBE2u ((uint16_t) (loan_size_padded - loan_size_unpadded));
   ddsi_sertype_serialize_into (sertype, sdkind, data, loan->sample_ptr, loan_size_unpadded);
-  dds_write_impl_set_loan_writeinfo (wr, loan, timestamp, statusinfo);
+  dds_psmx_set_loan_writeinfo (loan, &wr->m_entity.m_guid, timestamp, statusinfo);
   return loan;
 }
 
@@ -683,7 +557,7 @@ static dds_return_t dds_write_impl_psmxloan_serdata (struct dds_writer *wr, cons
     md->sample_state = (sdkind == SDK_KEY) ? DDS_LOANED_SAMPLE_STATE_RAW_KEY : DDS_LOANED_SAMPLE_STATE_RAW_DATA;
     md->cdr_identifier = DDSI_RTPS_SAMPLE_NATIVE;
     md->cdr_options = 0;
-    dds_write_impl_set_loan_writeinfo (wr, loan, timestamp, statusinfo);
+    dds_psmx_set_loan_writeinfo (loan, &wr->m_entity.m_guid, timestamp, statusinfo);
     switch (loan->loan_origin.origin_kind)
     {
       case DDS_LOAN_ORIGIN_KIND_PSMX:
@@ -745,7 +619,7 @@ static dds_return_t dds_write_impl_psmxloan_serdata (struct dds_writer *wr, cons
             // data because being out of memory is exceedingly unlikely on decent platforms
             return DDS_RETCODE_BAD_PARAMETER;
           }
-          *psmx_loan = dds_write_impl_make_serialized_loan (wr, *serdata);
+          *psmx_loan = dds_writer_psmx_loan_from_serdata (wr, *serdata);
           if (*psmx_loan == NULL)
           {
             ddsi_serdata_unref (*serdata);
@@ -761,7 +635,7 @@ static dds_return_t dds_write_impl_psmxloan_serdata (struct dds_writer *wr, cons
     assert (wr->m_endpoint.psmx_endpoints.length == 1); // FIXME: support multiple PSMX instances
     *serdata = NULL;
     if (sertype->is_memcpy_safe)
-      *psmx_loan = dds_write_impl_make_raw_loan (wr, data, sdkind, timestamp, statusinfo);
+      *psmx_loan = dds_writer_psmx_loan_raw (wr, data, sdkind, timestamp, statusinfo);
     else
       *psmx_loan = dds_write_impl_serialize_into_loan (wr, sertype, sdkind, data, timestamp, statusinfo);
     return (*psmx_loan != NULL) ? DDS_RETCODE_OK : DDS_RETCODE_OUT_OF_RESOURCES;
@@ -784,9 +658,9 @@ static dds_return_t dds_write_impl_psmxloan_serdata (struct dds_writer *wr, cons
     {
       assert (wr->m_endpoint.psmx_endpoints.length == 1); // FIXME: support multiple PSMX instances
       if (sertype->is_memcpy_safe)
-        *psmx_loan = dds_write_impl_make_raw_loan (wr, data, sdkind, timestamp, statusinfo);
+        *psmx_loan = dds_writer_psmx_loan_raw (wr, data, sdkind, timestamp, statusinfo);
       else
-        *psmx_loan = dds_write_impl_make_serialized_loan (wr, *serdata);
+        *psmx_loan = dds_writer_psmx_loan_from_serdata (wr, *serdata);
       if (*psmx_loan == NULL)
       {
         ddsi_serdata_unref (*serdata);

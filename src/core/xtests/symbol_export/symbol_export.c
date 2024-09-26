@@ -91,6 +91,7 @@
 #include "dds/cdr/dds_cdrstream.h"
 
 #include "dds__write.h"
+#include "dds__writer.h"
 #include "dds__entity.h"
 #include "dds__sysdef_parser.h"
 
@@ -1166,6 +1167,10 @@ int main (int argc, char **argv)
   // dds__write.h
   dds_write_impl (ptr, ptr, 0, (dds_write_action) 0);
   dds_writecdr_impl (ptr, ptr, ptr, false);
+
+  // dds__writer.h
+  dds_writer_psmx_loan_raw (ptr, ptr2, 0, 0, 0);
+  dds_writer_psmx_loan_from_serdata (ptr, ptr2);
 
   // dds__entity.h
   dds_entity_pin (0, ptr);

@@ -552,3 +552,12 @@ dds_return_t dds_request_loan_of_size (dds_entity_t writer, size_t size, void **
   dds_entity_unpin (e);
   return ret;
 }
+
+void dds_psmx_set_loan_writeinfo (struct dds_loaned_sample *loan, const ddsi_guid_t *wr_guid, dds_time_t timestamp, uint32_t statusinfo)
+{
+  assert (loan->metadata->sample_state != DDS_LOANED_SAMPLE_STATE_UNITIALIZED);
+  struct dds_psmx_metadata *md = loan->metadata;
+  memcpy (&md->guid, wr_guid, sizeof (md->guid));
+  md->timestamp = timestamp;
+  md->statusinfo = statusinfo;
+}
