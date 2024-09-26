@@ -73,4 +73,16 @@ void dds_psmx_locators_set_free (struct ddsi_psmx_locators_set *psmx_locators_se
 dds_loaned_sample_t * dds_psmx_endpoint_request_loan (struct dds_psmx_endpoint *psmx_endpoint, uint32_t sz)
   ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
+
+/**
+ * @brief Sets the writer info parameters in a loaned sample
+ *
+ * @param loan The loaned sample to set the parameters for
+ * @param wr_guid Writer GUID
+ * @param timestamp Timestamp
+ * @param statusinfo Statusinfo value
+ */
+void dds_psmx_set_loan_writeinfo (struct dds_loaned_sample *loan, const ddsi_guid_t *wr_guid, dds_time_t timestamp, uint32_t statusinfo)
+  ddsrt_nonnull_all;
+
 #endif // DDS__PSMX_H
