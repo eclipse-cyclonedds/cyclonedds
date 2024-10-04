@@ -540,10 +540,10 @@ static void encode_serialized_payload_check(uint32_t key_size, bool encrypted)
   DDS_Security_boolean result;
   DDS_Security_DatawriterCryptoHandle writer_crypto;
   DDS_Security_SecurityException exception = {NULL, 0, 0};
-  DDS_Security_OctetSeq encoded_buffer = {0, 0, NULL};
-  DDS_Security_OctetSeq extra_inline_qos;
-  DDS_Security_OctetSeq encoded_payload;
-  DDS_Security_OctetSeq plain_buffer;
+  DDS_Security_OctetSeq encoded_buffer    = {0, 0, NULL};
+  DDS_Security_OctetSeq extra_inline_qos  = {0, 0, NULL};
+  DDS_Security_OctetSeq encoded_payload   = {0, 0, NULL};
+  DDS_Security_OctetSeq plain_buffer      = {0, 0, NULL};
   session_key_material *session_keys;
   struct crypto_header *header = NULL;
   struct crypto_footer *footer = NULL;
@@ -553,8 +553,6 @@ static void encode_serialized_payload_check(uint32_t key_size, bool encrypted)
   CU_ASSERT_FATAL(crypto != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform != NULL);
   CU_ASSERT_FATAL(crypto->crypto_transform->encode_serialized_payload != NULL);
-
-  memset(&extra_inline_qos, 0, sizeof(extra_inline_qos));
 
   length = strlen(SAMPLE_TEST_DATA) + 1;
   plain_buffer._length = plain_buffer._maximum = (uint32_t) length;
