@@ -40,7 +40,7 @@ module CdrStreamChecking {
   // union over boolean: must correctly map !=0 to case true
   // use t7x for constructing sample
   @nested @final union u7 switch (boolean) {
-    case true: octet c1;
+    case true: boolean c1;
   };
   @final struct t7 { u7 f1; };
   @nested @final union u7x switch (octet) {
