@@ -1038,6 +1038,10 @@ static dds_return_t add_type_info_hash_deps_r (struct ddsi_domaingv *gv, const d
 
       case DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE:
         break;
+
+      case DDSI_TYPEID_KIND_INVALID:
+        ret = DDS_RETCODE_BAD_PARAMETER;
+        break;
     }
   }
   ddsi_typeid_fini (&tmpl.src_type_id);
@@ -1151,6 +1155,10 @@ static dds_return_t add_type_map_hash_deps_r (struct ddsi_domaingv *gv, const dd
         break;
 
       case DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE:
+        break;
+
+      case DDSI_TYPEID_KIND_INVALID:
+        ret = DDS_RETCODE_BAD_PARAMETER;
         break;
     }
   }

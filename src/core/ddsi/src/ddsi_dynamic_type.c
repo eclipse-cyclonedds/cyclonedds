@@ -145,6 +145,7 @@ static dds_return_t dynamic_type_complete_locked (struct ddsi_type **type)
       {
         (*type)->state = DDSI_TYPE_RESOLVED;
         (*type)->xt.kind = ddsi_typeid_kind (&(*type)->xt.id);
+        assert ((*type)->xt.kind != DDSI_TYPEID_KIND_INVALID); // internally generated, so must be valid
       }
     }
   }
