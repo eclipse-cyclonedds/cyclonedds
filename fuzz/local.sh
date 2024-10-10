@@ -2,7 +2,7 @@
 
 # Local build
 #
-# sudo apt install clang libfuzzer-14-dev (replace 14 with clang version)
+# sudo apt install clang libfuzzer-18-dev (replace 18 with clang version)
 
 err=
 if [ ! -f ../src/core/ddsi/src/ddsi_receive.c -o ! -d ../fuzz ] ; then
@@ -26,7 +26,7 @@ set -ex
 # absl/utf8_range/protobuf horrors any more than this
 if [ ! -d ../LPM ] ; then
     [ ! -d ../libprotobuf-mutator ] && \
-         git clone --depth 1 https://github.com/google/libprotobuf-mutator.git
+         git clone --depth 1 https://github.com/google/libprotobuf-mutator.git ../libprotobuf-mutator
     mkdir ../LPM
     (cd ../LPM && \
          cmake ../libprotobuf-mutator -GNinja \
@@ -47,7 +47,7 @@ python3 "../fuzz/fuzz_sample_deser/generate_idl.py" $SEED "../fuzz/fuzz_sample_d
 
 export CC=clang
 export CXX=clang++
-export LIB_FUZZING_ENGINE=/usr/lib/llvm-14/lib/libFuzzer.a
+export LIB_FUZZING_ENGINE=/usr/lib/llvm-18/lib/libFuzzer.a
 
 cmake -G Ninja \
       -DSANITIZER=address,undefined,fuzzer \
