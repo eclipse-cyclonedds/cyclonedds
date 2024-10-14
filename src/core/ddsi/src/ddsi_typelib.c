@@ -184,8 +184,6 @@ bool ddsi_typeinfo_valid (const ddsi_typeinfo_t *typeinfo)
 {
   const ddsi_typeid_t *tid_min = ddsi_typeinfo_minimal_typeid (typeinfo);
   const ddsi_typeid_t *tid_compl = ddsi_typeinfo_complete_typeid (typeinfo);
-  if (tid_min == NULL || tid_compl == NULL)
-    return false;
   // Based on DDS XTypes 1.3 7.6.3.2.1, one would think the minimal/complete part may contain
   // only MINIMAL/COMPLETE hash identifiers. However, it also says:
   //
@@ -198,9 +196,8 @@ bool ddsi_typeinfo_valid (const ddsi_typeinfo_t *typeinfo)
   // which suggests we should also allow TI_STRONG_COMPONENT.  I think that means there is no
   // way of knowing whether that then refers to a minimal or a complete type ...  In any case,
   // Cyclone doesn't yet support TI_STRONG_COMPONENT, so we can (for now) reject it.
-  if (tid_min->x._d != DDS_XTypes_EK_MINIMAL || tid_compl->x._d != DDS_XTypes_EK_COMPLETE)
-    return false;
-  return (typeinfo_dependent_typeids_valid (&typeinfo->x.minimal, DDSI_TYPEID_KIND_MINIMAL) &&
+  return (ddsi_typeid_is_minimal (tid_min) && ddsi_typeid_is_complete (tid_compl) &&
+          typeinfo_dependent_typeids_valid (&typeinfo->x.minimal, DDSI_TYPEID_KIND_MINIMAL) &&
           typeinfo_dependent_typeids_valid (&typeinfo->x.complete, DDSI_TYPEID_KIND_COMPLETE));
 }
 
