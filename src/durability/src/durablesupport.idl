@@ -1,0 +1,98 @@
+module DurableSupport {
+  /********************
+   * Generic
+   ********************/
+
+  /* generic typedef to identify ds services and writers; GUID compatible */
+  typedef octet id_t[16];
+
+  @appendable
+  struct status {
+    @key id_t id;       /* system wide unique service identifier */
+    string hostname;    /* name of the host where this ds is deployed */
+    string name;        /* human readable and user defined identification */
+  };
+
+  /********************
+   * Durable client
+   *
+   * The following topics definitions specify the delivery topics used
+   * for communication between a durarable service and a user application
+   * (client). The following topics are defined:
+   *
+   * - request    message send by a user application to a durable service.
+   *              message to indicate that the user application requests delivery
+   *              of historical data from a durable service to the user application.
+   *              Typically, such request is done by an aplication reader that
+   *              hat is interested in historical data.
+   * - response   message send by a durable service to deliver historical data
+   *              to a user application. Typically, a durable service sends a
+   *              a stream of beads to a user application to provide the requested
+   *              data. There are 3 types of responses:
+   *              - set response:    indicates the delivery start or delivery end of
+   *                                 data set
+   *              - data response:   indicates delivery of historical data
+   *              - reader response: indicates that all available historical data for
+   *                                 a reader has been provided; signals that reader
+   *                                 can return from dds_wait_for_historical_data().
+   ********************/
+
+  /* duration */
+  typedef long long duration_t;
+
+  /* Type discriminator for responses */
+  typedef unsigned short responsetype_t;
+
+  /* delivery id to identify the delivery session */
+  typedef unsigned long long delivery_id_t;
+
+  @appendable @nested
+  struct request_key {
+    id_t rguid;            /* the guid of the reader */
+  };
+
+  @appendable
+  struct request {
+    @key request_key key;  /* the key of the request topic */
+    id_t client;           /* the client expressing interest in historical data for this reader */
+    duration_t timeout;    /* optional maximum duration the client issuing the request expects to start receiving an answer. */
+  };
+
+  /* List of supported response types */
+  const responsetype_t RESPONSETYPE_SET = 1;
+  const responsetype_t RESPONSETYPE_READER = 2;
+  const responsetype_t RESPONSETYPE_DATA = 3;
+
+  @appendable @nested
+  struct response_set_t {
+    delivery_id_t delivery_id;  /* identification of the delivery; increases monotonically per set */
+    sequence<id_t> guids;  /* the reader guids for which this set is intended */
+    string partition;   /* partition of this set */
+    string tpname;   /* topic name of this set */
+    string type_id;  /* type identification of this set */
+    unsigned long flags;  /* flags for this set */
+  };
+
+  @appendable @nested
+  struct response_reader_t {
+    id_t rguid;  /* guid of the reader that has become complete */
+  };
+
+  @appendable @nested
+  struct response_data_t {
+    sequence<octet> blob;
+  };
+
+  @appendable @nested
+  union response_content switch (responsetype_t) {
+    case RESPONSETYPE_SET : response_set_t set;
+    case RESPONSETYPE_READER : response_reader_t reader;
+    case RESPONSETYPE_DATA: response_data_t data;
+  };
+
+  @appendable
+  struct response {
+    @key id_t id;       /* identification of the ds that produces this response */
+    response_content body;
+  };
+};

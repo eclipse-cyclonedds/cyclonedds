@@ -22,6 +22,12 @@ function(PREPEND var prefix)
   set(${var} "${listVar}" PARENT_SCOPE)
 endfunction()
 
+# Durable support is currently under development (beta).
+# Therefore it is disabled by default. To enable durable support
+# in CycloneDDS use the build option '-DENABLE_DURABILITY' 
+# when building CycloneDDS
+
+option(ENABLE_DURABILITY "Enable Durable support" OFF)
 option(ENABLE_SECURITY "Enable OMG DDS Security support" ON)
 option(ENABLE_LIFESPAN "Enable Lifespan QoS support" ON)
 option(ENABLE_DEADLINE_MISSED "Enable Deadline Missed QoS support" ON)
@@ -126,3 +132,7 @@ if(ENABLE_ICEORYX)
   add_subdirectory(psmx_iox)
 endif()
 add_subdirectory(core)
+if(ENABLE_DURABILITY)
+  message(STATUS "Building with Durable support")
+  add_subdirectory(durability)
+endif()

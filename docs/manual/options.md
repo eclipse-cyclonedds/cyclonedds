@@ -6,7 +6,7 @@ CycloneDDS configuration
 
 ## //CycloneDDS/Domain
 Attributes: [Id](#cycloneddsdomainid)
-Children: [Compatibility](#cycloneddsdomaincompatibility), [Discovery](#cycloneddsdomaindiscovery), [General](#cycloneddsdomaingeneral), [Internal](#cycloneddsdomaininternal), [Partitioning](#cycloneddsdomainpartitioning), [SSL](#cycloneddsdomainssl), [Security](#cycloneddsdomainsecurity), [SharedMemory](#cycloneddsdomainsharedmemory), [Sizing](#cycloneddsdomainsizing), [TCP](#cycloneddsdomaintcp), [Threads](#cycloneddsdomainthreads), [Tracing](#cycloneddsdomaintracing)
+Children: [Compatibility](#cycloneddsdomaincompatibility), [Discovery](#cycloneddsdomaindiscovery), [Durability](#cycloneddsdomaindurability), [General](#cycloneddsdomaingeneral), [Internal](#cycloneddsdomaininternal), [Partitioning](#cycloneddsdomainpartitioning), [SSL](#cycloneddsdomainssl), [Security](#cycloneddsdomainsecurity), [SharedMemory](#cycloneddsdomainsharedmemory), [Sizing](#cycloneddsdomainsizing), [TCP](#cycloneddsdomaintcp), [Threads](#cycloneddsdomainthreads), [Tracing](#cycloneddsdomaintracing)
 
 The General element specifying Domain related settings.
 
@@ -256,6 +256,24 @@ Text
 String extension for domain id that remote participants must match to be discovered.
 
 The default value is: `<empty>`
+
+
+### //CycloneDDS/Domain/Durability
+Children: [Quorum](#cycloneddsdomaindurabilityquorum)
+
+This element specifies settings related to durable data.
+
+
+#### //CycloneDDS/Domain/Durability/Quorum
+Integer
+
+This element specifies the minimum number of durable services that must be available before a durable writer can successfully publish durable data. The value must be equal or higher to 1 to ensure that there is at least one durable service present in the network that can receive the durable data and make it available to late joiners. By specifying a number higher than 1, additional fault tolerance can be achieved.
+
+As long as the number of available durable services drops below the specified quorum, durable writers will not be able to publish durable data. Any attempt to do so by calling dds\_write() (or one of its variants) will return DDS\_RETCODE\_TIMEOUT if the quorum is not reached within the configured max\_blocking\_time.
+
+The default quorum value is set to 1.
+
+The default value is: `1`
 
 
 ### //CycloneDDS/Domain/General
@@ -1809,7 +1827,9 @@ The default value is: `false`
 
 #### //CycloneDDS/Domain/Tracing/Category
 One of:
-* Comma-separated list of: fatal, error, warning, info, config, discovery, data, radmin, timing, traffic, topic, tcp, plist, whc, throttle, rhc, content, malformed, trace, user, user1, user2, user3
+
+* Comma-separated list of: fatal, error, warning, info, config, discovery, data, radmin, timing, traffic, topic, tcp, plist, whc, throttle, rhc, content, malformed, durability, trace, user, user1, user2, user3
+
 * Or empty
 
 This element enables individual logging categories. These are enabled in addition to those enabled by Tracing/Verbosity. Recognised categories are:
@@ -1845,10 +1865,13 @@ This element enables individual logging categories. These are enabled in additio
  * topic: tracing of topic definitions
 
  * plist: tracing of discovery parameter list interpretation
+ * durability: tracing of durable data
 
  * content: tracing of sample contents
 
  * malformed: dump malformed full packet as warning
+
+ * durability: tracing of durable data
 
  * user: all user-defined tracing categories
 
@@ -1906,10 +1929,10 @@ While none prevents any message from being written to a DDSI2 log file.
 The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful verbosity levels are config, fine and finest.
 
 The default value is: `none`
-<!--- generated from ddsi_config.h[e6e75c7c07b3b91a92715063cfd8abdd0fbd8b08] -->
+<!--- generated from ddsi_config.h[059f0d7bd76b557f73e670e06322d044d46960e6] -->
 <!--- generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] -->
-<!--- generated from ddsi__cfgelems.h[69679834d0a592a339803ed27e3966adc900d592] -->
-<!--- generated from ddsi_config.c[8d7ef0ae962a47cb2138de27ac0f6751e3393c66] -->
+<!--- generated from ddsi__cfgelems.h[e6ac71277081b300188897a4713ff9a7d3406cb2] -->
+<!--- generated from ddsi_config.c[edeb55de48ff9746fa3a088b871308194dcd5ab5] -->
 <!--- generated from _confgen.h[9554f1d72645c0b8bb66ffbfbc3c0fb664fc1a43] -->
 <!--- generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] -->
 <!--- generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] -->

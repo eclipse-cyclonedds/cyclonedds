@@ -1000,7 +1000,7 @@ static int handle_AckNack (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, 
   enqueued = 1;
   seq_xmit = ddsi_writer_read_seq_xmit (wr);
   ddsi_gap_info_init(&gi);
-  const bool gap_for_already_acked = ddsi_vendor_is_eclipse (rst->vendor) && prd->c.xqos->durability.kind == DDS_DURABILITY_VOLATILE && seqbase <= rn->seq;
+  const bool gap_for_already_acked = ddsi_vendor_is_eclipse (rst->vendor) && prd->c.xqos->durability.kind != DDS_DURABILITY_TRANSIENT_LOCAL && seqbase <= rn->seq;
   const ddsi_seqno_t min_seq_to_rexmit = gap_for_already_acked ? rn->seq + 1 : 0;
   uint32_t limit = wr->rexmit_burst_size_limit;
   for (uint32_t i = 0; i < numbits && seqbase + i <= seq_xmit && enqueued && limit > 0; i++)
@@ -1974,14 +1974,9 @@ static int handle_Gap (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, stru
   return 1;
 }
 
-static struct ddsi_serdata *get_serdata (struct ddsi_sertype const * const type, const struct ddsi_rdata *fragchain, uint32_t sz, int justkey, unsigned statusinfo, ddsrt_wctime_t tstamp)
+static struct ddsi_serdata *get_serdata (struct ddsi_sertype const * const type, const struct ddsi_rdata *fragchain, uint32_t sz, int justkey)
 {
   struct ddsi_serdata *sd = ddsi_serdata_from_ser (type, justkey ? SDK_KEY : SDK_DATA, fragchain, sz);
-  if (sd)
-  {
-    sd->statusinfo = statusinfo;
-    sd->timestamp = tstamp;
-  }
   return sd;
 }
 
@@ -2007,17 +2002,16 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
   const ddsi_plist_t * __restrict qos = si->qos;
   const char *failmsg = NULL;
   struct ddsi_serdata *sample = NULL;
+  const struct ddsi_proxy_writer *pwr = sampleinfo->pwr;
+  ddsi_seqno_t seq = sampleinfo->seq;
+  ddsi_guid_t guid;
 
+  if (pwr) guid = pwr->e.guid; else memset (&guid, 0, sizeof (guid));
   if (si->statusinfo == 0)
   {
     /* normal write */
     if (!(data_smhdr_flags & DDSI_DATA_FLAG_DATAFLAG) || sampleinfo->size == 0)
     {
-      const struct ddsi_proxy_writer *pwr = sampleinfo->pwr;
-      ddsi_guid_t guid;
-      /* pwr can't currently be null, but that might change some day, and this being
-         an error path, it doesn't hurt to survive that */
-      if (pwr) guid = pwr->e.guid; else memset (&guid, 0, sizeof (guid));
       DDS_CTRACE (&gv->logconfig,
                   "data(application, vendor %u.%u): "PGUIDFMT" #%"PRIu64": write without proper payload (data_smhdr_flags 0x%x size %"PRIu32")\n",
                   sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
@@ -2025,7 +2019,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
                   si->data_smhdr_flags, sampleinfo->size);
       return NULL;
     }
-    sample = get_serdata (type, fragchain, sampleinfo->size, 0, statusinfo, tstamp);
+    sample = get_serdata (type, fragchain, sampleinfo->size, 0);
   }
   else if (sampleinfo->size)
   {
@@ -2034,12 +2028,12 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
        as one would expect to receive */
     if (data_smhdr_flags & DDSI_DATA_FLAG_KEYFLAG)
     {
-      sample = get_serdata (type, fragchain, sampleinfo->size, 1, statusinfo, tstamp);
+      sample = get_serdata (type, fragchain, sampleinfo->size, 1);
     }
     else
     {
       assert (data_smhdr_flags & DDSI_DATA_FLAG_DATAFLAG);
-      sample = get_serdata (type, fragchain, sampleinfo->size, 0, statusinfo, tstamp);
+      sample = get_serdata (type, fragchain, sampleinfo->size, 0);
     }
   }
   else if (data_smhdr_flags & DDSI_DATA_FLAG_INLINE_QOS)
@@ -2058,11 +2052,6 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
     }
     else if ((sample = ddsi_serdata_from_keyhash (type, &qos->keyhash)) == NULL)
       failmsg = "keyhash is MD5 and can't be converted to key value";
-    else
-    {
-      sample->statusinfo = statusinfo;
-      sample->timestamp = tstamp;
-    }
   }
   else
   {
@@ -2071,9 +2060,6 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
   if (sample == NULL)
   {
     /* No message => error out */
-    const struct ddsi_proxy_writer *pwr = sampleinfo->pwr;
-    ddsi_guid_t guid;
-    if (pwr) guid = pwr->e.guid; else memset (&guid, 0, sizeof (guid));
     DDS_CWARNING (&gv->logconfig,
                   "data(application, vendor %u.%u): "PGUIDFMT" #%"PRIu64": deserialization %s/%s failed (%s)\n",
                   sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
@@ -2083,6 +2069,11 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
   }
   else
   {
+    sample->statusinfo = statusinfo;
+    sample->timestamp = tstamp;
+    sample->sequence_number = seq;
+    memcpy(&sample->writer_guid, &guid, sizeof(sample->writer_guid));
+
     if ((*tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, sample)) == NULL)
     {
       ddsi_serdata_unref (sample);
@@ -2090,14 +2081,11 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
     }
     else if (gv->logconfig.c.mask & DDS_LC_TRACE)
     {
-      const struct ddsi_proxy_writer *pwr = sampleinfo->pwr;
-      ddsi_guid_t guid;
       char tmp[1024];
       size_t res = 0;
       tmp[0] = 0;
       if (gv->logconfig.c.mask & DDS_LC_CONTENT)
         res = ddsi_serdata_print (sample, tmp, sizeof (tmp));
-      if (pwr) guid = pwr->e.guid; else memset (&guid, 0, sizeof (guid));
       GVTRACE ("data(application, vendor %u.%u): "PGUIDFMT" #%"PRIu64": ST%"PRIx32" %s/%s:%s%s",
                sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
                PGUID (guid), sampleinfo->seq, statusinfo,

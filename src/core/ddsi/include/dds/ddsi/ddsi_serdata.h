@@ -35,6 +35,8 @@ struct ddsi_serdata {
   /* these get set by generic code after creating the serdata */
   ddsrt_wctime_t timestamp;
   uint32_t statusinfo;
+  ddsi_seqno_t sequence_number;
+  ddsi_guid_t writer_guid;
 
   /* FIXME: can I get rid of this one? */
   ddsrt_mtime_t twrite; /* write time, not source timestamp, set post-throttling */
@@ -153,6 +155,18 @@ typedef size_t (*ddsi_serdata_print_t) (const struct ddsi_sertype *type, const s
 typedef void (*ddsi_serdata_get_keyhash_t) (const struct ddsi_serdata *d, struct ddsi_keyhash *buf, bool force_md5)
   ddsrt_nonnull_all;
 
+/* Sequence number of the sample as advertised by the publisher */
+typedef uint64_t (*ddsi_serdata_get_sequencenumber_t) (const struct ddsi_serdata *d);
+
+/* Get the reference to the guid of the writer that published the serdata */
+typedef ddsi_guid_t * (*ddsi_serdata_get_writer_guid_t) (const struct ddsi_serdata *d);
+
+/* Sequence number of the sample as advertised by the publisher */
+typedef uint64_t (*ddsi_serdata_get_sequencenumber_t) (const struct ddsi_serdata *d);
+
+/* Get the reference to the guid of the writer that published the serdata */
+typedef ddsi_guid_t * (*ddsi_serdata_get_writer_guid_t) (const struct ddsi_serdata *d);
+
 // Used for taking a loaned sample and constructing a serdata around this
 // takes over ownership of loan on success (leaves it unchanged on failure)
 typedef struct ddsi_serdata* (*ddsi_serdata_from_loan_t) (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample, struct dds_loaned_sample *loaned_sample, bool will_require_cdr)
@@ -178,6 +192,8 @@ struct ddsi_serdata_ops {
   ddsi_serdata_free_t free;
   ddsi_serdata_print_t print;
   ddsi_serdata_get_keyhash_t get_keyhash;
+  ddsi_serdata_get_sequencenumber_t get_sequencenumber;
+  ddsi_serdata_get_writer_guid_t get_writer_guid;
   ddsi_serdata_from_loan_t from_loaned_sample;
   ddsi_serdata_from_psmx_t from_psmx;
 };
@@ -275,6 +291,22 @@ DDS_INLINE_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_ser (const struc
 
 inline struct ddsi_serdata *ddsi_serdata_from_ser (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size) {
   return type->serdata_ops->from_ser (type, kind, fragchain, size);
+}
+
+/** @component typesupport_if */
+DDS_INLINE_EXPORT inline ddsi_guid_t *ddsi_serdata_writer_guid(const struct ddsi_serdata *d)
+  ddsrt_nonnull_all;
+
+inline ddsi_guid_t *ddsi_serdata_writer_guid(const struct ddsi_serdata *d) {
+  return d->ops->get_writer_guid (d);
+}
+
+/** @component typesupport_if */
+DDS_INLINE_EXPORT inline uint64_t ddsi_serdata_sequencenumber(const struct ddsi_serdata *d)
+  ddsrt_nonnull_all;
+
+inline uint64_t ddsi_serdata_sequencenumber(const struct ddsi_serdata *d) {
+  return d->ops->get_sequencenumber (d);
 }
 
 /** @component typesupport_if */

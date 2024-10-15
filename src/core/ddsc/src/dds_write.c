@@ -42,6 +42,25 @@ dds_return_t dds_write (dds_entity_t writer, const void *data)
   if (data == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
+#ifdef DDS_HAS_DURABILITY
+  if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
+    return ret;
+  dds_durability_t* dc = &wr->m_entity.m_domain->dc;
+  dds_writer_unlock (wr);
+
+  /* determine if the quorum of durable services for the writer is fulfilled.
+   *
+   * LH: This implementation may be suboptimal, because determining whether the
+   * quorum is fulfilled, and the actual publication of the data is not done
+   * within the same writer lock. So after the quorum has been established,
+   * and before the data is published, the quorum could have been dropped again.
+   * Chances for this to happen are slim, but still ... */
+  assert(dc->dds_durability_wait_for_quorum);
+  if ((ret = dc->dds_durability_wait_for_quorum(writer)) != DDS_RETCODE_OK) {
+    return ret;
+  }
+#endif
+
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
   ret = dds_write_impl (wr, data, dds_time (), 0);
@@ -683,6 +702,23 @@ dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t timest
   if (!evaluate_topic_filter (wr, data, sdkind))
     return DDS_RETCODE_OK;
 
+#ifdef DDS_HAS_DURABILITY
+  /* Check if the quorum of durable services for the writer is fulfilled
+   * If it is not met within the max_blocking_time, then DDS_RETCODE_PRECONDITION_NOT_MET
+   * is returned.
+   * LH:
+   * todo this currently is solution to handle the case when the quorum is not yet reached.
+   * A better solution would be to use the max_blocking_time and use it to figure out
+   * if the quorum is reached within this time frame. The headbang period would then be
+   * used to check if the quorum is met. */
+  struct ddsi_writer * const ddsi_wr = wr->m_wr;
+  if ((ddsi_wr->xqos->durability.kind == DDS_DURABILITY_TRANSIENT) || (ddsi_wr->xqos->durability.kind == DDS_DURABILITY_PERSISTENT)) {
+    if (!wr->quorum_reached) {
+      return DDS_RETCODE_PRECONDITION_NOT_MET;
+    }
+  }
+#endif
+
   // I. psmx loan => assert (psmx && is_memcpy_safe)
   //   a. psmx only
   //     - no need for a serdata, so skip everything and deliver loan via PSMX
@@ -715,6 +751,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t timest
   //       - deliver serdata
   //   c. no psmx
   //     - ddsi_serdata_from_sample, deliver serdata
+
   ddsi_thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
   struct ddsi_serdata *serdata;
   struct dds_loaned_sample *psmx_loan;

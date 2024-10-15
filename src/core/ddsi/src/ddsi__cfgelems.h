@@ -169,7 +169,6 @@ static struct cfgelem entity_autonaming_attributes[] = {
   END_MARKER
 };
 
-
 static struct cfgelem general_cfgelems[] = {
   STRING("MulticastRecvNetworkInterfaceAddresses", NULL, 1, "preferred",
     MEMBER(networkRecvAddressStrings),
@@ -2023,6 +2022,7 @@ static struct cfgelem tracing_cfgelems[] = {
       "<li><i>plist</i>: tracing of discovery parameter list interpretation</li>\n"
       "<li><i>content</i>: tracing of sample contents</li>\n"
       "<li><i>malformed</i>: dump malformed full packet as warning</li>\n"
+      "<li><i>durability</i>: tracing of durable data</li>\n"
       "<li><i>user</i>: all user-defined tracing categories</li>\n"
       "<li><i>user1</i>: user-defined tracing category 1</li>\n"
       "<li><i>user2</i>: user-defined tracing category 2</li>\n"
@@ -2040,7 +2040,7 @@ static struct cfgelem tracing_cfgelems[] = {
     VALUES(
       "fatal","error","warning","info","config","discovery","data","radmin",
       "timing","traffic","topic","tcp","plist","whc","throttle","rhc",
-      "content","malformed","trace","user","user1","user2","user3"
+      "content","malformed","durability","trace","user","user1","user2","user3"
     )),
   ENUM("Verbosity", NULL, 1, "none",
     NOMEMBER,
@@ -2102,6 +2102,32 @@ static struct cfgelem tracing_cfgelems[] = {
   END_MARKER
 };
 
+#ifdef DDS_HAS_DURABILITY
+
+static struct cfgelem durability_cfgelems[] = {
+  INT("Quorum", NULL, 1, "1",
+    MEMBER(quorum),
+    FUNCTIONS(0, uf_pos_uint, 0, pf_uint),
+    DESCRIPTION(
+      "<p>This element specifies the minimum number of durable services "
+      "that must be available before a durable writer can successfully "
+      "publish durable data. The value must be equal or higher to 1 to ensure "
+      "that there is at least one durable service present in the network that "
+      "can receive the durable data and make it available to late joiners. "
+      "By specifying a number higher than 1, additional fault tolerance can be "
+      "achieved.</p> "
+      "<p>As long as the number of available durable services drops below the specified "
+      "quorum, durable writers will not be able to publish durable data. Any "
+      "attempt to do so by calling dds_write() (or one of its variants) "
+      "will return DDS_RETCODE_TIMEOUT if the quorum is not reached within the "
+      "configured max_blocking_time.</p>"
+      "<p>The default quorum value is set to 1.</p>"
+    )),
+  END_MARKER
+};
+
+#endif
+
 /* Multiplicity = 0 is a special for Domain/[@Id] as it has some special processing to
    only process relevant configuration sections. */
 static struct cfgelem domain_cfgattrs[] = {
@@ -2134,6 +2160,16 @@ static struct cfgelem domain_cfgelems[] = {
     BEHIND_FLAG("DDS_HAS_SECURITY"),
     MAXIMUM(1)), /* Security must occur at most once, but INT_MAX is required
                     because of the way its processed (for now) */
+#endif
+#ifdef DDS_HAS_DURABILITY
+  GROUP("Durability", durability_cfgelems, NULL, 1,
+    NOMEMBER,
+    NOFUNCTIONS,
+    DESCRIPTION(
+      "<p>This element specifies settings related to durable data.</p>"
+    ),
+    BEHIND_FLAG("DDS_HAS_DURABILITY")
+  ),
 #endif
 #ifdef DDS_HAS_NETWORK_PARTITIONS
   GROUP("Partitioning", partitioning_cfgelems, NULL, 1,
@@ -2242,6 +2278,9 @@ static struct cfgelem root_cfgelems[] = {
   MOVED("TCP", "CycloneDDS/Domain/TCP"),
 #if DDS_HAS_SECURITY
   MOVED("DDSSecurity", "CycloneDDS/Domain/Security"),
+#endif
+#if DDS_HAS_DURABILITY
+  MOVED("Durability", "CycloneDDS/Domain/Durability"),
 #endif
   MOVED("SharedMemory", "CycloneDDS/Domain/SharedMemory"),
 #if DDS_HAS_TCP_TLS

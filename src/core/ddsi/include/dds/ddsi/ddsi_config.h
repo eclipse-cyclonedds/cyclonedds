@@ -431,6 +431,10 @@ struct ddsi_config
   struct ddsi_config_omg_security_listelem *omg_security_configuration;
 #endif
 
+#ifdef DDS_HAS_DURABILITY
+  uint32_t quorum;  /* quorum threshold for durable publishers */
+#endif
+
   /* deprecated shm options */
   int enable_shm;
   char *shm_locator;

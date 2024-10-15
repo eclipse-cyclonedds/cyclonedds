@@ -187,6 +187,16 @@ CycloneDDS configuration""" ] ]
         }?
       }?
       & [ a:documentation [ xml:lang="en" """
+<p>This element specifies settings related to durable data.</p>""" ] ]
+      element Durability {
+        [ a:documentation [ xml:lang="en" """
+<p>This element specifies the minimum number of durable services that must be available before a durable writer can successfully publish durable data. The value must be equal or higher to 1 to ensure that there is at least one durable service present in the network that can receive the durable data and make it available to late joiners. By specifying a number higher than 1, additional fault tolerance can be achieved.</p> <p>As long as the number of available durable services drops below the specified quorum, durable writers will not be able to publish durable data. Any attempt to do so by calling dds_write() (or one of its variants) will return DDS_RETCODE_TIMEOUT if the quorum is not reached within the configured max_blocking_time.</p><p>The default quorum value is set to 1.</p>
+<p>The default value is: <code>1</code></p>""" ] ]
+        element Quorum {
+          xsd:integer
+        }?
+      }?
+      & [ a:documentation [ xml:lang="en" """
 <p>The General element specifies overall Cyclone DDS service settings.</p>""" ] ]
       element General {
         [ a:documentation [ xml:lang="en" """
@@ -1272,6 +1282,7 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
 <li><i>plist</i>: tracing of discovery parameter list interpretation</li>
 <li><i>content</i>: tracing of sample contents</li>
 <li><i>malformed</i>: dump malformed full packet as warning</li>
+<li><i>durability</i>: tracing of durable data</li>
 <li><i>user</i>: all user-defined tracing categories</li>
 <li><i>user1</i>: user-defined tracing category 1</li>
 <li><i>user2</i>: user-defined tracing category 2</li>
@@ -1281,7 +1292,7 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
 <p>The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful is <i>trace</i>.</p>
 <p>The default value is: <code>&lt;empty&gt;</code></p>""" ] ]
         element Category {
-          xsd:token { pattern = "((fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|malformed|trace|user|user1|user2|user3)(,(fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|malformed|trace|user|user1|user2|user3))*)|" }
+          xsd:token { pattern = "((fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|malformed|durability|trace|user|user1|user2|user3)(,(fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|malformed|durability|trace|user|user1|user2|user3))*)|" }
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This option specifies where the logging is printed to. Note that <i>stdout</i> and <i>stderr</i> are treated as special values, representing "standard out" and "standard error" respectively. No file is created unless logging categories are enabled using the Tracing/Verbosity or Tracing/EnabledCategory settings.</p>
@@ -1319,10 +1330,11 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
   duration_inf = xsd:token { pattern = "inf|0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([num]?s|min|hr|day)" }
   memsize = xsd:token { pattern = "0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([kMG]i?)?B" }
 }
-# generated from ddsi_config.h[e6e75c7c07b3b91a92715063cfd8abdd0fbd8b08] 
+
+# generated from ddsi_config.h[059f0d7bd76b557f73e670e06322d044d46960e6] 
 # generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] 
-# generated from ddsi__cfgelems.h[69679834d0a592a339803ed27e3966adc900d592] 
-# generated from ddsi_config.c[8d7ef0ae962a47cb2138de27ac0f6751e3393c66] 
+# generated from ddsi__cfgelems.h[e6ac71277081b300188897a4713ff9a7d3406cb2] 
+# generated from ddsi_config.c[edeb55de48ff9746fa3a088b871308194dcd5ab5] 
 # generated from _confgen.h[9554f1d72645c0b8bb66ffbfbc3c0fb664fc1a43] 
 # generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] 
 # generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] 

@@ -58,6 +58,16 @@ static dds_return_t dds_participant_delete (dds_entity *e)
   if ((ret = ddsi_delete_participant (&e->m_domain->gv, &e->m_guid)) < 0)
     DDS_CERROR (&e->m_domain->gv.logconfig, "dds_participant_delete: internal error %"PRId32"\n", ret);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+
+  dds_durability_fini(&e->m_domain->dc);
+
+  /* todo It seems incorrect that dds_participant_delete()
+   * always returns DDS_RETCODE_OK, even if an error has
+   * occurred along the way (e.g., in ddsi_delete_participant()).
+   * I tried returning the actual return code, but that causes
+   * test cases to fail. For now I leave it as is, but this is
+   * something that should be fixed eventually (I think).
+   */
   return DDS_RETCODE_OK;
 }
 
@@ -167,9 +177,18 @@ static dds_entity_t create_participant_flags_guid (const dds_domainid_t domain, 
   ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
 
   dds_entity_init_complete (&pp->m_entity);
+
   /* drop temporary extra ref to domain, dds_init */
   dds_entity_unpin_and_drop_ref (&dom->m_entity);
   dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
+
+#ifdef DDS_HAS_DURABILITY
+  assert(dom->dc.dds_durability_init);
+  if (ret > 0) {
+    (void)dom->dc.dds_durability_init (domain, &dom->gv);
+  }
+#endif
+
   return ret;
 
 err_entity_init:

@@ -21,6 +21,9 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->fragment_size = UINT16_C (1344);
 #ifdef DDS_HAS_SECURITY
 #endif /* DDS_HAS_SECURITY */
+#ifdef DDS_HAS_DURABILITY
+  cfg->quorum = UINT32_C (1);
+#endif /* DDS_HAS_DURABILITY */
 #ifdef DDS_HAS_NETWORK_PARTITIONS
 #endif /* DDS_HAS_NETWORK_PARTITIONS */
   cfg->rbuf_size = UINT32_C (1048576);
@@ -99,10 +102,10 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->ssl_min_version.minor = 3;
 #endif /* DDS_HAS_TCP_TLS */
 }
-/* generated from ddsi_config.h[e6e75c7c07b3b91a92715063cfd8abdd0fbd8b08] */
+/* generated from ddsi_config.h[059f0d7bd76b557f73e670e06322d044d46960e6] */
 /* generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] */
-/* generated from ddsi__cfgelems.h[69679834d0a592a339803ed27e3966adc900d592] */
-/* generated from ddsi_config.c[8d7ef0ae962a47cb2138de27ac0f6751e3393c66] */
+/* generated from ddsi__cfgelems.h[e6ac71277081b300188897a4713ff9a7d3406cb2] */
+/* generated from ddsi_config.c[edeb55de48ff9746fa3a088b871308194dcd5ab5] */
 /* generated from _confgen.h[9554f1d72645c0b8bb66ffbfbc3c0fb664fc1a43] */
 /* generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] */
 /* generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] */

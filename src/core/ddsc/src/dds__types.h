@@ -24,6 +24,7 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds/ddsc/dds_psmx.h"
+#include "dds/durability/dds_durability_public.h"
 #include "dds__handles.h"
 #include "dds__loaned_sample.h"
 
@@ -306,6 +307,7 @@ typedef struct dds_domain {
   struct dds_serdatapool *serpool;
 
   struct dds_psmx_set psmx_instances;
+  dds_durability_t dc; // Durability client
 } dds_domain;
 
 typedef struct dds_subscriber {
@@ -395,6 +397,10 @@ typedef struct dds_reader {
   struct dds_loan_pool *m_loans; /* administration of outstanding loans */
   struct dds_loan_pool *m_heap_loan_cache;
 
+  /* Mutex and condition variable for wfhd; only available for readers */
+  ddsrt_mutex_t wfhd_mutex;
+  ddsrt_cond_t wfhd_cond;
+
   /* Status metrics */
   dds_sample_rejected_status_t m_sample_rejected_status;
   dds_liveliness_changed_status_t m_liveliness_changed_status;
@@ -413,6 +419,10 @@ typedef struct dds_writer {
   struct ddsi_whc *m_whc; /* FIXME: ownership still with underlying DDSI writer (cos of DDSI built-in writers )*/
   bool whc_batch; /* FIXME: channels + latency budget */
   struct dds_loan_pool *m_loans; /* administration of associated loans */
+
+#ifdef DDS_HAS_DURABILITY
+  bool quorum_reached;  /* quorum reached indicator for durable writer; when false, publication of data is not permitted */
+#endif
 
   /* Status metrics */
 
