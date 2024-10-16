@@ -607,8 +607,8 @@ struct dds_sysdef_tsn_network_requirements {
 
 struct dds_sysdef_tsn_ieee802_mac_addresses {
   struct xml_element xmlnode;
-  char *destination_mac_address;
-  char *source_mac_address;
+  struct dds_sysdef_mac_addr *destination_mac_address;
+  struct dds_sysdef_mac_addr *source_mac_address;
 };
 
 #define SYSDEF_TSN_VLAN_TAG_PRIORITY_CODE_POINT_PARAM_VALUE (1 << 0u)
