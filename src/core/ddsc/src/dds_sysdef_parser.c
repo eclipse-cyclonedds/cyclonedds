@@ -1908,6 +1908,19 @@ static int parse_tsn_traffic_transmission_selection (struct parse_sysdef_state *
       } \
     } while (0)
 
+#define PARENT_PARAM_DATA_MACADDR(parent_kind, parent_type, param_field) \
+    do { \
+      assert (pstate->current->parent->kind == parent_kind); \
+      struct parent_type *parent = (struct parent_type *) pstate->current->parent; \
+      if (parent->param_field != NULL) { \
+        PARSER_ERROR (pstate, line, "Parameter '%s' already set", STR(param_field)); \
+        ret = SD_PARSE_RESULT_SYNTAX_ERR; \
+      } else if (parse_mac_addr (value, &parent->param_field) != SD_PARSE_RESULT_OK) { \
+        PARSER_ERROR (pstate, line, "Invalid value for parameter '%s'", STR(param_field)); \
+        ret = SD_PARSE_RESULT_SYNTAX_ERR; \
+      } \
+    } while (0)
+
 #define PARENT_PARAM_DATA_NUMERIC(parent_kind, parent_type, type, param_field, param_populated_bit) \
     do { \
       assert (pstate->current->parent->kind == parent_kind); \
@@ -2137,21 +2150,9 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
       }
       break;
     }
-    case ELEMENT_KIND_NODE_MAC_ADDRESS: {
-      assert (pstate->current->parent->kind == ELEMENT_KIND_NODE);
-      struct dds_sysdef_node *node = (struct dds_sysdef_node *) pstate->current->parent;
-      if (node->mac_addr != NULL)
-      {
-        PARSER_ERROR (pstate, line, "Parameter 'mac_addr' already set");
-        ret = SD_PARSE_RESULT_SYNTAX_ERR;
-      }
-      else if (parse_mac_addr (value, &node->mac_addr) != SD_PARSE_RESULT_OK)
-      {
-        PARSER_ERROR (pstate, line, "Invalid value for parameter 'mac_addr'");
-        ret = SD_PARSE_RESULT_SYNTAX_ERR;
-      }
+    case ELEMENT_KIND_NODE_MAC_ADDRESS:
+      PARENT_PARAM_DATA_MACADDR(ELEMENT_KIND_NODE, dds_sysdef_node, mac_addr);
       break;
-    }
     case ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_VLAN_TAG_PRIORITY_CODE_POINT:
       PARENT_PARAM_DATA_NUMERIC(ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_VLAN_TAG, dds_sysdef_tsn_ieee802_vlan_tag, uint8, priority_code_point, SYSDEF_TSN_VLAN_TAG_PRIORITY_CODE_POINT_PARAM_VALUE);
       break;
@@ -2159,10 +2160,10 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
       PARENT_PARAM_DATA_NUMERIC(ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_VLAN_TAG, dds_sysdef_tsn_ieee802_vlan_tag, uint16, vlan_id, SYSDEF_TSN_VLAN_TAG_VLAN_ID_PARAM_VALUE);
       break;
     case ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES_DESTINATION_MAC_ADDRESS:
-      PARENT_PARAM_DATA_STRING(ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES, dds_sysdef_tsn_ieee802_mac_addresses, destination_mac_address);
+      PARENT_PARAM_DATA_MACADDR(ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES, dds_sysdef_tsn_ieee802_mac_addresses, destination_mac_address);
       break;
     case ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES_SOURCE_MAC_ADDRESS:
-      PARENT_PARAM_DATA_STRING(ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES, dds_sysdef_tsn_ieee802_mac_addresses, source_mac_address);
+      PARENT_PARAM_DATA_MACADDR(ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES, dds_sysdef_tsn_ieee802_mac_addresses, source_mac_address);
       break;
     case ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_IPV4_TUPLE_SOURCE_IP_ADDRESS:
       PARENT_PARAM_DATA_STRING(ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_IPV4_TUPLE, dds_sysdef_tsn_ip_tuple, source_ip_address);
