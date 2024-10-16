@@ -1744,8 +1744,11 @@ static int set_DURABILITY_KIND (struct parse_sysdef_state * const pstate, struct
   } else if (strcmp (value, "TRANSIENT_LOCAL_DURABILITY_QOS") == 0) {
     qp->values.kind = DDS_DURABILITY_TRANSIENT_LOCAL;
   } else if (strcmp (value, "TRANSIENT_DURABILITY_QOS") == 0) {
-    qp->values.kind = DDS_DURABILITY_TRANSIENT;
+    // FIXME: accept `transient` durability kind when implemented.
+    PARSER_ERROR (pstate, line, "Unsupported value '%s'", value);
+    ret = SD_PARSE_RESULT_NOT_SUPPORTED;
   } else if (strcmp (value, "PERSISTENT_DURABILITY_QOS") == 0) {
+    // FIXME: accept `persistent` durability kind when implemented.
     PARSER_ERROR (pstate, line, "Unsupported value '%s'", value);
     ret = SD_PARSE_RESULT_NOT_SUPPORTED;
   } else {
