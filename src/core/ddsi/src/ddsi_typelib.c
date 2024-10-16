@@ -182,11 +182,23 @@ bool ddsi_typeinfo_present (const ddsi_typeinfo_t *typeinfo)
 
 bool ddsi_typeinfo_valid (const ddsi_typeinfo_t *typeinfo)
 {
-  const ddsi_typeid_t *tid_min = ddsi_typeinfo_minimal_typeid (typeinfo), *tid_compl = ddsi_typeinfo_complete_typeid (typeinfo);
-  return !ddsi_typeid_is_none (tid_min) && !ddsi_typeid_is_none (tid_compl) &&
-      !ddsi_typeid_is_fully_descriptive (tid_min) && !ddsi_typeid_is_fully_descriptive (tid_compl) &&
-      typeinfo_dependent_typeids_valid (&typeinfo->x.minimal, DDSI_TYPEID_KIND_MINIMAL) &&
-      typeinfo_dependent_typeids_valid (&typeinfo->x.complete, DDSI_TYPEID_KIND_COMPLETE);
+  const ddsi_typeid_t *tid_min = ddsi_typeinfo_minimal_typeid (typeinfo);
+  const ddsi_typeid_t *tid_compl = ddsi_typeinfo_complete_typeid (typeinfo);
+  // Based on DDS XTypes 1.3 7.6.3.2.1, one would think the minimal/complete part may contain
+  // only MINIMAL/COMPLETE hash identifiers. However, it also says:
+  //
+  //   The TypeIdentifiers included in the TypeInformation shall include only direct HASH
+  //   TypeIdentifiers (see Clause 7.3.4.6.3). In addition it shall not contain individual
+  //   type identifiers for types belonging to Strongly Connected Component (i.e. those
+  //   with discriminator TI_STRONG_COMPONENT), instead it shall include the identifier
+  //   of the whole Strongly-Connected Component (SCCIdentifier, see Clause 7.3.4.9.3).
+  //
+  // which suggests we should also allow TI_STRONG_COMPONENT.  I think that means there is no
+  // way of knowing whether that then refers to a minimal or a complete type ...  In any case,
+  // Cyclone doesn't yet support TI_STRONG_COMPONENT, so we can (for now) reject it.
+  return (ddsi_typeid_is_minimal (tid_min) && ddsi_typeid_is_complete (tid_compl) &&
+          typeinfo_dependent_typeids_valid (&typeinfo->x.minimal, DDSI_TYPEID_KIND_MINIMAL) &&
+          typeinfo_dependent_typeids_valid (&typeinfo->x.complete, DDSI_TYPEID_KIND_COMPLETE));
 }
 
 const struct DDS_XTypes_TypeObject * ddsi_typemap_typeobj (const ddsi_typemap_t *tmap, const struct DDS_XTypes_TypeIdentifier *type_id)
