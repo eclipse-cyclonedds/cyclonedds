@@ -804,10 +804,7 @@ static dds_return_t deser_type_information (void * __restrict dst, struct flagse
   unsigned char *buf;
   dds_return_t ret = 0;
 
-  if (dd->bswap)
-    buf = ddsrt_memdup (dd->buf, dd->bufsz);
-  else
-    buf = (unsigned char *) dd->buf;
+  buf = ddsrt_memdup (dd->buf, dd->bufsz);
   if (!dds_stream_normalize_data ((char *) buf, &srcoff, (uint32_t) dd->bufsz, dd->bswap, DDSI_RTPS_CDR_ENC_VERSION_2, DDS_XTypes_TypeInformation_desc.m_ops))
   {
     ret = DDS_RETCODE_BAD_PARAMETER;
@@ -820,8 +817,7 @@ static dds_return_t deser_type_information (void * __restrict dst, struct flagse
   dds_stream_read (&is, (void *) *x, &dds_cdrstream_default_allocator, DDS_XTypes_TypeInformation_desc.m_ops);
   *flagset->present |= flag;
 err_normalize:
-  if (dd->bswap)
-    ddsrt_free (buf);
+  ddsrt_free (buf);
   return ret;
 }
 

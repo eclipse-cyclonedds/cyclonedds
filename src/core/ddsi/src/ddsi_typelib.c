@@ -86,7 +86,7 @@ ddsi_typeinfo_t * ddsi_typeinfo_dup (const ddsi_typeinfo_t *src)
 
 ddsi_typeinfo_t *ddsi_typeinfo_deser (const unsigned char *data, uint32_t sz)
 {
-  unsigned char *data_ne;
+  unsigned char *data_norm;
   uint32_t srcoff = 0;
 
   if (sz == 0 || data == NULL)
@@ -96,22 +96,17 @@ ddsi_typeinfo_t *ddsi_typeinfo_deser (const unsigned char *data, uint32_t sz)
   DDSRT_WARNING_MSVC_OFF(6326)
   bool bswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
   DDSRT_WARNING_MSVC_ON(6326)
-  if (bswap)
-    data_ne = ddsrt_memdup (data, sz);
-  else
-    data_ne = (unsigned char *) data;
-  if (!dds_stream_normalize_data ((char *) data_ne, &srcoff, sz, bswap, DDSI_RTPS_CDR_ENC_VERSION_2, DDS_XTypes_TypeInformation_desc.m_ops))
+  data_norm = ddsrt_memdup (data, sz);
+  if (!dds_stream_normalize_data ((char *) data_norm, &srcoff, sz, bswap, DDSI_RTPS_CDR_ENC_VERSION_2, DDS_XTypes_TypeInformation_desc.m_ops))
   {
-    if (bswap)
-      ddsrt_free (data_ne);
+    ddsrt_free (data_norm);
     return NULL;
   }
 
-  dds_istream_t is = { .m_buffer = data_ne, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
+  dds_istream_t is = { .m_buffer = data_norm, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   ddsi_typeinfo_t *typeinfo = ddsrt_calloc (1, sizeof (*typeinfo));
   dds_stream_read (&is, (void *) typeinfo, &dds_cdrstream_default_allocator, DDS_XTypes_TypeInformation_desc.m_ops);
-  if (bswap)
-    ddsrt_free (data_ne);
+  ddsrt_free (data_norm);
   return typeinfo;
 }
 
@@ -216,7 +211,7 @@ const char * ddsi_typemap_get_type_name (const ddsi_typemap_t *typemap, const dd
 
 ddsi_typemap_t *ddsi_typemap_deser (const unsigned char *data, uint32_t sz)
 {
-  unsigned char *data_ne;
+  unsigned char *data_norm;
   uint32_t srcoff = 0;
 
   if (sz == 0 || data == NULL)
@@ -225,22 +220,17 @@ ddsi_typemap_t *ddsi_typemap_deser (const unsigned char *data, uint32_t sz)
   DDSRT_WARNING_MSVC_OFF(6326)
   bool bswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
   DDSRT_WARNING_MSVC_ON(6326)
-  if (bswap)
-    data_ne = ddsrt_memdup (data, sz);
-  else
-    data_ne = (unsigned char *) data;
-  if (!dds_stream_normalize_data ((char *) data_ne, &srcoff, sz, bswap, DDSI_RTPS_CDR_ENC_VERSION_2, DDS_XTypes_TypeMapping_desc.m_ops))
+  data_norm = ddsrt_memdup (data, sz);
+  if (!dds_stream_normalize_data ((char *) data_norm, &srcoff, sz, bswap, DDSI_RTPS_CDR_ENC_VERSION_2, DDS_XTypes_TypeMapping_desc.m_ops))
   {
-    if (bswap)
-      ddsrt_free (data_ne);
+    ddsrt_free (data_norm);
     return NULL;
   }
 
-  dds_istream_t is = { .m_buffer = data_ne, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
+  dds_istream_t is = { .m_buffer = data_norm, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   ddsi_typemap_t *typemap = ddsrt_calloc (1, sizeof (*typemap));
   dds_stream_read (&is, (void *) typemap, &dds_cdrstream_default_allocator, DDS_XTypes_TypeMapping_desc.m_ops);
-  if (bswap)
-    ddsrt_free (data_ne);
+  ddsrt_free (data_norm);
   return typemap;
 }
 
