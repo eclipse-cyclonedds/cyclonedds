@@ -3604,6 +3604,7 @@ const dds_qos_t ddsi_default_qos_reader = {
   .partition.n = 0,
   .partition.strs = NULL,
   .reliability.kind = DDS_RELIABILITY_BEST_EFFORT,
+  .reliability.max_blocking_time = DDS_MSECS (100),
   .time_based_filter.minimum_separation = 0,
   .reader_data_lifecycle.autopurge_nowriter_samples_delay = DDS_INFINITY,
   .reader_data_lifecycle.autopurge_disposed_samples_delay = DDS_INFINITY,
