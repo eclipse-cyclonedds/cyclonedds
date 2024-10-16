@@ -171,6 +171,9 @@
     goto status_ok; \
   } while (0)
 
+#define ASSERT_DEFAULT_QOS_EQUAL(p) \
+  assert (ddsi_xqos_delta(&ddsi_default_qos_reader, &ddsi_default_qos_topic, p) == 0 && ddsi_xqos_delta(&ddsi_default_qos_writer, &ddsi_default_qos_topic, p) == 0)
+
 struct parse_sysdef_state {
   struct dds_sysdef_system *sysdef;
   struct xml_element *current;
@@ -1136,9 +1139,14 @@ static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *n
       do { \
         struct dds_sysdef_QOS_POLICY_ ## policy *qp = (struct dds_sysdef_QOS_POLICY_ ## policy *) pstate->current; \
         struct dds_sysdef_qos *sdqos = (struct dds_sysdef_qos *) pstate->current->parent; \
-        if (qp->populated != QOS_POLICY_ ## policy ## _PARAMS) \
+        if (qp->populated == 0) \
         { \
-          PARSER_ERROR (pstate, line, "Not all params set for " policy_desc " QoS policy"); \
+          PARSER_ERROR (pstate, line, "No parameters set for " policy_desc " QoS policy"); \
+          ret = SD_PARSE_RESULT_SYNTAX_ERR; \
+        } \
+        else if ((qp->populated & QOS_POLICY_ ## policy ## _REQUIRED_PARAMS) != QOS_POLICY_ ## policy ## _REQUIRED_PARAMS) \
+        { \
+          PARSER_ERROR (pstate, line, "Not all required parameters set for " policy_desc " QoS policy"); \
           ret = SD_PARSE_RESULT_SYNTAX_ERR; \
         } \
         else if (qget_ ## policy (sdqos->qos)) \
@@ -1206,7 +1214,14 @@ static bool qget_DURABILITYSERVICE (dds_qos_t *qos)
 
 static void qset_DURABILITYSERVICE (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_DURABILITYSERVICE *qp)
 {
-  dds_qset_durability_service (qos, qp->values.service_cleanup_delay, qp->values.history.kind, qp->values.history.depth, qp->values.resource_limits.max_samples, qp->values.resource_limits.max_instances, qp->values.resource_limits.max_samples_per_instance);
+  assert (ddsi_xqos_delta(&ddsi_default_qos_writer, &ddsi_default_qos_topic, DDSI_QP_DURABILITY_SERVICE) == 0);
+  dds_duration_t service_cleanup_delay = (qp->populated & QOS_POLICY_DURABILITYSERVICE_PARAM_SERVICE_CLEANUP_DELAY) ? qp->values.service_cleanup_delay : ddsi_default_qos_topic.durability_service.service_cleanup_delay;
+  dds_history_kind_t history_kind = (qp->populated & QOS_POLICY_DURABILITYSERVICE_PARAM_HISTORY_KIND) ? qp->values.history.kind : ddsi_default_qos_topic.durability_service.history.kind;
+  int32_t history_depth = (qp->populated & QOS_POLICY_DURABILITYSERVICE_PARAM_HISTORY_DEPTH) ? qp->values.history.depth : ddsi_default_qos_topic.durability_service.history.depth;
+  int32_t max_samples = (qp->populated & QOS_POLICY_DURABILITYSERVICE_PARAM_RESOURCE_LIMIT_MAX_SAMPLES) ? qp->values.resource_limits.max_samples : ddsi_default_qos_topic.durability_service.resource_limits.max_samples;
+  int32_t max_instances = (qp->populated & QOS_POLICY_DURABILITYSERVICE_PARAM_RESOURCE_LIMIT_MAX_INSTANCES) ? qp->values.resource_limits.max_instances : ddsi_default_qos_topic.durability_service.resource_limits.max_instances;
+  int32_t max_samples_per_instance = (qp->populated & QOS_POLICY_DURABILITYSERVICE_PARAM_RESOURCE_LIMIT_MAX_SAMPLES_PER_INSTANCE) ? qp->values.resource_limits.max_samples_per_instance : ddsi_default_qos_topic.durability_service.resource_limits.max_samples_per_instance;
+  dds_qset_durability_service (qos, service_cleanup_delay, history_kind, history_depth, max_samples, max_instances, max_samples_per_instance);
 }
 
 static bool qget_GROUPDATA (dds_qos_t *qos)
@@ -1246,7 +1261,10 @@ static bool qget_HISTORY (dds_qos_t *qos)
 
 static void qset_HISTORY (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_HISTORY *qp)
 {
-  dds_qset_history (qos, qp->values.kind, qp->values.depth);
+  ASSERT_DEFAULT_QOS_EQUAL(DDSI_QP_HISTORY);
+  dds_history_kind_t kind = (qp->populated & QOS_POLICY_HISTORY_PARAM_KIND) ? qp->values.kind : ddsi_default_qos_topic.history.kind;
+  int32_t depth = (qp->populated & QOS_POLICY_HISTORY_PARAM_DEPTH) ? qp->values.depth : ddsi_default_qos_topic.history.depth;
+  dds_qset_history (qos, kind, depth);
 }
 
 static bool qget_LATENCYBUDGET (dds_qos_t *qos)
@@ -1352,7 +1370,9 @@ static bool qget_RELIABILITY (dds_qos_t *qos)
 
 static void qset_RELIABILITY (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_RELIABILITY *qp)
 {
-  dds_qset_reliability (qos, qp->values.kind, qp->values.max_blocking_time);
+  assert (ddsi_default_qos_reader.reliability.max_blocking_time == ddsi_default_qos_topic.reliability.max_blocking_time && ddsi_default_qos_writer.reliability.max_blocking_time == ddsi_default_qos_topic.reliability.max_blocking_time);
+  dds_duration_t max_blocking_time = (qp->populated & QOS_POLICY_RELIABILITY_PARAM_MAX_BLOCKING_TIME) ? qp->values.max_blocking_time : ddsi_default_qos_topic.reliability.max_blocking_time;
+  dds_qset_reliability (qos, qp->values.kind, max_blocking_time);
 }
 
 static bool qget_RESOURCELIMITS (dds_qos_t *qos)
@@ -1362,7 +1382,12 @@ static bool qget_RESOURCELIMITS (dds_qos_t *qos)
 
 static void qset_RESOURCELIMITS (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_RESOURCELIMITS *qp)
 {
-  dds_qset_resource_limits (qos, qp->values.max_samples, qp->values.max_instances, qp->values.max_samples_per_instance);
+  ASSERT_DEFAULT_QOS_EQUAL(DDSI_QP_RESOURCE_LIMITS);
+  int32_t max_samples = (qp->populated & QOS_POLICY_RESOURCELIMITS_PARAM_MAX_SAMPLES) ? qp->values.max_samples : ddsi_default_qos_topic.resource_limits.max_samples;
+  int32_t max_instances = (qp->populated & QOS_POLICY_RESOURCELIMITS_PARAM_MAX_INSTANCES) ? qp->values.max_instances : ddsi_default_qos_topic.resource_limits.max_instances;
+  int32_t max_samples_per_instance = (qp->populated & QOS_POLICY_RESOURCELIMITS_PARAM_MAX_SAMPLES_PER_INSTANCE) ? qp->values.max_samples_per_instance : ddsi_default_qos_topic.resource_limits.max_samples_per_instance;
+
+  dds_qset_resource_limits (qos, max_samples, max_instances, max_samples_per_instance);
 }
 
 static bool qget_TIMEBASEDFILTER (dds_qos_t *qos)
@@ -1517,8 +1542,8 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UNUSED_
       case ELEMENT_KIND_QOS_POLICY_RELIABILITY:
         ELEM_CLOSE_QOS_POLICY(RELIABILITY, "Reliability");
         break;
-      case ELEMENT_KIND_QOS_POLICY_RELIABILITY_MAX_BLOCKING_DELAY:
-        ELEM_CLOSE_QOS_DURATION_PROPERTY(RELIABILITY, MAX_BLOCKING_DELAY, max_blocking_time);
+      case ELEMENT_KIND_QOS_POLICY_RELIABILITY_MAX_BLOCKING_TIME:
+        ELEM_CLOSE_QOS_DURATION_PROPERTY(RELIABILITY, MAX_BLOCKING_TIME, max_blocking_time);
         break;
       case ELEMENT_KIND_QOS_POLICY_RESOURCELIMITS:
         ELEM_CLOSE_QOS_POLICY(RESOURCELIMITS, "Resource Limits");
@@ -2469,7 +2494,7 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
           PARSER_ERROR_INVALID_PARENT_KIND ();
       }
       else if (ddsrt_strcasecmp (name, "max_blocking_time") == 0)
-        CREATE_NODE_DURATION (pstate, dds_sysdef_qos_duration_property, ELEMENT_KIND_QOS_POLICY_RELIABILITY_MAX_BLOCKING_DELAY, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_RELIABILITY, pstate->current);
+        CREATE_NODE_DURATION (pstate, dds_sysdef_qos_duration_property, ELEMENT_KIND_QOS_POLICY_RELIABILITY_MAX_BLOCKING_TIME, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_RELIABILITY, pstate->current);
       else if (ddsrt_strcasecmp (name, "lease_duration") == 0)
         CREATE_NODE_DURATION (pstate, dds_sysdef_qos_duration_property, ELEMENT_KIND_QOS_POLICY_LIVELINESS_LEASE_DURATION, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_LIVELINESS, pstate->current);
       else if (ddsrt_strcasecmp (name, "access_scope") == 0)
