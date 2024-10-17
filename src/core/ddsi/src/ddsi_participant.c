@@ -603,9 +603,8 @@ struct ddsi_participant *ddsi_ref_participant (struct ddsi_participant *pp, cons
   return pp;
 }
 
-// FIXME: do this in the proper location
-ddsrt_nonnull_all ddsrt_attribute_warn_unused_result
-static int update_participant_spdp_sample (struct ddsi_participant *pp, bool isalive);
+ddsrt_nonnull_all
+static void update_participant_spdp_sample (struct ddsi_participant *pp, bool isalive);
 
 void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid *guid_of_refing_entity)
 {
@@ -684,11 +683,7 @@ void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid
       ddsi_delete_xevent (pp->pmd_update_xevent);
 
     // FIXME: locking
-    if (update_participant_spdp_sample (pp, false) != DDS_RETCODE_OK)
-    {
-      // Pretty much harmless to fail at this: the others will eventually see a lease expiry
-      GVTRACE ("failed to construct dispose/unregister SPDP sample for participant "PGUIDFMT"\n", PGUID (pp->e.guid));
-    }
+    update_participant_spdp_sample (pp, false);
     ddsi_spdp_unregister_participant (gv->spdp_schedule, pp);
     ddsi_serdata_unref (pp->spdp_serdata);
 
@@ -761,11 +756,11 @@ void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid
   }
 }
 
-ddsrt_nonnull_all ddsrt_attribute_warn_unused_result
-static int update_participant_spdp_sample_locked (struct ddsi_participant *pp, bool isalive)
+ddsrt_nonnull_all
+static void update_participant_spdp_sample_locked (struct ddsi_participant *pp, bool isalive)
 {
   if (pp->e.onlylocal)
-    return 0;
+    return;
 
   ddsi_plist_t ps;
   struct ddsi_participant_builtin_topic_data_locators locs;
@@ -779,16 +774,14 @@ static int update_participant_spdp_sample_locked (struct ddsi_participant *pp, b
   if (pp->spdp_serdata)
     ddsi_serdata_unref (pp->spdp_serdata);
   pp->spdp_serdata = serdata;
-  return 0;
 }
 
-ddsrt_nonnull_all ddsrt_attribute_warn_unused_result
-static int update_participant_spdp_sample (struct ddsi_participant *pp, bool isalive)
+ddsrt_nonnull_all
+static void update_participant_spdp_sample (struct ddsi_participant *pp, bool isalive)
 {
   ddsrt_mutex_lock (&pp->e.lock);
-  const int ret = update_participant_spdp_sample_locked (pp, isalive);
+  update_participant_spdp_sample_locked (pp, isalive);
   ddsrt_mutex_unlock (&pp->e.lock);
-  return ret;
 }
 
 dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const ddsi_plist_t *plist)
@@ -995,11 +988,7 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
 
   if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS) || !(flags & RTPS_PF_NO_PRIVILEGED_PP))
   {
-    if (update_participant_spdp_sample (pp, true) != DDS_RETCODE_OK)
-    {
-      GVTRACE ("failed to construct dispose/unregister SPDP sample for participant "PGUIDFMT"\n", PGUID (pp->e.guid));
-      abort (); // FIXME
-    }
+    update_participant_spdp_sample (pp, true);
     if (ddsi_spdp_register_participant (gv->spdp_schedule, pp) != DDS_RETCODE_OK)
     {
       GVTRACE ("failed to register participant "PGUIDFMT" with SPDP scheduling\n", PGUID (pp->e.guid));
@@ -1050,13 +1039,7 @@ void ddsi_update_participant_plist (struct ddsi_participant *pp, const ddsi_plis
 {
   ddsrt_mutex_lock (&pp->e.lock);
   if (ddsi_update_qos_locked (&pp->e, &pp->plist->qos, &plist->qos, ddsrt_time_wallclock ()))
-  {
-    if (update_participant_spdp_sample_locked (pp, true) != DDS_RETCODE_OK)
-    {
-      ETRACE (pp, "failed to construct updated SPDP sample for participant "PGUIDFMT" after QoS update\n", PGUID (pp->e.guid));
-      abort (); // can't undo QoS update, but can't published updated QoS either ...
-    }
-  }
+    update_participant_spdp_sample_locked (pp, true);
   ddsrt_mutex_unlock (&pp->e.lock);
   ddsi_spdp_force_republish (pp->e.gv->spdp_schedule, pp, NULL);
 }
