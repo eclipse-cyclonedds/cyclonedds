@@ -12,7 +12,7 @@
 #define DDSI__SPDP_SCHEDULE_H
 
 #include "dds/ddsi/ddsi_unused.h"
-#include "dds/ddsi/ddsi_domaingv.h" // FIXME: MAX_XMIT_CONNS
+#include "dds/ddsi/ddsi_domaingv.h"
 
 #if defined (__cplusplus)
 extern "C" {
