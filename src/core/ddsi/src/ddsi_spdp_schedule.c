@@ -411,7 +411,7 @@ struct spdp_admin *ddsi_spdp_scheduler_new (struct ddsi_domaingv *gv, bool add_l
   else
   {
     // from here on we potentially have multiple threads messing with `adm`
-    const ddsrt_mtime_t t_sched = ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_MSECS (0));
+    const ddsrt_mtime_t t_sched = ddsrt_time_monotonic ();
     struct handle_locators_xevent_arg arg = { .adm = adm };
     adm->aging_xev = ddsi_qxev_callback (adm->gv->xevents, t_sched, ddsi_spdp_handle_aging_locators_xevent_cb, &arg, sizeof (arg), true);
     adm->live_xev = ddsi_qxev_callback (adm->gv->xevents, t_sched, ddsi_spdp_handle_live_locators_xevent_cb, &arg, sizeof (arg), true);
