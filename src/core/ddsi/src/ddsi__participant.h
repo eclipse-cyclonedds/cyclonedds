@@ -38,7 +38,6 @@ struct ddsi_writer;
 struct ddsi_deleted_participant {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t guid;
-  unsigned for_what;
   ddsrt_mtime_t t_prune;
 };
 
@@ -68,7 +67,7 @@ void ddsi_gc_participant_lease (struct ddsi_gcreq *gcreq);
 void ddsi_prune_deleted_participant_guids (struct ddsi_deleted_participants_admin *admin, ddsrt_mtime_t tnow);
 
 /** @component ddsi_participant */
-void ddsi_remove_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what);
+void ddsi_remove_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid);
 
 /** @component ddsi_participant */
 void ddsi_remember_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid);
@@ -86,7 +85,7 @@ struct ddsi_deleted_participants_admin *ddsi_deleted_participants_admin_new (con
 void ddsi_deleted_participants_admin_free (struct ddsi_deleted_participants_admin *admin);
 
 /** @component ddsi_participant */
-int ddsi_is_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what);
+int ddsi_is_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid);
 
 /**
  * @component ddsi_participant
