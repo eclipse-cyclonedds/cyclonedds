@@ -1017,6 +1017,7 @@ static uint32_t get_type_ndeps_hash_r (struct ddsi_domaingv *gv, const ddsi_type
 
 static dds_return_t add_type_info_hash_deps_r (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id_c, struct ddsi_typeinfo *type_info)
 {
+  // appends dependencies to type_info, on error leaves it in well-formed state containing fewer dependencies than exist
   dds_return_t ret = DDS_RETCODE_OK;
   struct ddsi_type_dep tmpl;
   memset (&tmpl, 0, sizeof (tmpl));
@@ -1040,15 +1041,15 @@ static dds_return_t add_type_info_hash_deps_r (struct ddsi_domaingv *gv, const d
 
       case DDSI_TYPEID_KIND_MINIMAL:
       case DDSI_TYPEID_KIND_COMPLETE:
-        if ((ret = add_type_info_hash_deps_r (gv, &dep_c->dep_type_id, type_info)) != DDS_RETCODE_OK
-            || (ret = ddsi_typeinfo_deps_append (gv, type_info, dep_c)) != DDS_RETCODE_OK)
-        {
-          ddsi_typeinfo_deps_fini (type_info);
-          ddsi_typeid_fini (&tmpl.src_type_id);
-        }
+        if ((ret = add_type_info_hash_deps_r (gv, &dep_c->dep_type_id, type_info)) == DDS_RETCODE_OK)
+          ret = ddsi_typeinfo_deps_append (gv, type_info, dep_c);
         break;
 
       case DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE:
+        break;
+
+      case DDSI_TYPEID_KIND_INVALID:
+        ret = DDS_RETCODE_BAD_PARAMETER;
         break;
     }
   }
@@ -1068,7 +1069,11 @@ dds_return_t ddsi_type_get_typeinfo_locked (struct ddsi_domaingv *gv, struct dds
   if ((ret = ddsi_typeinfo_deps_init (type_info, n_deps)) != DDS_RETCODE_OK)
     return ret;
 
-  ret = add_type_info_hash_deps_r (gv, &type_c->xt.id, type_info);
+  if ((ret = add_type_info_hash_deps_r (gv, &type_c->xt.id, type_info)) != DDS_RETCODE_OK)
+  {
+    // release memory allocated for partial set of dependencies
+    ddsi_typeinfo_deps_fini (type_info);
+  }
   return ret;
 }
 
@@ -1163,6 +1168,10 @@ static dds_return_t add_type_map_hash_deps_r (struct ddsi_domaingv *gv, const dd
         break;
 
       case DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE:
+        break;
+
+      case DDSI_TYPEID_KIND_INVALID:
+        ret = DDS_RETCODE_BAD_PARAMETER;
         break;
     }
   }

@@ -1532,7 +1532,12 @@ dds_return_t ddsi_xt_type_init_impl (struct ddsi_domaingv *gv, struct xt_type *x
     GVWARNING ("type " PTYPEIDFMT ": ddsi_xt_type_init_impl with invalid type object\n", PTYPEID (xt->id.x));
     goto err;
   }
-  xt->kind = ddsi_typeid_kind_impl (ti);
+  if ((xt->kind = ddsi_typeid_kind_impl (ti)) == DDSI_TYPEID_KIND_INVALID)
+  {
+    GVWARNING ("type " PTYPEIDFMT ": ddsi_xt_type_init_impl with invalid typeid\n", PTYPEID (xt->id.x));
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto err;
+  }
 
 err:
   return ret;
@@ -2871,7 +2876,7 @@ static bool xt_is_assignable_from_impl (struct ddsi_domaingv *gv, const struct x
 
 static ddsi_typeid_kind_t ddsi_typeid_kind_impl (const struct DDS_XTypes_TypeIdentifier *type_id)
 {
-  ddsi_typeid_kind_t kind = DDSI_TYPEID_KIND_MINIMAL; // initialize to avoid gcc-12 warning
+  ddsi_typeid_kind_t kind = DDSI_TYPEID_KIND_INVALID;
   if (ddsi_typeid_is_hash_impl (type_id))
     kind = ddsi_typeid_is_minimal_impl (type_id) ? DDSI_TYPEID_KIND_MINIMAL : DDSI_TYPEID_KIND_COMPLETE;
   else
@@ -2904,7 +2909,7 @@ static ddsi_typeid_kind_t ddsi_typeid_kind_impl (const struct DDS_XTypes_TypeIde
             element_kind = ddsi_typeid_kind_impl (type_id->_u.map_ldefn.element_identifier);
           break;
         default:
-          abort ();
+          return DDSI_TYPEID_KIND_INVALID;
       }
       switch (element_kind) {
         case DDSI_TYPEID_KIND_MINIMAL:
@@ -2916,6 +2921,9 @@ static ddsi_typeid_kind_t ddsi_typeid_kind_impl (const struct DDS_XTypes_TypeIde
         case DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE:
         case DDSI_TYPEID_KIND_PLAIN_COLLECTION_MINIMAL:
         case DDSI_TYPEID_KIND_PLAIN_COLLECTION_COMPLETE:
+          kind = element_kind;
+          break;
+        case DDSI_TYPEID_KIND_INVALID:
           kind = element_kind;
           break;
       };
