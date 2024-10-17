@@ -123,31 +123,25 @@ void ddsi_remember_deleted_participant_guid (struct ddsi_deleted_participants_ad
     {
       n->guid = *guid;
       n->t_prune = DDSRT_MTIME_NEVER;
-      n->for_what = DDSI_DELETED_PPGUID_LOCAL | DDSI_DELETED_PPGUID_REMOTE;
       ddsrt_avl_insert_ipath (&deleted_participants_treedef, &admin->deleted_participants, n, &path);
     }
   }
   ddsrt_mutex_unlock (&admin->deleted_participants_lock);
 }
 
-int ddsi_is_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what)
+int ddsi_is_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid)
 {
-  struct ddsi_deleted_participant *n;
-  int known;
   ddsrt_mutex_lock (&admin->deleted_participants_lock);
   ddsi_prune_deleted_participant_guids_unlocked (admin, ddsrt_time_monotonic ());
-  if ((n = ddsrt_avl_lookup (&deleted_participants_treedef, &admin->deleted_participants, guid)) == NULL)
-    known = 0;
-  else
-    known = ((n->for_what & for_what) != 0);
+  struct ddsi_deleted_participant * const n = ddsrt_avl_lookup (&deleted_participants_treedef, &admin->deleted_participants, guid);
   ddsrt_mutex_unlock (&admin->deleted_participants_lock);
-  return known;
+  return n != NULL;
 }
 
-void ddsi_remove_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what)
+void ddsi_remove_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid)
 {
   struct ddsi_deleted_participant *n;
-  DDS_CLOG (DDS_LC_DISCOVERY, admin->logcfg, "ddsi_remove_deleted_participant_guid("PGUIDFMT" for_what=%x)\n", PGUID (*guid), for_what);
+  DDS_CLOG (DDS_LC_DISCOVERY, admin->logcfg, "ddsi_remove_deleted_participant_guid("PGUIDFMT")\n", PGUID (*guid));
   ddsrt_mutex_lock (&admin->deleted_participants_lock);
   if ((n = ddsrt_avl_lookup (&deleted_participants_treedef, &admin->deleted_participants, guid)) != NULL)
     n->t_prune = ddsrt_mtime_add_duration (ddsrt_time_monotonic (), admin->delay);
@@ -757,7 +751,7 @@ void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid
     ddsrt_free (pp->plist);
     ddsrt_mutex_destroy (&pp->refc_lock);
     ddsi_entity_common_fini (&pp->e);
-    ddsi_remove_deleted_participant_guid (gv->deleted_participants, &pp->e.guid, DDSI_DELETED_PPGUID_LOCAL);
+    ddsi_remove_deleted_participant_guid (gv->deleted_participants, &pp->e.guid);
     ddsi_inverse_uint32_set_fini (&pp->avail_entityids.x);
     ddsrt_free (pp);
   }

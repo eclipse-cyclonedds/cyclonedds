@@ -592,7 +592,7 @@ void ddsi_unref_proxy_participant (struct ddsi_proxy_participant *proxypp, struc
     ddsrt_mutex_unlock (&proxypp->e.lock);
     ELOGDISC (proxypp, "ddsi_unref_proxy_participant("PGUIDFMT"): refc=0, freeing\n", PGUID (proxypp->e.guid));
     free_proxy_participant (proxypp);
-    ddsi_remove_deleted_participant_guid (gv->deleted_participants, &pp_guid, DDSI_DELETED_PPGUID_LOCAL | DDSI_DELETED_PPGUID_REMOTE);
+    ddsi_remove_deleted_participant_guid (gv->deleted_participants, &pp_guid);
   }
   else if (
     proxypp->endpoints == NULL

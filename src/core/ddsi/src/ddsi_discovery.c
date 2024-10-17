@@ -180,7 +180,7 @@ bool ddsi_handle_sedp_checks (struct ddsi_domaingv * const gv, ddsi_sedp_kind_t 
   // Accept the presence of a participant GUID, but only if it matches
   if ((datap->present & PP_PARTICIPANT_GUID) && memcmp (&datap->participant_guid, ppguid, sizeof (*ppguid)) != 0)
     E (" endpoint/participant GUID mismatch", err);
-  if (ddsi_is_deleted_participant_guid (gv->deleted_participants, ppguid, DDSI_DELETED_PPGUID_REMOTE))
+  if (ddsi_is_deleted_participant_guid (gv->deleted_participants, ppguid))
     E (" local dead pp?\n", err);
   if (ddsi_entidx_lookup_participant_guid (gv->entity_index, ppguid) != NULL)
     E (" local pp?\n", err);

@@ -487,7 +487,7 @@ static enum participant_guid_is_known_result participant_guid_is_known (const st
        happens when deleting a participant is removing it from the hash
        table, and consequently the looped back packet may appear to be
        from an unknown participant.  So we handle that. */
-    if (ddsi_is_deleted_participant_guid (gv->deleted_participants, &datap->participant_guid, DDSI_DELETED_PPGUID_REMOTE))
+    if (ddsi_is_deleted_participant_guid (gv->deleted_participants, &datap->participant_guid))
     {
       RSTTRACE ("SPDP ST0 "PGUIDFMT" (recently deleted)", PGUID (datap->participant_guid));
       return PGIKR_KNOWN;

@@ -1823,7 +1823,7 @@ static void wait_for_cleanup (struct oneliner_ctx *ctx, dds_entity_t recovering_
   if ((ret = dds_entity_pin (recovering_participant_handle, &xprime)) < 0)
     error_dds (ctx, ret, "wait_for_cleanup: pin participant failed %"PRId32, recovering_participant_handle);
   struct ddsi_domaingv * const gv = &xprime->m_domain->gv;
-  while (ddsi_is_deleted_participant_guid (gv->deleted_participants, guid, DDSI_DELETED_PPGUID_LOCAL | DDSI_DELETED_PPGUID_REMOTE))
+  while (ddsi_is_deleted_participant_guid (gv->deleted_participants, guid))
     dds_sleepfor (DDS_MSECS (10));
   dds_entity_unpin (xprime);
 }
