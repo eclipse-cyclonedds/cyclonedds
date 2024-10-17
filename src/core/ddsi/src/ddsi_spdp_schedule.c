@@ -449,8 +449,6 @@ dds_return_t ddsi_spdp_register_participant (struct spdp_admin *adm, const struc
 #endif
   ddsi_spdp_force_republish (adm, pp, NULL);
 
-  // FIXME: let's just cache the serdata in the participant and do all the publishing in this file
-
   // FIXME: what about the secure writer? It overwrites its as with as_disc on creation, but it is reliable and therefore the matching code will recompute it, so I don't think there is any need to do anything for that one (except possibly making sure it does get updated on a QoS change)
 
   ddsrt_mutex_lock (&adm->lock);
