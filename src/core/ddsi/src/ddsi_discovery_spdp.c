@@ -353,7 +353,7 @@ static void handle_spdp_dead (const struct ddsi_receiver_state *rst, ddsi_entity
     assert (guid.entityid.u == DDSI_ENTITYID_PARTICIPANT);
     if (ddsi_is_proxy_participant_deletion_allowed(gv, &guid, pwr_entityid))
     {
-      if (ddsi_delete_proxy_participant_by_guid (gv, &guid, timestamp, 0) < 0)
+      if (ddsi_delete_proxy_participant_by_guid (gv, &guid, timestamp, false) < 0)
       {
         GVLOGDISC (" unknown");
       }
@@ -419,7 +419,7 @@ static void make_participants_dependent_on_ddsi2 (struct ddsi_domaingv *gv, cons
   if (pp != NULL)
   {
     GVTRACE ("make_participants_dependent_on_ddsi2: ddsi2 "PGUIDFMT" is no more, delete "PGUIDFMT"\n", PGUID (*ddsi2guid), PGUID (pp->e.guid));
-    ddsi_delete_proxy_participant_by_guid (gv, &pp->e.guid, timestamp, 1);
+    ddsi_delete_proxy_participant_by_guid (gv, &pp->e.guid, timestamp, true);
   }
 }
 
@@ -768,7 +768,7 @@ static enum handle_spdp_result handle_spdp_alive (const struct ddsi_receiver_sta
       {
         GVLOGDISC ("make_participants_dependent_on_ddsi2: ddsi2 "PGUIDFMT" is no more, delete "PGUIDFMT"\n",
                    PGUID (privileged_pp_guid), PGUID (datap->participant_guid));
-        ddsi_delete_proxy_participant_by_guid (gv, &datap->participant_guid, timestamp, 1);
+        ddsi_delete_proxy_participant_by_guid (gv, &datap->participant_guid, timestamp, true);
       }
     }
     return HSR_INTERESTING;

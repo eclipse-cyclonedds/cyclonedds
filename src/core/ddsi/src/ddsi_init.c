@@ -1834,7 +1834,7 @@ void ddsi_stop (struct ddsi_domaingv *gv)
     ddsi_entidx_enum_proxy_participant_init (&est, gv->entity_index);
     while ((proxypp = ddsi_entidx_enum_proxy_participant_next (&est)) != NULL)
     {
-      ddsi_delete_proxy_participant_by_guid (gv, &proxypp->e.guid, tnow, 1);
+      ddsi_delete_proxy_participant_by_guid (gv, &proxypp->e.guid, tnow, true);
     }
     ddsi_entidx_enum_proxy_participant_fini (&est);
     ddsi_thread_state_asleep (thrst);

@@ -281,7 +281,7 @@ int64_t ddsi_check_and_handle_lease_expiration (struct ddsi_domaingv *gv, ddsrt_
     switch (k)
     {
       case DDSI_EK_PROXY_PARTICIPANT:
-        ddsi_delete_proxy_participant_by_guid (gv, &g, ddsrt_time_wallclock(), 1);
+        ddsi_delete_proxy_participant_by_guid (gv, &g, ddsrt_time_wallclock(), true);
         break;
       case DDSI_EK_PROXY_WRITER:
         ddsi_proxy_writer_set_notalive ((struct ddsi_proxy_writer *) l->entity, true);
