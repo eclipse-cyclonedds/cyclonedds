@@ -20,7 +20,7 @@
 #include "dds/ddsrt/time.h"
 
 // Has to be included after most of windows has been included, it seems
-#include <Mswsock.h>
+#include <mswsock.h>
 
 #ifdef ddsrt_select
 #undef ddsrt_select /* See sockets.h for details. */
