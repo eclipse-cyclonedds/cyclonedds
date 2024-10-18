@@ -75,7 +75,7 @@ void ddsi_proxy_participant_remove_pwr_lease_locked (struct ddsi_proxy_participa
 
 
 /** @component ddsi_proxy_participant */
-int ddsi_delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
+int ddsi_delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, bool lease_expired);
 
 #if defined (__cplusplus)
 }

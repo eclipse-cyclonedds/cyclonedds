@@ -115,7 +115,7 @@ void ddsi_handle_pmd_message (const struct ddsi_receiver_state *rst, struct ddsi
       const ddsi_participant_message_data_t *pmd = sample->sample;
       ppguid.prefix = pmd->participantGuidPrefix;
       ppguid.entityid.u = DDSI_ENTITYID_PARTICIPANT;
-      if (ddsi_delete_proxy_participant_by_guid (rst->gv, &ppguid, sample->c.timestamp, 0) < 0)
+      if (ddsi_delete_proxy_participant_by_guid (rst->gv, &ppguid, sample->c.timestamp, false) < 0)
         RSTTRACE (" unknown");
       else
         RSTTRACE (" delete");
