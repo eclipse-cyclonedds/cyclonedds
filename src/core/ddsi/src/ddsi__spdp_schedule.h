@@ -42,12 +42,6 @@ dds_return_t ddsi_spdp_ref_locator (struct spdp_admin *adm, const ddsi_xlocator_
 void ddsi_spdp_unref_locator (struct spdp_admin *adm, const ddsi_xlocator_t *xloc, bool on_lease_expiry)
   ddsrt_nonnull_all;
 
-void ddsi_spdp_handle_aging_locators_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *xev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
-  ddsrt_nonnull ((1, 2, 3));
-
-void ddsi_spdp_handle_live_locators_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *xev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
-  ddsrt_nonnull ((1, 2, 3));
-
 // Locks `pp->e.lock`
 // returns false iff there is no SPDP sample yet
 bool ddsi_spdp_force_republish (struct spdp_admin *adm, const struct ddsi_participant *pp, const struct ddsi_proxy_reader *prd)
