@@ -69,91 +69,10 @@
 #include "ddsi__typelib.h"
 #include "ddsi__vendor.h"
 #include "ddsi__sockwaitset.h"
+#include "ddsi__spdp_schedule.h"
 
 #include "dds__whc.h"
 #include "dds/cdr/dds_cdrstream.h"
-
-static int add_peer_address_ports (const struct ddsi_domaingv *gv, struct ddsi_addrset *as, ddsi_locator_t *loc)
-{
-  struct ddsi_tran_factory * const tran = ddsi_factory_find_supported_kind (gv, loc->kind);
-  assert (tran != NULL);
-  char buf[DDSI_LOCSTRLEN];
-  int32_t maxidx;
-
-  // check whether port number, address type and mode make sense, and prepare the
-  // locator by patching the first port number to use if none is given
-  if (ddsi_tran_get_locator_port (tran, loc) != DDSI_LOCATOR_PORT_INVALID)
-  {
-    maxidx = 0;
-  }
-  else if (ddsi_is_mcaddr (gv, loc))
-  {
-    ddsi_tran_set_locator_port (tran, loc, ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, 0));
-    maxidx = 0;
-  }
-  else
-  {
-    ddsi_tran_set_locator_port (tran, loc, ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, 0));
-    maxidx = gv->config.maxAutoParticipantIndex;
-  }
-
-  GVLOG (DDS_LC_CONFIG, "add_peer_address: add %s", ddsi_locator_to_string (buf, sizeof (buf), loc));
-  ddsi_add_locator_to_addrset (gv, as, loc);
-  for (int32_t i = 1; i < maxidx; i++)
-  {
-    ddsi_tran_set_locator_port (tran, loc, ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, i));
-    GVLOG (DDS_LC_CONFIG, ", :%"PRIu32, loc->port);
-    ddsi_add_locator_to_addrset (gv, as, loc);
-  }
-  GVLOG (DDS_LC_CONFIG, "\n");
-  return 0;
-}
-
-static int add_peer_address (const struct ddsi_domaingv *gv, struct ddsi_addrset *as, const char *addrs)
-{
-  DDSRT_WARNING_MSVC_OFF(4996);
-  char *addrs_copy, *cursor, *a;
-  int retval = -1;
-  addrs_copy = ddsrt_strdup (addrs);
-  cursor = addrs_copy;
-  while ((a = ddsrt_strsep (&cursor, ",")) != NULL)
-  {
-    ddsi_locator_t loc;
-    switch (ddsi_locator_from_string (gv, &loc, a, gv->m_factory))
-    {
-      case AFSR_OK:
-        break;
-      case AFSR_INVALID:
-        GVERROR ("add_peer_address: %s: not a valid address\n", a);
-        goto error;
-      case AFSR_UNKNOWN:
-        GVERROR ("add_peer_address: %s: unknown address\n", a);
-        goto error;
-      case AFSR_MISMATCH:
-        GVERROR ("add_peer_address: %s: address family mismatch\n", a);
-        goto error;
-    }
-    if (add_peer_address_ports (gv, as, &loc) < 0)
-    {
-      goto error;
-    }
-  }
-  retval = 0;
- error:
-  ddsrt_free (addrs_copy);
-  return retval;
-  DDSRT_WARNING_MSVC_ON(4996);
-}
-
-
-static void add_peer_addresses (const struct ddsi_domaingv *gv, struct ddsi_addrset *as, const struct ddsi_config_peer_listelem *list)
-{
-  while (list)
-  {
-    add_peer_address (gv, as, list->peer);
-    list = list->next;
-  }
-}
 
 enum make_uc_sockets_ret {
   MUSRET_SUCCESS,       /* unicast socket(s) created */
@@ -1153,6 +1072,54 @@ static void set_locator_port_if_not_unspec_locator (const struct ddsi_domaingv *
   }
 }
 
+static void decide_participant_index_and_add_localhost_to_peers (struct ddsi_domaingv *gv, bool *add_localhost_to_initial_peers)
+{
+  *add_localhost_to_initial_peers = false;
+#ifndef NDEBUG
+  for (int i = 0; i < gv->n_interfaces; i++)
+  {
+    // sanity check that by now we have eliminated "default" from allow_multicast and
+    // that no bits in allow_multicast are set if the interface is not capable of
+    // handling multicast
+    assert ((gv->interfaces[i].allow_multicast & DDSI_AMC_DEFAULT) == 0);
+    assert (gv->interfaces[i].allow_multicast == 0 || gv->interfaces[i].mc_capable);
+  }
+#endif
+  bool all_allow_spdp_mc = true, none_allow_spdp_mc = true;
+  for (int i = 0; i < gv->n_interfaces; i++)
+  {
+    if (gv->interfaces[i].allow_multicast & DDSI_AMC_SPDP)
+      none_allow_spdp_mc = false;
+    else
+      all_allow_spdp_mc = false;
+  }
+  if (gv->config.participantIndex == DDSI_PARTICIPANT_INDEX_DEFAULT)
+  {
+    if (all_allow_spdp_mc && gv->config.peers == NULL)
+    {
+      GVTRACE ("all interfaces allow spdp multicast, no peers defined: defaulting participant index to \"none\"\n");
+      gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_NONE;
+    } else if (all_allow_spdp_mc)
+    {
+      GVTRACE ("all interfaces allow spdp multicast, but peers defined: defaulting participant index to \"auto\"\n");
+      gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_AUTO;
+    }
+    else
+    {
+      GVTRACE ("some interfaces disallow spdp multicast: defaulting participant index to \"auto\"\n");
+      gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_AUTO;
+    }
+  }
+  if (gv->config.add_localhost_to_peers == DDSI_BOOLDEF_TRUE ||
+      (none_allow_spdp_mc && gv->config.add_localhost_to_peers != DDSI_BOOLDEF_FALSE))
+  {
+    // add self to as_disc, but only once we have everything set up to actually do that
+    if (gv->config.add_localhost_to_peers == DDSI_BOOLDEF_DEFAULT)
+      GVTRACE ("No multicast SPDP, adding localhost to peers\n");
+    *add_localhost_to_initial_peers = true;
+  }
+}
+
 int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psmx_locators)
 {
   uint32_t port_disc_uc = 0;
@@ -1209,6 +1176,8 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
     case DDSI_TRANS_TCP6:
       gv->config.publish_uc_locators = (gv->config.tcp_port != -1);
       gv->config.enable_uc_locators = 1;
+      /* Discovery on TCP works different, there's no point in trying to ping client ports after they have disappeared */
+      gv->config.spdp_prune_delay_discovered = 0;
       /* TCP affects what features are supported/required */
       gv->config.many_sockets_mode = DDSI_MSM_SINGLE_UNICAST;
       if (ddsi_tcp_init (gv) < 0)
@@ -1295,53 +1264,8 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
   //
   // No interfaces allow SPDP multicast:
   // - default ppidx = AUTO, default peers = { localhost }
-  //
-  // MaxAutoParticipantIndex -> 100  -+
-  // UnicastSPDPInterval -> 30s       |_ perhaps adding something like this
-  //   @silentports -> 5min           |  would make sense?
-  //   @dropafter -> 30min           -+
-  bool add_self_to_as_disc = false;
-  if (gv->config.participantIndex == DDSI_PARTICIPANT_INDEX_DEFAULT)
-  {
-#ifndef NDEBUG
-    for (int i = 0; i < gv->n_interfaces; i++)
-    {
-      // sanity check that by now we have eliminated "default" from allow_multicast and
-      // that no bits in allow_multicast are set if the interface is not capable of
-      // handling multicast
-      assert ((gv->interfaces[i].allow_multicast & DDSI_AMC_DEFAULT) == 0);
-      assert (gv->interfaces[i].allow_multicast == 0 || gv->interfaces[i].mc_capable);
-    }
-#endif
-    bool all_allow_spdp_mc = true, none_allow_spdp_mc = true;
-    for (int i = 0; i < gv->n_interfaces; i++)
-    {
-      if (gv->interfaces[i].allow_multicast & DDSI_AMC_SPDP)
-        none_allow_spdp_mc = false;
-      else
-        all_allow_spdp_mc = false;
-    }
-    if (all_allow_spdp_mc && gv->config.peers == NULL)
-    {
-      GVTRACE ("all interfaces allow spdp multicast, no peers defined: defaulting participant index to \"none\"\n");
-      gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_NONE;
-    } else if (all_allow_spdp_mc)
-    {
-      GVTRACE ("all interfaces allow spdp multicast, but peers defined: defaulting participant index to \"auto\"\n");
-      gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_AUTO;
-    }
-    else
-    {
-      GVTRACE ("some interfaces disallow spdp multicast: defaulting participant index to \"auto\"\n");
-      gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_AUTO;
-    }
-    if (gv->config.add_localhost_to_peers == DDSI_BOOLDEF_TRUE ||
-        (none_allow_spdp_mc && gv->config.add_localhost_to_peers != DDSI_BOOLDEF_FALSE))
-    {
-      // add self to as_disc, but only once we have everything set up to actually do that
-      add_self_to_as_disc = true;
-    }
-  }
+  bool add_localhost_to_initial_peers;
+  decide_participant_index_and_add_localhost_to_peers (gv, &add_localhost_to_initial_peers);
 
   if (set_recvips (gv) < 0)
     goto err_set_recvips;
@@ -1683,30 +1607,9 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
   ddsi_omg_security_init (gv);
 #endif
 
-  gv->as_disc = ddsi_new_addrset ();
-  for (int i = 0; i < gv->n_interfaces; i++)
-  {
-    if ((gv->interfaces[i].allow_multicast & DDSI_AMC_SPDP) &&
-        ddsi_factory_supports (gv->xmit_conns[i]->m_factory, gv->loc_spdp_mc.kind))
-    {
-      const ddsi_xlocator_t xloc = { .conn = gv->xmit_conns[i], .c = gv->loc_spdp_mc };
-      ddsi_add_xlocator_to_addrset (gv, gv->as_disc, &xloc);
-    }
-  }
-  if (add_self_to_as_disc)
-  {
-    struct ddsi_config_peer_listelem peer_local;
-    char local_addr[DDSI_LOCSTRLEN];
-    ddsi_locator_to_string_no_port (local_addr, sizeof (local_addr), &gv->interfaces[0].loc);
-    GVTRACE ("adding self (%s)\n", local_addr);
-    peer_local.next = NULL;
-    peer_local.peer = local_addr;
-    add_peer_addresses (gv, gv->as_disc, &peer_local);
-  }
-  if (gv->config.peers)
-  {
-    add_peer_addresses (gv, gv->as_disc, gv->config.peers);
-  }
+  gv->spdp_schedule = ddsi_spdp_scheduler_new (gv, add_localhost_to_initial_peers);
+  if (gv->spdp_schedule == NULL)
+    abort (); // FIXME: handle OOM here, it is not that hard ...
 
   gv->gcreq_queue = ddsi_gcreq_queue_new (gv);
 
@@ -1931,7 +1834,7 @@ void ddsi_stop (struct ddsi_domaingv *gv)
     ddsi_entidx_enum_proxy_participant_init (&est, gv->entity_index);
     while ((proxypp = ddsi_entidx_enum_proxy_participant_next (&est)) != NULL)
     {
-      ddsi_delete_proxy_participant_by_guid (gv, &proxypp->e.guid, tnow, 1);
+      ddsi_delete_proxy_participant_by_guid (gv, &proxypp->e.guid, tnow, true);
     }
     ddsi_entidx_enum_proxy_participant_fini (&est);
     ddsi_thread_state_asleep (thrst);
@@ -2011,6 +1914,9 @@ void ddsi_stop (struct ddsi_domaingv *gv)
 
 void ddsi_fini (struct ddsi_domaingv *gv)
 {
+  /* No participants or proxy participants left, so this is safe */
+  ddsi_spdp_scheduler_delete (gv->spdp_schedule);
+
   /* The receive threads have already been stopped, therefore
      defragmentation and reorder state can't change anymore and
      can be freed. */
@@ -2056,7 +1962,6 @@ void ddsi_fini (struct ddsi_domaingv *gv)
   }
 
   ddsi_free_config_nwpart_addresses (gv);
-  ddsi_unref_addrset (gv->as_disc);
 
   /* Must delay freeing of rbufpools until after *all* references have
      been dropped, which only happens once all receive threads have

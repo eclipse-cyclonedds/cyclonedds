@@ -66,7 +66,8 @@ struct ddsi_participant
   unsigned is_ddsi2_pp: 1; /* true for the "federation leader", the ddsi2 participant itself in OSPL; FIXME: probably should use this for broker mode as well ... */
   uint32_t flags; /* flags used when creating this participant */
   struct ddsi_plist *plist; /* settings/QoS for this participant */
-  struct ddsi_xevent *spdp_xevent; /* timed event for periodically publishing SPDP */
+  struct ddsi_serdata *spdp_serdata; /* SPDP message: we no longer have a writer for it */
+  ddsi_seqno_t spdp_seqno; /* sequence number of spdp_serdata; FIXME: move seqno into serdata and delete this */
   struct ddsi_xevent *pmd_update_xevent; /* timed event for periodically publishing ParticipantMessageData */
   ddsi_locator_t m_locator; /* this is always a unicast address, it is set if it is in the many unicast mode */
   struct ddsi_tran_conn * m_conn; /* this is connection to m_locator, if it is set, this is used */

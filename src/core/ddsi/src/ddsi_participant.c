@@ -37,6 +37,7 @@
 #include "ddsi__vendor.h"
 #include "ddsi__xqos.h"
 #include "ddsi__inverse_uint32_set.h"
+#include "ddsi__spdp_schedule.h"
 #include "dds__whc.h"
 
 static const unsigned builtin_writers_besmask =
@@ -122,31 +123,25 @@ void ddsi_remember_deleted_participant_guid (struct ddsi_deleted_participants_ad
     {
       n->guid = *guid;
       n->t_prune = DDSRT_MTIME_NEVER;
-      n->for_what = DDSI_DELETED_PPGUID_LOCAL | DDSI_DELETED_PPGUID_REMOTE;
       ddsrt_avl_insert_ipath (&deleted_participants_treedef, &admin->deleted_participants, n, &path);
     }
   }
   ddsrt_mutex_unlock (&admin->deleted_participants_lock);
 }
 
-int ddsi_is_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what)
+int ddsi_is_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid)
 {
-  struct ddsi_deleted_participant *n;
-  int known;
   ddsrt_mutex_lock (&admin->deleted_participants_lock);
   ddsi_prune_deleted_participant_guids_unlocked (admin, ddsrt_time_monotonic ());
-  if ((n = ddsrt_avl_lookup (&deleted_participants_treedef, &admin->deleted_participants, guid)) == NULL)
-    known = 0;
-  else
-    known = ((n->for_what & for_what) != 0);
+  struct ddsi_deleted_participant * const n = ddsrt_avl_lookup (&deleted_participants_treedef, &admin->deleted_participants, guid);
   ddsrt_mutex_unlock (&admin->deleted_participants_lock);
-  return known;
+  return n != NULL;
 }
 
-void ddsi_remove_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what)
+void ddsi_remove_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid)
 {
   struct ddsi_deleted_participant *n;
-  DDS_CLOG (DDS_LC_DISCOVERY, admin->logcfg, "ddsi_remove_deleted_participant_guid("PGUIDFMT" for_what=%x)\n", PGUID (*guid), for_what);
+  DDS_CLOG (DDS_LC_DISCOVERY, admin->logcfg, "ddsi_remove_deleted_participant_guid("PGUIDFMT")\n", PGUID (*guid));
   ddsrt_mutex_lock (&admin->deleted_participants_lock);
   if ((n = ddsrt_avl_lookup (&deleted_participants_treedef, &admin->deleted_participants, guid)) != NULL)
     n->t_prune = ddsrt_mtime_add_duration (ddsrt_time_monotonic (), admin->delay);
@@ -179,16 +174,6 @@ void ddsi_participant_release_entityid (struct ddsi_participant *pp, ddsi_entity
   ddsrt_mutex_unlock (&pp->e.lock);
 }
 
-static void force_as_disc_address (struct ddsi_domaingv *gv, const ddsi_guid_t *subguid)
-{
-  struct ddsi_writer *wr = ddsi_entidx_lookup_writer_guid (gv->entity_index, subguid);
-  assert (wr != NULL);
-  ddsrt_mutex_lock (&wr->e.lock);
-  ddsi_unref_addrset (wr->as);
-  wr->as = ddsi_ref_addrset (gv->as_disc);
-  ddsrt_mutex_unlock (&wr->e.lock);
-}
-
 #ifdef DDS_HAS_SECURITY
 static void add_security_builtin_endpoints (struct ddsi_participant *pp, ddsi_guid_t *subguid, const ddsi_guid_t *group_guid, struct ddsi_domaingv *gv, bool add_writers, bool add_readers)
 {
@@ -200,9 +185,7 @@ static void add_security_builtin_endpoints (struct ddsi_participant *pp, ddsi_gu
     wrinfo = dds_whc_make_wrinfo (NULL, &gv->builtin_endpoint_xqos_wr);
     ddsi_new_writer (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_PARTICIPANT_SECURE_NAME, gv->spdp_secure_type, &gv->builtin_endpoint_xqos_wr, dds_whc_new(gv, wrinfo), NULL, NULL, NULL);
     dds_whc_free_wrinfo (wrinfo);
-    /* But we need the as_disc address set for SPDP, because we need to
-       send it to everyone regardless of the existence of readers. */
-    force_as_disc_address(gv, subguid);
+    // FIXME: where does it publish secure SPDP?
     pp->bes |= DDSI_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER;
 
     subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER);
@@ -620,6 +603,9 @@ struct ddsi_participant *ddsi_ref_participant (struct ddsi_participant *pp, cons
   return pp;
 }
 
+ddsrt_nonnull_all
+static void update_participant_spdp_sample (struct ddsi_participant *pp, bool isalive);
+
 void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid *guid_of_refing_entity)
 {
   static const unsigned builtin_endpoints_tab[] = {
@@ -655,6 +641,7 @@ void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid
     DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER,
     DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER,
   };
+  struct ddsi_domaingv * const gv = pp->e.gv;
 
   ddsrt_mutex_lock (&pp->refc_lock);
   update_pp_refc (pp, guid_of_refing_entity, -1);
@@ -663,8 +650,8 @@ void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid
     stguid = *guid_of_refing_entity;
   else
     memset (&stguid, 0, sizeof (stguid));
-  ELOGDISC (pp, "ddsi_unref_participant("PGUIDFMT" @ %p <- "PGUIDFMT" @ %p) user %"PRId32" builtin %"PRId32"\n",
-            PGUID (pp->e.guid), (void*)pp, PGUID (stguid), (void*)guid_of_refing_entity, pp->user_refc, pp->builtin_refc);
+  GVLOGDISC ("ddsi_unref_participant("PGUIDFMT" @ %p <- "PGUIDFMT" @ %p) user %"PRId32" builtin %"PRId32"\n",
+             PGUID (pp->e.guid), (void *)pp, PGUID (stguid), (void *)guid_of_refing_entity, pp->user_refc, pp->builtin_refc);
 
   if (pp->user_refc == 0 && pp->bes != 0 && pp->state < DDSI_PARTICIPANT_STATE_DELETING_BUILTINS)
   {
@@ -692,30 +679,27 @@ void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid
     pp->state = DDSI_PARTICIPANT_STATE_DELETING_BUILTINS;
     ddsrt_mutex_unlock (&pp->refc_lock);
 
-    if (pp->spdp_xevent)
-      ddsi_delete_xevent (pp->spdp_xevent);
     if (pp->pmd_update_xevent)
       ddsi_delete_xevent (pp->pmd_update_xevent);
 
-    /* SPDP relies on the WHC, but dispose-unregister will empty
-       it. The event handler verifies the event has already been
-       scheduled for deletion when it runs into an empty WHC */
-    ddsi_spdp_dispose_unregister (pp);
+    update_participant_spdp_sample (pp, false);
+    ddsi_spdp_unregister_participant (gv->spdp_schedule, pp);
+    ddsi_serdata_unref (pp->spdp_serdata);
 
     /* If this happens to be the privileged_pp, clear it */
-    ddsrt_mutex_lock (&pp->e.gv->privileged_pp_lock);
-    if (pp == pp->e.gv->privileged_pp)
-      pp->e.gv->privileged_pp = NULL;
-    ddsrt_mutex_unlock (&pp->e.gv->privileged_pp_lock);
+    ddsrt_mutex_lock (&gv->privileged_pp_lock);
+    if (pp == gv->privileged_pp)
+      gv->privileged_pp = NULL;
+    ddsrt_mutex_unlock (&gv->privileged_pp_lock);
 
     for (i = 0; i < (int) (sizeof (builtin_endpoints_tab) / sizeof (builtin_endpoints_tab[0])); i++)
-      delete_builtin_endpoint (pp->e.gv, &pp->e.guid, builtin_endpoints_tab[i]);
+      delete_builtin_endpoint (gv, &pp->e.guid, builtin_endpoints_tab[i]);
   }
   else if (pp->user_refc == 0 && pp->builtin_refc == 0)
   {
     ddsrt_mutex_unlock (&pp->refc_lock);
 
-    if (!(pp->e.onlylocal))
+    if (!pp->e.onlylocal)
     {
       if ((pp->bes & builtin_writers_besmask) != builtin_writers_besmask && !(pp->flags & RTPS_PF_NO_PRIVILEGED_PP))
       {
@@ -731,23 +715,23 @@ void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid
            the ddsi_unref_participant, because we may trigger a clean-up of
            it.  */
         struct ddsi_participant *ppp;
-        ddsrt_mutex_lock (&pp->e.gv->privileged_pp_lock);
-        ppp = pp->e.gv->privileged_pp;
-        ddsrt_mutex_unlock (&pp->e.gv->privileged_pp_lock);
+        ddsrt_mutex_lock (&gv->privileged_pp_lock);
+        ppp = gv->privileged_pp;
+        ddsrt_mutex_unlock (&gv->privileged_pp_lock);
         assert (ppp != NULL);
         ddsi_unref_participant (ppp, &pp->e.guid);
       }
     }
 
-    ddsrt_mutex_lock (&pp->e.gv->participant_set_lock);
-    assert (pp->e.gv->nparticipants > 0);
-    if (--pp->e.gv->nparticipants == 0)
-      ddsrt_cond_broadcast (&pp->e.gv->participant_set_cond);
-    ddsrt_mutex_unlock (&pp->e.gv->participant_set_lock);
-    if (pp->e.gv->config.many_sockets_mode == DDSI_MSM_MANY_UNICAST)
+    ddsrt_mutex_lock (&gv->participant_set_lock);
+    assert (gv->nparticipants > 0);
+    if (--gv->nparticipants == 0)
+      ddsrt_cond_broadcast (&gv->participant_set_cond);
+    ddsrt_mutex_unlock (&gv->participant_set_lock);
+    if (gv->config.many_sockets_mode == DDSI_MSM_MANY_UNICAST)
     {
       ddsrt_atomic_fence_rel ();
-      ddsrt_atomic_inc32 (&pp->e.gv->participant_set_generation);
+      ddsrt_atomic_inc32 (&gv->participant_set_generation);
 
       /* Deleting the socket will usually suffice to wake up the
          receiver threads, but in general, no one cares if it takes a
@@ -761,14 +745,42 @@ void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid
     ddsrt_free (pp->plist);
     ddsrt_mutex_destroy (&pp->refc_lock);
     ddsi_entity_common_fini (&pp->e);
-    ddsi_remove_deleted_participant_guid (pp->e.gv->deleted_participants, &pp->e.guid, DDSI_DELETED_PPGUID_LOCAL);
-    ddsi_inverse_uint32_set_fini(&pp->avail_entityids.x);
+    ddsi_remove_deleted_participant_guid (gv->deleted_participants, &pp->e.guid);
+    ddsi_inverse_uint32_set_fini (&pp->avail_entityids.x);
     ddsrt_free (pp);
   }
   else
   {
     ddsrt_mutex_unlock (&pp->refc_lock);
   }
+}
+
+ddsrt_nonnull_all
+static void update_participant_spdp_sample_locked (struct ddsi_participant *pp, bool isalive)
+{
+  if (pp->e.onlylocal)
+    return;
+
+  ddsi_plist_t ps;
+  struct ddsi_participant_builtin_topic_data_locators locs;
+  ddsi_get_participant_builtin_topic_data (pp, &ps, &locs);
+  struct ddsi_serdata * const serdata = ddsi_serdata_from_sample (pp->e.gv->spdp_type, isalive ? SDK_DATA : SDK_KEY, &ps);
+  ddsi_plist_fini (&ps);
+  serdata->statusinfo = isalive ? 0 : (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER);
+  serdata->timestamp = ddsrt_time_wallclock ();
+
+  ++pp->spdp_seqno;
+  if (pp->spdp_serdata)
+    ddsi_serdata_unref (pp->spdp_serdata);
+  pp->spdp_serdata = serdata;
+}
+
+ddsrt_nonnull_all
+static void update_participant_spdp_sample (struct ddsi_participant *pp, bool isalive)
+{
+  ddsrt_mutex_lock (&pp->e.lock);
+  update_participant_spdp_sample_locked (pp, isalive);
+  ddsrt_mutex_unlock (&pp->e.lock);
 }
 
 dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const ddsi_plist_t *plist)
@@ -849,6 +861,8 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
   pp->plist = ddsrt_malloc (sizeof (*pp->plist));
   ddsi_plist_copy (pp->plist, plist);
   ddsi_xqos_mergein_missing(&pp->plist->qos, &gv->default_local_xqos_pp, ~(uint64_t)0);
+  pp->spdp_seqno = 0;
+  pp->spdp_serdata = NULL;
 
 #ifdef DDS_HAS_SECURITY
   pp->sec_attr = NULL;
@@ -902,7 +916,6 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
   /* Before we create endpoints -- and may call ddsi_unref_participant if
      things go wrong -- we must initialize all that ddsi_unref_participant
      depends on. */
-  pp->spdp_xevent = NULL;
   pp->pmd_update_xevent = NULL;
 
   /* Create built-in endpoints (note: these have no GID, and no group GUID). */
@@ -917,9 +930,6 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
     wrinfo = dds_whc_make_wrinfo (NULL, &gv->spdp_endpoint_xqos);
     ddsi_new_writer (NULL, &subguid, &group_guid, pp, DDS_BUILTIN_TOPIC_PARTICIPANT_NAME, gv->spdp_type, &gv->spdp_endpoint_xqos, dds_whc_new(gv, wrinfo), NULL, NULL, NULL);
     dds_whc_free_wrinfo (wrinfo);
-    /* But we need the as_disc address set for SPDP, because we need to
-       send it to everyone regardless of the existence of readers. */
-    force_as_disc_address (gv, &subguid);
     pp->bes |= DDSI_DISC_BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER;
   }
 
@@ -977,29 +987,16 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
 
   if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS) || !(flags & RTPS_PF_NO_PRIVILEGED_PP))
   {
-    /* SPDP periodic broadcast uses the retransmit path, so the initial
-      publication must be done differently. Must be later than making
-      the participant globally visible, or the SPDP processing won't
-      recognise the participant as a local one. */
-    if (ddsi_spdp_write (pp) >= 0)
+    update_participant_spdp_sample (pp, true);
+    if (ddsi_spdp_register_participant (gv->spdp_schedule, pp) != DDS_RETCODE_OK)
     {
-      /* Once the initial sample has been written, the automatic and
-        asynchronous broadcasting required by SPDP can start. Also,
-        since we're new alive, PMD updates can now start, too.
-        Schedule the first update for 100ms in the future to reduce the
-        impact of the first sample getting lost.  Note: these two may
-        fire before the calls return.  If the initial sample wasn't
-        accepted, all is lost, but we continue nonetheless, even though
-        the participant won't be able to discover or be discovered.  */
-      struct ddsi_spdp_broadcast_xevent_cb_arg arg = { .pp_guid = pp->e.guid };
-      pp->spdp_xevent = ddsi_qxev_callback (gv->xevents, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_MSECS (100)), ddsi_spdp_broadcast_xevent_cb, &arg, sizeof (arg), false);
+      GVTRACE ("failed to register participant "PGUIDFMT" with SPDP scheduling\n", PGUID (pp->e.guid));
+      abort (); // FIXME
     }
 
-    {
-      ddsrt_mtime_t tsched = (pp->plist->qos.liveliness.lease_duration == DDS_INFINITY) ? DDSRT_MTIME_NEVER : (ddsrt_mtime_t){0};
-      struct ddsi_write_pmd_message_xevent_cb_arg arg = { .pp_guid = pp->e.guid };
-      pp->pmd_update_xevent = ddsi_qxev_callback (gv->xevents, tsched, ddsi_write_pmd_message_xevent_cb, &arg, sizeof (arg), false);
-    }
+    ddsrt_mtime_t tsched = (pp->plist->qos.liveliness.lease_duration == DDS_INFINITY) ? DDSRT_MTIME_NEVER : (ddsrt_mtime_t){0};
+    struct ddsi_write_pmd_message_xevent_cb_arg arg = { .pp_guid = pp->e.guid };
+    pp->pmd_update_xevent = ddsi_qxev_callback (gv->xevents, tsched, ddsi_write_pmd_message_xevent_cb, &arg, sizeof (arg), false);
   }
 
 #ifdef DDS_HAS_SECURITY
@@ -1041,8 +1038,9 @@ void ddsi_update_participant_plist (struct ddsi_participant *pp, const ddsi_plis
 {
   ddsrt_mutex_lock (&pp->e.lock);
   if (ddsi_update_qos_locked (&pp->e, &pp->plist->qos, &plist->qos, ddsrt_time_wallclock ()))
-    ddsi_spdp_write (pp);
+    update_participant_spdp_sample_locked (pp, true);
   ddsrt_mutex_unlock (&pp->e.lock);
+  ddsi_spdp_force_republish (pp->e.gv->spdp_schedule, pp, NULL);
 }
 
 static void gc_delete_participant (struct ddsi_gcreq *gcreq)

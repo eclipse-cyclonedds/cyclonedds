@@ -95,7 +95,6 @@ struct ddsi_xeventq {
   ddsrt_avl_tree_t msg_xevents;
   struct ddsi_xevent_nt *non_timed_xmit_list_oldest;
   struct ddsi_xevent_nt *non_timed_xmit_list_newest; /* undefined if ..._oldest == NULL */
-  size_t non_timed_xmit_list_length;
   size_t queued_rexmit_bytes;
   size_t queued_rexmit_msgs;
   size_t max_queued_rexmit_bytes;
@@ -107,6 +106,9 @@ struct ddsi_xeventq {
   ddsrt_cond_t cond;
 
   size_t cum_rexmit_bytes;
+  size_t ntxl_length;
+  ddsrt_mtime_t ntxl_t_last_update;
+  uint64_t ntxl_length_time;
 };
 
 static uint32_t xevent_thread (struct ddsi_xeventq *xevq);
@@ -185,7 +187,18 @@ static void forget_msg (struct ddsi_xeventq *evq, struct ddsi_xevent_nt *ev)
   ddsrt_avl_delete (&msg_xevents_treedef, &evq->msg_xevents, ev);
 }
 
-static void add_to_non_timed_xmit_list (struct ddsi_xeventq *evq, struct ddsi_xevent_nt *ev)
+static void update_non_timed_list_stats (struct ddsi_xeventq *evq, int delta, ddsrt_mtime_t tnow)
+{
+  if (tnow.v > evq->ntxl_t_last_update.v)
+  {
+    uint64_t dt = (uint64_t) (tnow.v - evq->ntxl_t_last_update.v);
+    evq->ntxl_length_time += dt * evq->ntxl_length;
+  }
+  evq->ntxl_length += (size_t) delta;
+  evq->ntxl_t_last_update = tnow;
+}
+
+static void add_to_non_timed_xmit_list (struct ddsi_xeventq *evq, struct ddsi_xevent_nt *ev, ddsrt_mtime_t tnow)
 {
   ev->listnode.next = NULL;
   if (evq->non_timed_xmit_list_oldest == NULL) {
@@ -195,7 +208,7 @@ static void add_to_non_timed_xmit_list (struct ddsi_xeventq *evq, struct ddsi_xe
     evq->non_timed_xmit_list_newest->listnode.next = ev;
   }
   evq->non_timed_xmit_list_newest = ev;
-  evq->non_timed_xmit_list_length++;
+  update_non_timed_list_stats (evq, 1, tnow);
 
   if (ev->kind == XEVK_MSG_REXMIT)
     remember_msg (evq, ev);
@@ -203,14 +216,14 @@ static void add_to_non_timed_xmit_list (struct ddsi_xeventq *evq, struct ddsi_xe
   ddsrt_cond_broadcast (&evq->cond);
 }
 
-static struct ddsi_xevent_nt *getnext_from_non_timed_xmit_list  (struct ddsi_xeventq *evq)
+static struct ddsi_xevent_nt *getnext_from_non_timed_xmit_list  (struct ddsi_xeventq *evq, ddsrt_mtime_t tnow)
 {
   /* function removes and returns the first item in the list
      (from the front) and frees the container */
   struct ddsi_xevent_nt *ev = evq->non_timed_xmit_list_oldest;
   if (ev != NULL)
   {
-    evq->non_timed_xmit_list_length--;
+    update_non_timed_list_stats (evq, -1, tnow);
     evq->non_timed_xmit_list_oldest = ev->listnode.next;
 
     if (ev->kind == XEVK_MSG_REXMIT)
@@ -398,13 +411,12 @@ static void qxev_insert (struct ddsi_xevent *ev)
   }
 }
 
-static void qxev_insert_nt (struct ddsi_xevent_nt *ev)
+static void qxev_insert_nt (struct ddsi_xevent_nt *ev, ddsrt_mtime_t tnow)
 {
   /* qxev_insert is how all non-timed xevents are queued. */
   struct ddsi_xeventq *evq = ev->evq;
   ASSERT_MUTEX_HELD (&evq->lock);
-  add_to_non_timed_xmit_list (evq, ev);
-  EVQTRACE (" (%"PRIuSIZE" in queue)\n", evq->non_timed_xmit_list_length);
+  add_to_non_timed_xmit_list (evq, ev, tnow);
 }
 
 static int msg_xevents_cmp (const void *a, const void *b)
@@ -422,7 +434,6 @@ struct ddsi_xeventq * ddsi_xeventq_new (struct ddsi_domaingv *gv, size_t max_que
   ddsrt_avl_init (&msg_xevents_treedef, &evq->msg_xevents);
   evq->non_timed_xmit_list_oldest = NULL;
   evq->non_timed_xmit_list_newest = NULL;
-  evq->non_timed_xmit_list_length = 0;
   evq->terminate = 0;
   evq->thrst = NULL;
   evq->max_queued_rexmit_bytes = max_queued_rexmit_bytes;
@@ -434,6 +445,9 @@ struct ddsi_xeventq * ddsi_xeventq_new (struct ddsi_domaingv *gv, size_t max_que
   ddsrt_cond_init (&evq->cond);
 
   evq->cum_rexmit_bytes = 0;
+  evq->ntxl_length_time = 0;
+  evq->ntxl_length = 0;
+  evq->ntxl_t_last_update = ddsrt_time_monotonic ();
   return evq;
 }
 
@@ -485,7 +499,7 @@ void ddsi_xeventq_free (struct ddsi_xeventq *evq)
     while (!non_timed_xmit_list_is_empty (evq))
     {
       ddsi_thread_state_awake_to_awake_no_nest (ddsi_lookup_thread_state ());
-      handle_nontimed_xevent (evq, getnext_from_non_timed_xmit_list (evq), xp);
+      handle_nontimed_xevent (evq, getnext_from_non_timed_xmit_list (evq, ddsrt_time_monotonic ()), xp);
     }
     ddsrt_mutex_unlock (&evq->lock);
     ddsi_xpack_send (xp, false);
@@ -592,7 +606,7 @@ static void handle_xevents (struct ddsi_thread_state * const thrst, struct ddsi_
 
     if (!non_timed_xmit_list_is_empty (xevq))
     {
-      struct ddsi_xevent_nt *xev = getnext_from_non_timed_xmit_list (xevq);
+      struct ddsi_xevent_nt *xev = getnext_from_non_timed_xmit_list (xevq, tnow);
       ddsi_thread_state_awake_to_awake_no_nest (thrst);
       handle_nontimed_xevent (xevq, xev, xp);
       cont = true;
@@ -616,38 +630,54 @@ void ddsi_xeventq_step (struct ddsi_xeventq *evq)
   ddsi_xpack_free (xp);
 }
 
-static uint32_t xevent_thread (struct ddsi_xeventq * xevq)
+static uint32_t xevent_thread (struct ddsi_xeventq * evq)
 {
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  struct ddsi_domaingv * const gv = evq->gv;
   ddsrt_mtime_t next_thread_cputime = { 0 };
+  ddsrt_mtime_t next_print_queue_length;
+  ddsrt_mtime_t last_ntxl_t_last_update;
+  uint64_t last_ntxl_length_time = 0;
+  next_print_queue_length = last_ntxl_t_last_update = ddsrt_time_monotonic ();
 
-  struct ddsi_xpack * const xp = ddsi_xpack_new (xevq->gv, false);
-  ddsrt_mutex_lock (&xevq->lock);
-  while (!xevq->terminate)
+  struct ddsi_xpack * const xp = ddsi_xpack_new (gv, false);
+  ddsrt_mutex_lock (&evq->lock);
+  while (!evq->terminate)
   {
     ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
 
-    LOG_THREAD_CPUTIME (&xevq->gv->logconfig, next_thread_cputime);
+    LOG_THREAD_CPUTIME (&gv->logconfig, next_thread_cputime);
+    if ((gv->logconfig.c.mask & DDS_LC_TRACE) &&
+        (tnow.v >= next_print_queue_length.v && evq->ntxl_t_last_update.v > last_ntxl_t_last_update.v))
+    {
+      // add a line to the trace at most once per second, and only when something happened
+      EVQTRACE("queue length %"PRIuSIZE" avg since last line %f\n",
+               evq->ntxl_length,
+               (double) (evq->ntxl_length_time - last_ntxl_length_time) / (double) (evq->ntxl_t_last_update.v - last_ntxl_t_last_update.v));
+      last_ntxl_length_time = evq->ntxl_length_time;
+      last_ntxl_t_last_update = evq->ntxl_t_last_update;
+      next_print_queue_length = ddsrt_mtime_add_duration (tnow, DDS_SECS (1));
+    }
 
     ddsi_thread_state_awake_fixed_domain (thrst);
-    handle_xevents (thrst, xevq, xp, tnow);
+    handle_xevents (thrst, evq, xp, tnow);
     /* Send to the network unlocked, as it may sleep due to bandwidth limitation */
-    ddsrt_mutex_unlock (&xevq->lock);
+    ddsrt_mutex_unlock (&evq->lock);
     ddsi_xpack_send (xp, false);
-    ddsrt_mutex_lock (&xevq->lock);
+    ddsrt_mutex_lock (&evq->lock);
     ddsi_thread_state_asleep (thrst);
 
-    if (!non_timed_xmit_list_is_empty (xevq) || xevq->terminate)
+    if (!non_timed_xmit_list_is_empty (evq) || evq->terminate)
     {
       /* continue immediately */
     }
     else
     {
-      ddsrt_mtime_t twakeup = earliest_in_xeventq (xevq);
+      ddsrt_mtime_t twakeup = earliest_in_xeventq (evq);
       if (twakeup.v == DDS_NEVER)
       {
         /* no scheduled events nor any non-timed events */
-        ddsrt_cond_wait (&xevq->cond, &xevq->lock);
+        ddsrt_cond_wait (&evq->cond, &evq->lock);
       }
       else
       {
@@ -656,12 +686,12 @@ static uint32_t xevent_thread (struct ddsi_xeventq * xevq)
         if (twakeup.v > tnow.v)
         {
           twakeup.v -= tnow.v;
-          ddsrt_cond_waitfor (&xevq->cond, &xevq->lock, twakeup.v);
+          ddsrt_cond_waitfor (&evq->cond, &evq->lock, twakeup.v);
         }
       }
     }
   }
-  ddsrt_mutex_unlock (&xevq->lock);
+  ddsrt_mutex_unlock (&evq->lock);
   ddsi_xpack_send (xp, false);
   ddsi_xpack_free (xp);
   return 0;
@@ -675,7 +705,7 @@ void ddsi_qxev_msg (struct ddsi_xeventq *evq, struct ddsi_xmsg *msg)
   ddsrt_mutex_lock (&evq->lock);
   ev = qxev_common_nt (evq, XEVK_MSG);
   ev->u.msg.msg = msg;
-  qxev_insert_nt (ev);
+  qxev_insert_nt (ev, ddsrt_time_monotonic ());
   ddsrt_mutex_unlock (&evq->lock);
 }
 
@@ -687,7 +717,7 @@ void ddsi_qxev_nt_callback (struct ddsi_xeventq *evq, void (*cb) (void *arg), vo
   ev = qxev_common_nt (evq, XEVK_NT_CALLBACK);
   ev->u.callback.cb = cb;
   ev->u.callback.arg = arg;
-  qxev_insert_nt (ev);
+  qxev_insert_nt (ev, ddsrt_time_monotonic ());
   ddsrt_mutex_unlock (&evq->lock);
 }
 
@@ -743,7 +773,7 @@ enum ddsi_qxev_msg_rexmit_result ddsi_qxev_msg_rexmit_wrlock_held (struct ddsi_x
     ev->u.msg_rexmit.queued_rexmit_bytes = msg_size;
     evq->queued_rexmit_bytes += msg_size;
     evq->queued_rexmit_msgs++;
-    qxev_insert_nt (ev);
+    qxev_insert_nt (ev, ddsrt_time_monotonic ());
 #if 0
     GVTRACE ("AAA(%p,%"PA_PRIuSIZE")", (void *) ev, msg_size);
 #endif

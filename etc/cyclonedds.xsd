@@ -112,8 +112,10 @@ CycloneDDS configuration</xs:documentation>
       <xs:all>
         <xs:element minOccurs="0" ref="config:DSGracePeriod"/>
         <xs:element minOccurs="0" ref="config:DefaultMulticastAddress"/>
+        <xs:element minOccurs="0" ref="config:DiscoveredLocatorPruneDelay"/>
         <xs:element minOccurs="0" ref="config:EnableTopicDiscoveryEndpoints"/>
         <xs:element minOccurs="0" ref="config:ExternalDomainId"/>
+        <xs:element minOccurs="0" ref="config:InitialLocatorPruneDelay"/>
         <xs:element minOccurs="0" ref="config:LeaseDuration"/>
         <xs:element minOccurs="0" ref="config:MaxAutoParticipantIndex"/>
         <xs:element minOccurs="0" ref="config:ParticipantIndex"/>
@@ -140,6 +142,14 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;The default value is: &lt;code&gt;auto&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
+  <xs:element name="DiscoveredLocatorPruneDelay" type="config:duration_inf">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This element specifies the time for which discovered (unicast) participant locators are pinged after a participant at that address disappeared because of a lease expiry. Locators for participants for which notice of graceful termination was received are not retained.&lt;/p&gt;
+&lt;p&gt;Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.&lt;/p&gt;
+&lt;p&gt;The default value is: &lt;code&gt;60s&lt;/code&gt;&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
   <xs:element name="EnableTopicDiscoveryEndpoints" type="xs:boolean">
     <xs:annotation>
       <xs:documentation>
@@ -154,6 +164,14 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;The default value is: &lt;code&gt;default&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
+  <xs:element name="InitialLocatorPruneDelay" type="config:duration_inf">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This element specifies the default time for configured peer locators are initially ping and after disappearance of the last participant at that address until it is pruned. It can be overridden for individual peers.&lt;/p&gt;
+&lt;p&gt;Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.&lt;/p&gt;
+&lt;p&gt;The default value is: &lt;code&gt;30s&lt;/code&gt;&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
   <xs:element name="LeaseDuration" type="config:duration">
     <xs:annotation>
       <xs:documentation>
@@ -165,8 +183,8 @@ CycloneDDS configuration</xs:documentation>
   <xs:element name="MaxAutoParticipantIndex" type="xs:integer">
     <xs:annotation>
       <xs:documentation>
-&lt;p&gt;This element specifies the maximum DDSI participant index selected by this instance of the Cyclone DDS service if the Discovery/ParticipantIndex is "auto".&lt;/p&gt;
-&lt;p&gt;The default value is: &lt;code&gt;9&lt;/code&gt;&lt;/p&gt;</xs:documentation>
+&lt;p&gt;This element specifies the maximum DDSI participant index selected by this instance of the Cyclone DDS service if the Discovery/ParticipantIndex is "auto". This also determines the range of port numbers pinged by default for unicast participant discovery.&lt;/p&gt;
+&lt;p&gt;The default value is: &lt;code&gt;99&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="ParticipantIndex" type="xs:string">
@@ -211,6 +229,14 @@ CycloneDDS configuration</xs:documentation>
           <xs:documentation>
 &lt;p&gt;This element specifies an IP address to which discovery packets must be sent, in addition to the default multicast address (see also General/AllowMulticast). Both hostnames and a numerical IP address are accepted; the hostname or IP address may be suffixed with :PORT to explicitly set the port to which it must be sent. Multiple Peers may be specified.&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;&amp;lt;empty&amp;gt;&lt;/code&gt;&lt;/p&gt;</xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="PruneDelay" type="config:duration_inf">
+        <xs:annotation>
+          <xs:documentation>
+&lt;p&gt;This element specifies the duration for which the locator must be pinged for participant discovery before it is pruned as a useless address. The value "default" means the value in Discovery/InitialLocatorPruneDelay is used.&lt;/p&gt;
+&lt;p&gt;Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.&lt;/p&gt;
+&lt;p&gt;The default value is: &lt;code&gt;default&lt;/code&gt;&lt;/p&gt;</xs:documentation>
         </xs:annotation>
       </xs:attribute>
     </xs:complexType>
@@ -1979,12 +2005,12 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:restriction>
   </xs:simpleType>
 </xs:schema>
-<!--- generated from ddsi_config.h[e6e75c7c07b3b91a92715063cfd8abdd0fbd8b08] -->
+<!--- generated from ddsi_config.h[dbf9996a8b49da8e7cb4b62ab157ba80a073cd81] -->
 <!--- generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] -->
-<!--- generated from ddsi__cfgelems.h[69679834d0a592a339803ed27e3966adc900d592] -->
-<!--- generated from ddsi_config.c[8d7ef0ae962a47cb2138de27ac0f6751e3393c66] -->
+<!--- generated from ddsi__cfgelems.h[a8b3ad5170f4e86fd7c1f29c5677c332930ea6a4] -->
+<!--- generated from ddsi_config.c[94a98ea7709bca260c9cfb5cf43396b0d5e3c953] -->
 <!--- generated from _confgen.h[9554f1d72645c0b8bb66ffbfbc3c0fb664fc1a43] -->
-<!--- generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] -->
+<!--- generated from _confgen.c[86c631048046ed4e14c46dba40e5253b50a748fe] -->
 <!--- generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] -->
 <!--- generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] -->
 <!--- generated from generate_rst.c[3c4b523fbb57c8e4a7e247379d06a8021ccc21c4] -->

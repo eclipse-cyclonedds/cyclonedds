@@ -174,6 +174,7 @@ DU(duration_us_1s);
 DU(duration_100ms_1hr);
 DU(nop_duration_ms_1hr);
 DU(maybe_duration_ms_1hr);
+DU(maybe_duration_inf);
 PF(duration);
 PF(maybe_duration);
 DUPF(standards_conformance);
@@ -732,6 +733,8 @@ static int if_peer (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const
   if (new == NULL)
     return -1;
   new->peer = NULL;
+  new->prune_delay.isdefault = true;
+  new->prune_delay.value = DDS_INFINITY;
   return 0;
 }
 
@@ -1474,6 +1477,18 @@ static enum update_result uf_duration_ms_1hr (struct ddsi_cfgst *cfgst, void *pa
 static enum update_result uf_maybe_duration_ms_1hr (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
   return uf_maybe_duration_gen (cfgst, parent, cfgelem, value, DDS_MSECS (1), 0, DDS_SECS (3600));
+}
+
+static enum update_result uf_maybe_duration_inf (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  if (ddsrt_strcasecmp (value, "inf") == 0) {
+    struct ddsi_config_maybe_duration * const elem = cfg_address (cfgst, parent, cfgelem);
+    elem->isdefault = 0;
+    elem->value = DDS_INFINITY;
+    return URES_SUCCESS;
+  } else {
+    return uf_maybe_duration_gen (cfgst, parent, cfgelem, value, 0, 0, DDS_INFINITY - 1);
+  }
 }
 
 static enum update_result uf_nop_duration_ms_1hr (struct ddsi_cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)

@@ -112,7 +112,7 @@ The default value is: ``lax``
 //CycloneDDS/Domain/Discovery
 =============================
 
-Children: :ref:`DSGracePeriod<//CycloneDDS/Domain/Discovery/DSGracePeriod>`, :ref:`DefaultMulticastAddress<//CycloneDDS/Domain/Discovery/DefaultMulticastAddress>`, :ref:`EnableTopicDiscoveryEndpoints<//CycloneDDS/Domain/Discovery/EnableTopicDiscoveryEndpoints>`, :ref:`ExternalDomainId<//CycloneDDS/Domain/Discovery/ExternalDomainId>`, :ref:`LeaseDuration<//CycloneDDS/Domain/Discovery/LeaseDuration>`, :ref:`MaxAutoParticipantIndex<//CycloneDDS/Domain/Discovery/MaxAutoParticipantIndex>`, :ref:`ParticipantIndex<//CycloneDDS/Domain/Discovery/ParticipantIndex>`, :ref:`Peers<//CycloneDDS/Domain/Discovery/Peers>`, :ref:`Ports<//CycloneDDS/Domain/Discovery/Ports>`, :ref:`SPDPInterval<//CycloneDDS/Domain/Discovery/SPDPInterval>`, :ref:`SPDPMulticastAddress<//CycloneDDS/Domain/Discovery/SPDPMulticastAddress>`, :ref:`Tag<//CycloneDDS/Domain/Discovery/Tag>`
+Children: :ref:`DSGracePeriod<//CycloneDDS/Domain/Discovery/DSGracePeriod>`, :ref:`DefaultMulticastAddress<//CycloneDDS/Domain/Discovery/DefaultMulticastAddress>`, :ref:`DiscoveredLocatorPruneDelay<//CycloneDDS/Domain/Discovery/DiscoveredLocatorPruneDelay>`, :ref:`EnableTopicDiscoveryEndpoints<//CycloneDDS/Domain/Discovery/EnableTopicDiscoveryEndpoints>`, :ref:`ExternalDomainId<//CycloneDDS/Domain/Discovery/ExternalDomainId>`, :ref:`InitialLocatorPruneDelay<//CycloneDDS/Domain/Discovery/InitialLocatorPruneDelay>`, :ref:`LeaseDuration<//CycloneDDS/Domain/Discovery/LeaseDuration>`, :ref:`MaxAutoParticipantIndex<//CycloneDDS/Domain/Discovery/MaxAutoParticipantIndex>`, :ref:`ParticipantIndex<//CycloneDDS/Domain/Discovery/ParticipantIndex>`, :ref:`Peers<//CycloneDDS/Domain/Discovery/Peers>`, :ref:`Ports<//CycloneDDS/Domain/Discovery/Ports>`, :ref:`SPDPInterval<//CycloneDDS/Domain/Discovery/SPDPInterval>`, :ref:`SPDPMulticastAddress<//CycloneDDS/Domain/Discovery/SPDPMulticastAddress>`, :ref:`Tag<//CycloneDDS/Domain/Discovery/Tag>`
 
 The Discovery element allows you to specify various parameters related to the discovery of peers.
 
@@ -143,6 +143,20 @@ This element specifies the default multicast address for all traffic other than 
 The default value is: ``auto``
 
 
+.. _`//CycloneDDS/Domain/Discovery/DiscoveredLocatorPruneDelay`:
+
+//CycloneDDS/Domain/Discovery/DiscoveredLocatorPruneDelay
+---------------------------------------------------------
+
+Number-with-unit
+
+This element specifies the time for which discovered (unicast) participant locators are pinged after a participant at that address disappeared because of a lease expiry. Locators for participants for which notice of graceful termination was received are not retained.
+
+Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
+
+The default value is: ``60s``
+
+
 .. _`//CycloneDDS/Domain/Discovery/EnableTopicDiscoveryEndpoints`:
 
 //CycloneDDS/Domain/Discovery/EnableTopicDiscoveryEndpoints
@@ -167,6 +181,20 @@ An override for the domain id is used to discovery and determine the port number
 The default value is: ``default``
 
 
+.. _`//CycloneDDS/Domain/Discovery/InitialLocatorPruneDelay`:
+
+//CycloneDDS/Domain/Discovery/InitialLocatorPruneDelay
+------------------------------------------------------
+
+Number-with-unit
+
+This element specifies the default time for configured peer locators are initially ping and after disappearance of the last participant at that address until it is pruned. It can be overridden for individual peers.
+
+Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
+
+The default value is: ``30s``
+
+
 .. _`//CycloneDDS/Domain/Discovery/LeaseDuration`:
 
 //CycloneDDS/Domain/Discovery/LeaseDuration
@@ -187,9 +215,9 @@ The default value is: ``10 s``
 
 Integer
 
-This element specifies the maximum DDSI participant index selected by this instance of the Cyclone DDS service if the Discovery/ParticipantIndex is "auto".
+This element specifies the maximum DDSI participant index selected by this instance of the Cyclone DDS service if the Discovery/ParticipantIndex is "auto". This also determines the range of port numbers pinged by default for unicast participant discovery.
 
-The default value is: ``9``
+The default value is: ``99``
 
 
 .. _`//CycloneDDS/Domain/Discovery/ParticipantIndex`:
@@ -244,7 +272,7 @@ The default value is: ``default``
 //CycloneDDS/Domain/Discovery/Peers/Peer
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: :ref:`Address<//CycloneDDS/Domain/Discovery/Peers/Peer[@Address]>`
+Attributes: :ref:`Address<//CycloneDDS/Domain/Discovery/Peers/Peer[@Address]>`, :ref:`PruneDelay<//CycloneDDS/Domain/Discovery/Peers/Peer[@PruneDelay]>`
 
 This element statically configures addresses for discovery.
 
@@ -259,6 +287,20 @@ Text
 This element specifies an IP address to which discovery packets must be sent, in addition to the default multicast address (see also General/AllowMulticast). Both hostnames and a numerical IP address are accepted; the hostname or IP address may be suffixed with :PORT to explicitly set the port to which it must be sent. Multiple Peers may be specified.
 
 The default value is: ``<empty>``
+
+
+.. _`//CycloneDDS/Domain/Discovery/Peers/Peer[@PruneDelay]`:
+
+//CycloneDDS/Domain/Discovery/Peers/Peer[@PruneDelay]
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Number-with-unit
+
+This element specifies the duration for which the locator must be pinged for participant discovery before it is pruned as a useless address. The value "default" means the value in Discovery/InitialLocatorPruneDelay is used.
+
+Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
+
+The default value is: ``default``
 
 
 .. _`//CycloneDDS/Domain/Discovery/Ports`:
@@ -2716,12 +2758,12 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 The default value is: ``none``
 
 ..
-   generated from ddsi_config.h[e6e75c7c07b3b91a92715063cfd8abdd0fbd8b08] 
+   generated from ddsi_config.h[dbf9996a8b49da8e7cb4b62ab157ba80a073cd81] 
    generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] 
-   generated from ddsi__cfgelems.h[69679834d0a592a339803ed27e3966adc900d592] 
-   generated from ddsi_config.c[8d7ef0ae962a47cb2138de27ac0f6751e3393c66] 
+   generated from ddsi__cfgelems.h[a8b3ad5170f4e86fd7c1f29c5677c332930ea6a4] 
+   generated from ddsi_config.c[94a98ea7709bca260c9cfb5cf43396b0d5e3c953] 
    generated from _confgen.h[9554f1d72645c0b8bb66ffbfbc3c0fb664fc1a43] 
-   generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] 
+   generated from _confgen.c[86c631048046ed4e14c46dba40e5253b50a748fe] 
    generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] 
    generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] 
    generated from generate_rst.c[3c4b523fbb57c8e4a7e247379d06a8021ccc21c4] 

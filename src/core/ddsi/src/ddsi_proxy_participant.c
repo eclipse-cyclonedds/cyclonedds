@@ -34,6 +34,7 @@
 #include "ddsi__tran.h"
 #include "ddsi__vendor.h"
 #include "ddsi__addrset.h"
+#include "ddsi__spdp_schedule.h"
 
 typedef struct proxy_purge_data {
   struct ddsi_proxy_participant *proxypp;
@@ -45,6 +46,37 @@ typedef struct proxy_purge_data {
 const ddsrt_avl_treedef_t ddsi_proxypp_proxytp_treedef =
   DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_proxy_topic, avlnode), offsetof (struct ddsi_proxy_topic, entityid), ddsi_compare_entityid, 0);
 #endif
+
+enum maybe_update_as_disc_for_proxypp_op { MUADFPOP_ADD, MUADFPOP_REMOVE_ON_DELETE, MUADFPOP_REMOVE_ON_EXPIRY };
+
+static void maybe_update_as_disc_for_proxypp (struct ddsi_domaingv *gv, const struct ddsi_addrset *as_meta, enum maybe_update_as_disc_for_proxypp_op op)
+{
+  // FIXME: this is mostly equivalent to the pre-per-interface "allow_multicast" setting, but we can do much better
+  // because we know the interface on which received it, whether it was a multicast, and, for Cyclone peers, whether
+  // it was spontaneous or in response to one we sent
+  bool allow_mc_spdp = false;
+  for (int i = 0; i < gv->n_interfaces && !allow_mc_spdp; i++)
+    if (gv->interfaces[i].allow_multicast & DDSI_AMC_SPDP)
+      allow_mc_spdp = true;
+  if (ddsi_addrset_empty_mc (as_meta) || !allow_mc_spdp)
+  {
+    // FIXME: should perhaps do all unicast addresses
+    // FIXME: relying on "any_uc" to always return the same address is very bad
+    ddsi_xlocator_t loc;
+    ddsi_addrset_any_uc (as_meta, &loc);
+    switch (op)
+    {
+      case MUADFPOP_ADD:
+        if (ddsi_spdp_ref_locator (gv->spdp_schedule, &loc, true) != DDS_RETCODE_OK)
+          abort (); // FIXME: propagate and delete proxy participant
+        break;
+      case MUADFPOP_REMOVE_ON_DELETE:
+      case MUADFPOP_REMOVE_ON_EXPIRY:
+        ddsi_spdp_unref_locator (gv->spdp_schedule, &loc, (op == MUADFPOP_REMOVE_ON_EXPIRY));
+        break;
+    }
+  }
+}
 
 static void proxy_participant_replace_minl (struct ddsi_proxy_participant *proxypp, bool manbypp, struct ddsi_lease *lnew)
 {
@@ -479,11 +511,13 @@ bool ddsi_new_proxy_participant (struct ddsi_proxy_participant **proxy_participa
   }
 #endif
   *proxy_participant = proxypp;
+  maybe_update_as_disc_for_proxypp (gv, proxypp->as_meta, MUADFPOP_ADD);
   return true;
 }
 
 int ddsi_update_proxy_participant_plist_locked (struct ddsi_proxy_participant *proxypp, ddsi_seqno_t seq, const struct ddsi_plist *datap, ddsrt_wctime_t timestamp)
 {
+  // FIXME: need to (eventually) support updating locator lists, that now also involves the SPDP schedule tables
   if (seq > proxypp->seq)
   {
     proxypp->seq = seq;
@@ -558,7 +592,7 @@ void ddsi_unref_proxy_participant (struct ddsi_proxy_participant *proxypp, struc
     ddsrt_mutex_unlock (&proxypp->e.lock);
     ELOGDISC (proxypp, "ddsi_unref_proxy_participant("PGUIDFMT"): refc=0, freeing\n", PGUID (proxypp->e.guid));
     free_proxy_participant (proxypp);
-    ddsi_remove_deleted_participant_guid (gv->deleted_participants, &pp_guid, DDSI_DELETED_PPGUID_LOCAL | DDSI_DELETED_PPGUID_REMOTE);
+    ddsi_remove_deleted_participant_guid (gv->deleted_participants, &pp_guid);
   }
   else if (
     proxypp->endpoints == NULL
@@ -571,7 +605,7 @@ void ddsi_unref_proxy_participant (struct ddsi_proxy_participant *proxypp, struc
     ddsrt_mutex_unlock (&proxypp->e.lock);
     ELOGDISC (proxypp, "ddsi_unref_proxy_participant("PGUIDFMT"): refc=%u, no endpoints, implicitly created, deleting\n",
               PGUID (proxypp->e.guid), (unsigned) refc);
-    ddsi_delete_proxy_participant_by_guid(proxypp->e.gv, &proxypp->e.guid, tnow, 1);
+    ddsi_delete_proxy_participant_by_guid(proxypp->e.gv, &proxypp->e.guid, tnow, true);
     /* Deletion is still (and has to be) asynchronous. A parallel endpoint creation may or may not
        succeed, and if it succeeds it will be deleted along with the proxy participant. So "your
        mileage may vary". Also, the proxy participant may be blacklisted for a little ... */
@@ -599,7 +633,7 @@ static int gcreq_proxy_participant (struct ddsi_proxy_participant *proxypp)
   return 0;
 }
 
-static void delete_or_detach_dependent_pp (struct ddsi_proxy_participant *p, struct ddsi_proxy_participant *proxypp, ddsrt_wctime_t timestamp, int isimplicit)
+static void delete_or_detach_dependent_pp (struct ddsi_proxy_participant *p, struct ddsi_proxy_participant *proxypp, ddsrt_wctime_t timestamp, bool lease_expired)
 {
   ddsrt_mutex_lock (&p->e.lock);
   if (memcmp (&p->privileged_pp_guid, &proxypp->e.guid, sizeof (proxypp->e.guid)) != 0)
@@ -612,7 +646,7 @@ static void delete_or_detach_dependent_pp (struct ddsi_proxy_participant *p, str
   {
     /* DDSI minimal participant mode -- but really, anything not discovered via Cloud gets deleted */
     ddsrt_mutex_unlock (&p->e.lock);
-    (void) ddsi_delete_proxy_participant_by_guid (p->e.gv, &p->e.guid, timestamp, isimplicit);
+    (void) ddsi_delete_proxy_participant_by_guid (p->e.gv, &p->e.guid, timestamp, lease_expired);
   }
   else
   {
@@ -626,7 +660,7 @@ static void delete_or_detach_dependent_pp (struct ddsi_proxy_participant *p, str
   }
 }
 
-static void delete_ppt (struct ddsi_proxy_participant *proxypp, ddsrt_wctime_t timestamp, int isimplicit)
+static void delete_proxy_participant (struct ddsi_proxy_participant *proxypp, ddsrt_wctime_t timestamp, bool lease_expired)
 {
   ddsi_entityid_t *child_entities;
   uint32_t n_child_entities = 0;
@@ -638,13 +672,13 @@ static void delete_ppt (struct ddsi_proxy_participant *proxypp, ddsrt_wctime_t t
     struct ddsi_proxy_participant *p;
     ddsi_entidx_enum_proxy_participant_init (&est, proxypp->e.gv->entity_index);
     while ((p = ddsi_entidx_enum_proxy_participant_next (&est)) != NULL)
-      delete_or_detach_dependent_pp(p, proxypp, timestamp, isimplicit);
+      delete_or_detach_dependent_pp(p, proxypp, timestamp, lease_expired);
     ddsi_entidx_enum_proxy_participant_fini (&est);
   }
 
   ddsrt_mutex_lock (&proxypp->e.lock);
   proxypp->deleting = 1;
-  if (isimplicit)
+  if (lease_expired)
     proxypp->lease_expired = 1;
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
@@ -676,12 +710,13 @@ static void delete_ppt (struct ddsi_proxy_participant *proxypp, ddsrt_wctime_t t
   {
     ep_guid.entityid = child_entities[n];
     if (ddsi_is_writer_entityid (ep_guid.entityid))
-      ddsi_delete_proxy_writer (proxypp->e.gv, &ep_guid, timestamp, isimplicit);
+      ddsi_delete_proxy_writer (proxypp->e.gv, &ep_guid, timestamp, lease_expired);
     else if (ddsi_is_reader_entityid (ep_guid.entityid))
-      ddsi_delete_proxy_reader (proxypp->e.gv, &ep_guid, timestamp, isimplicit);
+      ddsi_delete_proxy_reader (proxypp->e.gv, &ep_guid, timestamp, lease_expired);
   }
   ddsrt_free (child_entities);
 
+  maybe_update_as_disc_for_proxypp (proxypp->e.gv, proxypp->as_meta, lease_expired ? MUADFPOP_REMOVE_ON_EXPIRY : MUADFPOP_REMOVE_ON_DELETE);
   gcreq_proxy_participant (proxypp);
 }
 
@@ -689,10 +724,10 @@ static void purge_helper (const ddsi_xlocator_t *n, void * varg)
 {
   proxy_purge_data_t data = (proxy_purge_data_t) varg;
   if (ddsi_compare_xlocators (n, data->loc) == 0)
-    ddsi_delete_proxy_participant_by_guid (data->proxypp->e.gv, &data->proxypp->e.guid, data->timestamp, 1);
+    ddsi_delete_proxy_participant_by_guid (data->proxypp->e.gv, &data->proxypp->e.guid, data->timestamp, true);
 }
 
-void ddsi_purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocator_t *loc, bool delete_from_as_disc)
+void ddsi_purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocator_t *loc)
 {
   /* FIXME: check whether addr:port can't be reused for a new connection by the time we get here. */
   /* NOTE: This function exists for the sole purpose of cleaning up after closing a TCP connection in ddsi_tcp_close_conn and the state of the calling thread could be anything at this point. Because of that we do the unspeakable and toggle the thread state conditionally. We can't afford to have it in "asleep", as that causes a race with the garbage collector. */
@@ -707,15 +742,10 @@ void ddsi_purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocato
   while ((data.proxypp = ddsi_entidx_enum_proxy_participant_next (&est)) != NULL)
     ddsi_addrset_forall (data.proxypp->as_meta, purge_helper, &data);
   ddsi_entidx_enum_proxy_participant_fini (&est);
-
-  /* Shouldn't try to keep pinging clients once they're gone */
-  if (delete_from_as_disc)
-    ddsi_remove_from_addrset (gv, gv->as_disc, loc);
-
   ddsi_thread_state_asleep (thrst);
 }
 
-int ddsi_delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit)
+int ddsi_delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, bool lease_expired)
 {
   struct ddsi_proxy_participant *ppt;
 
@@ -733,7 +763,7 @@ int ddsi_delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struc
   ddsi_remember_deleted_participant_guid (gv->deleted_participants, &ppt->e.guid);
   ddsi_entidx_remove_proxy_participant_guid (gv->entity_index, ppt);
   ddsrt_mutex_unlock (&gv->lock);
-  delete_ppt (ppt, timestamp, isimplicit);
+  delete_proxy_participant (ppt, timestamp, lease_expired);
 
   return 0;
 }

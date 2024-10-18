@@ -65,10 +65,10 @@ void ddsi_send_entityid_to_prd (struct ddsi_proxy_reader *prd, const ddsi_guid_t
  * @param gv            domain globals
  * @param guid          guid of the proxy writer to delete
  * @param timestamp     deletion timestamp
- * @param isimplicit    indicates if the proxy writer was implicitly created
+ * @param lease_expired    if false, evidence of deletion; if true, circumstantial evidence only (typically lease expiration)
  * @return int
  */
-int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
+int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, bool lease_expired);
 
 /**
  * @brief Delete a proxy reader
@@ -81,10 +81,10 @@ int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *
  * @param gv            domain globals
  * @param guid          guid of the proxy reader to delete
  * @param timestamp     deletion timestamp
- * @param isimplicit    indicates if the proxy reader was implicitly created
+ * @param lease_expired    if false, evidence of deletion; if true, circumstantial evidence only (typically lease expiration)
  * @return int
  */
-int ddsi_delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
+int ddsi_delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, bool lease_expired);
 
 /** @component ddsi_proxy_endpoint */
 void ddsi_update_proxy_reader (struct ddsi_proxy_reader *prd, ddsi_seqno_t seq, struct ddsi_addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp);

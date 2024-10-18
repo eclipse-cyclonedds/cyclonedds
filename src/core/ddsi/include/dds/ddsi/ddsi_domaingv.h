@@ -49,6 +49,7 @@ struct ddsi_tkmap;
 struct dds_security_context;
 struct dds_security_match_index;
 struct ddsi_hsadmin;
+struct spdp_admin;
 
 struct ddsi_config_in_addr_node {
    ddsi_locator_t loc;
@@ -204,7 +205,7 @@ struct ddsi_domaingv {
     Initial discovery address set, and the current discovery address
     set. These are the addresses that SPDP pings get sent to.
   */
-  struct ddsi_addrset *as_disc;
+  struct spdp_admin *spdp_schedule;
 
   ddsrt_mutex_t lock;
 

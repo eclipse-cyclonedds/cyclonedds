@@ -1730,7 +1730,7 @@ static int handle_InfoDST (struct ddsi_receiver_state *rst, const ddsi_rtps_info
     dst.prefix = rst->dst_guid_prefix;
     dst.entityid = ddsi_to_entityid(DDSI_ENTITYID_PARTICIPANT);
     rst->forme = (ddsi_entidx_lookup_participant_guid (rst->gv->entity_index, &dst) != NULL ||
-                  ddsi_is_deleted_participant_guid (rst->gv->deleted_participants, &dst, DDSI_DELETED_PPGUID_LOCAL));
+                  ddsi_is_deleted_participant_guid (rst->gv->deleted_participants, &dst));
   }
   return 1;
 }

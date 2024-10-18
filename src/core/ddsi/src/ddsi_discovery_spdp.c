@@ -33,23 +33,10 @@
 #include "ddsi__transmit.h"
 #include "ddsi__lease.h"
 #include "ddsi__xqos.h"
+#include "ddsi__spdp_schedule.h"
 
-static void maybe_add_pp_as_meta_to_as_disc (struct ddsi_domaingv *gv, const struct ddsi_addrset *as_meta)
-{
-  // FIXME: this is mostly equivalent to the pre-per-interface "allow_multicast" setting, but we can do much better
-  // because we know the interface on which received it, whether it was a multicast, and, for Cyclone peers, whether
-  // it was spontaneous or in response to one we sent
-  bool allow_mc_spdp = false;
-  for (int i = 0; i < gv->n_interfaces && !allow_mc_spdp; i++)
-    if (gv->interfaces[i].allow_multicast & DDSI_AMC_SPDP)
-      allow_mc_spdp = true;
-  if (ddsi_addrset_empty_mc (as_meta) || !allow_mc_spdp)
-  {
-    ddsi_xlocator_t loc;
-    ddsi_addrset_any_uc (as_meta, &loc);
-    ddsi_add_xlocator_to_addrset (gv, gv->as_disc, &loc);
-  }
-}
+static bool get_pp_and_spdp_wr (struct ddsi_domaingv *gv, const ddsi_guid_t *pp_guid, struct ddsi_participant **pp, struct ddsi_writer **spdp_wr)
+  ddsrt_nonnull_all;
 
 struct locators_builder {
   ddsi_locators_t *dst;
@@ -229,105 +216,11 @@ void ddsi_get_participant_builtin_topic_data (const struct ddsi_participant *pp,
 #endif
 }
 
-int ddsi_spdp_write (struct ddsi_participant *pp)
-{
-  struct ddsi_writer *wr;
-  ddsi_plist_t ps;
-  struct ddsi_participant_builtin_topic_data_locators locs;
-
-  if (pp->e.onlylocal) {
-    /* This topic is only locally available. */
-    return 0;
-  }
-
-  dds_return_t ret = ddsi_get_builtin_writer (pp, DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER, &wr);
-  if (ret == DDS_RETCODE_OK && wr == NULL)
-    return 0;
-
-  ETRACE (pp, "ddsi_spdp_write("PGUIDFMT")\n", PGUID (pp->e.guid));
-  if (ret != DDS_RETCODE_OK)
-  {
-    ETRACE (pp, "ddsi_spdp_write("PGUIDFMT") - builtin participant writer not found\n", PGUID (pp->e.guid));
-    return 0;
-  }
-  assert (wr != NULL);
-  ddsi_get_participant_builtin_topic_data (pp, &ps, &locs);
-  return ddsi_write_and_fini_plist (wr, &ps, true);
-}
-
-static int ddsi_spdp_dispose_unregister_with_wr (struct ddsi_participant *pp, unsigned entityid)
-{
-  ddsi_plist_t ps;
-  struct ddsi_writer *wr;
-
-  dds_return_t ret = ddsi_get_builtin_writer (pp, entityid, &wr);
-  if (ret == DDS_RETCODE_OK && wr == NULL)
-    return 0;
-  else if (ret != DDS_RETCODE_OK)
-  {
-    ETRACE (pp, "ddsi_spdp_dispose_unregister("PGUIDFMT") - builtin participant %s writer not found\n",
-            PGUID (pp->e.guid), entityid == DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER ? "secure" : "");
-    return 0;
-  }
-  assert (wr != NULL);
-  ddsi_plist_init_empty (&ps);
-  ps.present |= PP_PARTICIPANT_GUID;
-  ps.participant_guid = pp->e.guid;
-  return ddsi_write_and_fini_plist (wr, &ps, false);
-}
-
-int ddsi_spdp_dispose_unregister (struct ddsi_participant *pp)
-{
-  /*
-   * When disposing a participant, it should be announced on both the
-   * non-secure and secure writers.
-   * The receiver will decide from which writer it accepts the dispose.
-   */
-  int ret = ddsi_spdp_dispose_unregister_with_wr(pp, DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
-  if ((ret > 0) && ddsi_omg_participant_is_secure(pp))
-  {
-    ret = ddsi_spdp_dispose_unregister_with_wr(pp, DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER);
-  }
-  return ret;
-}
-
 struct ddsi_spdp_directed_xevent_cb_arg {
   ddsi_guid_t pp_guid;
   int nrepeats;
   ddsi_guid_prefix_t dest_proxypp_guid_prefix;
 };
-
-static bool resend_spdp_sample_by_guid_key (struct ddsi_writer *wr, const ddsi_guid_t *guid, struct ddsi_proxy_reader *prd)
-{
-  /* Look up data in (transient-local) WHC by key value -- FIXME: clearly
-   a slightly more efficient and elegant way of looking up the key value
-   is to be preferred */
-  struct ddsi_domaingv *gv = wr->e.gv;
-  bool sample_found;
-  ddsi_plist_t ps;
-  ddsi_plist_init_empty (&ps);
-  ps.present |= PP_PARTICIPANT_GUID;
-  ps.participant_guid = *guid;
-  struct ddsi_serdata *sd = ddsi_serdata_from_sample (gv->spdp_type, SDK_KEY, &ps);
-  ddsi_plist_fini (&ps);
-  struct ddsi_whc_borrowed_sample sample;
-
-  ddsrt_mutex_lock (&wr->e.lock);
-  sample_found = ddsi_whc_borrow_sample_key (wr->whc, sd, &sample);
-  if (sample_found)
-  {
-    /* Claiming it is new rather than a retransmit so that the rexmit
-       limiting won't kick in.  It is best-effort and therefore the
-       updating of the last transmitted sequence number won't take
-       place anyway.  Nor is it necessary to fiddle with heartbeat
-       control stuff. */
-    ddsi_enqueue_spdp_sample_wrlock_held (wr, sample.seq, sample.serdata, prd);
-    ddsi_whc_return_sample(wr->whc, &sample, false);
-  }
-  ddsrt_mutex_unlock (&wr->e.lock);
-  ddsi_serdata_unref (sd);
-  return sample_found;
-}
 
 static bool get_pp_and_spdp_wr (struct ddsi_domaingv *gv, const ddsi_guid_t *pp_guid, struct ddsi_participant **pp, struct ddsi_writer **spdp_wr)
 {
@@ -361,15 +254,23 @@ static void ddsi_spdp_directed_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_
   const ddsi_guid_t guid = { .prefix = arg->dest_proxypp_guid_prefix, .entityid = { .u = DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER } };
   struct ddsi_proxy_reader *prd;
   if ((prd = ddsi_entidx_lookup_proxy_reader_guid (gv->entity_index, &guid)) == NULL)
+  {
     GVTRACE ("xmit spdp: no proxy reader "PGUIDFMT"\n", PGUID (guid));
-  else if (!resend_spdp_sample_by_guid_key (spdp_wr, &arg->pp_guid, prd))
-    GVTRACE ("xmit spdp: suppressing early spdp response from "PGUIDFMT" to %"PRIx32":%"PRIx32":%"PRIx32":%x\n",
-             PGUID (pp->e.guid), PGUIDPREFIX (arg->dest_proxypp_guid_prefix), DDSI_ENTITYID_PARTICIPANT);
-
-  // Directed events are used to send SPDP packets to newly discovered peers, and used just once
-  if (--arg->nrepeats == 0 ||
-      pp->plist->qos.liveliness.lease_duration < DDS_SECS (1) ||
-      (!gv->config.spdp_interval.isdefault && gv->config.spdp_interval.value < DDS_SECS (1)))
+    ddsi_delete_xevent (ev);
+  }
+  else if (!ddsi_spdp_force_republish (gv->spdp_schedule, pp, prd))
+  {
+    // it is just a local race, so a few milliseconds should be plenty
+    ddsrt_mtime_t tnext = ddsrt_mtime_add_duration (tnow, DDS_MSECS (10));
+    GVTRACE ("xmit spdp "PGUIDFMT" to %"PRIx32":%"PRIx32":%"PRIx32":%x too early (resched %gs)\n",
+             PGUID (pp->e.guid),
+             PGUIDPREFIX (arg->dest_proxypp_guid_prefix), DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+             (double)(tnext.v - tnow.v) / 1e9);
+    (void) ddsi_resched_xevent_if_earlier (ev, tnext);
+  }
+  else if (--arg->nrepeats == 0 ||
+           pp->plist->qos.liveliness.lease_duration < DDS_SECS (1) ||
+           (!gv->config.spdp_interval.isdefault && gv->config.spdp_interval.value < DDS_SECS (1)))
   {
     ddsi_delete_xevent (ev);
   }
@@ -382,70 +283,6 @@ static void ddsi_spdp_directed_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_
              (double)(tnext.v - tnow.v) / 1e9);
     (void) ddsi_resched_xevent_if_earlier (ev, tnext);
   }
-}
-
-static void resched_spdp_broadcast (struct ddsi_xevent *ev, struct ddsi_participant *pp, ddsrt_mtime_t tnow)
-{
-  struct ddsi_domaingv * const gv = pp->e.gv;
-  const dds_duration_t mindelta = DDS_MSECS (10);
-  ddsrt_mtime_t tnext;
-  dds_duration_t intv;
-
-  if (!gv->config.spdp_interval.isdefault)
-    intv = gv->config.spdp_interval.value;
-  else
-  {
-    // Default interval is 80% of the lease duration with a bit of fiddling around the
-    // edges (similar to PMD), and with an upper limit
-    const dds_duration_t ldur = pp->plist->qos.liveliness.lease_duration;
-    if (ldur < 5 * mindelta / 4)
-      intv = mindelta;
-    else if (ldur < DDS_SECS (10))
-      intv = 4 * ldur / 5;
-    else
-      intv = ldur - DDS_SECS (2);
-    // Historical maximum interval is 30s, stick to that
-    if (intv > DDS_SECS (30))
-      intv = DDS_SECS (30);
-  }
-
-  tnext = ddsrt_mtime_add_duration (tnow, intv);
-  GVTRACE ("xmit spdp "PGUIDFMT" to %"PRIx32":%"PRIx32":%"PRIx32":%x (resched %gs)\n",
-           PGUID (pp->e.guid),
-           0,0,0, DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
-           (double)(tnext.v - tnow.v) / 1e9);
-  (void) ddsi_resched_xevent_if_earlier (ev, tnext);
-}
-
-void ddsi_spdp_broadcast_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, UNUSED_ARG (struct ddsi_xpack *xp), void *varg, ddsrt_mtime_t tnow)
-{
-  /* Like the writer pointer in the heartbeat event, the participant pointer in the spdp event is assumed valid. */
-  struct ddsi_spdp_broadcast_xevent_cb_arg * const arg = varg;
-  struct ddsi_participant *pp;
-  struct ddsi_writer *spdp_wr;
-
-  if (!get_pp_and_spdp_wr (gv, &arg->pp_guid, &pp, &spdp_wr))
-    return;
-
-  if (!resend_spdp_sample_by_guid_key (spdp_wr, &arg->pp_guid, NULL))
-  {
-#ifndef NDEBUG
-    /* If undirected, it is pp->spdp_xevent, and that one must never
-       run into an empty WHC unless it is already marked for deletion.
-
-       If directed, it may happen in response to an SPDP packet during
-       creation of the participant.  This is because pp is inserted in
-       the hash table quite early on, which, in turn, is because it
-       needs to be visible for creating its builtin endpoints.  But in
-       this case, the initial broadcast of the SPDP packet of pp will
-       happen shortly. */
-    ddsrt_mutex_lock (&pp->e.lock);
-    assert (ddsi_delete_xevent_pending (ev));
-    ddsrt_mutex_unlock (&pp->e.lock);
-#endif
-  }
-
-  resched_spdp_broadcast (ev, pp, tnow);
 }
 
 static unsigned pseudo_random_delay (const ddsi_guid_t *x, const ddsi_guid_t *y, ddsrt_mtime_t tnow)
@@ -502,7 +339,7 @@ static void respond_to_spdp (const struct ddsi_domaingv *gv, const ddsi_guid_t *
   ddsi_entidx_enum_participant_fini (&est);
 }
 
-static int handle_spdp_dead (const struct ddsi_receiver_state *rst, ddsi_entityid_t pwr_entityid, ddsrt_wctime_t timestamp, const ddsi_plist_t *datap, unsigned statusinfo)
+static void handle_spdp_dead (const struct ddsi_receiver_state *rst, ddsi_entityid_t pwr_entityid, ddsrt_wctime_t timestamp, const ddsi_plist_t *datap, unsigned statusinfo)
 {
   struct ddsi_domaingv * const gv = rst->gv;
   ddsi_guid_t guid;
@@ -516,7 +353,7 @@ static int handle_spdp_dead (const struct ddsi_receiver_state *rst, ddsi_entityi
     assert (guid.entityid.u == DDSI_ENTITYID_PARTICIPANT);
     if (ddsi_is_proxy_participant_deletion_allowed(gv, &guid, pwr_entityid))
     {
-      if (ddsi_delete_proxy_participant_by_guid (gv, &guid, timestamp, 0) < 0)
+      if (ddsi_delete_proxy_participant_by_guid (gv, &guid, timestamp, false) < 0)
       {
         GVLOGDISC (" unknown");
       }
@@ -534,7 +371,6 @@ static int handle_spdp_dead (const struct ddsi_receiver_state *rst, ddsi_entityi
   {
     GVWARNING ("data (SPDP, vendor %u.%u): no/invalid payload\n", rst->vendor.id[0], rst->vendor.id[1]);
   }
-  return 1;
 }
 
 static struct ddsi_proxy_participant *find_ddsi2_proxy_participant (const struct ddsi_entity_index *entidx, const ddsi_guid_t *ppguid)
@@ -583,7 +419,7 @@ static void make_participants_dependent_on_ddsi2 (struct ddsi_domaingv *gv, cons
   if (pp != NULL)
   {
     GVTRACE ("make_participants_dependent_on_ddsi2: ddsi2 "PGUIDFMT" is no more, delete "PGUIDFMT"\n", PGUID (*ddsi2guid), PGUID (pp->e.guid));
-    ddsi_delete_proxy_participant_by_guid (gv, &pp->e.guid, timestamp, 1);
+    ddsi_delete_proxy_participant_by_guid (gv, &pp->e.guid, timestamp, true);
   }
 }
 
@@ -634,43 +470,73 @@ static bool accept_packet_from_interface (const struct ddsi_domaingv *gv, const 
   return false;
 }
 
-static int handle_spdp_alive (const struct ddsi_receiver_state *rst, ddsi_seqno_t seq, ddsrt_wctime_t timestamp, const ddsi_plist_t *datap)
+enum participant_guid_is_known_result {
+  PGIKR_UNKNOWN,
+  PGIKR_KNOWN,
+  PGIKR_KNOWN_BUT_INTERESTING
+};
+
+static enum participant_guid_is_known_result participant_guid_is_known (const struct ddsi_receiver_state *rst, ddsi_seqno_t seq, ddsrt_wctime_t timestamp, const ddsi_plist_t *datap)
 {
   struct ddsi_domaingv * const gv = rst->gv;
-  const unsigned bes_sedp_announcer_mask =
-    DDSI_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER |
-    DDSI_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER;
-  struct ddsi_addrset *as_meta, *as_default;
-  uint32_t builtin_endpoint_set;
-  ddsi_guid_t privileged_pp_guid;
-  dds_duration_t lease_duration;
-  unsigned custom_flags = 0;
-
-  // Don't just process any SPDP packet but look at the network interface and uni/multicast
-  // One could refine this even further by also looking at the locators advertised in the
-  // packet, but this should suffice to drop unwanted multicast packets, which is the only
-  // use case I am currently aware of.
-  if (!accept_packet_from_interface (gv, rst))
-    return 0;
-
-  /* If advertised domain id or domain tag doesn't match, ignore the message.  Do this first to
-     minimize the impact such messages have. */
+  struct ddsi_entity_common *existing_entity;
+  if ((existing_entity = ddsi_entidx_lookup_guid_untyped (gv->entity_index, &datap->participant_guid)) == NULL)
   {
-    const uint32_t domain_id = (datap->present & PP_DOMAIN_ID) ? datap->domain_id : gv->config.extDomainId.value;
-    const char *domain_tag = (datap->present & PP_DOMAIN_TAG) ? datap->domain_tag : "";
-    if (domain_id != gv->config.extDomainId.value || strcmp (domain_tag, gv->config.domainTag) != 0)
+    /* Local SPDP packets may be looped back, and that can include ones
+       for participants currently being deleted.  The first thing that
+       happens when deleting a participant is removing it from the hash
+       table, and consequently the looped back packet may appear to be
+       from an unknown participant.  So we handle that. */
+    if (ddsi_is_deleted_participant_guid (gv->deleted_participants, &datap->participant_guid))
     {
-      GVTRACE ("ignore remote participant in mismatching domain %"PRIu32" tag \"%s\"\n", domain_id, domain_tag);
-      return 0;
+      RSTTRACE ("SPDP ST0 "PGUIDFMT" (recently deleted)", PGUID (datap->participant_guid));
+      return PGIKR_KNOWN;
     }
   }
-  
-  if (!(datap->present & PP_PARTICIPANT_GUID) || !(datap->present & PP_BUILTIN_ENDPOINT_SET))
+  else if (existing_entity->kind == DDSI_EK_PARTICIPANT)
   {
-    GVWARNING ("data (SPDP, vendor %u.%u): no/invalid payload\n", rst->vendor.id[0], rst->vendor.id[1]);
-    return 0;
+    RSTTRACE ("SPDP ST0 "PGUIDFMT" (local)", PGUID (datap->participant_guid));
+    return PGIKR_KNOWN;
   }
+  else if (existing_entity->kind == DDSI_EK_PROXY_PARTICIPANT)
+  {
+    struct ddsi_proxy_participant *proxypp = (struct ddsi_proxy_participant *) existing_entity;
+    struct ddsi_lease *lease;
+    int interesting = 0;
+    RSTTRACE ("SPDP ST0 "PGUIDFMT" (known)", PGUID (datap->participant_guid));
+    /* SPDP processing is so different from normal processing that we are
+       even skipping the automatic lease renewal. Note that proxy writers
+       that are not alive are not set alive here. This is done only when
+       data is received from a particular pwr (in handle_regular) */
+    if ((lease = ddsrt_atomic_ldvoidp (&proxypp->minl_auto)) != NULL)
+      ddsi_lease_renew (lease, ddsrt_time_elapsed ());
+    ddsrt_mutex_lock (&proxypp->e.lock);
+    if (proxypp->implicitly_created || seq > proxypp->seq)
+    {
+      interesting = 1;
+      if (!(gv->logconfig.c.mask & DDS_LC_TRACE))
+        GVLOGDISC ("SPDP ST0 "PGUIDFMT, PGUID (datap->participant_guid));
+      GVLOGDISC (proxypp->implicitly_created ? " (NEW was-implicitly-created)" : " (update)");
+      proxypp->implicitly_created = 0;
+      ddsi_update_proxy_participant_plist_locked (proxypp, seq, datap, timestamp);
+    }
+    ddsrt_mutex_unlock (&proxypp->e.lock);
+    return interesting ? PGIKR_KNOWN_BUT_INTERESTING : PGIKR_KNOWN;
+  }
+  else
+  {
+    /* mismatch on entity kind: that should never have gotten past the input validation */
+    GVWARNING ("data (SPDP, vendor %u.%u): "PGUIDFMT" kind mismatch\n", rst->vendor.id[0], rst->vendor.id[1], PGUID (datap->participant_guid));
+    return PGIKR_KNOWN;
+  }
+  return PGIKR_UNKNOWN;
+}
 
+static uint32_t get_builtin_endpoint_set (const struct ddsi_receiver_state *rst, const ddsi_plist_t *datap, bool is_secure)
+{
+  struct ddsi_domaingv * const gv = rst->gv;
+  uint32_t builtin_endpoint_set;
+  assert (datap->present & PP_BUILTIN_ENDPOINT_SET);
   /* At some point the RTI implementation didn't mention
      BUILTIN_ENDPOINT_DDSI_PARTICIPANT_MESSAGE_DATA_READER & ...WRITER, or
      so it seemed; and yet they are necessary for correct operation,
@@ -685,79 +551,25 @@ static int handle_spdp_alive (const struct ddsi_receiver_state *rst, ddsi_seqno_
       gv->config.assume_rti_has_pmd_endpoints)
   {
     GVLOGDISC ("data (SPDP, vendor %u.%u): assuming unadvertised PMD endpoints do exist\n",
-             rst->vendor.id[0], rst->vendor.id[1]);
+               rst->vendor.id[0], rst->vendor.id[1]);
     builtin_endpoint_set |=
-      DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER |
-      DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER;
+    DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER |
+    DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER;
   }
-
-  /* Do we know this GUID already? */
-  {
-    struct ddsi_entity_common *existing_entity;
-    if ((existing_entity = ddsi_entidx_lookup_guid_untyped (gv->entity_index, &datap->participant_guid)) == NULL)
-    {
-      /* Local SPDP packets may be looped back, and that can include ones
-         for participants currently being deleted.  The first thing that
-         happens when deleting a participant is removing it from the hash
-         table, and consequently the looped back packet may appear to be
-         from an unknown participant.  So we handle that. */
-      if (ddsi_is_deleted_participant_guid (gv->deleted_participants, &datap->participant_guid, DDSI_DELETED_PPGUID_REMOTE))
-      {
-        RSTTRACE ("SPDP ST0 "PGUIDFMT" (recently deleted)", PGUID (datap->participant_guid));
-        return 0;
-      }
-    }
-    else if (existing_entity->kind == DDSI_EK_PARTICIPANT)
-    {
-      RSTTRACE ("SPDP ST0 "PGUIDFMT" (local)", PGUID (datap->participant_guid));
-      return 0;
-    }
-    else if (existing_entity->kind == DDSI_EK_PROXY_PARTICIPANT)
-    {
-      struct ddsi_proxy_participant *proxypp = (struct ddsi_proxy_participant *) existing_entity;
-      struct ddsi_lease *lease;
-      int interesting = 0;
-      RSTTRACE ("SPDP ST0 "PGUIDFMT" (known)", PGUID (datap->participant_guid));
-      /* SPDP processing is so different from normal processing that we are
-         even skipping the automatic lease renewal. Note that proxy writers
-         that are not alive are not set alive here. This is done only when
-         data is received from a particular pwr (in handle_regular) */
-      if ((lease = ddsrt_atomic_ldvoidp (&proxypp->minl_auto)) != NULL)
-        ddsi_lease_renew (lease, ddsrt_time_elapsed ());
-      ddsrt_mutex_lock (&proxypp->e.lock);
-      if (proxypp->implicitly_created || seq > proxypp->seq)
-      {
-        interesting = 1;
-        if (!(gv->logconfig.c.mask & DDS_LC_TRACE))
-          GVLOGDISC ("SPDP ST0 "PGUIDFMT, PGUID (datap->participant_guid));
-        GVLOGDISC (proxypp->implicitly_created ? " (NEW was-implicitly-created)" : " (update)");
-        proxypp->implicitly_created = 0;
-        ddsi_update_proxy_participant_plist_locked (proxypp, seq, datap, timestamp);
-      }
-      ddsrt_mutex_unlock (&proxypp->e.lock);
-      return interesting;
-    }
-    else
-    {
-      /* mismatch on entity kind: that should never have gotten past the
-         input validation */
-      GVWARNING ("data (SPDP, vendor %u.%u): "PGUIDFMT" kind mismatch\n", rst->vendor.id[0], rst->vendor.id[1], PGUID (datap->participant_guid));
-      return 0;
-    }
-  }
-
-  const bool is_secure = ((datap->builtin_endpoint_set & DDSI_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER) != 0 &&
-                          (datap->present & PP_IDENTITY_TOKEN));
   /* Make sure we don't create any security builtin endpoint when it's considered unsecure. */
   if (!is_secure)
     builtin_endpoint_set &= DDSI_BES_MASK_NON_SECURITY;
-  GVLOGDISC ("SPDP ST0 "PGUIDFMT" bes %"PRIx32"%s NEW", PGUID (datap->participant_guid), builtin_endpoint_set, is_secure ? " (secure)" : "");
+  return builtin_endpoint_set;
+}
 
-  if (datap->present & PP_ADLINK_PARTICIPANT_VERSION_INFO) {
+static unsigned get_custom_flags (const struct ddsi_domaingv *gv, const ddsi_plist_t *datap)
+{
+  unsigned custom_flags = 0;
+  if (datap->present & PP_ADLINK_PARTICIPANT_VERSION_INFO)
+  {
     if ((datap->adlink_participant_version_info.flags & DDSI_ADLINK_FL_DDSI2_PARTICIPANT_FLAG) &&
         (datap->adlink_participant_version_info.flags & DDSI_ADLINK_FL_PARTICIPANT_IS_DDSI2))
       custom_flags |= DDSI_CF_PARTICIPANT_IS_DDSI2;
-
     GVLOGDISC (" (0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32" %s)",
                datap->adlink_participant_version_info.version,
                datap->adlink_participant_version_info.flags,
@@ -766,8 +578,133 @@ static int handle_spdp_alive (const struct ddsi_receiver_state *rst, ddsi_seqno_
                datap->adlink_participant_version_info.unused[2],
                datap->adlink_participant_version_info.internals);
   }
+  return custom_flags;
+}
+
+static bool get_privileged_participant (const struct ddsi_receiver_state *rst, const ddsi_plist_t *datap, uint32_t builtin_endpoint_set, unsigned custom_flags, ddsi_guid_t *privileged_pp_guid)
+{
+  struct ddsi_domaingv * const gv = rst->gv;
+  const unsigned bes_sedp_announcer_mask =
+    DDSI_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER |
+    DDSI_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER;
+  /* If any of the SEDP announcer are missing AND the guid prefix of
+     the SPDP writer differs from the guid prefix of the new participant,
+     we make it dependent on the writer's participant.  See also the
+     lease expiration handling.  Note that the entityid MUST be
+     DDSI_ENTITYID_PARTICIPANT or entidx_lookup will assert.  So we only
+     zero the prefix. */
+  privileged_pp_guid->prefix = rst->src_guid_prefix;
+  privileged_pp_guid->entityid.u = DDSI_ENTITYID_PARTICIPANT;
+  if ((builtin_endpoint_set & bes_sedp_announcer_mask) != bes_sedp_announcer_mask &&
+      memcmp (privileged_pp_guid, &datap->participant_guid, sizeof (ddsi_guid_t)) != 0)
+  {
+    return true;
+  }
+  else if (ddsi_vendor_is_eclipse_or_opensplice (rst->vendor) && !(custom_flags & DDSI_CF_PARTICIPANT_IS_DDSI2))
+  {
+    /* Non-DDSI2 participants are made dependent on DDSI2 (but DDSI2
+       itself need not be discovered yet) */
+    struct ddsi_proxy_participant *ddsi2;
+    if ((ddsi2 = find_ddsi2_proxy_participant (gv->entity_index, &datap->participant_guid)) != NULL)
+    {
+      privileged_pp_guid->prefix = ddsi2->e.guid.prefix;
+      return true;
+    }
+  }
+  // clear privileged_pp_guid prefix, but leave the magic entity id
+  memset (&privileged_pp_guid->prefix, 0, sizeof (privileged_pp_guid->prefix));
+  return false;
+}
+
+static bool get_locators (const struct ddsi_receiver_state *rst, const ddsi_plist_t *datap, struct ddsi_addrset **as_default, struct ddsi_addrset **as_meta)
+{
+  struct ddsi_domaingv * const gv = rst->gv;
+  const ddsi_locators_t emptyset = { .n = 0, .first = NULL, .last = NULL };
+  const ddsi_locators_t *uc;
+  const ddsi_locators_t *mc;
+  bool allow_srcloc;
+  ddsi_interface_set_t inherited_intfs;
+
+  uc = (datap->present & PP_DEFAULT_UNICAST_LOCATOR) ? &datap->default_unicast_locators : &emptyset;
+  mc = (datap->present & PP_DEFAULT_MULTICAST_LOCATOR) ? &datap->default_multicast_locators : &emptyset;
+  if (gv->config.tcp_use_peeraddr_for_unicast)
+    uc = &emptyset; // force use of source locator
+  allow_srcloc = (uc == &emptyset) && !ddsi_is_unspec_locator (&rst->pktinfo.src);
+  ddsi_interface_set_init (&inherited_intfs);
+  *as_default = ddsi_addrset_from_locatorlists (gv, uc, mc, &rst->pktinfo, allow_srcloc, &inherited_intfs);
+
+  uc = (datap->present & PP_METATRAFFIC_UNICAST_LOCATOR) ? &datap->metatraffic_unicast_locators : &emptyset;
+  mc = (datap->present & PP_METATRAFFIC_MULTICAST_LOCATOR) ? &datap->metatraffic_multicast_locators : &emptyset;
+  if (gv->config.tcp_use_peeraddr_for_unicast)
+    uc = &emptyset; // force use of source locator
+  allow_srcloc = (uc == &emptyset) && !ddsi_is_unspec_locator (&rst->pktinfo.src);
+  ddsi_interface_set_init (&inherited_intfs);
+  *as_meta = ddsi_addrset_from_locatorlists (gv, uc, mc, &rst->pktinfo, allow_srcloc, &inherited_intfs);
+
+  ddsi_log_addrset (gv, DDS_LC_DISCOVERY, " (data", *as_default);
+  ddsi_log_addrset (gv, DDS_LC_DISCOVERY, " meta", *as_meta);
+  GVLOGDISC (")");
+
+  if (ddsi_addrset_contains_non_psmx_uc (*as_default) && ddsi_addrset_contains_non_psmx_uc (*as_meta))
+    return true;
+  else
+  {
+    GVLOGDISC (" (no unicast address");
+    ddsi_unref_addrset (*as_default);
+    ddsi_unref_addrset (*as_meta);
+    return false;
+  }
+}
+
+// Result for handle_spdp_alive, "interesting" vs "not interesting" affects the
+// logging category for subsequent logging output
+enum handle_spdp_result {
+  HSR_NOT_INTERESTING,
+  HSR_INTERESTING
+};
+
+static enum handle_spdp_result handle_spdp_alive (const struct ddsi_receiver_state *rst, ddsi_seqno_t seq, ddsrt_wctime_t timestamp, const ddsi_plist_t *datap)
+{
+  struct ddsi_domaingv * const gv = rst->gv;
+
+  // Don't just process any SPDP packet but look at the network interface and uni/multicast
+  // One could refine this even further by also looking at the locators advertised in the
+  // packet, but this should suffice to drop unwanted multicast packets, which is the only
+  // use case I am currently aware of.
+  if (!accept_packet_from_interface (gv, rst))
+    return HSR_NOT_INTERESTING;
+
+  /* If advertised domain id or domain tag doesn't match, ignore the message.  Do this first to
+     minimize the impact such messages have. */
+  {
+    const uint32_t domain_id = (datap->present & PP_DOMAIN_ID) ? datap->domain_id : gv->config.extDomainId.value;
+    const char *domain_tag = (datap->present & PP_DOMAIN_TAG) ? datap->domain_tag : "";
+    if (domain_id != gv->config.extDomainId.value || strcmp (domain_tag, gv->config.domainTag) != 0)
+    {
+      GVTRACE ("ignore remote participant in mismatching domain %"PRIu32" tag \"%s\"\n", domain_id, domain_tag);
+      return HSR_NOT_INTERESTING;
+    }
+  }
+
+  if (!(datap->present & PP_PARTICIPANT_GUID) || !(datap->present & PP_BUILTIN_ENDPOINT_SET))
+  {
+    GVWARNING ("data (SPDP, vendor %u.%u): no/invalid payload\n", rst->vendor.id[0], rst->vendor.id[1]);
+    return HSR_NOT_INTERESTING;
+  }
+
+  const enum participant_guid_is_known_result pgik_result = participant_guid_is_known (rst, seq, timestamp, datap);
+  if (pgik_result != PGIKR_UNKNOWN)
+    return (pgik_result == PGIKR_KNOWN_BUT_INTERESTING) ? HSR_INTERESTING : HSR_NOT_INTERESTING;
+
+  const bool is_secure = ((datap->builtin_endpoint_set & DDSI_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER) != 0 && (datap->present & PP_IDENTITY_TOKEN));
+
+  const uint32_t builtin_endpoint_set = get_builtin_endpoint_set (rst, datap, is_secure);
+  GVLOGDISC ("SPDP ST0 "PGUIDFMT" bes %"PRIx32"%s NEW", PGUID (datap->participant_guid), builtin_endpoint_set, is_secure ? " (secure)" : "");
+
+  const unsigned custom_flags = get_custom_flags (gv, datap);
 
   /* Can't do "mergein_missing" because of constness of *datap */
+  dds_duration_t lease_duration;
   if (datap->qos.present & DDSI_QP_LIVELINESS)
     lease_duration = datap->qos.liveliness.lease_duration;
   else
@@ -775,104 +712,45 @@ static int handle_spdp_alive (const struct ddsi_receiver_state *rst, ddsi_seqno_
     assert (ddsi_default_qos_participant.present & DDSI_QP_LIVELINESS);
     lease_duration = ddsi_default_qos_participant.liveliness.lease_duration;
   }
-  /* If any of the SEDP announcer are missing AND the guid prefix of
-     the SPDP writer differs from the guid prefix of the new participant,
-     we make it dependent on the writer's participant.  See also the
-     lease expiration handling.  Note that the entityid MUST be
-     DDSI_ENTITYID_PARTICIPANT or entidx_lookup will assert.  So we only
-     zero the prefix. */
-  privileged_pp_guid.prefix = rst->src_guid_prefix;
-  privileged_pp_guid.entityid.u = DDSI_ENTITYID_PARTICIPANT;
-  if ((builtin_endpoint_set & bes_sedp_announcer_mask) != bes_sedp_announcer_mask &&
-      memcmp (&privileged_pp_guid, &datap->participant_guid, sizeof (ddsi_guid_t)) != 0)
+
+  ddsi_guid_t privileged_pp_guid;
+  if (get_privileged_participant (rst, datap, builtin_endpoint_set, custom_flags, &privileged_pp_guid))
   {
     GVLOGDISC (" (depends on "PGUIDFMT")", PGUID (privileged_pp_guid));
     /* never expire lease for this proxy: it won't actually expire
        until the "privileged" one expires anyway */
     lease_duration = DDS_INFINITY;
   }
-  else if (ddsi_vendor_is_eclipse_or_opensplice (rst->vendor) && !(custom_flags & DDSI_CF_PARTICIPANT_IS_DDSI2))
+
+  struct ddsi_addrset *as_meta, *as_default;
+  if (!get_locators (rst, datap, &as_default, &as_meta))
   {
-    /* Non-DDSI2 participants are made dependent on DDSI2 (but DDSI2
-       itself need not be discovered yet) */
-    struct ddsi_proxy_participant *ddsi2;
-    if ((ddsi2 = find_ddsi2_proxy_participant (gv->entity_index, &datap->participant_guid)) == NULL)
-      memset (&privileged_pp_guid.prefix, 0, sizeof (privileged_pp_guid.prefix));
-    else
-    {
-      privileged_pp_guid.prefix = ddsi2->e.guid.prefix;
-      lease_duration = DDS_INFINITY;
-      GVLOGDISC (" (depends on "PGUIDFMT")", PGUID (privileged_pp_guid));
-    }
-  }
-  else
-  {
-    memset (&privileged_pp_guid.prefix, 0, sizeof (privileged_pp_guid.prefix));
-  }
-
-  /* Choose locators */
-  {
-    const ddsi_locators_t emptyset = { .n = 0, .first = NULL, .last = NULL };
-    const ddsi_locators_t *uc;
-    const ddsi_locators_t *mc;
-    bool allow_srcloc;
-    ddsi_interface_set_t inherited_intfs;
-
-    uc = (datap->present & PP_DEFAULT_UNICAST_LOCATOR) ? &datap->default_unicast_locators : &emptyset;
-    mc = (datap->present & PP_DEFAULT_MULTICAST_LOCATOR) ? &datap->default_multicast_locators : &emptyset;
-    if (gv->config.tcp_use_peeraddr_for_unicast)
-      uc = &emptyset; // force use of source locator
-    allow_srcloc = (uc == &emptyset) && !ddsi_is_unspec_locator (&rst->pktinfo.src);
-    ddsi_interface_set_init (&inherited_intfs);
-    as_default = ddsi_addrset_from_locatorlists (gv, uc, mc, &rst->pktinfo, allow_srcloc, &inherited_intfs);
-
-    uc = (datap->present & PP_METATRAFFIC_UNICAST_LOCATOR) ? &datap->metatraffic_unicast_locators : &emptyset;
-    mc = (datap->present & PP_METATRAFFIC_MULTICAST_LOCATOR) ? &datap->metatraffic_multicast_locators : &emptyset;
-    if (gv->config.tcp_use_peeraddr_for_unicast)
-      uc = &emptyset; // force use of source locator
-    allow_srcloc = (uc == &emptyset) && !ddsi_is_unspec_locator (&rst->pktinfo.src);
-    ddsi_interface_set_init (&inherited_intfs);
-    as_meta = ddsi_addrset_from_locatorlists (gv, uc, mc, &rst->pktinfo, allow_srcloc, &inherited_intfs);
-
-    ddsi_log_addrset (gv, DDS_LC_DISCOVERY, " (data", as_default);
-    ddsi_log_addrset (gv, DDS_LC_DISCOVERY, " meta", as_meta);
-    GVLOGDISC (")");
-  }
-
-  if (!(ddsi_addrset_contains_non_psmx_uc (as_default) && ddsi_addrset_contains_non_psmx_uc (as_meta)))
-  {
-    GVLOGDISC (" (no unicast address)");
-    ddsi_unref_addrset (as_default);
-    ddsi_unref_addrset (as_meta);
-    return 1;
+    GVLOGDISC (" (no unicast address");
+    return HSR_INTERESTING;
   }
 
   GVLOGDISC (" QOS={");
   ddsi_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, &datap->qos);
   GVLOGDISC ("}\n");
 
-  maybe_add_pp_as_meta_to_as_disc (gv, as_meta);
-
   struct ddsi_proxy_participant *proxy_participant;
   if (!ddsi_new_proxy_participant (&proxy_participant, gv, &datap->participant_guid, builtin_endpoint_set, &privileged_pp_guid, as_default, as_meta, datap, lease_duration, rst->vendor, custom_flags, timestamp, seq))
   {
     /* If no proxy participant was created, don't respond */
-    return 0;
+    return HSR_NOT_INTERESTING;
   }
   else
   {
     /* Force transmission of SPDP messages - we're not very careful
        in avoiding the processing of SPDP packets addressed to others
        so filter here */
-    int have_dst = (rst->dst_guid_prefix.u[0] != 0 || rst->dst_guid_prefix.u[1] != 0 || rst->dst_guid_prefix.u[2] != 0);
-    if (!have_dst)
+    const bool have_dst = (rst->dst_guid_prefix.u[0] != 0 || rst->dst_guid_prefix.u[1] != 0 || rst->dst_guid_prefix.u[2] != 0);
+    if (have_dst)
+      GVLOGDISC ("directed SPDP packet -> not responding\n");
+    else
     {
       GVLOGDISC ("broadcasted SPDP packet -> answering");
       respond_to_spdp (gv, &datap->participant_guid);
-    }
-    else
-    {
-      GVLOGDISC ("directed SPDP packet -> not responding\n");
     }
 
     if (custom_flags & DDSI_CF_PARTICIPANT_IS_DDSI2)
@@ -890,10 +768,10 @@ static int handle_spdp_alive (const struct ddsi_receiver_state *rst, ddsi_seqno_
       {
         GVLOGDISC ("make_participants_dependent_on_ddsi2: ddsi2 "PGUIDFMT" is no more, delete "PGUIDFMT"\n",
                    PGUID (privileged_pp_guid), PGUID (datap->participant_guid));
-        ddsi_delete_proxy_participant_by_guid (gv, &datap->participant_guid, timestamp, 1);
+        ddsi_delete_proxy_participant_by_guid (gv, &datap->participant_guid, timestamp, true);
       }
     }
-    return 1;
+    return HSR_INTERESTING;
   }
 }
 
@@ -903,7 +781,7 @@ void ddsi_handle_spdp (const struct ddsi_receiver_state *rst, ddsi_entityid_t pw
   ddsi_plist_t decoded_data;
   if (ddsi_serdata_to_sample (serdata, &decoded_data, NULL, NULL))
   {
-    int interesting = 0;
+    enum handle_spdp_result interesting = HSR_NOT_INTERESTING;
     switch (serdata->statusinfo & (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER))
     {
       case 0:
@@ -913,11 +791,12 @@ void ddsi_handle_spdp (const struct ddsi_receiver_state *rst, ddsi_entityid_t pw
       case DDSI_STATUSINFO_DISPOSE:
       case DDSI_STATUSINFO_UNREGISTER:
       case (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER):
-        interesting = handle_spdp_dead (rst, pwr_entityid, serdata->timestamp, &decoded_data, serdata->statusinfo);
+        handle_spdp_dead (rst, pwr_entityid, serdata->timestamp, &decoded_data, serdata->statusinfo);
+        interesting = HSR_INTERESTING;
         break;
     }
 
     ddsi_plist_fini (&decoded_data);
-    GVLOG (interesting ? DDS_LC_DISCOVERY : DDS_LC_TRACE, "\n");
+    GVLOG (interesting == HSR_INTERESTING ? DDS_LC_DISCOVERY : DDS_LC_TRACE, "\n");
   }
 }

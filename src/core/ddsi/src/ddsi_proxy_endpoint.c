@@ -488,10 +488,10 @@ static int gcreq_proxy_writer (struct ddsi_proxy_writer *pwr)
 
 /* First stage in deleting the proxy writer. In this function the pwr and its member pointers
    will remain valid. The real cleaning-up is done async in gc_delete_proxy_writer. */
-int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit)
+int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, bool lease_expired)
 {
   struct ddsi_proxy_writer *pwr;
-  DDSRT_UNUSED_ARG (isimplicit);
+  DDSRT_UNUSED_ARG (lease_expired);
   GVLOGDISC ("ddsi_delete_proxy_writer ("PGUIDFMT") ", PGUID (*guid));
 
   ddsrt_mutex_lock (&gv->lock);
@@ -812,10 +812,10 @@ static int gcreq_proxy_reader (struct ddsi_proxy_reader *prd)
   return 0;
 }
 
-int ddsi_delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit)
+int ddsi_delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, bool lease_expired)
 {
   struct ddsi_proxy_reader *prd;
-  (void)isimplicit;
+  (void)lease_expired;
   GVLOGDISC ("ddsi_delete_proxy_reader ("PGUIDFMT") ", PGUID (*guid));
 
   ddsrt_mutex_lock (&gv->lock);
