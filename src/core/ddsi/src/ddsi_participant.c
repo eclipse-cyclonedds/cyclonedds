@@ -682,7 +682,6 @@ void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid
     if (pp->pmd_update_xevent)
       ddsi_delete_xevent (pp->pmd_update_xevent);
 
-    // FIXME: locking
     update_participant_spdp_sample (pp, false);
     ddsi_spdp_unregister_participant (gv->spdp_schedule, pp);
     ddsi_serdata_unref (pp->spdp_serdata);
