@@ -356,10 +356,9 @@ static dds_return_t populate_initial_addresses (struct spdp_admin *adm, bool add
 
   // There is no difference in the resulting configuration if the config.peers gets added
   // first or the automatic localhost is: because it takes the maximum of the prune delay.
-  if (rc == DDS_RETCODE_OK && gv->config.peers)
-  {
+  if (gv->config.peers)
     rc = add_peer_addresses (adm, gv->config.peers);
-  }
+
   if (rc == DDS_RETCODE_OK && add_localhost)
   {
     struct ddsi_config_peer_listelem peer_local;
