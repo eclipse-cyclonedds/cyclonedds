@@ -167,6 +167,12 @@ static int compare_spdp_pp (const void *va, const void *vb) {
 static const ddsrt_avl_treedef_t spdp_loc_td = DDSRT_AVL_TREEDEF_INITIALIZER(offsetof (union spdp_loc_union, c.avlnode), offsetof (union spdp_loc_union, c.xloc), compare_xlocators_vwrap, NULL);
 static const ddsrt_avl_treedef_t spdp_pp_td = DDSRT_AVL_TREEDEF_INITIALIZER(offsetof (struct spdp_pp, avlnode), 0, compare_spdp_pp, NULL);
 
+static void ddsi_spdp_handle_aging_locators_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *xev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
+  ddsrt_nonnull ((1, 2, 3));
+
+static void ddsi_spdp_handle_live_locators_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *xev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
+  ddsrt_nonnull ((1, 2, 3));
+
 static dds_return_t add_peer_address_xlocator (struct spdp_admin *adm, const ddsi_xlocator_t *xloc, dds_duration_t prune_delay)
 {
   // Used for initial addresses only.  These are all inserted as "aging" so there cannot
@@ -780,7 +786,7 @@ static ddsrt_mtime_t spdp_do_live_locators (struct spdp_admin *adm, struct ddsi_
   return t_sched;
 }
 
-void ddsi_spdp_handle_aging_locators_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *xev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
+static void ddsi_spdp_handle_aging_locators_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *xev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
 {
   struct handle_locators_xevent_arg * const arg = varg;
   (void) gv;
@@ -788,7 +794,7 @@ void ddsi_spdp_handle_aging_locators_xevent_cb (struct ddsi_domaingv *gv, struct
   ddsi_resched_xevent_if_earlier (xev, t_sched);
 }
 
-void ddsi_spdp_handle_live_locators_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *xev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
+static void ddsi_spdp_handle_live_locators_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *xev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
 {
   struct handle_locators_xevent_arg * const arg = varg;
   (void) gv;
