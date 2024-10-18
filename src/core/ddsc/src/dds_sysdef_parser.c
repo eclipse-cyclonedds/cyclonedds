@@ -1131,6 +1131,17 @@ static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *n
       PARSER_ERROR (pstate, line, "Unknown attribute '%s'", name);
       ret = SD_PARSE_RESULT_ERR;
     }
+
+    // On error parsing an attribute, free the node if it is non-retained,
+    // because the elem_close for this node will not be invoked. A non-retained
+    // node is not part of the resuling node tree and will not be freed
+    // as part of freeing the complete tree.
+    if (ret != SD_PARSE_RESULT_OK && pstate->current->retain == false)
+    {
+      if (pstate->current->fini)
+        pstate->current->fini (pstate->current);
+      ddsrt_free (pstate->current);
+    }
   }
   return ret;
 }
