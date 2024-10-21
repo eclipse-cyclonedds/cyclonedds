@@ -18,6 +18,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/avl.h"
+#include "dds/version.h"
 
 #include "dds/ddsi/ddsi_init.h"
 #include "dds/ddsi/ddsi_log.h"
@@ -1181,6 +1182,7 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
     char str[DDSRT_RFC3339STRLEN+1];
     ddsrt_ctime(gv->tstart.v, str, sizeof(str));
     GVLOG (DDS_LC_CONFIG, "started at %d.06%d -- %s\n", sec, usec, str);
+    GVLOG (DDS_LC_CONFIG, "Version: %s %s %s \n", DDS_PROJECT_NAME, DDS_VERSION, DDS_GIT_HASH);
   }
 
   /* Allow configuration to set "deaf_mute" in case we want to start out that way */

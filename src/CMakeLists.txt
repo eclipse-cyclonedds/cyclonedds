@@ -22,6 +22,20 @@ function(PREPEND var prefix)
   set(${var} "${listVar}" PARENT_SCOPE)
 endfunction()
 
+# default to unknown
+set(CYCLONEDDS_GIT_HASH "unknown")
+
+# find latest hash and set it
+find_package(Git QUIET)
+if(GIT_FOUND)
+    execute_process(
+        COMMAND git log -1 --pretty=format:%h
+        OUTPUT_VARIABLE CYCLONEDDS_GIT_HASH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+endif()
+
 option(ENABLE_SECURITY "Enable OMG DDS Security support" ON)
 option(ENABLE_LIFESPAN "Enable Lifespan QoS support" ON)
 option(ENABLE_DEADLINE_MISSED "Enable Deadline Missed QoS support" ON)
