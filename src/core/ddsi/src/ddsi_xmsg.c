@@ -1345,10 +1345,10 @@ void ddsi_xpack_send (struct ddsi_xpack *xp, bool immediately)
     ddsi_xpack_reinit (xp);
     xp1->sendq_next = NULL;
     ddsrt_mutex_lock (&gv->sendq_lock);
+    while (gv->sendq_length >= SENDQ_MAX)
+      ddsrt_cond_wait (&gv->sendq_cond, &gv->sendq_lock);
     if (immediately || gv->sendq_length == 0)
       ddsrt_cond_broadcast (&gv->sendq_cond);
-    if (gv->sendq_length >= SENDQ_MAX)
-      ddsrt_cond_wait (&gv->sendq_cond, &gv->sendq_lock);
     if (gv->sendq_head)
       gv->sendq_tail->sendq_next = xp1;
     else
