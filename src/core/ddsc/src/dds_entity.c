@@ -302,7 +302,7 @@ void dds_entity_init_complete (dds_entity *entity)
 void dds_entity_register_child (dds_entity *parent, dds_entity *child)
 {
   /* parent must be tracking children in its refc, or children can't be added */
-  assert (ddsrt_atomic_ld32 (&parent->m_hdllink.cnt_flags) & HDL_FLAG_ALLOW_CHILDREN);
+  assert (ddsrt_atomic_ldptr (&parent->m_hdllink.cnt_flags) & HDL_FLAG_ALLOW_CHILDREN);
   assert (child->m_iid != 0);
   assert (ddsrt_avl_lookup (&dds_entity_children_td, &parent->m_children, &child->m_iid) == NULL);
   ddsrt_avl_insert (&dds_entity_children_td, &parent->m_children, child);
