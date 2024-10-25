@@ -33,7 +33,15 @@ inline uint32_t ddsrt_atomic_ld32(const volatile ddsrt_atomic_uint32_t *x)
 {
   return x->v;
 }
+
 #if DDSRT_HAVE_ATOMIC64
+/**
+ * @brief Fetch the value of a 64-bit unsigned integer atomically
+ *
+ * @param[in] x Pointer to the variable to fetch the value of
+ *
+ * @return The value of the fetched variable
+ */
 DDS_INLINE_EXPORT ddsrt_attribute_no_sanitize (("thread"))
 inline uint64_t ddsrt_atomic_ld64(const volatile ddsrt_atomic_uint64_t *x)
 {
@@ -56,7 +64,14 @@ inline void ddsrt_atomic_st32(volatile ddsrt_atomic_uint32_t *x, uint32_t v)
 {
   x->v = v;
 }
+
 #if DDSRT_HAVE_ATOMIC64
+/**
+ * @brief Assign a 64-bit unsigned integer atomically
+ *
+ * @param[out] x Pointer to the variable to update
+ * @param[in] v The new value to assign to the variable
+ */
 DDS_INLINE_EXPORT ddsrt_attribute_no_sanitize (("thread"))
 inline void ddsrt_atomic_st64(volatile ddsrt_atomic_uint64_t *x, uint64_t v)
 {
@@ -79,147 +94,608 @@ inline void ddsrt_atomic_stvoidp(volatile ddsrt_atomic_voidp_t *x, void *v)
 DDS_INLINE_EXPORT inline void ddsrt_atomic_inc32(volatile ddsrt_atomic_uint32_t *x) {
   __sync_fetch_and_add (&x->v, 1);
 }
+
 #if DDSRT_HAVE_ATOMIC64
+/**
+ * @brief Increment (by one) a 64-bit unsigned integer atomically
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ */
 DDS_INLINE_EXPORT inline void ddsrt_atomic_inc64 (volatile ddsrt_atomic_uint64_t *x) {
   __sync_fetch_and_add (&x->v, 1);
 }
 #endif
+
+/**
+ * @brief Increment (by one) an uintptr atomically
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ */
+DDS_INLINE_EXPORT inline void ddsrt_atomic_incptr(volatile ddsrt_atomic_uintptr_t *x) {
+  __sync_fetch_and_add (&x->v, 1);
+}
+
+/**
+ * @brief Increment (by one) a 32-bit unsigned integer atomically and return its old value
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ *
+ * @return The old value of the incremented variable
+ */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_inc32_ov (volatile ddsrt_atomic_uint32_t *x) {
   return __sync_fetch_and_add (&x->v, 1);
 }
+
+#if DDSRT_HAVE_ATOMIC64
+/**
+ * @brief Increment (by one) a 64-bit unsigned integer atomically and return its old value
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ *
+ * @return The old value of the incremented variable
+ */
+DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_inc64_ov (volatile ddsrt_atomic_uint64_t *x) {
+  return __sync_fetch_and_add (&x->v, 1);
+}
+#endif
+
+/**
+ * @brief Increment (by one) an uintptr atomically and return its old value
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ *
+ * @return The old value of the incremented variable
+ */
+DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_incptr_ov (volatile ddsrt_atomic_uintptr_t *x) {
+  return __sync_fetch_and_add (&x->v, 1);
+}
+
+/**
+ * @brief Increment (by one) a 32-bit unsigned integer atomically and return its new value
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ *
+ * @return The new value of the incremented variable
+ */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_inc32_nv (volatile ddsrt_atomic_uint32_t *x) {
   return __sync_add_and_fetch (&x->v, 1);
 }
+
 #if DDSRT_HAVE_ATOMIC64
+/**
+ * @brief Increment (by one) a 64-bit unsigned integer atomically and return its new value
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ *
+ * @return The new value of the incremented variable
+ */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_inc64_nv (volatile ddsrt_atomic_uint64_t *x) {
   return __sync_add_and_fetch (&x->v, 1);
 }
 #endif
+
+/**
+ * @brief Increment (by one) an uintptr atomically and return its new value
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ *
+ * @return The new value of the incremented variable
+ */
+DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_incptr_nv (volatile ddsrt_atomic_uintptr_t *x) {
+  return __sync_add_and_fetch (&x->v, 1);
+}
 
 /* DEC */
 
 DDS_INLINE_EXPORT inline void ddsrt_atomic_dec32 (volatile ddsrt_atomic_uint32_t *x) {
   __sync_fetch_and_sub (&x->v, 1);
 }
+
 #if DDSRT_HAVE_ATOMIC64
+/**
+ * @brief Decrement (by one) a 64-bit unsigned integer atomically
+ *
+ * @param[in,out] x Pointer to the variable to decrement
+ */
 DDS_INLINE_EXPORT inline void ddsrt_atomic_dec64 (volatile ddsrt_atomic_uint64_t *x) {
   __sync_fetch_and_sub (&x->v, 1);
 }
 #endif
+
+/**
+ * @brief Decrement (by one) an uintptr atomically
+ *
+ * @param[in,out] x Pointer to the variable to decrement
+ */
+DDS_INLINE_EXPORT inline void ddsrt_atomic_decptr (volatile ddsrt_atomic_uintptr_t *x) {
+  __sync_fetch_and_sub (&x->v, 1);
+}
+
+/**
+ * @brief Decrement (by one) a 32-bit unsigned integer atomically and return its new value
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ *
+ * @return The new value of the decremented variable
+ */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_dec32_nv (volatile ddsrt_atomic_uint32_t *x) {
   return __sync_sub_and_fetch (&x->v, 1);
 }
+
 #if DDSRT_HAVE_ATOMIC64
+/**
+ * @brief Decrement (by one) a 64-bit unsigned integer atomically and return its new value
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ *
+ * @return The new value of the decremented variable
+ */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_dec64_nv (volatile ddsrt_atomic_uint64_t *x) {
   return __sync_sub_and_fetch (&x->v, 1);
 }
 #endif
+
+/**
+ * @brief Decrement (by one) an uintptr atomically and return its new value
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ *
+ * @return The new value of the decremented variable
+ */
+DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_decptr_nv (volatile ddsrt_atomic_uintptr_t *x) {
+  return __sync_sub_and_fetch (&x->v, 1);
+}
+
+/**
+ * @brief Decrement (by one) a 32-bit unsigned integer atomically and return its old value
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ *
+ * @return The old value of the decremented variable
+ */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_dec32_ov (volatile ddsrt_atomic_uint32_t *x) {
   return __sync_fetch_and_sub (&x->v, 1);
 }
+
 #if DDSRT_HAVE_ATOMIC64
+/**
+ * @brief Decrement (by one) a 64-bit unsigned integer atomically and return its old value
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ *
+ * @return The old value of the decremented variable
+ */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_dec64_ov (volatile ddsrt_atomic_uint64_t *x) {
   return __sync_fetch_and_sub (&x->v, 1);
 }
 #endif
+
+/**
+ * @brief Decrement (by one) an uintptr atomically and return its old value
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ *
+ * @return The old value of the decremented variable
+ */
+DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_decptr_ov (volatile ddsrt_atomic_uintptr_t *x) {
+  return __sync_fetch_and_sub (&x->v, 1);
+}
 
 /* ADD */
 
 DDS_INLINE_EXPORT inline void ddsrt_atomic_add32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   __sync_fetch_and_add (&x->v, v);
 }
+
 #if DDSRT_HAVE_ATOMIC64
+/**
+ * @brief Increment (by given amount) a 64-bit unsigned integer atomically
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ * @param[in] v The value to increment by
+ */
 DDS_INLINE_EXPORT inline void ddsrt_atomic_add64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   __sync_fetch_and_add (&x->v, v);
 }
 #endif
+
+/**
+ * @brief Increment (by given amount) an uintptr atomically
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ * @param[in] v The value to increment by
+ */
+DDS_INLINE_EXPORT inline void ddsrt_atomic_addptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
+  __sync_fetch_and_add (&x->v, v);
+}
+
+/**
+ * @brief Increment (by given amount) a 32-bit unsigned integer atomically and return its old value
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ * @param[in] v The value to increment by
+ *
+ * @return The old value of the incremented variable
+ */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_add32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return __sync_fetch_and_add (&x->v, v);
 }
+
+#if DDSRT_HAVE_ATOMIC64
+/**
+ * @brief Increment (by given amount) a 64-bit unsigned integer atomically and return its old value
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ * @param[in] v The value to increment by
+ *
+ * @return The new value of the incremented variable
+ */
+DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_add64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
+  return __sync_fetch_and_add (&x->v, v);
+}
+#endif
+
+/**
+ * @brief Increment (by given amount) an uintptr atomically and return its old value
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ * @param[in] v The value to increment by
+ *
+ * @return The old value of the incremented variable
+ */
+DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_addptr_ov (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
+  return __sync_fetch_and_add (&x->v, v);
+}
+
+/**
+ * @brief Increment (by given amount) a 32-bit unsigned integer atomically and return its new value
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ * @param[in] v The value to increment by
+ *
+ * @return The new value of the incremented variable
+ */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_add32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return __sync_add_and_fetch (&x->v, v);
 }
+
 #if DDSRT_HAVE_ATOMIC64
+/**
+ * @brief Increment (by given amount) a 64-bit unsigned integer atomically and return its new value
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ * @param[in] v The value to increment by
+ *
+ * @return The new value of the incremented variable
+ */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_add64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   return __sync_add_and_fetch (&x->v, v);
 }
 #endif
+
+/**
+ * @brief Increment (by given amount) an uintptr atomically and return its new value
+ *
+ * @param[in,out] x Pointer to the variable to increment
+ * @param[in] v The value to increment by
+ *
+ * @return The new value of the incremented variable
+ */
+DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_addptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
+  return __sync_add_and_fetch (&x->v, v);
+}
 
 /* SUB */
 
 DDS_INLINE_EXPORT inline void ddsrt_atomic_sub32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   __sync_fetch_and_sub (&x->v, v);
 }
+
 #if DDSRT_HAVE_ATOMIC64
+/**
+ * @brief Decrement (by given amount) a 64-bit unsigned integer atomically
+ *
+ * @param[in,out] x Pointer to the variable to decrement
+ * @param[in] v The value to decrement by
+ */
 DDS_INLINE_EXPORT inline void ddsrt_atomic_sub64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   __sync_fetch_and_sub (&x->v, v);
 }
 #endif
+
+/**
+ * @brief Decrement (by given amount) an uintptr atomically
+ *
+ * @param[in,out] x Pointer to the variable to decrement
+ * @param[in] v The value to decrement by
+ */
+DDS_INLINE_EXPORT inline void ddsrt_atomic_subptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
+  __sync_fetch_and_sub (&x->v, v);
+}
+
+/**
+ * @brief Decrement (by given amount) a 32-bit unsigned integer atomically and return its old value
+ *
+ * @param[in,out] x Pointer to the variable to decrement
+ * @param[in] v The value to decrement by
+ *
+ * @return The old value of the decremented variable
+ */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_sub32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return __sync_fetch_and_sub (&x->v, v);
 }
+
+#if DDSRT_HAVE_ATOMIC64
+/**
+ * @brief Decrement (by given amount) a 64-bit unsigned integer atomically and return its old value
+ *
+ * @param[in,out] x Pointer to the variable to decrement
+ * @param[in] v The value to decrement by
+ *
+ * @return The old value of the decremented variable
+ */
+DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_sub64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
+  return __sync_fetch_and_sub (&x->v, v);
+}
+#endif
+
+/**
+ * @brief Decrement (by given amount) an uintptr atomically and return its old value
+ *
+ * @param[in,out] x Pointer to the variable to decrement
+ * @param[in] v The value to decrement by
+ *
+ * @return The old value of the decremented variable
+ */
+DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_subptr_ov (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
+  return __sync_fetch_and_sub (&x->v, v);
+}
+
+/**
+ * @brief Decrement (by given amount) a 32-bit unsigned integer atomically and return its new value
+ *
+ * @param[in,out] x Pointer to the variable to decrement
+ * @param[in] v The value to decrement by
+ *
+ * @return The new value of the decremented variable
+ */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_sub32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return __sync_sub_and_fetch (&x->v, v);
 }
+
 #if DDSRT_HAVE_ATOMIC64
+/**
+ * @brief Decrement (by given amount) a 64-bit unsigned integer atomically and return its new value
+ *
+ * @param[in,out] x Pointer to the variable to decrement
+ * @param[in] v The value to decrement by
+ *
+ * @return The new value of the decremented variable
+ */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_sub64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   return __sync_sub_and_fetch (&x->v, v);
 }
 #endif
+
+/**
+ * @brief Decrement (by given amount) an uintptr atomically and return its new value
+ *
+ * @param[in,out] x Pointer to the variable to decrement
+ * @param[in] v The value to decrement by
+ *
+ * @return The new value of the decremented variable
+ */
+DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_subptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
+  return __sync_sub_and_fetch (&x->v, v);
+}
 
 /* AND */
 
 DDS_INLINE_EXPORT inline void ddsrt_atomic_and32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   __sync_fetch_and_and (&x->v, v);
 }
+
 #if DDSRT_HAVE_ATOMIC64
+/**
+ * @brief Bitwise AND a 64-bit unsigned integer atomically
+ *
+ * @param[in,out] x Pointer to the variable to AND
+ * @param[in] v The value to AND with the variable
+ */
 DDS_INLINE_EXPORT inline void ddsrt_atomic_and64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   __sync_fetch_and_and (&x->v, v);
 }
 #endif
+
+/**
+ * @brief Bitwise AND an uintptr atomically
+ *
+ * @param[in,out] x Pointer to the variable to AND
+ * @param[in] v The value to AND with the variable
+ */
+DDS_INLINE_EXPORT inline void ddsrt_atomic_andptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
+  __sync_fetch_and_and (&x->v, v);
+}
+
+/**
+ * @brief Bitwise AND a 32-bit unsigned integer atomically and return the old value
+ *
+ * @param[in,out] x Pointer to the variable to AND
+ * @param[in] v The value to AND with the variable
+ *
+ * @return The old value of the ANDed variable
+ */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_and32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return __sync_fetch_and_and (&x->v, v);
 }
+
 #if DDSRT_HAVE_ATOMIC64
+/**
+ * @brief Bitwise AND a 64-bit unsigned integer atomically and return the old value
+ *
+ * @param[in,out] x Pointer to the variable to AND
+ * @param[in] v The value to AND with the variable
+ *
+ * @return The old value of the ANDed variable
+ */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_and64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   return __sync_fetch_and_and (&x->v, v);
 }
 #endif
+
+/**
+ * @brief Bitwise AND an uintptr atomically and return the old value
+ *
+ * @param[in,out] x Pointer to the variable to AND
+ * @param[in] v The value to AND with the variable
+ *
+ * @return The old value of the ANDed variable
+ */
+DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_andptr_ov (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
+  return __sync_fetch_and_and (&x->v, v);
+}
+
+/**
+ * @brief Bitwise AND a 32-bit unsigned integer atomically and return the new value
+ *
+ * @param[in,out] x Pointer to the variable to AND
+ * @param[in] v The value to AND with the variable
+ *
+ * @return The new value of the ANDed variable
+ */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_and32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return __sync_and_and_fetch (&x->v, v);
 }
+
 #if DDSRT_HAVE_ATOMIC64
+/**
+ * @brief Bitwise AND a 64-bit unsigned integer atomically and return the new value
+ *
+ * @param[in,out] x Pointer to the variable to AND
+ * @param[in] v The value to AND with the variable
+ *
+ * @return The new value of the ANDed variable
+ */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_and64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   return __sync_and_and_fetch (&x->v, v);
 }
 #endif
+
+/**
+ * @brief Bitwise AND an uintptr atomically and return the new value
+ *
+ * @param[in,out] x Pointer to the variable to AND
+ * @param[in] v The value to AND with the variable
+ *
+ * @return The new value of the ANDed variable
+ */
+DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_andptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
+  return __sync_and_and_fetch (&x->v, v);
+}
 
 /* OR */
 
 DDS_INLINE_EXPORT inline void ddsrt_atomic_or32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   __sync_fetch_and_or (&x->v, v);
 }
+
 #if DDSRT_HAVE_ATOMIC64
+/**
+ * @brief Bitwise OR a 64-bit unsigned integer atomically
+ *
+ * @param[in,out] x Pointer to the variable to OR
+ * @param[in] v The value to OR with the variable
+ */
 DDS_INLINE_EXPORT inline void ddsrt_atomic_or64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   __sync_fetch_and_or (&x->v, v);
 }
 #endif
+
+/**
+ * @brief Bitwise OR an uintptr atomically
+ *
+ * @param[in,out] x Pointer to the variable to OR
+ * @param[in] v The value to OR with the variable
+ */
+DDS_INLINE_EXPORT inline void ddsrt_atomic_orptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
+  __sync_fetch_and_or (&x->v, v);
+}
+
+/**
+ * @brief Bitwise OR a 32-bit unsigned integer atomically and return the old value
+ *
+ * @param[in,out] x Pointer to the variable to OR
+ * @param[in] v The value to OR with the variable
+ *
+ * @return The old value of the ORed variable
+ */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_or32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return __sync_fetch_and_or (&x->v, v);
 }
+
 #if DDSRT_HAVE_ATOMIC64
+/**
+ * @brief Bitwise OR a 64-bit unsigned integer atomically and return the old value
+ *
+ * @param[in,out] x Pointer to the variable to OR
+ * @param[in] v The value to OR with the variable
+ *
+ * @return The old value of the ORed variable
+ */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_or64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   return __sync_fetch_and_or (&x->v, v);
 }
 #endif
+
+/**
+ * @brief Bitwise OR an uintptr  atomically and return the old value
+ *
+ * @param[in,out] x Pointer to the variable to OR
+ * @param[in] v The value to OR with the variable
+ *
+ * @return The old value of the ORed variable
+ */
+DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_orptr_ov (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
+  return __sync_fetch_and_or (&x->v, v);
+}
+
+/**
+ * @brief Bitwise OR a 32-bit unsigned integer atomically and return the new value
+ *
+ * @param[in,out] x Pointer to the variable to OR
+ * @param[in] v The value to OR with the variable
+ *
+ * @return The new value of the ORed variable
+ */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_or32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
   return __sync_or_and_fetch (&x->v, v);
 }
+
 #if DDSRT_HAVE_ATOMIC64
+/**
+ * @brief Bitwise OR a 64-bit unsigned integer atomically and return the new value
+ *
+ * @param[in,out] x Pointer to the variable to OR
+ * @param[in] v The value to OR with the variable
+ *
+ * @return The new value of the ORed variable
+ */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_or64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
   return __sync_or_and_fetch (&x->v, v);
 }
 #endif
+
+/**
+ * @brief Bitwise OR an uintptr atomically and return the new value
+ *
+ * @param[in,out] x Pointer to the variable to OR
+ * @param[in] v The value to OR with the variable
+ *
+ * @return The new value of the ORed variable
+ */
+DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_orptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
+  return __sync_or_and_fetch (&x->v, v);
+}
 
 /* CAS */
 
