@@ -15,6 +15,7 @@
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/atomics.h"
+#include "dds/ddsrt/arch.h"
 #include "dds/dds.h"
 
 #if defined (__cplusplus)
@@ -72,6 +73,17 @@ typedef int32_t dds_handle_t;
 
 /* Closing & closed can be combined, but having two gives a means for enforcing
    that close() be called first, then close_wait(), and then delete(). */
+#if DDSRT_64BIT // Set for WIN64, _LP64 => sizeof(void*)=8 => uintptr_t=8 is a reasonable assumption
+
+#define HDL_FLAG_CLOSING         UINT64_C(0x8000000000000000)
+#define HDL_FLAG_DELETE_DEFERRED UINT64_C(0x4000000000000000)
+#define HDL_FLAG_PENDING         UINT64_C(0x2000000000000000)
+#define HDL_FLAG_IMPLICIT        UINT64_C(0x1000000000000000)
+#define HDL_FLAG_ALLOW_CHILDREN  UINT64_C(0x0800000000000000) /* refc counts children */
+#define HDL_FLAG_NO_USER_ACCESS  UINT64_C(0x0400000000000000)
+
+#else
+
 #define HDL_FLAG_CLOSING         (0x80000000u)
 #define HDL_FLAG_DELETE_DEFERRED (0x40000000u)
 #define HDL_FLAG_PENDING         (0x20000000u)
@@ -79,9 +91,11 @@ typedef int32_t dds_handle_t;
 #define HDL_FLAG_ALLOW_CHILDREN  (0x08000000u) /* refc counts children */
 #define HDL_FLAG_NO_USER_ACCESS  (0x04000000u)
 
+#endif
+
 struct dds_handle_link {
   dds_handle_t hdl;
-  ddsrt_atomic_uint32_t cnt_flags;
+  ddsrt_atomic_uintptr_t cnt_flags;
 };
 
 /*
@@ -214,7 +228,7 @@ DDS_EXPORT bool dds_handle_close (struct dds_handle_link *link);
 DDS_EXPORT bool dds_handle_unpin_and_drop_ref (struct dds_handle_link *link);
 
 DDS_INLINE_EXPORT inline bool dds_handle_is_closed (struct dds_handle_link *link) {
-  return (ddsrt_atomic_ld32 (&link->cnt_flags) & HDL_FLAG_CLOSING) != 0;
+  return (ddsrt_atomic_ldptr (&link->cnt_flags) & HDL_FLAG_CLOSING) != 0;
 }
 
 DDS_EXPORT bool dds_handle_is_not_refd (struct dds_handle_link *link);
