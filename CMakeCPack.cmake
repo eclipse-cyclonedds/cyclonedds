@@ -101,11 +101,20 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
     set(CPACK_RPM_DEV_PACKAGE_REQUIRES "${CPACK_RPM_LIB_PACKAGE_NAME} = ${CPACK_PACKAGE_VERSION}")
   elseif(EXISTS "/etc/debian_version")
     set(CPACK_DEB_COMPONENT_INSTALL ON)
-    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-      set(__arch "amd64")
-    else()
-      set(__arch "i386")
-    endif()
+    find_program(DPKG_CMD dpkg)
+    if(NOT DPKG_CMD)
+      if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        set(__arch "amd64")
+      else()
+        set(__arch "i386")
+      endif()
+    else ()
+      execute_process(COMMAND "${DPKG_CMD}" --print-architecture
+              OUTPUT_VARIABLE __arch
+              OUTPUT_STRIP_TRAILING_WHITESPACE
+      )
+    endif ()
+
 
     set(CPACK_GENERATOR "DEB;TGZ;${CPACK_GENERATOR}" CACHE STRING "List of package generators")
 
