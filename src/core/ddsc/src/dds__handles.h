@@ -82,6 +82,11 @@ typedef int32_t dds_handle_t;
 #define HDL_FLAG_ALLOW_CHILDREN  UINT64_C(0x0800000000000000) /* refc counts children */
 #define HDL_FLAG_NO_USER_ACCESS  UINT64_C(0x0400000000000000)
 
+#define HDL_REFCOUNT_MASK  UINT64_C(0x0003ffffff000000)
+#define HDL_REFCOUNT_UNIT  UINT64_C(0x0000000001000000)
+#define HDL_REFCOUNT_SHIFT 24
+#define HDL_PINCOUNT_MASK  UINT64_C(0x0000000000ffffff)
+
 #else
 
 #define HDL_FLAG_CLOSING         (0x80000000u)
@@ -90,6 +95,11 @@ typedef int32_t dds_handle_t;
 #define HDL_FLAG_IMPLICIT        (0x10000000u)
 #define HDL_FLAG_ALLOW_CHILDREN  (0x08000000u) /* refc counts children */
 #define HDL_FLAG_NO_USER_ACCESS  (0x04000000u)
+
+#define HDL_REFCOUNT_MASK  (0x03fffc00u)
+#define HDL_REFCOUNT_UNIT  (0x00000400u)
+#define HDL_REFCOUNT_SHIFT 10
+#define HDL_PINCOUNT_MASK  (0x000003ffu)
 
 #endif
 
