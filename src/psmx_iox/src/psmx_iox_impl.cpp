@@ -708,11 +708,11 @@ dds_return_t iox_create_psmx(struct dds_psmx **psmx, dds_psmx_instance_id_t inst
     return DDS_RETCODE_ERROR;
 
   auto opt_keyed_topics = get_config_option_value(config, "KEYED_TOPICS", true);
-  bool keyed_topics = false;
+  bool keyed_topics = true;
   if (opt_keyed_topics.has_value()) {
-    if (opt_keyed_topics.value() == "true")
-      keyed_topics = true;
-    else if (opt_keyed_topics.value() != "false")
+    if (opt_keyed_topics.value() == "false")
+      keyed_topics = false;
+    else if (opt_keyed_topics.value() != "true")
       return DDS_RETCODE_ERROR;
   }
 
