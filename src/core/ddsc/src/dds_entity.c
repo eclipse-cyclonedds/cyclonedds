@@ -374,11 +374,14 @@ static void print_delete (const dds_entity *e, enum delete_impl_state delstate ,
 {
   if (e)
   {
-    unsigned cm = ddsrt_atomic_ld32 (&e->m_hdllink.cnt_flags);
-    printf ("delete(%p, delstate %s, iid %"PRIx64"): %s%s %d pin %u refc %u %s %s\n",
+    const uintptr_t cm = ddsrt_atomic_ldptr (&e->m_hdllink.cnt_flags);
+    const uintptr_t pinc = (cm & HDL_PINCOUNT_MASK);
+    const uintptr_t refc = (cm & HDL_REFCOUNT_MASK) >> HDL_REFCOUNT_SHIFT;
+    const bool isclosed = (cm & HDL_FLAG_CLOSING) != 0;
+    printf ("delete(%p, delstate %s, iid %"PRIx64"): %s%s %d pin %"PRIuPTR" refc %"PRIuPTR" %s %s\n",
             (void *) e, (delstate == DIS_IMPLICIT) ? "implicit" : (delstate == DIS_EXPLICIT) ? "explicit" : "from_parent", iid,
             entity_kindstr (e->m_kind), (e->m_flags & DDS_ENTITY_IMPLICIT) ? " [implicit]" : "",
-            e->m_hdllink.hdl, cm & 0xfff, (cm >> 12) & 0x7fff, (cm & 0x80000000) ? "closed" : "open",
+            e->m_hdllink.hdl, pinc, refc, isclosed ? "closed" : "open",
             ddsrt_avl_is_empty (&e->m_children) ? "childless" : "has-children");
   }
   else

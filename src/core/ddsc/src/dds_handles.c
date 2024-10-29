@@ -20,22 +20,6 @@
 #include "dds__handles.h"
 #include "dds__types.h"
 
-#if DDSRT_64BIT // see dds__handles.h for reasoning
-
-#define HDL_REFCOUNT_MASK  UINT64_C(0x0003ffffff000000)
-#define HDL_REFCOUNT_UNIT  UINT64_C(0x0000000001000000)
-#define HDL_REFCOUNT_SHIFT 24
-#define HDL_PINCOUNT_MASK  UINT64_C(0x0000000000ffffff)
-
-#else
-
-#define HDL_REFCOUNT_MASK  (0x03fffc00u)
-#define HDL_REFCOUNT_UNIT  (0x00000400u)
-#define HDL_REFCOUNT_SHIFT 10
-#define HDL_PINCOUNT_MASK  (0x000003ffu)
-
-#endif
-
 /*
 "regular" entities other than topics:
   - create makes it
