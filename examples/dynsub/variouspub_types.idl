@@ -27,3 +27,8 @@ module M1 {
     @optional long x;
   };
 };
+
+struct D {
+  wstring ws;
+  unsigned long count;
+};
