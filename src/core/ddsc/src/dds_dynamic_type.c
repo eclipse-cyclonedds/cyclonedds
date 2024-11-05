@@ -203,6 +203,11 @@ dds_dynamic_type_t dds_dynamic_type_create (dds_entity_t entity, dds_dynamic_typ
         goto err_bad_param;
       type.ret = ddsi_dynamic_type_create_string8 (gv, get_dtype_complete_addr (&type), descriptor.num_bounds ? descriptor.bounds[0] : 0);
       break;
+    case DDS_DYNAMIC_STRING16:
+      if (descriptor.num_bounds > 1)
+        goto err_bad_param;
+      type.ret = ddsi_dynamic_type_create_string16 (gv, get_dtype_complete_addr (&type), descriptor.num_bounds ? descriptor.bounds[0] : 0);
+      break;
     case DDS_DYNAMIC_ALIAS: {
       if (!typespec_valid (descriptor.base_type, false) || !typename_valid (descriptor.name))
         goto err_bad_param;
@@ -253,7 +258,6 @@ dds_dynamic_type_t dds_dynamic_type_create (dds_entity_t entity, dds_dynamic_typ
     }
 
     case DDS_DYNAMIC_CHAR16:
-    case DDS_DYNAMIC_STRING16:
     case DDS_DYNAMIC_MAP:
     case DDS_DYNAMIC_BITSET:
       type.ret = DDS_RETCODE_UNSUPPORTED;

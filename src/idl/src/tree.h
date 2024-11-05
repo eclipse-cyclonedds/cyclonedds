@@ -103,6 +103,13 @@ idl_create_string(
   void *nodep);
 
 idl_retcode_t
+idl_create_wstring(
+  idl_pstate_t *pstate,
+  const idl_location_t *location,
+  idl_literal_t *literal,
+  void *nodep);
+
+idl_retcode_t
 idl_finalize_struct(
   idl_pstate_t *pstate,
   const idl_location_t *location,

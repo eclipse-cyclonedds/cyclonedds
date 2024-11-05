@@ -291,6 +291,13 @@ stash_member_size(
     } else if (idl_is_unbounded_string(type_spec)) {
       if (!(inst.data.size.type = idl_strdup("char *")))
         goto err_type;
+    } else if (idl_is_bounded_wstring(type_spec)) {
+      uint32_t dims = ((const idl_wstring_t *)type_spec)->maximum;
+      if (idl_asprintf(&inst.data.size.type, "wchar_t[%"PRIu32"]", dims) == -1)
+        goto err_type;
+    } else if (idl_is_unbounded_wstring(type_spec)) {
+      if (!(inst.data.size.type = idl_strdup("wchar_t *")))
+        goto err_type;
     } else {
       if (IDL_PRINT(&inst.data.size.type, print_type, type_spec) < 0)
         goto err_type;
@@ -325,6 +332,13 @@ stash_member_size(
         goto err_type;
     } else if (idl_is_unbounded_string(type_spec)) {
       if (!(inst.data.size.type = idl_strdup("char *")))
+        goto err_type;
+    } else if (idl_is_bounded_wstring(type_spec)) {
+      uint32_t dims = ((const idl_wstring_t *)type_spec)->maximum;
+      if (idl_asprintf(&inst.data.size.type, "wchar_t[%"PRIu32"]", dims) == -1)
+        goto err_type;
+    } else if (idl_is_unbounded_wstring(type_spec)) {
+      if (!(inst.data.size.type = idl_strdup("wchar_t *")))
         goto err_type;
     } else if (idl_is_array(type_spec)) {
       char *typestr = NULL;
@@ -551,6 +565,12 @@ static idl_retcode_t add_typecode(const idl_pstate_t *pstate, const idl_type_spe
         *add_to |= ((uint32_t)DDS_OP_VAL_BST << shift);
       else
         *add_to |= ((uint32_t)DDS_OP_VAL_STR << shift);
+      break;
+    case IDL_WSTRING:
+      if (idl_is_bounded(type_spec))
+        *add_to |= ((uint32_t)DDS_OP_VAL_BWSTR << shift);
+      else
+        *add_to |= ((uint32_t)DDS_OP_VAL_WSTR << shift);
       break;
     case IDL_SEQUENCE:
       if (idl_is_bounded(type_spec))
@@ -1237,7 +1257,7 @@ emit_array(
     if (idl_is_array(type_spec))
       dims *= idl_array_size(type_spec);
 
-  simple = (idl_mask(type_spec) & (IDL_BASE_TYPE|IDL_STRING|IDL_ENUM|IDL_BITMASK)) != 0;
+  simple = (idl_mask(type_spec) & (IDL_BASE_TYPE|IDL_STRING|IDL_WSTRING|IDL_ENUM|IDL_BITMASK)) != 0;
 
   if (revisit) {
     uint32_t off, cnt;
@@ -1644,6 +1664,8 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       case DDS_OP_VAL_ENU: vec[len++] = " | DDS_OP_TYPE_ENU"; break;
       case DDS_OP_VAL_BMK: vec[len++] = " | DDS_OP_TYPE_BMK"; break;
       case DDS_OP_VAL_EXT: vec[len++] = " | DDS_OP_TYPE_EXT"; break;
+      case DDS_OP_VAL_WSTR: vec[len++] = " | DDS_OP_TYPE_WSTR"; break;
+      case DDS_OP_VAL_BWSTR: vec[len++] = " | DDS_OP_TYPE_BWSTR"; break;
     }
   }
 
@@ -1678,6 +1700,8 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       case DDS_OP_VAL_STU: vec[len++] = " | DDS_OP_SUBTYPE_STU"; break;
       case DDS_OP_VAL_ENU: vec[len++] = " | DDS_OP_SUBTYPE_ENU"; break;
       case DDS_OP_VAL_BMK: vec[len++] = " | DDS_OP_SUBTYPE_BMK"; break;
+      case DDS_OP_VAL_WSTR: vec[len++] = " | DDS_OP_SUBTYPE_WSTR"; break;
+      case DDS_OP_VAL_BWSTR: vec[len++] = " | DDS_OP_SUBTYPE_BWSTR"; break;
       case DDS_OP_VAL_EXT: abort(); break;
     }
 
@@ -1981,6 +2005,9 @@ static idl_retcode_t get_ctype_keys_adr(
         case DDS_OP_VAL_BST: case DDS_OP_VAL_STR:
           idl_error (pstate, ctype->node, "Using array with string element type as part of the key is currently unsupported");
           return IDL_RETCODE_UNSUPPORTED;
+        case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_WSTR:
+          idl_error (pstate, ctype->node, "Using array with wstring element type as part of the key is currently unsupported");
+          return IDL_RETCODE_UNSUPPORTED;
         case DDS_OP_VAL_ARR: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ:
           idl_error (pstate, ctype->node, "Using array with collection element type as part of the key is currently unsupported");
           return IDL_RETCODE_UNSUPPORTED;
@@ -2006,7 +2033,7 @@ static idl_retcode_t get_ctype_keys_adr(
           key->size = key->align = sz;
           break;
         }
-        case DDS_OP_VAL_BST: {
+        case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR: {
           assert(offs + 2 < ctype->instructions.count);
           assert(ctype->instructions.table[offs + 2].type == SINGLE);
           /* string size if stored as bound + 1 */
@@ -2016,7 +2043,7 @@ static idl_retcode_t get_ctype_keys_adr(
           key->size = 4 + str_sz;
           break;
         }
-        case DDS_OP_VAL_ARR: case DDS_OP_VAL_STR: case DDS_OP_VAL_EXT:
+        case DDS_OP_VAL_ARR: case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR: case DDS_OP_VAL_EXT:
           key->size = DDS_FIXED_KEY_MAX_SIZE + 1;
           key->align = 1;
           break;

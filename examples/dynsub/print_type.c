@@ -259,6 +259,12 @@ void ppc_print_ti (struct ppc *ppc, const DDS_XTypes_TypeIdentifier *typeid)
       ppc_print (ppc, "STRING8_%s bound=%"PRIu32"\n", (typeid->_d == DDS_XTypes_TI_STRING8_SMALL) ? "SMALL" : "LARGE", bound);
       break;
     }
+    case DDS_XTypes_TI_STRING16_SMALL:
+    case DDS_XTypes_TI_STRING16_LARGE: {
+      const uint32_t bound = (typeid->_d == DDS_XTypes_TI_STRING16_SMALL) ? typeid->_u.string_sdefn.bound : typeid->_u.string_ldefn.bound;
+      ppc_print (ppc, "STRING16_%s bound=%"PRIu32"\n", (typeid->_d == DDS_XTypes_TI_STRING16_SMALL) ? "SMALL" : "LARGE", bound);
+      break;
+    }
     case DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL:
     case DDS_XTypes_TI_PLAIN_SEQUENCE_LARGE: {
       const DDS_XTypes_PlainCollectionHeader *header;

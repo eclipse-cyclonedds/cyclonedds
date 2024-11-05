@@ -118,6 +118,7 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
   idl_type_spec_t *type_spec;
   idl_sequence_t *sequence;
   idl_string_t *string;
+  idl_wstring_t *wstring;
   /* declarations */
   idl_definition_t *definition;
   idl_module_t *module_dcl;
@@ -179,6 +180,7 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
 %type <string_literal> string_literal
 %type <sequence> sequence_type
 %type <string> string_type
+%type <wstring> wstring_type
 %type <module_dcl> module_dcl module_header
 %type <struct_dcl> struct_def struct_header
 %type <member> members member struct_body
@@ -214,7 +216,7 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
   <type_spec> <const_expr>
 
 %destructor { idl_delete_node($$); } <node> <literal> <sequence>
-                                     <string> <module_dcl> <struct_dcl> <member> <union_dcl>
+                                     <string> <wstring> <module_dcl> <struct_dcl> <member> <union_dcl>
                                      <_case> <case_label> <enum_dcl> <enumerator> <bitmask_dcl> <bit_value> <declarator> <typedef_dcl>
                                      <const_dcl> <annotation> <annotation_member> <annotation_appl> <annotation_appl_param> <forward>
                                      <switch_type_spec>
@@ -666,6 +668,7 @@ octet_type:
 template_type_spec:
     sequence_type { $$ = $1; }
   | string_type   { $$ = $1; }
+  | wstring_type  { $$ = $1; }
   ;
 
 sequence_type:
@@ -680,6 +683,13 @@ string_type:
       { TRY(idl_create_string(pstate, LOC(@1.first, @4.last), $3, &$$)); }
   | "string"
       { TRY(idl_create_string(pstate, LOC(@1.first, @1.last), NULL, &$$)); }
+  ;
+
+wstring_type:
+    "wstring" '<' positive_int_const '>'
+      { TRY(idl_create_wstring(pstate, LOC(@1.first, @4.last), $3, &$$)); }
+  | "wstring"
+      { TRY(idl_create_wstring(pstate, LOC(@1.first, @1.last), NULL, &$$)); }
   ;
 
 constr_type_dcl:

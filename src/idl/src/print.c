@@ -148,6 +148,7 @@ static int print_base_type(
     case IDL_DOUBLE:  type = "double";      break;
     case IDL_LDOUBLE: type = "long double"; break;
     case IDL_STRING:  type = "char";        break;
+    case IDL_WSTRING: type = "wchar_t";     break;
     default:
       abort();
   }
@@ -209,6 +210,8 @@ static int print_templ_type(
   (void)user_data;
   if (idl_type(node) == IDL_STRING)
     return idl_snprintf(str, size, "char");
+  if (idl_type(node) == IDL_WSTRING)
+    return idl_snprintf(str, size, "wchar_t");
   /* sequences require a little magic */
   assert(idl_type(node) == IDL_SEQUENCE);
 
@@ -217,7 +220,7 @@ static int print_templ_type(
   for (; idl_is_sequence(type_spec); type_spec = idl_type_spec(type_spec))
     seq++;
 
-  if (idl_is_base_type(type_spec) || idl_is_string(type_spec)) {
+  if (idl_is_base_type(type_spec) || idl_is_string(type_spec) || idl_is_wstring(type_spec)) {
     switch (idl_type(type_spec)) {
       case IDL_BOOL:     type = "bool";                break;
       case IDL_CHAR:     type = "char";                break;
@@ -243,6 +246,11 @@ static int print_templ_type(
         if (idl_is_bounded(type_spec))
           idl_snprintf(dims, sizeof(dims), "%"PRIu32, idl_bound(type_spec));
         type = "string";
+        break;
+      case IDL_WSTRING:
+        if (idl_is_bounded(type_spec))
+          idl_snprintf(dims, sizeof(dims), "%"PRIu32, idl_bound(type_spec));
+        type = "wstring";
         break;
       default:
         abort();

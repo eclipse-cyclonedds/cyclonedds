@@ -357,7 +357,7 @@ push_keylist(idl_pstate_t *pstate, struct keylist *dir)
 
   for (size_t i=0; dir->keys && dir->keys[i]; i++) {
     idl_key_t *key = NULL;
-    idl_mask_t mask = IDL_BASE_TYPE | IDL_ENUM | IDL_STRING;
+    idl_mask_t mask = IDL_BASE_TYPE | IDL_ENUM | IDL_STRING | IDL_WSTRING;
     const idl_declarator_t *declarator;
     const idl_type_spec_t *ts;
 
@@ -374,7 +374,7 @@ push_keylist(idl_pstate_t *pstate, struct keylist *dir)
        aforementioned and strings are allowed to be used in keys */
     ts = idl_strip(ts, IDL_STRIP_ALIASES);
     if (idl_is_array(ts))
-      mask &= (idl_mask_t)~IDL_STRING;
+      mask &= (idl_mask_t)~(IDL_STRING | IDL_WSTRING);
     ts = idl_strip(ts, IDL_STRIP_ALIASES|IDL_STRIP_ALIASES_ARRAY);
     if (!(idl_mask(ts) & mask)) {
       idl_error(pstate, idl_location(dir->keys[i]),

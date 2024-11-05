@@ -16,10 +16,10 @@ static bool dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const st
   assert (insn_key_ok_p (insn));
   void *addr = (char *) src + ops[1];
 
-  if (op_type_external (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR)
+  if (op_type_external (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR || DDS_OP_TYPE (insn) == DDS_OP_VAL_WSTR)
   {
     addr = *(char **) addr;
-    if (addr == NULL && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR)
+    if (addr == NULL && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR && DDS_OP_TYPE (insn) != DDS_OP_VAL_WSTR)
       return false;
   }
 
@@ -39,7 +39,9 @@ static bool dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const st
         return false;
       break;
     case DDS_OP_VAL_STR: dds_stream_write_stringBO (os, allocator, addr); break;
+    case DDS_OP_VAL_WSTR: dds_stream_write_wstringBO (os, allocator, (const wchar_t *) addr); break;
     case DDS_OP_VAL_BST: dds_stream_write_stringBO (os, allocator, addr); break;
+    case DDS_OP_VAL_BWSTR: dds_stream_write_wstringBO (os, allocator, (const wchar_t *) addr); break;
     case DDS_OP_VAL_ARR: {
       const uint32_t num = ops[2];
       switch (DDS_OP_SUBTYPE (insn))

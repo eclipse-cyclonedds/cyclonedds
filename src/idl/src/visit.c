@@ -22,6 +22,8 @@ static idl_accept_t idl_accept(const void *node)
     return IDL_ACCEPT_SEQUENCE;
   if ((mask & IDL_STRING) == IDL_STRING)
     return IDL_ACCEPT_STRING;
+  if ((mask & IDL_WSTRING) == IDL_WSTRING)
+    return IDL_ACCEPT_WSTRING;
   if (mask & IDL_INHERIT_SPEC)
     return IDL_ACCEPT_INHERIT_SPEC;
   if (mask & IDL_SWITCH_TYPE_SPEC)
