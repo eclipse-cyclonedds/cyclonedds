@@ -13,6 +13,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "dds/version.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -41,10 +42,14 @@ static int ddsi_sedp_write_topic_impl (struct ddsi_writer *wr, int alive, const 
   ps.topic_guid = *guid;
 
   assert (xqos != NULL);
-  ps.present |= PP_PROTOCOL_VERSION | PP_VENDORID;
+  ps.present |= PP_PROTOCOL_VERSION | PP_VENDORID | PP_PRODUCT_VERSION;
   ps.protocol_version.major = DDSI_RTPS_MAJOR;
   ps.protocol_version.minor = DDSI_RTPS_MINOR;
   ps.vendorid = DDSI_VENDORID_ECLIPSE;
+  ps.product_version.major = DDS_VERSION_MAJOR;
+  ps.product_version.minor = DDS_VERSION_MINOR;
+  ps.product_version.release = DDS_VERSION_PATCH;
+  ps.product_version.revision = DDS_VERSION_TWEAK;
 
   uint64_t qosdiff = ddsi_xqos_delta (xqos, defqos, ~(uint64_t)0);
   if (gv->config.explicitly_publish_qos_set_to_default)

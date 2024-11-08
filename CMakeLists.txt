@@ -11,7 +11,7 @@
 #
 cmake_minimum_required(VERSION 3.16)
 # C++ is only for Iceoryx plugin
-project(CycloneDDS VERSION 0.11.0 LANGUAGES C CXX)
+project(CycloneDDS VERSION 0.11.0.0 LANGUAGES C CXX)
 
 # Set a default build type if none was specified
 set(default_build_type "RelWithDebInfo")
