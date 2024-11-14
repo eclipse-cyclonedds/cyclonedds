@@ -59,8 +59,7 @@ then
 fi
 parse_args $@
 
-
-DOCKERFILE_DIR="$(dirname "$(readlink -fm "$0")")"
+DOCKERFILE_DIR="$(dirname "$(realpath "$0")")"
 WORKSPACE="$(dirname "$(dirname "${DOCKERFILE_DIR}")")"
 echo "WORKSPACE is $WORKSPACE"
 cd "$WORKSPACE"
@@ -68,15 +67,21 @@ cd "$WORKSPACE"
 if [ $BUILD_UBUNTU == true ]
 then
 	UBUNTU_IMAGE="ubuntu:cyclonedds"
-	docker build --file "${DOCKERFILE_DIR}/Dockerfile" . --tag "${UBUNTU_IMAGE}"
+	if [ -f "${DOCKERFILE_DIR}/Dockerfile" ]; then
+		docker build --file "${DOCKERFILE_DIR}/Dockerfile" . --tag "${UBUNTU_IMAGE}"
+	else
+		echo "ERROR: Dockerfile for Ubuntu image not found at ${DOCKERFILE_DIR}/Dockerfile"
+		exit 1
+	fi
 fi
 
 if [ $BUILD_CYCLONEDDS == true ]
 then
 	CYCLONEDDS_IMAGE="cyclonedds:latest"
-	docker build --file "${DOCKERFILE_DIR}/DockerfileCycloneDds" . --tag "${CYCLONEDDS_IMAGE}"
+	if [ -f "${DOCKERFILE_DIR}/DockerfileCycloneDds" ]; then
+		docker build --file "${DOCKERFILE_DIR}/DockerfileCycloneDds" . --tag "${CYCLONEDDS_IMAGE}"
+	else
+		echo "ERROR: Dockerfile for CycloneDDS image not found at ${DOCKERFILE_DIR}/DockerfileCycloneDds"
+		exit 1
+	fi
 fi
-
-
-
-
