@@ -196,6 +196,7 @@ dds_dynamic_type_t dds_dynamic_type_create (dds_entity_t entity, dds_dynamic_typ
     case DDS_DYNAMIC_INT8:
     case DDS_DYNAMIC_UINT8:
     case DDS_DYNAMIC_CHAR8:
+    case DDS_DYNAMIC_CHAR16:
       type.ret = ddsi_dynamic_type_create_primitive (gv, get_dtype_complete_addr (&type), descriptor.kind);
       break;
     case DDS_DYNAMIC_STRING8:
@@ -257,7 +258,6 @@ dds_dynamic_type_t dds_dynamic_type_create (dds_entity_t entity, dds_dynamic_typ
       break;
     }
 
-    case DDS_DYNAMIC_CHAR16:
     case DDS_DYNAMIC_MAP:
     case DDS_DYNAMIC_BITSET:
       type.ret = DDS_RETCODE_UNSUPPORTED;

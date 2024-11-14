@@ -129,6 +129,7 @@ static int print_base_type(
   switch (idl_type(node)) {
     case IDL_BOOL:    type = "bool";        break;
     case IDL_CHAR:    type = "char";        break;
+    case IDL_WCHAR:   type = "wchar_t";     break;
     case IDL_INT8:    type = "int8_t";      break;
     case IDL_OCTET:
     case IDL_UINT8:   type = "uint8_t";     break;
@@ -224,6 +225,7 @@ static int print_templ_type(
     switch (idl_type(type_spec)) {
       case IDL_BOOL:     type = "bool";                break;
       case IDL_CHAR:     type = "char";                break;
+      case IDL_WCHAR:    type = "wchar_t";             break;
       case IDL_INT8:     type = "int8";                break;
       case IDL_OCTET:    type = "octet";               break;
       case IDL_UINT8:    type = "uint8";               break;

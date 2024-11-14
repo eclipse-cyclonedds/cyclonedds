@@ -42,6 +42,10 @@ static bool dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const st
     case DDS_OP_VAL_WSTR: dds_stream_write_wstringBO (os, allocator, (const wchar_t *) addr); break;
     case DDS_OP_VAL_BST: dds_stream_write_stringBO (os, allocator, addr); break;
     case DDS_OP_VAL_BWSTR: dds_stream_write_wstringBO (os, allocator, (const wchar_t *) addr); break;
+    case DDS_OP_VAL_WCHAR:
+      if (!dds_stream_write_wcharBO (os, allocator, *(wchar_t *) addr))
+        return false;
+      break;
     case DDS_OP_VAL_ARR: {
       const uint32_t num = ops[2];
       switch (DDS_OP_SUBTYPE (insn))

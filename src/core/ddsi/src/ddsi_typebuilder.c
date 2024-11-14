@@ -392,6 +392,13 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
       *align = ALGN (uint16_t, is_ext);
       *size = SZ (uint16_t, is_ext);
       break;
+    case DDS_XTypes_TK_CHAR16:
+      tb_type->type_code = DDS_OP_VAL_WCHAR;
+      tb_type->args.prim_args.is_signed = false;
+      tb_type->cdr_align = 2;
+      *align = ALGN (uint16_t, is_ext);
+      *size = SZ (uint16_t, is_ext);
+      break;
     case DDS_XTypes_TK_INT32:
     case DDS_XTypes_TK_UINT32:
     case DDS_XTypes_TK_FLOAT32:
@@ -578,7 +585,6 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
       break;
     }
     case DDS_XTypes_TK_FLOAT128:
-    case DDS_XTypes_TK_CHAR16:
     case DDS_XTypes_TK_ANNOTATION:
     case DDS_XTypes_TK_MAP:
     case DDS_XTypes_TK_BITSET:
@@ -932,6 +938,11 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
       PUSH_ARG (member_offset);
       PUSH_ARG (tb_type->args.string_args.max_size);
       break;
+    case DDS_OP_VAL_WCHAR:
+      flags |= get_type_flags (tb_type);
+      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_WCHAR | flags);
+      PUSH_ARG (member_offset);
+      break;
     case DDS_OP_VAL_BSQ:
     case DDS_OP_VAL_SEQ: {
       bool bounded = tb_type->type_code == DDS_OP_VAL_BSQ;
@@ -946,7 +957,7 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
       switch (element_type->type_code)
       {
         case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
-        case DDS_OP_VAL_BLN: case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR:
+        case DDS_OP_VAL_BLN: case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR: case DDS_OP_VAL_WCHAR:
           break;
         case DDS_OP_VAL_ENU:
           PUSH_ARG (element_type->args.enum_args.max);
@@ -1003,7 +1014,7 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
       switch (element_type->type_code)
       {
         case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
-        case DDS_OP_VAL_BLN: case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR:
+        case DDS_OP_VAL_BLN: case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR: case DDS_OP_VAL_WCHAR:
           break;
         case DDS_OP_VAL_ENU:
           PUSH_ARG (element_type->args.enum_args.max);
@@ -1143,6 +1154,12 @@ static dds_return_t get_ops_union_case (struct typebuilder_type *tb_type, uint32
     case DDS_OP_VAL_WSTR:
       flags &= ~DDS_OP_FLAG_EXT;
       PUSH_OP (DDS_OP_JEQ4 | DDS_OP_TYPE_WSTR | flags);
+      PUSH_ARG (disc_value);
+      PUSH_ARG (offset);
+      PUSH_ARG (0);
+      break;
+    case DDS_OP_VAL_WCHAR:
+      PUSH_OP (DDS_OP_JEQ4 | DDS_OP_TYPE_WCHAR | flags);
       PUSH_ARG (disc_value);
       PUSH_ARG (offset);
       PUSH_ARG (0);

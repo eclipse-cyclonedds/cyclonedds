@@ -163,7 +163,7 @@ static bool build_typecache_simple (const uint8_t disc, size_t *align, size_t *s
     case CASE(INT8, int8_t);
     case CASE(UINT8, uint8_t);
     case CASE(CHAR8, int8_t);
-    case CASE(CHAR16, uint16_t);
+    case CASE(CHAR16, wchar_t);
     case CASE(STRING8, unsigned char *);
     case CASE(STRING16, wchar_t *);
 #undef CASE

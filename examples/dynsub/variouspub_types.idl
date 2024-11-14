@@ -30,5 +30,6 @@ module M1 {
 
 struct D {
   wstring ws;
+  wchar wc;
   unsigned long count;
 };
