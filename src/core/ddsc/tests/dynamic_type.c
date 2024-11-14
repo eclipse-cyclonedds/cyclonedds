@@ -120,7 +120,7 @@ CU_Test (ddsc_dynamic_type, type_create, .init = dynamic_type_init, .fini = dyna
     { { .kind = DDS_DYNAMIC_INT8, .name = "t" }, DDS_RETCODE_OK },
     { { .kind = DDS_DYNAMIC_UINT8, .name = "t" }, DDS_RETCODE_OK },
     { { .kind = DDS_DYNAMIC_CHAR8, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_CHAR16, .name = "t" }, DDS_RETCODE_UNSUPPORTED },
+    { { .kind = DDS_DYNAMIC_CHAR16, .name = "t" }, DDS_RETCODE_OK },
     { { .kind = DDS_DYNAMIC_STRING8, .name = "t" }, DDS_RETCODE_OK },
     { { .kind = DDS_DYNAMIC_STRING16, .name = "t" }, DDS_RETCODE_OK },
     { { .kind = DDS_DYNAMIC_ENUMERATION, .name = "t" }, DDS_RETCODE_OK },

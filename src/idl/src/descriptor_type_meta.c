@@ -264,6 +264,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
     {
       case IDL_BOOL: ti->_d = DDS_XTypes_TK_BOOLEAN; break;
       case IDL_CHAR: ti->_d = DDS_XTypes_TK_CHAR8; break;
+      case IDL_WCHAR: ti->_d = DDS_XTypes_TK_CHAR16; break;
       case IDL_OCTET: ti->_d = DDS_XTypes_TK_BYTE; break;
       case IDL_INT8: ti->_d = DDS_XTypes_TK_INT8; break;
       case IDL_INT16: case IDL_SHORT: ti->_d = DDS_XTypes_TK_INT16; break;

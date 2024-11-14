@@ -58,6 +58,7 @@ static bool print_sample1_simple (const unsigned char *sample, const uint8_t dis
   }
     case CASEI(BOOLEAN, uint8_t, printf ("%s", *p ? "true" : "false"));
     case CASEI(CHAR8, int8_t, printf ("\"%c\"", (char) *p));
+    case CASEI(CHAR16, wchar_t, printf ("\"%lc\"", (wchar_t) *p));
     case CASEI(INT16, int16_t, printf ("%"PRId16, *p));
     case CASEI(INT32, int32_t, printf ("%"PRId32, *p));
     case CASEI(INT64, int64_t, printf ("%"PRId64, *p));

@@ -516,6 +516,9 @@ static idl_retcode_t add_typecode(const idl_pstate_t *pstate, const idl_type_spe
     case IDL_CHAR:
       *add_to |= ((uint32_t)DDS_OP_VAL_1BY << shift) | (uint32_t)DDS_OP_FLAG_SGN;
       break;
+    case IDL_WCHAR:
+      *add_to |= ((uint32_t)DDS_OP_VAL_WCHAR << shift);
+      break;
     case IDL_BOOL:
       *add_to |=  ((uint32_t)DDS_OP_VAL_BLN << shift);
       break;
@@ -1666,6 +1669,7 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       case DDS_OP_VAL_EXT: vec[len++] = " | DDS_OP_TYPE_EXT"; break;
       case DDS_OP_VAL_WSTR: vec[len++] = " | DDS_OP_TYPE_WSTR"; break;
       case DDS_OP_VAL_BWSTR: vec[len++] = " | DDS_OP_TYPE_BWSTR"; break;
+      case DDS_OP_VAL_WCHAR: vec[len++] = " | DDS_OP_TYPE_WCHAR"; break;
     }
   }
 
@@ -1702,6 +1706,7 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       case DDS_OP_VAL_BMK: vec[len++] = " | DDS_OP_SUBTYPE_BMK"; break;
       case DDS_OP_VAL_WSTR: vec[len++] = " | DDS_OP_SUBTYPE_WSTR"; break;
       case DDS_OP_VAL_BWSTR: vec[len++] = " | DDS_OP_SUBTYPE_BWSTR"; break;
+      case DDS_OP_VAL_WCHAR: vec[len++] = " | DDS_OP_SUBTYPE_WCHAR"; break;
       case DDS_OP_VAL_EXT: abort(); break;
     }
 
@@ -1992,6 +1997,7 @@ static idl_retcode_t get_ctype_keys_adr(
       switch (subtype) {
         case DDS_OP_VAL_BLN:
         case DDS_OP_VAL_1BY: key->size = key->align = 1; break;
+        case DDS_OP_VAL_WCHAR:
         case DDS_OP_VAL_2BY: key->size = key->align = 2; break;
         case DDS_OP_VAL_4BY: key->size = key->align = 4; break;
         case DDS_OP_VAL_8BY: key->size = key->align = 8; break;
@@ -2024,6 +2030,7 @@ static idl_retcode_t get_ctype_keys_adr(
       switch (type) {
         case DDS_OP_VAL_BLN:
         case DDS_OP_VAL_1BY: key->size = key->align = 1; break;
+        case DDS_OP_VAL_WCHAR:
         case DDS_OP_VAL_2BY: key->size = key->align = 2; break;
         case DDS_OP_VAL_4BY: key->size = key->align = 4; break;
         case DDS_OP_VAL_8BY: key->size = key->align = 8; break;

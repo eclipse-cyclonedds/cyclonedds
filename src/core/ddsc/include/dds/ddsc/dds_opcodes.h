@@ -377,8 +377,9 @@ enum dds_stream_typecode {
   DDS_OP_VAL_EXT = 0x0d, /**< field with external definition */
   DDS_OP_VAL_BLN = 0x0e, /**< boolean */
   DDS_OP_VAL_BMK = 0x0f, /**< bitmask */
-  DDS_OP_VAL_WSTR = 0x10, /**< wstring */
-  DDS_OP_VAL_BWSTR = 0x11  /**< bounded wstring */
+  DDS_OP_VAL_WSTR = 0x10,  /**< wstring (UTF-16) */
+  DDS_OP_VAL_BWSTR = 0x11, /**< bounded wstring (UTF-16) */
+  DDS_OP_VAL_WCHAR = 0x12  /**< wchar: UTF-16, no surrogates allowed */
 };
 
 /**
@@ -402,8 +403,9 @@ enum dds_stream_typecode_primary {
   DDS_OP_TYPE_EXT = DDS_OP_VAL_EXT << 16, /**< field with external definition */
   DDS_OP_TYPE_BLN = DDS_OP_VAL_BLN << 16, /**< boolean */
   DDS_OP_TYPE_BMK = DDS_OP_VAL_BMK << 16, /**< bitmask */
-  DDS_OP_TYPE_WSTR = DDS_OP_VAL_WSTR << 16, /**< wstring */
-  DDS_OP_TYPE_BWSTR = DDS_OP_VAL_BWSTR << 16  /**< bounded wstring */
+  DDS_OP_TYPE_WSTR = DDS_OP_VAL_WSTR << 16,   /**< wstring (UTF-16) */
+  DDS_OP_TYPE_BWSTR = DDS_OP_VAL_BWSTR << 16, /**< bounded wstring (UTF-16) */
+  DDS_OP_TYPE_WCHAR = DDS_OP_VAL_WCHAR << 16  /**< wchar: UTF-16, no surrogates allowed */
 };
 
 /**
@@ -441,8 +443,9 @@ enum dds_stream_typecode_subtype {
   DDS_OP_SUBTYPE_ENU = DDS_OP_VAL_ENU << 8, /**< enumerated value (long) */
   DDS_OP_SUBTYPE_BLN = DDS_OP_VAL_BLN << 8, /**< boolean */
   DDS_OP_SUBTYPE_BMK = DDS_OP_VAL_BMK << 8, /**< bitmask */
-  DDS_OP_SUBTYPE_WSTR = DDS_OP_VAL_WSTR << 8, /**< wstring */
-  DDS_OP_SUBTYPE_BWSTR = DDS_OP_VAL_BWSTR << 8  /**< bounded wstring */
+  DDS_OP_SUBTYPE_WSTR = DDS_OP_VAL_WSTR << 8,   /**< wstring */
+  DDS_OP_SUBTYPE_BWSTR = DDS_OP_VAL_BWSTR << 8, /**< bounded wstring */
+  DDS_OP_SUBTYPE_WCHAR = DDS_OP_VAL_WCHAR << 8  /**< wchar: UTF-16, no surrogates allowed */
 };
 
 /**
