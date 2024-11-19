@@ -1727,7 +1727,7 @@ static void dds_stream_getsize_string (struct getsize_state * __restrict st, con
 
 static void dds_stream_getsize_wstring (struct getsize_state * __restrict st, const wchar_t * __restrict val)
 {
-  uint32_t size = val ? (uint32_t) wcslen (val) : 0; // wstring does not include a terminator
+  uint32_t size = val ? (uint32_t) wstring_utf16_len (val) : 0; // wstring does not include a terminator
   getsize_reserve (st, 4);
   getsize_reserve_many (st, 2, size);
 }
