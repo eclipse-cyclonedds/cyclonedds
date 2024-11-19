@@ -3337,6 +3337,26 @@ static bool normalize_wstring (char * __restrict data, uint32_t * __restrict off
     return normalize_error_bool ();
   if (bswap)
     dds_stream_swap (data + *off, 2, sz);
+  // verify surrogate pairs are used correctly
+  {
+    const uint16_t *str = (const uint16_t *) (data + *off);
+    uint32_t i = 0;
+    while (i < sz)
+    {
+      if (str[i] < 0xd800 || str[i] >= 0xe000) {
+        i++;
+      } else if (str[i] >= 0xd800 && str[i] < 0xdc00) {
+        // first half of surrogate pair, must have second half
+        i++;
+        if (i == sz || str[i] < 0xdc00 || str[i] > 0xdfff)
+          return normalize_error_bool ();
+        i++;
+      } else {
+        // second half without first half
+        return normalize_error_bool ();
+      }
+    }
+  }
   *off += 2u * sz;
   return true;
 }
