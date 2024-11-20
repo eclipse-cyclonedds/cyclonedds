@@ -14,9 +14,9 @@ include(HashUtilities)
 
 set(confgen_hash_files
   ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/include/dds/ddsi/ddsi_config.h
-  ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/src/ddsi__cfgunits.h
-  ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/src/ddsi__cfgelems.h
   ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/src/ddsi_config.c
+  ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/src/ddsi__cfgelems.h
+  cfgunits.h
   _confgen.h _confgen.c generate_rnc.c generate_md.c generate_rst.c generate_xsd.c generate_defconfig.c
 )
 
