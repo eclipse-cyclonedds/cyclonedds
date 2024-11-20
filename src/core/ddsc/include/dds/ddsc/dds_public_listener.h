@@ -78,7 +78,7 @@ DDS_EXPORT dds_listener_t* dds_create_listener(void* arg);
  *
  * @param[in] listener pointer to the listener struct to delete
  */
-DDS_EXPORT void dds_delete_listener (dds_listener_t * __restrict listener);
+DDS_EXPORT void dds_delete_listener (dds_listener_t *listener);
 
 /**
  * @ingroup listener
@@ -87,7 +87,7 @@ DDS_EXPORT void dds_delete_listener (dds_listener_t * __restrict listener);
  *
  * @param[in,out] listener pointer to the listener struct to reset
  */
-DDS_EXPORT void dds_reset_listener (dds_listener_t * __restrict listener);
+DDS_EXPORT void dds_reset_listener (dds_listener_t *listener);
 
 /**
  * @ingroup listener
@@ -97,7 +97,7 @@ DDS_EXPORT void dds_reset_listener (dds_listener_t * __restrict listener);
  * @param[in,out] dst The pointer to the destination listener structure, where the content is to copied
  * @param[in] src The pointer to the source listener structure to be copied
  */
-DDS_EXPORT void dds_copy_listener (dds_listener_t * __restrict dst, const dds_listener_t * __restrict src);
+DDS_EXPORT void dds_copy_listener (dds_listener_t *dst, const dds_listener_t *src);
 
 /**
  * @ingroup listener
@@ -110,7 +110,7 @@ DDS_EXPORT void dds_copy_listener (dds_listener_t * __restrict dst, const dds_li
  * @param[in,out] dst The pointer to the destination listener structure, where the content is merged
  * @param[in] src The pointer to the source listener structure to be copied
  */
-DDS_EXPORT void dds_merge_listener (dds_listener_t * __restrict dst, const dds_listener_t * __restrict src);
+DDS_EXPORT void dds_merge_listener (dds_listener_t *dst, const dds_listener_t *src);
 
 /************************************************************************************************
  *  Setters
@@ -134,7 +134,7 @@ DDS_EXPORT void dds_merge_listener (dds_listener_t * __restrict dst, const dds_l
  * @retval DDS_RETCODE_OK success
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lset_data_available_arg (dds_listener_t * __restrict listener, dds_on_data_available_fn callback, void *arg, bool reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lset_data_available_arg (dds_listener_t *listener, dds_on_data_available_fn callback, void *arg, bool reset_on_invoke);
 
 /**
  * @ingroup listener_setters
@@ -149,7 +149,7 @@ DDS_EXPORT dds_return_t dds_lset_data_available_arg (dds_listener_t * __restrict
  * @retval DDS_RETCODE_OK success
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lset_data_on_readers_arg (dds_listener_t * __restrict listener, dds_on_data_on_readers_fn callback, void *arg, bool reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lset_data_on_readers_arg (dds_listener_t *listener, dds_on_data_on_readers_fn callback, void *arg, bool reset_on_invoke);
 
 /**
  * @ingroup listener_setters
@@ -164,7 +164,7 @@ DDS_EXPORT dds_return_t dds_lset_data_on_readers_arg (dds_listener_t * __restric
  * @retval DDS_RETCODE_OK success
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lset_inconsistent_topic_arg (dds_listener_t * __restrict listener, dds_on_inconsistent_topic_fn callback, void *arg, bool reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lset_inconsistent_topic_arg (dds_listener_t *listener, dds_on_inconsistent_topic_fn callback, void *arg, bool reset_on_invoke);
 
 /**
  * @ingroup listener_setters
@@ -179,7 +179,7 @@ DDS_EXPORT dds_return_t dds_lset_inconsistent_topic_arg (dds_listener_t * __rest
  * @retval DDS_RETCODE_OK success
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lset_liveliness_changed_arg (dds_listener_t * __restrict listener, dds_on_liveliness_changed_fn callback, void *arg, bool reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lset_liveliness_changed_arg (dds_listener_t *listener, dds_on_liveliness_changed_fn callback, void *arg, bool reset_on_invoke);
 
 /**
  * @ingroup listener_setters
@@ -194,7 +194,7 @@ DDS_EXPORT dds_return_t dds_lset_liveliness_changed_arg (dds_listener_t * __rest
  * @retval DDS_RETCODE_OK success
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lset_liveliness_lost_arg (dds_listener_t * __restrict listener, dds_on_liveliness_lost_fn callback, void *arg, bool reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lset_liveliness_lost_arg (dds_listener_t *listener, dds_on_liveliness_lost_fn callback, void *arg, bool reset_on_invoke);
 
 /**
  * @ingroup listener_setters
@@ -209,7 +209,7 @@ DDS_EXPORT dds_return_t dds_lset_liveliness_lost_arg (dds_listener_t * __restric
  * @retval DDS_RETCODE_OK success
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lset_offered_deadline_missed_arg (dds_listener_t * __restrict listener, dds_on_offered_deadline_missed_fn callback, void *arg, bool reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lset_offered_deadline_missed_arg (dds_listener_t *listener, dds_on_offered_deadline_missed_fn callback, void *arg, bool reset_on_invoke);
 
 /**
  * @ingroup listener_setters
@@ -224,7 +224,7 @@ DDS_EXPORT dds_return_t dds_lset_offered_deadline_missed_arg (dds_listener_t * _
  * @retval DDS_RETCODE_OK success
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lset_offered_incompatible_qos_arg (dds_listener_t * __restrict listener, dds_on_offered_incompatible_qos_fn callback, void *arg, bool reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lset_offered_incompatible_qos_arg (dds_listener_t *listener, dds_on_offered_incompatible_qos_fn callback, void *arg, bool reset_on_invoke);
 
 /**
  * @ingroup listener_setters
@@ -239,7 +239,7 @@ DDS_EXPORT dds_return_t dds_lset_offered_incompatible_qos_arg (dds_listener_t * 
  * @retval DDS_RETCODE_OK success
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lset_publication_matched_arg (dds_listener_t * __restrict listener, dds_on_publication_matched_fn callback, void *arg, bool reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lset_publication_matched_arg (dds_listener_t *listener, dds_on_publication_matched_fn callback, void *arg, bool reset_on_invoke);
 
 /**
  * @ingroup listener_setters
@@ -254,7 +254,7 @@ DDS_EXPORT dds_return_t dds_lset_publication_matched_arg (dds_listener_t * __res
  * @retval DDS_RETCODE_OK success
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lset_requested_deadline_missed_arg (dds_listener_t * __restrict listener, dds_on_requested_deadline_missed_fn callback, void *arg, bool reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lset_requested_deadline_missed_arg (dds_listener_t *listener, dds_on_requested_deadline_missed_fn callback, void *arg, bool reset_on_invoke);
 
 /**
  * @ingroup listener_setters
@@ -269,7 +269,7 @@ DDS_EXPORT dds_return_t dds_lset_requested_deadline_missed_arg (dds_listener_t *
  * @retval DDS_RETCODE_OK success
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lset_requested_incompatible_qos_arg (dds_listener_t * __restrict listener, dds_on_requested_incompatible_qos_fn callback, void *arg, bool reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lset_requested_incompatible_qos_arg (dds_listener_t *listener, dds_on_requested_incompatible_qos_fn callback, void *arg, bool reset_on_invoke);
 
 /**
  * @ingroup listener_setters
@@ -284,7 +284,7 @@ DDS_EXPORT dds_return_t dds_lset_requested_incompatible_qos_arg (dds_listener_t 
  * @retval DDS_RETCODE_OK success
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lset_sample_lost_arg (dds_listener_t * __restrict listener, dds_on_sample_lost_fn callback, void *arg, bool reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lset_sample_lost_arg (dds_listener_t *listener, dds_on_sample_lost_fn callback, void *arg, bool reset_on_invoke);
 
 /**
  * @ingroup listener_setters
@@ -299,7 +299,7 @@ DDS_EXPORT dds_return_t dds_lset_sample_lost_arg (dds_listener_t * __restrict li
  * @retval DDS_RETCODE_OK success
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lset_sample_rejected_arg (dds_listener_t * __restrict listener, dds_on_sample_rejected_fn callback, void *arg, bool reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lset_sample_rejected_arg (dds_listener_t *listener, dds_on_sample_rejected_fn callback, void *arg, bool reset_on_invoke);
 
 /**
  * @ingroup listener_setters
@@ -314,7 +314,7 @@ DDS_EXPORT dds_return_t dds_lset_sample_rejected_arg (dds_listener_t * __restric
  * @retval DDS_RETCODE_OK success
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lset_subscription_matched_arg (dds_listener_t * __restrict listener, dds_on_subscription_matched_fn callback, void *arg, bool reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lset_subscription_matched_arg (dds_listener_t *listener, dds_on_subscription_matched_fn callback, void *arg, bool reset_on_invoke);
 
 /**
  * @ingroup listener_setters
@@ -327,7 +327,7 @@ DDS_EXPORT dds_return_t dds_lset_subscription_matched_arg (dds_listener_t * __re
  * @param[in,out] listener listener structure to update
  * @param[in] callback the callback to set or a null pointer
  */
-DDS_EXPORT void dds_lset_inconsistent_topic (dds_listener_t * __restrict listener, dds_on_inconsistent_topic_fn callback);
+DDS_EXPORT void dds_lset_inconsistent_topic (dds_listener_t *listener, dds_on_inconsistent_topic_fn callback);
 
 /**
  * @ingroup listener_setters
@@ -340,7 +340,7 @@ DDS_EXPORT void dds_lset_inconsistent_topic (dds_listener_t * __restrict listene
  * @param[in,out] listener listener structure to update
  * @param[in] callback the callback to set or a null pointer
  */
-DDS_EXPORT void dds_lset_liveliness_lost (dds_listener_t * __restrict listener, dds_on_liveliness_lost_fn callback);
+DDS_EXPORT void dds_lset_liveliness_lost (dds_listener_t *listener, dds_on_liveliness_lost_fn callback);
 
 /**
  * @ingroup listener_setters
@@ -353,7 +353,7 @@ DDS_EXPORT void dds_lset_liveliness_lost (dds_listener_t * __restrict listener, 
  * @param[in,out] listener listener structure to update
  * @param[in] callback the callback to set or a null pointer
  */
-DDS_EXPORT void dds_lset_offered_deadline_missed (dds_listener_t * __restrict listener, dds_on_offered_deadline_missed_fn callback);
+DDS_EXPORT void dds_lset_offered_deadline_missed (dds_listener_t *listener, dds_on_offered_deadline_missed_fn callback);
 
 /**
  * @ingroup listener_setters
@@ -366,7 +366,7 @@ DDS_EXPORT void dds_lset_offered_deadline_missed (dds_listener_t * __restrict li
  * @param[in,out] listener listener structure to update
  * @param[in] callback the callback to set or a null pointer
  */
-DDS_EXPORT void dds_lset_offered_incompatible_qos (dds_listener_t * __restrict listener, dds_on_offered_incompatible_qos_fn callback);
+DDS_EXPORT void dds_lset_offered_incompatible_qos (dds_listener_t *listener, dds_on_offered_incompatible_qos_fn callback);
 
 /**
  * @ingroup listener_setters
@@ -379,7 +379,7 @@ DDS_EXPORT void dds_lset_offered_incompatible_qos (dds_listener_t * __restrict l
  * @param[in,out] listener listener structure to update
  * @param[in] callback the callback to set or a null pointer
  */
-DDS_EXPORT void dds_lset_data_on_readers (dds_listener_t * __restrict listener, dds_on_data_on_readers_fn callback);
+DDS_EXPORT void dds_lset_data_on_readers (dds_listener_t *listener, dds_on_data_on_readers_fn callback);
 
 /**
  * @ingroup listener_setters
@@ -392,7 +392,7 @@ DDS_EXPORT void dds_lset_data_on_readers (dds_listener_t * __restrict listener, 
  * @param[in,out] listener listener structure to update
  * @param[in] callback the callback to set or a null pointer
  */
-DDS_EXPORT void dds_lset_sample_lost (dds_listener_t * __restrict listener, dds_on_sample_lost_fn callback);
+DDS_EXPORT void dds_lset_sample_lost (dds_listener_t *listener, dds_on_sample_lost_fn callback);
 
 /**
  * @ingroup listener_setters
@@ -405,7 +405,7 @@ DDS_EXPORT void dds_lset_sample_lost (dds_listener_t * __restrict listener, dds_
  * @param[in,out] listener listener structure to update
  * @param[in] callback the callback to set or a null pointer
  */
-DDS_EXPORT void dds_lset_data_available (dds_listener_t * __restrict listener, dds_on_data_available_fn callback);
+DDS_EXPORT void dds_lset_data_available (dds_listener_t *listener, dds_on_data_available_fn callback);
 
 /**
  * @ingroup listener_setters
@@ -418,7 +418,7 @@ DDS_EXPORT void dds_lset_data_available (dds_listener_t * __restrict listener, d
  * @param[in,out] listener listener structure to update
  * @param[in] callback the callback to set or a null pointer
  */
-DDS_EXPORT void dds_lset_sample_rejected (dds_listener_t * __restrict listener, dds_on_sample_rejected_fn callback);
+DDS_EXPORT void dds_lset_sample_rejected (dds_listener_t *listener, dds_on_sample_rejected_fn callback);
 
 /**
  * @ingroup listener_setters
@@ -431,7 +431,7 @@ DDS_EXPORT void dds_lset_sample_rejected (dds_listener_t * __restrict listener, 
  * @param[in,out] listener listener structure to update
  * @param[in] callback the callback to set or a null pointer
  */
-DDS_EXPORT void dds_lset_liveliness_changed (dds_listener_t * __restrict listener, dds_on_liveliness_changed_fn callback);
+DDS_EXPORT void dds_lset_liveliness_changed (dds_listener_t *listener, dds_on_liveliness_changed_fn callback);
 
 /**
  * @ingroup listener_setters
@@ -444,7 +444,7 @@ DDS_EXPORT void dds_lset_liveliness_changed (dds_listener_t * __restrict listene
  * @param[in,out] listener listener structure to update
  * @param[in] callback the callback to set or a null pointer
  */
-DDS_EXPORT void dds_lset_requested_deadline_missed (dds_listener_t * __restrict listener, dds_on_requested_deadline_missed_fn callback);
+DDS_EXPORT void dds_lset_requested_deadline_missed (dds_listener_t *listener, dds_on_requested_deadline_missed_fn callback);
 
 /**
  * @ingroup listener_setters
@@ -457,7 +457,7 @@ DDS_EXPORT void dds_lset_requested_deadline_missed (dds_listener_t * __restrict 
  * @param[in,out] listener listener structure to update
  * @param[in] callback the callback to set or a null pointer
  */
-DDS_EXPORT void dds_lset_requested_incompatible_qos (dds_listener_t * __restrict listener, dds_on_requested_incompatible_qos_fn callback);
+DDS_EXPORT void dds_lset_requested_incompatible_qos (dds_listener_t *listener, dds_on_requested_incompatible_qos_fn callback);
 
 /**
  * @ingroup listener_setters
@@ -470,7 +470,7 @@ DDS_EXPORT void dds_lset_requested_incompatible_qos (dds_listener_t * __restrict
  * @param[in,out] listener listener structure to update
  * @param[in] callback the callback to set or a null pointer
  */
-DDS_EXPORT void dds_lset_publication_matched (dds_listener_t * __restrict listener, dds_on_publication_matched_fn callback);
+DDS_EXPORT void dds_lset_publication_matched (dds_listener_t *listener, dds_on_publication_matched_fn callback);
 
 /**
  * @ingroup listener_setters
@@ -483,7 +483,7 @@ DDS_EXPORT void dds_lset_publication_matched (dds_listener_t * __restrict listen
  * @param[in,out] listener listener structure to update
  * @param[in] callback the callback to set or a null pointer
  */
-DDS_EXPORT void dds_lset_subscription_matched (dds_listener_t * __restrict listener, dds_on_subscription_matched_fn callback);
+DDS_EXPORT void dds_lset_subscription_matched (dds_listener_t *listener, dds_on_subscription_matched_fn callback);
 
 
 /************************************************************************************************
@@ -508,7 +508,7 @@ DDS_EXPORT void dds_lset_subscription_matched (dds_listener_t * __restrict liste
  * @retval DDS_RETCODE_OK if successful
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lget_data_available_arg (const dds_listener_t * __restrict listener, dds_on_data_available_fn *callback, void **arg, bool *reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lget_data_available_arg (const dds_listener_t *listener, dds_on_data_available_fn *callback, void **arg, bool *reset_on_invoke);
 
 /**
  * @ingroup listener_getters
@@ -523,7 +523,7 @@ DDS_EXPORT dds_return_t dds_lget_data_available_arg (const dds_listener_t * __re
  * @retval DDS_RETCODE_OK if successful
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lget_data_on_readers_arg (const dds_listener_t * __restrict listener, dds_on_data_on_readers_fn *callback, void **arg, bool *reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lget_data_on_readers_arg (const dds_listener_t *listener, dds_on_data_on_readers_fn *callback, void **arg, bool *reset_on_invoke);
 
 /**
  * @ingroup listener_getters
@@ -538,7 +538,7 @@ DDS_EXPORT dds_return_t dds_lget_data_on_readers_arg (const dds_listener_t * __r
  * @retval DDS_RETCODE_OK if successful
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lget_inconsistent_topic_arg (const dds_listener_t * __restrict listener, dds_on_inconsistent_topic_fn *callback, void **arg, bool *reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lget_inconsistent_topic_arg (const dds_listener_t *listener, dds_on_inconsistent_topic_fn *callback, void **arg, bool *reset_on_invoke);
 
 /**
  * @ingroup listener_getters
@@ -553,7 +553,7 @@ DDS_EXPORT dds_return_t dds_lget_inconsistent_topic_arg (const dds_listener_t * 
  * @retval DDS_RETCODE_OK if successful
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lget_liveliness_changed_arg (const dds_listener_t * __restrict listener, dds_on_liveliness_changed_fn *callback, void **arg, bool *reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lget_liveliness_changed_arg (const dds_listener_t *listener, dds_on_liveliness_changed_fn *callback, void **arg, bool *reset_on_invoke);
 
 /**
  * @ingroup listener_getters
@@ -568,7 +568,7 @@ DDS_EXPORT dds_return_t dds_lget_liveliness_changed_arg (const dds_listener_t * 
  * @retval DDS_RETCODE_OK if successful
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lget_liveliness_lost_arg (const dds_listener_t * __restrict listener, dds_on_liveliness_lost_fn *callback, void **arg, bool *reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lget_liveliness_lost_arg (const dds_listener_t *listener, dds_on_liveliness_lost_fn *callback, void **arg, bool *reset_on_invoke);
 
 /**
  * @ingroup listener_getters
@@ -583,7 +583,7 @@ DDS_EXPORT dds_return_t dds_lget_liveliness_lost_arg (const dds_listener_t * __r
  * @retval DDS_RETCODE_OK if successful
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lget_offered_deadline_missed_arg (const dds_listener_t * __restrict listener, dds_on_offered_deadline_missed_fn *callback, void **arg, bool *reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lget_offered_deadline_missed_arg (const dds_listener_t *listener, dds_on_offered_deadline_missed_fn *callback, void **arg, bool *reset_on_invoke);
 
 /**
  * @ingroup listener_getters
@@ -598,7 +598,7 @@ DDS_EXPORT dds_return_t dds_lget_offered_deadline_missed_arg (const dds_listener
  * @retval DDS_RETCODE_OK if successful
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lget_offered_incompatible_qos_arg (const dds_listener_t * __restrict listener, dds_on_offered_incompatible_qos_fn *callback, void **arg, bool *reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lget_offered_incompatible_qos_arg (const dds_listener_t *listener, dds_on_offered_incompatible_qos_fn *callback, void **arg, bool *reset_on_invoke);
 
 /**
  * @ingroup listener_getters
@@ -613,7 +613,7 @@ DDS_EXPORT dds_return_t dds_lget_offered_incompatible_qos_arg (const dds_listene
  * @retval DDS_RETCODE_OK if successful
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lget_publication_matched_arg (const dds_listener_t * __restrict listener, dds_on_publication_matched_fn *callback, void **arg, bool *reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lget_publication_matched_arg (const dds_listener_t *listener, dds_on_publication_matched_fn *callback, void **arg, bool *reset_on_invoke);
 
 /**
  * @ingroup listener_getters
@@ -628,7 +628,7 @@ DDS_EXPORT dds_return_t dds_lget_publication_matched_arg (const dds_listener_t *
  * @retval DDS_RETCODE_OK if successful
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lget_requested_deadline_missed_arg (const dds_listener_t * __restrict listener, dds_on_requested_deadline_missed_fn *callback, void **arg, bool *reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lget_requested_deadline_missed_arg (const dds_listener_t *listener, dds_on_requested_deadline_missed_fn *callback, void **arg, bool *reset_on_invoke);
 
 /**
  * @ingroup listener_getters
@@ -643,7 +643,7 @@ DDS_EXPORT dds_return_t dds_lget_requested_deadline_missed_arg (const dds_listen
  * @retval DDS_RETCODE_OK if successful
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lget_requested_incompatible_qos_arg (const dds_listener_t * __restrict listener, dds_on_requested_incompatible_qos_fn *callback, void **arg, bool *reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lget_requested_incompatible_qos_arg (const dds_listener_t *listener, dds_on_requested_incompatible_qos_fn *callback, void **arg, bool *reset_on_invoke);
 
 /**
  * @ingroup listener_getters
@@ -658,7 +658,7 @@ DDS_EXPORT dds_return_t dds_lget_requested_incompatible_qos_arg (const dds_liste
  * @retval DDS_RETCODE_OK if successful
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lget_sample_lost_arg (const dds_listener_t * __restrict listener, dds_on_sample_lost_fn *callback, void **arg, bool *reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lget_sample_lost_arg (const dds_listener_t *listener, dds_on_sample_lost_fn *callback, void **arg, bool *reset_on_invoke);
 
 /**
  * @ingroup listener_getters
@@ -673,7 +673,7 @@ DDS_EXPORT dds_return_t dds_lget_sample_lost_arg (const dds_listener_t * __restr
  * @retval DDS_RETCODE_OK if successful
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lget_sample_rejected_arg (const dds_listener_t * __restrict listener, dds_on_sample_rejected_fn *callback, void **arg, bool *reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lget_sample_rejected_arg (const dds_listener_t *listener, dds_on_sample_rejected_fn *callback, void **arg, bool *reset_on_invoke);
 
 /**
  * @ingroup listener_getters
@@ -688,7 +688,7 @@ DDS_EXPORT dds_return_t dds_lget_sample_rejected_arg (const dds_listener_t * __r
  * @retval DDS_RETCODE_OK if successful
  * @retval DDS_RETCODE_BAD_PARAMETER listener is a null pointer
  */
-DDS_EXPORT dds_return_t dds_lget_subscription_matched_arg (const dds_listener_t * __restrict listener, dds_on_subscription_matched_fn *callback, void **arg, bool *reset_on_invoke);
+DDS_EXPORT dds_return_t dds_lget_subscription_matched_arg (const dds_listener_t *listener, dds_on_subscription_matched_fn *callback, void **arg, bool *reset_on_invoke);
 
 /**
  * @ingroup listener_getters
@@ -700,7 +700,7 @@ DDS_EXPORT dds_return_t dds_lget_subscription_matched_arg (const dds_listener_t 
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
  * @param[out] callback Callback function; may be a null pointer
  */
-DDS_EXPORT void dds_lget_inconsistent_topic (const dds_listener_t * __restrict listener, dds_on_inconsistent_topic_fn *callback);
+DDS_EXPORT void dds_lget_inconsistent_topic (const dds_listener_t *listener, dds_on_inconsistent_topic_fn *callback);
 
 /**
  * @ingroup listener_getters
@@ -712,7 +712,7 @@ DDS_EXPORT void dds_lget_inconsistent_topic (const dds_listener_t * __restrict l
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
  * @param[out] callback Callback function; may be a null pointer
  */
-DDS_EXPORT void dds_lget_liveliness_lost (const dds_listener_t * __restrict listener, dds_on_liveliness_lost_fn *callback);
+DDS_EXPORT void dds_lget_liveliness_lost (const dds_listener_t *listener, dds_on_liveliness_lost_fn *callback);
 
 /**
  * @ingroup listener_getters
@@ -724,7 +724,7 @@ DDS_EXPORT void dds_lget_liveliness_lost (const dds_listener_t * __restrict list
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
  * @param[out] callback Callback function; may be a null pointer
  */
-DDS_EXPORT void dds_lget_offered_deadline_missed (const dds_listener_t * __restrict listener, dds_on_offered_deadline_missed_fn *callback);
+DDS_EXPORT void dds_lget_offered_deadline_missed (const dds_listener_t *listener, dds_on_offered_deadline_missed_fn *callback);
 
 /**
  * @ingroup listener_getters
@@ -736,7 +736,7 @@ DDS_EXPORT void dds_lget_offered_deadline_missed (const dds_listener_t * __restr
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
  * @param[out] callback Callback function; may be a null pointer
  */
-DDS_EXPORT void dds_lget_offered_incompatible_qos (const dds_listener_t * __restrict listener, dds_on_offered_incompatible_qos_fn *callback);
+DDS_EXPORT void dds_lget_offered_incompatible_qos (const dds_listener_t *listener, dds_on_offered_incompatible_qos_fn *callback);
 
 /**
  * @ingroup listener_getters
@@ -748,7 +748,7 @@ DDS_EXPORT void dds_lget_offered_incompatible_qos (const dds_listener_t * __rest
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
  * @param[out] callback Callback function; may be a null pointer
  */
-DDS_EXPORT void dds_lget_data_on_readers (const dds_listener_t * __restrict listener, dds_on_data_on_readers_fn *callback);
+DDS_EXPORT void dds_lget_data_on_readers (const dds_listener_t *listener, dds_on_data_on_readers_fn *callback);
 
 /**
  * @ingroup listener_getters
@@ -760,7 +760,7 @@ DDS_EXPORT void dds_lget_data_on_readers (const dds_listener_t * __restrict list
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
  * @param[out] callback Callback function; may be a null pointer
  */
-DDS_EXPORT void dds_lget_sample_lost (const dds_listener_t *__restrict listener, dds_on_sample_lost_fn *callback);
+DDS_EXPORT void dds_lget_sample_lost (const dds_listener_t *listener, dds_on_sample_lost_fn *callback);
 
 /**
  * @ingroup listener_getters
@@ -772,7 +772,7 @@ DDS_EXPORT void dds_lget_sample_lost (const dds_listener_t *__restrict listener,
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
  * @param[out] callback Callback function; may be a null pointer
  */
-DDS_EXPORT void dds_lget_data_available (const dds_listener_t *__restrict listener, dds_on_data_available_fn *callback);
+DDS_EXPORT void dds_lget_data_available (const dds_listener_t *listener, dds_on_data_available_fn *callback);
 
 /**
  * @ingroup listener_getters
@@ -784,7 +784,7 @@ DDS_EXPORT void dds_lget_data_available (const dds_listener_t *__restrict listen
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
  * @param[out] callback Callback function; may be a null pointer
  */
-DDS_EXPORT void dds_lget_sample_rejected (const dds_listener_t  *__restrict listener, dds_on_sample_rejected_fn *callback);
+DDS_EXPORT void dds_lget_sample_rejected (const dds_listener_t *listener, dds_on_sample_rejected_fn *callback);
 
 /**
  * @ingroup listener_getters
@@ -796,7 +796,7 @@ DDS_EXPORT void dds_lget_sample_rejected (const dds_listener_t  *__restrict list
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
  * @param[out] callback Callback function; may be a null pointer
  */
-DDS_EXPORT void dds_lget_liveliness_changed (const dds_listener_t * __restrict listener, dds_on_liveliness_changed_fn *callback);
+DDS_EXPORT void dds_lget_liveliness_changed (const dds_listener_t *listener, dds_on_liveliness_changed_fn *callback);
 
 /**
  * @ingroup listener_getters
@@ -808,7 +808,7 @@ DDS_EXPORT void dds_lget_liveliness_changed (const dds_listener_t * __restrict l
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
  * @param[out] callback Callback function; may be a null pointer
  */
-DDS_EXPORT void dds_lget_requested_deadline_missed (const dds_listener_t * __restrict listener, dds_on_requested_deadline_missed_fn *callback);
+DDS_EXPORT void dds_lget_requested_deadline_missed (const dds_listener_t *listener, dds_on_requested_deadline_missed_fn *callback);
 
 /**
  * @ingroup listener_getters
@@ -820,7 +820,7 @@ DDS_EXPORT void dds_lget_requested_deadline_missed (const dds_listener_t * __res
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
  * @param[out] callback Callback function; may be a null pointer
  */
-DDS_EXPORT void dds_lget_requested_incompatible_qos (const dds_listener_t * __restrict listener, dds_on_requested_incompatible_qos_fn *callback);
+DDS_EXPORT void dds_lget_requested_incompatible_qos (const dds_listener_t *listener, dds_on_requested_incompatible_qos_fn *callback);
 
 /**
  * @ingroup listener_getters
@@ -832,7 +832,7 @@ DDS_EXPORT void dds_lget_requested_incompatible_qos (const dds_listener_t * __re
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
  * @param[out] callback Callback function; may be a null pointer
  */
-DDS_EXPORT void dds_lget_publication_matched (const dds_listener_t * __restrict listener, dds_on_publication_matched_fn *callback);
+DDS_EXPORT void dds_lget_publication_matched (const dds_listener_t *listener, dds_on_publication_matched_fn *callback);
 
 /**
  * @ingroup listener_getters
@@ -844,7 +844,7 @@ DDS_EXPORT void dds_lget_publication_matched (const dds_listener_t * __restrict 
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
  * @param[out] callback Callback function; may be a null pointer
  */
-DDS_EXPORT void dds_lget_subscription_matched (const dds_listener_t * __restrict listener, dds_on_subscription_matched_fn *callback);
+DDS_EXPORT void dds_lget_subscription_matched (const dds_listener_t *listener, dds_on_subscription_matched_fn *callback);
 
 #if defined (__cplusplus)
 }

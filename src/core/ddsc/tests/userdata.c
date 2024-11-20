@@ -233,8 +233,8 @@ static uint32_t rw_thread (void *varg)
   static const char *exp_rwud[] = {
     "a", "bc", "def", "",
   };
-  bool (*qget) (const dds_qos_t * __restrict qos, void **value, size_t *sz) = 0;
-  void (*qset) (dds_qos_t * __restrict qos, const void *value, size_t sz) = 0;
+  bool (*qget) (const dds_qos_t *qos, void **value, size_t *sz) = 0;
+  void (*qset) (dds_qos_t *qos, const void *value, size_t sz) = 0;
 
   dds_entity_t dp, tp, ep, grp, rdep, qent = 0, ws;
   dds_return_t rc;

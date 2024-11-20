@@ -197,7 +197,7 @@ static struct ddsi_serdata *serdata_cdr_from_ser (const struct ddsi_sertype *tpc
   return fix_serdata_cdr (d, tpcmn->serdata_basehash);
 }
 
-static void istream_from_serdata_cdr (dds_istream_t * __restrict s, const struct ddsi_serdata_cdr * __restrict d)
+static void istream_from_serdata_cdr (dds_istream_t *s, const struct ddsi_serdata_cdr *d)
 {
   s->m_buffer = (const unsigned char *) d;
   s->m_index = (uint32_t) offsetof (struct ddsi_serdata_cdr, data);
@@ -210,7 +210,7 @@ static void istream_from_serdata_cdr (dds_istream_t * __restrict s, const struct
   s->m_xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
 }
 
-static void ostream_from_serdata_cdr (dds_ostream_t * __restrict s, const struct ddsi_serdata_cdr * __restrict d)
+static void ostream_from_serdata_cdr (dds_ostream_t *s, const struct ddsi_serdata_cdr *d)
 {
   s->m_buffer = (unsigned char *) d;
   s->m_index = (uint32_t) offsetof (struct ddsi_serdata_cdr, data);
@@ -223,7 +223,7 @@ static void ostream_from_serdata_cdr (dds_ostream_t * __restrict s, const struct
   s->m_xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
 }
 
-static void ostream_add_to_serdata_cdr (dds_ostream_t * __restrict s, struct ddsi_serdata_cdr ** __restrict d)
+static void ostream_add_to_serdata_cdr (dds_ostream_t *s, struct ddsi_serdata_cdr **d)
 {
   /* DDSI requires 4 byte alignment */
   const uint32_t pad = dds_cdr_alignto4_clear_and_resize (s, &dds_cdrstream_default_allocator, s->m_xcdr_version);

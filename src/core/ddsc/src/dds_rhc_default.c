@@ -413,9 +413,9 @@ static void free_sample (struct dds_rhc_default *rhc, struct rhc_instance *inst,
 static void get_trigger_info_cmn (struct trigger_info_cmn *info, struct rhc_instance *inst);
 static void get_trigger_info_pre (struct trigger_info_pre *info, struct rhc_instance *inst);
 static void init_trigger_info_qcond (struct trigger_info_qcond *qc);
-static void drop_instance_noupdate_no_writers (struct dds_rhc_default * __restrict rhc, struct rhc_instance * __restrict * __restrict instptr);
+static void drop_instance_noupdate_no_writers (struct dds_rhc_default *rhc, struct rhc_instance **instptr);
 static bool update_conditions_locked (struct dds_rhc_default *rhc, bool called_from_insert, const struct trigger_info_pre *pre, const struct trigger_info_post *post, const struct trigger_info_qcond *trig_qc, const struct rhc_instance *inst);
-static void account_for_nonempty_to_empty_transition (struct dds_rhc_default * __restrict rhc, struct rhc_instance * __restrict * __restrict instptr, const char *__restrict traceprefix);
+static void account_for_nonempty_to_empty_transition (struct dds_rhc_default *rhc, struct rhc_instance **instptr, const char *traceprefix);
 #ifndef NDEBUG
 static bool rhc_check_counts_locked (struct dds_rhc_default *rhc, bool check_conds, bool check_qcmask);
 #endif
@@ -702,7 +702,7 @@ static void inst_clear_invsample_if_exists (struct dds_rhc_default *rhc, struct 
     inst_clear_invsample (rhc, inst, trig_qc);
 }
 
-static void inst_set_invsample (struct dds_rhc_default *rhc, struct rhc_instance *inst, struct trigger_info_qcond *trig_qc, bool * __restrict nda)
+static void inst_set_invsample (struct dds_rhc_default *rhc, struct rhc_instance *inst, struct trigger_info_qcond *trig_qc, bool *nda)
 {
   if (inst->inv_exists && !inst->inv_isread)
   {
@@ -849,7 +849,7 @@ static bool trigger_info_differs (const struct dds_rhc_default *rhc, const struc
             trig_qc->dec_sample_read != trig_qc->inc_sample_read);
 }
 
-static bool add_sample (struct dds_rhc_default *rhc, struct rhc_instance *inst, const struct ddsi_writer_info *wrinfo, const struct ddsi_serdata *sample, ddsi_status_cb_data_t *cb_data, struct trigger_info_qcond *trig_qc, bool * __restrict nda)
+static bool add_sample (struct dds_rhc_default *rhc, struct rhc_instance *inst, const struct ddsi_writer_info *wrinfo, const struct ddsi_serdata *sample, ddsi_status_cb_data_t *cb_data, struct trigger_info_qcond *trig_qc, bool *nda)
 {
   struct rhc_sample *s;
 
@@ -1082,13 +1082,13 @@ static bool inst_accepts_sample (const struct dds_rhc_default *rhc, const struct
   return true;
 }
 
-static void update_inst_common (struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, ddsrt_wctime_t tstamp)
+static void update_inst_common (struct rhc_instance *inst, const struct ddsi_writer_info *wrinfo, ddsrt_wctime_t tstamp)
 {
   inst->tstamp = tstamp;
   inst->strength = wrinfo->ownership_strength;
 }
 
-static void update_inst_have_wr_iid (struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, ddsrt_wctime_t tstamp)
+static void update_inst_have_wr_iid (struct rhc_instance *inst, const struct ddsi_writer_info *wrinfo, ddsrt_wctime_t tstamp)
 {
   update_inst_common (inst, wrinfo, tstamp);
   inst->wr_iid = wrinfo->iid;
@@ -1096,13 +1096,13 @@ static void update_inst_have_wr_iid (struct rhc_instance *inst, const struct dds
   inst->wr_iid_islive = true;
 }
 
-static void update_inst_no_wr_iid (struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, ddsrt_wctime_t tstamp)
+static void update_inst_no_wr_iid (struct rhc_instance *inst, const struct ddsi_writer_info *wrinfo, ddsrt_wctime_t tstamp)
 {
   update_inst_common (inst, wrinfo, tstamp);
   inst->wr_iid_islive = false;
 }
 
-static void drop_instance_noupdate_no_writers (struct dds_rhc_default *__restrict rhc, struct rhc_instance * __restrict * __restrict instptr)
+static void drop_instance_noupdate_no_writers (struct dds_rhc_default *rhc, struct rhc_instance **instptr)
 {
   struct rhc_instance *inst = *instptr;
   assert (inst_is_empty (inst));
@@ -1116,7 +1116,7 @@ static void drop_instance_noupdate_no_writers (struct dds_rhc_default *__restric
   *instptr = NULL;
 }
 
-static void dds_rhc_register (struct dds_rhc_default *rhc, struct rhc_instance *inst, uint64_t wr_iid, bool autodispose, bool sample_accepted, bool * __restrict nda)
+static void dds_rhc_register (struct dds_rhc_default *rhc, struct rhc_instance *inst, uint64_t wr_iid, bool autodispose, bool sample_accepted, bool *nda)
 {
   const uint64_t inst_wr_iid = inst->wr_iid_islive ? inst->wr_iid : 0;
 
@@ -1248,7 +1248,7 @@ static void account_for_empty_to_nonempty_transition (struct dds_rhc_default *rh
     rhc->n_not_alive_no_writers++;
 }
 
-static void account_for_nonempty_to_empty_transition (struct dds_rhc_default *__restrict rhc, struct rhc_instance * __restrict * __restrict instptr, const char * __restrict traceprefix)
+static void account_for_nonempty_to_empty_transition (struct dds_rhc_default *rhc, struct rhc_instance **instptr, const char *traceprefix)
 {
   struct rhc_instance *inst = *instptr;
   assert (inst_is_empty (inst));
@@ -1311,7 +1311,7 @@ static bool rhc_unregister_delete_registration (struct dds_rhc_default *rhc, con
   }
 }
 
-static bool rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, ddsrt_wctime_t tstamp, struct trigger_info_qcond *trig_qc, bool * __restrict nda)
+static bool rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_instance *inst, const struct ddsi_writer_info *wrinfo, ddsrt_wctime_t tstamp, struct trigger_info_qcond *trig_qc, bool *nda)
 {
   assert (inst->wrcount > 0);
   if (wrinfo->auto_dispose)
@@ -1389,7 +1389,7 @@ static bool rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_i
   }
 }
 
-static void dds_rhc_unregister (struct dds_rhc_default *rhc, struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, ddsrt_wctime_t tstamp, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc, bool * __restrict nda)
+static void dds_rhc_unregister (struct dds_rhc_default *rhc, struct rhc_instance *inst, const struct ddsi_writer_info *wrinfo, ddsrt_wctime_t tstamp, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc, bool *nda)
 {
   /* 'post' always gets set */
   TRACE (" unregister:");
@@ -1441,7 +1441,7 @@ static struct rhc_instance *alloc_new_instance (struct dds_rhc_default *rhc, con
   return inst;
 }
 
-static rhc_store_result_t rhc_store_new_instance (struct rhc_instance **out_inst, struct dds_rhc_default *rhc, const struct ddsi_writer_info *wrinfo, struct ddsi_serdata *sample, struct ddsi_tkmap_instance *tk, const bool has_data, ddsi_status_cb_data_t *cb_data, struct trigger_info_qcond *trig_qc, bool * __restrict nda)
+static rhc_store_result_t rhc_store_new_instance (struct rhc_instance **out_inst, struct dds_rhc_default *rhc, const struct ddsi_writer_info *wrinfo, struct ddsi_serdata *sample, struct ddsi_tkmap_instance *tk, const bool has_data, ddsi_status_cb_data_t *cb_data, struct trigger_info_qcond *trig_qc, bool *nda)
 {
   struct rhc_instance *inst;
   int ret;
@@ -1502,7 +1502,7 @@ static rhc_store_result_t rhc_store_new_instance (struct rhc_instance **out_inst
   return RHC_STORED;
 }
 
-static void postprocess_instance_update (struct dds_rhc_default * __restrict rhc, struct rhc_instance * __restrict * __restrict instptr, const struct trigger_info_pre *pre, const struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
+static void postprocess_instance_update (struct dds_rhc_default *rhc, struct rhc_instance **instptr, const struct trigger_info_pre *pre, const struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
 {
   {
     struct rhc_instance *inst = *instptr;
@@ -1540,7 +1540,7 @@ static void postprocess_instance_update (struct dds_rhc_default * __restrict rhc
   assert (rhc_check_counts_locked (rhc, true, true));
 }
 
-static void update_viewstate_and_disposedness (struct dds_rhc_default * __restrict rhc, struct rhc_instance * __restrict inst, bool has_data, bool not_alive, bool is_dispose, bool * __restrict nda)
+static void update_viewstate_and_disposedness (struct dds_rhc_default *rhc, struct rhc_instance *inst, bool has_data, bool not_alive, bool is_dispose, bool *nda)
 {
   /* Sample arriving for a NOT_ALIVE instance => view state NEW */
   if (has_data && not_alive)
@@ -1582,9 +1582,9 @@ static void update_viewstate_and_disposedness (struct dds_rhc_default * __restri
   delivered (true unless a reliable sample rejected).
 */
 
-static bool dds_rhc_default_store (struct ddsi_rhc * __restrict rhc_common, const struct ddsi_writer_info * __restrict wrinfo, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk)
+static bool dds_rhc_default_store (struct ddsi_rhc *rhc_common, const struct ddsi_writer_info *wrinfo, struct ddsi_serdata *sample, struct ddsi_tkmap_instance *tk)
 {
-  struct dds_rhc_default * const __restrict rhc = (struct dds_rhc_default * __restrict) rhc_common;
+  struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
   const uint64_t wr_iid = wrinfo->iid;
   const uint32_t statusinfo = sample->statusinfo;
   const bool has_data = (sample->kind == SDK_DATA);
@@ -1783,7 +1783,7 @@ error_or_nochange:
   return !(rhc->reliable && stored == RHC_REJECTED);
 }
 
-static void dds_rhc_default_unregister_wr (struct ddsi_rhc * __restrict rhc_common, const struct ddsi_writer_info * __restrict wrinfo)
+static void dds_rhc_default_unregister_wr (struct ddsi_rhc *rhc_common, const struct ddsi_writer_info *wrinfo)
 {
   /* Only to be called when writer with ID WR_IID has died.
 
@@ -1800,7 +1800,7 @@ static void dds_rhc_default_unregister_wr (struct ddsi_rhc * __restrict rhc_comm
      need to get two IIDs: the one visible to the application in the
      built-in topics and in get_instance_handle, and one used internally
      for tracking registrations and unregistrations. */
-  struct dds_rhc_default * __restrict const rhc = (struct dds_rhc_default * __restrict) rhc_common;
+  struct dds_rhc_default *const rhc = (struct dds_rhc_default *) rhc_common;
   bool notify_data_available = false;
   struct rhc_instance *inst;
   struct ddsrt_hh_iter iter;
@@ -1830,9 +1830,9 @@ static void dds_rhc_default_unregister_wr (struct ddsi_rhc * __restrict rhc_comm
     dds_reader_data_available_cb (rhc->reader);
 }
 
-static void dds_rhc_default_relinquish_ownership (struct ddsi_rhc * __restrict rhc_common, const uint64_t wr_iid)
+static void dds_rhc_default_relinquish_ownership (struct ddsi_rhc *rhc_common, const uint64_t wr_iid)
 {
-  struct dds_rhc_default * __restrict const rhc = (struct dds_rhc_default * __restrict) rhc_common;
+  struct dds_rhc_default *const rhc = (struct dds_rhc_default *) rhc_common;
   struct rhc_instance *inst;
   struct ddsrt_hh_iter iter;
   ddsrt_mutex_lock (&rhc->lock);
@@ -2012,15 +2012,15 @@ static bool take_sample_update_conditions (struct dds_rhc_default *rhc, struct t
 }
 
 struct readtake_w_qminv_inst_state {
-  struct dds_rhc_default * __restrict rhc;
-  int32_t * __restrict limit;
+  struct dds_rhc_default *rhc;
+  int32_t *limit;
   uint32_t qminv;
   dds_querycond_mask_t qcmask;
   dds_read_with_collector_fn_t collect_sample;
   void *collect_sample_arg;
 };
 
-static bool readtake_w_qminv_inst_get_rank_info_shortcut (const struct readtake_w_qminv_inst_state * __restrict state, struct rhc_instance * const __restrict inst, int32_t * __restrict limit_at_end_of_instance, uint32_t * __restrict last_generation_in_result, bool * __restrict invalid_sample_included)
+static bool readtake_w_qminv_inst_get_rank_info_shortcut (const struct readtake_w_qminv_inst_state *state, struct rhc_instance * const inst, int32_t *limit_at_end_of_instance, uint32_t *last_generation_in_result, bool *invalid_sample_included)
 {
   // no shortcuts if the contents of the samples matter
   if (state->qcmask != 0)
@@ -2082,7 +2082,7 @@ static bool readtake_w_qminv_inst_get_rank_info_shortcut (const struct readtake_
   }
 }
 
-static void readtake_w_qminv_inst_get_rank_info (const struct readtake_w_qminv_inst_state * __restrict state, struct rhc_instance * const __restrict inst, int32_t * __restrict limit_at_end_of_instance, uint32_t * __restrict last_generation_in_result, bool * __restrict invalid_sample_included)
+static void readtake_w_qminv_inst_get_rank_info (const struct readtake_w_qminv_inst_state *state, struct rhc_instance * const inst, int32_t *limit_at_end_of_instance, uint32_t *last_generation_in_result, bool *invalid_sample_included)
 {
   assert (inst->latest != NULL);
   if (!readtake_w_qminv_inst_get_rank_info_shortcut (state, inst, limit_at_end_of_instance, last_generation_in_result, invalid_sample_included))
@@ -2116,7 +2116,7 @@ static void readtake_w_qminv_inst_get_rank_info (const struct readtake_w_qminv_i
   }
 }
 
-static int32_t read_w_qminv_inst_validsamples (const struct readtake_w_qminv_inst_state * __restrict state, bool mark_as_read, struct rhc_instance * const __restrict inst, struct trigger_info_pre *pre, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
+static int32_t read_w_qminv_inst_validsamples (const struct readtake_w_qminv_inst_state *state, bool mark_as_read, struct rhc_instance * const inst, struct trigger_info_pre *pre, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
 {
   assert (*state->limit > 0);
   assert (inst->latest && (qmask_of_inst (inst) & state->qminv) == 0);
@@ -2169,7 +2169,7 @@ static int32_t read_w_qminv_inst_validsamples (const struct readtake_w_qminv_ins
   return DDS_RETCODE_OK;
 }
 
-static int32_t take_w_qminv_inst_validsamples (const struct readtake_w_qminv_inst_state * __restrict state, struct rhc_instance * const __restrict inst, struct trigger_info_pre *pre, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
+static int32_t take_w_qminv_inst_validsamples (const struct readtake_w_qminv_inst_state *state, struct rhc_instance * const inst, struct trigger_info_pre *pre, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
 {
   // see read_w_qminv_inst_validsamples
   assert (*state->limit > 0);
@@ -2224,7 +2224,7 @@ static int32_t take_w_qminv_inst_validsamples (const struct readtake_w_qminv_ins
   return DDS_RETCODE_OK;
 }
 
-static int32_t read_w_qminv_inst (const struct readtake_w_qminv_inst_state * __restrict state, bool mark_as_read, struct rhc_instance * const __restrict inst)
+static int32_t read_w_qminv_inst (const struct readtake_w_qminv_inst_state *state, bool mark_as_read, struct rhc_instance * const inst)
 {
   const int32_t initial_limit = *state->limit;
   assert (*state->limit > 0);
@@ -2285,7 +2285,7 @@ abort_on_error: ;
   return rc;
 }
 
-static int32_t take_w_qminv_inst (const struct readtake_w_qminv_inst_state * __restrict state, struct rhc_instance * __restrict * __restrict instptr)
+static int32_t take_w_qminv_inst (const struct readtake_w_qminv_inst_state *state, struct rhc_instance **instptr)
 {
   // also see read_w_qminv_inst
   const int32_t initial_limit = *state->limit;
@@ -2343,7 +2343,7 @@ abort_on_error: ;
   return rc;
 }
 
-static dds_return_t read_w_qminv (const struct readtake_w_qminv_inst_state * __restrict state, bool mark_as_read, dds_instance_handle_t handle)
+static dds_return_t read_w_qminv (const struct readtake_w_qminv_inst_state *state, bool mark_as_read, dds_instance_handle_t handle)
 {
   struct dds_rhc_default * const rhc = state->rhc;
   dds_return_t rc = DDS_RETCODE_OK;
@@ -2378,7 +2378,7 @@ static dds_return_t read_w_qminv (const struct readtake_w_qminv_inst_state * __r
   return rc;
 }
 
-static dds_return_t take_w_qminv (const struct readtake_w_qminv_inst_state * __restrict state, dds_instance_handle_t handle)
+static dds_return_t take_w_qminv (const struct readtake_w_qminv_inst_state *state, dds_instance_handle_t handle)
 {
   struct dds_rhc_default * const rhc = state->rhc;
   dds_return_t rc = DDS_RETCODE_OK;
