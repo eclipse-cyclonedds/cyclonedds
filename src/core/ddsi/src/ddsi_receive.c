@@ -1998,13 +1998,13 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
 {
   /* hopefully the compiler figures out that these are just aliases and doesn't reload them
      unnecessarily from memory */
-  const struct remote_sourceinfo * __restrict si = vsourceinfo;
-  const struct ddsi_rsample_info * __restrict sampleinfo = si->sampleinfo;
-  const struct ddsi_rdata * __restrict fragchain = si->fragchain;
+  const struct remote_sourceinfo *si = vsourceinfo;
+  const struct ddsi_rsample_info *sampleinfo = si->sampleinfo;
+  const struct ddsi_rdata *fragchain = si->fragchain;
   const uint32_t statusinfo = si->statusinfo;
   const unsigned char data_smhdr_flags = si->data_smhdr_flags;
   const ddsrt_wctime_t tstamp = si->tstamp;
-  const ddsi_plist_t * __restrict qos = si->qos;
+  const ddsi_plist_t *qos = si->qos;
   const char *failmsg = NULL;
   struct ddsi_serdata *sample = NULL;
 

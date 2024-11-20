@@ -103,7 +103,7 @@ bool ddsrt_thread_equal(ddsrt_thread_t a, ddsrt_thread_t b)
 }
 
 size_t
-ddsrt_thread_getname(char *__restrict name, size_t size)
+ddsrt_thread_getname(char *name, size_t size)
 {
   char *ptr;
 

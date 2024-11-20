@@ -19,7 +19,7 @@
 #include "ddsi__radmin.h"
 #include "ddsi__proxy_endpoint.h"
 
-void ddsi_get_writer_stats (struct ddsi_writer *wr, uint64_t * __restrict rexmit_bytes, uint32_t * __restrict throttle_count, uint64_t * __restrict time_throttled, uint64_t * __restrict time_retransmit)
+void ddsi_get_writer_stats (struct ddsi_writer *wr, uint64_t *rexmit_bytes, uint32_t *throttle_count, uint64_t *time_throttled, uint64_t *time_retransmit)
 {
   ddsrt_mutex_lock (&wr->e.lock);
   *rexmit_bytes = wr->rexmit_bytes;
@@ -29,7 +29,7 @@ void ddsi_get_writer_stats (struct ddsi_writer *wr, uint64_t * __restrict rexmit
   ddsrt_mutex_unlock (&wr->e.lock);
 }
 
-void ddsi_get_reader_stats (struct ddsi_reader *rd, uint64_t * __restrict discarded_bytes)
+void ddsi_get_reader_stats (struct ddsi_reader *rd, uint64_t *discarded_bytes)
 {
   struct ddsi_rd_pwr_match *m;
   ddsi_guid_t pwrguid;

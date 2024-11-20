@@ -244,7 +244,7 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
   ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
 }
 
-static void update_requested_deadline_missed (struct dds_requested_deadline_missed_status * __restrict st, const ddsi_status_cb_data_t *data)
+static void update_requested_deadline_missed (struct dds_requested_deadline_missed_status *st, const ddsi_status_cb_data_t *data)
 {
   st->last_instance_handle = data->handle;
   uint64_t tmp = (uint64_t)data->extra + (uint64_t)st->total_count;
@@ -258,21 +258,21 @@ static void update_requested_deadline_missed (struct dds_requested_deadline_miss
   st->total_count_change = tmp2 > INT32_MAX ? INT32_MAX : tmp2 < INT32_MIN ? INT32_MIN : (int32_t)tmp2;
 }
 
-static void update_requested_incompatible_qos (struct dds_requested_incompatible_qos_status * __restrict st, const ddsi_status_cb_data_t *data)
+static void update_requested_incompatible_qos (struct dds_requested_incompatible_qos_status *st, const ddsi_status_cb_data_t *data)
 {
   st->last_policy_id = data->extra;
   st->total_count++;
   st->total_count_change++;
 }
 
-static void update_sample_lost (struct dds_sample_lost_status * __restrict st, const ddsi_status_cb_data_t *data)
+static void update_sample_lost (struct dds_sample_lost_status *st, const ddsi_status_cb_data_t *data)
 {
   (void) data;
   st->total_count++;
   st->total_count_change++;
 }
 
-static void update_sample_rejected (struct dds_sample_rejected_status * __restrict st, const ddsi_status_cb_data_t *data)
+static void update_sample_rejected (struct dds_sample_rejected_status *st, const ddsi_status_cb_data_t *data)
 {
   st->last_reason = data->extra;
   st->last_instance_handle = data->handle;
@@ -280,7 +280,7 @@ static void update_sample_rejected (struct dds_sample_rejected_status * __restri
   st->total_count_change++;
 }
 
-static void update_liveliness_changed (struct dds_liveliness_changed_status * __restrict st, const ddsi_status_cb_data_t *data)
+static void update_liveliness_changed (struct dds_liveliness_changed_status *st, const ddsi_status_cb_data_t *data)
 {
   DDSRT_STATIC_ASSERT ((uint32_t) DDSI_LIVELINESS_CHANGED_ADD_ALIVE == 0 &&
                        DDSI_LIVELINESS_CHANGED_ADD_ALIVE < DDSI_LIVELINESS_CHANGED_ADD_NOT_ALIVE &&
@@ -324,7 +324,7 @@ static void update_liveliness_changed (struct dds_liveliness_changed_status * __
   }
 }
 
-static void update_subscription_matched (struct dds_subscription_matched_status * __restrict st, const ddsi_status_cb_data_t *data)
+static void update_subscription_matched (struct dds_subscription_matched_status *st, const ddsi_status_cb_data_t *data)
 {
   st->last_publication_handle = data->handle;
   if (data->add) {

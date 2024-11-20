@@ -33,11 +33,11 @@ dds_listener_t *dds_create_listener (void* arg)
   return l;
 }
 
-void dds_delete_listener (dds_listener_t * __restrict listener)
+void dds_delete_listener (dds_listener_t *listener)
 {
   dds_free (listener);
 }
-void dds_reset_listener (dds_listener_t * __restrict listener)
+void dds_reset_listener (dds_listener_t *listener)
 {
   if (listener)
   {
@@ -60,7 +60,7 @@ void dds_reset_listener (dds_listener_t * __restrict listener)
   }
 }
 
-void dds_copy_listener (dds_listener_t * __restrict dst, const dds_listener_t * __restrict src)
+void dds_copy_listener (dds_listener_t *dst, const dds_listener_t *src)
 {
   if (dst && src)
     *dst = *src;
@@ -89,7 +89,7 @@ static uint32_t combine_reset_on_invoke (const dds_listener_t *dst, const dds_li
   return copy_bits (dst->reset_on_invoke, src->reset_on_invoke, status);
 }
 
-static void dds_combine_listener (bool (*op) (uint32_t inherited, void (*dst)(void), void (*src)(void)), dds_listener_t * __restrict dst, const dds_listener_t * __restrict src)
+static void dds_combine_listener (bool (*op) (uint32_t inherited, void (*dst)(void), void (*src)(void)), dds_listener_t *dst, const dds_listener_t *src)
 {
 #define C(NAME_, name_) do { \
     if (op (dst->inherited & DDS_##NAME_##_STATUS, (void (*)(void)) dst->on_##name_, (void (*)(void)) src->on_##name_)){ \
@@ -115,19 +115,19 @@ static void dds_combine_listener (bool (*op) (uint32_t inherited, void (*dst)(vo
 #undef C
 }
 
-void dds_override_inherited_listener (dds_listener_t * __restrict dst, const dds_listener_t * __restrict src)
+void dds_override_inherited_listener (dds_listener_t *dst, const dds_listener_t *src)
 {
   if (dst && src)
     dds_combine_listener (dds_combine_listener_override_inherited, dst, src);
 }
 
-void dds_inherit_listener (dds_listener_t * __restrict dst, const dds_listener_t * __restrict src)
+void dds_inherit_listener (dds_listener_t *dst, const dds_listener_t *src)
 {
   if (dst && src)
     dds_combine_listener (dds_combine_listener_merge, dst, src);
 }
 
-void dds_merge_listener (dds_listener_t * __restrict dst, const dds_listener_t * __restrict src)
+void dds_merge_listener (dds_listener_t *dst, const dds_listener_t *src)
 {
   if (dst && src)
   {
@@ -138,7 +138,7 @@ void dds_merge_listener (dds_listener_t * __restrict dst, const dds_listener_t *
 }
 
 #define DDS_SET_LISTENER_ARG(NAME_, name_) \
-  dds_return_t dds_lset_##name_##_arg (dds_listener_t * __restrict listener, dds_on_##name_##_fn callback, void *arg, bool reset_on_invoke) \
+  dds_return_t dds_lset_##name_##_arg (dds_listener_t *listener, dds_on_##name_##_fn callback, void *arg, bool reset_on_invoke) \
   { \
     if (listener == NULL) \
       return DDS_RETCODE_BAD_PARAMETER; \
@@ -163,7 +163,7 @@ DDS_SET_LISTENER_ARG (SUBSCRIPTION_MATCHED, subscription_matched)
 #undef DDS_SET_LISTENER_ARG
 
 #define DDS_SET_LISTENER(NAME_, name_) \
-  void dds_lset_##name_ (dds_listener_t * __restrict listener, dds_on_##name_##_fn callback) { \
+  void dds_lset_##name_ (dds_listener_t *listener, dds_on_##name_##_fn callback) { \
     if (listener) \
       (void) dds_lset_##name_##_arg (listener, callback, listener->on_##name_##_arg, true); \
   }
@@ -183,7 +183,7 @@ DDS_SET_LISTENER (SUBSCRIPTION_MATCHED, subscription_matched)
 #undef DDS_SET_LISTENER
 
 #define DDS_GET_LISTENER_ARG(NAME_, name_) \
-  dds_return_t dds_lget_##name_##_arg (const dds_listener_t * __restrict listener, dds_on_##name_##_fn *callback, void **arg, bool *reset_on_invoke) \
+  dds_return_t dds_lget_##name_##_arg (const dds_listener_t *listener, dds_on_##name_##_fn *callback, void **arg, bool *reset_on_invoke) \
   { \
     if (listener == NULL) \
       return DDS_RETCODE_BAD_PARAMETER; \
@@ -211,7 +211,7 @@ DDS_GET_LISTENER_ARG (SUBSCRIPTION_MATCHED, subscription_matched)
 #undef DDS_GET_LISTENER_ARG
 
 #define DDS_GET_LISTENER(name_) \
-  void dds_lget_##name_ (const dds_listener_t * __restrict listener, dds_on_##name_##_fn *callback) { \
+  void dds_lget_##name_ (const dds_listener_t *listener, dds_on_##name_##_fn *callback) { \
     (void) dds_lget_##name_##_arg (listener, callback, NULL, NULL); \
   }
 DDS_GET_LISTENER (data_available)

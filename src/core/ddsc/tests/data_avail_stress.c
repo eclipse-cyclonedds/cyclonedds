@@ -54,7 +54,7 @@ struct listener_arg {
 
 static void data_avail (dds_entity_t rd, void *varg)
 {
-  struct listener_arg * const __restrict arg = varg;
+  struct listener_arg * const arg = varg;
   dds_return_t rc;
   Space_Type1 sample;
   void *sampleptr = &sample;
