@@ -1937,11 +1937,11 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 
 The default value is: `none`
 <!--- generated from ddsi_config.h[dbf9996a8b49da8e7cb4b62ab157ba80a073cd81] -->
-<!--- generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] -->
-<!--- generated from ddsi__cfgelems.h[a8b3ad5170f4e86fd7c1f29c5677c332930ea6a4] -->
 <!--- generated from ddsi_config.c[94a98ea7709bca260c9cfb5cf43396b0d5e3c953] -->
+<!--- generated from ddsi__cfgelems.h[a8b3ad5170f4e86fd7c1f29c5677c332930ea6a4] -->
+<!--- generated from cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] -->
 <!--- generated from _confgen.h[9554f1d72645c0b8bb66ffbfbc3c0fb664fc1a43] -->
-<!--- generated from _confgen.c[86c631048046ed4e14c46dba40e5253b50a748fe] -->
+<!--- generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] -->
 <!--- generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] -->
 <!--- generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] -->
 <!--- generated from generate_rst.c[3c4b523fbb57c8e4a7e247379d06a8021ccc21c4] -->
