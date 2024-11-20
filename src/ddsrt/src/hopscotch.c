@@ -71,7 +71,7 @@ struct ddsrt_hh *ddsrt_hh_new (uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_
   return hh;
 }
 
-void ddsrt_hh_free (struct ddsrt_hh * __restrict hh)
+void ddsrt_hh_free (struct ddsrt_hh *hh)
 {
   ddsrt_hh_fini (hh);
   ddsrt_free (hh);
@@ -93,7 +93,7 @@ static void *ddsrt_hh_lookup_internal (const struct ddsrt_hh *rt, const uint32_t
   return NULL;
 }
 
-void *ddsrt_hh_lookup (const struct ddsrt_hh * __restrict rt, const void * __restrict keyobject)
+void *ddsrt_hh_lookup (const struct ddsrt_hh *rt, const void *keyobject)
 {
   const uint32_t hash = rt->hash (keyobject);
   const uint32_t idxmask = rt->size - 1;
@@ -182,7 +182,7 @@ static void ddsrt_hh_resize (struct ddsrt_hh *rt)
   }
 }
 
-bool ddsrt_hh_add (struct ddsrt_hh * __restrict rt, void * __restrict data)
+bool ddsrt_hh_add (struct ddsrt_hh *rt, void *data)
 {
   const uint32_t hash = rt->hash (data);
   const uint32_t idxmask = rt->size - 1;
@@ -216,7 +216,7 @@ bool ddsrt_hh_add (struct ddsrt_hh * __restrict rt, void * __restrict data)
   return ddsrt_hh_add (rt, data);
 }
 
-bool ddsrt_hh_remove (struct ddsrt_hh * __restrict rt, const void * __restrict keyobject)
+bool ddsrt_hh_remove (struct ddsrt_hh *rt, const void *keyobject)
 {
   const uint32_t hash = rt->hash (keyobject);
   const uint32_t idxmask = rt->size - 1;
@@ -238,21 +238,21 @@ bool ddsrt_hh_remove (struct ddsrt_hh * __restrict rt, const void * __restrict k
   return false;
 }
 
-void ddsrt_hh_add_absent (struct ddsrt_hh * __restrict rt, void * __restrict data)
+void ddsrt_hh_add_absent (struct ddsrt_hh *rt, void *data)
 {
   const int x = ddsrt_hh_add (rt, data);
   assert (x);
   (void) x;
 }
 
-void ddsrt_hh_remove_present (struct ddsrt_hh * __restrict rt, void * __restrict keyobject)
+void ddsrt_hh_remove_present (struct ddsrt_hh *rt, void *keyobject)
 {
   const int x = ddsrt_hh_remove (rt, keyobject);
   assert (x);
   (void) x;
 }
 
-void ddsrt_hh_enum (struct ddsrt_hh * __restrict rt, void (*f) (void *a, void *f_arg), void *f_arg)
+void ddsrt_hh_enum (struct ddsrt_hh *rt, void (*f) (void *a, void *f_arg), void *f_arg)
 {
   uint32_t i;
   for (i = 0; i < rt->size; i++) {
@@ -263,14 +263,14 @@ void ddsrt_hh_enum (struct ddsrt_hh * __restrict rt, void (*f) (void *a, void *f
   }
 }
 
-void *ddsrt_hh_iter_first (struct ddsrt_hh * __restrict rt, struct ddsrt_hh_iter * __restrict iter)
+void *ddsrt_hh_iter_first (struct ddsrt_hh *rt, struct ddsrt_hh_iter *iter)
 {
   iter->hh = rt;
   iter->cursor = 0;
   return ddsrt_hh_iter_next (iter);
 }
 
-void *ddsrt_hh_iter_next (struct ddsrt_hh_iter * __restrict iter)
+void *ddsrt_hh_iter_next (struct ddsrt_hh_iter *iter)
 {
   struct ddsrt_hh *rt = iter->hh;
   while (iter->cursor < rt->size) {
@@ -361,7 +361,7 @@ struct ddsrt_chh *ddsrt_chh_new (uint32_t init_size, ddsrt_hh_hash_fn hash, ddsr
     }
 }
 
-void ddsrt_chh_free (struct ddsrt_chh * __restrict hh)
+void ddsrt_chh_free (struct ddsrt_chh *hh)
 {
     ddsrt_chh_fini (hh);
     ddsrt_free (hh);
@@ -411,7 +411,7 @@ static void *ddsrt_chh_lookup_internal (struct ddsrt_chh_bucket_array const * co
         ddsrt_atomic_st32 (var__, (expr_));                                  \
     } while (0)
 
-void *ddsrt_chh_lookup (struct ddsrt_chh * __restrict rt, const void * __restrict keyobject)
+void *ddsrt_chh_lookup (struct ddsrt_chh *rt, const void *keyobject)
 {
     struct ddsrt_chh_bucket_array const * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
     const uint32_t hash = rt->hash (keyobject);
@@ -502,7 +502,7 @@ static void ddsrt_chh_resize (struct ddsrt_chh *rt)
     rt->gc_buckets (bsary0, rt->gc_buckets_arg);
 }
 
-static bool ddsrt_chh_add_locked (struct ddsrt_chh * __restrict rt, const void * __restrict data)
+static bool ddsrt_chh_add_locked (struct ddsrt_chh *rt, const void *data)
 {
     const uint32_t hash = rt->hash (data);
     uint32_t size;
@@ -548,7 +548,7 @@ static bool ddsrt_chh_add_locked (struct ddsrt_chh * __restrict rt, const void *
     return ddsrt_chh_add_locked (rt, data);
 }
 
-bool ddsrt_chh_add (struct ddsrt_chh * __restrict rt, void * __restrict data)
+bool ddsrt_chh_add (struct ddsrt_chh *rt, void *data)
 {
     ddsrt_mutex_lock (&rt->change_lock);
     const bool ret = ddsrt_chh_add_locked (rt, data);
@@ -556,7 +556,7 @@ bool ddsrt_chh_add (struct ddsrt_chh * __restrict rt, void * __restrict data)
     return ret;
 }
 
-bool ddsrt_chh_remove (struct ddsrt_chh * __restrict rt, const void * __restrict keyobject)
+bool ddsrt_chh_remove (struct ddsrt_chh *rt, const void *keyobject)
 {
     const uint32_t hash = rt->hash (keyobject);
     ddsrt_mutex_lock (&rt->change_lock);
@@ -588,7 +588,7 @@ bool ddsrt_chh_remove (struct ddsrt_chh * __restrict rt, const void * __restrict
     return false;
 }
 
-void ddsrt_chh_enum_unsafe (struct ddsrt_chh * __restrict rt, void (*f) (void *a, void *f_arg), void *f_arg)
+void ddsrt_chh_enum_unsafe (struct ddsrt_chh *rt, void (*f) (void *a, void *f_arg), void *f_arg)
 {
     struct ddsrt_chh_bucket_array * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
     struct ddsrt_chh_bucket * const bs = bsary->bs;
@@ -614,7 +614,7 @@ void *ddsrt_chh_iter_next (struct ddsrt_chh_iter *it)
   return NULL;
 }
 
-void *ddsrt_chh_iter_first (struct ddsrt_chh * __restrict rt, struct ddsrt_chh_iter *it)
+void *ddsrt_chh_iter_first (struct ddsrt_chh *rt, struct ddsrt_chh_iter *it)
 {
   struct ddsrt_chh_bucket_array * const bsary = ddsrt_atomic_ldvoidp (&rt->buckets);
   it->bs = bsary->bs;
@@ -672,7 +672,7 @@ struct ddsrt_ehh *ddsrt_ehh_new (size_t elemsz, uint32_t init_size, ddsrt_hh_has
     return hh;
 }
 
-void ddsrt_ehh_free (struct ddsrt_ehh * __restrict hh)
+void ddsrt_ehh_free (struct ddsrt_ehh *hh)
 {
     ddsrt_ehh_fini (hh);
     ddsrt_free (hh);
@@ -704,7 +704,7 @@ static void *ddsrt_ehh_lookup_internal (const struct ddsrt_ehh *rt, uint32_t buc
     return NULL;
 }
 
-void *ddsrt_ehh_lookup (const struct ddsrt_ehh * __restrict rt, const void * __restrict keyobject)
+void *ddsrt_ehh_lookup (const struct ddsrt_ehh *rt, const void *keyobject)
 {
     const uint32_t hash = rt->hash (keyobject);
     const uint32_t idxmask = rt->size - 1;
@@ -782,7 +782,7 @@ static void ddsrt_ehh_resize (struct ddsrt_ehh *rt)
     rt->buckets = bs1;
 }
 
-bool ddsrt_ehh_add (struct ddsrt_ehh * __restrict rt, const void * __restrict data)
+bool ddsrt_ehh_add (struct ddsrt_ehh *rt, const void *data)
 {
     const uint32_t hash = rt->hash (data);
     const uint32_t idxmask = rt->size - 1;
@@ -822,7 +822,7 @@ bool ddsrt_ehh_add (struct ddsrt_ehh * __restrict rt, const void * __restrict da
     return ddsrt_ehh_add (rt, data);
 }
 
-bool ddsrt_ehh_remove (struct ddsrt_ehh * __restrict rt, const void * __restrict keyobject)
+bool ddsrt_ehh_remove (struct ddsrt_ehh *rt, const void *keyobject)
 {
     const uint32_t hash = rt->hash (keyobject);
     const uint32_t idxmask = rt->size - 1;
@@ -848,7 +848,7 @@ bool ddsrt_ehh_remove (struct ddsrt_ehh * __restrict rt, const void * __restrict
     return false;
 }
 
-void ddsrt_ehh_enum (struct ddsrt_ehh * __restrict rt, void (*f) (void *a, void *f_arg), void *f_arg)
+void ddsrt_ehh_enum (struct ddsrt_ehh *rt, void (*f) (void *a, void *f_arg), void *f_arg)
 {
     uint32_t i;
     for (i = 0; i < rt->size; i++) {
@@ -859,14 +859,14 @@ void ddsrt_ehh_enum (struct ddsrt_ehh * __restrict rt, void (*f) (void *a, void 
     }
 }
 
-void *ddsrt_ehh_iter_first (struct ddsrt_ehh * __restrict rt, struct ddsrt_ehh_iter * __restrict iter)
+void *ddsrt_ehh_iter_first (struct ddsrt_ehh *rt, struct ddsrt_ehh_iter *iter)
 {
     iter->hh = rt;
     iter->cursor = 0;
     return ddsrt_ehh_iter_next (iter);
 }
 
-void *ddsrt_ehh_iter_next (struct ddsrt_ehh_iter * __restrict iter)
+void *ddsrt_ehh_iter_next (struct ddsrt_ehh_iter *iter)
 {
     struct ddsrt_ehh *rt = iter->hh;
     while (iter->cursor < rt->size) {

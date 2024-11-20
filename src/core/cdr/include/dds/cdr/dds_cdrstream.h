@@ -124,31 +124,31 @@ DDSRT_STATIC_ASSERT (offsetof (dds_ostreamLE_t, x) == 0);
 DDSRT_STATIC_ASSERT (offsetof (dds_ostreamBE_t, x) == 0);
 
 /** @component cdr_serializer */
-uint32_t dds_cdr_alignto4_clear_and_resize (dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, uint32_t xcdr_version);
+uint32_t dds_cdr_alignto4_clear_and_resize (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t xcdr_version);
 
 /** @component cdr_serializer */
-DDS_EXPORT void dds_istream_init (dds_istream_t * __restrict is, uint32_t size, const void * __restrict input, uint32_t xcdr_version);
+DDS_EXPORT void dds_istream_init (dds_istream_t *is, uint32_t size, const void *input, uint32_t xcdr_version);
 
 /** @component cdr_serializer */
-DDS_EXPORT void dds_istream_fini (dds_istream_t * __restrict is);
+DDS_EXPORT void dds_istream_fini (dds_istream_t *is);
 
 /** @component cdr_serializer */
-DDS_EXPORT void dds_ostream_init (dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, uint32_t size, uint32_t xcdr_version);
+DDS_EXPORT void dds_ostream_init (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t size, uint32_t xcdr_version);
 
 /** @component cdr_serializer */
-DDS_EXPORT void dds_ostream_fini (dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator);
+DDS_EXPORT void dds_ostream_fini (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator);
 
 /** @component cdr_serializer */
-DDS_EXPORT void dds_ostreamLE_init (dds_ostreamLE_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, uint32_t size, uint32_t xcdr_version);
+DDS_EXPORT void dds_ostreamLE_init (dds_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t size, uint32_t xcdr_version);
 
 /** @component cdr_serializer */
-DDS_EXPORT void dds_ostreamLE_fini (dds_ostreamLE_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator);
+DDS_EXPORT void dds_ostreamLE_fini (dds_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator);
 
 /** @component cdr_serializer */
-DDS_EXPORT void dds_ostreamBE_init (dds_ostreamBE_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, uint32_t size, uint32_t xcdr_version);
+DDS_EXPORT void dds_ostreamBE_init (dds_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t size, uint32_t xcdr_version);
 
 /** @component cdr_serializer */
-DDS_EXPORT void dds_ostreamBE_fini (dds_ostreamBE_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator);
+DDS_EXPORT void dds_ostreamBE_fini (dds_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator);
 
 /** @component cdr_serializer */
 dds_ostream_t dds_ostream_from_buffer(void *buffer, size_t size, uint16_t write_encoding_version);
@@ -166,116 +166,116 @@ dds_ostream_t dds_ostream_from_buffer(void *buffer, size_t size, uint16_t write_
  * @param actual_size   is set to the actual size of the data (*actual_size <= size) on successful return
  * @returns             True iff validation and normalization succeeded
  */
-DDS_EXPORT bool dds_stream_normalize (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct dds_cdrstream_desc * __restrict desc, bool just_key, uint32_t * __restrict actual_size)
+DDS_EXPORT bool dds_stream_normalize (void *data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct dds_cdrstream_desc *desc, bool just_key, uint32_t *actual_size)
   ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 /** @component cdr_serializer */
-DDS_EXPORT const uint32_t *dds_stream_normalize_data (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops)
+DDS_EXPORT const uint32_t *dds_stream_normalize_data (char *data, uint32_t *off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t *ops)
   ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 /** @component cdr_serializer */
-DDS_EXPORT const uint32_t *dds_stream_write (dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict data, const uint32_t * __restrict ops)
+DDS_EXPORT const uint32_t *dds_stream_write (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops)
   ddsrt_attribute_warn_unused_result;
 
 /** @component cdr_serializer */
-DDS_EXPORT const uint32_t *dds_stream_writeLE (dds_ostreamLE_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict data, const uint32_t * __restrict ops)
+DDS_EXPORT const uint32_t *dds_stream_writeLE (dds_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops)
   ddsrt_attribute_warn_unused_result;
 
 /** @component cdr_serializer */
-DDS_EXPORT const uint32_t *dds_stream_writeBE (dds_ostreamBE_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict data, const uint32_t * __restrict ops)
+DDS_EXPORT const uint32_t *dds_stream_writeBE (dds_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops)
   ddsrt_attribute_warn_unused_result;
 
 /** @component cdr_serializer */
-DDS_EXPORT const uint32_t * dds_stream_write_with_byte_order (dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict data, const uint32_t * __restrict ops, enum ddsrt_byte_order_selector bo)
+DDS_EXPORT const uint32_t * dds_stream_write_with_byte_order (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops, enum ddsrt_byte_order_selector bo)
   ddsrt_attribute_warn_unused_result;
 
 /** @component cdr_serializer */
-DDS_EXPORT bool dds_stream_write_sample (dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const void * __restrict data, const struct dds_cdrstream_desc * __restrict desc)
+DDS_EXPORT bool dds_stream_write_sample (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, const void *data, const struct dds_cdrstream_desc *desc)
   ddsrt_attribute_warn_unused_result;
 
 /** @component cdr_serializer */
-DDS_EXPORT bool dds_stream_write_sampleLE (dds_ostreamLE_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const void * __restrict data, const struct dds_cdrstream_desc * __restrict desc)
+DDS_EXPORT bool dds_stream_write_sampleLE (dds_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator, const void *data, const struct dds_cdrstream_desc *desc)
   ddsrt_attribute_warn_unused_result;
 
 /** @component cdr_serializer */
-DDS_EXPORT bool dds_stream_write_sampleBE (dds_ostreamBE_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const void * __restrict data, const struct dds_cdrstream_desc * __restrict desc)
+DDS_EXPORT bool dds_stream_write_sampleBE (dds_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, const void *data, const struct dds_cdrstream_desc *desc)
   ddsrt_attribute_warn_unused_result;
 
 /** @component cdr_serializer */
-DDS_EXPORT void dds_stream_read_sample (dds_istream_t * __restrict is, void * __restrict data, const struct dds_cdrstream_allocator * __restrict allocator, const struct dds_cdrstream_desc * __restrict desc);
+DDS_EXPORT void dds_stream_read_sample (dds_istream_t *is, void *data, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc);
 
 /** @component cdr_serializer */
-DDS_EXPORT void dds_stream_free_sample (void * __restrict data, const struct dds_cdrstream_allocator * __restrict allocator, const uint32_t * __restrict ops);
+DDS_EXPORT void dds_stream_free_sample (void *data, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops);
 
 /** @component cdr_serializer */
-DDS_EXPORT uint32_t dds_stream_countops (const uint32_t * __restrict ops, uint32_t nkeys, const dds_key_descriptor_t * __restrict keys);
+DDS_EXPORT uint32_t dds_stream_countops (const uint32_t *ops, uint32_t nkeys, const dds_key_descriptor_t *keys);
 
 /** @component cdr_serializer */
-size_t dds_stream_check_optimize (const struct dds_cdrstream_desc * __restrict desc, uint32_t xcdr_version);
+size_t dds_stream_check_optimize (const struct dds_cdrstream_desc *desc, uint32_t xcdr_version);
 
 /** @component cdr_serializer */
-bool dds_stream_write_key (dds_ostream_t * __restrict os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict sample, const struct dds_cdrstream_desc * __restrict desc)
+bool dds_stream_write_key (dds_ostream_t *os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator *allocator, const char *sample, const struct dds_cdrstream_desc *desc)
   ddsrt_attribute_warn_unused_result;
 
 /** @component cdr_serializer */
-bool dds_stream_write_keyBE (dds_ostreamBE_t * __restrict os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict sample, const struct dds_cdrstream_desc * __restrict desc)
+bool dds_stream_write_keyBE (dds_ostreamBE_t *os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator *allocator, const char *sample, const struct dds_cdrstream_desc *desc)
   ddsrt_attribute_warn_unused_result;
 
 /** @component cdr_serializer */
-DDS_EXPORT bool dds_stream_extract_key_from_data (dds_istream_t * __restrict is, dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const struct dds_cdrstream_desc * __restrict desc)
+DDS_EXPORT bool dds_stream_extract_key_from_data (dds_istream_t *is, dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc)
   ddsrt_attribute_warn_unused_result;
 
 /** @component cdr_serializer */
-DDS_EXPORT void dds_stream_extract_key_from_key (dds_istream_t * __restrict is, dds_ostream_t * __restrict os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator * __restrict allocator, const struct dds_cdrstream_desc * __restrict desc);
+DDS_EXPORT void dds_stream_extract_key_from_key (dds_istream_t *is, dds_ostream_t *os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc);
 
 /** @component cdr_serializer */
-DDS_EXPORT bool dds_stream_extract_keyBE_from_data (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const struct dds_cdrstream_desc * __restrict desc)
+DDS_EXPORT bool dds_stream_extract_keyBE_from_data (dds_istream_t *is, dds_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc)
   ddsrt_attribute_warn_unused_result;
 
 /** @component cdr_serializer */
-DDS_EXPORT void dds_stream_extract_keyBE_from_key (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator * __restrict allocator, const struct dds_cdrstream_desc * __restrict desc);
+DDS_EXPORT void dds_stream_extract_keyBE_from_key (dds_istream_t *is, dds_ostreamBE_t *os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc);
 
 /** @component cdr_serializer */
-DDS_EXPORT const uint32_t *dds_stream_read (dds_istream_t * __restrict is, char * __restrict data, const struct dds_cdrstream_allocator * __restrict allocator, const uint32_t * __restrict ops);
+DDS_EXPORT const uint32_t *dds_stream_read (dds_istream_t *is, char *data, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops);
 
 /** @component cdr_serializer */
-DDS_EXPORT void dds_stream_read_key (dds_istream_t * __restrict is, char * __restrict sample, const struct dds_cdrstream_allocator * __restrict allocator, const struct dds_cdrstream_desc * __restrict desc);
+DDS_EXPORT void dds_stream_read_key (dds_istream_t *is, char *sample, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc);
 
 /** @component cdr_serializer */
-DDS_EXPORT size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct dds_cdrstream_desc * __restrict desc, char * __restrict buf, size_t size);
+DDS_EXPORT size_t dds_stream_print_key (dds_istream_t *is, const struct dds_cdrstream_desc *desc, char *buf, size_t size);
 
 /** @component cdr_serializer */
-DDS_EXPORT size_t dds_stream_print_sample (dds_istream_t * __restrict is, const struct dds_cdrstream_desc * __restrict desc, char * __restrict buf, size_t size);
+DDS_EXPORT size_t dds_stream_print_sample (dds_istream_t *is, const struct dds_cdrstream_desc *desc, char *buf, size_t size);
 
 /** @component cdr_serializer */
-DDS_EXPORT size_t dds_stream_getsize_sample (const char * __restrict data, const struct dds_cdrstream_desc * __restrict desc, uint32_t xcdr_version)
+DDS_EXPORT size_t dds_stream_getsize_sample (const char *data, const struct dds_cdrstream_desc *desc, uint32_t xcdr_version)
   ddsrt_nonnull_all;
 
 /** @component cdr_serializer */
-DDS_EXPORT size_t dds_stream_getsize_key (enum dds_cdr_key_serialization_kind ser_kind, const char * __restrict sample, const struct dds_cdrstream_desc * __restrict desc, uint32_t xcdr_version)
+DDS_EXPORT size_t dds_stream_getsize_key (enum dds_cdr_key_serialization_kind ser_kind, const char *sample, const struct dds_cdrstream_desc *desc, uint32_t xcdr_version)
   ddsrt_nonnull_all;
 
 /** @component cdr_serializer */
-uint16_t dds_stream_minimum_xcdr_version (const uint32_t * __restrict ops);
+uint16_t dds_stream_minimum_xcdr_version (const uint32_t *ops);
 
 /** @component cdr_serializer */
-uint32_t dds_stream_type_nesting_depth (const uint32_t * __restrict ops);
+uint32_t dds_stream_type_nesting_depth (const uint32_t *ops);
 
 /** @component cdr_serializer */
 uint32_t dds_stream_key_flags (struct dds_cdrstream_desc *desc, uint32_t *keysz_xcdrv1, uint32_t *keysz_xcdrv2);
 
 /** @component cdr_serializer */
-bool dds_stream_extensibility (const uint32_t * __restrict ops, enum dds_cdr_type_extensibility *ext);
+bool dds_stream_extensibility (const uint32_t *ops, enum dds_cdr_type_extensibility *ext);
 
 /** @component cdr_serializer */
-dds_data_type_properties_t dds_stream_data_types (const uint32_t * __restrict ops);
+dds_data_type_properties_t dds_stream_data_types (const uint32_t *ops);
 
 /** @component cdr_serializer */
-DDS_EXPORT void dds_cdrstream_desc_init (struct dds_cdrstream_desc *desc, const struct dds_cdrstream_allocator * __restrict allocator,
+DDS_EXPORT void dds_cdrstream_desc_init (struct dds_cdrstream_desc *desc, const struct dds_cdrstream_allocator *allocator,
     uint32_t size, uint32_t align, uint32_t flagset, const uint32_t *ops, const dds_key_descriptor_t *keys, uint32_t nkeys);
 
 /** @component cdr_serializer */
-DDS_EXPORT void dds_cdrstream_desc_fini (struct dds_cdrstream_desc *desc, const struct dds_cdrstream_allocator * __restrict allocator);
+DDS_EXPORT void dds_cdrstream_desc_fini (struct dds_cdrstream_desc *desc, const struct dds_cdrstream_allocator *allocator);
 
 /** @component cdr_serializer */
 DDS_EXPORT void dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc);

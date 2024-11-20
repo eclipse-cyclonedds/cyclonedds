@@ -53,7 +53,7 @@ static dds_return_t dds_writer_status_validate (uint32_t mask)
   return (mask & ~DDS_WRITER_STATUS_MASK) ? DDS_RETCODE_BAD_PARAMETER : DDS_RETCODE_OK;
 }
 
-static void update_offered_deadline_missed (struct dds_offered_deadline_missed_status * __restrict st, const ddsi_status_cb_data_t *data)
+static void update_offered_deadline_missed (struct dds_offered_deadline_missed_status *st, const ddsi_status_cb_data_t *data)
 {
   st->last_instance_handle = data->handle;
   uint64_t tmp = (uint64_t)data->extra + (uint64_t)st->total_count;
@@ -67,21 +67,21 @@ static void update_offered_deadline_missed (struct dds_offered_deadline_missed_s
   st->total_count_change = tmp2 > INT32_MAX ? INT32_MAX : tmp2 < INT32_MIN ? INT32_MIN : (int32_t)tmp2;
 }
 
-static void update_offered_incompatible_qos (struct dds_offered_incompatible_qos_status * __restrict st, const ddsi_status_cb_data_t *data)
+static void update_offered_incompatible_qos (struct dds_offered_incompatible_qos_status *st, const ddsi_status_cb_data_t *data)
 {
   st->last_policy_id = data->extra;
   st->total_count++;
   st->total_count_change++;
 }
 
-static void update_liveliness_lost (struct dds_liveliness_lost_status * __restrict st, const ddsi_status_cb_data_t *data)
+static void update_liveliness_lost (struct dds_liveliness_lost_status *st, const ddsi_status_cb_data_t *data)
 {
   (void) data;
   st->total_count++;
   st->total_count_change++;
 }
 
-static void update_publication_matched (struct dds_publication_matched_status * __restrict st, const ddsi_status_cb_data_t *data)
+static void update_publication_matched (struct dds_publication_matched_status *st, const ddsi_status_cb_data_t *data)
 {
   st->last_subscription_handle = data->handle;
   if (data->add) {

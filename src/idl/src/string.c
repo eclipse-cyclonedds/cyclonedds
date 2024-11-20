@@ -142,7 +142,7 @@ char *idl_strndup(const char *str, size_t len)
   return s;
 }
 
-size_t idl_strlcpy(char * __restrict dest, const char * __restrict src, size_t size)
+size_t idl_strlcpy(char *dest, const char *src, size_t size)
 {
   size_t srclen;
 

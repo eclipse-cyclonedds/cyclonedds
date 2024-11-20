@@ -104,7 +104,7 @@ DDS_EXPORT struct ddsrt_hh *ddsrt_hh_new (uint32_t init_size, ddsrt_hh_hash_fn h
  * @param[in,out] hh the hash table to destroy
  * @see ddsrt_hh_new
  */
-DDS_EXPORT void ddsrt_hh_free (struct ddsrt_hh * __restrict hh) ddsrt_nonnull_all;
+DDS_EXPORT void ddsrt_hh_free (struct ddsrt_hh *hh) ddsrt_nonnull_all;
 
 /**
  * @brief Lookup an element in the hash table.
@@ -117,7 +117,7 @@ DDS_EXPORT void ddsrt_hh_free (struct ddsrt_hh * __restrict hh) ddsrt_nonnull_al
  * @param[in] keyobject is the object with which to do the lookup
  * @return pointer to the matching element, NULL if failed
  */
-DDS_EXPORT void *ddsrt_hh_lookup (const struct ddsrt_hh * __restrict rt, const void * __restrict keyobject) ddsrt_nonnull_all;
+DDS_EXPORT void *ddsrt_hh_lookup (const struct ddsrt_hh *rt, const void *keyobject) ddsrt_nonnull_all;
 
 /**
  * @brief Add an element to the hash table.
@@ -130,7 +130,7 @@ DDS_EXPORT void *ddsrt_hh_lookup (const struct ddsrt_hh * __restrict rt, const v
  * @return false iff key already present
  * @see ddsrt_hh_remove
  */
-DDS_EXPORT bool ddsrt_hh_add (struct ddsrt_hh * __restrict rt, void * __restrict data) ddsrt_nonnull_all;
+DDS_EXPORT bool ddsrt_hh_add (struct ddsrt_hh *rt, void *data) ddsrt_nonnull_all;
 
 /**
  * @brief Remove an element from the hash table.
@@ -144,7 +144,7 @@ DDS_EXPORT bool ddsrt_hh_add (struct ddsrt_hh * __restrict rt, void * __restrict
  * @return false iff key not present
  * @see ddsrt_hh_add
  */
-DDS_EXPORT bool ddsrt_hh_remove (struct ddsrt_hh * __restrict rt, const void * __restrict keyobject) ddsrt_nonnull_all;
+DDS_EXPORT bool ddsrt_hh_remove (struct ddsrt_hh *rt, const void *keyobject) ddsrt_nonnull_all;
 
 /**
  * @brief Like @ref ddsrt_hh_add, but without returning success/failure result.
@@ -155,7 +155,7 @@ DDS_EXPORT bool ddsrt_hh_remove (struct ddsrt_hh * __restrict rt, const void * _
  * @param[in] data user data to add
  * @see ddsrt_hh_remove
  */
-DDS_EXPORT void ddsrt_hh_add_absent (struct ddsrt_hh * __restrict rt, void * __restrict data) ddsrt_nonnull_all;
+DDS_EXPORT void ddsrt_hh_add_absent (struct ddsrt_hh *rt, void *data) ddsrt_nonnull_all;
 
 /**
  * @brief Like @ref ddsrt_hh_remove, but without returning success/failure result.
@@ -166,7 +166,7 @@ DDS_EXPORT void ddsrt_hh_add_absent (struct ddsrt_hh * __restrict rt, void * __r
  * @param[in] keyobject user data to remove
  * @see ddsrt_hh_add_absent
  */
-DDS_EXPORT void ddsrt_hh_remove_present (struct ddsrt_hh * __restrict rt, void * __restrict keyobject) ddsrt_nonnull_all;
+DDS_EXPORT void ddsrt_hh_remove_present (struct ddsrt_hh *rt, void *keyobject) ddsrt_nonnull_all;
 
 /**
  * @brief Walk the hash table and apply a user defined function to each node.
@@ -180,7 +180,7 @@ DDS_EXPORT void ddsrt_hh_remove_present (struct ddsrt_hh * __restrict rt, void *
  * @param[in] f_arg extra argument for walk function
  * @see ddsrt_hh_iter_next
  */
-DDS_EXPORT void ddsrt_hh_enum (struct ddsrt_hh * __restrict rt, void (*f) (void *a, void *f_arg), void *f_arg) ddsrt_nonnull ((1, 2));
+DDS_EXPORT void ddsrt_hh_enum (struct ddsrt_hh *rt, void (*f) (void *a, void *f_arg), void *f_arg) ddsrt_nonnull ((1, 2));
 
 /**
  * @brief Initialize the iterator and get the first element.
@@ -190,7 +190,7 @@ DDS_EXPORT void ddsrt_hh_enum (struct ddsrt_hh * __restrict rt, void (*f) (void 
  * @return pointer to first element
  * @see ddsrt_hh_iter_next
  */
-DDS_EXPORT void *ddsrt_hh_iter_first (struct ddsrt_hh * __restrict rt, struct ddsrt_hh_iter * __restrict iter) ddsrt_nonnull_all;
+DDS_EXPORT void *ddsrt_hh_iter_first (struct ddsrt_hh *rt, struct ddsrt_hh_iter *iter) ddsrt_nonnull_all;
 
 /**
  * @brief Use the iterator to get the next element
@@ -200,7 +200,7 @@ DDS_EXPORT void *ddsrt_hh_iter_first (struct ddsrt_hh * __restrict rt, struct dd
  * @see ddsrt_hh_iter_first
  * @see ddsrt_hh_enum
  */
-DDS_EXPORT void *ddsrt_hh_iter_next (struct ddsrt_hh_iter * __restrict iter) ddsrt_nonnull_all;
+DDS_EXPORT void *ddsrt_hh_iter_next (struct ddsrt_hh_iter *iter) ddsrt_nonnull_all;
 
 /* Concurrent version */
 /**
@@ -240,7 +240,7 @@ struct ddsrt_chh *ddsrt_chh_new (uint32_t init_size, ddsrt_hh_hash_fn hash, ddsr
  * @param[in,out] hh the hash table to destroy
  * @see ddsrt_chh_new
  */
-void ddsrt_chh_free (struct ddsrt_chh * __restrict hh);
+void ddsrt_chh_free (struct ddsrt_chh *hh);
 
 /**
  * @brief Concurrent version of @ref ddsrt_hh_lookup
@@ -256,7 +256,7 @@ void ddsrt_chh_free (struct ddsrt_chh * __restrict hh);
  * @param[in] keyobject is the object with which to do the lookup
  * @return pointer to the matching element, NULL if failed
  */
-void *ddsrt_chh_lookup (struct ddsrt_chh * __restrict rt, const void * __restrict keyobject);
+void *ddsrt_chh_lookup (struct ddsrt_chh *rt, const void *keyobject);
 
 /**
  * @brief Concurrent version of @ref ddsrt_hh_add
@@ -266,7 +266,7 @@ void *ddsrt_chh_lookup (struct ddsrt_chh * __restrict rt, const void * __restric
  * @return false iff key already present
  * @see ddsrt_chh_remove
  */
-bool ddsrt_chh_add (struct ddsrt_chh * __restrict rt, void * __restrict data);
+bool ddsrt_chh_add (struct ddsrt_chh *rt, void *data);
 
 /**
  * @brief Concurrent version of @ref ddsrt_hh_remove
@@ -279,7 +279,7 @@ bool ddsrt_chh_add (struct ddsrt_chh * __restrict rt, void * __restrict data);
  * @return false iff key not present
  * @see ddsrt_chh_add
  */
-bool ddsrt_chh_remove (struct ddsrt_chh * __restrict rt, const void * __restrict keyobject);
+bool ddsrt_chh_remove (struct ddsrt_chh *rt, const void *keyobject);
 
 /**
  * @brief Concurrent version of @ref ddsrt_hh_enum
@@ -295,7 +295,7 @@ bool ddsrt_chh_remove (struct ddsrt_chh * __restrict rt, const void * __restrict
  * @param[in] f_arg extra argument for walk function
  * @see ddsrt_chh_iter_next
  */
-void ddsrt_chh_enum_unsafe (struct ddsrt_chh * __restrict rt, void (*f) (void *a, void *f_arg), void *f_arg); /* may delete a */
+void ddsrt_chh_enum_unsafe (struct ddsrt_chh *rt, void (*f) (void *a, void *f_arg), void *f_arg); /* may delete a */
 
 /**
  * @brief Concurrent version of @ref ddsrt_hh_iter_first
@@ -305,7 +305,7 @@ void ddsrt_chh_enum_unsafe (struct ddsrt_chh * __restrict rt, void (*f) (void *a
  * @return pointer to first element
  * @see ddsrt_chh_iter_next
  */
-void *ddsrt_chh_iter_first (struct ddsrt_chh * __restrict rt, struct ddsrt_chh_iter *it);
+void *ddsrt_chh_iter_first (struct ddsrt_chh *rt, struct ddsrt_chh_iter *it);
 
 /**
  * @brief Concurrent version of @ref ddsrt_hh_iter_next
@@ -360,7 +360,7 @@ struct ddsrt_ehh *ddsrt_ehh_new (size_t elemsz, uint32_t init_size, ddsrt_hh_has
  * @param[in,out] hh the hash table to destroy
  * @see ddsrt_ehh_new
  */
-void ddsrt_ehh_free (struct ddsrt_ehh * __restrict hh);
+void ddsrt_ehh_free (struct ddsrt_ehh *hh);
 
 /**
  * @brief Embedded data version of @ref ddsrt_hh_lookup
@@ -369,7 +369,7 @@ void ddsrt_ehh_free (struct ddsrt_ehh * __restrict hh);
  * @param[in] keyobject is the object with which to do the lookup
  * @return pointer to the matching element, NULL if failed
  */
-void *ddsrt_ehh_lookup (const struct ddsrt_ehh * __restrict rt, const void * __restrict keyobject);
+void *ddsrt_ehh_lookup (const struct ddsrt_ehh *rt, const void *keyobject);
 
 /**
  * @brief Embedded data version of @ref ddsrt_hh_add
@@ -381,7 +381,7 @@ void *ddsrt_ehh_lookup (const struct ddsrt_ehh * __restrict rt, const void * __r
  * @return false iff key already present
  * @see ddsrt_ehh_remove
  */
-bool ddsrt_ehh_add (struct ddsrt_ehh * __restrict rt, const void * __restrict data);
+bool ddsrt_ehh_add (struct ddsrt_ehh *rt, const void *data);
 
 /**
  * @brief Embedded data version of @ref ddsrt_hh_remove
@@ -393,7 +393,7 @@ bool ddsrt_ehh_add (struct ddsrt_ehh * __restrict rt, const void * __restrict da
  * @return false iff key not present
  * @see ddsrt_ehh_add
  */
-bool ddsrt_ehh_remove (struct ddsrt_ehh * __restrict rt, const void * __restrict keyobject);
+bool ddsrt_ehh_remove (struct ddsrt_ehh *rt, const void *keyobject);
 
 /**
  * @brief Embedded data version of @ref ddsrt_hh_enum
@@ -403,7 +403,7 @@ bool ddsrt_ehh_remove (struct ddsrt_ehh * __restrict rt, const void * __restrict
  * @param[in] f_arg extra argument for walk function
  * @see ddsrt_ehh_iter_next
  */
-void ddsrt_ehh_enum (struct ddsrt_ehh * __restrict rt, void (*f) (void *a, void *f_arg), void *f_arg); /* may delete a */
+void ddsrt_ehh_enum (struct ddsrt_ehh *rt, void (*f) (void *a, void *f_arg), void *f_arg); /* may delete a */
 
 /**
  * @brief Embedded data version of @ref ddsrt_hh_iter_first
@@ -413,7 +413,7 @@ void ddsrt_ehh_enum (struct ddsrt_ehh * __restrict rt, void (*f) (void *a, void 
  * @return pointer to first element
  * @see ddsrt_ehh_iter_next
  */
-void *ddsrt_ehh_iter_first (struct ddsrt_ehh * __restrict rt, struct ddsrt_ehh_iter * __restrict iter); /* may delete nodes */
+void *ddsrt_ehh_iter_first (struct ddsrt_ehh *rt, struct ddsrt_ehh_iter *iter); /* may delete nodes */
 
 /**
  * @brief Embedded data version of @ref ddsrt_hh_iter_next
@@ -423,7 +423,7 @@ void *ddsrt_ehh_iter_first (struct ddsrt_ehh * __restrict rt, struct ddsrt_ehh_i
  * @see ddsrt_ehh_iter_first
  * @see ddsrt_ehh_enum
  */
-void *ddsrt_ehh_iter_next (struct ddsrt_ehh_iter * __restrict iter);
+void *ddsrt_ehh_iter_next (struct ddsrt_ehh_iter *iter);
 
 #if defined (__cplusplus)
 }

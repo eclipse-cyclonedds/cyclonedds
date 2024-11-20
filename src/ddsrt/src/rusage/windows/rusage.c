@@ -24,7 +24,7 @@ filetime_to_time (const FILETIME *ft)
 }
 
 dds_return_t
-ddsrt_getrusage_anythread (ddsrt_thread_list_id_t tid, ddsrt_rusage_t * __restrict usage)
+ddsrt_getrusage_anythread (ddsrt_thread_list_id_t tid, ddsrt_rusage_t *usage)
 {
     FILETIME stime, utime, ctime, etime;
 
