@@ -34,6 +34,11 @@ if(WITH_FREERTOS)
   list(APPEND sources tasklist.c)
 endif()
 
+# A workaround to prevent VxWorks compiler driver from failing on strcmp due to the -I.
+if(VXWORKS)
+  add_definitions(-Wno-implicit-function-declaration)
+endif()
+
 if(HAVE_DYNLIB)
   list(APPEND sources dynlib.c)
   # Create a separate shared library for testing dynamic loading

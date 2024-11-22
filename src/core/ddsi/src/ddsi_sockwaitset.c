@@ -581,13 +581,14 @@ fail:
   return -1;
 }
 #elif defined(__VXWORKS__)
+#include <errnoLib.h>
 static int make_pipe (int pfd[2])
 {
   char pipename[OSPL_PIPENAMESIZE];
-  int pipecount = 0;
+  int pipecount = 0, result;
   do {
     snprintf ((char*)&pipename, sizeof (pipename), "/pipe/ospl%d", pipecount++);
-  } while ((result = pipeDevCreate ((char*)&pipename, 1, 1)) == -1 && os_getErrno() == EINVAL);
+  } while ((result = pipeDevCreate ((char*)&pipename, 1, 1)) == -1 && errnoGet() == EINVAL);
   if (result == -1)
     goto fail_pipedev;
   if ((pfd[0] = open ((char*)&pipename, O_RDWR, 0644)) == -1)

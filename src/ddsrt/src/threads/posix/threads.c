@@ -167,6 +167,8 @@ ddsrt_thread_setname(const char *__restrict name)
 #endif
 #elif defined(__QNXNTO__)
   (void)pthread_setname_np(pthread_self(), name);
+#elif defined(__VXWORKS__)
+  (void)pthread_setname_np(pthread_self(), name);
 #elif defined(__ZEPHYR__) && defined(CONFIG_THREAD_NAME)
   (void)pthread_setname_np(pthread_self(), (char*)name);
 #else
@@ -218,10 +220,10 @@ static void *os_startRoutineWrapper (void *threadContext)
 
   /* Note that any possible errors raised here are not terminal since the
      thread may have exited at this point anyway. */
-  if (pthread_getschedparam(thread.v, &policy, &sched_param) == 0) {
+  if (pthread_getschedparam(pthread_self (), &policy, &sched_param) == 0) {
     max = sched_get_priority_max(policy);
     if (max != -1) {
-      (void)pthread_setschedprio(thread.v, max);
+      (void)pthread_setschedprio(pthread_self (), max);
     }
   }
 #endif
