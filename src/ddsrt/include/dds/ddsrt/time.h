@@ -21,6 +21,7 @@
 
 #include <stdint.h>
 #include <assert.h>
+#include <stddef.h>
 
 #include "dds/export.h"
 #include "dds/config.h"

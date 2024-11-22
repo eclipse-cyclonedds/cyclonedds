@@ -13,11 +13,7 @@
 
 #include <pthread.h>
 
-#if defined(__VXWORKS__)
-#define DDSRT_HAVE_THREAD_SETNAME (0)
-#else
 #define DDSRT_HAVE_THREAD_SETNAME (1)
-#endif
 #if defined (__linux) || defined (__APPLE__)
 #define DDSRT_HAVE_THREAD_LIST (1)
 #else
@@ -50,9 +46,9 @@ typedef uint32_t ddsrt_thread_list_id_t;
 /* TODO: Verify taskIdSelf is the right function to use on VxWorks */
 typedef TASK_ID ddsrt_tid_t;
 # if defined(_WRS_CONFIG_LP64)
-#   define PRIdPID PRIuPTR /* typedef struct windTcb *TASK_ID */
+#   define PRIdTID PRIuPTR /* typedef struct windTcb *TASK_ID */
 # else
-#   define PRIdPID "d" /* typedef int TASK_ID */
+#   define PRIdTID "d" /* typedef int TASK_ID */
 # endif
 /* __VXWORKS__ */
 #else
