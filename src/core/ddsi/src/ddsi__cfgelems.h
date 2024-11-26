@@ -904,7 +904,7 @@ static struct cfgelem thread_properties_cfgelems[] = {
       "<p>This element configures the stack size for this thread. The "
       "default value <i>default</i> leaves the stack size at the operating "
       "system default.</p>"),
-    UNIT("memsize")),
+    UNIT("maybe_memsize")),
   END_MARKER
 };
 
@@ -1012,7 +1012,7 @@ static struct cfgelem internal_watermarks_cfgelems[] = {
     DESCRIPTION(
       "<p>This element sets the initial level of the high-water mark for the "
       "Cyclone DDS WHCs, expressed in bytes.</p>"),
-    UNIT("memsize")),
+    UNIT("maybe_memsize")),
   BOOL("WhcAdaptive|WhcAdaptative", NULL, 1, "true",
     MEMBER(whc_adaptive),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
@@ -1042,8 +1042,7 @@ static struct cfgelem internal_burstsize_cfgelems[] = {
       "retransmits. Usually, the receivers can keep up with the transmitter, at least "
       "on average, so generally it is better to hope for the best and recover. "
       "Besides, the retransmits will be unicast, and so any multicast advantage "
-      "will be lost as well.</p>"),
-    UNIT("memsize")),
+      "will be lost as well.</p>")),
   STRING("MaxFragsRexmitSample", NULL, 1, "1",
     MEMBER(max_frags_in_rexmit_of_sample),
     FUNCTIONS(0, uf_pos_uint, 0, pf_uint),
@@ -1066,7 +1065,8 @@ static struct cfgelem control_topic_cfgattrs[] = {
     FUNCTIONS(0, uf_duration_inf, 0, pf_duration),
     DESCRIPTION(
       "<p>This element controls after how much time an initial deaf/mute "
-      "state will automatically reset.<p>")),
+      "state will automatically reset.<p>"),
+    UNIT("duration_inf")),
   END_MARKER
 };
 
@@ -1168,7 +1168,7 @@ static struct cfgelem sock_rcvbuf_size_attrs[] = {
       "<p>This sets the minimum acceptable socket receive buffer size, "
       "with the special value \"default\" indicating that whatever is "
       "available is acceptable.</p>"),
-    UNIT("memsize")),
+    UNIT("maybe_memsize")),
   STRING("max", NULL, 1, "default",
     MEMBER(socket_rcvbuf_size.max),
     FUNCTIONS(0, uf_maybe_memsize, 0, pf_maybe_memsize),
@@ -1178,7 +1178,7 @@ static struct cfgelem sock_rcvbuf_size_attrs[] = {
       "try to satisfy the minimum buffer size. If both are at \"default\", "
       "it will request 1MiB and accept anything. It is ignored if the  "
       "maximum is set to less than the minimum.</p>"),
-    UNIT("memsize")),
+    UNIT("maybe_memsize")),
   END_MARKER
 };
 
@@ -1190,7 +1190,7 @@ static struct cfgelem sock_sndbuf_size_attrs[] = {
       "<p>This sets the minimum acceptable socket send buffer size, "
       "with the special value \"default\" indicating that whatever is "
       "available is acceptable.</p>"),
-    UNIT("memsize")),
+    UNIT("maybe_memsize")),
   STRING("max", NULL, 1, "default",
     MEMBER(socket_sndbuf_size.max),
     FUNCTIONS(0, uf_maybe_memsize, 0, pf_maybe_memsize),
@@ -1200,7 +1200,7 @@ static struct cfgelem sock_sndbuf_size_attrs[] = {
       "try to satisfy the minimum buffer size. If both are at \"default\", "
       "it will use whatever is the system default. It is ignored if the "
       "maximum is set to less than the minimum.</p>"),
-    UNIT("memsize")),
+    UNIT("maybe_memsize")),
   END_MARKER
 };
 
@@ -1863,7 +1863,7 @@ static struct cfgelem discovery_peer_cfgattrs[] = {
       "be pinged for participant discovery before it is pruned as a useless "
       "address. The value \"default\" means the value in "
       "Discovery/InitialLocatorPruneDelay is used.</p>"),
-    UNIT("duration_inf")),
+    UNIT("maybe_duration_inf")),
   END_MARKER
 };
 
@@ -1968,7 +1968,7 @@ static struct cfgelem discovery_cfgelems[] = {
       "transmissions of participant discovery packets.  The special "
       "value \"default\" corresponds to approximately 80% of the "
       "participant lease duration with a maximum of 30s.</p>"),
-    UNIT("duration")),
+    UNIT("maybe_duration")),
   STRING("DefaultMulticastAddress", NULL, 1, "auto",
     MEMBER(defaultMulticastAddressString),
     FUNCTIONS(0, uf_networkAddress, ff_free, pf_networkAddress),

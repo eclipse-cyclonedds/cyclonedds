@@ -231,11 +231,11 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;The default value is: &lt;code&gt;&amp;lt;empty&amp;gt;&lt;/code&gt;&lt;/p&gt;</xs:documentation>
         </xs:annotation>
       </xs:attribute>
-      <xs:attribute name="PruneDelay" type="config:duration_inf">
+      <xs:attribute name="PruneDelay" type="config:maybe_duration_inf">
         <xs:annotation>
           <xs:documentation>
 &lt;p&gt;This element specifies the duration for which the locator must be pinged for participant discovery before it is pruned as a useless address. The value "default" means the value in Discovery/InitialLocatorPruneDelay is used.&lt;/p&gt;
-&lt;p&gt;Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.&lt;/p&gt;
+&lt;p&gt;Valid values are finite durations with an explicit unit, the keyword 'inf' for infinity or the keyword 'default'. Recognised units: ns, us, ms, s, min, hr, day.&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;default&lt;/code&gt;&lt;/p&gt;</xs:documentation>
         </xs:annotation>
       </xs:attribute>
@@ -307,11 +307,11 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;The default value is: &lt;code&gt;10&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="SPDPInterval" type="config:duration">
+  <xs:element name="SPDPInterval" type="config:maybe_duration">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This element specifies the interval between spontaneous transmissions of participant discovery packets.  The special value "default" corresponds to approximately 80% of the participant lease duration with a maximum of 30s.&lt;/p&gt;
-&lt;p&gt;The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.&lt;/p&gt;
+&lt;p&gt;A finite duration or the keyword 'default'. The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;default&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
@@ -744,11 +744,10 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;The default value is: &lt;code&gt;1&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="MaxInitTransmit" type="config:memsize">
+  <xs:element name="MaxInitTransmit" type="xs:string">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This element specifies how much more than the (presumed or discovered) receive buffer size may be sent when transmitting a sample for the first time, expressed as a percentage; the remainder will then be handled via retransmits. Usually, the receivers can keep up with the transmitter, at least on average, so generally it is better to hope for the best and recover. Besides, the retransmits will be unicast, and so any multicast advantage will be lost as well.&lt;/p&gt;
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;4294967295&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
@@ -1070,19 +1069,19 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;The default setting requests a buffer size of 1MiB but accepts whatever is available after that.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:complexType>
-      <xs:attribute name="max" type="config:memsize">
+      <xs:attribute name="max" type="config:maybe_memsize">
         <xs:annotation>
           <xs:documentation>
 &lt;p&gt;This sets the size of the socket receive buffer to request, with the special value of "default" indicating that it should try to satisfy the minimum buffer size. If both are at "default", it will request 1MiB and accept anything. It is ignored if the  maximum is set to less than the minimum.&lt;/p&gt;
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
+&lt;p&gt;An amount of memory or the keyword 'default'. The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;default&lt;/code&gt;&lt;/p&gt;</xs:documentation>
         </xs:annotation>
       </xs:attribute>
-      <xs:attribute name="min" type="config:memsize">
+      <xs:attribute name="min" type="config:maybe_memsize">
         <xs:annotation>
           <xs:documentation>
 &lt;p&gt;This sets the minimum acceptable socket receive buffer size, with the special value "default" indicating that whatever is available is acceptable.&lt;/p&gt;
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
+&lt;p&gt;An amount of memory or the keyword 'default'. The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;default&lt;/code&gt;&lt;/p&gt;</xs:documentation>
         </xs:annotation>
       </xs:attribute>
@@ -1095,19 +1094,19 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;The default setting requires a buffer of at least 64KiB.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:complexType>
-      <xs:attribute name="max" type="config:memsize">
+      <xs:attribute name="max" type="config:maybe_memsize">
         <xs:annotation>
           <xs:documentation>
 &lt;p&gt;This sets the size of the socket send buffer to request, with the special value of "default" indicating that it should try to satisfy the minimum buffer size. If both are at "default", it will use whatever is the system default. It is ignored if the maximum is set to less than the minimum.&lt;/p&gt;
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
+&lt;p&gt;An amount of memory or the keyword 'default'. The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;default&lt;/code&gt;&lt;/p&gt;</xs:documentation>
         </xs:annotation>
       </xs:attribute>
-      <xs:attribute name="min" type="config:memsize">
+      <xs:attribute name="min" type="config:maybe_memsize">
         <xs:annotation>
           <xs:documentation>
 &lt;p&gt;This sets the minimum acceptable socket send buffer size, with the special value "default" indicating that whatever is available is acceptable.&lt;/p&gt;
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
+&lt;p&gt;An amount of memory or the keyword 'default'. The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;64 KiB&lt;/code&gt;&lt;/p&gt;</xs:documentation>
         </xs:annotation>
       </xs:attribute>
@@ -1189,11 +1188,11 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;The default value is: &lt;code&gt;500 kB&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="WhcHighInit" type="config:memsize">
+  <xs:element name="WhcHighInit" type="config:maybe_memsize">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This element sets the initial level of the high-water mark for the Cyclone DDS WHCs, expressed in bytes.&lt;/p&gt;
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
+&lt;p&gt;An amount of memory or the keyword 'default'. The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;30 kB&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
@@ -1873,11 +1872,11 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
 &lt;p&gt;The default value is: &lt;code&gt;default&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="StackSize" type="config:memsize">
+  <xs:element name="StackSize" type="config:maybe_memsize">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;This element configures the stack size for this thread. The default value &lt;i&gt;default&lt;/i&gt; leaves the stack size at the operating system default.&lt;/p&gt;
-&lt;p&gt;The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
+&lt;p&gt;An amount of memory or the keyword 'default'. The unit must be specified explicitly. Recognised units: B (bytes), kB &amp; KiB (2&lt;sup&gt;10&lt;/sup&gt; bytes), MB &amp; MiB (2&lt;sup&gt;20&lt;/sup&gt; bytes), GB &amp; GiB (2&lt;sup&gt;30&lt;/sup&gt; bytes).&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;default&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
@@ -1999,16 +1998,31 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
       <xs:pattern value="inf|0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([num]?s|min|hr|day)"/>
     </xs:restriction>
   </xs:simpleType>
+  <xs:simpleType name="maybe_duration">
+    <xs:restriction base="xs:token">
+      <xs:pattern value="default|0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([num]?s|min|hr|day)"/>
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:simpleType name="maybe_duration_inf">
+    <xs:restriction base="xs:token">
+      <xs:pattern value="default|inf|0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([num]?s|min|hr|day)"/>
+    </xs:restriction>
+  </xs:simpleType>
   <xs:simpleType name="memsize">
     <xs:restriction base="xs:token">
       <xs:pattern value="0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([kMG]i?)?B"/>
     </xs:restriction>
   </xs:simpleType>
+  <xs:simpleType name="maybe_memsize">
+    <xs:restriction base="xs:token">
+      <xs:pattern value="default|0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([kMG]i?)?B"/>
+    </xs:restriction>
+  </xs:simpleType>
 </xs:schema>
 <!--- generated from ddsi_config.h[dbf9996a8b49da8e7cb4b62ab157ba80a073cd81] -->
 <!--- generated from ddsi_config.c[94a98ea7709bca260c9cfb5cf43396b0d5e3c953] -->
-<!--- generated from ddsi__cfgelems.h[a8b3ad5170f4e86fd7c1f29c5677c332930ea6a4] -->
-<!--- generated from cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] -->
+<!--- generated from ddsi__cfgelems.h[bfadae5c92a2373144ddcb4c4f93b3ba02633bde] -->
+<!--- generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] -->
 <!--- generated from _confgen.h[9554f1d72645c0b8bb66ffbfbc3c0fb664fc1a43] -->
 <!--- generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] -->
 <!--- generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] -->
