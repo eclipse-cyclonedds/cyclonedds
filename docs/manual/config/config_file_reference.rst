@@ -298,7 +298,7 @@ Number-with-unit
 
 This element specifies the duration for which the locator must be pinged for participant discovery before it is pruned as a useless address. The value "default" means the value in Discovery/InitialLocatorPruneDelay is used.
 
-Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
+Valid values are finite durations with an explicit unit, the keyword 'inf' for infinity or the keyword 'default'. Recognised units: ns, us, ms, s, min, hr, day.
 
 The default value is: ``default``
 
@@ -406,7 +406,7 @@ Number-with-unit
 
 This element specifies the interval between spontaneous transmissions of participant discovery packets.  The special value "default" corresponds to approximately 80% of the participant lease duration with a maximum of 30s.
 
-The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.
+A finite duration or the keyword 'default'. The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.
 
 The default value is: ``default``
 
@@ -952,11 +952,9 @@ The default value is: ``1``
 //CycloneDDS/Domain/Internal/BurstSize/MaxInitTransmit
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Number-with-unit
+Text
 
 This element specifies how much more than the (presumed or discovered) receive buffer size may be sent when transmitting a sample for the first time, expressed as a percentage; the remainder will then be handled via retransmits. Usually, the receivers can keep up with the transmitter, at least on average, so generally it is better to hope for the best and recover. Besides, the retransmits will be unicast, and so any multicast advantage will be lost as well.
-
-The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
 
 The default value is: ``4294967295``
 
@@ -1454,7 +1452,7 @@ Number-with-unit
 
 This sets the size of the socket receive buffer to request, with the special value of "default" indicating that it should try to satisfy the minimum buffer size. If both are at "default", it will request 1MiB and accept anything. It is ignored if the  maximum is set to less than the minimum.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
+An amount of memory or the keyword 'default'. The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
 
 The default value is: ``default``
 
@@ -1468,7 +1466,7 @@ Number-with-unit
 
 This sets the minimum acceptable socket receive buffer size, with the special value "default" indicating that whatever is available is acceptable.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
+An amount of memory or the keyword 'default'. The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
 
 The default value is: ``default``
 
@@ -1494,7 +1492,7 @@ Number-with-unit
 
 This sets the size of the socket send buffer to request, with the special value of "default" indicating that it should try to satisfy the minimum buffer size. If both are at "default", it will use whatever is the system default. It is ignored if the maximum is set to less than the minimum.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
+An amount of memory or the keyword 'default'. The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
 
 The default value is: ``default``
 
@@ -1508,7 +1506,7 @@ Number-with-unit
 
 This sets the minimum acceptable socket send buffer size, with the special value "default" indicating that whatever is available is acceptable.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
+An amount of memory or the keyword 'default'. The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
 
 The default value is: ``64 KiB``
 
@@ -1630,7 +1628,7 @@ Number-with-unit
 
 This element sets the initial level of the high-water mark for the Cyclone DDS WHCs, expressed in bytes.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
+An amount of memory or the keyword 'default'. The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
 
 The default value is: ``30 kB``
 
@@ -2612,7 +2610,7 @@ Number-with-unit
 
 This element configures the stack size for this thread. The default value default leaves the stack size at the operating system default.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
+An amount of memory or the keyword 'default'. The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
 
 The default value is: ``default``
 
@@ -2760,8 +2758,8 @@ The default value is: ``none``
 ..
    generated from ddsi_config.h[dbf9996a8b49da8e7cb4b62ab157ba80a073cd81] 
    generated from ddsi_config.c[94a98ea7709bca260c9cfb5cf43396b0d5e3c953] 
-   generated from ddsi__cfgelems.h[a8b3ad5170f4e86fd7c1f29c5677c332930ea6a4] 
-   generated from cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] 
+   generated from ddsi__cfgelems.h[bfadae5c92a2373144ddcb4c4f93b3ba02633bde] 
+   generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] 
    generated from _confgen.h[9554f1d72645c0b8bb66ffbfbc3c0fb664fc1a43] 
    generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] 
    generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] 
