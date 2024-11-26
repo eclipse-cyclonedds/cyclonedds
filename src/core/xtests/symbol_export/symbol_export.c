@@ -1204,6 +1204,7 @@ int main (int argc, char **argv)
   dds_sysdef_init_sysdef_str (ptr, ptr2, 0);
   dds_sysdef_fini_sysdef (ptr);
   dds_sysdef_init_data_types (ptr, ptr2);
+  dds_sysdef_init_data_types_str (ptr, ptr2);
   dds_sysdef_fini_data_types (ptr);
 
   return 0;
