@@ -37,6 +37,7 @@ typedef enum idl_accept {
   IDL_ACCEPT_BIT_VALUE,
   IDL_ACCEPT_SEQUENCE,
   IDL_ACCEPT_STRING,
+  IDL_ACCEPT_WSTRING,
   IDL_ACCEPT /**< generic callback, used if no specific callback exists */
 } idl_accept_t;
 

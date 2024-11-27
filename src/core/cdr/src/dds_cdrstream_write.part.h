@@ -8,15 +8,15 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-static const uint32_t *dds_stream_write_implBO (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict data, const uint32_t * __restrict ops, bool is_mutable_member, enum cdr_data_kind cdr_kind);
+static const uint32_t *dds_stream_write_implBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops, bool is_mutable_member, enum cdr_data_kind cdr_kind);
 
-static inline bool dds_stream_write_bool_valueBO (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const uint8_t val)
+static inline bool dds_stream_write_bool_valueBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const uint8_t val)
 {
   dds_os_put1BO (os, allocator, val != 0);
   return true;
 }
 
-static bool dds_stream_write_enum_valueBO (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, uint32_t insn, uint32_t val, uint32_t max)
+static bool dds_stream_write_enum_valueBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, uint32_t insn, uint32_t val, uint32_t max)
 {
   if (val > max)
     return false;
@@ -37,7 +37,7 @@ static bool dds_stream_write_enum_valueBO (DDS_OSTREAM_T * __restrict os, const 
   return true;
 }
 
-static bool dds_stream_write_bitmask_valueBO (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, uint32_t insn, const void * __restrict addr, uint32_t bits_h, uint32_t bits_l)
+static bool dds_stream_write_bitmask_valueBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, uint32_t insn, const void *addr, uint32_t bits_h, uint32_t bits_l)
 {
   switch (DDS_OP_TYPE_SZ (insn))
   {
@@ -75,7 +75,7 @@ static bool dds_stream_write_bitmask_valueBO (DDS_OSTREAM_T * __restrict os, con
   return true;
 }
 
-static void dds_stream_write_stringBO (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict val)
+static void dds_stream_write_stringBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const char *val)
 {
   uint32_t size = val ? (uint32_t) strlen (val) + 1 : 1;
   dds_os_put4BO (os, allocator, size);
@@ -85,7 +85,50 @@ static void dds_stream_write_stringBO (DDS_OSTREAM_T * __restrict os, const stru
     dds_os_put1BO (os, allocator, 0);
 }
 
-static bool dds_stream_write_bool_arrBO (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const uint8_t * __restrict addr, uint32_t num)
+static void dds_stream_write_wstringBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const wchar_t *val)
+{
+  if (val == NULL)
+    dds_os_put4BO (os, allocator, 0);
+  else
+  {
+    const uint32_t n = (uint32_t) wstring_utf16_len (val);
+    dds_os_put4BO (os, allocator, n);
+    dds_ostream_t * const os1 = (dds_ostream_t *) os;
+    dds_cdr_resize (os1, allocator, 2 * n);
+    uint16_t * const dst = (uint16_t *) (os1->m_buffer + os1->m_index);
+    uint32_t di = 0;
+    for (uint32_t i = 0; val[i] != L'\0'; i++)
+    {
+      assert (di < n);
+      if ((uint32_t) val[i] < 0x10000)
+        dst[di++] = (uint16_t) val[i];
+      else
+      {
+        const uint32_t u = (uint32_t) val[i] - 0x10000;
+        const uint16_t w1 = (uint16_t) (0xd800 + ((u >> 10) & 0x3ff));
+        const uint16_t w2 = (uint16_t) (0xdc00 + (u & 0x3ff));
+        dst[di++] = w1;
+        assert (di < n);
+        dst[di++] = w2;
+      }
+    }
+    os1->m_index += 2 * n;
+  }
+}
+
+ddsrt_attribute_warn_unused_result
+static bool dds_stream_write_wcharBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const wchar_t val)
+{
+  // surrogates are forbidden
+  if ((uint32_t) val >= 0xd800 && (uint32_t) val < 0xe000)
+    return false;
+  else if ((uint32_t) val > 0xffff) // out-of-range
+    return false;
+  dds_os_put2BO (os, allocator, (uint16_t) val);
+  return true;
+}
+
+static bool dds_stream_write_bool_arrBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const uint8_t *addr, uint32_t num)
 {
   for (uint32_t i = 0; i < num; i++)
   {
@@ -95,7 +138,7 @@ static bool dds_stream_write_bool_arrBO (DDS_OSTREAM_T * __restrict os, const st
   return true;
 }
 
-static bool dds_stream_write_enum_arrBO (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, uint32_t insn, const uint32_t * __restrict addr, uint32_t num, uint32_t max)
+static bool dds_stream_write_enum_arrBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, uint32_t insn, const uint32_t *addr, uint32_t num, uint32_t max)
 {
   switch (DDS_OP_TYPE_SZ (insn))
   {
@@ -129,7 +172,7 @@ static bool dds_stream_write_enum_arrBO (DDS_OSTREAM_T * __restrict os, const st
   return true;
 }
 
-static bool dds_stream_write_bitmask_arrBO (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, uint32_t insn, const void * __restrict addr, uint32_t num, uint32_t bits_h, uint32_t bits_l)
+static bool dds_stream_write_bitmask_arrBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, uint32_t insn, const void *addr, uint32_t num, uint32_t bits_h, uint32_t bits_l)
 {
   switch (DDS_OP_TYPE_SZ (insn))
   {
@@ -179,7 +222,7 @@ static bool dds_stream_write_bitmask_arrBO (DDS_OSTREAM_T * __restrict os, const
   return true;
 }
 
-static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict addr, const uint32_t * __restrict ops, uint32_t insn, enum cdr_data_kind cdr_kind)
+static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const char *addr, const uint32_t *ops, uint32_t insn, enum cdr_data_kind cdr_kind)
 {
   const dds_sequence_t * const seq = (const dds_sequence_t *) addr;
   uint32_t offs = 0, xcdrv = ((struct dds_ostream *)os)->m_xcdr_version;
@@ -248,6 +291,13 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
         ops += 2 + bound_op;
         break;
       }
+      case DDS_OP_VAL_WSTR: {
+        const wchar_t **ptr = (const wchar_t **) seq->_buffer;
+        for (uint32_t i = 0; i < num; i++)
+          dds_stream_write_wstringBO (os, allocator, ptr[i]);
+        ops += 2 + bound_op;
+        break;
+      }
       case DDS_OP_VAL_BST: {
         const char *ptr = (const char *) seq->_buffer;
         const uint32_t elem_size = ops[2 + bound_op];
@@ -256,7 +306,23 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
         ops += 3 + bound_op;
         break;
       }
-      case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
+      case DDS_OP_VAL_BWSTR: {
+        const wchar_t *ptr = (const wchar_t *) seq->_buffer;
+        const uint32_t elem_size = (uint32_t) sizeof (*ptr) * ops[2 + bound_op];
+        for (uint32_t i = 0; i < num; i++)
+          dds_stream_write_wstringBO (os, allocator, ptr + i * elem_size);
+        ops += 3 + bound_op;
+        break;
+      }
+      case DDS_OP_VAL_WCHAR: {
+        const wchar_t *ptr = (const wchar_t *) seq->_buffer;
+        for (uint32_t i = 0; i < num; i++)
+          if (!dds_stream_write_wcharBO (os, allocator, ptr[i]))
+            return NULL;
+        ops += 2 + bound_op;
+        break;
+      }
+     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
         const uint32_t elem_size = ops[2 + bound_op];
         const uint32_t jmp = DDS_OP_ADR_JMP (ops[3 + bound_op]);
         uint32_t const * const jsr_ops = ops + DDS_OP_ADR_JSR (ops[3 + bound_op]);
@@ -280,7 +346,7 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
   return ops;
 }
 
-static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict addr, const uint32_t * __restrict ops, uint32_t insn, enum cdr_data_kind cdr_kind)
+static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const char *addr, const uint32_t *ops, uint32_t insn, enum cdr_data_kind cdr_kind)
 {
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
   uint32_t offs = 0, xcdrv = ((struct dds_ostream *)os)->m_xcdr_version;
@@ -325,12 +391,35 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
       ops += 3;
       break;
     }
+    case DDS_OP_VAL_WSTR: {
+      const wchar_t **ptr = (const wchar_t **) addr;
+      for (uint32_t i = 0; i < num; i++)
+        dds_stream_write_wstringBO (os, allocator, ptr[i]);
+      ops += 3;
+      break;
+    }
     case DDS_OP_VAL_BST: {
       const char *ptr = (const char *) addr;
       const uint32_t elem_size = ops[4];
       for (uint32_t i = 0; i < num; i++)
         dds_stream_write_stringBO (os, allocator, ptr + i * elem_size);
       ops += 5;
+      break;
+    }
+    case DDS_OP_VAL_BWSTR: {
+      const wchar_t *ptr = (const wchar_t *) addr;
+      const uint32_t elem_size = (uint32_t) sizeof (*ptr) * ops[4];
+      for (uint32_t i = 0; i < num; i++)
+        dds_stream_write_wstringBO (os, allocator, ptr + i * elem_size);
+      ops += 5;
+      break;
+    }
+    case DDS_OP_VAL_WCHAR: {
+      const wchar_t *ptr = (const wchar_t *) addr;
+      for (uint32_t i = 0; i < num; i++)
+        if (!dds_stream_write_wcharBO (os, allocator, ptr[i]))
+          return NULL;
+      ops += 3;
       break;
     }
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
@@ -355,7 +444,7 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
   return ops;
 }
 
-static bool dds_stream_write_union_discriminantBO (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const uint32_t * __restrict ops, uint32_t insn, const void * __restrict addr, uint32_t *disc)
+static bool dds_stream_write_union_discriminantBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, uint32_t insn, const void *addr, uint32_t *disc)
 {
   assert (disc);
   enum dds_stream_typecode type = DDS_OP_SUBTYPE (insn);
@@ -390,7 +479,7 @@ static bool dds_stream_write_union_discriminantBO (DDS_OSTREAM_T * __restrict os
   return true;
 }
 
-static const uint32_t *dds_stream_write_uniBO (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict discaddr, const char * __restrict baseaddr, const uint32_t * __restrict ops, uint32_t insn, enum cdr_data_kind cdr_kind)
+static const uint32_t *dds_stream_write_uniBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const char *discaddr, const char *baseaddr, const uint32_t *ops, uint32_t insn, enum cdr_data_kind cdr_kind)
 {
   uint32_t disc;
   if (!dds_stream_write_union_discriminantBO (os, allocator, ops, insn, discaddr, &disc))
@@ -405,7 +494,7 @@ static const uint32_t *dds_stream_write_uniBO (DDS_OSTREAM_T * __restrict os, co
     /* Union members cannot be optional, only external. For string types, the pointer
        is dereferenced below (and there is no extra pointer indirection when using
        @external for STR types) */
-    if (op_type_external (jeq_op[0]) && valtype != DDS_OP_VAL_STR)
+    if (op_type_external (jeq_op[0]) && valtype != DDS_OP_VAL_STR && valtype != DDS_OP_VAL_WSTR)
     {
       assert (DDS_OP (jeq_op[0]) == DDS_OP_JEQ4);
       valaddr = *(char **) valaddr;
@@ -428,7 +517,13 @@ static const uint32_t *dds_stream_write_uniBO (DDS_OSTREAM_T * __restrict os, co
           return NULL;
         break;
       case DDS_OP_VAL_STR: dds_stream_write_stringBO (os, allocator, *(const char **) valaddr); break;
+      case DDS_OP_VAL_WSTR: dds_stream_write_wstringBO (os, allocator, *(const wchar_t **) valaddr); break;
       case DDS_OP_VAL_BST: dds_stream_write_stringBO (os, allocator, (const char *) valaddr); break;
+      case DDS_OP_VAL_BWSTR: dds_stream_write_wstringBO (os, allocator, (const wchar_t *) valaddr); break;
+      case DDS_OP_VAL_WCHAR:
+        if (!dds_stream_write_wcharBO (os, allocator, *((const wchar_t *) valaddr)))
+          return NULL;
+        break;
       case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: case DDS_OP_VAL_BMK:
         if (!dds_stream_write_implBO (os, allocator, valaddr, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), false, cdr_kind))
           return NULL;
@@ -441,13 +536,13 @@ static const uint32_t *dds_stream_write_uniBO (DDS_OSTREAM_T * __restrict os, co
   return ops;
 }
 
-static const uint32_t *dds_stream_write_adrBO (uint32_t insn, DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict data, const uint32_t * __restrict ops, bool is_mutable_member, enum cdr_data_kind cdr_kind)
+static const uint32_t *dds_stream_write_adrBO (uint32_t insn, DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops, bool is_mutable_member, enum cdr_data_kind cdr_kind)
 {
   const void *addr = data + ops[1];
-  if (op_type_external (insn) || op_type_optional (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR)
+  if (op_type_external (insn) || op_type_optional (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR || DDS_OP_TYPE (insn) == DDS_OP_VAL_WSTR)
   {
     addr = *(char **) addr;
-    if (addr == NULL && !(op_type_optional (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR))
+    if (addr == NULL && !(op_type_optional (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR || DDS_OP_TYPE (insn) == DDS_OP_VAL_WSTR))
       return NULL;
   }
 
@@ -462,7 +557,7 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, DDS_OSTREAM_T * __
     if (!addr)
       return dds_stream_skip_adr (insn, ops);
   }
-  assert (addr || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR);
+  assert (addr || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR || DDS_OP_TYPE (insn) == DDS_OP_VAL_WSTR);
 
   switch (DDS_OP_TYPE (insn))
   {
@@ -486,7 +581,14 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, DDS_OSTREAM_T * __
       ops += 4;
       break;
     case DDS_OP_VAL_STR: dds_stream_write_stringBO (os, allocator, (const char *) addr); ops += 2; break;
+    case DDS_OP_VAL_WSTR: dds_stream_write_wstringBO (os, allocator, (const wchar_t *) addr); ops += 2; break;
     case DDS_OP_VAL_BST: dds_stream_write_stringBO (os, allocator, (const char *) addr); ops += 3; break;
+    case DDS_OP_VAL_BWSTR: dds_stream_write_wstringBO (os, allocator, (const wchar_t *) addr); ops += 3; break;
+    case DDS_OP_VAL_WCHAR:
+      if (!dds_stream_write_wcharBO (os, allocator, *((const wchar_t *) addr)))
+        return NULL;
+      ops += 2;
+      break;
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: ops = dds_stream_write_seqBO (os, allocator, addr, ops, insn, cdr_kind); break;
     case DDS_OP_VAL_ARR: ops = dds_stream_write_arrBO (os, allocator, addr, ops, insn, cdr_kind); break;
     case DDS_OP_VAL_UNI: ops = dds_stream_write_uniBO (os, allocator, addr, data, ops, insn, cdr_kind); break;
@@ -510,7 +612,7 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, DDS_OSTREAM_T * __
   return ops;
 }
 
-static const uint32_t *dds_stream_write_delimitedBO (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict data, const uint32_t * __restrict ops, enum cdr_data_kind cdr_kind)
+static const uint32_t *dds_stream_write_delimitedBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops, enum cdr_data_kind cdr_kind)
 {
   uint32_t offs = dds_os_reserve4BO (os, allocator);
   if (!(ops = dds_stream_write_implBO (os, allocator, data, ops + 1, false, cdr_kind)))
@@ -521,7 +623,7 @@ static const uint32_t *dds_stream_write_delimitedBO (DDS_OSTREAM_T * __restrict 
   return ops;
 }
 
-static bool dds_stream_write_pl_memberBO (uint32_t mid, DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict data, const uint32_t * __restrict ops, enum cdr_data_kind cdr_kind)
+static bool dds_stream_write_pl_memberBO (uint32_t mid, DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops, enum cdr_data_kind cdr_kind)
 {
   assert (!(mid & ~EMHEADER_MEMBERID_MASK));
 
@@ -553,7 +655,7 @@ static bool dds_stream_write_pl_memberBO (uint32_t mid, DDS_OSTREAM_T * __restri
   return true;
 }
 
-static const uint32_t *dds_stream_write_pl_memberlistBO (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict data, const uint32_t * __restrict ops, enum cdr_data_kind cdr_kind)
+static const uint32_t *dds_stream_write_pl_memberlistBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops, enum cdr_data_kind cdr_kind)
 {
   uint32_t insn;
   while (ops && (insn = *ops) != DDS_OP_RTS)
@@ -587,7 +689,7 @@ static const uint32_t *dds_stream_write_pl_memberlistBO (DDS_OSTREAM_T * __restr
   return ops;
 }
 
-static const uint32_t *dds_stream_write_plBO (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict data, const uint32_t * __restrict ops, enum cdr_data_kind cdr_kind)
+static const uint32_t *dds_stream_write_plBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops, enum cdr_data_kind cdr_kind)
 {
   /* skip PLC op */
   ops++;
@@ -604,7 +706,7 @@ static const uint32_t *dds_stream_write_plBO (DDS_OSTREAM_T * __restrict os, con
   return ops;
 }
 
-static const uint32_t *dds_stream_write_implBO (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict data, const uint32_t * __restrict ops, bool is_mutable_member, enum cdr_data_kind cdr_kind)
+static const uint32_t *dds_stream_write_implBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops, bool is_mutable_member, enum cdr_data_kind cdr_kind)
 {
   uint32_t insn;
   while (ops && (insn = *ops) != DDS_OP_RTS)
@@ -635,7 +737,7 @@ static const uint32_t *dds_stream_write_implBO (DDS_OSTREAM_T * __restrict os, c
   return ops;
 }
 
-const uint32_t *dds_stream_writeBO (DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const char * __restrict data, const uint32_t * __restrict ops)
+const uint32_t *dds_stream_writeBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops)
 {
   return dds_stream_write_implBO (os, allocator, data, ops, false, CDR_KIND_DATA);
 }

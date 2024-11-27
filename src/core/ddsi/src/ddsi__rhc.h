@@ -29,12 +29,12 @@ extern "C" {
 struct dds_qos;
 
 /** @component rhc_if */
-inline void ddsi_rhc_unregister_wr (struct ddsi_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo) {
+inline void ddsi_rhc_unregister_wr (struct ddsi_rhc *rhc, const struct ddsi_writer_info *wrinfo) {
   rhc->ops->unregister_wr (rhc, wrinfo);
 }
 
 /** @component rhc_if */
-inline void ddsi_rhc_relinquish_ownership (struct ddsi_rhc * __restrict rhc, const uint64_t wr_iid) {
+inline void ddsi_rhc_relinquish_ownership (struct ddsi_rhc *rhc, const uint64_t wr_iid) {
   rhc->ops->relinquish_ownership (rhc, wr_iid);
 }
 

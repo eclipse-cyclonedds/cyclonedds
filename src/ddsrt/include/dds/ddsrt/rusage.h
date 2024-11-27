@@ -73,7 +73,7 @@ DDS_EXPORT dds_return_t ddsrt_getrusage(enum ddsrt_getrusage_who who, ddsrt_rusa
  * @retval DDS_RETCODE_ERROR
  *             An unidentified error occurred.
  */
-DDS_EXPORT dds_return_t ddsrt_getrusage_anythread (ddsrt_thread_list_id_t tid, ddsrt_rusage_t * __restrict usage);
+DDS_EXPORT dds_return_t ddsrt_getrusage_anythread (ddsrt_thread_list_id_t tid, ddsrt_rusage_t *usage);
 #endif
 
 #if defined (__cplusplus)

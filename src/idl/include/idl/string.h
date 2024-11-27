@@ -40,7 +40,7 @@ IDL_EXPORT char *idl_strdup(const char *str);
 
 IDL_EXPORT char *idl_strndup(const char *str, size_t len);
 
-IDL_EXPORT size_t idl_strlcpy(char * __restrict dest, const char * __restrict src, size_t size);
+IDL_EXPORT size_t idl_strlcpy(char *dest, const char *src, size_t size);
 
 IDL_EXPORT int idl_snprintf(char *str, size_t size, const char *fmt, ...)
 idl_attribute_format_printf(3, 4);

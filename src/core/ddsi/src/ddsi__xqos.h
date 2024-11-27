@@ -94,7 +94,7 @@ void ddsi_xqos_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_
  *
  * @returns number of bytes written to buf, excluding a terminating 0.
  */
-size_t ddsi_xqos_print (char * __restrict buf, size_t bufsize, const dds_qos_t *xqos);
+size_t ddsi_xqos_print (char *buf, size_t bufsize, const dds_qos_t *xqos);
 
 /**
  * @brief Check if "xqos" includes properties with a name starting with "nameprefix"

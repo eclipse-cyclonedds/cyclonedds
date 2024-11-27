@@ -108,7 +108,7 @@ uint16_t ddsrt_sockaddr_get_port(const struct sockaddr *const sa)
 }
 
 bool
-ddsrt_sockaddr_isunspecified(const struct sockaddr *__restrict sa)
+ddsrt_sockaddr_isunspecified(const struct sockaddr *sa)
 {
   assert(sa != NULL);
 
@@ -125,7 +125,7 @@ ddsrt_sockaddr_isunspecified(const struct sockaddr *__restrict sa)
 }
 
 bool
-ddsrt_sockaddr_isloopback(const struct sockaddr *__restrict sa)
+ddsrt_sockaddr_isloopback(const struct sockaddr *sa)
 {
   assert(sa != NULL);
 

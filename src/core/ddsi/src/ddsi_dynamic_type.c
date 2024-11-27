@@ -297,6 +297,15 @@ dds_return_t ddsi_dynamic_type_create_string8 (struct ddsi_domaingv *gv, struct 
   return DDS_RETCODE_OK;
 }
 
+dds_return_t ddsi_dynamic_type_create_string16 (struct ddsi_domaingv *gv, struct ddsi_type **type, uint32_t bound)
+{
+  if ((*type = ddsrt_calloc (1, sizeof (**type))) == NULL)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  dynamic_type_init (gv, *type, DDS_XTypes_TK_STRING16, DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE);
+  (*type)->xt._u.str16.bound = bound;
+  return DDS_RETCODE_OK;
+}
+
 dds_return_t ddsi_dynamic_type_create_primitive (struct ddsi_domaingv *gv, struct ddsi_type **type, dds_dynamic_type_kind_t kind)
 {
   uint8_t data_type = DDS_XTypes_TK_NONE;

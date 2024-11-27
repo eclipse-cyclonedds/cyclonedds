@@ -11,7 +11,7 @@
 #include "ddsi__rhc.h"
 
 extern inline void ddsi_rhc_free (struct ddsi_rhc *rhc);
-extern inline bool ddsi_rhc_store (struct ddsi_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk);
-extern inline void ddsi_rhc_unregister_wr (struct ddsi_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo);
-extern inline void ddsi_rhc_relinquish_ownership (struct ddsi_rhc * __restrict rhc, const uint64_t wr_iid);
+extern inline bool ddsi_rhc_store (struct ddsi_rhc *rhc, const struct ddsi_writer_info *wrinfo, struct ddsi_serdata *sample, struct ddsi_tkmap_instance *tk);
+extern inline void ddsi_rhc_unregister_wr (struct ddsi_rhc *rhc, const struct ddsi_writer_info *wrinfo);
+extern inline void ddsi_rhc_relinquish_ownership (struct ddsi_rhc *rhc, const uint64_t wr_iid);
 extern inline void ddsi_rhc_set_qos (struct ddsi_rhc *rhc, const struct dds_qos *qos);

@@ -81,7 +81,7 @@ rusage_thread(ddsrt_thread_list_id_t tid, ddsrt_rusage_t *usage)
 static
 #endif
 dds_return_t
-ddsrt_getrusage_anythread(ddsrt_thread_list_id_t tid, ddsrt_rusage_t *__restrict usage)
+ddsrt_getrusage_anythread(ddsrt_thread_list_id_t tid, ddsrt_rusage_t *usage)
 {
   assert(usage != NULL);
   return rusage_thread(tid, usage);

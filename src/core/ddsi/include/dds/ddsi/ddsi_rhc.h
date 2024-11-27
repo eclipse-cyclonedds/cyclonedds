@@ -42,9 +42,9 @@ struct ddsi_writer_info
 };
 
 typedef void (*ddsi_rhc_free_t) (struct ddsi_rhc *rhc);
-typedef bool (*ddsi_rhc_store_t) (struct ddsi_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk);
-typedef void (*ddsi_rhc_unregister_wr_t) (struct ddsi_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo);
-typedef void (*ddsi_rhc_relinquish_ownership_t) (struct ddsi_rhc * __restrict rhc, const uint64_t wr_iid);
+typedef bool (*ddsi_rhc_store_t) (struct ddsi_rhc *rhc, const struct ddsi_writer_info *wrinfo, struct ddsi_serdata *sample, struct ddsi_tkmap_instance *tk);
+typedef void (*ddsi_rhc_unregister_wr_t) (struct ddsi_rhc *rhc, const struct ddsi_writer_info *wrinfo);
+typedef void (*ddsi_rhc_relinquish_ownership_t) (struct ddsi_rhc *rhc, const uint64_t wr_iid);
 typedef void (*ddsi_rhc_set_qos_t) (struct ddsi_rhc *rhc, const struct dds_qos *qos);
 
 struct ddsi_rhc_ops {
@@ -60,7 +60,7 @@ struct ddsi_rhc {
 };
 
 /** @component rhc_if */
-inline bool ddsi_rhc_store (struct ddsi_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk) {
+inline bool ddsi_rhc_store (struct ddsi_rhc *rhc, const struct ddsi_writer_info *wrinfo, struct ddsi_serdata *sample, struct ddsi_tkmap_instance *tk) {
   return rhc->ops->store (rhc, wrinfo, sample, tk);
 }
 
