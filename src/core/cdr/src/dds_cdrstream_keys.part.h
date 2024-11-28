@@ -9,7 +9,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 ddsrt_attribute_warn_unused_result
-static bool dds_stream_write_keyBO_impl (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, const void *src, uint16_t key_offset_count, const uint32_t * key_offset_insn)
+static bool dds_stream_write_keyBO_impl (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, const void *src, uint16_t key_offset_count, const uint32_t * key_offset_insn)
 {
   uint32_t insn = *ops;
   assert (DDS_OP (insn) == DDS_OP_ADR);
@@ -56,20 +56,20 @@ static bool dds_stream_write_keyBO_impl (DDS_OSTREAM_T *os, const struct dds_cdr
           break;
         case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
           const uint32_t elem_size = get_primitive_size (DDS_OP_SUBTYPE (insn));
-          const align_t cdr_align = dds_cdr_get_align (((struct dds_ostream *)os)->m_xcdr_version, elem_size);
-          dds_cdr_alignto_clear_and_resizeBO (os, allocator, cdr_align, num * elem_size);
-          void * const dst = ((struct dds_ostream *)os)->m_buffer + ((struct dds_ostream *)os)->m_index;
-          dds_os_put_bytes ((struct dds_ostream *)os, allocator, addr, num * elem_size);
+          const align_t cdr_align = dds_cdr_get_align (os->x.m_xcdr_version, elem_size);
+          dds_cdr_alignto_clear_and_resize_base (&os->x, allocator, cdr_align, num * elem_size);
+          void * const dst = os->x.m_buffer + os->x.m_index;
+          dds_os_put_bytes_base (&os->x, allocator, addr, num * elem_size);
           dds_stream_swap_if_needed_insituBO (dst, elem_size, num);
           break;
         }
         case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: {
-          uint32_t offs = 0, xcdrv = ((struct dds_ostream *)os)->m_xcdr_version;
+          uint32_t offs = 0, xcdrv = os->x.m_xcdr_version;
           if (xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
           {
             /* reserve space for DHEADER */
             dds_os_reserve4BO (os, allocator);
-            offs = ((struct dds_ostream *)os)->m_index;
+            offs = os->x.m_index;
           }
           bool ok;
           if (DDS_OP_SUBTYPE (insn) == DDS_OP_VAL_ENU)
@@ -80,7 +80,7 @@ static bool dds_stream_write_keyBO_impl (DDS_OSTREAM_T *os, const struct dds_cdr
             return false;
           /* write DHEADER */
           if (xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
-            *((uint32_t *) (((struct dds_ostream *)os)->m_buffer + offs - 4)) = to_BO4u(((struct dds_ostream *)os)->m_index - offs);
+            *((uint32_t *) (os->x.m_buffer + offs - 4)) = to_BO4u(os->x.m_index - offs);
           break;
         }
         default:
@@ -104,10 +104,10 @@ static bool dds_stream_write_keyBO_impl (DDS_OSTREAM_T *os, const struct dds_cdr
   return true;
 }
 
-bool dds_stream_write_keyBO (DDS_OSTREAM_T *os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator *allocator, const char *sample, const struct dds_cdrstream_desc *desc)
+static bool dds_stream_write_keyBO_restrict (RESTRICT_OSTREAM_T *os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator *allocator, const char *sample, const struct dds_cdrstream_desc *desc)
 {
 #ifndef NDEBUG
-  const size_t check_start_index = ((dds_ostream_t *)os)->m_index;
+  const size_t check_start_index = os->x.m_index;
 #endif
   if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE) && ser_kind == DDS_CDR_KEY_SERIALIZATION_SAMPLE)
   {
@@ -121,7 +121,7 @@ bool dds_stream_write_keyBO (DDS_OSTREAM_T *os, enum dds_cdr_key_serialization_k
     /* Optimized implementation to write key in case all key members are in an aggregated
        type with final extensibility: iterate over keys in key descriptor. Depending on the output
        kind (for a key-only sample or keyhash), use the specific key-list from the descriptor. */
-    bool use_memberid_order = (ser_kind == DDS_CDR_KEY_SERIALIZATION_KEYHASH && ((struct dds_ostream *) os)->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
+    bool use_memberid_order = (ser_kind == DDS_CDR_KEY_SERIALIZATION_KEYHASH && os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
     struct dds_cdrstream_desc_key *keylist = use_memberid_order ? desc->keys.keys : desc->keys.keys_definition_order;
     for (uint32_t i = 0; i < desc->keys.nkeys; i++)
     {
@@ -147,14 +147,18 @@ bool dds_stream_write_keyBO (DDS_OSTREAM_T *os, enum dds_cdr_key_serialization_k
     }
   }
 #ifndef NDEBUG
-  const size_t check_size = dds_stream_getsize_key (ser_kind, sample, desc, ((dds_ostream_t *)os)->m_xcdr_version);
-  assert (check_size == ((dds_ostream_t *)os)->m_index - check_start_index);
+  const size_t check_size = dds_stream_getsize_key (ser_kind, sample, desc, os->x.m_xcdr_version);
+  assert (check_size == os->x.m_index - check_start_index);
 #endif
   return true;
 }
 
-static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dds_istream_t *is, DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator,
-  const uint32_t * const op0, const uint32_t *ops, bool mutable_member, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * restrict keys_remaining)
+bool dds_stream_write_keyBO (DDS_OSTREAM_T *os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator *allocator, const char *sample, const struct dds_cdrstream_desc *desc)
+{
+  return dds_stream_write_keyBO_restrict ((RESTRICT_OSTREAM_T *) os, ser_kind, allocator, sample, desc);
+}
+
+static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const uint32_t * const op0, const uint32_t *ops, bool mutable_member, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * restrict keys_remaining)
 {
   assert (insn == *ops);
   assert (DDS_OP (insn) == DDS_OP_ADR);
@@ -196,8 +200,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
   return ops;
 }
 
-static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream_t *is, DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator,
-  const uint32_t * const op0, const uint32_t *ops, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * restrict keys_remaining)
+static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const uint32_t * const op0, const uint32_t *ops, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * restrict keys_remaining)
 {
   uint32_t delimited_sz_is = dds_is_get4 (is), delimited_offs_is = is->m_index, insn;
 
@@ -237,14 +240,13 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream
   if (os != NULL)
   {
     assert (delimited_sz_is == is->m_index - delimited_offs_is);
-    *((uint32_t *) (((struct dds_ostream *)os)->m_buffer + delimited_offs_os - 4)) = to_BO4u (((struct dds_ostream *)os)->m_index - delimited_offs_os);
+    *((uint32_t *) (os->x.m_buffer + delimited_offs_os - 4)) = to_BO4u (os->x.m_index - delimited_offs_os);
   }
 
   return ops;
 }
 
-static bool dds_stream_extract_keyBO_from_data_pl_member (dds_istream_t *is, DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, uint32_t m_id,
-  const uint32_t * const op0, const uint32_t *ops, uint32_t n_keys, uint32_t * restrict keys_remaining)
+static bool dds_stream_extract_keyBO_from_data_pl_member (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, uint32_t m_id, const uint32_t * const op0, const uint32_t *ops, uint32_t n_keys, uint32_t * restrict keys_remaining)
 {
   uint32_t insn, ops_csr = 0;
   bool found = false;
@@ -274,10 +276,10 @@ static bool dds_stream_extract_keyBO_from_data_pl_member (dds_istream_t *is, DDS
       em_hdr |= lc << 28;
       em_hdr |= m_id & EMHEADER_MEMBERID_MASK;
 
-      uint32_t *em_hdr_ptr = (uint32_t *) (((struct dds_ostream *)os)->m_buffer + data_offs - (lc == LENGTH_CODE_NEXTINT ? 8 : 4));
+      uint32_t *em_hdr_ptr = (uint32_t *) (os->x.m_buffer + data_offs - (lc == LENGTH_CODE_NEXTINT ? 8 : 4));
       em_hdr_ptr[0] = to_BO4u (em_hdr);
       if (lc == LENGTH_CODE_NEXTINT)
-        em_hdr_ptr[1] = to_BO4u (((struct dds_ostream *)os)->m_index - data_offs);  /* member size in next_int field in emheader */
+        em_hdr_ptr[1] = to_BO4u (os->x.m_index - data_offs);  /* member size in next_int field in emheader */
 
       found = true;
       break;
@@ -287,8 +289,7 @@ static bool dds_stream_extract_keyBO_from_data_pl_member (dds_istream_t *is, DDS
   return found;
 }
 
-static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t *is, DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator,
-  const uint32_t * const op0, const uint32_t *ops, uint32_t n_keys, uint32_t * restrict keys_remaining)
+static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const uint32_t * const op0, const uint32_t *ops, uint32_t n_keys, uint32_t * restrict keys_remaining)
 {
   /* skip PLC op */
   ops++;
@@ -343,14 +344,12 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t *is,
 
   /* add dheader in os */
   if (os != NULL)
-    *((uint32_t *) (((struct dds_ostream *) os)->m_buffer + delimited_offs_os - 4)) = to_BO4u (((struct dds_ostream *) os)->m_index - delimited_offs_os);
+    *((uint32_t *) (os->x.m_buffer + delimited_offs_os - 4)) = to_BO4u (os->x.m_index - delimited_offs_os);
 
   return ops;
 }
 
-static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t *is, DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator,
-  const uint32_t * const op0, const uint32_t *ops, bool mutable_member, bool mutable_member_or_parent,
-  uint32_t n_keys, uint32_t * restrict keys_remaining)
+static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const uint32_t * const op0, const uint32_t *ops, bool mutable_member, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * restrict keys_remaining)
 {
   uint32_t insn;
   while ((insn = *ops) != DDS_OP_RTS)
@@ -378,7 +377,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t *is, D
   return ops;
 }
 
-bool dds_stream_extract_keyBO_from_data (dds_istream_t *is, DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc)
+static bool dds_stream_extract_keyBO_from_data_restrict (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc)
 {
   bool ret = true;
   uint32_t keys_remaining = desc->keys.nkeys;
@@ -392,7 +391,7 @@ bool dds_stream_extract_keyBO_from_data (dds_istream_t *is, DDS_OSTREAM_T *os, c
     void *sample = allocator->malloc (desc->size);
     memset (sample, 0, desc->size);
     (void) dds_stream_read (is, sample, allocator, desc->ops.ops);
-    if (!dds_stream_write_keyBO (os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, allocator, sample, desc))
+    if (!dds_stream_write_keyBO_restrict (os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, allocator, sample, desc))
     {
       // can't happen given normalized input (and it has to be normalized, else dds_stream_read may not be used)
       abort ();
@@ -413,15 +412,19 @@ bool dds_stream_extract_keyBO_from_data (dds_istream_t *is, DDS_OSTREAM_T *os, c
   return ret;
 }
 
-static void dds_stream_extract_keyBO_from_key_impl (dds_istream_t *is, DDS_OSTREAM_T *os, enum dds_cdr_key_serialization_kind ser_kind,
-    const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc)
+bool dds_stream_extract_keyBO_from_data (dds_istream_t *is, DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc)
+{
+  return dds_stream_extract_keyBO_from_data_restrict (is, (RESTRICT_OSTREAM_T *) os, allocator, desc);
+}
+
+static void dds_stream_extract_keyBO_from_key_impl (dds_istream_t *is, RESTRICT_OSTREAM_T *os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc)
 {
   /* The type or any subtype has non-final extensibility, so read a key sample
      and write the key-only CDR for this sample */
   void *sample = allocator->malloc (desc->size);
   memset (sample, 0, desc->size);
   (void) dds_stream_read_impl (is, sample, allocator, desc->ops.ops, false, CDR_KIND_KEY, SAMPLE_DATA_INITIALIZED);
-  if (!dds_stream_write_keyBO (os, ser_kind, allocator, sample, desc))
+  if (!dds_stream_write_keyBO_restrict (os, ser_kind, allocator, sample, desc))
   {
     // input must have been proven correct (using normalize), so write can't run into invalid data
     abort ();
@@ -430,8 +433,7 @@ static void dds_stream_extract_keyBO_from_key_impl (dds_istream_t *is, DDS_OSTRE
   allocator->free (sample);
 }
 
-static void dds_stream_extract_keyBO_from_key_optimized (dds_istream_t *is, DDS_OSTREAM_T *os,
-    const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc)
+static void dds_stream_extract_keyBO_from_key_optimized (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc)
 {
   for (uint32_t i = 0; i < desc->keys.nkeys; i++)
   {
@@ -459,8 +461,7 @@ static void dds_stream_extract_keyBO_from_key_optimized (dds_istream_t *is, DDS_
    representation (native endianess). The former is not used regularly by Cyclone, and the latter is only used when receiving a key sample,
    e.g. a dispose. For this reason, we use a (performance wise) sub-optimal approach of going through the entire CDR for every key field.
    Optimizations is possible but would result in more complex code. */
-void dds_stream_extract_keyBO_from_key (dds_istream_t *is, DDS_OSTREAM_T *os, enum dds_cdr_key_serialization_kind ser_kind,
-    const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc)
+void dds_stream_extract_keyBO_from_key (dds_istream_t *is, DDS_OSTREAM_T *os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc)
 {
   assert (ser_kind == DDS_CDR_KEY_SERIALIZATION_SAMPLE || ser_kind == DDS_CDR_KEY_SERIALIZATION_KEYHASH);
 
@@ -469,7 +470,7 @@ void dds_stream_extract_keyBO_from_key (dds_istream_t *is, DDS_OSTREAM_T *os, en
      key for a keyhash is required (in member-id order), extract and write the key
      in two steps. Otherwise, extract the output CDR in a single step. */
   if ((desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE)) || ser_kind == DDS_CDR_KEY_SERIALIZATION_KEYHASH)
-    dds_stream_extract_keyBO_from_key_impl (is, os, ser_kind, allocator, desc);
+    dds_stream_extract_keyBO_from_key_impl (is, (RESTRICT_OSTREAM_T *) os, ser_kind, allocator, desc);
   else
-    dds_stream_extract_keyBO_from_key_optimized (is, os, allocator, desc);
+    dds_stream_extract_keyBO_from_key_optimized (is, (RESTRICT_OSTREAM_T *) os, allocator, desc);
 }
