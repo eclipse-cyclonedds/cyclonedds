@@ -99,13 +99,13 @@ CU_Test(idlc_type_meta, union_max_label_value)
 }
 
 
-static void xcdr2_ser (const void *obj, const struct dds_cdrstream_desc *desc, dds_ostream_t *os)
+static void xcdr2_ser (const void *obj, const struct dds_cdrstream_desc *desc, dds_ostreamLE_t *os)
 {
-  os->m_buffer = NULL;
-  os->m_index = 0;
-  os->m_size = 0;
-  os->m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
-  bool ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, &dds_cdrstream_default_allocator, obj, desc);
+  os->x.m_buffer = NULL;
+  os->x.m_index = 0;
+  os->x.m_size = 0;
+  os->x.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
+  bool ret = dds_stream_write_sampleLE (os, &dds_cdrstream_default_allocator, obj, desc);
   CU_ASSERT_FATAL (ret);
 }
 
@@ -845,35 +845,35 @@ CU_Test(idlc_type_meta, type_obj_serdes)
       printf ("test type %s %s\n", type_name ? type_name : "<anonymous>", ddsi_make_typeid_str_impl (&tidstr, tm->ti_complete));
 
       // serialize the generated type object
-      dds_ostream_t os;
+      dds_ostreamLE_t os;
       xcdr2_ser (tm->to_complete, &DDS_XTypes_TypeObject_cdrstream_desc, &os);
 
       if (tm->node == descriptor.topic)
       {
-        dds_ostream_t os_test;
+        dds_ostreamLE_t os_test;
         // serializer the reference type object
         DDS_XTypes_TypeObject *to_test = tests[i].get_typeobj_fn();
         xcdr2_ser (to_test, &DDS_XTypes_TypeObject_cdrstream_desc, &os_test);
 
         // compare serialized blobs
-        CU_ASSERT_EQUAL_FATAL (os.m_index, os_test.m_index);
-        assert (os.m_index == os_test.m_index);
-        int cmp = memcmp (os.m_buffer, os_test.m_buffer, os.m_index);
+        CU_ASSERT_EQUAL_FATAL (os.x.m_index, os_test.x.m_index);
+        assert (os.x.m_index == os_test.x.m_index);
+        int cmp = memcmp (os.x.m_buffer, os_test.x.m_buffer, os.x.m_index);
         CU_ASSERT_EQUAL_FATAL (cmp, 0);
 
         dds_stream_free_sample (to_test, &dds_cdrstream_default_allocator, DDS_XTypes_TypeObject_desc.m_ops);
         free (to_test);
-        dds_ostream_fini (&os_test, &dds_cdrstream_default_allocator);
+        dds_ostreamLE_fini (&os_test, &dds_cdrstream_default_allocator);
       }
 
       // test that generated type object can be serialized
       DDS_XTypes_TypeObject *to;
-      xcdr2_deser (os.m_buffer, os.m_index, (void **)&to, &DDS_XTypes_TypeObject_cdrstream_desc);
+      xcdr2_deser (os.x.m_buffer, os.x.m_index, (void **)&to, &DDS_XTypes_TypeObject_cdrstream_desc);
 
       // cleanup
       dds_stream_free_sample (to, &dds_cdrstream_default_allocator, DDS_XTypes_TypeObject_desc.m_ops);
       free (to);
-      dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
+      dds_ostreamLE_fini (&os, &dds_cdrstream_default_allocator);
     }
 
     descriptor_type_meta_fini (&dtm);
