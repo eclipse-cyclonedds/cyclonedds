@@ -421,12 +421,7 @@ static void dds_stream_extract_keyBO_from_key_impl (dds_istream_t *is, DDS_OSTRE
   void *sample = allocator->malloc (desc->size);
   memset (sample, 0, desc->size);
   (void) dds_stream_read_impl (is, sample, allocator, desc->ops.ops, false, CDR_KIND_KEY, SAMPLE_DATA_INITIALIZED);
-  bool ok;
-  if (ser_kind == DDS_CDR_KEY_SERIALIZATION_KEYHASH)
-    ok = dds_stream_write_keyBE ((dds_ostreamBE_t *) os, ser_kind, allocator, sample, desc);
-  else
-    ok = dds_stream_write_keyBO (os, ser_kind, allocator, sample, desc);
-  if (!ok)
+  if (!dds_stream_write_keyBO (os, ser_kind, allocator, sample, desc))
   {
     // input must have been proven correct (using normalize), so write can't run into invalid data
     abort ();
