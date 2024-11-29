@@ -16,7 +16,7 @@
 #include <string.h>
 
 #if WIN32
-#include <Windows.h>
+#include <windows.h>
 static const char sep[] = "/\\";
 static const char lib[] = "cyclonedds";
 static const char ext[] = "dll";
