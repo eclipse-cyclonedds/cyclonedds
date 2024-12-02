@@ -1099,6 +1099,51 @@ dds_create_domain(const dds_domainid_t domain, const char *config);
 DDS_EXPORT dds_entity_t
 dds_create_domain_with_rawconfig(const dds_domainid_t domain, const struct ddsi_config *config);
 
+/// @brief Supported lifecycle states
+/// @ingroup domain
+typedef enum dds_domain_lifecycle{
+  DDS_DOMAIN_LIFECYCLE_INITIALISATION,
+  DDS_DOMAIN_LIFECYCLE_OPERATIONAL
+} dds_domain_lifecycle_t;
+
+/// @brief Function to indicate where we are in the domain's lifecycle
+/// @note Domains starts out in the INITIALISATION
+/// state. The only transition currently allowed is to set it OPERATIONAL.
+/// The transition is currently only possible when applied to all domains via
+/// the `DDS_CYCLONEDDS_HANDLE`.
+///
+/// @param[in] domain The domain entity for which to set the lifecycle state. Only accepts `DDS_CYCLONEDDS_HANDLE`.
+/// @param[in] state The new state
+/// @return a dds_retcode_t indicating success or failure
+/// @retval DDS_RETCODE_OK transition was successful
+/// @retval DDS_RETCODE_ERROR Internal error prevented the transition. Should not be possible.
+/// @retval DDS_RETCODE_ILLEGAL_OPERATION handle refers to a non-domain entity
+/// @retval DDS_RETCODE_PRECONDITION_NOT_MET attempt at an disallowed transition
+/// @retval DDS_RETCODE_PRECONDITION_NOT_MET Cyclone DDS has not been initialised yet
+DDS_EXPORT
+dds_return_t dds_set_domain_lifecycle (
+  const dds_entity_t domain,
+  const enum dds_domain_lifecycle state);
+
+/// @brief Get the status of the domain lifecycle
+///
+/// The domain life-cycle state represents the operational phase of the domain. Currently
+/// the supported states are:
+///
+///     * Initialisation
+///     * Operational
+///
+/// @param[in] domain The domain entity for which to get the life-cycle state for. Only accepts `DDS_CYCLONEDDS_HANDLE`.
+/// @param[out] state The life-cycle state for the provided domain.
+/// @return a dds_retcode_t indicating success or failure
+/// @retval DDS_RETCODE_SUCCESS The state was successfully retrieved.
+/// @retval DDS_RETCODE_BAD_PARAMETER An incorrect domain provided. Only supports `DDS_CYCLONEDDS_HANDLE` currently.
+/// @retval DDS_RETCODE_PRECONDITION_NOT_MET An invalid pointer was provided for getting the state.
+DDS_EXPORT
+dds_return_t dds_get_domain_lifecycle(
+  const dds_entity_t domain,
+  enum dds_domain_lifecycle *state);
+
 /**
  * @brief Get entity parent.
  * @ingroup entity
