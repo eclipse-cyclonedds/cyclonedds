@@ -1160,30 +1160,27 @@ static void wstring_from_utf16 (wchar_t *dst, size_t dstlen, const uint16_t *src
 
 static wchar_t *dds_stream_reuse_wstring_bound (dds_istream_t * __restrict is, wchar_t * __restrict str, const uint32_t size)
 {
-  const uint32_t length = dds_is_get4 (is);
+  const uint32_t cdrsize = dds_is_get4 (is);
   const uint16_t *src = (const uint16_t *) (is->m_buffer + is->m_index);
-  is->m_index += 2u * length;
-  /* FIXME: validation now rejects data containing an oversize bounded string,
-     so this check is superfluous, but perhaps rejecting such a sample is the
-     wrong thing to do */
-  wstring_from_utf16 (str, size, src, length);
+  is->m_index += cdrsize;
+  wstring_from_utf16 (str, size, src, cdrsize / 2);
   return str;
 }
 
 static wchar_t *dds_stream_reuse_wstring (dds_istream_t * __restrict is, wchar_t * __restrict str, const struct dds_cdrstream_allocator * __restrict allocator, enum sample_data_state sample_state)
 {
-  const uint32_t length = dds_is_get4 (is);
+  const uint32_t cdrsize = dds_is_get4 (is);
   const uint16_t *src = (const uint16_t *) (is->m_buffer + is->m_index);
-  is->m_index += 2u * length;
+  is->m_index += cdrsize;
   if (sample_state == SAMPLE_DATA_INITIALIZED && str != NULL)
   {
-    if (length == 0 && str[0] == L'\0')
+    if (cdrsize == 0 && str[0] == L'\0')
       return str;
     allocator->free (str);
   }
   // if there are surrogates in the input and wchar_t is UTF-32, then we overallocate a bit
-  str = allocator->malloc (sizeof (wchar_t) * (length + 1));
-  wstring_from_utf16 (str, length + 1, src, length);
+  str = allocator->malloc (sizeof (wchar_t) * (cdrsize / 2 + 1));
+  wstring_from_utf16 (str, cdrsize / 2 + 1, src, cdrsize / 2);
   return str;
 }
 
@@ -1215,7 +1212,7 @@ static void dds_stream_skip_string (dds_istream_t * __restrict is)
 static void dds_stream_skip_wstring (dds_istream_t * __restrict is)
 {
   const uint32_t length = dds_is_get4 (is);
-  dds_stream_skip_forward (is, length, 2);
+  dds_stream_skip_forward (is, length, 1);
 }
 
 #ifndef NDEBUG
@@ -3394,29 +3391,32 @@ static inline bool normalize_wchar (char * __restrict data, uint32_t * __restric
 static bool normalize_wstring (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, size_t maxsz) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static bool normalize_wstring (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, size_t maxsz)
 {
-  // maxsz = character count, includes terminating L'\0' that is in-memory but not on the wire (unlike string)
+  // maxsz = character count, includes terminating L'\0' that is in-memory
+  // CDR stream contains number of bytes (so must be even), excluding termating L'\0'
   // taking the maximum allowed count on the wire as number uint16_t, not as number of code points (which may
   // be lower if there are surrogate pairs in the input)
   uint32_t sz;
   assert (maxsz > 0);
   if (!read_and_normalize_uint32 (&sz, data, off, size, bswap))
     return false;
-  if ((size - *off) / 2u < sz || maxsz - 1 < sz)
+  if ((size % 2) != 0 || size - *off < sz || maxsz - 1 < sz / 2)
     return normalize_error_bool ();
+  // even, fits in input and fits in bound
   if (bswap)
-    dds_stream_swap (data + *off, 2, sz);
+    dds_stream_swap (data + *off, 2, sz / 2);
   // verify surrogate pairs are used correctly
   {
     const uint16_t *str = (const uint16_t *) (data + *off);
+    const uint32_t len = sz / 2;
     uint32_t i = 0;
-    while (i < sz)
+    while (i < len)
     {
       if (str[i] < 0xd800 || str[i] >= 0xe000) {
         i++;
       } else if (str[i] >= 0xd800 && str[i] < 0xdc00) {
         // first half of surrogate pair, must have second half
         i++;
-        if (i == sz || str[i] < 0xdc00 || str[i] > 0xdfff)
+        if (i == len || str[i] < 0xdc00 || str[i] > 0xdfff)
           return normalize_error_bool ();
         i++;
       } else {
@@ -3425,7 +3425,7 @@ static bool normalize_wstring (char * __restrict data, uint32_t * __restrict off
       }
     }
   }
-  *off += 2u * sz;
+  *off += sz;
   return true;
 }
 
@@ -4526,18 +4526,12 @@ static void dds_stream_extract_key_from_key_prim_op (dds_istream_t * __restrict 
         default: abort ();
       }
       break;
-    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: {
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
+    case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR: {
       uint32_t sz = dds_is_get4 (is);
       dds_os_put4 (os, allocator, sz);
       dds_os_put_bytes (os, allocator, is->m_buffer + is->m_index, sz);
       is->m_index += sz;
-      break;
-    }
-    case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR: {
-      uint32_t sz = dds_is_get4 (is);
-      dds_os_put4 (os, allocator, sz);
-      dds_os_put_bytes (os, allocator, is->m_buffer + is->m_index, 2u * sz);
-      is->m_index += 2u * sz;
       break;
     }
     case DDS_OP_VAL_ARR: {
@@ -4640,18 +4634,12 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t * __restric
         default: abort ();
       }
       break;
-    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: {
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
+    case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR: {
       uint32_t sz = dds_is_get4 (is);
       dds_os_put4BE (os, allocator, sz);
       dds_os_put_bytes (&os->x, allocator, is->m_buffer + is->m_index, sz);
       is->m_index += sz;
-      break;
-    }
-    case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR: {
-      uint32_t sz = dds_is_get4 (is);
-      dds_os_put4BE (os, allocator, sz);
-      dds_os_put_bytes (&os->x, allocator, is->m_buffer + is->m_index, 2u * sz);
-      is->m_index += 2u * sz;
       break;
     }
     case DDS_OP_VAL_ARR: {
@@ -5086,7 +5074,7 @@ static bool prtf_wstr (char * __restrict *buf, size_t * __restrict bufsize, dds_
   const uint16_t *src = (const uint16_t *) (is->m_buffer + is->m_index);
   uint16_t w1 = 0;
   uint32_t utf32 = 0;
-  for (size_t i = 0; ret && i < sz; i++)
+  for (size_t i = 0; ret && i < sz / 2; i++)
   {
     if (src[i] < 0xd800 || src[i] >= 0xe000)
       utf32 = src[i];
@@ -5098,7 +5086,7 @@ static bool prtf_wstr (char * __restrict *buf, size_t * __restrict bufsize, dds_
       ret = prtf_utf32 (buf, bufsize, utf32);
   }
   ret = prtf (buf, bufsize, "\"");
-  is->m_index += 2u * (uint32_t) sz;
+  is->m_index += (uint32_t) sz;
   return ret;
 }
 
