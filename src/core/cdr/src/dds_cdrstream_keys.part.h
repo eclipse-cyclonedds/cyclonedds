@@ -156,6 +156,7 @@ bool dds_stream_write_keyBO (DDS_OSTREAM_T * __restrict os, enum dds_cdr_key_ser
 static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator,
   const uint32_t * const __restrict op0, const uint32_t * __restrict ops, bool mutable_member, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * __restrict keys_remaining)
 {
+  assert (insn == *ops);
   assert (DDS_OP (insn) == DDS_OP_ADR);
   const enum dds_stream_typecode type = DDS_OP_TYPE (insn);
   const bool is_key = (insn & DDS_OP_FLAG_KEY) && (os != NULL);
