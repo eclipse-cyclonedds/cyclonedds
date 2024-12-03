@@ -2502,7 +2502,7 @@ static const uint32_t *dds_stream_read_seq (dds_istream_t * __restrict is, char 
     case DDS_OP_VAL_BWSTR: {
       const uint32_t elem_size = (uint32_t) sizeof (wchar_t) * ops[2 + bound_op];
       assert (elem_size > 0);
-      const uint32_t bound = ops[2 + bound_op] - 1;
+      const uint32_t bound = ops[2 + bound_op];
       adjust_sequence_buffer (seq, allocator, num, elem_size, &sample_state);
       seq->_length = (num <= seq->_maximum) ? num : seq->_maximum;
       wchar_t *ptr = (wchar_t *) seq->_buffer;
@@ -2599,7 +2599,7 @@ static const uint32_t *dds_stream_read_arr (dds_istream_t * __restrict is, char 
       wchar_t *ptr = (wchar_t *) addr;
       const uint32_t elem_size = (uint32_t) sizeof (*ptr) * ops[4];
       assert (elem_size > 0);
-      const uint32_t bound = ops[4] - 1;
+      const uint32_t bound = ops[4];
       for (uint32_t i = 0; i < num; i++)
         (void) dds_stream_reuse_wstring_bound (is, ptr + i * elem_size, bound);
       return ops + 5;
