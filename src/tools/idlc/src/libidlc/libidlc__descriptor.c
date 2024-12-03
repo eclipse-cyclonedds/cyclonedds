@@ -1673,7 +1673,11 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
     }
   }
 
-  if (opcode == DDS_OP_JEQ4 || opcode == DDS_OP_PLM) {
+  if (opcode == DDS_OP_PLM) {
+    /* lower 16 bits contain an offset */
+    idl_snprintf(buf, sizeof(buf), " | %u", (uint16_t) DDS_OP_JUMP (inst->data.opcode.code));
+    vec[len++] = buf;
+  } else if (opcode == DDS_OP_JEQ4) {
     enum dds_stream_typecode type = DDS_OP_TYPE(inst->data.opcode.code);
     if (type == DDS_OP_VAL_ENU) {
       idl_snprintf(buf, sizeof(buf), " | (%u << DDS_OP_FLAG_SZ_SHIFT)", (inst->data.opcode.code & DDS_OP_FLAG_SZ_MASK) >> DDS_OP_FLAG_SZ_SHIFT);
