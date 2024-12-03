@@ -215,7 +215,7 @@ static void build_typecache_ti (const DDS_XTypes_TypeIdentifier *typeid, size_t 
         *size = sizeof (unsigned char *);
       } else {
         *align = 1;
-        *size = bound;
+        *size = bound + 1;
       }
       break;
     }
@@ -232,7 +232,7 @@ static void build_typecache_ti (const DDS_XTypes_TypeIdentifier *typeid, size_t 
         *size = sizeof (wchar_t *);
       } else {
         *align = 1;
-        *size = bound;
+        *size = (bound + 1) * sizeof (wchar_t);
       }
       break;
     }
