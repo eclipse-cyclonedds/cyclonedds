@@ -217,37 +217,49 @@ enum dds_stream_opcode {
   /** data field
      [ADR, nBY,   0, f] [offset]
      [ADR, BLN,   0, f] [offset]
+     [ADR, WCHAR,   0, f] [offset]
      [ADR, ENU,   0, f] [offset] [max]
      [ADR, BMK,   0, f] [offset] [bits-high] [bits-low]
      [ADR, STR,   0, f] [offset]
+     [ADR, WSTR,   0, f] [offset]
      [ADR, BST,   0, f] [offset] [max-size]
+     [ADR, BWSTR,   0, f] [offset] [max-size]
 
      [ADR, SEQ, nBY, f] [offset]
      [ADR, SEQ, BLN, f] [offset]
+     [ADR, SEQ, WCHAR, f] [offset]
      [ADR, SEQ, ENU, f] [offset] [max]
      [ADR, SEQ, BMK, f] [offset] [bits-high] [bits-low]
      [ADR, SEQ, STR, f] [offset]
+     [ADR, SEQ, WSTR, f] [offset]
      [ADR, SEQ, BST, f] [offset] [max-size]
+     [ADR, SEQ, BWSTR, f] [offset] [max-size]
      [ADR, SEQ,   s, f] [offset] [elem-size] [next-insn, elem-insn]
        where s = {SEQ,ARR,UNI,STU,BSQ}
      [ADR, SEQ, EXT, f] *** not supported
 
      [ADR, BSQ, nBY, f] [offset] [sbound]
      [ADR, BSQ, BLN, f] [offset] [sbound]
+     [ADR, BSQ, WCHAR, f] [offset] [sbound]
      [ADR, BSQ, ENU, f] [offset] [sbound] [max]
      [ADR, BSQ, BMK, f] [offset] [sbound] [bits-high] [bits-low]
      [ADR, BSQ, STR, f] [offset] [sbound]
+     [ADR, BSQ, WSTR, f] [offset] [sbound]
      [ADR, BSQ, BST, f] [offset] [sbound] [max-size]
+     [ADR, BSQ, BWSTR, f] [offset] [sbound] [max-size]
      [ADR, BSQ,   s, f] [offset] [sbound] [elem-size] [next-insn, elem-insn]
        where s = {SEQ,ARR,UNI,STU,BSQ}
      [ADR, BSQ, EXT, f] *** not supported
 
      [ADR, ARR, nBY, f] [offset] [alen]
      [ADR, ARR, BLN, f] [offset] [alen]
+     [ADR, ARR, WCHAR, f] [offset] [alen]
      [ADR, ARR, ENU, f] [offset] [alen] [max]
      [ADR, ARR, BMK, f] [offset] [alen] [bits-high] [bits-low]
      [ADR, ARR, STR, f] [offset] [alen]
+     [ADR, ARR, WSTR, f] [offset] [alen]
      [ADR, ARR, BST, f] [offset] [alen] [0] [max-size]
+     [ADR, ARR, BWSTR, f] [offset] [alen] [0] [max-size]
      [ADR, ARR,   s, f] [offset] [alen] [next-insn, elem-insn] [elem-size]
          where s = {SEQ,ARR,UNI,STU,BSQ}
      [ADR, ARR, EXT, f] *** not supported
