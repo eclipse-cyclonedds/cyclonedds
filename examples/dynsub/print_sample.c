@@ -105,7 +105,7 @@ static const wchar_t *get_wstring_pointer (const unsigned char *sample, const DD
   // must always call align for its side effects
   if (bound != 0)
   {
-    return align (sample, c, _Alignof (wchar_t), bound + 1);
+    return align (sample, c, _Alignof (wchar_t), (bound + 1) * sizeof (wchar_t));
   }
   else
   {
