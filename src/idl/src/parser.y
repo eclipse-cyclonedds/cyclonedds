@@ -345,7 +345,7 @@ const_dcl:
       { TRY(idl_create_const(pstate, LOC(@1.first, @5.last), $2, $3, $5, &$$)); }
   ;
 
-const_type:
+const_type: /* no wstring/wchar here: seems not worth the effort */
     integer_type
       { TRY(idl_create_base_type(pstate, &@1, $1, &$$)); }
   | floating_pt_type
@@ -548,6 +548,7 @@ _Pragma("GCC diagnostic pop")
         TRY(idl_create_literal(pstate, &@1, IDL_STRING, &$$));
         $$->value.str = $1;
       }
+  /* wstring, wchar do not seem worth the effort */
   ;
 
 boolean_literal:
