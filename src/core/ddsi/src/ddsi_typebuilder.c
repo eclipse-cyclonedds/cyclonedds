@@ -435,7 +435,7 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
     case DDS_XTypes_TK_STRING16: {
       bool bounded = (type->xt._u.str16.bound > 0);
       tb_type->type_code = bounded ? DDS_OP_VAL_BWSTR : DDS_OP_VAL_WSTR;
-      tb_type->args.string_args.max_size = type->xt._u.str8.bound + 1; // +1 for terminating L'\0'
+      tb_type->args.string_args.max_size = type->xt._u.str16.bound + 1; // +1 for terminating L'\0'
       tb_type->cdr_align = bounded ? 2 : 4; // unbounded string has 4 bytes length field in cdr
       *align = ALGN (wchar_t, !bounded || is_ext);
       if (bounded && !is_ext)
