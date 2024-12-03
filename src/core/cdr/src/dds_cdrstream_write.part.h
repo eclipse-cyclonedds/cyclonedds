@@ -92,7 +92,7 @@ static void dds_stream_write_wstringBO (DDS_OSTREAM_T * __restrict os, const str
   else
   {
     const uint32_t n = (uint32_t) wstring_utf16_len (val);
-    dds_os_put4BO (os, allocator, n);
+    dds_os_put4BO (os, allocator, 2 * n);
     dds_ostream_t * const os1 = (dds_ostream_t *) os;
     dds_cdr_resize (os1, allocator, 2 * n);
     uint16_t * const dst = (uint16_t *) (os1->m_buffer + os1->m_index);
