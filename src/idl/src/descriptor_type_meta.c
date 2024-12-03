@@ -193,7 +193,7 @@ has_fully_descriptive_typeid_impl (const idl_type_spec_t *type_spec, bool array_
       && !has_non_plain_annotation (type_spec)
       && !has_non_plain_annotation (element_type_spec);
   }
-  if (idl_is_string (type_spec) || idl_is_wstring (type_spec) || idl_is_base_type (type_spec))
+  if (idl_is_xstring (type_spec) || idl_is_base_type (type_spec))
     return !has_non_plain_annotation (type_spec);
   return false;
 }

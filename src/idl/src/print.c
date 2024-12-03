@@ -221,7 +221,7 @@ static int print_templ_type(
   for (; idl_is_sequence(type_spec); type_spec = idl_type_spec(type_spec))
     seq++;
 
-  if (idl_is_base_type(type_spec) || idl_is_string(type_spec) || idl_is_wstring(type_spec)) {
+  if (idl_is_base_type(type_spec) || idl_is_xstring(type_spec)) {
     switch (idl_type(type_spec)) {
       case IDL_BOOL:     type = "bool";                break;
       case IDL_CHAR:     type = "char";                break;

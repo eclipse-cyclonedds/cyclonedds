@@ -1033,6 +1033,21 @@ bool idl_is_bounded_wstring(const void *ptr)
   return idl_is_wstring(ptr) && idl_is_bounded(ptr);
 }
 
+bool idl_is_xstring(const void *ptr)
+{
+  return idl_is_string(ptr) || idl_is_wstring(ptr);
+}
+
+bool idl_is_unbounded_xstring(const void *ptr)
+{
+  return idl_is_unbounded_string(ptr) || idl_is_unbounded_wstring(ptr);
+}
+
+bool idl_is_bounded_xstring(const void *ptr)
+{
+  return idl_is_bounded_string(ptr) || idl_is_bounded_wstring(ptr);
+}
+
 static void delete_wstring(void *ptr)
 {
   idl_free(ptr);
