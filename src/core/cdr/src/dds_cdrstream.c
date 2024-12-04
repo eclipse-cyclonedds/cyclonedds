@@ -2507,7 +2507,7 @@ static const uint32_t *dds_stream_read_seq (dds_istream_t * __restrict is, char 
       seq->_length = (num <= seq->_maximum) ? num : seq->_maximum;
       wchar_t *ptr = (wchar_t *) seq->_buffer;
       for (uint32_t i = 0; i < seq->_length; i++)
-        (void) dds_stream_reuse_wstring_bound (is, ptr + i * elem_size, bound);
+        (void) dds_stream_reuse_wstring_bound (is, ptr + i * bound, bound);
       for (uint32_t i = seq->_length; i < num; i++)
         dds_stream_skip_wstring (is);
       return ops + 3 + bound_op;
@@ -2597,11 +2597,9 @@ static const uint32_t *dds_stream_read_arr (dds_istream_t * __restrict is, char 
     }
     case DDS_OP_VAL_BWSTR: {
       wchar_t *ptr = (wchar_t *) addr;
-      const uint32_t elem_size = (uint32_t) sizeof (*ptr) * ops[4];
-      assert (elem_size > 0);
-      const uint32_t bound = ops[4];
+      const uint32_t elem_size = ops[4];
       for (uint32_t i = 0; i < num; i++)
-        (void) dds_stream_reuse_wstring_bound (is, ptr + i * elem_size, bound);
+        (void) dds_stream_reuse_wstring_bound (is, ptr + i * elem_size, elem_size);
       return ops + 5;
     }
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
