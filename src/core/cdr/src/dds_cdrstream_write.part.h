@@ -308,7 +308,7 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
       }
       case DDS_OP_VAL_BWSTR: {
         const wchar_t *ptr = (const wchar_t *) seq->_buffer;
-        const uint32_t elem_size = (uint32_t) sizeof (*ptr) * ops[2 + bound_op];
+        const uint32_t elem_size = ops[2 + bound_op];
         for (uint32_t i = 0; i < num; i++)
           dds_stream_write_wstringBO (os, allocator, ptr + i * elem_size);
         ops += 3 + bound_op;
@@ -408,7 +408,7 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
     }
     case DDS_OP_VAL_BWSTR: {
       const wchar_t *ptr = (const wchar_t *) addr;
-      const uint32_t elem_size = (uint32_t) sizeof (*ptr) * ops[4];
+      const uint32_t elem_size = ops[4];
       for (uint32_t i = 0; i < num; i++)
         dds_stream_write_wstringBO (os, allocator, ptr + i * elem_size);
       ops += 5;
