@@ -12,6 +12,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <wchar.h>
 
 #include "dds/dds.h"
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
@@ -162,9 +163,9 @@ static bool build_typecache_simple (const uint8_t disc, size_t *align, size_t *s
     case CASE(INT8, int8_t);
     case CASE(UINT8, uint8_t);
     case CASE(CHAR8, int8_t);
-    case CASE(CHAR16, uint16_t);
+    case CASE(CHAR16, wchar_t);
     case CASE(STRING8, unsigned char *);
-    case CASE(STRING16, uint16_t *);
+    case CASE(STRING16, wchar_t *);
 #undef CASE
   }
   return false;
@@ -204,7 +205,7 @@ static void build_typecache_ti (const DDS_XTypes_TypeIdentifier *typeid, size_t 
     case DDS_XTypes_TI_STRING8_SMALL:
     case DDS_XTypes_TI_STRING8_LARGE: {
       uint32_t bound;
-      if (typeid->_d == DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL) {
+      if (typeid->_d == DDS_XTypes_TI_STRING8_SMALL) {
         bound = typeid->_u.string_sdefn.bound;
       } else {
         bound = typeid->_u.string_ldefn.bound;
@@ -214,7 +215,24 @@ static void build_typecache_ti (const DDS_XTypes_TypeIdentifier *typeid, size_t 
         *size = sizeof (unsigned char *);
       } else {
         *align = 1;
-        *size = bound;
+        *size = bound + 1;
+      }
+      break;
+    }
+    case DDS_XTypes_TI_STRING16_SMALL:
+    case DDS_XTypes_TI_STRING16_LARGE: {
+      uint32_t bound;
+      if (typeid->_d == DDS_XTypes_TI_STRING16_SMALL) {
+        bound = typeid->_u.string_sdefn.bound;
+      } else {
+        bound = typeid->_u.string_ldefn.bound;
+      }
+      if (bound == 0) {
+        *align = _Alignof (wchar_t *);
+        *size = sizeof (wchar_t *);
+      } else {
+        *align = 1;
+        *size = (bound + 1) * sizeof (wchar_t);
       }
       break;
     }
@@ -465,6 +483,9 @@ static bool load_deps_ti (dds_entity_t participant, const DDS_XTypes_TypeIdentif
   {
     case DDS_XTypes_TI_STRING8_SMALL:
     case DDS_XTypes_TI_STRING8_LARGE:
+      return true;
+    case DDS_XTypes_TI_STRING16_SMALL:
+    case DDS_XTypes_TI_STRING16_LARGE:
       return true;
     case DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL:
       return load_deps_ti (participant, typeid->_u.seq_sdefn.element_identifier);

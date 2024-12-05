@@ -92,6 +92,13 @@ static void *samples_M1_O[] = {
   NULL
 };
 
+static void *samples_d[] = {
+  &(D){ L"😀 Een Kruyck gaat soo langh te water tot datse barst.", 0x2206, 0 },
+  &(D){ L"🙃 Men treckt een Boogh soo lang tot datse stucken knarst.", 0x2207, 0 },
+  &(D){ L"😊 De Steel-kunst doet zyn Meester de dood vaak verwerven.", 0x22a5, 0 },
+  NULL
+};
+
 static struct tpentry {
   const char *name;
   const dds_topic_descriptor_t *descr;
@@ -102,6 +109,7 @@ static struct tpentry {
   { "B", &B_desc, samples_b, offsetof (B, a.count) },
   { "C", &C_desc, samples_c, offsetof (C, b.a.count) },
   { "M1::O", &M1_O_desc, samples_M1_O, SIZE_MAX },
+  { "D", &D_desc, samples_d, offsetof (D, count) },
   { NULL, NULL, NULL, 0 }
 };
 

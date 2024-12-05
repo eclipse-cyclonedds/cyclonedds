@@ -16,10 +16,10 @@ static bool dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const st
   assert (insn_key_ok_p (insn));
   void *addr = (char *) src + ops[1];
 
-  if (op_type_external (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR)
+  if (op_type_external (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR || DDS_OP_TYPE (insn) == DDS_OP_VAL_WSTR)
   {
     addr = *(char **) addr;
-    if (addr == NULL && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR)
+    if (addr == NULL && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR && DDS_OP_TYPE (insn) != DDS_OP_VAL_WSTR)
       return false;
   }
 
@@ -39,7 +39,13 @@ static bool dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const st
         return false;
       break;
     case DDS_OP_VAL_STR: dds_stream_write_stringBO (os, allocator, addr); break;
+    case DDS_OP_VAL_WSTR: dds_stream_write_wstringBO (os, allocator, (const wchar_t *) addr); break;
     case DDS_OP_VAL_BST: dds_stream_write_stringBO (os, allocator, addr); break;
+    case DDS_OP_VAL_BWSTR: dds_stream_write_wstringBO (os, allocator, (const wchar_t *) addr); break;
+    case DDS_OP_VAL_WCHAR:
+      if (!dds_stream_write_wcharBO (os, allocator, *(wchar_t *) addr))
+        return false;
+      break;
     case DDS_OP_VAL_ARR: {
       const uint32_t num = ops[2];
       switch (DDS_OP_SUBTYPE (insn))
@@ -150,6 +156,7 @@ bool dds_stream_write_keyBO (DDS_OSTREAM_T * __restrict os, enum dds_cdr_key_ser
 static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator,
   const uint32_t * const __restrict op0, const uint32_t * __restrict ops, bool mutable_member, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * __restrict keys_remaining)
 {
+  assert (insn == *ops);
   assert (DDS_OP (insn) == DDS_OP_ADR);
   const enum dds_stream_typecode type = DDS_OP_TYPE (insn);
   const bool is_key = (insn & DDS_OP_FLAG_KEY) && (os != NULL);

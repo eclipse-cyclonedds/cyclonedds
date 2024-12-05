@@ -1043,7 +1043,7 @@ static dds_return_t xt_validate_impl (struct ddsi_domaingv *gv, const struct xt_
     case DDS_XTypes_TK_INT8: case DDS_XTypes_TK_INT16: case DDS_XTypes_TK_INT32: case DDS_XTypes_TK_INT64:
     case DDS_XTypes_TK_UINT8: case DDS_XTypes_TK_UINT16: case DDS_XTypes_TK_UINT32: case DDS_XTypes_TK_UINT64:
     case DDS_XTypes_TK_FLOAT32: case DDS_XTypes_TK_FLOAT64: case DDS_XTypes_TK_FLOAT128:
-    case DDS_XTypes_TK_CHAR8: case DDS_XTypes_TK_CHAR16: case DDS_XTypes_TK_STRING8:
+    case DDS_XTypes_TK_CHAR8: case DDS_XTypes_TK_CHAR16: case DDS_XTypes_TK_STRING8: case DDS_XTypes_TK_STRING16:
       // no validations
       break;
     default:

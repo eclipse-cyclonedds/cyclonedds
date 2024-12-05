@@ -1,73 +1,32 @@
+// Copyright(c) 2024 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
 #include <stdio.h>
 #include <string.h>
 #include <stddef.h>
 
 #include "dds/ddsrt/countargs.h"
+#include "dds/ddsrt/foreach.h"
 #include "dds/ddsrt/dynlib.h"
 
 // HACK, we shouldn't include this file if there are none
 #ifdef PLUGINS
 
-#define FOREACH_3_1(f, sep, x)       f(x)
-#define FOREACH_3_2(f, sep, x, ...)  f(x) sep() FOREACH_3_1(f, sep, __VA_ARGS__)
-#define FOREACH_3_3(f, sep, x, ...)  f(x) sep() FOREACH_3_2(f, sep, __VA_ARGS__)
-#define FOREACH_3_4(f, sep, x, ...)  f(x) sep() FOREACH_3_3(f, sep, __VA_ARGS__)
-#define FOREACH_3_5(f, sep, x, ...)  f(x) sep() FOREACH_3_4(f, sep, __VA_ARGS__)
-#define FOREACH_3_6(f, sep, x, ...)  f(x) sep() FOREACH_3_5(f, sep, __VA_ARGS__)
-#define FOREACH_3_7(f, sep, x, ...)  f(x) sep() FOREACH_3_6(f, sep, __VA_ARGS__)
-#define FOREACH_3_8(f, sep, x, ...)  f(x) sep() FOREACH_3_7(f, sep, __VA_ARGS__)
-#define FOREACH_3_9(f, sep, x, ...)  f(x) sep() FOREACH_3_8(f, sep, __VA_ARGS__)
-#define FOREACH_3_10(f, sep, x, ...) f(x) sep() FOREACH_3_9(f, sep, __VA_ARGS__)
-#define FOREACH_3_11(f, sep, x, ...) f(x) sep() FOREACH_3_10(f, sep, __VA_ARGS__)
-#define FOREACH_3_12(f, sep, x, ...) f(x) sep() FOREACH_3_11(f, sep, __VA_ARGS__)
-#define FOREACH_3_13(f, sep, x, ...) f(x) sep() FOREACH_3_12(f, sep, __VA_ARGS__)
-#define FOREACH_3_14(f, sep, x, ...) f(x) sep() FOREACH_3_13(f, sep, __VA_ARGS__)
-#define FOREACH_3_15(f, sep, x, ...) f(x) sep() FOREACH_3_14(f, sep, __VA_ARGS__)
-#define FOREACH_3_16(f, sep, x, ...) f(x) sep() FOREACH_3_15(f, sep, __VA_ARGS__)
-#define FOREACH_3_17(f, sep, x, ...) f(x) sep() FOREACH_3_16(f, sep, __VA_ARGS__)
-#define FOREACH_3_18(f, sep, x, ...) f(x) sep() FOREACH_3_17(f, sep, __VA_ARGS__)
-#define FOREACH_3_19(f, sep, x, ...) f(x) sep() FOREACH_3_18(f, sep, __VA_ARGS__)
-#define FOREACH_3_20(f, sep, x, ...) f(x) sep() FOREACH_3_19(f, sep, __VA_ARGS__)
-#define FOREACH_2(n, f, sep, ...) FOREACH_3_##n(f, sep, __VA_ARGS__)
-#define FOREACH_1(n, f, sep, ...) FOREACH_2(n, f, sep, __VA_ARGS__)
-#define FOREACH(f, sep, ...) FOREACH_1(DDSRT_COUNT_ARGS(__VA_ARGS__), f, sep,  __VA_ARGS__)
-#define FOREACH_WRAP(f, sep, ...) FOREACH(f, sep, __VA_ARGS__)
-
-// 2nd set of FOREACH macros because we need two levels of FOREACH's but the
-// C preprocessor doesn't allow recursive macro expansion
-#define FOREACH_B_3_1(f, sep, x)       f(x)
-#define FOREACH_B_3_2(f, sep, x, ...)  f(x) sep() FOREACH_B_3_1(f, sep, __VA_ARGS__)
-#define FOREACH_B_3_3(f, sep, x, ...)  f(x) sep() FOREACH_B_3_2(f, sep, __VA_ARGS__)
-#define FOREACH_B_3_4(f, sep, x, ...)  f(x) sep() FOREACH_B_3_3(f, sep, __VA_ARGS__)
-#define FOREACH_B_3_5(f, sep, x, ...)  f(x) sep() FOREACH_B_3_4(f, sep, __VA_ARGS__)
-#define FOREACH_B_3_6(f, sep, x, ...)  f(x) sep() FOREACH_B_3_5(f, sep, __VA_ARGS__)
-#define FOREACH_B_3_7(f, sep, x, ...)  f(x) sep() FOREACH_B_3_6(f, sep, __VA_ARGS__)
-#define FOREACH_B_3_8(f, sep, x, ...)  f(x) sep() FOREACH_B_3_7(f, sep, __VA_ARGS__)
-#define FOREACH_B_3_9(f, sep, x, ...)  f(x) sep() FOREACH_B_3_8(f, sep, __VA_ARGS__)
-#define FOREACH_B_3_10(f, sep, x, ...) f(x) sep() FOREACH_B_3_9(f, sep, __VA_ARGS__)
-#define FOREACH_B_3_11(f, sep, x, ...) f(x) sep() FOREACH_B_3_10(f, sep, __VA_ARGS__)
-#define FOREACH_B_3_12(f, sep, x, ...) f(x) sep() FOREACH_B_3_11(f, sep, __VA_ARGS__)
-#define FOREACH_B_3_13(f, sep, x, ...) f(x) sep() FOREACH_B_3_12(f, sep, __VA_ARGS__)
-#define FOREACH_B_3_14(f, sep, x, ...) f(x) sep() FOREACH_B_3_13(f, sep, __VA_ARGS__)
-#define FOREACH_B_3_15(f, sep, x, ...) f(x) sep() FOREACH_B_3_14(f, sep, __VA_ARGS__)
-#define FOREACH_B_3_16(f, sep, x, ...) f(x) sep() FOREACH_B_3_15(f, sep, __VA_ARGS__)
-#define FOREACH_B_3_17(f, sep, x, ...) f(x) sep() FOREACH_B_3_16(f, sep, __VA_ARGS__)
-#define FOREACH_B_3_18(f, sep, x, ...) f(x) sep() FOREACH_B_3_17(f, sep, __VA_ARGS__)
-#define FOREACH_B_3_19(f, sep, x, ...) f(x) sep() FOREACH_B_3_18(f, sep, __VA_ARGS__)
-#define FOREACH_B_3_20(f, sep, x, ...) f(x) sep() FOREACH_B_3_19(f, sep, __VA_ARGS__)
-#define FOREACH_B_2(n, f, sep, ...) FOREACH_B_3_##n(f, sep, __VA_ARGS__)
-#define FOREACH_B_1(n, f, sep, ...) FOREACH_B_2(n, f, sep, __VA_ARGS__)
-#define FOREACH_B(f, sep, ...) FOREACH_B_1(DDSRT_COUNT_ARGS(__VA_ARGS__), f, sep, __VA_ARGS__)
-#define FOREACH_B_WRAP(f, sep, ...) FOREACH_B(f, sep, __VA_ARGS__)
-
 #define COMMA() ,
 #define SEMICOLON() ;
 
 #define DLSYM_EXTERN(f) extern void f (void)
-#define MAKE_DLSYM_EXTERNS_2(...) FOREACH_B(DLSYM_EXTERN, SEMICOLON, __VA_ARGS__)
+#define MAKE_DLSYM_EXTERNS_2(...) DDSRT_FOREACH_B(DLSYM_EXTERN, SEMICOLON, __VA_ARGS__)
 #define MAKE_DLSYM_EXTERNS_1(...) MAKE_DLSYM_EXTERNS_2(__VA_ARGS__)
 #define MAKE_DLSYM_EXTERNS(p) MAKE_DLSYM_EXTERNS_1(PLUGIN_SYMBOLS_##p)
-FOREACH_WRAP (MAKE_DLSYM_EXTERNS, SEMICOLON, PLUGINS);
+DDSRT_FOREACH_WRAP (MAKE_DLSYM_EXTERNS, SEMICOLON, PLUGINS);
 
 struct static_dlsym_table {
   const char *name;
@@ -77,14 +36,14 @@ struct static_dlsym_table {
 #define DLSYM_TABLE_ENTRY(f) { #f, f }
 #define MAKE_DLSYM_TABLE_2(libname, ...)                                \
   static const struct static_dlsym_table static_dlsym_table_##libname[] = { \
-    FOREACH_B(DLSYM_TABLE_ENTRY, COMMA, __VA_ARGS__),                  \
+    DDSRT_FOREACH_B(DLSYM_TABLE_ENTRY, COMMA, __VA_ARGS__),                  \
     { NULL, NULL }                                                      \
   }
 
 #define MAKE_DLSYM_TABLE_1(libname, ...) MAKE_DLSYM_TABLE_2(libname, __VA_ARGS__)
 #define MAKE_DLSYM_TABLE(p) MAKE_DLSYM_TABLE_1(p, PLUGIN_SYMBOLS_##p)
 
-FOREACH_WRAP (MAKE_DLSYM_TABLE, SEMICOLON, PLUGINS);
+DDSRT_FOREACH_WRAP (MAKE_DLSYM_TABLE, SEMICOLON, PLUGINS);
 
 struct static_dlopen_table {
   const char *name;
@@ -94,7 +53,7 @@ struct static_dlopen_table {
 #define DLOPEN_TABLE_ENTRY(p) { #p, static_dlsym_table_##p }
 
 static const struct static_dlopen_table static_dlopen_table[] = {
-  FOREACH_WRAP(DLOPEN_TABLE_ENTRY, COMMA, PLUGINS),
+  DDSRT_FOREACH_WRAP(DLOPEN_TABLE_ENTRY, COMMA, PLUGINS),
   { NULL, NULL }
 };
 

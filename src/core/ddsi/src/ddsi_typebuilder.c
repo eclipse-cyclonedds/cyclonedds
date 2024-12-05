@@ -68,7 +68,6 @@ struct typebuilder_type
   enum dds_stream_typecode type_code;
   uint32_t size;
   uint32_t align;
-  uint32_t cdr_align;
   union {
     struct {
       bool is_signed;
@@ -370,7 +369,6 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
   {
     case DDS_XTypes_TK_BOOLEAN:
       tb_type->type_code = DDS_OP_VAL_BLN;
-      tb_type->cdr_align = 1;
       *align = ALGN (uint8_t, is_ext);
       *size = SZ (uint8_t, is_ext);
       break;
@@ -380,7 +378,6 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
     case DDS_XTypes_TK_BYTE:
       tb_type->type_code = DDS_OP_VAL_1BY;
       tb_type->args.prim_args.is_signed = (type->xt._d == DDS_XTypes_TK_CHAR8 || type->xt._d == DDS_XTypes_TK_INT8);
-      tb_type->cdr_align = 1;
       *align = ALGN (uint8_t, is_ext);
       *size = SZ (uint8_t, is_ext);
       break;
@@ -388,7 +385,12 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
     case DDS_XTypes_TK_UINT16:
       tb_type->type_code = DDS_OP_VAL_2BY;
       tb_type->args.prim_args.is_signed = (type->xt._d == DDS_XTypes_TK_INT16);
-      tb_type->cdr_align = 2;
+      *align = ALGN (uint16_t, is_ext);
+      *size = SZ (uint16_t, is_ext);
+      break;
+    case DDS_XTypes_TK_CHAR16:
+      tb_type->type_code = DDS_OP_VAL_WCHAR;
+      tb_type->args.prim_args.is_signed = false;
       *align = ALGN (uint16_t, is_ext);
       *size = SZ (uint16_t, is_ext);
       break;
@@ -398,7 +400,6 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
       tb_type->type_code = DDS_OP_VAL_4BY;
       tb_type->args.prim_args.is_signed = (type->xt._d == DDS_XTypes_TK_INT32);
       tb_type->args.prim_args.is_fp = (type->xt._d == DDS_XTypes_TK_FLOAT32);
-      tb_type->cdr_align = 4;
       *align = type->xt._d == DDS_XTypes_TK_FLOAT32 ? ALGN (float, is_ext) : ALGN (uint32_t, is_ext);
       *size = SZ (uint32_t, is_ext);
       break;
@@ -408,20 +409,30 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
       tb_type->type_code = DDS_OP_VAL_8BY;
       tb_type->args.prim_args.is_signed = (type->xt._d == DDS_XTypes_TK_INT64);
       tb_type->args.prim_args.is_fp = (type->xt._d == DDS_XTypes_TK_FLOAT64);
-      tb_type->cdr_align = 8;
       *align = type->xt._d == DDS_XTypes_TK_FLOAT64 ? ALGN (double, is_ext) : ALGN (uint64_t, is_ext);
       *size = SZ (uint64_t, is_ext);
       break;
     case DDS_XTypes_TK_STRING8: {
       bool bounded = (type->xt._u.str8.bound > 0);
       tb_type->type_code = bounded ? DDS_OP_VAL_BST : DDS_OP_VAL_STR;
-      tb_type->args.string_args.max_size = type->xt._u.str8.bound + 1; // +1 for terminating \0
-      tb_type->cdr_align = bounded ? 1 : 4; // unbounded string has 4 bytes length field in cdr
+      tb_type->args.string_args.max_size = type->xt._u.str8.bound + 1; // +1 for terminating '\0'
       *align = ALGN (uint8_t, !bounded || is_ext);
       if (bounded && !is_ext)
-        *size = tb_type->args.string_args.max_size * sizeof (char);
+        *size = tb_type->args.string_args.max_size * (uint32_t) sizeof (char);
       else
         *size = sizeof (char *);
+      tbd->fixed_size = false;
+      break;
+    }
+    case DDS_XTypes_TK_STRING16: {
+      bool bounded = (type->xt._u.str16.bound > 0);
+      tb_type->type_code = bounded ? DDS_OP_VAL_BWSTR : DDS_OP_VAL_WSTR;
+      tb_type->args.string_args.max_size = type->xt._u.str16.bound + 1; // +1 for terminating L'\0'
+      *align = ALGN (wchar_t, !bounded || is_ext);
+      if (bounded && !is_ext)
+        *size = tb_type->args.string_args.max_size * (uint32_t) sizeof (wchar_t);
+      else
+        *size = sizeof (wchar_t *);
       tbd->fixed_size = false;
       break;
     }
@@ -436,14 +447,6 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
       tb_type->type_code = DDS_OP_VAL_ENU;
       tb_type->args.enum_args.max = max;
       tb_type->args.enum_args.bit_bound = type->xt._u.enum_type.bit_bound;
-      if (tb_type->args.enum_args.bit_bound > 32)
-        tb_type->cdr_align = 8;
-      else if (tb_type->args.enum_args.bit_bound > 16)
-        tb_type->cdr_align = 4;
-      else if (tb_type->args.enum_args.bit_bound > 8)
-        tb_type->cdr_align = 2;
-      else
-        tb_type->cdr_align = 1;
       *align = ALGN (uint32_t, is_ext);
       *size = SZ (uint32_t, is_ext);
       break;
@@ -458,25 +461,21 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
       tb_type->args.bitmask_args.bit_bound = type->xt._u.bitmask.bit_bound;
       if (type->xt._u.bitmask.bit_bound > 32)
       {
-        tb_type->cdr_align = 8;
         *align = ALGN (uint64_t, is_ext);
         *size = SZ (uint64_t, is_ext);
       }
       else if (type->xt._u.bitmask.bit_bound > 16)
       {
-        tb_type->cdr_align = 4;
         *align = ALGN (uint32_t, is_ext);
         *size = SZ (uint32_t, is_ext);
       }
       else if (type->xt._u.bitmask.bit_bound > 8)
       {
-        tb_type->cdr_align = 2;
         *align = ALGN (uint16_t, is_ext);
         *size = SZ (uint16_t, is_ext);
       }
       else
       {
-        tb_type->cdr_align = 1;
         *align = ALGN (uint8_t, is_ext);
         *size = SZ (uint8_t, is_ext);
       }
@@ -498,7 +497,6 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
       {
         goto err;
       }
-      tb_type->cdr_align = 4; // sequence length is a 32 bits integer
       *align = ALGN (dds_sequence_t, is_ext);
       *size = SZ (dds_sequence_t, is_ext);
       tbd->fixed_size = false;
@@ -530,7 +528,6 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
       {
         goto err;
       }
-      tb_type->cdr_align = tb_type->args.collection_args.element_type.type->cdr_align;
       *align = is_ext ? dds_alignof (void *) : tb_type->args.collection_args.elem_align;
       *size = is_ext ? sizeof (void *) : bound * tb_type->args.collection_args.elem_sz;
       break;
@@ -559,14 +556,11 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
           return ret;
       }
       tb_type->args.external_type_args.external_type.type = aggrtype;
-      tb_type->cdr_align = 0;
       *align = is_ext ? dds_alignof (void *) : aggrtype->align;
       *size = is_ext ? sizeof (void *) : aggrtype->size;
       break;
     }
     case DDS_XTypes_TK_FLOAT128:
-    case DDS_XTypes_TK_CHAR16:
-    case DDS_XTypes_TK_STRING16:
     case DDS_XTypes_TK_ANNOTATION:
     case DDS_XTypes_TK_MAP:
     case DDS_XTypes_TK_BITSET:
@@ -905,10 +899,25 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
       PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_STR | flags);
       PUSH_ARG (member_offset);
       break;
+    case DDS_OP_VAL_WSTR:
+      flags &= ~DDS_OP_FLAG_EXT;
+      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_WSTR | flags);
+      PUSH_ARG (member_offset);
+      break;
     case DDS_OP_VAL_BST:
       PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_BST | flags);
       PUSH_ARG (member_offset);
       PUSH_ARG (tb_type->args.string_args.max_size);
+      break;
+    case DDS_OP_VAL_BWSTR:
+      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_BWSTR | flags);
+      PUSH_ARG (member_offset);
+      PUSH_ARG (tb_type->args.string_args.max_size);
+      break;
+    case DDS_OP_VAL_WCHAR:
+      flags |= get_type_flags (tb_type);
+      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_WCHAR | flags);
+      PUSH_ARG (member_offset);
       break;
     case DDS_OP_VAL_BSQ:
     case DDS_OP_VAL_SEQ: {
@@ -924,7 +933,7 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
       switch (element_type->type_code)
       {
         case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
-        case DDS_OP_VAL_BLN: case DDS_OP_VAL_STR:
+        case DDS_OP_VAL_BLN: case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR: case DDS_OP_VAL_WCHAR:
           break;
         case DDS_OP_VAL_ENU:
           PUSH_ARG (element_type->args.enum_args.max);
@@ -934,6 +943,7 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
           PUSH_ARG (element_type->args.bitmask_args.bits_l);
           break;
         case DDS_OP_VAL_BST:
+        case DDS_OP_VAL_BWSTR:
           PUSH_ARG (element_type->args.string_args.max_size);
           break;
         case DDS_OP_VAL_STU: case DDS_OP_VAL_UNI:
@@ -980,7 +990,7 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
       switch (element_type->type_code)
       {
         case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
-        case DDS_OP_VAL_BLN: case DDS_OP_VAL_STR:
+        case DDS_OP_VAL_BLN: case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR: case DDS_OP_VAL_WCHAR:
           break;
         case DDS_OP_VAL_ENU:
           PUSH_ARG (element_type->args.enum_args.max);
@@ -989,7 +999,7 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
           PUSH_ARG (element_type->args.bitmask_args.bits_h);
           PUSH_ARG (element_type->args.bitmask_args.bits_l);
           break;
-        case DDS_OP_VAL_BST:
+        case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR:
           PUSH_ARG (0);
           PUSH_ARG (element_type->args.string_args.max_size);
           break;
@@ -1117,6 +1127,19 @@ static dds_return_t get_ops_union_case (struct typebuilder_type *tb_type, uint32
       PUSH_ARG (offset);
       PUSH_ARG (0);
       break;
+    case DDS_OP_VAL_WSTR:
+      flags &= ~DDS_OP_FLAG_EXT;
+      PUSH_OP (DDS_OP_JEQ4 | DDS_OP_TYPE_WSTR | flags);
+      PUSH_ARG (disc_value);
+      PUSH_ARG (offset);
+      PUSH_ARG (0);
+      break;
+    case DDS_OP_VAL_WCHAR:
+      PUSH_OP (DDS_OP_JEQ4 | DDS_OP_TYPE_WCHAR | flags);
+      PUSH_ARG (disc_value);
+      PUSH_ARG (offset);
+      PUSH_ARG (0);
+      break;
     case DDS_OP_VAL_UNI:
     case DDS_OP_VAL_STU: {
       flags |= get_type_flags (tb_type);
@@ -1130,6 +1153,7 @@ static dds_return_t get_ops_union_case (struct typebuilder_type *tb_type, uint32
     }
     case DDS_OP_VAL_BMK:
     case DDS_OP_VAL_BST:
+    case DDS_OP_VAL_BWSTR:
     case DDS_OP_VAL_BSQ:
     case DDS_OP_VAL_SEQ:
     case DDS_OP_VAL_ARR: {

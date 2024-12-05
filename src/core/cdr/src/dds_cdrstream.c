@@ -11,6 +11,8 @@
 #include <assert.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdint.h>
+#include <wchar.h>
 
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/md5.h"
@@ -66,6 +68,8 @@
 #define dds_os_reserve8BO                             NAME_BYTE_ORDER(dds_os_reserve8)
 #define dds_ostreamBO_fini                            NAME2_BYTE_ORDER(dds_ostream, _fini)
 #define dds_stream_write_stringBO                     NAME_BYTE_ORDER(dds_stream_write_string)
+#define dds_stream_write_wstringBO                    NAME_BYTE_ORDER(dds_stream_write_wstring)
+#define dds_stream_write_wcharBO                      NAME_BYTE_ORDER(dds_stream_write_wchar)
 #define dds_stream_write_seqBO                        NAME_BYTE_ORDER(dds_stream_write_seq)
 #define dds_stream_write_arrBO                        NAME_BYTE_ORDER(dds_stream_write_arr)
 #define dds_stream_write_bool_valueBO                 NAME_BYTE_ORDER(dds_stream_write_bool_value)
@@ -451,7 +455,7 @@ static void dds_os_put_bytes_aligned (dds_ostream_t * __restrict os, const struc
 
 static inline bool is_primitive_type (enum dds_stream_typecode type)
 {
-  return type <= DDS_OP_VAL_8BY || type == DDS_OP_VAL_BLN;
+  return type <= DDS_OP_VAL_8BY || type == DDS_OP_VAL_BLN || type == DDS_OP_VAL_WCHAR;
 }
 
 #ifndef NDEBUG
@@ -470,7 +474,14 @@ static uint32_t get_primitive_size (enum dds_stream_typecode type)
 {
   DDSRT_STATIC_ASSERT (DDS_OP_VAL_1BY == 1 && DDS_OP_VAL_2BY == 2 && DDS_OP_VAL_4BY == 3 && DDS_OP_VAL_8BY == 4);
   assert (is_primitive_type (type));
-  return type == DDS_OP_VAL_BLN ? 1 : (uint32_t)1 << ((uint32_t) type - 1);
+  if (type <= DDS_OP_VAL_8BY)
+    return (uint32_t)1 << ((uint32_t) type - 1);
+  else if (type == DDS_OP_VAL_BLN)
+    return 1;
+  else if (type == DDS_OP_VAL_WCHAR)
+    return 2;
+  else
+    abort ();
 }
 
 static uint32_t get_collection_elem_size (uint32_t insn, const uint32_t * __restrict ops)
@@ -485,7 +496,12 @@ static uint32_t get_collection_elem_size (uint32_t insn, const uint32_t * __rest
       return DDS_OP_TYPE_SZ (insn);
     case DDS_OP_VAL_STR:
       return sizeof (char *);
-    case DDS_OP_VAL_BST: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
+    case DDS_OP_VAL_WSTR:
+      return sizeof (wchar_t *);
+    case DDS_OP_VAL_WCHAR:
+      return sizeof (wchar_t);
+    case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR:
+    case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
       if (DDS_OP_TYPE (insn) == DDS_OP_VAL_ARR)
         return ops[4];
       break;
@@ -513,7 +529,13 @@ static uint32_t get_adr_type_size (uint32_t insn, const uint32_t * __restrict op
     case DDS_OP_VAL_STR:
       sz = sizeof (char *);
       break;
-    case DDS_OP_VAL_BST:
+    case DDS_OP_VAL_WSTR:
+      sz = sizeof (wchar_t *);
+      break;
+    case DDS_OP_VAL_WCHAR:
+      sz = sizeof (wchar_t);
+      break;
+    case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR:
       sz = ops[2];
       break;
     case DDS_OP_VAL_ARR:
@@ -555,8 +577,14 @@ static uint32_t get_jeq4_type_size (const enum dds_stream_typecode valtype, cons
     case DDS_OP_VAL_STR:
       sz = sizeof (char *);
       break;
+    case DDS_OP_VAL_WSTR:
+      sz = sizeof (wchar_t *);
+      break;
+    case DDS_OP_VAL_WCHAR:
+      sz = sizeof (wchar_t);
+      break;
     case DDS_OP_VAL_BMK:
-    case DDS_OP_VAL_BST:
+    case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR:
     case DDS_OP_VAL_ARR: {
       const uint32_t *jsr_ops = jeq_op + DDS_OP_ADR_JSR (jeq_op[0]);
       sz = get_adr_type_size (jsr_ops[0], jsr_ops);
@@ -689,6 +717,9 @@ static uint32_t dds_stream_check_optimize1 (const struct dds_cdrstream_desc * __
       case DDS_OP_VAL_BSQ:
       case DDS_OP_VAL_STR:
       case DDS_OP_VAL_BST:
+      case DDS_OP_VAL_WSTR:
+      case DDS_OP_VAL_BWSTR:
+      case DDS_OP_VAL_WCHAR:
       case DDS_OP_VAL_STU:
       case DDS_OP_VAL_UNI:
         return 0;
@@ -724,6 +755,18 @@ static const uint32_t *dds_stream_get_ops_info_seq (const uint32_t * __restrict 
     case DDS_OP_VAL_BST:
       ops += 3 + bound_op;
       info->data_types |= DDS_DATA_TYPE_CONTAINS_BSTRING;
+      break;
+    case DDS_OP_VAL_WSTR:
+      ops += 2 + bound_op;
+      info->data_types |= DDS_DATA_TYPE_CONTAINS_WSTRING;
+      break;
+    case DDS_OP_VAL_BWSTR:
+      ops += 3 + bound_op;
+      info->data_types |= DDS_DATA_TYPE_CONTAINS_BWSTRING;
+      break;
+    case DDS_OP_VAL_WCHAR:
+      ops += 2 + bound_op;
+      info->data_types |= DDS_DATA_TYPE_CONTAINS_WCHAR;
       break;
     case DDS_OP_VAL_ENU:
       ops += 3 + bound_op;
@@ -764,6 +807,14 @@ static const uint32_t *dds_stream_get_ops_info_arr (const uint32_t * __restrict 
       ops += 3;
       info->data_types |= DDS_DATA_TYPE_CONTAINS_STRING;
       break;
+    case DDS_OP_VAL_WSTR:
+      ops += 3;
+      info->data_types |= DDS_DATA_TYPE_CONTAINS_WSTRING;
+      break;
+    case DDS_OP_VAL_WCHAR:
+      ops += 3;
+      info->data_types |= DDS_DATA_TYPE_CONTAINS_WCHAR;
+      break;
     case DDS_OP_VAL_ENU:
       ops += 4;
       info->data_types |= DDS_DATA_TYPE_CONTAINS_ENUM;
@@ -771,6 +822,10 @@ static const uint32_t *dds_stream_get_ops_info_arr (const uint32_t * __restrict 
     case DDS_OP_VAL_BST:
       ops += 5;
       info->data_types |= DDS_DATA_TYPE_CONTAINS_BSTRING;
+      break;
+    case DDS_OP_VAL_BWSTR:
+      ops += 5;
+      info->data_types |= DDS_DATA_TYPE_CONTAINS_BWSTRING;
       break;
     case DDS_OP_VAL_BMK:
       ops += 5;
@@ -806,7 +861,7 @@ static const uint32_t *dds_stream_get_ops_info_uni (const uint32_t * __restrict 
   for (uint32_t i = 0; i < numcases; i++)
   {
     const enum dds_stream_typecode valtype = DDS_JEQ_TYPE (jeq_op[0]);
-    if (op_type_external (jeq_op[0]) && valtype != DDS_OP_VAL_STR)
+    if (op_type_external (jeq_op[0]) && valtype != DDS_OP_VAL_STR && valtype != DDS_OP_VAL_WSTR)
       info->data_types |= DDS_DATA_TYPE_CONTAINS_EXTERNAL;
     switch (valtype)
     {
@@ -815,13 +870,20 @@ static const uint32_t *dds_stream_get_ops_info_uni (const uint32_t * __restrict 
       case DDS_OP_VAL_STR:
         info->data_types |= DDS_DATA_TYPE_CONTAINS_STRING;
         break;
+      case DDS_OP_VAL_WSTR:
+        info->data_types |= DDS_DATA_TYPE_CONTAINS_WSTRING;
+        break;
+      case DDS_OP_VAL_WCHAR:
+        info->data_types |= DDS_DATA_TYPE_CONTAINS_WCHAR;
+        break;
       case DDS_OP_VAL_ENU:
         info->data_types |= DDS_DATA_TYPE_CONTAINS_ENUM;
         break;
       case DDS_OP_VAL_STU:
         info->data_types |= DDS_DATA_TYPE_CONTAINS_STRUCT;
         /* fall-through */
-      case DDS_OP_VAL_BST: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_BMK:
+      case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR:
+      case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_BMK:
         if (DDS_OP_ADR_JSR (jeq_op[0]) > 0)
           dds_stream_get_ops_info1 (jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), nestc + (valtype == DDS_OP_VAL_UNI || valtype == DDS_OP_VAL_STU ? 1 : 0), info);
         break;
@@ -891,7 +953,7 @@ static void dds_stream_get_ops_info1 (const uint32_t * __restrict ops, uint32_t 
           info->min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_2;
           info->data_types |= DDS_DATA_TYPE_CONTAINS_OPTIONAL;
         }
-        if (op_type_external (insn) && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR)
+        if (op_type_external (insn) && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR && DDS_OP_TYPE (insn) != DDS_OP_VAL_WSTR)
           info->data_types |= DDS_DATA_TYPE_CONTAINS_EXTERNAL;
         switch (DDS_OP_TYPE (insn))
         {
@@ -902,9 +964,21 @@ static void dds_stream_get_ops_info1 (const uint32_t * __restrict ops, uint32_t 
             ops += 2;
             info->data_types |= DDS_DATA_TYPE_CONTAINS_STRING;
             break;
+          case DDS_OP_VAL_WSTR:
+            ops += 2;
+            info->data_types |= DDS_DATA_TYPE_CONTAINS_WSTRING;
+            break;
+          case DDS_OP_VAL_WCHAR:
+            ops += 2;
+            info->data_types |= DDS_DATA_TYPE_CONTAINS_WCHAR;
+            break;
           case DDS_OP_VAL_BST:
             ops += 3;
             info->data_types |= DDS_DATA_TYPE_CONTAINS_BSTRING;
+            break;
+          case DDS_OP_VAL_BWSTR:
+            ops += 3;
+            info->data_types |= DDS_DATA_TYPE_CONTAINS_BWSTRING;
             break;
           case DDS_OP_VAL_ENU:
             ops += 3;
@@ -1035,6 +1109,94 @@ static char *dds_stream_reuse_string_empty (char * __restrict str, const struct 
   return str;
 }
 
+static size_t wstring_utf16_len (const wchar_t *str)
+{
+  // assume sizeof(wchar_t) = uint16_t or uint32_t
+  // assume uint16_t implies UTF-16 and uint32_t implies UTF-32
+  // I think that should work for Unix and Windows
+  DDSRT_STATIC_ASSERT (sizeof (wchar_t) == 2 || sizeof (wchar_t) == 4);
+  size_t n = 0;
+  for (; *str != L'\0'; n++, str++)
+    if ((uint32_t) *str >= 0x10000) // necessarily false if wchar_t is 16 bits
+      n++;
+  return n;
+}
+
+static void wstring_from_utf16 (wchar_t *dst, size_t dstlen, const uint16_t *src, size_t srclen)
+{
+  // src, srclen without terminating 0
+  // dst, dstlen including terminating 0
+  assert (dstlen > 0);
+  if (sizeof (wchar_t) == 2)
+  {
+    memcpy (dst, src, 2 * (dstlen < srclen ? dstlen : srclen));
+    dst[dstlen - 1] = L'\0';
+  }
+  else
+  {
+    // resulting string may end up shorter than srclen because of surrogate pairs in input
+    uint16_t w1 = 0;
+    uint32_t di = 0;
+    for (uint32_t i = 0; i < srclen && di < dstlen - 1; i++)
+    {
+      if (src[i] < 0xd800 || src[i] >= 0xe000)
+        dst[di++] = (wchar_t) src[i];
+      else if (src[i] >= 0xd800 && src[i] < 0xdc00)
+      {
+        // should not have buffered a low surrogate, but we don't care
+        w1 = src[i];
+      }
+      else
+      {
+        // high surrogate must have been seen, but ... whatever
+        uint32_t u1 = ((uint32_t) (w1 - 0xd800) << 10) | (uint32_t) (src[i] - 0xdc00);
+        dst[di++] = (wchar_t) (u1 + 0x10000);
+        w1 = 0;
+      }
+    }
+    dst[di] = L'\0';
+  }
+}
+
+static wchar_t *dds_stream_reuse_wstring_bound (dds_istream_t * __restrict is, wchar_t * __restrict str, const uint32_t size)
+{
+  const uint32_t cdrsize = dds_is_get4 (is);
+  const uint16_t *src = (const uint16_t *) (is->m_buffer + is->m_index);
+  is->m_index += cdrsize;
+  wstring_from_utf16 (str, size, src, cdrsize / 2);
+  return str;
+}
+
+static wchar_t *dds_stream_reuse_wstring (dds_istream_t * __restrict is, wchar_t * __restrict str, const struct dds_cdrstream_allocator * __restrict allocator, enum sample_data_state sample_state)
+{
+  const uint32_t cdrsize = dds_is_get4 (is);
+  const uint16_t *src = (const uint16_t *) (is->m_buffer + is->m_index);
+  is->m_index += cdrsize;
+  if (sample_state == SAMPLE_DATA_INITIALIZED && str != NULL)
+  {
+    if (cdrsize == 0 && str[0] == L'\0')
+      return str;
+    allocator->free (str);
+  }
+  // if there are surrogates in the input and wchar_t is UTF-32, then we overallocate a bit
+  str = allocator->malloc (sizeof (wchar_t) * (cdrsize / 2 + 1));
+  wstring_from_utf16 (str, cdrsize / 2 + 1, src, cdrsize / 2);
+  return str;
+}
+
+static wchar_t *dds_stream_reuse_wstring_empty (wchar_t * __restrict str, const struct dds_cdrstream_allocator * __restrict allocator, enum sample_data_state sample_state)
+{
+  if (sample_state == SAMPLE_DATA_INITIALIZED && str != NULL)
+  {
+    if (str[0] == L'\0')
+      return str;
+    allocator->free (str);
+  }
+  str = allocator->malloc (sizeof (wchar_t));
+  str[0] = L'\0';
+  return str;
+}
+
 static void dds_stream_skip_forward (dds_istream_t * __restrict is, uint32_t len, const uint32_t elem_size)
 {
   if (elem_size && len)
@@ -1042,6 +1204,12 @@ static void dds_stream_skip_forward (dds_istream_t * __restrict is, uint32_t len
 }
 
 static void dds_stream_skip_string (dds_istream_t * __restrict is)
+{
+  const uint32_t length = dds_is_get4 (is);
+  dds_stream_skip_forward (is, length, 1);
+}
+
+static void dds_stream_skip_wstring (dds_istream_t * __restrict is)
 {
   const uint32_t length = dds_is_get4 (is);
   dds_stream_skip_forward (is, length, 1);
@@ -1119,9 +1287,9 @@ static const uint32_t *skip_sequence_insns (uint32_t insn, const uint32_t * __re
   switch (DDS_OP_SUBTYPE (insn))
   {
     case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
-    case DDS_OP_VAL_STR:
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR: case DDS_OP_VAL_WCHAR:
       return ops + 2 + bound_op;
-    case DDS_OP_VAL_BST: case DDS_OP_VAL_ENU:
+    case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_ENU:
       return ops + 3 + bound_op;
     case DDS_OP_VAL_BMK:
       return ops + 4 + bound_op;
@@ -1143,11 +1311,11 @@ static const uint32_t *skip_array_insns (uint32_t insn, const uint32_t * __restr
   switch (DDS_OP_SUBTYPE (insn))
   {
     case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
-    case DDS_OP_VAL_STR:
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR: case DDS_OP_VAL_WCHAR:
       return ops + 3;
     case DDS_OP_VAL_ENU:
       return ops + 4;
-    case DDS_OP_VAL_BST: case DDS_OP_VAL_BMK:
+    case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_BMK:
       return ops + 5;
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
       const uint32_t jmp = DDS_OP_ADR_JMP (ops[3]);
@@ -1167,7 +1335,7 @@ static const uint32_t *skip_array_default (uint32_t insn, char * __restrict data
   const uint32_t num = ops[2];
   switch (subtype)
   {
-    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
+    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_WCHAR: {
       const uint32_t elem_size = get_primitive_size (subtype);
       memset (data, 0, num * elem_size);
       return ops + 3;
@@ -1183,11 +1351,24 @@ static const uint32_t *skip_array_default (uint32_t insn, char * __restrict data
         ptr[i] = dds_stream_reuse_string_empty (ptr[i], allocator, sample_state);
       return ops + 3;
     }
+    case DDS_OP_VAL_WSTR: {
+      wchar_t **ptr = (wchar_t **) data;
+      for (uint32_t i = 0; i < num; i++)
+        ptr[i] = dds_stream_reuse_wstring_empty (ptr[i], allocator, sample_state);
+      return ops + 3;
+    }
     case DDS_OP_VAL_BST: {
       char *ptr = (char *) data;
       const uint32_t elem_size = ops[4];
       for (uint32_t i = 0; i < num; i++)
-        ((char *) (ptr + i * elem_size))[0] = '\0';
+        (ptr + i * elem_size)[0] = '\0';
+      return ops + 5;
+    }
+    case DDS_OP_VAL_BWSTR: {
+      wchar_t *ptr = (wchar_t *) data;
+      const uint32_t elem_size = (uint32_t) sizeof (*ptr) * ops[4];
+      for (uint32_t i = 0; i < num; i++)
+        (ptr + i * elem_size)[0] = L'\0';
       return ops + 5;
     }
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
@@ -1262,7 +1443,9 @@ static const uint32_t * skip_union_default (uint32_t insn, char * __restrict dis
       case DDS_OP_VAL_4BY: case DDS_OP_VAL_ENU: *((uint32_t *) valaddr) = 0; break;
       case DDS_OP_VAL_8BY: *((uint64_t *) valaddr) = 0; break;
       case DDS_OP_VAL_STR: *(char **) valaddr = dds_stream_reuse_string_empty (*((char **) valaddr), allocator, sample_state); break;
-      case DDS_OP_VAL_BST: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: case DDS_OP_VAL_BMK:
+      case DDS_OP_VAL_WSTR: *(wchar_t **) valaddr = dds_stream_reuse_wstring_empty (*((wchar_t **) valaddr), allocator, sample_state); break;
+      case DDS_OP_VAL_WCHAR: *((wchar_t *) valaddr) = L'\0'; break;
+      case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: case DDS_OP_VAL_BMK:
         (void) dds_stream_skip_default (valaddr, allocator, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), sample_state);
         break;
       case DDS_OP_VAL_EXT: {
@@ -1284,7 +1467,7 @@ static uint32_t get_length_code_seq (const enum dds_stream_typecode subtype)
 
     /* A sequence with primitive subtype does not include a DHEADER,
        only the seq length, so we have to include a NEXTINT */
-    case DDS_OP_VAL_2BY:
+    case DDS_OP_VAL_2BY: case DDS_OP_VAL_WCHAR:
       return LENGTH_CODE_NEXTINT;
 
     /* Sequence length (item count) is used to calculate byte length */
@@ -1294,7 +1477,7 @@ static uint32_t get_length_code_seq (const enum dds_stream_typecode subtype)
       return LENGTH_CODE_ALSO_NEXTINT8;
 
     /* Sequences with non-primitive subtype contain a DHEADER */
-    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK:
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK:
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
       return LENGTH_CODE_ALSO_NEXTINT;
 
@@ -1313,11 +1496,11 @@ static uint32_t get_length_code_arr (const enum dds_stream_typecode subtype)
   {
     /* An array with primitive subtype does not include a DHEADER,
        so we have to include a NEXTINT */
-    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_WCHAR:
       return LENGTH_CODE_NEXTINT;
 
     /* Arrays with non-primitive subtype contain a DHEADER */
-    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK:
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK:
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
       return LENGTH_CODE_ALSO_NEXTINT;
 
@@ -1340,7 +1523,7 @@ static uint32_t get_length_code (const uint32_t * __restrict ops)
       switch (DDS_OP_TYPE (insn))
       {
         case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: return LENGTH_CODE_1B;
-        case DDS_OP_VAL_2BY: return LENGTH_CODE_2B;
+        case DDS_OP_VAL_2BY: case DDS_OP_VAL_WCHAR: return LENGTH_CODE_2B;
         case DDS_OP_VAL_4BY: return LENGTH_CODE_4B;
         case DDS_OP_VAL_8BY: return LENGTH_CODE_8B;
         case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK:
@@ -1352,7 +1535,8 @@ static uint32_t get_length_code (const uint32_t * __restrict ops)
             case 8: return LENGTH_CODE_8B;
           }
           break;
-        case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: return LENGTH_CODE_ALSO_NEXTINT; /* nextint overlaps with length from serialized string data */
+        case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR:
+          return LENGTH_CODE_ALSO_NEXTINT; /* nextint overlaps with length from serialized string data */
         case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: return get_length_code_seq (DDS_OP_SUBTYPE (insn));
         case DDS_OP_VAL_ARR: return get_length_code_arr (DDS_OP_SUBTYPE (insn));
         case DDS_OP_VAL_UNI: case DDS_OP_VAL_EXT: {
@@ -1566,9 +1750,16 @@ static inline void getsize_reserve_many (struct getsize_state * __restrict st, u
 
 static void dds_stream_getsize_string (struct getsize_state * __restrict st, const char * __restrict val)
 {
-  uint32_t size = val ? (uint32_t) strlen (val) + 1 : 1;
+  uint32_t size = val ? (uint32_t) strlen (val) + 1 : 1; // string includes '\0'
   getsize_reserve (st, 4);
   getsize_reserve_many (st, 1, size);
+}
+
+static void dds_stream_getsize_wstring (struct getsize_state * __restrict st, const wchar_t * __restrict val)
+{
+  uint32_t size = val ? (uint32_t) wstring_utf16_len (val) : 0; // wstring does not include a terminator
+  getsize_reserve (st, 4);
+  getsize_reserve_many (st, 2, size);
 }
 
 static const uint32_t *dds_stream_getsize_seq (struct getsize_state * __restrict st, const char * __restrict addr, const uint32_t * __restrict ops, uint32_t insn)
@@ -1606,7 +1797,7 @@ static const uint32_t *dds_stream_getsize_seq (struct getsize_state * __restrict
         getsize_reserve_many (st, 1, num);
         ops += 2 + bound_op;
         break;
-      case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+      case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_WCHAR:
         getsize_reserve_many (st, get_primitive_size (subtype), num);
         ops += 2 + bound_op;
         break;
@@ -1625,11 +1816,26 @@ static const uint32_t *dds_stream_getsize_seq (struct getsize_state * __restrict
         ops += 2 + bound_op;
         break;
       }
+      case DDS_OP_VAL_WSTR: {
+        const wchar_t **ptr = (const wchar_t **) seq->_buffer;
+        for (uint32_t i = 0; i < num; i++)
+          dds_stream_getsize_wstring (st, ptr[i]);
+        ops += 2 + bound_op;
+        break;
+      }
       case DDS_OP_VAL_BST: {
         const char *ptr = (const char *) seq->_buffer;
         const uint32_t elem_size = ops[2 + bound_op];
         for (uint32_t i = 0; i < num; i++)
           dds_stream_getsize_string (st, ptr + i * elem_size);
+        ops += 3 + bound_op;
+        break;
+      }
+      case DDS_OP_VAL_BWSTR: {
+        const wchar_t *ptr = (const wchar_t *) seq->_buffer;
+        const uint32_t elem_size = (uint32_t) sizeof (*ptr) * ops[2 + bound_op];
+        for (uint32_t i = 0; i < num; i++)
+          dds_stream_getsize_wstring (st, ptr + i * elem_size);
         ops += 3 + bound_op;
         break;
       }
@@ -1669,7 +1875,7 @@ static const uint32_t *dds_stream_getsize_arr (struct getsize_state * __restrict
       getsize_reserve_many (st, 1, num);
       ops += 3;
       break;
-    case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+    case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_WCHAR:
       getsize_reserve_many (st, get_primitive_size (subtype), num);
       ops += 3;
       break;
@@ -1688,11 +1894,26 @@ static const uint32_t *dds_stream_getsize_arr (struct getsize_state * __restrict
       ops += 3;
       break;
     }
+    case DDS_OP_VAL_WSTR: {
+      const wchar_t **ptr = (const wchar_t **) addr;
+      for (uint32_t i = 0; i < num; i++)
+        dds_stream_getsize_wstring (st, ptr[i]);
+      ops += 3;
+      break;
+    }
     case DDS_OP_VAL_BST: {
       const char *ptr = (const char *) addr;
       const uint32_t elem_size = ops[4];
       for (uint32_t i = 0; i < num; i++)
         dds_stream_getsize_string (st, ptr + i * elem_size);
+      ops += 5;
+      break;
+    }
+    case DDS_OP_VAL_BWSTR: {
+      const wchar_t *ptr = (const wchar_t *) addr;
+      const uint32_t elem_size = (uint32_t) sizeof (*ptr) * ops[4];
+      for (uint32_t i = 0; i < num; i++)
+        dds_stream_getsize_wstring (st, ptr + i * elem_size);
       ops += 5;
       break;
     }
@@ -1762,7 +1983,7 @@ static const uint32_t *dds_stream_getsize_uni (struct getsize_state * __restrict
     /* Union members cannot be optional, only external. For string types, the pointer
        is dereferenced below (and there is no extra pointer indirection when using
        @external for STR types) */
-    if (op_type_external (jeq_op[0]) && valtype != DDS_OP_VAL_STR)
+    if (op_type_external (jeq_op[0]) && valtype != DDS_OP_VAL_STR && valtype != DDS_OP_VAL_WSTR)
     {
       assert (DDS_OP (jeq_op[0]) == DDS_OP_JEQ4);
       valaddr = *(char **) valaddr;
@@ -1772,14 +1993,17 @@ static const uint32_t *dds_stream_getsize_uni (struct getsize_state * __restrict
 
     switch (valtype)
     {
-      case DDS_OP_VAL_BLN: getsize_reserve (st, 1); break;
+      case DDS_OP_VAL_BLN:
       case DDS_OP_VAL_1BY: getsize_reserve (st, 1); break;
+      case DDS_OP_VAL_WCHAR:
       case DDS_OP_VAL_2BY: getsize_reserve (st, 2); break;
       case DDS_OP_VAL_4BY: getsize_reserve (st, 4); break;
       case DDS_OP_VAL_8BY: getsize_reserve (st, 8); break;
       case DDS_OP_VAL_ENU: getsize_reserve (st, DDS_OP_TYPE_SZ (jeq_op[0])); break;
       case DDS_OP_VAL_STR: dds_stream_getsize_string (st, *(const char **) valaddr); break;
+      case DDS_OP_VAL_WSTR: dds_stream_getsize_wstring (st, *(const wchar_t **) valaddr); break;
       case DDS_OP_VAL_BST: dds_stream_getsize_string (st, (const char *) valaddr); break;
+      case DDS_OP_VAL_BWSTR: dds_stream_getsize_wstring (st, (const wchar_t *) valaddr); break;
       case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: case DDS_OP_VAL_BMK:
         if (!dds_stream_getsize_impl (st, valaddr, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), false))
           return NULL;
@@ -1795,10 +2019,10 @@ static const uint32_t *dds_stream_getsize_uni (struct getsize_state * __restrict
 static const uint32_t *dds_stream_getsize_adr (uint32_t insn, struct getsize_state * __restrict st, const char * __restrict data, const uint32_t * __restrict ops, bool is_mutable_member)
 {
   const void *addr = data + ops[1];
-  if (op_type_external (insn) || op_type_optional (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR)
+  if (op_type_external (insn) || op_type_optional (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR || DDS_OP_TYPE (insn) == DDS_OP_VAL_WSTR)
   {
     addr = *(char **) addr;
-    if (addr == NULL && !(op_type_optional (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR))
+    if (addr == NULL && !(op_type_optional (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR || DDS_OP_TYPE (insn) == DDS_OP_VAL_WSTR))
       return NULL;
   }
 
@@ -1813,19 +2037,22 @@ static const uint32_t *dds_stream_getsize_adr (uint32_t insn, struct getsize_sta
     if (!addr)
       return dds_stream_skip_adr (insn, ops);
   }
-  assert (addr || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR);
+  assert (addr || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR || DDS_OP_TYPE (insn) == DDS_OP_VAL_WSTR);
 
   switch (DDS_OP_TYPE (insn))
   {
-    case DDS_OP_VAL_BLN: getsize_reserve (st, 1); ops += 2; break;
+    case DDS_OP_VAL_BLN:
     case DDS_OP_VAL_1BY: getsize_reserve (st, 1); ops += 2; break;
+    case DDS_OP_VAL_WCHAR:
     case DDS_OP_VAL_2BY: getsize_reserve (st, 2); ops += 2; break;
     case DDS_OP_VAL_4BY: getsize_reserve (st, 4); ops += 2; break;
     case DDS_OP_VAL_8BY: getsize_reserve (st, 8); ops += 2; break;
     case DDS_OP_VAL_ENU: getsize_reserve (st, DDS_OP_TYPE_SZ (insn)); ops += 3; break;
     case DDS_OP_VAL_BMK: getsize_reserve (st, DDS_OP_TYPE_SZ (insn)); ops += 4; break;
     case DDS_OP_VAL_STR: dds_stream_getsize_string (st, (const char *) addr); ops += 2; break;
+    case DDS_OP_VAL_WSTR: dds_stream_getsize_wstring (st, (const wchar_t *) addr); ops += 2; break;
     case DDS_OP_VAL_BST: dds_stream_getsize_string (st, (const char *) addr); ops += 3; break;
+    case DDS_OP_VAL_BWSTR: dds_stream_getsize_wstring (st, (const wchar_t *) addr); ops += 3; break;
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: ops = dds_stream_getsize_seq (st, addr, ops, insn); break;
     case DDS_OP_VAL_ARR: ops = dds_stream_getsize_arr (st, addr, ops, insn); break;
     case DDS_OP_VAL_UNI: ops = dds_stream_getsize_uni (st, addr, data, ops, insn); break;
@@ -1974,10 +2201,10 @@ static void dds_stream_getsize_key_impl (struct getsize_state * __restrict st, c
   assert (insn_key_ok_p (insn));
   void *addr = (char *) src + ops[1];
 
-  if (op_type_external (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR)
+  if (op_type_external (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR || DDS_OP_TYPE (insn) == DDS_OP_VAL_WSTR)
   {
     addr = *(char **) addr;
-    if (addr == NULL && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR)
+    if (addr == NULL && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR && DDS_OP_TYPE (insn) != DDS_OP_VAL_WSTR)
       return;
   }
 
@@ -1985,13 +2212,16 @@ static void dds_stream_getsize_key_impl (struct getsize_state * __restrict st, c
   {
     case DDS_OP_VAL_BLN:
     case DDS_OP_VAL_1BY: getsize_reserve (st, 1); break;
+    case DDS_OP_VAL_WCHAR:
     case DDS_OP_VAL_2BY: getsize_reserve (st, 2); break;
     case DDS_OP_VAL_4BY: getsize_reserve (st, 4); break;
     case DDS_OP_VAL_8BY: getsize_reserve (st, 8); break;
     case DDS_OP_VAL_ENU:
     case DDS_OP_VAL_BMK: getsize_reserve (st, DDS_OP_TYPE_SZ (insn)); break;
     case DDS_OP_VAL_STR: dds_stream_getsize_string (st, addr); break;
+    case DDS_OP_VAL_WSTR: dds_stream_getsize_wstring (st, addr); break;
     case DDS_OP_VAL_BST: dds_stream_getsize_string (st, addr); break;
+    case DDS_OP_VAL_BWSTR: dds_stream_getsize_wstring (st, addr); break;
     case DDS_OP_VAL_ARR: {
       const uint32_t num = ops[2];
       switch (DDS_OP_SUBTYPE (insn))
@@ -2198,6 +2428,15 @@ static const uint32_t *dds_stream_read_seq (dds_istream_t * __restrict is, char 
         dds_stream_skip_forward (is, num - seq->_length, elem_size);
       return ops + 2 + bound_op;
     }
+    case DDS_OP_VAL_WCHAR: {
+      adjust_sequence_buffer (seq, allocator, num, sizeof (wchar_t), &sample_state);
+      seq->_length = (num <= seq->_maximum) ? num : seq->_maximum;
+      for (uint32_t i = 0; i < seq->_length; i++)
+        ((wchar_t *) seq->_buffer)[i] = (wchar_t) dds_is_get2 (is);
+      if (seq->_length < num)
+        dds_stream_skip_forward (is, num - seq->_length, 2);
+      return ops + 2 + bound_op;
+    }
     case DDS_OP_VAL_ENU: {
       const uint32_t elem_size = DDS_OP_TYPE_SZ (insn);
       adjust_sequence_buffer (seq, allocator, num, 4, &sample_state);
@@ -2239,6 +2478,16 @@ static const uint32_t *dds_stream_read_seq (dds_istream_t * __restrict is, char 
         dds_stream_skip_string (is);
       return ops + 2 + bound_op;
     }
+    case DDS_OP_VAL_WSTR: {
+      adjust_sequence_buffer_initialize (seq, allocator, num, sizeof (wchar_t *), &sample_state);
+      seq->_length = (num <= seq->_maximum) ? num : seq->_maximum;
+      wchar_t **ptr = (wchar_t **) seq->_buffer;
+      for (uint32_t i = 0; i < seq->_length; i++)
+        ptr[i] = dds_stream_reuse_wstring (is, ptr[i], allocator, sample_state);
+      for (uint32_t i = seq->_length; i < num; i++)
+        dds_stream_skip_wstring (is);
+      return ops + 2 + bound_op;
+    }
     case DDS_OP_VAL_BST: {
       const uint32_t elem_size = ops[2 + bound_op];
       adjust_sequence_buffer (seq, allocator, num, elem_size, &sample_state);
@@ -2248,6 +2497,19 @@ static const uint32_t *dds_stream_read_seq (dds_istream_t * __restrict is, char 
         (void) dds_stream_reuse_string_bound (is, ptr + i * elem_size, elem_size);
       for (uint32_t i = seq->_length; i < num; i++)
         dds_stream_skip_string (is);
+      return ops + 3 + bound_op;
+    }
+    case DDS_OP_VAL_BWSTR: {
+      const uint32_t elem_size = (uint32_t) sizeof (wchar_t) * ops[2 + bound_op];
+      assert (elem_size > 0);
+      const uint32_t bound = ops[2 + bound_op];
+      adjust_sequence_buffer (seq, allocator, num, elem_size, &sample_state);
+      seq->_length = (num <= seq->_maximum) ? num : seq->_maximum;
+      wchar_t *ptr = (wchar_t *) seq->_buffer;
+      for (uint32_t i = 0; i < seq->_length; i++)
+        (void) dds_stream_reuse_wstring_bound (is, ptr + i * bound, bound);
+      for (uint32_t i = seq->_length; i < num; i++)
+        dds_stream_skip_wstring (is);
       return ops + 3 + bound_op;
     }
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
@@ -2285,6 +2547,11 @@ static const uint32_t *dds_stream_read_arr (dds_istream_t * __restrict is, char 
       dds_is_get_bytes (is, addr, num, elem_size);
       return ops + 3;
     }
+    case DDS_OP_VAL_WCHAR: {
+      for (uint32_t i = 0; i < num; i++)
+         ((wchar_t *) addr)[i] = (wchar_t) dds_is_get2 (is);
+      return ops + 3;
+    }
     case DDS_OP_VAL_ENU: {
       switch (DDS_OP_TYPE_SZ (insn))
       {
@@ -2315,11 +2582,24 @@ static const uint32_t *dds_stream_read_arr (dds_istream_t * __restrict is, char 
         ptr[i] = dds_stream_reuse_string (is, ptr[i], allocator, sample_state);
       return ops + 3;
     }
+    case DDS_OP_VAL_WSTR: {
+      wchar_t **ptr = (wchar_t **) addr;
+      for (uint32_t i = 0; i < num; i++)
+        ptr[i] = dds_stream_reuse_wstring (is, ptr[i], allocator, sample_state);
+      return ops + 3;
+    }
     case DDS_OP_VAL_BST: {
       char *ptr = (char *) addr;
       const uint32_t elem_size = ops[4];
       for (uint32_t i = 0; i < num; i++)
         (void) dds_stream_reuse_string_bound (is, ptr + i * elem_size, elem_size);
+      return ops + 5;
+    }
+    case DDS_OP_VAL_BWSTR: {
+      wchar_t *ptr = (wchar_t *) addr;
+      const uint32_t elem_size = ops[4];
+      for (uint32_t i = 0; i < num; i++)
+        (void) dds_stream_reuse_wstring_bound (is, ptr + i * elem_size, elem_size);
       return ops + 5;
     }
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
@@ -2357,6 +2637,7 @@ static const uint32_t *dds_stream_read_uni (dds_istream_t * __restrict is, char 
       case DDS_OP_VAL_2BY: *((uint16_t *) valaddr) = dds_is_get2 (is); break;
       case DDS_OP_VAL_4BY: *((uint32_t *) valaddr) = dds_is_get4 (is); break;
       case DDS_OP_VAL_8BY: *((uint64_t *) valaddr) = dds_is_get8 (is); break;
+      case DDS_OP_VAL_WCHAR: *((wchar_t *) valaddr) = (wchar_t) dds_is_get2 (is); break;
       case DDS_OP_VAL_ENU:
         switch (DDS_OP_TYPE_SZ (jeq_op[0]))
         {
@@ -2369,7 +2650,10 @@ static const uint32_t *dds_stream_read_uni (dds_istream_t * __restrict is, char 
       case DDS_OP_VAL_STR:
         *(char **) valaddr = dds_stream_reuse_string (is, *((char **) valaddr), allocator, sample_state);
         break;
-      case DDS_OP_VAL_BST: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_BMK:
+      case DDS_OP_VAL_WSTR:
+        *(wchar_t **) valaddr = dds_stream_reuse_wstring (is, *((wchar_t **) valaddr), allocator, sample_state);
+        break;
+      case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_BMK:
         (void) dds_stream_read_impl (is, valaddr, allocator, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), false, cdr_kind, sample_state);
         break;
       case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
@@ -2426,8 +2710,11 @@ static inline const uint32_t *dds_stream_read_adr (uint32_t insn, dds_istream_t 
     case DDS_OP_VAL_2BY: *((uint16_t *) addr) = dds_is_get2 (is); ops += 2; break;
     case DDS_OP_VAL_4BY: *((uint32_t *) addr) = dds_is_get4 (is); ops += 2; break;
     case DDS_OP_VAL_8BY: *((uint64_t *) addr) = dds_is_get8 (is); ops += 2; break;
+    case DDS_OP_VAL_WCHAR: *((wchar_t *) addr) = (wchar_t) dds_is_get2 (is); ops += 2; break;
     case DDS_OP_VAL_STR: *((char **) addr) = dds_stream_reuse_string (is, *((char **) addr), allocator, sample_state); ops += 2; break;
+    case DDS_OP_VAL_WSTR: *((wchar_t **) addr) = dds_stream_reuse_wstring (is, *((wchar_t **) addr), allocator, sample_state); ops += 2; break;
     case DDS_OP_VAL_BST: (void) dds_stream_reuse_string_bound (is, (char *) addr, ops[2]); ops += 3; break;
+    case DDS_OP_VAL_BWSTR: (void) dds_stream_reuse_wstring_bound (is, (wchar_t *) addr, ops[2]); ops += 3; break;
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: ops = dds_stream_read_seq (is, addr, allocator, ops, insn, cdr_kind, sample_state); break;
     case DDS_OP_VAL_ARR: ops = dds_stream_read_arr (is, addr, allocator, ops, insn, cdr_kind, sample_state); break;
     case DDS_OP_VAL_UNI: ops = dds_stream_read_uni (is, addr, data, allocator, ops, insn, cdr_kind, sample_state); break;
@@ -2477,9 +2764,10 @@ static const uint32_t *dds_stream_skip_adr (uint32_t insn, const uint32_t * __re
   switch (DDS_OP_TYPE (insn))
   {
     case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
-    case DDS_OP_VAL_STR:
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR: case DDS_OP_VAL_WCHAR:
       return ops + 2;
     case DDS_OP_VAL_BST:
+    case DDS_OP_VAL_BWSTR:
     case DDS_OP_VAL_ENU:
       return ops + 3;
     case DDS_OP_VAL_BMK:
@@ -2523,9 +2811,11 @@ static const uint32_t *dds_stream_skip_adr_default (uint32_t insn, char * __rest
     case DDS_OP_VAL_2BY: *(uint16_t *) addr = 0; return ops + 2;
     case DDS_OP_VAL_4BY: *(uint32_t *) addr = 0; return ops + 2;
     case DDS_OP_VAL_8BY: *(uint64_t *) addr = 0; return ops + 2;
-
+    case DDS_OP_VAL_WCHAR: *(wchar_t *) addr = L'\0'; return ops + 2;
     case DDS_OP_VAL_STR: *(char **) addr = dds_stream_reuse_string_empty (*(char **) addr, allocator, sample_state); return ops + 2;
+    case DDS_OP_VAL_WSTR: *(wchar_t **) addr = dds_stream_reuse_wstring_empty (*(wchar_t **) addr, allocator, sample_state); return ops + 2;
     case DDS_OP_VAL_BST: ((char *) addr)[0] = '\0'; return ops + 3;
+    case DDS_OP_VAL_BWSTR: ((wchar_t *) addr)[0] = L'\0'; return ops + 3;
     case DDS_OP_VAL_ENU: *(uint32_t *) addr = 0; return ops + 3;
     case DDS_OP_VAL_BMK:
       switch (DDS_OP_TYPE_SZ (insn))
@@ -3069,6 +3359,7 @@ static bool normalize_bitmask (char * __restrict data, uint32_t * __restrict off
 static bool normalize_string (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, size_t maxsz) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static bool normalize_string (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, size_t maxsz)
 {
+  // maxsz = character count, includes terminating '\0' that is in-memory and on the wire
   uint32_t sz;
   if (!read_and_normalize_uint32 (&sz, data, off, size, bswap))
     return false;
@@ -3076,6 +3367,62 @@ static bool normalize_string (char * __restrict data, uint32_t * __restrict off,
     return normalize_error_bool ();
   if (data[*off + sz - 1] != 0)
     return normalize_error_bool ();
+  *off += sz;
+  return true;
+}
+
+static inline bool normalize_wchar (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+static inline bool normalize_wchar (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap)
+{
+  if ((*off = check_align_prim (*off, size, 1, 1)) == UINT32_MAX)
+    return false;
+  if (bswap)
+    *((uint16_t *) (data + *off)) = ddsrt_bswap2u (*((uint16_t *) (data + *off)));
+  const uint16_t val = *((uint16_t *) (data + *off));
+  // surrogates are disallowed
+  if (val >= 0xd800 && val < 0xe000)
+    return false;
+  (*off) += 2;
+  return true;
+}
+
+static bool normalize_wstring (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, size_t maxsz) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+static bool normalize_wstring (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, size_t maxsz)
+{
+  // maxsz = character count, includes terminating L'\0' that is in-memory
+  // CDR stream contains number of bytes (so must be even), excluding termating L'\0'
+  // taking the maximum allowed count on the wire as number uint16_t, not as number of code points (which may
+  // be lower if there are surrogate pairs in the input)
+  uint32_t sz;
+  assert (maxsz > 0);
+  if (!read_and_normalize_uint32 (&sz, data, off, size, bswap))
+    return false;
+  if ((size % 2) != 0 || size - *off < sz || maxsz - 1 < sz / 2)
+    return normalize_error_bool ();
+  // even, fits in input and fits in bound
+  if (bswap)
+    dds_stream_swap (data + *off, 2, sz / 2);
+  // verify surrogate pairs are used correctly
+  {
+    const uint16_t *str = (const uint16_t *) (data + *off);
+    const uint32_t len = sz / 2;
+    uint32_t i = 0;
+    while (i < len)
+    {
+      if (str[i] < 0xd800 || str[i] >= 0xe000) {
+        i++;
+      } else if (str[i] >= 0xd800 && str[i] < 0xdc00) {
+        // first half of surrogate pair, must have second half
+        i++;
+        if (i == len || str[i] < 0xdc00 || str[i] > 0xdfff)
+          return normalize_error_bool ();
+        i++;
+      } else {
+        // second half without first half
+        return normalize_error_bool ();
+      }
+    }
+  }
   *off += sz;
   return true;
 }
@@ -3301,6 +3648,21 @@ static const uint32_t *normalize_seq (char * __restrict data, uint32_t * __restr
       ops += (subtype == DDS_OP_VAL_STR ? 2 : 3) + bound_op;
       break;
     }
+    case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR: {
+      const size_t maxsz = (subtype == DDS_OP_VAL_WSTR) ? SIZE_MAX : ops[2 + bound_op];
+      for (uint32_t i = 0; i < num; i++)
+        if (!normalize_wstring (data, off, size1, bswap, maxsz))
+          return NULL;
+      ops += (subtype == DDS_OP_VAL_WSTR ? 2 : 3) + bound_op;
+      break;
+    }
+    case DDS_OP_VAL_WCHAR: {
+      for (uint32_t i = 0; i < num; i++)
+        if (!normalize_wchar (data, off, size1, bswap))
+          return NULL;
+      ops += 2 + bound_op;
+      break;
+    }
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
       const uint32_t jmp = DDS_OP_ADR_JMP (ops[3 + bound_op]);
       uint32_t const * const jsr_ops = ops + DDS_OP_ADR_JSR (ops[3 + bound_op]);
@@ -3357,6 +3719,21 @@ static const uint32_t *normalize_arr (char * __restrict data, uint32_t * __restr
         if (!normalize_string (data, off, size1, bswap, maxsz))
           return NULL;
       ops += (subtype == DDS_OP_VAL_STR) ? 3 : 5;
+      break;
+    }
+    case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR: {
+      const size_t maxsz = (subtype == DDS_OP_VAL_WSTR) ? SIZE_MAX : ops[4];
+      for (uint32_t i = 0; i < num; i++)
+        if (!normalize_wstring (data, off, size1, bswap, maxsz))
+          return NULL;
+      ops += (subtype == DDS_OP_VAL_WSTR) ? 3 : 5;
+      break;
+    }
+    case DDS_OP_VAL_WCHAR: {
+      for (uint32_t i = 0; i < num; i++)
+        if (!normalize_wchar (data, off, size1, bswap))
+          return NULL;
+      ops += 3;
       break;
     }
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
@@ -3438,9 +3815,11 @@ static const uint32_t *normalize_uni (char * __restrict data, uint32_t * __restr
       case DDS_OP_VAL_2BY: if (!normalize_uint16 (data, off, size, bswap)) return NULL; break;
       case DDS_OP_VAL_4BY: if (!normalize_uint32 (data, off, size, bswap)) return NULL; break;
       case DDS_OP_VAL_8BY: if (!normalize_uint64 (data, off, size, bswap, xcdr_version)) return NULL; break;
+      case DDS_OP_VAL_WCHAR: if (!normalize_wchar (data, off, size, bswap)) return NULL; break;
       case DDS_OP_VAL_STR: if (!normalize_string (data, off, size, bswap, SIZE_MAX)) return NULL; break;
+      case DDS_OP_VAL_WSTR: if (!normalize_wstring (data, off, size, bswap, SIZE_MAX)) return NULL; break;
       case DDS_OP_VAL_ENU: if (!normalize_enum (data, off, size, bswap, jeq_op[0], jeq_op[3])) return NULL; break;
-      case DDS_OP_VAL_BST: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: case DDS_OP_VAL_BMK:
+      case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: case DDS_OP_VAL_BMK:
         if (stream_normalize_data_impl (data, off, size, bswap, xcdr_version, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), false, cdr_kind) == NULL)
           return NULL;
         break;
@@ -3479,7 +3858,10 @@ static const uint32_t *stream_normalize_adr (uint32_t insn, char * __restrict da
     case DDS_OP_VAL_4BY: if (!normalize_uint32 (data, off, size, bswap)) return NULL; ops += 2; break;
     case DDS_OP_VAL_8BY: if (!normalize_uint64 (data, off, size, bswap, xcdr_version)) return NULL; ops += 2; break;
     case DDS_OP_VAL_STR: if (!normalize_string (data, off, size, bswap, SIZE_MAX)) return NULL; ops += 2; break;
+    case DDS_OP_VAL_WSTR: if (!normalize_wstring (data, off, size, bswap, SIZE_MAX)) return NULL; ops += 2; break;
     case DDS_OP_VAL_BST: if (!normalize_string (data, off, size, bswap, ops[2])) return NULL; ops += 3; break;
+    case DDS_OP_VAL_BWSTR: if (!normalize_wstring (data, off, size, bswap, ops[2])) return NULL; ops += 3; break;
+    case DDS_OP_VAL_WCHAR: if (!normalize_wchar (data, off, size, bswap)) return NULL; ops += 2; break;
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: ops = normalize_seq (data, off, size, bswap, xcdr_version, ops, insn, cdr_kind); if (!ops) return NULL; break;
     case DDS_OP_VAL_ARR: ops = normalize_arr (data, off, size, bswap, xcdr_version, ops, insn, cdr_kind); if (!ops) return NULL; break;
     case DDS_OP_VAL_UNI: ops = normalize_uni (data, off, size, bswap, xcdr_version, ops, insn, cdr_kind); if (!ops) return NULL; break;
@@ -3746,7 +4128,10 @@ static bool stream_normalize_key_impl (void * __restrict data, uint32_t size, ui
     case DDS_OP_VAL_BMK: if (!normalize_bitmask (data, offs, size, bswap, xcdr_version, insn, ops[2], ops[3])) return false; break;
     case DDS_OP_VAL_8BY: if (!normalize_uint64 (data, offs, size, bswap, xcdr_version)) return false; break;
     case DDS_OP_VAL_STR: if (!normalize_string (data, offs, size, bswap, SIZE_MAX)) return false; break;
+    case DDS_OP_VAL_WSTR: if (!normalize_wstring (data, offs, size, bswap, SIZE_MAX)) return false; break;
     case DDS_OP_VAL_BST: if (!normalize_string (data, offs, size, bswap, ops[2])) return false; break;
+    case DDS_OP_VAL_BWSTR: if (!normalize_wstring (data, offs, size, bswap, ops[2])) return false; break;
+    case DDS_OP_VAL_WCHAR: if (!normalize_wchar (data, offs, size, bswap)) return false; break;
     case DDS_OP_VAL_ARR: if (!normalize_arr (data, offs, size, bswap, xcdr_version, ops, insn, true)) return false; break;
     case DDS_OP_VAL_EXT: {
       assert (key_offset_count > 0);
@@ -3837,10 +4222,10 @@ static const uint32_t *dds_stream_free_sample_seq (char * __restrict addr, const
   {
     switch (subtype)
     {
-      case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+      case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_WCHAR:
         ops += 2 + bound_op;
         break;
-      case DDS_OP_VAL_BST: case DDS_OP_VAL_ENU:
+      case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_ENU:
         ops += 3 + bound_op;
         break;
       case DDS_OP_VAL_BMK:
@@ -3848,6 +4233,13 @@ static const uint32_t *dds_stream_free_sample_seq (char * __restrict addr, const
         break;
       case DDS_OP_VAL_STR: {
         char **ptr = (char **) seq->_buffer;
+        while (num--)
+          allocator->free (*ptr++);
+        ops += 2 + bound_op;
+        break;
+      }
+      case DDS_OP_VAL_WSTR: {
+        wchar_t **ptr = (wchar_t **) seq->_buffer;
         while (num--)
           allocator->free (*ptr++);
         ops += 2 + bound_op;
@@ -3892,11 +4284,17 @@ static const uint32_t *dds_stream_free_sample_arr (char * __restrict addr, const
   uint32_t num = *ops++;
   switch (subtype)
   {
-    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: break;
+    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_WCHAR: break;
     case DDS_OP_VAL_ENU: ops++; break;
-    case DDS_OP_VAL_BMK: case DDS_OP_VAL_BST: ops += 2; break;
+    case DDS_OP_VAL_BMK: case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR: ops += 2; break;
     case DDS_OP_VAL_STR: {
       char **ptr = (char **) addr;
+      while (num--)
+        allocator->free (*ptr++);
+      break;
+    }
+    case DDS_OP_VAL_WSTR: {
+      wchar_t **ptr = (wchar_t **) addr;
       while (num--)
         allocator->free (*ptr++);
       break;
@@ -3949,10 +4347,14 @@ static const uint32_t *dds_stream_free_sample_uni (char * __restrict discaddr, c
 
     switch (subtype)
     {
-      case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_BST: case DDS_OP_VAL_ENU: break;
+      case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_ENU: case DDS_OP_VAL_WCHAR: break;
       case DDS_OP_VAL_STR:
         allocator->free (*((char **) valaddr));
         *((char **) valaddr) = NULL;
+        break;
+      case DDS_OP_VAL_WSTR:
+        allocator->free (*((wchar_t **) valaddr));
+        *((wchar_t **) valaddr) = NULL;
         break;
       case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_BMK:
         dds_stream_free_sample (valaddr, allocator, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]));
@@ -4006,14 +4408,20 @@ static const uint32_t *stream_free_sample_adr_nonexternal (uint32_t insn, void *
 
   switch (DDS_OP_TYPE (insn))
   {
-    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: ops += 2; break;
+    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_WCHAR: ops += 2; break;
     case DDS_OP_VAL_STR: {
       allocator->free (*((char **) addr));
       *(char **) addr = NULL;
       ops += 2;
       break;
     }
-    case DDS_OP_VAL_BST: case DDS_OP_VAL_ENU: ops += 3; break;
+    case DDS_OP_VAL_WSTR: {
+      allocator->free (*((wchar_t **) addr));
+      *(wchar_t **) addr = NULL;
+      ops += 2;
+      break;
+    }
+    case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_ENU: ops += 3; break;
     case DDS_OP_VAL_BMK: ops += 4; break;
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: ops = dds_stream_free_sample_seq (addr, allocator, ops, insn); break;
     case DDS_OP_VAL_ARR: ops = dds_stream_free_sample_arr (addr, allocator, ops, insn); break;
@@ -4102,6 +4510,7 @@ static void dds_stream_extract_key_from_key_prim_op (dds_istream_t * __restrict 
   {
     case DDS_OP_VAL_BLN:
     case DDS_OP_VAL_1BY: dds_os_put1 (os, allocator, dds_is_get1 (is)); break;
+    case DDS_OP_VAL_WCHAR:
     case DDS_OP_VAL_2BY: dds_os_put2 (os, allocator, dds_is_get2 (is)); break;
     case DDS_OP_VAL_4BY: dds_os_put4 (os, allocator, dds_is_get4 (is)); break;
     case DDS_OP_VAL_8BY: dds_os_put8 (os, allocator, dds_is_get8 (is)); break;
@@ -4115,7 +4524,8 @@ static void dds_stream_extract_key_from_key_prim_op (dds_istream_t * __restrict 
         default: abort ();
       }
       break;
-    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: {
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
+    case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR: {
       uint32_t sz = dds_is_get4 (is);
       dds_os_put4 (os, allocator, sz);
       dds_os_put_bytes (os, allocator, is->m_buffer + is->m_index, sz);
@@ -4208,6 +4618,7 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t * __restric
   {
     case DDS_OP_VAL_BLN:
     case DDS_OP_VAL_1BY: dds_os_put1BE (os, allocator, dds_is_get1 (is)); break;
+    case DDS_OP_VAL_WCHAR:
     case DDS_OP_VAL_2BY: dds_os_put2BE (os, allocator, dds_is_get2 (is)); break;
     case DDS_OP_VAL_4BY: dds_os_put4BE (os, allocator, dds_is_get4 (is)); break;
     case DDS_OP_VAL_8BY: dds_os_put8BE (os, allocator, dds_is_get8 (is)); break;
@@ -4221,7 +4632,8 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t * __restric
         default: abort ();
       }
       break;
-    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: {
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
+    case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR: {
       uint32_t sz = dds_is_get4 (is);
       dds_os_put4BE (os, allocator, sz);
       dds_os_put_bytes (&os->x, allocator, is->m_buffer + is->m_index, sz);
@@ -4274,11 +4686,12 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t * __restric
 }
 #endif
 
-static void dds_stream_extract_key_from_data_skip_subtype (dds_istream_t * __restrict is, uint32_t num, uint32_t insn, uint32_t subtype, const uint32_t * __restrict subops)
+static void dds_stream_extract_key_from_data_skip_subtype (dds_istream_t * __restrict is, uint32_t num, uint32_t insn, enum dds_stream_typecode subtype, const uint32_t * __restrict subops)
 {
+  assert (subops != NULL || DDS_OP (insn) == DDS_OP_ADR);
   switch (subtype)
   {
-    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
+    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_WCHAR: {
       const uint32_t elem_size = get_primitive_size (subtype);
       dds_cdr_alignto (is, dds_cdr_get_align (is->m_xcdr_version, elem_size));
       is->m_index += num * elem_size;
@@ -4294,7 +4707,8 @@ static void dds_stream_extract_key_from_data_skip_subtype (dds_istream_t * __res
       is->m_index += num * elem_size;
       break;
     }
-    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: {
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
+    case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR: {
       for (uint32_t i = 0; i < num; i++)
       {
         const uint32_t len = dds_is_get4 (is);
@@ -4372,13 +4786,16 @@ static const uint32_t *dds_stream_extract_key_from_data_skip_union (dds_istream_
   return ops + DDS_OP_ADR_JMP (ops[3]);
 }
 
-static const uint32_t *dds_stream_extract_key_from_data_skip_adr (dds_istream_t * __restrict is, const uint32_t * __restrict ops, uint32_t type)
+static const uint32_t *dds_stream_extract_key_from_data_skip_adr (dds_istream_t * __restrict is, const uint32_t * __restrict ops, enum dds_stream_typecode type)
 {
   switch (type)
   {
-    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK:
+    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_WCHAR:
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
+    case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR:
+    case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK:
       dds_stream_extract_key_from_data_skip_subtype (is, 1, ops[0], type, NULL);
-      if (type == DDS_OP_VAL_BST || type == DDS_OP_VAL_ARR || type == DDS_OP_VAL_ENU)
+      if (type == DDS_OP_VAL_BST || type == DDS_OP_VAL_BWSTR || type == DDS_OP_VAL_ARR || type == DDS_OP_VAL_ENU)
         ops += 3;
       else if (type == DDS_OP_VAL_BMK)
         ops += 4;
@@ -4396,6 +4813,9 @@ static const uint32_t *dds_stream_extract_key_from_data_skip_adr (dds_istream_t 
       break;
     case DDS_OP_VAL_STU:
       abort (); /* op type STU only supported as subtype */
+      break;
+    case DDS_OP_VAL_EXT:
+      abort (); /* handled by caller */
       break;
   }
   return ops;
@@ -4439,6 +4859,7 @@ static void dds_stream_read_key_impl (dds_istream_t * __restrict is, char * __re
     case DDS_OP_VAL_2BY: *((uint16_t *) dst) = dds_is_get2 (is); break;
     case DDS_OP_VAL_4BY: *((uint32_t *) dst) = dds_is_get4 (is); break;
     case DDS_OP_VAL_8BY: *((uint64_t *) dst) = dds_is_get8 (is); break;
+    case DDS_OP_VAL_WCHAR: *((wchar_t *) dst) = (wchar_t) dds_is_get2 (is); break;
     case DDS_OP_VAL_ENU:
       switch (DDS_OP_TYPE_SZ (insn))
       {
@@ -4459,7 +4880,9 @@ static void dds_stream_read_key_impl (dds_istream_t * __restrict is, char * __re
       }
       break;
     case DDS_OP_VAL_STR: *((char **) dst) = dds_stream_reuse_string (is, *((char **) dst), allocator, sample_state); break;
+    case DDS_OP_VAL_WSTR: *((wchar_t **) dst) = dds_stream_reuse_wstring (is, *((wchar_t **) dst), allocator, sample_state); break;
     case DDS_OP_VAL_BST: (void) dds_stream_reuse_string_bound (is, dst, ops[2]); break;
+    case DDS_OP_VAL_BWSTR: (void) dds_stream_reuse_wstring_bound (is, dst, ops[2]); break;
     case DDS_OP_VAL_ARR: {
       const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
       uint32_t num = ops[2];
@@ -4633,6 +5056,46 @@ static bool prtf_str (char * __restrict *buf, size_t * __restrict bufsize, dds_i
   return ret;
 }
 
+static bool prtf_utf32 (char * __restrict *buf, size_t * __restrict bufsize, uint32_t utf32)
+{
+  unsigned char utf8[5], lead;
+  int len;
+  if (utf32 <= 0x7f) { lead = 0; len = 1; }
+  else if (utf32 <= 0x7ff) { lead = 0xc0; len = 2; }
+  else if (utf32 <= 0xffff) { lead = 0xe0; len = 3; }
+  else { lead = 0xf0; len = 4; }
+  utf8[len] = 0;
+  for (int j = len - 1; j > 0; j--) {
+    utf8[j] = (unsigned char) ((utf32 & 0x3f) | 0x80);
+    utf32 >>= 6;
+  }
+  utf8[0] = (unsigned char) ((utf32 & 0xff) | lead);
+  return prtf (buf, bufsize, "%s", utf8);
+}
+
+static bool prtf_wstr (char * __restrict *buf, size_t * __restrict bufsize, dds_istream_t * __restrict is)
+{
+  size_t sz = dds_is_get4 (is);
+  bool ret = prtf (buf, bufsize, "\"");
+  const uint16_t *src = (const uint16_t *) (is->m_buffer + is->m_index);
+  uint16_t w1 = 0;
+  uint32_t utf32 = 0;
+  for (size_t i = 0; ret && i < sz / 2; i++)
+  {
+    if (src[i] < 0xd800 || src[i] >= 0xe000)
+      utf32 = src[i];
+    else if (src[i] >= 0xd800 && src[i] < 0xdc00)
+      w1 = src[i];
+    else
+      utf32 = 0x10000 + (((uint32_t) (w1 - 0xd800) << 10) | (uint32_t) (src[i] - 0xdc00));
+    if (utf32)
+      ret = prtf_utf32 (buf, bufsize, utf32);
+  }
+  ret = prtf (buf, bufsize, "\"");
+  is->m_index += (uint32_t) sz;
+  return ret;
+}
+
 static size_t isprint_runlen (const unsigned char *s, size_t n)
 {
   size_t m;
@@ -4707,9 +5170,14 @@ static bool prtf_simple (char * __restrict *buf, size_t * __restrict bufsize, dd
       else
         return prtf (buf, bufsize, "%"PRIu64, x.u);
     }
+    case DDS_OP_VAL_WCHAR: {
+      const uint16_t x = dds_is_get2 (is);
+      return prtf (buf, bufsize, "L'") && prtf_utf32 (buf, bufsize, x) && prtf (buf, bufsize, "'");
+    }
     case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK:
       return prtf_enum_bitmask (buf, bufsize, is, flags);
     case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: return prtf_str (buf, bufsize, is);
+    case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR: return prtf_wstr (buf, bufsize, is);
     case DDS_OP_VAL_ARR: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: case DDS_OP_VAL_EXT:
       abort ();
   }
@@ -4753,8 +5221,9 @@ static bool prtf_simple_array (char * __restrict *buf, size_t * __restrict bufsi
         cont = prtf_enum_bitmask (buf, bufsize, is, flags);
       }
       break;
-    case DDS_OP_VAL_BLN: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+    case DDS_OP_VAL_BLN: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_WCHAR:
     case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
+    case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR:
       for (size_t i = 0; cont && i < num; i++)
       {
         if (i != 0)
@@ -4762,7 +5231,12 @@ static bool prtf_simple_array (char * __restrict *buf, size_t * __restrict bufsi
         cont = prtf_simple (buf, bufsize, is, type, flags);
       }
       break;
-    default:
+    case DDS_OP_VAL_SEQ:
+    case DDS_OP_VAL_ARR:
+    case DDS_OP_VAL_UNI:
+    case DDS_OP_VAL_STU:
+    case DDS_OP_VAL_BSQ:
+    case DDS_OP_VAL_EXT:
       abort ();
       break;
   }
@@ -4786,15 +5260,17 @@ static const uint32_t *prtf_seq (char * __restrict *buf, size_t *bufsize, dds_is
   }
   switch (subtype)
   {
-    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_WCHAR:
       (void) prtf_simple_array (buf, bufsize, is, num, subtype, DDS_OP_FLAGS (insn));
       return ops + 2 + bound_op;
-    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: {
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
+    case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR:
+    case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: {
       (void) prtf_simple_array (buf, bufsize, is, num, subtype, DDS_OP_FLAGS (insn));
       const uint32_t *ret_ops = ops + 2 + bound_op;
       if (subtype == DDS_OP_VAL_BMK)
         ret_ops += 2;
-      else if (subtype == DDS_OP_VAL_BST || subtype == DDS_OP_VAL_ENU)
+      else if (subtype == DDS_OP_VAL_BST || subtype == DDS_OP_VAL_BWSTR || subtype == DDS_OP_VAL_ENU)
         ret_ops++;
       return ret_ops;
     }
@@ -4828,10 +5304,11 @@ static const uint32_t *prtf_arr (char * __restrict *buf, size_t *bufsize, dds_is
   switch (subtype)
   {
     case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
-    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: {
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_WCHAR:
+    case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: {
       (void) prtf_simple_array (buf, bufsize, is, num, subtype, DDS_OP_FLAGS (insn));
       const uint32_t *ret_ops = ops + 3;
-      if (subtype == DDS_OP_VAL_BST || subtype == DDS_OP_VAL_BMK)
+      if (subtype == DDS_OP_VAL_BST || subtype == DDS_OP_VAL_BWSTR || subtype == DDS_OP_VAL_BMK)
         ret_ops += 2;
       else if (subtype == DDS_OP_VAL_ENU)
         ret_ops++;
@@ -4869,7 +5346,7 @@ static const uint32_t *prtf_uni (char * __restrict *buf, size_t *bufsize, dds_is
     switch (valtype)
     {
       case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_ENU:
-      case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
+      case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_WCHAR:
         (void) prtf_simple (buf, bufsize, is, valtype, DDS_OP_FLAGS (jeq_op[0]));
         break;
       case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: case DDS_OP_VAL_BMK:
@@ -4899,12 +5376,12 @@ static const uint32_t * dds_stream_print_adr (char * __restrict *buf, size_t * _
   switch (DDS_OP_TYPE (insn))
   {
     case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
-    case DDS_OP_VAL_STR:
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR: case DDS_OP_VAL_WCHAR:
       if (!prtf_simple (buf, bufsize, is, DDS_OP_TYPE (insn), DDS_OP_FLAGS (insn)))
         return NULL;
       ops += 2;
       break;
-    case DDS_OP_VAL_BST: case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK:
+    case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK:
       if (!prtf_simple (buf, bufsize, is, DDS_OP_TYPE (insn), DDS_OP_FLAGS (insn)))
         return NULL;
       ops += 3 + (DDS_OP_TYPE (insn) == DDS_OP_VAL_BMK ? 1 : 0);
@@ -5228,7 +5705,7 @@ static const uint32_t *dds_stream_key_size_arr (const uint32_t * __restrict ops,
 
   switch (subtype)
   {
-    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
+    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_WCHAR: {
       const uint32_t elem_size = get_primitive_size (subtype);
       add_to_key_size (k, elem_size, bound, elem_size);
       return ops + 3;
@@ -5243,7 +5720,7 @@ static const uint32_t *dds_stream_key_size_arr (const uint32_t * __restrict ops,
       add_to_key_size (k, elem_size, bound, elem_size);
       return ops + 5;
     }
-    case DDS_OP_VAL_STR: {
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR: {
       set_key_size_unbounded (k);
       return ops + 3;
     }
@@ -5253,6 +5730,16 @@ static const uint32_t *dds_stream_key_size_arr (const uint32_t * __restrict ops,
       {
         add_to_key_size (k, 4, 1, 4);
         add_to_key_size (k, 1, sz, 1);
+      }
+      return ops + 5;
+    }
+    case DDS_OP_VAL_BWSTR: {
+      const uint32_t sz = ops[4];
+      assert (sz > 0); // terminating L'\0' not on wire
+      for (uint32_t i = 0; i < bound; i++)
+      {
+        add_to_key_size (k, 4, 1, 4);
+        add_to_key_size (k, 2, sz - 1, 2);
       }
       return ops + 5;
     }
@@ -5278,13 +5765,13 @@ static const uint32_t *dds_stream_key_size_adr (const uint32_t * __restrict ops,
 
   switch (DDS_OP_TYPE (insn))
   {
-    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
+    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_WCHAR: {
       const uint32_t sz = get_primitive_size (DDS_OP_TYPE (insn));
       add_to_key_size (k, sz, 1, sz);
       ops += 2;
       break;
     }
-    case DDS_OP_VAL_STR:
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR:
       set_key_size_unbounded (k);
       ops += 2;
       break;
@@ -5292,6 +5779,14 @@ static const uint32_t *dds_stream_key_size_adr (const uint32_t * __restrict ops,
       const uint32_t sz = ops[2];
       add_to_key_size (k, 4, 1, 4);
       add_to_key_size (k, 1, sz, 1);
+      ops += 3;
+      break;
+    }
+    case DDS_OP_VAL_BWSTR: {
+      const uint32_t sz = ops[2];
+      assert (sz > 0); // terminating L'\0' not on wire
+      add_to_key_size (k, 4, 1, 4);
+      add_to_key_size (k, 2, sz - 1, 2);
       ops += 3;
       break;
     }
@@ -5435,8 +5930,9 @@ static void dds_stream_key_size_prim_op (const uint32_t * __restrict ops, uint16
   assert ((insn & DDS_OP_FLAG_KEY) && ((DDS_OP (insn)) == DDS_OP_ADR));
   switch (DDS_OP_TYPE (insn))
   {
-    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_WCHAR:
     case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
+    case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR:
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ:
     case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI:
     case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK:

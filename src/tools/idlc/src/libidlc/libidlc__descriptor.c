@@ -291,6 +291,13 @@ stash_member_size(
     } else if (idl_is_unbounded_string(type_spec)) {
       if (!(inst.data.size.type = idl_strdup("char *")))
         goto err_type;
+    } else if (idl_is_bounded_wstring(type_spec)) {
+      uint32_t dims = ((const idl_wstring_t *)type_spec)->maximum;
+      if (idl_asprintf(&inst.data.size.type, "wchar_t[%"PRIu32"]", dims) == -1)
+        goto err_type;
+    } else if (idl_is_unbounded_wstring(type_spec)) {
+      if (!(inst.data.size.type = idl_strdup("wchar_t *")))
+        goto err_type;
     } else {
       if (IDL_PRINT(&inst.data.size.type, print_type, type_spec) < 0)
         goto err_type;
@@ -325,6 +332,13 @@ stash_member_size(
         goto err_type;
     } else if (idl_is_unbounded_string(type_spec)) {
       if (!(inst.data.size.type = idl_strdup("char *")))
+        goto err_type;
+    } else if (idl_is_bounded_wstring(type_spec)) {
+      uint32_t dims = ((const idl_wstring_t *)type_spec)->maximum;
+      if (idl_asprintf(&inst.data.size.type, "wchar_t[%"PRIu32"]", dims) == -1)
+        goto err_type;
+    } else if (idl_is_unbounded_wstring(type_spec)) {
+      if (!(inst.data.size.type = idl_strdup("wchar_t *")))
         goto err_type;
     } else if (idl_is_array(type_spec)) {
       char *typestr = NULL;
@@ -502,6 +516,9 @@ static idl_retcode_t add_typecode(const idl_pstate_t *pstate, const idl_type_spe
     case IDL_CHAR:
       *add_to |= ((uint32_t)DDS_OP_VAL_1BY << shift) | (uint32_t)DDS_OP_FLAG_SGN;
       break;
+    case IDL_WCHAR:
+      *add_to |= ((uint32_t)DDS_OP_VAL_WCHAR << shift);
+      break;
     case IDL_BOOL:
       *add_to |=  ((uint32_t)DDS_OP_VAL_BLN << shift);
       break;
@@ -551,6 +568,12 @@ static idl_retcode_t add_typecode(const idl_pstate_t *pstate, const idl_type_spe
         *add_to |= ((uint32_t)DDS_OP_VAL_BST << shift);
       else
         *add_to |= ((uint32_t)DDS_OP_VAL_STR << shift);
+      break;
+    case IDL_WSTRING:
+      if (idl_is_bounded(type_spec))
+        *add_to |= ((uint32_t)DDS_OP_VAL_BWSTR << shift);
+      else
+        *add_to |= ((uint32_t)DDS_OP_VAL_WSTR << shift);
       break;
     case IDL_SEQUENCE:
       if (idl_is_bounded(type_spec))
@@ -750,7 +773,7 @@ emit_case(
       idl_warning(pstate, IDL_WARN_UNSUPPORTED_ANNOTATIONS, idl_location(node), "The @try_construct annotation is not supported yet in the C generator, the default try-construct behavior will be used");
 
     type_spec = idl_strip(idl_type_spec(node), IDL_STRIP_ALIASES|IDL_STRIP_FORWARD);
-    if (idl_is_external(node) && !idl_is_unbounded_string(type_spec))
+    if (idl_is_external(node) && !idl_is_unbounded_xstring(type_spec))
       opcode |= DDS_OP_FLAG_EXT;
     if (idl_is_array(_case->declarator)) {
       opcode |= DDS_OP_TYPE_ARR;
@@ -760,10 +783,10 @@ emit_case(
         return ret;
       if (idl_is_struct(type_spec) || idl_is_union(type_spec))
         case_type = EXTERNAL;
-      else if (idl_is_array(type_spec) || idl_is_bounded_string(type_spec) || idl_is_sequence(type_spec) || idl_is_bitmask(type_spec))
+      else if (idl_is_array(type_spec) || idl_is_bounded_xstring(type_spec) || idl_is_sequence(type_spec) || idl_is_bitmask(type_spec))
         case_type = IN_UNION;
       else {
-        assert (idl_is_base_type(type_spec) || idl_is_unbounded_string(type_spec) || idl_is_bitmask(type_spec) || idl_is_enum(type_spec));
+        assert (idl_is_base_type(type_spec) || idl_is_unbounded_xstring(type_spec) || idl_is_bitmask(type_spec) || idl_is_enum(type_spec));
         case_type = INLINE;
       }
     }
@@ -792,7 +815,7 @@ emit_case(
           label_opcode &= (DDS_OP_MASK | DDS_OP_TYPE_FLAGS_MASK | DDS_OP_TYPE_MASK);
         if (case_type == IN_UNION)
           label_opcode |= (cnt - off);
-        if (idl_is_external(node) && !idl_is_unbounded_string(type_spec)) {
+        if (idl_is_external(node) && !idl_is_unbounded_xstring(type_spec)) {
           label_opcode |= DDS_OP_FLAG_EXT;
           has_size = idl_is_array(type_spec) || idl_is_sequence(type_spec);
         }
@@ -1186,7 +1209,7 @@ emit_sequence(
     }
 
     /* short-circuit on simple types */
-    if (idl_is_string(type_spec) || idl_is_base_type(type_spec) || idl_is_bitmask(type_spec) || idl_is_enum(type_spec)) {
+    if (idl_is_xstring(type_spec) || idl_is_base_type(type_spec) || idl_is_bitmask(type_spec) || idl_is_enum(type_spec)) {
       if (idl_is_bounded(type_spec)) {
         if ((ret = stash_single(pstate, &ctype->instructions, nop, idl_bound(type_spec) + 1)))
           return ret;
@@ -1237,7 +1260,7 @@ emit_array(
     if (idl_is_array(type_spec))
       dims *= idl_array_size(type_spec);
 
-  simple = (idl_mask(type_spec) & (IDL_BASE_TYPE|IDL_STRING|IDL_ENUM|IDL_BITMASK)) != 0;
+  simple = (idl_mask(type_spec) & (IDL_BASE_TYPE|IDL_STRING|IDL_WSTRING|IDL_ENUM|IDL_BITMASK)) != 0;
 
   if (revisit) {
     uint32_t off, cnt;
@@ -1332,7 +1355,7 @@ emit_array(
 
     /* short-circuit on simple types */
     if (simple) {
-      if (idl_is_bounded_string(type_spec)) {
+      if (idl_is_bounded_xstring(type_spec)) {
         /* generate data field noop [next-insn, elem-insn] */
         if ((ret = stash_single(pstate, &ctype->instructions, nop, 0)))
           return ret;
@@ -1514,12 +1537,12 @@ emit_declarator(
       ctype->has_key_member = true;
     }
     if (idl_is_struct(stype->node) && (idl_is_external(parent) || idl_is_optional(parent))) {
-      if (idl_is_external(parent) && !idl_is_unbounded_string(type_spec))
+      if (idl_is_external(parent) && !idl_is_unbounded_xstring(type_spec))
         opcode |= DDS_OP_FLAG_EXT;
       /* For optional field of non-string (or bounded string) types, add EXT flag because
          an optional field is represented in the same way as external fields */
       if (idl_is_optional(parent))
-        opcode |= DDS_OP_FLAG_OPT | (idl_is_unbounded_string(type_spec) ? 0 : DDS_OP_FLAG_EXT);
+        opcode |= DDS_OP_FLAG_OPT | (idl_is_unbounded_xstring(type_spec) ? 0 : DDS_OP_FLAG_EXT);
       /* For @external and @optional fields of type OP_TYPE_EXT include the size of the field to
          allow the serializer to allocate memory for this field when deserializing. */
       if (DDS_OP_TYPE(opcode) == DDS_OP_VAL_EXT)
@@ -1539,7 +1562,7 @@ emit_declarator(
     if ((ret = stash_offset(pstate, &ctype->instructions, nop, idl_is_empty(type_spec) ? NULL : field)))
       return ret;
     /* generate data field bound */
-    if (idl_is_bounded_string(type_spec)) {
+    if (idl_is_bounded_xstring(type_spec)) {
       if ((ret = stash_single(pstate, &ctype->instructions, nop, idl_bound(type_spec)+1)))
         return ret;
     } else if (idl_is_enum(type_spec)) {
@@ -1644,15 +1667,22 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       case DDS_OP_VAL_ENU: vec[len++] = " | DDS_OP_TYPE_ENU"; break;
       case DDS_OP_VAL_BMK: vec[len++] = " | DDS_OP_TYPE_BMK"; break;
       case DDS_OP_VAL_EXT: vec[len++] = " | DDS_OP_TYPE_EXT"; break;
+      case DDS_OP_VAL_WSTR: vec[len++] = " | DDS_OP_TYPE_WSTR"; break;
+      case DDS_OP_VAL_BWSTR: vec[len++] = " | DDS_OP_TYPE_BWSTR"; break;
+      case DDS_OP_VAL_WCHAR: vec[len++] = " | DDS_OP_TYPE_WCHAR"; break;
     }
   }
 
-  if (opcode == DDS_OP_JEQ4 || opcode == DDS_OP_PLM) {
+  if (opcode == DDS_OP_PLM) {
+    /* lower 16 bits contain an offset */
+    idl_snprintf(buf, sizeof(buf), " | %u", (uint16_t) DDS_OP_JUMP (inst->data.opcode.code));
+    vec[len++] = buf;
+  } else if (opcode == DDS_OP_JEQ4) {
     enum dds_stream_typecode type = DDS_OP_TYPE(inst->data.opcode.code);
     if (type == DDS_OP_VAL_ENU) {
       idl_snprintf(buf, sizeof(buf), " | (%u << DDS_OP_FLAG_SZ_SHIFT)", (inst->data.opcode.code & DDS_OP_FLAG_SZ_MASK) >> DDS_OP_FLAG_SZ_SHIFT);
       vec[len++] = buf;
-    } else if (type != DDS_OP_VAL_BLN && type != DDS_OP_VAL_1BY && type != DDS_OP_VAL_2BY && type != DDS_OP_VAL_4BY && type != DDS_OP_VAL_8BY && type != DDS_OP_VAL_STR) {
+    } else if (type != DDS_OP_VAL_BLN && type != DDS_OP_VAL_1BY && type != DDS_OP_VAL_2BY && type != DDS_OP_VAL_4BY && type != DDS_OP_VAL_8BY && type != DDS_OP_VAL_STR && type != DDS_OP_VAL_WSTR) {
       /* lower 16 bits contain an offset */
       idl_snprintf(buf, sizeof(buf), " | %u", (uint16_t) DDS_OP_JUMP (inst->data.opcode.code));
       vec[len++] = buf;
@@ -1678,6 +1708,9 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       case DDS_OP_VAL_STU: vec[len++] = " | DDS_OP_SUBTYPE_STU"; break;
       case DDS_OP_VAL_ENU: vec[len++] = " | DDS_OP_SUBTYPE_ENU"; break;
       case DDS_OP_VAL_BMK: vec[len++] = " | DDS_OP_SUBTYPE_BMK"; break;
+      case DDS_OP_VAL_WSTR: vec[len++] = " | DDS_OP_SUBTYPE_WSTR"; break;
+      case DDS_OP_VAL_BWSTR: vec[len++] = " | DDS_OP_SUBTYPE_BWSTR"; break;
+      case DDS_OP_VAL_WCHAR: vec[len++] = " | DDS_OP_SUBTYPE_WCHAR"; break;
       case DDS_OP_VAL_EXT: abort(); break;
     }
 
@@ -1779,7 +1812,7 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
             brk = op + 4;
           else if (opcode == DDS_OP_PLM)
             brk = op + 3;
-          else if (optype == DDS_OP_VAL_BST)
+          else if (optype == DDS_OP_VAL_BST || optype == DDS_OP_VAL_BWSTR)
             brk = op + 3;
           else if (optype == DDS_OP_VAL_EXT)
             brk = op + 3;
@@ -1787,11 +1820,17 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
             subtype = DDS_OP_SUBTYPE(inst->data.opcode.code);
             brk = op + (optype == DDS_OP_VAL_SEQ ? 2 : 3);
             switch (subtype) {
-              case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_STR: break;
-              case DDS_OP_VAL_BST: case DDS_OP_VAL_ENU: brk++; break;
-              default: brk += 2; break;
+              case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+              case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR:
+                break;
+              case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_ENU:
+                brk++;
+                break;
+              default:
+                brk += 2;
+                break;
             }
-            if (optype == DDS_OP_VAL_ARR && subtype == DDS_OP_VAL_BST) brk++;
+            if (optype == DDS_OP_VAL_ARR && (subtype == DDS_OP_VAL_BST || subtype == DDS_OP_VAL_BWSTR)) brk++;
           } else if (optype == DDS_OP_VAL_UNI) {
             brk = op + 4;
             subtype = DDS_OP_SUBTYPE(inst->data.opcode.code);
@@ -1968,6 +2007,7 @@ static idl_retcode_t get_ctype_keys_adr(
       switch (subtype) {
         case DDS_OP_VAL_BLN:
         case DDS_OP_VAL_1BY: key->size = key->align = 1; break;
+        case DDS_OP_VAL_WCHAR:
         case DDS_OP_VAL_2BY: key->size = key->align = 2; break;
         case DDS_OP_VAL_4BY: key->size = key->align = 4; break;
         case DDS_OP_VAL_8BY: key->size = key->align = 8; break;
@@ -1980,6 +2020,9 @@ static idl_retcode_t get_ctype_keys_adr(
         }
         case DDS_OP_VAL_BST: case DDS_OP_VAL_STR:
           idl_error (pstate, ctype->node, "Using array with string element type as part of the key is currently unsupported");
+          return IDL_RETCODE_UNSUPPORTED;
+        case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_WSTR:
+          idl_error (pstate, ctype->node, "Using array with wstring element type as part of the key is currently unsupported");
           return IDL_RETCODE_UNSUPPORTED;
         case DDS_OP_VAL_ARR: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ:
           idl_error (pstate, ctype->node, "Using array with collection element type as part of the key is currently unsupported");
@@ -1997,6 +2040,7 @@ static idl_retcode_t get_ctype_keys_adr(
       switch (type) {
         case DDS_OP_VAL_BLN:
         case DDS_OP_VAL_1BY: key->size = key->align = 1; break;
+        case DDS_OP_VAL_WCHAR:
         case DDS_OP_VAL_2BY: key->size = key->align = 2; break;
         case DDS_OP_VAL_4BY: key->size = key->align = 4; break;
         case DDS_OP_VAL_8BY: key->size = key->align = 8; break;
@@ -2006,7 +2050,7 @@ static idl_retcode_t get_ctype_keys_adr(
           key->size = key->align = sz;
           break;
         }
-        case DDS_OP_VAL_BST: {
+        case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR: {
           assert(offs + 2 < ctype->instructions.count);
           assert(ctype->instructions.table[offs + 2].type == SINGLE);
           /* string size if stored as bound + 1 */
@@ -2016,7 +2060,7 @@ static idl_retcode_t get_ctype_keys_adr(
           key->size = 4 + str_sz;
           break;
         }
-        case DDS_OP_VAL_ARR: case DDS_OP_VAL_STR: case DDS_OP_VAL_EXT:
+        case DDS_OP_VAL_ARR: case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR: case DDS_OP_VAL_EXT:
           key->size = DDS_FIXED_KEY_MAX_SIZE + 1;
           key->align = 1;
           break;
@@ -2273,12 +2317,16 @@ static int print_flags(FILE *fp, struct descriptor *descriptor, bool type_info)
         continue;
 
       uint32_t typecode = DDS_OP_TYPE(i.data.opcode.code);
-      if (typecode == DDS_OP_VAL_STR || typecode == DDS_OP_VAL_BST || typecode == DDS_OP_VAL_SEQ || typecode == DDS_OP_VAL_BSQ)
+      if (typecode == DDS_OP_VAL_STR || typecode == DDS_OP_VAL_BST ||
+          typecode == DDS_OP_VAL_WSTR || typecode == DDS_OP_VAL_BWSTR ||
+          typecode == DDS_OP_VAL_SEQ || typecode == DDS_OP_VAL_BSQ)
         fixed_size = false;
       if (typecode == DDS_OP_VAL_ARR)
       {
         uint32_t subtypecode = DDS_OP_SUBTYPE(i.data.opcode.code);
-        if (subtypecode == DDS_OP_VAL_STR || subtypecode == DDS_OP_VAL_BST || subtypecode == DDS_OP_VAL_SEQ || subtypecode == DDS_OP_VAL_BSQ)
+        if (subtypecode == DDS_OP_VAL_STR || subtypecode == DDS_OP_VAL_BST ||
+            subtypecode == DDS_OP_VAL_WSTR || subtypecode == DDS_OP_VAL_BWSTR ||
+            subtypecode == DDS_OP_VAL_SEQ || subtypecode == DDS_OP_VAL_BSQ)
           fixed_size = false;
       }
     }

@@ -53,6 +53,7 @@ set(headers
   "${source_dir}/include/dds/ddsrt/strtol.h"
   "${source_dir}/include/dds/ddsrt/types.h"
   "${source_dir}/include/dds/ddsrt/countargs.h"
+  "${source_dir}/include/dds/ddsrt/foreach.h"
   "${source_dir}/include/dds/ddsrt/static_assert.h"
   "${source_dir}/include/dds/ddsrt/circlist.h"
   "${source_dir}/include/dds/ddsrt/atomics.h"

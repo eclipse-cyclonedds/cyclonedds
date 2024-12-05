@@ -154,6 +154,7 @@ union IDL_YYSTYPE
   idl_type_spec_t *type_spec;
   idl_sequence_t *sequence;
   idl_string_t *string;
+  idl_wstring_t *wstring;
   /* declarations */
   idl_definition_t *definition;
   idl_module_t *module_dcl;
@@ -182,7 +183,7 @@ union IDL_YYSTYPE
   unsigned long long ullng;
   long double ldbl;
 
-#line 186 "parser.h"
+#line 187 "parser.h"
 
 };
 typedef union IDL_YYSTYPE IDL_YYSTYPE;
@@ -227,8 +228,7 @@ void idl_yypstate_delete (idl_yypstate *ps);
 int idl_iskeyword(idl_pstate_t *pstate, const char *str, int nc);
 void idl_yypstate_delete_stack(idl_yypstate *yyps);
 
-#line 231 "parser.h"
+#line 232 "parser.h"
 
 #endif /* !YY_IDL_YY_PARSER_H_INCLUDED  */
-/* generated from parser.y[623c121adf1acfa3f197e5cc35eeb5f25c2203e7] */
-/* generated from parser.y[623c121adf1acfa3f197e5cc35eeb5f25c2203e7] */
+/* generated from parser.y[3f81580cb244497effa9931afbac0c4d770b40ba] */

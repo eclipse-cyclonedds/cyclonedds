@@ -13,6 +13,7 @@
 
 #include "dds/ddsrt/endian.h"
 
+#define SER8(v) ((unsigned char) (v))
 #if DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
 #define SER16(v) \
   (unsigned char)(((uint16_t)(v) >>  8) & 0xff), \
