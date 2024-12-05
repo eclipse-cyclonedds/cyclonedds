@@ -1,0 +1,33 @@
+// Copyright(c) 2024 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
+module CdrStreamWstring {
+
+  @final struct t1 { wstring ws; @key uint32 k; };
+  @final struct t2 { wstring<1> ws1; wstring<2> ws2; @key uint32 k; };
+  @final struct t3 { wstring<1> ws1a[2]; @key uint32 k; };
+  typedef wstring<1> wstring1;
+  typedef sequence<wstring> wstring_seq;
+  typedef sequence<wstring1, 2> wstring1_bseq2;
+  @final struct t4 { wstring_seq ws1s; wstring1_bseq2 ws1bs; @key uint32 k; };
+
+  @final union u5 switch (long) {
+    case 1: wstring ws;
+    case 2: wstring1 ws1;
+    case 3: wstring_seq wss;
+    case 4: wstring1_bseq2 ws1bs;
+    case 5: wstring1 ws1a[2];
+    case 6: wstring1_bseq2 ws1abs[2];
+  };
+  @final struct t5 {
+    u5 u;
+    @key uint32 k;
+  };
+};
