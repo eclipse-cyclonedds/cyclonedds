@@ -2514,9 +2514,6 @@ static bool eq_CdrStreamWstring_t5 (const void *va, const void *vb)
 #define D(n, ...) (&CdrStreamWstring_ ## n ## _desc), eq_CdrStreamWstring_ ## n, (&(CdrStreamWstring_ ## n){ __VA_ARGS__ })
 CU_Test (ddsc_cdrstream, check_wstring_valid)
 {
-#ifdef _MSC_VER
-  CU_PASS("Microsoft is seemingly incapable of writing a C preprocessor");
-#else
   const struct {
     const dds_topic_descriptor_t *desc;
     bool (*eq) (const void *a, const void *b);
@@ -2609,15 +2606,11 @@ CU_Test (ddsc_cdrstream, check_wstring_valid)
     dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
     dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
   }
-#endif
 }
 #undef D
 
 CU_Test (ddsc_cdrstream, check_wstring_normalize)
 {
-#ifdef _MSC_VER
-  CU_PASS("Microsoft is seemingly incapable of writing a C preprocessor");
-#else
   // all illegal inputs, no need to worry much about unbounded/bounded, arrays or sequences:
   // they all pass through the same functions, so "t2" suffices
   const struct {
@@ -2649,5 +2642,4 @@ CU_Test (ddsc_cdrstream, check_wstring_normalize)
     ddsrt_free (cdr);
     dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
   }
-#endif
 }
