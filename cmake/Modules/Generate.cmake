@@ -25,6 +25,12 @@ function(IDLC_GENERATE)
     endif()
     set(_idlc_depends CycloneDDS::libidlc)
   else()
+    if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux" AND NOT ".so" IN_LIST CMAKE_FIND_LIBRARY_SUFFIXES)
+      # When cross-compiling, find_library looks for libraries using naming conventions of the target,
+      # But here we're trying to find the idlc backend library to run on the host.
+      # For now, building for a Windows target on a Linux host with w64-mingw is supported by this workaround.
+      list(APPEND CMAKE_FIND_LIBRARY_SUFFIXES ".so")
+    endif()
     find_library(_idlc_backend "cycloneddsidlc" NO_CMAKE_FIND_ROOT_PATH)
     if (_idlc_backend)
       if (NOT DEFINED _idlc_generate_skipreport)

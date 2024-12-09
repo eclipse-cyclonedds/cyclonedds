@@ -108,7 +108,7 @@ static dds_time_t exampleGet99PercentileFromTimeStats (ExampleTimeStats *stats)
 static dds_entity_t waitSet;
 
 #ifdef _WIN32
-#include <Windows.h>
+#include <windows.h>
 static bool CtrlHandler (DWORD fdwCtrlType)
 {
   (void)fdwCtrlType;
