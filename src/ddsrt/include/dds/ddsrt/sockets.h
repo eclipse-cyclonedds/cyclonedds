@@ -449,7 +449,7 @@ ddsrt_sockaddr_get_port(
  */
 bool
 ddsrt_sockaddr_isunspecified(
-  const struct sockaddr *__restrict sa) ddsrt_nonnull_all;
+  const struct sockaddr *sa) ddsrt_nonnull_all;
 
 /**
  * @brief Check if the given address is a loopback address.
@@ -460,7 +460,7 @@ ddsrt_sockaddr_isunspecified(
  */
 bool
 ddsrt_sockaddr_isloopback(
-  const struct sockaddr *__restrict sa) ddsrt_nonnull_all;
+  const struct sockaddr *sa) ddsrt_nonnull_all;
 
 /**
  * @brief Check if given socket IP addresses reside in the same subnet.

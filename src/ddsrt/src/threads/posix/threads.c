@@ -81,7 +81,7 @@ int _open(const char *name, int mode) { return -1; }
 #endif
 
 size_t
-ddsrt_thread_getname(char * __restrict name, size_t size)
+ddsrt_thread_getname(char *name, size_t size)
 {
 #ifdef MAXTHREADNAMESIZE
   char buf[MAXTHREADNAMESIZE + 1] = "";
@@ -145,7 +145,7 @@ ddsrt_thread_getname(char * __restrict name, size_t size)
 }
 
 void
-ddsrt_thread_setname(const char *__restrict name)
+ddsrt_thread_setname(const char *name)
 {
   assert(name != NULL);
 
@@ -543,7 +543,7 @@ ddsrt_thread_join(ddsrt_thread_t thread, uint32_t *thread_result)
 #if defined __linux
 dds_return_t
 ddsrt_thread_list (
-  ddsrt_thread_list_id_t * __restrict tids,
+  ddsrt_thread_list_id_t *tids,
   size_t size)
 {
   DIR *dir;
@@ -574,7 +574,7 @@ ddsrt_thread_list (
 dds_return_t
 ddsrt_thread_getname_anythread (
   ddsrt_thread_list_id_t tid,
-  char *__restrict name,
+  char *name,
   size_t size)
 {
   char file[100];
@@ -608,7 +608,7 @@ DDSRT_STATIC_ASSERT (sizeof (ddsrt_thread_list_id_t) == sizeof (mach_port_t));
 
 dds_return_t
 ddsrt_thread_list (
-  ddsrt_thread_list_id_t * __restrict tids,
+  ddsrt_thread_list_id_t *tids,
   size_t size)
 {
   thread_act_array_t tasks;
@@ -624,7 +624,7 @@ ddsrt_thread_list (
 dds_return_t
 ddsrt_thread_getname_anythread (
   ddsrt_thread_list_id_t tid,
-  char *__restrict name,
+  char *name,
   size_t size)
 {
   if (size > 0)

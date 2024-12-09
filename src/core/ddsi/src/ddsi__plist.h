@@ -343,7 +343,7 @@ void ddsi_plist_addtomsg_bo (struct ddsi_xmsg *m, const ddsi_plist_t *ps, uint64
  *
  * @returns number of bytes written to buf, excluding a terminating 0.
  */
-size_t ddsi_plist_print (char * __restrict buf, size_t bufsize, const ddsi_plist_t *plist);
+size_t ddsi_plist_print (char *buf, size_t bufsize, const ddsi_plist_t *plist);
 
 struct ddsi_rsample_info;
 

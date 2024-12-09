@@ -247,7 +247,7 @@ struct chhtest_thread_arg {
 
 static uint32_t chhtest_thread (void *varg)
 {
-  struct chhtest_thread_arg * const __restrict arg = varg;
+  struct chhtest_thread_arg * const arg = varg;
   uint32_t ** ksptrs;
   uint32_t n = 0;
 

@@ -338,7 +338,7 @@ static bool gen_serdata_key_from_sample (const struct dds_sertype_default *type,
   return gen_serdata_key (type, kh, GSKIK_SAMPLE, (void *) sample);
 }
 
-static bool gen_serdata_key_from_cdr (dds_istream_t * __restrict is, struct dds_serdata_default_key * __restrict kh, const struct dds_sertype_default * __restrict type, const bool just_key)
+static bool gen_serdata_key_from_cdr (dds_istream_t *is, struct dds_serdata_default_key *kh, const struct dds_sertype_default *type, const bool just_key)
 {
   return gen_serdata_key (type, kh, just_key ? GSKIK_CDRKEY : GSKIK_CDRSAMPLE, is);
 }
@@ -514,7 +514,7 @@ static struct ddsi_serdata *serdata_default_from_keyhash_cdr_nokey (const struct
   return fix_serdata_default_nokey(d, tp->c.serdata_basehash);
 }
 
-static void istream_from_serdata_default (dds_istream_t * __restrict s, const struct dds_serdata_default * __restrict d)
+static void istream_from_serdata_default (dds_istream_t *s, const struct dds_serdata_default *d)
 {
   if (d->c.loan != NULL &&
       (d->c.loan->metadata->sample_state == DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY ||
@@ -538,7 +538,7 @@ static void istream_from_serdata_default (dds_istream_t * __restrict s, const st
   s->m_xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
 }
 
-static void ostream_from_serdata_default (dds_ostream_t * __restrict s, const struct dds_serdata_default * __restrict d)
+static void ostream_from_serdata_default (dds_ostream_t *s, const struct dds_serdata_default *d)
 {
   s->m_buffer = (unsigned char *) d;
   s->m_index = (uint32_t) offsetof (struct dds_serdata_default, data);
@@ -551,7 +551,7 @@ static void ostream_from_serdata_default (dds_ostream_t * __restrict s, const st
   s->m_xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
 }
 
-static void ostream_add_to_serdata_default (dds_ostream_t * __restrict s, struct dds_serdata_default ** __restrict d)
+static void ostream_add_to_serdata_default (dds_ostream_t *s, struct dds_serdata_default **d)
 {
   /* DDSI requires 4 byte alignment */
   const uint32_t pad = dds_cdr_alignto4_clear_and_resize (s, &dds_cdrstream_default_allocator, s->m_xcdr_version);

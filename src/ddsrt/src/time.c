@@ -73,23 +73,23 @@ ddsrt_ctime(dds_time_t abstime, char *str, size_t size)
   return ddsrt_strlcpy(str, buf, size);
 }
 
-static void time_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, int64_t t)
+static void time_to_sec_usec (int32_t *sec, int32_t *usec, int64_t t)
 {
   *sec = (int32_t) (t / DDS_NSECS_IN_SEC);
   *usec = (int32_t) (t % DDS_NSECS_IN_SEC) / 1000;
 }
 
-void ddsrt_mtime_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, ddsrt_mtime_t t)
+void ddsrt_mtime_to_sec_usec (int32_t *sec, int32_t *usec, ddsrt_mtime_t t)
 {
   time_to_sec_usec (sec, usec, t.v);
 }
 
-void ddsrt_wctime_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, ddsrt_wctime_t t)
+void ddsrt_wctime_to_sec_usec (int32_t *sec, int32_t *usec, ddsrt_wctime_t t)
 {
   time_to_sec_usec (sec, usec, t.v);
 }
 
-void ddsrt_etime_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, ddsrt_etime_t t)
+void ddsrt_etime_to_sec_usec (int32_t *sec, int32_t *usec, ddsrt_etime_t t)
 {
   time_to_sec_usec (sec, usec, t.v);
 }

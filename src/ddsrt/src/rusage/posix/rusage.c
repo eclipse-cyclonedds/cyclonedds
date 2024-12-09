@@ -23,7 +23,7 @@
 dds_return_t
 ddsrt_getrusage_anythread (
   ddsrt_thread_list_id_t tid,
-  ddsrt_rusage_t * __restrict usage)
+  ddsrt_rusage_t *usage)
 {
   /* Linux' man pages happily state that the second field is the process/task name
      in parentheses, and that %s is the correct scanf conversion.  As it turns out
@@ -176,7 +176,7 @@ ddsrt_getrusage (enum ddsrt_getrusage_who who, ddsrt_rusage_t *usage)
 dds_return_t
 ddsrt_getrusage_anythread (
   ddsrt_thread_list_id_t tid,
-  ddsrt_rusage_t * __restrict usage)
+  ddsrt_rusage_t *usage)
 {
   mach_msg_type_number_t cnt;
   thread_basic_info_data_t info;

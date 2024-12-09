@@ -25,10 +25,6 @@
  * @defgroup deprecated (Deprecated functionality)
  */
 
-#if defined (__cplusplus)
-#define restrict
-#endif
-
 #include "dds/export.h"
 #include "dds/features.h"
 
