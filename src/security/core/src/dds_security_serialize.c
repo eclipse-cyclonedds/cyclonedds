@@ -49,6 +49,7 @@
 #define PID_TRANSPORT_PRIORITY                  0x49u
 #define PID_PROTOCOL_VERSION                    0x15u
 #define PID_VENDORID                            0x16u
+#define PID_PRODUCT_VERSION                     0x8000u
 #define PID_UNICAST_LOCATOR                     0x2fu
 #define PID_MULTICAST_LOCATOR                   0x30u
 #define PID_MULTICAST_IPADDRESS                 0x11u

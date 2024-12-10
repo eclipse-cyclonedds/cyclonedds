@@ -59,6 +59,13 @@ typedef struct {
   uint8_t id[2];
 } ddsi_vendorid_t;
 
+typedef struct {
+  uint8_t major;
+  uint8_t minor;
+  uint8_t release;
+  uint8_t revision;
+} ddsi_product_version_t;
+
 typedef struct ddsi_protocolid {
   uint8_t id[4];
 } ddsi_protocolid_t;
