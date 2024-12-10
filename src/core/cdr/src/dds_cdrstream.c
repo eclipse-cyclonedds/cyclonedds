@@ -22,6 +22,35 @@
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsc/dds_data_type_properties.h"
 
+typedef struct restrict_ostream_base {
+  unsigned char * restrict m_buffer;
+  uint32_t m_size;          /* Buffer size */
+  uint32_t m_index;         /* Read/write offset from start of buffer */
+  uint32_t m_xcdr_version;  /* XCDR version to use for serializing data */
+} restrict_ostream_base_t;
+
+// We cast a dds_ostream(|BE|LE)_t * to a restrict_ostream(|BE|LE)_t *, so a
+// minimal verification that the memory layout is the same seems like a good
+// idea.
+DDSRT_STATIC_ASSERT(
+  sizeof (restrict_ostream_base_t) == sizeof (dds_ostream_t) &&
+  offsetof (restrict_ostream_base_t, m_buffer) == offsetof (dds_ostream_t, m_buffer) &&
+  offsetof (restrict_ostream_base_t, m_size) == offsetof (dds_ostream_t, m_size) &&
+  offsetof (restrict_ostream_base_t, m_index) == offsetof (dds_ostream_t, m_index) &&
+  offsetof (restrict_ostream_base_t, m_xcdr_version) == offsetof (dds_ostream_t, m_xcdr_version));
+
+typedef struct restrict_ostream {
+  restrict_ostream_base_t x;
+} restrict_ostream_t;
+
+typedef struct restrict_ostreamBE {
+  restrict_ostream_base_t x;
+} restrict_ostreamBE_t;
+
+typedef struct restrict_ostreamLE {
+  restrict_ostream_base_t x;
+} restrict_ostreamLE_t;
+
 #define TOKENPASTE(a, b) a ## b
 #define TOKENPASTE2(a, b) TOKENPASTE(a, b)
 #define TOKENPASTE3(a, b, c) TOKENPASTE2(a, TOKENPASTE2(b, c))
@@ -29,6 +58,7 @@
 #define NAME_BYTE_ORDER(name) TOKENPASTE2(name, NAME_BYTE_ORDER_EXT)
 #define NAME2_BYTE_ORDER(prefix, postfix) TOKENPASTE3(prefix, NAME_BYTE_ORDER_EXT, postfix)
 #define DDS_OSTREAM_T TOKENPASTE3(dds_ostream, NAME_BYTE_ORDER_EXT, _t)
+#define RESTRICT_OSTREAM_T TOKENPASTE3(restrict_ostream, NAME_BYTE_ORDER_EXT, _t)
 
 #define EMHEADER_FLAG_MASK            0x80000000u
 #define EMHEADER_FLAG_MUSTUNDERSTAND  (1u << 31)
@@ -88,10 +118,11 @@
 #define dds_stream_write_pl_memberBO                  NAME_BYTE_ORDER(dds_stream_write_pl_member)
 #define dds_stream_write_delimitedBO                  NAME_BYTE_ORDER(dds_stream_write_delimited)
 #define dds_stream_write_keyBO                        NAME_BYTE_ORDER(dds_stream_write_key)
+#define dds_stream_write_keyBO_restrict               NAME2_BYTE_ORDER(dds_stream_write_key, _restrict)
 #define dds_stream_write_keyBO_impl                   NAME2_BYTE_ORDER(dds_stream_write_key, _impl)
-#define dds_cdr_alignto_clear_and_resizeBO            NAME_BYTE_ORDER(dds_cdr_alignto_clear_and_resize)
 #define dds_stream_swap_if_needed_insituBO            NAME_BYTE_ORDER(dds_stream_swap_if_needed_insitu)
 #define dds_stream_to_BO_insitu                       NAME2_BYTE_ORDER(dds_stream_to_, _insitu)
+#define dds_stream_extract_keyBO_from_data_restrict   NAME2_BYTE_ORDER(dds_stream_extract_key, _from_data_restrict)
 #define dds_stream_extract_keyBO_from_data            NAME2_BYTE_ORDER(dds_stream_extract_key, _from_data)
 #define dds_stream_extract_keyBO_from_data1           NAME2_BYTE_ORDER(dds_stream_extract_key, _from_data1)
 #define dds_stream_extract_keyBO_from_data_adr        NAME2_BYTE_ORDER(dds_stream_extract_key, _from_data_adr)
@@ -140,11 +171,11 @@ struct dds_cdrstream_ops_info {
 
 static const uint32_t *dds_stream_skip_adr (uint32_t insn, const uint32_t *ops);
 static const uint32_t *dds_stream_skip_default (char * restrict data, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, enum sample_data_state sample_state);
-static const uint32_t *dds_stream_extract_key_from_data1 (dds_istream_t *is, dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator,
+static const uint32_t *dds_stream_extract_key_from_data1 (dds_istream_t *is, restrict_ostream_t *os, const struct dds_cdrstream_allocator *allocator,
   const uint32_t * const op0, const uint32_t *ops, bool mutable_member, bool mutable_member_or_parent,
   uint32_t n_keys, uint32_t * restrict keys_remaining);
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-static const uint32_t *dds_stream_extract_keyBE_from_data1 (dds_istream_t *is, dds_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator,
+static const uint32_t *dds_stream_extract_keyBE_from_data1 (dds_istream_t *is, restrict_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator,
   const uint32_t * const op0, const uint32_t *ops, bool mutable_member, bool mutable_member_or_parent,
   uint32_t n_keys, uint32_t * restrict keys_remaining);
 #endif
@@ -155,8 +186,8 @@ static const uint32_t *dds_stream_skip_adr_default (uint32_t insn, char * restri
 static const uint32_t *dds_stream_key_size (const uint32_t *ops, struct key_props *k);
 static const uint32_t *dds_stream_free_sample_uni (char * restrict discaddr, char * restrict baseaddr, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, uint32_t insn);
 
-static const uint32_t *dds_stream_write_implLE (dds_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops, bool is_mutable_member, enum cdr_data_kind cdr_kind);
-static const uint32_t *dds_stream_write_implBE (dds_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops, bool is_mutable_member, enum cdr_data_kind cdr_kind);
+static const uint32_t *dds_stream_write_implLE (restrict_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops, bool is_mutable_member, enum cdr_data_kind cdr_kind);
+static const uint32_t *dds_stream_write_implBE (restrict_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops, bool is_mutable_member, enum cdr_data_kind cdr_kind);
 
 #ifndef NDEBUG
 typedef struct align { uint32_t a; } align_t;
@@ -179,7 +210,7 @@ static inline align_t dds_cdr_get_align (uint32_t xcdr_version, uint32_t size)
 #undef MK_ALIGN
 }
 
-static void dds_ostream_grow (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t size)
+static void dds_ostream_grow (restrict_ostream_base_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t size)
 {
   uint32_t needed = size + os->m_index;
 
@@ -192,7 +223,7 @@ static void dds_ostream_grow (dds_ostream_t *os, const struct dds_cdrstream_allo
   os->m_size = new_size;
 }
 
-dds_ostream_t dds_ostream_from_buffer(void *buffer, size_t size, uint16_t write_encoding_version)
+dds_ostream_t dds_ostream_from_buffer (void *buffer, size_t size, uint16_t write_encoding_version)
 {
   dds_ostream_t os;
   os.m_buffer = buffer;
@@ -202,7 +233,7 @@ dds_ostream_t dds_ostream_from_buffer(void *buffer, size_t size, uint16_t write_
   return os;
 }
 
-static void dds_cdr_resize (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t l)
+static void dds_cdr_resize (restrict_ostream_base_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t l)
 {
   if (os->m_size < l + os->m_index)
     dds_ostream_grow (os, allocator, l);
@@ -218,11 +249,10 @@ void dds_istream_init (dds_istream_t *is, uint32_t size, const void *input, uint
 
 void dds_ostream_init (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t size, uint32_t xcdr_version)
 {
-  os->m_buffer = NULL;
-  os->m_size = 0;
+  os->m_buffer = size ? allocator->malloc (size) : NULL;
+  os->m_size = size;
   os->m_index = 0;
   os->m_xcdr_version = xcdr_version;
-  dds_cdr_resize (os, allocator, size);
 }
 
 void dds_ostreamLE_init (dds_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t size, uint32_t xcdr_version)
@@ -262,7 +292,7 @@ static void dds_cdr_alignto (dds_istream_t *is, align_t a)
   assert (is->m_index < is->m_size);
 }
 
-static uint32_t dds_cdr_alignto_clear_and_resize (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, align_t a, uint32_t extra)
+static uint32_t dds_cdr_alignto_clear_and_resize_base (restrict_ostream_base_t *os, const struct dds_cdrstream_allocator *allocator, align_t a, uint32_t extra)
 {
   const uint32_t m = os->m_index % ALIGN(a);
   if (m == 0)
@@ -280,16 +310,9 @@ static uint32_t dds_cdr_alignto_clear_and_resize (dds_ostream_t *os, const struc
   }
 }
 
-#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-static uint32_t dds_cdr_alignto_clear_and_resizeBE (dds_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, align_t a, uint32_t extra)
-{
-  return dds_cdr_alignto_clear_and_resize (&os->x, allocator, a, extra);
-}
-#endif
-
 uint32_t dds_cdr_alignto4_clear_and_resize (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t xcdr_version)
 {
-  return dds_cdr_alignto_clear_and_resize (os, allocator, dds_cdr_get_align (xcdr_version, 4), 0);
+  return dds_cdr_alignto_clear_and_resize_base ((restrict_ostream_base_t *) os, allocator, dds_cdr_get_align (xcdr_version, 4), 0);
 }
 
 static uint8_t dds_is_get1 (dds_istream_t *is)
@@ -341,63 +364,70 @@ static void dds_is_get_bytes (dds_istream_t *is, void * restrict b, uint32_t num
   is->m_index += num * elem_size;
 }
 
-static void dds_os_put1 (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, uint8_t v)
+static void dds_os_put1_base (restrict_ostream_base_t *os, const struct dds_cdrstream_allocator *allocator, uint8_t v)
 {
   dds_cdr_resize (os, allocator, 1);
   *((uint8_t *) (os->m_buffer + os->m_index)) = v;
   os->m_index += 1;
 }
 
-static void dds_os_put2 (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, uint16_t v)
+static void dds_os_put2_base (restrict_ostream_base_t *os, const struct dds_cdrstream_allocator *allocator, uint16_t v)
 {
-  dds_cdr_alignto_clear_and_resize (os, allocator, dds_cdr_get_align (os->m_xcdr_version, 2), 2);
+  dds_cdr_alignto_clear_and_resize_base (os, allocator, dds_cdr_get_align (os->m_xcdr_version, 2), 2);
   *((uint16_t *) (os->m_buffer + os->m_index)) = v;
   os->m_index += 2;
 }
 
-static void dds_os_put4 (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t v)
+static void dds_os_put4_base (restrict_ostream_base_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t v)
 {
-  dds_cdr_alignto_clear_and_resize (os, allocator, dds_cdr_get_align (os->m_xcdr_version, 4), 4);
+  dds_cdr_alignto_clear_and_resize_base (os, allocator, dds_cdr_get_align (os->m_xcdr_version, 4), 4);
   *((uint32_t *) (os->m_buffer + os->m_index)) = v;
   os->m_index += 4;
 }
 
-static void dds_os_put8 (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, uint64_t v)
+static void dds_os_put8_base (restrict_ostream_base_t *os, const struct dds_cdrstream_allocator *allocator, uint64_t v)
 {
-  dds_cdr_alignto_clear_and_resize (os, allocator, dds_cdr_get_align (os->m_xcdr_version, 8), 8);
+  dds_cdr_alignto_clear_and_resize_base (os, allocator, dds_cdr_get_align (os->m_xcdr_version, 8), 8);
   size_t off_low = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? 0 : 4, off_high = 4 - off_low;
   *((uint32_t *) (os->m_buffer + os->m_index + off_low)) = (uint32_t) v;
   *((uint32_t *) (os->m_buffer + os->m_index + off_high)) = (uint32_t) (v >> 32);
   os->m_index += 8;
 }
 
-static uint32_t dds_os_reserve4 (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator)
+static uint32_t dds_os_reserve4_base (restrict_ostream_base_t *os, const struct dds_cdrstream_allocator *allocator)
 {
-  dds_cdr_alignto_clear_and_resize (os, allocator, dds_cdr_get_align (os->m_xcdr_version, 4), 4);
+  dds_cdr_alignto_clear_and_resize_base (os, allocator, dds_cdr_get_align (os->m_xcdr_version, 4), 4);
   os->m_index += 4;
   return os->m_index;
 }
 
-static uint32_t dds_os_reserve8 (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator)
+static uint32_t dds_os_reserve8_base (restrict_ostream_base_t *os, const struct dds_cdrstream_allocator *allocator)
 {
-  dds_cdr_alignto_clear_and_resize (os, allocator, dds_cdr_get_align (os->m_xcdr_version, 8), 8);
+  dds_cdr_alignto_clear_and_resize_base (os, allocator, dds_cdr_get_align (os->m_xcdr_version, 8), 8);
   os->m_index += 8;
   return os->m_index;
 }
 
-static void dds_os_put1LE (dds_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator, uint8_t v)  { dds_os_put1 (&os->x, allocator, v); }
-static void dds_os_put2LE (dds_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator, uint16_t v) { dds_os_put2 (&os->x, allocator, ddsrt_toLE2u (v)); }
-static void dds_os_put4LE (dds_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t v) { dds_os_put4 (&os->x, allocator, ddsrt_toLE4u (v)); }
-static void dds_os_put8LE (dds_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator, uint64_t v) { dds_os_put8 (&os->x, allocator, ddsrt_toLE8u (v)); }
-static uint32_t dds_os_reserve4LE (dds_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator) { return dds_os_reserve4 (&os->x, allocator); }
-static uint32_t dds_os_reserve8LE (dds_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator) { return dds_os_reserve8 (&os->x, allocator); }
+static void dds_os_put1 (restrict_ostream_t *os, const struct dds_cdrstream_allocator *allocator, uint8_t v)  { dds_os_put1_base (&os->x, allocator, v); }
+static void dds_os_put2 (restrict_ostream_t *os, const struct dds_cdrstream_allocator *allocator, uint16_t v) { dds_os_put2_base (&os->x, allocator, v); }
+static void dds_os_put4 (restrict_ostream_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t v) { dds_os_put4_base (&os->x, allocator, v); }
+static void dds_os_put8 (restrict_ostream_t *os, const struct dds_cdrstream_allocator *allocator, uint64_t v) { dds_os_put8_base (&os->x, allocator, v); }
+static uint32_t dds_os_reserve4 (restrict_ostream_t *os, const struct dds_cdrstream_allocator *allocator) { return dds_os_reserve4_base (&os->x, allocator); }
+static uint32_t dds_os_reserve8 (restrict_ostream_t *os, const struct dds_cdrstream_allocator *allocator) { return dds_os_reserve8_base (&os->x, allocator); }
 
-static void dds_os_put1BE (dds_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, uint8_t v)  { dds_os_put1 (&os->x, allocator, v); }
-static void dds_os_put2BE (dds_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, uint16_t v) { dds_os_put2 (&os->x, allocator, ddsrt_toBE2u (v)); }
-static void dds_os_put4BE (dds_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t v) { dds_os_put4 (&os->x, allocator, ddsrt_toBE4u (v)); }
-static void dds_os_put8BE (dds_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, uint64_t v) { dds_os_put8 (&os->x, allocator, ddsrt_toBE8u (v)); }
-static uint32_t dds_os_reserve4BE (dds_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator) { return dds_os_reserve4 (&os->x, allocator); }
-static uint32_t dds_os_reserve8BE (dds_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator) { return dds_os_reserve8 (&os->x, allocator); }
+static void dds_os_put1LE (restrict_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator, uint8_t v)  { dds_os_put1_base (&os->x, allocator, v); }
+static void dds_os_put2LE (restrict_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator, uint16_t v) { dds_os_put2_base (&os->x, allocator, ddsrt_toLE2u (v)); }
+static void dds_os_put4LE (restrict_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t v) { dds_os_put4_base (&os->x, allocator, ddsrt_toLE4u (v)); }
+static void dds_os_put8LE (restrict_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator, uint64_t v) { dds_os_put8_base (&os->x, allocator, ddsrt_toLE8u (v)); }
+static uint32_t dds_os_reserve4LE (restrict_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator) { return dds_os_reserve4_base (&os->x, allocator); }
+static uint32_t dds_os_reserve8LE (restrict_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator) { return dds_os_reserve8_base (&os->x, allocator); }
+
+static void dds_os_put1BE (restrict_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, uint8_t v)  { dds_os_put1_base (&os->x, allocator, v); }
+static void dds_os_put2BE (restrict_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, uint16_t v) { dds_os_put2_base (&os->x, allocator, ddsrt_toBE2u (v)); }
+static void dds_os_put4BE (restrict_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t v) { dds_os_put4_base (&os->x, allocator, ddsrt_toBE4u (v)); }
+static void dds_os_put8BE (restrict_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, uint64_t v) { dds_os_put8_base (&os->x, allocator, ddsrt_toBE8u (v)); }
+static uint32_t dds_os_reserve4BE (restrict_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator) { return dds_os_reserve4_base (&os->x, allocator); }
+static uint32_t dds_os_reserve8BE (restrict_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator) { return dds_os_reserve8_base (&os->x, allocator); }
 
 static void dds_stream_swap (void *vbuf, uint32_t size, uint32_t num)
 {
@@ -436,17 +466,17 @@ static void dds_stream_swap (void *vbuf, uint32_t size, uint32_t num)
   }
 }
 
-static void dds_os_put_bytes (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, const void *b, uint32_t l)
+static void dds_os_put_bytes_base (restrict_ostream_base_t *os, const struct dds_cdrstream_allocator *allocator, const void *b, uint32_t l)
 {
   dds_cdr_resize (os, allocator, l);
   memcpy (os->m_buffer + os->m_index, b, l);
   os->m_index += l;
 }
 
-static void dds_os_put_bytes_aligned (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, const void *data, uint32_t num, uint32_t elem_sz, align_t cdr_align, void **dst)
+static void dds_os_put_bytes_aligned_base (restrict_ostream_base_t *os, const struct dds_cdrstream_allocator *allocator, const void *data, uint32_t num, uint32_t elem_sz, align_t cdr_align, void **dst)
 {
   const uint32_t sz = num * elem_sz;
-  dds_cdr_alignto_clear_and_resize (os, allocator, cdr_align, sz);
+  dds_cdr_alignto_clear_and_resize_base (os, allocator, cdr_align, sz);
   if (dst)
     *dst = os->m_buffer + os->m_index;
   memcpy (os->m_buffer + os->m_index, data, sz);
@@ -1630,46 +1660,46 @@ static inline void dds_stream_to_LE_insitu (void *vbuf, uint32_t size, uint32_t 
 #undef NAME_BYTE_ORDER_EXT
 
 #ifndef NDEBUG
-#define STREAM_SIZE_CHECK_INIT const size_t check_start_index = ((dds_ostream_t *)os)->m_index
-#define STREAM_SIZE_CHECK do { \
-    const size_t check_size = dds_stream_getsize_sample (data, desc, ((dds_ostream_t *)os)->m_xcdr_version); \
-    assert (!res || check_size == ((dds_ostream_t *)os)->m_index - check_start_index); \
+#define STREAM_SIZE_CHECK_INIT(str) const size_t check_start_index = (str).m_index
+#define STREAM_SIZE_CHECK(str) do { \
+    const size_t check_size = dds_stream_getsize_sample (data, desc, (str).m_xcdr_version); \
+    assert (!res || check_size == (str).m_index - check_start_index); \
   } while (0)
 #else
-#define STREAM_SIZE_CHECK_INIT do {} while (0)
-#define STREAM_SIZE_CHECK do {} while (0)
+#define STREAM_SIZE_CHECK_INIT(str) do {} while (0)
+#define STREAM_SIZE_CHECK(str) do {} while (0)
 #endif
 
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
 
 bool dds_stream_write_sample (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, const void *data, const struct dds_cdrstream_desc *desc)
 {
-  STREAM_SIZE_CHECK_INIT;
+  STREAM_SIZE_CHECK_INIT (*os);
   const bool res = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, allocator, data, desc);
-  STREAM_SIZE_CHECK;
+  STREAM_SIZE_CHECK (*os);
   return res;
 }
 
 bool dds_stream_write_sampleLE (dds_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator, const void *data, const struct dds_cdrstream_desc *desc)
 {
-  STREAM_SIZE_CHECK_INIT;
+  STREAM_SIZE_CHECK_INIT (os->x);
   const size_t opt_size = os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1 ? desc->opt_size_xcdr1 : desc->opt_size_xcdr2;
   bool res;
-  if (opt_size && desc->align && (((struct dds_ostream *)os)->m_index % desc->align) == 0) {
-    dds_os_put_bytes ((struct dds_ostream *)os, allocator, data, (uint32_t) opt_size);
+  if (opt_size && desc->align && (os->x.m_index % desc->align) == 0) {
+    dds_os_put_bytes_base ((restrict_ostream_base_t *) &os->x, allocator, data, (uint32_t) opt_size);
     res = true;
   } else {
     res = dds_stream_writeLE (os, allocator, data, desc->ops.ops) != NULL;
   }
-  STREAM_SIZE_CHECK;
+  STREAM_SIZE_CHECK (os->x);
   return res;
 }
 
 bool dds_stream_write_sampleBE (dds_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, const void *data, const struct dds_cdrstream_desc *desc)
 {
-  STREAM_SIZE_CHECK_INIT;
+  STREAM_SIZE_CHECK_INIT (os->x);
   const bool res = (dds_stream_writeBE (os, allocator, data, desc->ops.ops) != NULL);
-  STREAM_SIZE_CHECK;
+  STREAM_SIZE_CHECK (os->x);
   return res;
 }
 
@@ -1677,32 +1707,32 @@ bool dds_stream_write_sampleBE (dds_ostreamBE_t *os, const struct dds_cdrstream_
 
 bool dds_stream_write_sample (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, const void *data, const struct dds_cdrstream_desc *desc)
 {
-  STREAM_SIZE_CHECK_INIT;
+  STREAM_SIZE_CHECK_INIT (*os);
   const bool res = dds_stream_write_sampleBE ((dds_ostreamBE_t *) os, allocator, data, desc);
-  STREAM_SIZE_CHECK;
+  STREAM_SIZE_CHECK (*os);
   return res;
 }
 
 bool dds_stream_write_sampleLE (dds_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator, const void *data, const struct dds_cdrstream_desc *desc)
 {
-  STREAM_SIZE_CHECK_INIT;
+  STREAM_SIZE_CHECK_INIT (os->x);
   const bool res = (dds_stream_writeLE (os, allocator, data, desc->ops.ops) != NULL);
-  STREAM_SIZE_CHECK;
+  STREAM_SIZE_CHECK (os->x);
   return res;
 }
 
 bool dds_stream_write_sampleBE (dds_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, const void *data, const struct dds_cdrstream_desc *desc)
 {
-  STREAM_SIZE_CHECK_INIT;
+  STREAM_SIZE_CHECK_INIT (os->x);
   const size_t opt_size = os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1 ? desc->opt_size_xcdr1 : desc->opt_size_xcdr2;
   bool res;
-  if (opt_size && desc->align && (((struct dds_ostream *)os)->m_index % desc->align) == 0) {
-    dds_os_put_bytes ((struct dds_ostream *)os, allocator, data, (uint32_t) opt_size);
+  if (opt_size && desc->align && (os->x.m_index % desc->align) == 0) {
+    dds_os_put_bytes_base ((restrict_ostream_base_t *) &os->x, allocator, data, (uint32_t) opt_size);
     res = true;
   } else {
     res = dds_stream_writeBE (os, allocator, data, desc->ops.ops) != NULL;
   }
-  STREAM_SIZE_CHECK;
+  STREAM_SIZE_CHECK (os->x);
   return res;
 }
 
@@ -4502,7 +4532,7 @@ void dds_stream_free_sample (void *data, const struct dds_cdrstream_allocator *a
  **
  *******************************************************************************************/
 
-static void dds_stream_extract_key_from_key_prim_op (dds_istream_t *is, dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, uint16_t key_offset_count, const uint32_t * key_offset_insn)
+static void dds_stream_extract_key_from_key_prim_op (dds_istream_t *is, restrict_ostream_t *os, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, uint16_t key_offset_count, const uint32_t * key_offset_insn)
 {
   const uint32_t insn = *ops;
   assert ((insn & DDS_OP_FLAG_KEY) && ((DDS_OP (insn)) == DDS_OP_ADR));
@@ -4528,19 +4558,19 @@ static void dds_stream_extract_key_from_key_prim_op (dds_istream_t *is, dds_ostr
     case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR: {
       uint32_t sz = dds_is_get4 (is);
       dds_os_put4 (os, allocator, sz);
-      dds_os_put_bytes (os, allocator, is->m_buffer + is->m_index, sz);
+      dds_os_put_bytes_base (&os->x, allocator, is->m_buffer + is->m_index, sz);
       is->m_index += sz;
       break;
     }
     case DDS_OP_VAL_ARR: {
       const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
-      uint32_t elem_size, offs = 0, xcdrv = ((struct dds_ostream *)os)->m_xcdr_version;
+      uint32_t elem_size, offs = 0, xcdrv = os->x.m_xcdr_version;
       if (is_dheader_needed (subtype, xcdrv))
       {
         /* In case of non-primitive element type, reserve space for DHEADER in the
            output stream, and skip the DHEADER in the input */
         dds_os_reserve4 (os, allocator);
-        offs = ((struct dds_ostream *)os)->m_index;
+        offs = os->x.m_index;
         (void) dds_is_get4 (is);
       }
       if (is_primitive_type (subtype))
@@ -4549,16 +4579,16 @@ static void dds_stream_extract_key_from_key_prim_op (dds_istream_t *is, dds_ostr
         elem_size = DDS_OP_TYPE_SZ (insn);
       else
         abort ();
-      const align_t cdr_align = dds_cdr_get_align (os->m_xcdr_version, elem_size);
+      const align_t cdr_align = dds_cdr_get_align (os->x.m_xcdr_version, elem_size);
       const uint32_t num = ops[2];
       dds_cdr_alignto (is, cdr_align);
-      dds_cdr_alignto_clear_and_resize (os, allocator, cdr_align, num * elem_size);
-      void * const dst = os->m_buffer + os->m_index;
+      dds_cdr_alignto_clear_and_resize_base (&os->x, allocator, cdr_align, num * elem_size);
+      void * const dst = os->x.m_buffer + os->x.m_index;
       dds_is_get_bytes (is, dst, num, elem_size);
-      os->m_index += num * elem_size;
+      os->x.m_index += num * elem_size;
       /* set DHEADER */
       if (is_dheader_needed (subtype, xcdrv))
-        *((uint32_t *) (((struct dds_ostream *)os)->m_buffer + offs - 4)) = ((struct dds_ostream *)os)->m_index - offs;
+        *((uint32_t *) (os->x.m_buffer + offs - 4)) = os->x.m_index - offs;
       break;
     }
     case DDS_OP_VAL_EXT: {
@@ -4610,7 +4640,7 @@ static void dds_stream_swap_copy (void * restrict vdst, const void *vsrc, uint32
   }
 }
 
-static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t *is, dds_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, uint16_t key_offset_count, const uint32_t * key_offset_insn)
+static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t *is, restrict_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, uint16_t key_offset_count, const uint32_t * key_offset_insn)
 {
   const uint32_t insn = *ops;
   assert ((insn & DDS_OP_FLAG_KEY) && ((DDS_OP (insn)) == DDS_OP_ADR));
@@ -4636,19 +4666,19 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t *is, dds_os
     case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR: {
       uint32_t sz = dds_is_get4 (is);
       dds_os_put4BE (os, allocator, sz);
-      dds_os_put_bytes (&os->x, allocator, is->m_buffer + is->m_index, sz);
+      dds_os_put_bytes_base (&os->x, allocator, is->m_buffer + is->m_index, sz);
       is->m_index += sz;
       break;
     }
     case DDS_OP_VAL_ARR: {
       const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
-      uint32_t elem_size, offs = 0, xcdrv = ((struct dds_ostream *)os)->m_xcdr_version;
+      uint32_t elem_size, offs = 0, xcdrv = os->x.m_xcdr_version;
       if (is_dheader_needed (subtype, xcdrv))
       {
         /* In case of non-primitive element type, reserve space for DHEADER in the
            output stream, and skip the DHEADER in the input */
         dds_os_reserve4BE (os, allocator);
-        offs = ((struct dds_ostream *)os)->m_index;
+        offs = os->x.m_index;
         (void) dds_is_get4 (is);
       }
       if (is_primitive_type (subtype))
@@ -4660,7 +4690,7 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t *is, dds_os
       const align_t cdr_align = dds_cdr_get_align (os->x.m_xcdr_version, elem_size);
       const uint32_t num = ops[2];
       dds_cdr_alignto (is, cdr_align);
-      dds_cdr_alignto_clear_and_resizeBE (os, allocator, cdr_align, num * elem_size);
+      dds_cdr_alignto_clear_and_resize_base (&os->x, allocator, cdr_align, num * elem_size);
       void const * const src = is->m_buffer + is->m_index;
       void * const dst = os->x.m_buffer + os->x.m_index;
       dds_stream_swap_copy (dst, src, elem_size, num);
@@ -4669,7 +4699,7 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t *is, dds_os
 
       /* set DHEADER */
       if (is_dheader_needed (subtype, xcdrv))
-        *((uint32_t *) (((struct dds_ostream *)os)->m_buffer + offs - 4)) = ddsrt_toBE4u(((struct dds_ostream *)os)->m_index - offs);
+        *((uint32_t *) (os->x.m_buffer + offs - 4)) = ddsrt_toBE4u(os->x.m_index - offs);
       break;
     }
     case DDS_OP_VAL_EXT: {
@@ -4994,9 +5024,9 @@ static void dds_stream_swap_if_needed_insituBE (void *vbuf, uint32_t size, uint3
 
 #else /* if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN */
 
-void dds_stream_write_keyBE (dds_ostreamBE_t *os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator *allocator, const char *sample, const struct dds_cdrstream_desc *desc)
+bool dds_stream_write_keyBE (dds_ostreamBE_t *os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator *allocator, const char *sample, const struct dds_cdrstream_desc *desc)
 {
-  dds_stream_write_key (&os->x, ser_kind, allocator, sample, desc);
+  return dds_stream_write_key (&os->x, ser_kind, allocator, sample, desc);
 }
 
 bool dds_stream_extract_keyBE_from_data (dds_istream_t *is, dds_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc)
