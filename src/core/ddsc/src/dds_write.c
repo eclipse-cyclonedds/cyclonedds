@@ -290,8 +290,13 @@ static dds_return_t dds_writecdr_impl_validate_loan (const struct dds_writer *wr
     // Case 5 with mismatch in loan
     dds_loaned_sample_t const * const loan = din->a.loan;
     struct dds_psmx_metadata const * const md = loan->metadata;
+    bool loan_originates_here = false;
+    for (uint32_t e = 0; e < wr->m_endpoint.psmx_endpoints.length && !loan_originates_here; e++) {
+      if (loan->loan_origin.psmx_endpoint == wr->m_endpoint.psmx_endpoints.endpoints[e])
+        loan_originates_here = true;
+    }
     if (loan->loan_origin.origin_kind != DDS_LOAN_ORIGIN_KIND_PSMX ||
-        loan->loan_origin.psmx_endpoint != wr->m_endpoint.psmx_endpoints.endpoints[0] ||
+        !loan_originates_here ||
         md->timestamp != din->a.timestamp.v ||
         md->statusinfo != din->a.statusinfo ||
         memcmp (&md->guid, &wr->m_entity.m_guid, sizeof (md->guid)) != 0)
@@ -312,7 +317,7 @@ static dds_return_t dds_writecdr_impl_ensureloan (struct dds_writer *wr, struct 
   assert (ddsrt_atomic_ld32 (&din->a.refc) == 1);
 
   const uint32_t sersize = ddsi_serdata_size (&din->a);
-  dds_loaned_sample_t * const loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], sersize - 4);
+  dds_loaned_sample_t * const loan = dds_writer_request_psmx_loan (wr, sersize - 4);
   if (loan == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
   if (sersize > 4)
@@ -505,14 +510,13 @@ static dds_return_t dds_write_impl_deliver_via_psmx (struct dds_loaned_sample *l
 ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
 static struct dds_loaned_sample *dds_write_impl_serialize_into_loan (const struct dds_writer *wr, const struct ddsi_sertype *sertype, enum ddsi_serdata_kind sdkind, const void *data, dds_time_t timestamp, uint32_t statusinfo)
 {
-  assert (wr->m_endpoint.psmx_endpoints.length == 1); // FIXME: support multiple PSMX instances
   size_t loan_size_unpadded;
   uint16_t enc_identifier;
   if (ddsi_sertype_get_serialized_size (sertype, sdkind, data, &loan_size_unpadded, &enc_identifier) != 0)
     return NULL;
   const uint32_t pad_mask = 3u;
   const uint32_t loan_size_padded = ((uint32_t) loan_size_unpadded + pad_mask) & ~pad_mask;
-  struct dds_loaned_sample * const loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], loan_size_padded);
+  struct dds_loaned_sample * const loan = dds_writer_request_psmx_loan (wr, loan_size_padded);
   if (loan == NULL)
     return NULL;
   struct dds_psmx_metadata * const md = loan->metadata;
@@ -632,7 +636,6 @@ static dds_return_t dds_write_impl_psmxloan_serdata (struct dds_writer *wr, cons
   }
   else if (use_only_psmx && (sertype->is_memcpy_safe || sertype->ops->get_serialized_size))
   {
-    assert (wr->m_endpoint.psmx_endpoints.length == 1); // FIXME: support multiple PSMX instances
     *serdata = NULL;
     if (sertype->is_memcpy_safe)
       *psmx_loan = dds_writer_psmx_loan_raw (wr, data, sdkind, timestamp, statusinfo);
@@ -656,7 +659,6 @@ static dds_return_t dds_write_impl_psmxloan_serdata (struct dds_writer *wr, cons
       *psmx_loan = NULL;
     else
     {
-      assert (wr->m_endpoint.psmx_endpoints.length == 1); // FIXME: support multiple PSMX instances
       if (sertype->is_memcpy_safe)
         *psmx_loan = dds_writer_psmx_loan_raw (wr, data, sdkind, timestamp, statusinfo);
       else
@@ -724,7 +726,34 @@ dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t timest
     assert ((psmx_loan == NULL) == (wr->m_endpoint.psmx_endpoints.length == 0));
     assert (psmx_loan == NULL || psmx_loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX);
     if (psmx_loan != NULL)
-      ret = dds_write_impl_deliver_via_psmx (psmx_loan); // "consumes" the loan
+    {
+      for (uint32_t l = 0; l < wr->m_endpoint.psmx_endpoints.length; l++)
+      {
+        struct dds_psmx_endpoint *ep = wr->m_endpoint.psmx_endpoints.endpoints[l];
+        if (psmx_loan->loan_origin.psmx_endpoint == ep)
+        {
+          //we don't have to copy to ourselves
+          continue;
+        }
+
+        struct dds_loaned_sample *copy_loan = dds_psmx_endpoint_request_loan (ep, psmx_loan->metadata->sample_size);
+        if (copy_loan == NULL)
+        {
+          if (ret == DDS_RETCODE_OK)
+            ret = DDS_RETCODE_OUT_OF_RESOURCES;
+          continue;
+        }
+        dds_loaned_sample_copy(copy_loan, psmx_loan);
+        dds_return_t ret2 = dds_write_impl_deliver_via_psmx (copy_loan);
+        if (ret2 != DDS_RETCODE_OK && ret == DDS_RETCODE_OK)
+          ret = ret2;
+      }
+
+      dds_return_t ret2 = dds_write_impl_deliver_via_psmx (psmx_loan); // "consumes" the loan
+      if (ret2 != DDS_RETCODE_OK && ret == DDS_RETCODE_OK)
+        ret = ret2;
+    }
+
     if (serdata != NULL)
     {
       if (ret == DDS_RETCODE_OK)

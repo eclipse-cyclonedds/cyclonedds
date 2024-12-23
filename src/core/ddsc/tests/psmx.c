@@ -27,6 +27,7 @@
 #include "dds__entity.h"
 #include "dds__serdata_default.h"
 #include "dds__psmx.h"
+#include "psmx_dummy_public.h"
 
 #include "config_env.h"
 #include "test_common.h"
@@ -675,7 +676,6 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, bo
       for (int i = 0; !have_local_dds_readers && i < MAX_READERS_PER_DOMAIN; i++)
         if (rdmode[i] == 1)
           have_local_dds_readers = true;
-      bool override_fastpath_rdcount = wr_use_psmx && !have_local_dds_readers;
 
       test_index++;
       if (test_index >= test_index_start && test_index <= test_index_end)
@@ -710,12 +710,6 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, bo
         {
           // non-PSMX writer, reader, or a different PSMX "domain"
           ports[nports++] = port;
-          if (dom == 0 && rdmode[i] != 2)
-          {
-            // if non-PSMX reader present in same PSMX "domain", we need
-            // the native short-circuiting
-            override_fastpath_rdcount = false;
-          }
         }
 
         rc = dds_set_status_mask (rds[i], DDS_SUBSCRIPTION_MATCHED_STATUS);
@@ -772,13 +766,6 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, bo
       switch (ldm)
       {
         case LDM_NONE:
-          if (override_fastpath_rdcount)
-          {
-            print (&tb, "hack-fastpath");
-            old_fastpath = getset_fastpath_reader_count (wr, (struct fastpath_info){ .nrd = 0, .rdary0 = 0 });
-            print (&tb, "(%"PRIu32"); ", old_fastpath.nrd);
-          }
-          break;
         case LDM_FASTPATH:
           break;
         case LDM_SLOWPATH:
@@ -1282,7 +1269,7 @@ CU_Test (ddsc_psmx, basic)
   dds_delete (dds_get_parent (participant));
 }
 
-CU_Test (ddsc_psmx, zero_copy)
+CU_Test (ddsc_psmx, local_zero_copy)
 {
   const struct {
     const dds_topic_descriptor_t *desc;
@@ -1372,26 +1359,14 @@ CU_Test (ddsc_psmx, zero_copy)
           printf (" | rddata[%d] %p", (int) i, rddata[i]); fflush (stdout);
         }
 
-        // For self-contained types: if somewhere in the process a loan gets
-        // involved the readers will get the same address.
-        //
-        // Iceoryx -> shared memory -> whenever the writer uses a loan or Iceoryx is used
-        // CDDS-based plugin -> many copies but it works if the writer uses a loan and
-        //   PSMX is avoided (because the plugin always produces separate copies)
-        //
-        // This is obviously very implementation-specific, but as this is a test,
-        // let's check. Changes to the implementation will likely require changing
-        // this test.
-        if (cases[k].wrloan_ok &&
-            (( dds_is_shared_memory_available (wr) && (wrloan || psmx_enabled)) ||
-             (!dds_is_shared_memory_available (wr) && (wrloan && !psmx_enabled))))
+        const bool local_zerocopy_occurred = !psmx_enabled && wrloan && cases[k].wrloan_ok;
+        if (local_zerocopy_occurred)
         {
-          for (size_t i = 1; i < sizeof (rds) / sizeof (rds[0]); i++)
-            CU_ASSERT (rddata[i] == rddata[0]);
-          CU_ASSERT ((wrloan && wrdata == rddata[0]) || (!wrloan && wrdata != rddata[0]));
-        }
-        else
-        {
+          for (size_t i = 0; i < sizeof (rds) / sizeof (rds[0]) - 1; i++)
+            CU_ASSERT (rddata[i] == rddata[i+1]);
+          if (wrloan_i)
+            CU_ASSERT (wrdata == rddata[0]);
+        } else {
           for (size_t i = 0; i < sizeof (rds) / sizeof (rds[0]) - 1; i++)
             for (size_t j = i + 1; j < sizeof (rds) / sizeof (rds[0]); j++)
               CU_ASSERT (rddata[i] != rddata[j]);
@@ -1630,4 +1605,96 @@ CU_Test (ddsc_psmx, configstr)
       ddsrt_free (p);
     }
   }
+}
+
+//config where both the psmx and dummy interfaces are always enabled
+static const char
+    *multi_psmx_configstr =
+  "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
+<General>\
+  <AllowMulticast>spdp</AllowMulticast>\
+  <Interfaces>\
+<PubSubMessageExchange name=\"iox\" library=\"psmx_${CDDS_PSMX_NAME:-cdds}\" priority=\"1000000\" config=\"LOCATOR=0123456789ABCDEF0123456789ABCDEF;SERVICE_NAME=iox;KEYED_TOPICS=true;\" />\
+<PubSubMessageExchange name=\"dummy\" library=\"psmx_dummy\" priority=\"2000000\" config=\"LOCATOR=1123456789ABCDEF0123456789ABCDEF;SERVICE_NAME=dummy;KEYED_TOPICS=true;\" />\
+  </Interfaces>\
+</General>\
+<Discovery>\
+  <Tag>${CYCLONEDDS_PID}</Tag>\
+  <ExternalDomainId>0</ExternalDomainId>\
+</Discovery>\
+<Tracing>\
+  <Category>" TRACE_CATEGORY "</Category>\
+  <OutputFile>cdds.log.0</OutputFile>\
+</Tracing>";
+
+CU_TheoryDataPoints(ddsc_multi_psmx, get_loans) = {
+  CU_DataPoints(const bool, true, true,   false,  false),   //whether to add an iox psmx interface
+  CU_DataPoints(const bool, true, false,  true,   false),   //whether to add a dummy psmx interface
+  CU_DataPoints(const bool, true, false,  true,   true),    //whether we get the second loan
+  CU_DataPoints(const bool, true, false,  false,  true),    //whether we get the third loan
+};
+
+static void check_loan(dds_return_t loan_return, void *loan_ptr, const bool exp_loan)
+{
+  CU_ASSERT_EQUAL(loan_return, exp_loan ? DDS_RETCODE_OK : DDS_RETCODE_ERROR);
+  if (exp_loan)
+  {
+      CU_ASSERT_EQUAL(loan_return, DDS_RETCODE_OK);
+      CU_ASSERT_PTR_NOT_NULL(loan_ptr);
+  } else
+  {
+      CU_ASSERT_EQUAL(loan_return, DDS_RETCODE_ERROR);
+  }
+}
+
+CU_Theory ((const bool include_iox, const bool include_dummy, const bool loan_2, const bool loan_3), ddsc_multi_psmx, get_loans)
+{
+  char *xconfigstr = ddsrt_expand_envvars (multi_psmx_configstr, 0);
+  const dds_entity_t dom = dds_create_domain (0, xconfigstr);
+  ddsrt_free (xconfigstr);
+  CU_ASSERT_FATAL (dom > 0);
+
+  const dds_entity_t pp = dds_create_participant (0, NULL, NULL);
+  CU_ASSERT_FATAL (pp > 0);
+
+  char topicname[200];
+  create_unique_topic_name ("multi_psmx_get_loans", topicname, sizeof (topicname));
+
+  dummy_mockstats_t* dmock = dummy_mockstats_get_ptr();
+  CU_ASSERT_PTR_NOT_NULL_FATAL(dmock);
+  dummy_topics_alloc(dmock, 1);
+  dummy_endpoints_alloc(dmock, 1);
+  dummy_loans_alloc(dmock, 2);
+
+  const dds_entity_t tp = dds_create_topic (pp, &PsmxLoanTest3_desc, topicname, NULL, NULL);
+  CU_ASSERT_FATAL (tp > 0);
+
+  //create qos with the required names of psmx interfaces set
+  static const char *qosstrs[2] = {"iox", "dummy"};
+  dds_qos_t *qos = dds_create_qos ();
+  CU_ASSERT_PTR_NOT_NULL_FATAL (qos);
+  if (!include_iox && !include_dummy)
+    dds_qset_psmx_instances (qos, 0, NULL);  //no psmx
+  else if(include_iox) {
+    if (include_dummy)
+      dds_qset_psmx_instances (qos, 2, qosstrs); //iox + dummy
+    else
+      dds_qset_psmx_instances (qos, 1, qosstrs); //iox
+  } else if (include_dummy)
+    dds_qset_psmx_instances (qos, 1, qosstrs+1); //dummy
+
+  const dds_entity_t wr = dds_create_writer (pp, tp, qos, NULL);
+  dds_delete_qos (qos);
+  CU_ASSERT_FATAL (wr > 0);
+  CU_ASSERT_EQUAL_FATAL (include_iox || include_dummy, endpoint_has_psmx_enabled (wr));
+
+  void *loan = NULL;
+  dds_return_t rc = dds_request_loan (wr, &loan);
+  check_loan(rc, loan, true);  //the first loan always succeeds, since all interfaces have at least 1 block
+  rc = dds_request_loan (wr, &loan);
+  check_loan(rc, loan, loan_2);
+  rc = dds_request_loan (wr, &loan);
+  check_loan(rc, loan, loan_3);
+
+  dds_delete(dom);
 }

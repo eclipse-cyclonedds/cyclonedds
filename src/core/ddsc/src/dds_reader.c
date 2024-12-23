@@ -769,7 +769,7 @@ err:
 
 static dds_return_t dds_reader_store_loaned_sample_impl (dds_entity_t reader, dds_loaned_sample_t *data, const struct writer_metadata *writer_md)
 {
-  dds_return_t ret;
+  dds_return_t ret = DDS_RETCODE_OK;
   dds_entity * e;
   if ((ret = dds_entity_pin (reader, &e)) < 0)
     return ret;
@@ -788,6 +788,16 @@ static dds_return_t dds_reader_store_loaned_sample_impl (dds_entity_t reader, dd
 
   // FIXME: what if the sample is overwritten?
   // if the sample is not matched to this reader, return ownership to the PSMX?
+
+  //samples incoming from local writers should be dropped
+  ddsi_guid_t ddsi_guid;
+  DDSRT_STATIC_ASSERT (sizeof (dds_guid_t) == sizeof (ddsi_guid_t));
+  memcpy (&ddsi_guid, &data->metadata->guid, sizeof (ddsi_guid));
+  //no need to convert from network order, all metadata is in native representation
+  struct ddsi_entity_common *lookup_entity = NULL;
+  if ((lookup_entity = ddsi_entidx_lookup_guid_untyped (gv->entity_index, &ddsi_guid)) != NULL &&
+      lookup_entity->kind == DDSI_EK_WRITER)
+    goto drop_local;
 
   struct ddsi_serdata * sd = ddsi_serdata_from_psmx (rd->type, data);
   if (sd == NULL)
@@ -817,6 +827,7 @@ fail_rhc_store:
   ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
 fail_get_writer_info:
   ddsi_serdata_unref (sd);
+drop_local:
 fail_serdata:
   ddsrt_mutex_unlock (&rd->e.lock);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
