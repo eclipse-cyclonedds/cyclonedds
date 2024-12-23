@@ -126,7 +126,9 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   }
 
   if ((ret = dds_pubsub_message_exchange_init (&domain->gv, domain)) != DDS_RETCODE_OK)
+  {
     goto fail_psmx_init;
+  }
 
   struct ddsi_psmx_instance_locators psmx_locators;
   psmx_locators.length = domain->psmx_instances.length;
@@ -202,12 +204,8 @@ fail_threadmon_new:
   ddsi_fini (&domain->gv);
   dds_serdatapool_free (domain->serpool);
 fail_ddsi_init:
-  for (uint32_t i = 0; i < domain->psmx_instances.length; i++)
-  {
-    domain->psmx_instances.instances[i]->ops.deinit(domain->psmx_instances.instances[i]);
-    domain->psmx_instances.instances[i] = NULL;
-  }
 fail_psmx_init:
+  dds_pubsub_message_exchange_fini(domain);
 fail_ddsi_config:
   if (domain->cfgst)
     ddsi_config_fini (domain->cfgst);

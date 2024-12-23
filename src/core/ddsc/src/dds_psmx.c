@@ -14,6 +14,7 @@
 #include "dds/ddsrt/dynlib.h"
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/io.h"
+#include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_locator.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_endpoint.h"
@@ -307,18 +308,25 @@ static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, const st
     goto err_dlsym;
   }
 
-  if ((ret = creator (&psmx_instance, get_psmx_instance_id (gv, config->name), configstr)) != DDS_RETCODE_OK)
+  char *psmx_name = dds_psmx_get_config_option_value(configstr, "SERVICE_NAME");
+  if (psmx_name == NULL)
+    psmx_name = config->name;
+  if ((ret = creator (&psmx_instance, get_psmx_instance_id (gv, psmx_name), configstr)) != DDS_RETCODE_OK)
   {
-    GVERROR ("Failed to initialize PSMX instance '%s'.\n", config->name);
+    GVERROR ("Failed to initialize PSMX instance '%s'.\n", psmx_name);
     goto err_init;
   }
   psmx_instance->priority = config->priority.value;
   *out = psmx_instance;
   *lib_handle = handle;
+  if (psmx_name != config->name)
+    ddsrt_free(psmx_name);
   ddsrt_free (configstr);
   return DDS_RETCODE_OK;
 
 err_init:
+  if (psmx_name != config->name)
+    ddsrt_free(psmx_name);
 err_dlsym:
   ddsrt_dlclose (handle);
 err_dlopen:
@@ -327,34 +335,48 @@ err_configstr:
   return ret;
 }
 
+static int qsort_cmp_psmx_prio_descending (const void *va, const void *vb)
+{
+  const int32_t a = (*(const dds_psmx_t**)va)->priority;
+  const int32_t b = (*(const dds_psmx_t**)vb)->priority;
+  return (int)(a < b) - (int)(a > b);
+}
+
 dds_return_t dds_pubsub_message_exchange_init (const struct ddsi_domaingv *gv, struct dds_domain *domain)
 {
-  dds_return_t ret = DDS_RETCODE_OK;
-  if (gv->config.psmx_instances != NULL)
-  {
-    struct ddsi_config_psmx_listelem *iface = gv->config.psmx_instances;
-    if ( iface != NULL ) {
-      if ( iface->next != NULL ) {
-        ret = DDS_RETCODE_UNSUPPORTED; // Only one psmx interface is supported.
-      }else{
-        GVLOG(DDS_LC_INFO, "Loading PSMX instances %s\n", iface->cfg.name);
-        struct dds_psmx *psmx = NULL;
-        ddsrt_dynlib_t lib_handle;
-        if (psmx_instance_load (gv, &iface->cfg, &psmx, &lib_handle) == DDS_RETCODE_OK)
-        {
-          domain->psmx_instances.instances[domain->psmx_instances.length] = psmx;
-          domain->psmx_instances.lib_handles[domain->psmx_instances.length] = lib_handle;
-          domain->psmx_instances.length++;
-        }
-        else
-        {
-          GVERROR ("error loading PSMX instance \"%s\"\n", iface->cfg.name);
-          ret = DDS_RETCODE_ERROR;
-        }
-      }
+  struct ddsi_config_psmx_listelem *iface = gv->config.psmx_instances;
+  while (iface != NULL) {
+    if (domain->psmx_instances.length >= DDS_MAX_PSMX_INSTANCES)
+    {
+      GVERROR("error loading PSMX instance, at most %d simultaneous instances supported\n", DDS_MAX_PSMX_INSTANCES);
+      return DDS_RETCODE_UNSUPPORTED;
     }
+
+    GVLOG(DDS_LC_INFO, "Loading PSMX instance %s\n", iface->cfg.name);
+    struct dds_psmx *psmx = NULL;
+    ddsrt_dynlib_t lib_handle;
+    if (psmx_instance_load (gv, &iface->cfg, &psmx, &lib_handle) == DDS_RETCODE_OK)
+    {
+      psmx->lib_handle = lib_handle;
+      domain->psmx_instances.instances[domain->psmx_instances.length++] = psmx;
+    }
+    else
+    {
+      GVERROR ("error loading PSMX instance \"%s\"\n", iface->cfg.name);
+      return DDS_RETCODE_ERROR;
+    }
+    iface = iface->next;
   }
-  return ret;
+  if (domain->psmx_instances.length >= 2)
+  {
+    qsort(
+      domain->psmx_instances.instances,
+      domain->psmx_instances.length,
+      sizeof(*domain->psmx_instances.instances),
+      qsort_cmp_psmx_prio_descending
+    );
+  }
+  return DDS_RETCODE_OK;
 }
 
 dds_return_t dds_pubsub_message_exchange_fini (struct dds_domain *domain)
@@ -363,9 +385,10 @@ dds_return_t dds_pubsub_message_exchange_fini (struct dds_domain *domain)
   for (uint32_t i = 0; ret == DDS_RETCODE_OK && i < domain->psmx_instances.length; i++)
   {
     struct dds_psmx *psmx = domain->psmx_instances.instances[i];
+    ddsrt_dynlib_t psmx_lib_handle = domain->psmx_instances.instances[i]->lib_handle;
     if ((ret = psmx->ops.deinit (psmx)) == DDS_RETCODE_OK)
     {
-      (void) ddsrt_dlclose (domain->psmx_instances.lib_handles[i]);
+      (void) ddsrt_dlclose (psmx_lib_handle);
       domain->psmx_instances.instances[i] = NULL;
     }
   }
@@ -560,4 +583,31 @@ void dds_psmx_set_loan_writeinfo (struct dds_loaned_sample *loan, const ddsi_gui
   memcpy (&md->guid, wr_guid, sizeof (md->guid));
   md->timestamp = timestamp;
   md->statusinfo = statusinfo;
+}
+
+char * dds_psmx_get_config_option_value (const char *conf, const char *option_name)
+{
+  if (conf == NULL || option_name == NULL)
+    return NULL;
+
+  char *copy = ddsrt_strdup(conf), *cursor = copy, *tok;
+  while ((tok = ddsrt_strsep(&cursor, ";")) != NULL)
+  {
+    if (strlen(tok) == 0)
+      continue;
+    char *name = ddsrt_strsep(&tok, "=");
+    if (name == NULL || tok == NULL)
+    {
+      ddsrt_free(copy);
+      return NULL;
+    }
+    if (strcmp(name, option_name) == 0)
+    {
+      char *ret = ddsrt_strdup(tok);
+      ddsrt_free(copy);
+      return ret;
+    }
+  }
+  ddsrt_free(copy);
+  return NULL;
 }

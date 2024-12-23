@@ -123,3 +123,10 @@ dds_loaned_sample_t *dds_loan_pool_get_loan (dds_loan_pool_t *pool)
   pool->samples[pool->n_samples] = NULL;
   return ls;
 }
+
+void dds_loaned_sample_copy(dds_loaned_sample_t *to, const dds_loaned_sample_t *from)
+{
+  assert(from->metadata->sample_size <= to->metadata->sample_size);
+  memcpy(to->sample_ptr, from->sample_ptr, from->metadata->sample_size);
+  *(to->metadata) = *(from->metadata);
+}

@@ -447,30 +447,6 @@ static void cdds_loaned_sample_free (struct dds_loaned_sample *loaned_sample)
   dds_free (loaned_sample);
 }
 
-static char * get_config_option_value (const char *conf, const char *option_name)
-{
-  char *copy = ddsrt_strdup(conf), *cursor = copy, *tok;
-  while ((tok = ddsrt_strsep(&cursor, ",/|;")) != NULL)
-  {
-    if (strlen(tok) == 0)
-      continue;
-    char *name = ddsrt_strsep(&tok, "=");
-    if (name == NULL || tok == NULL)
-    {
-      ddsrt_free(copy);
-      return NULL;
-    }
-    if (strcmp(name, option_name) == 0)
-    {
-      char *ret = ddsrt_strdup(tok);
-      ddsrt_free(copy);
-      return ret;
-    }
-  }
-  ddsrt_free(copy);
-  return NULL;
-}
-
 dds_return_t cdds_create_psmx (dds_psmx_t **psmx_out, dds_psmx_instance_id_t instance_id, const char *config)
 {
   assert (psmx_out);
@@ -478,7 +454,9 @@ dds_return_t cdds_create_psmx (dds_psmx_t **psmx_out, dds_psmx_instance_id_t ins
   ddsrt_atomic_st32 (&ddsi_thread_nested_gv_allowed, 1);
 
   struct cdds_psmx *psmx = dds_alloc (sizeof (*psmx));
-  psmx->c.instance_name = dds_string_dup ("cdds-psmx");
+  psmx->c.instance_name = dds_psmx_get_config_option_value (config, "SERVICE_NAME");
+  if (psmx->c.instance_name == NULL)
+    psmx->c.instance_name = dds_string_dup ("cdds-psmx");
   psmx->c.instance_id = instance_id;
   psmx->c.ops = psmx_instance_ops;
   dds_psmx_init_generic (&psmx->c);
@@ -489,7 +467,7 @@ dds_return_t cdds_create_psmx (dds_psmx_t **psmx_out, dds_psmx_instance_id_t ins
 
   if (config != NULL && strlen (config) > 0)
   {
-    char *lstr = get_config_option_value (config, "LOCATOR");
+    char *lstr = dds_psmx_get_config_option_value (config, "LOCATOR");
     if (lstr != NULL)
     {
       if (strlen (lstr) != 32)
@@ -513,10 +491,8 @@ dds_return_t cdds_create_psmx (dds_psmx_t **psmx_out, dds_psmx_instance_id_t ins
       }
       dds_free (lstr);
     }
-
-    char *sn = get_config_option_value (config, "SERVICE_NAME");
-    psmx->service_name = sn;
   }
+  psmx->service_name = ddsrt_strdup(psmx->c.instance_name);
 
   *psmx_out = (dds_psmx_t *) psmx;
   return DDS_RETCODE_OK;

@@ -963,7 +963,7 @@ dds_return_t dds_ensure_valid_psmx_instances (dds_qos_t *qos, dds_psmx_endpoint_
         {
           assert (psmx_instances->instances[s]);
           if (strcmp (psmx_instances->instances[s]->instance_name, values[i]) == 0)
-            psmx = psmx_instances->instances[i];
+            psmx = psmx_instances->instances[s];
         }
         if (psmx != NULL && psmx->ops.type_qos_supported (psmx, forwhat, stype->data_type_props, qos))
           supported_psmx[n_supported++] = psmx->instance_name;
@@ -983,7 +983,7 @@ bool dds_qos_has_psmx_instances (const dds_qos_t *qos, const char *psmx_instance
   char **values = NULL;
   bool found = false;
   dds_qget_psmx_instances (qos, &n_instances, &values);
-  for (uint32_t i = 0; !found && values != NULL && i < n_instances; i++)
+  for (uint32_t i = 0; values != NULL && i < n_instances; i++)
   {
     if (strcmp (psmx_instance_name, values[i]) == 0)
       found = true;

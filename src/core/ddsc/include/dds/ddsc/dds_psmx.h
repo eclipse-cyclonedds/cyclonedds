@@ -22,12 +22,13 @@
 #include "dds/dds.h"
 #include "dds/ddsc/dds_loaned_sample.h"
 #include "dds/ddsc/dds_data_type_properties.h"
+#include "dds/ddsrt/dynlib.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-#define DDS_MAX_PSMX_INSTANCES 1
+#define DDS_MAX_PSMX_INSTANCES 8 // No particular reason for this specific number, except that it's probably enough, usually.
 
 struct dds_psmx;
 struct dds_psmx_topic;
@@ -263,6 +264,7 @@ typedef struct dds_psmx {
   const struct ddsi_locator *locator; //!< the locator for this PSMX instance
   dds_psmx_instance_id_t instance_id; //!< the identifier of this PSMX instance
   struct dds_psmx_topic_list_elem *psmx_topics; //!< associated topics
+  ddsrt_dynlib_t lib_handle; //!< The loaded PSMX plugin
 } dds_psmx_t;
 
 /**
@@ -402,6 +404,17 @@ DDS_EXPORT dds_return_t dds_psmx_topic_cleanup_generic(struct dds_psmx_topic *ps
  */
 DDS_EXPORT dds_psmx_features_t dds_psmx_supported_features (const struct dds_psmx *psmx_instance);
 
+/**
+ * @brief Returns the string associated with the option_name in the psmx config string.
+ * @ingroup psmx
+ *
+ * The C string returned from this function should be freed by the user.
+ *
+ * @param[in] conf the string containing the psmx configuration.
+ * @param[in] option_name the option to search for
+ * @return pointer to a string on the heap if found, NULL if not.
+ */
+DDS_EXPORT char * dds_psmx_get_config_option_value (const char *conf, const char *option_name);
 
 #if defined (__cplusplus)
 }

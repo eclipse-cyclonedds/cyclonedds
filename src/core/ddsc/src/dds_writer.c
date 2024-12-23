@@ -215,6 +215,11 @@ static dds_return_t dds_writer_delete (dds_entity *e)
   dds_return_t ret = DDS_RETCODE_OK;
   dds_writer * const wr = (dds_writer *) e;
 
+  // Freeing the loans requires the PSMX endpoints, so must be done before cleaning
+  // up the endpoints. And m_loans is not used anymore from this point, so can also
+  // be freed safely.
+  dds_loan_pool_free (wr->m_loans);
+
   for (uint32_t i = 0; ret == DDS_RETCODE_OK && i < wr->m_endpoint.psmx_endpoints.length; i++)
   {
     struct dds_psmx_endpoint *psmx_endpoint = wr->m_endpoint.psmx_endpoints.endpoints[i];
@@ -228,7 +233,6 @@ static dds_return_t dds_writer_delete (dds_entity *e)
   ddsi_xpack_free (wr->m_xp);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   dds_entity_drop_ref (&wr->m_topic->m_entity);
-  dds_loan_pool_free (wr->m_loans);
   return ret;
 }
 
@@ -534,6 +538,16 @@ dds_return_t dds__ddsi_writer_wait_for_acks (struct dds_writer *wr, ddsi_guid_t 
     return ddsi_writer_wait_for_acks (wr->m_wr, rdguid, abstimeout);
 }
 
+dds_loaned_sample_t *dds_writer_request_psmx_loan(const dds_writer *wr, uint32_t size)
+{
+  // return the loan from the first endpoint that returns one
+  dds_loaned_sample_t *loan = NULL;
+  for (uint32_t e = 0; e < wr->m_endpoint.psmx_endpoints.length && loan == NULL; e++)
+    loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[e], size);
+
+  return loan;
+}
+
 dds_return_t dds_request_writer_loan (dds_writer *wr, enum dds_writer_loan_type loan_type, uint32_t sz, void **sample)
 {
   dds_return_t ret = DDS_RETCODE_ERROR;
@@ -543,8 +557,6 @@ dds_return_t dds_request_writer_loan (dds_writer *wr, enum dds_writer_loan_type 
   // support the programming model of borrowing memory first via the "heap" loans.
   //
   // One should expect the latter performance to be worse than the a plain write.
-  // FIXME: allow multiple psmx instances
-  assert (wr->m_endpoint.psmx_endpoints.length <= 1);
 
   dds_loaned_sample_t *loan = NULL;
   switch (loan_type)
@@ -552,7 +564,7 @@ dds_return_t dds_request_writer_loan (dds_writer *wr, enum dds_writer_loan_type 
     case DDS_WRITER_LOAN_RAW:
       if (wr->m_endpoint.psmx_endpoints.length > 0)
       {
-        if ((loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], sz)) != NULL)
+        if ((loan = dds_writer_request_psmx_loan (wr, sz)) != NULL)
           ret = DDS_RETCODE_OK;
       }
       break;
@@ -560,7 +572,7 @@ dds_return_t dds_request_writer_loan (dds_writer *wr, enum dds_writer_loan_type 
     case DDS_WRITER_LOAN_REGULAR:
       if (wr->m_endpoint.psmx_endpoints.length > 0 && wr->m_topic->m_stype->is_memcpy_safe)
       {
-        if ((loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], wr->m_topic->m_stype->sizeof_type)) != NULL)
+        if ((loan = dds_writer_request_psmx_loan (wr, wr->m_topic->m_stype->sizeof_type)) != NULL)
           ret = DDS_RETCODE_OK;
       }
       else
@@ -614,8 +626,7 @@ struct dds_loaned_sample * dds_writer_psmx_loan_raw (const struct dds_writer *wr
 {
   struct ddsi_sertype const * const sertype = wr->m_wr->type;
   assert (sertype->is_memcpy_safe);
-  assert (wr->m_endpoint.psmx_endpoints.length == 1); // FIXME: support multiple PSMX instances
-  struct dds_loaned_sample * const loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], sertype->sizeof_type);
+  struct dds_loaned_sample * const loan = dds_writer_request_psmx_loan (wr, sertype->sizeof_type);
   if (loan == NULL)
     return NULL;
   struct dds_psmx_metadata * const md = loan->metadata;
@@ -630,10 +641,9 @@ struct dds_loaned_sample * dds_writer_psmx_loan_raw (const struct dds_writer *wr
 
 struct dds_loaned_sample * dds_writer_psmx_loan_from_serdata (const struct dds_writer *wr, const struct ddsi_serdata *sd)
 {
-  assert (wr->m_endpoint.psmx_endpoints.length == 1); // FIXME: support multiple PSMX instances
   assert (ddsi_serdata_size (sd) >= 4);
   const uint32_t loan_size = ddsi_serdata_size (sd) - 4;
-  struct dds_loaned_sample * const loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], loan_size);
+  struct dds_loaned_sample * const loan = dds_writer_request_psmx_loan (wr, loan_size);
   if (loan == NULL)
     return NULL;
   struct dds_psmx_metadata * const md = loan->metadata;
