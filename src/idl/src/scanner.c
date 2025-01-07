@@ -486,7 +486,7 @@ scan_identifier(idl_pstate_t *pstate, const char *cur, const char **lim, bool al
 /* grammer for IDL (>=4.0) is incorrect (or at least ambiguous). blanks,
    horizontal and vertical tabs, newlines, form feeds, and comments
    (collective, "white space") are ignored except as they serve to separate
-   tokens. the specification does not clearly pstate if white space may occur
+   tokens. the specification does not clearly state if white space may occur
    between "::" and adjacent identifiers to form a "scoped_name". the same is
    true for the "annotation_appl". in C++ "::" is an operator and white space
    is therefore allowed, in IDL it is not. this did not use to be a problem,

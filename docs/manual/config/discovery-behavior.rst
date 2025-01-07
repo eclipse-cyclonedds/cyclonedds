@@ -137,7 +137,7 @@ When the WHC contains at least ``high`` bytes in unacknowledged samples, it stal
 writer until the number of bytes in unacknowledged samples drops below the value set in: 
 :ref:`Internal/Watermarks/WhcLow <//CycloneDDS/Domain/Internal/Watermarks/WhcLow>`.
 
-Based on the transmit pressure and receive re-ransmit requests, the value of ``high`` is 
+Based on the transmit pressure and receive re-transmit requests, the value of ``high`` is
 dynamically adjusted between:
 - :ref:`Internal/Watermarks/WhcLow <//CycloneDDS/Domain/Internal/Watermarks/WhcLow>`
 - :ref:`Internal/Watermarks/WhcHigh <//CycloneDDS/Domain/Internal/Watermarks/WhcHigh>`

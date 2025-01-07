@@ -1412,7 +1412,7 @@ The default value is: ``false``
 
 Number-with-unit
 
-Maximum pseudo-random delay in milliseconds between discovering aremote participant and responding to it.
+Maximum pseudo-random delay in milliseconds between discovering a remote participant and responding to it.
 
 The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.
 
