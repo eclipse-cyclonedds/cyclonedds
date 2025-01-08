@@ -33,8 +33,6 @@ typedef int32_t (*dds_rhc_read_take_t) (struct dds_rhc *rhc, int32_t max_samples
 typedef bool (*dds_rhc_add_readcondition_t) (struct dds_rhc *rhc, struct dds_readcond *cond);
 typedef void (*dds_rhc_remove_readcondition_t) (struct dds_rhc *rhc, struct dds_readcond *cond);
 
-typedef uint32_t (*dds_rhc_lock_samples_t) (struct dds_rhc *rhc);
-
 struct dds_rhc_ops {
   /* A copy of DDSI rhc ops comes first so we can use either interface without
      additional indirections */
@@ -44,7 +42,6 @@ struct dds_rhc_ops {
   dds_rhc_read_take_t take;
   dds_rhc_add_readcondition_t add_readcondition;
   dds_rhc_remove_readcondition_t remove_readcondition;
-  dds_rhc_lock_samples_t lock_samples;
   dds_rhc_associate_t associate;
 };
 
