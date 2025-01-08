@@ -1625,7 +1625,7 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
   gv->user_dqueue = ddsi_dqueue_new ("user", gv, gv->config.delivery_queue_maxsamples, ddsi_user_dqueue_handler, NULL);
 
   if (reset_deaf_mute_time.v < DDS_NEVER)
-    ddsi_qxev_callback (gv->xevents, reset_deaf_mute_time, reset_deaf_mute, NULL, 0, true);
+    ddsi_qxev_callback (gv->xevents, reset_deaf_mute_time, reset_deaf_mute, NULL, 0, false);
   return 0;
 
 #if 0
