@@ -40,6 +40,7 @@
 #include "dds__builtin.h"
 #include "dds__statistics.h"
 #include "dds__psmx.h"
+#include "dds__guid.h"
 
 DECL_ENTITY_LOCK_UNLOCK (dds_reader)
 
@@ -648,8 +649,9 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
      it; and then invoke those listeners that are in the pending set */
   dds_entity_init_complete (&rd->m_entity);
 
-
-  if (guid == NULL)
+  if (guid)
+    rd->m_entity.m_guid = dds_guid_to_ddsi_guid (*guid);
+  else
   {
     rc = ddsi_generate_reader_guid (&rd->m_entity.m_guid, pp, tp->m_stype);
     if (rc != DDS_RETCODE_OK)
@@ -658,13 +660,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
       goto err_rd_guid;
     }
   }
-  else
-  {
-    ddsi_guid_t ddsi_guid;
-    DDSRT_STATIC_ASSERT (sizeof (dds_guid_t) == sizeof (ddsi_guid_t));
-    memcpy (&ddsi_guid, guid, sizeof (ddsi_guid));
-    rd->m_entity.m_guid = ddsi_ntoh_guid (ddsi_guid);
-  }
+
   struct ddsi_psmx_locators_set *vl_set = dds_get_psmx_locators_set (rqos, &rd->m_entity.m_domain->psmx_instances);
 
   /* Reader gets the sertype from the topic, as the serdata functions the reader uses are
@@ -733,18 +729,14 @@ struct writer_metadata
   dds_duration_t lifespan_duration;
 };
 
-static dds_return_t get_writer_info (struct ddsi_domaingv *gv, dds_guid_t *dds_guid, uint32_t statusinfo, const struct writer_metadata *writer_md, struct ddsi_writer_info *wi)
+static dds_return_t get_writer_info (struct ddsi_domaingv *gv, const ddsi_guid_t *guid, uint32_t statusinfo, const struct writer_metadata *writer_md, struct ddsi_writer_info *wi)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   struct dds_qos *xqos = NULL;
 
-  struct ddsi_guid guid;
-  // FIXME ntoh required?
-  memcpy (&guid, dds_guid, sizeof (guid));
-
   if (writer_md == NULL)
   {
-    struct ddsi_entity_common *ec = ddsi_entidx_lookup_guid_untyped (gv->entity_index, &guid);
+    struct ddsi_entity_common *ec = ddsi_entidx_lookup_guid_untyped (gv->entity_index, guid);
     if (ec == NULL || (ec->kind != DDSI_EK_PROXY_WRITER && ec->kind != DDSI_EK_WRITER))
     {
       ret = DDS_RETCODE_NOT_FOUND;
@@ -759,8 +751,8 @@ static dds_return_t get_writer_info (struct ddsi_domaingv *gv, dds_guid_t *dds_g
   }
   else
   {
-    uint64_t iid = ((uint64_t) guid.prefix.u[2] << 32llu) + guid.entityid.u;
-    ddsi_make_writer_info_params (wi, &guid, writer_md->ownership_strength, writer_md->autodispose_unregistered_instances, iid, statusinfo, writer_md->lifespan_duration);
+    uint64_t iid = ((uint64_t) ddsrt_toBE4u (guid->prefix.u[2]) << 32llu) + ddsrt_toBE4u (guid->entityid.u);
+    ddsi_make_writer_info_params (wi, guid, writer_md->ownership_strength, writer_md->autodispose_unregistered_instances, iid, statusinfo, writer_md->lifespan_duration);
   }
 
 err:
@@ -790,10 +782,7 @@ static dds_return_t dds_reader_store_loaned_sample_impl (dds_entity_t reader, dd
   // if the sample is not matched to this reader, return ownership to the PSMX?
 
   //samples incoming from local writers should be dropped
-  ddsi_guid_t ddsi_guid;
-  DDSRT_STATIC_ASSERT (sizeof (dds_guid_t) == sizeof (ddsi_guid_t));
-  memcpy (&ddsi_guid, &data->metadata->guid, sizeof (ddsi_guid));
-  //no need to convert from network order, all metadata is in native representation
+  const ddsi_guid_t ddsi_guid = dds_guid_to_ddsi_guid (data->metadata->guid);
   struct ddsi_entity_common *lookup_entity = NULL;
   if ((lookup_entity = ddsi_entidx_lookup_guid_untyped (gv->entity_index, &ddsi_guid)) != NULL &&
       lookup_entity->kind == DDSI_EK_WRITER)
@@ -807,7 +796,7 @@ static dds_return_t dds_reader_store_loaned_sample_impl (dds_entity_t reader, dd
   }
 
   struct ddsi_writer_info wi;
-  if ((ret = get_writer_info (gv, &data->metadata->guid, sd->statusinfo, writer_md, &wi)) != DDS_RETCODE_OK)
+  if ((ret = get_writer_info (gv, &ddsi_guid, sd->statusinfo, writer_md, &wi)) != DDS_RETCODE_OK)
     goto fail_get_writer_info;
 
   struct ddsi_tkmap_instance * tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, sd);

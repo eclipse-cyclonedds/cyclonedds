@@ -39,6 +39,7 @@
 #include "dds__statistics.h"
 #include "dds__psmx.h"
 #include "dds__heap_loan.h"
+#include "dds__guid.h"
 
 DECL_ENTITY_LOCK_UNLOCK (dds_writer)
 
@@ -434,18 +435,13 @@ static dds_entity_t dds_create_writer_int (dds_entity_t participant_or_publisher
   if (!sertype)
     sertype = tp->m_stype;
 
-  if (guid == NULL)
+  if (guid)
+    wr->m_entity.m_guid = dds_guid_to_ddsi_guid (*guid);
+  else
   {
     rc = ddsi_generate_writer_guid (&wr->m_entity.m_guid, pp, sertype);
     if (rc != DDS_RETCODE_OK)
       goto err_wr_guid;
-  }
-  else
-  {
-    ddsi_guid_t ddsi_guid;
-    DDSRT_STATIC_ASSERT (sizeof (dds_guid_t) == sizeof (ddsi_guid_t));
-    memcpy (&ddsi_guid, guid, sizeof (ddsi_guid));
-    wr->m_entity.m_guid = ddsi_ntoh_guid (ddsi_guid);
   }
   struct ddsi_psmx_locators_set *vl_set = dds_get_psmx_locators_set (wqos, &wr->m_entity.m_domain->psmx_instances);
   rc = ddsi_new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, pp, tp->m_name, sertype, wqos, wr->m_whc, dds_writer_status_cb, wr, vl_set);

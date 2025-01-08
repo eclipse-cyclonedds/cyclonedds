@@ -24,6 +24,7 @@
 #include "dds__qos.h"
 #include "dds__entity.h"
 #include "dds__writer.h"
+#include "dds__guid.h"
 
 static struct dds_psmx_endpoint * psmx_create_endpoint (struct dds_psmx_topic *psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type);
 static dds_return_t psmx_delete_endpoint (struct dds_psmx_endpoint *psmx_endpoint);
@@ -580,7 +581,7 @@ void dds_psmx_set_loan_writeinfo (struct dds_loaned_sample *loan, const ddsi_gui
 {
   assert (loan->metadata->sample_state != DDS_LOANED_SAMPLE_STATE_UNITIALIZED);
   struct dds_psmx_metadata *md = loan->metadata;
-  memcpy (&md->guid, wr_guid, sizeof (md->guid));
+  md->guid = dds_guid_from_ddsi_guid (*wr_guid);
   md->timestamp = timestamp;
   md->statusinfo = statusinfo;
 }

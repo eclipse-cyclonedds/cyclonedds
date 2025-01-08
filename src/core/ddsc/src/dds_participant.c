@@ -27,6 +27,7 @@
 #include "dds__participant.h"
 #include "dds__builtin.h"
 #include "dds__qos.h"
+#include "dds__guid.h"
 
 DECL_ENTITY_LOCK_UNLOCK (dds_participant)
 
@@ -133,15 +134,10 @@ static dds_entity_t create_participant_flags_guid (const dds_domainid_t domain, 
   ddsi_xqos_mergein_missing (&plist.qos, new_qos, ~(uint64_t)0);
 
   ddsi_thread_state_awake (ddsi_lookup_thread_state (), &dom->gv);
-  if (guid == NULL)
-    ddsi_generate_participant_guid (&ddsi_guid, &dom->gv);
+  if (guid)
+    ddsi_guid = dds_guid_to_ddsi_guid (*guid);
   else
-  {
-    ddsi_guid_t ddsi_guid_tmp;
-    DDSRT_STATIC_ASSERT (sizeof (dds_guid_t) == sizeof (ddsi_guid_t));
-    memcpy (&ddsi_guid_tmp, guid, sizeof (ddsi_guid_tmp));
-    ddsi_guid = ddsi_ntoh_guid (ddsi_guid_tmp);
-  }
+    ddsi_generate_participant_guid (&ddsi_guid, &dom->gv);
   ret = ddsi_new_participant (&ddsi_guid, &dom->gv, flags, &plist);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   ddsi_plist_fini (&plist);
