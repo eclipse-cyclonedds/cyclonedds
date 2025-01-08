@@ -30,6 +30,7 @@
 #include "dds__write.h"
 #include "dds__loaned_sample.h"
 #include "dds__psmx.h"
+#include "dds__guid.h"
 
 struct ddsi_serdata_plain { struct ddsi_serdata p; };
 struct ddsi_serdata_any   { struct ddsi_serdata a; };
@@ -263,10 +264,13 @@ static dds_return_t deliver_data_any (struct ddsi_thread_state * const thrst, st
   {
     // Loan metadata and origin assumed valid by now
     const struct dds_loaned_sample * const loan = d->a.loan;
+#ifndef NDEBUG
+    const ddsi_guid_t loan_metadata_ddsi_guid = dds_guid_to_ddsi_guid (loan->metadata->guid);
     assert (loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX &&
             loan->metadata->timestamp == d->a.timestamp.v &&
             loan->metadata->statusinfo == d->a.statusinfo &&
-            memcmp (&loan->metadata->guid, &ddsi_wr->e.guid, sizeof (loan->metadata->guid)) == 0);
+            memcmp (&loan_metadata_ddsi_guid, &ddsi_wr->e.guid, sizeof (loan_metadata_ddsi_guid)) == 0);
+#endif
     struct dds_psmx_endpoint * const endpoint = loan->loan_origin.psmx_endpoint;
     ret = endpoint->ops.write (endpoint, d->a.loan);
   }
@@ -295,11 +299,12 @@ static dds_return_t dds_writecdr_impl_validate_loan (const struct dds_writer *wr
       if (loan->loan_origin.psmx_endpoint == wr->m_endpoint.psmx_endpoints.endpoints[e])
         loan_originates_here = true;
     }
+    const ddsi_guid_t loan_metadata_ddsi_guid = dds_guid_to_ddsi_guid (md->guid);
     if (loan->loan_origin.origin_kind != DDS_LOAN_ORIGIN_KIND_PSMX ||
         !loan_originates_here ||
         md->timestamp != din->a.timestamp.v ||
         md->statusinfo != din->a.statusinfo ||
-        memcmp (&md->guid, &wr->m_entity.m_guid, sizeof (md->guid)) != 0)
+        memcmp (&loan_metadata_ddsi_guid, &wr->m_entity.m_guid, sizeof (loan_metadata_ddsi_guid)) != 0)
     {
       return DDS_RETCODE_BAD_PARAMETER;
     }
@@ -324,7 +329,7 @@ static dds_return_t dds_writecdr_impl_ensureloan (struct dds_writer *wr, struct 
     ddsi_serdata_to_ser (&din->a, 4, sersize - 4, loan->sample_ptr);
   struct dds_psmx_metadata * const md = loan->metadata;
   md->sample_state = (din->a.kind == SDK_KEY) ? DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY : DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA;
-  memcpy (&md->guid, &wr->m_entity.m_guid, sizeof (md->guid));
+  md->guid = dds_guid_from_ddsi_guid (wr->m_entity.m_guid);
   md->timestamp = din->a.timestamp.v;
   md->statusinfo = din->a.statusinfo;
   unsigned char cdr_header[4];
