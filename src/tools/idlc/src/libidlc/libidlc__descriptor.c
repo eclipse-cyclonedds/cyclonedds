@@ -2119,6 +2119,11 @@ static idl_retcode_t get_ctype_keys(const idl_pstate_t *pstate, struct descripto
           if (parent_is_key && !ctype->has_key_member)
             inst->data.opcode.code |= DDS_OP_FLAG_KEY;
           if (inst->data.opcode.code & DDS_OP_FLAG_KEY) {
+            if (inst->data.opcode.code & DDS_OP_FLAG_OPT) {
+              idl_error (pstate, ctype->node, "A member that is part of a key (possibly nested inside a struct) cannot be optional");
+              ret = IDL_RETCODE_SYNTAX_ERROR;
+              goto err;
+            }
             if ((ret = get_ctype_keys_adr(pstate, descriptor, offs, base_type_ops_offs, inst, ctype, n_keys, &ctype_keys)) != IDL_RETCODE_OK)
               goto err;
           }
