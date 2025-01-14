@@ -305,6 +305,77 @@ malformed:
   return NULL;
 }
 
+static size_t value_size (const char *value)
+{
+  const char *v = value;
+  size_t n = 0;
+  while (*v)
+  {
+    n++;
+    if (*v == ';') {
+      return n;
+    } else if (*v == '\\') {
+      assert (*(v + 1) != '\0');
+      v += 2;
+    } else {
+      v += 1;
+    }
+  }
+  // input validation prevents this, but this would be the correct value if
+  // the input doesn't end on a semicolon
+  return n + 1;
+}
+
+static char *extract_value (const char *value)
+{
+  size_t n = value_size (value);
+  const char *s = value;
+  char *dst = ddsrt_malloc (n), *d = dst;
+  while (--n)
+  {
+    if (*s == '\\')
+      s++;
+    *d++ = *s++;
+  }
+  *d = 0;
+  return dst;
+}
+
+char *dds_psmx_get_config_option_value (const char *config, const char *option)
+{
+  if (config == NULL || *config == '\0' || option == NULL || *option == '\0')
+    return NULL;
+  // we are strict about config string syntax during initialization, so now we can relax
+  assert (config[strlen (config) - 1] == ';');
+  const size_t option_len = strlen (option);
+
+  const char *kstart = config; // init to pacify compiler
+  enum { KEY0, KEY, VALUE_NORM, VALUE_ESCAPED } cs = KEY0;
+  for (const char *c = config; *c; c++) {
+    switch (cs) {
+      case KEY0:
+        kstart = c;
+        cs = KEY;
+        // falls through
+      case KEY:
+        if (*c == '=') {
+          cs = VALUE_NORM;
+          if ((size_t) (c - kstart) == option_len && memcmp (kstart, option, option_len) == 0)
+            return extract_value (c + 1);
+        }
+        break;
+      case VALUE_NORM:
+        if (*c == ';') cs = KEY0;
+        else if (*c == '\\') cs = VALUE_ESCAPED;
+        break;
+      case VALUE_ESCAPED:
+        cs = VALUE_NORM;
+        break;
+    }
+  }
+  return NULL;
+}
+
 static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, const struct ddsi_config_psmx *config, struct dds_psmx **out, ddsrt_dynlib_t *lib_handle)
 {
   dds_psmx_create_fn creator = NULL;
@@ -623,31 +694,4 @@ void dds_psmx_set_loan_writeinfo (struct dds_loaned_sample *loan, const ddsi_gui
   md->guid = dds_guid_from_ddsi_guid (*wr_guid);
   md->timestamp = timestamp;
   md->statusinfo = statusinfo;
-}
-
-char * dds_psmx_get_config_option_value (const char *conf, const char *option_name)
-{
-  if (conf == NULL || option_name == NULL)
-    return NULL;
-
-  char *copy = ddsrt_strdup(conf), *cursor = copy, *tok;
-  while ((tok = ddsrt_strsep(&cursor, ";")) != NULL)
-  {
-    if (strlen(tok) == 0)
-      continue;
-    char *name = ddsrt_strsep(&tok, "=");
-    if (name == NULL || tok == NULL)
-    {
-      ddsrt_free(copy);
-      return NULL;
-    }
-    if (strcmp(name, option_name) == 0)
-    {
-      char *ret = ddsrt_strdup(tok);
-      ddsrt_free(copy);
-      return ret;
-    }
-  }
-  ddsrt_free(copy);
-  return NULL;
 }
