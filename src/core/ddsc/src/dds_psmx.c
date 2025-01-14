@@ -216,13 +216,35 @@ static dds_psmx_instance_id_t get_psmx_instance_id (const struct ddsi_domaingv *
   return ddsrt_mh3 (config_name, strlen (config_name), hashed_id);
 }
 
-char *dds_pubsub_message_exchange_configstr (const char *config)
+static bool check_config_name (const char *config_name)
+{
+  const char *c = config_name;
+  while (*c)
+  {
+    if (*c == ';') {
+      return false;
+    } else if (*c == '\\') {
+      if (*(c + 1) == '\0')
+        return false;
+      c += 2;
+    } else {
+      c += 1;
+    }
+  }
+  return true;
+}
+
+char *dds_pubsub_message_exchange_configstr (const char *config, const char *config_name)
 {
   // Check syntax: only KEY=VALUE pairs separated by ;, with backslash an escape character
   // We make no assumptions on the names of the keys or their values, except that no keys
   // may have CYCLONEDDS_ as a prefix, contain an escape character or an equals sign.
+  // We also add SERVICE_NAME=config_name if no SERVICE_NAME set (so the plug-in can rely
+  // on it being present).  That means we also have to verify that config_name is a valid
+  // value, which we do by forbidding it from containing a semi-colon or a backslash.
   const char *kstart = config; // init to pacify compiler
   enum { START, KEY0, KEY, VALUE_NORM, VALUE_ESCAPED } cs = START;
+  const char *service_name = NULL;
   for (const char *c = config; *c; c++) {
     switch (cs) {
       case START: // start of string, signalled for acceptance check
@@ -235,10 +257,14 @@ char *dds_pubsub_message_exchange_configstr (const char *config)
       case KEY: // following characters of key
         if (*c == ';' || *c == '\\') // key may not contain ; or backslash
           goto malformed;
-        if (*c == '=') { // key may not have CYCLONEDDS_ as prefix
+        if (*c == '=') {
+          // key may not have CYCLONEDDS_ as prefix
+          // we need to know if SERVICE_NAME is present so we can add it if not
           cs = VALUE_NORM;
           if (c - kstart >= 11 && memcmp (kstart, "CYCLONEDDS_", 11) == 0)
             goto malformed;
+          else if (c - kstart >= 12 && memcmp (kstart, "SERVICE_NAME", 12) == 0)
+            service_name = kstart;
         }
         break;
       case VALUE_NORM: // non-escaped characters in value
@@ -261,11 +287,18 @@ char *dds_pubsub_message_exchange_configstr (const char *config)
     default:
       goto malformed;
   }
+  // empty service name is forbidden (13: see check for presence of SERVICE_NAME)
+  if (service_name && service_name[13] == ';')
+    goto malformed;
 
   char *configstr = NULL;
   // Config checking verifies structure of config string and absence of any CYCLONEDDS_
   // We append a semicolon if the original config string did not end on one
-  ddsrt_asprintf (&configstr, "%s%s", config, (cs == VALUE_NORM) ? ";" : "");
+  if (service_name) {
+    ddsrt_asprintf (&configstr, "%s%s", config, (cs == VALUE_NORM) ? ";" : "");
+  } else {
+    ddsrt_asprintf (&configstr, "%s%sSERVICE_NAME=%s;", config, (cs == VALUE_NORM) ? ";" : "", config_name);
+  }
   return configstr;
 
 malformed:
@@ -286,8 +319,14 @@ static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, const st
   else
     lib_name = config->library;
 
+  if (!check_config_name (config->name))
+  {
+    GVERROR ("Configuration for PSMX instance '%s' has invalid name\n", config->name);
+    goto err_configstr;
+  }
+
   char *configstr;
-  if ((configstr = dds_pubsub_message_exchange_configstr (config->config)) == NULL)
+  if ((configstr = dds_pubsub_message_exchange_configstr (config->config, config->name)) == NULL)
   {
     GVERROR ("Configuration for PSMX instance '%s' is invalid\n", config->name);
     goto err_configstr;

@@ -1573,32 +1573,35 @@ CU_Test (ddsc_psmx, writer_loan)
 CU_Test (ddsc_psmx, configstr)
 {
   static const struct { const char *in; const char *out; } cases[] = {
-    { "", "" },
+    { "", "SERVICE_NAME=aa;" },
+    { "SERVICE_NAME=bb", "SERVICE_NAME=bb;" },
+    { "SERVICE_NAME=;", NULL },
+    { "SERVICE_NAME=\\;", "SERVICE_NAME=\\;;" },
     { ";", NULL },
     { "X", NULL },
     { "=", NULL },
     { "=Y", NULL },
     { "X;Y", NULL },
-    { "X=", "X=;" },
-    { "X=3", "X=3;" },
-    { "X=3;", "X=3;" },
+    { "X=", "X=;SERVICE_NAME=aa;" },
+    { "X=3", "X=3;SERVICE_NAME=aa;" },
+    { "X=3;", "X=3;SERVICE_NAME=aa;" },
     { "X=3;;", NULL },
-    { "X=3;YY=456", "X=3;YY=456;" },
-    { "X=3;YY=456;", "X=3;YY=456;" },
-    { "X=3;YY=4\\56;", "X=3;YY=4\\56;" },
+    { "X=3;YY=456", "X=3;YY=456;SERVICE_NAME=aa;" },
+    { "X=3;YY=456;", "X=3;YY=456;SERVICE_NAME=aa;" },
+    { "X=3;SERVICE_NAME=bb;YY=4\\56;", "X=3;SERVICE_NAME=bb;YY=4\\56;" },
     { "X=3;;YY=4\\56;", NULL },
     { "X\\=3;", NULL },
     { "X=3;\\", NULL },
     { "X=3\\", NULL },
-    { "X=3\\\\", "X=3\\\\;" },
-    { "X=3\\;Y=", "X=3\\;Y=;" },
+    { "X=3\\\\", "X=3\\\\;SERVICE_NAME=aa;" },
+    { "X=3\\;Y=", "X=3\\;Y=;SERVICE_NAME=aa;" },
     { "CYCLONEDDS_=", NULL },
     { "CYCLONEDDS_X=", NULL },
     { "X=3;CYCLONEDDS_=", NULL },
     { "X=3;CYCLONEDDS_X=", NULL }
   };
   for (size_t i = 0; i < sizeof (cases) / sizeof (cases[0]); i++) {
-    char *p = dds_pubsub_message_exchange_configstr (cases[i].in);
+    char *p = dds_pubsub_message_exchange_configstr (cases[i].in, "aa");
     CU_ASSERT_FATAL ((p == NULL) == (cases[i].out == NULL));
     if (p) {
       CU_ASSERT_FATAL (strcmp (p, cases[i].out) == 0);
