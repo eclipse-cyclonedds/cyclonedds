@@ -391,18 +391,7 @@ DDS_EXPORT dds_return_t dds_psmx_topic_init_generic (struct dds_psmx_topic *psmx
  * @return a DDS return code
  */
 DDS_EXPORT dds_return_t dds_psmx_topic_cleanup_generic(struct dds_psmx_topic *psmx_topic);
-
-
-/**
- * @brief Gets the supported features for a PSMX instance
- * @ingroup psmx
- *
- * Returns the set of supported features for the provided PSMX instance.
- *
- * @param[in] psmx_instance   the PSMX instance
- * @return the set of features supported by this PSMX instance
- */
-DDS_EXPORT dds_psmx_features_t dds_psmx_supported_features (const struct dds_psmx *psmx_instance);
+DDS_EXPORT dds_return_t dds_psmx_topic_cleanup_generic (struct dds_psmx_topic *psmx_topic);
 
 /**
  * @brief Returns the string associated with the option_name in the psmx config string.
