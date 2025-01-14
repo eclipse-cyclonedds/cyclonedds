@@ -65,6 +65,7 @@ set(ddsc_test_sources
     "nwpart.c"
     "participant.c"
     "pp_lease_dur.c"
+    "psmx.c"
     "psmxif.c"
     "publisher.c"
     "qos.c"
@@ -108,23 +109,6 @@ set(ddsc_test_sources
     "serdata_keys.c"
   )
 
-# PSMX tests are tricky in a static build: we have a PSMX plugin that is based on Cyclone
-# so we can test the interface even when Iceoryx is not available, but supporting that
-# plugin is too complicated in a static build: it introduces a circular dependency and
-# that's too hard for me in CMake.
-#
-# On most platforms (Linux, Windows, macOS) we could still load it dynamically but that
-# fails to work because the shared library then includes its own copy of Cyclone DDS and
-# then the access to the application readers that the plugin needs is no longer possible
-# because they live in the other copy of the library.
-#
-# Fortunately, running them with Iceoryx doesn't suffer from this.  If we simply skip
-# these tests in a static build without Iceoryx and then we ensure the static build on CI
-# uses Iceoryx, we should be good.
-if(BUILD_SHARED_LIBS OR (ENABLE_ICEORYX AND NOT DEFINED ENV{COLCON}))
-  list(APPEND ddsc_test_sources "psmx.c")
-endif()
-
 if(ENABLE_LIFESPAN)
   list(APPEND ddsc_test_sources "lifespan.c")
 endif()
@@ -161,38 +145,6 @@ if(ENABLE_QOS_PROVIDER)
     "qos_provider.c")
 endif()
 
-# PSMX dummy implementation for interface testing
-if(BUILD_SHARED_LIBS)
-  add_library(psmx_dummy SHARED "psmx_dummy_impl.c")
-else()
-  add_library(psmx_dummy OBJECT "psmx_dummy_impl.c")
-  set_property(GLOBAL APPEND PROPERTY cdds_plugin_list psmx_dummy)
-  set_property(GLOBAL PROPERTY psmx_dummy_symbols dummy_create_psmx)
-endif()
-generate_export_header(psmx_dummy BASE_NAME PSMX_DUMMY EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/psmx_dummy/export.h")
-target_include_directories(
-  psmx_dummy PRIVATE
-  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/ddsrt/include>"
-  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core/include>"
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src/core/include>"
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>"
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../ddsrt/include>"
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/include>"
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
-)
-if(BUILD_SHARED_LIBS)
-  target_link_libraries(psmx_dummy PRIVATE ddsc)
-else()
-  install(
-    TARGETS psmx_dummy
-    EXPORT "${PROJECT_NAME}"
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-  )
-endif()
-
-
 add_cunit_executable(cunit_ddsc ${ddsc_test_sources})
 target_include_directories(
   cunit_ddsc PRIVATE
@@ -221,6 +173,7 @@ target_link_libraries(cunit_ddsc PRIVATE
   CdrStreamWstring
   PsmxDataModels
   psmx_dummy
+  psmx_dummy_v0
   DynamicData
   Array100
   CdrStreamKeySize
@@ -228,7 +181,6 @@ target_link_libraries(cunit_ddsc PRIVATE
   SerdataData
   ddsc
 )
-
 
 if(ENABLE_TYPELIB)
   target_link_libraries(cunit_ddsc PRIVATE
@@ -249,9 +201,14 @@ set_tests_properties(
 
 configure_file("deadline_update.h.in" "deadline_update.h")
 configure_file("build_options.h.in" "build_options.h")
+configure_file("config_env.h.in" "config_env.h" @ONLY)
 
-# Serialize some really problematic tests: those relying on unreliable communication
-# and the deadline tests with their tight timing
+########################################################################
+# Enfore serial execution for some tests                               #
+#                                                                      #
+# Serialize some really problematic tests: those relying on unreliable #
+# communication and the deadline tests with their tight timing         #
+########################################################################
 foreach(t async_one_unrel_sample relwr_unrelrd_network)
   set_tests_properties(CUnit_ddsc_write_${t} PROPERTIES RUN_SERIAL TRUE)
 endforeach()
@@ -265,8 +222,9 @@ if(ENABLE_DEADLINE_MISSED)
   endforeach()
 endif()
 
-configure_file("config_env.h.in" "config_env.h" @ONLY)
-
+#########################
+# "oneliner" executable #
+#########################
 add_executable(oneliner
   "oneliner.c"
   "test_oneliner.c"
@@ -280,29 +238,74 @@ target_include_directories(
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../cdr/include>")
-
 target_link_libraries(oneliner PRIVATE RoundTrip Space ddsc)
 
-# PSMX implementation with Cyclone as transport, for testing
-if (BUILD_SHARED_LIBS)
-  idlc_generate(TARGET psmx_cdds_data FILES psmx_cdds_data.idl)
-  set(psmx_cdds_sources
-    "psmx_cdds_impl.c"
-    "psmx_cdds_impl.h")
+##############################################################
+# PSMX implementation with Cyclone as transport, for testing #
+# PSMX dummy implementation, for interface testing           #
+##############################################################
+idlc_generate(TARGET psmx_cdds_data FILES psmx_cdds_data.idl)
+set(psmx_cdds_sources
+  "psmx_cdds_impl.c"
+  "psmx_cdds_impl.h")
+set(psmx_dummy_sources
+  "psmx_dummy_impl.c"
+  "psmx_dummy_impl.h"
+  "psmx_dummy_public.h")
+set(psmx_dummy_v0_sources
+  "psmx_dummy_v0_impl.c"
+  "psmx_dummy_v0_impl.h"
+  "psmx_dummy_v0_public.h")
+set(psmx_includes
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../cdr/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>")
+if(BUILD_SHARED_LIBS)
   add_library(psmx_cdds SHARED ${psmx_cdds_sources})
-  target_include_directories(
-    psmx_cdds PRIVATE
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>")
+  add_library(psmx_dummy SHARED ${psmx_dummy_sources})
+  add_library(psmx_dummy_v0 SHARED ${psmx_dummy_v0_sources})
+else()
+  list(APPEND psmx_includes
+    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/ddsrt/include>"
+    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core/include>" 
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../ddsrt/include>")
+  add_library(psmx_cdds OBJECT ${psmx_cdds_sources} psmx_cdds_data.c)
+  set_property(GLOBAL APPEND PROPERTY cdds_plugin_list psmx_cdds)
+  set_property(GLOBAL PROPERTY psmx_cdds_symbols cdds_create_psmx)
+  add_library(psmx_dummy OBJECT ${psmx_dummy_sources})
+  set_property(GLOBAL APPEND PROPERTY cdds_plugin_list psmx_dummy)
+  set_property(GLOBAL PROPERTY psmx_dummy_symbols dummy_create_psmx)
+  add_library(psmx_dummy_v0 OBJECT ${psmx_dummy_v0_sources})
+  set_property(GLOBAL APPEND PROPERTY cdds_plugin_list psmx_dummy_v0)
+  set_property(GLOBAL PROPERTY psmx_dummy_v0_symbols dummy_v0_create_psmx)
+endif()
+generate_export_header(psmx_cdds BASE_NAME PSMX_CDDS EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/psmx_cdds/export.h")
+generate_export_header(psmx_dummy BASE_NAME PSMX_DUMMY EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/psmx_dummy/export.h")
+generate_export_header(psmx_dummy_v0 BASE_NAME PSMX_DUMMY EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/psmx_dummy_v0/export.h")
+foreach(plugin psmx_cdds psmx_dummy psmx_dummy_v0)
+  target_include_directories(${plugin} PRIVATE ${psmx_includes})
+endforeach()
+if(BUILD_SHARED_LIBS)
   target_link_libraries(psmx_cdds PRIVATE ddsc psmx_cdds_data)
-
-  generate_export_header(psmx_cdds BASE_NAME PSMX_CDDS EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/psmx_cdds/export.h")
+  target_link_libraries(psmx_dummy PRIVATE ddsc)
+  target_link_libraries(psmx_dummy_v0 PRIVATE ddsc)
+else()
+  install(
+    TARGETS psmx_cdds psmx_dummy psmx_dummy_v0
+    EXPORT "${PROJECT_NAME}"
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 endif()
 
-# If Iceoryx is available, then also run all PSMX tests using Iceoryx.  Colcon complicates
-# things too much and it doesn't affect Cyclone's CI run anyway.
+########################################################################
+# If Iceoryx is available, then also run all PSMX tests using Iceoryx. #
+# Colcon complicates things too much and it doesn't affect Cyclone's   #
+# CI run anyway.                                                       #
+########################################################################
 if(ENABLE_ICEORYX AND NOT DEFINED ENV{COLCON})
-
   # We need to start RouDi, so we need to find it
   find_program(ICEORYX_ROUDI iox-roudi REQUIRED)
 
@@ -348,27 +351,19 @@ kill -0 `cat ctest_fixture_iox_roudi.pid`")
   # Iceoryx in a static build (because I don't know how to delete tests!)
   get_property(test_names DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY TESTS)
   list(FILTER test_names INCLUDE REGEX "^CUnit_ddsc_psmx_[A-Za-z_0-9]+$")
-  set(iox_tests
-    "CUnit_ddsc_multi_psmx_get_loans"
-    "CUnit_ddsc_psmxif_config_multiple_psmx"
-    "CUnit_ddsc_psmxif_shared_memory"
-    "CUnit_ddsc_psmxif_instance_name")
   if(BUILD_SHARED_LIBS)
     foreach(fullname ${test_names})
       string(REGEX REPLACE "^CUnit_ddsc_psmx_(.*)" "\\1" shortname "${fullname}")
       add_test(NAME ${fullname}_iox COMMAND cunit_ddsc -s ddsc_psmx -t ${shortname})
-      list(APPEND iox_tests ${fullname}_iox)
+      set_tests_properties(${fullname}_iox PROPERTIES FIXTURES_REQUIRED iox)
+      set_tests_properties(${fullname}_iox PROPERTIES RESOURCE_LOCK iox_lock)
+      set_tests_properties(${fullname}_iox PROPERTIES ENVIRONMENT "CDDS_PSMX_NAME=iox;LD_LIBRARY_PATH=$<TARGET_FILE_DIR:psmx_iox>:$ENV{LD_LIBRARY_PATH}")
     endforeach()
-    list(APPEND iox_tests ${fullname})
-  endif()
-
-  foreach(fullname ${iox_tests})
-    set_tests_properties(${fullname} PROPERTIES FIXTURES_REQUIRED iox)
-    set_tests_properties(${fullname} PROPERTIES RESOURCE_LOCK iox_lock)
-    if(BUILD_SHARED_LIBS)
-      set_tests_properties(${fullname} PROPERTIES ENVIRONMENT "CDDS_PSMX_NAME=iox;LD_LIBRARY_PATH=$<TARGET_FILE_DIR:psmx_iox>:$ENV{LD_LIBRARY_PATH}")
-    else()
+  else()
+    foreach(fullname ${test_names})
+      set_tests_properties(${fullname} PROPERTIES FIXTURES_REQUIRED iox)
+      set_tests_properties(${fullname} PROPERTIES RESOURCE_LOCK iox_lock)
       set_tests_properties(${fullname} PROPERTIES ENVIRONMENT "CDDS_PSMX_NAME=iox")
-    endif()
-  endforeach()
+    endforeach()
+  endif()
 endif()

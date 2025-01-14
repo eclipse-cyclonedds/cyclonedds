@@ -209,8 +209,7 @@ static void dds_writer_close (dds_entity *e)
   ddsrt_mutex_unlock (&e->m_mutex);
 }
 
-static dds_return_t dds_writer_delete (dds_entity *e) ddsrt_nonnull_all;
-
+ddsrt_nonnull_all
 static dds_return_t dds_writer_delete (dds_entity *e)
 {
   dds_return_t ret = DDS_RETCODE_OK;
@@ -220,14 +219,7 @@ static dds_return_t dds_writer_delete (dds_entity *e)
   // up the endpoints. And m_loans is not used anymore from this point, so can also
   // be freed safely.
   dds_loan_pool_free (wr->m_loans);
-
-  for (uint32_t i = 0; ret == DDS_RETCODE_OK && i < wr->m_endpoint.psmx_endpoints.length; i++)
-  {
-    struct dds_psmx_endpoint *psmx_endpoint = wr->m_endpoint.psmx_endpoints.endpoints[i];
-    if (psmx_endpoint == NULL)
-      continue;
-    ret = dds_remove_psmx_endpoint_from_list (psmx_endpoint, &psmx_endpoint->psmx_topic->psmx_endpoints);
-  }
+  dds_endpoint_remove_psmx_endpoints (&wr->m_endpoint);
 
   /* FIXME: not freeing WHC here because it is owned by the DDSI entity */
   ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
@@ -539,8 +531,10 @@ dds_loaned_sample_t *dds_writer_request_psmx_loan(const dds_writer *wr, uint32_t
   // return the loan from the first endpoint that returns one
   dds_loaned_sample_t *loan = NULL;
   for (uint32_t e = 0; e < wr->m_endpoint.psmx_endpoints.length && loan == NULL; e++)
-    loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[e], size);
-
+  {
+    struct dds_psmx_endpoint_int const * const ep = wr->m_endpoint.psmx_endpoints.endpoints[e];
+    loan = ep->ops.request_loan (ep, size);
+  }
   return loan;
 }
 

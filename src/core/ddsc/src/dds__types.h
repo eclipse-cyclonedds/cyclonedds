@@ -270,9 +270,21 @@ typedef struct dds_cyclonedds_entity {
   struct ddsi_threadmon *threadmon;
 } dds_cyclonedds_entity;
 
+enum dds_psmx_interface_version {
+  DDS_PSMX_INTERFACE_VERSION_0_BINCOMPAT,
+  DDS_PSMX_INTERFACE_VERSION_0,
+  DDS_PSMX_INTERFACE_VERSION_1,
+};
+
+struct dds_psmx_set_elem {
+  struct dds_psmx_int *instance;
+  enum dds_psmx_interface_version interface_version;
+  ddsrt_dynlib_t lib_handle;
+};
+
 struct dds_psmx_set {
   uint32_t length;
-  struct dds_psmx *instances[DDS_MAX_PSMX_INSTANCES];
+  struct dds_psmx_set_elem elems[DDS_MAX_PSMX_INSTANCES];
 };
 
 typedef struct dds_domain {
@@ -347,7 +359,7 @@ struct ktopic_type_guid {
 
 struct dds_psmx_topics_set {
   uint32_t length;
-  struct dds_psmx_topic *topics[DDS_MAX_PSMX_INSTANCES];
+  struct dds_psmx_topic_int *topics[DDS_MAX_PSMX_INSTANCES];
 };
 
 typedef struct dds_ktopic {
@@ -377,7 +389,7 @@ typedef struct dds_participant {
 
 struct dds_psmx_endpoints_set {
   uint32_t length;
-  struct dds_psmx_endpoint *endpoints[DDS_MAX_PSMX_INSTANCES];
+  struct dds_psmx_endpoint_int *endpoints[DDS_MAX_PSMX_INSTANCES];
 };
 
 struct dds_endpoint {

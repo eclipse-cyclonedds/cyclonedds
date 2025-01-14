@@ -1617,7 +1617,7 @@ static const char
 <General>\
   <AllowMulticast>spdp</AllowMulticast>\
   <Interfaces>\
-<PubSubMessageExchange name=\"iox\" library=\"psmx_${CDDS_PSMX_NAME:-cdds}\" priority=\"1000000\" config=\"LOCATOR=0123456789ABCDEF0123456789ABCDEF;SERVICE_NAME=iox;KEYED_TOPICS=true;\" />\
+<PubSubMessageExchange name=\"${CDDS_PSMX_NAME:-cdds}\" library=\"psmx_${CDDS_PSMX_NAME:-cdds}\" priority=\"1000000\" config=\"LOCATOR=0123456789ABCDEF0123456789ABCDEF;SERVICE_NAME=${CDDS_PSMX_NAME:-cdds};KEYED_TOPICS=true;\" />\
 <PubSubMessageExchange name=\"dummy\" library=\"psmx_dummy\" priority=\"2000000\" config=\"LOCATOR=1123456789ABCDEF0123456789ABCDEF;SERVICE_NAME=dummy;KEYED_TOPICS=true;\" />\
   </Interfaces>\
 </General>\
@@ -1630,28 +1630,25 @@ static const char
   <OutputFile>cdds.log.0</OutputFile>\
 </Tracing>";
 
-CU_TheoryDataPoints(ddsc_multi_psmx, get_loans) = {
-  CU_DataPoints(const bool, true, true,   false,  false),   //whether to add an iox psmx interface
-  CU_DataPoints(const bool, true, false,  true,   false),   //whether to add a dummy psmx interface
-  CU_DataPoints(const bool, true, false,  true,   true),    //whether we get the second loan
-  CU_DataPoints(const bool, true, false,  false,  true),    //whether we get the third loan
-};
-
-static void check_loan(dds_return_t loan_return, void *loan_ptr, const bool exp_loan)
+static void check_loan (dds_return_t loan_return, void *loan_ptr, const bool exp_loan)
 {
   CU_ASSERT_EQUAL(loan_return, exp_loan ? DDS_RETCODE_OK : DDS_RETCODE_ERROR);
   if (exp_loan)
   {
-      CU_ASSERT_EQUAL(loan_return, DDS_RETCODE_OK);
-      CU_ASSERT_PTR_NOT_NULL(loan_ptr);
-  } else
+    CU_ASSERT_EQUAL(loan_return, DDS_RETCODE_OK);
+    CU_ASSERT_PTR_NOT_NULL(loan_ptr);
+  }
+  else
   {
-      CU_ASSERT_EQUAL(loan_return, DDS_RETCODE_ERROR);
+    CU_ASSERT_EQUAL(loan_return, DDS_RETCODE_ERROR);
   }
 }
 
-CU_Theory ((const bool include_iox, const bool include_dummy, const bool loan_2, const bool loan_3), ddsc_multi_psmx, get_loans)
+static void do_multi_psmx_get_loans (const bool include_real, const bool include_dummy, const bool loan_2, const bool loan_3)
 {
+  const char *real_name = "cdds";
+  (void) ddsrt_getenv ("CDDS_PSMX_NAME", &real_name);
+
   char *xconfigstr = ddsrt_expand_envvars (multi_psmx_configstr, 0);
   const dds_entity_t dom = dds_create_domain (0, xconfigstr);
   ddsrt_free (xconfigstr);
@@ -1673,23 +1670,20 @@ CU_Theory ((const bool include_iox, const bool include_dummy, const bool loan_2,
   CU_ASSERT_FATAL (tp > 0);
 
   //create qos with the required names of psmx interfaces set
-  static const char *qosstrs[2] = {"iox", "dummy"};
+  const char *qosstrs[2] = {real_name, "dummy"};
   dds_qos_t *qos = dds_create_qos ();
   CU_ASSERT_PTR_NOT_NULL_FATAL (qos);
-  if (!include_iox && !include_dummy)
-    dds_qset_psmx_instances (qos, 0, NULL);  //no psmx
-  else if(include_iox) {
-    if (include_dummy)
-      dds_qset_psmx_instances (qos, 2, qosstrs); //iox + dummy
-    else
-      dds_qset_psmx_instances (qos, 1, qosstrs); //iox
-  } else if (include_dummy)
-    dds_qset_psmx_instances (qos, 1, qosstrs+1); //dummy
+  if (!include_real && !include_dummy)
+    dds_qset_psmx_instances (qos, 0, NULL);
+  else if (include_real)
+    dds_qset_psmx_instances (qos, include_dummy ? 2 : 1, qosstrs);
+  else if (include_dummy)
+    dds_qset_psmx_instances (qos, 1, qosstrs + 1);
 
   const dds_entity_t wr = dds_create_writer (pp, tp, qos, NULL);
   dds_delete_qos (qos);
   CU_ASSERT_FATAL (wr > 0);
-  CU_ASSERT_EQUAL_FATAL (include_iox || include_dummy, endpoint_has_psmx_enabled (wr));
+  CU_ASSERT_EQUAL_FATAL (include_real || include_dummy, endpoint_has_psmx_enabled (wr));
 
   void *loan = NULL;
   dds_return_t rc = dds_request_loan (wr, &loan);
@@ -1701,3 +1695,11 @@ CU_Theory ((const bool include_iox, const bool include_dummy, const bool loan_2,
 
   dds_delete(dom);
 }
+
+// Used to be a CU_Theory, but ASAN doesn't like loading psmx_cdds, unloading it and loading it again,
+// claiming that it violates the ODR rule for cdds_psmx_data_desc.  Clearly ASAN is wrong, and working
+// around it is the practical solution.
+CU_Test (ddsc_multi_psmx, get_loans_1) { do_multi_psmx_get_loans (true, true, true, true); }
+CU_Test (ddsc_multi_psmx, get_loans_2) { do_multi_psmx_get_loans (true, false, true, true); }
+CU_Test (ddsc_multi_psmx, get_loans_3) { do_multi_psmx_get_loans (false, true, true, false); }
+CU_Test (ddsc_multi_psmx, get_loans_4) { do_multi_psmx_get_loans (false, false, true, true); }

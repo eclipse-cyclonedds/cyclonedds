@@ -15,6 +15,7 @@
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsrt/strtol.h"
 #include "dds/ddsi/ddsi_locator.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_endpoint.h"
@@ -26,186 +27,196 @@
 #include "dds__writer.h"
 #include "dds__guid.h"
 
-static struct dds_psmx_endpoint * psmx_create_endpoint (struct dds_psmx_topic *psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type);
-static dds_return_t psmx_delete_endpoint (struct dds_psmx_endpoint *psmx_endpoint);
+static struct dds_psmx_endpoint_int *psmx_create_endpoint_v0_bincompat_wrapper (const struct dds_psmx_topic_int *psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type);
+static struct dds_psmx_endpoint_int *psmx_create_endpoint_v0_wrapper (const struct dds_psmx_topic_int *psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type);
+static struct dds_psmx_endpoint_int *psmx_create_endpoint_v1_wrapper (const struct dds_psmx_topic_int *psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type);
 
-dds_return_t dds_add_psmx_topic_to_list (struct dds_psmx_topic *psmx_topic, struct dds_psmx_topic_list_elem **list)
+static bool get_check_interface_version (enum dds_psmx_interface_version *ifver, const struct dds_psmx_ops *ops)
 {
-  if (!psmx_topic)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  struct dds_psmx_topic_list_elem *ptr = dds_alloc (sizeof (struct dds_psmx_topic_list_elem));
-  if (!ptr)
-    return DDS_RETCODE_OUT_OF_RESOURCES;
-
-  ptr->topic = psmx_topic;
-  ptr->next = NULL;
-
-  if (!*list)
+  // We want do distinguish three cases:
+  //
+  // 1. Interface version 0 using the old memory layout (binary backwards compatibility)
+  // 2. Interface version 0 using the new memory layout (source backwards compatibility)
+  // 3. Interface version 1 (necessarily using the new memory layout)
+  //
+  // it would've been nice if the struct had a pointer to a struct with functions, but
+  // that ship has sailed if source compatibility is desired ...
+  //
+  // Distinguishing between (1 or 2) and 3 is easy, just check the create_topic and deinit functions.
+  if (ops->create_topic == NULL && ops->deinit == NULL)
   {
-    ptr->prev = NULL;
-    *list = ptr;
+    // New mode, then create_topic_type and delete_psmx must be defined
+    if (ops->create_topic_type == NULL || ops->delete_psmx == NULL)
+      return false;
+    *ifver = DDS_PSMX_INTERFACE_VERSION_1;
+    return true;
   }
+
+  // Compatibility mode, then both old functions must be defined and we never touch the new functions
+    if (ops->create_topic == NULL || ops->deinit == NULL)
+      return false;
+
+  // Distinguishing between 1 vs 2 is trickier, but we get lucky here because interface
+  // version 0 requires the plugin to
+  // - zero-initialize most fields in struct dds_psmx
+  // - to set the instance_name to a dds_alloc'd string
+  // and it so happens that the instance_name immediately follows the operations, and
+  // on all supported platforms sizeof(void(*)()) == sizeof(void*) and so the offset
+  // of create_topic_type matches the offset of instance_name
+  //
+  // This check probably invokes undefined behaviour ...
+  DDSRT_STATIC_ASSERT(
+    offsetof (struct dds_psmx, ops) == 0 &&
+    offsetof (struct dds_psmx_ops, create_topic_type) == offsetof (struct dds_psmx_v0, instance_name));
+  DDSRT_STATIC_ASSERT (sizeof (ops->create_topic_type) == sizeof (char *));
+  if (ops->create_topic_type == NULL)
+    *ifver = DDS_PSMX_INTERFACE_VERSION_0;
   else
-  {
-    struct dds_psmx_topic_list_elem *ptr2 = *list;
-    while (ptr2->next)
-      ptr2 = ptr2->next;
-    ptr2->next = ptr;
-    ptr->prev = ptr2;
-  }
+    *ifver = DDS_PSMX_INTERFACE_VERSION_0_BINCOMPAT;
+  return true;
+}
 
+dds_return_t dds_add_psmx_topic_to_list (struct dds_psmx_topic *psmx_topic, void **list)
+{
+  // deprecated, kept for compatibility with older PSMX Plugin sources
+  (void) psmx_topic; (void) list;
   return DDS_RETCODE_OK;
 }
 
-dds_return_t dds_remove_psmx_topic_from_list (struct dds_psmx_topic *psmx_topic, struct dds_psmx_topic_list_elem **list)
+dds_return_t dds_add_psmx_endpoint_to_list (struct dds_psmx_endpoint *psmx_endpoint, void **list)
 {
-  if (!psmx_topic || !list || !*list)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  dds_return_t ret = DDS_RETCODE_OK;
-  struct dds_psmx_topic_list_elem *list_entry = *list;
-
-  while (list_entry && list_entry->topic != psmx_topic)
-    list_entry = list_entry->next;
-
-  if (list_entry != NULL && (ret = list_entry->topic->psmx_instance->ops.delete_topic (list_entry->topic)) == DDS_RETCODE_OK)
-  {
-    if (list_entry->prev)
-      list_entry->prev->next = list_entry->next;
-
-    if (list_entry->next)
-      list_entry->next->prev = list_entry->prev;
-
-    if (list_entry == *list)
-      *list = list_entry->next;
-
-    dds_free (list_entry);
-  }
-
-  return ret;
-}
-
-dds_return_t dds_add_psmx_endpoint_to_list (struct dds_psmx_endpoint *psmx_endpoint, struct dds_psmx_endpoint_list_elem **list)
-{
-  if (!psmx_endpoint)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  struct dds_psmx_endpoint_list_elem *ptr = dds_alloc (sizeof (struct dds_psmx_endpoint_list_elem));
-  if (!ptr)
-    return DDS_RETCODE_OUT_OF_RESOURCES;
-
-  ptr->endpoint = psmx_endpoint;
-  ptr->next = NULL;
-
-  if (!*list)
-  {
-    ptr->prev = NULL;
-    *list = ptr;
-  }
-  else
-  {
-    struct dds_psmx_endpoint_list_elem *ptr2 = *list;
-    while (ptr2->next)
-      ptr2 = ptr2->next;
-    ptr2->next = ptr;
-    ptr->prev = ptr2;
-  }
-
+  // deprecated, kept for compatibility with older PSMX Plugin sources
+  (void) psmx_endpoint; (void) list;
   return DDS_RETCODE_OK;
 }
 
-dds_return_t dds_remove_psmx_endpoint_from_list (struct dds_psmx_endpoint *psmx_endpoint, struct dds_psmx_endpoint_list_elem **list)
+dds_return_t dds_psmx_init_generic (struct dds_psmx *psmx)
 {
-  if (!psmx_endpoint || !list || !*list)
-    return DDS_RETCODE_BAD_PARAMETER;
+  // checking interface version won't fail (unless things have been
+  // tampered with since constructing the psmx instance
+  enum dds_psmx_interface_version ifver = DDS_PSMX_INTERFACE_VERSION_0;
+  (void) get_check_interface_version (&ifver, &psmx->ops);
 
-  dds_return_t ret = DDS_RETCODE_OK;
-  struct dds_psmx_endpoint_list_elem *list_entry = *list;
-
-  while (list_entry && list_entry->endpoint != psmx_endpoint)
-    list_entry = list_entry->next;
-
-  if (list_entry != NULL && (ret = psmx_delete_endpoint (list_entry->endpoint)) == DDS_RETCODE_OK)
-  {
-    if (list_entry->prev)
-      list_entry->prev->next = list_entry->next;
-
-    if (list_entry->next)
-      list_entry->next->prev = list_entry->prev;
-
-    if (list_entry == *list)
-      *list = list_entry->next;
-
-    dds_free (list_entry);
-  }
-
-  return ret;
-}
-
-dds_return_t dds_psmx_init_generic (struct dds_psmx * psmx)
-{
   struct ddsi_locator *loc = dds_alloc (sizeof (*loc));
   if (loc == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
   memset (loc, 0, sizeof (*loc));
-
   dds_psmx_node_identifier_t node_id = psmx->ops.get_node_id (psmx);
   memcpy (loc->address, &node_id, sizeof (node_id));
-  loc->port = psmx->instance_id;
   loc->kind = DDSI_LOCATOR_KIND_PSMX;
 
-  psmx->locator = loc;
-
-  return DDS_RETCODE_OK;
+  switch (ifver)
+  {
+    case DDS_PSMX_INTERFACE_VERSION_0_BINCOMPAT: {
+      struct dds_psmx_v0 *psmx_v0 = (struct dds_psmx_v0 *) psmx;
+      loc->port = psmx_v0->instance_id;
+      psmx_v0->locator = loc;
+      return DDS_RETCODE_OK;
+    }
+    case DDS_PSMX_INTERFACE_VERSION_0: {
+      loc->port = psmx->instance_id;
+      psmx->locator = loc;
+      return DDS_RETCODE_OK;
+    }
+    case DDS_PSMX_INTERFACE_VERSION_1: {
+      break;
+    }
+  }
+  return DDS_RETCODE_ERROR;
 }
 
 dds_return_t dds_psmx_cleanup_generic (struct dds_psmx *psmx)
 {
-  dds_return_t ret = DDS_RETCODE_OK;
-  dds_free ((void *) psmx->instance_name);
-  dds_free ((void *) psmx->locator);
+  // interface deprecated, kept for compatibility with older PSMX Plugin sources
+  // also called by psmx_instance_fini because it actually needs to do the same thing
+  // and so it needs to cover all versions
 
-  while (ret == DDS_RETCODE_OK && psmx->psmx_topics)
-    ret = dds_remove_psmx_topic_from_list (psmx->psmx_topics->topic, &psmx->psmx_topics);
-
-  return ret;
+  // checking interface version won't fail (unless things have been
+  // tampered with since constructing the psmx instance
+  enum dds_psmx_interface_version ifver = DDS_PSMX_INTERFACE_VERSION_0;
+  (void) get_check_interface_version (&ifver, &psmx->ops);
+  switch (ifver)
+  {
+    case DDS_PSMX_INTERFACE_VERSION_0_BINCOMPAT: {
+      struct dds_psmx_v0 *psmx_v0 = (struct dds_psmx_v0 *) psmx;
+      dds_free ((void *) psmx_v0->instance_name);
+      dds_free ((void *) psmx_v0->locator);
+      break;
+    }
+    case DDS_PSMX_INTERFACE_VERSION_0:
+    case DDS_PSMX_INTERFACE_VERSION_1: {
+      dds_free ((void *) psmx->instance_name);
+      dds_free ((void *) psmx->locator);
+      break;
+    }
+  }
+  return DDS_RETCODE_OK;
 }
 
-dds_return_t dds_psmx_topic_init_generic (struct dds_psmx_topic *psmx_topic, const dds_psmx_topic_ops_t *ops, const struct dds_psmx * psmx, const char *topic_name, const char * type_name, dds_data_type_properties_t data_type_props)
+void dds_psmx_topic_init (struct dds_psmx_topic *psmx_topic, const struct dds_psmx *psmx, const char *topic_name, const char * type_name, dds_data_type_properties_t data_type_props)
 {
-  psmx_topic->ops = *ops;
   psmx_topic->psmx_instance = (struct dds_psmx *) psmx;
-  psmx_topic->topic_name = dds_string_dup (topic_name);
-  psmx_topic->type_name = dds_string_dup (type_name);
+  psmx_topic->topic_name = topic_name;
+  psmx_topic->type_name = type_name;
   uint32_t topic_hash = ddsrt_mh3 (psmx_topic->topic_name, strlen (psmx_topic->topic_name), 0);
   psmx_topic->data_type = ddsrt_mh3 (&psmx->instance_id, sizeof (psmx->instance_id), topic_hash);
   psmx_topic->data_type_props = data_type_props;
   psmx_topic->psmx_endpoints = NULL;
+}
+
+dds_return_t dds_psmx_topic_init_generic (struct dds_psmx_topic *psmx_topic, const dds_psmx_topic_ops_t *ops, const struct dds_psmx * psmx, const char *topic_name, const char * type_name, dds_data_type_properties_t data_type_props)
+{
+  // deprecated interface version, called by plugin, allocates copies of strings
+  psmx_topic->ops = *ops;
+  dds_psmx_topic_init (psmx_topic, psmx, dds_string_dup (topic_name), dds_string_dup (type_name), data_type_props);
   return DDS_RETCODE_OK;
 }
 
 dds_return_t dds_psmx_topic_cleanup_generic (struct dds_psmx_topic *psmx_topic)
 {
-  dds_return_t ret = DDS_RETCODE_OK;
-  while (ret == DDS_RETCODE_OK && psmx_topic->psmx_endpoints)
-    ret = dds_remove_psmx_endpoint_from_list (psmx_topic->psmx_endpoints->endpoint, &psmx_topic->psmx_endpoints);
-  dds_free (psmx_topic->type_name);
-  dds_free (psmx_topic->topic_name);
-  return ret;
+  // deprecated interface version, called by plugin, frees the copies allocated by dds_psmx_topic_init_generic
+  dds_free ((void *) psmx_topic->type_name);
+  dds_free ((void *) psmx_topic->topic_name);
+  return DDS_RETCODE_OK;
 }
 
-dds_loaned_sample_t * dds_psmx_endpoint_request_loan (struct dds_psmx_endpoint *psmx_endpoint, uint32_t sz)
+dds_loaned_sample_t *dds_psmx_endpoint_request_loan_v0_bincompat_wrapper (const struct dds_psmx_endpoint_int *psmx_endpoint, uint32_t sz)
 {
-  assert (psmx_endpoint->ops.request_loan);
-  dds_loaned_sample_t *loaned_sample = psmx_endpoint->ops.request_loan (psmx_endpoint, sz);
-  if (loaned_sample)
-  {
-    loaned_sample->metadata->sample_state = DDS_LOANED_SAMPLE_STATE_UNITIALIZED;
-    loaned_sample->metadata->sample_size = sz;
-    loaned_sample->metadata->instance_id = psmx_endpoint->psmx_topic->psmx_instance->instance_id;
-    loaned_sample->metadata->data_type = psmx_endpoint->psmx_topic->data_type;
-  }
+  struct dds_psmx_endpoint_v0 const * const ext = (const struct dds_psmx_endpoint_v0 *) psmx_endpoint->ext;
+  dds_loaned_sample_t *loaned_sample = ext->ops.request_loan (psmx_endpoint->ext, sz);
+  if (loaned_sample == NULL)
+    return NULL;
+  loaned_sample->metadata->sample_state = DDS_LOANED_SAMPLE_STATE_UNITIALIZED;
+  loaned_sample->metadata->sample_size = sz;
+  loaned_sample->metadata->instance_id = psmx_endpoint->psmx_topic->psmx_instance->instance_id;
+  loaned_sample->metadata->data_type = 0;
+  return loaned_sample;
+}
+
+dds_loaned_sample_t *dds_psmx_endpoint_request_loan_v0_wrapper (const struct dds_psmx_endpoint_int *psmx_endpoint, uint32_t sz)
+{
+  dds_loaned_sample_t *loaned_sample = psmx_endpoint->ext->ops.request_loan (psmx_endpoint->ext, sz);
+  if (loaned_sample == NULL)
+    return NULL;
+  loaned_sample->metadata->sample_state = DDS_LOANED_SAMPLE_STATE_UNITIALIZED;
+  loaned_sample->metadata->sample_size = sz;
+  loaned_sample->metadata->instance_id = psmx_endpoint->psmx_topic->psmx_instance->instance_id;
+  loaned_sample->metadata->data_type = 0;
+  return loaned_sample;
+}
+
+dds_loaned_sample_t *dds_psmx_endpoint_request_loan_v1_wrapper (const struct dds_psmx_endpoint_int *psmx_endpoint, uint32_t sz)
+{
+  dds_loaned_sample_t *loaned_sample = psmx_endpoint->ext->ops.request_loan (psmx_endpoint->ext, sz);
+  if (loaned_sample == NULL)
+    return NULL;
+  loaned_sample->loan_origin.origin_kind = DDS_LOAN_ORIGIN_KIND_PSMX;
+  loaned_sample->loan_origin.psmx_endpoint = psmx_endpoint->ext;
+  loaned_sample->metadata->sample_state = DDS_LOANED_SAMPLE_STATE_UNITIALIZED;
+  loaned_sample->metadata->sample_size = sz;
+  loaned_sample->metadata->instance_id = psmx_endpoint->psmx_topic->psmx_instance->instance_id;
+  loaned_sample->metadata->data_type = 0;
+  ddsrt_atomic_st32 (&loaned_sample->refc, 1);
   return loaned_sample;
 }
 
@@ -376,14 +387,201 @@ char *dds_psmx_get_config_option_value (const char *config, const char *option)
   return NULL;
 }
 
-static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, const struct ddsi_config_psmx *config, struct dds_psmx **out, ddsrt_dynlib_t *lib_handle)
+static dds_return_t node_id_from_string (dds_psmx_node_identifier_t *nodeid, const char *lstr)
+{
+  if (strlen (lstr) != 32)
+    return DDS_RETCODE_BAD_PARAMETER;
+  unsigned char * const dst = (unsigned char *) nodeid->x;
+  for (uint32_t n = 0; n < 32 && lstr[n]; n++)
+  {
+    int32_t num;
+    if ((num = ddsrt_todigit (lstr[n])) < 0 || num >= 16)
+      return DDS_RETCODE_BAD_PARAMETER;
+    if ((n % 2) == 0)
+      dst[n / 2] = (uint8_t) (num << 4);
+    else
+      dst[n / 2] |= (uint8_t) num;
+  }
+  return DDS_RETCODE_OK;
+}
+
+static dds_return_t psmx_instance_init (struct dds_psmx *psmx, dds_psmx_instance_id_t id, const char *name, int32_t priority, const char *locstr)
+{
+  // ops: set by plugin
+  // topics: reserved
+  // everything else: to be initialized
+  dds_return_t ret = DDS_RETCODE_ERROR;
+  psmx->instance_name = dds_string_dup (name);
+  if (psmx->instance_name == NULL)
+  {
+    ret = DDS_RETCODE_OUT_OF_RESOURCES;
+    goto err_instance_name;
+  }
+  psmx->priority = priority;
+  struct ddsi_locator *loc = dds_alloc (sizeof (*loc));
+  if (loc == NULL) {
+    ret = DDS_RETCODE_OUT_OF_RESOURCES;
+    goto err_locator;
+  }
+  memset (loc, 0, sizeof (*loc));
+  if (locstr == NULL)
+  {
+    dds_psmx_node_identifier_t node_id = psmx->ops.get_node_id (psmx);
+    memcpy (loc->address, &node_id, sizeof (node_id));
+  }
+  else
+  {
+    dds_psmx_node_identifier_t node_id;
+    if ((ret = node_id_from_string (&node_id, locstr)) != DDS_RETCODE_OK)
+      goto err_locator_conversion;
+    memcpy (loc->address, &node_id, sizeof (node_id));
+  }
+  loc->port = psmx->instance_id;
+  loc->kind = DDSI_LOCATOR_KIND_PSMX;
+  psmx->locator = loc;
+  psmx->instance_id = id;
+  psmx->psmx_topics = NULL;
+  return DDS_RETCODE_OK;
+
+err_locator_conversion:
+  dds_free ((void *) psmx->locator);
+err_locator:
+  dds_free ((void *) psmx->instance_name);
+err_instance_name:
+  psmx->instance_name = NULL;
+  psmx->locator = NULL;
+  return ret;
+}
+
+static struct dds_psmx_topic_int *psmx_create_topic_v0_bincompat_wrapper (struct dds_psmx_int *psmx, struct dds_ktopic *ktp, struct ddsi_sertype *sertype, struct ddsi_type *type)
+{
+  (void) type;
+  struct dds_psmx_topic * const topic = psmx->ext->ops.create_topic (psmx->ext, ktp->name, sertype->type_name, sertype->data_type_props);
+  if (topic == NULL)
+    return NULL;
+  struct dds_psmx_topic_int *x = ddsrt_malloc (sizeof (*x));
+  x->ops.create_endpoint = psmx_create_endpoint_v0_bincompat_wrapper;
+  x->ops.delete_endpoint = topic->ops.delete_endpoint;
+  x->ext = topic;
+  x->data_type_props = sertype->data_type_props;
+  x->psmx_instance = psmx;
+  return x;
+}
+
+static struct dds_psmx_topic_int *psmx_create_topic_v0_wrapper (struct dds_psmx_int *psmx, struct dds_ktopic *ktp, struct ddsi_sertype *sertype, struct ddsi_type *type)
+{
+  (void) type;
+  struct dds_psmx_topic * const topic = psmx->ext->ops.create_topic (psmx->ext, ktp->name, sertype->type_name, sertype->data_type_props);
+  if (topic == NULL)
+    return NULL;
+  struct dds_psmx_topic_int *x = ddsrt_malloc (sizeof (*x));
+  x->ops.create_endpoint = psmx_create_endpoint_v0_wrapper;
+  x->ops.delete_endpoint = topic->ops.delete_endpoint;
+  x->ext = topic;
+  x->data_type_props = sertype->data_type_props;
+  x->psmx_instance = psmx;
+  return x;
+}
+
+static struct dds_psmx_topic_int *psmx_create_topic_v1_wrapper (struct dds_psmx_int *psmx, struct dds_ktopic *ktp, struct ddsi_sertype *sertype, struct ddsi_type *type)
+{
+  struct dds_psmx_topic * const topic = psmx->ext->ops.create_topic_type (psmx->ext, ktp->name, sertype->type_name, sertype->data_type_props, type, sertype->sizeof_type);
+  if (topic == NULL)
+    return NULL;
+  // plugin is only allowed to initialize the ops in the new interface; do a sanity check
+  if (topic->psmx_instance || topic->topic_name || topic->type_name)
+  {
+    (void) psmx->ext->ops.delete_topic (topic);
+    return NULL;
+  }
+
+  dds_psmx_topic_init (topic, psmx->ext, ktp->name, sertype->type_name, sertype->data_type_props);
+  struct dds_psmx_topic_int *x = ddsrt_malloc (sizeof (*x));
+  x->ops.create_endpoint = psmx_create_endpoint_v1_wrapper;
+  x->ops.delete_endpoint = topic->ops.delete_endpoint;
+  x->ext = topic;
+  x->data_type_props = sertype->data_type_props;
+  x->psmx_instance = psmx;
+  return x;
+}
+
+static void psmx_delete_topic_wrapper (struct dds_psmx_topic_int *topic)
+{
+  (void) topic->psmx_instance->ext->ops.delete_topic (topic->ext);
+  ddsrt_free (topic);
+}
+
+static void psmx_delete_psmx_v0_bincompat_wrapper (struct dds_psmx_int *psmx)
+{
+  psmx->ext->ops.deinit (psmx->ext);
+  ddsrt_free (psmx);
+}
+
+static void psmx_delete_psmx_v0_wrapper (struct dds_psmx_int *psmx)
+{
+  psmx->ext->ops.deinit (psmx->ext);
+  ddsrt_free (psmx);
+}
+
+static void psmx_delete_psmx_v1_wrapper (struct dds_psmx_int *psmx)
+{
+  (void) dds_psmx_cleanup_generic (psmx->ext);
+  psmx->ext->instance_name = NULL;
+  psmx->ext->locator = NULL;
+  psmx->ext->ops.delete_psmx (psmx->ext);
+  ddsrt_free (psmx);
+}
+
+static struct dds_psmx_int *new_psmx_int (struct dds_psmx *ext, enum dds_psmx_interface_version ifver)
+{
+  struct dds_psmx_int *x = ddsrt_malloc (sizeof (*x));
+  x->ops.type_qos_supported = ext->ops.type_qos_supported;
+  x->ops.delete_topic = psmx_delete_topic_wrapper;
+  x->ops.get_node_id = ext->ops.get_node_id;
+  x->ops.supported_features = ext->ops.supported_features;
+  x->ext = ext;
+  switch (ifver)
+  {
+    case DDS_PSMX_INTERFACE_VERSION_0_BINCOMPAT: {
+      struct dds_psmx_v0 const * const ext_v0 = (const struct dds_psmx_v0 *) ext;
+      x->ops.create_topic_type = psmx_create_topic_v0_bincompat_wrapper;
+      x->ops.delete_psmx = psmx_delete_psmx_v0_bincompat_wrapper;
+      x->instance_id = ext_v0->instance_id;
+      x->instance_name = ext_v0->instance_name;
+      x->locator = *ext_v0->locator;
+      x->priority = ext_v0->priority;
+      break;
+    }
+    case DDS_PSMX_INTERFACE_VERSION_0: {
+      x->ops.create_topic_type = psmx_create_topic_v0_wrapper;
+      x->ops.delete_psmx = psmx_delete_psmx_v0_wrapper;
+      x->instance_id = ext->instance_id;
+      x->instance_name = ext->instance_name;
+      x->locator = *ext->locator;
+      x->priority = ext->priority;
+      break;
+    }
+    case DDS_PSMX_INTERFACE_VERSION_1: {
+      x->ops.create_topic_type = psmx_create_topic_v1_wrapper;
+      x->ops.delete_psmx = psmx_delete_psmx_v1_wrapper;
+      x->instance_id = ext->instance_id;
+      x->instance_name = ext->instance_name;
+      x->locator = *ext->locator;
+      x->priority = ext->priority;
+      break;
+    }
+  }
+  return x;
+}
+
+static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, const struct ddsi_config_psmx *config, struct dds_psmx_int **out, ddsrt_dynlib_t *lib_handle, enum dds_psmx_interface_version *interface_version)
 {
   dds_psmx_create_fn creator = NULL;
   const char *lib_name;
   ddsrt_dynlib_t handle;
   char load_fn[100];
   dds_return_t ret = DDS_RETCODE_ERROR;
-  struct dds_psmx *psmx_instance = NULL;
+  struct dds_psmx *psmx_ext = NULL;
 
   if (!config->library || config->library[0] == '\0')
     lib_name = config->name;
@@ -412,32 +610,92 @@ static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, const st
   }
 
   (void) snprintf (load_fn, sizeof (load_fn), "%s_create_psmx", config->name);
-
-  if ((ret = ddsrt_dlsym (handle, load_fn, (void**) &creator)) != DDS_RETCODE_OK)
+  if ((ret = ddsrt_dlsym (handle, load_fn, (void **) &creator)) != DDS_RETCODE_OK)
   {
     GVERROR ("Failed to initialize PSMX instance '%s', could not load init function '%s'.\n", config->name, load_fn);
     goto err_dlsym;
   }
 
-  char *psmx_name = dds_psmx_get_config_option_value(configstr, "SERVICE_NAME");
-  if (psmx_name == NULL)
-    psmx_name = config->name;
-  if ((ret = creator (&psmx_instance, get_psmx_instance_id (gv, psmx_name), configstr)) != DDS_RETCODE_OK)
+  char * const psmx_name = dds_psmx_get_config_option_value (configstr, "SERVICE_NAME");
+  assert (psmx_name); // SERVICE_NAME's presence is guaranteed by dds_pubsub_message_exchange_configstr
+  const dds_psmx_instance_id_t id = get_psmx_instance_id (gv, psmx_name);
+  assert (psmx_name);
+  if ((ret = creator (&psmx_ext, id, configstr)) != DDS_RETCODE_OK)
   {
     GVERROR ("Failed to initialize PSMX instance '%s'.\n", psmx_name);
     goto err_init;
   }
-  psmx_instance->priority = config->priority.value;
-  *out = psmx_instance;
+  enum dds_psmx_interface_version ifver;
+  if (!get_check_interface_version (&ifver, &psmx_ext->ops))
+  {
+    GVERROR ("Failed to initialize PSMX instance '%s', can't determine interface version.\n", psmx_name);
+    ret = DDS_RETCODE_ERROR;
+    goto err_ifver;
+  }
+
+  struct dds_psmx_int *psmx_int = NULL;
+  switch (ifver)
+  {
+    case DDS_PSMX_INTERFACE_VERSION_0_BINCOMPAT: {
+      struct dds_psmx_v0 * const psmx_ext_v0 = (struct dds_psmx_v0 *) psmx_ext;
+      // fields should have been set by "creator", either directly or by dds_psmx_init_generic
+      // might as well do a sanity check
+      if (psmx_ext_v0->instance_id == 0 || psmx_ext_v0->instance_name == NULL)
+      {
+        GVERROR ("Failed to initialize PSMX instance '%s', missing initializations.\n", psmx_name);
+        goto err_ifver;
+      }
+      psmx_ext_v0->priority = config->priority.value;
+      psmx_int = new_psmx_int (psmx_ext, ifver);
+      break;
+    }
+    case DDS_PSMX_INTERFACE_VERSION_0: {
+      // fields should have been set by "creator", either directly or by dds_psmx_init_generic
+      // might as well do a sanity check
+      if (psmx_ext->instance_id == 0 || psmx_ext->instance_name == NULL)
+      {
+        GVERROR ("Failed to initialize PSMX instance '%s', missing initializations.\n", psmx_name);
+        goto err_ifver;
+      }
+      psmx_ext->priority = config->priority.value;
+      psmx_int = new_psmx_int (psmx_ext, ifver);
+      break;
+    }
+    case DDS_PSMX_INTERFACE_VERSION_1: {
+      // fields should not have been set by "creator"
+      if (psmx_ext->instance_id != 0 || psmx_ext->instance_name != NULL)
+      {
+        GVERROR ("Failed to initialize PSMX instance '%s', fields initialized that should not have been.\n", psmx_name);
+        goto err_ifver;
+      }
+      char *locstr = dds_psmx_get_config_option_value (configstr, "LOCATOR");
+      ret = psmx_instance_init (psmx_ext, id, psmx_name, config->priority.value, locstr);
+      ddsrt_free (locstr);
+      if (ret != DDS_RETCODE_OK)
+      {
+        GVERROR ("Failed to initialize PSMX instance '%s', out of resources.\n", psmx_name);
+        goto err_ifver;
+      }
+      psmx_int = new_psmx_int (psmx_ext, ifver);
+      break;
+    }
+  }
+
+  *out = psmx_int;
+  *interface_version = ifver;
   *lib_handle = handle;
-  if (psmx_name != config->name)
-    ddsrt_free(psmx_name);
+  ddsrt_free (psmx_name);
   ddsrt_free (configstr);
   return DDS_RETCODE_OK;
 
+err_ifver:
+  if (psmx_ext->ops.deinit)
+    psmx_ext->ops.deinit (psmx_ext);
+  // might expect: else psmx_instance->ops.delete_psmx (psmx_instance)
+  // but we don't know if it exists ... leaking a little bit is better
+  // than calling garbage
 err_init:
-  if (psmx_name != config->name)
-    ddsrt_free(psmx_name);
+  ddsrt_free (psmx_name);
 err_dlsym:
   ddsrt_dlclose (handle);
 err_dlopen:
@@ -448,15 +706,18 @@ err_configstr:
 
 static int qsort_cmp_psmx_prio_descending (const void *va, const void *vb)
 {
-  const int32_t a = (*(const dds_psmx_t**)va)->priority;
-  const int32_t b = (*(const dds_psmx_t**)vb)->priority;
-  return (int)(a < b) - (int)(a > b);
+  const struct dds_psmx_set_elem *a = va;
+  const struct dds_psmx_set_elem *b = vb;
+  const int32_t aprio = a->instance->priority;
+  const int32_t bprio = b->instance->priority;
+  return (int)(aprio < bprio) - (int)(aprio > bprio);
 }
 
 dds_return_t dds_pubsub_message_exchange_init (const struct ddsi_domaingv *gv, struct dds_domain *domain)
 {
   struct ddsi_config_psmx_listelem *iface = gv->config.psmx_instances;
-  while (iface != NULL) {
+  while (iface != NULL)
+  {
     if (domain->psmx_instances.length >= DDS_MAX_PSMX_INSTANCES)
     {
       GVERROR("error loading PSMX instance, at most %d simultaneous instances supported\n", DDS_MAX_PSMX_INSTANCES);
@@ -464,12 +725,16 @@ dds_return_t dds_pubsub_message_exchange_init (const struct ddsi_domaingv *gv, s
     }
 
     GVLOG(DDS_LC_INFO, "Loading PSMX instance %s\n", iface->cfg.name);
-    struct dds_psmx *psmx = NULL;
+    struct dds_psmx_int *psmx = NULL;
     ddsrt_dynlib_t lib_handle;
-    if (psmx_instance_load (gv, &iface->cfg, &psmx, &lib_handle) == DDS_RETCODE_OK)
+    enum dds_psmx_interface_version ifver;
+    if (psmx_instance_load (gv, &iface->cfg, &psmx, &lib_handle, &ifver) == DDS_RETCODE_OK)
     {
-      psmx->lib_handle = lib_handle;
-      domain->psmx_instances.instances[domain->psmx_instances.length++] = psmx;
+      domain->psmx_instances.elems[domain->psmx_instances.length++] = (struct dds_psmx_set_elem){
+        .instance = psmx,
+        .interface_version = ifver,
+        .lib_handle = lib_handle
+      };
     }
     else
     {
@@ -478,61 +743,94 @@ dds_return_t dds_pubsub_message_exchange_init (const struct ddsi_domaingv *gv, s
     }
     iface = iface->next;
   }
-  if (domain->psmx_instances.length >= 2)
-  {
-    qsort(
-      domain->psmx_instances.instances,
-      domain->psmx_instances.length,
-      sizeof(*domain->psmx_instances.instances),
-      qsort_cmp_psmx_prio_descending
-    );
-  }
+  qsort (domain->psmx_instances.elems, domain->psmx_instances.length, sizeof (*domain->psmx_instances.elems), qsort_cmp_psmx_prio_descending);
   return DDS_RETCODE_OK;
 }
 
-dds_return_t dds_pubsub_message_exchange_fini (struct dds_domain *domain)
+void dds_pubsub_message_exchange_fini (struct dds_domain *domain)
 {
-  dds_return_t ret = DDS_RETCODE_OK;
-  for (uint32_t i = 0; ret == DDS_RETCODE_OK && i < domain->psmx_instances.length; i++)
+  for (uint32_t i = 0; i < domain->psmx_instances.length; i++)
   {
-    struct dds_psmx *psmx = domain->psmx_instances.instances[i];
-    ddsrt_dynlib_t psmx_lib_handle = domain->psmx_instances.instances[i]->lib_handle;
-    if ((ret = psmx->ops.deinit (psmx)) == DDS_RETCODE_OK)
-    {
-      (void) ddsrt_dlclose (psmx_lib_handle);
-      domain->psmx_instances.instances[i] = NULL;
-    }
+    struct dds_psmx_int *psmx = domain->psmx_instances.elems[i].instance;
+    psmx->ops.delete_psmx (psmx);
+    (void) ddsrt_dlclose (domain->psmx_instances.elems[i].lib_handle);
   }
-  return ret;
+  domain->psmx_instances.length = 0;
 }
 
-static struct dds_psmx_endpoint * psmx_create_endpoint (struct dds_psmx_topic *psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type)
+static dds_return_t dds_psmx_endpoint_write_wrapper (const struct dds_psmx_endpoint_int *psmx_endpoint, dds_loaned_sample_t *data, size_t keysz, const void *key)
+{
+  (void) keysz; (void) key;
+  return psmx_endpoint->ext->ops.write (psmx_endpoint->ext, data);
+}
+
+static dds_return_t dds_psmx_endpoint_write_key_wrapper (const struct dds_psmx_endpoint_int *psmx_endpoint, dds_loaned_sample_t *data, size_t keysz, const void *key)
+{
+  return psmx_endpoint->ext->ops.write_key (psmx_endpoint->ext, data, keysz, key);
+}
+
+static struct dds_psmx_endpoint_int *new_psmx_endpoint_int (struct dds_psmx_endpoint *ep, dds_psmx_endpoint_type_t endpoint_type, const struct dds_psmx_topic_int *topic, dds_psmx_endpoint_request_loan_int_fn request_loan, dds_psmx_endpoint_write_key_int_fn write_key)
+{
+  struct dds_psmx_endpoint_int *x = ddsrt_malloc (sizeof (*x));
+  x->ops.on_data_available = ep->ops.on_data_available;
+  x->ops.request_loan = request_loan;
+  x->ops.take = ep->ops.take;
+  x->ops.write_key = write_key;
+  x->ext = ep;
+  x->endpoint_type = endpoint_type;
+  x->psmx_topic = topic;
+  x->wants_key = (write_key == dds_psmx_endpoint_write_key_wrapper);
+  return x;
+}
+
+static struct dds_psmx_endpoint_int *psmx_create_endpoint_v0_bincompat_wrapper (const struct dds_psmx_topic_int *psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type)
 {
   assert (psmx_topic && psmx_topic->ops.create_endpoint);
-  return psmx_topic->ops.create_endpoint (psmx_topic, qos, endpoint_type);
+  struct dds_psmx_endpoint * const ep_ext = psmx_topic->ext->ops.create_endpoint (psmx_topic->ext, qos, endpoint_type);
+  if (ep_ext == NULL)
+    return NULL;
+  return new_psmx_endpoint_int (ep_ext, endpoint_type, psmx_topic, dds_psmx_endpoint_request_loan_v0_bincompat_wrapper, dds_psmx_endpoint_write_wrapper);
 }
 
-static dds_return_t psmx_delete_endpoint (struct dds_psmx_endpoint *psmx_endpoint)
+static struct dds_psmx_endpoint_int *psmx_create_endpoint_v0_wrapper (const struct dds_psmx_topic_int *psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type)
+{
+  struct dds_psmx_endpoint * const ep_ext = psmx_topic->ext->ops.create_endpoint (psmx_topic->ext, qos, endpoint_type);
+  if (ep_ext == NULL)
+    return NULL;
+  return new_psmx_endpoint_int (ep_ext, endpoint_type, psmx_topic, dds_psmx_endpoint_request_loan_v0_wrapper, dds_psmx_endpoint_write_wrapper);
+}
+
+static struct dds_psmx_endpoint_int *psmx_create_endpoint_v1_wrapper (const struct dds_psmx_topic_int *psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type)
+{
+  struct dds_psmx_endpoint * const ep_ext = psmx_topic->ext->ops.create_endpoint (psmx_topic->ext, qos, endpoint_type);
+  if (ep_ext == NULL)
+    return NULL;
+  ep_ext->endpoint_type = endpoint_type;
+  ep_ext->psmx_topic = psmx_topic->ext;
+  return new_psmx_endpoint_int (ep_ext, endpoint_type, psmx_topic, dds_psmx_endpoint_request_loan_v1_wrapper, ep_ext->ops.write_key ? dds_psmx_endpoint_write_key_wrapper : dds_psmx_endpoint_write_wrapper);
+}
+
+static void psmx_delete_endpoint (struct dds_psmx_endpoint_int *psmx_endpoint)
 {
   assert (psmx_endpoint && psmx_endpoint->psmx_topic && psmx_endpoint->psmx_topic->ops.delete_endpoint);
-  return psmx_endpoint->psmx_topic->ops.delete_endpoint (psmx_endpoint);
+  (void) psmx_endpoint->psmx_topic->ops.delete_endpoint (psmx_endpoint->ext);
+  ddsrt_free (psmx_endpoint);
 }
 
 dds_return_t dds_endpoint_add_psmx_endpoint (struct dds_endpoint *ep, const dds_qos_t *qos, struct dds_psmx_topics_set *psmx_topics, dds_psmx_endpoint_type_t endpoint_type)
 {
   ep->psmx_endpoints.length = 0;
-  memset (ep->psmx_endpoints.endpoints, 0, sizeof (ep->psmx_endpoints.endpoints));
-  for (uint32_t i = 0; psmx_topics != NULL && i < psmx_topics->length; i++)
+  for (uint32_t i = 0; i < psmx_topics->length; i++)
   {
-    struct dds_psmx_topic *psmx_topic = psmx_topics->topics[i];
-    if (!dds_qos_has_psmx_instances (qos, psmx_topic->psmx_instance->instance_name))
+    struct dds_psmx_topic_int const * const psmx_topic = psmx_topics->topics[i];
+    struct dds_psmx_int const * const psmx = psmx_topic->psmx_instance;
+    if (!dds_qos_has_psmx_instances (qos, psmx->instance_name))
       continue;
-    if (!psmx_topic->psmx_instance->ops.type_qos_supported (psmx_topic->psmx_instance, endpoint_type, psmx_topic->data_type_props, qos))
+    if (!psmx->ops.type_qos_supported (psmx_topic->psmx_instance->ext, endpoint_type, psmx_topic->data_type_props, qos))
       continue;
-    struct dds_psmx_endpoint *psmx_endpoint = psmx_create_endpoint (psmx_topic, qos, endpoint_type);
+    struct dds_psmx_endpoint_int *psmx_endpoint = psmx_topic->ops.create_endpoint (psmx_topic, qos, endpoint_type);
     if (psmx_endpoint == NULL)
       goto err;
-
     ep->psmx_endpoints.endpoints[ep->psmx_endpoints.length++] = psmx_endpoint;
   }
   return DDS_RETCODE_OK;
@@ -546,10 +844,8 @@ void dds_endpoint_remove_psmx_endpoints (struct dds_endpoint *ep)
 {
   for (uint32_t i = 0; i < ep->psmx_endpoints.length; i++)
   {
-    struct dds_psmx_endpoint *psmx_endpoint = ep->psmx_endpoints.endpoints[i];
-    if (psmx_endpoint == NULL)
-      continue;
-    (void) psmx_delete_endpoint (psmx_endpoint);
+    struct dds_psmx_endpoint_int *psmx_endpoint = ep->psmx_endpoints.endpoints[i];
+    psmx_delete_endpoint (psmx_endpoint);
   }
 }
 
@@ -561,11 +857,11 @@ struct ddsi_psmx_locators_set *dds_get_psmx_locators_set (const dds_qos_t *qos, 
 
   for (uint32_t s = 0; s < psmx_instances->length; s++)
   {
-    if (dds_qos_has_psmx_instances (qos, psmx_instances->instances[s]->instance_name))
+    if (dds_qos_has_psmx_instances (qos, psmx_instances->elems[s].instance->instance_name))
     {
       psmx_locators_set->length++;
       psmx_locators_set->locators = dds_realloc (psmx_locators_set->locators, psmx_locators_set->length * sizeof (*psmx_locators_set->locators));
-      psmx_locators_set->locators[psmx_locators_set->length - 1] = *(psmx_instances->instances[s]->locator);
+      psmx_locators_set->locators[psmx_locators_set->length - 1] = psmx_instances->elems[s].instance->locator;
     }
   }
   return psmx_locators_set;
@@ -578,25 +874,22 @@ void dds_psmx_locators_set_free (struct ddsi_psmx_locators_set *psmx_locators_se
   dds_free (psmx_locators_set);
 }
 
-static dds_psmx_features_t dds_psmx_supported_features (const struct dds_psmx *psmx_instance)
+static dds_psmx_features_t dds_psmx_supported_features (const struct dds_psmx_int *psmx_instance)
 {
   if (psmx_instance == NULL || psmx_instance->ops.supported_features == NULL)
     return 0u;
-  return psmx_instance->ops.supported_features (psmx_instance);
+  return psmx_instance->ops.supported_features (psmx_instance->ext);
 }
 
 static bool endpoint_is_shm (const struct dds_endpoint *endpoint)
 {
-  bool is_shm_available = false;
-  // TODO: implement correct behavior in case of multiple PSMX endpoints
-  for (uint32_t i = 0; !is_shm_available && i < endpoint->psmx_endpoints.length; i++)
+  for (uint32_t i = 0; i < endpoint->psmx_endpoints.length; i++)
   {
-    struct dds_psmx_endpoint *psmx_endpoint = endpoint->psmx_endpoints.endpoints[i];
-    if (psmx_endpoint == NULL)
-      continue;
-    is_shm_available = dds_psmx_supported_features (psmx_endpoint->psmx_topic->psmx_instance) & DDS_PSMX_FEATURE_SHARED_MEMORY;
+    struct dds_psmx_endpoint_int *psmx_endpoint = endpoint->psmx_endpoints.endpoints[i];
+    if (dds_psmx_supported_features (psmx_endpoint->psmx_topic->psmx_instance) & DDS_PSMX_FEATURE_SHARED_MEMORY)
+      return true;
   }
-  return is_shm_available;
+  return false;
 }
 
 bool dds_is_shared_memory_available (const dds_entity_t entity)
@@ -633,7 +926,7 @@ static bool endpoint_is_loan_available (const struct dds_endpoint *endpoint)
   // TODO: implement correct behavior in case of multiple PSMX endpoints
   for (uint32_t i = 0; !is_loan_available && i < endpoint->psmx_endpoints.length; i++)
   {
-    struct dds_psmx_endpoint *psmx_endpoint = endpoint->psmx_endpoints.endpoints[i];
+    struct dds_psmx_endpoint_int *psmx_endpoint = endpoint->psmx_endpoints.endpoints[i];
     if (psmx_endpoint == NULL)
       continue;
     bool is_shm_available = dds_psmx_supported_features (psmx_endpoint->psmx_topic->psmx_instance) & DDS_PSMX_FEATURE_SHARED_MEMORY;
