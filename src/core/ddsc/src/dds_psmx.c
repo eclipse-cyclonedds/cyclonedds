@@ -578,7 +578,7 @@ void dds_psmx_locators_set_free (struct ddsi_psmx_locators_set *psmx_locators_se
   dds_free (psmx_locators_set);
 }
 
-dds_psmx_features_t dds_psmx_supported_features (const struct dds_psmx *psmx_instance)
+static dds_psmx_features_t dds_psmx_supported_features (const struct dds_psmx *psmx_instance)
 {
   if (psmx_instance == NULL || psmx_instance->ops.supported_features == NULL)
     return 0u;
