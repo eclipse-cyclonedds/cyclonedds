@@ -135,8 +135,8 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   psmx_locators.instances = dds_alloc (domain->psmx_instances.length * sizeof (*psmx_locators.instances));
   for (uint32_t n = 0; n < domain->psmx_instances.length; n++)
   {
-    psmx_locators.instances[n].psmx_instance_name = dds_string_dup (domain->psmx_instances.instances[n]->instance_name);
-    psmx_locators.instances[n].locator = *domain->psmx_instances.instances[n]->locator;
+    psmx_locators.instances[n].psmx_instance_name = dds_string_dup (domain->psmx_instances.elems[n].instance->instance_name);
+    psmx_locators.instances[n].locator = domain->psmx_instances.elems[n].instance->locator;
   }
 
   ret = ddsi_init (&domain->gv, &psmx_locators);
@@ -334,7 +334,7 @@ static dds_return_t dds_domain_free (dds_entity *vdomain)
 
   ddsi_fini (&domain->gv);
 
-  (void) dds_pubsub_message_exchange_fini (domain);
+  dds_pubsub_message_exchange_fini (domain);
 
   dds_serdatapool_free (domain->serpool);
 

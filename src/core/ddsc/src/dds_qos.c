@@ -946,8 +946,8 @@ dds_return_t dds_ensure_valid_psmx_instances (dds_qos_t *qos, dds_psmx_endpoint_
       assert (psmx_instances->length <= DDS_MAX_PSMX_INSTANCES);
       for (uint32_t i = 0; i < psmx_instances->length; i++)
       {
-        struct dds_psmx *psmx = psmx_instances->instances[i];
-        if (psmx->ops.type_qos_supported (psmx, forwhat, stype->data_type_props, qos))
+        struct dds_psmx_int *psmx = psmx_instances->elems[i].instance;
+        if (psmx->ops.type_qos_supported (psmx->ext, forwhat, stype->data_type_props, qos))
           supported_psmx[n_supported++] = psmx->instance_name;
       }
     }
@@ -958,14 +958,14 @@ dds_return_t dds_ensure_valid_psmx_instances (dds_qos_t *qos, dds_psmx_endpoint_
       dds_qget_psmx_instances (qos, &n, &values);
       for (uint32_t i = 0; i < n; i++)
       {
-        struct dds_psmx *psmx = NULL;
+        struct dds_psmx_int *psmx = NULL;
         for (uint32_t s = 0; psmx == NULL && s < psmx_instances->length; s++)
         {
-          assert (psmx_instances->instances[s]);
-          if (strcmp (psmx_instances->instances[s]->instance_name, values[i]) == 0)
-            psmx = psmx_instances->instances[s];
+          assert (psmx_instances->elems[s].instance);
+          if (strcmp (psmx_instances->elems[s].instance->instance_name, values[i]) == 0)
+            psmx = psmx_instances->elems[s].instance;
         }
-        if (psmx != NULL && psmx->ops.type_qos_supported (psmx, forwhat, stype->data_type_props, qos))
+        if (psmx != NULL && psmx->ops.type_qos_supported (psmx->ext, forwhat, stype->data_type_props, qos))
           supported_psmx[n_supported++] = psmx->instance_name;
         dds_free (values[i]);
       }

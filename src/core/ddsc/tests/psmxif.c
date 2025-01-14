@@ -27,10 +27,12 @@
 #include "ddsi__xevent.h"
 #include "dds__entity.h"
 #include "dds__serdata_default.h"
+#include "dds__psmx.h"
 
 #include "config_env.h"
 #include "test_common.h"
 #include "psmx_dummy_public.h"
+#include "psmx_dummy_v0_public.h"
 #include "Array100.h"
 #include "DynamicData.h"
 #include "PsmxDataModels.h"
@@ -46,13 +48,13 @@ static void free_strings(uint32_t len, char** strings)
 }
 
 /** @brief Convert a set of stats to a string.
- * 
+ *
  * Truncates the output string if the string buffer capacity is too small.
- * 
+ *
  * @param[in] dmock stats to convert
  * @param[out] str_out string buffer to write the string into
  * @param[in] str_capacity number of bytes the string buffer can hold
- * 
+ *
  * @return Upon successful return, it returns the number of characters printed
  *         (excluding the null byte used to end output to strings).
  *         If an output error is encountered, a negative value is returned.
@@ -95,59 +97,65 @@ static int dummy_mockstats_tostring(const dummy_mockstats_t* dmock, char* str_ou
   );
 }
 
-static dds_entity_t create_participant(dds_domainid_t domainId)
+static dds_entity_t create_participant(dds_domainid_t domainId, const char *dummy)
 {
-  char configstr[] = "\
+  const char *configstr = "\
 ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
 <General>\
 <AllowMulticast>spdp</AllowMulticast>\
 <Interfaces>\
-  <PubSubMessageExchange name=\"dummy\" library=\"psmx_dummy\" priority=\"1000000\" config=\"LOCATOR=4a4d203df6996395e1412fbecc2de4b6;SERVICE_NAME=service_psmx_dummy;KEYED_TOPICS=true;\" />\
+  <PubSubMessageExchange name=\"%s\" library=\"psmx_%s\" priority=\"1000000\" config=\"LOCATOR=4a4d203df6996395e1412fbecc2de4b6;SERVICE_NAME=service_psmx_dummy;KEYED_TOPICS=true;\" />\
 </Interfaces>\
 </General>\
 <Tracing>\
 <OutputFile>cdds.log.0</OutputFile>\
 </Tracing>\
 ";
-  char* configstr_in = ddsrt_expand_envvars (configstr, domainId);
-  const dds_entity_t domain = dds_create_domain(domainId, configstr_in);
-  ddsrt_free(configstr_in);
+  char *config1str = NULL;
+  ddsrt_asprintf (&config1str, configstr, dummy, dummy);
+  char* config2str = ddsrt_expand_envvars (config1str, domainId);
+  const dds_entity_t domain = dds_create_domain(domainId, config2str);
+  ddsrt_free (config2str);
+  ddsrt_free (config1str);
   CU_ASSERT_FATAL(domain > 0);
   const dds_entity_t participant = dds_create_participant(domainId, NULL, NULL);
   CU_ASSERT_FATAL(participant > 0);
   return participant;
 }
 
-static dds_entity_t create_participant_2(dds_domainid_t domainId)
+static dds_entity_t create_participant_2(dds_domainid_t domainId, const char *dummy)
 {
-  char configstr[] = "\
+  const char *configstr = "\
 ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
 <General>\
 <AllowMulticast>spdp</AllowMulticast>\
 <Interfaces>\
-  <PubSubMessageExchange name=\"dummy\" library=\"psmx_dummy\" priority=\"1000001\" config=\"LOCATOR=4a4d203df6996395e1412fbecc2de4b6;SERVICE_NAME=service_psmx_dummy;KEYED_TOPICS=true;\" />\
-  <PubSubMessageExchange name=\"iox\" library=\"psmx_iox\" priority=\"1000000\" config=\"LOCATOR=4a4d203df6996395e1412fbecc2de4b7;SERVICE_NAME=psmx0;KEYED_TOPICS=true;\" />\
+  <PubSubMessageExchange name=\"%s\" library=\"psmx_%s\" priority=\"1000001\" config=\"LOCATOR=4a4d203df6996395e1412fbecc2de4b6;SERVICE_NAME=service_psmx_dummy;KEYED_TOPICS=true;\" />\
+  <PubSubMessageExchange name=\"cdds\" library=\"psmx_cdds\" priority=\"1000000\" config=\"LOCATOR=4a4d203df6996395e1412fbecc2de4b7;SERVICE_NAME=psmx0;KEYED_TOPICS=true;\" />\
 </Interfaces>\
 </General>\
 <Tracing>\
 <OutputFile>cdds.log.0</OutputFile>\
 </Tracing>\
 ";
-  char* configstr_in = ddsrt_expand_envvars (configstr, domainId);
-  const dds_entity_t domain = dds_create_domain(domainId, configstr_in);
-  ddsrt_free(configstr_in);
+  char *config1str = NULL;
+  ddsrt_asprintf (&config1str, configstr, dummy, dummy);
+  char* config2str = ddsrt_expand_envvars (config1str, domainId);
+  const dds_entity_t domain = dds_create_domain(domainId, config2str);
+  ddsrt_free (config2str);
+  ddsrt_free (config1str);
   CU_ASSERT_FATAL(domain > 0);
   const dds_entity_t participant = dds_create_participant(domainId, NULL, NULL);
   CU_ASSERT_FATAL(participant > 0);
   return participant;
 }
 
-/// @brief Check that creating a domain with more than one psmx interface fails.
+/// @brief Check that creating a domain with more than one psmx interface succeeds.
 /// @methodology
 /// - Create a config string with two psmx interfaces.
 /// - Try to create a domain using this config string.
 /// - Expectation: Successfully created the domain.
-/// 
+///
 CU_Test(ddsc_psmxif, config_multiple_psmx)
 {
   dds_domainid_t domainId = 0;
@@ -159,7 +167,7 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
   <AllowMulticast>spdp</AllowMulticast>\
   <Interfaces>\
     <PubSubMessageExchange name=\"dummy\" library=\"psmx_dummy\" priority=\"1000000\" config=\"SERVICE_NAME=psmx_dummy;KEYED_TOPICS=true;\" />\
-    <PubSubMessageExchange name=\"iox\" library=\"psmx_iox\" priority=\"1000000\" config=\"SERVICE_NAME=psmx_iox;KEYED_TOPICS=true;\" />\
+    <PubSubMessageExchange name=\"cdds\" library=\"psmx_cdds\" priority=\"1000000\" config=\"SERVICE_NAME=psmx_cdds;KEYED_TOPICS=true;\" />\
   </Interfaces>\
 </General>\
 <Discovery>\
@@ -204,20 +212,22 @@ static void assert_psmx_instance_names(dds_entity_t endpt, const char** names_ex
 /// - Create readers and writers.
 /// - Using the QoS interface, for each endpoint get the instance names.
 /// - Expectation: number and values of the instance names match the instances specified in the configuration.
-CU_Test(ddsc_psmxif, instance_name)
+static void do_psmxif_instance_name (const char *dummylib)
 {
+  assert (strcmp (dummylib, "dummy") == 0 || strcmp (dummylib, "dummy_v0") == 0);
+  const bool is_v0 = (strcmp (dummylib, "dummy_v0") == 0);
   const char *psmx_names[] = {"service_psmx_dummy", "psmx0"};
   const dds_domainid_t domainId = 0;
   for (size_t i = 1; i <= 2; ++i)
   {
     dds_entity_t participant = (i == 2) ? (
-      create_participant_2(domainId)
+      create_participant_2(domainId, dummylib)
     ):(
-      create_participant(domainId)
+      create_participant(domainId, dummylib)
     );
 
     dds_entity_t domain = dds_get_parent(participant);
-    dummy_mockstats_t* dmock = dummy_mockstats_get_ptr();
+    dummy_mockstats_t* dmock = is_v0 ? dummy_v0_mockstats_get_ptr() : dummy_mockstats_get_ptr();
 
     dds_entity_t writer1 = 0, reader1 = 0, writer2 = 0, reader2 = 0;
 
@@ -248,11 +258,21 @@ CU_Test(ddsc_psmxif, instance_name)
   }
 }
 
+CU_Test(ddsc_psmxif, instance_name)
+{
+  do_psmxif_instance_name ("dummy");
+}
+
+CU_Test(ddsc_psmxif, instance_name_v0)
+{
+  do_psmxif_instance_name ("dummy_v0");
+}
+
 /// @brief Check that shared memory availability and entity and loan pointers are correctly propagated through the psmx interface.
 /// @methodology
 /// - Check that the data types I'm planning to use are actually suitable for use with shared memory.
 /// - Expectation: They are memcopy-safe.
-/// 
+///
 /// - Create a configuration with a psmx interface.
 /// - Create a domain using this configuration.
 /// - Assert that there is exactly one psmx instance.
@@ -266,12 +286,14 @@ CU_Test(ddsc_psmxif, instance_name)
 /// - Delete the domain
 /// - Check the function call counts of the dummy psmx.
 /// - Expectation: The counts match expectations. In particular, create counts must match their delete counterpart.
-/// 
+///
 /// - Repeat the test, but now with two psmx interfaces.
 /// - Expectation: The presence of the second psmx interface does not affect the results.
-/// 
-CU_Test(ddsc_psmxif, shared_memory)
+///
+static void do_psmxif_shared_memory (const char *dummylib)
 {
+  assert (strcmp (dummylib, "dummy") == 0 || strcmp (dummylib, "dummy_v0") == 0);
+  const bool is_v0 = (strcmp (dummylib, "dummy_v0") == 0);
   char strbuf[512];
   const size_t strbuf_size = sizeof(strbuf);
   {
@@ -287,12 +309,12 @@ CU_Test(ddsc_psmxif, shared_memory)
   for (size_t i = 0; i < 3; ++i) {
     const dds_domainid_t domainId = 0;
     dds_entity_t participant = (psmx_interface_counts[i] == 2) ? (
-      create_participant_2(domainId)
+      create_participant_2(domainId, dummylib)
     ):(
-      create_participant(domainId)
+      create_participant(domainId, dummylib)
     );
     dds_entity_t domain = dds_get_parent(participant);
-    dummy_mockstats_t* dmock = dummy_mockstats_get_ptr();
+    dummy_mockstats_t* dmock = is_v0 ? dummy_v0_mockstats_get_ptr() : dummy_mockstats_get_ptr();
     CU_ASSERT_FATAL(dmock->cnt_create_psmx == 1); // Confirm the dummy psmx has been loaded.
     {
       // Assert that there is exactly one psmx instance.
@@ -337,6 +359,7 @@ CU_Test(ddsc_psmxif, shared_memory)
     CU_ASSERT_FATAL(dds_request_loan(writer1, &sample) == DDS_RETCODE_OK);
     CU_ASSERT_FATAL(dmock->request_loan_rcv_endpt == psmx_endpt_expected);
     dmock->write_rcv_loan = NULL;
+    dmock->request_loan_rcv_endpt = NULL;
     CU_ASSERT_FATAL(dds_write(writer1, sample) == DDS_RETCODE_OK);
     CU_ASSERT_FATAL(dmock->write_rcv_endpt == psmx_endpt_expected);
     CU_ASSERT_FATAL(dmock->write_rcv_loan == &dmock->loan);
@@ -360,6 +383,7 @@ CU_Test(ddsc_psmxif, shared_memory)
     CU_ASSERT_FATAL(dds_request_loan(writer2, &sample) == DDS_RETCODE_OK);
     CU_ASSERT_FATAL(dmock->request_loan_rcv_endpt == psmx_endpt_expected);
     dmock->write_rcv_loan = NULL;
+    dmock->request_loan_rcv_endpt = NULL;
     CU_ASSERT_FATAL(dds_write(writer2, sample) == DDS_RETCODE_OK);
     CU_ASSERT_FATAL(dmock->write_rcv_endpt == psmx_endpt_expected);
     CU_ASSERT_FATAL(dmock->write_rcv_loan == &dmock->loan);
@@ -409,4 +433,14 @@ CU_Test(ddsc_psmxif, shared_memory)
     CU_ASSERT_FATAL(dmock->cnt_take == 0);
     CU_ASSERT_FATAL(dmock->cnt_on_data_available == 2);
   }
+}
+
+CU_Test(ddsc_psmxif, shared_memory)
+{
+  do_psmxif_shared_memory ("dummy");
+}
+
+CU_Test(ddsc_psmxif, shared_memory_v0)
+{
+  do_psmxif_shared_memory ("dummy_v0");
 }

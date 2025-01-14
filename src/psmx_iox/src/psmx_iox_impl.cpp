@@ -54,7 +54,11 @@ static const dds_psmx_ops_t psmx_ops = {
   .delete_topic = iox_delete_topic,
   .deinit = iox_psmx_deinit,
   .get_node_id = iox_psmx_get_node_id,
-  .supported_features = iox_supported_features
+  .supported_features = iox_supported_features,
+  // backwards compatibility means the following two need not be set,
+  // but leaving them out results in a compiler warning here
+  .create_topic_type = nullptr,
+  .delete_psmx = nullptr
 };
 
 
@@ -76,7 +80,10 @@ static const dds_psmx_endpoint_ops_t psmx_ep_ops = {
   .request_loan = iox_req_loan,
   .write = iox_write,
   .take = iox_take,
-  .on_data_available = iox_on_data_available
+  .on_data_available = iox_on_data_available,
+  // backwards compatibility means the following need not be set,
+  // but leaving it out results in a compiler warning here
+  .write_key = nullptr
 };
 
 
@@ -116,7 +123,6 @@ iox_psmx::iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service
     .locator = nullptr,
     .instance_id = identifier,
     .psmx_topics = nullptr,
-    .lib_handle = nullptr,
   },
   _support_keyed_topics{support_keyed_topics},
   _allow_nondisc_wr{allow_nondisc_wr},
@@ -157,11 +163,6 @@ iox_psmx_topic::iox_psmx_topic(iox_psmx& psmx, const char * topic_name, const ch
   dds_psmx_topic_init_generic(this, &psmx_topic_ops, &psmx, topic_name, type_name, data_type_props);
   if (ddsrt_strlcpy (_data_type_str, type_name, sizeof (_data_type_str)) >= sizeof (_data_type_str))
     snprintf(_data_type_str, sizeof (_data_type_str), "CycloneDDS iox_datatype %08X", data_type);
-  if (dds_add_psmx_topic_to_list(this, &psmx.psmx_topics) != DDS_RETCODE_OK)
-  {
-    std::cerr << ERROR_PREFIX "could not add PSMX topic to list" << std::endl;
-    assert(false);
-  }
 }
 
 iox_psmx_topic::~iox_psmx_topic()
@@ -293,12 +294,6 @@ iox_psmx_endpoint::iox_psmx_endpoint(iox_psmx_topic &psmx_topic, const struct dd
     default:
       std::cerr << ERROR_PREFIX "PSMX endpoint type not accepted" << std::endl;
       assert(false);
-  }
-
-  if (dds_add_psmx_endpoint_to_list(this, &psmx_topic.psmx_endpoints) != DDS_RETCODE_OK)
-  {
-    std::cerr << ERROR_PREFIX "could not add PSMX endpoint to list" << std::endl;
-    assert(false);
   }
 }
 

@@ -48,7 +48,6 @@ static dds_entity_t g_domain = -1;
 
 struct cdds_psmx {
   struct dds_psmx c;
-  char *service_name;
   dds_entity_t participant;
   dds_entity_t on_data_waitset;
   dds_entity_t stop_cond;
@@ -84,19 +83,19 @@ static uint32_t on_data_available_thread (void *a);
 
 static bool cdds_psmx_type_qos_supported (struct dds_psmx *psmx, dds_psmx_endpoint_type_t forwhat, dds_data_type_properties_t data_type_props, const struct dds_qos *qos);
 static struct dds_psmx_topic * cdds_psmx_create_topic (struct dds_psmx * psmx,
-    const char * topic_name, const char * type_name, dds_data_type_properties_t data_type_props);
+    const char * topic_name, const char * type_name, dds_data_type_properties_t data_type_props, const struct ddsi_type *type_definition, uint32_t sizeof_type);
 static dds_return_t cdds_psmx_delete_topic (struct dds_psmx_topic *psmx_topic);
-static dds_return_t cdds_psmx_deinit (struct dds_psmx *psmx);
+static void cdds_psmx_deinit (struct dds_psmx *psmx);
 static dds_psmx_node_identifier_t cdds_psmx_get_node_id (const struct dds_psmx *psmx);
 static dds_psmx_features_t cdds_supported_features (const struct dds_psmx *psmx);
 
 static const dds_psmx_ops_t psmx_instance_ops = {
   .type_qos_supported = cdds_psmx_type_qos_supported,
-  .create_topic = cdds_psmx_create_topic,
+  .create_topic_type = cdds_psmx_create_topic,
   .delete_topic = cdds_psmx_delete_topic,
-  .deinit = cdds_psmx_deinit,
   .get_node_id = cdds_psmx_get_node_id,
-  .supported_features = cdds_supported_features
+  .supported_features = cdds_supported_features,
+  .delete_psmx = cdds_psmx_deinit
 };
 
 static struct dds_psmx_endpoint * cdds_psmx_create_endpoint (struct dds_psmx_topic *psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type);
@@ -108,15 +107,15 @@ static const dds_psmx_topic_ops_t psmx_topic_ops = {
 };
 
 static dds_loaned_sample_t * cdds_psmx_ep_request_loan (struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested);
-static dds_return_t cdds_psmx_ep_write (struct dds_psmx_endpoint *psmx_endpoint, dds_loaned_sample_t *data);
+static dds_return_t cdds_psmx_ep_write_key (struct dds_psmx_endpoint *psmx_endpoint, dds_loaned_sample_t *data, size_t keysz, const void *key);
 static dds_loaned_sample_t * cdds_psmx_ep_take (struct dds_psmx_endpoint *psmx_endpoint);
 static dds_return_t cdds_psmx_ep_on_data_available (struct dds_psmx_endpoint *psmx_endpoint, dds_entity_t reader);
 
 static const dds_psmx_endpoint_ops_t psmx_ep_ops = {
   .request_loan = cdds_psmx_ep_request_loan,
-  .write = cdds_psmx_ep_write,
   .take = cdds_psmx_ep_take,
-  .on_data_available = cdds_psmx_ep_on_data_available
+  .on_data_available = cdds_psmx_ep_on_data_available,
+  .write_key = cdds_psmx_ep_write_key
 };
 
 static void cdds_loaned_sample_free (struct dds_loaned_sample *loaned_sample);
@@ -133,8 +132,9 @@ static bool cdds_psmx_type_qos_supported (struct dds_psmx *psmx, dds_psmx_endpoi
 }
 
 static struct dds_psmx_topic * cdds_psmx_create_topic (struct dds_psmx * psmx,
-    const char * topic_name, const char * type_name, dds_data_type_properties_t data_type_props)
+    const char * topic_name, const char * type_name, dds_data_type_properties_t data_type_props, const struct ddsi_type *type_definition, uint32_t sizeof_type)
 {
+  (void) type_name; (void) data_type_props;(void) type_definition; (void) sizeof_type;
   struct cdds_psmx *cpsmx = (struct cdds_psmx *) psmx;
   if (g_domain == -1)
   {
@@ -166,19 +166,17 @@ static struct dds_psmx_topic * cdds_psmx_create_topic (struct dds_psmx * psmx,
   }
 
   struct cdds_psmx_topic *ctp = dds_alloc (sizeof (*ctp));
+  ctp->c.ops = psmx_topic_ops;
   char *ext_topic_name;
-  ddsrt_asprintf (&ext_topic_name, "%s/%s", cpsmx->service_name ? cpsmx->service_name : "", topic_name);
+  ddsrt_asprintf (&ext_topic_name, "%s/%s", cpsmx->c.instance_name ? cpsmx->c.instance_name : "", topic_name);
   ctp->topic = dds_create_topic (cpsmx->participant, &cdds_psmx_data_desc, ext_topic_name, NULL, NULL);
   ddsrt_free (ext_topic_name);
-  dds_psmx_topic_init_generic (&ctp->c, &psmx_topic_ops, psmx, topic_name, type_name, data_type_props);
-  dds_add_psmx_topic_to_list (&ctp->c, &cpsmx->c.psmx_topics);
   return (struct dds_psmx_topic *) ctp;
 }
 
 static dds_return_t cdds_psmx_delete_topic (struct dds_psmx_topic *psmx_topic)
 {
   struct cdds_psmx_topic *ctp = (struct cdds_psmx_topic *) psmx_topic;
-  dds_psmx_topic_cleanup_generic (&ctp->c);
   dds_delete (ctp->topic);
   dds_free (ctp);
   return DDS_RETCODE_OK;
@@ -188,21 +186,26 @@ static dds_return_t cdds_psmx_delete_topic (struct dds_psmx_topic *psmx_topic)
 static uint32_t deinit_thread (void *arg)
 {
   struct cdds_psmx *cpsmx = (struct cdds_psmx *) arg;
-
-  while (ddsrt_atomic_ld32 (&cpsmx->on_data_thread_state) != ON_DATA_STOPPED)
-    dds_sleepfor (DDS_MSECS (10));
+  // It only starts the receive thread once a topic is created
+  if (ddsrt_atomic_ld32 (&cpsmx->on_data_thread_state) != ON_DATA_INIT)
+  {
+    while (ddsrt_atomic_ld32 (&cpsmx->on_data_thread_state) != ON_DATA_STOPPED)
+      dds_sleepfor (DDS_MSECS (10));
+  }
   dds_delete (cpsmx->participant); // in separate thread because of thread state
   return 0;
 }
 
-static dds_return_t cdds_psmx_deinit (struct dds_psmx *psmx)
+static void cdds_psmx_deinit (struct dds_psmx *psmx)
 {
   struct cdds_psmx *cpsmx = (struct cdds_psmx *) psmx;
 
-  dds_psmx_cleanup_generic (&cpsmx->c);
-
-  ddsrt_atomic_st32 (&cpsmx->on_data_thread_state, ON_DATA_TERMINATE);
-  dds_set_guardcondition (cpsmx->stop_cond, true);
+  // It only starts the receive thread once a topic is created
+  if (ddsrt_atomic_ld32 (&cpsmx->on_data_thread_state) != ON_DATA_INIT)
+  {
+    ddsrt_atomic_st32 (&cpsmx->on_data_thread_state, ON_DATA_TERMINATE);
+    dds_set_guardcondition (cpsmx->stop_cond, true);
+  }
 
   ddsrt_thread_t tid;
   ddsrt_threadattr_t tattr;
@@ -210,11 +213,7 @@ static dds_return_t cdds_psmx_deinit (struct dds_psmx *psmx)
   ddsrt_thread_create (&tid, "cdds_psmx_deinit", &tattr, deinit_thread, cpsmx);
 
   ddsrt_thread_join (tid, NULL);
-
-  ddsrt_free (cpsmx->service_name);
   dds_free (cpsmx);
-
-  return DDS_RETCODE_OK;
 }
 
 static dds_psmx_node_identifier_t cdds_psmx_get_node_id (const struct dds_psmx *psmx)
@@ -239,8 +238,6 @@ static struct dds_psmx_endpoint * cdds_psmx_create_endpoint (struct dds_psmx_top
   struct cdds_psmx *cpsmx = (struct cdds_psmx *) ctp->c.psmx_instance;
   struct cdds_psmx_endpoint *cep = dds_alloc (sizeof (*cep));
   cep->c.ops = psmx_ep_ops;
-  cep->c.psmx_topic = psmx_topic;
-  cep->c.endpoint_type = endpoint_type;
 
   cep->deinit_cond = dds_create_guardcondition (cpsmx->participant);
   dds_return_t ret = dds_waitset_attach (cpsmx->on_data_waitset, cep->deinit_cond, (dds_attach_t) cep);
@@ -274,9 +271,6 @@ static struct dds_psmx_endpoint * cdds_psmx_create_endpoint (struct dds_psmx_top
   }
   assert (cep->psmx_cdds_endpoint >= 0);
   dds_delete_qos (psmx_ep_qos);
-
-  dds_add_psmx_endpoint_to_list (&cep->c, &ctp->c.psmx_endpoints);
-
   return (struct dds_psmx_endpoint *) cep;
 }
 
@@ -298,18 +292,16 @@ static dds_loaned_sample_t * cdds_psmx_ep_request_loan (struct dds_psmx_endpoint
 
     ls = dds_alloc (sizeof (*ls));
     ls->ops = ls_ops;
-    ls->loan_origin.origin_kind = DDS_LOAN_ORIGIN_KIND_PSMX;
-    ls->loan_origin.psmx_endpoint = (struct dds_psmx_endpoint *) cep;
     ls->metadata = dds_alloc (sizeof (*ls->metadata));
     ls->sample_ptr = dds_alloc (sz);
     memset (ls->sample_ptr, 0, sz);
-    ddsrt_atomic_st32 (&ls->refc, 1);
   }
   return ls;
 }
 
-static dds_return_t cdds_psmx_ep_write (struct dds_psmx_endpoint *psmx_ep, dds_loaned_sample_t *data)
+static dds_return_t cdds_psmx_ep_write_key (struct dds_psmx_endpoint *psmx_ep, dds_loaned_sample_t *data, size_t keysz, const void *key)
 {
+  (void) keysz; (void) key;
   struct cdds_psmx_endpoint *cep = (struct cdds_psmx_endpoint *) psmx_ep;
 
   struct cdds_psmx_data sample = {
@@ -449,57 +441,17 @@ static void cdds_loaned_sample_free (struct dds_loaned_sample *loaned_sample)
 
 dds_return_t cdds_create_psmx (dds_psmx_t **psmx_out, dds_psmx_instance_id_t instance_id, const char *config)
 {
+  (void) instance_id; (void) config;
   assert (psmx_out);
 
   ddsrt_atomic_st32 (&ddsi_thread_nested_gv_allowed, 1);
 
   struct cdds_psmx *psmx = dds_alloc (sizeof (*psmx));
-  psmx->c.instance_name = dds_psmx_get_config_option_value (config, "SERVICE_NAME");
-  if (psmx->c.instance_name == NULL)
-    psmx->c.instance_name = dds_string_dup ("cdds-psmx");
-  psmx->c.instance_id = instance_id;
   psmx->c.ops = psmx_instance_ops;
-  dds_psmx_init_generic (&psmx->c);
   psmx->participant = -1;
   ddsrt_atomic_st32 (&psmx->on_data_thread_state, ON_DATA_INIT);
   ddsrt_atomic_st32 (&psmx->endpoint_refs, 0);
-  memset ((char *) psmx->c.locator->address, 0, sizeof (psmx->c.locator->address));
-
-  if (config != NULL && strlen (config) > 0)
-  {
-    char *lstr = dds_psmx_get_config_option_value (config, "LOCATOR");
-    if (lstr != NULL)
-    {
-      if (strlen (lstr) != 32)
-      {
-        dds_free (lstr);
-        goto err_locator;
-      }
-      unsigned char * const dst = (unsigned char *) psmx->c.locator->address;
-      for (uint32_t n = 0; n < 32 && lstr[n]; n++)
-      {
-        int32_t num;
-        if ((num = ddsrt_todigit (lstr[n])) < 0 || num >= 16)
-        {
-          dds_free (lstr);
-          goto err_locator;
-        }
-        if ((n % 2) == 0)
-          dst[n / 2] = (uint8_t) (num << 4);
-        else
-          dst[n / 2] |= (uint8_t) num;
-      }
-      dds_free (lstr);
-    }
-  }
-  psmx->service_name = ddsrt_strdup(psmx->c.instance_name);
-
   *psmx_out = (dds_psmx_t *) psmx;
   return DDS_RETCODE_OK;
-
-err_locator:
-  dds_psmx_cleanup_generic (&psmx->c);
-  dds_free (psmx);
-  return DDS_RETCODE_BAD_PARAMETER;
 }
 

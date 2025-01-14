@@ -70,12 +70,13 @@ static void dds_reader_close (dds_entity *e)
   ddsrt_mutex_unlock (&e->m_mutex);
 }
 
-static dds_return_t dds_reader_delete (dds_entity *e) ddsrt_nonnull_all;
-
+ddsrt_nonnull_all
 static dds_return_t dds_reader_delete (dds_entity *e)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   dds_reader * const rd = (dds_reader *) e;
+
+  dds_endpoint_remove_psmx_endpoints (&rd->m_endpoint);
 
   ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
   dds_rhc_free (rd->m_rhc);
@@ -83,15 +84,6 @@ static dds_return_t dds_reader_delete (dds_entity *e)
 
   dds_loan_pool_free (rd->m_heap_loan_cache);
   dds_loan_pool_free (rd->m_loans);
-
-  for (uint32_t i = 0; ret == DDS_RETCODE_OK && i < rd->m_endpoint.psmx_endpoints.length; i++)
-  {
-    struct dds_psmx_endpoint *psmx_endpoint = rd->m_endpoint.psmx_endpoints.endpoints[i];
-    if (psmx_endpoint == NULL)
-      continue;
-    ret = dds_remove_psmx_endpoint_from_list (psmx_endpoint, &psmx_endpoint->psmx_topic->psmx_endpoints);
-  }
-
   dds_entity_drop_ref (&rd->m_topic->m_entity);
   return ret;
 }
@@ -679,8 +671,8 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
   for (uint32_t i = 0; i < rd->m_endpoint.psmx_endpoints.length; i++)
   {
-    struct dds_psmx_endpoint *psmx_endpoint = rd->m_endpoint.psmx_endpoints.endpoints[i];
-    if (psmx_endpoint->ops.on_data_available && (rc = psmx_endpoint->ops.on_data_available (psmx_endpoint, reader)) != DDS_RETCODE_OK)
+    struct dds_psmx_endpoint_int *psmx_endpoint = rd->m_endpoint.psmx_endpoints.endpoints[i];
+    if (psmx_endpoint->ops.on_data_available && (rc = psmx_endpoint->ops.on_data_available (psmx_endpoint->ext, reader)) != DDS_RETCODE_OK)
       goto err_psmx_endpoint_setcb;
   }
 

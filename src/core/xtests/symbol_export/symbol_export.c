@@ -533,8 +533,6 @@ int main (int argc, char **argv)
   // dds_psmx.h
   dds_add_psmx_endpoint_to_list (ptr, ptr2);
   dds_add_psmx_topic_to_list (ptr, ptr2);
-  dds_remove_psmx_endpoint_from_list (ptr, ptr2);
-  dds_remove_psmx_topic_from_list (ptr, ptr2);
   dds_psmx_init_generic (ptr);
   dds_psmx_cleanup_generic (ptr);
   dds_psmx_topic_init_generic (ptr, ptr2, ptr3, ptr4, ptr, 0);
