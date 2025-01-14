@@ -157,22 +157,6 @@ DDS_EXPORT dds_return_t dds_reader_store_loaned_sample (dds_entity_t reader, dds
 DDS_EXPORT dds_return_t dds_reader_store_loaned_sample_wr_metadata (dds_entity_t reader, dds_loaned_sample_t *data, int32_t ownership_strength, bool autodispose_unregistered_instances, dds_duration_t lifespan_duration)
   ddsrt_nonnull_all;
 
-/**
- * @brief copies the contents of one psmx sample to another
- * @ingroup reading
- *
- * Copies the contents of the memory pointed to by sample_ptr and the contents of the metadata
- * not set by the originating psmx interface.
- * Also copies the end to end information, which may cause duplication warnings when the same
- * sample is delivered by multiple psmx interfaces to the same reader.
- * Requires the memory allocated to the sample being copied to being at least as large as that
- * being copied from.
- *
- * @param[out] to pointer to the loaned sample being copied to.
- * @param[in] from pointer to the loaned sample being copied from.
- */
-DDS_EXPORT void dds_loaned_sample_copy(dds_loaned_sample_t *to, const dds_loaned_sample_t *from) ddsrt_nonnull_all;
-
 #if defined(__cplusplus)
 }
 #endif
