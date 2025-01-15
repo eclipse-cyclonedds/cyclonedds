@@ -957,10 +957,16 @@ static dds_return_t xt_validate_impl (struct ddsi_domaingv *gv, const struct xt_
           || (ret = xt_valid_struct_member_ids (gv, t))
           || (ret = xt_valid_type_flags (gv, t->_u.structure.flags, t->_d)))
         return ret;
+
+      bool has_key_members = false;
+      for (const struct xt_type *t1 = t; t1 && ddsi_xt_is_resolved (t1); t1 = t1->_u.structure.base_type ? &t1->_u.structure.base_type->xt : NULL)
+        for (uint32_t n = 0; !has_key_members && n < t1->_u.structure.members.length; n++)
+          has_key_members = (t1->_u.structure.members.seq[n].flags & DDS_XTypes_IS_KEY);
+
       for (uint32_t n = 0; n < t->_u.structure.members.length; n++)
       {
         DDS_XTypes_StructMemberFlag flags = t->_u.structure.members.seq[n].flags;
-        bool key = in_key || (flags & DDS_XTypes_IS_KEY);
+        bool key = (in_key && !has_key_members) || (flags & DDS_XTypes_IS_KEY);
         if ((ret = xt_valid_member_flags (gv, flags, MEMBER_FLAG_STRUCT_MEMBER, key)))
           return ret;
         if ((ret = xt_validate_impl (gv, &t->_u.structure.members.seq[n].type->xt, false, key)))
