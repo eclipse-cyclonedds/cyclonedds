@@ -98,9 +98,16 @@ dds_return_t dds_init (void)
     case CDDS_STATE_READY:
       assert (dds_global.m_entity.m_hdllink.hdl == DDS_CYCLONEDDS_HANDLE);
       ddsrt_mutex_unlock (init_mutex);
+      // Undo the ddsrt init counter increment: some other thread initialized
+      // the library and we continue with that pre-initialized state.  At some
+      // point dds_fini() will be called, and that will undo the ddsrt_fini()
+      // associated with the library initialization.
+      ddsrt_fini ();
       return DDS_RETCODE_OK;
     case CDDS_STATE_ZERO:
       ddsrt_atomic_st32 (&dds_state, CDDS_STATE_STARTING);
+      // Initializing Cyclone, this thread did the ddsrt_init() call that will
+      // be undone by dds_fini()
       break;
     default:
       ddsrt_mutex_unlock (init_mutex);
