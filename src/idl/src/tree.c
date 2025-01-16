@@ -3700,7 +3700,14 @@ static bool no_specific_key(const void *node)
 {
   /* @key(FALSE) is equivalent to missing @key(?) */
   if (idl_mask(node) & IDL_STRUCT) {
-    const idl_member_t *member = ((const idl_struct_t *)node)->members;
+    const idl_struct_t *_struct = (const idl_struct_t *)node;
+    if (_struct->inherit_spec)
+    {
+      if (!no_specific_key(_struct->inherit_spec->base))
+        return false;
+    }
+
+    const idl_member_t *member = _struct->members;
     for (; member; member = idl_next(member)) {
       if (member->key.value)
         return false;

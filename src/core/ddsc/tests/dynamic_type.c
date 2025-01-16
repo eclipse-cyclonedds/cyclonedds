@@ -416,10 +416,9 @@ CU_Test (ddsc_dynamic_type, struct_member_prop, .init = dynamic_type_init, .fini
   dds_dynamic_type_set_autoid (&dstruct, DDS_DYNAMIC_TYPE_AUTOID_HASH);
   dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_UINT16, "m1"));
   dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_UINT16, "m2"));
+  dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_UINT16, "m3"));
 
   dds_return_t ret = dds_dynamic_member_set_key (&dstruct, ddsi_dynamic_type_member_hashid ("m2"), true);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-  ret = dds_dynamic_member_set_optional (&dstruct, ddsi_dynamic_type_member_hashid ("m2"), true);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_dynamic_member_set_external (&dstruct, ddsi_dynamic_type_member_hashid ("m2"), true);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
@@ -429,8 +428,12 @@ CU_Test (ddsc_dynamic_type, struct_member_prop, .init = dynamic_type_init, .fini
   ret = dds_dynamic_member_set_must_understand (&dstruct, ddsi_dynamic_type_member_hashid ("m2_name"), true);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
 
+  // Optional and key can't be set to the same member
+  ret = dds_dynamic_member_set_optional (&dstruct, ddsi_dynamic_type_member_hashid ("m3"), true);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+
   struct ddsi_type *type = get_ddsi_type (&dstruct);
-  CU_ASSERT_EQUAL_FATAL (type->xt._u.structure.members.length, 2);
+  CU_ASSERT_EQUAL_FATAL (type->xt._u.structure.members.length, 3);
 
   CU_ASSERT_EQUAL_FATAL (type->xt._u.structure.members.seq[0].id, ddsi_dynamic_type_member_hashid ("m1"));
   CU_ASSERT_FATAL (!(type->xt._u.structure.members.seq[0].flags & DDS_XTypes_IS_KEY));
@@ -440,9 +443,15 @@ CU_Test (ddsc_dynamic_type, struct_member_prop, .init = dynamic_type_init, .fini
 
   CU_ASSERT_EQUAL_FATAL (type->xt._u.structure.members.seq[1].id, ddsi_dynamic_type_member_hashid ("m2_name"));
   CU_ASSERT_FATAL (type->xt._u.structure.members.seq[1].flags & DDS_XTypes_IS_KEY);
-  CU_ASSERT_FATAL (type->xt._u.structure.members.seq[1].flags & DDS_XTypes_IS_OPTIONAL);
+  CU_ASSERT_FATAL (!(type->xt._u.structure.members.seq[1].flags & DDS_XTypes_IS_OPTIONAL));
   CU_ASSERT_FATAL (type->xt._u.structure.members.seq[1].flags & DDS_XTypes_IS_EXTERNAL);
   CU_ASSERT_FATAL (type->xt._u.structure.members.seq[1].flags & DDS_XTypes_IS_MUST_UNDERSTAND);
+
+  CU_ASSERT_EQUAL_FATAL (type->xt._u.structure.members.seq[2].id, ddsi_dynamic_type_member_hashid ("m3"));
+  CU_ASSERT_FATAL (!(type->xt._u.structure.members.seq[2].flags & DDS_XTypes_IS_KEY));
+  CU_ASSERT_FATAL (type->xt._u.structure.members.seq[2].flags & DDS_XTypes_IS_OPTIONAL);
+  CU_ASSERT_FATAL (!(type->xt._u.structure.members.seq[2].flags & DDS_XTypes_IS_EXTERNAL));
+  CU_ASSERT_FATAL (!(type->xt._u.structure.members.seq[2].flags & DDS_XTypes_IS_MUST_UNDERSTAND));
 
   dds_dynamic_type_unref (&dstruct);
 }
