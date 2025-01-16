@@ -966,6 +966,19 @@ static dds_return_t xt_validate_impl (struct ddsi_domaingv *gv, const struct xt_
       for (uint32_t n = 0; n < t->_u.structure.members.length; n++)
       {
         DDS_XTypes_StructMemberFlag flags = t->_u.structure.members.seq[n].flags;
+        /* A member is considered a key-member (and therefore cannot be optional)
+           in case (1) the member has a key flag or (2) no member of the struct
+           and it's base types has a key flag and the 'parent' member (the one
+           that has this struct as it's member type) is a key (by either rule 1
+           or 2). As a result, a type can be valid or invalid based on the context
+           it is used in:
+              struct A { @optional long x; };
+              struct B { @key A y; };
+              struct C { B z; };
+           Type B is an invalid top-level type for a topic. Type C is a valid
+           top-level type, but will still be rejected because of the key flag
+           in B.
+        */
         bool key = (in_key && !has_key_members) || (flags & DDS_XTypes_IS_KEY);
         if ((ret = xt_valid_member_flags (gv, flags, MEMBER_FLAG_STRUCT_MEMBER, key)))
           return ret;
