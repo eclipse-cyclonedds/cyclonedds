@@ -160,10 +160,14 @@ static int sedp_write_endpoint_impl
   else
   {
     assert (xqos != NULL);
-    ps.present |= PP_PROTOCOL_VERSION | PP_VENDORID;
+    ps.present |= PP_PROTOCOL_VERSION | PP_VENDORID | PP_PRODUCT_VERSION;
     ps.protocol_version.major = DDSI_RTPS_MAJOR;
     ps.protocol_version.minor = DDSI_RTPS_MINOR;
     ps.vendorid = DDSI_VENDORID_ECLIPSE;
+    ps.product_version.major = DDS_VERSION_MAJOR;
+    ps.product_version.minor = DDS_VERSION_MINOR;
+    ps.product_version.release = DDS_VERSION_PATCH;
+    ps.product_version.revision = DDS_VERSION_TWEAK;
 
     assert (epcommon != NULL);
 
