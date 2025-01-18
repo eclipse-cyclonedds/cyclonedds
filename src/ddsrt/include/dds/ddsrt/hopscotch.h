@@ -68,18 +68,12 @@ DDS_EXPORT void *ddsrt_hh_iter_next (struct ddsrt_hh_iter * __restrict iter) dds
 struct ddsrt_chh;
 struct ddsrt_chh_bucket;
 
-#if ! ddsrt_has_feature_thread_sanitizer
 struct ddsrt_chh_iter {
   struct ddsrt_chh_bucket *bs;
   uint32_t size;
   uint32_t cursor;
 };
-#else
-struct ddsrt_chh_iter {
-  struct ddsrt_chh *chh;
-  struct ddsrt_hh_iter it;
-};
-#endif
+
 
 DDS_EXPORT struct ddsrt_chh *ddsrt_chh_new (uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals, ddsrt_hh_buckets_gc_fn gc_buckets, void *gc_buckets_arg);
 DDS_EXPORT void ddsrt_chh_free (struct ddsrt_chh * __restrict hh);

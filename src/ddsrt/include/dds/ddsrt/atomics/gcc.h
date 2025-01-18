@@ -14,6 +14,7 @@
 
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/attributes.h"
+#include <stdint.h>
 
 #if defined (__cplusplus)
 extern "C" {
@@ -31,7 +32,7 @@ DDSRT_WARNING_CLANG_OFF(old-style-cast)
 DDS_INLINE_EXPORT 
 inline uint32_t ddsrt_atomic_ld32(const volatile ddsrt_atomic_uint32_t *x)
 {
-  return x->v;
+  return __atomic_load_n((uint32_t*)x, __ATOMIC_SEQ_CST);
 }
 
 #if DDSRT_HAVE_ATOMIC64
@@ -45,13 +46,13 @@ inline uint32_t ddsrt_atomic_ld32(const volatile ddsrt_atomic_uint32_t *x)
 DDS_INLINE_EXPORT
 inline uint64_t ddsrt_atomic_ld64(const volatile ddsrt_atomic_uint64_t *x)
 {
-  return x->v;
+  return __atomic_load_n((uint64_t*)x, __ATOMIC_SEQ_CST);
 }
 #endif
 DDS_INLINE_EXPORT 
 inline uintptr_t ddsrt_atomic_ldptr(const volatile ddsrt_atomic_uintptr_t *x)
 {
-  return x->v;
+  return __atomic_load_n((uintptr_t*)x, __ATOMIC_SEQ_CST);
 }
 DDS_INLINE_EXPORT 
 inline void *ddsrt_atomic_ldvoidp(const volatile ddsrt_atomic_voidp_t *x)
@@ -62,7 +63,7 @@ inline void *ddsrt_atomic_ldvoidp(const volatile ddsrt_atomic_voidp_t *x)
 DDS_INLINE_EXPORT 
 inline void ddsrt_atomic_st32(volatile ddsrt_atomic_uint32_t *x, uint32_t v)
 {
-  x->v = v;
+  __atomic_store_n((uint32_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 #if DDSRT_HAVE_ATOMIC64
@@ -75,13 +76,13 @@ inline void ddsrt_atomic_st32(volatile ddsrt_atomic_uint32_t *x, uint32_t v)
 DDS_INLINE_EXPORT
 inline void ddsrt_atomic_st64(volatile ddsrt_atomic_uint64_t *x, uint64_t v)
 {
-  x->v = v;
+  __atomic_store_n((uint64_t*)x, v , __ATOMIC_SEQ_CST);
 }
 #endif
 DDS_INLINE_EXPORT 
 inline void ddsrt_atomic_stptr(volatile ddsrt_atomic_uintptr_t *x, uintptr_t v)
 {
-  x->v = v;
+  __atomic_store_n((uintptr_t*)x, v, __ATOMIC_SEQ_CST);
 }
 DDS_INLINE_EXPORT 
 inline void ddsrt_atomic_stvoidp(volatile ddsrt_atomic_voidp_t *x, void *v)
@@ -92,7 +93,7 @@ inline void ddsrt_atomic_stvoidp(volatile ddsrt_atomic_voidp_t *x, void *v)
 /* INC */
 
 DDS_INLINE_EXPORT inline void ddsrt_atomic_inc32(volatile ddsrt_atomic_uint32_t *x) {
-  __sync_fetch_and_add (&x->v, 1);
+  __atomic_fetch_add((uint32_t*)x, 1, __ATOMIC_SEQ_CST);
 }
 
 #if DDSRT_HAVE_ATOMIC64
@@ -102,7 +103,7 @@ DDS_INLINE_EXPORT inline void ddsrt_atomic_inc32(volatile ddsrt_atomic_uint32_t 
  * @param[in,out] x Pointer to the variable to increment
  */
 DDS_INLINE_EXPORT inline void ddsrt_atomic_inc64 (volatile ddsrt_atomic_uint64_t *x) {
-  __sync_fetch_and_add (&x->v, 1);
+  __atomic_fetch_add((uint64_t*)x, 1, __ATOMIC_SEQ_CST);
 }
 #endif
 
@@ -123,7 +124,7 @@ DDS_INLINE_EXPORT inline void ddsrt_atomic_incptr(volatile ddsrt_atomic_uintptr_
  * @return The old value of the incremented variable
  */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_inc32_ov (volatile ddsrt_atomic_uint32_t *x) {
-  return __sync_fetch_and_add (&x->v, 1);
+  return __atomic_fetch_add((uint32_t*)x, 1, __ATOMIC_SEQ_CST);
 }
 
 #if DDSRT_HAVE_ATOMIC64
@@ -158,7 +159,7 @@ DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_incptr_ov (volatile ddsrt_atomic
  * @return The new value of the incremented variable
  */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_inc32_nv (volatile ddsrt_atomic_uint32_t *x) {
-  return __sync_add_and_fetch (&x->v, 1);
+  return __atomic_add_fetch((uint32_t*)x, 1, __ATOMIC_SEQ_CST);
 }
 
 #if DDSRT_HAVE_ATOMIC64
@@ -170,7 +171,7 @@ DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_inc32_nv (volatile ddsrt_atomic_u
  * @return The new value of the incremented variable
  */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_inc64_nv (volatile ddsrt_atomic_uint64_t *x) {
-  return __sync_add_and_fetch (&x->v, 1);
+  return __atomic_add_fetch((uint64_t*)x, 1, __ATOMIC_SEQ_CST);
 }
 #endif
 
@@ -182,13 +183,13 @@ DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_inc64_nv (volatile ddsrt_atomic_u
  * @return The new value of the incremented variable
  */
 DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_incptr_nv (volatile ddsrt_atomic_uintptr_t *x) {
-  return __sync_add_and_fetch (&x->v, 1);
+  return __atomic_add_fetch ((uintptr_t*)x, 1, __ATOMIC_SEQ_CST);
 }
 
 /* DEC */
 
 DDS_INLINE_EXPORT inline void ddsrt_atomic_dec32 (volatile ddsrt_atomic_uint32_t *x) {
-  __sync_fetch_and_sub (&x->v, 1);
+  __atomic_fetch_sub((uint32_t*)x, 1, __ATOMIC_SEQ_CST);
 }
 
 #if DDSRT_HAVE_ATOMIC64
@@ -198,7 +199,7 @@ DDS_INLINE_EXPORT inline void ddsrt_atomic_dec32 (volatile ddsrt_atomic_uint32_t
  * @param[in,out] x Pointer to the variable to decrement
  */
 DDS_INLINE_EXPORT inline void ddsrt_atomic_dec64 (volatile ddsrt_atomic_uint64_t *x) {
-  __sync_fetch_and_sub (&x->v, 1);
+  __atomic_fetch_sub((uint64_t*)x, 1, __ATOMIC_SEQ_CST);
 }
 #endif
 
@@ -208,7 +209,7 @@ DDS_INLINE_EXPORT inline void ddsrt_atomic_dec64 (volatile ddsrt_atomic_uint64_t
  * @param[in,out] x Pointer to the variable to decrement
  */
 DDS_INLINE_EXPORT inline void ddsrt_atomic_decptr (volatile ddsrt_atomic_uintptr_t *x) {
-  __sync_fetch_and_sub (&x->v, 1);
+  __atomic_fetch_sub ((uintptr_t*)x, 1, __ATOMIC_SEQ_CST);
 }
 
 /**
@@ -219,7 +220,7 @@ DDS_INLINE_EXPORT inline void ddsrt_atomic_decptr (volatile ddsrt_atomic_uintptr
  * @return The new value of the decremented variable
  */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_dec32_nv (volatile ddsrt_atomic_uint32_t *x) {
-  return __sync_sub_and_fetch (&x->v, 1);
+  return __atomic_sub_fetch((uint32_t*)x, 1, __ATOMIC_SEQ_CST);
 }
 
 #if DDSRT_HAVE_ATOMIC64
@@ -231,7 +232,7 @@ DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_dec32_nv (volatile ddsrt_atomic_u
  * @return The new value of the decremented variable
  */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_dec64_nv (volatile ddsrt_atomic_uint64_t *x) {
-  return __sync_sub_and_fetch (&x->v, 1);
+  return __atomic_sub_fetch((uint64_t*)x, 1, __ATOMIC_SEQ_CST);
 }
 #endif
 
@@ -243,7 +244,7 @@ DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_dec64_nv (volatile ddsrt_atomic_u
  * @return The new value of the decremented variable
  */
 DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_decptr_nv (volatile ddsrt_atomic_uintptr_t *x) {
-  return __sync_sub_and_fetch (&x->v, 1);
+  return __atomic_sub_fetch ((uintptr_t*)x, 1, __ATOMIC_SEQ_CST);
 }
 
 /**
@@ -254,7 +255,7 @@ DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_decptr_nv (volatile ddsrt_atomic
  * @return The old value of the decremented variable
  */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_dec32_ov (volatile ddsrt_atomic_uint32_t *x) {
-  return __sync_fetch_and_sub (&x->v, 1);
+  return __atomic_fetch_sub((uint32_t*)x, 1, __ATOMIC_SEQ_CST);
 }
 
 #if DDSRT_HAVE_ATOMIC64
@@ -266,7 +267,7 @@ DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_dec32_ov (volatile ddsrt_atomic_u
  * @return The old value of the decremented variable
  */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_dec64_ov (volatile ddsrt_atomic_uint64_t *x) {
-  return __sync_fetch_and_sub (&x->v, 1);
+  return __atomic_fetch_sub((uint64_t*)x, 1, __ATOMIC_SEQ_CST);
 }
 #endif
 
@@ -278,13 +279,13 @@ DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_dec64_ov (volatile ddsrt_atomic_u
  * @return The old value of the decremented variable
  */
 DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_decptr_ov (volatile ddsrt_atomic_uintptr_t *x) {
-  return __sync_fetch_and_sub (&x->v, 1);
+  return __atomic_fetch_sub ((uintptr_t*)x, 1, __ATOMIC_SEQ_CST);
 }
 
 /* ADD */
 
 DDS_INLINE_EXPORT inline void ddsrt_atomic_add32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
-  __sync_fetch_and_add (&x->v, v);
+  __atomic_fetch_add((uint32_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 #if DDSRT_HAVE_ATOMIC64
@@ -295,7 +296,7 @@ DDS_INLINE_EXPORT inline void ddsrt_atomic_add32 (volatile ddsrt_atomic_uint32_t
  * @param[in] v The value to increment by
  */
 DDS_INLINE_EXPORT inline void ddsrt_atomic_add64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
-  __sync_fetch_and_add (&x->v, v);
+  __atomic_fetch_add((uint64_t*)x, v, __ATOMIC_SEQ_CST);
 }
 #endif
 
@@ -306,7 +307,7 @@ DDS_INLINE_EXPORT inline void ddsrt_atomic_add64 (volatile ddsrt_atomic_uint64_t
  * @param[in] v The value to increment by
  */
 DDS_INLINE_EXPORT inline void ddsrt_atomic_addptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  __sync_fetch_and_add (&x->v, v);
+  __atomic_fetch_add ((uintptr_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 /**
@@ -318,7 +319,7 @@ DDS_INLINE_EXPORT inline void ddsrt_atomic_addptr (volatile ddsrt_atomic_uintptr
  * @return The old value of the incremented variable
  */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_add32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
-  return __sync_fetch_and_add (&x->v, v);
+  return __atomic_fetch_add((uint32_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 #if DDSRT_HAVE_ATOMIC64
@@ -331,7 +332,7 @@ DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_add32_ov (volatile ddsrt_atomic_u
  * @return The new value of the incremented variable
  */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_add64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
-  return __sync_fetch_and_add (&x->v, v);
+  return __atomic_fetch_add ((uintptr_t*)x, v, __ATOMIC_SEQ_CST);
 }
 #endif
 
@@ -344,7 +345,7 @@ DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_add64_ov (volatile ddsrt_atomic_u
  * @return The old value of the incremented variable
  */
 DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_addptr_ov (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return __sync_fetch_and_add (&x->v, v);
+  return __atomic_fetch_add ((uintptr_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 /**
@@ -356,7 +357,7 @@ DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_addptr_ov (volatile ddsrt_atomic
  * @return The new value of the incremented variable
  */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_add32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
-  return __sync_add_and_fetch (&x->v, v);
+  return __atomic_add_fetch((uint32_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 #if DDSRT_HAVE_ATOMIC64
@@ -369,7 +370,7 @@ DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_add32_nv (volatile ddsrt_atomic_u
  * @return The new value of the incremented variable
  */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_add64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
-  return __sync_add_and_fetch (&x->v, v);
+  return __atomic_add_fetch((uint64_t*)x, v, __ATOMIC_SEQ_CST);
 }
 #endif
 
@@ -382,13 +383,13 @@ DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_add64_nv (volatile ddsrt_atomic_u
  * @return The new value of the incremented variable
  */
 DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_addptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return __sync_add_and_fetch (&x->v, v);
+  return __atomic_add_fetch ((uintptr_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 /* SUB */
 
 DDS_INLINE_EXPORT inline void ddsrt_atomic_sub32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
-  __sync_fetch_and_sub (&x->v, v);
+  __atomic_fetch_sub((uint32_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 #if DDSRT_HAVE_ATOMIC64
@@ -399,7 +400,7 @@ DDS_INLINE_EXPORT inline void ddsrt_atomic_sub32 (volatile ddsrt_atomic_uint32_t
  * @param[in] v The value to decrement by
  */
 DDS_INLINE_EXPORT inline void ddsrt_atomic_sub64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
-  __sync_fetch_and_sub (&x->v, v);
+  __atomic_fetch_sub((uint64_t*)x, v, __ATOMIC_SEQ_CST);
 }
 #endif
 
@@ -410,7 +411,7 @@ DDS_INLINE_EXPORT inline void ddsrt_atomic_sub64 (volatile ddsrt_atomic_uint64_t
  * @param[in] v The value to decrement by
  */
 DDS_INLINE_EXPORT inline void ddsrt_atomic_subptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  __sync_fetch_and_sub (&x->v, v);
+  __atomic_fetch_sub ((uintptr_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 /**
@@ -422,7 +423,7 @@ DDS_INLINE_EXPORT inline void ddsrt_atomic_subptr (volatile ddsrt_atomic_uintptr
  * @return The old value of the decremented variable
  */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_sub32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
-  return __sync_fetch_and_sub (&x->v, v);
+  return __atomic_fetch_sub((uint32_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 #if DDSRT_HAVE_ATOMIC64
@@ -435,7 +436,7 @@ DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_sub32_ov (volatile ddsrt_atomic_u
  * @return The old value of the decremented variable
  */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_sub64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
-  return __sync_fetch_and_sub (&x->v, v);
+  return __atomic_fetch_sub ((uintptr_t*)x, v, __ATOMIC_SEQ_CST);
 }
 #endif
 
@@ -448,7 +449,7 @@ DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_sub64_ov (volatile ddsrt_atomic_u
  * @return The old value of the decremented variable
  */
 DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_subptr_ov (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return __sync_fetch_and_sub (&x->v, v);
+  return __atomic_fetch_sub ((uintptr_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 /**
@@ -460,7 +461,7 @@ DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_subptr_ov (volatile ddsrt_atomic
  * @return The new value of the decremented variable
  */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_sub32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
-  return __sync_sub_and_fetch (&x->v, v);
+  return __atomic_sub_fetch((uint32_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 #if DDSRT_HAVE_ATOMIC64
@@ -473,7 +474,7 @@ DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_sub32_nv (volatile ddsrt_atomic_u
  * @return The new value of the decremented variable
  */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_sub64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
-  return __sync_sub_and_fetch (&x->v, v);
+  return __atomic_sub_fetch((uint64_t*)x, v, __ATOMIC_SEQ_CST);
 }
 #endif
 
@@ -486,13 +487,13 @@ DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_sub64_nv (volatile ddsrt_atomic_u
  * @return The new value of the decremented variable
  */
 DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_subptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return __sync_sub_and_fetch (&x->v, v);
+  return __atomic_sub_fetch ((uintptr_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 /* AND */
 
 DDS_INLINE_EXPORT inline void ddsrt_atomic_and32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
-  __sync_fetch_and_and (&x->v, v);
+  __atomic_fetch_and((uint32_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 #if DDSRT_HAVE_ATOMIC64
@@ -503,7 +504,7 @@ DDS_INLINE_EXPORT inline void ddsrt_atomic_and32 (volatile ddsrt_atomic_uint32_t
  * @param[in] v The value to AND with the variable
  */
 DDS_INLINE_EXPORT inline void ddsrt_atomic_and64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
-  __sync_fetch_and_and (&x->v, v);
+  __atomic_fetch_and((uint64_t*)x, v, __ATOMIC_SEQ_CST);
 }
 #endif
 
@@ -514,7 +515,7 @@ DDS_INLINE_EXPORT inline void ddsrt_atomic_and64 (volatile ddsrt_atomic_uint64_t
  * @param[in] v The value to AND with the variable
  */
 DDS_INLINE_EXPORT inline void ddsrt_atomic_andptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  __sync_fetch_and_and (&x->v, v);
+  __atomic_fetch_and ((uintptr_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 /**
@@ -526,7 +527,7 @@ DDS_INLINE_EXPORT inline void ddsrt_atomic_andptr (volatile ddsrt_atomic_uintptr
  * @return The old value of the ANDed variable
  */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_and32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
-  return __sync_fetch_and_and (&x->v, v);
+  return __atomic_fetch_and((uint32_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 #if DDSRT_HAVE_ATOMIC64
@@ -539,7 +540,7 @@ DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_and32_ov (volatile ddsrt_atomic_u
  * @return The old value of the ANDed variable
  */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_and64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
-  return __sync_fetch_and_and (&x->v, v);
+  return __atomic_fetch_and((uint64_t*)x, v, __ATOMIC_SEQ_CST);
 }
 #endif
 
@@ -552,7 +553,7 @@ DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_and64_ov (volatile ddsrt_atomic_u
  * @return The old value of the ANDed variable
  */
 DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_andptr_ov (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return __sync_fetch_and_and (&x->v, v);
+  return __atomic_fetch_and ((uintptr_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 /**
@@ -564,7 +565,7 @@ DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_andptr_ov (volatile ddsrt_atomic
  * @return The new value of the ANDed variable
  */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_and32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
-  return __sync_and_and_fetch (&x->v, v);
+  return __atomic_and_fetch((uint32_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 #if DDSRT_HAVE_ATOMIC64
@@ -577,7 +578,7 @@ DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_and32_nv (volatile ddsrt_atomic_u
  * @return The new value of the ANDed variable
  */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_and64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
-  return __sync_and_and_fetch (&x->v, v);
+  return __atomic_and_fetch((uint64_t*)x, v, __ATOMIC_SEQ_CST);
 }
 #endif
 
@@ -590,13 +591,13 @@ DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_and64_nv (volatile ddsrt_atomic_u
  * @return The new value of the ANDed variable
  */
 DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_andptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return __sync_and_and_fetch (&x->v, v);
+  return __atomic_and_fetch ((uintptr_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 /* OR */
 
 DDS_INLINE_EXPORT inline void ddsrt_atomic_or32 (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
-  __sync_fetch_and_or (&x->v, v);
+  __atomic_fetch_or((uint32_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 #if DDSRT_HAVE_ATOMIC64
@@ -607,7 +608,7 @@ DDS_INLINE_EXPORT inline void ddsrt_atomic_or32 (volatile ddsrt_atomic_uint32_t 
  * @param[in] v The value to OR with the variable
  */
 DDS_INLINE_EXPORT inline void ddsrt_atomic_or64 (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
-  __sync_fetch_and_or (&x->v, v);
+  __atomic_fetch_or((uint64_t*)x, v, __ATOMIC_SEQ_CST);
 }
 #endif
 
@@ -618,7 +619,7 @@ DDS_INLINE_EXPORT inline void ddsrt_atomic_or64 (volatile ddsrt_atomic_uint64_t 
  * @param[in] v The value to OR with the variable
  */
 DDS_INLINE_EXPORT inline void ddsrt_atomic_orptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  __sync_fetch_and_or (&x->v, v);
+  __atomic_fetch_or ((uintptr_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 /**
@@ -630,7 +631,7 @@ DDS_INLINE_EXPORT inline void ddsrt_atomic_orptr (volatile ddsrt_atomic_uintptr_
  * @return The old value of the ORed variable
  */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_or32_ov (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
-  return __sync_fetch_and_or (&x->v, v);
+  return __atomic_fetch_or((uint32_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 #if DDSRT_HAVE_ATOMIC64
@@ -643,7 +644,7 @@ DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_or32_ov (volatile ddsrt_atomic_ui
  * @return The old value of the ORed variable
  */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_or64_ov (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
-  return __sync_fetch_and_or (&x->v, v);
+  return __atomic_fetch_or((uint64_t*)x, v, __ATOMIC_SEQ_CST);
 }
 #endif
 
@@ -656,7 +657,7 @@ DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_or64_ov (volatile ddsrt_atomic_ui
  * @return The old value of the ORed variable
  */
 DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_orptr_ov (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return __sync_fetch_and_or (&x->v, v);
+  return __atomic_fetch_or ((uintptr_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 /**
@@ -668,7 +669,7 @@ DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_orptr_ov (volatile ddsrt_atomic_
  * @return The new value of the ORed variable
  */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_or32_nv (volatile ddsrt_atomic_uint32_t *x, uint32_t v) {
-  return __sync_or_and_fetch (&x->v, v);
+  return __atomic_or_fetch((uint32_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 #if DDSRT_HAVE_ATOMIC64
@@ -681,7 +682,7 @@ DDS_INLINE_EXPORT inline uint32_t ddsrt_atomic_or32_nv (volatile ddsrt_atomic_ui
  * @return The new value of the ORed variable
  */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_or64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v) {
-  return __sync_or_and_fetch (&x->v, v);
+  return __atomic_or_fetch((uint64_t*)x, v, __ATOMIC_SEQ_CST);
 }
 #endif
 
@@ -694,24 +695,24 @@ DDS_INLINE_EXPORT inline uint64_t ddsrt_atomic_or64_nv (volatile ddsrt_atomic_ui
  * @return The new value of the ORed variable
  */
 DDS_INLINE_EXPORT inline uintptr_t ddsrt_atomic_orptr_nv (volatile ddsrt_atomic_uintptr_t *x, uintptr_t v) {
-  return __sync_or_and_fetch (&x->v, v);
+  return __atomic_or_fetch ((uintptr_t*)x, v, __ATOMIC_SEQ_CST);
 }
 
 /* CAS */
 
 DDS_INLINE_EXPORT inline int ddsrt_atomic_cas32 (volatile ddsrt_atomic_uint32_t *x, uint32_t exp, uint32_t des) {
-  return __sync_bool_compare_and_swap (&x->v, exp, des);
+  return __atomic_compare_exchange_n((uint32_t*)x, &exp, des, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 }
 #if DDSRT_HAVE_ATOMIC64
 DDS_INLINE_EXPORT inline int ddsrt_atomic_cas64 (volatile ddsrt_atomic_uint64_t *x, uint64_t exp, uint64_t des) {
-  return __sync_bool_compare_and_swap (&x->v, exp, des);
+  return __atomic_compare_exchange_n((uint64_t*)x, &exp, des, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 }
 #endif
 DDS_INLINE_EXPORT inline int ddsrt_atomic_casptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t exp, uintptr_t des) {
-  return __sync_bool_compare_and_swap (&x->v, exp, des);
+  return __atomic_compare_exchange_n((uintptr_t*)x, &exp, des, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 }
 DDS_INLINE_EXPORT inline int ddsrt_atomic_casvoidp (volatile ddsrt_atomic_voidp_t *x, void *exp, void *des) {
-  return ddsrt_atomic_casptr (x, (uintptr_t) exp, (uintptr_t) des);
+  return ddsrt_atomic_casptr(x, (uintptr_t) exp, (uintptr_t) des);
 }
 #if DDSRT_HAVE_ATOMIC_LIFO
 #if DDSRT_HAVE_ATOMIC64
@@ -741,7 +742,7 @@ DDS_INLINE_EXPORT inline int ddsrt_atomic_casvoidp2 (volatile ddsrt_atomic_uintp
 #if defined(__s390__) || defined(__s390x__) || defined(__zarch__)
   return __sync_bool_compare_and_swap ((ddsrt_atomic_int128_t*)__builtin_assume_aligned(&x->x, 16), o.x, n.x);
 #else
-  return __sync_bool_compare_and_swap (&x->x, o.x, n.x);
+  return __atomic_compare_exchange_n((uintptr_t*)x, &o.x, n.x, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 #endif
 }
 #endif
@@ -749,30 +750,30 @@ DDS_INLINE_EXPORT inline int ddsrt_atomic_casvoidp2 (volatile ddsrt_atomic_uintp
 /* FENCES */
 
 DDS_INLINE_EXPORT inline void ddsrt_atomic_fence (void) {
-  __sync_synchronize ();
+  __atomic_thread_fence(__ATOMIC_SEQ_CST);
 }
 DDS_INLINE_EXPORT inline void ddsrt_atomic_fence_ldld (void) {
 #if !(defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64)
-  __sync_synchronize ();
+  __atomic_thread_fence(__ATOMIC_SEQ_CST);
 #endif
 }
 DDS_INLINE_EXPORT inline void ddsrt_atomic_fence_stst (void) {
 #if !(defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64)
-  __sync_synchronize ();
+  __atomic_thread_fence(__ATOMIC_SEQ_CST);
 #endif
 }
 DDS_INLINE_EXPORT inline void ddsrt_atomic_fence_acq (void) {
 #if !(defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64)
-  ddsrt_atomic_fence ();
+  ddsrt_atomic_fence();
 #else
-  asm volatile ("" ::: "memory");
+  __atomic_thread_fence(__ATOMIC_ACQUIRE);
 #endif
 }
 DDS_INLINE_EXPORT inline void ddsrt_atomic_fence_rel (void) {
 #if !(defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64)
-  ddsrt_atomic_fence ();
+  ddsrt_atomic_fence();
 #else
-  asm volatile ("" ::: "memory");
+  __atomic_thread_fence(__ATOMIC_RELAXED);
 #endif
 }
 
