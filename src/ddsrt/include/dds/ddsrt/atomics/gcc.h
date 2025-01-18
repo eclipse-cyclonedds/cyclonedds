@@ -28,7 +28,7 @@ DDSRT_WARNING_CLANG_OFF(old-style-cast)
 
 /* LD, ST */
 
-DDS_INLINE_EXPORT ddsrt_attribute_no_sanitize (("thread"))
+DDS_INLINE_EXPORT 
 inline uint32_t ddsrt_atomic_ld32(const volatile ddsrt_atomic_uint32_t *x)
 {
   return x->v;
@@ -42,24 +42,24 @@ inline uint32_t ddsrt_atomic_ld32(const volatile ddsrt_atomic_uint32_t *x)
  *
  * @return The value of the fetched variable
  */
-DDS_INLINE_EXPORT ddsrt_attribute_no_sanitize (("thread"))
+DDS_INLINE_EXPORT
 inline uint64_t ddsrt_atomic_ld64(const volatile ddsrt_atomic_uint64_t *x)
 {
   return x->v;
 }
 #endif
-DDS_INLINE_EXPORT ddsrt_attribute_no_sanitize (("thread"))
+DDS_INLINE_EXPORT 
 inline uintptr_t ddsrt_atomic_ldptr(const volatile ddsrt_atomic_uintptr_t *x)
 {
   return x->v;
 }
-DDS_INLINE_EXPORT ddsrt_attribute_no_sanitize (("thread"))
+DDS_INLINE_EXPORT 
 inline void *ddsrt_atomic_ldvoidp(const volatile ddsrt_atomic_voidp_t *x)
 {
   return (void *) ddsrt_atomic_ldptr(x);
 }
 
-DDS_INLINE_EXPORT ddsrt_attribute_no_sanitize (("thread"))
+DDS_INLINE_EXPORT 
 inline void ddsrt_atomic_st32(volatile ddsrt_atomic_uint32_t *x, uint32_t v)
 {
   x->v = v;
@@ -72,18 +72,18 @@ inline void ddsrt_atomic_st32(volatile ddsrt_atomic_uint32_t *x, uint32_t v)
  * @param[out] x Pointer to the variable to update
  * @param[in] v The new value to assign to the variable
  */
-DDS_INLINE_EXPORT ddsrt_attribute_no_sanitize (("thread"))
+DDS_INLINE_EXPORT
 inline void ddsrt_atomic_st64(volatile ddsrt_atomic_uint64_t *x, uint64_t v)
 {
   x->v = v;
 }
 #endif
-DDS_INLINE_EXPORT ddsrt_attribute_no_sanitize (("thread"))
+DDS_INLINE_EXPORT 
 inline void ddsrt_atomic_stptr(volatile ddsrt_atomic_uintptr_t *x, uintptr_t v)
 {
   x->v = v;
 }
-DDS_INLINE_EXPORT ddsrt_attribute_no_sanitize (("thread"))
+DDS_INLINE_EXPORT 
 inline void ddsrt_atomic_stvoidp(volatile ddsrt_atomic_voidp_t *x, void *v)
 {
   ddsrt_atomic_stptr(x, (uintptr_t)v);
