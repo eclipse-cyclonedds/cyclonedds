@@ -786,7 +786,6 @@ static ddsrt_socket_t ddsi_tcp_conn_handle (ddsi_tran_base_t base)
   return ((ddsi_tcp_conn_t) base)->m_sock;
 }
 
-ddsrt_attribute_no_sanitize (("thread"))
 static bool ddsi_tcp_supports (const struct ddsi_tran_factory *fact_cmn, int32_t kind)
 {
   struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) fact_cmn;
