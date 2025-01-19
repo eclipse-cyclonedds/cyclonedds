@@ -86,7 +86,7 @@ static void simple_callback(dds_security_time_event_handle_t timer, dds_time_t t
   DDSRT_UNUSED_ARG(timer);
   DDSRT_UNUSED_ARG(kind);
   DDSRT_UNUSED_ARG(trigger_time);
-  *((bool *)arg) = !(*((bool *)arg));
+  __atomic_xor_fetch((uint8_t*)arg, 255, __ATOMIC_SEQ_CST);
 }
 
 static int g_order_callback_idx = 0;
@@ -120,17 +120,17 @@ static void test_callback(dds_security_time_event_handle_t timer, dds_time_t tri
 
 CU_Test(ddssec_timed_cb, simple_test, .init = setup, .fini = teardown)
 {
-  static bool test_var = false;
+  static uint8_t test_var = 0;
   dds_time_t future = dds_time() + DDS_SECS(2);
   struct dds_security_timed_dispatcher *d1 = dds_security_timed_dispatcher_new(xeventq);
   CU_ASSERT_PTR_NOT_NULL_FATAL(d1);
   dds_security_timed_dispatcher_add(d1, simple_callback, future, (void *)&test_var);
   dds_security_timed_dispatcher_enable(d1);
-  CU_ASSERT_FALSE_FATAL(test_var);
+  CU_ASSERT_EQUAL_FATAL(__atomic_load_n(&test_var,__ATOMIC_SEQ_CST),  0);
   dds_sleepfor(DDS_MSECS(500));
-  CU_ASSERT_FALSE_FATAL(test_var);
+  CU_ASSERT_EQUAL_FATAL(__atomic_load_n(&test_var,__ATOMIC_SEQ_CST), 0);
   dds_sleepfor(DDS_SECS(2));
-  CU_ASSERT_TRUE_FATAL(test_var);
+  CU_ASSERT_EQUAL_FATAL(__atomic_load_n(&test_var,__ATOMIC_SEQ_CST) , 255);
   dds_security_timed_dispatcher_free(d1);
 }
 
@@ -156,35 +156,35 @@ CU_Test(ddssec_timed_cb, test_enabled_and_disabled, .init = setup, .fini = teard
   CU_ASSERT_PTR_NOT_NULL_FATAL(d1);
   dds_security_timed_dispatcher_add(d1, simple_callback, future, (void *)&test_var);
   dds_security_timed_dispatcher_enable(d1);
-  CU_ASSERT_FALSE(test_var);
+  CU_ASSERT_EQUAL_FATAL(__atomic_load_n(&test_var,__ATOMIC_SEQ_CST) , 0);
   (void) dds_security_timed_dispatcher_disable(d1);
   dds_sleepfor(DDS_MSECS(500));
-  CU_ASSERT_FALSE(test_var);
+  CU_ASSERT_EQUAL_FATAL(__atomic_load_n(&test_var,__ATOMIC_SEQ_CST) , 0);
   dds_sleepfor(DDS_SECS(2));
-  CU_ASSERT_FALSE(test_var);
+  CU_ASSERT_EQUAL_FATAL(__atomic_load_n(&test_var,__ATOMIC_SEQ_CST) , 0);
   dds_security_timed_dispatcher_free(d1);
 }
 
 CU_Test(ddssec_timed_cb, simple_test_with_future, .init = setup, .fini = teardown)
 {
-  static bool test_var = false;
+  static uint8_t test_var = 0;
   dds_time_t now = dds_time(), future = now + DDS_SECS(2), far_future = now + DDS_SECS(10);
   struct dds_security_timed_dispatcher *d1 = dds_security_timed_dispatcher_new(xeventq);
   CU_ASSERT_PTR_NOT_NULL_FATAL(d1);
   dds_security_timed_dispatcher_enable(d1);
   dds_security_timed_dispatcher_add(d1, simple_callback, future, (void *)&test_var);
   dds_security_timed_dispatcher_add(d1, simple_callback, far_future, (void *)&test_var);
-  CU_ASSERT_FALSE_FATAL(test_var);
+  CU_ASSERT_EQUAL_FATAL(__atomic_load_n(&test_var,__ATOMIC_SEQ_CST),  0);
   dds_sleepfor(DDS_MSECS(500));
-  CU_ASSERT_FALSE_FATAL(test_var);
+  CU_ASSERT_EQUAL_FATAL(__atomic_load_n(&test_var,__ATOMIC_SEQ_CST),  0);
   dds_sleepfor(DDS_SECS(2));
-  CU_ASSERT_TRUE_FATAL(test_var);
+  CU_ASSERT_EQUAL_FATAL(__atomic_load_n(&test_var,__ATOMIC_SEQ_CST),  255);
   dds_security_timed_dispatcher_free(d1);
 }
 
 CU_Test(ddssec_timed_cb, test_multiple_dispatchers, .init = setup, .fini = teardown)
 {
-  static bool test_var = false;
+  static uint8_t test_var = 0;
   dds_time_t now = dds_time(), future = now + DDS_SECS(2), far_future = now + DDS_SECS(10);
   struct dds_security_timed_dispatcher *d1 = dds_security_timed_dispatcher_new(xeventq);
   struct dds_security_timed_dispatcher *d2 = dds_security_timed_dispatcher_new(xeventq);
@@ -194,11 +194,11 @@ CU_Test(ddssec_timed_cb, test_multiple_dispatchers, .init = setup, .fini = teard
   dds_security_timed_dispatcher_free(d2);
   dds_security_timed_dispatcher_add(d1, simple_callback, future, (void *)&test_var);
   dds_security_timed_dispatcher_add(d1, simple_callback, far_future, (void *)&test_var);
-  CU_ASSERT_FALSE_FATAL(test_var);
+  CU_ASSERT_EQUAL_FATAL(__atomic_load_n(&test_var,__ATOMIC_SEQ_CST),  0);
   dds_sleepfor(DDS_MSECS(500));
-  CU_ASSERT_FALSE_FATAL(test_var);
+  CU_ASSERT_EQUAL_FATAL(__atomic_load_n(&test_var,__ATOMIC_SEQ_CST),  0);
   dds_sleepfor(DDS_SECS(2));
-  CU_ASSERT_TRUE_FATAL(test_var);
+  CU_ASSERT_EQUAL_FATAL(__atomic_load_n(&test_var,__ATOMIC_SEQ_CST),  255);
   dds_security_timed_dispatcher_free(d1);
 }
 
