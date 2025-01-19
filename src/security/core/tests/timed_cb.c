@@ -108,14 +108,14 @@ static void test_callback(dds_security_time_event_handle_t timer, dds_time_t tri
 
   printf("event %"PRIu64" triggered\n", timer);
 
-  if (test_seq->index < test_seq->size)
+  if (__atomic_load_n(&(test_seq->index), __ATOMIC_SEQ_CST) < test_seq->size)
   {
     test_seq->received[test_seq->index].trigger_time = trigger_time;
     test_seq->received[test_seq->index].timer = timer;
     test_seq->received[test_seq->index].kind = (kind == DDS_SECURITY_TIMED_CB_KIND_TIMEOUT) ? EVENT_TRIGGERED : EVENT_DELETED;
     test_seq->received[test_seq->index].time = dds_time();
   }
-  test_seq->index++;
+  __atomic_fetch_add(&(test_seq->index),1,__ATOMIC_SEQ_CST);
 }
 
 CU_Test(ddssec_timed_cb, simple_test, .init = setup, .fini = teardown)
