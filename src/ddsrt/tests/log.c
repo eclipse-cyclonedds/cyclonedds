@@ -405,6 +405,8 @@ CU_Test(dds_log, synchronous_sink_changes, .fini=reset)
 
   CU_ASSERT(arg.before < arg.after);
   CU_ASSERT(arg.after < dds_time());
+  uint32_t join;
+  ddsrt_thread_join(tid,&join);
 #endif
 }
 
