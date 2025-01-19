@@ -212,6 +212,7 @@ CU_Theory ((uint32_t num_local_pp, uint32_t num_remote_pp, uint32_t num_tp), dds
 
   /* Start threads that create topics on local and remote participant] */
   struct create_topic_thread_arg *create_args = ddsrt_malloc ((num_local_pp + num_remote_pp) * sizeof (*create_args));
+  ddsrt_thread_t *create_threads = ddsrt_malloc( (num_local_pp +  num_remote_pp)* sizeof(ddsrt_thread_t));
   for (uint32_t n = 0; n < num_local_pp + num_remote_pp; n++)
   {
     bool remote = n >= num_local_pp;
@@ -222,10 +223,9 @@ CU_Theory ((uint32_t num_local_pp, uint32_t num_remote_pp, uint32_t num_tp), dds
     create_unique_topic_name ("ddsc_topic_find_global", create_args[n].topic_name_prefix, MAX_NAME_SIZE);
     create_args[n].topic_desc = (n % 3) ? (n % 3 == 1 ? &Space_Type2_desc : &Space_Type3_desc) : &Space_Type1_desc;
 
-    ddsrt_thread_t thread_id;
     ddsrt_threadattr_t thread_attr;
     ddsrt_threadattr_init (&thread_attr);
-    ret = ddsrt_thread_create (&thread_id, "create_topic", &thread_attr, topics_thread, &create_args[n]);
+    ret = ddsrt_thread_create (&create_threads[n], "create_topic", &thread_attr, topics_thread, &create_args[n]);
     CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
   }
 
@@ -273,6 +273,12 @@ CU_Theory ((uint32_t num_local_pp, uint32_t num_remote_pp, uint32_t num_tp), dds
     CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
   }
   ddsrt_free (create_args);
+
+  for (uint32_t n = 0; n < num_local_pp + num_remote_pp; n++)
+  {
+    uint32_t result;
+    ddsrt_thread_join(create_threads[n],&result);
+  }
 }
 
 CU_Test (ddsc_topic_find_global, same_name, .init = topic_find_global_init, .fini = topic_find_global_fini, .timeout = 30)
