@@ -31,7 +31,7 @@ void CU_assertImplementation (bool value, int line, const char *expr, const char
 {
   (void)something;
   assert (cur_suite && cur_test);
-  cur_test->nasserts++;
+  __atomic_fetch_add(&cur_test->nasserts,1,__ATOMIC_SEQ_CST);
   if (value)
     return;
 

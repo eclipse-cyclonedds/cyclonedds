@@ -100,7 +100,6 @@ ddsi_tran_factory_t ddsi_factory_find (const struct ddsi_domaingv *gv, const cha
   return ddsi_factory_find_with_len (gv, type, strlen (type));
 }
 
-ddsrt_attribute_no_sanitize (("thread"))
 ddsi_tran_factory_t ddsi_factory_find_supported_kind (const struct ddsi_domaingv *gv, int32_t kind)
 {
   /* FIXME: MUST speed up */

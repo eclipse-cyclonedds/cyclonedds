@@ -91,10 +91,10 @@ typedef int (*ddsi_filter_fn_t)(struct ddsi_writer *wr, struct ddsi_proxy_reader
 struct ddsi_proxy_reader {
   struct ddsi_entity_common e;
   struct ddsi_proxy_endpoint_common c;
-  unsigned deleting: 1; /* set when being deleted */
+  uint8_t deleting; /* set when being deleted */
   unsigned is_fict_trans_reader: 1; /* only true when it is certain that is a fictitious transient data reader (affects built-in topic generation) */
   unsigned requests_keyhash: 1; /* 1 iff this reader would like to receive keyhashes */
-  unsigned redundant_networking: 1; /* 1 iff requests receiving data on all advertised interfaces */
+  uint8_t redundant_networking; /* 1 iff requests receiving data on all advertised interfaces */
 #ifdef DDS_HAS_SSM
   unsigned favours_ssm: 1; /* iff 1, this proxy reader favours SSM when available */
 #endif
