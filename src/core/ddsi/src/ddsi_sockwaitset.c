@@ -25,9 +25,12 @@
 #define MODE_KQUEUE 1
 #define MODE_SELECT 2
 #define MODE_WFMEVS 3
+#define MODE_EPOLL  4
 
 #if defined __APPLE__
 #define MODE_SEL MODE_KQUEUE
+#elif defined __linux
+#define MODE_SEL MODE_EPOLL
 #elif defined WINCE
 #define MODE_SEL MODE_WFMEVS
 #else
@@ -185,7 +188,7 @@ int ddsi_sock_waitset_add (struct ddsi_sock_waitset * ws, struct ddsi_tran_conn 
 
 void ddsi_sock_waitset_purge (struct ddsi_sock_waitset * ws, unsigned index)
 {
-  /* Sockets may have been closed by the Purge is called, but any closed sockets
+  /* Sockets may have been closed by the time Purge is called, but any closed sockets
      are automatically deleted from the kqueue and the file descriptors be reused
      in the meantime.  It therefore seems wiser replace the kqueue then to delete
      entries */
@@ -276,6 +279,252 @@ int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, struct dds
       /* trigger pipe, read & try again */
       char dummy;
       read ((int)ctx->evs[idx].ident, &dummy, 1);
+    }
+  }
+  return -1;
+}
+
+#elif MODE_SEL == MODE_EPOLL
+
+#include <unistd.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/epoll.h>
+
+struct ddsi_sock_waitset_ctx
+{
+  struct epoll_event *evs;
+  uint32_t nevs;
+  uint32_t evs_sz;
+  uint32_t index; /* cursor for enumerating */
+};
+
+struct entry {
+  uint32_t index;
+  int fd;
+  struct ddsi_tran_conn * conn;
+};
+
+struct ddsi_sock_waitset
+{
+  int epfd;
+  int pipe[2]; /* pipe used for triggering */
+  ddsrt_atomic_uint32_t sz;
+  struct entry *entries;
+  struct ddsi_sock_waitset_ctx ctx; /* set of descriptors being handled */
+  ddsrt_mutex_t lock; /* for add/delete */
+};
+
+static int add_entry_locked (struct ddsi_sock_waitset * ws, struct ddsi_tran_conn * conn, int fd)
+{
+  uint32_t idx, fidx, sz, n;
+  struct epoll_event ev;
+  assert (fd >= 0);
+  sz = ddsrt_atomic_ld32 (&ws->sz);
+  for (idx = 0, fidx = UINT32_MAX, n = 0; idx < sz; idx++)
+  {
+    if (ws->entries[idx].fd == -1)
+      fidx = (idx < fidx) ? idx : fidx;
+    else if (ws->entries[idx].conn == conn)
+      return 0;
+    else
+      n++;
+  }
+
+  if (fidx == UINT32_MAX)
+  {
+    const uint32_t newsz = ddsrt_atomic_add32_nv (&ws->sz, WAITSET_DELTA);
+    ws->entries = ddsrt_realloc (ws->entries, newsz * sizeof (*ws->entries));
+    for (idx = sz; idx < newsz; idx++)
+      ws->entries[idx].fd = -1;
+    fidx = sz;
+  }
+  ev.events = EPOLLIN;
+  ev.data.ptr = &ws->entries[fidx];
+  if (epoll_ctl (ws->epfd, EPOLL_CTL_ADD, fd, &ev) == -1)
+    return -1;
+  ws->entries[fidx].conn = conn;
+  ws->entries[fidx].fd = fd;
+  ws->entries[fidx].index = n;
+  return 1;
+}
+
+struct ddsi_sock_waitset * ddsi_sock_waitset_new (void)
+{
+  const uint32_t sz = WAITSET_DELTA;
+  struct ddsi_sock_waitset * ws;
+  uint32_t i;
+  if ((ws = ddsrt_malloc (sizeof (*ws))) == NULL)
+    goto fail_waitset;
+  ddsrt_atomic_st32 (&ws->sz, sz);
+  if ((ws->entries = ddsrt_malloc (sz * sizeof (*ws->entries))) == NULL)
+    goto fail_entries;
+  for (i = 0; i < sz; i++)
+    ws->entries[i].fd = -1;
+  ws->ctx.nevs = 0;
+  ws->ctx.index = 0;
+  ws->ctx.evs_sz = sz;
+  if ((ws->ctx.evs = ddsrt_malloc (ws->ctx.evs_sz * sizeof (*ws->ctx.evs))) == NULL)
+    goto fail_ctx_evs;
+  if ((ws->epfd = epoll_create (1)) == -1)
+    goto fail_epoll_create;
+  if (pipe (ws->pipe) == -1)
+    goto fail_pipe;
+  if (add_entry_locked (ws, NULL, ws->pipe[0]) < 0)
+    goto fail_add_trigger;
+  assert (ws->entries[0].fd == ws->pipe[0]);
+  if (fcntl (ws->epfd, F_SETFD, fcntl (ws->epfd, F_GETFD) | FD_CLOEXEC) == -1)
+    goto fail_fcntl;
+  if (fcntl (ws->pipe[0], F_SETFD, fcntl (ws->pipe[0], F_GETFD) | FD_CLOEXEC) == -1)
+    goto fail_fcntl;
+  if (fcntl (ws->pipe[1], F_SETFD, fcntl (ws->pipe[1], F_GETFD) | FD_CLOEXEC) == -1)
+    goto fail_fcntl;
+  ddsrt_mutex_init (&ws->lock);
+  return ws;
+
+fail_fcntl:
+fail_add_trigger:
+  close (ws->pipe[0]);
+  close (ws->pipe[1]);
+fail_pipe:
+  close (ws->epfd);
+fail_epoll_create:
+  ddsrt_free (ws->ctx.evs);
+fail_ctx_evs:
+  ddsrt_free (ws->entries);
+fail_entries:
+  ddsrt_free (ws);
+fail_waitset:
+  return NULL;
+}
+
+void ddsi_sock_waitset_free (struct ddsi_sock_waitset * ws)
+{
+  ddsrt_mutex_destroy (&ws->lock);
+  close (ws->pipe[0]);
+  close (ws->pipe[1]);
+  close (ws->epfd);
+  ddsrt_free (ws->entries);
+  ddsrt_free (ws->ctx.evs);
+  ddsrt_free (ws);
+}
+
+void ddsi_sock_waitset_trigger (struct ddsi_sock_waitset * ws)
+{
+  char buf = 0;
+  int n;
+  n = (int)write (ws->pipe[1], &buf, 1);
+  if (n != 1)
+  {
+    DDS_WARNING("ddsi_sock_waitset_trigger: read failed on trigger pipe, errno = %d\n", errno);
+  }
+}
+
+int ddsi_sock_waitset_add (struct ddsi_sock_waitset * ws, struct ddsi_tran_conn * conn)
+{
+  int ret;
+  ddsrt_mutex_lock (&ws->lock);
+  ret = add_entry_locked (ws, conn, ddsi_conn_handle (conn));
+  ddsrt_mutex_unlock (&ws->lock);
+  return ret;
+}
+
+void ddsi_sock_waitset_purge (struct ddsi_sock_waitset * ws, unsigned index)
+{
+  /* Sockets may have been closed by the time Purge is called, but any closed sockets
+     are automatically deleted from the epoll-monitored set of file descriptors and the
+     file descriptors be reused in the meantime.  It therefore seems wiser replace the
+     epoll descriptor then to delete entries */
+  uint32_t i, sz;
+  struct epoll_event ev;
+  ddsrt_mutex_lock (&ws->lock);
+  sz = ddsrt_atomic_ld32 (&ws->sz);
+  close (ws->epfd);
+  if ((ws->epfd = epoll_create (1)) == -1)
+    abort (); /* FIXME */
+  for (i = 0; i <= index; i++)
+  {
+    assert (ws->entries[i].fd >= 0);
+    ev.events = EPOLLIN;
+    ev.data.ptr = &ws->entries[i];
+    if (epoll_ctl (ws->epfd, EPOLL_CTL_ADD, ws->entries[i].fd, &ev) == -1)
+      abort (); /* FIXME */
+  }
+  for (; i < sz; i++)
+  {
+    ws->entries[i].conn = NULL;
+    ws->entries[i].fd = -1;
+  }
+  ddsrt_mutex_unlock (&ws->lock);
+}
+
+void ddsi_sock_waitset_remove (struct ddsi_sock_waitset * ws, struct ddsi_tran_conn * conn)
+{
+  const int fd = ddsi_conn_handle (conn);
+  uint32_t i, sz;
+  assert (fd >= 0);
+  ddsrt_mutex_lock (&ws->lock);
+  sz = ddsrt_atomic_ld32 (&ws->sz);
+  for (i = 1; i < sz; i++)
+    if (ws->entries[i].fd == fd)
+      break;
+  if (i < sz)
+  {
+    // pre linux 2.6.9, a non-null event pointer was required, contents don't matter
+    struct epoll_event ev;
+    if (epoll_ctl (ws->epfd, EPOLL_CTL_DEL, ws->entries[i].fd, &ev) == -1)
+      abort (); /* FIXME */
+    ws->entries[i].fd = -1;
+  }
+  ddsrt_mutex_unlock (&ws->lock);
+}
+
+struct ddsi_sock_waitset_ctx * ddsi_sock_waitset_wait (struct ddsi_sock_waitset * ws)
+{
+  /* if the array of events is smaller than the number of file descriptors in the
+     kqueue, things will still work fine, as the kernel will just return what can
+     be stored, and the set will be grown on the next call */
+  uint32_t ws_sz = ddsrt_atomic_ld32 (&ws->sz);
+  int nevs;
+  if (ws->ctx.evs_sz < ws_sz)
+  {
+    ws->ctx.evs_sz = ws_sz;
+    ws->ctx.evs = ddsrt_realloc (ws->ctx.evs, ws_sz * sizeof(*ws->ctx.evs));
+  }
+  nevs = epoll_wait (ws->epfd, ws->ctx.evs, (int)ws->ctx.evs_sz, -1);
+  if (nevs < 0)
+  {
+    if (errno == EINTR)
+      nevs = 0;
+    else
+    {
+      DDS_WARNING("ddsi_sock_waitset_wait: kevent failed, errno = %d\n", errno);
+      return NULL;
+    }
+  }
+  ws->ctx.nevs = (uint32_t)nevs;
+  ws->ctx.index = 0;
+  return &ws->ctx;
+}
+
+int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, struct ddsi_tran_conn **conn)
+{
+  while (ctx->index < ctx->nevs)
+  {
+    uint32_t idx = ctx->index++;
+    struct entry * const entry = ctx->evs[idx].data.ptr;
+    if (entry->index > 0)
+    {
+      *conn = entry->conn;
+      return (int)(entry->index - 1);
+    }
+    else
+    {
+      /* trigger pipe, read & try again */
+      char dummy;
+      ssize_t ret = read (entry->fd, &dummy, 1);
+      if (ret < 0)
+        abort ();
     }
   }
   return -1;
@@ -889,7 +1138,7 @@ struct ddsi_sock_waitset_ctx * ddsi_sock_waitset_wait (struct ddsi_sock_waitset 
   {
     /* this simply skips the trigger fd */
     ctx->index = 1;
-#if !defined(LWIP_SOCKET) 
+#if !defined(LWIP_SOCKET)
     if (FD_ISSET (dst->fds[0], rdset))
     {
       char buf;
