@@ -12,6 +12,7 @@
 #define DDS__WRITE_H
 
 #include "dds/export.h"
+#include "dds__types.h"
 
 #if defined (__cplusplus)
 extern "C" {
