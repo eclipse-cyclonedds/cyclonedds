@@ -101,12 +101,19 @@
  *   *psmx_instance must be set point to a new PSMX Instance on success and may be left
  *                  undefined on error
  *   identifier     contains the numeric PSMX Instance ID
- *   config         is the PSMX configuration string from the "config" attribute of the
+ *   config         the PSMX configuration from the "config" attribute of the
  *                  PubSubMessageExchange interface configuration element.
  *
- * The configuration string is a sequence of KEY=VALUE; pairs and contains a key
- * "SERVICE_NAME" with the PSMX Instance Name as its value if the PSMX Plugin implements
- * interface version 1.
+ * The "config" argument is a contiguous sequence of characters terminated by the first
+ * double-\0.  Each \0-terminated character sequence is a string that consists of
+ * KEY=VALUE pairs, where each K-V pair is terminated by a semicolon.
+ *
+ * If the configuration string as set in Cyclone DDS configuration contains a
+ * "SERVICE_NAME" key, its value is used as the PSMX Instance Name.  If the key is not
+ * included, the value of the "name" attribute of the corresponding PubSubMessageExchange
+ * element in configuration is used as the PSMX Instance Name.  In all cases, looking up
+ * the "SERVICE_NAME" key in the configuration string using @ref
+ * dds_psmx_get_config_option_value will return the PSMX Instance Name as its value.
  *
  * The behaviour of the constructor function is dependent on the interface version it
  * implements:
@@ -664,16 +671,18 @@ DDS_EXPORT dds_return_t dds_psmx_topic_init_generic (struct dds_psmx_topic *psmx
 DDS_EXPORT dds_return_t dds_psmx_topic_cleanup_generic (struct dds_psmx_topic *psmx_topic);
 
 /**
- * @brief Returns the string associated with the option_name in the psmx config string.
+ * @brief Returns the string associated with the option_name in the PSMX config string.
  * @ingroup psmx
  *
- * The C string returned from this function should be freed by the user.
+ * The C string returned from this function should be freed by the user using `ddsrt_free`.
  *
- * @param[in] conf the string containing the psmx configuration.
- * @param[in] option_name the option to search for
- * @return pointer to a string on the heap if found, NULL if not.
+ * @param[in] conf             a double-\0 terminated configuration string in the
+ *                             same format as that passed to the PSMX Plugin's constructor
+ *                             function (see the overview).
+ * @param[in] option_name      the option to look up
+ * @return pointer to a newly allocated string on the heap if found, NULL if not found or out of memory.
  */
-DDS_EXPORT char * dds_psmx_get_config_option_value (const char *conf, const char *option_name);
+DDS_EXPORT char *dds_psmx_get_config_option_value (const char *conf, const char *option_name);
 
 #if defined (__cplusplus)
 }
