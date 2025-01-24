@@ -374,10 +374,11 @@ static dds_return_t deliver_data_any (struct ddsi_thread_state * const thrst, st
     if (loan_source_ep->wants_key)
     {
       dds_return_t ret2 = dds_write_impl_psmx_get_key_untyped_serdata (&key, wr->m_wr->type, tk->m_sample);
-      if (ret2 != DDS_RETCODE_OK && ret == DDS_RETCODE_OK)
+      if (ret2 != DDS_RETCODE_OK)
       {
-        ret = ret2;
         do_psmx_write = false;
+        if (ret == DDS_RETCODE_OK)
+          ret = ret2;
       }
     }
     if (do_psmx_write)
@@ -900,11 +901,12 @@ dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t timest
       if (loan_source_ep->wants_key)
       {
         dds_return_t ret2 = dds_write_impl_psmx_get_key (&key, wr->m_wr->type, data);
-        if (ret2 != DDS_RETCODE_OK && ret == DDS_RETCODE_OK)
+        if (ret2 != DDS_RETCODE_OK)
         {
-          ret = ret2;
-          do_psmx_write = false;
           dds_loaned_sample_unref (psmx_loan);
+          do_psmx_write = false;
+          if (ret == DDS_RETCODE_OK)
+            ret = ret2;
         }
       }
       if (do_psmx_write)
