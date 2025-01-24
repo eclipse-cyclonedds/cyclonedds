@@ -675,7 +675,6 @@ static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, const st
   char * const psmx_name = dds_psmx_get_config_option_value (configstr, "SERVICE_NAME");
   assert (psmx_name); // SERVICE_NAME's presence is guaranteed by dds_pubsub_message_exchange_configstr
   const dds_psmx_instance_id_t id = get_psmx_instance_id (gv, psmx_name);
-  assert (psmx_name);
   if ((ret = creator (&psmx_ext, id, configstr)) != DDS_RETCODE_OK)
   {
     GVERROR ("Failed to initialize PSMX instance '%s'.\n", psmx_name);
