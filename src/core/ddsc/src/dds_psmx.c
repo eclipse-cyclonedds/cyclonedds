@@ -304,7 +304,7 @@ char *dds_pubsub_message_exchange_configstr (const char *config, const char *con
       goto malformed;
   }
   // empty service name is forbidden (13: see check for presence of SERVICE_NAME)
-  if (service_name && service_name[13] == ';')
+  if (service_name && (service_name[13] == ';' || service_name[13] == '\0'))
     goto malformed;
 
   char *configstr = NULL;
