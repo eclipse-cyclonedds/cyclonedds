@@ -247,6 +247,10 @@ static bool check_config_name (const char *config_name)
 
 char *dds_pubsub_message_exchange_configstr (const char *config, const char *config_name)
 {
+  // Result is a \0-separated sequence of non-empty config strings, with only the first
+  // such string possibly empty
+  static const char SERVICE_NAME[] = "SERVICE_NAME";
+  static const size_t SERVICE_NAME_len = sizeof (SERVICE_NAME) - 1;
   // Check syntax: only KEY=VALUE pairs separated by ;, with backslash an escape character
   // We make no assumptions on the names of the keys or their values, except that no keys
   // may have CYCLONEDDS_ as a prefix, contain an escape character or an equals sign.
@@ -274,7 +278,7 @@ char *dds_pubsub_message_exchange_configstr (const char *config, const char *con
           cs = VALUE_NORM;
           if (c - kstart >= 11 && memcmp (kstart, "CYCLONEDDS_", 11) == 0)
             goto malformed;
-          else if (c - kstart >= 12 && memcmp (kstart, "SERVICE_NAME", 12) == 0)
+          else if ((size_t) (c - kstart) >= SERVICE_NAME_len && memcmp (kstart, SERVICE_NAME, SERVICE_NAME_len) == 0)
           {
             // not accepting multiple SERVICE_NAMEs in the config string
             if (service_name)
@@ -303,18 +307,45 @@ char *dds_pubsub_message_exchange_configstr (const char *config, const char *con
     default:
       goto malformed;
   }
-  // empty service name is forbidden (13: see check for presence of SERVICE_NAME)
-  if (service_name && (service_name[13] == ';' || service_name[13] == '\0'))
+  // empty service name is forbidden (service_name is set iff the following character is '=',
+  // so may can inspect the character beyond it)
+  if (service_name && (service_name[SERVICE_NAME_len + 1] == ';' || service_name[SERVICE_NAME_len + 1] == '\0'))
     goto malformed;
 
-  char *configstr = NULL;
+  const size_t input_len = strlen (config);
+  const size_t config_name_len = strlen (config_name);
+  size_t configsz = input_len + 2; /* this string ends at \0\0 */
+  // only require a ; if input is non-empty; this is why the first config string can be
+  // end up empty
+  const bool append_semicolon = (cs == VALUE_NORM);
+  if (append_semicolon)
+    configsz += 1;
   // Config checking verifies structure of config string and absence of any CYCLONEDDS_
   // We append a semicolon if the original config string did not end on one
-  if (service_name) {
-    ddsrt_asprintf (&configstr, "%s%s", config, (cs == VALUE_NORM) ? ";" : "");
-  } else {
-    ddsrt_asprintf (&configstr, "%s%sSERVICE_NAME=%s;", config, (cs == VALUE_NORM) ? ";" : "", config_name);
+  if (service_name == NULL)
+    configsz += SERVICE_NAME_len + 1 + config_name_len + 2;
+
+  char *configstr = NULL;
+  size_t pos = 0;
+  if ((configstr = ddsrt_malloc (configsz)) == NULL)
+    return NULL;
+  memcpy (&configstr[pos], config, input_len);
+  pos += input_len;
+  if (append_semicolon)
+    configstr[pos++] = ';';
+  configstr[pos++] = '\0';
+  if (service_name == NULL)
+  {
+    memcpy (&configstr[pos], SERVICE_NAME, SERVICE_NAME_len);
+    pos += SERVICE_NAME_len;
+    configstr[pos++] = '=';
+    memcpy (&configstr[pos], config_name, config_name_len);
+    pos += config_name_len;
+    configstr[pos++] = ';';
+    configstr[pos++] = '\0';
   }
+  configstr[pos++] = '\0';
+  assert (pos == configsz);
   return configstr;
 
 malformed:
@@ -337,8 +368,6 @@ static size_t value_size (const char *value)
       v += 1;
     }
   }
-  // input validation prevents this, but this would be the correct value if
-  // the input doesn't end on a semicolon
   return n + 1;
 }
 
@@ -347,6 +376,8 @@ static char *extract_value (const char *value)
   size_t n = value_size (value);
   const char *s = value;
   char *dst = ddsrt_malloc (n), *d = dst;
+  if (dst == NULL)
+    return NULL;
   while (--n)
   {
     if (*s == '\\')
@@ -357,38 +388,58 @@ static char *extract_value (const char *value)
   return dst;
 }
 
-char *dds_psmx_get_config_option_value (const char *config, const char *option)
+static char *get_config_option_value_1 (const char *config, const char *option, size_t option_len, const char **endp)
 {
-  if (config == NULL || *config == '\0' || option == NULL || *option == '\0')
-    return NULL;
+  // *endp points to the first \0 encountered if the option was not found
+  // *endp points to a '=' if a lack of available memory caused a null pointer return
   // we are strict about config string syntax during initialization, so now we can relax
-  assert (config[strlen (config) - 1] == ';');
-  const size_t option_len = strlen (option);
-
   const char *kstart = config; // init to pacify compiler
   enum { KEY0, KEY, VALUE_NORM, VALUE_ESCAPED } cs = KEY0;
-  for (const char *c = config; *c; c++) {
+  const char *cursor;
+  for (cursor = config; *cursor; cursor++) {
     switch (cs) {
       case KEY0:
-        kstart = c;
+        kstart = cursor;
         cs = KEY;
         // falls through
       case KEY:
-        if (*c == '=') {
+        if (*cursor == '=') {
           cs = VALUE_NORM;
-          if ((size_t) (c - kstart) == option_len && memcmp (kstart, option, option_len) == 0)
-            return extract_value (c + 1);
+          if ((size_t) (cursor - kstart) == option_len && memcmp (kstart, option, option_len) == 0) {
+            *endp = cursor; // keep the promised NULL return in case of an out-of-memory condition
+            return extract_value (cursor + 1);
+          }
         }
         break;
       case VALUE_NORM:
-        if (*c == ';') cs = KEY0;
-        else if (*c == '\\') cs = VALUE_ESCAPED;
+        if (*cursor == ';') cs = KEY0;
+        else if (*cursor == '\\') cs = VALUE_ESCAPED;
         break;
       case VALUE_ESCAPED:
         cs = VALUE_NORM;
         break;
     }
   }
+  *endp = cursor;
+  return NULL;
+}
+
+char *dds_psmx_get_config_option_value (const char *config, const char *option)
+{
+  if (config == NULL || option == NULL || *option == '\0')
+    return NULL;
+  const size_t option_len = strlen (option);
+  do {
+    const char *endp;
+    char *v = get_config_option_value_1 (config, option, option_len, &endp);
+    if (v != NULL)
+      return v;
+    if (endp[0] != '\0') // out-of-memory
+      return NULL;
+    if (endp[1] == '\0') // \0\0 -> end of input
+      return NULL;
+    config = endp + 1;
+  } while (*config);
   return NULL;
 }
 

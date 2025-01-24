@@ -1572,39 +1572,62 @@ CU_Test (ddsc_psmx, writer_loan)
 
 CU_Test (ddsc_psmx, configstr)
 {
-  static const struct { const char *in; const char *out; } cases[] = {
-    { "", "SERVICE_NAME=aa;" },
-    { "SERVICE_NAME=bb", "SERVICE_NAME=bb;" },
+  typedef struct kv { const char *k; const char *v; } kv_t;
+  const struct { const char *in; const char *out; size_t nkv; const kv_t *kv; } cases[] = {
+    { "", "\0SERVICE_NAME=aa;\0", 1,(kv_t[]){{"SERVICE_NAME","aa"}} },
+    { "SERVICE_NAME=bb", "SERVICE_NAME=bb;\0", 1,(kv_t[]){{"SERVICE_NAME","bb"}} },
+    { "SERVICE_NAME=", NULL },
     { "SERVICE_NAME=;", NULL },
-    { "SERVICE_NAME=\\;", "SERVICE_NAME=\\;;" },
+    { "SERVICE_NAME=\\;", "SERVICE_NAME=\\;;\0", 1,(kv_t[]){{"SERVICE_NAME",";"}} },
     { ";", NULL },
     { "X", NULL },
     { "=", NULL },
     { "=Y", NULL },
     { "X;Y", NULL },
-    { "X=", "X=;SERVICE_NAME=aa;" },
-    { "X=3", "X=3;SERVICE_NAME=aa;" },
-    { "X=3;", "X=3;SERVICE_NAME=aa;" },
+    { "X=", "X=;\0SERVICE_NAME=aa;\0", 2,(kv_t[]){{"X",""},{"SERVICE_NAME","aa"}} },
+    { "X=3", "X=3;\0SERVICE_NAME=aa;\0", 2,(kv_t[]){{"X","3"},{"SERVICE_NAME","aa"}} },
+    { "X=3;", "X=3;\0SERVICE_NAME=aa;\0", 2,(kv_t[]){{"X","3"},{"SERVICE_NAME","aa"}} },
     { "X=3;;", NULL },
-    { "X=3;YY=456", "X=3;YY=456;SERVICE_NAME=aa;" },
-    { "X=3;YY=456;", "X=3;YY=456;SERVICE_NAME=aa;" },
-    { "X=3;SERVICE_NAME=bb;YY=4\\56;", "X=3;SERVICE_NAME=bb;YY=4\\56;" },
+    { "X=3;YY=456", "X=3;YY=456;\0SERVICE_NAME=aa;\0", 3,(kv_t[]){{"X","3"},{"YY","456"},{"SERVICE_NAME","aa"}} },
+    { "X=3;YY=456;", "X=3;YY=456;\0SERVICE_NAME=aa;\0", 3,(kv_t[]){{"X","3"},{"YY","456"},{"SERVICE_NAME","aa"}} },
+    { "X=3;SERVICE_NAME=bb;YY=4\\56;", "X=3;SERVICE_NAME=bb;YY=4\\56;\0", 3,(kv_t[]){{"X","3"},{"YY","456"},{"SERVICE_NAME", "bb"}} },
     { "X=3;;YY=4\\56;", NULL },
     { "X\\=3;", NULL },
     { "X=3;\\", NULL },
     { "X=3\\", NULL },
-    { "X=3\\\\", "X=3\\\\;SERVICE_NAME=aa;" },
-    { "X=3\\;Y=", "X=3\\;Y=;SERVICE_NAME=aa;" },
+    { "X=3\\\\", "X=3\\\\;\0SERVICE_NAME=aa;\0", 2,(kv_t[]){{"X","3\\"},{"SERVICE_NAME", "aa"}} },
+    { "X=3\\;Y=", "X=3\\;Y=;\0SERVICE_NAME=aa;\0", 2,(kv_t[]){{"X","3;Y="},{"SERVICE_NAME", "aa"}} },
     { "CYCLONEDDS_=", NULL },
     { "CYCLONEDDS_X=", NULL },
     { "X=3;CYCLONEDDS_=", NULL },
     { "X=3;CYCLONEDDS_X=", NULL }
   };
   for (size_t i = 0; i < sizeof (cases) / sizeof (cases[0]); i++) {
+    assert ((cases[i].out == NULL) == (cases[i].nkv == 0));
+    // expected string must end in double-\0; we have address sanitizer enabled in
+    // plenty of test environments, so simply scanning until the first double-\0
+    // will cause test failures if the extra \0 has been forgotten
+    size_t outsz = 0;
+    if (cases[i].out)
+    {
+      const char *p = cases[i].out;
+      while (p[0] != '\0' || p[1] != '\0')
+        p++;
+      outsz = (size_t) (p - cases[i].out) + 2;
+    }
+    
     char *p = dds_pubsub_message_exchange_configstr (cases[i].in, "aa");
     CU_ASSERT_FATAL ((p == NULL) == (cases[i].out == NULL));
     if (p) {
-      CU_ASSERT_FATAL (strcmp (p, cases[i].out) == 0);
+      CU_ASSERT_FATAL (memcmp (p, cases[i].out, outsz) == 0);
+      
+      for (size_t j = 0; j < cases[i].nkv; j++)
+      {
+        char *v = dds_psmx_get_config_option_value (p, cases[i].kv[j].k);
+        CU_ASSERT_FATAL (v != NULL);
+        CU_ASSERT_FATAL (strcmp (v, cases[i].kv[j].v) == 0);
+        ddsrt_free (v);
+      }
       ddsrt_free (p);
     }
   }
