@@ -819,22 +819,22 @@ static dds_return_t dds_psmx_endpoint_write_wrapper (const struct dds_psmx_endpo
   return psmx_endpoint->ext->ops.write (psmx_endpoint->ext, data);
 }
 
-static dds_return_t dds_psmx_endpoint_write_key_wrapper (const struct dds_psmx_endpoint_int *psmx_endpoint, dds_loaned_sample_t *data, size_t keysz, const void *key)
+static dds_return_t dds_psmx_endpoint_write_with_key_wrapper (const struct dds_psmx_endpoint_int *psmx_endpoint, dds_loaned_sample_t *data, size_t keysz, const void *key)
 {
-  return psmx_endpoint->ext->ops.write_key (psmx_endpoint->ext, data, keysz, key);
+  return psmx_endpoint->ext->ops.write_with_key (psmx_endpoint->ext, data, keysz, key);
 }
 
-static struct dds_psmx_endpoint_int *new_psmx_endpoint_int (struct dds_psmx_endpoint *ep, dds_psmx_endpoint_type_t endpoint_type, const struct dds_psmx_topic_int *topic, dds_psmx_endpoint_request_loan_int_fn request_loan, dds_psmx_endpoint_write_key_int_fn write_key)
+static struct dds_psmx_endpoint_int *new_psmx_endpoint_int (struct dds_psmx_endpoint *ep, dds_psmx_endpoint_type_t endpoint_type, const struct dds_psmx_topic_int *topic, dds_psmx_endpoint_request_loan_int_fn request_loan, dds_psmx_endpoint_write_with_key_int_fn write_with_key)
 {
   struct dds_psmx_endpoint_int *x = ddsrt_malloc (sizeof (*x));
   x->ops.on_data_available = ep->ops.on_data_available;
   x->ops.request_loan = request_loan;
   x->ops.take = ep->ops.take;
-  x->ops.write_key = write_key;
+  x->ops.write_with_key = write_with_key;
   x->ext = ep;
   x->endpoint_type = endpoint_type;
   x->psmx_topic = topic;
-  x->wants_key = (write_key == dds_psmx_endpoint_write_key_wrapper);
+  x->wants_key = (write_with_key == dds_psmx_endpoint_write_with_key_wrapper);
   return x;
 }
 
@@ -862,7 +862,7 @@ static struct dds_psmx_endpoint_int *psmx_create_endpoint_v1_wrapper (const stru
     return NULL;
   ep_ext->endpoint_type = endpoint_type;
   ep_ext->psmx_topic = psmx_topic->ext;
-  return new_psmx_endpoint_int (ep_ext, endpoint_type, psmx_topic, dds_psmx_endpoint_request_loan_v1_wrapper, ep_ext->ops.write_key ? dds_psmx_endpoint_write_key_wrapper : dds_psmx_endpoint_write_wrapper);
+  return new_psmx_endpoint_int (ep_ext, endpoint_type, psmx_topic, dds_psmx_endpoint_request_loan_v1_wrapper, ep_ext->ops.write_with_key ? dds_psmx_endpoint_write_with_key_wrapper : dds_psmx_endpoint_write_wrapper);
 }
 
 static void psmx_delete_endpoint (struct dds_psmx_endpoint_int *psmx_endpoint)

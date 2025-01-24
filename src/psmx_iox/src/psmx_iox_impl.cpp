@@ -83,7 +83,7 @@ static const dds_psmx_endpoint_ops_t psmx_ep_ops = {
   .on_data_available = iox_on_data_available,
   // backwards compatibility means the following need not be set,
   // but leaving it out results in a compiler warning here
-  .write_key = nullptr
+  .write_with_key = nullptr
 };
 
 
