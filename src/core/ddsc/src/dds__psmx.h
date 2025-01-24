@@ -269,7 +269,7 @@ typedef dds_loaned_sample_t * (*dds_psmx_endpoint_request_loan_int_fn) (const st
  * @param[in] key              The serialized key, a null pointer for keyless topics
  * @returns A DDS return code
  */
-typedef dds_return_t (*dds_psmx_endpoint_write_key_int_fn) (const struct dds_psmx_endpoint_int *psmx_endpoint, dds_loaned_sample_t *data, size_t keysz, const void *key);
+typedef dds_return_t (*dds_psmx_endpoint_write_with_key_int_fn) (const struct dds_psmx_endpoint_int *psmx_endpoint, dds_loaned_sample_t *data, size_t keysz, const void *key);
 
 /**
  * @brief Table of pointers to functions that are used on a PSMX Endpoint
@@ -279,7 +279,7 @@ typedef struct dds_psmx_endpoint_int_ops {
   dds_psmx_endpoint_request_loan_int_fn request_loan;
   dds_psmx_endpoint_take_fn take;
   dds_psmx_endpoint_on_data_available_fn on_data_available;
-  dds_psmx_endpoint_write_key_int_fn write_key;
+  dds_psmx_endpoint_write_with_key_int_fn write_with_key;
 } dds_psmx_endpoint_int_ops_t;
 
 /**

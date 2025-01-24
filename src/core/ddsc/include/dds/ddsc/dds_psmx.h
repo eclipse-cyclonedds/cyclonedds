@@ -490,13 +490,13 @@ typedef dds_loaned_sample_t * (*dds_psmx_endpoint_request_loan_fn) (struct dds_p
  * @param[in] key              The serialized key, a null pointer for keyless topics
  * @returns A DDS return code
  */
-typedef dds_return_t (*dds_psmx_endpoint_write_key_fn) (struct dds_psmx_endpoint *psmx_endpoint, dds_loaned_sample_t *data, size_t keysz, const void *key);
+typedef dds_return_t (*dds_psmx_endpoint_write_with_key_fn) (struct dds_psmx_endpoint *psmx_endpoint, dds_loaned_sample_t *data, size_t keysz, const void *key);
 
 /**
  * @brief Definition of function for writing data via a PSMX Writer
  * @ingroup psmx
  *
- * Equivalent to `dds_psmx_endpoint_write_ih_fn` with `keysz` = 0 and `key` = NULL
+ * Equivalent to `dds_psmx_endpoint_write_with_key_fn` with `keysz` = 0 and `key` = NULL
  */
 typedef dds_return_t (*dds_psmx_endpoint_write_fn) (struct dds_psmx_endpoint *psmx_endpoint, dds_loaned_sample_t *data);
 
@@ -549,7 +549,7 @@ typedef struct dds_psmx_endpoint_ops {
   dds_psmx_endpoint_write_fn write; /**< write, not required if `write_key` is defined */
   dds_psmx_endpoint_take_fn take;
   dds_psmx_endpoint_on_data_available_fn on_data_available;
-  dds_psmx_endpoint_write_key_fn write_key; /**< may be null for backwards compatibility if `write` is defined */
+  dds_psmx_endpoint_write_with_key_fn write_with_key; /**< may be null for backwards compatibility if `write` is defined */
 } dds_psmx_endpoint_ops_t;
 
 /**

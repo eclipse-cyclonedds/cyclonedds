@@ -107,7 +107,7 @@ static const dds_psmx_topic_ops_t psmx_topic_ops = {
 };
 
 static dds_loaned_sample_t * cdds_psmx_ep_request_loan (struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested);
-static dds_return_t cdds_psmx_ep_write_key (struct dds_psmx_endpoint *psmx_endpoint, dds_loaned_sample_t *data, size_t keysz, const void *key);
+static dds_return_t cdds_psmx_ep_write_with_key (struct dds_psmx_endpoint *psmx_endpoint, dds_loaned_sample_t *data, size_t keysz, const void *key);
 static dds_loaned_sample_t * cdds_psmx_ep_take (struct dds_psmx_endpoint *psmx_endpoint);
 static dds_return_t cdds_psmx_ep_on_data_available (struct dds_psmx_endpoint *psmx_endpoint, dds_entity_t reader);
 
@@ -115,7 +115,7 @@ static const dds_psmx_endpoint_ops_t psmx_ep_ops = {
   .request_loan = cdds_psmx_ep_request_loan,
   .take = cdds_psmx_ep_take,
   .on_data_available = cdds_psmx_ep_on_data_available,
-  .write_key = cdds_psmx_ep_write_key
+  .write_with_key = cdds_psmx_ep_write_with_key
 };
 
 static void cdds_loaned_sample_free (struct dds_loaned_sample *loaned_sample);
@@ -299,7 +299,7 @@ static dds_loaned_sample_t * cdds_psmx_ep_request_loan (struct dds_psmx_endpoint
   return ls;
 }
 
-static dds_return_t cdds_psmx_ep_write_key (struct dds_psmx_endpoint *psmx_ep, dds_loaned_sample_t *data, size_t keysz, const void *key)
+static dds_return_t cdds_psmx_ep_write_with_key (struct dds_psmx_endpoint *psmx_ep, dds_loaned_sample_t *data, size_t keysz, const void *key)
 {
   (void) keysz; (void) key;
   struct cdds_psmx_endpoint *cep = (struct cdds_psmx_endpoint *) psmx_ep;

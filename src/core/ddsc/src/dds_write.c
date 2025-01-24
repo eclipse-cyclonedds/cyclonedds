@@ -364,7 +364,7 @@ static dds_return_t deliver_data_any (struct ddsi_thread_state * const thrst, st
         continue;
       }
       dds_loaned_sample_copy (loan_copy, loan);
-      dds_return_t ret2 = ep->ops.write_key (ep, loan_copy, (uint32_t) key.key_iov.iov_len, key.key_iov.iov_base);
+      dds_return_t ret2 = ep->ops.write_with_key (ep, loan_copy, (uint32_t) key.key_iov.iov_len, key.key_iov.iov_base);
       if (ret2 != DDS_RETCODE_OK && ret == DDS_RETCODE_OK)
         ret = ret2;
     }
@@ -383,7 +383,7 @@ static dds_return_t deliver_data_any (struct ddsi_thread_state * const thrst, st
     }
     if (do_psmx_write)
     {
-      dds_return_t ret2 = loan_source_ep->ops.write_key (loan_source_ep, loan, (uint32_t) key.key_iov.iov_len, key.key_iov.iov_base);
+      dds_return_t ret2 = loan_source_ep->ops.write_with_key (loan_source_ep, loan, (uint32_t) key.key_iov.iov_len, key.key_iov.iov_base);
       if (ret2 != DDS_RETCODE_OK && ret == DDS_RETCODE_OK)
         ret = ret2;
     }
@@ -622,7 +622,7 @@ static dds_return_t dds_write_impl_deliver_via_psmx (const struct dds_psmx_endpo
   assert (loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX);
   assert (loan->metadata->sample_state != DDS_LOANED_SAMPLE_STATE_UNITIALIZED);
   assert (psmx_ep->ext == loan->loan_origin.psmx_endpoint);
-  dds_return_t ret = psmx_ep->ops.write_key (psmx_ep, loan, (uint32_t) key_iov->iov_len, key_iov->iov_base);
+  dds_return_t ret = psmx_ep->ops.write_with_key (psmx_ep, loan, (uint32_t) key_iov->iov_len, key_iov->iov_base);
   dds_loaned_sample_unref (loan);
   return ret;
 }
