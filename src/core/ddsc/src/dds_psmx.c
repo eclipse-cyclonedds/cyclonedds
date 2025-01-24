@@ -275,7 +275,12 @@ char *dds_pubsub_message_exchange_configstr (const char *config, const char *con
           if (c - kstart >= 11 && memcmp (kstart, "CYCLONEDDS_", 11) == 0)
             goto malformed;
           else if (c - kstart >= 12 && memcmp (kstart, "SERVICE_NAME", 12) == 0)
+          {
+            // not accepting multiple SERVICE_NAMEs in the config string
+            if (service_name)
+              goto malformed;
             service_name = kstart;
+          }
         }
         break;
       case VALUE_NORM: // non-escaped characters in value
