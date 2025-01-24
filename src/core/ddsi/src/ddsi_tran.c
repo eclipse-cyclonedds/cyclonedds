@@ -68,8 +68,10 @@ void ddsi_tran_factories_fini (struct ddsi_domaingv *gv)
 
 static bool type_is_numeric (const char *type, size_t len, int32_t *value)
 {
-  /* returns false if there are non-digits present or if the value is out of range */
+  /* returns false if input is empty, contains non-digits or if the value is out of range */
   *value = 0;
+  if (len == 0)
+    return false;
   for (size_t i = 0; i < len; i++)
   {
     if (!isdigit ((unsigned char) type[i]))
