@@ -249,17 +249,32 @@ char *dds_pubsub_message_exchange_configstr (const char *config, const char *con
 {
   // Result is a \0-separated sequence of non-empty config strings, with only the first
   // such string possibly empty
+  static const char INSTANCE_NAME[] = "INSTANCE_NAME";
+  static const size_t INSTANCE_NAME_len = sizeof (INSTANCE_NAME) - 1;
+  // SERVICE_NAME: backwards compatibility, synonym for instance name
   static const char SERVICE_NAME[] = "SERVICE_NAME";
   static const size_t SERVICE_NAME_len = sizeof (SERVICE_NAME) - 1;
   // Check syntax: only KEY=VALUE pairs separated by ;, with backslash an escape character
+  //
   // We make no assumptions on the names of the keys or their values, except that no keys
   // may have CYCLONEDDS_ as a prefix, contain an escape character or an equals sign.
-  // We also add SERVICE_NAME=config_name if no SERVICE_NAME set (so the plug-in can rely
-  // on it being present).  That means we also have to verify that config_name is a valid
-  // value, which we do by forbidding it from containing a semi-colon or a backslash.
+  //
+  // We also add INSTANCE_NAME=name if no INSTANCE_NAME is present in config (so the
+  // plug-in can rely on it being present), where name is taken from SERVICE_NAME (if
+  // present) or else from config_name.  For backwards compatibility (old plugins might
+  // reject config strings that contain unexpected keys), we add it immediately following
+  // the first \0.  So the result will look like:
+  //
+  //   A=B;C=D;E=F;\0INSTANCE_NAME=G;\0\0
+  //
+  // in memory.  Possibly using config_name for this means we also have to require that
+  // config_name is a valid value.  The caller is expected to guarantee this.
   const char *kstart = config; // init to pacify compiler
   enum { START, KEY0, KEY, VALUE_NORM, VALUE_ESCAPED } cs = START;
+  const char *instance_name = NULL;
+  const char *service_name_end = NULL;
   const char *service_name = NULL;
+  bool in_service_name = false;
   for (const char *c = config; *c; c++) {
     switch (cs) {
       case START: // start of string, signalled for acceptance check
@@ -278,20 +293,31 @@ char *dds_pubsub_message_exchange_configstr (const char *config, const char *con
           cs = VALUE_NORM;
           if (c - kstart >= 11 && memcmp (kstart, "CYCLONEDDS_", 11) == 0)
             goto malformed;
+          else if ((size_t) (c - kstart) >= INSTANCE_NAME_len && memcmp (kstart, INSTANCE_NAME, INSTANCE_NAME_len) == 0)
+          {
+            // not accepting multiple INSTANCE_NAME/SERVICE_NAME in the config string
+            if (service_name || instance_name)
+              goto malformed;
+            instance_name = kstart;
+          }
           else if ((size_t) (c - kstart) >= SERVICE_NAME_len && memcmp (kstart, SERVICE_NAME, SERVICE_NAME_len) == 0)
           {
-            // not accepting multiple SERVICE_NAMEs in the config string
-            if (service_name)
+            if (service_name || instance_name)
               goto malformed;
             service_name = kstart;
+            in_service_name = true;
           }
         }
         break;
       case VALUE_NORM: // non-escaped characters in value
-        if (*c == ';' || *c == '\0') // ; -> next key (end of string same)
+        if (*c == ';' || *c == '\0') { // ; -> next key (end of string same)
+          if (in_service_name)
+            service_name_end = c;
+          in_service_name = false;
           cs = KEY0;
-        else if (*c == '\\') // escape next character
+        } else if (*c == '\\') { // escape next character
           cs = VALUE_ESCAPED;
+        }
         break;
       case VALUE_ESCAPED: // anything goes
         cs = VALUE_NORM; // but only for this one character
@@ -303,27 +329,48 @@ char *dds_pubsub_message_exchange_configstr (const char *config, const char *con
     case START:      // empty config string is ok
     case KEY0:       // looking at the next key (after ';')
     case VALUE_NORM: // end of value, we accept a missing ';' at the end
+      if (in_service_name) {
+        assert (service_name);
+        service_name_end = service_name + strlen (service_name);
+      }
       break;
     default:
       goto malformed;
   }
-  // empty service name is forbidden (service_name is set iff the following character is '=',
-  // so may can inspect the character beyond it)
+  // empty instance name is forbidden (instance_name is set iff the following character is '=',
+  // so we can inspect the character beyond it)
+  if (instance_name && (instance_name[INSTANCE_NAME_len + 1] == ';' || instance_name[INSTANCE_NAME_len + 1] == '\0'))
+    goto malformed;
   if (service_name && (service_name[SERVICE_NAME_len + 1] == ';' || service_name[SERVICE_NAME_len + 1] == '\0'))
     goto malformed;
 
+  // no instance name present? then add it, taking the value from service_name if present
+  // config name if not
+  const char *append_name = NULL;
+  size_t append_name_len = 0;
+  if (instance_name != NULL)
+    ; // nothing to append
+  else if (service_name == NULL)
+  {
+    append_name = config_name;
+    append_name_len = strlen (config_name);
+  }
+  else
+  {
+    assert (service_name_end && service_name_end >= service_name + SERVICE_NAME_len + 1);
+    append_name = service_name + SERVICE_NAME_len + 1;
+    append_name_len = (size_t) (service_name_end - append_name);
+  }
+
   const size_t input_len = strlen (config);
-  const size_t config_name_len = strlen (config_name);
   size_t configsz = input_len + 2; /* this string ends at \0\0 */
   // only require a ; if input is non-empty; this is why the first config string can be
   // end up empty
   const bool append_semicolon = (cs == VALUE_NORM);
   if (append_semicolon)
     configsz += 1;
-  // Config checking verifies structure of config string and absence of any CYCLONEDDS_
-  // We append a semicolon if the original config string did not end on one
-  if (service_name == NULL)
-    configsz += SERVICE_NAME_len + 1 + config_name_len + 2;
+  if (instance_name == NULL)
+    configsz += INSTANCE_NAME_len + 1 + append_name_len + 2;
 
   char *configstr = NULL;
   size_t pos = 0;
@@ -334,13 +381,13 @@ char *dds_pubsub_message_exchange_configstr (const char *config, const char *con
   if (append_semicolon)
     configstr[pos++] = ';';
   configstr[pos++] = '\0';
-  if (service_name == NULL)
+  if (append_name != NULL)
   {
-    memcpy (&configstr[pos], SERVICE_NAME, SERVICE_NAME_len);
-    pos += SERVICE_NAME_len;
+    memcpy (&configstr[pos], INSTANCE_NAME, INSTANCE_NAME_len);
+    pos += INSTANCE_NAME_len;
     configstr[pos++] = '=';
-    memcpy (&configstr[pos], config_name, config_name_len);
-    pos += config_name_len;
+    memcpy (&configstr[pos], append_name, append_name_len);
+    pos += append_name_len;
     configstr[pos++] = ';';
     configstr[pos++] = '\0';
   }
@@ -428,6 +475,8 @@ char *dds_psmx_get_config_option_value (const char *config, const char *option)
 {
   if (config == NULL || option == NULL || *option == '\0')
     return NULL;
+  if (strcmp (option, "SERVICE_NAME") == 0)
+    option = "INSTANCE_NAME";
   const size_t option_len = strlen (option);
   do {
     const char *endp;
@@ -672,8 +721,8 @@ static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, const st
     goto err_dlsym;
   }
 
-  char * const psmx_name = dds_psmx_get_config_option_value (configstr, "SERVICE_NAME");
-  assert (psmx_name); // SERVICE_NAME's presence is guaranteed by dds_pubsub_message_exchange_configstr
+  char * const psmx_name = dds_psmx_get_config_option_value (configstr, "INSTANCE_NAME");
+  assert (psmx_name); // INSTANCE_NAME's presence is guaranteed by dds_pubsub_message_exchange_configstr
   const dds_psmx_instance_id_t id = get_psmx_instance_id (gv, psmx_name);
   if ((ret = creator (&psmx_ext, id, configstr)) != DDS_RETCODE_OK)
   {
