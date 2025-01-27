@@ -444,3 +444,108 @@ CU_Test(ddsc_psmxif, shared_memory_v0)
 {
   do_psmxif_shared_memory ("dummy_v0");
 }
+
+static void check_psmx_instances (dds_entity_t e, size_t nexp, const char **vexp)
+{
+  dds_qos_t * const qos = dds_create_qos ();
+  dds_return_t ret = dds_get_qos (e, qos);
+  CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+  uint32_t n;
+  char **v;
+  const bool getres = dds_qget_psmx_instances (qos, &n, &v);
+  CU_ASSERT_FATAL (getres);
+  CU_ASSERT_FATAL (n == nexp);
+  for (size_t i = 0; i < nexp; i++)
+  {
+    bool found = false;
+    for (uint32_t j = 0; j < n && !found; j++)
+      found = (strcmp (vexp[i], v[j]) == 0);
+    CU_ASSERT_FATAL (found);
+  }
+  for (uint32_t j = 0; j < n; j++)
+    dds_free (v[j]);
+  dds_free (v);
+  dds_delete_qos (qos);
+}
+
+CU_Test(ddsc_psmxif, reject_invalid_psmx_instances_qos)
+{
+  static const char *configstr_in = "\
+${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
+<General>\
+  <AllowMulticast>spdp</AllowMulticast>\
+  <Interfaces>\
+    <PubSubMessageExchange name=\"cdds\" library=\"psmx_cdds\" priority=\"1000000\"/>\
+    <PubSubMessageExchange name=\"cdds\" library=\"psmx_cdds\" priority=\"1000000\" config=\"SERVICE_NAME=cdds1;\"/>\
+  </Interfaces>\
+</General>\
+<Discovery>\
+  <Tag>${CYCLONEDDS_PID}</Tag>\
+</Discovery>\
+<Tracing>\
+  <OutputFile>cdds.log.0</OutputFile>\
+</Tracing>";
+  char *configstr = ddsrt_expand_envvars (configstr_in, 0);
+  const dds_entity_t dom = dds_create_domain (0, configstr);
+  ddsrt_free (configstr);
+  CU_ASSERT_FATAL (dom > 0);
+  const dds_entity_t dp = dds_create_participant (0, NULL, NULL);
+  CU_ASSERT_FATAL (dp > 0);
+  char topicname[100];
+  create_unique_topic_name ("reject_invalid_psmx_instances_qos", topicname, sizeof (topicname));
+  const dds_entity_t tp = dds_create_topic (dp, &Space_Type3_desc, topicname, NULL, NULL);
+  CU_ASSERT_FATAL (tp > 0);
+
+  dds_qos_t *qos = dds_create_qos ();
+  dds_entity_t wr;
+
+  wr = dds_create_writer (dp, tp, NULL, NULL);
+  CU_ASSERT_FATAL (wr > 0);
+  check_psmx_instances (wr, 2, (const char *[]){"cdds", "cdds1"});
+  dds_delete (wr);
+
+  wr = dds_create_writer (dp, tp, qos, NULL);
+  CU_ASSERT_FATAL (wr > 0);
+  check_psmx_instances (wr, 2, (const char *[]){"cdds", "cdds1"});
+  dds_delete (wr);
+
+  dds_qset_psmx_instances (qos, 1, (const char *[]){"cdds"});
+  wr = dds_create_writer (dp, tp, qos, NULL);
+  CU_ASSERT_FATAL (wr > 0);
+  check_psmx_instances (wr, 1, (const char *[]){"cdds"});
+  dds_delete (wr);
+
+  dds_qset_psmx_instances (qos, 1, (const char *[]){"cdds1"});
+  wr = dds_create_writer (dp, tp, qos, NULL);
+  CU_ASSERT_FATAL (wr > 0);
+  check_psmx_instances (wr, 1, (const char *[]){"cdds1"});
+  dds_delete (wr);
+
+  dds_qset_psmx_instances (qos, 2, (const char *[]){"cdds","cdds1"});
+  wr = dds_create_writer (dp, tp, qos, NULL);
+  CU_ASSERT_FATAL (wr > 0);
+  check_psmx_instances (wr, 2, (const char *[]){"cdds","cdds1"});
+  dds_delete (wr);
+
+  dds_qset_psmx_instances (qos, 2, (const char *[]){"cdds1","cdds"});
+  wr = dds_create_writer (dp, tp, qos, NULL);
+  CU_ASSERT_FATAL (wr > 0);
+  check_psmx_instances (wr, 2, (const char *[]){"cdds","cdds1"});
+  dds_delete (wr);
+
+  dds_qset_psmx_instances (qos, 1, (const char *[]){"kwik"});
+  wr = dds_create_writer (dp, tp, qos, NULL);
+  CU_ASSERT_FATAL (wr == DDS_RETCODE_BAD_PARAMETER);
+
+  dds_qset_psmx_instances (qos, 2, (const char *[]){"cdds","cdds"});
+  wr = dds_create_writer (dp, tp, qos, NULL);
+  CU_ASSERT_FATAL (wr == DDS_RETCODE_BAD_PARAMETER);
+
+  dds_qset_psmx_instances (qos, 2, (const char *[]){"cdds","kwik"});
+  wr = dds_create_writer (dp, tp, qos, NULL);
+  CU_ASSERT_FATAL (wr == DDS_RETCODE_BAD_PARAMETER);
+
+  dds_delete_qos (qos);
+  dds_delete (dom);
+}
+
