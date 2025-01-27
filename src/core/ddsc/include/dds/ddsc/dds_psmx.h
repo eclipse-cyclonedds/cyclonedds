@@ -254,8 +254,7 @@ typedef bool (*dds_psmx_type_qos_supported_fn) (struct dds_psmx *psmx_instance, 
  * representing a new topic in the DDS Domain Entity.
  *
  * The PSMX Plugin is expected to represent a PSMX Topic using an extended version of the
- * `dds_psmx_topic` structure.  It is required to initialize the generic fields using
- * `dds_psmx_topic_init`.
+ * `dds_psmx_topic` structure.
  *
  * If `type_definition` is not a null pointer, it points into the Cyclone type library. A
  * (default, C) serializer can be constructed using `ddsi_topic_descriptor_from_type`,
@@ -284,22 +283,17 @@ typedef struct dds_psmx_topic * (*dds_psmx_create_topic_type_fn) (
  * @ingroup psmx
  *
  * Definition for a function that is called on deleting the topic in the DDS Domain.
- * Called exactly once for each successful invocation of `dds_psmx_topic_new`, all
- * PSMX Endpoints related to this PSMX Topic will have been destructed prior to calling
- * this function.
+ * Called exactly once for each successful invocation of `dds_psmx_create_topic`/
+ * `dds_psmx_create_topic_type`, all PSMX Endpoints related to this PSMX Topic will have
+ * been destructed prior to calling this function.
  *
- * If the PSMX Topic was created using `dds_psmx_topic_new`, the PSMX Plugin is
- * required to call `dds_psmx_topic_fini` and to do so prior to invalidating the
- * memory associated with the PSMX Topic and releasing any memory allocated for it
+ * If the PSMX Topic was created using `dds_psmx_create_topic`, the PSMX Plugin is
+ * required to call `dds_psmx_cleanup_topic_generic` and to do so prior to invalidating
+ * the memory associated with the PSMX Topic and releasing any memory allocated for it
  * during construction.
- *
- * If it was created using `dds_psmx_create_topic` it is allowed to call
- * `dds_psmx_cleanup_topic_generic` instead of `dds_psmx_topic_fini`
- * for backwards compatibility.
  *
  * @param[in] psmx_topic       The PSMX Topic to destruct
  * @returns A DDS return code, should be DDS_RETCODE_OK.
- *
  */
 typedef dds_return_t (*dds_psmx_delete_topic_fn) (struct dds_psmx_topic *psmx_topic);
 
@@ -308,8 +302,8 @@ typedef dds_return_t (*dds_psmx_delete_topic_fn) (struct dds_psmx_topic *psmx_to
  * @ingroup psmx
  *
  * Equivalent to `dds_psmx_create_topic_type` with `type_definition` and `sizeof_type`
- * a null pointer and 0, respectively. May call `dds_psmx_topic_init_generic` instead
- * of `dds_psmx_topic_init` for backwards compatibility.
+ * a null pointer and 0, respectively. It is required to initialize the generic fields using
+ * `dds_psmx_topic_init_generic`.
  *
  * @param[in] psmx_instance    The PSMX instance.
  * @param[in] topic_name       The name of the topic to create
