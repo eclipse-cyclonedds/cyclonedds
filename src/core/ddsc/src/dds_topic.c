@@ -437,7 +437,7 @@ static dds_return_t create_psmx_topics (dds_participant *pp, struct dds_ktopic *
     struct dds_psmx_int * const psmx = dom->psmx_instances.elems[i].instance;
     if (!psmx->ops.type_qos_supported (psmx->ext, DDS_PSMX_ENDPOINT_TYPE_UNSET, sertype_registered->data_type_props, ktp->qos))
       continue;
-    struct dds_psmx_topic_int * const psmx_topic = psmx->ops.create_topic_type (psmx, ktp, sertype_registered, type);
+    struct dds_psmx_topic_int * const psmx_topic = psmx->ops.create_topic_with_type (psmx, ktp, sertype_registered, type);
     if (psmx_topic == NULL)
       goto psmx_fail;
     ktp->psmx_topics.topics[ktp->psmx_topics.length++] = psmx_topic;

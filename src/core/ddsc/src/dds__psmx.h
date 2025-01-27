@@ -116,7 +116,7 @@ typedef void (*dds_psmx_delete_int_fn) (struct dds_psmx_int *psmx);
  * @param[in] type  Optional pointer to type definition in type library.
  * @returns A new PSMX Topic structure, or NULL on error
  */
-typedef struct dds_psmx_topic_int * (*dds_psmx_create_topic_int_type_fn) (
+typedef struct dds_psmx_topic_int * (*dds_psmx_create_topic_with_type_int_fn) (
     struct dds_psmx_int *psmx,
     struct dds_ktopic *ktp,
     struct ddsi_sertype *sertype,
@@ -153,7 +153,7 @@ typedef struct dds_psmx_int_ops {
   dds_psmx_delete_topic_int_fn delete_topic;
   dds_psmx_get_node_identifier_fn get_node_id;
   dds_psmx_supported_features_fn supported_features;
-  dds_psmx_create_topic_int_type_fn create_topic_type; /**< undefined for interface version 0, non-null for version 1 */
+  dds_psmx_create_topic_with_type_int_fn create_topic_with_type; /**< undefined for interface version 0, non-null for version 1 */
   dds_psmx_delete_int_fn delete_psmx; /**< undefined for interface version 0, non-null for version 1 */
 } dds_psmx_int_ops_t;
 

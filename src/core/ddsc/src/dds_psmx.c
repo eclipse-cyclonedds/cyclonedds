@@ -45,8 +45,8 @@ static bool get_check_interface_version (enum dds_psmx_interface_version *ifver,
   // Distinguishing between (1 or 2) and 3 is easy, just check the create_topic and deinit functions.
   if (ops->create_topic == NULL && ops->deinit == NULL)
   {
-    // New mode, then create_topic_type and delete_psmx must be defined
-    if (ops->create_topic_type == NULL || ops->delete_psmx == NULL)
+    // New mode, then create_topic_with_type and delete_psmx must be defined
+    if (ops->create_topic_with_type == NULL || ops->delete_psmx == NULL)
       return false;
     *ifver = DDS_PSMX_INTERFACE_VERSION_1;
     return true;
@@ -62,14 +62,14 @@ static bool get_check_interface_version (enum dds_psmx_interface_version *ifver,
   // - to set the instance_name to a dds_alloc'd string
   // and it so happens that the instance_name immediately follows the operations, and
   // on all supported platforms sizeof(void(*)()) == sizeof(void*) and so the offset
-  // of create_topic_type matches the offset of instance_name
+  // of create_topic_with_type matches the offset of instance_name
   //
   // This check probably invokes undefined behaviour ...
   DDSRT_STATIC_ASSERT(
     offsetof (struct dds_psmx, ops) == 0 &&
-    offsetof (struct dds_psmx_ops, create_topic_type) == offsetof (struct dds_psmx_v0, instance_name));
-  DDSRT_STATIC_ASSERT (sizeof (ops->create_topic_type) == sizeof (char *));
-  if (ops->create_topic_type == NULL)
+    offsetof (struct dds_psmx_ops, create_topic_with_type) == offsetof (struct dds_psmx_v0, instance_name));
+  DDSRT_STATIC_ASSERT (sizeof (ops->create_topic_with_type) == sizeof (char *));
+  if (ops->create_topic_with_type == NULL)
     *ifver = DDS_PSMX_INTERFACE_VERSION_0;
   else
     *ifver = DDS_PSMX_INTERFACE_VERSION_0_BINCOMPAT;
@@ -590,7 +590,7 @@ static struct dds_psmx_topic_int *psmx_create_topic_v0_wrapper (struct dds_psmx_
 
 static struct dds_psmx_topic_int *psmx_create_topic_v1_wrapper (struct dds_psmx_int *psmx, struct dds_ktopic *ktp, struct ddsi_sertype *sertype, struct ddsi_type *type)
 {
-  struct dds_psmx_topic * const topic = psmx->ext->ops.create_topic_type (psmx->ext, ktp->name, sertype->type_name, sertype->data_type_props, type, sertype->sizeof_type);
+  struct dds_psmx_topic * const topic = psmx->ext->ops.create_topic_with_type (psmx->ext, ktp->name, sertype->type_name, sertype->data_type_props, type, sertype->sizeof_type);
   if (topic == NULL)
     return NULL;
   // plugin is only allowed to initialize the ops in the new interface; do a sanity check
@@ -649,7 +649,7 @@ static struct dds_psmx_int *new_psmx_int (struct dds_psmx *ext, enum dds_psmx_in
   {
     case DDS_PSMX_INTERFACE_VERSION_0_BINCOMPAT: {
       struct dds_psmx_v0 const * const ext_v0 = (const struct dds_psmx_v0 *) ext;
-      x->ops.create_topic_type = psmx_create_topic_v0_bincompat_wrapper;
+      x->ops.create_topic_with_type = psmx_create_topic_v0_bincompat_wrapper;
       x->ops.delete_psmx = psmx_delete_psmx_v0_bincompat_wrapper;
       x->instance_id = ext_v0->instance_id;
       x->instance_name = ext_v0->instance_name;
@@ -658,7 +658,7 @@ static struct dds_psmx_int *new_psmx_int (struct dds_psmx *ext, enum dds_psmx_in
       break;
     }
     case DDS_PSMX_INTERFACE_VERSION_0: {
-      x->ops.create_topic_type = psmx_create_topic_v0_wrapper;
+      x->ops.create_topic_with_type = psmx_create_topic_v0_wrapper;
       x->ops.delete_psmx = psmx_delete_psmx_v0_wrapper;
       x->instance_id = ext->instance_id;
       x->instance_name = ext->instance_name;
@@ -667,7 +667,7 @@ static struct dds_psmx_int *new_psmx_int (struct dds_psmx *ext, enum dds_psmx_in
       break;
     }
     case DDS_PSMX_INTERFACE_VERSION_1: {
-      x->ops.create_topic_type = psmx_create_topic_v1_wrapper;
+      x->ops.create_topic_with_type = psmx_create_topic_v1_wrapper;
       x->ops.delete_psmx = psmx_delete_psmx_v1_wrapper;
       x->instance_id = ext->instance_id;
       x->instance_name = ext->instance_name;
