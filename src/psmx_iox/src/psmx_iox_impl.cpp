@@ -57,7 +57,7 @@ static const dds_psmx_ops_t psmx_ops = {
   .supported_features = iox_supported_features,
   // backwards compatibility means the following two need not be set,
   // but leaving them out results in a compiler warning here
-  .create_topic_type = nullptr,
+  .create_topic_with_type = nullptr,
   .delete_psmx = nullptr
 };
 

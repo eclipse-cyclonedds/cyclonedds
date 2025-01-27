@@ -270,7 +270,7 @@ typedef bool (*dds_psmx_type_qos_supported_fn) (struct dds_psmx *psmx_instance, 
  * @param[in] sizeof_type      In-memory size of a single instance of the type, 0 if unknown.
  * @returns A new PSMX Topic structure, or NULL on error
  */
-typedef struct dds_psmx_topic * (*dds_psmx_create_topic_type_fn) (
+typedef struct dds_psmx_topic * (*dds_psmx_create_topic_with_type_fn) (
     struct dds_psmx *psmx_instance,
     const char *topic_name,
     const char *type_name,
@@ -284,7 +284,7 @@ typedef struct dds_psmx_topic * (*dds_psmx_create_topic_type_fn) (
  *
  * Definition for a function that is called on deleting the topic in the DDS Domain.
  * Called exactly once for each successful invocation of `dds_psmx_create_topic`/
- * `dds_psmx_create_topic_type`, all PSMX Endpoints related to this PSMX Topic will have
+ * `dds_psmx_create_topic_with_type`, all PSMX Endpoints related to this PSMX Topic will have
  * been destructed prior to calling this function.
  *
  * If the PSMX Topic was created using `dds_psmx_create_topic`, the PSMX Plugin is
@@ -387,7 +387,7 @@ typedef struct dds_psmx_ops {
   dds_psmx_deinit_fn deinit; /**< non-null for interface version 0, null for version 1 */
   dds_psmx_get_node_identifier_fn get_node_id;
   dds_psmx_supported_features_fn supported_features;
-  dds_psmx_create_topic_type_fn create_topic_type; /**< undefined for interface version 0, non-null for version 1 */
+  dds_psmx_create_topic_with_type_fn create_topic_with_type; /**< undefined for interface version 0, non-null for version 1 */
   dds_psmx_delete_fn delete_psmx; /**< undefined for interface version 0, non-null for version 1 */
 } dds_psmx_ops_t;
 

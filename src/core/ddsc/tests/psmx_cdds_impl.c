@@ -91,7 +91,7 @@ static dds_psmx_features_t cdds_supported_features (const struct dds_psmx *psmx)
 
 static const dds_psmx_ops_t psmx_instance_ops = {
   .type_qos_supported = cdds_psmx_type_qos_supported,
-  .create_topic_type = cdds_psmx_create_topic,
+  .create_topic_with_type = cdds_psmx_create_topic,
   .delete_topic = cdds_psmx_delete_topic,
   .get_node_id = cdds_psmx_get_node_id,
   .supported_features = cdds_supported_features,
