@@ -682,16 +682,16 @@ static struct dds_psmx_int *new_psmx_int (struct dds_psmx *ext, enum dds_psmx_in
 static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, const struct ddsi_config_psmx *config, struct dds_psmx_int **out, ddsrt_dynlib_t *lib_handle, enum dds_psmx_interface_version *interface_version)
 {
   dds_psmx_create_fn creator = NULL;
-  const char *lib_name;
+  char *lib_name;
   ddsrt_dynlib_t handle;
   char load_fn[100];
   dds_return_t ret = DDS_RETCODE_ERROR;
   struct dds_psmx *psmx_ext = NULL;
 
-  if (!config->library || config->library[0] == '\0')
-    lib_name = config->name;
-  else
+  if (config->library && config->library[0] != '\0')
     lib_name = config->library;
+  else
+    ddsrt_asprintf (&lib_name, "psmx_%s", config->type);
 
   if (!check_config_type_name (config->type))
   {
@@ -790,6 +790,8 @@ static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, const st
   *lib_handle = handle;
   ddsrt_free (psmx_name);
   ddsrt_free (configstr);
+  if (lib_name != config->library)
+    ddsrt_free (lib_name);
   return DDS_RETCODE_OK;
 
 err_ifver:
@@ -805,6 +807,8 @@ err_dlsym:
 err_dlopen:
   ddsrt_free (configstr);
 err_configstr:
+  if (lib_name != config->library)
+    ddsrt_free (lib_name);
   return ret;
 }
 
