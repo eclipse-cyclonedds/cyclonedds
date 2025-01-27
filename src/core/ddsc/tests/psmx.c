@@ -1574,29 +1574,29 @@ CU_Test (ddsc_psmx, configstr)
 {
   typedef struct kv { const char *k; const char *v; } kv_t;
   const struct { const char *in; const char *out; size_t nkv; const kv_t *kv; } cases[] = {
-    { "", "\0SERVICE_NAME=aa;\0", 1,(kv_t[]){{"SERVICE_NAME","aa"}} },
-    { "SERVICE_NAME=bb", "SERVICE_NAME=bb;\0", 1,(kv_t[]){{"SERVICE_NAME","bb"}} },
+    { "", "\0INSTANCE_NAME=aa;\0", 1,(kv_t[]){{"INSTANCE_NAME","aa"}} },
+    { "SERVICE_NAME=bb", "SERVICE_NAME=bb;\0INSTANCE_NAME=bb;\0", 1,(kv_t[]){{"INSTANCE_NAME","bb"}} },
     { "SERVICE_NAME=", NULL },
     { "SERVICE_NAME=;", NULL },
-    { "SERVICE_NAME=\\;", "SERVICE_NAME=\\;;\0", 1,(kv_t[]){{"SERVICE_NAME",";"}} },
+    { "SERVICE_NAME=\\;", "SERVICE_NAME=\\;;\0INSTANCE_NAME=\\;;\0", 1,(kv_t[]){{"INSTANCE_NAME",";"}} },
     { ";", NULL },
     { "X", NULL },
     { "=", NULL },
     { "=Y", NULL },
     { "X;Y", NULL },
-    { "X=", "X=;\0SERVICE_NAME=aa;\0", 2,(kv_t[]){{"X",""},{"SERVICE_NAME","aa"}} },
-    { "X=3", "X=3;\0SERVICE_NAME=aa;\0", 2,(kv_t[]){{"X","3"},{"SERVICE_NAME","aa"}} },
-    { "X=3;", "X=3;\0SERVICE_NAME=aa;\0", 2,(kv_t[]){{"X","3"},{"SERVICE_NAME","aa"}} },
+    { "X=", "X=;\0INSTANCE_NAME=aa;\0", 2,(kv_t[]){{"X",""},{"INSTANCE_NAME","aa"}} },
+    { "X=3", "X=3;\0INSTANCE_NAME=aa;\0", 2,(kv_t[]){{"X","3"},{"INSTANCE_NAME","aa"}} },
+    { "X=3;", "X=3;\0INSTANCE_NAME=aa;\0", 2,(kv_t[]){{"X","3"},{"INSTANCE_NAME","aa"}} },
     { "X=3;;", NULL },
-    { "X=3;YY=456", "X=3;YY=456;\0SERVICE_NAME=aa;\0", 3,(kv_t[]){{"X","3"},{"YY","456"},{"SERVICE_NAME","aa"}} },
-    { "X=3;YY=456;", "X=3;YY=456;\0SERVICE_NAME=aa;\0", 3,(kv_t[]){{"X","3"},{"YY","456"},{"SERVICE_NAME","aa"}} },
-    { "X=3;SERVICE_NAME=bb;YY=4\\56;", "X=3;SERVICE_NAME=bb;YY=4\\56;\0", 3,(kv_t[]){{"X","3"},{"YY","456"},{"SERVICE_NAME", "bb"}} },
+    { "X=3;YY=456", "X=3;YY=456;\0INSTANCE_NAME=aa;\0", 3,(kv_t[]){{"X","3"},{"YY","456"},{"INSTANCE_NAME","aa"}} },
+    { "X=3;YY=456;", "X=3;YY=456;\0INSTANCE_NAME=aa;\0", 3,(kv_t[]){{"X","3"},{"YY","456"},{"INSTANCE_NAME","aa"}} },
+    { "X=3;INSTANCE_NAME=bb;YY=4\\56;", "X=3;INSTANCE_NAME=bb;YY=4\\56;\0", 3,(kv_t[]){{"X","3"},{"YY","456"},{"INSTANCE_NAME", "bb"}} },
     { "X=3;;YY=4\\56;", NULL },
     { "X\\=3;", NULL },
     { "X=3;\\", NULL },
     { "X=3\\", NULL },
-    { "X=3\\\\", "X=3\\\\;\0SERVICE_NAME=aa;\0", 2,(kv_t[]){{"X","3\\"},{"SERVICE_NAME", "aa"}} },
-    { "X=3\\;Y=", "X=3\\;Y=;\0SERVICE_NAME=aa;\0", 2,(kv_t[]){{"X","3;Y="},{"SERVICE_NAME", "aa"}} },
+    { "X=3\\\\", "X=3\\\\;\0INSTANCE_NAME=aa;\0", 2,(kv_t[]){{"X","3\\"},{"INSTANCE_NAME", "aa"}} },
+    { "X=3\\;Y=", "X=3\\;Y=;\0INSTANCE_NAME=aa;\0", 2,(kv_t[]){{"X","3;Y="},{"INSTANCE_NAME", "aa"}} },
     { "CYCLONEDDS_=", NULL },
     { "CYCLONEDDS_X=", NULL },
     { "X=3;CYCLONEDDS_=", NULL },
@@ -1623,10 +1623,18 @@ CU_Test (ddsc_psmx, configstr)
       
       for (size_t j = 0; j < cases[i].nkv; j++)
       {
+        assert (strcmp (cases[i].kv[j].k, "SERVICE_NAME") != 0);
         char *v = dds_psmx_get_config_option_value (p, cases[i].kv[j].k);
         CU_ASSERT_FATAL (v != NULL);
         CU_ASSERT_FATAL (strcmp (v, cases[i].kv[j].v) == 0);
         ddsrt_free (v);
+        if (strcmp (cases[i].kv[j].k, "INSTANCE_NAME") == 0)
+        {
+          v = dds_psmx_get_config_option_value (p, "SERVICE_NAME");
+          CU_ASSERT_FATAL (v != NULL);
+          CU_ASSERT_FATAL (strcmp (v, cases[i].kv[j].v) == 0);
+          ddsrt_free (v);
+        }
       }
       ddsrt_free (p);
     }
