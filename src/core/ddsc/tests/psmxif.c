@@ -104,7 +104,7 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
 <General>\
 <AllowMulticast>spdp</AllowMulticast>\
 <Interfaces>\
-  <PubSubMessageExchange name=\"%s\" library=\"psmx_%s\" priority=\"1000000\" config=\"LOCATOR=4a4d203df6996395e1412fbecc2de4b6;SERVICE_NAME=service_psmx_dummy;KEYED_TOPICS=true;\" />\
+  <PubSubMessageExchange type=\"%s\" library=\"psmx_%s\" priority=\"1000000\" config=\"LOCATOR=4a4d203df6996395e1412fbecc2de4b6;INSTANCE_NAME=service_psmx_dummy;KEYED_TOPICS=true;\" />\
 </Interfaces>\
 </General>\
 <Tracing>\
@@ -130,8 +130,8 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
 <General>\
 <AllowMulticast>spdp</AllowMulticast>\
 <Interfaces>\
-  <PubSubMessageExchange name=\"%s\" library=\"psmx_%s\" priority=\"1000001\" config=\"LOCATOR=4a4d203df6996395e1412fbecc2de4b6;SERVICE_NAME=service_psmx_dummy;KEYED_TOPICS=true;\" />\
-  <PubSubMessageExchange name=\"cdds\" library=\"psmx_cdds\" priority=\"1000000\" config=\"LOCATOR=4a4d203df6996395e1412fbecc2de4b7;SERVICE_NAME=psmx0;KEYED_TOPICS=true;\" />\
+  <PubSubMessageExchange type=\"%s\" library=\"psmx_%s\" priority=\"1000001\" config=\"LOCATOR=4a4d203df6996395e1412fbecc2de4b6;INSTANCE_NAME=service_psmx_dummy;KEYED_TOPICS=true;\" />\
+  <PubSubMessageExchange type=\"cdds\" library=\"psmx_cdds\" priority=\"1000000\" config=\"LOCATOR=4a4d203df6996395e1412fbecc2de4b7;INSTANCE_NAME=psmx0;KEYED_TOPICS=true;\" />\
 </Interfaces>\
 </General>\
 <Tracing>\
@@ -166,8 +166,8 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
 <General>\
   <AllowMulticast>spdp</AllowMulticast>\
   <Interfaces>\
-    <PubSubMessageExchange name=\"dummy\" library=\"psmx_dummy\" priority=\"1000000\" config=\"SERVICE_NAME=psmx_dummy;KEYED_TOPICS=true;\" />\
-    <PubSubMessageExchange name=\"cdds\" library=\"psmx_cdds\" priority=\"1000000\" config=\"SERVICE_NAME=psmx_cdds;KEYED_TOPICS=true;\" />\
+    <PubSubMessageExchange name=\"dummy\" library=\"psmx_dummy\" priority=\"1000000\" config=\"INSTANCE_NAME=psmx_dummy;KEYED_TOPICS=true;\" />\
+    <PubSubMessageExchange name=\"cdds\" library=\"psmx_cdds\" priority=\"1000000\" config=\"INSTANCE_NAME=psmx_cdds;KEYED_TOPICS=true;\" />\
   </Interfaces>\
 </General>\
 <Discovery>\
@@ -335,7 +335,7 @@ static void do_psmxif_shared_memory (const char *dummylib)
     const size_t endpt_cnt = sizeof(delete_endpoint_expected) / sizeof(delete_endpoint_expected[0]);
 
     // Check that the config string passed to `dds_create_domain()` has been correctly forwarded to the dummy psmx.
-    char dmock_config_expected[] = "LOCATOR=4a4d203df6996395e1412fbecc2de4b6;SERVICE_NAME=service_psmx_dummy;KEYED_TOPICS=true;";
+    char dmock_config_expected[] = "LOCATOR=4a4d203df6996395e1412fbecc2de4b6;INSTANCE_NAME=service_psmx_dummy;KEYED_TOPICS=true;";
     CU_ASSERT_FATAL(strcmp(dmock->config, dmock_config_expected) == 0);
 
     void* sample = NULL;
@@ -475,8 +475,8 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
 <General>\
   <AllowMulticast>spdp</AllowMulticast>\
   <Interfaces>\
-    <PubSubMessageExchange name=\"cdds\" library=\"psmx_cdds\" priority=\"1000000\"/>\
-    <PubSubMessageExchange name=\"cdds\" library=\"psmx_cdds\" priority=\"1000000\" config=\"SERVICE_NAME=cdds1;\"/>\
+    <PubSubMessageExchange type=\"cdds\" priority=\"1000000\"/>\
+    <PubSubMessageExchange type=\"cdds\" priority=\"1000000\" config=\"INSTANCE_NAME=cdds1;\"/>\
   </Interfaces>\
 </General>\
 <Discovery>\

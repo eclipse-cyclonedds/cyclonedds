@@ -227,7 +227,7 @@ static dds_psmx_instance_id_t get_psmx_instance_id (const struct ddsi_domaingv *
   return ddsrt_mh3 (config_name, strlen (config_name), hashed_id);
 }
 
-static bool check_config_name (const char *config_name)
+static bool check_config_type_name (const char *config_name)
 {
   const char *c = config_name;
   while (*c)
@@ -693,16 +693,16 @@ static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, const st
   else
     lib_name = config->library;
 
-  if (!check_config_name (config->name))
+  if (!check_config_type_name (config->type))
   {
-    GVERROR ("Configuration for PSMX instance '%s' has invalid name\n", config->name);
+    GVERROR ("Configuration for PSMX instance '%s' has invalid type\n", config->type);
     goto err_configstr;
   }
 
   char *configstr;
-  if ((configstr = dds_pubsub_message_exchange_configstr (config->config, config->name)) == NULL)
+  if ((configstr = dds_pubsub_message_exchange_configstr (config->config, config->type)) == NULL)
   {
-    GVERROR ("Configuration for PSMX instance '%s' is invalid\n", config->name);
+    GVERROR ("Configuration for PSMX instance '%s' is invalid\n", config->type);
     goto err_configstr;
   }
 
@@ -714,10 +714,10 @@ static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, const st
     goto err_dlopen;
   }
 
-  (void) snprintf (load_fn, sizeof (load_fn), "%s_create_psmx", config->name);
+  (void) snprintf (load_fn, sizeof (load_fn), "%s_create_psmx", config->type);
   if ((ret = ddsrt_dlsym (handle, load_fn, (void **) &creator)) != DDS_RETCODE_OK)
   {
-    GVERROR ("Failed to initialize PSMX instance '%s', could not load init function '%s'.\n", config->name, load_fn);
+    GVERROR ("Failed to initialize PSMX instance '%s', could not load init function '%s'.\n", config->type, load_fn);
     goto err_dlsym;
   }
 
@@ -828,7 +828,7 @@ dds_return_t dds_pubsub_message_exchange_init (const struct ddsi_domaingv *gv, s
       return DDS_RETCODE_UNSUPPORTED;
     }
 
-    GVLOG(DDS_LC_INFO, "Loading PSMX instance %s\n", iface->cfg.name);
+    GVLOG(DDS_LC_INFO, "Loading PSMX instance %s\n", iface->cfg.type);
     struct dds_psmx_int *psmx = NULL;
     ddsrt_dynlib_t lib_handle;
     enum dds_psmx_interface_version ifver;
@@ -842,7 +842,7 @@ dds_return_t dds_pubsub_message_exchange_init (const struct ddsi_domaingv *gv, s
     }
     else
     {
-      GVERROR ("error loading PSMX instance \"%s\"\n", iface->cfg.name);
+      GVERROR ("error loading PSMX instance \"%s\"\n", iface->cfg.type);
       return DDS_RETCODE_ERROR;
     }
     iface = iface->next;
