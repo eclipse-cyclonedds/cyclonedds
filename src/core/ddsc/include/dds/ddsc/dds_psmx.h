@@ -57,10 +57,10 @@
  * Reader/Writer Endpoints have been created is assumed to exist.
  *
  * The PSMX Domain is assumed to deliver data published by the PSMX Writer associated with
- * DDS Writer X to all PSMX Readers associated with the DDS Readers Ys that match X, optionally
- * excluding DDS Readers in the same Domain Entity as X.  It is assumed to not deliver data
- * to other DDS Readers in the DDS Domain.  It is assumed to do this with a quality of
- * service compatible with the DDS QoS.
+ * DDS Writer X to all PSMX Readers associated with the DDS Readers Ys that match X[^5],
+ * optionally excluding DDS Readers in the same Domain Entity as X.  It is assumed to not
+ * deliver data to other DDS Readers in the DDS Domain.  It is assumed to do this with a
+ * quality of service compatible with the DDS QoS.
  *
  * Readers associated with DDS Readers in the same DDS Domain Entity.
  *
@@ -152,6 +152,9 @@
  * to do with the numeric PSMX Domain identifier.
  *
  * [^4]: This typically matches a machine when the transport is shared memory.
+ *
+ * [^5]: That is, the matching rules between Readers and Writers defined in the DDS
+ * specification.
  */
 #ifndef DDS_PSMX_H
 #define DDS_PSMX_H
