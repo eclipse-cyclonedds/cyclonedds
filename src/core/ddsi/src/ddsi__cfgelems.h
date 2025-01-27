@@ -107,17 +107,17 @@ static struct cfgelem network_interface_attributes[] = {
 };
 
 static struct cfgelem psmx_attributes[] = {
-  STRING("name", NULL, 1, "",
-    MEMBEROF(ddsi_config_psmx_listelem, cfg.name),
+  STRING("type|name", NULL, 1, "",
+    MEMBEROF(ddsi_config_psmx_listelem, cfg.type),
     FUNCTIONS(0, uf_string, ff_free, pf_string),
     DESCRIPTION(
-      "<p>This attribute specifies the name of the interface. </p>"
+      "<p>This attribute specifies the type of the interface.</p>"
     )),
   STRING("library", NULL, 1, "",
     MEMBEROF(ddsi_config_psmx_listelem, cfg.library),
     FUNCTIONS(0, uf_string, ff_free, pf_string),
     DESCRIPTION(
-      "<p>This attribute specifies the filename of the interface library. </p>"
+      "<p>This attribute specifies the filename of the interface library. Defaults to psmx_TYPE</p>"
     )),
   STRING("priority", NULL, 1, "default",
     MEMBEROF(ddsi_config_psmx_listelem, cfg.priority),

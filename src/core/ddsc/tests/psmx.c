@@ -61,7 +61,7 @@ static void fail_too_much_data (void) { fail (); }
 #if 0
 #define TRACE_CATEGORY "trace,rhc"
 #else
-#define TRACE_CATEGORY "discovery"
+#define TRACE_CATEGORY "config,discovery"
 #endif
 
 static dds_entity_t create_participant (dds_domainid_t int_dom)
@@ -74,7 +74,7 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
 <General>\
   <AllowMulticast>spdp</AllowMulticast>\
   <Interfaces>\
-    <PubSubMessageExchange name=\"${CDDS_PSMX_NAME:-cdds}\" library=\"psmx_${CDDS_PSMX_NAME:-cdds}\" priority=\"1000000\" config=\"LOCATOR=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x;SERVICE_NAME=psmx%d;KEYED_TOPICS=true;\" />\
+    <PubSubMessageExchange type=\"${CDDS_PSMX_NAME:-cdds}\" priority=\"1000000\" config=\"LOCATOR=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x;INSTANCE_NAME=psmx%d;KEYED_TOPICS=true;\" />\
   </Interfaces>\
 </General>\
 <Discovery>\
