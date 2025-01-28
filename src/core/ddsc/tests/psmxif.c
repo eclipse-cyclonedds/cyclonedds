@@ -549,3 +549,31 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
   dds_delete (dom);
 }
 
+CU_Test(ddsc_psmxif, create_topic_failure)
+{
+  static const char *configstr_in = "\
+${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
+<General>\
+  <Interfaces>\
+    <PubSubMessageExchange type=\"dummy\"/>\
+  </Interfaces>\
+</General>\
+<Discovery>\
+  <Tag>${CYCLONEDDS_PID}</Tag>\
+</Discovery>";
+  char *configstr = ddsrt_expand_envvars (configstr_in, 0);
+  const dds_entity_t dom = dds_create_domain (0, configstr);
+  ddsrt_free (configstr);
+  CU_ASSERT_FATAL (dom > 0);
+  const dds_entity_t dp = dds_create_participant (0, NULL, NULL);
+  CU_ASSERT_FATAL (dp > 0);
+
+  dummy_mockstats_t * const dmock = dummy_mockstats_get_ptr ();
+  dmock->fail_create_topic = true;
+
+  char topicname[100];
+  create_unique_topic_name ("create_topic_failure", topicname, sizeof (topicname));
+  const dds_entity_t tp = dds_create_topic (dp, &Space_Type3_desc, topicname, NULL, NULL);
+  CU_ASSERT_FATAL (tp < 0);
+  dds_delete (dom);
+}

@@ -144,6 +144,9 @@ static dds_psmx_topic_t* dummy_psmx_create_topic(
   const char* type_name,
   dds_data_type_properties_t data_type_props
 ) {
+  if (g_mockstats.fail_create_topic)
+    return NULL;
+
   (void)data_type_props;
   assert(g_mockstats.topics._length < g_mockstats.topics._maximum);
   dds_psmx_topic_t* topic = (dds_psmx_topic_t*)g_mockstats.topics._buffer + g_mockstats.topics._length++;
