@@ -47,6 +47,7 @@ typedef struct dummy_mockstats_s{
 
   // Exposed internals
   bool supports_shared_memory;
+  bool fail_create_topic;
   char* config;
   dynamic_array_t topics;
   dynamic_array_t endpoints;
