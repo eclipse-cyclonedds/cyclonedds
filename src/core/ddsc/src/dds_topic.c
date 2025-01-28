@@ -587,30 +587,33 @@ dds_entity_t dds_create_topic_impl (
     ddsrt_mutex_unlock (&gv->sertypes_lock);
   }
 
+  // mintype: needs to be unref'd if ddsi_type_ref_local fails for complete type
+  // compltype: used for PSMX
   struct ddsi_type *mintype = NULL, *compltype = NULL;
 #ifdef DDS_HAS_TYPELIB
-  if ((rc = ddsi_type_ref_local (gv, &mintype, sertype_registered, DDSI_TYPEID_KIND_MINIMAL)) != DDS_RETCODE_OK
-      || ddsi_type_ref_local (gv, &compltype, sertype_registered, DDSI_TYPEID_KIND_COMPLETE) != DDS_RETCODE_OK)
+  if (ddsi_type_ref_local (gv, &mintype, sertype_registered, DDSI_TYPEID_KIND_MINIMAL) != DDS_RETCODE_OK)
   {
-    if (rc == DDS_RETCODE_OK)
-      ddsi_type_unref (gv, mintype);
-    ddsi_sertype_unref (*sertype);
-    ktopic_unref (pp, ktp);
-    ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
-    GVTRACE ("dds_create_topic_impl: invalid type\n");
+    GVTRACE ("dds_create_topic_impl: invalid type (minimal type)\n");
     rc = DDS_RETCODE_BAD_PARAMETER;
-    goto error;
+    goto err_type_ref_local_mintype;
+  }
+  if (ddsi_type_ref_local (gv, &compltype, sertype_registered, DDSI_TYPEID_KIND_COMPLETE) != DDS_RETCODE_OK)
+  {
+    GVTRACE ("dds_create_topic_impl: invalid type (complete type)\n");
+    rc = DDS_RETCODE_BAD_PARAMETER;
+    goto err_type_ref_local_compltype;
   }
 #endif
+
+  // Concurrent QoS change is not possible: topic QoS changes lock pp->m_entity.m_mutex
+  if (new_ktopic && (rc = create_psmx_topics (pp, ktp, sertype_registered, compltype)) != DDS_RETCODE_OK)
+    goto err_create_psmx_topics;
 
   /* Create topic referencing ktopic & sertype_registered */
   hdl = create_topic_pp_locked (pp, ktp, (sertype_registered->ops == &ddsi_sertype_ops_builtintopic), name, sertype_registered, listener);
   ddsi_sertype_unref (*sertype);
   *sertype = sertype_registered;
 
-  // Concurrent QoS change is not possible: topic QoS changes lock pp->m_entity.m_mutex
-  if (new_ktopic && (rc = create_psmx_topics (pp, ktp, sertype_registered, compltype)) != DDS_RETCODE_OK)
-    goto error;
   const bool new_topic_def = register_topic_type_for_discovery (gv, pp, ktp, is_builtin, sertype_registered);
   ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
 
@@ -625,6 +628,18 @@ dds_entity_t dds_create_topic_impl (
   dds_entity_unpin (&pp->m_entity);
   GVTRACE ("dds_create_topic_impl: new topic %"PRId32"\n", hdl);
   return hdl;
+
+err_create_psmx_topics:
+#ifdef DDS_HAS_TYPELIB
+  ddsi_type_unref (gv, compltype); // null pointer allowed
+err_type_ref_local_compltype:
+  ddsi_type_unref (gv, mintype); // null pointer allowed
+err_type_ref_local_mintype:
+#endif
+  ddsi_sertype_unref (*sertype);
+  ktopic_unref (pp, ktp);
+  ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
+  GVTRACE ("dds_create_topic_impl: invalid type\n");
 
 error:
   if (new_qos)
