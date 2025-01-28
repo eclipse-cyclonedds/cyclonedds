@@ -762,19 +762,6 @@ static void free_instance_rhc_free (struct rhc_instance *inst, struct dds_rhc_de
   free_empty_instance(inst, rhc);
 }
 
-static uint32_t dds_rhc_default_lock_samples (struct dds_rhc *rhc_common)
-{
-  struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
-  uint32_t no;
-  ddsrt_mutex_lock (&rhc->lock);
-  no = rhc->n_vsamples + rhc->n_invsamples;
-  if (no == 0)
-  {
-    ddsrt_mutex_unlock (&rhc->lock);
-  }
-  return no;
-}
-
 static void free_instance_rhc_free_wrap (void *vnode, void *varg)
 {
   free_instance_rhc_free (vnode, varg);
@@ -3027,6 +3014,5 @@ static const struct dds_rhc_ops dds_rhc_default_ops = {
   .take = dds_rhc_default_take,
   .add_readcondition = dds_rhc_default_add_readcondition,
   .remove_readcondition = dds_rhc_default_remove_readcondition,
-  .lock_samples = dds_rhc_default_lock_samples,
   .associate = dds_rhc_default_associate
 };

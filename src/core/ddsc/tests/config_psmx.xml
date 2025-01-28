@@ -17,7 +17,7 @@
     <General>
       <Interfaces>
         <NetworkInterface address="127.0.0.1" />
-        <PubSubMessageExchange name="cdds" library="${CDDS_PSMX_LIB}" priority ="1000000" />
+        <PubSubMessageExchange type="cdds" library="${CDDS_PSMX_LIB}" priority ="1000000" />
       </Interfaces>
       <AllowMulticast>true</AllowMulticast>
       <EnableMulticastLoopback>true</EnableMulticastLoopback>

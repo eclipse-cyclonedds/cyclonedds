@@ -936,6 +936,7 @@ dds_return_t dds_ensure_valid_psmx_instances (dds_qos_t *qos, dds_psmx_endpoint_
 {
   uint32_t n_supported = 0;
   const char *supported_psmx[DDS_MAX_PSMX_INSTANCES];
+  dds_return_t ret = DDS_RETCODE_OK;
 
   // Check sertype has operations required by PSMX
   if ((forwhat == DDS_PSMX_ENDPOINT_TYPE_WRITER && stype->serdata_ops->from_loaned_sample) ||
@@ -946,8 +947,8 @@ dds_return_t dds_ensure_valid_psmx_instances (dds_qos_t *qos, dds_psmx_endpoint_
       assert (psmx_instances->length <= DDS_MAX_PSMX_INSTANCES);
       for (uint32_t i = 0; i < psmx_instances->length; i++)
       {
-        struct dds_psmx *psmx = psmx_instances->instances[i];
-        if (psmx->ops.type_qos_supported (psmx, forwhat, stype->data_type_props, qos))
+        struct dds_psmx_int *psmx = psmx_instances->elems[i].instance;
+        if (psmx->ops.type_qos_supported (psmx->ext, forwhat, stype->data_type_props, qos))
           supported_psmx[n_supported++] = psmx->instance_name;
       }
     }
@@ -956,25 +957,38 @@ dds_return_t dds_ensure_valid_psmx_instances (dds_qos_t *qos, dds_psmx_endpoint_
       uint32_t n = 0;
       char **values;
       dds_qget_psmx_instances (qos, &n, &values);
-      for (uint32_t i = 0; i < n; i++)
+      for (uint32_t i = 0; ret == DDS_RETCODE_OK && i < n; i++)
       {
-        struct dds_psmx *psmx = NULL;
+        struct dds_psmx_int *psmx = NULL;
         for (uint32_t s = 0; psmx == NULL && s < psmx_instances->length; s++)
         {
-          assert (psmx_instances->instances[s]);
-          if (strcmp (psmx_instances->instances[s]->instance_name, values[i]) == 0)
-            psmx = psmx_instances->instances[i];
+          assert (psmx_instances->elems[s].instance);
+          if (strcmp (psmx_instances->elems[s].instance->instance_name, values[i]) == 0)
+            psmx = psmx_instances->elems[s].instance;
         }
-        if (psmx != NULL && psmx->ops.type_qos_supported (psmx, forwhat, stype->data_type_props, qos))
-          supported_psmx[n_supported++] = psmx->instance_name;
-        dds_free (values[i]);
+        if (psmx == NULL || !psmx->ops.type_qos_supported (psmx->ext, forwhat, stype->data_type_props, qos))
+          ret = DDS_RETCODE_BAD_PARAMETER;
+        else
+        {
+          uint32_t j;
+          for (j = 0; j < n_supported; j++)
+            if (supported_psmx[j] == psmx->instance_name)
+              break;
+          if (j == n_supported)
+            supported_psmx[n_supported++] = psmx->instance_name;
+          else
+            ret = DDS_RETCODE_BAD_PARAMETER;
+        }
       }
+      for (uint32_t i = 0; i < n; i++)
+        dds_free (values[i]);
       dds_free (values);
     }
   }
 
-  dds_qset_psmx_instances (qos, n_supported, supported_psmx);
-  return DDS_RETCODE_OK;
+  if (ret == DDS_RETCODE_OK)
+    dds_qset_psmx_instances (qos, n_supported, supported_psmx);
+  return ret;
 }
 
 bool dds_qos_has_psmx_instances (const dds_qos_t *qos, const char *psmx_instance_name)
@@ -983,7 +997,7 @@ bool dds_qos_has_psmx_instances (const dds_qos_t *qos, const char *psmx_instance
   char **values = NULL;
   bool found = false;
   dds_qget_psmx_instances (qos, &n_instances, &values);
-  for (uint32_t i = 0; !found && values != NULL && i < n_instances; i++)
+  for (uint32_t i = 0; values != NULL && i < n_instances; i++)
   {
     if (strcmp (psmx_instance_name, values[i]) == 0)
       found = true;

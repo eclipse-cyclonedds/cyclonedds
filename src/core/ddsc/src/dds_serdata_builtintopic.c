@@ -31,7 +31,7 @@
 #include "dds/ddsi/ddsi_freelist.h"
 
 #include "dds__serdata_builtintopic.h"
-
+#include "dds__guid.h"
 
 static const uint64_t unihashconsts[] = {
   UINT64_C (16292676669999574021),
@@ -255,32 +255,28 @@ struct ddsi_serdata *dds_serdata_builtin_from_endpoint (const struct ddsi_sertyp
 static struct ddsi_serdata *ddsi_serdata_builtin_from_sample (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
 {
   const struct ddsi_sertype_builtintopic *tp = (const struct ddsi_sertype_builtintopic *) tpcmn;
-  union {
-    dds_guid_t extguid;
-    ddsi_guid_t guid;
-    ddsi_keyhash_t keyhash;
-  } x;
 
   /* no-one should be trying to convert user-provided data into a built-in topic sample, but converting
      a key is something that can be necessary, e.g., dds_lookup_instance depends on it */
   if (kind != SDK_KEY)
     return NULL;
 
-  /* memset x (even though it is entirely superfluous) so we can leave out a default case from the
+  /* memset key (even though it is entirely superfluous) so we can leave out a default case from the
      switch (ensuring at least some compilers will warn when more types are added) without getting
      warnings from any compiler */
-  memset (&x, 0, sizeof (x));
+  dds_guid_t key;
+  memset (&key, 0, sizeof (key));
   switch (tp->entity_kind)
   {
     case DSBT_PARTICIPANT: {
       const dds_builtintopic_participant_t *s = sample;
-      x.extguid = s->key;
+      key = s->key;
       break;
     }
     case DSBT_READER:
     case DSBT_WRITER: {
       const dds_builtintopic_endpoint_t *s = sample;
-      x.extguid = s->key;
+      key = s->key;
       break;
     }
     case DSBT_TOPIC:
@@ -290,22 +286,15 @@ static struct ddsi_serdata *ddsi_serdata_builtin_from_sample (const struct ddsi_
       break;
   }
   struct ddsi_domaingv * const gv = ddsrt_atomic_ldvoidp (&tp->c.gv);
-  x.guid = ddsi_ntoh_guid (x.guid);
-  struct ddsi_entity_common *entity = ddsi_entidx_lookup_guid_untyped (gv->entity_index, &x.guid);
-  return dds_serdata_builtin_from_endpoint (tpcmn, &x.guid, entity, kind);
+  const ddsi_guid_t ddsi_guid = dds_guid_to_ddsi_guid (key);
+  struct ddsi_entity_common *entity = ddsi_entidx_lookup_guid_untyped (gv->entity_index, &ddsi_guid);
+  return dds_serdata_builtin_from_endpoint (tpcmn, &ddsi_guid, entity, kind);
 }
 
 static struct ddsi_serdata *serdata_builtin_to_untyped (const struct ddsi_serdata *serdata_common)
 {
   /* All built-in ones are currently untyped */
   return ddsi_serdata_ref (serdata_common);
-}
-
-static void convkey (dds_guid_t *key, const ddsi_guid_t *guid)
-{
-  ddsi_guid_t tmp;
-  tmp = ddsi_hton_guid (*guid);
-  memcpy (key, &tmp, sizeof (*key));
 }
 
 static char *dds_string_dup_reuse (char *old, const char *src)
@@ -330,7 +319,7 @@ static dds_qos_t *dds_qos_from_xqos_reuse (dds_qos_t *old, const dds_qos_t *src)
 
 static bool to_sample_pp (const struct ddsi_serdata_builtintopic_participant *d, struct dds_builtintopic_participant *sample)
 {
-  convkey (&sample->key, &d->common.key.guid);
+  sample->key = dds_guid_from_ddsi_guid (d->common.key.guid);
   if (d->common.c.kind == SDK_DATA)
     sample->qos = dds_qos_from_xqos_reuse (sample->qos, &d->common.xqos);
   return true;
@@ -339,10 +328,10 @@ static bool to_sample_pp (const struct ddsi_serdata_builtintopic_participant *d,
 static bool to_sample_endpoint (const struct ddsi_serdata_builtintopic_endpoint *dep, struct dds_builtintopic_endpoint *sample)
 {
   ddsi_guid_t ppguid;
-  convkey (&sample->key, &dep->common.key.guid);
+  sample->key = dds_guid_from_ddsi_guid (dep->common.key.guid);
   ppguid = dep->common.key.guid;
   ppguid.entityid.u = DDSI_ENTITYID_PARTICIPANT;
-  convkey (&sample->participant_key, &ppguid);
+  sample->participant_key = dds_guid_from_ddsi_guid (ppguid);
   sample->participant_instance_handle = dep->pphandle;
   if (dep->common.c.kind == SDK_DATA)
   {

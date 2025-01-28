@@ -56,3 +56,7 @@ struct PsmxLoanTest2 {
   @key octet z;
   @key string str;
 };
+
+struct PsmxLoanTest3 {
+  @key long x[128];
+};

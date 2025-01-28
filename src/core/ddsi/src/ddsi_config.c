@@ -477,7 +477,10 @@ static size_t cfg_note (struct ddsi_cfgst *cfgst, uint32_t cat, size_t bsz, cons
     }
     else if (cfgst->isattr[i])
     {
-      cfg_note_snprintf (&bb, "[@%s]", cfgst->path[i]->name);
+      const char *name = cfgst->path[i]->name;
+      const char *p = strchr (name, '|');
+      int n = p ? (int) (p - name) : (int) strlen(name);
+      cfg_note_snprintf (&bb, "[@%*.*s]", n, n, name);
     }
     else if (cfgst->path[i] == prev_path)
     {
@@ -683,7 +686,7 @@ static int if_psmx(struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const 
   struct ddsi_config_psmx_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
   if (new == NULL)
     return -1;
-  new->cfg.name = NULL;
+  new->cfg.type = NULL;
   new->cfg.library = NULL;
   new->cfg.config = NULL;
   return 0;
@@ -2380,14 +2383,14 @@ static struct ddsi_config_psmx * psmx_append(struct ddsi_config *cfg, const char
 
   if (name == NULL || library == NULL)
     return NULL;
-  while (psmx && psmx->cfg.name && ddsrt_strcasecmp(psmx->cfg.name, name) != 0)
+  while (psmx && psmx->cfg.type && ddsrt_strcasecmp(psmx->cfg.type, name) != 0)
     return NULL;
 
   psmx = (struct ddsi_config_psmx_listelem *) malloc(sizeof(*psmx));
   if (!psmx) return NULL;
 
   psmx->next = NULL;
-  psmx->cfg.name = ddsrt_strdup(name);
+  psmx->cfg.type = ddsrt_strdup(name);
   psmx->cfg.library = ddsrt_strdup(library);
 
   *prev_psmx = psmx;
@@ -2532,7 +2535,7 @@ static int convert_deprecated_interface_specification (struct ddsi_cfgst *cfgst)
   return 1;
 }
 
-#define IOX_CONFIG_SERVICE_NAME "SERVICE_NAME"
+#define IOX_CONFIG_INSTANCE_NAME "INSTANCE_NAME"
 #define IOX_CONFIG_LOG_LEVEL "LOG_LEVEL"
 #define IOX_CONFIG_LOCATOR "LOCATOR"
 #define IOX_CONFIG_LOG_LEVEL_MAX_VALUE_LEN 7
@@ -2549,7 +2552,7 @@ static int convert_deprecated_sharedmemory (struct ddsi_cfgst *cfgst)
 
     size_t config_str_len = 0;
     if (cfg->iceoryx_service != NULL && cfg->iceoryx_service[0] != 0)
-      config_str_len += strlen (IOX_CONFIG_SERVICE_NAME) + strlen (cfg->iceoryx_service) + 2; // plus 2 for = and ;
+      config_str_len += strlen (IOX_CONFIG_INSTANCE_NAME) + strlen (cfg->iceoryx_service) + 2; // plus 2 for = and ;
     if (cfg->shm_log_lvl != DDSI_SHM_OFF)
       config_str_len += strlen (IOX_CONFIG_LOG_LEVEL) + 9; // max length of log level string, plus 2 for = and ;
     if (cfg->shm_locator != NULL && cfg->shm_locator[0] != 0)
@@ -2559,7 +2562,7 @@ static int convert_deprecated_sharedmemory (struct ddsi_cfgst *cfgst)
     int pos = 0;
     psmx_cfg->config = ddsrt_malloc (sz);
     if (cfg->iceoryx_service != NULL && cfg->iceoryx_service[0] != 0)
-      pos += snprintf (psmx_cfg->config + pos, sz - (size_t) pos, "%s=%s;", IOX_CONFIG_SERVICE_NAME, cfg->iceoryx_service);
+      pos += snprintf (psmx_cfg->config + pos, sz - (size_t) pos, "%s=%s;", IOX_CONFIG_INSTANCE_NAME, cfg->iceoryx_service);
     if (cfg->shm_log_lvl != DDSI_SHM_OFF)
     {
       char *level_str = "OFF";

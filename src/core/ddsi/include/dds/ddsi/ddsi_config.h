@@ -245,7 +245,7 @@ enum ddsi_config_entity_naming_mode {
 };
 
 struct ddsi_config_psmx {
-  char *name;
+  char *type;
   char *library;
   char *config;
   struct ddsi_config_maybe_int32 priority;

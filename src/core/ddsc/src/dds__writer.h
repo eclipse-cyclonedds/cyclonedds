@@ -41,6 +41,10 @@ dds_return_t dds_request_writer_loan (dds_writer *wr, enum dds_writer_loan_type 
   ddsrt_nonnull_all;
 
 /** @component writer */
+dds_loaned_sample_t *dds_writer_request_psmx_loan(const dds_writer *wr, uint32_t size)
+  ddsrt_nonnull_all;
+
+/** @component writer */
 dds_return_t dds_return_writer_loan (dds_writer *wr, void **samples_ptr, int32_t n_samples) ddsrt_nonnull_all;
 
 /** @component writer */

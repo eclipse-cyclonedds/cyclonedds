@@ -26,6 +26,7 @@
 #include "dds__writer.h"
 #include "dds__reader.h"
 #include "dds__topic.h"
+#include "dds__guid.h"
 
 dds_return_t dds_get_matched_subscriptions (dds_entity_t writer, dds_instance_handle_t *rds, size_t nrds)
 {
@@ -62,13 +63,10 @@ dds_return_t dds_get_matched_publications (dds_entity_t reader, dds_instance_han
 static dds_builtintopic_endpoint_t *make_builtintopic_endpoint (const ddsi_guid_t *guid, const ddsi_guid_t *ppguid, dds_instance_handle_t ppiid, const dds_qos_t *qos)
 {
   dds_builtintopic_endpoint_t *ep;
-  ddsi_guid_t tmp;
   ep = dds_alloc (sizeof (*ep));
-  tmp = ddsi_hton_guid (*guid);
-  memcpy (&ep->key, &tmp, sizeof (ep->key));
+  ep->key = dds_guid_from_ddsi_guid (*guid);
   ep->participant_instance_handle = ppiid;
-  tmp = ddsi_hton_guid (*ppguid);
-  memcpy (&ep->participant_key, &tmp, sizeof (ep->participant_key));
+  ep->participant_key = dds_guid_from_ddsi_guid (*ppguid);
   ep->qos = dds_create_qos ();
   ddsi_xqos_mergein_missing (ep->qos, qos, ~(DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME));
   ep->topic_name = dds_string_dup (qos->topic_name);
