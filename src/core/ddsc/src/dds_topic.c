@@ -587,13 +587,13 @@ dds_entity_t dds_create_topic_impl (
     ddsrt_mutex_unlock (&gv->sertypes_lock);
   }
 
-  struct ddsi_type *type = NULL;
+  struct ddsi_type *mintype = NULL, *compltype = NULL;
 #ifdef DDS_HAS_TYPELIB
-  if ((rc = ddsi_type_ref_local (gv, &type, sertype_registered, DDSI_TYPEID_KIND_MINIMAL)) != DDS_RETCODE_OK
-      || ddsi_type_ref_local (gv, NULL, sertype_registered, DDSI_TYPEID_KIND_COMPLETE) != DDS_RETCODE_OK)
+  if ((rc = ddsi_type_ref_local (gv, &mintype, sertype_registered, DDSI_TYPEID_KIND_MINIMAL)) != DDS_RETCODE_OK
+      || ddsi_type_ref_local (gv, &compltype, sertype_registered, DDSI_TYPEID_KIND_COMPLETE) != DDS_RETCODE_OK)
   {
     if (rc == DDS_RETCODE_OK)
-      ddsi_type_unref (gv, type);
+      ddsi_type_unref (gv, mintype);
     ddsi_sertype_unref (*sertype);
     ktopic_unref (pp, ktp);
     ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
@@ -609,7 +609,7 @@ dds_entity_t dds_create_topic_impl (
   *sertype = sertype_registered;
 
   // Concurrent QoS change is not possible: topic QoS changes lock pp->m_entity.m_mutex
-  if (new_ktopic && (rc = create_psmx_topics (pp, ktp, sertype_registered, type)) != DDS_RETCODE_OK)
+  if (new_ktopic && (rc = create_psmx_topics (pp, ktp, sertype_registered, compltype)) != DDS_RETCODE_OK)
     goto error;
   const bool new_topic_def = register_topic_type_for_discovery (gv, pp, ktp, is_builtin, sertype_registered);
   ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
