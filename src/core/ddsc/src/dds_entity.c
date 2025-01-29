@@ -21,6 +21,7 @@
 #include "dds__qos.h"
 #include "dds__topic.h"
 #include "dds__builtin.h"
+#include "dds__guid.h"
 #include "dds__subscriber.h" // for non-materialized DATA_ON_READERS
 #include "dds/dds.h"
 #include "dds/version.h"
@@ -1284,17 +1285,13 @@ dds_return_t dds_get_guid (dds_entity_t entity, dds_guid_t *guid)
     case DDS_KIND_PARTICIPANT:
     case DDS_KIND_READER:
     case DDS_KIND_WRITER:
-    case DDS_KIND_TOPIC: {
-      DDSRT_STATIC_ASSERT (sizeof (dds_guid_t) == sizeof (ddsi_guid_t));
-      ddsi_guid_t tmp = ddsi_ntoh_guid (e->m_guid);
-      memcpy (guid, &tmp, sizeof (*guid));
+    case DDS_KIND_TOPIC:
+      *guid = dds_guid_from_ddsi_guid (e->m_guid);
       ret = DDS_RETCODE_OK;
       break;
-    }
-    default: {
+    default:
       ret = DDS_RETCODE_ILLEGAL_OPERATION;
       break;
-    }
   }
   dds_entity_unpin(e);
   return ret;

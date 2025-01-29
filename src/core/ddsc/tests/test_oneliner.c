@@ -664,7 +664,7 @@ static bool qos_liveliness (struct oneliner_lex *l, dds_qos_t *q)
   return true;
 }
 
-static bool qos_simple_duration (struct oneliner_lex *l, dds_qos_t *q, void (*set) (dds_qos_t * __restrict q, dds_duration_t dur))
+static bool qos_simple_duration (struct oneliner_lex *l, dds_qos_t *q, void (*set) (dds_qos_t *q, dds_duration_t dur))
 {
   static const struct kvarg k = { "", 0, 0, .arg = read_kvarg_dur };
   int v;

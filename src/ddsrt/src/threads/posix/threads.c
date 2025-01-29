@@ -81,7 +81,7 @@ int _open(const char *name, int mode) { return -1; }
 #endif
 
 size_t
-ddsrt_thread_getname(char * __restrict name, size_t size)
+ddsrt_thread_getname(char *name, size_t size)
 {
 #ifdef MAXTHREADNAMESIZE
   char buf[MAXTHREADNAMESIZE + 1] = "";
@@ -145,7 +145,7 @@ ddsrt_thread_getname(char * __restrict name, size_t size)
 }
 
 void
-ddsrt_thread_setname(const char *__restrict name)
+ddsrt_thread_setname(const char *name)
 {
   assert(name != NULL);
 
@@ -166,6 +166,8 @@ ddsrt_thread_setname(const char *__restrict name)
   (void)pthread_setname_np(pthread_self(), name);
 #endif
 #elif defined(__QNXNTO__)
+  (void)pthread_setname_np(pthread_self(), name);
+#elif defined(__VXWORKS__)
   (void)pthread_setname_np(pthread_self(), name);
 #elif defined(__ZEPHYR__) && defined(CONFIG_THREAD_NAME)
   (void)pthread_setname_np(pthread_self(), (char*)name);
@@ -218,10 +220,10 @@ static void *os_startRoutineWrapper (void *threadContext)
 
   /* Note that any possible errors raised here are not terminal since the
      thread may have exited at this point anyway. */
-  if (pthread_getschedparam(thread.v, &policy, &sched_param) == 0) {
+  if (pthread_getschedparam(pthread_self (), &policy, &sched_param) == 0) {
     max = sched_get_priority_max(policy);
     if (max != -1) {
-      (void)pthread_setschedprio(thread.v, max);
+      (void)pthread_setschedprio(pthread_self (), max);
     }
   }
 #endif
@@ -541,7 +543,7 @@ ddsrt_thread_join(ddsrt_thread_t thread, uint32_t *thread_result)
 #if defined __linux
 dds_return_t
 ddsrt_thread_list (
-  ddsrt_thread_list_id_t * __restrict tids,
+  ddsrt_thread_list_id_t *tids,
   size_t size)
 {
   DIR *dir;
@@ -572,7 +574,7 @@ ddsrt_thread_list (
 dds_return_t
 ddsrt_thread_getname_anythread (
   ddsrt_thread_list_id_t tid,
-  char *__restrict name,
+  char *name,
   size_t size)
 {
   char file[100];
@@ -606,7 +608,7 @@ DDSRT_STATIC_ASSERT (sizeof (ddsrt_thread_list_id_t) == sizeof (mach_port_t));
 
 dds_return_t
 ddsrt_thread_list (
-  ddsrt_thread_list_id_t * __restrict tids,
+  ddsrt_thread_list_id_t *tids,
   size_t size)
 {
   thread_act_array_t tasks;
@@ -622,7 +624,7 @@ ddsrt_thread_list (
 dds_return_t
 ddsrt_thread_getname_anythread (
   ddsrt_thread_list_id_t tid,
-  char *__restrict name,
+  char *name,
   size_t size)
 {
   if (size > 0)

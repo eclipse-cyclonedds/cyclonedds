@@ -40,6 +40,7 @@
 #include "dds__builtin.h"
 #include "dds__statistics.h"
 #include "dds__psmx.h"
+#include "dds__guid.h"
 
 DECL_ENTITY_LOCK_UNLOCK (dds_reader)
 
@@ -69,12 +70,13 @@ static void dds_reader_close (dds_entity *e)
   ddsrt_mutex_unlock (&e->m_mutex);
 }
 
-static dds_return_t dds_reader_delete (dds_entity *e) ddsrt_nonnull_all;
-
+ddsrt_nonnull_all
 static dds_return_t dds_reader_delete (dds_entity *e)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   dds_reader * const rd = (dds_reader *) e;
+
+  dds_endpoint_remove_psmx_endpoints (&rd->m_endpoint);
 
   ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
   dds_rhc_free (rd->m_rhc);
@@ -82,15 +84,6 @@ static dds_return_t dds_reader_delete (dds_entity *e)
 
   dds_loan_pool_free (rd->m_heap_loan_cache);
   dds_loan_pool_free (rd->m_loans);
-
-  for (uint32_t i = 0; ret == DDS_RETCODE_OK && i < rd->m_endpoint.psmx_endpoints.length; i++)
-  {
-    struct dds_psmx_endpoint *psmx_endpoint = rd->m_endpoint.psmx_endpoints.endpoints[i];
-    if (psmx_endpoint == NULL)
-      continue;
-    ret = dds_remove_psmx_endpoint_from_list (psmx_endpoint, &psmx_endpoint->psmx_topic->psmx_endpoints);
-  }
-
   dds_entity_drop_ref (&rd->m_topic->m_entity);
   return ret;
 }
@@ -244,7 +237,7 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
   ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
 }
 
-static void update_requested_deadline_missed (struct dds_requested_deadline_missed_status * __restrict st, const ddsi_status_cb_data_t *data)
+static void update_requested_deadline_missed (struct dds_requested_deadline_missed_status *st, const ddsi_status_cb_data_t *data)
 {
   st->last_instance_handle = data->handle;
   uint64_t tmp = (uint64_t)data->extra + (uint64_t)st->total_count;
@@ -258,21 +251,21 @@ static void update_requested_deadline_missed (struct dds_requested_deadline_miss
   st->total_count_change = tmp2 > INT32_MAX ? INT32_MAX : tmp2 < INT32_MIN ? INT32_MIN : (int32_t)tmp2;
 }
 
-static void update_requested_incompatible_qos (struct dds_requested_incompatible_qos_status * __restrict st, const ddsi_status_cb_data_t *data)
+static void update_requested_incompatible_qos (struct dds_requested_incompatible_qos_status *st, const ddsi_status_cb_data_t *data)
 {
   st->last_policy_id = data->extra;
   st->total_count++;
   st->total_count_change++;
 }
 
-static void update_sample_lost (struct dds_sample_lost_status * __restrict st, const ddsi_status_cb_data_t *data)
+static void update_sample_lost (struct dds_sample_lost_status *st, const ddsi_status_cb_data_t *data)
 {
   (void) data;
   st->total_count++;
   st->total_count_change++;
 }
 
-static void update_sample_rejected (struct dds_sample_rejected_status * __restrict st, const ddsi_status_cb_data_t *data)
+static void update_sample_rejected (struct dds_sample_rejected_status *st, const ddsi_status_cb_data_t *data)
 {
   st->last_reason = data->extra;
   st->last_instance_handle = data->handle;
@@ -280,7 +273,7 @@ static void update_sample_rejected (struct dds_sample_rejected_status * __restri
   st->total_count_change++;
 }
 
-static void update_liveliness_changed (struct dds_liveliness_changed_status * __restrict st, const ddsi_status_cb_data_t *data)
+static void update_liveliness_changed (struct dds_liveliness_changed_status *st, const ddsi_status_cb_data_t *data)
 {
   DDSRT_STATIC_ASSERT ((uint32_t) DDSI_LIVELINESS_CHANGED_ADD_ALIVE == 0 &&
                        DDSI_LIVELINESS_CHANGED_ADD_ALIVE < DDSI_LIVELINESS_CHANGED_ADD_NOT_ALIVE &&
@@ -324,7 +317,7 @@ static void update_liveliness_changed (struct dds_liveliness_changed_status * __
   }
 }
 
-static void update_subscription_matched (struct dds_subscription_matched_status * __restrict st, const ddsi_status_cb_data_t *data)
+static void update_subscription_matched (struct dds_subscription_matched_status *st, const ddsi_status_cb_data_t *data)
 {
   st->last_publication_handle = data->handle;
   if (data->add) {
@@ -648,8 +641,9 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
      it; and then invoke those listeners that are in the pending set */
   dds_entity_init_complete (&rd->m_entity);
 
-
-  if (guid == NULL)
+  if (guid)
+    rd->m_entity.m_guid = dds_guid_to_ddsi_guid (*guid);
+  else
   {
     rc = ddsi_generate_reader_guid (&rd->m_entity.m_guid, pp, tp->m_stype);
     if (rc != DDS_RETCODE_OK)
@@ -658,13 +652,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
       goto err_rd_guid;
     }
   }
-  else
-  {
-    ddsi_guid_t ddsi_guid;
-    DDSRT_STATIC_ASSERT (sizeof (dds_guid_t) == sizeof (ddsi_guid_t));
-    memcpy (&ddsi_guid, guid, sizeof (ddsi_guid));
-    rd->m_entity.m_guid = ddsi_ntoh_guid (ddsi_guid);
-  }
+
   struct ddsi_psmx_locators_set *vl_set = dds_get_psmx_locators_set (rqos, &rd->m_entity.m_domain->psmx_instances);
 
   /* Reader gets the sertype from the topic, as the serdata functions the reader uses are
@@ -683,8 +671,8 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
   for (uint32_t i = 0; i < rd->m_endpoint.psmx_endpoints.length; i++)
   {
-    struct dds_psmx_endpoint *psmx_endpoint = rd->m_endpoint.psmx_endpoints.endpoints[i];
-    if (psmx_endpoint->ops.on_data_available && (rc = psmx_endpoint->ops.on_data_available (psmx_endpoint, reader)) != DDS_RETCODE_OK)
+    struct dds_psmx_endpoint_int *psmx_endpoint = rd->m_endpoint.psmx_endpoints.endpoints[i];
+    if (psmx_endpoint->ops.on_data_available && (rc = psmx_endpoint->ops.on_data_available (psmx_endpoint->ext, reader)) != DDS_RETCODE_OK)
       goto err_psmx_endpoint_setcb;
   }
 
@@ -733,18 +721,14 @@ struct writer_metadata
   dds_duration_t lifespan_duration;
 };
 
-static dds_return_t get_writer_info (struct ddsi_domaingv *gv, dds_guid_t *dds_guid, uint32_t statusinfo, const struct writer_metadata *writer_md, struct ddsi_writer_info *wi)
+static dds_return_t get_writer_info (struct ddsi_domaingv *gv, const ddsi_guid_t *guid, uint32_t statusinfo, const struct writer_metadata *writer_md, struct ddsi_writer_info *wi)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   struct dds_qos *xqos = NULL;
 
-  struct ddsi_guid guid;
-  // FIXME ntoh required?
-  memcpy (&guid, dds_guid, sizeof (guid));
-
   if (writer_md == NULL)
   {
-    struct ddsi_entity_common *ec = ddsi_entidx_lookup_guid_untyped (gv->entity_index, &guid);
+    struct ddsi_entity_common *ec = ddsi_entidx_lookup_guid_untyped (gv->entity_index, guid);
     if (ec == NULL || (ec->kind != DDSI_EK_PROXY_WRITER && ec->kind != DDSI_EK_WRITER))
     {
       ret = DDS_RETCODE_NOT_FOUND;
@@ -759,8 +743,8 @@ static dds_return_t get_writer_info (struct ddsi_domaingv *gv, dds_guid_t *dds_g
   }
   else
   {
-    uint64_t iid = ((uint64_t) guid.prefix.u[2] << 32llu) + guid.entityid.u;
-    ddsi_make_writer_info_params (wi, &guid, writer_md->ownership_strength, writer_md->autodispose_unregistered_instances, iid, statusinfo, writer_md->lifespan_duration);
+    uint64_t iid = ((uint64_t) ddsrt_toBE4u (guid->prefix.u[2]) << 32llu) + ddsrt_toBE4u (guid->entityid.u);
+    ddsi_make_writer_info_params (wi, guid, writer_md->ownership_strength, writer_md->autodispose_unregistered_instances, iid, statusinfo, writer_md->lifespan_duration);
   }
 
 err:
@@ -769,7 +753,7 @@ err:
 
 static dds_return_t dds_reader_store_loaned_sample_impl (dds_entity_t reader, dds_loaned_sample_t *data, const struct writer_metadata *writer_md)
 {
-  dds_return_t ret;
+  dds_return_t ret = DDS_RETCODE_OK;
   dds_entity * e;
   if ((ret = dds_entity_pin (reader, &e)) < 0)
     return ret;
@@ -789,6 +773,13 @@ static dds_return_t dds_reader_store_loaned_sample_impl (dds_entity_t reader, dd
   // FIXME: what if the sample is overwritten?
   // if the sample is not matched to this reader, return ownership to the PSMX?
 
+  //samples incoming from local writers should be dropped
+  const ddsi_guid_t ddsi_guid = dds_guid_to_ddsi_guid (data->metadata->guid);
+  struct ddsi_entity_common *lookup_entity = NULL;
+  if ((lookup_entity = ddsi_entidx_lookup_guid_untyped (gv->entity_index, &ddsi_guid)) != NULL &&
+      lookup_entity->kind == DDSI_EK_WRITER)
+    goto drop_local;
+
   struct ddsi_serdata * sd = ddsi_serdata_from_psmx (rd->type, data);
   if (sd == NULL)
   {
@@ -797,7 +788,7 @@ static dds_return_t dds_reader_store_loaned_sample_impl (dds_entity_t reader, dd
   }
 
   struct ddsi_writer_info wi;
-  if ((ret = get_writer_info (gv, &data->metadata->guid, sd->statusinfo, writer_md, &wi)) != DDS_RETCODE_OK)
+  if ((ret = get_writer_info (gv, &ddsi_guid, sd->statusinfo, writer_md, &wi)) != DDS_RETCODE_OK)
     goto fail_get_writer_info;
 
   struct ddsi_tkmap_instance * tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, sd);
@@ -817,6 +808,7 @@ fail_rhc_store:
   ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
 fail_get_writer_info:
   ddsi_serdata_unref (sd);
+drop_local:
 fail_serdata:
   ddsrt_mutex_unlock (&rd->e.lock);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());

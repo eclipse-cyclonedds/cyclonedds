@@ -811,25 +811,24 @@ err:
   return ret;
 }
 
-static dds_return_t xcdr2_ser (const void *obj, const struct dds_cdrstream_desc *desc, dds_ostream_t *os)
+static dds_return_t xcdr2_ser (const void *obj, const struct dds_cdrstream_desc *desc, dds_ostreamLE_t *os)
 {
-  os->m_buffer = NULL;
-  os->m_index = 0;
-  os->m_size = 0;
-  os->m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
-  dds_return_t ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, &dds_cdrstream_default_allocator, obj, desc) ? DDS_RETCODE_OK : DDS_RETCODE_BAD_PARAMETER;
-  return ret;
+  os->x.m_buffer = NULL;
+  os->x.m_index = 0;
+  os->x.m_size = 0;
+  os->x.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
+  return dds_stream_write_sampleLE (os, &dds_cdrstream_default_allocator, obj, desc) ? DDS_RETCODE_OK : DDS_RETCODE_BAD_PARAMETER;
 }
 
 static dds_return_t get_typeid_with_size (DDS_XTypes_TypeIdentifierWithSize *typeid_with_size, const DDS_XTypes_TypeIdentifier *ti, const DDS_XTypes_TypeObject *to)
 {
   dds_return_t ret;
-  dds_ostream_t os;
+  dds_ostreamLE_t os;
   ddsi_typeid_copy_impl (&typeid_with_size->type_id, ti);
   if ((ret = xcdr2_ser (to, &DDS_XTypes_TypeObject_cdrstream_desc, &os)) < 0)
     return ret;
-  typeid_with_size->typeobject_serialized_size = os.m_index;
-  dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
+  typeid_with_size->typeobject_serialized_size = os.x.m_index;
+  dds_ostreamLE_fini (&os, &dds_cdrstream_default_allocator);
   return DDS_RETCODE_OK;
 }
 
@@ -1070,7 +1069,7 @@ dds_return_t ddsi_type_get_typeinfo_locked (struct ddsi_domaingv *gv, struct dds
 dds_return_t ddsi_type_get_typeinfo_ser (struct ddsi_domaingv *gv, const struct ddsi_type *type_c, unsigned char **data, uint32_t *sz)
 {
   dds_return_t ret;
-  dds_ostream_t os = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
+  dds_ostreamLE_t os = { .x = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 } };
   struct ddsi_typeinfo type_info;
   struct ddsi_type *type_m;
 
@@ -1092,8 +1091,8 @@ dds_return_t ddsi_type_get_typeinfo_ser (struct ddsi_domaingv *gv, const struct 
 
   if ((ret = xcdr2_ser (&type_info.x, &DDS_XTypes_TypeInformation_cdrstream_desc, &os)) != DDS_RETCODE_OK)
     goto err_ser;
-  *data = os.m_buffer;
-  *sz = os.m_index;
+  *data = os.x.m_buffer;
+  *sz = os.x.m_index;
 
 err_ser:
   ddsi_typeinfo_fini (&type_info);
@@ -1211,7 +1210,7 @@ err:
 dds_return_t ddsi_type_get_typemap_ser (struct ddsi_domaingv *gv, const struct ddsi_type *type, unsigned char **data, uint32_t *sz)
 {
   dds_return_t ret;
-  dds_ostream_t os = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
+  dds_ostreamLE_t os = { .x = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 } };
   struct ddsi_typemap type_map;
 
   ddsrt_mutex_lock (&gv->typelib_lock);
@@ -1225,8 +1224,8 @@ dds_return_t ddsi_type_get_typemap_ser (struct ddsi_domaingv *gv, const struct d
   if (ret != DDS_RETCODE_OK)
     goto err;
 
-  *data = os.m_buffer;
-  *sz = os.m_index;
+  *data = os.x.m_buffer;
+  *sz = os.x.m_index;
 err:
   return ret;
 }

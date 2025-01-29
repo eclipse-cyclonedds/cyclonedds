@@ -95,13 +95,13 @@ DDS_EXPORT_INTERNAL_FUNCTION dds_return_t dds_sysdef_init_sysdef (FILE *fp, stru
 *
 * Create dds_sysdef_system with provided system definition.
 *
-* @param[in] raw - System definition string.
+* @param[in] xml - System definition string (XML).
 * @param[in,out] sysdef - Pointer dds_sysdef_system structure.
 * @param[in] lib_scope - Library initialization mask.
 *
 * @return a DDS return code
 */
-DDS_EXPORT_INTERNAL_FUNCTION dds_return_t dds_sysdef_init_sysdef_str (const char *raw, struct dds_sysdef_system **sysdef, uint32_t lib_scope);
+DDS_EXPORT_INTERNAL_FUNCTION dds_return_t dds_sysdef_init_sysdef_str (const char *xml, struct dds_sysdef_system **sysdef, uint32_t lib_scope);
 
 /**
 * @brief Finalize System definition.
@@ -116,13 +116,13 @@ DDS_EXPORT_INTERNAL_FUNCTION dds_return_t dds_sysdef_init_sysdef_str (const char
 DDS_EXPORT_INTERNAL_FUNCTION void dds_sysdef_fini_sysdef (struct dds_sysdef_system *sysdef);
 
 /**
-* @brief Initialize System definition for data types.
+* @brief Initialize a type meta-data administration object from a file.
 * @ingroup dds_sysdef
 * @component dds_sysdef_api
 *
-* Create dds_sysdef_type_metadata_admin with provided system definition.
+* Create dds_sysdef_type_metadata_admin with provided type meta-data file.
 *
-* @param[in] fp - Pointer to system definition file.
+* @param[in] fp - Pointer to a type meta-data file.
 * @param[in,out] type_meta_data - Pointer dds_sysdef_type_metadata_admin structure.
 *
 * @return a DDS return code
@@ -130,11 +130,25 @@ DDS_EXPORT_INTERNAL_FUNCTION void dds_sysdef_fini_sysdef (struct dds_sysdef_syst
 DDS_EXPORT_INTERNAL_FUNCTION dds_return_t dds_sysdef_init_data_types (FILE *fp, struct dds_sysdef_type_metadata_admin **type_meta_data);
 
 /**
-* @brief Finalize System definition for data types.
+* @brief Initialize a type meta-data administration object from `xml` string.
 * @ingroup dds_sysdef
 * @component dds_sysdef_api
 *
-* Release resources allocated by dds_sysdef_system.
+* Create dds_sysdef_type_metadata_admin with provided type meta-data XML string
+*
+* @param[in] xml - Type meta-data string (XML).
+* @param[in,out] type_meta_data - Pointer dds_sysdef_type_metadata_admin structure.
+*
+* @return a DDS return code
+*/
+DDS_EXPORT_INTERNAL_FUNCTION dds_return_t dds_sysdef_init_data_types_str (const char *xml, struct dds_sysdef_type_metadata_admin **type_meta_data);
+
+/**
+* @brief Finalize type meta-data administration object.
+* @ingroup dds_sysdef
+* @component dds_sysdef_api
+*
+* Release resources allocated in the type meta-data administration object.
 *
 * @param[in,out] type_meta_data - Pointer dds_sysdef_type_metadata_admin structure.
 *

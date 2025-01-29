@@ -11,8 +11,8 @@
 #include <assert.h>
 #include <string.h>
 
-#include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/strtol.h"
 #include "dds/ddsrt/hopscotch.h"
@@ -57,6 +57,7 @@
   QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_TRANSPORTPRIORITY, WR, TP)
   QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_USERDATA, RD, WR, PP)
   QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_WRITERDATALIFECYCLE, WR)
+  QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_WRITERBATCHING, WR)
 
 #undef PP
 #undef SUB
@@ -169,6 +170,9 @@
     current->handle_close = true; \
     goto status_ok; \
   } while (0)
+
+#define ASSERT_DEFAULT_QOS_EQUAL(p) \
+  assert (ddsi_xqos_delta(&ddsi_default_qos_reader, &ddsi_default_qos_topic, p) == 0 && ddsi_xqos_delta(&ddsi_default_qos_writer, &ddsi_default_qos_topic, p) == 0)
 
 struct parse_sysdef_state {
   struct dds_sysdef_system *sysdef;
@@ -289,7 +293,6 @@ static void fini_type (struct xml_element *node)
 {
   struct dds_sysdef_type *type = (struct dds_sysdef_type *) node;
   ddsrt_free (type->name);
-  ddsrt_free (type->identifier);
 }
 
 static void fini_type_lib (struct xml_element *node)
@@ -429,7 +432,6 @@ static void fini_participant (struct xml_element *node)
   free_node (participant->qos);
   free_node (participant->register_types);
   ddsrt_free (participant->name);
-  ddsrt_free (participant->guid_prefix);
 }
 
 static void fini_participant_lib (struct xml_element *node)
@@ -458,8 +460,8 @@ static void fini_node (struct xml_element *node)
   struct dds_sysdef_node *n = (struct dds_sysdef_node *) node;
   ddsrt_free (n->name);
   ddsrt_free (n->hostname);
-  ddsrt_free (n->ipv4_addr);
-  ddsrt_free (n->ipv6_addr);
+  free_node (n->ipv4_addrs);
+  free_node (n->ipv6_addrs);
   ddsrt_free (n->mac_addr);
 }
 
@@ -591,6 +593,13 @@ static int init_qos (UNUSED_ARG (struct parse_sysdef_state * const pstate), stru
       return SD_PARSE_RESULT_SYNTAX_ERR;
   }
   sdqos->kind = qos_kind;
+  return 0;
+}
+
+static int init_type_external_ref (UNUSED_ARG (struct parse_sysdef_state * const pstate), struct xml_element *node)
+{
+  struct dds_sysdef_type *sdtype = (struct dds_sysdef_type *) node;
+  sdtype->kind = DDS_SYSDEF_TYPE_REF_EXTERNAL;
   return 0;
 }
 
@@ -958,37 +967,6 @@ static bool is_valid_type_name (const char *value)
   return result;
 }
 
-static int proc_attr_type_identifier (struct parse_sysdef_state * const pstate, const char *value, unsigned char **identifier)
-{
-  (void) pstate;
-  if (*identifier != NULL)
-    return SD_PARSE_RESULT_DUPLICATE;
-  if (strlen (value) != 2 * TYPE_HASH_LENGTH)
-    return SD_PARSE_RESULT_ERR;
-  *identifier = ddsrt_malloc (TYPE_HASH_LENGTH);
-  if (dds_sysdef_parse_hex (value, *identifier) != SD_PARSE_RESULT_OK)
-    return SD_PARSE_RESULT_ERR;
-  return SD_PARSE_RESULT_OK;
-}
-
-static int proc_attr_guid_prefix (struct parse_sysdef_state * const pstate, const char *value, struct dds_sysdef_participant_guid_prefix **prefix)
-{
-  (void) pstate;
-  if (strlen (value) != 2 * sizeof (struct dds_sysdef_participant_guid_prefix))
-    return SD_PARSE_RESULT_ERR;
-
-  if (*prefix != NULL)
-    return SD_PARSE_RESULT_DUPLICATE;
-
-  *prefix = ddsrt_malloc (sizeof (**prefix));
-  union { struct dds_sysdef_participant_guid_prefix p; unsigned char d[sizeof (struct dds_sysdef_participant_guid_prefix)]; } u = {.p = {0}};
-  if (dds_sysdef_parse_hex (value, u.d) != SD_PARSE_RESULT_OK)
-    return SD_PARSE_RESULT_ERR;
-
-  (*prefix)->p = ddsrt_fromBE4u (u.p.p);
-  return SD_PARSE_RESULT_OK;
-}
-
 static bool is_alpha (char c)
 {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
@@ -999,20 +977,26 @@ static bool is_alphanum (char c)
   return is_alpha (c) || (c >= '0' && c <= '9');
 }
 
-static bool is_valid_identifier_char (char c)
+static bool is_valid_identifier_char (char c, bool allow_underscore)
 {
-  return is_alphanum (c) || c == '_';
+  return is_alphanum (c) || (allow_underscore && c == '_');
 }
 
 static bool dds_sysdef_is_valid_identifier_syntax (const char *name)
 {
-  if (strlen (name) == 0)
+  size_t len = strlen (name);
+  if (len == 0)
     return false;
+  // First character must be alpha
   if (!is_alpha (name[0]))
     return false;
-  for (size_t i = 1; i < strlen (name); i++)
+  // Last character must be alphanum, underscore not allowed
+  if (!is_alphanum (name[len - 1]))
+    return false;
+  // Other characters can be alphanum or underscore, but multiple consecutive underscores not allowed
+  for (size_t i = 1; i < len - 1; i++)
   {
-    if (!is_valid_identifier_char (name[i]))
+    if (!is_valid_identifier_char (name[i], name[i - 1] != '_'))
       return false;
   }
   return true;
@@ -1037,9 +1021,8 @@ static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *n
     switch (pstate->current->kind)
     {
       // Type library
-      case ELEMENT_KIND_TYPE:
+      case ELEMENT_KIND_TYPE_REF_EXTERNAL:
         PROC_ATTR_TYPE_NAME(dds_sysdef_type, "name", name);
-        PROC_ATTR_FN(dds_sysdef_type, "identifier", identifier, proc_attr_type_identifier);
         break;
 
       // QoS library
@@ -1067,13 +1050,11 @@ static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *n
       case ELEMENT_KIND_DOMAIN:
         PROC_ATTR_NAME(dds_sysdef_domain);
         PROC_ATTR_UINT32(dds_sysdef_domain, "domain_id", domain_id, SYSDEF_DOMAIN_DOMAIN_ID_PARAM_VALUE);
-        PROC_ATTR_INT32(dds_sysdef_domain, "participant_index", participant_index, SYSDEF_DOMAIN_PARTICIPANT_INDEX_PARAM_VALUE);
         break;
       case ELEMENT_KIND_PARTICIPANT:
         PROC_ATTR_NAME(dds_sysdef_participant);
         PROC_ATTR_FN(dds_sysdef_participant, "domain_ref", domain_ref, proc_attr_resolve_domain_ref);
         PROC_ATTR_FN(dds_sysdef_participant, "base_name", base, proc_attr_resolve_participant_ref);
-        PROC_ATTR_FN(dds_sysdef_participant, "guid_prefix", guid_prefix, proc_attr_guid_prefix);
         break;
       case ELEMENT_KIND_REGISTER_TYPE:
         PROC_ATTR_TYPE_NAME(dds_sysdef_register_type, "name", name);
@@ -1095,12 +1076,10 @@ static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *n
       case ELEMENT_KIND_WRITER:
         PROC_ATTR_NAME(dds_sysdef_writer);
         PROC_ATTR_FN(dds_sysdef_writer, "topic_ref", topic, proc_attr_resolve_topic_ref);
-        PROC_ATTR_UINT32(dds_sysdef_writer, "entity_key", entity_key, SYSDEF_WRITER_ENTITY_KEY_PARAM_VALUE);
         break;
       case ELEMENT_KIND_READER:
         PROC_ATTR_NAME(dds_sysdef_reader);
         PROC_ATTR_FN(dds_sysdef_reader, "topic_ref", topic, proc_attr_resolve_topic_ref);
-        PROC_ATTR_UINT32(dds_sysdef_reader, "entity_key", entity_key, SYSDEF_READER_ENTITY_KEY_PARAM_VALUE);
         break;
 
       // Application library
@@ -1152,6 +1131,17 @@ static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *n
       PARSER_ERROR (pstate, line, "Unknown attribute '%s'", name);
       ret = SD_PARSE_RESULT_ERR;
     }
+
+    // On error parsing an attribute, free the node if it is non-retained,
+    // because the elem_close for this node will not be invoked. A non-retained
+    // node is not part of the resuling node tree and will not be freed
+    // as part of freeing the complete tree.
+    if (ret != SD_PARSE_RESULT_OK && pstate->current->retain == false)
+    {
+      if (pstate->current->fini)
+        pstate->current->fini (pstate->current);
+      ddsrt_free (pstate->current);
+    }
   }
   return ret;
 }
@@ -1160,9 +1150,14 @@ static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *n
       do { \
         struct dds_sysdef_QOS_POLICY_ ## policy *qp = (struct dds_sysdef_QOS_POLICY_ ## policy *) pstate->current; \
         struct dds_sysdef_qos *sdqos = (struct dds_sysdef_qos *) pstate->current->parent; \
-        if (qp->populated != QOS_POLICY_ ## policy ## _PARAMS) \
+        if (qp->populated == 0) \
         { \
-          PARSER_ERROR (pstate, line, "Not all params set for " policy_desc " QoS policy"); \
+          PARSER_ERROR (pstate, line, "No parameters set for " policy_desc " QoS policy"); \
+          ret = SD_PARSE_RESULT_SYNTAX_ERR; \
+        } \
+        else if ((qp->populated & QOS_POLICY_ ## policy ## _REQUIRED_PARAMS) != QOS_POLICY_ ## policy ## _REQUIRED_PARAMS) \
+        { \
+          PARSER_ERROR (pstate, line, "Not all required parameters set for " policy_desc " QoS policy"); \
           ret = SD_PARSE_RESULT_SYNTAX_ERR; \
         } \
         else if (qget_ ## policy (sdqos->qos)) \
@@ -1230,7 +1225,14 @@ static bool qget_DURABILITYSERVICE (dds_qos_t *qos)
 
 static void qset_DURABILITYSERVICE (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_DURABILITYSERVICE *qp)
 {
-  dds_qset_durability_service (qos, qp->values.service_cleanup_delay, qp->values.history.kind, qp->values.history.depth, qp->values.resource_limits.max_samples, qp->values.resource_limits.max_instances, qp->values.resource_limits.max_samples_per_instance);
+  assert (ddsi_xqos_delta(&ddsi_default_qos_writer, &ddsi_default_qos_topic, DDSI_QP_DURABILITY_SERVICE) == 0);
+  dds_duration_t service_cleanup_delay = (qp->populated & QOS_POLICY_DURABILITYSERVICE_PARAM_SERVICE_CLEANUP_DELAY) ? qp->values.service_cleanup_delay : ddsi_default_qos_topic.durability_service.service_cleanup_delay;
+  dds_history_kind_t history_kind = (qp->populated & QOS_POLICY_DURABILITYSERVICE_PARAM_HISTORY_KIND) ? qp->values.history.kind : ddsi_default_qos_topic.durability_service.history.kind;
+  int32_t history_depth = (qp->populated & QOS_POLICY_DURABILITYSERVICE_PARAM_HISTORY_DEPTH) ? qp->values.history.depth : ddsi_default_qos_topic.durability_service.history.depth;
+  int32_t max_samples = (qp->populated & QOS_POLICY_DURABILITYSERVICE_PARAM_RESOURCE_LIMIT_MAX_SAMPLES) ? qp->values.resource_limits.max_samples : ddsi_default_qos_topic.durability_service.resource_limits.max_samples;
+  int32_t max_instances = (qp->populated & QOS_POLICY_DURABILITYSERVICE_PARAM_RESOURCE_LIMIT_MAX_INSTANCES) ? qp->values.resource_limits.max_instances : ddsi_default_qos_topic.durability_service.resource_limits.max_instances;
+  int32_t max_samples_per_instance = (qp->populated & QOS_POLICY_DURABILITYSERVICE_PARAM_RESOURCE_LIMIT_MAX_SAMPLES_PER_INSTANCE) ? qp->values.resource_limits.max_samples_per_instance : ddsi_default_qos_topic.durability_service.resource_limits.max_samples_per_instance;
+  dds_qset_durability_service (qos, service_cleanup_delay, history_kind, history_depth, max_samples, max_instances, max_samples_per_instance);
 }
 
 static bool qget_GROUPDATA (dds_qos_t *qos)
@@ -1270,7 +1272,10 @@ static bool qget_HISTORY (dds_qos_t *qos)
 
 static void qset_HISTORY (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_HISTORY *qp)
 {
-  dds_qset_history (qos, qp->values.kind, qp->values.depth);
+  ASSERT_DEFAULT_QOS_EQUAL(DDSI_QP_HISTORY);
+  dds_history_kind_t kind = (qp->populated & QOS_POLICY_HISTORY_PARAM_KIND) ? qp->values.kind : ddsi_default_qos_topic.history.kind;
+  int32_t depth = (qp->populated & QOS_POLICY_HISTORY_PARAM_DEPTH) ? qp->values.depth : ddsi_default_qos_topic.history.depth;
+  dds_qset_history (qos, kind, depth);
 }
 
 static bool qget_LATENCYBUDGET (dds_qos_t *qos)
@@ -1376,7 +1381,9 @@ static bool qget_RELIABILITY (dds_qos_t *qos)
 
 static void qset_RELIABILITY (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_RELIABILITY *qp)
 {
-  dds_qset_reliability (qos, qp->values.kind, qp->values.max_blocking_time);
+  assert (ddsi_default_qos_reader.reliability.max_blocking_time == ddsi_default_qos_topic.reliability.max_blocking_time && ddsi_default_qos_writer.reliability.max_blocking_time == ddsi_default_qos_topic.reliability.max_blocking_time);
+  dds_duration_t max_blocking_time = (qp->populated & QOS_POLICY_RELIABILITY_PARAM_MAX_BLOCKING_TIME) ? qp->values.max_blocking_time : ddsi_default_qos_topic.reliability.max_blocking_time;
+  dds_qset_reliability (qos, qp->values.kind, max_blocking_time);
 }
 
 static bool qget_RESOURCELIMITS (dds_qos_t *qos)
@@ -1386,7 +1393,12 @@ static bool qget_RESOURCELIMITS (dds_qos_t *qos)
 
 static void qset_RESOURCELIMITS (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_RESOURCELIMITS *qp)
 {
-  dds_qset_resource_limits (qos, qp->values.max_samples, qp->values.max_instances, qp->values.max_samples_per_instance);
+  ASSERT_DEFAULT_QOS_EQUAL(DDSI_QP_RESOURCE_LIMITS);
+  int32_t max_samples = (qp->populated & QOS_POLICY_RESOURCELIMITS_PARAM_MAX_SAMPLES) ? qp->values.max_samples : ddsi_default_qos_topic.resource_limits.max_samples;
+  int32_t max_instances = (qp->populated & QOS_POLICY_RESOURCELIMITS_PARAM_MAX_INSTANCES) ? qp->values.max_instances : ddsi_default_qos_topic.resource_limits.max_instances;
+  int32_t max_samples_per_instance = (qp->populated & QOS_POLICY_RESOURCELIMITS_PARAM_MAX_SAMPLES_PER_INSTANCE) ? qp->values.max_samples_per_instance : ddsi_default_qos_topic.resource_limits.max_samples_per_instance;
+
+  dds_qset_resource_limits (qos, max_samples, max_instances, max_samples_per_instance);
 }
 
 static bool qget_TIMEBASEDFILTER (dds_qos_t *qos)
@@ -1417,6 +1429,16 @@ static bool qget_WRITERDATALIFECYCLE (dds_qos_t *qos)
 static void qset_WRITERDATALIFECYCLE (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_WRITERDATALIFECYCLE *qp)
 {
   dds_qset_writer_data_lifecycle (qos, qp->values.autodispose_unregistered_instances);
+}
+
+static bool qget_WRITERBATCHING (dds_qos_t *qos)
+{
+  return dds_qget_writer_batching (qos, NULL);
+}
+
+static void qset_WRITERBATCHING (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_WRITERBATCHING *qp)
+{
+  dds_qset_writer_batching (qos, qp->values.batch_updates);
 }
 
 #define _ELEM_CLOSE_REQUIRE_ATTR(type,attr_name,current,element_name) \
@@ -1531,8 +1553,8 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UNUSED_
       case ELEMENT_KIND_QOS_POLICY_RELIABILITY:
         ELEM_CLOSE_QOS_POLICY(RELIABILITY, "Reliability");
         break;
-      case ELEMENT_KIND_QOS_POLICY_RELIABILITY_MAX_BLOCKING_DELAY:
-        ELEM_CLOSE_QOS_DURATION_PROPERTY(RELIABILITY, MAX_BLOCKING_DELAY, max_blocking_time);
+      case ELEMENT_KIND_QOS_POLICY_RELIABILITY_MAX_BLOCKING_TIME:
+        ELEM_CLOSE_QOS_DURATION_PROPERTY(RELIABILITY, MAX_BLOCKING_TIME, max_blocking_time);
         break;
       case ELEMENT_KIND_QOS_POLICY_RESOURCELIMITS:
         ELEM_CLOSE_QOS_POLICY(RESOURCELIMITS, "Resource Limits");
@@ -1555,6 +1577,9 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UNUSED_
       case ELEMENT_KIND_QOS_POLICY_WRITERDATALIFECYCLE:
         ELEM_CLOSE_QOS_POLICY(WRITERDATALIFECYCLE, "Writer Data Life-cycle");
         break;
+      case ELEMENT_KIND_QOS_POLICY_WRITERBATCHING:
+        ELEM_CLOSE_QOS_POLICY(WRITERBATCHING, "Writer Batching");
+        break;
       case ELEMENT_KIND_QOS_POLICY_ENTITYFACTORY:
         //ELEM_CLOSE_QOS_POLICY(ENTITYFACTORY, "Entity factory");
         PARSER_ERROR (pstate, line, "Unsupported QoS policy");
@@ -1566,9 +1591,8 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UNUSED_
         t->periodicity = DDS_SECS (d->sec) + d->nsec;
         break;
       }
-      case ELEMENT_KIND_TYPE:
+      case ELEMENT_KIND_TYPE_REF_EXTERNAL:
         ELEM_CLOSE_REQUIRE_ATTR (dds_sysdef_type, "name", name);
-        ELEM_CLOSE_REQUIRE_ATTR (dds_sysdef_type, "identifier", identifier);
         break;
       case ELEMENT_KIND_QOS_LIB:
         ELEM_CLOSE_REQUIRE_ATTR (dds_sysdef_qos_lib, "name", name);
@@ -1606,12 +1630,10 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UNUSED_
       case ELEMENT_KIND_WRITER:
         ELEM_CLOSE_REQUIRE_ATTR (dds_sysdef_writer, "name", name);
         ELEM_CLOSE_REQUIRE_ATTR (dds_sysdef_writer, "topic_ref", topic);
-        ELEM_CLOSE_REQUIRE_ATTR_POPULATED (dds_sysdef_writer, "writer", SYSDEF_WRITER_PARAMS);
         break;
       case ELEMENT_KIND_READER:
         ELEM_CLOSE_REQUIRE_ATTR (dds_sysdef_reader, "name", name);
         ELEM_CLOSE_REQUIRE_ATTR (dds_sysdef_reader, "topic_ref", topic);
-        ELEM_CLOSE_REQUIRE_ATTR_POPULATED (dds_sysdef_reader, "reader", SYSDEF_READER_PARAMS);
         break;
       case ELEMENT_KIND_APPLICATION_LIB:
         ELEM_CLOSE_REQUIRE_ATTR (dds_sysdef_application_lib, "name", name);
@@ -1758,8 +1780,11 @@ static int set_DURABILITY_KIND (struct parse_sysdef_state * const pstate, struct
   } else if (strcmp (value, "TRANSIENT_LOCAL_DURABILITY_QOS") == 0) {
     qp->values.kind = DDS_DURABILITY_TRANSIENT_LOCAL;
   } else if (strcmp (value, "TRANSIENT_DURABILITY_QOS") == 0) {
-    qp->values.kind = DDS_DURABILITY_TRANSIENT;
+    // FIXME: accept `transient` durability kind when implemented.
+    PARSER_ERROR (pstate, line, "Unsupported value '%s'", value);
+    ret = SD_PARSE_RESULT_NOT_SUPPORTED;
   } else if (strcmp (value, "PERSISTENT_DURABILITY_QOS") == 0) {
+    // FIXME: accept `persistent` durability kind when implemented.
     PARSER_ERROR (pstate, line, "Unsupported value '%s'", value);
     ret = SD_PARSE_RESULT_NOT_SUPPORTED;
   } else {
@@ -1871,6 +1896,7 @@ QOS_PARAM_SET_NUMERIC_UNLIMITED(RESOURCELIMITS, MAX_INSTANCES, max_instances, in
 QOS_PARAM_SET_NUMERIC_UNLIMITED(RESOURCELIMITS, MAX_SAMPLES_PER_INSTANCE, max_samples_per_instance, int32)
 QOS_PARAM_SET_NUMERIC(TRANSPORTPRIORITY, VALUE, value, int32)
 QOS_PARAM_SET_BOOLEAN(WRITERDATALIFECYCLE, AUTODISPOSE_UNREGISTERED_INSTANCES, autodispose_unregistered_instances)
+QOS_PARAM_SET_BOOLEAN(WRITERBATCHING, BATCH_UPDATES, batch_updates)
 QOS_PARAM_SET_BASE64(GROUPDATA, VALUE, value, length)
 QOS_PARAM_SET_BASE64(TOPICDATA, VALUE, value, length)
 QOS_PARAM_SET_BASE64(USERDATA, VALUE, value, length)
@@ -1918,6 +1944,19 @@ static int parse_tsn_traffic_transmission_selection (struct parse_sysdef_state *
       } \
     } while (0)
 
+#define PARENT_PARAM_DATA_MACADDR(parent_kind, parent_type, param_field) \
+    do { \
+      assert (pstate->current->parent->kind == parent_kind); \
+      struct parent_type *parent = (struct parent_type *) pstate->current->parent; \
+      if (parent->param_field != NULL) { \
+        PARSER_ERROR (pstate, line, "Parameter '%s' already set", STR(param_field)); \
+        ret = SD_PARSE_RESULT_SYNTAX_ERR; \
+      } else if (parse_mac_addr (value, &parent->param_field) != SD_PARSE_RESULT_OK) { \
+        PARSER_ERROR (pstate, line, "Invalid value for parameter '%s'", STR(param_field)); \
+        ret = SD_PARSE_RESULT_SYNTAX_ERR; \
+      } \
+    } while (0)
+
 #define PARENT_PARAM_DATA_NUMERIC(parent_kind, parent_type, type, param_field, param_populated_bit) \
     do { \
       assert (pstate->current->parent->kind == parent_kind); \
@@ -1956,18 +1995,16 @@ static int parse_mac_addr (const char *value, struct dds_sysdef_mac_addr **mac_a
   return SD_PARSE_RESULT_OK;
 }
 
-static int parse_ipv4_addr (const char *value, struct dds_sysdef_ip_addr **ipv4_addr)
+static int parse_ipv4_addr (const char *value, struct dds_sysdef_ip_addr *ipv4_addr)
 {
-  *ipv4_addr = ddsrt_malloc (sizeof (**ipv4_addr));
-  if (ddsrt_sockaddrfromstr (AF_INET, value, (struct sockaddr *) &(*ipv4_addr)->addr) != 0)
+  if (ddsrt_sockaddrfromstr (AF_INET, value, (struct sockaddr *) &ipv4_addr->addr) != 0)
     return SD_PARSE_RESULT_ERR;
   return SD_PARSE_RESULT_OK;
 }
 
-static int parse_ipv6_addr (const char *value, struct dds_sysdef_ip_addr **ipv6_addr)
+static int parse_ipv6_addr (const char *value, struct dds_sysdef_ip_addr *ipv6_addr)
 {
-  *ipv6_addr = ddsrt_malloc (sizeof (**ipv6_addr));
-  if (ddsrt_sockaddrfromstr (AF_INET6, value, (struct sockaddr *) &(*ipv6_addr)->addr) != 0)
+  if (ddsrt_sockaddrfromstr (AF_INET6, value, (struct sockaddr *) &ipv6_addr->addr) != 0)
     return SD_PARSE_RESULT_ERR;
   return SD_PARSE_RESULT_OK;
 }
@@ -2120,6 +2157,9 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
     case ELEMENT_KIND_QOS_POLICY_WRITERDATALIFECYCLE_AUTODISPOSE_UNREGISTERED_INSTANCES:
       QOS_PARAM_DATA (WRITERDATALIFECYCLE, AUTODISPOSE_UNREGISTERED_INSTANCES);
       break;
+    case ELEMENT_KIND_QOS_POLICY_WRITERBATCHING_BATCH_UPDATES:
+      QOS_PARAM_DATA (WRITERBATCHING, BATCH_UPDATES);
+      break;
     case ELEMENT_KIND_QOS_POLICY_USERDATA_VALUE:
       QOS_PARAM_DATA (USERDATA, VALUE);
       break;
@@ -2128,13 +2168,8 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
       break;
     case ELEMENT_KIND_NODE_IPV4_ADDRESS: {
       assert (pstate->current->parent->kind == ELEMENT_KIND_NODE);
-      struct dds_sysdef_node *node = (struct dds_sysdef_node *) pstate->current->parent;
-      if (node->ipv4_addr != NULL)
-      {
-        PARSER_ERROR (pstate, line, "Parameter 'ipv4_addr' already set");
-        ret = SD_PARSE_RESULT_SYNTAX_ERR;
-      }
-      else if (parse_ipv4_addr (value, &node->ipv4_addr) != SD_PARSE_RESULT_OK)
+      struct dds_sysdef_ip_addr *node = (struct dds_sysdef_ip_addr *) pstate->current;
+      if (parse_ipv4_addr (value, node) != SD_PARSE_RESULT_OK)
       {
         PARSER_ERROR (pstate, line, "Invalid value for parameter 'ipv4_addr'");
         ret = SD_PARSE_RESULT_SYNTAX_ERR;
@@ -2143,34 +2178,17 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
     }
     case ELEMENT_KIND_NODE_IPV6_ADDRESS: {
       assert (pstate->current->parent->kind == ELEMENT_KIND_NODE);
-      struct dds_sysdef_node *node = (struct dds_sysdef_node *) pstate->current->parent;
-      if (node->ipv6_addr != NULL)
-      {
-        PARSER_ERROR (pstate, line, "Parameter 'ipv6_addr' already set");
-        ret = SD_PARSE_RESULT_SYNTAX_ERR;
-      }
-      else if (parse_ipv6_addr (value, &node->ipv6_addr) != SD_PARSE_RESULT_OK)
+      struct dds_sysdef_ip_addr *node = (struct dds_sysdef_ip_addr *) pstate->current;
+      if (parse_ipv6_addr (value, node) != SD_PARSE_RESULT_OK)
       {
         PARSER_ERROR (pstate, line, "Invalid value for parameter 'ipv6_addr'");
         ret = SD_PARSE_RESULT_SYNTAX_ERR;
       }
       break;
     }
-    case ELEMENT_KIND_NODE_MAC_ADDRESS: {
-      assert (pstate->current->parent->kind == ELEMENT_KIND_NODE);
-      struct dds_sysdef_node *node = (struct dds_sysdef_node *) pstate->current->parent;
-      if (node->mac_addr != NULL)
-      {
-        PARSER_ERROR (pstate, line, "Parameter 'mac_addr' already set");
-        ret = SD_PARSE_RESULT_SYNTAX_ERR;
-      }
-      else if (parse_mac_addr (value, &node->mac_addr) != SD_PARSE_RESULT_OK)
-      {
-        PARSER_ERROR (pstate, line, "Invalid value for parameter 'mac_addr'");
-        ret = SD_PARSE_RESULT_SYNTAX_ERR;
-      }
+    case ELEMENT_KIND_NODE_MAC_ADDRESS:
+      PARENT_PARAM_DATA_MACADDR(ELEMENT_KIND_NODE, dds_sysdef_node, mac_addr);
       break;
-    }
     case ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_VLAN_TAG_PRIORITY_CODE_POINT:
       PARENT_PARAM_DATA_NUMERIC(ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_VLAN_TAG, dds_sysdef_tsn_ieee802_vlan_tag, uint8, priority_code_point, SYSDEF_TSN_VLAN_TAG_PRIORITY_CODE_POINT_PARAM_VALUE);
       break;
@@ -2178,10 +2196,10 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
       PARENT_PARAM_DATA_NUMERIC(ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_VLAN_TAG, dds_sysdef_tsn_ieee802_vlan_tag, uint16, vlan_id, SYSDEF_TSN_VLAN_TAG_VLAN_ID_PARAM_VALUE);
       break;
     case ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES_DESTINATION_MAC_ADDRESS:
-      PARENT_PARAM_DATA_STRING(ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES, dds_sysdef_tsn_ieee802_mac_addresses, destination_mac_address);
+      PARENT_PARAM_DATA_MACADDR(ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES, dds_sysdef_tsn_ieee802_mac_addresses, destination_mac_address);
       break;
     case ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES_SOURCE_MAC_ADDRESS:
-      PARENT_PARAM_DATA_STRING(ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES, dds_sysdef_tsn_ieee802_mac_addresses, source_mac_address);
+      PARENT_PARAM_DATA_MACADDR(ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_MAC_ADDRESSES, dds_sysdef_tsn_ieee802_mac_addresses, source_mac_address);
       break;
     case ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_IPV4_TUPLE_SOURCE_IP_ADDRESS:
       PARENT_PARAM_DATA_STRING(ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_DATA_FRAME_SPEC_IPV4_TUPLE, dds_sysdef_tsn_ip_tuple, source_ip_address);
@@ -2324,8 +2342,8 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
       // Type library
       if (ddsrt_strcasecmp (name, "types") == 0)
         CREATE_NODE_SINGLE (pstate, dds_sysdef_type_lib, ELEMENT_KIND_TYPE_LIB, NO_INIT, fini_type_lib, type_libs, dds_sysdef_system, ELEMENT_KIND_DDS, pstate->current);
-      else if (ddsrt_strcasecmp (name, "struct") == 0)
-        CREATE_NODE_LIST (pstate, dds_sysdef_type, ELEMENT_KIND_TYPE, NO_INIT, fini_type, types, dds_sysdef_type_lib, ELEMENT_KIND_TYPE_LIB, pstate->current);
+      else if (ddsrt_strcasecmp (name, "external_type_ref") == 0)
+        CREATE_NODE_LIST (pstate, dds_sysdef_type, ELEMENT_KIND_TYPE_REF_EXTERNAL, init_type_external_ref, fini_type, types, dds_sysdef_type_lib, ELEMENT_KIND_TYPE_LIB, pstate->current);
     }
 
     if (pstate->scope & SYSDEF_SCOPE_QOS_LIB)
@@ -2436,6 +2454,8 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_USERDATA, ELEMENT_KIND_QOS_POLICY_USERDATA, NO_INIT, fini_qos_userdata, pstate->current);
       else if (ddsrt_strcasecmp (name, "writer_data_lifecycle") == 0)
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_WRITERDATALIFECYCLE, ELEMENT_KIND_QOS_POLICY_WRITERDATALIFECYCLE, NO_INIT, NO_FINI, pstate->current);
+      else if (ddsrt_strcasecmp (name, "writer_batching") == 0)
+        CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_WRITERBATCHING, ELEMENT_KIND_QOS_POLICY_WRITERBATCHING, NO_INIT, NO_FINI, pstate->current);
 
       // QoS policy parameters
       else if (ddsrt_strcasecmp (name, "period") == 0)
@@ -2485,7 +2505,7 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
           PARSER_ERROR_INVALID_PARENT_KIND ();
       }
       else if (ddsrt_strcasecmp (name, "max_blocking_time") == 0)
-        CREATE_NODE_DURATION (pstate, dds_sysdef_qos_duration_property, ELEMENT_KIND_QOS_POLICY_RELIABILITY_MAX_BLOCKING_DELAY, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_RELIABILITY, pstate->current);
+        CREATE_NODE_DURATION (pstate, dds_sysdef_qos_duration_property, ELEMENT_KIND_QOS_POLICY_RELIABILITY_MAX_BLOCKING_TIME, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_RELIABILITY, pstate->current);
       else if (ddsrt_strcasecmp (name, "lease_duration") == 0)
         CREATE_NODE_DURATION (pstate, dds_sysdef_qos_duration_property, ELEMENT_KIND_QOS_POLICY_LIVELINESS_LEASE_DURATION, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_LIVELINESS, pstate->current);
       else if (ddsrt_strcasecmp (name, "access_scope") == 0)
@@ -2508,6 +2528,8 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
         CREATE_NODE_DURATION (pstate, dds_sysdef_qos_duration_property, ELEMENT_KIND_QOS_POLICY_TIMEBASEDFILTER_MINIMUM_SEPARATION, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_TIMEBASEDFILTER, pstate->current);
       else if (ddsrt_strcasecmp (name, "autodispose_unregistered_instances") == 0)
         CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_WRITERDATALIFECYCLE_AUTODISPOSE_UNREGISTERED_INSTANCES, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_WRITERDATALIFECYCLE, pstate->current);
+      else if (ddsrt_strcasecmp (name, "batch_updates") == 0)
+        CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_WRITERBATCHING_BATCH_UPDATES, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_WRITERBATCHING, pstate->current);
       else if (ddsrt_strcasecmp (name, "autoenable_created_entities") == 0)
         CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_ENTITYFACTORY_AUTOENABLE_CREATED_ENTITIES, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_ENTITYFACTORY, pstate->current);
       else if (ddsrt_strcasecmp (name, "kind") == 0)
@@ -2646,9 +2668,9 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
       else if (ddsrt_strcasecmp (name, "hostname") == 0)
         CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_NODE_HOSTNAME, NO_INIT, NO_FINI, ELEMENT_KIND_NODE, pstate->current);
       else if (ddsrt_strcasecmp (name, "ipv4_address") == 0)
-        CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_NODE_IPV4_ADDRESS, NO_INIT, NO_FINI, ELEMENT_KIND_NODE, pstate->current);
+        CREATE_NODE_LIST (pstate, dds_sysdef_ip_addr, ELEMENT_KIND_NODE_IPV4_ADDRESS, NO_INIT, NO_FINI, ipv4_addrs, dds_sysdef_node, ELEMENT_KIND_NODE, pstate->current);
       else if (ddsrt_strcasecmp (name, "ipv6_address") == 0)
-        CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_NODE_IPV6_ADDRESS, NO_INIT, NO_FINI, ELEMENT_KIND_NODE, pstate->current);
+        CREATE_NODE_LIST (pstate, dds_sysdef_ip_addr, ELEMENT_KIND_NODE_IPV6_ADDRESS, NO_INIT, NO_FINI, ipv6_addrs, dds_sysdef_node, ELEMENT_KIND_NODE, pstate->current);
       else if (ddsrt_strcasecmp (name, "mac_address") == 0)
         CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_NODE_MAC_ADDRESS, NO_INIT, NO_FINI, ELEMENT_KIND_NODE, pstate->current);
     }
@@ -2835,7 +2857,21 @@ static dds_return_t sysdef_parse(struct ddsrt_xmlp_state *xmlps, struct parse_sy
   return ret;
 }
 
-dds_return_t dds_sysdef_init_sysdef (FILE *fp, struct dds_sysdef_system **sysdef, uint32_t lib_scope)
+typedef struct ddsrt_xmlp_state * (*sysdef_xmlp_new_t) (void *src, void *pstate, struct ddsrt_xmlp_callbacks *cb);
+
+static struct ddsrt_xmlp_state *sysdef_xmlp_new_file(void *fp, void *pstate, struct ddsrt_xmlp_callbacks *cb)
+{
+  return ddsrt_xmlp_new_file(fp, pstate, cb);
+}
+
+static struct ddsrt_xmlp_state *sysdef_xmlp_new_string(void *xml, void *pstate, struct ddsrt_xmlp_callbacks *cb)
+{
+  return ddsrt_xmlp_new_string(xml, pstate, cb);
+}
+
+static dds_return_t dds_sysdef_init_sysdef_impl (
+  void *argv, struct dds_sysdef_system **sysdef, uint32_t lib_scope,
+  sysdef_xmlp_new_t sysdef_xmlp_new_fn)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   struct parse_sysdef_state pstate = { .sysdef = NULL, .scope = lib_scope};
@@ -2847,28 +2883,20 @@ dds_return_t dds_sysdef_init_sysdef (FILE *fp, struct dds_sysdef_system **sysdef
     .error = proc_error
   };
 
-  struct ddsrt_xmlp_state *xmlps = ddsrt_xmlp_new_file (fp, &pstate, &cb);
+  struct ddsrt_xmlp_state *xmlps = sysdef_xmlp_new_fn (argv, &pstate, &cb);
   ret = sysdef_parse(xmlps, &pstate, sysdef);
   ddsrt_xmlp_free (xmlps);
   return ret;
 }
 
-dds_return_t dds_sysdef_init_sysdef_str (const char *raw, struct dds_sysdef_system **sysdef, uint32_t lib_scope)
+dds_return_t dds_sysdef_init_sysdef (FILE *fp, struct dds_sysdef_system **sysdef, uint32_t lib_scope)
 {
-  dds_return_t ret = DDS_RETCODE_OK;
-  struct parse_sysdef_state pstate = { .sysdef = NULL, .scope = lib_scope};
-  struct ddsrt_xmlp_callbacks cb = {
-    .attr = proc_attr,
-    .elem_close = proc_elem_close,
-    .elem_data = proc_elem_data,
-    .elem_open = proc_elem_open,
-    .error = proc_error
-  };
+  return dds_sysdef_init_sysdef_impl(fp, sysdef, lib_scope, &sysdef_xmlp_new_file);
+}
 
-  struct ddsrt_xmlp_state *xmlps = ddsrt_xmlp_new_string (raw, &pstate, &cb);
-  ret = sysdef_parse(xmlps, &pstate, sysdef);
-  ddsrt_xmlp_free (xmlps);
-  return ret;
+dds_return_t dds_sysdef_init_sysdef_str (const char *xml, struct dds_sysdef_system **sysdef, uint32_t lib_scope)
+{
+  return dds_sysdef_init_sysdef_impl((char *)xml, sysdef, lib_scope, &sysdef_xmlp_new_string);
 }
 
 void dds_sysdef_fini_sysdef (struct dds_sysdef_system *sysdef)
@@ -2896,21 +2924,20 @@ struct parse_type_state {
 static bool type_equal (const void *a, const void *b)
 {
   const struct dds_sysdef_type_metadata *type_a = a, *type_b = b;
-  return memcmp (type_a->type_hash, type_b->type_hash, sizeof (TYPE_HASH_LENGTH)) == 0;
+  return strcmp (type_a->type_name, type_b->type_name) == 0;
 }
 
 static uint32_t type_hash (const void *t)
 {
   const struct dds_sysdef_type_metadata *type = t;
-  uint32_t hash32;
-  memcpy (&hash32, type->type_hash, sizeof (hash32));
+  uint32_t hash32 = ddsrt_mh3 (type->type_name, strlen (type->type_name), 0);
   return hash32;
 }
 
 static void free_type_meta_data (struct dds_sysdef_type_metadata *tmd)
 {
-  if (tmd->type_hash != NULL)
-    ddsrt_free (tmd->type_hash);
+  if (tmd->type_name != NULL)
+    ddsrt_free (tmd->type_name);
   if (tmd->type_info_cdr != NULL)
     ddsrt_free (tmd->type_info_cdr);
   if (tmd->type_map_cdr != NULL)
@@ -3008,9 +3035,9 @@ static int proc_type_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UN
   }
   else if (pstate->scope == PARSE_TYPE_SCOPE_TYPE_ENTRY)
   {
-    if (pstate->current->type_hash == NULL)
+    if (pstate->current->type_name == NULL)
     {
-      PARSER_ERROR (pstate, line, "Type identifier not set");
+      PARSER_ERROR (pstate, line, "Type name not set");
       ret = SD_PARSE_RESULT_ERR;
       free_type_meta_data (pstate->current);
     }
@@ -3071,25 +3098,10 @@ static int proc_type_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
   switch (pstate->scope)
   {
     case PARSE_TYPE_SCOPE_TYPE_ENTRY:
-      if (ddsrt_strcasecmp(name, "type_identifier") == 0)
+      if (strcmp(name, "name") == 0)
       {
-        if (strlen (value) != 2 * TYPE_HASH_LENGTH)
-        {
-          PARSER_ERROR (pstate, line, "Invalid type identifier length");
-          ret = SD_PARSE_RESULT_SYNTAX_ERR;
-          free_type_meta_data (pstate->current);
-        }
-        else
-        {
-          pstate->current->type_hash = ddsrt_malloc (TYPE_HASH_LENGTH);
-          if ((ret = dds_sysdef_parse_hex (value, pstate->current->type_hash)) != SD_PARSE_RESULT_OK)
-          {
-            PARSER_ERROR (pstate, line, "Invalid type identifier");
-            free_type_meta_data (pstate->current);
-          }
-          else
-            attr_processed = true;
-        }
+        pstate->current->type_name = ddsrt_strdup (value);
+        attr_processed = true;
       }
       break;
     default:
@@ -3118,7 +3130,9 @@ static void proc_type_error (void *varg, const char *msg, int line)
   }
 }
 
-dds_return_t dds_sysdef_init_data_types (FILE *fp, struct dds_sysdef_type_metadata_admin **type_meta_data)
+static dds_return_t dds_sysdef_init_data_types_impl (
+  void *src, struct dds_sysdef_type_metadata_admin **type_meta_data,
+  sysdef_xmlp_new_t sysdef_xmlp_new_fn)
 {
   struct parse_type_state pstate = { 0 };
   struct ddsrt_xmlp_callbacks cb = {
@@ -3129,7 +3143,7 @@ dds_return_t dds_sysdef_init_data_types (FILE *fp, struct dds_sysdef_type_metada
     .error = proc_type_error
   };
 
-  struct ddsrt_xmlp_state *xmlps = ddsrt_xmlp_new_file (fp, &pstate, &cb);
+  struct ddsrt_xmlp_state *xmlps = sysdef_xmlp_new_fn (src, &pstate, &cb);
 
   dds_return_t ret = DDS_RETCODE_OK;
   if ((ret = ddsrt_xmlp_parse (xmlps)) != SD_PARSE_RESULT_OK) {
@@ -3145,6 +3159,16 @@ dds_return_t dds_sysdef_init_data_types (FILE *fp, struct dds_sysdef_type_metada
 
   ddsrt_xmlp_free (xmlps);
   return ret;
+}
+
+dds_return_t dds_sysdef_init_data_types (FILE *fp, struct dds_sysdef_type_metadata_admin **type_meta_data)
+{
+  return dds_sysdef_init_data_types_impl(fp, type_meta_data, &sysdef_xmlp_new_file);
+}
+
+dds_return_t dds_sysdef_init_data_types_str (const char *xml, struct dds_sysdef_type_metadata_admin **type_meta_data)
+{
+  return dds_sysdef_init_data_types_impl((char *)xml, type_meta_data, &sysdef_xmlp_new_string);
 }
 
 static void free_type_meta_data_wrap (void *vnode, void *varg)

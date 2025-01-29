@@ -8,6 +8,8 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
+#include <wchar.h>
+
 #include "CUnit/Theory.h"
 #include "dds/dds.h"
 #include "dds/ddsrt/environ.h"
@@ -15,6 +17,8 @@
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/random.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsrt/countargs.h"
+#include "dds/ddsrt/foreach.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsc/dds_public_impl.h"
 #include "dds/ddsc/dds_internal_api.h"
@@ -28,6 +32,7 @@
 #include "CdrStreamKeyExt.h"
 #include "CdrStreamDataTypeInfo.h"
 #include "CdrStreamChecking.h"
+#include "CdrStreamWstring.h"
 #include "mem_ser.h"
 
 #define DDS_DOMAINID1 0
@@ -2389,3 +2394,252 @@ CU_Test (ddsc_cdrstream, check_normalize_boolean)
   }
 }
 #undef D
+
+static bool eq_CdrStreamWstring_t1 (const void *va, const void *vb)
+{
+  const CdrStreamWstring_t1 *a = va;
+  const CdrStreamWstring_t1 *b = vb;
+  return wcscmp (a->ws, b->ws) == 0 && a->k == b->k;
+}
+
+static bool eq_CdrStreamWstring_t2 (const void *va, const void *vb)
+{
+  const CdrStreamWstring_t2 *a = va;
+  const CdrStreamWstring_t2 *b = vb;
+  return wcscmp (a->ws1, b->ws1) == 0 && wcscmp (a->ws2, b->ws2) == 0 && a->k == b->k;
+}
+
+static bool eq_CdrStreamWstring_t3 (const void *va, const void *vb)
+{
+  const CdrStreamWstring_t3 *a = va;
+  const CdrStreamWstring_t3 *b = vb;
+  return wcscmp (a->ws1a[0], b->ws1a[0]) == 0 && wcscmp (a->ws1a[1], b->ws1a[1]) == 0 && a->k == b->k;
+}
+
+static bool eq_CdrStreamWstring_t4 (const void *va, const void *vb)
+{
+  const CdrStreamWstring_t4 *a = va;
+  const CdrStreamWstring_t4 *b = vb;
+  if (a->ws1s._length != b->ws1s._length)
+    return false;
+  for (uint32_t i = 0; i < a->ws1s._length; i++)
+    if (wcscmp (a->ws1s._buffer[i], b->ws1s._buffer[i]) != 0)
+      return false;
+  if (a->ws1bs._length != b->ws1bs._length)
+    return false;
+  for (uint32_t i = 0; i < a->ws1bs._length; i++)
+    if (wcscmp (a->ws1bs._buffer[i], b->ws1bs._buffer[i]) != 0)
+      return false;
+  if (a->k != b->k)
+    return false;
+  return true;
+}
+
+static bool eq_CdrStreamWstring_t5 (const void *va, const void *vb)
+{
+  const CdrStreamWstring_t5 *a = va;
+  const CdrStreamWstring_t5 *b = vb;
+  if (a->u._d != b->u._d)
+    return false;
+  switch (a->u._d)
+  {
+    case 1:
+      if (wcscmp (a->u._u.ws, b->u._u.ws) != 0)
+        return false;
+      break;
+    case 2:
+      if (wcscmp (a->u._u.ws1, b->u._u.ws1) != 0)
+        return false;
+      break;
+    case 3:
+      if (a->u._u.wss._length != b->u._u.wss._length)
+        return false;
+      for (uint32_t i = 0; i < a->u._u.wss._length; i++)
+        if (wcscmp (a->u._u.wss._buffer[i], b->u._u.wss._buffer[i]) != 0)
+          return false;
+      break;
+    case 4:
+      if (a->u._u.ws1bs._length != b->u._u.ws1bs._length)
+        return false;
+      for (uint32_t i = 0; i < a->u._u.ws1bs._length; i++)
+        if (wcscmp (a->u._u.ws1bs._buffer[i], b->u._u.ws1bs._buffer[i]) != 0)
+          return false;
+      break;
+    case 5:
+      if (wcscmp (a->u._u.ws1a[0], b->u._u.ws1a[0]) != 0)
+        return false;
+      if (wcscmp (a->u._u.ws1a[1], b->u._u.ws1a[1]) != 0)
+        return false;
+      break;
+    case 6:
+      for (uint32_t j = 0; j < 2; j++)
+      {
+        if (a->u._u.ws1abs[j]._length != b->u._u.ws1abs[j]._length)
+          return false;
+        for (uint32_t i = 0; i < a->u._u.ws1abs[j]._length; i++)
+          if (wcscmp (a->u._u.ws1abs[j]._buffer[i], b->u._u.ws1abs[j]._buffer[i]) != 0)
+            return false;
+      }
+      break;
+    default:
+      break;
+  }
+  if (a->k != b->k)
+    return false;
+  return true;
+}
+
+#define IDENT(x_) x_
+#define FIRST(w_, v_) w_
+#define PLUS() +
+#define MAKE_SER(w_, v_) SER##w_(v_)
+#define COMMA() ,
+#define SERSIZE(...) ((DDSRT_FOREACH_PAIR_WRAP (FIRST, PLUS, __VA_ARGS__)) / 8)
+#define CDR(...) SERSIZE(__VA_ARGS__), (uint8_t[]){ DDSRT_FOREACH_PAIR_WRAP (MAKE_SER, COMMA, __VA_ARGS__) }
+
+#define UTF16(x_) 16,x_
+#define WSTR0 32,0
+#define WSTR(...) 32,(2*DDSRT_COUNT_ARGS(__VA_ARGS__)), DDSRT_FOREACH_WRAP(UTF16, COMMA, __VA_ARGS__)
+#define PAD2 16,0
+#define DHDR(...) 32,(SERSIZE(__VA_ARGS__)), __VA_ARGS__
+
+#define CSEQ0 { ._length = 0, ._buffer = NULL }
+#define CSEQ(type_, ...) { \
+    ._length = DDSRT_COUNT_ARGS(__VA_ARGS__), \
+    ._buffer = (type_ *)&(type_[]){ DDSRT_FOREACH_WRAP (IDENT, COMMA, __VA_ARGS__) } \
+  }
+#define WSS(...) CSEQ(wchar_t *, __VA_ARGS__)
+#define WSSB(...) CSEQ(CdrStreamWstring_wstring1, __VA_ARGS__)
+
+#define D(n, ...) (&CdrStreamWstring_ ## n ## _desc), eq_CdrStreamWstring_ ## n, (&(CdrStreamWstring_ ## n){ __VA_ARGS__ })
+CU_Test (ddsc_cdrstream, check_wstring_valid)
+{
+  const struct {
+    const dds_topic_descriptor_t *desc;
+    bool (*eq) (const void *a, const void *b);
+    const void *data;
+    uint32_t cdrsize;
+    const uint8_t *cdr;
+  } tests[] = {
+    /* 0 */
+    { D(t1, L"",   2),  CDR(32,0, 32,2) },
+    { D(t1, L"a",  3),  CDR(WSTR('a'), PAD2, 32,3) },
+    { D(t1, L"ab", 5),  CDR(WSTR('a','b'), 32,5) },
+    { D(t2, L"",   L"",    2), CDR(WSTR0, WSTR0, 32,2) },
+    { D(t2, L"a",  L"",    3), CDR(WSTR('a'), PAD2, WSTR0, 32,3) },
+    /* 5 */
+    { D(t2, L"",   L"c",   5), CDR(WSTR0, WSTR('c'), PAD2, 32,5) },
+    { D(t2, L"",   L"cd",  7), CDR(WSTR0, WSTR('c','d'), 32,7) },
+    { D(t2, L"a",  L"c",  11), CDR(WSTR('a'), PAD2, WSTR('c'), PAD2, 32,11) },
+    { D(t2, L"a",  L"cd", 13), CDR(WSTR('a'), PAD2, WSTR('c','d'), 32,13) },
+    { D(t3, {L"", L""},    2), CDR(DHDR(WSTR0, WSTR0), 32,2) },
+    /* 10 */
+    { D(t3, {L"a", L""},   3), CDR(DHDR(WSTR('a'), PAD2, WSTR0), 32,3) },
+    { D(t3, {L"", L"c"},   5), CDR(DHDR(WSTR0, WSTR('c')), PAD2, 32,5) },
+    { D(t3, {L"a", L"c"},  7), CDR(DHDR(WSTR('a'), PAD2, WSTR('c')), PAD2, 32,7) },
+    { D(t4, CSEQ0, CSEQ0, 2), CDR(DHDR(32,0), DHDR(32,0), 32,2) },
+    { D(t4, WSS(L"a"), CSEQ0, 3), CDR(DHDR(32,1, WSTR('a')), PAD2, DHDR(32,0), 32,3) },
+    /* 15 */
+    { D(t4, WSS(L"a", L"b"), CSEQ0, 5), CDR(DHDR(32,2, WSTR('a'), PAD2, WSTR('b')), PAD2, DHDR(32,0), 32,5) },
+    { D(t4, CSEQ0, WSSB(L"c"), 7), CDR(DHDR(32,0), DHDR(32,1, WSTR('c')), PAD2, 32,7) },
+    { D(t4, CSEQ0, WSSB(L"c",L"d"), 11), CDR(DHDR(32,0), DHDR(32,2, WSTR('c'), PAD2, WSTR('d')), PAD2, 32,11) },
+    { D(t4, WSS(L"a"), WSSB(L"c"), 13), CDR(DHDR(32,1, WSTR('a')), PAD2, DHDR(32,1, WSTR('c')), PAD2, 32,13) },
+    { D(t4, WSS(L"a"), WSSB(L"c",L"d"), 17), CDR(DHDR(32,1, WSTR('a')), PAD2, DHDR(32,2, WSTR('c'), PAD2, WSTR('d')), PAD2, 32,17) },
+    /* 20 */
+    { D(t4, WSS(L"a", L"b"), WSSB(L"c"), 19), CDR(DHDR(32,2, WSTR('a'), PAD2, WSTR('b')), PAD2, DHDR(32,1, WSTR('c')), PAD2, 32,19) },
+    { D(t4, WSS(L"a", L"b"), WSSB(L"c",L"d"), 23), CDR(DHDR(32,2, WSTR('a'), PAD2, WSTR('b')), PAD2, DHDR(32,2, WSTR('c'), PAD2, WSTR('d')), PAD2, 32,23) },
+    { D(t5, {0}, 2), CDR(32,0, 32,2) },
+    { D(t5, {1,{.ws=L"abcd"}}, 3), CDR(32,1, WSTR('a','b','c','d'), 32,3) },
+    { D(t5, {2,{.ws1=L"a"}}, 5), CDR(32,2, WSTR('a'), PAD2, 32,5) },
+    /* 25 */
+    { D(t5, {3,{.wss=CSEQ0}}, 7), CDR(32,3, DHDR(WSTR0), 32,7) },
+    { D(t5, {3,{.wss=WSS(L"a",L"b")}}, 11), CDR(32,3, DHDR(32,2, WSTR('a'), PAD2, WSTR('b')), PAD2, 32,11) },
+    { D(t5, {4,{.ws1bs=WSSB(L"a",L"b")}}, 13), CDR(32,4, DHDR(32,2, WSTR('a'), PAD2, WSTR('b')), PAD2, 32,13) },
+    { D(t5, {5,{.ws1a={L"a",L"b"}}}, 17), CDR(32,5, DHDR(WSTR('a'), PAD2, WSTR('b')), PAD2, 32,17) },
+    { D(t5, {6,{.ws1abs={WSSB(L"a",L"b"),WSSB(L"c",L"d")}}}, 19),
+      CDR(32,6,
+        DHDR(DHDR(32,2, WSTR('a'), PAD2, WSTR('b')), PAD2,
+             DHDR(32,2, WSTR('c'), PAD2, WSTR('d'))),
+        PAD2, 32,19) },
+  };
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    printf("running test %"PRIu32" for desc %s\n", i, tests[i].desc->m_typename);
+
+    struct dds_cdrstream_desc desc;
+    dds_cdrstream_desc_from_topic_desc (&desc, tests[i].desc);
+    assert (desc.ops.ops);
+
+    dds_ostream_t os;
+    dds_ostream_init (&os, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
+    const bool wok = dds_stream_write (&os, &dds_cdrstream_default_allocator, tests[i].data, desc.ops.ops);
+    CU_ASSERT_FATAL (wok);
+
+    CU_ASSERT_FATAL (os.m_index == tests[i].cdrsize);
+    CU_ASSERT_FATAL (memcmp (os.m_buffer, tests[i].cdr, tests[i].cdrsize) == 0);
+
+    uint32_t act_size;
+    const bool nok = dds_stream_normalize (os.m_buffer, tests[i].cdrsize, false, DDSI_RTPS_CDR_ENC_VERSION_2, &desc, false, &act_size);
+    CU_ASSERT_FATAL (nok);
+    CU_ASSERT_FATAL (act_size == tests[i].cdrsize);
+    CU_ASSERT_FATAL (memcmp (os.m_buffer, tests[i].cdr, tests[i].cdrsize) == 0); // nothing should've changed
+
+    dds_istream_t is;
+    dds_ostream_t osk;
+    dds_istream_init (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
+    dds_ostream_init (&osk, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
+    const bool kok = dds_stream_extract_key_from_data (&is, &osk, &dds_cdrstream_default_allocator, &desc);
+    CU_ASSERT_FATAL (kok);
+    // key is a 32-bit int at the end, so need to consume all input and result must match tail of expected CDR
+    CU_ASSERT_FATAL (is.m_index == os.m_index);
+    CU_ASSERT_FATAL (osk.m_index == 4 && memcmp (osk.m_buffer, tests[i].cdr + tests[i].cdrsize - 4, 4) == 0);
+    dds_ostream_fini (&osk, &dds_cdrstream_default_allocator);
+
+    dds_istream_init (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
+    void *data = dds_alloc (desc.size);
+    dds_stream_read (&is, data, &dds_cdrstream_default_allocator, desc.ops.ops);
+    CU_ASSERT_FATAL (tests[i].eq (tests[i].data, data));
+    dds_stream_free_sample (data, &dds_cdrstream_default_allocator, desc.ops.ops);
+    dds_free (data);
+
+    dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
+    dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+  }
+}
+#undef D
+
+CU_Test (ddsc_cdrstream, check_wstring_normalize)
+{
+  // all illegal inputs, no need to worry much about unbounded/bounded, arrays or sequences:
+  // they all pass through the same functions, so "t2" suffices
+  const struct {
+    uint32_t cdrsize;
+    const uint8_t *cdr;
+  } tests[] = {
+    { CDR(32,2) }, // insufficient data
+    { CDR(32,1, 8,0, 8,0,8,0,8,0, 32,0) }, // odd length
+    { CDR(32,2, 16,0xc800, PAD2, 32,0) }, // unpaired surrogate
+    { CDR(32,2, 16,0xefff, PAD2, 32,0) }, // unpaired
+    { CDR(32,4, 16,0xc800, 16,0xc800, 32,0) }, // unpaired
+    { CDR(32,4, 16,0xe000, 16,0xe000, 32,0) }, // unpaired
+    { CDR(32,4, 16,0xc800, 16,0xe000, 32,0) }, // wrong order
+    { CDR(WSTR('a','b'), WSTR('a','b')) } // oversize bounded string
+  };
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    printf("running test %"PRIu32" \n", i);
+    struct dds_cdrstream_desc desc;
+    dds_cdrstream_desc_from_topic_desc (&desc, &CdrStreamWstring_t2_desc);
+    assert (desc.ops.ops);
+    dds_ostream_t os;
+    dds_ostream_init (&os, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
+    uint32_t act_size;
+    void *cdr = ddsrt_memdup (tests[i].cdr, tests[i].cdrsize);
+    const bool nok = dds_stream_normalize (cdr, tests[i].cdrsize, false, DDSI_RTPS_CDR_ENC_VERSION_2, &desc, false, &act_size);
+    CU_ASSERT_FATAL (!nok);
+    ddsrt_free (cdr);
+    dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+  }
+}

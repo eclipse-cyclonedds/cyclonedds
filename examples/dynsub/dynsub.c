@@ -12,6 +12,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <locale.h>
 
 #include "dds/dds.h"
 #include "dynsub.h"
@@ -145,6 +146,9 @@ int main (int argc, char **argv)
 {
   dds_return_t ret = 0;
   dds_entity_t topic = 0;
+
+  // for printf("%ls")
+  setlocale (LC_CTYPE, "");
 
   if (argc != 2)
   {

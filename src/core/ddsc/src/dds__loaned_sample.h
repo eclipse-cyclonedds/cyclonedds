@@ -85,6 +85,22 @@ dds_loaned_sample_t *dds_loan_pool_find_and_remove_loan (dds_loan_pool_t *pool, 
 dds_loaned_sample_t *dds_loan_pool_get_loan (dds_loan_pool_t *pool)
   ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
+/**
+ * @brief copies the contents of one psmx sample to another
+ * @ingroup reading
+ *
+ * Copies the contents of the memory pointed to by sample_ptr and the contents of the metadata
+ * not set by the originating psmx interface.
+ * Also copies the end to end information, which may cause duplication warnings when the same
+ * sample is delivered by multiple psmx interfaces to the same reader.
+ * Requires the memory allocated to the sample being copied to being at least as large as that
+ * being copied from.
+ *
+ * @param[out] to pointer to the loaned sample being copied to.
+ * @param[in] from pointer to the loaned sample being copied from.
+ */
+void dds_loaned_sample_copy (dds_loaned_sample_t *to, const dds_loaned_sample_t *from) ddsrt_nonnull_all;
+
 #if defined(__cplusplus)
 }
 #endif

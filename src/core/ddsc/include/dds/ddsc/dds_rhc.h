@@ -14,7 +14,6 @@
 #include "dds/dds.h"
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/ddsi_rhc.h"
-#include "dds__loaned_sample.h"
 
 #define DDS_RHC_NO_STATE_MASK_SET   (DDS_ANY_STATE + 1)
 
@@ -33,8 +32,6 @@ typedef int32_t (*dds_rhc_read_take_t) (struct dds_rhc *rhc, int32_t max_samples
 typedef bool (*dds_rhc_add_readcondition_t) (struct dds_rhc *rhc, struct dds_readcond *cond);
 typedef void (*dds_rhc_remove_readcondition_t) (struct dds_rhc *rhc, struct dds_readcond *cond);
 
-typedef uint32_t (*dds_rhc_lock_samples_t) (struct dds_rhc *rhc);
-
 struct dds_rhc_ops {
   /* A copy of DDSI rhc ops comes first so we can use either interface without
      additional indirections */
@@ -44,7 +41,6 @@ struct dds_rhc_ops {
   dds_rhc_read_take_t take;
   dds_rhc_add_readcondition_t add_readcondition;
   dds_rhc_remove_readcondition_t remove_readcondition;
-  dds_rhc_lock_samples_t lock_samples;
   dds_rhc_associate_t associate;
 };
 
@@ -63,17 +59,17 @@ DDS_INLINE_EXPORT inline dds_return_t dds_rhc_associate (struct dds_rhc *rhc, st
 }
 
 /** @component rhc */
-DDS_INLINE_EXPORT inline bool dds_rhc_store (struct dds_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wr_info, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk) {
+DDS_INLINE_EXPORT inline bool dds_rhc_store (struct dds_rhc *rhc, const struct ddsi_writer_info *wr_info, struct ddsi_serdata *sample, struct ddsi_tkmap_instance *tk) {
   return rhc->common.ops->rhc_ops.store (&rhc->common.rhc, wr_info, sample, tk);
 }
 
 /** @component rhc */
-DDS_INLINE_EXPORT inline void dds_rhc_unregister_wr (struct dds_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wr_info) {
+DDS_INLINE_EXPORT inline void dds_rhc_unregister_wr (struct dds_rhc *rhc, const struct ddsi_writer_info *wr_info) {
   rhc->common.ops->rhc_ops.unregister_wr (&rhc->common.rhc, wr_info);
 }
 
 /** @component rhc */
-DDS_INLINE_EXPORT inline void dds_rhc_relinquish_ownership (struct dds_rhc * __restrict rhc, const uint64_t wr_iid) {
+DDS_INLINE_EXPORT inline void dds_rhc_relinquish_ownership (struct dds_rhc *rhc, const uint64_t wr_iid) {
   rhc->common.ops->rhc_ops.relinquish_ownership (&rhc->common.rhc, wr_iid);
 }
 

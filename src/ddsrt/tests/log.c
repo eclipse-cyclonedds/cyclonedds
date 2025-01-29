@@ -37,7 +37,7 @@
    because it runs on the source rather than on the output of the C preprocessor
    (a reasonable decision in itself).  Therefore, just skip the body of each test. */
 
-#if (defined __APPLE__ && !(defined MAC_OS_X_VERSION_10_13 && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_13)) || defined __QNXNTO__
+#if (defined __APPLE__ && !(defined MAC_OS_X_VERSION_10_13 && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_13)) || defined __QNXNTO__ || defined __VXWORKS__
 
 #define HAVE_FMEMOPEN 0
 #else

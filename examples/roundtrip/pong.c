@@ -15,7 +15,7 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, dds_entity_t *reader, dds_
 static void finalize_dds(dds_entity_t participant, RoundTripModule_DataType data[MAX_SAMPLES]);
 
 #ifdef _WIN32
-#include <Windows.h>
+#include <windows.h>
 static bool CtrlHandler (DWORD fdwCtrlType)
 {
   (void)fdwCtrlType;

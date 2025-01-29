@@ -82,8 +82,8 @@ ddsrt_strsep(char **stringp, const char *delim)
 
 size_t
 ddsrt_strlcpy(
-  char * __restrict dest,
-  const char * __restrict src,
+  char *dest,
+  const char *src,
   size_t size)
 {
   size_t srclen = 0;
@@ -112,8 +112,8 @@ ddsrt_strlcpy(
          0 or 1. */
 size_t
 ddsrt_strlcat(
-  char * __restrict dest,
-  const char * __restrict src,
+  char *dest,
+  const char *src,
   size_t size)
 {
   size_t destlen, srclen;
