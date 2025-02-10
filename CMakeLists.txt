@@ -69,6 +69,12 @@ if(CMAKE_SYSTEM_NAME STREQUAL "VxWorks")
   add_definitions(-std=c99)
 endif()
 
+if (MSVC_VERSION LESS 1920)
+  message(WARNING "Building with Visual Studio 15 2017 or lower, usage of restrict keyword is disabled. Some performance optimizations are disabled. Consider update the MSVC compiler.")
+  # restrict is supported since Visual Studio 16 2019.
+  add_definitions("-Drestrict=")
+endif()
+
 if(${CMAKE_C_COMPILER_ID} STREQUAL "SunPro")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m64 -xc99 -D__deprecated__=")
   set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -m64")
