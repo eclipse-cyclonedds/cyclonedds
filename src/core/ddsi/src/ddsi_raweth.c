@@ -287,7 +287,7 @@ static ssize_t ddsi_raweth_conn_write (struct ddsi_tran_conn * conn, const ddsi_
  */
 static dds_return_t ddsi_raweth_set_filter (struct ddsi_tran_factory * fact, ddsrt_socket_t sock, uint32_t port)
 {
-  ushort etype = (ushort)(port & 0xFFFF);
+  unsigned short etype = (unsigned short)(port & 0xFFFF);
   struct sock_filter code[] = {
     BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 12),           // ldh [12] - load half word from frame offset 12, which is the ethernet type
     BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, etype, 0, 1), // jne #0x1ce8 - not equal to port goto drop
@@ -426,7 +426,7 @@ struct ddsi_vlan_tag {
  * - struct bpf_ts bh tstamp : timestamp
  * - uint32_t bh_captlen     : captured length
  * - uint32_t bh_datalen     : length of the captured frame
- * - ushort bh_hdrlen        : length of this header including alignment
+ * - unsigned short bh_hdrlen        : length of this header including alignment
  * Each ddsi_raweth_conn_read will return one packet from the buffer. When the buffer has become empty
  * then the buffer is filled again by reading from the bpf file descriptor.
  * This bpf_header is provided by the kernel therefore we can trust the contents of these fields and
@@ -538,7 +538,7 @@ static ssize_t ddsi_raweth_conn_write (struct ddsi_tran_conn * conn, const ddsi_
 static dds_return_t ddsi_raweth_set_filter (struct ddsi_tran_factory * fact, ddsrt_socket_t sock, uint32_t port)
 {
   int r;
-  ushort etype = (ushort)(port & 0xFFFF);
+  unsigned short etype = (unsigned short)(port & 0xFFFF);
   struct bpf_insn insns[] = {
     BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 12),
     BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, etype, 3, 0),
