@@ -413,7 +413,7 @@ ddsrt_thread_create (
 #endif
   }
   
-#if defined __linux
+#if defined (__linux) && !defined(__ANDROID__)
   if (tattr.schedAffinityN > 0)
   {
     cpu_set_t cpuset;
