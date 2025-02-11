@@ -552,7 +552,7 @@ void write_read_for(dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_du
       if ((ret = dds_take (rd, samples, info, 1, 1)) > 0)
       {
         print_test_msg ("take sample\n");
-        if (info[0].instance_state != DDS_IST_ALIVE || !info[0].valid_data)
+        if (info[0].instance_state != DDS_ALIVE_INSTANCE_STATE || !info[0].valid_data)
         {
           print_test_msg ("invalid sample instance_state=%d valid_data=%d\n", info[0].instance_state, info[0].valid_data);
           read_fail = true;
