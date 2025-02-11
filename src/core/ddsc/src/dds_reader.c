@@ -76,14 +76,14 @@ static dds_return_t dds_reader_delete (dds_entity *e)
   dds_return_t ret = DDS_RETCODE_OK;
   dds_reader * const rd = (dds_reader *) e;
 
-  dds_endpoint_remove_psmx_endpoints (&rd->m_endpoint);
-
   ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
   dds_rhc_free (rd->m_rhc);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
   dds_loan_pool_free (rd->m_heap_loan_cache);
   dds_loan_pool_free (rd->m_loans);
+  dds_endpoint_remove_psmx_endpoints (&rd->m_endpoint);
+
   dds_entity_drop_ref (&rd->m_topic->m_entity);
   return ret;
 }
