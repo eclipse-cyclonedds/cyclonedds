@@ -422,8 +422,11 @@ static void durability_service_invalid (dds_qos_t * const q, int const v) {
     case 2: dds_qset_durability_service (q, 0, DDS_HISTORY_KEEP_LAST, 1, 0, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED); break;
     case 3: dds_qset_durability_service (q, 0, DDS_HISTORY_KEEP_LAST, 1, DDS_LENGTH_UNLIMITED, 0, DDS_LENGTH_UNLIMITED); break;
     case 4: dds_qset_durability_service (q, 0, DDS_HISTORY_KEEP_LAST, 1, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED, 0); break;
-    default: dds_qset_durability_service (q, 0, (dds_history_kind_t) ((int) DDS_HISTORY_KEEP_ALL + 1), 0, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED); break;
-
+    default: {
+      union { dds_history_kind_t k; int i; } hk;
+      hk.i = (int) DDS_HISTORY_KEEP_ALL + 1;
+      dds_qset_durability_service (q, 0, hk.k, 0, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED); break;
+    }
   }
 }
 

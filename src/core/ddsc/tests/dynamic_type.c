@@ -200,7 +200,8 @@ CU_Test (ddsc_dynamic_type, extensibility_invalid, .init = dynamic_type_init, .f
 
   // Invalid extensibility value
   dds_dynamic_type_t dstruct = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "t" });
-  ret = dds_dynamic_type_set_extensibility (&dstruct, (enum dds_dynamic_type_extensibility) 99);
+  union { enum dds_dynamic_type_extensibility dte; int i; } invalid_dte = { .i = 99 };
+  ret = dds_dynamic_type_set_extensibility (&dstruct, invalid_dte.dte);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
   dds_dynamic_type_unref (&dstruct);
 

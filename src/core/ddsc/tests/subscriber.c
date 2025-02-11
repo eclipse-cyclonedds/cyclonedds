@@ -83,7 +83,8 @@ CU_Test(ddsc_subscriber, create) {
 
   sqos = dds_create_qos();
   DDSRT_WARNING_CLANG_OFF(assign-enum);
-  dds_qset_destination_order(sqos, 3); /* Set invalid dest. order (ignored, not applicable for subscriber) */
+  const union { dds_destination_order_kind_t dok; int i; } dok = { .i = 3 };
+  dds_qset_destination_order(sqos, dok.dok); /* Set invalid dest. order (ignored, not applicable for subscriber) */
   DDSRT_WARNING_CLANG_ON(assign-enum);
   subscriber = dds_create_subscriber(participant, sqos, NULL);
   CU_ASSERT_FATAL(subscriber > 0);
@@ -92,7 +93,8 @@ CU_Test(ddsc_subscriber, create) {
 
   sqos = dds_create_qos();
   DDSRT_WARNING_CLANG_OFF(assign-enum);
-  dds_qset_presentation(sqos, 123, 1, 1); /* Set invalid presentation policy */
+  const union { dds_presentation_access_scope_kind_t pask; int i; } pask = { .i = 123 };
+  dds_qset_presentation(sqos, pask.pask, 1, 1); /* Set invalid presentation policy */
   DDSRT_WARNING_CLANG_ON(assign-enum);
   subscriber = dds_create_subscriber(participant, sqos, NULL);
   CU_ASSERT_EQUAL_FATAL(subscriber, DDS_RETCODE_BAD_PARAMETER);
@@ -141,7 +143,8 @@ CU_Test(ddsc_subscriber, invalid_qos)
 
   // deliberately set an invalid value for the access scope kind, this should
   // result in create_publisher failing with BAD_PARAMETER
-  dds_qset_presentation(qos, (dds_presentation_access_scope_kind_t)123, false, false);
+  const union { dds_presentation_access_scope_kind_t pask; int i; } pask = { .i = 123 };
+  dds_qset_presentation(qos, pask.pask, false, false);
 
   subscriber = dds_create_subscriber(participant, qos, NULL);
   CU_ASSERT_FATAL(subscriber == DDS_RETCODE_BAD_PARAMETER);
