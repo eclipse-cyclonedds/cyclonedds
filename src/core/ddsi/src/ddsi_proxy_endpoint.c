@@ -461,9 +461,10 @@ static void gc_delete_proxy_writer (struct ddsi_gcreq *gcreq)
   ddsrt_free (pwr);
 }
 
-static void gc_delete_proxy_writer_dqueue_bubble_cb (struct ddsi_gcreq *gcreq)
+static void gc_delete_proxy_writer_dqueue_bubble_cb (void *vgcreq)
 {
   /* delete proxy_writer, phase 3 */
+  struct ddsi_gcreq * const gcreq = vgcreq;
   struct ddsi_proxy_writer *pwr = gcreq->arg;
   ELOGDISC (pwr, "gc_delete_proxy_writer_dqueue_bubble(%p, "PGUIDFMT")\n", (void *) gcreq, PGUID (pwr->e.guid));
   ddsi_gcreq_requeue (gcreq, gc_delete_proxy_writer);
@@ -475,7 +476,7 @@ static void gc_delete_proxy_writer_dqueue (struct ddsi_gcreq *gcreq)
   struct ddsi_proxy_writer *pwr = gcreq->arg;
   struct ddsi_dqueue *dqueue = pwr->dqueue;
   ELOGDISC (pwr, "gc_delete_proxy_writer_dqueue(%p, "PGUIDFMT")\n", (void *) gcreq, PGUID (pwr->e.guid));
-  ddsi_dqueue_enqueue_callback (dqueue, (void (*) (void *)) gc_delete_proxy_writer_dqueue_bubble_cb, gcreq);
+  ddsi_dqueue_enqueue_callback (dqueue, gc_delete_proxy_writer_dqueue_bubble_cb, gcreq);
 }
 
 static int gcreq_proxy_writer (struct ddsi_proxy_writer *pwr)

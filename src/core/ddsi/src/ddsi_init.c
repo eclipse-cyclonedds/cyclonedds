@@ -1733,7 +1733,7 @@ int ddsi_start (struct ddsi_domaingv *gv)
   }
   if (gv->listener)
   {
-    if (ddsi_create_thread (&gv->listen_ts, gv, "listen", (uint32_t (*) (void *)) ddsi_listen_thread, gv->listener) != DDS_RETCODE_OK)
+    if (ddsi_create_thread (&gv->listen_ts, gv, "listen", ddsi_listen_thread, gv->listener) != DDS_RETCODE_OK)
     {
       GVERROR ("failed to create TCP listener thread\n");
       ddsi_listener_free (gv->listener);

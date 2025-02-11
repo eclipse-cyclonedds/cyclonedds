@@ -28,17 +28,17 @@ static void dummy_psmx_v0_loan_free(dds_loaned_sample_t* loan)
   }
 }
 
-static dds_loaned_sample_t* dummy_psmx_v0_ep_request_loan(dds_psmx_endpoint_v0_t* psmx_endpoint, uint32_t size_requested)
+static dds_loaned_sample_t* dummy_psmx_v0_ep_request_loan(dds_psmx_endpoint_t* psmx_endpoint, uint32_t size_requested)
 {
   if (g_mockstats.loans._length == g_mockstats.loans._maximum)
     return NULL;
   ++g_mockstats.cnt_request_loan;
-  g_mockstats.request_loan_rcv_endpt = (dds_psmx_endpoint_t *) psmx_endpoint;
+  g_mockstats.request_loan_rcv_endpt = psmx_endpoint;
   memset(&g_mockstats.loan, 0x0, sizeof(dds_loaned_sample_t));
   memset(&g_mockstats.loan_metadata, 0x0, sizeof(dds_psmx_metadata_t));
   g_mockstats.loan.ops.free = dummy_psmx_v0_loan_free;
   g_mockstats.loan.loan_origin.origin_kind = DDS_LOAN_ORIGIN_KIND_PSMX;
-  g_mockstats.loan.loan_origin.psmx_endpoint = (dds_psmx_endpoint_t *) psmx_endpoint;
+  g_mockstats.loan.loan_origin.psmx_endpoint = psmx_endpoint;
   g_mockstats.loan.metadata = &g_mockstats.loan_metadata;
   g_mockstats.loan.sample_ptr = ddsrt_malloc(size_requested);
   ddsrt_atomic_st32 (&g_mockstats.loan.refc, 1);
@@ -47,18 +47,18 @@ static dds_loaned_sample_t* dummy_psmx_v0_ep_request_loan(dds_psmx_endpoint_v0_t
   return &g_mockstats.loan;
 }
 
-static dds_return_t dummy_psmx_v0_ep_write(dds_psmx_endpoint_v0_t* psmx_endpoint, dds_loaned_sample_t* data)
+static dds_return_t dummy_psmx_v0_ep_write(dds_psmx_endpoint_t* psmx_endpoint, dds_loaned_sample_t* data)
 {
   (void)psmx_endpoint;
   (void)data;
   // Details yet to be implemented
   ++g_mockstats.cnt_write;
-  g_mockstats.write_rcv_endpt = (dds_psmx_endpoint_t *) psmx_endpoint;
+  g_mockstats.write_rcv_endpt = psmx_endpoint;
   g_mockstats.write_rcv_loan = data;
   return DDS_RETCODE_OK;
 }
 
-static dds_loaned_sample_t* dummy_psmx_v0_ep_take(dds_psmx_endpoint_v0_t* psmx_endpoint)
+static dds_loaned_sample_t* dummy_psmx_v0_ep_take(dds_psmx_endpoint_t* psmx_endpoint)
 {
   (void)psmx_endpoint;
   // Details yet to be implemented
@@ -66,7 +66,7 @@ static dds_loaned_sample_t* dummy_psmx_v0_ep_take(dds_psmx_endpoint_v0_t* psmx_e
   return NULL;
 }
 
-static dds_return_t dummy_psmx_v0_ep_on_data_available(dds_psmx_endpoint_v0_t* psmx_endpoint, dds_entity_t reader)
+static dds_return_t dummy_psmx_v0_ep_on_data_available(dds_psmx_endpoint_t* psmx_endpoint, dds_entity_t reader)
 {
   (void)psmx_endpoint;
   (void)reader;
@@ -75,7 +75,7 @@ static dds_return_t dummy_psmx_v0_ep_on_data_available(dds_psmx_endpoint_v0_t* p
   return DDS_RETCODE_OK;
 }
 
-static dds_psmx_endpoint_v0_t* dummy_psmx_v0_create_endpoint(
+static dds_psmx_endpoint_t* dummy_psmx_v0_create_endpoint(
   dds_psmx_topic_t* psmx_topic,
   const struct dds_qos* qos,
   dds_psmx_endpoint_type_t endpoint_type
@@ -85,29 +85,30 @@ static dds_psmx_endpoint_v0_t* dummy_psmx_v0_create_endpoint(
   dds_psmx_endpoint_v0_t *endp = (dds_psmx_endpoint_v0_t *)endpv1;
   DDSRT_STATIC_ASSERT (sizeof (*endp) <= sizeof (*endpv1));
   memset(endp, 0, sizeof(dds_psmx_endpoint_v0_t));
-  endp->ops.request_loan = (dds_psmx_endpoint_request_loan_fn) dummy_psmx_v0_ep_request_loan;
-  endp->ops.write = (dds_psmx_endpoint_write_fn) dummy_psmx_v0_ep_write;
-  endp->ops.take = (dds_psmx_endpoint_take_fn) dummy_psmx_v0_ep_take;
-  endp->ops.on_data_available = (dds_psmx_endpoint_on_data_available_fn) dummy_psmx_v0_ep_on_data_available;
+  endp->ops.request_loan = dummy_psmx_v0_ep_request_loan;
+  endp->ops.write = dummy_psmx_v0_ep_write;
+  endp->ops.take = dummy_psmx_v0_ep_take;
+  endp->ops.on_data_available = dummy_psmx_v0_ep_on_data_available;
 
   endp->psmx_topic = psmx_topic;
   endp->endpoint_type = endpoint_type;
 
   ++g_mockstats.cnt_create_endpoint;
   g_mockstats.create_endpoint_rcv_topic = psmx_topic;
-  return endp;
+  return endpv1;
 }
 
-static dds_return_t dummy_psmx_v0_delete_endpoint(dds_psmx_endpoint_v0_t* psmx_endpoint)
+static dds_return_t dummy_psmx_v0_delete_endpoint(dds_psmx_endpoint_t* psmx_endpoint)
 {
-  memset(psmx_endpoint, 0x0, sizeof(dds_psmx_endpoint_v0_t));
+  dds_psmx_endpoint_v0_t * const psmx_endpoint_v0 = (dds_psmx_endpoint_v0_t *) psmx_endpoint;
+  memset(psmx_endpoint_v0, 0x0, sizeof(dds_psmx_endpoint_v0_t));
   ++g_mockstats.cnt_delete_endpoint;
-  g_mockstats.delete_endpoint_rcv_endpt = (dds_psmx_endpoint_t *) psmx_endpoint;
+  g_mockstats.delete_endpoint_rcv_endpt = psmx_endpoint;
   return DDS_RETCODE_OK;
 }
 
 static bool dummy_psmx_v0_type_qos_supported(
-  dds_psmx_v0_t* psmx,
+  dds_psmx_t* psmx,
   dds_psmx_endpoint_type_t forwhat,
   dds_data_type_properties_t data_type_props,
   const struct dds_qos* qos
@@ -121,7 +122,7 @@ static bool dummy_psmx_v0_type_qos_supported(
 }
 
 static dds_psmx_topic_t* dummy_psmx_v0_create_topic(
-  dds_psmx_v0_t* psmx,
+  dds_psmx_t* psmx,
   const char* topic_name,
   const char* type_name,
   dds_data_type_properties_t data_type_props
@@ -130,9 +131,9 @@ static dds_psmx_topic_t* dummy_psmx_v0_create_topic(
   assert(g_mockstats.topics._length < g_mockstats.topics._maximum);
   dds_psmx_topic_t* topic = (dds_psmx_topic_t*)g_mockstats.topics._buffer + g_mockstats.topics._length++;
   memset(topic, 0, sizeof(dds_psmx_topic_t));
-  topic->ops.create_endpoint = (dds_psmx_create_endpoint_fn)dummy_psmx_v0_create_endpoint;
-  topic->ops.delete_endpoint = (dds_psmx_delete_endpoint_fn)dummy_psmx_v0_delete_endpoint;
-  topic->psmx_instance = (dds_psmx_t *) psmx;
+  topic->ops.create_endpoint = dummy_psmx_v0_create_endpoint;
+  topic->ops.delete_endpoint = dummy_psmx_v0_delete_endpoint;
+  topic->psmx_instance = psmx;
   topic->topic_name = ddsrt_strdup(topic_name);
   topic->type_name = ddsrt_strdup(type_name);
   ++g_mockstats.cnt_create_topic;
@@ -147,7 +148,7 @@ static dds_return_t dummy_psmx_v0_delete_topic(dds_psmx_topic_t* psmx_topic)
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t dummy_psmx_v0_deinit(dds_psmx_v0_t* psmx)
+static dds_return_t dummy_psmx_v0_deinit(dds_psmx_t* psmx)
 {
   dds_psmx_cleanup_generic((dds_psmx_t *) psmx);
   dds_free(psmx);
@@ -166,7 +167,7 @@ static dds_return_t dummy_psmx_v0_deinit(dds_psmx_v0_t* psmx)
   return DDS_RETCODE_OK;
 }
 
-static dds_psmx_node_identifier_t dummy_psmx_v0_get_node_id(const dds_psmx_v0_t* psmx)
+static dds_psmx_node_identifier_t dummy_psmx_v0_get_node_id(const dds_psmx_t* psmx)
 {
   (void)psmx;
   dds_psmx_node_identifier_t node_id;
@@ -182,7 +183,7 @@ static dds_psmx_features_t dummy_supported_features(const dds_psmx_t* psmx)
   return g_mockstats.supports_shared_memory ? (DDS_PSMX_FEATURE_SHARED_MEMORY | DDS_PSMX_FEATURE_ZERO_COPY) : 0;
 }
 
-dds_return_t dummy_v0_create_psmx(dds_psmx_v0_t** psmx_out, dds_psmx_instance_id_t instance_id, const char* config)
+dds_return_t dummy_v0_create_psmx(dds_psmx_t** psmx_out, dds_psmx_instance_id_t instance_id, const char* config)
 {
   assert(psmx_out);
   memset(&g_mockstats, 0, sizeof(dummy_mockstats_t));
@@ -196,16 +197,16 @@ dds_return_t dummy_v0_create_psmx(dds_psmx_v0_t** psmx_out, dds_psmx_instance_id
 
   psmx->instance_id = instance_id;
 
-  psmx->ops.type_qos_supported = (dds_psmx_type_qos_supported_fn) dummy_psmx_v0_type_qos_supported;
-  psmx->ops.create_topic = (dds_psmx_create_topic_fn) dummy_psmx_v0_create_topic;
-  psmx->ops.delete_topic = (dds_psmx_delete_topic_fn) dummy_psmx_v0_delete_topic;
-  psmx->ops.deinit = (dds_psmx_deinit_fn) dummy_psmx_v0_deinit;
-  psmx->ops.get_node_id = (dds_psmx_get_node_identifier_fn) dummy_psmx_v0_get_node_id;
-  psmx->ops.supported_features = (dds_psmx_supported_features_fn) dummy_supported_features;
+  psmx->ops.type_qos_supported = dummy_psmx_v0_type_qos_supported;
+  psmx->ops.create_topic = dummy_psmx_v0_create_topic;
+  psmx->ops.delete_topic = dummy_psmx_v0_delete_topic;
+  psmx->ops.deinit = dummy_psmx_v0_deinit;
+  psmx->ops.get_node_id = dummy_psmx_v0_get_node_id;
+  psmx->ops.supported_features = dummy_supported_features;
   dds_psmx_init_generic((dds_psmx_t *) psmx);
 
   g_mockstats.config = ddsrt_strdup(config);
 
-  *psmx_out = psmx;
+  *psmx_out = (dds_psmx_t *) psmx;
   return DDS_RETCODE_OK;
 }

@@ -1191,8 +1191,10 @@ struct handle_Heartbeat_helper_arg {
   bool directed_heartbeat;
 };
 
-static void handle_Heartbeat_helper (struct ddsi_pwr_rd_match * const wn, struct handle_Heartbeat_helper_arg * const arg)
+static void handle_Heartbeat_helper (void *vwn, void *varg)
 {
+  struct ddsi_pwr_rd_match * const wn = vwn;
+  struct handle_Heartbeat_helper_arg * const arg = varg;
   struct ddsi_receiver_state * const rst = arg->rst;
   ddsi_rtps_heartbeat_t const * const msg = arg->msg;
   struct ddsi_proxy_writer * const pwr = arg->pwr;
@@ -1424,7 +1426,7 @@ static int handle_Heartbeat (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow
   arg.tnow = tnow;
   arg.tnow_mt = ddsrt_time_monotonic ();
   arg.directed_heartbeat = (dst.entityid.u != DDSI_ENTITYID_UNKNOWN && ddsi_vendor_is_eclipse (rst->vendor));
-  handle_forall_destinations (&dst, pwr, (ddsrt_avl_walk_t) handle_Heartbeat_helper, &arg);
+  handle_forall_destinations (&dst, pwr, handle_Heartbeat_helper, &arg);
   RSTTRACE (")");
 
   ddsrt_mutex_unlock (&pwr->e.lock);
@@ -3499,8 +3501,9 @@ static void rebuild_local_participant_set (struct ddsi_thread_state * const thrs
   GVTRACE ("  nparticipants %"PRIu32"\n", lps->nps);
 }
 
-uint32_t ddsi_listen_thread (struct ddsi_tran_listener *listener)
+uint32_t ddsi_listen_thread (void *vlistener)
 {
+  struct ddsi_tran_listener * const listener = vlistener;
   struct ddsi_domaingv *gv = listener->m_base.gv;
   struct ddsi_tran_conn * conn;
 
