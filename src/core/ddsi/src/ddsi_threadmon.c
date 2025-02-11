@@ -78,8 +78,9 @@ static void update_av_ary (struct ddsi_threadmon *sl, uint32_t nthreads)
   }
 }
 
-static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
+static uint32_t threadmon_thread (void *vsl)
 {
+  struct ddsi_threadmon * const sl = vsl;
   /* Do not check more often than once every 100ms (no particular
      reason why it has to be 100ms), regardless of the lease settings.
      Note: can't trust sl->self, may have been scheduled before the
@@ -248,7 +249,7 @@ dds_return_t ddsi_threadmon_start (struct ddsi_threadmon *sl, const char *name)
   ddsrt_mutex_unlock (&sl->lock);
 
   /* FIXME: thread properties */
-  if (ddsi_create_thread_with_properties (&sl->thrst, NULL, name, (uint32_t (*) (void *)) threadmon_thread, sl) != DDS_RETCODE_OK)
+  if (ddsi_create_thread_with_properties (&sl->thrst, NULL, name, threadmon_thread, sl) != DDS_RETCODE_OK)
     goto fail_thread;
   return 0;
 

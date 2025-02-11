@@ -111,7 +111,7 @@ struct ddsi_xeventq {
   uint64_t ntxl_length_time;
 };
 
-static uint32_t xevent_thread (struct ddsi_xeventq *xevq);
+static uint32_t xevent_thread (void *vxevq);
 static ddsrt_mtime_t earliest_in_xeventq (struct ddsi_xeventq *evq);
 static int msg_xevents_cmp (const void *a, const void *b);
 static int compare_xevent_tsched (const void *va, const void *vb);
@@ -465,7 +465,7 @@ dds_return_t ddsi_xeventq_start (struct ddsi_xeventq *evq, const char *name)
   }
 
   evq->terminate = 0;
-  rc = ddsi_create_thread (&evq->thrst, evq->gv, evqname, (uint32_t (*) (void *)) xevent_thread, evq);
+  rc = ddsi_create_thread (&evq->thrst, evq->gv, evqname, xevent_thread, evq);
 
   if (name)
   {
@@ -630,8 +630,9 @@ void ddsi_xeventq_step (struct ddsi_xeventq *evq)
   ddsi_xpack_free (xp);
 }
 
-static uint32_t xevent_thread (struct ddsi_xeventq * evq)
+static uint32_t xevent_thread (void *vevq)
 {
+  struct ddsi_xeventq * const evq = vevq;
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   struct ddsi_domaingv * const gv = evq->gv;
   ddsrt_mtime_t next_thread_cputime = { 0 };
