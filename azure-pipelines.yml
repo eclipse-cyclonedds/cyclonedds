@@ -148,7 +148,7 @@ jobs:
     displayName: Download Coverage
   - task: UsePythonVersion@0
   - bash: |
-      python -m pip install gcovr==5.0 --user --upgrade
+      python -m pip install gcovr --user --upgrade
       ls coverage
       gcovr -a coverage/**/*.json --xml-pretty --output coverage.xml
     displayName: Combine coverage reports
