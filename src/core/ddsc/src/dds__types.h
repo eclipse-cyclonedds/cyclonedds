@@ -122,7 +122,7 @@ typedef struct dds_entity_deriver {
 } dds_entity_deriver;
 
 struct dds_waitset;
-typedef void (*dds_entity_callback_t) (struct dds_waitset *observer, dds_entity_t observed, uint32_t status);
+typedef void (*dds_entity_callback_t) (struct dds_waitset *observer, dds_entity_t observed);
 typedef bool (*dds_entity_attach_callback_t) (struct dds_waitset *observer, struct dds_entity *observed, void *attach_arg);
 typedef void (*dds_entity_delete_callback_t) (struct dds_waitset *observer, dds_entity_t observed);
 

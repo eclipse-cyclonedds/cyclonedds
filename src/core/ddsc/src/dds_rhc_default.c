@@ -2540,7 +2540,7 @@ static bool dds_rhc_default_add_readcondition (struct dds_rhc *rhc_common, dds_r
   if (trigger)
   {
     ddsrt_atomic_st32 (&cond->m_entity.m_status.m_trigger, trigger);
-    dds_entity_status_signal (&cond->m_entity, DDS_DATA_AVAILABLE_STATUS);
+    dds_entity_status_signal (&cond->m_entity);
   }
 
   TRACE ("add_readcondition(%p, %"PRIx32", %"PRIx32", %"PRIx32") => %p qminv %"PRIx32" ; rhc %"PRIu32" conds\n",
@@ -2770,7 +2770,7 @@ static bool update_conditions_locked (struct dds_rhc_default *rhc, bool called_f
 
     if (trigger)
     {
-      dds_entity_status_signal (&iter->m_entity, DDS_DATA_AVAILABLE_STATUS);
+      dds_entity_status_signal (&iter->m_entity);
     }
     TRACE ("\n");
     iter = iter->m_next;
