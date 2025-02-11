@@ -24,13 +24,13 @@ jobs:
     vmImage: $(image)
   strategy:
     matrix:
-      'Ubuntu 20.04 LTS (Release, x86_64)':
-        image: ubuntu-20.04
+      'Ubuntu 22.04 (Release, x86_64)':
+        image: ubuntu-22.04
         build_type: Release
         sanitizer: undefined
         cc: gcc
-      'Ubuntu 22.04 LTS (Debug, x86_64, Iceoryx)':
-        image: ubuntu-22.04
+      'Ubuntu 24.04 (Debug, x86_64, Iceoryx)':
+        image: ubuntu-24.04
         # No address sanitizer because of this in test run:
         #  Shadow memory range interleaves with an existing memory mapping.
         #  ASan cannot proceed correctly. ABORTING.
@@ -40,13 +40,14 @@ jobs:
         iceoryx: on
         cc: gcc
         coverage: on
-      'Ubuntu 22.04 LTS (Release, x86_64)':
-        image: ubuntu-22.04
+      'Ubuntu 24.04 (Release, x86_64)':
+        image: ubuntu-24.04
         build_type: Release
         sanitizer: undefined
-        cc: gcc
-      'Ubuntu 22.04 LTS with GCC 12 (Debug, x86_64, security only)':
-        image: ubuntu-22.04
+        cc: gcc-14
+        cxx: g++-14
+      'Ubuntu 24.04 with GCC 12 (Debug, x86_64, security only)':
+        image: ubuntu-24.04
         sanitizer: address,undefined
         ssl: off
         lifespan: off
@@ -55,23 +56,23 @@ jobs:
         topic_discovery: off
         idlc_xtests: off # temporary disabled because of passing -t option to idlc in this test for recursive types
         cc: gcc-12
-      'Ubuntu 22.04 LTS with GCC 12 (Debug, x86_64, no tests)':
-        image: ubuntu-22.04
+      'Ubuntu 24.04 with GCC 12 (Debug, x86_64, no tests)':
+        image: ubuntu-24.04
         cc: gcc-12
         testing: off
         idlc_xtests: off
-      'Ubuntu 22.04 LTS with Clang (Debug, x86_64)':
-        image: ubuntu-22.04
+      'Ubuntu 24.04 with Clang (Debug, x86_64)':
+        image: ubuntu-24.04
         analyzer: on
         sanitizer: address,undefined
         cc: clang
-      'Ubuntu 22.04 LTS with Clang (Debug, x86_64, no security)':
-        image: ubuntu-22.04
+      'Ubuntu 24.04 with Clang (Debug, x86_64, no security)':
+        image: ubuntu-24.04
         sanitizer: address,undefined
         security: off
         cc: clang
-      'Ubuntu 22.04 LTS with Clang (Release, x86_64, no topic discovery)':
-        image: ubuntu-22.04
+      'Ubuntu 24.04 with Clang (Release, x86_64, no topic discovery)':
+        image: ubuntu-24.04
         build_type: Release
         sanitizer: undefined
         topic_discovery: off
@@ -122,8 +123,8 @@ jobs:
       #  generator: 'MinGW Makefiles'
       #  cc: 'C:/msys64/mingw64/bin/gcc.exe'
       #  cxx: 'C:/msys64/mingw64/bin/g++.exe'
-      'Ubuntu 22.04 LTS with default GCC (Release, Iceoryx, Static, x86_64)':
-        image: ubuntu-22.04
+      'Ubuntu 24.04 with default GCC (Release, Iceoryx, Static, x86_64)':
+        image: ubuntu-24.04
         idlc_xtests: off
         build_type: Release
         sharedlibs: off
@@ -137,7 +138,7 @@ jobs:
   dependsOn: build_and_test
   condition: succeededOrFailed()  # Always run, even when failed tests, because they should be reported in the dasboard of course!
   pool:
-    vmImage: ubuntu-20.04
+    vmImage: ubuntu-22.04
   steps:
   - bash: |
       mkdir coverage
@@ -163,9 +164,8 @@ jobs:
     vmImage: $(image)
   strategy:
     matrix:
-      'Test and fuzzing (Ubuntu 22.04 LTS, Clang 13, Debug)':
-        image: ubuntu-22.04
-        cc: clang-13
+      'Test and fuzzing (Ubuntu 24.04 LTS, Clang, Debug)':
+        image: ubuntu-24.04
         build_type: Debug
   steps:
     - template: /.azure/templates/python-binding.yml
@@ -176,9 +176,8 @@ jobs:
     vmImage: $(image)
   strategy:
     matrix:
-      'Build and test (Ubuntu 22.04 LTS, Clang 13, Debug)':
+      'Build and test (Ubuntu 22.04 LTS, Clang 18, Debug)':
         image: ubuntu-22.04
-        cc: clang-13
         build_type: Debug
   steps:
     - template: /.azure/templates/cxx-binding.yml
