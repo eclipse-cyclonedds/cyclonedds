@@ -175,14 +175,14 @@ static void data_avail_cb_trigger_waitsets (dds_entity *rd, uint32_t signal)
     ddsrt_mutex_lock (&sub->m_observers_lock);
     const uint32_t sm = ddsrt_atomic_ld32 (&sub->m_status.m_status_and_mask);
     if ((sm & (sm >> SAM_ENABLED_SHIFT)) & DDS_DATA_ON_READERS_STATUS)
-      dds_entity_observers_signal (sub, DDS_DATA_ON_READERS_STATUS);
+      dds_entity_observers_signal (sub);
     ddsrt_mutex_unlock (&sub->m_observers_lock);
   }
   if (signal & DDS_DATA_AVAILABLE_STATUS)
   {
     const uint32_t sm = ddsrt_atomic_ld32 (&rd->m_status.m_status_and_mask);
     if ((sm & (sm >> SAM_ENABLED_SHIFT)) & DDS_DATA_AVAILABLE_STATUS)
-      dds_entity_observers_signal (rd, DDS_DATA_AVAILABLE_STATUS);
+      dds_entity_observers_signal (rd);
   }
 }
 
