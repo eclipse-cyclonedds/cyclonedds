@@ -262,10 +262,29 @@ CU_Theory((dds_entity_t *rdr), ddsc_querycondition_create, non_readers, .init=qu
     cond = dds_create_querycondition(*rdr, mask, filter_mod2);
     CU_ASSERT_EQUAL_FATAL(cond, DDS_RETCODE_ILLEGAL_OPERATION);
 }
-/*************************************************************************************************/
 
+CU_Test(ddsc_querycondition_create, many, .init=querycondition_init, .fini=querycondition_fini)
+{
+    // Current implementation maintains a 32-bits wide bitmask for tracking the query conditions
+    // matched by a sample.  So let's try to create 33 query conditions. We expect it to fail at
+    // the last one and not to crash.
+    dds_entity_t conds[33];
+    dds_return_t ret;
 
+    for (int i = 0; i < 32; i++)
+    {
+      conds[i] = dds_create_querycondition(g_reader, 0, filter_mod2);
+      CU_ASSERT_FATAL(conds[i] > 0);
+    }
+    conds[32] = dds_create_querycondition(g_reader, 0, filter_mod2);
+    CU_ASSERT_FATAL(conds[32] < 0);
 
+    // If we delete one, we should be able to create another one
+    ret = dds_delete (conds[0]);
+    CU_ASSERT_FATAL (ret == 0);
+    conds[32] = dds_create_querycondition(g_reader, 0, filter_mod2);
+    CU_ASSERT_FATAL(conds[32] > 0);
+}
 
 
 /**************************************************************************************************
