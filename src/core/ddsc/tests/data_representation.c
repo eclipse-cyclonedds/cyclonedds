@@ -286,7 +286,7 @@ CU_Test(ddsc_data_representation, matching, .init = data_representation_init, .f
       CU_ASSERT_EQUAL_FATAL (ret, 1);
       ret = dds_read (rd, rds, si, 1, 1);
       CU_ASSERT_EQUAL_FATAL (ret, 1);
-      CU_ASSERT_EQUAL_FATAL (si->instance_state, DDS_IST_NOT_ALIVE_DISPOSED);
+      CU_ASSERT_EQUAL_FATAL (si->instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
       ret = dds_return_loan (rd, rds, 1);
       CU_ASSERT_FATAL (ret == 0);
     }

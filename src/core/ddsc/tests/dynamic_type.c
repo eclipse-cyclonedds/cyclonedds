@@ -668,7 +668,7 @@ CU_Test (ddsc_dynamic_type, existing, .init = dynamic_type_init, .fini = dynamic
     while (!done && dds_take (pub_rd, samples, &si, 1, 1) == 1)
     {
       const dds_builtintopic_endpoint_t *sample = samples[0];
-      done = si.valid_data && si.instance_state == DDS_IST_ALIVE && !strcmp (sample->topic_name, topic_name);
+      done = si.valid_data && si.instance_state == DDS_ALIVE_INSTANCE_STATE && !strcmp (sample->topic_name, topic_name);
     }
     dds_return_loan (pub_rd, samples, 1);
   }

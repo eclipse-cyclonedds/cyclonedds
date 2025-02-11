@@ -42,11 +42,11 @@
 #define SAMPLE_NO_WRITER_IST_CNT  (2)
 #define SAMPLE_LAST_READ_SST      (2)
 #define SAMPLE_LAST_OLD_VST       (3)
-#define SAMPLE_IST(idx)           (((idx % 3) == 0) ? DDS_IST_ALIVE              : \
-                                   ((idx % 3) == 1) ? DDS_IST_NOT_ALIVE_DISPOSED : \
-                                                      DDS_IST_NOT_ALIVE_NO_WRITERS )
-#define SAMPLE_VST(idx)           ((idx <= SAMPLE_LAST_OLD_VST ) ? DDS_VST_OLD  : DDS_VST_NEW)
-#define SAMPLE_SST(idx)           ((idx <= SAMPLE_LAST_READ_SST) ? DDS_SST_READ : DDS_SST_NOT_READ)
+#define SAMPLE_IST(idx)           (((idx % 3) == 0) ? DDS_ALIVE_INSTANCE_STATE              : \
+                                   ((idx % 3) == 1) ? DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE : \
+                                                      DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE )
+#define SAMPLE_VST(idx)           ((idx <= SAMPLE_LAST_OLD_VST ) ? DDS_NOT_NEW_VIEW_STATE  : DDS_NEW_VIEW_STATE)
+#define SAMPLE_SST(idx)           ((idx <= SAMPLE_LAST_READ_SST) ? DDS_READ_SAMPLE_STATE : DDS_NOT_READ_SAMPLE_STATE)
 
 
 static dds_entity_t g_participant = 0;
@@ -132,11 +132,11 @@ querycondition_init_hdepth(int hdepth)
         ret = dds_write(g_writer, &sample);
         CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
-        if (ist == DDS_IST_NOT_ALIVE_DISPOSED) {
+        if (ist == DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE) {
             ret = dds_dispose(g_writer, &sample);
             CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
         }
-        if (ist == DDS_IST_NOT_ALIVE_NO_WRITERS) {
+        if (ist == DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE) {
             ret = dds_unregister_instance(g_writer, &sample);
             CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
         }
@@ -161,11 +161,11 @@ querycondition_init_hdepth(int hdepth)
         ret = dds_write(g_writer, &sample);
         CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
-        if ((ist == DDS_IST_NOT_ALIVE_DISPOSED) && (i != 4)) {
+        if ((ist == DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE) && (i != 4)) {
             ret = dds_dispose(g_writer, &sample);
             CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
         }
-        if (ist == DDS_IST_NOT_ALIVE_NO_WRITERS) {
+        if (ist == DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE) {
             ret = dds_unregister_instance(g_writer, &sample);
             CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
         }
@@ -462,7 +462,7 @@ CU_Test(ddsc_querycondition_read, not_read_sample_state, .init=querycondition_in
 
         /* Expected states. */
         int                  expected_long_1 = (i == 0) ? 4 : 6;
-        dds_sample_state_t   expected_sst    = DDS_SST_NOT_READ;
+        dds_sample_state_t   expected_sst    = DDS_NOT_READ_SAMPLE_STATE;
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
@@ -512,7 +512,7 @@ CU_Test(ddsc_querycondition_read, read_sample_state, .init=querycondition_init, 
 
         /* Expected states. */
         int                  expected_long_1 = i * 2;
-        dds_sample_state_t   expected_sst    = DDS_SST_READ;
+        dds_sample_state_t   expected_sst    = DDS_READ_SAMPLE_STATE;
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
@@ -563,7 +563,7 @@ CU_Test(ddsc_querycondition_read, new_view_state, .init=querycondition_init, .fi
         /* Expected states. */
         int                  expected_long_1 = (i == 0) ? 4 : 6;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
-        dds_view_state_t     expected_vst    = DDS_VST_NEW;
+        dds_view_state_t     expected_vst    = DDS_NEW_VIEW_STATE;
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
@@ -613,7 +613,7 @@ CU_Test(ddsc_querycondition_read, not_new_view_state, .init=querycondition_init,
         /* Expected states. */
         int                  expected_long_1 = i * 2;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
-        dds_view_state_t     expected_vst    = DDS_VST_OLD;
+        dds_view_state_t     expected_vst    = DDS_NOT_NEW_VIEW_STATE;
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
@@ -664,7 +664,7 @@ CU_Test(ddsc_querycondition_read, alive_instance_state, .init=querycondition_ini
         int                  expected_long_1 = (i == 0) ? 0 : 6;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-        dds_instance_state_t expected_ist    = DDS_IST_ALIVE;
+        dds_instance_state_t expected_ist    = DDS_ALIVE_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -714,7 +714,7 @@ CU_Test(ddsc_querycondition_read, disposed_instance_state, .init=querycondition_
         int                  expected_long_1 = 4;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-        dds_instance_state_t expected_ist    = DDS_IST_NOT_ALIVE_DISPOSED;
+        dds_instance_state_t expected_ist    = DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -764,7 +764,7 @@ CU_Test(ddsc_querycondition_read, no_writers_instance_state, .init=queryconditio
         int                  expected_long_1 = 2;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-        dds_instance_state_t expected_ist    = DDS_IST_NOT_ALIVE_NO_WRITERS;
+        dds_instance_state_t expected_ist    = DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -812,9 +812,9 @@ CU_Test(ddsc_querycondition_read, combination_of_states, .init=querycondition_in
 
         /* Expected states. */
         int                  expected_long_1 = 6;
-        dds_sample_state_t   expected_sst    = DDS_SST_NOT_READ;
-        dds_view_state_t     expected_vst    = DDS_VST_NEW;
-        dds_instance_state_t expected_ist    = DDS_IST_ALIVE;
+        dds_sample_state_t   expected_sst    = DDS_NOT_READ_SAMPLE_STATE;
+        dds_view_state_t     expected_vst    = DDS_NEW_VIEW_STATE;
+        dds_instance_state_t expected_ist    = DDS_ALIVE_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -893,7 +893,7 @@ CU_Test(ddsc_querycondition_read, with_mask, .init=querycondition_init, .fini=qu
 
         /* Expected states. */
         int                  expected_long_1 = (i == 0) ? 4 : 6;
-        dds_sample_state_t   expected_sst    = DDS_SST_NOT_READ;
+        dds_sample_state_t   expected_sst    = DDS_NOT_READ_SAMPLE_STATE;
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
@@ -1025,7 +1025,7 @@ CU_Test(ddsc_querycondition_take, not_read_sample_state, .init=querycondition_in
 
         /* Expected states. */
         int                  expected_long_1 = (i == 0) ? 4 : 6;
-        dds_sample_state_t   expected_sst    = DDS_SST_NOT_READ;
+        dds_sample_state_t   expected_sst    = DDS_NOT_READ_SAMPLE_STATE;
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
@@ -1075,7 +1075,7 @@ CU_Test(ddsc_querycondition_take, read_sample_state, .init=querycondition_init, 
 
         /* Expected states. */
         int                  expected_long_1 = i * 2;
-        dds_sample_state_t   expected_sst    = DDS_SST_READ;
+        dds_sample_state_t   expected_sst    = DDS_READ_SAMPLE_STATE;
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
@@ -1126,7 +1126,7 @@ CU_Test(ddsc_querycondition_take, new_view_state, .init=querycondition_init, .fi
         /* Expected states. */
         int                  expected_long_1 = (i == 0) ? 4 : 6;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
-        dds_view_state_t     expected_vst    = DDS_VST_NEW;
+        dds_view_state_t     expected_vst    = DDS_NEW_VIEW_STATE;
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
@@ -1176,7 +1176,7 @@ CU_Test(ddsc_querycondition_take, not_new_view_state, .init=querycondition_init,
         /* Expected states. */
         int                  expected_long_1 = i * 2;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
-        dds_view_state_t     expected_vst    = DDS_VST_OLD;
+        dds_view_state_t     expected_vst    = DDS_NOT_NEW_VIEW_STATE;
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
@@ -1227,7 +1227,7 @@ CU_Test(ddsc_querycondition_take, alive_instance_state, .init=querycondition_ini
         int                  expected_long_1 = i * 6;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-        dds_instance_state_t expected_ist    = DDS_IST_ALIVE;
+        dds_instance_state_t expected_ist    = DDS_ALIVE_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -1277,7 +1277,7 @@ CU_Test(ddsc_querycondition_take, disposed_instance_state, .init=querycondition_
         int                  expected_long_1 = 4;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-        dds_instance_state_t expected_ist    = DDS_IST_NOT_ALIVE_DISPOSED;
+        dds_instance_state_t expected_ist    = DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -1327,7 +1327,7 @@ CU_Test(ddsc_querycondition_take, no_writers_instance_state, .init=queryconditio
         int                  expected_long_1 = 2;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-        dds_instance_state_t expected_ist    = DDS_IST_NOT_ALIVE_NO_WRITERS;
+        dds_instance_state_t expected_ist    = DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -1375,9 +1375,9 @@ CU_Test(ddsc_querycondition_take, combination_of_states, .init=querycondition_in
 
         /* Expected states. */
         int                  expected_long_1 = 6;
-        dds_sample_state_t   expected_sst    = DDS_SST_NOT_READ;
-        dds_view_state_t     expected_vst    = DDS_VST_NEW;
-        dds_instance_state_t expected_ist    = DDS_IST_ALIVE;
+        dds_sample_state_t   expected_sst    = DDS_NOT_READ_SAMPLE_STATE;
+        dds_view_state_t     expected_vst    = DDS_NEW_VIEW_STATE;
+        dds_instance_state_t expected_ist    = DDS_ALIVE_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -1456,7 +1456,7 @@ CU_Test(ddsc_querycondition_take, with_mask, .init=querycondition_init, .fini=qu
 
         /* Expected states. */
         int                  expected_long_1 = (i == 0) ? 4 : 6;
-        dds_sample_state_t   expected_sst    = DDS_SST_NOT_READ;
+        dds_sample_state_t   expected_sst    = DDS_NOT_READ_SAMPLE_STATE;
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 

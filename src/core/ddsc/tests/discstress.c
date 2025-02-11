@@ -216,7 +216,7 @@ static bool checksample (struct ddsrt_hh *wrinfo, const dds_sample_info_t *si, c
   snprintf (logbuf->line[logbuf->logidx], sizeof (logbuf->line[logbuf->logidx]),
             "%"PRIu32": %"PRId32".%"PRIu32" %"PRIu32".%"PRIu32" iid %"PRIx64" new %"PRIx64" st %c%c seq %"PRIu32" seen %"PRIu32"\n",
             rdid, s->round, s->wrseq, s->wridx, s->histidx, wri->wr_iid, si->publication_handle,
-            (si->instance_state == DDS_IST_ALIVE) ? 'A' : (si->instance_state == DDS_IST_NOT_ALIVE_DISPOSED) ? 'D' : 'U',
+            (si->instance_state == DDS_ALIVE_INSTANCE_STATE) ? 'A' : (si->instance_state == DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE) ? 'D' : 'U',
             si->valid_data ? 'v' : 'i', s->seq, wri->seen);
   if (++logbuf->logidx == LOGDEPTH)
     logbuf->logidx = 0;

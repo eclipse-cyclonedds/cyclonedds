@@ -1686,7 +1686,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc, sample_empty 
     CU_ASSERT_EQUAL_FATAL (ret, 1);
     ret = dds_read (rd, rds, si, 1, 1);
     CU_ASSERT_EQUAL_FATAL (ret, 1);
-    CU_ASSERT_EQUAL_FATAL (si->instance_state, DDS_IST_NOT_ALIVE_DISPOSED);
+    CU_ASSERT_EQUAL_FATAL (si->instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
     dds_return_loan (rd, rds, 1);
   }
 

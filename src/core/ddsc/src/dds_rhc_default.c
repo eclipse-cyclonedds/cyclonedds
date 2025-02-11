@@ -936,7 +936,7 @@ static bool add_sample (struct dds_rhc_default *rhc, struct rhc_instance *inst, 
 
 static void content_filter_make_sampleinfo (struct dds_sample_info *si, const struct ddsi_serdata *sample, const struct rhc_instance *inst, uint64_t wr_iid, uint64_t iid)
 {
-  si->sample_state = DDS_SST_NOT_READ;
+  si->sample_state = DDS_NOT_READ_SAMPLE_STATE;
   si->publication_handle = wr_iid;
   si->source_timestamp = sample->timestamp.v;
   si->sample_rank = 0;
@@ -945,16 +945,16 @@ static void content_filter_make_sampleinfo (struct dds_sample_info *si, const st
   si->valid_data = true;
   if (inst)
   {
-    si->view_state = inst->isnew ? DDS_VST_NEW : DDS_VST_OLD;
-    si->instance_state = inst->isdisposed ? DDS_IST_NOT_ALIVE_DISPOSED : (inst->wrcount == 0) ? DDS_IST_NOT_ALIVE_NO_WRITERS : DDS_IST_ALIVE;
+    si->view_state = inst->isnew ? DDS_NEW_VIEW_STATE : DDS_NOT_NEW_VIEW_STATE;
+    si->instance_state = inst->isdisposed ? DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE : (inst->wrcount == 0) ? DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE : DDS_ALIVE_INSTANCE_STATE;
     si->instance_handle = inst->iid;
     si->disposed_generation_count = inst->disposed_gen;
     si->no_writers_generation_count = inst->no_writers_gen;
   }
   else
   {
-    si->view_state = DDS_VST_NEW;
-    si->instance_state = DDS_IST_ALIVE;
+    si->view_state = DDS_NEW_VIEW_STATE;
+    si->instance_state = DDS_ALIVE_INSTANCE_STATE;
     si->instance_handle = iid;
     si->disposed_generation_count = 0;
     si->no_writers_generation_count = 0;
@@ -1861,42 +1861,42 @@ static uint32_t qmask_from_dcpsquery (uint32_t sample_states, uint32_t view_stat
 {
   uint32_t qminv = 0;
 
-  switch ((dds_sample_state_t) sample_states)
+  switch (sample_states)
   {
-    case DDS_SST_READ:
+    case DDS_READ_SAMPLE_STATE:
       qminv |= DDS_NOT_READ_SAMPLE_STATE;
       break;
-    case DDS_SST_NOT_READ:
+    case DDS_NOT_READ_SAMPLE_STATE:
       qminv |= DDS_READ_SAMPLE_STATE;
       break;
   }
-  switch ((dds_view_state_t) view_states)
+  switch (view_states)
   {
-    case DDS_VST_NEW:
+    case DDS_NEW_VIEW_STATE:
       qminv |= DDS_NOT_NEW_VIEW_STATE;
       break;
-    case DDS_VST_OLD:
+    case DDS_NOT_NEW_VIEW_STATE:
       qminv |= DDS_NEW_VIEW_STATE;
       break;
   }
   switch (instance_states)
   {
-    case DDS_IST_ALIVE:
+    case DDS_ALIVE_INSTANCE_STATE:
       qminv |= DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE | DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE;
       break;
-    case DDS_IST_ALIVE | DDS_IST_NOT_ALIVE_DISPOSED:
+    case DDS_ALIVE_INSTANCE_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE:
       qminv |= DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE;
       break;
-    case DDS_IST_ALIVE | DDS_IST_NOT_ALIVE_NO_WRITERS:
+    case DDS_ALIVE_INSTANCE_STATE | DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE:
       qminv |= DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE;
       break;
-    case DDS_IST_NOT_ALIVE_DISPOSED:
+    case DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE:
       qminv |= DDS_ALIVE_INSTANCE_STATE | DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE;
       break;
-    case DDS_IST_NOT_ALIVE_DISPOSED | DDS_IST_NOT_ALIVE_NO_WRITERS:
+    case DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE | DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE:
       qminv |= DDS_ALIVE_INSTANCE_STATE;
       break;
-    case DDS_IST_NOT_ALIVE_NO_WRITERS:
+    case DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE:
       qminv |= DDS_ALIVE_INSTANCE_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE;
       break;
   }
@@ -1931,9 +1931,9 @@ static uint32_t get_absolute_generation_rank (const struct rhc_instance *inst, c
 
 static void make_sample_info (dds_sample_info_t *si, const struct rhc_instance *inst, const struct rhc_sample *sample, uint32_t sample_rank, uint32_t generation_rank)
 {
-  si->sample_state = sample->isread ? DDS_SST_READ : DDS_SST_NOT_READ;
-  si->view_state = inst->isnew ? DDS_VST_NEW : DDS_VST_OLD;
-  si->instance_state = inst->isdisposed ? DDS_IST_NOT_ALIVE_DISPOSED : (inst->wrcount == 0) ? DDS_IST_NOT_ALIVE_NO_WRITERS : DDS_IST_ALIVE;
+  si->sample_state = sample->isread ? DDS_READ_SAMPLE_STATE : DDS_NOT_READ_SAMPLE_STATE;
+  si->view_state = inst->isnew ? DDS_NEW_VIEW_STATE : DDS_NOT_NEW_VIEW_STATE;
+  si->instance_state = inst->isdisposed ? DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE : (inst->wrcount == 0) ? DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE : DDS_ALIVE_INSTANCE_STATE;
   si->instance_handle = inst->iid;
   si->publication_handle = sample->wr_iid;
   si->disposed_generation_count = sample->disposed_gen;
@@ -1947,9 +1947,9 @@ static void make_sample_info (dds_sample_info_t *si, const struct rhc_instance *
 
 static void make_sample_info_invsample (dds_sample_info_t *si, const struct rhc_instance *inst)
 {
-  si->sample_state = inst->inv_isread ? DDS_SST_READ : DDS_SST_NOT_READ;
-  si->view_state = inst->isnew ? DDS_VST_NEW : DDS_VST_OLD;
-  si->instance_state = inst->isdisposed ? DDS_IST_NOT_ALIVE_DISPOSED : (inst->wrcount == 0) ? DDS_IST_NOT_ALIVE_NO_WRITERS : DDS_IST_ALIVE;
+  si->sample_state = inst->inv_isread ? DDS_READ_SAMPLE_STATE : DDS_NOT_READ_SAMPLE_STATE;
+  si->view_state = inst->isnew ? DDS_NEW_VIEW_STATE : DDS_NOT_NEW_VIEW_STATE;
+  si->instance_state = inst->isdisposed ? DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE : (inst->wrcount == 0) ? DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE : DDS_ALIVE_INSTANCE_STATE;
   si->instance_handle = inst->iid;
   si->publication_handle = inst->wr_iid;
   si->disposed_generation_count = inst->disposed_gen;
@@ -2412,13 +2412,13 @@ static uint32_t rhc_get_cond_trigger (struct rhc_instance * const inst, const dd
   bool m = ((qmask_of_inst (inst) & c->m_qminv) == 0);
   switch (c->m_sample_states)
   {
-    case DDS_SST_READ:
+    case DDS_READ_SAMPLE_STATE:
       m = m && inst_has_read (inst);
       break;
-    case DDS_SST_NOT_READ:
+    case DDS_NOT_READ_SAMPLE_STATE:
       m = m && inst_has_unread (inst);
       break;
-    case DDS_SST_READ | DDS_SST_NOT_READ:
+    case DDS_READ_SAMPLE_STATE | DDS_NOT_READ_SAMPLE_STATE:
     case 0:
       /* note: we get here only if inst not empty, so this is a no-op */
       m = m && !inst_is_empty (inst);
@@ -2433,10 +2433,10 @@ static bool cond_is_sample_state_dependent (const struct dds_readcond *cond)
 {
   switch (cond->m_sample_states)
   {
-    case DDS_SST_READ:
-    case DDS_SST_NOT_READ:
+    case DDS_READ_SAMPLE_STATE:
+    case DDS_NOT_READ_SAMPLE_STATE:
       return true;
-    case DDS_SST_READ | DDS_SST_NOT_READ:
+    case DDS_READ_SAMPLE_STATE | DDS_NOT_READ_SAMPLE_STATE:
     case 0:
       return false;
     default:
@@ -2617,15 +2617,15 @@ static bool update_conditions_locked (struct dds_rhc_default *rhc, bool called_f
     /* FIXME: use bitmask? */
     switch (iter->m_sample_states)
     {
-      case DDS_SST_READ:
+      case DDS_READ_SAMPLE_STATE:
         m_pre = m_pre && pre->c.has_read;
         m_post = m_post && post->c.has_read;
         break;
-      case DDS_SST_NOT_READ:
+      case DDS_NOT_READ_SAMPLE_STATE:
         m_pre = m_pre && pre->c.has_not_read;
         m_post = m_post && post->c.has_not_read;
         break;
-      case DDS_SST_READ | DDS_SST_NOT_READ:
+      case DDS_READ_SAMPLE_STATE | DDS_NOT_READ_SAMPLE_STATE:
       case 0:
         m_pre = m_pre && (pre->c.has_read + pre->c.has_not_read);
         m_post = m_post && (post->c.has_read + post->c.has_not_read);
@@ -2663,7 +2663,7 @@ static bool update_conditions_locked (struct dds_rhc_default *rhc, bool called_f
 
       switch (iter->m_sample_states)
       {
-        case DDS_SST_READ:
+        case DDS_READ_SAMPLE_STATE:
           if (trig_qc->dec_invsample_read)
             mdelta -= (trig_qc->dec_conds_invsample & qcmask) != 0;
           if (trig_qc->dec_sample_read)
@@ -2673,7 +2673,7 @@ static bool update_conditions_locked (struct dds_rhc_default *rhc, bool called_f
           if (trig_qc->inc_sample_read)
             mdelta += (trig_qc->inc_conds_sample & qcmask) != 0;
           break;
-        case DDS_SST_NOT_READ:
+        case DDS_NOT_READ_SAMPLE_STATE:
           if (!trig_qc->dec_invsample_read)
             mdelta -= (trig_qc->dec_conds_invsample & qcmask) != 0;
           if (!trig_qc->dec_sample_read)
@@ -2683,7 +2683,7 @@ static bool update_conditions_locked (struct dds_rhc_default *rhc, bool called_f
           if (!trig_qc->inc_sample_read)
             mdelta += (trig_qc->inc_conds_sample & qcmask) != 0;
           break;
-        case DDS_SST_READ | DDS_SST_NOT_READ:
+        case DDS_READ_SAMPLE_STATE | DDS_NOT_READ_SAMPLE_STATE:
         case 0:
           mdelta -= (trig_qc->dec_conds_invsample & qcmask) != 0;
           mdelta -= (trig_qc->dec_conds_sample & qcmask) != 0;
