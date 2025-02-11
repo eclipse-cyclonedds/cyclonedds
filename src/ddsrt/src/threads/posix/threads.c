@@ -412,10 +412,10 @@ ddsrt_thread_create (
     }
 #endif
   }
-  
-#if defined (__linux) && !defined(__ANDROID__)
+
   if (tattr.schedAffinityN > 0)
   {
+#if defined (__linux) && !defined(__ANDROID__)
     cpu_set_t cpuset;
     CPU_ZERO (&cpuset);
     for (uint32_t i = 0; i < tattr.schedAffinityN; i++)
@@ -432,8 +432,11 @@ ddsrt_thread_create (
       DDS_ERROR("ddsrt_thread_create(%s): pthread_attr_setinheritsched(EXPLICIT) failed with error %d\n", name, result);
       goto err;
     }
-  }
+#else
+    /* Didn't implement setting thread affinity for this platform yet */
+    goto err;
 #endif
+  }
 
   /* Construct context structure & start thread */
   ctx = ddsrt_malloc (sizeof (thread_context_t));
