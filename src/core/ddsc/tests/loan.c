@@ -314,6 +314,8 @@ CU_Test (ddsc_loan, read_cleanup, .init = create_entities, .fini = delete_entiti
   // they were lost in the read that returned no data
   CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
   //CU_ASSERT_FATAL (ptrs[0] == ptr0copy);
+#else
+  (void) ptr0copy;
 #endif
 
   /* take that fails (with the loan still out), no memory allocated */
@@ -336,6 +338,8 @@ CU_Test (ddsc_loan, read_cleanup, .init = create_entities, .fini = delete_entiti
   // they were lost in the read that returned no data
   CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
   //CU_ASSERT_FATAL (ptrs[0] == ptr0copy);
+#else
+  (void) ptr0copy;
 #endif
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
