@@ -1570,6 +1570,85 @@ CU_Test (ddsc_psmx, writer_loan)
   dds_delete (dds_get_parent (pp));
 }
 
+CU_Test (ddsc_psmx, reader_loan_on_delete)
+{
+  dds_return_t rc;
+
+  const dds_entity_t dpw = create_participant (0);
+  CU_ASSERT_FATAL (dpw > 0);
+  const dds_entity_t dpr = create_participant (1); // different "process" same "host"
+  CU_ASSERT_FATAL (dpr > 0);
+  char topicname[100];
+  create_unique_topic_name ("reader_loan_on_delete", topicname, sizeof (topicname));
+  dds_qos_t * const qos = dds_create_qos ();
+  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
+  const dds_entity_t tpw = dds_create_topic (dpw, &PsmxLoanTest0_desc, topicname, qos, NULL);
+  CU_ASSERT_FATAL (tpw > 0);
+  const dds_entity_t tpr = dds_create_topic (dpr, &PsmxLoanTest0_desc, topicname, qos, NULL);
+  CU_ASSERT_FATAL (tpr > 0);
+  dds_delete_qos (qos);
+  const dds_entity_t wr = dds_create_writer (dpw, tpw, NULL, NULL);
+  CU_ASSERT_FATAL (wr > 0);
+  CU_ASSERT_FATAL (endpoint_has_psmx_enabled (wr));
+  const dds_entity_t rd = dds_create_reader (dpr, tpr, NULL, NULL);
+  CU_ASSERT_FATAL (rd > 0);
+  CU_ASSERT_FATAL (endpoint_has_psmx_enabled (rd));
+  const dds_entity_t ws = dds_create_waitset (DDS_CYCLONEDDS_HANDLE);
+  rc = dds_set_status_mask (wr, DDS_PUBLICATION_MATCHED_STATUS);
+  CU_ASSERT_FATAL (rc == 0);
+  rc = dds_waitset_attach (ws, wr, 0);
+  CU_ASSERT_FATAL (rc == 0);
+  rc = dds_set_status_mask (rd, DDS_SUBSCRIPTION_MATCHED_STATUS);
+  CU_ASSERT_FATAL (rc == 0);
+  rc = dds_waitset_attach (ws, rd, 0);
+  CU_ASSERT_FATAL (rc == 0);
+
+  uint32_t stat = 0;
+  do {
+    rc = dds_waitset_wait (ws, NULL, 0, DDS_INFINITY);
+    CU_ASSERT_FATAL (rc > 0);
+    uint32_t tmp;
+    rc = dds_take_status (rd, &tmp, DDS_SUBSCRIPTION_MATCHED_STATUS);
+    CU_ASSERT_FATAL (rc == 0);
+    stat |= tmp;
+    rc = dds_take_status (wr, &tmp, DDS_PUBLICATION_MATCHED_STATUS);
+    CU_ASSERT_FATAL (rc == 0);
+    stat |= tmp;
+  } while (stat != (DDS_PUBLICATION_MATCHED_STATUS | DDS_SUBSCRIPTION_MATCHED_STATUS));
+  rc = dds_waitset_detach (ws, wr);
+  CU_ASSERT_FATAL (rc == 0);
+  rc = dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
+  CU_ASSERT_FATAL (rc == 0);
+
+  void *vwrdata;
+  rc = dds_request_loan (wr, &vwrdata);
+  CU_ASSERT_FATAL (rc == 0);
+  printf ("wrdata = %p\n", vwrdata);
+  PsmxLoanTest0 * const wrdata = vwrdata;
+  wrdata->xy.x = 0x12345678;
+  wrdata->xy.y = 0x55;
+  wrdata->z = 0x22;
+  rc = dds_write (wr, wrdata);
+  CU_ASSERT_FATAL (rc == 0);
+
+  (void) dds_waitset_wait (ws, NULL, 0, DDS_INFINITY);
+  dds_sample_info_t si;
+  void *rddata = NULL;
+  rc = dds_take (rd, &rddata, &si, 1, 1);
+  CU_ASSERT_FATAL (rc == 1);
+
+  printf ("rddata = %p\n", rddata);
+  fflush (stdout);
+
+  // delete reader with loan still outstanding
+  rc = dds_delete (rd);
+  CU_ASSERT_FATAL (rc == 0);
+
+  dds_delete (ws);
+  dds_delete (dds_get_parent (dpr));
+  dds_delete (dds_get_parent (dpw));
+}
+
 CU_Test (ddsc_psmx, configstr)
 {
   typedef struct kv { const char *k; const char *v; } kv_t;
@@ -1615,12 +1694,12 @@ CU_Test (ddsc_psmx, configstr)
         p++;
       outsz = (size_t) (p - cases[i].out) + 2;
     }
-    
+
     char *p = dds_pubsub_message_exchange_configstr (cases[i].in, "aa");
     CU_ASSERT_FATAL ((p == NULL) == (cases[i].out == NULL));
     if (p) {
       CU_ASSERT_FATAL (memcmp (p, cases[i].out, outsz) == 0);
-      
+
       for (size_t j = 0; j < cases[i].nkv; j++)
       {
         assert (strcmp (cases[i].kv[j].k, "SERVICE_NAME") != 0);
