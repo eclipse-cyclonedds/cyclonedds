@@ -479,11 +479,6 @@ static char *   print_macro_arg(
  * This routine is only called from above print_macro_inf().
  */
 {
-#if defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 1300 && ((__GNUC__ * 100) + __GNUC_MINOR__) < 1400
-_Pragma("GCC diagnostic push")
-_Pragma("GCC diagnostic ignored \"-Wformat-overflow\"")
-_Pragma("GCC diagnostic ignored \"-Warray-bounds\"")
-#endif
     LOCATION *  loc = m_inf->loc_args + argn;
 
     out += sprintf( out, "/*%s%s:%d-%d", real_arg ? "!" : (start ? "<" : "")
@@ -500,9 +495,6 @@ _Pragma("GCC diagnostic ignored \"-Warray-bounds\"")
     out = stpcpy( out, "*/");
 
     return out;
-#if defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 1300 && ((__GNUC__ * 100) + __GNUC_MINOR__) < 1400
-_Pragma("GCC diagnostic pop")
-#endif
 }
 
 static char *   chk_magic_balance(
