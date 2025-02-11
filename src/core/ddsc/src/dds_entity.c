@@ -1173,6 +1173,7 @@ dds_return_t dds_set_status_mask (dds_entity_t entity, uint32_t mask)
       assert (!(old & DDS_DATA_ON_READERS_STATUS) || dds_entity_kind (e) != DDS_KIND_READER);
       new = (mask << SAM_ENABLED_SHIFT) | (old & SAM_STATUS_MASK);
     } while (!ddsrt_atomic_cas32 (&e->m_status.m_status_and_mask, old, new));
+    dds_entity_observers_signal (e, new & SAM_STATUS_MASK);
     ddsrt_mutex_unlock (&e->m_observers_lock);
   }
   dds_entity_unlock (e);
