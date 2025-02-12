@@ -2049,6 +2049,7 @@ static const struct piddesc piddesc_omg[] = {
 #endif
   PP  (PROTOCOL_VERSION,                    protocol_version, Xox2),
   PP  (VENDORID,                            vendorid, Xox2),
+  PP  (PRODUCT_VERSION,                     product_version, Xox2),
   PP  (EXPECTS_INLINE_QOS,                  expects_inline_qos, Xb),
   PP  (PARTICIPANT_MANUAL_LIVELINESS_COUNT, participant_manual_liveliness_count, Xi),
   PP  (PARTICIPANT_BUILTIN_ENDPOINTS,       participant_builtin_endpoints, Xu),

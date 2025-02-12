@@ -70,6 +70,7 @@ struct ddsi_xmsg;
 #define PP_CYCLONE_RECEIVE_BUFFER_SIZE          ((uint64_t)1 << 38)
 #define PP_CYCLONE_TOPIC_GUID                   ((uint64_t)1 << 39)
 #define PP_CYCLONE_REQUESTS_KEYHASH             ((uint64_t)1 << 40)
+#define PP_PRODUCT_VERSION                      ((uint64_t)1 << 41)
 
 /* Set for unrecognized parameters that are in the reserved space or
    in our own vendor-specific space that have the
