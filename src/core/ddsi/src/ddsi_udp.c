@@ -118,7 +118,7 @@ static void translate_pktinfo (struct ddsi_network_packet_info *pktinfo, ddsrt_m
         pktinfo->dst.kind = DDSI_LOCATOR_KIND_UDPv6;
         pktinfo->dst.port = port;
         memcpy (pktinfo->dst.address, &pkt6->ipi6_addr, 16);
-        pktinfo->if_index = pkt6->ipi6_ifindex;
+        pktinfo->if_index = (uint32_t)pkt6->ipi6_ifindex;
         return;
       }
     }
@@ -752,7 +752,7 @@ static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_lo
 #if __ZEPHYR__
     ipv6mreq.ipv6mr_ifindex = interf ? interf->if_index : 0;
 #else
-    ipv6mreq.ipv6mr_interface = interf ? interf->if_index : 0;
+    ipv6mreq.ipv6mr_interface = interf ? (int)interf->if_index : 0;
 #endif
     rc = ddsrt_setsockopt (socket, IPPROTO_IPV6, join ? IPV6_JOIN_GROUP : IPV6_LEAVE_GROUP, &ipv6mreq, sizeof (ipv6mreq));
   }

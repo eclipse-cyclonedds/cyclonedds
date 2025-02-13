@@ -193,7 +193,7 @@ static bool is_the_kernel_likely_lying_about_multicast (const ddsrt_ifaddrs_t *i
     mcaddr.ipv6.sin6_port = bindaddr.ipv6.sin6_port;
     memset (&ipv6mreq, 0, sizeof (ipv6mreq));
     ipv6mreq.ipv6mr_multiaddr = mcaddr.ipv6.sin6_addr;
-    ipv6mreq.ipv6mr_interface = ifa->index;
+    ipv6mreq.ipv6mr_interface = (int)ifa->index;
     if (setsockopt (sock, IPPROTO_IPV6, IPV6_JOIN_GROUP, &ipv6mreq, sizeof (ipv6mreq)) != 0 ||
         setsockopt (sock, IPPROTO_IPV6, IPV6_MULTICAST_IF, &ifa->index, sizeof (ifa->index)) != 0 ||
         setsockopt (sock, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &hops, sizeof (hops)) != 0)

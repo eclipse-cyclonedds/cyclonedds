@@ -6,4 +6,5 @@ gen.*
 .vs/
 .vscode/
 build/
+build*/
 *~
