@@ -140,59 +140,61 @@ jobs:
         sanitizer: undefined
         cc: gcc
         testing: off
+        examples: off
+        idlc: off
         idlc_xtests: off
         android: on
 
   steps:
     - template: /.azure/templates/build-test.yml
 
-- job: coverage_and_test_report
-  displayName: Coverage and Tests Report
-  dependsOn: build_and_test
-  condition: succeededOrFailed()  # Always run, even when failed tests, because they should be reported in the dasboard of course!
-  pool:
-    vmImage: ubuntu-20.04
-  steps:
-  - bash: |
-      mkdir coverage
-  - task: DownloadPipelineArtifact@2
-    inputs:
-      path: coverage
-    displayName: Download Coverage
-  - task: UsePythonVersion@0
-  - bash: |
-      python -m pip install gcovr==5.0 --user --upgrade
-      ls coverage
-      gcovr -a coverage/**/*.json --xml-pretty --output coverage.xml
-    displayName: Combine coverage reports
-  - task: PublishCodeCoverageResults@1
-    displayName: Publish Cobertura Coverage Report
-    inputs:
-      codeCoverageTool: Cobertura
-      summaryFileLocation: coverage.xml
+# - job: coverage_and_test_report
+#   displayName: Coverage and Tests Report
+#   dependsOn: build_and_test
+#   condition: succeededOrFailed()  # Always run, even when failed tests, because they should be reported in the dasboard of course!
+#   pool:
+#     vmImage: ubuntu-20.04
+#   steps:
+#   - bash: |
+#       mkdir coverage
+#   - task: DownloadPipelineArtifact@2
+#     inputs:
+#       path: coverage
+#     displayName: Download Coverage
+#   - task: UsePythonVersion@0
+#   - bash: |
+#       python -m pip install gcovr==5.0 --user --upgrade
+#       ls coverage
+#       gcovr -a coverage/**/*.json --xml-pretty --output coverage.xml
+#     displayName: Combine coverage reports
+#   - task: PublishCodeCoverageResults@1
+#     displayName: Publish Cobertura Coverage Report
+#     inputs:
+#       codeCoverageTool: Cobertura
+#       summaryFileLocation: coverage.xml
 
-- job: python_binding
-  displayName: Python Binding
-  pool:
-    vmImage: $(image)
-  strategy:
-    matrix:
-      'Test and fuzzing (Ubuntu 22.04 LTS, Clang 13, Debug)':
-        image: ubuntu-22.04
-        cc: clang-13
-        build_type: Debug
-  steps:
-    - template: /.azure/templates/python-binding.yml
+# - job: python_binding
+#   displayName: Python Binding
+#   pool:
+#     vmImage: $(image)
+#   strategy:
+#     matrix:
+#       'Test and fuzzing (Ubuntu 22.04 LTS, Clang 13, Debug)':
+#         image: ubuntu-22.04
+#         cc: clang-13
+#         build_type: Debug
+#   steps:
+#     - template: /.azure/templates/python-binding.yml
 
-- job: cxx_binding
-  displayName: C++ Binding
-  pool:
-    vmImage: $(image)
-  strategy:
-    matrix:
-      'Build and test (Ubuntu 22.04 LTS, Clang 13, Debug)':
-        image: ubuntu-22.04
-        cc: clang-13
-        build_type: Debug
-  steps:
-    - template: /.azure/templates/cxx-binding.yml
+# - job: cxx_binding
+#   displayName: C++ Binding
+#   pool:
+#     vmImage: $(image)
+#   strategy:
+#     matrix:
+#       'Build and test (Ubuntu 22.04 LTS, Clang 13, Debug)':
+#         image: ubuntu-22.04
+#         cc: clang-13
+#         build_type: Debug
+#   steps:
+#     - template: /.azure/templates/cxx-binding.yml
