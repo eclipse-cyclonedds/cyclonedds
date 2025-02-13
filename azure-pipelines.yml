@@ -143,8 +143,6 @@ jobs:
         idlc_xtests: off
         android: on
 
-ubuntu-24.04
-
   steps:
     - template: /.azure/templates/build-test.yml
 
