@@ -128,12 +128,6 @@ jobs:
         build_type: Release
         sharedlibs: off
         iceoryx: on
-      'Android armv8 LTS with default GCC (Release, Iceoryx, Static, x86_64)':
-        image: ubuntu-22.04
-        idlc_xtests: off
-        build_type: Release
-        sharedlibs: on
-        iceoryx: off
       'Android 13 with API level 33 (Release, armv8)':
         image: ubuntu-24.04
         build_type: Release
