@@ -138,12 +138,15 @@ jobs:
         image: ubuntu-24.04
         build_type: Release
         sanitizer: undefined
-        cc: gcc
         testing: off
         examples: off
         idlc: off
         idlc_xtests: off
         android: on
+        android_platform: android-33
+        arch: arm64-v8a
+        ssl: off
+        ddsperf: off
 
   steps:
     - template: /.azure/templates/build-test.yml
