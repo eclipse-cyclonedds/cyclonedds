@@ -1721,13 +1721,16 @@ static void xt_applied_member_annotations_fini (struct xt_applied_member_annotat
       for (uint32_t n = 0; n < ann->ann_custom->_length; n++)
       {
         ddsi_typeid_fini_impl (&ann->ann_custom->_buffer[n].annotation_typeid);
-        if (ann->ann_custom->_buffer[n].param_seq->_release)
+        if (ann->ann_custom->_buffer[n].param_seq)
         {
-          for (uint32_t p = 0; p < ann->ann_custom->_buffer[n].param_seq->_length; p++)
-            ddsrt_free (ann->ann_custom->_buffer[n].param_seq->_buffer[p].paramname_hash);
-          ddsrt_free (ann->ann_custom->_buffer[n].param_seq->_buffer);
+          if(ann->ann_custom->_buffer[n].param_seq->_release)
+          {
+            for (uint32_t p = 0; p < ann->ann_custom->_buffer[n].param_seq->_length; p++)
+              ddsrt_free (ann->ann_custom->_buffer[n].param_seq->_buffer[p].paramname_hash);
+            ddsrt_free (ann->ann_custom->_buffer[n].param_seq->_buffer);
+          }
+          ddsrt_free (ann->ann_custom->_buffer[n].param_seq);
         }
-        ddsrt_free (ann->ann_custom->_buffer[n].param_seq);
       }
       ddsrt_free (ann->ann_custom->_buffer);
     }
