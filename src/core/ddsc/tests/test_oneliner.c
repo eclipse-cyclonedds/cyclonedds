@@ -765,6 +765,31 @@ static bool qos_writer_batching (struct oneliner_lex *l, dds_qos_t *q)
   return true;
 }
 
+static bool qos_partition (struct oneliner_lex *l, dds_qos_t *q)
+{
+  uint32_t nps = 0;
+  char **ps = NULL;
+  while (*l->inp != 0 && *l->inp != ',' && *l->inp != ')')
+  {
+    const char *p = l->inp;
+    while (*p != 0 && *p != ':' && *p != ',' && *p != ')')
+      p++;
+    ps = ddsrt_realloc (ps, (nps + 1) * sizeof (*ps));
+    ps[nps] = ddsrt_malloc ((size_t) (p - l->inp) + 1);
+    memcpy (ps[nps], l->inp, (size_t) (p - l->inp));
+    ps[nps][p - l->inp] = 0;
+    nps++;
+    if (*p == ':')
+      p++;
+    l->inp = p;
+  }
+  dds_qset_partition (q, nps, (const char **) ps);
+  for (uint32_t i = 0; i < nps; i++)
+    ddsrt_free (ps[i]);
+  ddsrt_free (ps);
+  return true;
+}
+
 static const struct {
   char *abbrev;
   size_t n;
@@ -785,7 +810,8 @@ static const struct {
   { "rl", 2, qos_resource_limits, DDS_RESOURCELIMITS_QOS_POLICY_ID },
   { "ds", 2, qos_durability_service, DDS_DURABILITYSERVICE_QOS_POLICY_ID },
   { "ad", 2, qos_autodispose_unregistered_instances, DDS_WRITERDATALIFECYCLE_QOS_POLICY_ID },
-  { "wb", 2, qos_writer_batching, DDS_INVALID_QOS_POLICY_ID }
+  { "wb", 2, qos_writer_batching, DDS_INVALID_QOS_POLICY_ID },
+  { "part", 4, qos_partition, DDS_PARTITION_QOS_POLICY_ID }
 };
 
 static bool setqos (struct oneliner_lex *l, dds_qos_t *q)
