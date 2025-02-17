@@ -142,7 +142,7 @@ static ddsi_entityid_t builtin_entityid_match (ddsi_entityid_t x)
 static void writer_qos_mismatch (struct ddsi_writer * wr, dds_qos_policy_id_t reason)
 {
   /* When the reason is DDS_INVALID_QOS_POLICY_ID, it means that we compared
-   * readers/writers from different topics: ignore that. */
+   * readers/writers from different topics or non-matching partitions: ignore that. */
   if (reason != DDS_INVALID_QOS_POLICY_ID && wr->status_cb)
   {
     ddsi_status_cb_data_t data;
@@ -155,7 +155,7 @@ static void writer_qos_mismatch (struct ddsi_writer * wr, dds_qos_policy_id_t re
 static void reader_qos_mismatch (struct ddsi_reader * rd, dds_qos_policy_id_t reason)
 {
   /* When the reason is DDS_INVALID_QOS_POLICY_ID, it means that we compared
-   * readers/writers from different topics: ignore that. */
+   * readers/writers from different topics or non-matching partitions: ignore that */
   if (reason != DDS_INVALID_QOS_POLICY_ID && rd->status_cb)
   {
     ddsi_status_cb_data_t data;
