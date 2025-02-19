@@ -1533,7 +1533,7 @@ dds_get_type_name(dds_entity_t topic, char *name, size_t size);
  * using a filtered topic, which one perhaps shouldn't be doing), otherwise it
  * has as much filled in correctly as is possible given the context and the rest
  * fixed:
- *    - sample_state         DDS_SST_NOT_READ;
+ *    - sample_state         DDS_NOT_READ_SAMPLE_STATE;
  *    - publication_handle   set to writer's instance handle
  *    - source_timestamp     set to source timestamp of sample
  *    - ranks                0
@@ -2151,7 +2151,7 @@ dds_unregister_instance_ih_ts(
  * mark it for deletion. Copies of the instance and its corresponding samples, which are
  * stored in every connected reader and, dependent on the QoS policy settings (also in
  * the Transient and Persistent stores) will be modified and marked for deletion by
- * setting their dds_instance_state_t to DDS_IST_NOT_ALIVE_DISPOSED.
+ * setting their dds_instance_state_t to DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE.
  *
  * @par Blocking
  * If the history QoS policy is set to DDS_HISTORY_KEEP_ALL, the
@@ -2247,7 +2247,7 @@ dds_writedispose_ts(
  * mark it for deletion. Copies of the instance and its corresponding samples, which are
  * stored in every connected reader and, dependent on the QoS policy settings (also in
  * the Transient and Persistent stores) will be modified and marked for deletion by
- * setting their dds_instance_state_t to DDS_IST_NOT_ALIVE_DISPOSED.
+ * setting their dds_instance_state_t to DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE.
  *
  * @par Blocking
  * If the history QoS policy is set to DDS_HISTORY_KEEP_ALL, the
@@ -2344,7 +2344,7 @@ dds_dispose_ts(
  * mark it for deletion. Copies of the instance and its corresponding samples, which are
  * stored in every connected reader and, dependent on the QoS policy settings (also in
  * the Transient and Persistent stores) will be modified and marked for deletion by
- * setting their dds_instance_state_t to DDS_IST_NOT_ALIVE_DISPOSED.
+ * setting their dds_instance_state_t to DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE.
  *
  * @par Instance Handle
  * The given instance handle must correspond to the value that was returned by either

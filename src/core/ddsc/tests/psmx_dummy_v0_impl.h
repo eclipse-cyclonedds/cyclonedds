@@ -17,7 +17,7 @@
 extern "C" {
 #endif
 
-PSMX_DUMMY_EXPORT dds_return_t dummy_v0_create_psmx(dds_psmx_v0_t **psmx, dds_psmx_instance_id_t instance_id, const char *config);
+PSMX_DUMMY_EXPORT dds_return_t dummy_v0_create_psmx(dds_psmx_t **psmx, dds_psmx_instance_id_t instance_id, const char *config);
 
 #if defined (__cplusplus)
 }

@@ -169,29 +169,31 @@ CU_Test(ddsc_write, simpletypes)
 
 CU_Test(ddsc_write, invalid_data)
 {
+    const union { Space_invalid_data_enum ide; int i; } invalid_data_enum0 = { .i = 0 };
+    const union { Space_invalid_data_enum ide; int i; } invalid_data_enum1 = { .i = 1 };
     const struct { Space_invalid_data x; bool invalidkey; } tests[] = {
         {
-            .x = { .o1={._length=2, ._buffer=(uint8_t[]){1,2}}, .e1=(Space_invalid_data_enum)0, .bm1=0, .exto=&(uint8_t){0} },
+            .x = { .o1={._length=2, ._buffer=(uint8_t[]){1,2}}, .e1=invalid_data_enum0.ide, .bm1=0, .exto=&(uint8_t){0} },
             .invalidkey = false
         },
         {
-            .x = { .o1={._length=1, ._buffer=NULL}, .e1=(Space_invalid_data_enum)0, .bm1=0, .exto=&(uint8_t){0} },
+            .x = { .o1={._length=1, ._buffer=NULL}, .e1=invalid_data_enum0.ide, .bm1=0, .exto=&(uint8_t){0} },
             .invalidkey = false
         },
         {
-            .x = { .o1={._length=1, ._buffer=(uint8_t[]){1}}, .e1=(Space_invalid_data_enum)1, .bm1=0, .exto=&(uint8_t){0} },
+            .x = { .o1={._length=1, ._buffer=(uint8_t[]){1}}, .e1=invalid_data_enum1.ide, .bm1=0, .exto=&(uint8_t){0} },
             .invalidkey = true
         },
         {
-            .x = { .o1 = {._length=1, ._buffer=(uint8_t[]){1}}, .e1=(Space_invalid_data_enum)0, .bm1=2, .exto=&(uint8_t){0} },
+            .x = { .o1 = {._length=1, ._buffer=(uint8_t[]){1}}, .e1=invalid_data_enum0.ide, .bm1=2, .exto=&(uint8_t){0} },
             .invalidkey = true
         },
         {
-            .x = { .o1={._length=1, ._buffer=(uint8_t[]){1}}, .e1=(Space_invalid_data_enum)0, .bm1=0, .exto=NULL },
+            .x = { .o1={._length=1, ._buffer=(uint8_t[]){1}}, .e1=invalid_data_enum0.ide, .bm1=0, .exto=NULL },
             .invalidkey = true
         },
         {
-            .x = { .o1={._length=1, ._buffer=(uint8_t[]){1}}, .e1=(Space_invalid_data_enum)0, .bm1=0, .exto=NULL },
+            .x = { .o1={._length=1, ._buffer=(uint8_t[]){1}}, .e1=invalid_data_enum0.ide, .bm1=0, .exto=NULL },
             .invalidkey = true
         }
     };

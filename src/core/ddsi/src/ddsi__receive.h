@@ -48,7 +48,7 @@ void ddsi_trigger_recv_threads (const struct ddsi_domaingv *gv);
 uint32_t ddsi_recv_thread (void *vrecv_thread_arg);
 
 /** @component incoming_rtps */
-uint32_t ddsi_listen_thread (struct ddsi_tran_listener * listener);
+uint32_t ddsi_listen_thread (void *vlistener);
 
 /** @component incoming_rtps */
 int ddsi_user_dqueue_handler (const struct ddsi_rsample_info *sampleinfo, const struct ddsi_rdata *fragchain, const ddsi_guid_t *rdguid, void *qarg);

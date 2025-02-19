@@ -200,7 +200,8 @@ CU_Test (ddsc_dynamic_type, extensibility_invalid, .init = dynamic_type_init, .f
 
   // Invalid extensibility value
   dds_dynamic_type_t dstruct = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "t" });
-  ret = dds_dynamic_type_set_extensibility (&dstruct, (enum dds_dynamic_type_extensibility) 99);
+  union { enum dds_dynamic_type_extensibility dte; int i; } invalid_dte = { .i = 99 };
+  ret = dds_dynamic_type_set_extensibility (&dstruct, invalid_dte.dte);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
   dds_dynamic_type_unref (&dstruct);
 
@@ -667,7 +668,7 @@ CU_Test (ddsc_dynamic_type, existing, .init = dynamic_type_init, .fini = dynamic
     while (!done && dds_take (pub_rd, samples, &si, 1, 1) == 1)
     {
       const dds_builtintopic_endpoint_t *sample = samples[0];
-      done = si.valid_data && si.instance_state == DDS_IST_ALIVE && !strcmp (sample->topic_name, topic_name);
+      done = si.valid_data && si.instance_state == DDS_ALIVE_INSTANCE_STATE && !strcmp (sample->topic_name, topic_name);
     }
     dds_return_loan (pub_rd, samples, 1);
   }

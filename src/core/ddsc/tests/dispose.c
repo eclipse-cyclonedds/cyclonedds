@@ -208,9 +208,9 @@ CU_Test(ddsc_writedispose, disposing_old_instance, .init=disposing_init, .fini=d
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_IST_NOT_ALIVE_DISPOSED);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
         } else if (sample->long_1 == 1) {
             /* Check data. */
             CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
@@ -218,8 +218,8 @@ CU_Test(ddsc_writedispose, disposing_old_instance, .init=disposing_init, .fini=d
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
             CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else {
             CU_FAIL_FATAL("Unknown sample read");
@@ -249,8 +249,8 @@ CU_Test(ddsc_writedispose, disposing_new_instance, .init=disposing_init, .fini=d
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
             CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else if (sample->long_1 == INITIAL_SAMPLES) {
             /* Check data. */
@@ -259,9 +259,9 @@ CU_Test(ddsc_writedispose, disposing_new_instance, .init=disposing_init, .fini=d
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_IST_NOT_ALIVE_DISPOSED);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
         } else {
             CU_FAIL_FATAL("Unknown sample read");
         }
@@ -379,9 +379,9 @@ CU_Test(ddsc_writedispose_ts, disposing_old_instance, .init=disposing_init, .fin
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_IST_NOT_ALIVE_DISPOSED);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
         } else if (sample->long_1 == 1) {
             /* Check data. */
             CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
@@ -389,8 +389,8 @@ CU_Test(ddsc_writedispose_ts, disposing_old_instance, .init=disposing_init, .fin
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
             CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else {
             CU_FAIL_FATAL("Unknown sample read");
@@ -420,8 +420,8 @@ CU_Test(ddsc_writedispose_ts, disposing_new_instance, .init=disposing_init, .fin
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
             CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else if (sample->long_1 == INITIAL_SAMPLES) {
             /* Check data. */
@@ -430,9 +430,9 @@ CU_Test(ddsc_writedispose_ts, disposing_new_instance, .init=disposing_init, .fin
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_IST_NOT_ALIVE_DISPOSED);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
         } else {
             CU_FAIL_FATAL("Unknown sample read");
         }
@@ -472,8 +472,8 @@ CU_Test(ddsc_writedispose_ts, disposing_past_sample, .init=disposing_init, .fini
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
             CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else {
             CU_FAIL_FATAL("Unknown sample read");
@@ -579,9 +579,9 @@ CU_Test(ddsc_dispose, disposing_old_instance, .init=disposing_init, .fini=dispos
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_IST_NOT_ALIVE_DISPOSED);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
         } else if (sample->long_1 == 1) {
             /* Check data. */
             CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
@@ -589,8 +589,8 @@ CU_Test(ddsc_dispose, disposing_old_instance, .init=disposing_init, .fini=dispos
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
             CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else {
             CU_FAIL_FATAL("Unknown sample read");
@@ -620,17 +620,17 @@ CU_Test(ddsc_dispose, disposing_new_instance, .init=disposing_init, .fini=dispos
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
             CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else if (sample->long_1 == INITIAL_SAMPLES) {
             /* Don't check data; it's not valid. */
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     false);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_IST_NOT_ALIVE_DISPOSED);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
         } else {
             CU_FAIL_FATAL("Unknown sample read");
         }
@@ -734,9 +734,9 @@ CU_Test(ddsc_dispose_ts, disposing_old_instance, .init=disposing_init, .fini=dis
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_IST_NOT_ALIVE_DISPOSED);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
         } else if (sample->long_1 == 1) {
             /* Check data. */
             CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
@@ -744,8 +744,8 @@ CU_Test(ddsc_dispose_ts, disposing_old_instance, .init=disposing_init, .fini=dis
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
             CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else {
             CU_FAIL_FATAL("Unknown sample read");
@@ -775,17 +775,17 @@ CU_Test(ddsc_dispose_ts, disposing_new_instance, .init=disposing_init, .fini=dis
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
             CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else if (sample->long_1 == INITIAL_SAMPLES) {
             /* Don't check data; it's not valid. */
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     false);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_IST_NOT_ALIVE_DISPOSED);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
         } else {
             CU_FAIL_FATAL("Unknown sample read");
         }
@@ -825,8 +825,8 @@ CU_Test(ddsc_dispose_ts, disposing_past_sample, .init=disposing_init, .fini=disp
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
             CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else {
             CU_FAIL_FATAL("Unknown sample read");
@@ -913,9 +913,9 @@ CU_Test(ddsc_dispose_ih, disposing_old_instance, .init=disposing_init, .fini=dis
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_IST_NOT_ALIVE_DISPOSED);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
         } else if (sample->long_1 == 1) {
             /* Check data. */
             CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
@@ -923,8 +923,8 @@ CU_Test(ddsc_dispose_ih, disposing_old_instance, .init=disposing_init, .fini=dis
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
             CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else {
             CU_FAIL_FATAL("Unknown sample read");
@@ -1010,9 +1010,9 @@ CU_Test(ddsc_dispose_ih_ts, disposing_old_instance, .init=disposing_init, .fini=
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_IST_NOT_ALIVE_DISPOSED);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
         } else if (sample->long_1 == 1) {
             /* Check data. */
             CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
@@ -1020,8 +1020,8 @@ CU_Test(ddsc_dispose_ih_ts, disposing_old_instance, .init=disposing_init, .fini=
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
             CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else {
             CU_FAIL_FATAL("Unknown sample read");
@@ -1063,8 +1063,8 @@ CU_Test(ddsc_dispose_ih_ts, disposing_past_sample, .init=disposing_init, .fini=d
 
             /* Check states. */
             CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_SST_NOT_READ);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_NEW);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
             CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else {
             CU_FAIL_FATAL("Unknown sample read");

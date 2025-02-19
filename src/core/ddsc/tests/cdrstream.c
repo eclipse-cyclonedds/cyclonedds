@@ -1686,7 +1686,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc, sample_empty 
     CU_ASSERT_EQUAL_FATAL (ret, 1);
     ret = dds_read (rd, rds, si, 1, 1);
     CU_ASSERT_EQUAL_FATAL (ret, 1);
-    CU_ASSERT_EQUAL_FATAL (si->instance_state, DDS_IST_NOT_ALIVE_DISPOSED);
+    CU_ASSERT_EQUAL_FATAL (si->instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
     dds_return_loan (rd, rds, 1);
   }
 
@@ -2269,6 +2269,7 @@ CU_Test (ddsc_cdrstream, check_write_reject)
   // Most are for checking it rejects something, but for example with @external
   // it needs to accept null pointers in some cases.  Hence the handful of cases
   // that are expected to result in correct CDR
+  const union { CdrStreamChecking_en2 u; int i; } out_of_range_enum = { .i = 1 };
   const struct {
     const dds_topic_descriptor_t *desc;
     const void *sample;
@@ -2278,7 +2279,7 @@ CU_Test (ddsc_cdrstream, check_write_reject)
   } tests[] = {
     { D(t1), C(t1){.f1={._length=2,._buffer=(uint8_t[]){1,2}}}, "oversize sequence" },
     { D(t1), C(t1){.f1={._length=1,._buffer=NULL}}, "non-empty sequence with null pointer" },
-    { D(t2), C(t2){.f1=(CdrStreamChecking_en2)1}, "out-of-range enum" },
+    { D(t2), C(t2){.f1=out_of_range_enum.u}, "out-of-range enum" },
     { D(t3), C(t3){.f1=2}, "out-of-range bitmask" },
     { D(t4), C(t4){.f1=NULL}, "@external w/ null pointer" },
     { D(t4a), C(t4a){.f1=NULL}, "@external @optional w/ null pointer", 1, (uint8_t[]){0} },

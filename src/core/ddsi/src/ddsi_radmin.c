@@ -2594,8 +2594,9 @@ bool ddsi_dqueue_step_deaf (struct ddsi_dqueue *q)
   return ret;
 }
 
-static uint32_t dqueue_thread (struct ddsi_dqueue *q)
+static uint32_t dqueue_thread (void *vq)
 {
+  struct ddsi_dqueue * const q = vq;
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
 #if DDSRT_HAVE_RUSAGE
   struct ddsi_domaingv const * const gv = ddsrt_atomic_ldvoidp (&thrst->gv);
@@ -2720,7 +2721,7 @@ bool ddsi_dqueue_start (struct ddsi_dqueue *q)
   if ((thrname = ddsrt_malloc (thrnamesz)) == NULL)
     return false;
   (void) snprintf (thrname, thrnamesz, "dq.%s", q->name);
-  dds_return_t ret = ddsi_create_thread (&q->thrst, q->gv, thrname, (uint32_t (*) (void *)) dqueue_thread, q);
+  dds_return_t ret = ddsi_create_thread (&q->thrst, q->gv, thrname, dqueue_thread, q);
   ddsrt_free (thrname);
   return ret == DDS_RETCODE_OK;
 }

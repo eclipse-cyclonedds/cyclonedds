@@ -62,11 +62,11 @@ int rdr_expected_long_2[RDR_NOT_READ_CNT] = { 0, 1, 2, 6, 7, 9, 11, 13, 14, 16, 
 
 /* Because we only read one sample at a time, only the first sample of an instance
  * can be new. This turns out to be only the very first sample.  */
-#define SAMPLE_VST(long_2)           ((long_2 == 0) ? DDS_VST_NEW : DDS_VST_OLD)
+#define SAMPLE_VST(long_2)           ((long_2 == 0) ? DDS_NEW_VIEW_STATE : DDS_NOT_NEW_VIEW_STATE)
 
-#define SAMPLE_IST(long_1)           ((long_1 == 5) ? DDS_IST_NOT_ALIVE_DISPOSED   : \
-                                      (long_1 == 6) ? DDS_IST_NOT_ALIVE_NO_WRITERS : \
-                                                      DDS_IST_ALIVE                )
+#define SAMPLE_IST(long_1)           ((long_1 == 5) ? DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE   : \
+                                      (long_1 == 6) ? DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE : \
+                                                      DDS_ALIVE_INSTANCE_STATE                )
 
 static dds_entity_t g_participant = 0;
 static dds_entity_t g_subscriber  = 0;
@@ -314,7 +314,7 @@ CU_Test(ddsc_read_next, reader, .init=reader_iterator_init, .fini=reader_iterato
         int                  expected_long_2 = rdr_expected_long_2[cnt];
         int                  expected_long_1 = expected_long_2/3;
         int                  expected_long_3 = expected_long_2*2;
-        dds_sample_state_t   expected_sst    = DDS_SST_NOT_READ;
+        dds_sample_state_t   expected_sst    = DDS_NOT_READ_SAMPLE_STATE;
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_2);
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
@@ -426,7 +426,7 @@ CU_Test(ddsc_read_next_wl, reader, .init=reader_iterator_init, .fini=reader_iter
         int                  expected_long_2 = rdr_expected_long_2[cnt];
         int                  expected_long_1 = expected_long_2/3;
         int                  expected_long_3 = expected_long_2*2;
-        dds_sample_state_t   expected_sst    = DDS_SST_NOT_READ;
+        dds_sample_state_t   expected_sst    = DDS_NOT_READ_SAMPLE_STATE;
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_2);
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
@@ -542,7 +542,7 @@ CU_Test(ddsc_take_next, reader, .init=reader_iterator_init, .fini=reader_iterato
         int                  expected_long_2 = rdr_expected_long_2[cnt];
         int                  expected_long_1 = expected_long_2/3;
         int                  expected_long_3 = expected_long_2*2;
-        dds_sample_state_t   expected_sst    = DDS_SST_NOT_READ;
+        dds_sample_state_t   expected_sst    = DDS_NOT_READ_SAMPLE_STATE;
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_2);
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
@@ -651,7 +651,7 @@ CU_Test(ddsc_take_next_wl, reader, .init=reader_iterator_init, .fini=reader_iter
         int                  expected_long_2 = rdr_expected_long_2[cnt];
         int                  expected_long_1 = expected_long_2/3;
         int                  expected_long_3 = expected_long_2*2;
-        dds_sample_state_t   expected_sst    = DDS_SST_NOT_READ;
+        dds_sample_state_t   expected_sst    = DDS_NOT_READ_SAMPLE_STATE;
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_2);
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 

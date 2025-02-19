@@ -369,42 +369,42 @@ static void rdtkcond (struct dds_rhc *rhc, dds_readcond *cond, const struct chec
     {
       switch (cond->m_sample_states)
       {
-        case DDS_SST_READ:
+        case DDS_READ_SAMPLE_STATE:
           if (rres_iseq[i].sample_state != DDS_READ_SAMPLE_STATE) abort ();
           break;
-        case DDS_SST_NOT_READ:
+        case DDS_NOT_READ_SAMPLE_STATE:
           if (rres_iseq[i].sample_state != DDS_NOT_READ_SAMPLE_STATE) abort ();
           break;
       }
       switch (cond->m_view_states)
       {
-        case DDS_VST_NEW:
+        case DDS_NEW_VIEW_STATE:
           if (rres_iseq[i].view_state != DDS_NEW_VIEW_STATE) abort ();
           break;
-        case DDS_VST_OLD:
+        case DDS_NOT_NEW_VIEW_STATE:
           if (rres_iseq[i].view_state != DDS_NOT_NEW_VIEW_STATE) abort ();
           break;
       }
       switch (cond->m_instance_states)
       {
-        case DDS_IST_ALIVE:
+        case DDS_ALIVE_INSTANCE_STATE:
           if (rres_iseq[i].instance_state != DDS_ALIVE_INSTANCE_STATE) abort ();
           break;
-        case DDS_IST_NOT_ALIVE_NO_WRITERS:
+        case DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE:
           if (rres_iseq[i].instance_state != DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE) abort ();
           break;
-        case DDS_IST_NOT_ALIVE_DISPOSED:
+        case DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE:
           if (rres_iseq[i].instance_state != DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE) abort ();
           break;
-        case DDS_IST_NOT_ALIVE_NO_WRITERS | DDS_IST_NOT_ALIVE_DISPOSED:
+        case DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE:
           if (rres_iseq[i].instance_state != DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE && rres_iseq[i].instance_state != DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE)
             abort ();
           break;
-        case DDS_IST_ALIVE | DDS_IST_NOT_ALIVE_NO_WRITERS:
+        case DDS_ALIVE_INSTANCE_STATE | DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE:
           if (rres_iseq[i].instance_state != DDS_ALIVE_INSTANCE_STATE && rres_iseq[i].instance_state != DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE)
             abort ();
           break;
-        case DDS_IST_ALIVE | DDS_IST_NOT_ALIVE_DISPOSED:
+        case DDS_ALIVE_INSTANCE_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE:
           if (rres_iseq[i].instance_state != DDS_ALIVE_INSTANCE_STATE && rres_iseq[i].instance_state != DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE)
             abort ();
           break;
@@ -441,44 +441,44 @@ static void print_condmask (char *buf, size_t bufsz, const dds_readcond *cond)
   pos += (size_t) snprintf (buf + pos, bufsz - pos, "[");
   switch (cond->m_sample_states)
   {
-    case DDS_SST_READ:
+    case DDS_READ_SAMPLE_STATE:
       pos += (size_t) snprintf (buf + pos, bufsz - pos, "%sREAD", sep);
       sep = ", ";
       break;
-    case DDS_SST_NOT_READ:
+    case DDS_NOT_READ_SAMPLE_STATE:
       pos += (size_t) snprintf (buf + pos, bufsz - pos, "%sNOT_READ", sep);
       sep = ", ";
       break;
   }
   switch (cond->m_view_states)
   {
-    case DDS_VST_NEW:
+    case DDS_NEW_VIEW_STATE:
       pos += (size_t) snprintf (buf + pos, bufsz - pos, "%sNEW", sep);
       sep = ", ";
       break;
-    case DDS_VST_OLD:
+    case DDS_NOT_NEW_VIEW_STATE:
       pos += (size_t) snprintf (buf + pos, bufsz - pos, "%sOLD", sep);
       sep = ", ";
       break;
   }
   switch (cond->m_instance_states)
   {
-    case DDS_IST_ALIVE:
+    case DDS_ALIVE_INSTANCE_STATE:
       pos += (size_t) snprintf (buf + pos, bufsz - pos, "%sALIVE", sep);
       break;
-    case DDS_IST_NOT_ALIVE_NO_WRITERS:
+    case DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE:
       pos += (size_t) snprintf (buf + pos, bufsz - pos, "%sNO_WRITERS", sep);
       break;
-    case DDS_IST_NOT_ALIVE_DISPOSED:
+    case DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE:
       pos += (size_t) snprintf (buf + pos, bufsz - pos, "%sDISPOSED", sep);
       break;
-    case DDS_IST_NOT_ALIVE_NO_WRITERS | DDS_IST_NOT_ALIVE_DISPOSED:
+    case DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE:
       pos += (size_t) snprintf (buf + pos, bufsz - pos, "%sNOT_ALIVE", sep);
       break;
-    case DDS_IST_ALIVE | DDS_IST_NOT_ALIVE_NO_WRITERS:
+    case DDS_ALIVE_INSTANCE_STATE | DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE:
       pos += (size_t) snprintf (buf + pos, bufsz - pos, "%sALIVE | NO_WRITERS", sep);
       break;
-    case DDS_IST_ALIVE | DDS_IST_NOT_ALIVE_DISPOSED:
+    case DDS_ALIVE_INSTANCE_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE:
       pos += (size_t) snprintf (buf + pos, bufsz - pos, "%sALIVE | DISPOSED", sep);
       break;
   }

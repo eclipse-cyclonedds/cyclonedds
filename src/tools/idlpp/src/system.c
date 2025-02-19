@@ -2520,10 +2520,6 @@ static char *   norm_path(
  * open_file().
  */
 {
-#if !defined (__clang__) && defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 1100 && ((__GNUC__ * 100) + __GNUC_MINOR__) < 1302
-_Pragma("GCC diagnostic push")
-_Pragma("GCC diagnostic ignored \"-Wstringop-overread\"")
-#endif
     char *  norm_name;                  /* The path-list converted  */
     char *  start;
     char *  cp1;
@@ -2778,9 +2774,6 @@ _Pragma("GCC diagnostic ignored \"-Wstringop-overread\"")
     }
 
     return  norm_name;
-#if !defined (__clang__) && defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 1300 && ((__GNUC__ * 100) + __GNUC_MINOR__) < 1302
-_Pragma("GCC diagnostic pop")
-#endif
 }
 
 #if SYS_FAMILY == SYS_UNIX
@@ -4679,12 +4672,6 @@ static void do_preprocessed( void)
  * Install macros according the #define directives.
  */
 {
-#if !defined (__clang__) && defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 1300 && ((__GNUC__ * 100) + __GNUC_MINOR__) < 1302
-_Pragma("GCC diagnostic push")
-_Pragma("GCC diagnostic ignored \"-Wnonnull\"")
-_Pragma("GCC diagnostic ignored \"-Warray-bounds\"")
-_Pragma("GCC diagnostic ignored \"-Wstringop-overread\"")
-#endif
     const char *    corrupted =
             "This preprocessed file is corrupted";          /* _F_  */
     FILEINFO *      file;
@@ -4769,9 +4756,6 @@ _Pragma("GCC diagnostic ignored \"-Wstringop-overread\"")
         unget_ch();                             /* infile == file   */
     }
     file->bptr = file->buffer + strlen( file->buffer);
-#if !defined (__clang__) && defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 1300 && ((__GNUC__ * 100) + __GNUC_MINOR__) < 1302
-_Pragma("GCC diagnostic pop")
-#endif
 }
 
 static int  do_debug(
