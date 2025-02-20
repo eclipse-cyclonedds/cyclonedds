@@ -21,11 +21,11 @@ extern "C" {
 #endif
 
 typedef struct {
-  int32_t seconds;
+  uint32_t seconds;
   uint32_t fraction;
 } ddsi_time_t;
-#define DDSI_TIME_INFINITE ((ddsi_time_t) { INT32_MAX, UINT32_MAX })
-#define DDSI_TIME_INVALID ((ddsi_time_t) { -1, UINT32_MAX })
+#define DDSI_TIME_INFINITE ((ddsi_time_t) { UINT32_MAX, UINT32_MAX - 1 })
+#define DDSI_TIME_INVALID ((ddsi_time_t) { UINT32_MAX, UINT32_MAX })
 
 typedef ddsi_time_t ddsi_duration_t;
 

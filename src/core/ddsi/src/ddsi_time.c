@@ -29,7 +29,7 @@ static ddsi_time_t to_ddsi_time (int64_t t)
        of the inverse is correctly rounded anyway, so it shouldn't ever matter. */
     ddsi_time_t x;
     int ns = (int) (t % DDS_NSECS_IN_SEC);
-    x.seconds = (int) (t / DDS_NSECS_IN_SEC);
+    x.seconds = (uint32_t) (t / DDS_NSECS_IN_SEC);
     x.fraction = (unsigned) (((DDS_NSECS_IN_SEC-1) + ((int64_t) ns << 32)) / DDS_NSECS_IN_SEC);
     return x;
   }
