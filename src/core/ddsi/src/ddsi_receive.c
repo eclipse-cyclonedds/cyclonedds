@@ -247,7 +247,7 @@ static enum validation_result validate_InfoTS (ddsi_rtps_info_ts_t *msg, size_t 
   {
     if (byteswap)
     {
-      msg->time.seconds = ddsrt_bswap4 (msg->time.seconds);
+      msg->time.seconds = ddsrt_bswap4u (msg->time.seconds);
       msg->time.fraction = ddsrt_bswap4u (msg->time.fraction);
     }
     return ddsi_is_valid_timestamp (msg->time) ? VR_ACCEPT : VR_MALFORMED;
