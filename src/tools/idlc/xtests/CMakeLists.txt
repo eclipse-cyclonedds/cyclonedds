@@ -27,6 +27,7 @@ set(_sources
   test_union_member_types_r.idl
   test_union_r.idl
   test_bounded_seq.idl
+  test_bounded_str.idl
   test_enum.idl
   test_bool.idl
   test_bitmask.idl
