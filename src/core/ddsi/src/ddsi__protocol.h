@@ -264,6 +264,7 @@ typedef union ddsi_rtps_submessage {
 #define DDSI_PID_TRANSPORT_PRIORITY                  0x49u
 #define DDSI_PID_PROTOCOL_VERSION                    0x15u
 #define DDSI_PID_VENDORID                            0x16u
+#define DDSI_PID_PRODUCT_VERSION                     0x8000u
 #define DDSI_PID_UNICAST_LOCATOR                     0x2fu
 #define DDSI_PID_MULTICAST_LOCATOR                   0x30u
 #define DDSI_PID_MULTICAST_IPADDRESS                 0x11u

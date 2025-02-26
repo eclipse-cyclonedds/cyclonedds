@@ -109,6 +109,7 @@ typedef struct ddsi_plist {
 
   ddsi_protocol_version_t protocol_version;
   ddsi_vendorid_t vendorid;
+  ddsi_product_version_t product_version;
   ddsi_locators_t unicast_locators;
   ddsi_locators_t multicast_locators;
   ddsi_locators_t default_unicast_locators;
