@@ -18,6 +18,8 @@ if (BUILD_DDSPERF)
     ddsperf.c
     cputime.c cputime.h
     netload.c netload.h
+    jparser.c jparser.h
+    parameters.c parameters.h
     async_listener.c async_listener.h)
   target_link_libraries(ddsperf ddsperf_types ddsc compat)
 
