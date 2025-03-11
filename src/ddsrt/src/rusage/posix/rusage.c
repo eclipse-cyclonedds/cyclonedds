@@ -15,6 +15,7 @@
 #include <sys/resource.h>
 
 #include "dds/ddsrt/rusage.h"
+#include "dds/ddsrt/log.h"
 
 #if defined __linux
 #include <stdio.h>
@@ -168,6 +169,121 @@ ddsrt_getrusage (enum ddsrt_getrusage_who who, ddsrt_rusage_t *usage)
   usage->nivcsw = (size_t) buf.ru_nivcsw;
   return DDS_RETCODE_OK;
 }
+#elif defined __QNXNTO__
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <sys/neutrino.h>
+#include <sys/procfs.h>
+
+dds_return_t
+ddsrt_getrusage_anythread (
+  ddsrt_thread_list_id_t tid,
+  ddsrt_rusage_t *usage)
+{
+  int fd, pos;
+  char path[32];
+  procfs_status status;
+
+  assert(tid >= 1);
+  assert(usage);
+
+  pos = snprintf(path, sizeof(path), "/proc/%d/as", getpid());
+  if (pos < 0 || pos >= (int)sizeof(path)) {
+    return DDS_RETCODE_ERROR;
+  }
+  if ((fd = open(path, O_RDONLY)) == -1) {
+    return DDS_RETCODE_NOT_FOUND;
+  }
+  memset(&status, 0, sizeof(status));
+  status.tid = tid;
+  if (devctl(fd, DCMD_PROC_TIDSTATUS, &status, sizeof(status), 0) != EOK) {
+    DDS_ERROR("devctl() failed for DCMD_PROC_TIDSTATUS for tid %d and pid %d: %s\n",
+      tid, getpid(), strerror(errno));
+      close(fd);
+      return DDS_RETCODE_ERROR;
+  }
+  if (status.tid != tid) {
+    /* Requested thread has terminated, devctl() returned info for a different thread */
+    close(fd);
+    return DDS_RETCODE_NOT_FOUND;
+  }
+
+  /* only combined system + user cpu time is available */
+  usage->utime = status.sutime;
+  usage->stime = 0;
+  return DDS_RETCODE_OK;
+}
+
+
+dds_return_t
+ddsrt_getrusage (enum ddsrt_getrusage_who who, ddsrt_rusage_t *usage)
+{
+  int pos;
+  FILE *fp;
+  char path[32];
+  char line[64];
+
+  assert (who == DDSRT_RUSAGE_SELF || who == DDSRT_RUSAGE_THREAD);
+  assert (usage != NULL);
+
+  /* Unsupported */
+  usage->idrss = 0;
+  usage->nvcsw = 0;
+  usage->nivcsw = 0;
+
+  /* Read (process) rss from procfs vmstat */
+  pos = snprintf(path, sizeof(path), "/proc/%d/vmstat", getpid());
+  if (pos < 0 || pos >= (int)sizeof(path)) {
+    return DDS_RETCODE_ERROR;
+  }
+  fp = fopen(path, "r");
+  if (fp == NULL) {
+    DDS_ERROR("Failed to open vmstat for pid %d: %s\n",
+      getpid(), strerror(errno));
+      return DDS_RETCODE_ERROR;
+  }
+  long pagesize = sysconf(_SC_PAGESIZE);
+  while (fgets(line, sizeof(line), fp) != NULL) {
+    if (strstr(line, "as_stats.rss") != NULL) {
+      char *tok = strchr(line, '=');
+      if (tok) {
+        /* Convert hex page count to dec bytes */
+        usage->maxrss = (size_t)(strtoul(tok+1, NULL, 16) * pagesize);
+      }
+    }
+  }
+  fclose(fp);
+
+  /* Get process or thread cpu time */
+  if (who == DDSRT_RUSAGE_SELF) {
+    int fd;
+    procfs_info info;
+    pos = snprintf(path, sizeof(path), "/proc/%d/as", getpid());
+    if (pos < 0 || pos >= (int)sizeof(path)) {
+      return DDS_RETCODE_ERROR;
+    }
+    if ((fd = open(path, O_RDONLY)) == -1) {
+      return DDS_RETCODE_NOT_FOUND;
+    }
+    memset(&info, 0, sizeof(info));
+    if (devctl(fd, DCMD_PROC_INFO, &info, sizeof(info), 0) != EOK) {
+      DDS_ERROR("devctl() failed for DCMD_PROC_INFO on pid %d: %s\n", 
+        getpid(), strerror(errno));
+      close(fd);
+      return DDS_RETCODE_ERROR;
+    }
+    close(fd);
+    usage->utime = info.utime;
+    usage->stime = info.stime;
+    return DDS_RETCODE_OK;
+  } else if (who == DDSRT_RUSAGE_THREAD) {
+    return ddsrt_getrusage_anythread(gettid(), usage);
+  } else {
+    return DDS_RETCODE_UNSUPPORTED;
+  }
+}
+
 #elif defined (__APPLE__)
 #include <mach/mach_init.h>
 #include <mach/mach_port.h>
