@@ -22,6 +22,7 @@
 #include "common/config_env.h"
 #include "common/test_utils.h"
 #include "security_config_test_utils.h"
+#include "common/cert_utils.h"
 
 static const char *topic_rule =
     "        <topic_rule>"
@@ -391,6 +392,49 @@ char * get_permissions_config(char * grants[], size_t ngrants, bool add_prefix)
   };
   char *config = ddsrt_expand_vars (permissions_xml, &expand_lookup_vars, vars);
   char *config_signed = get_signed_data (config);
+  ddsrt_free (grants_str);
+  ddsrt_free (config);
+  return prefix_data (config_signed, add_prefix);
+}
+
+char * get_governance_config_ex (bool allow_unauth_pp, bool enable_join_ac, DDS_Security_ProtectionKind discovery_protection_kind, DDS_Security_ProtectionKind liveliness_protection_kind,
+    DDS_Security_ProtectionKind rtps_protection_kind, const char * topic_rules, smime_sign_function signer, void *signer_arg, bool add_prefix)
+{
+  struct kvp vars[] = {
+    { "ALLOW_UNAUTH_PP", allow_unauth_pp ? "true" : "false", 1 },
+    { "ENABLE_JOIN_AC", enable_join_ac ? "true" : "false", 1 },
+    { "DISCOVERY_PROTECTION_KIND", pk_to_str (discovery_protection_kind), 1 },
+    { "LIVELINESS_PROTECTION_KIND", pk_to_str (liveliness_protection_kind), 1 },
+    { "RTPS_PROTECTION_KIND", pk_to_str (rtps_protection_kind), 1 },
+    { "TOPIC_RULES", topic_rules != NULL ? topic_rules : get_governance_topic_rule (NULL, false, false, false, false, PK_N, BPK_N), 1 },
+    { NULL, NULL, 0 }
+  };
+  char * config = ddsrt_expand_vars (governance_xml, &expand_lookup_vars, vars);
+  char * config_signed = signer (config, signer_arg);
+  ddsrt_free (config);
+
+  print_test_msg ("governance configuration: ");
+  print_config_vars (vars);
+  printf("\n");
+
+  return prefix_data (config_signed, add_prefix);
+}
+
+char * get_permissions_config_ex(char * grants[], size_t ngrants, smime_sign_function signer, void *signer_arg, bool add_prefix)
+{
+  char *grants_str = NULL;
+  for (size_t n = 0; n < ngrants; n++)
+  {
+    char * tmp = grants_str;
+    ddsrt_asprintf (&grants_str, "%s%s", grants_str ? grants_str : "", grants[n]);
+    ddsrt_free (tmp);
+  }
+  struct kvp vars[] = {
+    { "GRANTS", grants_str, 1 },
+    { NULL, NULL, 0}
+  };
+  char *config = ddsrt_expand_vars (permissions_xml, &expand_lookup_vars, vars);
+  char *config_signed = signer (config, signer_arg);
   ddsrt_free (grants_str);
   ddsrt_free (config);
   return prefix_data (config_signed, add_prefix);

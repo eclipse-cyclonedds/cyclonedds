@@ -30,6 +30,8 @@
 #include <openssl/ec.h>
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
 #include <openssl/core_names.h>
+#include <openssl/provider.h>
+#include <openssl/store.h>
 #endif
 #include <openssl/err.h>
 #include <openssl/evp.h>
