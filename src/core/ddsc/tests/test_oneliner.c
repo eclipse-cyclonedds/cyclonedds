@@ -791,6 +791,16 @@ static bool qos_partition (struct oneliner_lex *l, dds_qos_t *q)
   return true;
 }
 
+static bool qos_userdata (struct oneliner_lex *l, dds_qos_t *q)
+{
+  const char *p = l->inp;
+  while (*p != 0 && *p != ',' && *p != ')')
+    p++;
+  dds_qset_userdata (q, l->inp, (size_t) (p - l->inp));
+  l->inp = p;
+  return true;
+}
+
 static const struct {
   char *abbrev;
   size_t n;
@@ -812,7 +822,8 @@ static const struct {
   { "ds", 2, qos_durability_service, DDS_DURABILITYSERVICE_QOS_POLICY_ID },
   { "ad", 2, qos_autodispose_unregistered_instances, DDS_WRITERDATALIFECYCLE_QOS_POLICY_ID },
   { "wb", 2, qos_writer_batching, DDS_INVALID_QOS_POLICY_ID },
-  { "part", 4, qos_partition, DDS_PARTITION_QOS_POLICY_ID }
+  { "part", 4, qos_partition, DDS_PARTITION_QOS_POLICY_ID },
+  { "ud", 2, qos_userdata, DDS_USERDATA_QOS_POLICY_ID }
 };
 
 static bool setqos (struct oneliner_lex *l, dds_qos_t *q)
