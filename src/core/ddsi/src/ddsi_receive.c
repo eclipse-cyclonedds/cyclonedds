@@ -236,7 +236,7 @@ static enum validation_result validate_InfoSRC (ddsi_rtps_info_src_t *msg, size_
   return VR_ACCEPT;
 }
 
-static enum validation_result validate_InfoTS (ddsi_rtps_info_ts_t *msg, size_t size, int byteswap)
+static enum validation_result validate_InfoTS (const struct ddsi_receiver_state *rst, ddsi_rtps_info_ts_t *msg, size_t size, int byteswap)
 {
   assert (sizeof (ddsi_rtps_submessage_header_t) <= size);
   if (msg->smhdr.flags & DDSI_INFOTS_INVALIDATE_FLAG)
@@ -250,7 +250,15 @@ static enum validation_result validate_InfoTS (ddsi_rtps_info_ts_t *msg, size_t 
       msg->time.seconds = ddsrt_bswap4u (msg->time.seconds);
       msg->time.fraction = ddsrt_bswap4u (msg->time.fraction);
     }
-    return ddsi_is_valid_timestamp (msg->time) ? VR_ACCEPT : VR_MALFORMED;
+    if (rst->protocol_version.major * 256 + rst->protocol_version.minor >= 0x203)
+      return ddsi_is_valid_timestamp (msg->time) ? VR_ACCEPT : VR_MALFORMED;
+    else
+    {
+      DDSRT_STATIC_ASSERT (sizeof (ddsi_time_t) == sizeof (ddsi_time22_t));
+      ddsi_time22_t time22;
+      memcpy (&time22, &msg->time, sizeof (time22));
+      return ddsi_is_valid_timestamp22 (time22) ? VR_ACCEPT : VR_MALFORMED;
+    }
   }
 }
 
@@ -1757,9 +1765,20 @@ static int handle_InfoTS (const struct ddsi_receiver_state *rst, const ddsi_rtps
   }
   else
   {
-    *timestamp = ddsi_wctime_from_ddsi_time (msg->time);
+    if (rst->protocol_version.major * 256 + rst->protocol_version.minor >= 0x203)
+      *timestamp = ddsi_wctime_from_ddsi_time (msg->time);
+    else
+    {
+      DDSRT_STATIC_ASSERT (sizeof (ddsi_time_t) == sizeof (ddsi_time22_t));
+      ddsi_time22_t time22;
+      memcpy (&time22, &msg->time, sizeof (time22));
+      *timestamp = ddsi_wctime_from_ddsi_time22 (time22);
+    }
+
     if (rst->gv->logconfig.c.mask & DDS_LC_TRACE)
-      RSTTRACE ("%d.%09d", (int) (timestamp->v / 1000000000), (int) (timestamp->v % 1000000000));
+    {
+      RSTTRACE ("%"PRId64".%09d", (int64_t) (timestamp->v / 1000000000), (int) (timestamp->v % 1000000000));
+    }
   }
   RSTTRACE (")");
   return 1;
@@ -2804,7 +2823,7 @@ static void malformed_packet_received_shortmsg (const struct ddsi_domaingv *gv, 
 {
   char tmp[1024];
   size_t i, pos, smsize;
-  
+
   struct submsg_name submsg_name_buffer;
   ddsi_rtps_submessage_kind_t smkind;
   const char *state0;
@@ -2829,7 +2848,7 @@ static void malformed_packet_received_shortmsg (const struct ddsi_domaingv *gv, 
   }
   assert (submsg >= msg && submsg <= msg + len);
   const size_t clamped_offset = (offset < 0) ? 0 : ((size_t) offset > len) ? len : (size_t) offset;
-  
+
   /* Show beginning of message and of submessage (as hex dumps) */
   pos = (size_t) snprintf (tmp, sizeof (tmp), "malformed packet received from vendor %u.%u length %" PRIuSIZE " state %s%s <", vendorid.id[0], vendorid.id[1], len, state0, state1);
   for (i = 0; i < 32 && i < len && i < clamped_offset && pos < sizeof (tmp); i++)
@@ -2841,7 +2860,7 @@ static void malformed_packet_received_shortmsg (const struct ddsi_domaingv *gv, 
   if (pos < sizeof (tmp))
     pos += (size_t) snprintf (tmp + pos, sizeof (tmp) - pos, "> (note: maybe partially bswap'd)");
   assert (pos < (int) sizeof (tmp));
-  
+
   /* Partially decode header if we have enough bytes available */
   smsize = len - (size_t) (submsg - msg);
   if (smsize >= DDSI_RTPS_SUBMESSAGE_HEADER_SIZE && pos < sizeof (tmp)) {
@@ -3099,7 +3118,7 @@ static int handle_submsg_sequence
         break;
       }
       case DDSI_RTPS_SMID_INFO_TS: {
-        if ((vr = validate_InfoTS (&sm->infots, submsg_size, byteswap)) == VR_ACCEPT) {
+        if ((vr = validate_InfoTS (rst, &sm->infots, submsg_size, byteswap)) == VR_ACCEPT) {
           handle_InfoTS (rst, &sm->infots, &timestamp);
           ts_for_latmeas = 1;
         }

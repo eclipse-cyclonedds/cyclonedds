@@ -349,7 +349,7 @@ static dds_return_t deser_reliability (void * restrict dst, struct flagset *flag
     return DDS_RETCODE_BAD_PARAMETER;
   if (kind < 1 || kind > 2)
     return DDS_RETCODE_BAD_PARAMETER;
-  mbt.seconds = mbtsec;
+  mbt.seconds = (int32_t) mbtsec;
   mbt.fraction = mbtfrac;
   if (validate_external_duration (&mbt) < 0)
     return DDS_RETCODE_BAD_PARAMETER;
@@ -2693,11 +2693,9 @@ static dds_return_t validate_external_duration (const ddsi_duration_t *d)
 {
   /* Accepted are zero, positive, infinite or invalid as defined in
      the DDS 2.1 spec, table 9.4. */
-  if (d->seconds == 0 && d->fraction == 0)
+  if (d->seconds >= 0)
     return 0;
-  else if (d->seconds == UINT32_MAX && d->fraction == UINT32_MAX)
-    return 0;
-  else if (d->seconds == UINT32_MAX && d->fraction == UINT32_MAX - 1)
+  else if (d->seconds == -1 && d->fraction == UINT32_MAX)
     return 0;
   else
     return DDS_RETCODE_BAD_PARAMETER;
