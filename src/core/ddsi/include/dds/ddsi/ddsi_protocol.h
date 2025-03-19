@@ -16,6 +16,7 @@
 #include "dds/ddsi/ddsi_feature_check.h"
 #include "dds/ddsi/ddsi_locator.h"
 #include "dds/ddsi/ddsi_guid.h"
+#include "dds/ddsi/ddsi_protocol_version.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -42,10 +43,6 @@ extern "C" {
 #define DDSI_LOCATOR_UDPv4MCGEN_INDEX_MASK_BITS 12
 
 typedef uint32_t ddsi_count_t;
-
-typedef struct ddsi_protocol_version {
-  uint8_t major, minor;
-} ddsi_protocol_version_t;
 
 typedef uint64_t ddsi_seqno_t;
 #define DDSI_MAX_SEQ_NUMBER INT64_MAX

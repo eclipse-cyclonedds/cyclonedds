@@ -18,6 +18,7 @@
 #include "dds/ddsrt/sched.h"
 #include "dds/ddsrt/random.h"
 #include "dds/ddsi/ddsi_portmapping.h"
+#include "dds/ddsi/ddsi_protocol_version.h"
 #include "dds/ddsi/ddsi_locator.h"
 #include "dds/ddsi/ddsi_xqos.h"
 

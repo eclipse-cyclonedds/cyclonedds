@@ -117,6 +117,7 @@ set(hdrs_ddsi
   ddsi_proxy_participant.h
   ddsi_topic.h
   ddsi_endpoint.h
+  ddsi_protocol_version.h
   ddsi_proxy_endpoint.h
   ddsi_gc.h
   ddsi_pmd.h
