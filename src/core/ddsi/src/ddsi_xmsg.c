@@ -45,6 +45,7 @@
 
 struct ddsi_xmsgpool {
   struct ddsi_freelist freelist;
+  ddsi_protocol_version_t protocol_version;
 };
 
 struct ddsi_xmsg_data {
@@ -195,10 +196,11 @@ static size_t align4u (size_t x)
 
 static void ddsi_xmsg_realfree (struct ddsi_xmsg *m);
 
-struct ddsi_xmsgpool *ddsi_xmsgpool_new (void)
+struct ddsi_xmsgpool *ddsi_xmsgpool_new (ddsi_protocol_version_t protocol_version)
 {
   struct ddsi_xmsgpool *pool;
   pool = ddsrt_malloc (sizeof (*pool));
+  pool->protocol_version = protocol_version;
   ddsi_freelist_init (&pool->freelist, MAX_FREELIST_SIZE, offsetof (struct ddsi_xmsg, link.older));
   return pool;
 }
@@ -268,8 +270,7 @@ static struct ddsi_xmsg *ddsi_xmsg_allocnew (struct ddsi_xmsgpool *pool, size_t 
   d->src.smhdr.flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS : 0);
   d->src.smhdr.octetsToNextHeader = sizeof (d->src) - (offsetof (ddsi_rtps_info_src_t, smhdr.octetsToNextHeader) + 2);
   d->src.unused = 0;
-  d->src.version.major = DDSI_RTPS_MAJOR;
-  d->src.version.minor = DDSI_RTPS_MINOR;
+  d->src.version = pool->protocol_version;
   d->src.vendorid = DDSI_VENDORID_ECLIPSE;
   d->dst.smhdr.submessageId = DDSI_RTPS_SMID_INFO_DST;
   d->dst.smhdr.flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS : 0);
@@ -635,6 +636,9 @@ void ddsi_xmsg_add_timestamp (struct ddsi_xmsg *m, ddsrt_wctime_t t)
 
   ts = (ddsi_rtps_info_ts_t*) ddsi_xmsg_append (m, &sm, sizeof (ddsi_rtps_info_ts_t));
   ddsi_xmsg_submsg_init (m, sm, DDSI_RTPS_SMID_INFO_TS);
+  // The only timestamps accepted by write/forward are ones that are representable in
+  // the selected protocol version, and those all map to the same bit pattern, so no
+  // need to distinguish between versions here
   ts->time = ddsi_wctime_to_ddsi_time (t);
   ddsi_xmsg_submsg_setnext (m, sm);
 }
@@ -1091,8 +1095,7 @@ struct ddsi_xpack * ddsi_xpack_new (struct ddsi_domaingv *gv, bool async_mode)
   xp->hdr.protocol.id[1] = 'T';
   xp->hdr.protocol.id[2] = 'P';
   xp->hdr.protocol.id[3] = 'S';
-  xp->hdr.version.major = DDSI_RTPS_MAJOR;
-  xp->hdr.version.minor = DDSI_RTPS_MINOR;
+  xp->hdr.version = gv->config.protocol_version;
   xp->hdr.vendorid = DDSI_VENDORID_ECLIPSE;
 
   /* MSG_LEN first sub message for stream based connections */

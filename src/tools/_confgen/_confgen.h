@@ -45,6 +45,7 @@ void gendef_pf_participantIndex (FILE *fp, void *parent, struct cfgelem const * 
 void gendef_pf_boolean (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_boolean_default (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_besmode (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_protocol_version (FILE *out, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_retransmit_merging (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_sched_class (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_entity_naming_mode (FILE *fp, void *parent, struct cfgelem const * const cfgelem);

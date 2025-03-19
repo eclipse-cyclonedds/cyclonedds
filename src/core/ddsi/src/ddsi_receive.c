@@ -250,7 +250,7 @@ static enum validation_result validate_InfoTS (const struct ddsi_receiver_state 
       msg->time.seconds = ddsrt_bswap4u (msg->time.seconds);
       msg->time.fraction = ddsrt_bswap4u (msg->time.fraction);
     }
-    if (rst->protocol_version.major * 256 + rst->protocol_version.minor >= 0x203)
+    if (rst->gv->config.protocol_version.minor >= 0x3 && rst->protocol_version.major * 256 + rst->protocol_version.minor >= 0x203)
       return ddsi_is_valid_timestamp (msg->time) ? VR_ACCEPT : VR_MALFORMED;
     else
     {
@@ -1765,7 +1765,7 @@ static int handle_InfoTS (const struct ddsi_receiver_state *rst, const ddsi_rtps
   }
   else
   {
-    if (rst->protocol_version.major * 256 + rst->protocol_version.minor >= 0x203)
+    if (rst->gv->config.protocol_version.minor >= 0x3 && rst->protocol_version.major * 256 + rst->protocol_version.minor >= 0x203)
       *timestamp = ddsi_wctime_from_ddsi_time (msg->time);
     else
     {
@@ -3261,6 +3261,7 @@ static int handle_submsg_sequence
 static void handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const struct ddsi_network_packet_info *pktinfo)
 {
   ddsi_rtps_header_t *hdr = (ddsi_rtps_header_t *) msg;
+  assert (gv->config.protocol_version.major == DDSI_RTPS_MAJOR);
   assert (ddsi_thread_is_asleep ());
   if (sz < DDSI_RTPS_MESSAGE_HEADER_SIZE || *(uint32_t *)msg != DDSI_PROTOCOLID_AS_UINT32)
   {

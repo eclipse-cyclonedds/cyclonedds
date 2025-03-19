@@ -1298,7 +1298,7 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
 #endif
   }
 
-  gv->xmsgpool = ddsi_xmsgpool_new ();
+  gv->xmsgpool = ddsi_xmsgpool_new (gv->config.protocol_version);
 
   // copy default participant plist into one that is used for this domain's participants
   // a plain copy is safe because it doesn't alias anything

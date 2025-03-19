@@ -32,7 +32,7 @@
 #include "dds__psmx.h"
 #include "dds__guid.h"
 
-extern inline bool dds_source_timestamp_is_valid_ddsi_time (dds_time_t timestamp);
+extern inline bool dds_source_timestamp_is_valid_ddsi_time (dds_time_t timestamp, ddsi_protocol_version_t protover);
 
 struct ddsi_serdata_plain { struct ddsi_serdata p; };
 struct ddsi_serdata_any   { struct ddsi_serdata a; };
@@ -467,7 +467,7 @@ static dds_return_t dds_writecdr_impl_common (struct dds_writer *wr, struct ddsi
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   dds_return_t ret;
 
-  if (!dds_source_timestamp_is_valid_ddsi_time (din->a.timestamp.v))
+  if (!dds_source_timestamp_is_valid_ddsi_time (din->a.timestamp.v, wr->protocol_version))
   {
     ddsi_serdata_unref (&din->a);
     return DDS_RETCODE_BAD_PARAMETER;
@@ -813,7 +813,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t timest
     (((action & DDS_WR_DISPOSE_BIT) ? DDSI_STATUSINFO_DISPOSE : 0) |
      ((action & DDS_WR_UNREGISTER_BIT) ? DDSI_STATUSINFO_UNREGISTER : 0));
 
-  if (!dds_source_timestamp_is_valid_ddsi_time (timestamp))
+  if (!dds_source_timestamp_is_valid_ddsi_time (timestamp, wr->protocol_version))
     return DDS_RETCODE_BAD_PARAMETER;
 
   if (!evaluate_topic_filter (wr, data, sdkind))
