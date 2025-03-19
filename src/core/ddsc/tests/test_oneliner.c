@@ -389,16 +389,17 @@ static int nexttok_dur (struct oneliner_lex *l, union oneliner_tokval *v, bool e
   else if (l->inp[0] == '@' || (expecting_duration && (lookingatnum (l) || lookingatinf (l))))
   {
     const int ists = (l->inp[0] == '@');
+    const int isabs = (ists && l->inp[1] == '=');
     char *endp;
-    if (!ists && strncmp (l->inp + ists, "inf", 3) == 0 && !issymchar (l->inp[ists + 3]))
+    if (!ists && strncmp (l->inp + ists + isabs, "inf", 3) == 0 && !issymchar (l->inp[ists + 3]))
     {
-      l->inp += ists + 3;
+      l->inp += ists + isabs + 3;
       l->v.d = DDS_INFINITY;
     }
     else
     {
       double d;
-      if (ddsrt_strtod (l->inp + ists, &endp, &d) != DDS_RETCODE_OK)
+      if (ddsrt_strtod (l->inp + ists + isabs, &endp, &d) != DDS_RETCODE_OK)
         return false;
       if (!ists && d < 0)
         return false;
@@ -408,7 +409,7 @@ static int nexttok_dur (struct oneliner_lex *l, union oneliner_tokval *v, bool e
         l->v.d = (int64_t) (d * 1e9 + 0.5);
       else
         l->v.d = -(int64_t) (-d * 1e9 + 0.5);
-      if (ists)
+      if (ists && !isabs)
         l->v.d += l->tref;
       l->inp = endp;
     }
