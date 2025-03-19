@@ -20,6 +20,22 @@
 extern "C" {
 #endif
 
+// DDSI 2.2 and earlier have signed seconds
+typedef struct {
+  int32_t seconds;
+  uint32_t fraction;
+} ddsi_time22_t;
+#define DDSI_TIME22_INFINITE ((ddsi_time22_t) { INT32_MAX, UINT32_MAX })
+#define DDSI_TIME22_INVALID ((ddsi_time22_t) { -1, UINT32_MAX })
+
+// DDSI 2.3 and later have unsigned seconds
+//
+// The CDR representation for TIME_INVALID is the same as that for TIME22_INVALID,
+// so we can allow writing data with the source timestamp set to invalid without
+// breaking compatibility.  This is useful because some DDS implementations do not
+// provide a source timestamp when the destination order QoS is set to "by reception
+// timestamp", which Cyclone turns into an "invalid timestamp", which one would then
+// assume to be valid input to "dds_forwardcdr".
 typedef struct {
   uint32_t seconds;
   uint32_t fraction;
@@ -27,7 +43,7 @@ typedef struct {
 #define DDSI_TIME_INFINITE ((ddsi_time_t) { UINT32_MAX, UINT32_MAX - 1 })
 #define DDSI_TIME_INVALID ((ddsi_time_t) { UINT32_MAX, UINT32_MAX })
 
-typedef ddsi_time_t ddsi_duration_t;
+typedef ddsi_time22_t ddsi_duration_t;
 
 /** @component time_utils */
 bool ddsi_is_valid_timestamp (ddsi_time_t t);
@@ -36,7 +52,16 @@ bool ddsi_is_valid_timestamp (ddsi_time_t t);
 ddsi_time_t ddsi_wctime_to_ddsi_time (ddsrt_wctime_t t);
 
 /** @component time_utils */
+ddsi_time22_t ddsi_wctime_to_ddsi_time22 (ddsrt_wctime_t t);
+
+/** @component time_utils */
 ddsrt_wctime_t ddsi_wctime_from_ddsi_time (ddsi_time_t x);
+
+/** @component time_utils */
+bool ddsi_is_valid_timestamp22 (ddsi_time22_t t);
+
+/** @component time_utils */
+ddsrt_wctime_t ddsi_wctime_from_ddsi_time22 (ddsi_time22_t x);
 
 /** @component time_utils */
 ddsi_duration_t ddsi_duration_from_dds (dds_duration_t t);

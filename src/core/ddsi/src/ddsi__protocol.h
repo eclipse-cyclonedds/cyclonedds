@@ -59,9 +59,9 @@ extern "C" {
 
 #define DDSI_BES_MASK_NON_SECURITY 0xf000ffffu
 
-/* Only one specific version is grokked */
+/* Oldest version we are willing to work with is DDSI 2.1, this implements DDSI 2.5. */
 #define DDSI_RTPS_MAJOR 2
-#define DDSI_RTPS_MINOR 1
+#define DDSI_RTPS_MINOR 5
 #define DDSI_RTPS_MINOR_MINIMUM 1
 
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN

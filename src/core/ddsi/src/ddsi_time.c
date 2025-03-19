@@ -20,8 +20,16 @@ bool ddsi_is_valid_timestamp (ddsi_time_t t)
   return !(t.seconds == DDSI_TIME_INFINITE.seconds && t.fraction == DDSI_TIME_INFINITE.fraction);
 }
 
+bool ddsi_is_valid_timestamp22 (ddsi_time22_t t)
+{
+  // all bit patterns are valid DDSI Timestamps (including "invalid"!), but we reject infinity
+  // because it is not a point in time
+  return !(t.seconds == DDSI_TIME22_INFINITE.seconds && t.fraction == DDSI_TIME22_INFINITE.fraction);
+}
+
 static ddsi_time_t to_ddsi_time (int64_t t)
 {
+  assert (t >= 0 || t == DDS_TIME_INVALID);
   if (t == DDS_NEVER)
     return DDSI_TIME_INFINITE;
   else
@@ -37,13 +45,38 @@ static ddsi_time_t to_ddsi_time (int64_t t)
   }
 }
 
+static ddsi_time22_t to_ddsi_time22 (int64_t t)
+{
+  assert (t >= 0 || t == DDS_TIME_INVALID);
+  if (t == DDS_NEVER)
+    return DDSI_TIME22_INFINITE;
+  else
+  {
+    /* ceiling(ns * 2^32/10^9) -- can't change the ceiling to round-to-nearest
+       because that would break backwards compatibility, but round-to-nearest
+       of the inverse is correctly rounded anyway, so it shouldn't ever matter. */
+    ddsi_time22_t x;
+    int ns = (int) (t % DDS_NSECS_IN_SEC);
+    x.seconds = (int) (t / DDS_NSECS_IN_SEC);
+    x.fraction = (unsigned) (((DDS_NSECS_IN_SEC-1) + ((int64_t) ns << 32)) / DDS_NSECS_IN_SEC);
+    return x;
+  }
+}
+
 ddsi_time_t ddsi_wctime_to_ddsi_time (ddsrt_wctime_t t)
 {
   return to_ddsi_time (t.v);
 }
 
+ddsi_time22_t ddsi_wctime_to_ddsi_time22 (ddsrt_wctime_t t)
+{
+  return to_ddsi_time22 (t.v);
+}
+
 static int64_t from_ddsi_time (ddsi_time_t x)
 {
+  if (x.seconds == DDSI_TIME_INVALID.seconds && x.fraction == DDSI_TIME_INVALID.fraction)
+    return INT64_MIN;
   if (x.seconds == DDSI_TIME_INFINITE.seconds && x.fraction == DDSI_TIME_INFINITE.fraction)
     return DDS_NEVER;
   else
@@ -59,13 +92,31 @@ ddsrt_wctime_t ddsi_wctime_from_ddsi_time (ddsi_time_t x)
   return (ddsrt_wctime_t) { from_ddsi_time (x) };
 }
 
+static int64_t from_ddsi_time22 (ddsi_time22_t x)
+{
+  if (x.seconds == DDSI_TIME22_INVALID.seconds && x.fraction == DDSI_TIME22_INVALID.fraction)
+    return INT64_MIN;
+  if (x.seconds == DDSI_TIME22_INFINITE.seconds && x.fraction == DDSI_TIME22_INFINITE.fraction)
+    return DDS_NEVER;
+  else
+  {
+    /* Round-to-nearest conversion of DDSI time fraction to nanoseconds */
+    int ns = (int) (((int64_t) 2147483648u + (int64_t) x.fraction * DDS_NSECS_IN_SEC) >> 32);
+    return x.seconds * DDS_NSECS_IN_SEC + ns;
+  }
+}
+
+ddsrt_wctime_t ddsi_wctime_from_ddsi_time22 (ddsi_time22_t x)
+{
+  return (ddsrt_wctime_t) { from_ddsi_time22 (x) };
+}
+
 ddsi_duration_t ddsi_duration_from_dds (dds_duration_t x)
 {
-  return to_ddsi_time (x);
+  return to_ddsi_time22 (x);
 }
 
 dds_duration_t ddsi_duration_to_dds (ddsi_duration_t x)
 {
-  return from_ddsi_time (x);
+  return from_ddsi_time22 (x);
 }
-
