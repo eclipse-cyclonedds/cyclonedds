@@ -417,6 +417,7 @@ struct ddsi_config
   int explicitly_publish_qos_set_to_default;
   enum ddsi_many_sockets_mode many_sockets_mode;
   int assume_rti_has_pmd_endpoints;
+  ddsi_protocol_version_t protocol_version;
 
   struct ddsi_portmapping ports;
 

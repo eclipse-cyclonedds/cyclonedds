@@ -161,8 +161,7 @@ static int sedp_write_endpoint_impl
   {
     assert (xqos != NULL);
     ps.present |= PP_PROTOCOL_VERSION | PP_VENDORID;
-    ps.protocol_version.major = DDSI_RTPS_MAJOR;
-    ps.protocol_version.minor = DDSI_RTPS_MINOR;
+    ps.protocol_version = gv->config.protocol_version;
     ps.vendorid = DDSI_VENDORID_ECLIPSE;
 
     assert (epcommon != NULL);

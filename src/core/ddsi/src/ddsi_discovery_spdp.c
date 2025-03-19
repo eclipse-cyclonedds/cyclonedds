@@ -84,8 +84,7 @@ void ddsi_get_participant_builtin_topic_data (const struct ddsi_participant *pp,
     PP_PROTOCOL_VERSION | PP_VENDORID | PP_DOMAIN_ID;
   dst->participant_guid = pp->e.guid;
   dst->builtin_endpoint_set = pp->bes;
-  dst->protocol_version.major = DDSI_RTPS_MAJOR;
-  dst->protocol_version.minor = DDSI_RTPS_MINOR;
+  dst->protocol_version = gv->config.protocol_version;
   dst->vendorid = DDSI_VENDORID_ECLIPSE;
   dst->domain_id = gv->config.extDomainId.value;
   /* Be sure not to send a DOMAIN_TAG when it is the default (an empty)

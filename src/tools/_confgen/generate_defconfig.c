@@ -168,6 +168,13 @@ void gendef_pf_boolean_default (FILE *out, void *parent, struct cfgelem const * 
 void gendef_pf_besmode (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
   gendef_pf_int (out, parent, cfgelem);
 }
+void gendef_pf_protocol_version (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
+  ddsi_protocol_version_t * const p = cfg_address (parent, cfgelem);
+  fprintf (out, "\
+  cfg->%s.major = %d;\n\
+  cfg->%s.minor = %d;\n",
+             cfgelem->membername, p->major, cfgelem->membername, p->minor);
+}
 void gendef_pf_retransmit_merging (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
   gendef_pf_int (out, parent, cfgelem);
 }

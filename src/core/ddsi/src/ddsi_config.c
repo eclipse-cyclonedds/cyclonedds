@@ -147,6 +147,7 @@ DUPF(networkAddresses);
 DU(ipv4);
 DUPF(allow_multicast);
 DUPF(boolean);
+DUPF(protocol_version);
 DU(boolean_default);
 PF(boolean_default);
 DUPF(string);
@@ -1105,6 +1106,29 @@ static void pf_min_tls_version (struct ddsi_cfgst *cfgst, void *parent, struct c
   cfg_logelem (cfgst, sources, "%d.%d", p->major, p->minor);
 }
 #endif
+
+static enum update_result uf_protocol_version (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  static const char *vs[] = {
+    "2.1", "2.5", NULL
+  };
+  static const ddsi_protocol_version_t ms[] = {
+    {2,1}, {2,5}, {0,0}
+  };
+  const int idx = list_index (vs, value);
+  ddsi_protocol_version_t * const elem = cfg_address (cfgst, parent, cfgelem);
+  assert (sizeof (vs) / sizeof (*vs) == sizeof (ms) / sizeof (*ms));
+  if (idx < 0)
+    return cfg_error(cfgst, "'%s': undefined value", value);
+  *elem = ms[idx];
+  return URES_SUCCESS;
+}
+
+static void pf_protocol_version (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
+{
+  ddsi_protocol_version_t * const p = cfg_address (cfgst, parent, cfgelem);
+  cfg_logelem (cfgst, sources, "%d.%d", p->major, p->minor);
+}
 
 static enum update_result uf_string (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
