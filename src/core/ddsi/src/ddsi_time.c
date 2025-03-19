@@ -15,7 +15,9 @@
 
 bool ddsi_is_valid_timestamp (ddsi_time_t t)
 {
-  return t.seconds != DDSI_TIME_INVALID.seconds && t.fraction != DDSI_TIME_INVALID.fraction;
+  // all bit patterns are valid DDSI Timestamps (including "invalid"!), but we reject infinity
+  // because it is not a point in time
+  return !(t.seconds == DDSI_TIME_INFINITE.seconds && t.fraction == DDSI_TIME_INFINITE.fraction);
 }
 
 static ddsi_time_t to_ddsi_time (int64_t t)
