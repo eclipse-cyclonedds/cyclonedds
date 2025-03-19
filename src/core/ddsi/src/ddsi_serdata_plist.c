@@ -66,7 +66,7 @@ static struct ddsi_serdata_plist *serdata_plist_new (const struct ddsi_sertype_p
   // these should be overruled by the one creating the serdata
   d->vendorid = DDSI_VENDORID_UNKNOWN;
   d->protoversion.major = DDSI_RTPS_MAJOR;
-  d->protoversion.minor = DDSI_RTPS_MINOR;
+  d->protoversion.minor = DDSI_RTPS_MINOR_LATEST;
   const uint16_t *hdrsrc = cdr_header;
   d->identifier = hdrsrc[0];
   d->options = hdrsrc[1];

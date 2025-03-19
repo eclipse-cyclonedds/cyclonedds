@@ -24,7 +24,7 @@ typedef struct ddsi_protocol_version {
 
 /* This implements DDSI 2.5, accepts 2.1 and later */
 #define DDSI_RTPS_MAJOR 2
-#define DDSI_RTPS_MINOR 5
+#define DDSI_RTPS_MINOR_LATEST 5
 #define DDSI_RTPS_MINOR_MINIMUM 1
 
 #if defined (__cplusplus)
