@@ -928,6 +928,20 @@ static void make_participant (struct oneliner_ctx *ctx, int ent, dds_qos_t *qos,
     ddsrt_free (conf);
     conf = conf1;
   }
+  void *udata;
+  size_t udatasz;
+  if (dds_qget_userdata (qos, &udata, &udatasz))
+  {
+    // user data is always 0 terminated in output of qget, terminating 0 is not included
+    // in size -- so we can pretend it is just a string
+    static const char *fmt = "%s,<Compatibility><ProtocolVersion>%s</ProtocolVersion></Compatibility>";
+    size_t newsize = strlen (fmt) - 4 + strlen (conf) + udatasz + 1;
+    char *conf1 = ddsrt_malloc (newsize);
+    (void) snprintf (conf1, newsize, fmt, conf, udata);
+    ddsrt_free (conf);
+    conf = conf1;
+    dds_free (udata);
+  }
   entname_t name;
   dds_entity_t bisub;
   mprintf (ctx, "create domain %"PRIu32, domid);
