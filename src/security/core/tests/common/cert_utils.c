@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/security/openssl_support.h"
@@ -195,12 +196,17 @@ char * generate_pkcs11_private_key(const char *token, const char *name, uint32_t
   printf("PRIV_KEY_URI=%s\n", uri);
   return uri;
 #else
-  return NULL
+  DDSRT_UNUSED_ARG(token);
+  DDSRT_UNUSED_ARG(name);
+  DDSRT_UNUSED_ARG(id);
+  DDSRT_UNUSED_ARG(pin);
+  return NULL;
 #endif
 }
 
 EVP_PKEY * get_priv_key_pkcs11(const char *uri)
 {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
   OSSL_STORE_CTX *store_ctx = NULL;
   OSSL_STORE_INFO *store_info = NULL;
   EVP_PKEY *pkey = NULL;
@@ -230,10 +236,15 @@ EVP_PKEY * get_priv_key_pkcs11(const char *uri)
   OSSL_STORE_close(store_ctx);
 
   return pkey;
+#else
+  DDSRT_UNUSED_ARG(uri);
+  return NULL;
+#endif
 }
 
 X509 * get_certificate_pkcs11(const char *uri)
 {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
   OSSL_STORE_CTX *store_ctx = NULL;
   OSSL_STORE_INFO *store_info = NULL;
   X509 *cert = NULL;
@@ -263,19 +274,42 @@ X509 * get_certificate_pkcs11(const char *uri)
   OSSL_STORE_close(store_ctx);
 
   return cert;
+#else
+  DDSRT_UNUSED_ARG(uri);
+  return NULL;
+#endif
 }
 
 char * generate_ca_pkcs11(const char *ca_name, const char * ca_priv_key_uri, int not_valid_before, int not_valid_after)
 {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
   EVP_PKEY *ca_priv_key = get_priv_key_pkcs11(ca_priv_key_uri);
   return generate_ca_internal(ca_name, ca_priv_key, not_valid_before, not_valid_after);
+#else
+  DDSRT_UNUSED_ARG(ca_name);
+  DDSRT_UNUSED_ARG(ca_priv_key_uri);
+  DDSRT_UNUSED_ARG(not_valid_before);
+  DDSRT_UNUSED_ARG(not_valid_after);
+  return NULL;
+#endif
 }
 
 char * generate_identity_pkcs11(const char * ca_cert_str, const char * ca_priv_key_uri, const char * name, const char * priv_key_uri, int not_valid_before, int not_valid_after, char ** subject)
 {
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
   EVP_PKEY *ca_key_pkey = get_priv_key_pkcs11 (ca_priv_key_uri);
   EVP_PKEY *id_pkey = get_priv_key_pkcs11 (priv_key_uri);
   return generate_identity_internal(ca_cert_str, ca_key_pkey, name, id_pkey, not_valid_before, not_valid_after, subject);
+#else
+  DDSRT_UNUSED_ARG(ca_cert_str);
+  DDSRT_UNUSED_ARG(ca_priv_key_uri);
+  DDSRT_UNUSED_ARG(name);
+  DDSRT_UNUSED_ARG(priv_key_uri);
+  DDSRT_UNUSED_ARG(not_valid_before);
+  DDSRT_UNUSED_ARG(not_valid_after);
+  DDSRT_UNUSED_ARG(subject);
+  return NULL;
+#endif
 }
 
 

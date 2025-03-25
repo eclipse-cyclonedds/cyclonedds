@@ -427,13 +427,19 @@ static DDS_Security_ValidationResult_t load_private_key_from_file(const char *fi
 }
 
 #if OPENSSL_VERSION_NUMBER < 0x30000000L
-static DDS_Security_ValidationResult_t load_X509_certificate_from_pkcs11(const char *uri, X509 **x509Cert, DDS_Security_SecurityException *ex)
+static DDS_Security_ValidationResult_t load_X509_certificate_from_pkcs11(const char *uri, X509 **x509Cert, load_callback_func pkcs11_loader, void *cb_arg, DDS_Security_SecurityException *ex)
 {
   ENGINE *engine;
   struct {
     const char *cert_id;
     X509 *cert;
   } parms;
+
+  if (!pkcs11_loader(cb_arg))
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to load pkcs11 provider");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
 
   if (!(engine = ENGINE_by_id("pkcs11"))) {
     DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to find pkcs11 engine");
@@ -454,9 +460,16 @@ err_or_ok:
   return (parms.cert ? DDS_SECURITY_VALIDATION_OK : DDS_SECURITY_VALIDATION_FAILED);
 }
 
-static DDS_Security_ValidationResult_t load_private_key_from_pkcs11(const char *uri, const char *password, EVP_PKEY **privateKey, DDS_Security_SecurityException *ex)
+static DDS_Security_ValidationResult_t load_private_key_from_pkcs11(const char *uri, const char *password, EVP_PKEY **privateKey, load_callback_func pkcs11_loader, void *cb_arg, DDS_Security_SecurityException *ex)
 {
   ENGINE *engine;
+  char *uri_pw = NULL;
+
+  if (!pkcs11_loader(cb_arg))
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to load pkcs11 provider");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
 
   if (!(engine = ENGINE_by_id("pkcs11")))
   {
@@ -464,23 +477,39 @@ static DDS_Security_ValidationResult_t load_private_key_from_pkcs11(const char *
     return DDS_SECURITY_VALIDATION_FAILED;
   }
 
-  if (!(*privateKey = ENGINE_load_private_key(engine, uri, NULL, NULL)))
+  if (password)
+  {
+    const char *pin_str = "?pin_value=";
+    size_t len = strlen(uri) + strlen(password) + strlen(pin_str) + 1;
+    uri_pw = ddsrt_malloc(len);
+    snprintf(uri_pw, len, "%s%s%s", uri, pin_str, password);
+  }
+
+  if (!(*privateKey = ENGINE_load_private_key(engine, (uri_pw ? uri_pw : uri), NULL, NULL)))
   {
     DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to find private key");
+    ddsrt_free(uri_pw);
     ENGINE_free(engine);
     return DDS_SECURITY_VALIDATION_FAILED;
   }
+  ddsrt_free(uri_pw);
   ENGINE_free(engine);
   return DDS_SECURITY_VALIDATION_OK;
 }
 
-static DDS_Security_ValidationResult_t load_X509_crl_from_pkcs11(const char *uri, X509_CRL **x509CRL, DDS_Security_SecurityException *ex)
+static DDS_Security_ValidationResult_t load_X509_crl_from_pkcs11(const char *uri, X509_CRL **x509CRL, load_callback_func pkcs11_loader, void *cb_arg, DDS_Security_SecurityException *ex)
 {
   ENGINE *engine;
   struct {
     const char *crl_id;
     X509_CRL *crl;
   } parms;
+
+  if (!pkcs11_loader(cb_arg))
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to load pkcs11 provider");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
 
   if (!(engine = ENGINE_by_id("pkcs11"))) {
     DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to find pkcs11 engine");

@@ -659,6 +659,7 @@ static DDS_Security_ValidationResult_t get_adjusted_participant_guid(X509 *cert,
 #if OPENSSL_VERSION_NUMBER < 0x30000000L
 static bool load_pkcs11_provider(void *arg)
 {
+  dds_security_authentication_impl *auth = arg;
   const char *pkcs11 = "pkcs11";
   bool result = true;
 
