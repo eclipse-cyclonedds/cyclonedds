@@ -2691,11 +2691,8 @@ void ddsi_plist_delta (uint64_t *pdelta, uint64_t *qdelta, const ddsi_plist_t *x
 
 static dds_return_t validate_external_duration (const ddsi_duration_t *d)
 {
-  /* Accepted are zero, positive, infinite or invalid as defined in
-     the DDS 2.1 spec, table 9.4. */
+  /* Accepted are zero, positive, infinite (= INT32_MAX.UINT32_MAX) */
   if (d->seconds >= 0)
-    return 0;
-  else if (d->seconds == -1 && d->fraction == UINT32_MAX)
     return 0;
   else
     return DDS_RETCODE_BAD_PARAMETER;

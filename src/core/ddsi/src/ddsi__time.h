@@ -25,8 +25,12 @@ typedef struct {
   int32_t seconds;
   uint32_t fraction;
 } ddsi_time22_t;
-#define DDSI_TIME22_INFINITE ((ddsi_time22_t) { INT32_MAX, UINT32_MAX })
-#define DDSI_TIME22_INVALID ((ddsi_time22_t) { -1, UINT32_MAX })
+#define DDSI_TIME22_INFINITE_SECONDS INT32_MAX
+#define DDSI_TIME22_INFINITE_FRACTION UINT32_MAX
+#define DDSI_TIME22_INFINITE ((ddsi_time22_t) { DDSI_TIME22_INFINITE_SECONDS, DDSI_TIME22_INFINITE_FRACTION })
+#define DDSI_TIME22_INVALID_SECONDS (-1)
+#define DDSI_TIME22_INVALID_FRACTION UINT32_MAX
+#define DDSI_TIME22_INVALID ((ddsi_time22_t) { DDSI_TIME22_INVALID_SECONDS, DDSI_TIME22_INVALID_FRACTION })
 
 // DDSI 2.3 and later have unsigned seconds
 //
@@ -40,10 +44,25 @@ typedef struct {
   uint32_t seconds;
   uint32_t fraction;
 } ddsi_time_t;
-#define DDSI_TIME_INFINITE ((ddsi_time_t) { UINT32_MAX, UINT32_MAX - 1 })
-#define DDSI_TIME_INVALID ((ddsi_time_t) { UINT32_MAX, UINT32_MAX })
+#define DDSI_TIME_INFINITE_SECONDS UINT32_MAX
+#define DDSI_TIME_INFINITE_FRACTION (UINT32_MAX - 1)
+#define DDSI_TIME_INVALID_SECONDS UINT32_MAX
+#define DDSI_TIME_INVALID_FRACTION UINT32_MAX
+#define DDSI_TIME_INFINITE ((ddsi_time_t) { DDSI_TIME_INFINITE_SECONDS, DDSI_TIME_INFINITE_FRACTION })
+#define DDSI_TIME_INVALID ((ddsi_time_t) { DDSI_TIME_INVALID_SECONDS, DDSI_TIME_INVALID_FRACTION })
 
-typedef ddsi_time22_t ddsi_duration_t;
+typedef struct {
+  int32_t seconds;
+  uint32_t fraction;
+} ddsi_duration_t;
+// duration "invalid" doesn't exist in the spec, we have it for convenience in sharing
+// code between time22 and duration
+#define DDSI_DURATION_INFINITE_SECONDS INT32_MAX
+#define DDSI_DURATION_INFINITE_FRACTION UINT32_MAX
+#define DDSI_DURATION_INVALID_SECONDS (-1)
+#define DDSI_DURATION_INVALID_FRACTION UINT32_MAX
+#define DDSI_DURATION_INFINITE ((ddsi_duration_t) { DDSI_DURATION_INFINITE_SECONDS, DDSI_DURATION_INFINITE_FRACTION })
+#define DDSI_DURATION_INVALID ((ddsi_duration_t) { DDSI_DURATION_INVALID_SECONDS, DDSI_DURATION_INVALID_FRACTION })
 
 /** @component time_utils */
 bool ddsi_is_valid_timestamp (ddsi_time_t t);
