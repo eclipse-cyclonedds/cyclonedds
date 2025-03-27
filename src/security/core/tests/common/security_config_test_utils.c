@@ -214,8 +214,9 @@ static char * smime_sign(char * ca_cert_path, char * ca_priv_key_path, const cha
   return output;
 }
 
-static char *get_signed_data(const char *data)
+static char *get_signed_data(const char *data, void *arg)
 {
+  DDSRT_UNUSED_ARG(arg);
   return smime_sign (
     COMMON_ETC_PATH("default_permissions_ca.pem"),
     COMMON_ETC_PATH("default_permissions_ca_key.pem"),
@@ -255,8 +256,8 @@ char * get_governance_topic_rule(const char * topic_expr, bool discovery_protect
   return ddsrt_expand_vars (topic_rule, &expand_lookup_vars, vars);
 }
 
-char * get_governance_config (bool allow_unauth_pp, bool enable_join_ac, DDS_Security_ProtectionKind discovery_protection_kind, DDS_Security_ProtectionKind liveliness_protection_kind,
-    DDS_Security_ProtectionKind rtps_protection_kind, const char * topic_rules, bool add_prefix)
+char * get_governance_config_ex (bool allow_unauth_pp, bool enable_join_ac, DDS_Security_ProtectionKind discovery_protection_kind, DDS_Security_ProtectionKind liveliness_protection_kind,
+    DDS_Security_ProtectionKind rtps_protection_kind, const char * topic_rules, smime_sign_function signer, void *signer_arg, bool add_prefix)
 {
   struct kvp vars[] = {
     { "ALLOW_UNAUTH_PP", allow_unauth_pp ? "true" : "false", 1 },
@@ -268,7 +269,7 @@ char * get_governance_config (bool allow_unauth_pp, bool enable_join_ac, DDS_Sec
     { NULL, NULL, 0 }
   };
   char * config = ddsrt_expand_vars (governance_xml, &expand_lookup_vars, vars);
-  char * config_signed = get_signed_data (config);
+  char * config_signed = signer (config, signer_arg);
   ddsrt_free (config);
 
   print_test_msg ("governance configuration: ");
@@ -276,6 +277,12 @@ char * get_governance_config (bool allow_unauth_pp, bool enable_join_ac, DDS_Sec
   printf("\n");
 
   return prefix_data (config_signed, add_prefix);
+}
+
+char * get_governance_config (bool allow_unauth_pp, bool enable_join_ac, DDS_Security_ProtectionKind discovery_protection_kind, DDS_Security_ProtectionKind liveliness_protection_kind,
+    DDS_Security_ProtectionKind rtps_protection_kind, const char * topic_rules, bool add_prefix)
+{
+  return get_governance_config_ex (allow_unauth_pp, enable_join_ac, discovery_protection_kind, liveliness_protection_kind, rtps_protection_kind, topic_rules, get_signed_data, NULL, add_prefix);
 }
 
 static char * expand_permissions_pubsub (const char * template, const char * topic_name, const char ** parts)
@@ -376,50 +383,6 @@ char * get_permissions_default_grant (const char * grant_name, const char * subj
   ddsrt_free (rules_xml);
   return grant_xml;
 }
-
-char * get_permissions_config(char * grants[], size_t ngrants, bool add_prefix)
-{
-  char *grants_str = NULL;
-  for (size_t n = 0; n < ngrants; n++)
-  {
-    char * tmp = grants_str;
-    ddsrt_asprintf (&grants_str, "%s%s", grants_str ? grants_str : "", grants[n]);
-    ddsrt_free (tmp);
-  }
-  struct kvp vars[] = {
-    { "GRANTS", grants_str, 1 },
-    { NULL, NULL, 0}
-  };
-  char *config = ddsrt_expand_vars (permissions_xml, &expand_lookup_vars, vars);
-  char *config_signed = get_signed_data (config);
-  ddsrt_free (grants_str);
-  ddsrt_free (config);
-  return prefix_data (config_signed, add_prefix);
-}
-
-char * get_governance_config_ex (bool allow_unauth_pp, bool enable_join_ac, DDS_Security_ProtectionKind discovery_protection_kind, DDS_Security_ProtectionKind liveliness_protection_kind,
-    DDS_Security_ProtectionKind rtps_protection_kind, const char * topic_rules, smime_sign_function signer, void *signer_arg, bool add_prefix)
-{
-  struct kvp vars[] = {
-    { "ALLOW_UNAUTH_PP", allow_unauth_pp ? "true" : "false", 1 },
-    { "ENABLE_JOIN_AC", enable_join_ac ? "true" : "false", 1 },
-    { "DISCOVERY_PROTECTION_KIND", pk_to_str (discovery_protection_kind), 1 },
-    { "LIVELINESS_PROTECTION_KIND", pk_to_str (liveliness_protection_kind), 1 },
-    { "RTPS_PROTECTION_KIND", pk_to_str (rtps_protection_kind), 1 },
-    { "TOPIC_RULES", topic_rules != NULL ? topic_rules : get_governance_topic_rule (NULL, false, false, false, false, PK_N, BPK_N), 1 },
-    { NULL, NULL, 0 }
-  };
-  char * config = ddsrt_expand_vars (governance_xml, &expand_lookup_vars, vars);
-  char * config_signed = signer (config, signer_arg);
-  ddsrt_free (config);
-
-  print_test_msg ("governance configuration: ");
-  print_config_vars (vars);
-  printf("\n");
-
-  return prefix_data (config_signed, add_prefix);
-}
-
 char * get_permissions_config_ex(char * grants[], size_t ngrants, smime_sign_function signer, void *signer_arg, bool add_prefix)
 {
   char *grants_str = NULL;
@@ -439,3 +402,10 @@ char * get_permissions_config_ex(char * grants[], size_t ngrants, smime_sign_fun
   ddsrt_free (config);
   return prefix_data (config_signed, add_prefix);
 }
+
+char * get_permissions_config(char * grants[], size_t ngrants, bool add_prefix)
+{
+  return get_permissions_config_ex(grants, ngrants, get_signed_data, NULL, add_prefix);
+}
+
+

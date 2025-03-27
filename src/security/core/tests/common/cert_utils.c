@@ -160,7 +160,7 @@ char * generate_pkcs11_private_key(const char *token, const char *name, uint32_t
 {
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
   const char template[] = "pkcs11:token=%s;object=%s;id=%u?pin-value=%s";
-  size_t len = sizeof (template) + strlen (token) + strlen (name) + 8 + strlen (pin);
+  size_t len = sizeof (template) + strlen (token) + strlen (name) + 10 + strlen (pin);
   char *uri = malloc (len);
   snprintf(uri, len, template, token, name, id, pin);
   EVP_PKEY *pkey = NULL;

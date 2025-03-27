@@ -134,6 +134,10 @@ static DDS_Security_ValidationResult_t check_key(EVP_PKEY *key, const char *key_
     if (isPrivate)
     {
       const RSA *rsaKey = EVP_PKEY_get0_RSA(key);
+      /* When the key is stored on an HSM (pkcs11) then RSA_check_key always returns an error.
+       * Therefor RSA_get0_p is used to check if the p value can be retrieved from the key.
+       * When RSA_get0_p returns 0 then it is assumed that key is not accessible because it is stored on a HSM.
+       */
       const bool fail = (rsaKey && (RSA_check_key(rsaKey) != 1) && RSA_get0_p(rsaKey));
       if (fail)
       {
@@ -477,6 +481,11 @@ static DDS_Security_ValidationResult_t load_private_key_from_pkcs11(const char *
     return DDS_SECURITY_VALIDATION_FAILED;
   }
 
+  /* Currently it is considered that the pin value has to be specified in the provided uri.
+   * The option to specify the pin value separate from the uri is currently not available.
+   * In that case the following code should be updated by properly escaping the password.
+   */
+#if 0
   if (password)
   {
     const char *pin_str = "?pin_value=";
@@ -484,6 +493,9 @@ static DDS_Security_ValidationResult_t load_private_key_from_pkcs11(const char *
     uri_pw = ddsrt_malloc(len);
     snprintf(uri_pw, len, "%s%s%s", uri, pin_str, password);
   }
+#else
+  DDSRT_UNUSED_ARG(password);
+#endif
 
   if (!(*privateKey = ENGINE_load_private_key(engine, (uri_pw ? uri_pw : uri), NULL, NULL)))
   {
@@ -593,6 +605,11 @@ static DDS_Security_ValidationResult_t load_private_key_from_pkcs11(const char *
     return DDS_SECURITY_VALIDATION_FAILED;
   }
 
+  /* Currently it is considered that the pin value has to be specified in the provided uri.
+   * The option to specify the pin value separate from the uri is currently not available.
+   * In that case the following code should be updated by properly escaping the password.
+   */
+#if 0
   if (password)
   {
     const char *pin_str = "?pin_value=";
@@ -600,7 +617,9 @@ static DDS_Security_ValidationResult_t load_private_key_from_pkcs11(const char *
     uri_pw = ddsrt_malloc(len);
     snprintf(uri_pw, len, "%s%s%s", uri, pin_str, password);
   }
-
+#else
+  DDSRT_UNUSED_ARG(password);
+#endif
   if (!(store_ctx = OSSL_STORE_open((uri_pw ? uri_pw : uri), NULL, NULL, NULL, NULL)))
   {
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to open OSSL_STORE: ");

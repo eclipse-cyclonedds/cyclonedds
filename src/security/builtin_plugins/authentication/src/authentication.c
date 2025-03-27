@@ -683,14 +683,16 @@ static bool load_pkcs11_provider(void *arg)
 {
   dds_security_authentication_impl *auth = arg;
   const char *pkcs11 = "pkcs11";
+  bool result;
 
   if (OSSL_PROVIDER_available(NULL, pkcs11))
     return true;
 
   ddsrt_mutex_lock(&auth->lock);
   auth->pkcs11Provider = OSSL_PROVIDER_try_load(NULL, pkcs11, 1);
+  result = (auth->pkcs11Provider != NULL);
   ddsrt_mutex_unlock(&auth->lock);
-  return (auth->pkcs11Provider != NULL);
+  return result;
 }
 #endif
 
