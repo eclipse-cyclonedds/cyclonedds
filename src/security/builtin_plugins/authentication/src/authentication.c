@@ -151,6 +151,11 @@ typedef struct dds_security_authentication_impl
   const dds_security_authentication_listener *listener;
   X509Seq trustedCAList;
   bool include_optional;
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+  ENGINE *engine;
+#else
+  OSSL_PROVIDER *pkcs11Provider;
+#endif
 } dds_security_authentication_impl;
 
 /* data type for timer dispatcher */
@@ -650,6 +655,47 @@ static DDS_Security_ValidationResult_t get_adjusted_participant_guid(X509 *cert,
 }
 #undef ADJUSTED_GUID_PREFIX_FLAG
 
+
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+static bool load_pkcs11_provider(void *arg)
+{
+  dds_security_authentication_impl *auth = arg;
+  const char *pkcs11 = "pkcs11";
+  bool result = true;
+
+  ddsrt_mutex_lock(&auth->lock);
+  if (!auth->engine)
+  {
+    if (!(auth->engine = ENGINE_by_id(pkcs11)))
+      result = false;
+    else if (!ENGINE_init(auth->engine))
+    {
+      ENGINE_free(auth->engine);
+      auth->engine = NULL;
+      result = false;
+    }
+  }
+  ddsrt_mutex_unlock(&auth->lock);
+  return result;
+}
+#else
+static bool load_pkcs11_provider(void *arg)
+{
+  dds_security_authentication_impl *auth = arg;
+  const char *pkcs11 = "pkcs11";
+  bool result;
+
+  if (OSSL_PROVIDER_available(NULL, pkcs11))
+    return true;
+
+  ddsrt_mutex_lock(&auth->lock);
+  auth->pkcs11Provider = OSSL_PROVIDER_try_load(NULL, pkcs11, 1);
+  result = (auth->pkcs11Provider != NULL);
+  ddsrt_mutex_unlock(&auth->lock);
+  return result;
+}
+#endif
+
 DDS_Security_ValidationResult_t validate_local_identity(dds_security_authentication *instance, DDS_Security_IdentityHandle *local_identity_handle,
     DDS_Security_GUID_t *adjusted_participant_guid, const DDS_Security_DomainId domain_id, const DDS_Security_Qos *participant_qos,
     const DDS_Security_GUID_t *candidate_participant_guid, DDS_Security_SecurityException *ex)
@@ -697,13 +743,13 @@ DDS_Security_ValidationResult_t validate_local_identity(dds_security_authenticat
 
   crlPEM = DDS_Security_Property_get_value(&participant_qos->property.value, ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL);
 
-  if (load_X509_certificate(identityCaPEM, &identityCA, ex) != DDS_SECURITY_VALIDATION_OK)
+  if (load_X509_certificate(identityCaPEM, &identityCA, load_pkcs11_provider, implementation, ex) != DDS_SECURITY_VALIDATION_OK)
     goto err_inv_identity_ca;
 
   /* check for CA if listed in trusted CA files */
   if (implementation->trustedCAList.length > 0)
   {
-    if (crlPEM)
+    if (crlPEM && strlen(crlPEM) > 0)
     {
       // FIXME: When a CRL is specified, we assume that it is associated with the "own_ca".  However, when
       // a list of CAs is presented that assumption may not hold.  Resolve this ambiguity for now by just
@@ -735,15 +781,15 @@ DDS_Security_ValidationResult_t validate_local_identity(dds_security_authenticat
       goto err_identity_ca_not_trusted;
     }
   }
-  if (load_X509_certificate(identityCertPEM, &identityCert, ex) != DDS_SECURITY_VALIDATION_OK)
+  if (load_X509_certificate(identityCertPEM, &identityCert, load_pkcs11_provider, implementation, ex) != DDS_SECURITY_VALIDATION_OK)
     goto err_inv_identity_cert;
 
-  if (load_X509_private_key(privateKeyPEM, password, &privateKey, ex) != DDS_SECURITY_VALIDATION_OK)
+  if (load_X509_private_key(privateKeyPEM, password, &privateKey, load_pkcs11_provider, implementation, ex) != DDS_SECURITY_VALIDATION_OK)
     goto err_inv_private_key;
 
   if (crlPEM && strlen(crlPEM) > 0)
   {
-    if (load_X509_CRL(crlPEM, &crl, ex) != DDS_SECURITY_VALIDATION_OK)
+    if (load_X509_CRL(crlPEM, &crl, load_pkcs11_provider, implementation, ex) != DDS_SECURITY_VALIDATION_OK)
     {
       goto err_inv_crl;
     }
@@ -2269,7 +2315,13 @@ int32_t init_authentication(const char *argument, void **context, struct ddsi_do
   authentication->remoteGuidHash = ddsrt_hh_new(32, remote_guid_hash, remote_guid_equal);
   memset(&authentication->trustedCAList, 0, sizeof(X509Seq));
   authentication->include_optional = gv->handshake_include_optional;
-
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+  OpenSSL_add_all_algorithms();
+  ENGINE_load_builtin_engines();
+  authentication->engine = NULL;
+#else
+  authentication->pkcs11Provider = NULL;
+#endif
   dds_openssl_init ();
   *context = authentication;
   return 0;
@@ -2292,6 +2344,17 @@ int32_t finalize_authentication(void *instance)
       ddsrt_hh_free(authentication->objectHash);
     }
     free_ca_list_contents(&(authentication->trustedCAList));
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+
+    if (authentication->engine)
+    {
+      ENGINE_finish(authentication->engine);
+      ENGINE_free(authentication->engine);
+    }
+#else
+    if (authentication->pkcs11Provider)
+      OSSL_PROVIDER_unload(authentication->pkcs11Provider);
+#endif
     ddsrt_mutex_unlock(&authentication->lock);
     ddsrt_mutex_destroy(&authentication->lock);
     ddsrt_free((dds_security_authentication_impl *)instance);

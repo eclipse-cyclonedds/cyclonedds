@@ -15,6 +15,12 @@
 #include "dds/security/export.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/openssl_support.h"
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+#include <openssl/engine.h>
+#else
+#include <openssl/provider.h>
+#endif
+#include <openssl/store.h>
 
 #define DDS_ACCESS_CONTROL_PLUGIN_CONTEXT "Access Control"
 
