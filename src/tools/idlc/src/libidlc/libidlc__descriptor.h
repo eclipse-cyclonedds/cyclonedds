@@ -106,10 +106,6 @@ struct constructed_type_key {
   char *name;
   uint32_t offset;
   uint32_t order;
-  uint32_t dims;
-  uint32_t size;
-  bool dheader;
-  uint32_t align;
   struct constructed_type_key *sub;
 };
 
@@ -139,10 +135,6 @@ struct key_meta_data {
   uint32_t n_order;           /**< number or order entries (nesting level of key field) */
   uint32_t *order;            /**< order of the key field in the containing aggregated type */
   uint32_t key_idx;           /**< index of this key when sorting key fields in definition order */
-  uint32_t dims;
-  uint32_t size;
-  bool dheader;
-  uint32_t align;
 };
 
 struct descriptor {

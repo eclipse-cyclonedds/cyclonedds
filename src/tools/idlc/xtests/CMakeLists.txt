@@ -33,6 +33,7 @@ set(_sources
   test_bitmask.idl
   test_struct_keys.idl
   test_struct_inherit_mutable_keys.idl
+  test_key_seq.idl
 )
 
 set(_includes "${_includes}\\;${CMAKE_SOURCE_DIR}/src/core/cdr/include")

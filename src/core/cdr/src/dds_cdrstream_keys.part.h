@@ -95,7 +95,11 @@ static bool dds_stream_write_keyBO_impl (RESTRICT_OSTREAM_T *os, const struct dd
         return false;
       break;
     }
-    case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
+    case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: {
+      (void) dds_stream_write_seqBO (os, allocator, addr, ops, insn, CDR_KIND_KEY);
+      break;
+    }
+    case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
       // FIXME: implement support for sequences and unions as part of the key
       abort ();
       break;
@@ -109,7 +113,7 @@ static bool dds_stream_write_keyBO_restrict (RESTRICT_OSTREAM_T *os, enum dds_cd
 #ifndef NDEBUG
   const size_t check_start_index = os->x.m_index;
 #endif
-  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE) && ser_kind == DDS_CDR_KEY_SERIALIZATION_SAMPLE)
+  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM) && ser_kind == DDS_CDR_KEY_SERIALIZATION_SAMPLE)
   {
     /* For types with key fields in aggregated types with appendable or mutable
        extensibility, write the key CDR using the regular write functions */
@@ -384,7 +388,7 @@ static bool dds_stream_extract_keyBO_from_data_restrict (dds_istream_t *is, REST
   if (keys_remaining == 0)
     return ret;
 
-  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE))
+  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM))
   {
     /* In case the type or any subtype has non-final extensibility, read the sample
        and write the key-only CDR for this sample */
@@ -469,7 +473,7 @@ void dds_stream_extract_keyBO_from_key (dds_istream_t *is, DDS_OSTREAM_T *os, en
      In case any key field is in an appendable or mutable type, or in case a serialized
      key for a keyhash is required (in member-id order), extract and write the key
      in two steps. Otherwise, extract the output CDR in a single step. */
-  if ((desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE)) || ser_kind == DDS_CDR_KEY_SERIALIZATION_KEYHASH)
+  if ((desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM)) || ser_kind == DDS_CDR_KEY_SERIALIZATION_KEYHASH)
     dds_stream_extract_keyBO_from_key_impl (is, (RESTRICT_OSTREAM_T *) os, ser_kind, allocator, desc);
   else
     dds_stream_extract_keyBO_from_key_optimized (is, (RESTRICT_OSTREAM_T *) os, allocator, desc);
