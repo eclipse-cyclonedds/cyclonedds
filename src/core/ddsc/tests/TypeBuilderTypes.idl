@@ -405,4 +405,52 @@ module TypeBuilderTypes {
     @key string<3> f2;
   };
 
+  /* sequence and array as key */
+  struct t29 {
+    @key sequence<long> f1;
+  };
+  struct t30 {
+    @key sequence<sequence<long> > f1;
+  };
+  struct t31 {
+    @key sequence<sequence<string<5>, 6> > f1;
+  };
+  @nested struct t32_1 { long n1; };
+  struct t32 {
+    @key sequence<t32_1> f1;
+  };
+
+  struct t33 {
+    @key long f1[5];
+  };
+  struct t34 {
+    @key sequence<long> f1[4];
+  };
+  struct t35_1 { long n1; };
+  struct t35 {
+    @key t35_1 f1[3];
+  };
+
+  @nested struct t36_1 { long n1; };
+  struct t36 {
+    @key t36_1 f1;
+  };
+
+  /* optional nested sequence */
+  typedef sequence<sequence<string, 18> > t37_1;
+  struct t37 {
+    @optional t37_1 f1[3][3];
+  };
+
+  typedef sequence<sequence<long> > t38_1;
+  struct t38 {
+    @optional sequence<t38_1> f1[3];
+  };
+
+  /* FIXME: this fails with a compiler error on the generated code: type dds_sequence_sequence_float (used in opcodes) is undeclared */
+  // typedef sequence<sequence<float> > t39_1[3];
+  // struct t39 {
+  //   sequence<t39_1> f1[2];
+  // };
+
 };

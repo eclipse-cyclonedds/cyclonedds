@@ -140,6 +140,8 @@ struct key_props {
   uint16_t min_xcdrv;
   bool is_appendable;
   bool is_mutable;
+  bool is_sequence;
+  bool is_array_nonprim;
 };
 
 enum cdr_data_kind {
@@ -488,12 +490,10 @@ static inline bool is_primitive_type (enum dds_stream_typecode type)
   return type <= DDS_OP_VAL_8BY || type == DDS_OP_VAL_BLN || type == DDS_OP_VAL_WCHAR;
 }
 
-#ifndef NDEBUG
 static inline bool is_primitive_or_enum_type (enum dds_stream_typecode type)
 {
   return is_primitive_type (type) || type == DDS_OP_VAL_ENU;
 }
-#endif
 
 static inline bool is_dheader_needed (enum dds_stream_typecode type, uint32_t xcdrv)
 {
@@ -1252,6 +1252,8 @@ static bool insn_key_ok_p (uint32_t insn)
           (!type_has_subtype_or_members (DDS_OP_TYPE (insn)) // don't allow seq, uni, arr (unless exception below), struct (unless exception below)
             || (DDS_OP_TYPE (insn) == DDS_OP_VAL_ARR && (is_primitive_or_enum_type (DDS_OP_SUBTYPE (insn)) || DDS_OP_SUBTYPE (insn) == DDS_OP_VAL_BMK)) // allow prim-array, enum-array and bitmask-array as key
             || DDS_OP_TYPE (insn) == DDS_OP_VAL_EXT // allow fields in nested structs as key
+            || ((DDS_OP_TYPE (insn) == DDS_OP_VAL_SEQ || DDS_OP_TYPE (insn) == DDS_OP_VAL_BSQ)
+                  && (is_primitive_or_enum_type (DDS_OP_SUBTYPE (insn)) || DDS_OP_SUBTYPE (insn) == DDS_OP_VAL_BMK || DDS_OP_SUBTYPE (insn) == DDS_OP_VAL_EXT)) // allow sequence of structs, primitives, enums and bitmasks as key
           ));
 }
 #endif
@@ -2278,8 +2280,13 @@ static void dds_stream_getsize_key_impl (struct getsize_state *st, const uint32_
       dds_stream_getsize_key_impl (st, jsr_ops, addr, --key_offset_count, ++key_offset_insn);
       break;
     }
-    case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
-      // FIXME: implement support for sequences and unions as part of the key
+    case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: {
+      // When key contains a sequence, the non-optimized path is used
+      abort ();
+      break;
+    }
+    case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
+      // FIXME: implement support for unions as part of the key
       abort ();
       break;
     }
@@ -2294,7 +2301,7 @@ size_t dds_stream_getsize_key (enum dds_cdr_key_serialization_kind ser_kind, con
     .cdr_kind = CDR_KIND_KEY,
     .xcdr_version = xcdr_version
   };
-  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE) && ser_kind == DDS_CDR_KEY_SERIALIZATION_SAMPLE)
+  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM) && ser_kind == DDS_CDR_KEY_SERIALIZATION_SAMPLE)
   {
     /* For types with key fields in aggregated types with appendable or mutable
        extensibility, determine the key CDR size using the regular function */
@@ -4182,7 +4189,7 @@ static bool stream_normalize_key (void * restrict data, uint32_t size, bool bswa
 {
   uint32_t offs = 0;
 
-  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE))
+  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM))
   {
     /* For types with key fields in aggregated types with appendable or mutable
        extensibility, use the regular normalize functions */
@@ -4963,7 +4970,7 @@ static void dds_stream_read_key_impl (dds_istream_t *is, char *sample, const str
 
 void dds_stream_read_key (dds_istream_t *is, char *sample, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc)
 {
-  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE))
+  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM))
   {
     /* For types with key fields in aggregated types with appendable or mutable
        extensibility, use the regular read functions to read the key fields */
@@ -5725,13 +5732,30 @@ static void set_key_size_unbounded (struct key_props *k)
   k->sz_xcdrv2 = DDS_FIXED_KEY_MAX_SIZE + 1;
 }
 
-static const uint32_t *dds_stream_key_size_arr (const uint32_t *ops, uint32_t insn, struct key_props *k)
+#ifndef NDEBUG
+static bool key_size_is_unbounded (const struct key_props *k)
 {
-  const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
-  uint32_t bound = ops[2];
+  return (k->min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_1) ?
+      (k->sz_xcdrv1 == DDS_FIXED_KEY_MAX_SIZE + 1) : (k->sz_xcdrv2 == DDS_FIXED_KEY_MAX_SIZE + 1);
+}
+#endif
 
+static const uint32_t *dds_stream_key_size_arr_bseq (const uint32_t *ops, uint32_t insn, struct key_props *k)
+{
+  const enum dds_stream_typecode type = DDS_OP_TYPE (insn);
+  const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
+  assert (type == DDS_OP_VAL_ARR || type == DDS_OP_VAL_BSQ);
+  (void) type;
+  uint32_t bound = ops[2];
+  bool is_bseq = DDS_OP_TYPE (insn) == DDS_OP_VAL_BSQ;
+
+  // both array and bseq get a dheader in case of non-primitive element type
   if (is_dheader_needed (subtype, DDSI_RTPS_CDR_ENC_VERSION_2))
     add_to_key_size_xcdrv2 (k, 4, 1, 4);
+
+  // seq length for bseq
+  if (is_bseq)
+    add_to_key_size (k, 4, 1, 4);
 
   switch (subtype)
   {
@@ -5755,27 +5779,31 @@ static const uint32_t *dds_stream_key_size_arr (const uint32_t *ops, uint32_t in
       return ops + 3;
     }
     case DDS_OP_VAL_BST: {
-      const uint32_t sz = ops[4];
+      const uint32_t sz = ops[3 + (is_bseq ? 0 : 1)];
+      // FIXME: optimize
       for (uint32_t i = 0; i < bound; i++)
       {
         add_to_key_size (k, 4, 1, 4);
         add_to_key_size (k, 1, sz, 1);
       }
-      return ops + 5;
+      return ops + 4 + (is_bseq ? 0 : 1);
     }
     case DDS_OP_VAL_BWSTR: {
-      const uint32_t sz = ops[4];
+      const uint32_t sz = ops[3 + (is_bseq ? 0 : 1)];
       assert (sz > 0); // terminating L'\0' not on wire
+      // FIXME: optimize
       for (uint32_t i = 0; i < bound; i++)
       {
         add_to_key_size (k, 4, 1, 4);
         add_to_key_size (k, 2, sz - 1, 2);
       }
-      return ops + 5;
+      return ops + 4 + (is_bseq ? 0 : 1);
     }
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
-      const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[3]);
-      const uint32_t jmp = DDS_OP_ADR_JMP (ops[3]);
+      const uint32_t insn_op = (is_bseq ? 4 : 3);
+      const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[insn_op]);
+      const uint32_t jmp = DDS_OP_ADR_JMP (ops[insn_op]);
+      // FIXME: optimize
       for (uint32_t i = 0; i < bound; i++)
         (void) dds_stream_key_size (jsr_ops, k);
       return ops + (jmp ? jmp : 5);
@@ -5786,6 +5814,38 @@ static const uint32_t *dds_stream_key_size_arr (const uint32_t *ops, uint32_t in
     }
   }
   return NULL;
+}
+
+static const uint32_t *dds_stream_key_size_seq (const uint32_t *ops, uint32_t insn, struct key_props *k)
+{
+  assert (key_size_is_unbounded (k));
+  const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
+  switch (subtype)
+  {
+    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_WCHAR:
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR:
+      ops += 2;
+      break;
+    case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR:
+    case DDS_OP_VAL_ENU:
+      ops += 3;
+      break;
+    case DDS_OP_VAL_BMK:
+      ops += 4;
+      break;
+    case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
+      const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[3]);
+      const uint32_t jmp = DDS_OP_ADR_JMP (ops[3]);
+      (void) dds_stream_key_size (jsr_ops, k); // only for settings flags
+      ops += (jmp ? jmp : 5);
+      break;
+    }
+    case DDS_OP_VAL_EXT: {
+      abort (); /* not supported */
+      break;
+    }
+  }
+  return ops;
 }
 
 static const uint32_t *dds_stream_key_size_adr (const uint32_t *ops, uint32_t insn, struct key_props *k)
@@ -5820,14 +5880,21 @@ static const uint32_t *dds_stream_key_size_adr (const uint32_t *ops, uint32_t in
       ops += 3;
       break;
     }
-    case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ:
-      // TODO: support sequence as part of key
+    case DDS_OP_VAL_SEQ:
+      k->is_sequence = true;
       set_key_size_unbounded (k);
-      ops = dds_stream_skip_adr (insn, ops);
+      ops = dds_stream_key_size_seq (ops, insn, k); // key size is unbounded, but look into element type to set flags
       break;
-    case DDS_OP_VAL_ARR:
-      ops = dds_stream_key_size_arr (ops, insn, k);
+    case DDS_OP_VAL_BSQ:
+      k->is_sequence = true;
+      ops = dds_stream_key_size_arr_bseq (ops, insn, k);
       break;
+    case DDS_OP_VAL_ARR: {
+      const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
+      k->is_array_nonprim = !(is_primitive_or_enum_type (subtype) || subtype == DDS_OP_VAL_BMK);
+      ops = dds_stream_key_size_arr_bseq (ops, insn, k);
+      break;
+    }
     case DDS_OP_VAL_UNI:
       // TODO: support union as part of key
       set_key_size_unbounded (k);
@@ -6054,6 +6121,10 @@ uint32_t dds_stream_key_flags (struct dds_cdrstream_desc *desc, uint32_t *keysz_
         key_flags |= DDS_TOPIC_KEY_MUTABLE;
       if (key_properties.is_appendable)
         key_flags |= DDS_TOPIC_KEY_APPENDABLE;
+      if (key_properties.is_sequence)
+        key_flags |= DDS_TOPIC_KEY_SEQUENCE;
+      if (key_properties.is_array_nonprim)
+        key_flags |= DDS_TOPIC_KEY_ARRAY_NONPRIM;
 
       if (keysz_xcdrv1 != NULL)
         *keysz_xcdrv1 = key_properties.min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_1 ? key_properties.sz_xcdrv1 : 0;
