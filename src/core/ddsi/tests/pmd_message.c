@@ -228,7 +228,7 @@ static void create_fake_proxy_participant (void)
   ddsi_xqos_mergein_missing (&plist.qos, &gv.default_local_xqos_pp, ~(uint64_t)0);
   ddsi_thread_state_awake (thrst, &gv);
   ddsi_generate_participant_guid (&ppguid, &gv);
-  dds_return_t ret = ddsi_new_participant (&ppguid, &gv, RTPS_PF_IS_DDSI2_PP | RTPS_PF_PRIVILEGED_PP, &plist);
+  dds_return_t ret = ddsi_new_participant (&ppguid, &gv, 0, &plist);
   ddsi_thread_state_asleep (thrst);
   ddsi_plist_fini (&plist);
   CU_ASSERT_FATAL (ret == 0);

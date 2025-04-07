@@ -40,7 +40,7 @@ struct ddsi_writer *ddsi_get_sedp_writer (const struct ddsi_participant *pp, uns
   ddsrt_nonnull_all;
 
 /** @component discovery */
-struct ddsi_proxy_participant *ddsi_implicitly_create_proxypp (struct ddsi_domaingv *gv, const ddsi_guid_t *ppguid, ddsi_plist_t *datap /* note: potentially modifies datap */, const ddsi_guid_prefix_t *src_guid_prefix, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp, ddsi_seqno_t seq)
+struct ddsi_proxy_participant *ddsi_implicitly_create_proxypp (struct ddsi_domaingv *gv, const ddsi_guid_t *ppguid, ddsi_plist_t *datap /* note: potentially modifies datap */, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp, ddsi_seqno_t seq)
   ddsrt_nonnull_all;
 
 /** @component discovery */
@@ -48,9 +48,7 @@ bool ddsi_check_sedp_kind_and_guid (ddsi_sedp_kind_t sedp_kind, const ddsi_guid_
   ddsrt_nonnull_all;
 
 /** @component discovery */
-bool ddsi_handle_sedp_checks (struct ddsi_domaingv * const gv, ddsi_sedp_kind_t sedp_kind, ddsi_guid_t *entity_guid, ddsi_plist_t *datap,
-    const ddsi_guid_prefix_t *src_guid_prefix, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp,
-    struct ddsi_proxy_participant **proxypp, ddsi_guid_t *ppguid)
+bool ddsi_handle_sedp_checks (struct ddsi_domaingv * const gv, ddsi_sedp_kind_t sedp_kind, ddsi_guid_t *entity_guid, ddsi_plist_t *datap, ddsi_vendorid_t vendorid, struct ddsi_proxy_participant **proxypp, ddsi_guid_t *ppguid)
   ddsrt_nonnull_all;
 
 /** @component discovery */

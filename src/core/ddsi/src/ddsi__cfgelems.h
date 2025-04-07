@@ -1262,14 +1262,11 @@ static struct cfgelem internal_cfgelems[] = {
       "are:</p>\n"
       "<ul><li><i>full</i>: all participants have all endpoints;</li>\n"
       "<li><i>writers</i>: "
-      "all participants have the writers, but just one has the readers;</li>\n"
-      "<li><i>minimal</i>: "
-      "only one participant has built-in endpoints.</li></ul>\n"
+      "all participants have the writers, but just one has the readers;</li></ul>\n"
       "<p>The default is <i>writers</i>, as this is thought to be compliant "
-      "and reasonably efficient. <i>Minimal</i> may or may not be compliant "
-      "but is most efficient, and <i>full</i> is inefficient but certain to "
+      "and reasonably efficient. <i>Full</i> is inefficient but certain to "
       "be compliant.</p>"),
-    VALUES("full","writers","minimal")),
+    VALUES("full","writers")),
   BOOL("MeasureHbToAckLatency", NULL, 1, "false",
     MEMBER(meas_hb_to_ack_latency),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),

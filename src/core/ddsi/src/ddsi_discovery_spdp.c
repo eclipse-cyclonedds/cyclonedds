@@ -158,17 +158,7 @@ void ddsi_get_participant_builtin_topic_data (const struct ddsi_participant *pp,
     dst->present |= PP_ADLINK_PARTICIPANT_VERSION_INFO;
     memset (&dst->adlink_participant_version_info, 0, sizeof (dst->adlink_participant_version_info));
     dst->adlink_participant_version_info.version = 0;
-    dst->adlink_participant_version_info.flags =
-      DDSI_ADLINK_FL_DDSI2_PARTICIPANT_FLAG |
-      DDSI_ADLINK_FL_PTBES_FIXED_0 |
-      DDSI_ADLINK_FL_SUPPORTS_STATUSINFOX;
-    if (gv->config.besmode == DDSI_BESMODE_MINIMAL)
-      dst->adlink_participant_version_info.flags |= DDSI_ADLINK_FL_MINIMAL_BES_MODE;
-    ddsrt_mutex_lock (&gv->privileged_pp_lock);
-    if (pp->is_ddsi2_pp)
-      dst->adlink_participant_version_info.flags |= DDSI_ADLINK_FL_PARTICIPANT_IS_DDSI2;
-    ddsrt_mutex_unlock (&gv->privileged_pp_lock);
-
+    dst->adlink_participant_version_info.flags = 0;
 #if DDSRT_HAVE_GETHOSTNAME
     if (ddsrt_gethostname(node, sizeof(node)-1) < 0)
 #endif
@@ -372,56 +362,6 @@ static void handle_spdp_dead (const struct ddsi_receiver_state *rst, ddsi_entity
   }
 }
 
-static struct ddsi_proxy_participant *find_ddsi2_proxy_participant (const struct ddsi_entity_index *entidx, const ddsi_guid_t *ppguid)
-{
-  struct ddsi_entity_enum_proxy_participant it;
-  struct ddsi_proxy_participant *pp;
-  ddsi_entidx_enum_proxy_participant_init (&it, entidx);
-  while ((pp = ddsi_entidx_enum_proxy_participant_next (&it)) != NULL)
-  {
-    if (ddsi_vendor_is_eclipse_or_opensplice (pp->vendor) && pp->e.guid.prefix.u[0] == ppguid->prefix.u[0] && pp->is_ddsi2_pp)
-      break;
-  }
-  ddsi_entidx_enum_proxy_participant_fini (&it);
-  return pp;
-}
-
-static void make_participants_dependent_on_ddsi2 (struct ddsi_domaingv *gv, const ddsi_guid_t *ddsi2guid, ddsrt_wctime_t timestamp)
-{
-  struct ddsi_entity_enum_proxy_participant it;
-  struct ddsi_proxy_participant *pp, *d2pp;
-  if ((d2pp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, ddsi2guid)) == NULL)
-    return;
-  ddsi_entidx_enum_proxy_participant_init (&it, gv->entity_index);
-  while ((pp = ddsi_entidx_enum_proxy_participant_next (&it)) != NULL)
-  {
-    if (ddsi_vendor_is_eclipse_or_opensplice (pp->vendor) && pp->e.guid.prefix.u[0] == ddsi2guid->prefix.u[0] && !pp->is_ddsi2_pp)
-    {
-      GVTRACE ("proxy participant "PGUIDFMT" depends on ddsi2 "PGUIDFMT, PGUID (pp->e.guid), PGUID (*ddsi2guid));
-      ddsrt_mutex_lock (&pp->e.lock);
-      pp->privileged_pp_guid = *ddsi2guid;
-      ddsrt_mutex_unlock (&pp->e.lock);
-      ddsi_proxy_participant_reassign_lease (pp, d2pp->lease);
-      GVTRACE ("\n");
-
-      if (ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, ddsi2guid) == NULL)
-      {
-        /* If DDSI2 has been deleted here (i.e., very soon after
-           having been created), we don't know whether pp will be
-           deleted */
-        break;
-      }
-    }
-  }
-  ddsi_entidx_enum_proxy_participant_fini (&it);
-
-  if (pp != NULL)
-  {
-    GVTRACE ("make_participants_dependent_on_ddsi2: ddsi2 "PGUIDFMT" is no more, delete "PGUIDFMT"\n", PGUID (*ddsi2guid), PGUID (pp->e.guid));
-    ddsi_delete_proxy_participant_by_guid (gv, &pp->e.guid, timestamp, true);
-  }
-}
-
 enum find_internal_interface_index_result {
   FIIIR_NO_INFO,
   FIIIR_NO_MATCH,
@@ -510,13 +450,12 @@ static enum participant_guid_is_known_result participant_guid_is_known (const st
     if ((lease = ddsrt_atomic_ldvoidp (&proxypp->minl_auto)) != NULL)
       ddsi_lease_renew (lease, ddsrt_time_elapsed ());
     ddsrt_mutex_lock (&proxypp->e.lock);
-    if (proxypp->implicitly_created || seq > proxypp->seq)
+    if (seq > proxypp->seq)
     {
       interesting = 1;
       if (!(gv->logconfig.c.mask & DDS_LC_TRACE))
         GVLOGDISC ("SPDP ST0 "PGUIDFMT, PGUID (datap->participant_guid));
-      GVLOGDISC (proxypp->implicitly_created ? " (NEW was-implicitly-created)" : " (update)");
-      proxypp->implicitly_created = 0;
+      GVLOGDISC (" (update)");
       ddsi_update_proxy_participant_plist_locked (proxypp, seq, datap, timestamp);
     }
     ddsrt_mutex_unlock (&proxypp->e.lock);
@@ -559,60 +498,6 @@ static uint32_t get_builtin_endpoint_set (const struct ddsi_receiver_state *rst,
   if (!is_secure)
     builtin_endpoint_set &= DDSI_BES_MASK_NON_SECURITY;
   return builtin_endpoint_set;
-}
-
-static unsigned get_custom_flags (const struct ddsi_domaingv *gv, const ddsi_plist_t *datap)
-{
-  unsigned custom_flags = 0;
-  if (datap->present & PP_ADLINK_PARTICIPANT_VERSION_INFO)
-  {
-    if ((datap->adlink_participant_version_info.flags & DDSI_ADLINK_FL_DDSI2_PARTICIPANT_FLAG) &&
-        (datap->adlink_participant_version_info.flags & DDSI_ADLINK_FL_PARTICIPANT_IS_DDSI2))
-      custom_flags |= DDSI_CF_PARTICIPANT_IS_DDSI2;
-    GVLOGDISC (" (0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32" %s)",
-               datap->adlink_participant_version_info.version,
-               datap->adlink_participant_version_info.flags,
-               datap->adlink_participant_version_info.unused[0],
-               datap->adlink_participant_version_info.unused[1],
-               datap->adlink_participant_version_info.unused[2],
-               datap->adlink_participant_version_info.internals);
-  }
-  return custom_flags;
-}
-
-static bool get_privileged_participant (const struct ddsi_receiver_state *rst, const ddsi_plist_t *datap, uint32_t builtin_endpoint_set, unsigned custom_flags, ddsi_guid_t *privileged_pp_guid)
-{
-  struct ddsi_domaingv * const gv = rst->gv;
-  const unsigned bes_sedp_announcer_mask =
-    DDSI_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER |
-    DDSI_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER;
-  /* If any of the SEDP announcer are missing AND the guid prefix of
-     the SPDP writer differs from the guid prefix of the new participant,
-     we make it dependent on the writer's participant.  See also the
-     lease expiration handling.  Note that the entityid MUST be
-     DDSI_ENTITYID_PARTICIPANT or entidx_lookup will assert.  So we only
-     zero the prefix. */
-  privileged_pp_guid->prefix = rst->src_guid_prefix;
-  privileged_pp_guid->entityid.u = DDSI_ENTITYID_PARTICIPANT;
-  if ((builtin_endpoint_set & bes_sedp_announcer_mask) != bes_sedp_announcer_mask &&
-      memcmp (privileged_pp_guid, &datap->participant_guid, sizeof (ddsi_guid_t)) != 0)
-  {
-    return true;
-  }
-  else if (ddsi_vendor_is_eclipse_or_opensplice (rst->vendor) && !(custom_flags & DDSI_CF_PARTICIPANT_IS_DDSI2))
-  {
-    /* Non-DDSI2 participants are made dependent on DDSI2 (but DDSI2
-       itself need not be discovered yet) */
-    struct ddsi_proxy_participant *ddsi2;
-    if ((ddsi2 = find_ddsi2_proxy_participant (gv->entity_index, &datap->participant_guid)) != NULL)
-    {
-      privileged_pp_guid->prefix = ddsi2->e.guid.prefix;
-      return true;
-    }
-  }
-  // clear privileged_pp_guid prefix, but leave the magic entity id
-  memset (&privileged_pp_guid->prefix, 0, sizeof (privileged_pp_guid->prefix));
-  return false;
 }
 
 static bool get_locators (const struct ddsi_receiver_state *rst, const ddsi_plist_t *datap, struct ddsi_addrset **as_default, struct ddsi_addrset **as_meta)
@@ -700,7 +585,16 @@ static enum handle_spdp_result handle_spdp_alive (const struct ddsi_receiver_sta
   const uint32_t builtin_endpoint_set = get_builtin_endpoint_set (rst, datap, is_secure);
   GVLOGDISC ("SPDP ST0 "PGUIDFMT" bes %"PRIx32"%s NEW", PGUID (datap->participant_guid), builtin_endpoint_set, is_secure ? " (secure)" : "");
 
-  const unsigned custom_flags = get_custom_flags (gv, datap);
+  if (datap->present & PP_ADLINK_PARTICIPANT_VERSION_INFO)
+  {
+    GVLOGDISC (" (0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32" %s)",
+               datap->adlink_participant_version_info.version,
+               datap->adlink_participant_version_info.flags,
+               datap->adlink_participant_version_info.unused[0],
+               datap->adlink_participant_version_info.unused[1],
+               datap->adlink_participant_version_info.unused[2],
+               datap->adlink_participant_version_info.internals);
+  }
 
   /* Can't do "mergein_missing" because of constness of *datap */
   dds_duration_t lease_duration;
@@ -710,15 +604,6 @@ static enum handle_spdp_result handle_spdp_alive (const struct ddsi_receiver_sta
   {
     assert (ddsi_default_qos_participant.present & DDSI_QP_LIVELINESS);
     lease_duration = ddsi_default_qos_participant.liveliness.lease_duration;
-  }
-
-  ddsi_guid_t privileged_pp_guid;
-  if (get_privileged_participant (rst, datap, builtin_endpoint_set, custom_flags, &privileged_pp_guid))
-  {
-    GVLOGDISC (" (depends on "PGUIDFMT")", PGUID (privileged_pp_guid));
-    /* never expire lease for this proxy: it won't actually expire
-       until the "privileged" one expires anyway */
-    lease_duration = DDS_INFINITY;
   }
 
   struct ddsi_addrset *as_meta, *as_default;
@@ -733,7 +618,7 @@ static enum handle_spdp_result handle_spdp_alive (const struct ddsi_receiver_sta
   GVLOGDISC ("}\n");
 
   struct ddsi_proxy_participant *proxy_participant;
-  if (!ddsi_new_proxy_participant (&proxy_participant, gv, &datap->participant_guid, builtin_endpoint_set, &privileged_pp_guid, as_default, as_meta, datap, lease_duration, rst->vendor, custom_flags, timestamp, seq))
+  if (!ddsi_new_proxy_participant (&proxy_participant, gv, &datap->participant_guid, builtin_endpoint_set, as_default, as_meta, datap, lease_duration, rst->vendor, timestamp, seq))
   {
     /* If no proxy participant was created, don't respond */
     return HSR_NOT_INTERESTING;
@@ -750,25 +635,6 @@ static enum handle_spdp_result handle_spdp_alive (const struct ddsi_receiver_sta
     {
       GVLOGDISC ("broadcasted SPDP packet -> answering");
       respond_to_spdp (gv, &datap->participant_guid);
-    }
-
-    if (custom_flags & DDSI_CF_PARTICIPANT_IS_DDSI2)
-    {
-      /* If we just discovered DDSI2, make sure any existing
-         participants served by it are made dependent on it */
-      make_participants_dependent_on_ddsi2 (gv, &datap->participant_guid, timestamp);
-    }
-    else if (privileged_pp_guid.prefix.u[0] || privileged_pp_guid.prefix.u[1] || privileged_pp_guid.prefix.u[2])
-    {
-      /* If we just created a participant dependent on DDSI2, make sure
-         DDSI2 still exists.  There is a risk of racing the lease expiry
-         of DDSI2. */
-      if (ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, &privileged_pp_guid) == NULL)
-      {
-        GVLOGDISC ("make_participants_dependent_on_ddsi2: ddsi2 "PGUIDFMT" is no more, delete "PGUIDFMT"\n",
-                   PGUID (privileged_pp_guid), PGUID (datap->participant_guid));
-        ddsi_delete_proxy_participant_by_guid (gv, &datap->participant_guid, timestamp, true);
-      }
     }
     return HSR_INTERESTING;
   }

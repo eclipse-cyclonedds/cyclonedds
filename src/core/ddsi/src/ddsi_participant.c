@@ -40,17 +40,6 @@
 #include "ddsi__spdp_schedule.h"
 #include "dds__whc.h"
 
-static const unsigned builtin_writers_besmask =
-  DDSI_DISC_BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER |
-  DDSI_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER |
-  DDSI_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER |
-  DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER
-#ifdef DDS_HAS_TYPE_DISCOVERY
-  | DDSI_BUILTIN_ENDPOINT_TL_SVC_REQUEST_DATA_WRITER
-  | DDSI_BUILTIN_ENDPOINT_TL_SVC_REPLY_DATA_WRITER
-#endif
-;
-
 int compare_ldur (const void *va, const void *vb);
 
 /* used in participant for keeping writer liveliness renewal */
@@ -686,42 +675,12 @@ void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid
     ddsi_spdp_unregister_participant (gv->spdp_schedule, pp);
     ddsi_serdata_unref (pp->spdp_serdata);
 
-    /* If this happens to be the privileged_pp, clear it */
-    ddsrt_mutex_lock (&gv->privileged_pp_lock);
-    if (pp == gv->privileged_pp)
-      gv->privileged_pp = NULL;
-    ddsrt_mutex_unlock (&gv->privileged_pp_lock);
-
     for (i = 0; i < (int) (sizeof (builtin_endpoints_tab) / sizeof (builtin_endpoints_tab[0])); i++)
       delete_builtin_endpoint (gv, &pp->e.guid, builtin_endpoints_tab[i]);
   }
   else if (pp->user_refc == 0 && pp->builtin_refc == 0)
   {
     ddsrt_mutex_unlock (&pp->refc_lock);
-
-    if (!pp->e.onlylocal)
-    {
-      if ((pp->bes & builtin_writers_besmask) != builtin_writers_besmask && !(pp->flags & RTPS_PF_NO_PRIVILEGED_PP))
-      {
-        /* Participant doesn't have a full complement of built-in
-           writers, therefore, it relies on gv->privileged_pp, and
-           therefore we must decrement the reference count of that one.
-
-           Why read it with the lock held, only to release it and use it
-           without any attempt to maintain a consistent state?  We DO
-           have a counted reference, so it can't be freed, but there is
-           no formal guarantee that the pointer we read is valid unless
-           we read it with the lock held.  We can't keep the lock across
-           the ddsi_unref_participant, because we may trigger a clean-up of
-           it.  */
-        struct ddsi_participant *ppp;
-        ddsrt_mutex_lock (&gv->privileged_pp_lock);
-        ppp = gv->privileged_pp;
-        ddsrt_mutex_unlock (&gv->privileged_pp_lock);
-        assert (ppp != NULL);
-        ddsi_unref_participant (ppp, &pp->e.guid);
-      }
-    }
 
     ddsrt_mutex_lock (&gv->participant_set_lock);
     assert (gv->nparticipants > 0);
@@ -792,9 +751,7 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
   struct ddsi_tran_conn * ppconn;
 
   /* no reserved bits may be set */
-  assert ((flags & ~(RTPS_PF_NO_BUILTIN_READERS | RTPS_PF_NO_BUILTIN_WRITERS | RTPS_PF_PRIVILEGED_PP | RTPS_PF_IS_DDSI2_PP | RTPS_PF_ONLY_LOCAL | RTPS_PF_NO_PRIVILEGED_PP)) == 0);
-  /* privileged participant MUST have builtin readers and writers */
-  assert (!(flags & RTPS_PF_PRIVILEGED_PP) || (flags & (RTPS_PF_NO_BUILTIN_READERS | RTPS_PF_NO_BUILTIN_WRITERS)) == 0);
+  assert ((flags & ~(RTPS_PF_NO_BUILTIN_READERS | RTPS_PF_NO_BUILTIN_WRITERS)) == 0);
 
   ddsi_prune_deleted_participant_guids (gv->deleted_participants, ddsrt_time_monotonic ());
 
@@ -847,11 +804,10 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
 
   pp = ddsrt_malloc (sizeof (*pp));
 
-  ddsi_entity_common_init (&pp->e, gv, ppguid, DDSI_EK_PARTICIPANT, ddsrt_time_wallclock (), DDSI_VENDORID_ECLIPSE, ((flags & RTPS_PF_ONLY_LOCAL) != 0));
+  ddsi_entity_common_init (&pp->e, gv, ppguid, DDSI_EK_PARTICIPANT, ddsrt_time_wallclock (), DDSI_VENDORID_ECLIPSE, false);
   pp->user_refc = 1;
   pp->builtin_refc = 0;
   pp->state = DDSI_PARTICIPANT_STATE_INITIALIZING;
-  pp->is_ddsi2_pp = (flags & (RTPS_PF_PRIVILEGED_PP | RTPS_PF_IS_DDSI2_PP)) ? 1 : 0;
   pp->flags = flags;
   ddsrt_mutex_init (&pp->refc_lock);
   ddsi_inverse_uint32_set_init(&pp->avail_entityids.x, 1, UINT32_MAX / DDSI_ENTITYID_ALLOCSTEP);
@@ -939,34 +895,6 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
   /* add all built-in endpoints other than the SPDP writer */
   add_builtin_endpoints (pp, &subguid, &group_guid, gv, !(flags & RTPS_PF_NO_BUILTIN_WRITERS), !(flags & RTPS_PF_NO_BUILTIN_READERS));
 
-  /* If the participant doesn't have the full set of builtin writers
-     it depends on the privileged participant, which must exist, hence
-     the reference count of the privileged participant is incremented.
-     If it is the privileged participant, set the global variable
-     pointing to it.
-     Except when the participant is only locally available or is
-     using a static topology. */
-  if (!(flags & (RTPS_PF_ONLY_LOCAL | RTPS_PF_NO_PRIVILEGED_PP)))
-  {
-    ddsrt_mutex_lock (&gv->privileged_pp_lock);
-    if ((pp->bes & builtin_writers_besmask) != builtin_writers_besmask)
-    {
-      /* Simply crash when the privileged participant doesn't exist when
-         it is needed.  Its existence is a precondition, and this is not
-         a public API */
-      assert (gv->privileged_pp != NULL);
-      ddsi_ref_participant (gv->privileged_pp, &pp->e.guid);
-    }
-    if (flags & RTPS_PF_PRIVILEGED_PP)
-    {
-      /* Crash when two privileged participants are created -- this is
-         not a public API. */
-      assert (gv->privileged_pp == NULL);
-      gv->privileged_pp = pp;
-    }
-    ddsrt_mutex_unlock (&gv->privileged_pp_lock);
-  }
-
   /* All attributes set, anyone looking for a built-in topic writer can
      now safely do so */
   ddsrt_mutex_lock (&pp->refc_lock);
@@ -985,7 +913,7 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
 
   ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &pp->e, ddsrt_time_wallclock(), true);
 
-  if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS) || !(flags & RTPS_PF_NO_PRIVILEGED_PP))
+  if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS))
   {
     update_participant_spdp_sample (pp, true);
     if (ddsi_spdp_register_participant (gv->spdp_schedule, pp) != DDS_RETCODE_OK)
@@ -1160,26 +1088,8 @@ dds_return_t ddsi_get_builtin_writer (const struct ddsi_participant *pp, unsigne
     bwr_guid.prefix = pp->e.guid.prefix;
     bwr_guid.entityid.u = entityid;
   }
-  else if (!(pp->flags & RTPS_PF_NO_PRIVILEGED_PP))
-  {
-    /* Must have a designated participant to use -- that is, before
-       any application readers and writers may be created (indeed,
-       before any PMD message may go out), one participant must be
-       created with the built-in writers, and this participant then
-       automatically becomes the designated participant.  Woe betide
-       who deletes it early!  Lock's not really needed but provides
-       the memory barriers that guarantee visibility of the correct
-       value of privileged_pp. */
-    ddsrt_mutex_lock (&pp->e.gv->privileged_pp_lock);
-    assert (pp->e.gv->privileged_pp != NULL);
-    bwr_guid.prefix = pp->e.gv->privileged_pp->e.guid.prefix;
-    ddsrt_mutex_unlock (&pp->e.gv->privileged_pp_lock);
-    bwr_guid.entityid.u = entityid;
-  }
   else
   {
-    /* NO_PRIVILEGED_PP flag is set, so it's okay that we don't have
-       a built-in writer at this point */
     *bwr = NULL;
     return DDS_RETCODE_OK;
   }

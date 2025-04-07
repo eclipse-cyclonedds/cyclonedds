@@ -101,13 +101,16 @@ dds_duration_t ddsi_participant_get_pmd_interval (struct ddsi_participant *pp);
 /**
  * @component ddsi_participant
  * @brief To obtain the builtin writer to be used for publishing SPDP, SEDP, PMD stuff for
- * PP and its endpoints, given the entityid. If PP has its own writer, use it; else use the
- * privileged participant, unless the NO_PRIVILEGED_PP flag is set.
+ * PP and its endpoints, given the entityid.
  *
  * @param[in] pp The participant
  * @param[in] entityid The entity ID of the writer
  * @param[out] bwr The built-in writer
  * @returns Return code indicating success or failure
+ * @retval `DDS_RETCODE_OK` and `bwr` != NULL writer to use
+ * @retval `DDS_RETCODE_OK` and `bwr` == NULL no data needs to be written
+ * @retval `DDS_RETCODE_PRECONDITION_NOT_MET` data should be written but participant does not have a writer
+ * @retval `DDS_RETCODE_BAD_PARAMETER` entityid is invalid
  */
 dds_return_t ddsi_get_builtin_writer (const struct ddsi_participant *pp, unsigned entityid, struct ddsi_writer **bwr);
 

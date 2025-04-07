@@ -439,7 +439,7 @@ struct ddsi_addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, 
   return as;
 }
 
-void ddsi_handle_sedp_alive_endpoint (const struct ddsi_receiver_state *rst, ddsi_seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, ddsi_sedp_kind_t sedp_kind, const ddsi_guid_prefix_t *src_guid_prefix, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp)
+void ddsi_handle_sedp_alive_endpoint (const struct ddsi_receiver_state *rst, ddsi_seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, ddsi_sedp_kind_t sedp_kind, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp)
 {
 #define E(msg, lbl) do { GVLOGDISC (msg); goto lbl; } while (0)
   struct ddsi_domaingv * const gv = rst->gv;
@@ -458,7 +458,7 @@ void ddsi_handle_sedp_alive_endpoint (const struct ddsi_receiver_state *rst, dds
   assert (datap->present & PP_ENDPOINT_GUID);
   GVLOGDISC (" "PGUIDFMT, PGUID (datap->endpoint_guid));
 
-  if (!ddsi_handle_sedp_checks (gv, sedp_kind, &datap->endpoint_guid, datap, src_guid_prefix, vendorid, timestamp, &proxypp, &ppguid))
+  if (!ddsi_handle_sedp_checks (gv, sedp_kind, &datap->endpoint_guid, datap, vendorid, &proxypp, &ppguid))
     goto err;
 
   xqos = &datap->qos;
@@ -507,19 +507,7 @@ void ddsi_handle_sedp_alive_endpoint (const struct ddsi_receiver_state *rst, dds
     prd = ddsi_entidx_lookup_proxy_reader_guid (gv->entity_index, &datap->endpoint_guid);
   if (pwr || prd)
   {
-    /* Re-bind the proxy participant to the discovery service - and do this if it is currently
-       bound to another DS instance, because that other DS instance may have already failed and
-       with a new one taking over, without our noticing it. */
-    GVLOGDISC (" known%s", ddsi_vendor_is_cloud (vendorid) ? "-DS" : "");
-    if (ddsi_vendor_is_cloud (vendorid) && proxypp->implicitly_created && memcmp (&proxypp->privileged_pp_guid.prefix, src_guid_prefix, sizeof(proxypp->privileged_pp_guid.prefix)) != 0)
-    {
-      GVLOGDISC (" "PGUIDFMT" attach-to-DS "PGUIDFMT, PGUID(proxypp->e.guid), PGUIDPREFIX(*src_guid_prefix), proxypp->privileged_pp_guid.entityid.u);
-      ddsrt_mutex_lock (&proxypp->e.lock);
-      proxypp->privileged_pp_guid.prefix = *src_guid_prefix;
-      ddsi_lease_set_expiry (proxypp->lease, DDSRT_ETIME_NEVER);
-      ddsrt_mutex_unlock (&proxypp->e.lock);
-    }
-    GVLOGDISC ("\n");
+    GVLOGDISC (" known");
   }
   else
   {

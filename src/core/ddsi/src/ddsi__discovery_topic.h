@@ -34,7 +34,7 @@ struct ddsi_receiver_state;
 int ddsi_sedp_write_topic (struct ddsi_topic *tp, bool alive) ddsrt_nonnull_all;
 
 /** @component discovery */
-void ddsi_handle_sedp_alive_topic (const struct ddsi_receiver_state *rst, ddsi_seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, const ddsi_guid_prefix_t *src_guid_prefix, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp)
+void ddsi_handle_sedp_alive_topic (const struct ddsi_receiver_state *rst, ddsi_seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp)
   ddsrt_nonnull_all;
 
 /** @component discovery */
