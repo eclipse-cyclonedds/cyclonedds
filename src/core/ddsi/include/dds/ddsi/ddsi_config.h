@@ -39,8 +39,7 @@ enum ddsi_standards_conformance {
 
 enum ddsi_besmode {
   DDSI_BESMODE_FULL,
-  DDSI_BESMODE_WRITERS,
-  DDSI_BESMODE_MINIMAL
+  DDSI_BESMODE_WRITERS
 };
 
 enum ddsi_retransmit_merging {

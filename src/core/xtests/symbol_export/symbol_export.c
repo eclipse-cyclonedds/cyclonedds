@@ -773,7 +773,7 @@ int main (int argc, char **argv)
 #endif
 
   // ddsi/ddsi_proxy_participant.h
-  ddsi_new_proxy_participant (ptr, ptr2, ptr3, 0, ptr5, ptr6, ptr7, ptr8, 0, (ddsi_vendorid_t) { 0 }, 0, ddsrt_time_wallclock (), 0);
+  ddsi_new_proxy_participant (ptr, ptr2, ptr3, 0, ptr5, ptr6, ptr7, 0, (ddsi_vendorid_t) { 0 }, ddsrt_time_wallclock(), 0);
 
   // ddsi/ddsi_plist.h
   ddsi_plist_init_empty (ptr);

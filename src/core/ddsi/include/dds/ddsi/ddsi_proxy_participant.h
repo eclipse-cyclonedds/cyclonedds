@@ -35,7 +35,6 @@ struct ddsi_proxy_participant
   uint32_t refc; /* number of proxy endpoints (both user & built-in; not groups, they don't have a life of their own) */
   ddsi_vendorid_t vendor; /* vendor code from discovery */
   unsigned bes; /* built-in endpoint set */
-  ddsi_guid_t privileged_pp_guid; /* if this PP depends on another PP for its SEDP writing */
   struct ddsi_plist *plist; /* settings/QoS for this participant */
   ddsrt_atomic_voidp_t minl_auto; /* clone of min(leaseheap_auto) */
   ddsrt_fibheap_t leaseheap_auto; /* keeps leases for this proxypp and leases for pwrs (with liveliness automatic) */
@@ -50,13 +49,8 @@ struct ddsi_proxy_participant
 #endif
   ddsi_seqno_t seq; /* sequence number of most recent SPDP message */
   uint32_t receive_buffer_size; /* assumed size of receive buffer, used to limit bursts involving this proxypp */
-  unsigned implicitly_created : 1; /* participants are implicitly created for Cloud/Fog discovered endpoints */
-  unsigned is_ddsi2_pp: 1; /* if this is the federation-leader on the remote node */
-  unsigned minimal_bes_mode: 1;
   unsigned lease_expired: 1;
   unsigned deleting: 1;
-  unsigned proxypp_have_spdp: 1;
-  unsigned owns_lease: 1;
   unsigned redundant_networking: 1; /* 1 iff requests receiving data on all advertised interfaces */
 #ifdef DDS_HAS_SECURITY
   ddsi_security_info_t security_info;
@@ -69,7 +63,7 @@ extern const ddsrt_avl_treedef_t ddsi_proxypp_proxytp_treedef;
 #endif
 
 /** @component ddsi_proxy_participant */
-DDS_EXPORT bool ddsi_new_proxy_participant (struct ddsi_proxy_participant **proxy_participant, struct ddsi_domaingv *gv, const struct ddsi_guid *guid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct ddsi_addrset *as_default, struct ddsi_addrset *as_meta, const struct ddsi_plist *plist, dds_duration_t tlease_dur, ddsi_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, ddsi_seqno_t seq);
+DDS_EXPORT bool ddsi_new_proxy_participant (struct ddsi_proxy_participant **proxy_participant, struct ddsi_domaingv *gv, const struct ddsi_guid *guid, uint32_t bes, struct ddsi_addrset *as_default, struct ddsi_addrset *as_meta, const struct ddsi_plist *plist, dds_duration_t tlease_dur, ddsi_vendorid_t vendor, ddsrt_wctime_t timestamp, ddsi_seqno_t seq);
 
 #if defined (__cplusplus)
 }

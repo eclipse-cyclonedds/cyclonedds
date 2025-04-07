@@ -31,23 +31,8 @@ struct ddsi_addrset;
 struct ddsi_proxy_endpoint_common;
 struct ddsi_proxy_writer;
 
-/* Set when this proxy participant is created implicitly and has to be deleted upon disappearance
-   of its last endpoint.  FIXME: Currently there is a potential race with adding a new endpoint
-   in parallel to deleting the last remaining one. The endpoint will then be created, added to the
-   proxy participant and then both are deleted. With the current single-threaded discovery
-   this can only happen when it is all triggered by lease expiry. */
-#define DDSI_CF_IMPLICITLY_CREATED_PROXYPP          (1 << 0)
-/* Set when this proxy participant is a DDSI2 participant, to help Cloud figure out whom to send
-   discovery data when used in conjunction with the networking bridge */
-#define DDSI_CF_PARTICIPANT_IS_DDSI2                (1 << 1)
-/* Set when this proxy participant is not to be announced on the built-in topics yet */
-#define DDSI_CF_PROXYPP_NO_SPDP                     (1 << 2)
-
 /** @component ddsi_proxy_participant */
 int ddsi_update_proxy_participant_plist_locked (struct ddsi_proxy_participant *proxypp, ddsi_seqno_t seq, const struct ddsi_plist *datap, ddsrt_wctime_t timestamp);
-
-/** @component ddsi_proxy_participant */
-void ddsi_proxy_participant_reassign_lease (struct ddsi_proxy_participant *proxypp, struct ddsi_lease *newlease);
 
 /** @component ddsi_proxy_participant */
 void ddsi_purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocator_t *loc);

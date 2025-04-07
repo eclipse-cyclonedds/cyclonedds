@@ -413,13 +413,6 @@ static void print_writer_seq (struct st *st, void *varg)
       cpfobj (st, print_writer, &(struct print_writer_arg){ .p = arg->p, .w = w });
 }
 
-static void print_participant_flags (struct st *st, void *vp)
-{
-  struct ddsi_participant * const p = vp;
-  if (p->is_ddsi2_pp)
-    cpfstr (st, "ddsi2");
-}
-
 static void print_participant (struct st *st, void *vp)
 {
   struct ddsi_participant *p = vp;
@@ -427,7 +420,6 @@ static void print_participant (struct st *st, void *vp)
   ddsrt_mutex_lock (&p->e.lock);
   cpfkguid (st, "guid", &p->e.guid);
   cpfkstr (st, "name", (p->plist->qos.present & DDSI_QP_ENTITY_NAME) ? p->plist->qos.entity_name : "");
-  cpfkseq (st, "flags", print_participant_flags, p);
   ddsrt_mutex_unlock (&p->e.lock);
 
   {
@@ -570,12 +562,6 @@ static void print_proxy_writer_seq (struct st *st, void *varg)
 static void print_proxy_participant_flags (struct st *st, void *vp)
 {
   struct ddsi_proxy_participant * const p = vp;
-  if (p->implicitly_created)
-    cpfstr (st, "implicitly_created");
-  if (p->is_ddsi2_pp)
-    cpfstr (st, "ddsi2");
-  if (p->minimal_bes_mode)
-    cpfstr (st, "minimal_bes_mode");
   if (p->redundant_networking)
     cpfstr (st, "redundant_networking");
 }
