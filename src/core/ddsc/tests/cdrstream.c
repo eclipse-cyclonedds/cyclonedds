@@ -1996,7 +1996,8 @@ static void check_t2 (uint8_t *data)
   CU_ASSERT_EQUAL_FATAL (t2->f2.s1, 0);
   CU_ASSERT_EQUAL_FATAL (strlen (t2->f2.s2), 0);
   CU_ASSERT_EQUAL_FATAL (t2->f2.s3, 0);
-  CU_ASSERT_EQUAL_FATAL (t2->f2.s4, NULL);
+  CU_ASSERT_PTR_NOT_NULL_FATAL (t2->f2.s4);
+  CU_ASSERT_EQUAL_FATAL (*t2->f2.s4, 0);
   CU_ASSERT_EQUAL_FATAL (t2->f3, 0.0);
 }
 
@@ -2038,9 +2039,11 @@ static void check_t4 (uint8_t *data)
   struct CdrStreamSkipDefault_t4_sub *t4 = (struct CdrStreamSkipDefault_t4_sub *) data;
   CU_ASSERT_EQUAL_FATAL (t4->f2.s1, 0);
   CU_ASSERT_EQUAL_FATAL (t4->f2.s2.s1, 0);
-  CU_ASSERT_EQUAL_FATAL (t4->f2.s2.s2, NULL);
+  CU_ASSERT_PTR_NOT_NULL_FATAL (t4->f2.s2.s2);
+  CU_ASSERT_EQUAL_FATAL (t4->f2.s2.s2->_length, 0); // only length is reset, buffer and max are retained
   CU_ASSERT_EQUAL_FATAL (t4->f4.s1, 0);
-  CU_ASSERT_EQUAL_FATAL (t4->f4.s2, NULL);
+  CU_ASSERT_PTR_NOT_NULL_FATAL (t4->f4.s2);
+  CU_ASSERT_EQUAL_FATAL (t4->f4.s2->_length, 0);
 }
 
 
