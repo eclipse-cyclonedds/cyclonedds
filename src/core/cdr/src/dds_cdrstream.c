@@ -2731,6 +2731,9 @@ static inline const uint32_t *dds_stream_read_adr (uint32_t insn, dds_istream_t 
 {
   void *addr = data + ops[1];
 
+  // In case of reading key CDR, we don't initialize non-key members. This includes not
+  // malloc'ing external members (which should always be non-NULL), because it would
+  // not make sense to require allocations for non-key members in an invalid sample.
   const bool is_key = (insn & DDS_OP_FLAG_KEY);
   if (cdr_kind == CDR_KIND_KEY && !is_key)
     return dds_stream_skip_adr (insn, ops);
@@ -2836,11 +2839,12 @@ static const uint32_t *dds_stream_skip_adr_default (uint32_t insn, char * restri
   /* FIXME: currently only implicit default values are used, this code should be
      using default values that are specified in the type definition */
 
-  /* Free memory in sample and set pointer to null in case of optional or external member.
-     test for optional (which also gets the external flag) is added because string type
-     is the exception for this rule, that does not get the external flag */
-  if (op_type_external (insn) || op_type_optional (insn))
+  /* Free memory in sample and set pointer to null in case of optional member. */
+  if (op_type_optional (insn))
     return stream_skip_member (insn, data, addr, allocator, ops, sample_state);
+
+  if (op_type_external (insn))
+    dds_stream_alloc_external (ops, insn, &addr, allocator, &sample_state);
 
   switch (DDS_OP_TYPE (insn))
   {
