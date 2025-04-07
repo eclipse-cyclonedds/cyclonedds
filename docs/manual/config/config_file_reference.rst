@@ -922,17 +922,15 @@ The default value is: ``3 s``
 //CycloneDDS/Domain/Internal/BuiltinEndpointSet
 -----------------------------------------------
 
-One of: full, writers, minimal
+One of: full, writers
 
 This element controls which participants will have which built-in endpoints for the discovery and liveliness protocols. Valid values are:
  * full: all participants have all endpoints;
 
  * writers: all participants have the writers, but just one has the readers;
 
- * minimal: only one participant has built-in endpoints.
 
-
-The default is writers, as this is thought to be compliant and reasonably efficient. Minimal may or may not be compliant but is most efficient, and full is inefficient but certain to be compliant.
+The default is writers, as this is thought to be compliant and reasonably efficient. Full is inefficient but certain to be compliant.
 
 The default value is: ``writers``
 
@@ -2768,9 +2766,9 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 The default value is: ``none``
 
 ..
-   generated from ddsi_config.h[fd22386b5a5456d010458848b862bbe2be02b3e4] 
-   generated from ddsi_config.c[ea1079220b5c907e79b1f20fe97de87874d360fd] 
-   generated from ddsi__cfgelems.h[94e38d76830ce8487ad67cb37df5366c1b079c12] 
+   generated from ddsi_config.h[d7db98ce697e409412ec7fb0b900e10261a66c44] 
+   generated from ddsi_config.c[184d7299baad5acc9b96884de77770aac009a11a] 
+   generated from ddsi__cfgelems.h[741151ccf40cab43638e8c32cac3a4b9c3e73566] 
    generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] 
    generated from _confgen.h[fd29634526c05c3237dbc3f785030fe022eb7875] 
    generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] 

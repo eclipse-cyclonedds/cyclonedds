@@ -237,44 +237,6 @@ int64_t ddsi_check_and_handle_lease_expiration (struct ddsi_domaingv *gv, ddsrt_
 
     GVLOGDISC ("lease expired: l %p guid "PGUIDFMT" tend %"PRId64" < now %"PRId64"\n", (void *) l, PGUID (g), tend, tnowE.v);
 
-    /* If the proxy participant is relying on another participant for
-       writing its discovery data (on the privileged participant,
-       i.e., its ddsi2 instance), we can't afford to drop it while the
-       privileged one is still considered live.  If we do and it was a
-       temporary asymmetrical thing and the ddsi2 instance never lost
-       its liveliness, we will not rediscover the endpoints of this
-       participant because we will not rediscover the ddsi2
-       participant.
-
-       So IF it is dependent on another one, we renew the lease for a
-       very short while if the other one is still alive.  If it is a
-       real case of lost liveliness, the other one will be gone soon
-       enough; if not, we should get a sign of life soon enough.
-
-       In this case, we simply abort the current iteration of the loop
-       after renewing the lease and continue with the next one.
-
-       This trick would fail if the ddsi2 participant can lose its
-       liveliness and regain it before we re-check the liveliness of
-       the dependent participants, and so the interval here must
-       significantly less than the pruning time for the
-       deleted_participants admin.
-
-       I guess that means there is a really good argument for the SPDP
-       and SEDP writers to be per-participant! */
-    if (k == DDSI_EK_PROXY_PARTICIPANT)
-    {
-      struct ddsi_proxy_participant *proxypp;
-      if ((proxypp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, &g)) != NULL &&
-          ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, &proxypp->privileged_pp_guid) != NULL)
-      {
-        GVLOGDISC ("but postponing because privileged pp "PGUIDFMT" is still live\n", PGUID (proxypp->privileged_pp_guid));
-        l->tsched = ddsrt_etime_add_duration (tnowE, DDS_MSECS (200));
-        ddsrt_fibheap_insert (&lease_fhdef, &gv->leaseheap, l);
-        continue;
-      }
-    }
-
     l->tsched.v = TSCHED_NOT_ON_HEAP;
     ddsrt_mutex_unlock (&gv->leaseheap_lock);
 

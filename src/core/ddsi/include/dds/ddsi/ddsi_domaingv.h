@@ -166,18 +166,10 @@ struct ddsi_domaingv {
   ddsrt_cond_t participant_set_cond;
   uint32_t nparticipants;
 
-  /* For participants without (some) built-in writers, we fall back to
-     this participant, which is the first one created with all
-     built-in writers present.  It MUST be created before any in need
-     of it pops up! */
-  struct ddsi_participant *privileged_pp;
-  ddsrt_mutex_t privileged_pp_lock;
-
   /* For tracking (recently) deleted participants */
   struct ddsi_deleted_participants_admin *deleted_participants;
 
-  /* GUID to be used in next call to new_participant; also protected
-     by privileged_pp_lock */
+  /* GUID to be used in next call to new_participant */
   struct ddsi_guid ppguid_base;
 
   /* number of selected interfaces. */

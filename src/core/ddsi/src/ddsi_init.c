@@ -514,18 +514,6 @@ int ddsi_config_prep (struct ddsi_domaingv *gv, struct ddsi_cfgst *cfgst)
     goto err_config_late_error;
   }
 
-  if (gv->config.besmode == DDSI_BESMODE_MINIMAL && gv->config.many_sockets_mode == DDSI_MSM_MANY_UNICAST)
-  {
-    /* These two are incompatible because minimal bes mode can result
-       in implicitly creating proxy participants inheriting the
-       address set from the ddsi2 participant (which is then typically
-       inherited by readers/writers), but in many sockets mode each
-       participant has its own socket, and therefore unique address
-       set */
-    DDS_ILOG (DDS_LC_ERROR, gv->config.domainId, "Minimal built-in endpoint set mode and ManySocketsMode are incompatible\n");
-    goto err_config_late_error;
-  }
-
   /* Dependencies between default values is not handled
    automatically by the gv->config processing (yet) */
   if (gv->config.many_sockets_mode == DDSI_MSM_MANY_UNICAST)
@@ -1376,9 +1364,6 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
   gv->deleted_participants = ddsi_deleted_participants_admin_new (&gv->logconfig, gv->config.prune_deleted_ppant.delay);
   gv->entity_index = ddsi_entity_index_new (gv);
 
-  ddsrt_mutex_init (&gv->privileged_pp_lock);
-  gv->privileged_pp = NULL;
-
   ddsrt_mutex_init(&gv->naming_lock);
   ddsrt_prng_init(&gv->naming_rng, &gv->config.entity_naming_seed);
 
@@ -1652,7 +1637,6 @@ err_unicast_sockets:
   ddsi_defrag_free (gv->spdp_defrag);
   ddsrt_mutex_destroy (&gv->spdp_lock);
   ddsrt_mutex_destroy (&gv->lock);
-  ddsrt_mutex_destroy (&gv->privileged_pp_lock);
   ddsrt_mutex_destroy (&gv->naming_lock);
 
   ddsi_entity_index_free (gv->entity_index);
@@ -1907,11 +1891,6 @@ void ddsi_stop (struct ddsi_domaingv *gv)
      necessary, but it allows us to claim the stack is quiescent
      at this point */
   ddsi_gcreq_queue_drain (gv->gcreq_queue);
-
-  /* Clean up privileged_pp -- it must be NULL now (all participants
-     are gone), but the lock still needs to be destroyed */
-  assert (gv->privileged_pp == NULL);
-  ddsrt_mutex_destroy (&gv->privileged_pp_lock);
 }
 
 void ddsi_fini (struct ddsi_domaingv *gv)
