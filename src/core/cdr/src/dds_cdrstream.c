@@ -120,7 +120,6 @@ typedef struct restrict_ostreamLE {
 #define dds_stream_write_keyBO                        NAME_BYTE_ORDER(dds_stream_write_key)
 #define dds_stream_write_keyBO_restrict               NAME2_BYTE_ORDER(dds_stream_write_key, _restrict)
 #define dds_stream_write_keyBO_impl                   NAME2_BYTE_ORDER(dds_stream_write_key, _impl)
-#define dds_stream_swap_if_needed_insituBO            NAME_BYTE_ORDER(dds_stream_swap_if_needed_insitu)
 #define dds_stream_to_BO_insitu                       NAME2_BYTE_ORDER(dds_stream_to_, _insitu)
 #define dds_stream_extract_keyBO_from_data_restrict   NAME2_BYTE_ORDER(dds_stream_extract_key, _from_data_restrict)
 #define dds_stream_extract_keyBO_from_data            NAME2_BYTE_ORDER(dds_stream_extract_key, _from_data)
@@ -5007,26 +5006,12 @@ void dds_stream_read_key (dds_istream_t *is, char *sample, const struct dds_cdrs
   }
 }
 
-/* Used in dds_stream_write_key for writing keys in native endianness, so no
-   swap is needed in that case and this function is a no-op */
-static inline void dds_stream_swap_if_needed_insitu (void *vbuf, uint32_t size, uint32_t num)
-{
-  (void) vbuf;
-  (void) size;
-  (void) num;
-}
-
 // Native endianness
 #define NAME_BYTE_ORDER_EXT
 #include "dds_cdrstream_keys.part.h"
 #undef NAME_BYTE_ORDER_EXT
 
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-
-static void dds_stream_swap_if_needed_insituBE (void *vbuf, uint32_t size, uint32_t num)
-{
-  dds_stream_swap (vbuf, size, num);
-}
 
 // Big-endian implementation
 #define NAME_BYTE_ORDER_EXT BE
