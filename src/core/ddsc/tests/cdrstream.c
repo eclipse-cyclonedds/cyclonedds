@@ -2171,6 +2171,10 @@ CU_Test(ddsc_cdrstream, key_size)
     { D(t41), false, true, 0, 9, true }, // key size: XCDR2: 4 (dh) + 4 (dh) + 1
     { D(t42), false, true, 0, 16, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (dh) + 4
     { D(t43), true, true, 8, 12, true }, // key size: XCDR1: 2 * (1 + 1 (pad) + 2) / XCDR2: 4 (dh) + 2 * (1 + 1 (pad) + 2)
+
+    { D(t44), false, false, VAR, VAR, false },
+    { D(t45), false, false, VAR, VAR, false },
+    { D(t46), false, false, VAR, VAR, false },
   };
 
   for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++) {
