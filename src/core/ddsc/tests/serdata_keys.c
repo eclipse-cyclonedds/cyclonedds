@@ -231,14 +231,68 @@ static void *init_SerdataKeyArr (void)
   return sample;
 }
 
-// FIXME: currently not supported
-// static void *init_SerdataKeyArrStrBounded (void)
-// {
-//   SerdataKeyArrStrBounded *sample = ddsrt_malloc (sizeof (*sample));
-//   for (uint32_t n = 0; n < 2; n++)
-//     ddsrt_strcpy (sample->a[n], "ts");
-//   return sample;
-// }
+static void *init_SerdataKeyArrStrBounded (void)
+{
+  SerdataKeyArrStrBounded *sample = ddsrt_malloc (sizeof (*sample));
+  for (uint32_t n = 0; n < 2; n++)
+    ddsrt_strlcpy (sample->a[n], "ts", 3);
+  return sample;
+}
+
+static void *init_SerdataKeySequence (void)
+{
+  SerdataKeySequence *sample = ddsrt_malloc (sizeof (*sample));
+  sample->s._length = sample->s._maximum = 2;
+  sample->s._release = true;
+  sample->s._buffer = ddsrt_malloc (2 * sizeof (*sample->s._buffer));
+  sample->s._buffer[0] = 5;
+  sample->s._buffer[1] = 6;
+  return sample;
+}
+
+static void *init_SerdataKeySequenceStruct (void)
+{
+  SerdataKeySequenceStruct *sample = ddsrt_malloc (sizeof (*sample));
+  sample->s._length = sample->s._maximum = 2;
+  sample->s._release = true;
+  sample->s._buffer = ddsrt_malloc (2 * sizeof (*sample->s._buffer));
+  sample->s._buffer[0].a = 5;
+  sample->s._buffer[0].b = 6;
+  sample->s._buffer[1].a = 7;
+  sample->s._buffer[1].b = 8;
+  return sample;
+}
+
+static void *init_SerdataKeySequenceStructAppendable (void)
+{
+  SerdataKeySequenceStructAppendable *sample = ddsrt_malloc (sizeof (*sample));
+  sample->s._length = sample->s._maximum = 2;
+  sample->s._release = true;
+  sample->s._buffer = ddsrt_malloc (2 * sizeof (*sample->s._buffer));
+  sample->s._buffer[0].a = 5;
+  sample->s._buffer[0].b = 6;
+  sample->s._buffer[1].a = 7;
+  sample->s._buffer[1].b = 8;
+  return sample;
+}
+
+static void *init_SerdataKeySequenceNested (void)
+{
+  SerdataKeySequenceNested *sample = ddsrt_malloc (sizeof (*sample));
+  sample->s._length = sample->s._maximum = 2;
+  sample->s._release = true;
+  sample->s._buffer = ddsrt_malloc (2 * sizeof (*sample->s._buffer));
+
+  for (int32_t i = 0; i < (int32_t) sample->s._length; i++) {
+    sample->s._buffer[i]._length = sample->s._buffer[i]._maximum = 2;
+    sample->s._buffer[i]._release = true;
+    sample->s._buffer[i]._buffer = ddsrt_malloc (2 * sizeof (*sample->s._buffer[i]._buffer));
+    sample->s._buffer[i]._buffer[0] = 2 * i;
+    sample->s._buffer[i]._buffer[1] = 2 * i + 1;
+  }
+
+  return sample;
+}
 
 static void *init_SerdataKeyNestedFinalImplicit (void)
 {
@@ -753,38 +807,52 @@ CU_Test(ddsc_serdata, key_serialization)
         }, 12
       } }
     },
-    // TODO: not supported
-    // { &SerdataKeyArrStrBounded_desc, init_SerdataKeyArrStrBounded,
-    //   { {
-    //     MAKE_ENCHDR(CDR),
-    //     (raw){
-    //       SER32(3),'t','s','\0',
-    //       SER32(3),'t','s','\0'
-    //     }, 14,
-    //     (raw){
-    //       SER32(3),'t','s','\0',
-    //       SER32(3),'t','s','\0'
-    //     }, 14,
-    //     (raw){
-    //       SER32BE(3),'t','s','\0',
-    //       SER32BE(3),'t','s','\0'
-    //     }, 14
-    //   }, {
-    //     MAKE_ENCHDR(CDR2),
-    //     (raw){
-    //       SER32(3),'t','s','\0',
-    //       SER32(3),'t','s','\0'
-    //     }, 14,
-    //     (raw){
-    //       SER32(3),'t','s','\0',
-    //       SER32(3),'t','s','\0'
-    //     }, 14,
-    //     (raw){
-    //       SER32BE(3),'t','s','\0',
-    //       SER32BE(3),'t','s','\0'
-    //     }, 14
-    //   } }
-    // }
+    { &SerdataKeyArrStrBounded_desc, init_SerdataKeyArrStrBounded,
+      { {
+        MAKE_ENCHDR(CDR),
+        (raw){
+          SER32(3),'t','s','\0',
+          0, /* padding */
+          SER32(3),'t','s','\0',
+          0 /* padding */
+        }, 15,
+        (raw){
+          SER32(3),'t','s','\0',
+          0, /* padding */
+          SER32(3),'t','s','\0',
+          0 /* padding */
+        }, 15,
+        (raw){
+          SER32BE(3),'t','s','\0',
+          0, /* padding */
+          SER32BE(3),'t','s','\0',
+          0 /* padding */
+        }, 15
+      }, {
+        MAKE_ENCHDR(CDR2),
+        (raw){
+          SER_DHEADER(15),
+          SER32(3),'t','s','\0',
+          0, /* padding */
+          SER32(3),'t','s','\0',
+          0 /* padding */
+        }, 19,
+        (raw){
+          SER_DHEADER(15),
+          SER32(3),'t','s','\0',
+          0, /* padding */
+          SER32(3),'t','s','\0',
+          0 /* padding */
+        }, 19,
+        (raw){
+          SER_DHEADERBE(15),
+          SER32BE(3),'t','s','\0',
+          0, /* padding */
+          SER32BE(3),'t','s','\0',
+          0 /* padding */
+        }, 19
+      } }
+    },
     { &SerdataKeyNestedFinalImplicit_desc, init_SerdataKeyNestedFinalImplicit,
       { {
         MAKE_ENCHDR(CDR),
@@ -982,7 +1050,98 @@ CU_Test(ddsc_serdata, key_serialization)
           0,0 // padding
         }, 6
       } }
-    }
+    },
+    { &SerdataKeySequence_desc, init_SerdataKeySequence,
+      { {
+        MAKE_ENCHDR(CDR),
+        (raw){
+          SER32(2), SER32(5), SER32(6)
+        }, 12,
+        (raw){
+          SER32(2), SER32(5), SER32(6)
+        }, 12,
+        (raw){
+          SER32BE(2), SER32BE(5), SER32BE(6)
+        }, 12
+      }, {
+        MAKE_ENCHDR(CDR2),
+        (raw){
+          SER32(2), SER32(5), SER32(6)
+        }, 12,
+        (raw){
+          SER32(2), SER32(5), SER32(6)
+        }, 12,
+        (raw){
+          SER32BE(2), SER32BE(5), SER32BE(6)
+        }, 12
+      } }
+    },
+    { &SerdataKeySequenceStruct_desc, init_SerdataKeySequenceStruct,
+      { {
+        MAKE_ENCHDR(CDR),
+        (raw){
+          SER32(2), SER32(5), SER32(6), SER32(7), SER32(8)
+        }, 20,
+        (raw){
+          SER32(2), SER32(5), SER32(7),
+        }, 12,
+        (raw){
+          SER32BE(2), SER32BE(5), SER32BE(7),
+        }, 12
+      }, {
+        MAKE_ENCHDR(CDR2),
+        (raw){
+          SER_DHEADER(20), SER32(2), SER32(5), SER32(6), SER32(7), SER32(8)
+        }, 24,
+        (raw){
+          SER_DHEADER(12), SER32(2), SER32(5), SER32(7),
+        }, 16,
+        (raw){
+          SER_DHEADERBE(12), SER32BE(2), SER32BE(5), SER32BE(7),
+        }, 16
+      } }
+    },
+    { &SerdataKeySequenceStructAppendable_desc, init_SerdataKeySequenceStructAppendable,
+      { {
+        0 // not supported
+      }, {
+        MAKE_ENCHDR(CDR2),
+        (raw){
+          SER_DHEADER(28), SER32(2), SER_DHEADER(8), SER32(5), SER32(6), SER_DHEADER(8), SER32(7), SER32(8)
+        }, 32,
+        (raw){
+          SER_DHEADER(20), SER32(2), SER_DHEADER(4), SER32(5), SER_DHEADER(4), SER32(7),
+        }, 24,
+        (raw){
+          SER_DHEADERBE(20), SER32BE(2), SER_DHEADERBE(4), SER32BE(5), SER_DHEADERBE(4), SER32BE(7),
+        }, 24
+      } }
+    },
+    { &SerdataKeySequenceNested_desc, init_SerdataKeySequenceNested,
+      { {
+        MAKE_ENCHDR(CDR),
+        (raw){
+          SER32(2), SER32(2), SER32(0), SER32(1), SER32(2), SER32(2), SER32(3)
+        }, 28,
+        (raw){
+          SER32(2), SER32(2), SER32(0), SER32(1), SER32(2), SER32(2), SER32(3)
+        }, 28,
+        (raw){
+          SER32BE(2), SER32BE(2), SER32BE(0), SER32BE(1), SER32BE(2), SER32BE(2), SER32BE(3)
+        }, 28
+      }, {
+        MAKE_ENCHDR(CDR2),
+        (raw){
+          SER_DHEADER(36), SER32(2), SER_DHEADER(12), SER32(2), SER32(0), SER32(1), SER_DHEADER(12), SER32(2), SER32(2), SER32(3)
+        }, 40,
+        (raw){
+          SER_DHEADER(36), SER32(2), SER_DHEADER(12), SER32(2), SER32(0), SER32(1), SER_DHEADER(12), SER32(2), SER32(2), SER32(3)
+        }, 40,
+        (raw){
+          SER_DHEADERBE(36), SER32BE(2), SER_DHEADERBE(12), SER32BE(2), SER32BE(0), SER32BE(1), SER_DHEADERBE(12), SER32BE(2), SER32BE(2), SER32BE(3)
+        }, 40
+      } }
+    },
   };
 
   static dds_data_representation_id_t data_repr[2] = { DDS_DATA_REPRESENTATION_XCDR1, DDS_DATA_REPRESENTATION_XCDR2 };

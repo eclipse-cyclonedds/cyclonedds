@@ -58,4 +58,9 @@ module CdrStreamKeySize {
   @nested @appendable struct nested41 { @key octet a; }; @topic @final struct t41 { @key nested41 a[1]; };
   @topic @mutable struct t42 { @key float a[1]; };
   @nested @final struct nested43 { octet a; uint16 b; }; @topic @final struct t43 { @key nested43 a[2]; };
+
+  // large bound/sz
+  @topic @final struct t44 { @key octet a[9999999]; };
+  @topic @final struct t45 { @key string<9999> a[9999]; };
+  @topic @final struct t46 { @key wstring<9999> a[9999]; };
 };
