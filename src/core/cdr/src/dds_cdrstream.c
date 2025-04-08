@@ -1245,15 +1245,13 @@ static void dds_stream_skip_wstring (dds_istream_t *is)
 }
 
 #ifndef NDEBUG
-static bool insn_key_ok_p (uint32_t insn)
+static bool key_optimized_allowed (uint32_t insn)
 {
   return (DDS_OP (insn) == DDS_OP_ADR && (insn & DDS_OP_FLAG_KEY) &&
-          (!type_has_subtype_or_members (DDS_OP_TYPE (insn)) // don't allow seq, uni, arr (unless exception below), struct (unless exception below)
-            || (DDS_OP_TYPE (insn) == DDS_OP_VAL_ARR && (is_primitive_or_enum_type (DDS_OP_SUBTYPE (insn)) || DDS_OP_SUBTYPE (insn) == DDS_OP_VAL_BMK)) // allow prim-array, enum-array and bitmask-array as key
-            || DDS_OP_TYPE (insn) == DDS_OP_VAL_EXT // allow fields in nested structs as key
-            || ((DDS_OP_TYPE (insn) == DDS_OP_VAL_SEQ || DDS_OP_TYPE (insn) == DDS_OP_VAL_BSQ)
-                  && (is_primitive_or_enum_type (DDS_OP_SUBTYPE (insn)) || DDS_OP_SUBTYPE (insn) == DDS_OP_VAL_BMK || DDS_OP_SUBTYPE (insn) == DDS_OP_VAL_EXT)) // allow sequence of structs, primitives, enums and bitmasks as key
-          ));
+  (!type_has_subtype_or_members (DDS_OP_TYPE (insn)) // don't allow seq, uni, arr (unless exception below), struct (unless exception below)
+    || (DDS_OP_TYPE (insn) == DDS_OP_VAL_ARR && (is_primitive_or_enum_type (DDS_OP_SUBTYPE (insn)) || DDS_OP_SUBTYPE (insn) == DDS_OP_VAL_BMK)) // allow prim-array, enum-array and bitmask-array as key
+    || DDS_OP_TYPE (insn) == DDS_OP_VAL_EXT // allow fields in nested structs as key
+  ));
 }
 #endif
 
@@ -2229,7 +2227,7 @@ static void dds_stream_getsize_key_impl (struct getsize_state *st, const uint32_
 {
   uint32_t insn = *ops;
   assert (DDS_OP (insn) == DDS_OP_ADR);
-  assert (insn_key_ok_p (insn));
+  assert (key_optimized_allowed (insn));
   void *addr = (char *) src + ops[1];
 
   if (op_type_external (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR || DDS_OP_TYPE (insn) == DDS_OP_VAL_WSTR)
@@ -4157,7 +4155,7 @@ static bool stream_normalize_key_impl (void * restrict data, uint32_t size, uint
 static bool stream_normalize_key_impl (void * restrict data, uint32_t size, uint32_t *offs, bool bswap, uint32_t xcdr_version, const uint32_t *ops, uint16_t key_offset_count, const uint32_t * key_offset_insn)
 {
   uint32_t insn = ops[0];
-  assert (insn_key_ok_p (insn));
+  assert (key_optimized_allowed (insn));
   switch (DDS_OP_TYPE (insn))
   {
     case DDS_OP_VAL_BLN: if (!normalize_bool (data, offs, size)) return false; break;
@@ -4887,7 +4885,7 @@ static void dds_stream_read_key_impl (dds_istream_t *is, char *sample, const str
 {
   void *dst = sample + ops[1];
   uint32_t insn = ops[0];
-  assert (insn_key_ok_p (insn));
+  assert (key_optimized_allowed (insn));
 
   if (op_type_external (insn))
     dds_stream_alloc_external (ops, insn, &dst, allocator, &sample_state);
