@@ -5767,22 +5767,30 @@ static const uint32_t *dds_stream_key_size_arr_bseq (const uint32_t *ops, uint32
     }
     case DDS_OP_VAL_BST: {
       const uint32_t sz = ops[3 + (is_bseq ? 0 : 1)];
-      // FIXME: optimize
-      for (uint32_t i = 0; i < bound; i++)
+      if (bound > DDS_FIXED_KEY_MAX_SIZE)
+        set_key_size_unbounded (k);
+      else
       {
-        add_to_key_size (k, 4, 1, 4);
-        add_to_key_size (k, 1, sz, 1);
+        for (uint32_t i = 0; i < bound; i++)
+        {
+          add_to_key_size (k, 4, 1, 4);
+          add_to_key_size (k, 1, sz, 1);
+        }
       }
       return ops + 4 + (is_bseq ? 0 : 1);
     }
     case DDS_OP_VAL_BWSTR: {
       const uint32_t sz = ops[3 + (is_bseq ? 0 : 1)];
       assert (sz > 0); // terminating L'\0' not on wire
-      // FIXME: optimize
-      for (uint32_t i = 0; i < bound; i++)
+      if (bound > DDS_FIXED_KEY_MAX_SIZE)
+        set_key_size_unbounded (k);
+      else
       {
-        add_to_key_size (k, 4, 1, 4);
-        add_to_key_size (k, 2, sz - 1, 2);
+        for (uint32_t i = 0; i < bound; i++)
+        {
+          add_to_key_size (k, 4, 1, 4);
+          add_to_key_size (k, 2, sz - 1, 2);
+        }
       }
       return ops + 4 + (is_bseq ? 0 : 1);
     }
@@ -5790,9 +5798,13 @@ static const uint32_t *dds_stream_key_size_arr_bseq (const uint32_t *ops, uint32
       const uint32_t insn_op = (is_bseq ? 4 : 3);
       const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[insn_op]);
       const uint32_t jmp = DDS_OP_ADR_JMP (ops[insn_op]);
-      // FIXME: optimize
-      for (uint32_t i = 0; i < bound; i++)
-        (void) dds_stream_key_size (jsr_ops, k);
+      if (bound > DDS_FIXED_KEY_MAX_SIZE)
+        set_key_size_unbounded (k);
+      else
+      {
+        for (uint32_t i = 0; i < bound; i++)
+          (void) dds_stream_key_size (jsr_ops, k);
+      }
       return ops + (jmp ? jmp : 5);
     }
     case DDS_OP_VAL_EXT: {
