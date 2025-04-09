@@ -2348,7 +2348,7 @@ CU_Test (ddsc_cdrstream, check_write_reject)
       // Repeat with key serialization: type and data are so simple that the result should
       // be exactly the same as for the full sample. The point is to check that the key
       // serialization handling also handles these edge cases correctly.
-      size = dds_stream_getsize_key (DDS_CDR_KEY_SERIALIZATION_SAMPLE, tests[i].sample, &desc, xcdr_version);
+      size = dds_stream_getsize_key (tests[i].sample, &desc, xcdr_version);
       os.m_index = 0;
       ret = dds_stream_write_key (&os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, tests[i].sample, &desc);
       CU_ASSERT_FATAL (ret == (tests[i].cdr_if_ok != NULL));

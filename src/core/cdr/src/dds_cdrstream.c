@@ -2290,7 +2290,7 @@ static void dds_stream_getsize_key_impl (struct getsize_state *st, const uint32_
   }
 }
 
-size_t dds_stream_getsize_key (enum dds_cdr_key_serialization_kind ser_kind, const char *sample, const struct dds_cdrstream_desc *desc, uint32_t xcdr_version)
+size_t dds_stream_getsize_key (const char *sample, const struct dds_cdrstream_desc *desc, uint32_t xcdr_version)
 {
   struct getsize_state st = {
     .pos = 0,
@@ -2298,7 +2298,7 @@ size_t dds_stream_getsize_key (enum dds_cdr_key_serialization_kind ser_kind, con
     .cdr_kind = CDR_KIND_KEY,
     .xcdr_version = xcdr_version
   };
-  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM) && ser_kind == DDS_CDR_KEY_SERIALIZATION_SAMPLE)
+  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM))
   {
     /* For types with key fields in aggregated types with appendable or mutable
        extensibility, determine the key CDR size using the regular function */
@@ -2307,13 +2307,10 @@ size_t dds_stream_getsize_key (enum dds_cdr_key_serialization_kind ser_kind, con
   else
   {
     /* Optimized implementation to write key in case all key members are in an aggregated
-       type with final extensibility: iterate over keys in key descriptor. Depending on the output
-       kind (for a key-only sample or keyhash), use the specific key-list from the descriptor. */
-    bool use_memberid_order = (ser_kind == DDS_CDR_KEY_SERIALIZATION_KEYHASH && st.xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
-    struct dds_cdrstream_desc_key *keylist = use_memberid_order ? desc->keys.keys : desc->keys.keys_definition_order;
+       type with final extensibility: iterate over keys in key descriptor. */
     for (uint32_t i = 0; i < desc->keys.nkeys; i++)
     {
-      const uint32_t *insnp = desc->ops.ops + keylist[i].ops_offs;
+      const uint32_t *insnp = desc->ops.ops + desc->keys.keys_definition_order[i].ops_offs;
       switch (DDS_OP (*insnp))
       {
         case DDS_OP_KOF: {

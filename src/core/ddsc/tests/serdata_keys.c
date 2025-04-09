@@ -287,8 +287,8 @@ static void *init_SerdataKeySequenceNested (void)
     sample->s._buffer[i]._length = sample->s._buffer[i]._maximum = 2;
     sample->s._buffer[i]._release = true;
     sample->s._buffer[i]._buffer = ddsrt_malloc (2 * sizeof (*sample->s._buffer[i]._buffer));
-    sample->s._buffer[i]._buffer[0] = 2 * i;
-    sample->s._buffer[i]._buffer[1] = 2 * i + 1;
+    sample->s._buffer[i]._buffer[0] = (enum en_seq) (2 * i);
+    sample->s._buffer[i]._buffer[1] = (enum en_seq) (2 * i + 1);
   }
 
   return sample;
