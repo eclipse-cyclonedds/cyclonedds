@@ -252,7 +252,7 @@ DDS_EXPORT size_t dds_stream_getsize_sample (const char *data, const struct dds_
   ddsrt_nonnull_all;
 
 /** @component cdr_serializer */
-DDS_EXPORT size_t dds_stream_getsize_key (enum dds_cdr_key_serialization_kind ser_kind, const char *sample, const struct dds_cdrstream_desc *desc, uint32_t xcdr_version)
+DDS_EXPORT size_t dds_stream_getsize_key (const char *sample, const struct dds_cdrstream_desc *desc, uint32_t xcdr_version)
   ddsrt_nonnull_all;
 
 /** @component cdr_serializer */
