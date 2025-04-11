@@ -21,6 +21,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <wchar.h>
 
 #include "dds/dds.h"
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
@@ -57,6 +58,7 @@ static bool print_sample1_simple (const unsigned char *sample, const uint8_t dis
   }
     case CASEI(BOOLEAN, uint8_t, printf ("%s", *p ? "true" : "false"));
     case CASEI(CHAR8, int8_t, printf ("\"%c\"", (char) *p));
+    case CASEI(CHAR16, wchar_t, printf ("\"%lc\"", (wchar_t) *p));
     case CASEI(INT16, int16_t, printf ("%"PRId16, *p));
     case CASEI(INT32, int32_t, printf ("%"PRId32, *p));
     case CASEI(INT64, int64_t, printf ("%"PRId64, *p));
@@ -68,6 +70,7 @@ static bool print_sample1_simple (const unsigned char *sample, const uint8_t dis
     case CASE(FLOAT32, float, printf ("%f", *p));
     case CASE(FLOAT64, double, printf ("%f", *p));
     case CASE(STRING8, char *, printf ("\"%s\"", *p));
+    case CASE(STRING16, wchar_t *, printf ("\"%ls\"", *p));
 #undef CASE
   }
   return false;
@@ -92,6 +95,25 @@ static const char *get_string_pointer (const unsigned char *sample, const DDS_XT
   }
 }
 
+static const wchar_t *get_wstring_pointer (const unsigned char *sample, const DDS_XTypes_TypeIdentifier *typeid, struct context *c)
+{
+  uint32_t bound;
+  if (typeid->_d == DDS_XTypes_TI_STRING16_SMALL)
+    bound = typeid->_u.string_sdefn.bound;
+  else
+    bound = typeid->_u.string_ldefn.bound;
+  // must always call align for its side effects
+  if (bound != 0)
+  {
+    return align (sample, c, _Alignof (wchar_t), (bound + 1) * sizeof (wchar_t));
+  }
+  else
+  {
+    // if not "valid_data" and not a key field, this'll be a null pointer
+    return *((const wchar_t **) align (sample, c, _Alignof (wchar_t *), sizeof (wchar_t *)));
+  }
+}
+
 static void print_sample1_ti (const unsigned char *sample, const DDS_XTypes_TypeIdentifier *typeid, uint32_t rank, struct context *c, const char *sep, const char *label, bool is_base_type)
 {
   if (print_sample1_simple (sample, typeid->_d, c, sep, label, NULL))
@@ -106,6 +128,17 @@ static void print_sample1_ti (const unsigned char *sample, const DDS_XTypes_Type
         printf ("%s", sep);
         if (label) printf ("\"%s\":", label);
         printf ("\"%s\"", p);
+      }
+      break;
+    }
+    case DDS_XTypes_TI_STRING16_SMALL:
+    case DDS_XTypes_TI_STRING16_LARGE: {
+      const wchar_t *p = get_wstring_pointer (sample, typeid, c);
+      if (c->key || c->valid_data)
+      {
+        printf ("%s", sep);
+        if (label) printf ("\"%s\":", label);
+        printf ("\"%ls\"", p);
       }
       break;
     }

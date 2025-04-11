@@ -53,6 +53,7 @@ set(headers
   "${source_dir}/include/dds/ddsrt/strtol.h"
   "${source_dir}/include/dds/ddsrt/types.h"
   "${source_dir}/include/dds/ddsrt/countargs.h"
+  "${source_dir}/include/dds/ddsrt/foreach.h"
   "${source_dir}/include/dds/ddsrt/static_assert.h"
   "${source_dir}/include/dds/ddsrt/circlist.h"
   "${source_dir}/include/dds/ddsrt/atomics.h"
@@ -314,23 +315,28 @@ else()
 
     if(CMAKE_SYSTEM MATCHES "Linux")
       set(DDSRT_HAVE_NETSTAT TRUE)
+      set(DDSRT_HAVE_RUSAGE TRUE)
       list(APPEND sources
         "${source_dir}/src/netstat/linux/netstat.c"
+        "${source_dir}/src/rusage/posix/rusage.c"
         "${source_dir}/src/time/posix/time.c")
     elseif(CMAKE_SYSTEM MATCHES "Darwin")
       set(DDSRT_HAVE_NETSTAT TRUE)
+      set(DDSRT_HAVE_RUSAGE TRUE)
       list(APPEND sources
         "${source_dir}/src/netstat/darwin/netstat.c"
+        "${source_dir}/src/rusage/posix/rusage.c"
         "${source_dir}/src/time/darwin/time.c")
+    elseif(CMAKE_SYSTEM MATCHES "QNX")
+      set(DDSRT_HAVE_NETSTAT TRUE)
+      set(DDSRT_HAVE_RUSAGE TRUE)
+      list(APPEND sources
+        "${source_dir}/src/netstat/qnx/netstat.c"
+        "${source_dir}/src/rusage/posix/rusage.c"
+        "${source_dir}/src/time/posix/time.c")
     else()
       list(APPEND sources
         "${source_dir}/src/time/posix/time.c")
-    endif()
-
-    if(CMAKE_SYSTEM MATCHES "Darwin|Linux")
-      set(DDSRT_HAVE_RUSAGE TRUE)
-      list(APPEND sources
-        "${source_dir}/src/rusage/posix/rusage.c")
     endif()
 
     check_library_exists(c clock_gettime "" HAVE_CLOCK_GETTIME)

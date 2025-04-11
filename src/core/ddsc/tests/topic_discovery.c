@@ -200,7 +200,7 @@ static void check_topic_samples (dds_entity_t topic_rd, char *topic_name, uint32
     dds_builtintopic_topic_t *sample = raw[0];
     CU_ASSERT_PTR_NOT_NULL_FATAL (sample);
     assert (sample); // for Clang static analyzer
-    bool not_alive = sample_info->instance_state != DDS_IST_ALIVE;
+    bool not_alive = sample_info->instance_state != DDS_ALIVE_INSTANCE_STATE;
     tprintf ("read topic: %s, key={", sample->topic_name);
     for (uint32_t i = 0; i < sizeof (first_key); i++)
       printf ("%02x", sample->key.d[i]);

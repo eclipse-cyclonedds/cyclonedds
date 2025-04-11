@@ -34,7 +34,7 @@
 #define PATTERN(str) .pattern = str
 #define END_MARKER { NULL, NULL, NULL }
 
-#include "ddsi__cfgunits.h"
+#include "cfgunits.h"
 /* undefine unit macros */
 #undef UNIT
 #undef DESCRIPTION

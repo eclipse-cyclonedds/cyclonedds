@@ -184,7 +184,7 @@ ddsrt_thread_join(
  */
 DDS_EXPORT size_t
 ddsrt_thread_getname(
-  char *__restrict name,
+  char *name,
   size_t size);
 
 /**
@@ -198,7 +198,7 @@ ddsrt_thread_getname(
 #if DDSRT_HAVE_THREAD_SETNAME
 DDS_EXPORT void
 ddsrt_thread_setname(
-  const char *__restrict name);
+  const char *name);
 #endif
 
 #if DDSRT_HAVE_THREAD_LIST
@@ -220,7 +220,7 @@ ddsrt_thread_setname(
  * @retval DDS_RETCODE_UNSUPPORTED
  *             Not supported on the platform
  */
-DDS_EXPORT dds_return_t ddsrt_thread_list (ddsrt_thread_list_id_t * __restrict tids, size_t size);
+DDS_EXPORT dds_return_t ddsrt_thread_list (ddsrt_thread_list_id_t *tids, size_t size);
 
 /**
  * @brief Get the name of the specified thread (in the calling process)
@@ -245,7 +245,7 @@ DDS_EXPORT dds_return_t ddsrt_thread_list (ddsrt_thread_list_id_t * __restrict t
  * @retval DDS_RETCODE_UNSUPPORTED
  *             Not supported on the platform
  */
-DDS_EXPORT dds_return_t ddsrt_thread_getname_anythread (ddsrt_thread_list_id_t tid, char *__restrict name, size_t size);
+DDS_EXPORT dds_return_t ddsrt_thread_getname_anythread (ddsrt_thread_list_id_t tid, char *name, size_t size);
 #endif
 
 /**

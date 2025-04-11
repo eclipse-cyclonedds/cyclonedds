@@ -653,24 +653,30 @@ static void resend_spdp (struct ddsi_xpack *xp, const struct ddsi_participant *p
 
   ddsrt_mutex_lock ((ddsrt_mutex_t *) &pp->e.lock);
   ddsi_seqno_t seqno = pp->spdp_seqno;
-  struct ddsi_serdata *serdata = ddsi_serdata_ref (pp->spdp_serdata);
+  struct ddsi_serdata *serdata = pp->spdp_serdata;
+  assert (serdata); // GCC 13.3.0 gets this wrong, leading to a false positive ...
+  if (serdata)
+    (void) ddsi_serdata_ref (pp->spdp_serdata);
   ddsrt_mutex_unlock ((ddsrt_mutex_t *) &pp->e.lock);
 
-  static const ddsi_guid_prefix_t nullguidprefix;
-  struct ddsi_xmsg *msg;
-  // FIXME: need a spdp_wr for this, but we don't need one for any other reason (can't fragment them anyway, so its trivial)
-  if (ddsi_create_fragment_message (spdp_wr, seqno, serdata, 0, UINT16_MAX, prd, &msg, 1, UINT32_MAX) >= 0)
+  if (serdata)
   {
-    // FIXME: ddsi_create_fragment_message set the wrong destination so we have to patch it. Maybe refactor that?
-    if (xloc)
-      ddsi_xmsg_setdst1_generic (pp->e.gv, msg, &nullguidprefix, xloc);
-
-    if (xp)
-      ddsi_xpack_addmsg (xp, msg, 0);
-    else
-      ddsi_qxev_msg (pp->e.gv->xevents, msg);
+    static const ddsi_guid_prefix_t nullguidprefix;
+    struct ddsi_xmsg *msg;
+    // FIXME: need a spdp_wr for this, but we don't need one for any other reason (can't fragment them anyway, so its trivial)
+    if (ddsi_create_fragment_message (spdp_wr, seqno, serdata, 0, UINT16_MAX, prd, &msg, 1, UINT32_MAX) >= 0)
+    {
+      // FIXME: ddsi_create_fragment_message set the wrong destination so we have to patch it. Maybe refactor that?
+      if (xloc)
+        ddsi_xmsg_setdst1_generic (pp->e.gv, msg, &nullguidprefix, xloc);
+      
+      if (xp)
+        ddsi_xpack_addmsg (xp, msg, 0);
+      else
+        ddsi_qxev_msg (pp->e.gv->xevents, msg);
+    }
+    ddsi_serdata_unref (serdata);
   }
-  ddsi_serdata_unref (serdata);
 }
 
 ddsrt_nonnull_all

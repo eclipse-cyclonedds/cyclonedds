@@ -127,67 +127,70 @@ DDS_Security_ValidationResult_t get_subject_name_DER_encoded(const X509 *cert, u
 
 static DDS_Security_ValidationResult_t check_key(EVP_PKEY *key, const char *key_type, bool isPrivate, DDS_Security_SecurityException *ex)
 {
-    DDSRT_UNUSED_ARG(key_type);
+  DDSRT_UNUSED_ARG(key_type);
 
-    if (EVP_PKEY_id(key) == EVP_PKEY_RSA)
+  if (EVP_PKEY_id(key) == EVP_PKEY_RSA)
+  {
+    if (isPrivate)
     {
-        if (isPrivate)
-        {
-            RSA *rsaKey = EVP_PKEY_get1_RSA(key);
-            const bool fail = (rsaKey && RSA_check_key(rsaKey) != 1);
-            RSA_free(rsaKey);
-            if (fail)
-            {
-                DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "RSA key not correct : ");
-                return DDS_SECURITY_VALIDATION_FAILED;
-            }
-        }
+      const RSA *rsaKey = EVP_PKEY_get0_RSA(key);
+      /* When the key is stored on an HSM (pkcs11) then RSA_check_key always returns an error.
+       * Therefor RSA_get0_p is used to check if the p value can be retrieved from the key.
+       * When RSA_get0_p returns 0 then it is assumed that key is not accessible because it is stored on a HSM.
+       */
+      const bool fail = (rsaKey && (RSA_check_key(rsaKey) != 1) && RSA_get0_p(rsaKey));
+      if (fail)
+      {
+        DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "RSA key not correct : ");
+        return DDS_SECURITY_VALIDATION_FAILED;
+      }
     }
-    else
+  }
+  else
+  {
+    assert(EVP_PKEY_id(key) == EVP_PKEY_EC);
+    EC_KEY *ecKey = EVP_PKEY_get1_EC_KEY(key);
+    const bool fail = (ecKey && EC_KEY_check_key(ecKey) != 1);
+    EC_KEY_free(ecKey);
+    if (fail)
     {
-        assert(EVP_PKEY_id(key) == EVP_PKEY_EC);
-        EC_KEY *ecKey = EVP_PKEY_get1_EC_KEY(key);
-        const bool fail = (ecKey && EC_KEY_check_key(ecKey) != 1);
-        EC_KEY_free(ecKey);
-        if (fail)
-        {
-            DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "EC key not correct : ");
-            return DDS_SECURITY_VALIDATION_FAILED;
-        }
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "EC key not correct : ");
+      return DDS_SECURITY_VALIDATION_FAILED;
     }
-    return DDS_SECURITY_VALIDATION_OK;
+  }
+  return DDS_SECURITY_VALIDATION_OK;
 }
 
 #else
 
 static DDS_Security_ValidationResult_t check_key(EVP_PKEY *key, const char *key_type, int isPrivate, DDS_Security_SecurityException *ex)
 {
-    DDS_Security_ValidationResult_t result = DDS_SECURITY_VALIDATION_OK;
-    EVP_PKEY_CTX *ctx = NULL;
+  DDS_Security_ValidationResult_t result = DDS_SECURITY_VALIDATION_OK;
+  EVP_PKEY_CTX *ctx = NULL;
 
-    if ((ctx = EVP_PKEY_CTX_new_from_pkey(NULL, key, NULL)) == NULL)
+  if ((ctx = EVP_PKEY_CTX_new_from_pkey(NULL, key, NULL)) == NULL)
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "EVP_PKEY_CTX_new_from_pkey(%s) failed : ", key_type);
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+  if (isPrivate)
+  {
+    if (EVP_PKEY_private_check(ctx) != 1)
     {
-        DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "EVP_PKEY_CTX_new_from_pkey(%s) failed : ", key_type);
-        return DDS_SECURITY_VALIDATION_FAILED;
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "%s key not correct : ", key_type);
+      result = DDS_SECURITY_VALIDATION_FAILED  ;
     }
-    if (isPrivate)
+  }
+  else
+  {
+    if (EVP_PKEY_public_check(ctx) != 1)
     {
-        if (EVP_PKEY_private_check(ctx) != 1)
-        {
-            DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "%s key not correct : ", key_type);
-            result = DDS_SECURITY_VALIDATION_FAILED  ;
-        }
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "%s key not correct : ", key_type);
+      result = DDS_SECURITY_VALIDATION_FAILED  ;
     }
-    else
-    {
-        if (EVP_PKEY_public_check(ctx) != 1)
-        {
-            DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "%s key not correct : ", key_type);
-            result = DDS_SECURITY_VALIDATION_FAILED  ;
-        }
-    }
-    EVP_PKEY_CTX_free(ctx);
-    return result;
+  }
+  EVP_PKEY_CTX_free(ctx);
+  return result;
 }
 
 #endif
@@ -427,6 +430,277 @@ static DDS_Security_ValidationResult_t load_private_key_from_file(const char *fi
   }
 }
 
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+static DDS_Security_ValidationResult_t load_X509_certificate_from_pkcs11(const char *uri, X509 **x509Cert, load_callback_func pkcs11_loader, void *cb_arg, DDS_Security_SecurityException *ex)
+{
+  ENGINE *engine;
+  struct {
+    const char *cert_id;
+    X509 *cert;
+  } parms;
+
+  if (!pkcs11_loader(cb_arg))
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to load pkcs11 provider");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
+  if (!(engine = ENGINE_by_id("pkcs11"))) {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to find pkcs11 engine");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
+  parms.cert_id = uri;
+  parms.cert = NULL;
+  if (!ENGINE_ctrl_cmd(engine, "LOAD_CERT_CTRL", 0, &parms, NULL, 1))
+  {
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to get certificate from pkcs11 engine: ");
+    goto err_or_ok;
+  }
+  *x509Cert = parms.cert;
+
+err_or_ok:
+  ENGINE_free(engine);
+  return (parms.cert ? DDS_SECURITY_VALIDATION_OK : DDS_SECURITY_VALIDATION_FAILED);
+}
+
+static DDS_Security_ValidationResult_t load_private_key_from_pkcs11(const char *uri, const char *password, EVP_PKEY **privateKey, load_callback_func pkcs11_loader, void *cb_arg, DDS_Security_SecurityException *ex)
+{
+  ENGINE *engine;
+  char *uri_pw = NULL;
+
+  if (!pkcs11_loader(cb_arg))
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to load pkcs11 provider");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
+  if (!(engine = ENGINE_by_id("pkcs11")))
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to find pkcs11 engine");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
+  /* Currently it is considered that the pin value has to be specified in the provided uri.
+   * The option to specify the pin value separate from the uri is currently not available.
+   * In that case the following code should be updated by properly escaping the password.
+   */
+#if 0
+  if (password)
+  {
+    const char *pin_str = "?pin_value=";
+    size_t len = strlen(uri) + strlen(password) + strlen(pin_str) + 1;
+    uri_pw = ddsrt_malloc(len);
+    snprintf(uri_pw, len, "%s%s%s", uri, pin_str, password);
+  }
+#else
+  DDSRT_UNUSED_ARG(password);
+#endif
+
+  if (!(*privateKey = ENGINE_load_private_key(engine, (uri_pw ? uri_pw : uri), NULL, NULL)))
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to find private key");
+    ddsrt_free(uri_pw);
+    ENGINE_free(engine);
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+  ddsrt_free(uri_pw);
+  ENGINE_free(engine);
+  return DDS_SECURITY_VALIDATION_OK;
+}
+
+static DDS_Security_ValidationResult_t load_X509_crl_from_pkcs11(const char *uri, X509_CRL **x509CRL, load_callback_func pkcs11_loader, void *cb_arg, DDS_Security_SecurityException *ex)
+{
+  ENGINE *engine;
+  struct {
+    const char *crl_id;
+    X509_CRL *crl;
+  } parms;
+
+  if (!pkcs11_loader(cb_arg))
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to load pkcs11 provider");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
+  if (!(engine = ENGINE_by_id("pkcs11"))) {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to find pkcs11 engine");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
+  parms.crl_id = uri;
+  parms.crl = NULL;
+  if (!ENGINE_ctrl_cmd(engine, "LOAD_CERT_CRL", 0, &parms, NULL, 1))
+  {
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to get CRL from pkcs11 engine: ");
+    goto err_or_ok;
+  }
+  *x509CRL = parms.crl;
+
+err_or_ok:
+  ENGINE_free(engine);
+  return (parms.crl ? DDS_SECURITY_VALIDATION_OK : DDS_SECURITY_VALIDATION_FAILED);
+}
+#else
+static DDS_Security_ValidationResult_t load_X509_certificate_from_pkcs11(const char *uri, X509 **x509Cert, load_callback_func pkcs11_loader, void *cb_arg, DDS_Security_SecurityException *ex)
+{
+  OSSL_STORE_CTX *store_ctx = NULL;
+  OSSL_STORE_INFO *store_info = NULL;
+  X509 *cert = NULL;
+  assert(uri);
+  assert(x509Cert);
+  assert(pkcs11_loader);
+  assert(cb_arg);
+
+  if (!pkcs11_loader(cb_arg))
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to load pkcs11 provider");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
+  if (!(store_ctx = OSSL_STORE_open(uri, NULL, NULL, NULL, NULL)))
+  {
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to open OSSL_STORE: ");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
+  while (!cert)
+  {
+    if ((store_info = OSSL_STORE_load(store_ctx)))
+    {
+        if (OSSL_STORE_INFO_get_type(store_info) == OSSL_STORE_INFO_CERT)
+          *x509Cert = cert = OSSL_STORE_INFO_get1_CERT(store_info);
+        OSSL_STORE_INFO_free(store_info);
+    }
+    else if (OSSL_STORE_error(store_ctx))
+    {
+      DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to load OSSL_STORE: ");
+      break;
+    }
+    else
+    {
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to find certificate: ");
+      break;
+    }
+  }
+  OSSL_STORE_close(store_ctx);
+
+  return (cert ? DDS_SECURITY_VALIDATION_OK : DDS_SECURITY_VALIDATION_FAILED);
+}
+
+static DDS_Security_ValidationResult_t load_private_key_from_pkcs11(const char *uri, const char *password, EVP_PKEY **privateKey, load_callback_func pkcs11_loader, void *cb_arg, DDS_Security_SecurityException *ex)
+{
+  OSSL_STORE_CTX *store_ctx = NULL;
+  OSSL_STORE_INFO *store_info = NULL;
+  EVP_PKEY *pkey = NULL;
+  char *uri_pw = NULL;
+  assert(uri);
+  assert(privateKey);
+  assert(pkcs11_loader);
+  assert(cb_arg);
+
+  if (!pkcs11_loader(cb_arg))
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to load pkcs11 provider");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
+  /* Currently it is considered that the pin value has to be specified in the provided uri.
+   * The option to specify the pin value separate from the uri is currently not available.
+   * In that case the following code should be updated by properly escaping the password.
+   */
+#if 0
+  if (password)
+  {
+    const char *pin_str = "?pin_value=";
+    size_t len = strlen(uri) + strlen(password) + strlen(pin_str) + 1;
+    uri_pw = ddsrt_malloc(len);
+    snprintf(uri_pw, len, "%s%s%s", uri, pin_str, password);
+  }
+#else
+  DDSRT_UNUSED_ARG(password);
+#endif
+  if (!(store_ctx = OSSL_STORE_open((uri_pw ? uri_pw : uri), NULL, NULL, NULL, NULL)))
+  {
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to open OSSL_STORE: ");
+    ddsrt_free(uri_pw);
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+  ddsrt_free(uri_pw);
+
+  while (!pkey)
+  {
+    if ((store_info = OSSL_STORE_load(store_ctx)))
+    {
+      if (OSSL_STORE_INFO_get_type(store_info) == OSSL_STORE_INFO_PKEY)
+        *privateKey = pkey = OSSL_STORE_INFO_get1_PKEY(store_info);
+      OSSL_STORE_INFO_free(store_info);
+    }
+    else if (OSSL_STORE_error(store_ctx))
+    {
+      DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to load OSSL_STORE: ");
+      break;
+    }
+    else
+    {
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to find private key");
+      break;
+    }
+  }
+  OSSL_STORE_close(store_ctx);
+
+  return (pkey ? DDS_SECURITY_VALIDATION_OK : DDS_SECURITY_VALIDATION_FAILED);
+}
+
+static DDS_Security_ValidationResult_t load_X509_crl_from_pkcs11(const char *uri, X509_CRL **x509CRL, load_callback_func pkcs11_loader, void *cb_arg, DDS_Security_SecurityException *ex)
+{
+  OSSL_STORE_CTX *store_ctx = NULL;
+  OSSL_STORE_INFO *store_info = NULL;
+  X509_CRL *crl = NULL;
+  assert(uri);
+  assert(crl);
+  assert(pkcs11_loader);
+  assert(cb_arg);
+
+  if (!pkcs11_loader(cb_arg))
+  {
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to load pkcs11 provider");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
+  if (!(store_ctx = OSSL_STORE_open(uri, NULL, NULL, NULL, NULL)))
+  {
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to open OSSL_STORE: ");
+    return DDS_SECURITY_VALIDATION_FAILED;
+  }
+
+  while (!crl)
+  {
+    if ((store_info = OSSL_STORE_load(store_ctx)))
+    {
+        if (OSSL_STORE_INFO_get_type(store_info) == OSSL_STORE_INFO_CRL)
+          *x509CRL = crl = OSSL_STORE_INFO_get1_CRL(store_info);
+        OSSL_STORE_INFO_free(store_info);
+    }
+    else if (OSSL_STORE_error(store_ctx))
+    {
+      DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to open OSSL_STORE: ");
+      break;
+    }
+    else
+    {
+      DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to find CRL: ");
+      break;
+    }
+  }
+  OSSL_STORE_close(store_ctx);
+
+  return (crl ? DDS_SECURITY_VALIDATION_OK : DDS_SECURITY_VALIDATION_FAILED);
+}
+#endif
+
+
+
 /*
  * Gets the URI string (as referred in DDS Security spec) and returns the URI type
  * data: data part of the URI. Typically It contains different format according to URI type.
@@ -462,7 +736,7 @@ static AuthConfItemPrefix_t get_conf_item_type(const char *str, char **data)
   return AUTH_CONF_ITEM_PREFIX_UNKNOWN;
 }
 
-DDS_Security_ValidationResult_t load_X509_certificate(const char *data, X509 **x509Cert, DDS_Security_SecurityException *ex)
+DDS_Security_ValidationResult_t load_X509_certificate(const char *data, X509 **x509Cert, load_callback_func cb, void *cb_arg, DDS_Security_SecurityException *ex)
 {
   DDS_Security_ValidationResult_t result;
   char *contents = NULL;
@@ -478,8 +752,7 @@ DDS_Security_ValidationResult_t load_X509_certificate(const char *data, X509 **x
     result = load_X509_certificate_from_data(contents, (int)strlen(contents), x509Cert, ex);
     break;
   case AUTH_CONF_ITEM_PREFIX_PKCS11:
-    result = DDS_SECURITY_VALIDATION_FAILED;
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, (int)result, "Certificate pkcs11 format currently not supported:\n%s", data);
+    result = load_X509_certificate_from_pkcs11(data, x509Cert, cb, cb_arg, ex);
     break;
   default:
     result = DDS_SECURITY_VALIDATION_FAILED;
@@ -500,7 +773,7 @@ DDS_Security_ValidationResult_t load_X509_certificate(const char *data, X509 **x
   return result;
 }
 
-DDS_Security_ValidationResult_t load_X509_private_key(const char *data, const char *password, EVP_PKEY **privateKey, DDS_Security_SecurityException *ex)
+DDS_Security_ValidationResult_t load_X509_private_key(const char *data, const char *password, EVP_PKEY **privateKey, load_callback_func cb, void *cb_arg, DDS_Security_SecurityException *ex)
 {
   DDS_Security_ValidationResult_t result;
   char *contents = NULL;
@@ -516,8 +789,7 @@ DDS_Security_ValidationResult_t load_X509_private_key(const char *data, const ch
     result = load_private_key_from_data(contents, password, privateKey, ex);
     break;
   case AUTH_CONF_ITEM_PREFIX_PKCS11:
-    result = DDS_SECURITY_VALIDATION_FAILED;
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, (int)result, "PrivateKey pkcs11 format currently not supported:\n%s", data);
+    result = load_private_key_from_pkcs11(data, password, privateKey, cb, cb_arg, ex);
     break;
   default:
     result = DDS_SECURITY_VALIDATION_FAILED;
@@ -583,7 +855,7 @@ static DDS_Security_ValidationResult_t load_CRL_from_data(const char *data, X509
   return DDS_SECURITY_VALIDATION_OK;
 }
 
-DDS_Security_ValidationResult_t load_X509_CRL(const char *data, X509_CRL **crl, DDS_Security_SecurityException *ex)
+DDS_Security_ValidationResult_t load_X509_CRL(const char *data, X509_CRL **crl, load_callback_func cb, void *cb_arg, DDS_Security_SecurityException *ex)
 {
   DDS_Security_ValidationResult_t result;
   char *contents = NULL;
@@ -597,6 +869,9 @@ DDS_Security_ValidationResult_t load_X509_CRL(const char *data, X509_CRL **crl, 
     break;
   case AUTH_CONF_ITEM_PREFIX_DATA:
     result = load_CRL_from_data(contents, crl, ex);
+    break;
+  case AUTH_CONF_ITEM_PREFIX_PKCS11:
+    result = load_X509_crl_from_pkcs11(data, crl, cb, cb_arg, ex);
     break;
   default:
     result = DDS_SECURITY_VALIDATION_FAILED;

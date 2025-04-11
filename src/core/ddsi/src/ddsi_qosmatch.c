@@ -165,6 +165,10 @@ bool ddsi_qos_match_mask_p (
   *reason = DDS_INVALID_QOS_POLICY_ID;
   if ((mask & DDSI_QP_TOPIC_NAME) && strcmp (rd_qos->topic_name, wr_qos->topic_name) != 0)
     return false;
+  // Check partition first: not only is partition not an RxO QoS, we also shouldn't flag
+  // any RxO QoS mismatch when the partitions don't match
+  if ((mask & DDSI_QP_PARTITION) && !partitions_match_p (rd_qos, wr_qos))
+    return false;
 
   if ((mask & DDSI_QP_RELIABILITY) && rd_qos->reliability.kind > wr_qos->reliability.kind) {
     *reason = DDS_RELIABILITY_QOS_POLICY_ID;
@@ -208,10 +212,6 @@ bool ddsi_qos_match_mask_p (
   }
   if ((mask & DDSI_QP_DESTINATION_ORDER) && rd_qos->destination_order.kind > wr_qos->destination_order.kind) {
     *reason = DDS_DESTINATIONORDER_QOS_POLICY_ID;
-    return false;
-  }
-  if ((mask & DDSI_QP_PARTITION) && !partitions_match_p (rd_qos, wr_qos)) {
-    *reason = DDS_PARTITION_QOS_POLICY_ID;
     return false;
   }
   if ((mask & DDSI_QP_DATA_REPRESENTATION) && !data_representation_match_p (rd_qos, wr_qos)) {

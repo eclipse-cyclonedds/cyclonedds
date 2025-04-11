@@ -236,7 +236,7 @@ static enum validation_result validate_InfoSRC (ddsi_rtps_info_src_t *msg, size_
   return VR_ACCEPT;
 }
 
-static enum validation_result validate_InfoTS (ddsi_rtps_info_ts_t *msg, size_t size, int byteswap)
+static enum validation_result validate_InfoTS (const struct ddsi_receiver_state *rst, ddsi_rtps_info_ts_t *msg, size_t size, int byteswap)
 {
   assert (sizeof (ddsi_rtps_submessage_header_t) <= size);
   if (msg->smhdr.flags & DDSI_INFOTS_INVALIDATE_FLAG)
@@ -247,10 +247,18 @@ static enum validation_result validate_InfoTS (ddsi_rtps_info_ts_t *msg, size_t 
   {
     if (byteswap)
     {
-      msg->time.seconds = ddsrt_bswap4 (msg->time.seconds);
+      msg->time.seconds = ddsrt_bswap4u (msg->time.seconds);
       msg->time.fraction = ddsrt_bswap4u (msg->time.fraction);
     }
-    return ddsi_is_valid_timestamp (msg->time) ? VR_ACCEPT : VR_MALFORMED;
+    if (rst->gv->config.protocol_version.minor >= 0x3 && rst->protocol_version.major * 256 + rst->protocol_version.minor >= 0x203)
+      return ddsi_is_valid_timestamp (msg->time) ? VR_ACCEPT : VR_MALFORMED;
+    else
+    {
+      DDSRT_STATIC_ASSERT (sizeof (ddsi_time_t) == sizeof (ddsi_time22_t));
+      ddsi_time22_t time22;
+      memcpy (&time22, &msg->time, sizeof (time22));
+      return ddsi_is_valid_timestamp22 (time22) ? VR_ACCEPT : VR_MALFORMED;
+    }
   }
 }
 
@@ -1191,8 +1199,10 @@ struct handle_Heartbeat_helper_arg {
   bool directed_heartbeat;
 };
 
-static void handle_Heartbeat_helper (struct ddsi_pwr_rd_match * const wn, struct handle_Heartbeat_helper_arg * const arg)
+static void handle_Heartbeat_helper (void *vwn, void *varg)
 {
+  struct ddsi_pwr_rd_match * const wn = vwn;
+  struct handle_Heartbeat_helper_arg * const arg = varg;
   struct ddsi_receiver_state * const rst = arg->rst;
   ddsi_rtps_heartbeat_t const * const msg = arg->msg;
   struct ddsi_proxy_writer * const pwr = arg->pwr;
@@ -1424,7 +1434,7 @@ static int handle_Heartbeat (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow
   arg.tnow = tnow;
   arg.tnow_mt = ddsrt_time_monotonic ();
   arg.directed_heartbeat = (dst.entityid.u != DDSI_ENTITYID_UNKNOWN && ddsi_vendor_is_eclipse (rst->vendor));
-  handle_forall_destinations (&dst, pwr, (ddsrt_avl_walk_t) handle_Heartbeat_helper, &arg);
+  handle_forall_destinations (&dst, pwr, handle_Heartbeat_helper, &arg);
   RSTTRACE (")");
 
   ddsrt_mutex_unlock (&pwr->e.lock);
@@ -1755,9 +1765,20 @@ static int handle_InfoTS (const struct ddsi_receiver_state *rst, const ddsi_rtps
   }
   else
   {
-    *timestamp = ddsi_wctime_from_ddsi_time (msg->time);
+    if (rst->gv->config.protocol_version.minor >= 0x3 && rst->protocol_version.major * 256 + rst->protocol_version.minor >= 0x203)
+      *timestamp = ddsi_wctime_from_ddsi_time (msg->time);
+    else
+    {
+      DDSRT_STATIC_ASSERT (sizeof (ddsi_time_t) == sizeof (ddsi_time22_t));
+      ddsi_time22_t time22;
+      memcpy (&time22, &msg->time, sizeof (time22));
+      *timestamp = ddsi_wctime_from_ddsi_time22 (time22);
+    }
+
     if (rst->gv->logconfig.c.mask & DDS_LC_TRACE)
-      RSTTRACE ("%d.%09d", (int) (timestamp->v / 1000000000), (int) (timestamp->v % 1000000000));
+    {
+      RSTTRACE ("%"PRId64".%09d", (int64_t) (timestamp->v / 1000000000), (int) (timestamp->v % 1000000000));
+    }
   }
   RSTTRACE (")");
   return 1;
@@ -1998,13 +2019,13 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
 {
   /* hopefully the compiler figures out that these are just aliases and doesn't reload them
      unnecessarily from memory */
-  const struct remote_sourceinfo * __restrict si = vsourceinfo;
-  const struct ddsi_rsample_info * __restrict sampleinfo = si->sampleinfo;
-  const struct ddsi_rdata * __restrict fragchain = si->fragchain;
+  const struct remote_sourceinfo *si = vsourceinfo;
+  const struct ddsi_rsample_info *sampleinfo = si->sampleinfo;
+  const struct ddsi_rdata *fragchain = si->fragchain;
   const uint32_t statusinfo = si->statusinfo;
   const unsigned char data_smhdr_flags = si->data_smhdr_flags;
   const ddsrt_wctime_t tstamp = si->tstamp;
-  const ddsi_plist_t * __restrict qos = si->qos;
+  const ddsi_plist_t *qos = si->qos;
   const char *failmsg = NULL;
   struct ddsi_serdata *sample = NULL;
 
@@ -2802,7 +2823,7 @@ static void malformed_packet_received_shortmsg (const struct ddsi_domaingv *gv, 
 {
   char tmp[1024];
   size_t i, pos, smsize;
-  
+
   struct submsg_name submsg_name_buffer;
   ddsi_rtps_submessage_kind_t smkind;
   const char *state0;
@@ -2827,7 +2848,7 @@ static void malformed_packet_received_shortmsg (const struct ddsi_domaingv *gv, 
   }
   assert (submsg >= msg && submsg <= msg + len);
   const size_t clamped_offset = (offset < 0) ? 0 : ((size_t) offset > len) ? len : (size_t) offset;
-  
+
   /* Show beginning of message and of submessage (as hex dumps) */
   pos = (size_t) snprintf (tmp, sizeof (tmp), "malformed packet received from vendor %u.%u length %" PRIuSIZE " state %s%s <", vendorid.id[0], vendorid.id[1], len, state0, state1);
   for (i = 0; i < 32 && i < len && i < clamped_offset && pos < sizeof (tmp); i++)
@@ -2839,7 +2860,7 @@ static void malformed_packet_received_shortmsg (const struct ddsi_domaingv *gv, 
   if (pos < sizeof (tmp))
     pos += (size_t) snprintf (tmp + pos, sizeof (tmp) - pos, "> (note: maybe partially bswap'd)");
   assert (pos < (int) sizeof (tmp));
-  
+
   /* Partially decode header if we have enough bytes available */
   smsize = len - (size_t) (submsg - msg);
   if (smsize >= DDSI_RTPS_SUBMESSAGE_HEADER_SIZE && pos < sizeof (tmp)) {
@@ -3097,7 +3118,7 @@ static int handle_submsg_sequence
         break;
       }
       case DDSI_RTPS_SMID_INFO_TS: {
-        if ((vr = validate_InfoTS (&sm->infots, submsg_size, byteswap)) == VR_ACCEPT) {
+        if ((vr = validate_InfoTS (rst, &sm->infots, submsg_size, byteswap)) == VR_ACCEPT) {
           handle_InfoTS (rst, &sm->infots, &timestamp);
           ts_for_latmeas = 1;
         }
@@ -3240,6 +3261,7 @@ static int handle_submsg_sequence
 static void handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const struct ddsi_network_packet_info *pktinfo)
 {
   ddsi_rtps_header_t *hdr = (ddsi_rtps_header_t *) msg;
+  assert (gv->config.protocol_version.major == DDSI_RTPS_MAJOR);
   assert (ddsi_thread_is_asleep ());
   if (sz < DDSI_RTPS_MESSAGE_HEADER_SIZE || *(uint32_t *)msg != DDSI_PROTOCOLID_AS_UINT32)
   {
@@ -3499,8 +3521,9 @@ static void rebuild_local_participant_set (struct ddsi_thread_state * const thrs
   GVTRACE ("  nparticipants %"PRIu32"\n", lps->nps);
 }
 
-uint32_t ddsi_listen_thread (struct ddsi_tran_listener *listener)
+uint32_t ddsi_listen_thread (void *vlistener)
 {
+  struct ddsi_tran_listener * const listener = vlistener;
   struct ddsi_domaingv *gv = listener->m_base.gv;
   struct ddsi_tran_conn * conn;
 

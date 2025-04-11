@@ -117,6 +117,12 @@ ddsrt_thread_create(
   assert(attr != NULL);
   assert(start_routine != NULL);
 
+  if (attr->schedAffinityN > 0)
+  {
+    /* Didn't implement setting thread affinity on Windows yet */
+    return DDS_RETCODE_ERROR;
+  }
+
   if ((ctx = ddsrt_malloc(sizeof(*ctx))) == NULL ||
       (ctx->name = ddsrt_strdup(name)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
@@ -249,7 +255,7 @@ static ddsrt_thread_local char thread_name[16] = "";
 
 size_t
 ddsrt_thread_getname(
-  char *__restrict str,
+  char *str,
   size_t size)
 {
   size_t cnt;
@@ -290,7 +296,7 @@ typedef struct tagTHREADNAME_INFO
 
 void
 ddsrt_thread_setname(
-  const char *__restrict name)
+  const char *name)
 {
   assert (name != NULL);
   getset_threaddescription_addresses ();
@@ -332,7 +338,7 @@ ddsrt_thread_setname(
 
 dds_return_t
 ddsrt_thread_list (
-  ddsrt_thread_list_id_t * __restrict tids,
+  ddsrt_thread_list_id_t *tids,
   size_t size)
 {
   HANDLE hThreadSnap;
@@ -370,7 +376,7 @@ ddsrt_thread_list (
 dds_return_t
 ddsrt_thread_getname_anythread (
   ddsrt_thread_list_id_t tid,
-  char * __restrict name,
+  char *name,
   size_t size)
 {
   getset_threaddescription_addresses ();

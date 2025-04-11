@@ -142,7 +142,7 @@ static ddsi_entityid_t builtin_entityid_match (ddsi_entityid_t x)
 static void writer_qos_mismatch (struct ddsi_writer * wr, dds_qos_policy_id_t reason)
 {
   /* When the reason is DDS_INVALID_QOS_POLICY_ID, it means that we compared
-   * readers/writers from different topics: ignore that. */
+   * readers/writers from different topics or non-matching partitions: ignore that. */
   if (reason != DDS_INVALID_QOS_POLICY_ID && wr->status_cb)
   {
     ddsi_status_cb_data_t data;
@@ -155,7 +155,7 @@ static void writer_qos_mismatch (struct ddsi_writer * wr, dds_qos_policy_id_t re
 static void reader_qos_mismatch (struct ddsi_reader * rd, dds_qos_policy_id_t reason)
 {
   /* When the reason is DDS_INVALID_QOS_POLICY_ID, it means that we compared
-   * readers/writers from different topics: ignore that. */
+   * readers/writers from different topics or non-matching partitions: ignore that */
   if (reason != DDS_INVALID_QOS_POLICY_ID && rd->status_cb)
   {
     ddsi_status_cb_data_t data;
@@ -871,8 +871,7 @@ void ddsi_writer_add_local_connection (struct ddsi_writer *wr, struct ddsi_reade
   m->rd_guid = rd->e.guid;
   m->via_psmx = connected_via_psmx (&wr->e, &rd->e);
   ddsrt_avl_insert_ipath (&ddsi_wr_local_readers_treedef, &wr->local_readers, m, &path);
-  if (!m->via_psmx)
-    ddsi_local_reader_ary_insert (&wr->rdary, rd);
+  ddsi_local_reader_ary_insert (&wr->rdary, rd);
 
   /* Store available data into the late joining reader when it is reliable (we don't do
      historical data for best-effort data over the wire, so also not locally). */

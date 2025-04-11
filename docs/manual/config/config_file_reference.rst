@@ -44,7 +44,7 @@ The default value is: ``any``
 //CycloneDDS/Domain/Compatibility
 =================================
 
-Children: :ref:`AssumeRtiHasPmdEndpoints<//CycloneDDS/Domain/Compatibility/AssumeRtiHasPmdEndpoints>`, :ref:`ExplicitlyPublishQosSetToDefault<//CycloneDDS/Domain/Compatibility/ExplicitlyPublishQosSetToDefault>`, :ref:`ManySocketsMode<//CycloneDDS/Domain/Compatibility/ManySocketsMode>`, :ref:`StandardsConformance<//CycloneDDS/Domain/Compatibility/StandardsConformance>`
+Children: :ref:`AssumeRtiHasPmdEndpoints<//CycloneDDS/Domain/Compatibility/AssumeRtiHasPmdEndpoints>`, :ref:`ExplicitlyPublishQosSetToDefault<//CycloneDDS/Domain/Compatibility/ExplicitlyPublishQosSetToDefault>`, :ref:`ManySocketsMode<//CycloneDDS/Domain/Compatibility/ManySocketsMode>`, :ref:`ProtocolVersion<//CycloneDDS/Domain/Compatibility/ProtocolVersion>`, :ref:`StandardsConformance<//CycloneDDS/Domain/Compatibility/StandardsConformance>`
 
 The Compatibility element allows you to specify various settings related to compatibility with standards and with other DDSI implementations.
 
@@ -87,6 +87,18 @@ This option specifies whether a network socket will be created for each domain p
 Disabling it slightly improves performance and reduces network traffic somewhat. It also causes the set of port numbers needed by Cyclone DDS to become predictable, which may be useful for firewall and NAT configuration.
 
 The default value is: ``single``
+
+
+.. _`//CycloneDDS/Domain/Compatibility/ProtocolVersion`:
+
+//CycloneDDS/Domain/Compatibility/ProtocolVersion
+-------------------------------------------------
+
+Text
+
+This option allows configuring the advertised protocol version.  Valid values are "2.1" and "2.5"
+
+The default value is: ``2.5``
 
 
 .. _`//CycloneDDS/Domain/Compatibility/StandardsConformance`:
@@ -298,7 +310,7 @@ Number-with-unit
 
 This element specifies the duration for which the locator must be pinged for participant discovery before it is pruned as a useless address. The value "default" means the value in Discovery/InitialLocatorPruneDelay is used.
 
-Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
+Valid values are finite durations with an explicit unit, the keyword 'inf' for infinity or the keyword 'default'. Recognised units: ns, us, ms, s, min, hr, day.
 
 The default value is: ``default``
 
@@ -406,7 +418,7 @@ Number-with-unit
 
 This element specifies the interval between spontaneous transmissions of participant discovery packets.  The special value "default" corresponds to approximately 80% of the participant lease duration with a maximum of 30s.
 
-The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.
+A finite duration or the keyword 'default'. The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.
 
 The default value is: ``default``
 
@@ -696,7 +708,7 @@ The default value is: ``default``
 //CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: :ref:`config<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@config]>`, :ref:`library<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@library]>`, :ref:`name<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@name]>`, :ref:`priority<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@priority]>`
+Attributes: :ref:`config<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@config]>`, :ref:`library<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@library]>`, :ref:`priority<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@priority]>`, :ref:`type|name<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@type]>`
 
 This element defines a PSMX.
 
@@ -720,19 +732,7 @@ The default value is: ``<empty>``
 
 Text
 
-This attribute specifies the filename of the interface library. 
-
-The default value is: ``<empty>``
-
-
-.. _`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@name]`:
-
-//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@name]
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Text
-
-This attribute specifies the name of the interface. 
+This attribute specifies the filename of the interface library. Defaults to psmx\_TYPE
 
 The default value is: ``<empty>``
 
@@ -747,6 +747,18 @@ Text
 This attribute specifies the interface priority (decimal integer or default). The default value for a PSMX is 0.
 
 The default value is: ``default``
+
+
+.. _`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@type]`:
+
+//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@type]
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Text
+
+This attribute specifies the type of the interface.
+
+The default value is: ``<empty>``
 
 
 .. _`//CycloneDDS/Domain/General/MaxMessageSize`:
@@ -952,11 +964,9 @@ The default value is: ``1``
 //CycloneDDS/Domain/Internal/BurstSize/MaxInitTransmit
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Number-with-unit
+Text
 
 This element specifies how much more than the (presumed or discovered) receive buffer size may be sent when transmitting a sample for the first time, expressed as a percentage; the remainder will then be handled via retransmits. Usually, the receivers can keep up with the transmitter, at least on average, so generally it is better to hope for the best and recover. Besides, the retransmits will be unicast, and so any multicast advantage will be lost as well.
-
-The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
 
 The default value is: ``4294967295``
 
@@ -1454,7 +1464,7 @@ Number-with-unit
 
 This sets the size of the socket receive buffer to request, with the special value of "default" indicating that it should try to satisfy the minimum buffer size. If both are at "default", it will request 1MiB and accept anything. It is ignored if the  maximum is set to less than the minimum.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
+An amount of memory or the keyword 'default'. The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
 
 The default value is: ``default``
 
@@ -1468,7 +1478,7 @@ Number-with-unit
 
 This sets the minimum acceptable socket receive buffer size, with the special value "default" indicating that whatever is available is acceptable.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
+An amount of memory or the keyword 'default'. The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
 
 The default value is: ``default``
 
@@ -1494,7 +1504,7 @@ Number-with-unit
 
 This sets the size of the socket send buffer to request, with the special value of "default" indicating that it should try to satisfy the minimum buffer size. If both are at "default", it will use whatever is the system default. It is ignored if the maximum is set to less than the minimum.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
+An amount of memory or the keyword 'default'. The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
 
 The default value is: ``default``
 
@@ -1508,7 +1518,7 @@ Number-with-unit
 
 This sets the minimum acceptable socket send buffer size, with the special value "default" indicating that whatever is available is acceptable.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
+An amount of memory or the keyword 'default'. The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
 
 The default value is: ``64 KiB``
 
@@ -1630,7 +1640,7 @@ Number-with-unit
 
 This element sets the initial level of the high-water mark for the Cyclone DDS WHCs, expressed in bytes.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
+An amount of memory or the keyword 'default'. The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
 
 The default value is: ``30 kB``
 
@@ -2612,7 +2622,7 @@ Number-with-unit
 
 This element configures the stack size for this thread. The default value default leaves the stack size at the operating system default.
 
-The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
+An amount of memory or the keyword 'default'. The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
 
 The default value is: ``default``
 
@@ -2758,14 +2768,14 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 The default value is: ``none``
 
 ..
-   generated from ddsi_config.h[dbf9996a8b49da8e7cb4b62ab157ba80a073cd81] 
-   generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] 
-   generated from ddsi__cfgelems.h[a8b3ad5170f4e86fd7c1f29c5677c332930ea6a4] 
-   generated from ddsi_config.c[94a98ea7709bca260c9cfb5cf43396b0d5e3c953] 
-   generated from _confgen.h[9554f1d72645c0b8bb66ffbfbc3c0fb664fc1a43] 
-   generated from _confgen.c[86c631048046ed4e14c46dba40e5253b50a748fe] 
+   generated from ddsi_config.h[fd22386b5a5456d010458848b862bbe2be02b3e4] 
+   generated from ddsi_config.c[ea1079220b5c907e79b1f20fe97de87874d360fd] 
+   generated from ddsi__cfgelems.h[94e38d76830ce8487ad67cb37df5366c1b079c12] 
+   generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] 
+   generated from _confgen.h[fd29634526c05c3237dbc3f785030fe022eb7875] 
+   generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] 
    generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] 
    generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] 
    generated from generate_rst.c[3c4b523fbb57c8e4a7e247379d06a8021ccc21c4] 
    generated from generate_xsd.c[6b6818d7f17a35d56c376c04ec1410427f34c0f0] 
-   generated from generate_defconfig.c[631cafee70a6f9480e0267db8ffe883d806f5f70] 
+   generated from generate_defconfig.c[ba599ccf70b6f1929c08a597a6c555ff2375e458] 

@@ -1773,7 +1773,7 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
     if ((n = dds_take_mask (rd_stat, raw, si, MAXS, MAXS, DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE | DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE)) > 0)
     {
       for (int32_t i = 0; i < n; i++)
-        if (si[i].valid_data && si[i].sample_state == DDS_SST_NOT_READ)
+        if (si[i].valid_data && si[i].sample_state == DDS_NOT_READ_SAMPLE_STATE)
           if (print_cputime (raw[i], prefix, true, true))
             output = true;
       dds_return_loan (rd_stat, raw, n);
@@ -1782,7 +1782,7 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
     {
       for (int32_t i = 0; i < n; i++)
         if (si[i].valid_data)
-          if (print_cputime (raw[i], prefix, true, si[i].sample_state == DDS_SST_NOT_READ))
+          if (print_cputime (raw[i], prefix, true, si[i].sample_state == DDS_NOT_READ_SAMPLE_STATE))
             output = true;
       dds_return_loan (rd_stat, raw, n);
     }

@@ -1,0 +1,101 @@
+// Copyright(c) 2021 to 2022 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
+#if defined(__IDLC__)
+
+module test_module
+{
+  typedef string<128> str_t;
+  typedef string<128> str_arr_t[1][2][3];
+
+  @final
+  struct test_bounded_str {
+    string<128> f1;
+    str_t f2;
+    string<128> f3[1][2][3];
+    str_t f4[1][2][3];
+    str_arr_t f5;
+    str_arr_t f6[4];
+  };
+};
+
+#else
+
+#include <string.h>
+#include "dds/ddsrt/heap.h"
+#include "test_bounded_str.h"
+#include "common.h"
+
+const dds_topic_descriptor_t *desc = &test_module_test_bounded_str_desc;
+
+#include <stdio.h>
+
+void init_sample (void *s)
+{
+  test_module_test_bounded_str *s1 = (test_module_test_bounded_str *) s;
+  STRCPY (s1->f1, STR128);
+  STRCPY (s1->f2, STR128);
+
+  for (int i = 0; i < 1; i++)
+    for (int j = 0; j < 2; j++)
+      for (int k = 0; k < 3; k++)
+        STRCPY (s1->f3[i][j][k], STR128);
+
+  for (int i = 0; i < 1; i++)
+    for (int j = 0; j < 2; j++)
+      for (int k = 0; k < 3; k++)
+        STRCPY (s1->f4[i][j][k], STR128);
+
+  for (int i = 0; i < 1; i++)
+    for (int j = 0; j < 2; j++)
+      for (int k = 0; k < 3; k++)
+        STRCPY (s1->f5[i][j][k], STR128);
+
+  for (int n = 0; n < 4; n++)
+    for (int i = 0; i < 1; i++)
+      for (int j = 0; j < 2; j++)
+        for (int k = 0; k < 3; k++)
+          STRCPY (s1->f6[n][i][j][k], STR128);
+}
+
+int cmp_sample (const void *sa, const void *sb)
+{
+  test_module_test_bounded_str *a = (test_module_test_bounded_str *) sa;
+  test_module_test_bounded_str *b = (test_module_test_bounded_str *) sb;
+  CMPSTR (a, b, f1, STR128);
+  CMPSTR (a, b, f2, STR128);
+
+  for (int i = 0; i < 1; i++)
+    for (int j = 0; j < 2; j++)
+      for (int k = 0; k < 3; k++)
+        CMPSTR (a, b, f3[i][j][k], STR128);
+
+  for (int i = 0; i < 1; i++)
+    for (int j = 0; j < 2; j++)
+      for (int k = 0; k < 3; k++)
+        CMPSTR (a, b, f4[i][j][k], STR128);
+
+  for (int i = 0; i < 1; i++)
+    for (int j = 0; j < 2; j++)
+      for (int k = 0; k < 3; k++)
+        CMPSTR (a, b, f5[i][j][k], STR128);
+
+  for (int n = 0; n < 4; n++)
+    for (int i = 0; i < 1; i++)
+      for (int j = 0; j < 2; j++)
+        for (int k = 0; k < 3; k++)
+          CMPSTR (a, b, f6[n][i][j][k], STR128);
+
+  return 0;
+}
+
+NO_KEY_CMP
+
+#endif

@@ -15,7 +15,7 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, dds_entity_t *reader, dds_
 static void finalize_dds(dds_entity_t participant, RoundTripModule_DataType data[MAX_SAMPLES]);
 
 #ifdef _WIN32
-#include <Windows.h>
+#include <windows.h>
 static bool CtrlHandler (DWORD fdwCtrlType)
 {
   (void)fdwCtrlType;
@@ -50,7 +50,7 @@ static void data_available(dds_entity_t rd, void *arg)
   {
     /* If writer has been disposed terminate pong */
 
-    if (info[j].instance_state == DDS_IST_NOT_ALIVE_DISPOSED)
+    if (info[j].instance_state == DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE)
     {
       printf ("Received termination request. Terminating.\n");
       dds_waitset_set_trigger (waitSet, true);

@@ -143,8 +143,8 @@ ddsrt_attribute_malloc;
  */
 DDS_EXPORT size_t
 ddsrt_strlcpy(
-  char * __restrict dest,
-  const char * __restrict src,
+  char *dest,
+  const char *src,
   size_t size)
 ddsrt_nonnull((1,2));
 
@@ -166,8 +166,8 @@ ddsrt_nonnull((1,2));
  */
 DDS_EXPORT size_t
 ddsrt_strlcat(
-  char * __restrict dest,
-  const char * __restrict src,
+  char *dest,
+  const char *src,
   size_t size)
 ddsrt_nonnull((1,2));
 

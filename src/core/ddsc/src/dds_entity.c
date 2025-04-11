@@ -21,6 +21,7 @@
 #include "dds__qos.h"
 #include "dds__topic.h"
 #include "dds__builtin.h"
+#include "dds__guid.h"
 #include "dds__subscriber.h" // for non-materialized DATA_ON_READERS
 #include "dds/dds.h"
 #include "dds/version.h"
@@ -1172,6 +1173,7 @@ dds_return_t dds_set_status_mask (dds_entity_t entity, uint32_t mask)
       assert (!(old & DDS_DATA_ON_READERS_STATUS) || dds_entity_kind (e) != DDS_KIND_READER);
       new = (mask << SAM_ENABLED_SHIFT) | (old & SAM_STATUS_MASK);
     } while (!ddsrt_atomic_cas32 (&e->m_status.m_status_and_mask, old, new));
+    dds_entity_observers_signal (e);
     ddsrt_mutex_unlock (&e->m_observers_lock);
   }
   dds_entity_unlock (e);
@@ -1284,17 +1286,13 @@ dds_return_t dds_get_guid (dds_entity_t entity, dds_guid_t *guid)
     case DDS_KIND_PARTICIPANT:
     case DDS_KIND_READER:
     case DDS_KIND_WRITER:
-    case DDS_KIND_TOPIC: {
-      DDSRT_STATIC_ASSERT (sizeof (dds_guid_t) == sizeof (ddsi_guid_t));
-      ddsi_guid_t tmp = ddsi_ntoh_guid (e->m_guid);
-      memcpy (guid, &tmp, sizeof (*guid));
+    case DDS_KIND_TOPIC:
+      *guid = dds_guid_from_ddsi_guid (e->m_guid);
       ret = DDS_RETCODE_OK;
       break;
-    }
-    default: {
+    default:
       ret = DDS_RETCODE_ILLEGAL_OPERATION;
       break;
-    }
   }
   dds_entity_unpin(e);
   return ret;
@@ -1442,10 +1440,10 @@ dds_return_t dds_entity_observer_unregister (dds_entity *observed, dds_waitset *
   return rc;
 }
 
-void dds_entity_observers_signal (dds_entity *observed, uint32_t status)
+void dds_entity_observers_signal (dds_entity *observed)
 {
   for (dds_entity_observer *idx = observed->m_observers; idx; idx = idx->m_next)
-    idx->m_cb (idx->m_observer, observed->m_hdllink.hdl, status);
+    idx->m_cb (idx->m_observer, observed->m_hdllink.hdl);
 }
 
 static void dds_entity_observers_signal_delete (dds_entity *observed)
@@ -1462,10 +1460,10 @@ static void dds_entity_observers_signal_delete (dds_entity *observed)
   observed->m_observers = NULL;
 }
 
-void dds_entity_status_signal (dds_entity *e, uint32_t status)
+void dds_entity_status_signal (dds_entity *e)
 {
   ddsrt_mutex_lock (&e->m_observers_lock);
-  dds_entity_observers_signal (e, status);
+  dds_entity_observers_signal (e);
   ddsrt_mutex_unlock (&e->m_observers_lock);
 }
 

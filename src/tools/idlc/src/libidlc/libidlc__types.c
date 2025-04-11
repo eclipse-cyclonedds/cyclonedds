@@ -65,12 +65,12 @@ emit_implicit_sequence(
   }
 
   /* strings are special */
-  if (idl_is_string(type_spec) && idl_is_bounded(type_spec)) {
+  if (idl_is_xstring(type_spec) && idl_is_bounded(type_spec)) {
     lpar = "(";
     rpar = ")";
     if (idl_is_bounded(type_spec))
       idl_snprintf(dims, sizeof(dims), "[%"PRIu32"]", idl_bound(type_spec)+1);
-  } else if (idl_is_string(type_spec)) {
+  } else if (idl_is_xstring(type_spec)) {
     star = "*";
   }
 
@@ -154,17 +154,18 @@ emit_field(
   if (IDL_PRINTA(&type, print_type, type_spec) < 0)
     return IDL_RETCODE_NO_MEMORY;
 
-  if (idl_is_string(type_spec) && !idl_is_bounded(type_spec))
+  if (idl_is_xstring(type_spec) && !idl_is_bounded(type_spec))
     str_ptr = "* ";
 
   if (idl_is_external(root) || idl_is_optional(root)) {
     idl_type_spec_t *actual_type = idl_strip(type_spec, IDL_STRIP_ALIASES|IDL_STRIP_FORWARD);
-    if (idl_is_array(node) || (idl_is_string(actual_type) && idl_is_bounded(actual_type))) {
+    if (idl_is_array(node) || (idl_is_xstring(actual_type) && idl_is_bounded(actual_type))) {
       /* for arrays and bounded strings, add paratheses so that it won't be an
          array of pointers but a pointer to the array, e.g. long (*member_name)[5] */
       ptr_open = "(* ";
       ptr_close = ")";
-    } else if (!idl_is_string(actual_type)) { /* unbounded strings are already a pointer, don't add an extra * for external */
+    } else if (!idl_is_xstring(actual_type)) {
+      /* unbounded strings are already a pointer, don't add an extra * for external */
       ptr_open = "* ";
     }
   }
@@ -194,7 +195,7 @@ emit_field(
   }
 
   /* bounded string dims */
-  if (idl_is_string(type_spec) && idl_is_bounded(type_spec)) {
+  if (idl_is_xstring(type_spec) && idl_is_bounded(type_spec)) {
     fmt = "[%"PRIu32"]";
     if (idl_fprintf(gen->header.handle, fmt, idl_bound(type_spec) + 1) < 0)
       return IDL_RETCODE_NO_MEMORY;
@@ -410,12 +411,12 @@ emit_sequence_typedef(
     return ret;
 
   /* strings are special */
-  if (idl_is_string(type_spec) && idl_is_bounded(type_spec)) {
+  if (idl_is_xstring(type_spec) && idl_is_bounded(type_spec)) {
     lpar = "(";
     rpar = ")";
     if (idl_is_bounded(type_spec))
       idl_snprintf(dims, sizeof(dims), "[%"PRIu32"]", idl_bound(type_spec)+1);
-  } else if (idl_is_string(type_spec)) {
+  } else if (idl_is_xstring(type_spec)) {
     star = "*";
   }
 
@@ -462,7 +463,6 @@ emit_typedef(
   void *user_data)
 {
   struct generator *gen = user_data;
-  char dims[32] = "";
   const char *fmt, *star = "";
   char *name = NULL, *type = NULL;
   const idl_declarator_t *declarator;
@@ -473,10 +473,15 @@ emit_typedef(
   /* typedef of sequence requires a little magic */
   if (idl_is_sequence(type_spec))
     return emit_sequence_typedef(pstate, revisit, path, node, user_data);
-  if (idl_is_string(type_spec) && idl_is_bounded(type_spec))
-    idl_snprintf(dims, sizeof(dims), "[%" PRIu32 "]", idl_bound(type_spec)+1);
-  else if (idl_is_string(type_spec))
-    star = "*";
+
+  bool is_bounded_string = false;
+  if ( idl_is_xstring(type_spec) ) {
+    if ( idl_is_bounded(type_spec) ) {
+      is_bounded_string = true;
+    } else {
+      star = "*";
+    }
+  }
 
   const char *type_prefix = get_type_prefix(type_spec);
 
@@ -486,14 +491,18 @@ emit_typedef(
   for (; declarator; declarator = idl_next(declarator)) {
     if (IDL_PRINTA(&name, print_type, declarator) < 0)
       return IDL_RETCODE_NO_MEMORY;
-    fmt = "typedef %1$s%2$s %3$s%4$s%5$s";
-    if (idl_fprintf(gen->header.handle, fmt, type_prefix, type, star, name, dims) < 0)
+    fmt = "typedef %1$s%2$s %3$s%4$s";
+    if (idl_fprintf(gen->header.handle, fmt, type_prefix, type, star, name) < 0)
       return IDL_RETCODE_NO_MEMORY;
     literal = declarator->const_expr;
     for (; literal; literal = idl_next(literal)) {
       fmt = "[%" PRIu32 "]";
       if (idl_fprintf(gen->header.handle, fmt, literal->value.uint32) < 0)
         return IDL_RETCODE_NO_MEMORY;
+    }
+    if ( is_bounded_string ) {
+      // The string bound must come after the array dimensions.
+      idl_fprintf(gen->header.handle, "[%" PRIu32 "]", idl_bound(type_spec)+1);
     }
     fmt = ";\n\n"
           "#define %1$s__alloc() \\\n"

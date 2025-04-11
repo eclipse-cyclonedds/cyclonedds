@@ -117,6 +117,7 @@ set(hdrs_ddsi
   ddsi_proxy_participant.h
   ddsi_topic.h
   ddsi_endpoint.h
+  ddsi_protocol_version.h
   ddsi_proxy_endpoint.h
   ddsi_gc.h
   ddsi_pmd.h
@@ -144,7 +145,6 @@ set(hdrs_ddsi
 
 set(hdrs_private_ddsi
   ddsi__acknack.h
-  ddsi__cfgunits.h
   ddsi__cfgelems.h
   ddsi__config_impl.h
   ddsi__deliver_locally.h

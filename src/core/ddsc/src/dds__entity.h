@@ -95,10 +95,10 @@ inline dds_entity_kind_t dds_entity_kind (const dds_entity *e) {
 }
 
 /** @component generic_entity */
-void dds_entity_observers_signal (dds_entity *observed, uint32_t status);
+void dds_entity_observers_signal (dds_entity *observed);
 
 /** @component generic_entity */
-void dds_entity_status_signal (dds_entity *e, uint32_t status);
+void dds_entity_status_signal (dds_entity *e);
 
 union dds_status_union {
   dds_inconsistent_topic_status_t inconsistent_topic;
@@ -166,7 +166,7 @@ union dds_status_union {
     else                                                                \
       signal = status_cb_##name_##_invoke (e);                          \
     if (signal)                                                         \
-      dds_entity_observers_signal (&e->m_entity, DDS_##NAME_##_STATUS); \
+      dds_entity_observers_signal (&e->m_entity);                       \
   }
 
 /** @component generic_entity */

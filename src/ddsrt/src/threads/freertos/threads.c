@@ -103,7 +103,7 @@ bool ddsrt_thread_equal(ddsrt_thread_t a, ddsrt_thread_t b)
 }
 
 size_t
-ddsrt_thread_getname(char *__restrict name, size_t size)
+ddsrt_thread_getname(char *name, size_t size)
 {
   char *ptr;
 
@@ -378,6 +378,11 @@ ddsrt_thread_create(
              attr->schedPriority > (configMAX_PRIORITIES - 1))
   {
     return DDS_RETCODE_BAD_PARAMETER;
+  }
+  /* Didn't implement setting thread affinity on FreeRTOS yet */
+  if (attr->schedAffinityN > 0)
+  {
+    return DDS_RETCODE_ERROR;
   }
 
   /* Stack size is quietly increased to match at least the minimum. */

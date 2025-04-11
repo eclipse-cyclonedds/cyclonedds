@@ -352,14 +352,14 @@ int ddsi_typeid_compare (const ddsi_typeid_t *a, const ddsi_typeid_t *b)
 
 void ddsi_typeid_ser (const ddsi_typeid_t *type_id, unsigned char **buf, uint32_t *sz)
 {
-  dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
-  if (!dds_stream_writeLE ((dds_ostreamLE_t *) &os, &dds_cdrstream_default_allocator, (const void *) type_id, DDS_XTypes_TypeIdentifier_desc.m_ops))
+  dds_ostreamLE_t os = { .x = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 } };
+  if (!dds_stream_writeLE (&os, &dds_cdrstream_default_allocator, (const void *) type_id, DDS_XTypes_TypeIdentifier_desc.m_ops))
   {
     // input is always valid
     abort ();
   }
-  *buf = os.m_buffer;
-  *sz = os.m_index;
+  *buf = os.x.m_buffer;
+  *sz = os.x.m_index;
 }
 
 void ddsi_typeid_fini_impl (struct DDS_XTypes_TypeIdentifier *type_id)
@@ -428,8 +428,8 @@ void ddsi_typeobj_get_hash_id_impl (const struct DDS_XTypes_TypeObject *type_obj
   assert (type_obj);
   assert (type_id);
   assert (type_obj->_d == DDS_XTypes_EK_MINIMAL || type_obj->_d == DDS_XTypes_EK_COMPLETE);
-  dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
-  if (!dds_stream_writeLE ((dds_ostreamLE_t *) &os, &dds_cdrstream_default_allocator, (const void *) type_obj, DDS_XTypes_TypeObject_desc.m_ops))
+  dds_ostreamLE_t os = { .x = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 } };
+  if (!dds_stream_writeLE (&os, &dds_cdrstream_default_allocator, (const void *) type_obj, DDS_XTypes_TypeObject_desc.m_ops))
   {
     // input type object is always valid
     abort ();
@@ -438,11 +438,11 @@ void ddsi_typeobj_get_hash_id_impl (const struct DDS_XTypes_TypeObject *type_obj
   char buf[16];
   ddsrt_md5_state_t md5st;
   ddsrt_md5_init (&md5st);
-  ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) os.m_buffer, os.m_index);
+  ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) os.x.m_buffer, os.x.m_index);
   ddsrt_md5_finish (&md5st, (ddsrt_md5_byte_t *) buf);
   type_id->_d = type_obj->_d;
   memcpy (type_id->_u.equivalence_hash, buf, sizeof(DDS_XTypes_EquivalenceHash));
-  dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
+  dds_ostreamLE_fini (&os, &dds_cdrstream_default_allocator);
 }
 
 dds_return_t ddsi_typeobj_get_hash_id (const struct DDS_XTypes_TypeObject *type_obj, ddsi_typeid_t *type_id)
@@ -853,7 +853,7 @@ static dds_return_t xt_valid_type_flags (struct ddsi_domaingv *gv, uint16_t flag
 #define M DDS_XTypes_IS_MUST_UNDERSTAND
 #define K DDS_XTypes_IS_KEY
 #define D DDS_XTypes_IS_DEFAULT
-static dds_return_t xt_valid_member_flags (struct ddsi_domaingv *gv, uint16_t flags, uint8_t member_flag_kind)
+static dds_return_t xt_valid_member_flags (struct ddsi_domaingv *gv, uint16_t flags, uint8_t member_flag_kind, bool in_key)
 {
   dds_return_t ret = DDS_RETCODE_OK;
 
@@ -870,6 +870,10 @@ static dds_return_t xt_valid_member_flags (struct ddsi_domaingv *gv, uint16_t fl
     case MEMBER_FLAG_STRUCT_MEMBER:
       if (flags & ~(T1|T2|O|M|K|X))
         ret = DDS_RETCODE_BAD_PARAMETER;
+      if (in_key && (flags & O))
+        ret = DDS_RETCODE_BAD_PARAMETER;
+      if ((flags & O) && (flags & K))
+        ret = DDS_RETCODE_BAD_PARAMETER;
       break;
     case MEMBER_FLAG_UNION_MEMBER:
       if (flags & ~(T1|T2|D|X))
@@ -878,6 +882,8 @@ static dds_return_t xt_valid_member_flags (struct ddsi_domaingv *gv, uint16_t fl
     case MEMBER_FLAG_UNION_DISC:
       // must-understand not in spec
       if (flags & ~(T1|T2|M|K))
+        ret = DDS_RETCODE_BAD_PARAMETER;
+      if (in_key && (flags & O))
         ret = DDS_RETCODE_BAD_PARAMETER;
       break;
     case MEMBER_FLAG_ENUM_LITERAL:
@@ -932,11 +938,11 @@ static dds_return_t xt_valid_array_bounds (struct ddsi_domaingv *gv, const struc
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t xt_validate_impl (struct ddsi_domaingv *gv, const struct xt_type *t, bool validate_hash_type)
+static dds_return_t xt_validate_impl (struct ddsi_domaingv *gv, const struct xt_type *t, bool validate_hash_type, bool in_key)
 {
   dds_return_t ret;
 
-  if (!validate_hash_type && !xt_is_non_hash (t))
+  if (!in_key && !validate_hash_type && !xt_is_non_hash (t))
     return DDS_RETCODE_OK;
 
   if (ddsi_xt_is_unresolved (t))
@@ -951,11 +957,32 @@ static dds_return_t xt_validate_impl (struct ddsi_domaingv *gv, const struct xt_
           || (ret = xt_valid_struct_member_ids (gv, t))
           || (ret = xt_valid_type_flags (gv, t->_u.structure.flags, t->_d)))
         return ret;
+
+      bool has_key_members = false;
+      for (const struct xt_type *t1 = t; t1 && ddsi_xt_is_resolved (t1); t1 = t1->_u.structure.base_type ? &t1->_u.structure.base_type->xt : NULL)
+        for (uint32_t n = 0; !has_key_members && n < t1->_u.structure.members.length; n++)
+          has_key_members = (t1->_u.structure.members.seq[n].flags & DDS_XTypes_IS_KEY);
+
       for (uint32_t n = 0; n < t->_u.structure.members.length; n++)
       {
-        if ((ret = xt_valid_member_flags (gv, t->_u.structure.members.seq[n].flags, MEMBER_FLAG_STRUCT_MEMBER)))
+        DDS_XTypes_StructMemberFlag flags = t->_u.structure.members.seq[n].flags;
+        /* A member is considered a key-member (and therefore cannot be optional)
+           in case (1) the member has a key flag or (2) no member of the struct
+           and it's base types has a key flag and the 'parent' member (the one
+           that has this struct as it's member type) is a key (by either rule 1
+           or 2). As a result, a type can be valid or invalid based on the context
+           it is used in:
+              struct A { @optional long x; };
+              struct B { @key A y; };
+              struct C { B z; };
+           Type B is an invalid top-level type for a topic. Type C is a valid
+           top-level type, but will still be rejected because of the key flag
+           in B.
+        */
+        bool key = (in_key && !has_key_members) || (flags & DDS_XTypes_IS_KEY);
+        if ((ret = xt_valid_member_flags (gv, flags, MEMBER_FLAG_STRUCT_MEMBER, key)))
           return ret;
-        if ((ret = xt_validate_impl (gv, &t->_u.structure.members.seq[n].type->xt, false)))
+        if ((ret = xt_validate_impl (gv, &t->_u.structure.members.seq[n].type->xt, false, key)))
           return ret;
       }
       break;
@@ -963,15 +990,15 @@ static dds_return_t xt_validate_impl (struct ddsi_domaingv *gv, const struct xt_
       if (((ret = xt_valid_union_disc_type (gv, t)))
           || (ret = xt_valid_union_member_ids (gv, t))
           || (ret = xt_valid_type_flags (gv, t->_u.union_type.flags, t->_d))
-          || (ret = xt_valid_member_flags (gv, t->_u.union_type.disc_flags, MEMBER_FLAG_UNION_DISC)))
+          || (ret = xt_valid_member_flags (gv, t->_u.union_type.disc_flags, MEMBER_FLAG_UNION_DISC, in_key)))
         return ret;
       bool has_default = false;
       for (uint32_t n = 0; n < t->_u.union_type.members.length; n++)
       {
         DDS_XTypes_UnionMemberFlag flags = t->_u.union_type.members.seq[n].flags;
-        if ((ret = xt_valid_member_flags (gv, flags, MEMBER_FLAG_UNION_MEMBER)))
+        if ((ret = xt_valid_member_flags (gv, flags, MEMBER_FLAG_UNION_MEMBER, in_key)))
           return ret;
-        if ((ret = xt_validate_impl (gv, &t->_u.union_type.members.seq[n].type->xt, false)))
+        if ((ret = xt_validate_impl (gv, &t->_u.union_type.members.seq[n].type->xt, false, in_key)))
           return ret;
         if (flags & DDS_XTypes_IS_DEFAULT)
         {
@@ -992,7 +1019,7 @@ static dds_return_t xt_validate_impl (struct ddsi_domaingv *gv, const struct xt_
       if (t->_u.enum_type.bit_bound > 32)
         return DDS_RETCODE_BAD_PARAMETER;
       for (uint32_t n = 0; n < t->_u.enum_type.literals.length; n++)
-        if ((ret = xt_valid_member_flags (gv, t->_u.enum_type.literals.seq[n].flags, MEMBER_FLAG_ENUM_LITERAL)))
+        if ((ret = xt_valid_member_flags (gv, t->_u.enum_type.literals.seq[n].flags, MEMBER_FLAG_ENUM_LITERAL, in_key)))
           return ret;
       break;
     case DDS_XTypes_TK_BITMASK:
@@ -1002,13 +1029,13 @@ static dds_return_t xt_validate_impl (struct ddsi_domaingv *gv, const struct xt_
       if (t->_u.bitmask.bit_bound > 64)
         return DDS_RETCODE_BAD_PARAMETER;
       for (uint32_t n = 0; n < t->_u.bitmask.bitflags.length; n++)
-        if ((ret = xt_valid_member_flags (gv, t->_u.bitmask.bitflags.seq[n].flags, MEMBER_FLAG_BIT_FLAG)))
+        if ((ret = xt_valid_member_flags (gv, t->_u.bitmask.bitflags.seq[n].flags, MEMBER_FLAG_BIT_FLAG, in_key)))
           return ret;
       break;
     case DDS_XTypes_TK_ALIAS:
       if ((ret = xt_valid_type_flags (gv, t->_u.alias.flags, t->_d))
-          || (ret = xt_valid_member_flags (gv, t->_u.alias.related_flags, MEMBER_FLAG_ALIAS_MEMBER))
-          || (ret = xt_validate_impl (gv, &t->_u.alias.related_type->xt, false)))
+          || (ret = xt_valid_member_flags (gv, t->_u.alias.related_flags, MEMBER_FLAG_ALIAS_MEMBER, in_key))
+          || (ret = xt_validate_impl (gv, &t->_u.alias.related_type->xt, false, in_key)))
         return ret;
       break;
     case DDS_XTypes_TK_BITSET:
@@ -1021,29 +1048,29 @@ static dds_return_t xt_validate_impl (struct ddsi_domaingv *gv, const struct xt_
       break;
     case DDS_XTypes_TK_SEQUENCE:
       if ((ret = xt_valid_type_flags (gv, t->_u.seq.c.flags, t->_d))
-          || (ret = xt_valid_member_flags (gv, t->_u.seq.c.element_flags, MEMBER_FLAG_COLLECTION_ELEMENT))
-          || (ret = xt_validate_impl (gv, &t->_u.seq.c.element_type->xt, false)))
+          || (ret = xt_valid_member_flags (gv, t->_u.seq.c.element_flags, MEMBER_FLAG_COLLECTION_ELEMENT, in_key))
+          || (ret = xt_validate_impl (gv, &t->_u.seq.c.element_type->xt, false, in_key)))
         return ret;
       break;
     case DDS_XTypes_TK_ARRAY:
       if ((ret = xt_valid_type_flags (gv, t->_u.array.c.flags, t->_d))
-          || (ret = xt_valid_member_flags (gv, t->_u.array.c.element_flags, MEMBER_FLAG_COLLECTION_ELEMENT))
-          || (ret = xt_validate_impl (gv, &t->_u.array.c.element_type->xt, false))
+          || (ret = xt_valid_member_flags (gv, t->_u.array.c.element_flags, MEMBER_FLAG_COLLECTION_ELEMENT, in_key))
+          || (ret = xt_validate_impl (gv, &t->_u.array.c.element_type->xt, false, in_key))
           || (ret = xt_valid_array_bounds (gv, t)))
         return ret;
       break;
     case DDS_XTypes_TK_MAP:
       if ((ret = xt_valid_type_flags (gv, t->_u.map.c.flags, t->_d))
-          || (ret = xt_valid_member_flags (gv, t->_u.map.c.element_flags, MEMBER_FLAG_COLLECTION_ELEMENT))
-          || (ret = xt_validate_impl (gv, &t->_u.map.key_type->xt, false))
-          || (ret = xt_validate_impl (gv, &t->_u.map.c.element_type->xt, false)))
+          || (ret = xt_valid_member_flags (gv, t->_u.map.c.element_flags, MEMBER_FLAG_COLLECTION_ELEMENT, in_key))
+          || (ret = xt_validate_impl (gv, &t->_u.map.key_type->xt, false, in_key))
+          || (ret = xt_validate_impl (gv, &t->_u.map.c.element_type->xt, false, in_key)))
         return ret;
       break;
     case DDS_XTypes_TK_BOOLEAN: case DDS_XTypes_TK_BYTE:
     case DDS_XTypes_TK_INT8: case DDS_XTypes_TK_INT16: case DDS_XTypes_TK_INT32: case DDS_XTypes_TK_INT64:
     case DDS_XTypes_TK_UINT8: case DDS_XTypes_TK_UINT16: case DDS_XTypes_TK_UINT32: case DDS_XTypes_TK_UINT64:
     case DDS_XTypes_TK_FLOAT32: case DDS_XTypes_TK_FLOAT64: case DDS_XTypes_TK_FLOAT128:
-    case DDS_XTypes_TK_CHAR8: case DDS_XTypes_TK_CHAR16: case DDS_XTypes_TK_STRING8:
+    case DDS_XTypes_TK_CHAR8: case DDS_XTypes_TK_CHAR16: case DDS_XTypes_TK_STRING8: case DDS_XTypes_TK_STRING16:
       // no validations
       break;
     default:
@@ -1054,7 +1081,7 @@ static dds_return_t xt_validate_impl (struct ddsi_domaingv *gv, const struct xt_
 
 dds_return_t ddsi_xt_validate (struct ddsi_domaingv *gv, const struct xt_type *t)
 {
-  return xt_validate_impl (gv, t, true);
+  return xt_validate_impl (gv, t, true, false);
 }
 
 static dds_return_t add_minimal_typeobj (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeObject *to)
@@ -1694,13 +1721,16 @@ static void xt_applied_member_annotations_fini (struct xt_applied_member_annotat
       for (uint32_t n = 0; n < ann->ann_custom->_length; n++)
       {
         ddsi_typeid_fini_impl (&ann->ann_custom->_buffer[n].annotation_typeid);
-        if (ann->ann_custom->_buffer[n].param_seq->_release)
+        if (ann->ann_custom->_buffer[n].param_seq)
         {
-          for (uint32_t p = 0; p < ann->ann_custom->_buffer[n].param_seq->_length; p++)
-            ddsrt_free (ann->ann_custom->_buffer[n].param_seq->_buffer[p].paramname_hash);
-          ddsrt_free (ann->ann_custom->_buffer[n].param_seq->_buffer);
+          if(ann->ann_custom->_buffer[n].param_seq->_release)
+          {
+            for (uint32_t p = 0; p < ann->ann_custom->_buffer[n].param_seq->_length; p++)
+              ddsrt_free (ann->ann_custom->_buffer[n].param_seq->_buffer[p].paramname_hash);
+            ddsrt_free (ann->ann_custom->_buffer[n].param_seq->_buffer);
+          }
+          ddsrt_free (ann->ann_custom->_buffer[n].param_seq);
         }
-        ddsrt_free (ann->ann_custom->_buffer[n].param_seq);
       }
       ddsrt_free (ann->ann_custom->_buffer);
     }

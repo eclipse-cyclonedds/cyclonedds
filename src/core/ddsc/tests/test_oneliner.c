@@ -389,16 +389,17 @@ static int nexttok_dur (struct oneliner_lex *l, union oneliner_tokval *v, bool e
   else if (l->inp[0] == '@' || (expecting_duration && (lookingatnum (l) || lookingatinf (l))))
   {
     const int ists = (l->inp[0] == '@');
+    const int isabs = (ists && l->inp[1] == '=');
     char *endp;
-    if (!ists && strncmp (l->inp + ists, "inf", 3) == 0 && !issymchar (l->inp[ists + 3]))
+    if (!ists && strncmp (l->inp + ists + isabs, "inf", 3) == 0 && !issymchar (l->inp[ists + 3]))
     {
-      l->inp += ists + 3;
+      l->inp += ists + isabs + 3;
       l->v.d = DDS_INFINITY;
     }
     else
     {
       double d;
-      if (ddsrt_strtod (l->inp + ists, &endp, &d) != DDS_RETCODE_OK)
+      if (ddsrt_strtod (l->inp + ists + isabs, &endp, &d) != DDS_RETCODE_OK)
         return false;
       if (!ists && d < 0)
         return false;
@@ -408,7 +409,7 @@ static int nexttok_dur (struct oneliner_lex *l, union oneliner_tokval *v, bool e
         l->v.d = (int64_t) (d * 1e9 + 0.5);
       else
         l->v.d = -(int64_t) (-d * 1e9 + 0.5);
-      if (ists)
+      if (ists && !isabs)
         l->v.d += l->tref;
       l->inp = endp;
     }
@@ -664,7 +665,7 @@ static bool qos_liveliness (struct oneliner_lex *l, dds_qos_t *q)
   return true;
 }
 
-static bool qos_simple_duration (struct oneliner_lex *l, dds_qos_t *q, void (*set) (dds_qos_t * __restrict q, dds_duration_t dur))
+static bool qos_simple_duration (struct oneliner_lex *l, dds_qos_t *q, void (*set) (dds_qos_t *q, dds_duration_t dur))
 {
   static const struct kvarg k = { "", 0, 0, .arg = read_kvarg_dur };
   int v;
@@ -765,6 +766,41 @@ static bool qos_writer_batching (struct oneliner_lex *l, dds_qos_t *q)
   return true;
 }
 
+static bool qos_partition (struct oneliner_lex *l, dds_qos_t *q)
+{
+  uint32_t nps = 0;
+  char **ps = NULL;
+  while (*l->inp != 0 && *l->inp != ',' && *l->inp != ')')
+  {
+    const char *p = l->inp;
+    while (*p != 0 && *p != ':' && *p != ',' && *p != ')')
+      p++;
+    ps = ddsrt_realloc (ps, (nps + 1) * sizeof (*ps));
+    ps[nps] = ddsrt_malloc ((size_t) (p - l->inp) + 1);
+    memcpy (ps[nps], l->inp, (size_t) (p - l->inp));
+    ps[nps][p - l->inp] = 0;
+    nps++;
+    if (*p == ':')
+      p++;
+    l->inp = p;
+  }
+  dds_qset_partition (q, nps, (const char **) ps);
+  for (uint32_t i = 0; i < nps; i++)
+    ddsrt_free (ps[i]);
+  ddsrt_free (ps);
+  return true;
+}
+
+static bool qos_userdata (struct oneliner_lex *l, dds_qos_t *q)
+{
+  const char *p = l->inp;
+  while (*p != 0 && *p != ',' && *p != ')')
+    p++;
+  dds_qset_userdata (q, l->inp, (size_t) (p - l->inp));
+  l->inp = p;
+  return true;
+}
+
 static const struct {
   char *abbrev;
   size_t n;
@@ -785,7 +821,9 @@ static const struct {
   { "rl", 2, qos_resource_limits, DDS_RESOURCELIMITS_QOS_POLICY_ID },
   { "ds", 2, qos_durability_service, DDS_DURABILITYSERVICE_QOS_POLICY_ID },
   { "ad", 2, qos_autodispose_unregistered_instances, DDS_WRITERDATALIFECYCLE_QOS_POLICY_ID },
-  { "wb", 2, qos_writer_batching, DDS_INVALID_QOS_POLICY_ID }
+  { "wb", 2, qos_writer_batching, DDS_INVALID_QOS_POLICY_ID },
+  { "part", 4, qos_partition, DDS_PARTITION_QOS_POLICY_ID },
+  { "ud", 2, qos_userdata, DDS_USERDATA_QOS_POLICY_ID }
 };
 
 static bool setqos (struct oneliner_lex *l, dds_qos_t *q)
@@ -889,6 +927,20 @@ static void make_participant (struct oneliner_ctx *ctx, int ent, dds_qos_t *qos,
     (void) snprintf (conf1, newsize, "%s,%s", conf, ctx->config_override);
     ddsrt_free (conf);
     conf = conf1;
+  }
+  void *udata;
+  size_t udatasz;
+  if (dds_qget_userdata (qos, &udata, &udatasz))
+  {
+    // user data is always 0 terminated in output of qget, terminating 0 is not included
+    // in size -- so we can pretend it is just a string
+    static const char *fmt = "%s,<Compatibility><ProtocolVersion>%s</ProtocolVersion></Compatibility>";
+    size_t newsize = strlen (fmt) - 4 + strlen (conf) + udatasz + 1;
+    char *conf1 = ddsrt_malloc (newsize);
+    (void) snprintf (conf1, newsize, fmt, conf, udata);
+    ddsrt_free (conf);
+    conf = conf1;
+    dds_free (udata);
   }
   entname_t name;
   dds_entity_t bisub;

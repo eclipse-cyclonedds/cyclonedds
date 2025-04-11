@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/string.h"

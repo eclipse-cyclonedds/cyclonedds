@@ -146,7 +146,8 @@ CU_Test(ddsc_publisher, invalid_qos)
 
   // deliberately set an invalid value for the access scope kind, this should
   // result in create_publisher failing with BAD_PARAMETER
-  dds_qset_presentation(qos, (dds_presentation_access_scope_kind_t)123, false, false);
+  const union { dds_presentation_access_scope_kind_t pask; int i; } pask = { .i = 123 };
+  dds_qset_presentation(qos, pask.pask, false, false);
 
   publisher = dds_create_publisher(participant, qos, NULL);
   CU_ASSERT_FATAL(publisher == DDS_RETCODE_BAD_PARAMETER);

@@ -37,11 +37,11 @@ DDSRT_WARNING_DEPRECATED_OFF
  *    |    2   |    3   |    6   | not_read | new | disposed   |
  *    |    3   |    4   |    8   | not_read | new | no_writers |
  */
-#define SAMPLE_IST(idx)           ((idx <= 2) ? DDS_IST_ALIVE              : \
-                                   (idx == 3) ? DDS_IST_NOT_ALIVE_DISPOSED : \
-                                                DDS_IST_NOT_ALIVE_NO_WRITERS )
-#define SAMPLE_VST(idx)           ((idx <= 1) ? DDS_VST_OLD  : DDS_VST_NEW)
-#define SAMPLE_SST(idx)           ((idx == 0) ? DDS_SST_READ : DDS_SST_NOT_READ)
+#define SAMPLE_IST(idx)           ((idx <= 2) ? DDS_ALIVE_INSTANCE_STATE              : \
+                                   (idx == 3) ? DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE : \
+                                                DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE )
+#define SAMPLE_VST(idx)           ((idx <= 1) ? DDS_NOT_NEW_VIEW_STATE  : DDS_NEW_VIEW_STATE)
+#define SAMPLE_SST(idx)           ((idx == 0) ? DDS_READ_SAMPLE_STATE : DDS_NOT_READ_SAMPLE_STATE)
 
 static dds_entity_t g_participant = 0;
 static dds_entity_t g_subscriber  = 0;

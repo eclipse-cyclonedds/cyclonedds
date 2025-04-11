@@ -39,6 +39,7 @@
 #include "dds__statistics.h"
 #include "dds__psmx.h"
 #include "dds__heap_loan.h"
+#include "dds__guid.h"
 
 DECL_ENTITY_LOCK_UNLOCK (dds_writer)
 
@@ -53,7 +54,7 @@ static dds_return_t dds_writer_status_validate (uint32_t mask)
   return (mask & ~DDS_WRITER_STATUS_MASK) ? DDS_RETCODE_BAD_PARAMETER : DDS_RETCODE_OK;
 }
 
-static void update_offered_deadline_missed (struct dds_offered_deadline_missed_status * __restrict st, const ddsi_status_cb_data_t *data)
+static void update_offered_deadline_missed (struct dds_offered_deadline_missed_status *st, const ddsi_status_cb_data_t *data)
 {
   st->last_instance_handle = data->handle;
   uint64_t tmp = (uint64_t)data->extra + (uint64_t)st->total_count;
@@ -67,21 +68,21 @@ static void update_offered_deadline_missed (struct dds_offered_deadline_missed_s
   st->total_count_change = tmp2 > INT32_MAX ? INT32_MAX : tmp2 < INT32_MIN ? INT32_MIN : (int32_t)tmp2;
 }
 
-static void update_offered_incompatible_qos (struct dds_offered_incompatible_qos_status * __restrict st, const ddsi_status_cb_data_t *data)
+static void update_offered_incompatible_qos (struct dds_offered_incompatible_qos_status *st, const ddsi_status_cb_data_t *data)
 {
   st->last_policy_id = data->extra;
   st->total_count++;
   st->total_count_change++;
 }
 
-static void update_liveliness_lost (struct dds_liveliness_lost_status * __restrict st, const ddsi_status_cb_data_t *data)
+static void update_liveliness_lost (struct dds_liveliness_lost_status *st, const ddsi_status_cb_data_t *data)
 {
   (void) data;
   st->total_count++;
   st->total_count_change++;
 }
 
-static void update_publication_matched (struct dds_publication_matched_status * __restrict st, const ddsi_status_cb_data_t *data)
+static void update_publication_matched (struct dds_publication_matched_status *st, const ddsi_status_cb_data_t *data)
 {
   st->last_subscription_handle = data->handle;
   if (data->add) {
@@ -208,27 +209,23 @@ static void dds_writer_close (dds_entity *e)
   ddsrt_mutex_unlock (&e->m_mutex);
 }
 
-static dds_return_t dds_writer_delete (dds_entity *e) ddsrt_nonnull_all;
-
+ddsrt_nonnull_all
 static dds_return_t dds_writer_delete (dds_entity *e)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   dds_writer * const wr = (dds_writer *) e;
 
-  for (uint32_t i = 0; ret == DDS_RETCODE_OK && i < wr->m_endpoint.psmx_endpoints.length; i++)
-  {
-    struct dds_psmx_endpoint *psmx_endpoint = wr->m_endpoint.psmx_endpoints.endpoints[i];
-    if (psmx_endpoint == NULL)
-      continue;
-    ret = dds_remove_psmx_endpoint_from_list (psmx_endpoint, &psmx_endpoint->psmx_topic->psmx_endpoints);
-  }
+  // Freeing the loans requires the PSMX endpoints, so must be done before cleaning
+  // up the endpoints. And m_loans is not used anymore from this point, so can also
+  // be freed safely.
+  dds_loan_pool_free (wr->m_loans);
+  dds_endpoint_remove_psmx_endpoints (&wr->m_endpoint);
 
   /* FIXME: not freeing WHC here because it is owned by the DDSI entity */
   ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
   ddsi_xpack_free (wr->m_xp);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   dds_entity_drop_ref (&wr->m_topic->m_entity);
-  dds_loan_pool_free (wr->m_loans);
   return ret;
 }
 
@@ -421,6 +418,7 @@ static dds_entity_t dds_create_writer_int (dds_entity_t participant_or_publisher
   // and then disable it for a specific writer.  Should somebody runs into a problem because of this
   // we can have another look.
   wr->whc_batch = wqos->writer_batching.batch_updates || gv->config.whc_batch;
+  wr->protocol_version = gv->config.protocol_version;
 
   if ((rc = dds_endpoint_add_psmx_endpoint (&wr->m_endpoint, wqos, &tp->m_ktopic->psmx_topics, DDS_PSMX_ENDPOINT_TYPE_WRITER)) != DDS_RETCODE_OK)
     goto err_pipe_open;
@@ -430,18 +428,13 @@ static dds_entity_t dds_create_writer_int (dds_entity_t participant_or_publisher
   if (!sertype)
     sertype = tp->m_stype;
 
-  if (guid == NULL)
+  if (guid)
+    wr->m_entity.m_guid = dds_guid_to_ddsi_guid (*guid);
+  else
   {
     rc = ddsi_generate_writer_guid (&wr->m_entity.m_guid, pp, sertype);
     if (rc != DDS_RETCODE_OK)
       goto err_wr_guid;
-  }
-  else
-  {
-    ddsi_guid_t ddsi_guid;
-    DDSRT_STATIC_ASSERT (sizeof (dds_guid_t) == sizeof (ddsi_guid_t));
-    memcpy (&ddsi_guid, guid, sizeof (ddsi_guid));
-    wr->m_entity.m_guid = ddsi_ntoh_guid (ddsi_guid);
   }
   struct ddsi_psmx_locators_set *vl_set = dds_get_psmx_locators_set (wqos, &wr->m_entity.m_domain->psmx_instances);
   rc = ddsi_new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, pp, tp->m_name, sertype, wqos, wr->m_whc, dds_writer_status_cb, wr, vl_set);
@@ -534,6 +527,18 @@ dds_return_t dds__ddsi_writer_wait_for_acks (struct dds_writer *wr, ddsi_guid_t 
     return ddsi_writer_wait_for_acks (wr->m_wr, rdguid, abstimeout);
 }
 
+dds_loaned_sample_t *dds_writer_request_psmx_loan(const dds_writer *wr, uint32_t size)
+{
+  // return the loan from the first endpoint that returns one
+  dds_loaned_sample_t *loan = NULL;
+  for (uint32_t e = 0; e < wr->m_endpoint.psmx_endpoints.length && loan == NULL; e++)
+  {
+    struct dds_psmx_endpoint_int const * const ep = wr->m_endpoint.psmx_endpoints.endpoints[e];
+    loan = ep->ops.request_loan (ep, size);
+  }
+  return loan;
+}
+
 dds_return_t dds_request_writer_loan (dds_writer *wr, enum dds_writer_loan_type loan_type, uint32_t sz, void **sample)
 {
   dds_return_t ret = DDS_RETCODE_ERROR;
@@ -543,8 +548,6 @@ dds_return_t dds_request_writer_loan (dds_writer *wr, enum dds_writer_loan_type 
   // support the programming model of borrowing memory first via the "heap" loans.
   //
   // One should expect the latter performance to be worse than the a plain write.
-  // FIXME: allow multiple psmx instances
-  assert (wr->m_endpoint.psmx_endpoints.length <= 1);
 
   dds_loaned_sample_t *loan = NULL;
   switch (loan_type)
@@ -552,7 +555,7 @@ dds_return_t dds_request_writer_loan (dds_writer *wr, enum dds_writer_loan_type 
     case DDS_WRITER_LOAN_RAW:
       if (wr->m_endpoint.psmx_endpoints.length > 0)
       {
-        if ((loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], sz)) != NULL)
+        if ((loan = dds_writer_request_psmx_loan (wr, sz)) != NULL)
           ret = DDS_RETCODE_OK;
       }
       break;
@@ -560,7 +563,7 @@ dds_return_t dds_request_writer_loan (dds_writer *wr, enum dds_writer_loan_type 
     case DDS_WRITER_LOAN_REGULAR:
       if (wr->m_endpoint.psmx_endpoints.length > 0 && wr->m_topic->m_stype->is_memcpy_safe)
       {
-        if ((loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], wr->m_topic->m_stype->sizeof_type)) != NULL)
+        if ((loan = dds_writer_request_psmx_loan (wr, wr->m_topic->m_stype->sizeof_type)) != NULL)
           ret = DDS_RETCODE_OK;
       }
       else
@@ -614,8 +617,7 @@ struct dds_loaned_sample * dds_writer_psmx_loan_raw (const struct dds_writer *wr
 {
   struct ddsi_sertype const * const sertype = wr->m_wr->type;
   assert (sertype->is_memcpy_safe);
-  assert (wr->m_endpoint.psmx_endpoints.length == 1); // FIXME: support multiple PSMX instances
-  struct dds_loaned_sample * const loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], sertype->sizeof_type);
+  struct dds_loaned_sample * const loan = dds_writer_request_psmx_loan (wr, sertype->sizeof_type);
   if (loan == NULL)
     return NULL;
   struct dds_psmx_metadata * const md = loan->metadata;
@@ -630,10 +632,9 @@ struct dds_loaned_sample * dds_writer_psmx_loan_raw (const struct dds_writer *wr
 
 struct dds_loaned_sample * dds_writer_psmx_loan_from_serdata (const struct dds_writer *wr, const struct ddsi_serdata *sd)
 {
-  assert (wr->m_endpoint.psmx_endpoints.length == 1); // FIXME: support multiple PSMX instances
   assert (ddsi_serdata_size (sd) >= 4);
   const uint32_t loan_size = ddsi_serdata_size (sd) - 4;
-  struct dds_loaned_sample * const loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], loan_size);
+  struct dds_loaned_sample * const loan = dds_writer_request_psmx_loan (wr, loan_size);
   if (loan == NULL)
     return NULL;
   struct dds_psmx_metadata * const md = loan->metadata;

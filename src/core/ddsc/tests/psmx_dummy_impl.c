@@ -1,4 +1,3 @@
-
 #include <string.h>
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
@@ -29,14 +28,30 @@ void dummy_endpoints_alloc(dummy_mockstats_t* mockstats, size_t endpoints_capaci
   mockstats->endpoints._buffer = ddsrt_malloc(endpoints_capacity * sizeof(dds_psmx_endpoint_t));
 }
 
+void dummy_loans_alloc(dummy_mockstats_t* mockstats, size_t loans_capacity)
+{
+  mockstats->loans._maximum = loans_capacity;
+  mockstats->loans._length = 0;
+  mockstats->loans._buffer = ddsrt_malloc(loans_capacity * sizeof(void*));
+}
+
 static void dummy_psmx_loan_free(dds_loaned_sample_t* loan)
 {
-  (void)loan;
+  for (size_t l = 0; l < g_mockstats.loans._length; l++)
+  {
+    void **b = (void**)g_mockstats.loans._buffer;
+    if (b[l] == loan->sample_ptr)
+    {
+      ddsrt_free(b[l]);
+      b[l] = NULL;
+    }
+  }
 }
 
 static dds_loaned_sample_t* dummy_psmx_ep_request_loan(dds_psmx_endpoint_t* psmx_endpoint, uint32_t size_requested)
 {
-  (void)size_requested;
+  if (g_mockstats.loans._length == g_mockstats.loans._maximum)
+    return NULL;
   ++g_mockstats.cnt_request_loan;
   g_mockstats.request_loan_rcv_endpt = psmx_endpoint;
   memset(&g_mockstats.loan, 0x0, sizeof(dds_loaned_sample_t));
@@ -45,8 +60,10 @@ static dds_loaned_sample_t* dummy_psmx_ep_request_loan(dds_psmx_endpoint_t* psmx
   g_mockstats.loan.loan_origin.origin_kind = DDS_LOAN_ORIGIN_KIND_PSMX;
   g_mockstats.loan.loan_origin.psmx_endpoint = psmx_endpoint;
   g_mockstats.loan.metadata = &g_mockstats.loan_metadata;
-  g_mockstats.loan.sample_ptr = (void*)0x1;
-  ddsrt_atomic_st32(&g_mockstats.loan.refc, 1);
+  g_mockstats.loan.sample_ptr = ddsrt_malloc(size_requested);
+  ddsrt_atomic_st32 (&g_mockstats.loan.refc, 1);
+  void **b = (void**)g_mockstats.loans._buffer;
+  b[g_mockstats.loans._length++] = g_mockstats.loan.sample_ptr;
   return &g_mockstats.loan;
 }
 
@@ -93,7 +110,6 @@ static dds_psmx_endpoint_t* dummy_psmx_create_endpoint(
 
   endp->psmx_topic = psmx_topic;
   endp->endpoint_type = endpoint_type;
-  dds_add_psmx_endpoint_to_list(endp, &psmx_topic->psmx_endpoints);
 
   ++g_mockstats.cnt_create_endpoint;
   g_mockstats.create_endpoint_rcv_topic = psmx_topic;
@@ -128,6 +144,9 @@ static dds_psmx_topic_t* dummy_psmx_create_topic(
   const char* type_name,
   dds_data_type_properties_t data_type_props
 ) {
+  if (g_mockstats.fail_create_topic)
+    return NULL;
+
   (void)data_type_props;
   assert(g_mockstats.topics._length < g_mockstats.topics._maximum);
   dds_psmx_topic_t* topic = (dds_psmx_topic_t*)g_mockstats.topics._buffer + g_mockstats.topics._length++;
@@ -137,7 +156,6 @@ static dds_psmx_topic_t* dummy_psmx_create_topic(
   topic->psmx_instance = psmx;
   topic->topic_name = ddsrt_strdup(topic_name);
   topic->type_name = ddsrt_strdup(type_name);
-  dds_add_psmx_topic_to_list(topic, &psmx->psmx_topics);
   ++g_mockstats.cnt_create_topic;
   return topic;
 }
@@ -158,6 +176,14 @@ static dds_return_t dummy_psmx_deinit(dds_psmx_t* psmx)
   ddsrt_free(g_mockstats.config);
   ddsrt_free(g_mockstats.topics._buffer);
   ddsrt_free(g_mockstats.endpoints._buffer);
+  for (size_t l = 0; l < g_mockstats.loans._length; l++)
+  {
+    void **b = (void**)g_mockstats.loans._buffer;
+    if (b[l] != NULL)
+      ddsrt_free(b[l]);
+    b[l] = NULL;
+  }
+  ddsrt_free(g_mockstats.loans._buffer);
   return DDS_RETCODE_OK;
 }
 
@@ -183,9 +209,12 @@ dds_return_t dummy_create_psmx(dds_psmx_t** psmx_out, dds_psmx_instance_id_t ins
   memset(&g_mockstats, 0, sizeof(dummy_mockstats_t));
   g_mockstats.cnt_create_psmx = 1;
 
-  dds_psmx_t* psmx = dds_alloc(sizeof(dds_psmx_t));
-  memset(psmx, 0, sizeof(dds_psmx_t));
-  psmx->instance_name = dds_string_dup("dummy_psmx");
+  dds_psmx_t* psmx = dds_alloc(sizeof(*psmx));
+  memset(psmx, 0, sizeof(*psmx));
+  psmx->instance_name = dds_psmx_get_config_option_value(config, "SERVICE_NAME");
+  if (psmx->instance_name == NULL)
+    dds_string_dup("dummy_psmx");
+
   psmx->instance_id = instance_id;
 
   psmx->ops.type_qos_supported = dummy_psmx_type_qos_supported;

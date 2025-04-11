@@ -12,8 +12,15 @@
 #define SECURITY_CORE_TEST_CERT_UTILS_H_
 
 #include <stdlib.h>
+#include "dds/security/openssl_support.h"
 
 char * generate_ca(const char *ca_name, const char * ca_priv_key_str, int not_valid_before, int not_valid_after);
 char * generate_identity(const char * ca_cert_str, const char * ca_priv_key_str, const char * name, const char * priv_key_str, int not_valid_before, int not_valid_after, char ** subject);
+char * generate_pkcs11_private_key(const char *token, const char *name, uint32_t id, const char *pin);
+char * generate_ca_pkcs11(const char *ca_name, const char * ca_priv_key_uri, int not_valid_before, int not_valid_after);
+char * generate_identity_pkcs11(const char * ca_cert_str, const char * ca_priv_key_uri, const char * name, const char * priv_key_uri, int not_valid_before, int not_valid_after, char ** subject);
+EVP_PKEY * get_priv_key_pkcs11(const char *uri);
+X509 * get_certificate_pkcs11(const char *uri);
+bool check_pkcs11_provider(void);
 
 #endif /* SECURITY_CORE_TEST_CERT_UTILS_H_ */

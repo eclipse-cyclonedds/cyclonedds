@@ -664,8 +664,8 @@ void *ddsrt_avl_iter_next (ddsrt_avl_iter_t *iter)
 
 void ddsrt_avl_walk (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, ddsrt_avl_walk_t f, void *a)
 {
-    const ddsrt_avl_node_t *todo[1+DDSRT_AVL_MAX_TREEHEIGHT];
-    const ddsrt_avl_node_t **todop = todo+1;
+    ddsrt_avl_node_t *todo[1+DDSRT_AVL_MAX_TREEHEIGHT];
+    ddsrt_avl_node_t **todop = todo+1;
     *todop = tree->root;
     while (*todop) {
         ddsrt_avl_node_t *right, *n;
@@ -680,7 +680,7 @@ void ddsrt_avl_walk (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, ddsr
            and the parent of N */
         do {
             right = (*todop)->cs[1];
-            f ((void *) conode_from_node_nonnull (td, *todop), a);
+            f (onode_from_node_nonnull (td, *todop), a);
         } while (todop-- > todo+1 && right == NULL);
         /* Continue with right subtree rooted at 'right' before processing
            the parent node of the last node processed in the loop above */
@@ -690,7 +690,22 @@ void ddsrt_avl_walk (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, ddsr
 
 void ddsrt_avl_const_walk (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree, ddsrt_avl_const_walk_t f, void *a)
 {
-    ddsrt_avl_walk (td, (ddsrt_avl_tree_t *) tree, (ddsrt_avl_walk_t) f, a);
+    const ddsrt_avl_node_t *todo[1+DDSRT_AVL_MAX_TREEHEIGHT];
+    const ddsrt_avl_node_t **todop = todo+1;
+    *todop = tree->root;
+    while (*todop) {
+        ddsrt_avl_node_t *right, *n;
+        n = (*todop)->cs[0];
+        while (n) {
+            *++todop = n;
+            n = n->cs[0];
+        }
+        do {
+            right = (*todop)->cs[1];
+            f (conode_from_node_nonnull (td, *todop), a);
+        } while (todop-- > todo+1 && right == NULL);
+        *++todop = right;
+    }
 }
 
 int ddsrt_avl_is_empty (const ddsrt_avl_tree_t *tree)

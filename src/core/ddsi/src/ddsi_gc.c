@@ -134,8 +134,9 @@ bool ddsi_gcreq_queue_step (struct ddsi_gcreq_queue *q)
   return ret;
 }
 
-static uint32_t gcreq_queue_thread (struct ddsi_gcreq_queue *q)
+static uint32_t gcreq_queue_thread (void *vq)
 {
+  struct ddsi_gcreq_queue * const q = vq;
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   ddsrt_mtime_t next_thread_cputime = { 0 };
   int64_t shortsleep = DDS_MSECS (1);
@@ -238,7 +239,7 @@ struct ddsi_gcreq_queue *ddsi_gcreq_queue_new (struct ddsi_domaingv *gv)
 
 bool ddsi_gcreq_queue_start (struct ddsi_gcreq_queue *q)
 {
-  if (ddsi_create_thread (&q->thrst, q->gv, "gc", (uint32_t (*) (void *)) gcreq_queue_thread, q) == DDS_RETCODE_OK)
+  if (ddsi_create_thread (&q->thrst, q->gv, "gc", gcreq_queue_thread, q) == DDS_RETCODE_OK)
     return true;
   else
   {

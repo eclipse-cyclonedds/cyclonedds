@@ -21,6 +21,7 @@
 
 #include <stdint.h>
 #include <assert.h>
+#include <stddef.h>
 
 #include "dds/export.h"
 #include "dds/config.h"
@@ -275,7 +276,7 @@ ddsrt_duration_to_msecs_ceil(dds_duration_t reltime)
  * @param[out]  sec   Seconds part
  * @param[out]  usec  Microseconds part
  */
-DDS_EXPORT void ddsrt_mtime_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, ddsrt_mtime_t t);
+DDS_EXPORT void ddsrt_mtime_to_sec_usec (int32_t *sec, int32_t *usec, ddsrt_mtime_t t);
 
 /**
  * @brief Convert wall-clock time seconds & microseconds
@@ -284,7 +285,7 @@ DDS_EXPORT void ddsrt_mtime_to_sec_usec (int32_t * __restrict sec, int32_t * __r
  * @param[out]  sec   Seconds part
  * @param[out]  usec  Microseconds part
  */
-DDS_EXPORT void ddsrt_wctime_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, ddsrt_wctime_t t);
+DDS_EXPORT void ddsrt_wctime_to_sec_usec (int32_t *sec, int32_t *usec, ddsrt_wctime_t t);
 
 /**
  * @brief Convert elapsed time seconds & microseconds
@@ -293,7 +294,7 @@ DDS_EXPORT void ddsrt_wctime_to_sec_usec (int32_t * __restrict sec, int32_t * __
  * @param[out]  sec   Seconds part
  * @param[out]  usec  Microseconds part
  */
-DDS_EXPORT void ddsrt_etime_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, ddsrt_etime_t t);
+DDS_EXPORT void ddsrt_etime_to_sec_usec (int32_t *sec, int32_t *usec, ddsrt_etime_t t);
 
 #if defined(__cplusplus)
 }

@@ -86,18 +86,18 @@ static bool ti_to_pairs_equal (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectP
     if (!to_b)
       return false;
 
-    dds_ostream_t to_a_ser = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
+    dds_ostreamLE_t to_a_ser = { .x = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 } };
     xcdr2_ser (&a->_buffer[n].type_object, &DDS_XTypes_TypeObject_desc, &to_a_ser);
-    dds_ostream_t to_b_ser = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
+    dds_ostreamLE_t to_b_ser = { .x = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 } };
     xcdr2_ser (to_b, &DDS_XTypes_TypeObject_desc, &to_b_ser);
 
-    if (to_a_ser.m_index != to_b_ser.m_index)
+    if (to_a_ser.x.m_index != to_b_ser.x.m_index)
       return false;
-    if (memcmp (to_a_ser.m_buffer, to_b_ser.m_buffer, to_a_ser.m_index))
+    if (memcmp (to_a_ser.x.m_buffer, to_b_ser.x.m_buffer, to_a_ser.x.m_index))
       return false;
 
-    dds_ostream_fini (&to_a_ser, &dds_cdrstream_default_allocator);
-    dds_ostream_fini (&to_b_ser, &dds_cdrstream_default_allocator);
+    dds_ostreamLE_fini (&to_a_ser, &dds_cdrstream_default_allocator);
+    dds_ostreamLE_fini (&to_b_ser, &dds_cdrstream_default_allocator);
   }
   return true;
 }
@@ -136,9 +136,9 @@ CU_TheoryDataPoints (ddsc_typebuilder, topic_desc) = {
   CU_DataPoints (const dds_topic_descriptor_t *, &D(t1), &D(t2), &D(t3), &D(t4), &D(t5), &D(t6), &D(t7), &D(t8),
                                                  &D(t9), &D(t10), &D(t11), &D(t12), &D(t13), &D(t14), &D(t15), &D(t16),
                                                  &D(t17), &D(t18), &D(t19), &D(t20), &D(t21), &D(t22), &D(t23), &D(t24),
-                                                 &D(t25), &D(t26), &D(t27), &D(t28) ),
+                                                 &D(t25), &D(t26), &D(t27), &D(t28), &D(t29), &D(t30), &D(t31), &D(t32),
+                                                 &D(t33), &D(t34), &D(t35), &D(t36), &D(t37), &D(t38) ),
 };
-
 #undef D
 
 CU_Theory((const dds_topic_descriptor_t *desc), ddsc_typebuilder, topic_desc, .init = typebuilder_init, .fini = typebuilder_fini)

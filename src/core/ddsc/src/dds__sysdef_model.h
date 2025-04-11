@@ -21,7 +21,7 @@ extern "C" {
 #define TYPE_HASH_LENGTH 14
 
 struct dds_sysdef_type_metadata {
-  unsigned char *type_hash;
+  char *type_name;
   size_t type_info_cdr_sz;
   unsigned char *type_info_cdr;
   size_t type_map_cdr_sz;
@@ -33,7 +33,7 @@ struct dds_sysdef_type_metadata_admin {
 };
 
 struct xml_element;
-struct dds_sysdef_type;
+struct dds_sysdef_type_external;
 struct dds_sysdef_type_lib;
 struct dds_sysdef_qos;
 struct dds_sysdef_qos_profile;
@@ -55,7 +55,7 @@ enum element_kind
   ELEMENT_KIND_DDS,
 
   ELEMENT_KIND_TYPE_LIB,
-  ELEMENT_KIND_TYPE,
+  ELEMENT_KIND_TYPE_REF_EXTERNAL,
 
   ELEMENT_KIND_QOS_LIB,
   ELEMENT_KIND_QOS_PROFILE,
@@ -112,7 +112,7 @@ enum element_kind
   ELEMENT_KIND_QOS_POLICY_READERDATALIFECYCLE_AUTOPURGE_DISPOSED_SAMPLES_DELAY,
   ELEMENT_KIND_QOS_POLICY_RELIABILITY,
   ELEMENT_KIND_QOS_POLICY_RELIABILITY_KIND,
-  ELEMENT_KIND_QOS_POLICY_RELIABILITY_MAX_BLOCKING_DELAY,
+  ELEMENT_KIND_QOS_POLICY_RELIABILITY_MAX_BLOCKING_TIME,
   ELEMENT_KIND_QOS_POLICY_RESOURCELIMITS,
   ELEMENT_KIND_QOS_POLICY_RESOURCELIMITS_INITIAL_INSTANCES,
   ELEMENT_KIND_QOS_POLICY_RESOURCELIMITS_INITIAL_SAMPLES,
@@ -129,6 +129,8 @@ enum element_kind
   ELEMENT_KIND_QOS_POLICY_USERDATA_VALUE,
   ELEMENT_KIND_QOS_POLICY_WRITERDATALIFECYCLE,
   ELEMENT_KIND_QOS_POLICY_WRITERDATALIFECYCLE_AUTODISPOSE_UNREGISTERED_INSTANCES,
+  ELEMENT_KIND_QOS_POLICY_WRITERBATCHING,
+  ELEMENT_KIND_QOS_POLICY_WRITERBATCHING_BATCH_UPDATES,
 
   ELEMENT_KIND_DOMAIN_LIB,
   ELEMENT_KIND_DOMAIN,
@@ -220,10 +222,14 @@ struct xml_element
 };
 
 /* Type library */
+enum dds_sysdef_type_kind {
+  DDS_SYSDEF_TYPE_REF_EXTERNAL
+};
+
 struct dds_sysdef_type {
   struct xml_element xmlnode;
   char *name;
-  unsigned char *identifier;
+  enum dds_sysdef_type_kind kind;
   struct dds_sysdef_type_lib *parent;
 };
 
@@ -250,15 +256,15 @@ enum dds_sysdef_qos_kind {
   };
 
 #define QOS_POLICY_DEADLINE_PARAM_PERIOD (1 << 0u)
-#define QOS_POLICY_DEADLINE_PARAMS (QOS_POLICY_DEADLINE_PARAM_PERIOD)
+#define QOS_POLICY_DEADLINE_REQUIRED_PARAMS (QOS_POLICY_DEADLINE_PARAM_PERIOD)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_DEADLINE, dds_deadline_qospolicy_t)
 
 #define QOS_POLICY_DESTINATIONORDER_PARAM_KIND (1 << 0u)
-#define QOS_POLICY_DESTINATIONORDER_PARAMS (QOS_POLICY_DESTINATIONORDER_PARAM_KIND)
+#define QOS_POLICY_DESTINATIONORDER_REQUIRED_PARAMS (QOS_POLICY_DESTINATIONORDER_PARAM_KIND)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_DESTINATIONORDER, dds_destination_order_qospolicy_t)
 
 #define QOS_POLICY_DURABILITY_PARAM_KIND (1 << 0u)
-#define QOS_POLICY_DURABILITY_PARAMS (QOS_POLICY_DURABILITY_PARAM_KIND)
+#define QOS_POLICY_DURABILITY_REQUIRED_PARAMS (QOS_POLICY_DURABILITY_PARAM_KIND)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_DURABILITY, dds_durability_qospolicy_t)
 
 #define QOS_POLICY_DURABILITYSERVICE_PARAM_SERVICE_CLEANUP_DELAY (1 << 0u)
@@ -267,47 +273,41 @@ QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_DURABILITY, dds_durability_qospolicy_t)
 #define QOS_POLICY_DURABILITYSERVICE_PARAM_RESOURCE_LIMIT_MAX_SAMPLES (1 << 3u)
 #define QOS_POLICY_DURABILITYSERVICE_PARAM_RESOURCE_LIMIT_MAX_INSTANCES (1 << 4u)
 #define QOS_POLICY_DURABILITYSERVICE_PARAM_RESOURCE_LIMIT_MAX_SAMPLES_PER_INSTANCE (1 << 5u)
-#define QOS_POLICY_DURABILITYSERVICE_PARAMS (\
-    QOS_POLICY_DURABILITYSERVICE_PARAM_SERVICE_CLEANUP_DELAY \
-    | QOS_POLICY_DURABILITYSERVICE_PARAM_HISTORY_KIND \
-    | QOS_POLICY_DURABILITYSERVICE_PARAM_HISTORY_DEPTH \
-    | QOS_POLICY_DURABILITYSERVICE_PARAM_RESOURCE_LIMIT_MAX_SAMPLES \
-    | QOS_POLICY_DURABILITYSERVICE_PARAM_RESOURCE_LIMIT_MAX_INSTANCES \
-    | QOS_POLICY_DURABILITYSERVICE_PARAM_RESOURCE_LIMIT_MAX_SAMPLES_PER_INSTANCE)
+#define QOS_POLICY_DURABILITYSERVICE_REQUIRED_PARAMS (0u)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_DURABILITYSERVICE, dds_durability_service_qospolicy_t)
 
 #define QOS_POLICY_ENTITYFACTORY_PARAM_AUTOENABLE_CREATED_ENTITIES (1 << 0u)
-#define QOS_POLICY_ENTITYFACTORY_PARAMS (QOS_POLICY_ENTITYFACTORY_PARAM_AUTOENABLE_CREATED_ENTITIES)
+#define QOS_POLICY_ENTITYFACTORY_REQUIRED_PARAMS (QOS_POLICY_ENTITYFACTORY_PARAM_AUTOENABLE_CREATED_ENTITIES)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_ENTITYFACTORY, dds_entity_factory_qospolicy_t)
 
 #define QOS_POLICY_HISTORY_PARAM_KIND (1 << 0u)
 #define QOS_POLICY_HISTORY_PARAM_DEPTH (1 << 1u)
-#define QOS_POLICY_HISTORY_PARAMS (QOS_POLICY_HISTORY_PARAM_KIND | QOS_POLICY_HISTORY_PARAM_DEPTH)
+#define QOS_POLICY_HISTORY_REQUIRED_PARAMS (0u)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_HISTORY, dds_history_qospolicy_t)
 
 #define QOS_POLICY_LATENCYBUDGET_PARAM_DURATION (1 << 0u)
-#define QOS_POLICY_LATENCYBUDGET_PARAMS (QOS_POLICY_LATENCYBUDGET_PARAM_DURATION)
+#define QOS_POLICY_LATENCYBUDGET_REQUIRED_PARAMS (QOS_POLICY_LATENCYBUDGET_PARAM_DURATION)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_LATENCYBUDGET, dds_latency_budget_qospolicy_t)
 
 #define QOS_POLICY_LIFESPAN_PARAM_DURATION (1 << 0u)
-#define QOS_POLICY_LIFESPAN_PARAMS (QOS_POLICY_LIFESPAN_PARAM_DURATION)
+#define QOS_POLICY_LIFESPAN_REQUIRED_PARAMS (QOS_POLICY_LIFESPAN_PARAM_DURATION)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_LIFESPAN, dds_lifespan_qospolicy_t)
 
 #define QOS_POLICY_LIVELINESS_PARAM_KIND (1 << 0u)
 #define QOS_POLICY_LIVELINESS_PARAM_LEASE_DURATION (1 << 1u)
-#define QOS_POLICY_LIVELINESS_PARAMS (QOS_POLICY_LIVELINESS_PARAM_KIND | QOS_POLICY_LIVELINESS_PARAM_LEASE_DURATION)
+#define QOS_POLICY_LIVELINESS_REQUIRED_PARAMS (QOS_POLICY_LIVELINESS_PARAM_KIND | QOS_POLICY_LIVELINESS_PARAM_LEASE_DURATION)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_LIVELINESS, dds_liveliness_qospolicy_t)
 
 #define QOS_POLICY_OWNERSHIP_PARAM_KIND (1 << 0u)
-#define QOS_POLICY_OWNERSHIP_PARAMS (QOS_POLICY_OWNERSHIP_PARAM_KIND)
+#define QOS_POLICY_OWNERSHIP_REQUIRED_PARAMS (QOS_POLICY_OWNERSHIP_PARAM_KIND)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_OWNERSHIP, dds_ownership_qospolicy_t)
 
 #define QOS_POLICY_OWNERSHIPSTRENGTH_PARAM_VALUE (1 << 0u)
-#define QOS_POLICY_OWNERSHIPSTRENGTH_PARAMS (QOS_POLICY_OWNERSHIPSTRENGTH_PARAM_VALUE)
+#define QOS_POLICY_OWNERSHIPSTRENGTH_REQUIRED_PARAMS (QOS_POLICY_OWNERSHIPSTRENGTH_PARAM_VALUE)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_OWNERSHIPSTRENGTH, dds_ownership_strength_qospolicy_t)
 
 #define QOS_POLICY_PARTITION_PARAM_NAME (1 << 0u)
-#define QOS_POLICY_PARTITION_PARAMS (QOS_POLICY_PARTITION_PARAM_NAME)
+#define QOS_POLICY_PARTITION_REQUIRED_PARAMS (QOS_POLICY_PARTITION_PARAM_NAME)
 struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT {
   struct xml_element xmlnode;
   char *element;
@@ -327,47 +327,51 @@ struct dds_sysdef_QOS_POLICY_PARTITION {
 #define QOS_POLICY_PRESENTATION_PARAM_ACCESS_SCOPE (1 << 0u)
 #define QOS_POLICY_PRESENTATION_PARAM_COHERENT_ACCESS (1 << 1u)
 #define QOS_POLICY_PRESENTATION_PARAM_ORDERED_ACCESS (1 << 2u)
-#define QOS_POLICY_PRESENTATION_PARAMS (QOS_POLICY_PRESENTATION_PARAM_ACCESS_SCOPE | QOS_POLICY_PRESENTATION_PARAM_COHERENT_ACCESS | QOS_POLICY_PRESENTATION_PARAM_ORDERED_ACCESS)
+#define QOS_POLICY_PRESENTATION_REQUIRED_PARAMS (QOS_POLICY_PRESENTATION_PARAM_ACCESS_SCOPE | QOS_POLICY_PRESENTATION_PARAM_COHERENT_ACCESS | QOS_POLICY_PRESENTATION_PARAM_ORDERED_ACCESS)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_PRESENTATION, dds_presentation_qospolicy_t)
 
 #define QOS_POLICY_READERDATALIFECYCLE_PARAM_AUTOPURGE_NOWRITER_SAMPLES_DELAY (1 << 0u)
 #define QOS_POLICY_READERDATALIFECYCLE_PARAM_AUTOPURGE_DISPOSED_SAMPLES_DELAY (1 << 1u)
-#define QOS_POLICY_READERDATALIFECYCLE_PARAMS (QOS_POLICY_READERDATALIFECYCLE_PARAM_AUTOPURGE_NOWRITER_SAMPLES_DELAY | QOS_POLICY_READERDATALIFECYCLE_PARAM_AUTOPURGE_DISPOSED_SAMPLES_DELAY)
+#define QOS_POLICY_READERDATALIFECYCLE_REQUIRED_PARAMS (QOS_POLICY_READERDATALIFECYCLE_PARAM_AUTOPURGE_NOWRITER_SAMPLES_DELAY | QOS_POLICY_READERDATALIFECYCLE_PARAM_AUTOPURGE_DISPOSED_SAMPLES_DELAY)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_READERDATALIFECYCLE, dds_reader_data_lifecycle_qospolicy_t)
 
 #define QOS_POLICY_RELIABILITY_PARAM_KIND (1 << 0u)
-#define QOS_POLICY_RELIABILITY_PARAM_MAX_BLOCKING_DELAY (1 << 1u)
-#define QOS_POLICY_RELIABILITY_PARAMS (QOS_POLICY_RELIABILITY_PARAM_KIND | QOS_POLICY_RELIABILITY_PARAM_MAX_BLOCKING_DELAY)
+#define QOS_POLICY_RELIABILITY_PARAM_MAX_BLOCKING_TIME (1 << 1u)
+#define QOS_POLICY_RELIABILITY_REQUIRED_PARAMS (QOS_POLICY_RELIABILITY_PARAM_KIND)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_RELIABILITY, dds_reliability_qospolicy_t)
 
 #define QOS_POLICY_RESOURCELIMITS_PARAM_MAX_SAMPLES (1 << 0u)
 #define QOS_POLICY_RESOURCELIMITS_PARAM_MAX_INSTANCES (1 << 1u)
 #define QOS_POLICY_RESOURCELIMITS_PARAM_MAX_SAMPLES_PER_INSTANCE (1 << 2u)
-#define QOS_POLICY_RESOURCELIMITS_PARAMS (QOS_POLICY_RESOURCELIMITS_PARAM_MAX_SAMPLES | QOS_POLICY_RESOURCELIMITS_PARAM_MAX_INSTANCES | QOS_POLICY_RESOURCELIMITS_PARAM_MAX_SAMPLES_PER_INSTANCE)
+#define QOS_POLICY_RESOURCELIMITS_REQUIRED_PARAMS (0u)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_RESOURCELIMITS, dds_resource_limits_qospolicy_t)
 
 #define QOS_POLICY_TIMEBASEDFILTER_PARAM_MINIMUM_SEPARATION (1 << 0u)
-#define QOS_POLICY_TIMEBASEDFILTER_PARAMS (QOS_POLICY_TIMEBASEDFILTER_PARAM_MINIMUM_SEPARATION)
+#define QOS_POLICY_TIMEBASEDFILTER_REQUIRED_PARAMS (QOS_POLICY_TIMEBASEDFILTER_PARAM_MINIMUM_SEPARATION)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_TIMEBASEDFILTER, dds_time_based_filter_qospolicy_t)
 
 #define QOS_POLICY_TRANSPORTPRIORITY_PARAM_VALUE (1 << 0u)
-#define QOS_POLICY_TRANSPORTPRIORITY_PARAMS (QOS_POLICY_TRANSPORTPRIORITY_PARAM_VALUE)
+#define QOS_POLICY_TRANSPORTPRIORITY_REQUIRED_PARAMS (QOS_POLICY_TRANSPORTPRIORITY_PARAM_VALUE)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_TRANSPORTPRIORITY, dds_transport_priority_qospolicy_t)
 
 #define QOS_POLICY_WRITERDATALIFECYCLE_PARAM_AUTODISPOSE_UNREGISTERED_INSTANCES (1 << 0u)
-#define QOS_POLICY_WRITERDATALIFECYCLE_PARAMS (QOS_POLICY_WRITERDATALIFECYCLE_PARAM_AUTODISPOSE_UNREGISTERED_INSTANCES)
+#define QOS_POLICY_WRITERDATALIFECYCLE_REQUIRED_PARAMS (QOS_POLICY_WRITERDATALIFECYCLE_PARAM_AUTODISPOSE_UNREGISTERED_INSTANCES)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_WRITERDATALIFECYCLE, dds_writer_data_lifecycle_qospolicy_t)
 
+#define QOS_POLICY_WRITERBATCHING_PARAM_BATCH_UPDATES (1 << 0u)
+#define QOS_POLICY_WRITERBATCHING_REQUIRED_PARAMS (QOS_POLICY_WRITERBATCHING_PARAM_BATCH_UPDATES)
+QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_WRITERBATCHING, dds_writer_batching_qospolicy_t)
+
 #define QOS_POLICY_GROUPDATA_PARAM_VALUE (1 << 0u)
-#define QOS_POLICY_GROUPDATA_PARAMS (QOS_POLICY_GROUPDATA_PARAM_VALUE)
+#define QOS_POLICY_GROUPDATA_REQUIRED_PARAMS (QOS_POLICY_GROUPDATA_PARAM_VALUE)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_GROUPDATA, dds_groupdata_qospolicy_t)
 
 #define QOS_POLICY_TOPICDATA_PARAM_VALUE (1 << 0u)
-#define QOS_POLICY_TOPICDATA_PARAMS (QOS_POLICY_TOPICDATA_PARAM_VALUE)
+#define QOS_POLICY_TOPICDATA_REQUIRED_PARAMS (QOS_POLICY_TOPICDATA_PARAM_VALUE)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_TOPICDATA, dds_topicdata_qospolicy_t)
 
 #define QOS_POLICY_USERDATA_PARAM_VALUE (1 << 0u)
-#define QOS_POLICY_USERDATA_PARAMS (QOS_POLICY_USERDATA_PARAM_VALUE)
+#define QOS_POLICY_USERDATA_REQUIRED_PARAMS (QOS_POLICY_USERDATA_PARAM_VALUE)
 QOS_POLICY_SYSDEF_STRUCT (QOS_POLICY_USERDATA, dds_userdata_qospolicy_t)
 
 struct dds_sysdef_qos_generic_property {
@@ -431,13 +435,11 @@ struct dds_sysdef_register_type {
 };
 
 #define SYSDEF_DOMAIN_DOMAIN_ID_PARAM_VALUE (1 << 0u)
-#define SYSDEF_DOMAIN_PARTICIPANT_INDEX_PARAM_VALUE (1 << 1u)
 #define SYSDEF_DOMAIN_PARAMS (SYSDEF_DOMAIN_DOMAIN_ID_PARAM_VALUE)
 struct dds_sysdef_domain {
   struct xml_element xmlnode;
   uint32_t domain_id;
   char *name;
-  int32_t participant_index;
   struct dds_sysdef_register_type *register_types;
   struct dds_sysdef_topic *topics;
   uint32_t populated;
@@ -450,39 +452,30 @@ struct dds_sysdef_domain_lib {
 };
 
 /* Participant library */
-struct dds_sysdef_endpoint {
+struct dds_sysdef_entity {
   struct xml_element xmlnode;
   char *name;
-  uint32_t entity_key;
 };
 
-#define SYSDEF_WRITER_ENTITY_KEY_PARAM_VALUE (1 << 0u)
-#define SYSDEF_WRITER_PARAMS (SYSDEF_WRITER_ENTITY_KEY_PARAM_VALUE)
 struct dds_sysdef_writer {
   struct xml_element xmlnode;
   char *name;
-  uint32_t entity_key;
   struct dds_sysdef_topic *topic;
   struct dds_sysdef_qos *qos;
   uint32_t populated;
 };
-DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_writer, xmlnode) == offsetof (struct dds_sysdef_endpoint, xmlnode));
-DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_writer, name) == offsetof (struct dds_sysdef_endpoint, name));
-DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_writer, entity_key) == offsetof (struct dds_sysdef_endpoint, entity_key));
+DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_writer, xmlnode) == offsetof (struct dds_sysdef_entity, xmlnode));
+DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_writer, name) == offsetof (struct dds_sysdef_entity, name));
 
-#define SYSDEF_READER_ENTITY_KEY_PARAM_VALUE (1 << 0u)
-#define SYSDEF_READER_PARAMS (SYSDEF_READER_ENTITY_KEY_PARAM_VALUE)
 struct dds_sysdef_reader {
   struct xml_element xmlnode;
   char *name;
-  uint32_t entity_key;
   struct dds_sysdef_topic *topic;
   struct dds_sysdef_qos *qos;
   uint32_t populated;
 };
-DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_reader, xmlnode) == offsetof (struct dds_sysdef_endpoint, xmlnode));
-DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_reader, name) == offsetof (struct dds_sysdef_endpoint, name));
-DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_reader, entity_key) == offsetof (struct dds_sysdef_endpoint, entity_key));
+DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_reader, xmlnode) == offsetof (struct dds_sysdef_entity, xmlnode));
+DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_reader, name) == offsetof (struct dds_sysdef_entity, name));
 
 struct dds_sysdef_publisher {
   struct xml_element xmlnode;
@@ -490,6 +483,8 @@ struct dds_sysdef_publisher {
   struct dds_sysdef_qos *qos;
   struct dds_sysdef_writer *writers;
 };
+DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_publisher, xmlnode) == offsetof (struct dds_sysdef_entity, xmlnode));
+DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_publisher, name) == offsetof (struct dds_sysdef_entity, name));
 
 struct dds_sysdef_subscriber {
   struct xml_element xmlnode;
@@ -497,14 +492,12 @@ struct dds_sysdef_subscriber {
   struct dds_sysdef_qos *qos;
   struct dds_sysdef_reader *readers;
 };
+DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_subscriber, xmlnode) == offsetof (struct dds_sysdef_entity, xmlnode));
+DDSRT_STATIC_ASSERT (offsetof (struct dds_sysdef_subscriber, name) == offsetof (struct dds_sysdef_entity, name));
 
 enum dds_sysdef_participant_parent_kind {
   DDS_SYSDEF_PARTICIPANT_PARENT_KIND_APPLICATION,
   DDS_SYSDEF_PARTICIPANT_PARENT_KIND_PARTICIPANTLIB
-};
-
-struct dds_sysdef_participant_guid_prefix {
-  uint32_t p;
 };
 
 struct dds_sysdef_participant {
@@ -513,7 +506,6 @@ struct dds_sysdef_participant {
   struct dds_sysdef_qos *qos;
   struct dds_sysdef_domain *domain_ref;
   struct dds_sysdef_participant *base;
-  struct dds_sysdef_participant_guid_prefix *guid_prefix;
 
   struct dds_sysdef_register_type *register_types;
   struct dds_sysdef_topic *topics;
@@ -548,14 +540,15 @@ struct dds_sysdef_mac_addr {
   uint8_t addr[6];
 };
 struct dds_sysdef_ip_addr {
+  struct xml_element xmlnode;
   struct sockaddr_storage addr;
 };
 struct dds_sysdef_node {
   struct xml_element xmlnode;
   char *name;
   char *hostname;
-  struct dds_sysdef_ip_addr *ipv4_addr;
-  struct dds_sysdef_ip_addr *ipv6_addr;
+  struct dds_sysdef_ip_addr *ipv4_addrs;
+  struct dds_sysdef_ip_addr *ipv6_addrs;
   struct dds_sysdef_mac_addr *mac_addr;
 };
 
@@ -608,8 +601,8 @@ struct dds_sysdef_tsn_network_requirements {
 
 struct dds_sysdef_tsn_ieee802_mac_addresses {
   struct xml_element xmlnode;
-  char *destination_mac_address;
-  char *source_mac_address;
+  struct dds_sysdef_mac_addr *destination_mac_address;
+  struct dds_sysdef_mac_addr *source_mac_address;
 };
 
 #define SYSDEF_TSN_VLAN_TAG_PRIORITY_CODE_POINT_PARAM_VALUE (1 << 0u)

@@ -12,6 +12,7 @@
 #define DDS__WRITE_H
 
 #include "dds/export.h"
+#include "dds__types.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -46,6 +47,17 @@ dds_return_t dds_writecdr_local_orphan_impl (struct ddsi_local_orphan_writer *lo
 
 /** @component write_data */
 void dds_write_flush_impl (dds_writer *wr);
+
+inline bool dds_source_timestamp_is_valid_ddsi_time (dds_time_t timestamp, ddsi_protocol_version_t protover) {
+  // infinity as a source timestamp makes no sense so we disallow it
+  // invalid is useful because of dds_forwardcdr i.c.w. inputs with invalid/missing source timestamps
+  // negative timestamps have always been disallowed by Cyclone and are unrepresentable in DDSI 2.3 and later
+  assert (protover.major == 2);
+  if (protover.minor > 2)
+    return (timestamp >= 0 && timestamp <= INT64_C (4294967295999999999)) || (timestamp == DDS_TIME_INVALID);
+  else
+    return (timestamp >= 0 && timestamp <= INT64_C (2147483647999999999)) || (timestamp == DDS_TIME_INVALID);
+}
 
 #if defined (__cplusplus)
 }

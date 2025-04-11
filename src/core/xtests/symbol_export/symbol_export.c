@@ -511,7 +511,7 @@ int main (int argc, char **argv)
   dds_stream_write_sampleBE (ptr, ptr2, ptr3, ptr4);
 
   dds_stream_getsize_sample (ptr, ptr, 0);
-  dds_stream_getsize_key (0, ptr, ptr, 0);
+  dds_stream_getsize_key (ptr, ptr, 0);
 
   dds_stream_read (ptr, ptr2, ptr3, ptr4);
   dds_stream_read_key (ptr, ptr2, ptr3, ptr4);
@@ -533,13 +533,11 @@ int main (int argc, char **argv)
   // dds_psmx.h
   dds_add_psmx_endpoint_to_list (ptr, ptr2);
   dds_add_psmx_topic_to_list (ptr, ptr2);
-  dds_remove_psmx_endpoint_from_list (ptr, ptr2);
-  dds_remove_psmx_topic_from_list (ptr, ptr2);
   dds_psmx_init_generic (ptr);
   dds_psmx_cleanup_generic (ptr);
   dds_psmx_topic_init_generic (ptr, ptr2, ptr3, ptr4, ptr, 0);
   dds_psmx_topic_cleanup_generic (ptr);
-  dds_psmx_supported_features (ptr);
+  dds_psmx_get_config_option_value (ptr, ptr2);
 
   // dds_loaned_sample.h
   dds_loaned_sample_ref (ptr);
@@ -1204,6 +1202,7 @@ int main (int argc, char **argv)
   dds_sysdef_init_sysdef_str (ptr, ptr2, 0);
   dds_sysdef_fini_sysdef (ptr);
   dds_sysdef_init_data_types (ptr, ptr2);
+  dds_sysdef_init_data_types_str (ptr, ptr2);
   dds_sysdef_fini_data_types (ptr);
 
   return 0;

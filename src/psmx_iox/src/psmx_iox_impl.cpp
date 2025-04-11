@@ -54,7 +54,11 @@ static const dds_psmx_ops_t psmx_ops = {
   .delete_topic = iox_delete_topic,
   .deinit = iox_psmx_deinit,
   .get_node_id = iox_psmx_get_node_id,
-  .supported_features = iox_supported_features
+  .supported_features = iox_supported_features,
+  // backwards compatibility means the following two need not be set,
+  // but leaving them out results in a compiler warning here
+  .create_topic_with_type = nullptr,
+  .delete_psmx = nullptr
 };
 
 
@@ -76,7 +80,10 @@ static const dds_psmx_endpoint_ops_t psmx_ep_ops = {
   .request_loan = iox_req_loan,
   .write = iox_write,
   .take = iox_take,
-  .on_data_available = iox_on_data_available
+  .on_data_available = iox_on_data_available,
+  // backwards compatibility means the following need not be set,
+  // but leaving it out results in a compiler warning here
+  .write_with_key = nullptr
 };
 
 
@@ -111,11 +118,11 @@ static thread_local bool sched_info_set = false;
 iox_psmx::iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service_name, const dds_psmx_node_identifier_t& node_id, bool support_keyed_topics, bool allow_nondisc_wr, sched::sched_info sched_info) :
   dds_psmx_t {
     .ops = psmx_ops,
-    .instance_name = dds_string_dup ("CycloneDDS-IOX-PSMX"),
+    .instance_name = dds_string_dup (service_name.c_str()),
     .priority = 0,
     .locator = nullptr,
     .instance_id = identifier,
-    .psmx_topics = nullptr
+    .psmx_topics = nullptr,
   },
   _support_keyed_topics{support_keyed_topics},
   _allow_nondisc_wr{allow_nondisc_wr},
@@ -156,11 +163,6 @@ iox_psmx_topic::iox_psmx_topic(iox_psmx& psmx, const char * topic_name, const ch
   dds_psmx_topic_init_generic(this, &psmx_topic_ops, &psmx, topic_name, type_name, data_type_props);
   if (ddsrt_strlcpy (_data_type_str, type_name, sizeof (_data_type_str)) >= sizeof (_data_type_str))
     snprintf(_data_type_str, sizeof (_data_type_str), "CycloneDDS iox_datatype %08X", data_type);
-  if (dds_add_psmx_topic_to_list(this, &psmx.psmx_topics) != DDS_RETCODE_OK)
-  {
-    std::cerr << ERROR_PREFIX "could not add PSMX topic to list" << std::endl;
-    assert(false);
-  }
 }
 
 iox_psmx_topic::~iox_psmx_topic()
@@ -292,12 +294,6 @@ iox_psmx_endpoint::iox_psmx_endpoint(iox_psmx_topic &psmx_topic, const struct dd
     default:
       std::cerr << ERROR_PREFIX "PSMX endpoint type not accepted" << std::endl;
       assert(false);
-  }
-
-  if (dds_add_psmx_endpoint_to_list(this, &psmx_topic.psmx_endpoints) != DDS_RETCODE_OK)
-  {
-    std::cerr << ERROR_PREFIX "could not add PSMX endpoint to list" << std::endl;
-    assert(false);
   }
 }
 
@@ -619,30 +615,18 @@ static void iox_loaned_sample_free(dds_loaned_sample_t *loan)
 };  //namespace iox_psmx
 
 
-static std::optional<std::string> get_config_option_value(const char *conf, const char *option_name, bool tolower = false)
+static std::optional<std::string> get_config_option_val(const char *conf, const char *option_name, bool tolower = false)
 {
-  char *copy = dds_string_dup (conf), *cursor = copy, *tok;
-  while ((tok = ddsrt_strsep (&cursor, ";")) != nullptr)
+  char *token = dds_psmx_get_config_option_value(conf, option_name);
+  std::optional<std::string> ret;
+  if (token)
   {
-    if (strlen(tok) == 0)
-      continue;
-    char *name = ddsrt_strsep (&tok, "=");
-    if (name == nullptr || tok == nullptr)
-    {
-      dds_free(copy);
-      return std::nullopt;
-    }
-    if (strcmp (name, option_name) == 0)
-    {
-      std::string ret{tok};
-      dds_free(copy);
-      if (tolower)
-        transform(ret.begin(), ret.end(), ret.begin(), ::tolower);
-      return ret;
-    }
+    ret = token;
+    dds_free(token);
+    if (tolower)
+      transform(ret->begin(), ret->end(), ret->begin(), ::tolower);
   }
-  dds_free(copy);
-  return std::nullopt;
+  return ret;
 }
 
 static std::optional<iox::log::LogLevel> to_loglevel(const std::string& str)
@@ -680,7 +664,7 @@ dds_return_t iox_create_psmx(struct dds_psmx **psmx, dds_psmx_instance_id_t inst
   assert(psmx);
 
   // C++23 would have or_else/and_then, but C++23 is too new ...
-  auto opt_loglevel = get_config_option_value(config, "LOG_LEVEL", true);
+  auto opt_loglevel = get_config_option_val(config, "LOG_LEVEL", true);
   if (opt_loglevel.has_value()) {
     auto loglevel = to_loglevel (opt_loglevel.value());
     if (!loglevel.has_value())
@@ -688,7 +672,7 @@ dds_return_t iox_create_psmx(struct dds_psmx **psmx, dds_psmx_instance_id_t inst
     iox::log::LogManager::GetLogManager().SetDefaultLogLevel(loglevel.value(), iox::log::LogLevelOutput::kHideLogLevel);
   }
 
-  auto opt_service_name = get_config_option_value(config, "SERVICE_NAME");
+  auto opt_service_name = get_config_option_val(config, "SERVICE_NAME");
   std::string service_name;
   if (opt_service_name.has_value())
     service_name = opt_service_name.value();
@@ -697,7 +681,7 @@ dds_return_t iox_create_psmx(struct dds_psmx **psmx, dds_psmx_instance_id_t inst
     service_name = std::string("CycloneDDS iox_psmx ") + std::to_string(instance_id);
   }
 
-  auto opt_node_id = get_config_option_value(config, "LOCATOR");
+  auto opt_node_id = get_config_option_val(config, "LOCATOR");
   std::optional<dds_psmx_node_identifier_t> node_id = std::nullopt;
   if (opt_node_id.has_value()) {
     node_id = to_node_identifier(opt_node_id.value());
@@ -707,7 +691,7 @@ dds_return_t iox_create_psmx(struct dds_psmx **psmx, dds_psmx_instance_id_t inst
   if (!node_id.has_value())
     return DDS_RETCODE_ERROR;
 
-  auto opt_keyed_topics = get_config_option_value(config, "KEYED_TOPICS", true);
+  auto opt_keyed_topics = get_config_option_val(config, "KEYED_TOPICS", true);
   bool keyed_topics = true;
   if (opt_keyed_topics.has_value()) {
     if (opt_keyed_topics.value() == "false")
@@ -716,7 +700,7 @@ dds_return_t iox_create_psmx(struct dds_psmx **psmx, dds_psmx_instance_id_t inst
       return DDS_RETCODE_ERROR;
   }
 
-  auto opt_allow_nondisc_wr = get_config_option_value(config, "ALLOW_NONDISCOVERED_WRITERS", true);
+  auto opt_allow_nondisc_wr = get_config_option_val(config, "ALLOW_NONDISCOVERED_WRITERS", true);
   bool allow_nondisc_wr = false;
   if (opt_allow_nondisc_wr.has_value()) {
     if (opt_allow_nondisc_wr.value() == "true")
@@ -726,14 +710,14 @@ dds_return_t iox_create_psmx(struct dds_psmx **psmx, dds_psmx_instance_id_t inst
   }
 
   iox_psmx::sched::sched_info si;
-  auto opt_sched_prio = get_config_option_value(config, "PRIORITY");
+  auto opt_sched_prio = get_config_option_val(config, "PRIORITY");
   if (opt_sched_prio.has_value()) {
     if (!iox_psmx::sched::sched_info_setpriority (si, opt_sched_prio.value())) {
       std::cerr << ERROR_PREFIX "invalid value for PRIORITY" << std::endl;
       return DDS_RETCODE_ERROR;
     }
   }
-  auto opt_sched_affinity = get_config_option_value(config, "AFFINITY");
+  auto opt_sched_affinity = get_config_option_val(config, "AFFINITY");
   if (opt_sched_affinity.has_value()) {
     if (!iox_psmx::sched::sched_info_setaffinity (si, opt_sched_affinity.value())) {
       std::cerr << ERROR_PREFIX "invalid value for AFFINITY" << std::endl;

@@ -27,6 +27,8 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->rmsg_chunk_size = UINT32_C (131072);
   cfg->standards_conformance = INT32_C (2);
   cfg->many_sockets_mode = INT32_C (1);
+  cfg->protocol_version.major = 2;
+  cfg->protocol_version.minor = 5;
   cfg->domainTag = "";
   cfg->extDomainId.isdefault = 1;
   cfg->ds_grace_period = INT64_C (30000000000);
@@ -101,14 +103,14 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->ssl_min_version.minor = 3;
 #endif /* DDS_HAS_TCP_TLS */
 }
-/* generated from ddsi_config.h[dbf9996a8b49da8e7cb4b62ab157ba80a073cd81] */
-/* generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] */
-/* generated from ddsi__cfgelems.h[a8b3ad5170f4e86fd7c1f29c5677c332930ea6a4] */
-/* generated from ddsi_config.c[94a98ea7709bca260c9cfb5cf43396b0d5e3c953] */
-/* generated from _confgen.h[9554f1d72645c0b8bb66ffbfbc3c0fb664fc1a43] */
-/* generated from _confgen.c[86c631048046ed4e14c46dba40e5253b50a748fe] */
+/* generated from ddsi_config.h[fd22386b5a5456d010458848b862bbe2be02b3e4] */
+/* generated from ddsi_config.c[ea1079220b5c907e79b1f20fe97de87874d360fd] */
+/* generated from ddsi__cfgelems.h[94e38d76830ce8487ad67cb37df5366c1b079c12] */
+/* generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] */
+/* generated from _confgen.h[fd29634526c05c3237dbc3f785030fe022eb7875] */
+/* generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] */
 /* generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] */
 /* generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] */
 /* generated from generate_rst.c[3c4b523fbb57c8e4a7e247379d06a8021ccc21c4] */
 /* generated from generate_xsd.c[6b6818d7f17a35d56c376c04ec1410427f34c0f0] */
-/* generated from generate_defconfig.c[631cafee70a6f9480e0267db8ffe883d806f5f70] */
+/* generated from generate_defconfig.c[ba599ccf70b6f1929c08a597a6c555ff2375e458] */

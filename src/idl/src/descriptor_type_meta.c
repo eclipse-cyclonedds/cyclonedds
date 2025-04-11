@@ -96,14 +96,14 @@ static idl_retcode_t
 xcdr2_ser (
   const void *obj,
   const struct dds_cdrstream_desc *desc,
-  dds_ostream_t *os)
+  dds_ostreamLE_t *os)
 {
   // serialize as XCDR2 LE
-  os->m_buffer = NULL;
-  os->m_index = 0;
-  os->m_size = 0;
-  os->m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
-  dds_return_t ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, &idlc_cdrstream_default_allocator, obj, desc) ? IDL_RETCODE_OK : IDL_RETCODE_BAD_PARAMETER;
+  os->x.m_buffer = NULL;
+  os->x.m_index = 0;
+  os->x.m_size = 0;
+  os->x.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
+  dds_return_t ret = dds_stream_write_sampleLE (os, &idlc_cdrstream_default_allocator, obj, desc) ? IDL_RETCODE_OK : IDL_RETCODE_BAD_PARAMETER;
   return ret;
 }
 
@@ -193,7 +193,7 @@ has_fully_descriptive_typeid_impl (const idl_type_spec_t *type_spec, bool array_
       && !has_non_plain_annotation (type_spec)
       && !has_non_plain_annotation (element_type_spec);
   }
-  if (idl_is_string (type_spec) || idl_is_base_type (type_spec))
+  if (idl_is_xstring (type_spec) || idl_is_base_type (type_spec))
     return !has_non_plain_annotation (type_spec);
   return false;
 }
@@ -264,6 +264,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
     {
       case IDL_BOOL: ti->_d = DDS_XTypes_TK_BOOLEAN; break;
       case IDL_CHAR: ti->_d = DDS_XTypes_TK_CHAR8; break;
+      case IDL_WCHAR: ti->_d = DDS_XTypes_TK_CHAR16; break;
       case IDL_OCTET: ti->_d = DDS_XTypes_TK_BYTE; break;
       case IDL_INT8: ti->_d = DDS_XTypes_TK_INT8; break;
       case IDL_INT16: case IDL_SHORT: ti->_d = DDS_XTypes_TK_INT16; break;
@@ -286,6 +287,20 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
           ti->_u.string_sdefn.bound = (uint8_t) idl_bound (type_spec);
         } else {
           ti->_d = DDS_XTypes_TI_STRING8_LARGE;
+          ti->_u.string_ldefn.bound = idl_bound (type_spec);
+        }
+        break;
+      }
+      case IDL_WSTRING:
+      {
+        if (!idl_is_bounded(type_spec)) {
+          ti->_d = DDS_XTypes_TI_STRING16_SMALL;
+          ti->_u.string_sdefn.bound = 0;
+        } else if (idl_bound (type_spec) < 256) {
+          ti->_d = DDS_XTypes_TI_STRING16_SMALL;
+          ti->_u.string_sdefn.bound = (uint8_t) idl_bound (type_spec);
+        } else {
+          ti->_d = DDS_XTypes_TI_STRING16_LARGE;
           ti->_u.string_ldefn.bound = idl_bound (type_spec);
         }
         break;
@@ -328,7 +343,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
 idl_retcode_t
 get_type_hash (DDS_XTypes_EquivalenceHash hash, const DDS_XTypes_TypeObject *to)
 {
-  dds_ostream_t os;
+  dds_ostreamLE_t os;
   idl_retcode_t ret;
   if ((ret = xcdr2_ser (to, &DDS_XTypes_TypeObject_cdrstream_desc, &os)) < 0)
     return ret;
@@ -337,10 +352,10 @@ get_type_hash (DDS_XTypes_EquivalenceHash hash, const DDS_XTypes_TypeObject *to)
   char buf[16];
   idl_md5_state_t md5st;
   idl_md5_init (&md5st);
-  idl_md5_append (&md5st, (idl_md5_byte_t *) os.m_buffer, os.m_index);
+  idl_md5_append (&md5st, (idl_md5_byte_t *) os.x.m_buffer, os.x.m_index);
   idl_md5_finish (&md5st, (idl_md5_byte_t *) buf);
   memcpy (hash, buf, sizeof(DDS_XTypes_EquivalenceHash));
-  dds_ostream_fini (&os, &idlc_cdrstream_default_allocator);
+  dds_ostreamLE_fini (&os, &idlc_cdrstream_default_allocator);
   return IDL_RETCODE_OK;
 }
 
@@ -1570,11 +1585,11 @@ get_typeid_with_size (
   assert (ti);
   assert (to);
   memcpy (&typeid_with_size->type_id, ti, sizeof (typeid_with_size->type_id));
-  dds_ostream_t os;
+  dds_ostreamLE_t os;
   if ((ret = xcdr2_ser (to, &DDS_XTypes_TypeObject_cdrstream_desc, &os)) < 0)
     return ret;
-  typeid_with_size->typeobject_serialized_size = os.m_index;
-  dds_ostream_fini (&os, &idlc_cdrstream_default_allocator);
+  typeid_with_size->typeobject_serialized_size = os.x.m_index;
+  dds_ostreamLE_fini (&os, &idlc_cdrstream_default_allocator);
   return IDL_RETCODE_OK;
 }
 
@@ -1713,8 +1728,8 @@ generate_type_meta_ser_impl (
   const idl_pstate_t *pstate,
   const idl_node_t *node,
   struct DDS_XTypes_TypeInformation *type_information,
-  dds_ostream_t *os_typeinfo,
-  dds_ostream_t *os_typemap)
+  dds_ostreamLE_t *os_typeinfo,
+  dds_ostreamLE_t *os_typemap)
 {
   idl_retcode_t ret;
   struct descriptor_type_meta dtm;
@@ -1806,8 +1821,8 @@ print_type_meta_ser (
   const idl_node_t *node)
 {
   struct DDS_XTypes_TypeInformation type_information;
-  dds_ostream_t os_typeinfo;
-  dds_ostream_t os_typemap;
+  dds_ostreamLE_t os_typeinfo;
+  dds_ostreamLE_t os_typemap;
   char *type_name;
   idl_retcode_t rc;
 
@@ -1819,13 +1834,13 @@ print_type_meta_ser (
 
   if ((rc = print_typeinformation_comment (fp, &type_information)) != IDL_RETCODE_OK)
     goto err_print;
-  print_ser_data (fp, "TYPE_INFO_CDR", type_name, os_typeinfo.m_buffer, os_typeinfo.m_index);
-  print_ser_data (fp, "TYPE_MAP_CDR", type_name, os_typemap.m_buffer, os_typemap.m_index);
+  print_ser_data (fp, "TYPE_INFO_CDR", type_name, os_typeinfo.x.m_buffer, os_typeinfo.x.m_index);
+  print_ser_data (fp, "TYPE_MAP_CDR", type_name, os_typemap.x.m_buffer, os_typemap.x.m_index);
 
 err_print:
   xtypes_typeinfo_fini (&type_information);
-  dds_ostream_fini (&os_typeinfo, &idlc_cdrstream_default_allocator);
-  dds_ostream_fini (&os_typemap, &idlc_cdrstream_default_allocator);
+  dds_ostreamLE_fini (&os_typeinfo, &idlc_cdrstream_default_allocator);
+  dds_ostreamLE_fini (&os_typemap, &idlc_cdrstream_default_allocator);
   return rc;
 }
 
@@ -1836,8 +1851,8 @@ generate_type_meta_ser (
   idl_typeinfo_typemap_t *result)
 {
   struct DDS_XTypes_TypeInformation type_information;
-  dds_ostream_t os_typeinfo;
-  dds_ostream_t os_typemap;
+  dds_ostreamLE_t os_typeinfo;
+  dds_ostreamLE_t os_typemap;
   idl_retcode_t rc;
 
   if ((rc = generate_type_meta_ser_impl (state, node, &type_information, &os_typeinfo, &os_typemap)))
@@ -1845,24 +1860,24 @@ generate_type_meta_ser (
 
   result->typeinfo = NULL;
   result->typemap = NULL;
-  result->typeinfo_size = os_typeinfo.m_index;
-  result->typemap_size = os_typemap.m_index;
+  result->typeinfo_size = os_typeinfo.x.m_index;
+  result->typemap_size = os_typemap.x.m_index;
   if ((result->typeinfo = idl_malloc (result->typeinfo_size)) == NULL) {
     rc = IDL_RETCODE_NO_MEMORY;
     goto err_nomem;
   }
-  memcpy (result->typeinfo, os_typeinfo.m_buffer, result->typeinfo_size);
+  memcpy (result->typeinfo, os_typeinfo.x.m_buffer, result->typeinfo_size);
   if ((result->typemap = idl_malloc (result->typemap_size)) == NULL) {
     idl_free (result->typeinfo);
     rc = IDL_RETCODE_NO_MEMORY;
     goto err_nomem;
   }
-  memcpy (result->typemap, os_typemap.m_buffer, result->typemap_size);
+  memcpy (result->typemap, os_typemap.x.m_buffer, result->typemap_size);
 
 err_nomem:
   xtypes_typeinfo_fini (&type_information);
-  dds_ostream_fini (&os_typeinfo, &idlc_cdrstream_default_allocator);
-  dds_ostream_fini (&os_typemap, &idlc_cdrstream_default_allocator);
+  dds_ostreamLE_fini (&os_typeinfo, &idlc_cdrstream_default_allocator);
+  dds_ostreamLE_fini (&os_typemap, &idlc_cdrstream_default_allocator);
   return rc;
 }
 

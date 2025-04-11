@@ -67,7 +67,9 @@ typedef struct {
 #define MAXTHREADNAMESIZE (VX_TASK_NAME_LENGTH)
 #elif defined(__QNXNTO__)
 #include <pthread.h>
+#include <fcntl.h>
 #include <sys/neutrino.h>
+#include <sys/procfs.h>
 #define MAXTHREADNAMESIZE (_NTO_THREAD_NAME_MAX - 1)
 #elif defined(__ZEPHYR__) && defined(CONFIG_THREAD_NAME)
 /* CONFIG_THREAD_MAX_NAME_LEN indicates the max name length,
@@ -81,7 +83,7 @@ int _open(const char *name, int mode) { return -1; }
 #endif
 
 size_t
-ddsrt_thread_getname(char * __restrict name, size_t size)
+ddsrt_thread_getname(char *name, size_t size)
 {
 #ifdef MAXTHREADNAMESIZE
   char buf[MAXTHREADNAMESIZE + 1] = "";
@@ -145,7 +147,7 @@ ddsrt_thread_getname(char * __restrict name, size_t size)
 }
 
 void
-ddsrt_thread_setname(const char *__restrict name)
+ddsrt_thread_setname(const char *name)
 {
   assert(name != NULL);
 
@@ -166,6 +168,8 @@ ddsrt_thread_setname(const char *__restrict name)
   (void)pthread_setname_np(pthread_self(), name);
 #endif
 #elif defined(__QNXNTO__)
+  (void)pthread_setname_np(pthread_self(), name);
+#elif defined(__VXWORKS__)
   (void)pthread_setname_np(pthread_self(), name);
 #elif defined(__ZEPHYR__) && defined(CONFIG_THREAD_NAME)
   (void)pthread_setname_np(pthread_self(), (char*)name);
@@ -218,10 +222,10 @@ static void *os_startRoutineWrapper (void *threadContext)
 
   /* Note that any possible errors raised here are not terminal since the
      thread may have exited at this point anyway. */
-  if (pthread_getschedparam(thread.v, &policy, &sched_param) == 0) {
+  if (pthread_getschedparam(pthread_self (), &policy, &sched_param) == 0) {
     max = sched_get_priority_max(policy);
     if (max != -1) {
-      (void)pthread_setschedprio(thread.v, max);
+      (void)pthread_setschedprio(pthread_self (), max);
     }
   }
 #endif
@@ -410,10 +414,10 @@ ddsrt_thread_create (
     }
 #endif
   }
-  
-#if defined __linux
+
   if (tattr.schedAffinityN > 0)
   {
+#if defined (__linux) && !defined(__ANDROID__)
     cpu_set_t cpuset;
     CPU_ZERO (&cpuset);
     for (uint32_t i = 0; i < tattr.schedAffinityN; i++)
@@ -430,8 +434,11 @@ ddsrt_thread_create (
       DDS_ERROR("ddsrt_thread_create(%s): pthread_attr_setinheritsched(EXPLICIT) failed with error %d\n", name, result);
       goto err;
     }
-  }
+#else
+    /* Didn't implement setting thread affinity for this platform yet */
+    goto err;
 #endif
+  }
 
   /* Construct context structure & start thread */
   ctx = ddsrt_malloc (sizeof (thread_context_t));
@@ -541,7 +548,7 @@ ddsrt_thread_join(ddsrt_thread_t thread, uint32_t *thread_result)
 #if defined __linux
 dds_return_t
 ddsrt_thread_list (
-  ddsrt_thread_list_id_t * __restrict tids,
+  ddsrt_thread_list_id_t *tids,
   size_t size)
 {
   DIR *dir;
@@ -572,7 +579,7 @@ ddsrt_thread_list (
 dds_return_t
 ddsrt_thread_getname_anythread (
   ddsrt_thread_list_id_t tid,
-  char *__restrict name,
+  char *name,
   size_t size)
 {
   char file[100];
@@ -601,12 +608,97 @@ ddsrt_thread_getname_anythread (
     name[namelen] = 0;
   return DDS_RETCODE_OK;
 }
+#elif defined __QNXNTO__
+dds_return_t
+ddsrt_thread_list (
+  ddsrt_thread_list_id_t *tids,
+  size_t size)
+{
+  char path[32];
+  int fd;
+  int pos;
+  procfs_info procinfo;
+  int numthreads;
+  pos = snprintf(path, sizeof(path), "/proc/%d/as", getpid());
+  if (pos < 0 || pos >= (int)sizeof(path)) {
+    return DDS_RETCODE_ERROR;
+  }
+  if ((fd = open(path, O_RDONLY)) == -1) {
+    return DDS_RETCODE_NOT_FOUND;
+  }
+  memset(&procinfo, 0, sizeof(procinfo));
+  if (devctl(fd, DCMD_PROC_INFO, &procinfo, sizeof(procinfo), 0) != EOK) {
+    DDS_ERROR("devctl() failed for DCMD_PROC_INFO on pid %d: %s\n", 
+      getpid(), strerror(errno));
+    close(fd);
+    return DDS_RETCODE_ERROR;
+  }
+  /* In QNX, thread IDs for each process start at 1 and increment sequentially,
+     IDs of terminated threads are not reused */
+  int tid = 1;
+  int n;
+  for (n=0; n < procinfo.num_threads; n++) {
+    if ((size_t)n < size) {
+      tids[n] = (ddsrt_thread_list_id_t)tid;
+      tid++;
+    } else {
+      break;
+    }
+  }
+  close(fd);
+  return (n == 0) ? DDS_RETCODE_ERROR : n;
+}
+
+dds_return_t
+ddsrt_thread_getname_anythread (
+  ddsrt_thread_list_id_t tid,
+  char *name,
+  size_t size)
+{
+  char path[100];
+  int fd;
+  int pos;
+  procfs_threadctl tidinfo;
+  struct _thread_name *tn;
+  pos = snprintf(path, sizeof(path), "/proc/%d/as", getpid());
+  if (pos < 0 || pos >= (int)sizeof(path)) {
+    return DDS_RETCODE_ERROR;
+  }
+  if ((fd = open(path, O_RDONLY)) == -1) {
+    return DDS_RETCODE_NOT_FOUND;
+  }
+  memset(&tidinfo, 0, sizeof(tidinfo));
+  tidinfo.tid = tid;
+  tidinfo.cmd = _NTO_TCTL_NAME;
+  tn = (struct _thread_name*)&tidinfo.data;
+  tn->name_buf_len = sizeof(tidinfo.data) - sizeof(*tn);
+  if (tn->name_buf_len < size) {
+    close(fd);
+    return DDS_RETCODE_NOT_ENOUGH_SPACE;
+  }
+  tn->new_name_len = -1; /* get the current name */
+  if (devctl(fd, DCMD_PROC_THREADCTL, &tidinfo, sizeof(tidinfo), 0) != EOK) {
+    DDS_ERROR("devctl() failed for DCMD_PROC_THREADCTL on pid %d and tid %d: %s\n",
+      getpid(), tid, strerror(errno));
+    close(fd);
+    return DDS_RETCODE_ERROR;
+  }
+  if (tidinfo.tid != tid) {
+    /* Requested thread has terminated, devctl() returned info for a different thread */
+    close(fd);
+    return DDS_RETCODE_NOT_FOUND;
+  }
+  strncpy(name, tn->name_buf, size - 1);
+  name[size - 1] = '\0';
+  close(fd);
+  return DDS_RETCODE_OK;
+}
 #elif defined __APPLE__
 DDSRT_STATIC_ASSERT (sizeof (ddsrt_thread_list_id_t) == sizeof (mach_port_t));
 
 dds_return_t
 ddsrt_thread_list (
-  ddsrt_thread_list_id_t * __restrict tids,
+  ddsrt_thread_list_id_t *tids,
   size_t size)
 {
   thread_act_array_t tasks;
@@ -622,7 +714,7 @@ ddsrt_thread_list (
 dds_return_t
 ddsrt_thread_getname_anythread (
   ddsrt_thread_list_id_t tid,
-  char *__restrict name,
+  char *name,
   size_t size)
 {
   if (size > 0)

@@ -40,11 +40,11 @@
 #define SAMPLE_NO_WRITER_IST_CNT  (2)
 #define SAMPLE_LAST_READ_SST      (2)
 #define SAMPLE_LAST_OLD_VST       (3)
-#define SAMPLE_IST(idx)           (((idx % 3) == 0) ? DDS_IST_ALIVE              : \
-                                   ((idx % 3) == 1) ? DDS_IST_NOT_ALIVE_DISPOSED : \
-                                                      DDS_IST_NOT_ALIVE_NO_WRITERS )
-#define SAMPLE_VST(idx)           ((idx <= SAMPLE_LAST_OLD_VST ) ? DDS_VST_OLD  : DDS_VST_NEW)
-#define SAMPLE_SST(idx)           ((idx <= SAMPLE_LAST_READ_SST) ? DDS_SST_READ : DDS_SST_NOT_READ)
+#define SAMPLE_IST(idx)           (((idx % 3) == 0) ? DDS_ALIVE_INSTANCE_STATE              : \
+                                   ((idx % 3) == 1) ? DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE : \
+                                                      DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE )
+#define SAMPLE_VST(idx)           ((idx <= SAMPLE_LAST_OLD_VST ) ? DDS_NOT_NEW_VIEW_STATE  : DDS_NEW_VIEW_STATE)
+#define SAMPLE_SST(idx)           ((idx <= SAMPLE_LAST_READ_SST) ? DDS_READ_SAMPLE_STATE : DDS_NOT_READ_SAMPLE_STATE)
 
 
 static dds_entity_t g_participant;
@@ -124,12 +124,12 @@ static void readcondition_init (void)
     ret = dds_write (g_writer, &sample);
     CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
 
-    if (ist == DDS_IST_NOT_ALIVE_DISPOSED)
+    if (ist == DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE)
     {
       ret = dds_dispose (g_writer, &sample);
       CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
     }
-    if (ist == DDS_IST_NOT_ALIVE_NO_WRITERS)
+    if (ist == DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE)
     {
       ret = dds_unregister_instance (g_writer, &sample);
       CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
@@ -157,12 +157,12 @@ static void readcondition_init (void)
     ret = dds_write (g_writer, &sample);
     CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
 
-    if ((ist == DDS_IST_NOT_ALIVE_DISPOSED) && (i != 4))
+    if ((ist == DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE) && (i != 4))
     {
       ret = dds_dispose (g_writer, &sample);
       CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
     }
-    if (ist == DDS_IST_NOT_ALIVE_NO_WRITERS)
+    if (ist == DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE)
     {
       ret = dds_unregister_instance (g_writer, &sample);
       CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);

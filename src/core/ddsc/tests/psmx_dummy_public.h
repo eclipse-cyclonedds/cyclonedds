@@ -47,9 +47,11 @@ typedef struct dummy_mockstats_s{
 
   // Exposed internals
   bool supports_shared_memory;
+  bool fail_create_topic;
   char* config;
   dynamic_array_t topics;
   dynamic_array_t endpoints;
+  dynamic_array_t loans;
   dds_loaned_sample_t loan;
   dds_psmx_metadata_t loan_metadata;
 
@@ -63,6 +65,7 @@ typedef struct dummy_mockstats_s{
 PSMX_DUMMY_EXPORT dummy_mockstats_t* dummy_mockstats_get_ptr(void);
 PSMX_DUMMY_EXPORT void dummy_topics_alloc(dummy_mockstats_t* mockstats, size_t topics_capacity);
 PSMX_DUMMY_EXPORT void dummy_endpoints_alloc(dummy_mockstats_t* mockstats, size_t endpoints_capacity);
+PSMX_DUMMY_EXPORT void dummy_loans_alloc(dummy_mockstats_t* mockstats, size_t loans_capacity);
 
 #if defined (__cplusplus)
 }

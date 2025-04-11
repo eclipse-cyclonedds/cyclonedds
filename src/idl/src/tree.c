@@ -788,7 +788,7 @@ idl_create_base_type(
 
 bool idl_is_templ_type(const void *ptr)
 {
-  return (idl_mask(ptr) & (IDL_SEQUENCE|IDL_STRING)) != 0;
+  return (idl_mask(ptr) & (IDL_SEQUENCE|IDL_STRING|IDL_WSTRING)) != 0;
 }
 
 bool idl_is_bounded(const void *node)
@@ -796,6 +796,8 @@ bool idl_is_bounded(const void *node)
   idl_mask_t mask = idl_mask(node);
   if ((mask & IDL_STRING) == IDL_STRING)
     return ((const idl_string_t *)node)->maximum != 0;
+  if ((mask & IDL_WSTRING) == IDL_WSTRING)
+    return ((const idl_wstring_t *)node)->maximum != 0;
   if ((mask & IDL_SEQUENCE) == IDL_SEQUENCE)
     return ((const idl_sequence_t *)node)->maximum != 0;
   return false;
@@ -806,6 +808,8 @@ uint32_t idl_bound(const void *node)
   idl_mask_t mask = idl_mask(node);
   if ((mask & IDL_STRING) == IDL_STRING)
     return ((const idl_string_t *)node)->maximum;
+  if ((mask & IDL_WSTRING) == IDL_WSTRING)
+    return ((const idl_wstring_t *)node)->maximum;
   if ((mask & IDL_SEQUENCE) == IDL_SEQUENCE)
     return ((const idl_sequence_t *)node)->maximum;
   if ((mask & IDL_BITMASK) == IDL_BITMASK)
@@ -886,7 +890,7 @@ bool idl_is_sequence(const void *ptr)
   if (idl_mask(type_spec) & IDL_DECLARATOR)
     type_spec = ((const idl_node_t *)type_spec)->parent;
   mask = IDL_STRUCT | IDL_UNION | IDL_ENUM | IDL_BITMASK | IDL_TYPEDEF |
-         IDL_SEQUENCE | IDL_STRING | IDL_BASE_TYPE;
+         IDL_SEQUENCE | IDL_STRING | IDL_WSTRING | IDL_BASE_TYPE;
   (void)mask;
   assert(idl_mask(type_spec) & mask);
   mask = IDL_TYPEDEF | IDL_MEMBER | IDL_CASE |
@@ -998,6 +1002,84 @@ idl_create_string(
     node->maximum = literal->value.uint32;
   idl_unreference_node(literal);
   *((idl_string_t **)nodep) = node;
+  return IDL_RETCODE_OK;
+err_node:
+  return ret;
+}
+
+bool idl_is_wstring(const void *ptr)
+{
+#if !defined(NDEBUG)
+  static const idl_mask_t mask = IDL_CONST | IDL_TYPEDEF | IDL_MEMBER |
+                                 IDL_CASE | IDL_SEQUENCE | IDL_ANNOTATION_APPL_PARAM |
+                                 IDL_SWITCH_TYPE_SPEC;
+#endif
+  const idl_string_t *node = ptr;
+
+  if (!(idl_mask(node) & IDL_WSTRING) || (idl_mask(node) & IDL_CONST))
+    return false;
+  assert(!node->node.declaration);
+  assert(!node->node.parent || (idl_mask(node->node.parent) & mask));
+  return true;
+}
+
+bool idl_is_unbounded_wstring(const void *ptr)
+{
+  return idl_is_wstring(ptr) && !idl_is_bounded(ptr);
+}
+
+bool idl_is_bounded_wstring(const void *ptr)
+{
+  return idl_is_wstring(ptr) && idl_is_bounded(ptr);
+}
+
+bool idl_is_xstring(const void *ptr)
+{
+  return idl_is_string(ptr) || idl_is_wstring(ptr);
+}
+
+bool idl_is_unbounded_xstring(const void *ptr)
+{
+  return idl_is_unbounded_string(ptr) || idl_is_unbounded_wstring(ptr);
+}
+
+bool idl_is_bounded_xstring(const void *ptr)
+{
+  return idl_is_bounded_string(ptr) || idl_is_bounded_wstring(ptr);
+}
+
+static void delete_wstring(void *ptr)
+{
+  idl_free(ptr);
+}
+
+static const char *describe_wstring(const void *ptr)
+{
+  const idl_string_t *node = ptr;
+  assert(idl_mask(node) & IDL_WSTRING);
+  return node->maximum ? "bounded wstring" : "wstring";
+}
+
+idl_retcode_t
+idl_create_wstring(
+  idl_pstate_t *state,
+  const idl_location_t *location,
+  idl_literal_t *literal,
+  void *nodep)
+{
+  idl_retcode_t ret;
+  idl_wstring_t *node;
+  static const size_t size = sizeof(*node);
+  static const idl_mask_t mask = IDL_WSTRING;
+  static const struct methods methods = { delete_wstring, 0, describe_wstring };
+
+  if ((ret = create_node(state, size, mask, location, &methods, &node)))
+    goto err_node;
+  assert(!literal || idl_type(literal) == IDL_ULONG);
+  if (literal)
+    node->maximum = literal->value.uint32;
+  idl_unreference_node(literal);
+  *((idl_wstring_t **)nodep) = node;
   return IDL_RETCODE_OK;
 err_node:
   return ret;
@@ -3618,7 +3700,14 @@ static bool no_specific_key(const void *node)
 {
   /* @key(FALSE) is equivalent to missing @key(?) */
   if (idl_mask(node) & IDL_STRUCT) {
-    const idl_member_t *member = ((const idl_struct_t *)node)->members;
+    const idl_struct_t *_struct = (const idl_struct_t *)node;
+    if (_struct->inherit_spec)
+    {
+      if (!no_specific_key(_struct->inherit_spec->base))
+        return false;
+    }
+
+    const idl_member_t *member = _struct->members;
     for (; member; member = idl_next(member)) {
       if (member->key.value)
         return false;

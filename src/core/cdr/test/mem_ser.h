@@ -13,6 +13,7 @@
 
 #include "dds/ddsrt/endian.h"
 
+#define SER8(v) ((unsigned char) (v))
 #if DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
 #define SER16(v) \
   (unsigned char)(((uint16_t)(v) >>  8) & 0xff), \
@@ -72,6 +73,7 @@
 #endif
 
 #define SER_DHEADER(l) SER32(l)
+#define SER_DHEADERBE(l) SER32BE(l)
 #define SER_EMHEADER(mu,lc,mid) SER32(((mu) ? (1u << 31) : 0) + ((uint32_t) (lc) << 28) + ((uint32_t) (mid) & 0x0fffffff))
 #define SER_NEXTINT(l) SER32(l)
 
