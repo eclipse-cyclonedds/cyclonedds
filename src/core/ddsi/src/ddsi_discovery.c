@@ -72,87 +72,6 @@ struct ddsi_writer *ddsi_get_sedp_writer (const struct ddsi_participant *pp, uns
   return sedp_wr;
 }
 
-struct ddsi_proxy_participant *ddsi_implicitly_create_proxypp (struct ddsi_domaingv *gv, const ddsi_guid_t *ppguid, ddsi_plist_t *datap /* note: potentially modifies datap */, const ddsi_guid_prefix_t *src_guid_prefix, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp, ddsi_seqno_t seq)
-{
-  ddsi_guid_t privguid;
-  ddsi_plist_t pp_plist;
-  struct ddsi_proxy_participant *proxy_participant;
-
-  if (memcmp (&ppguid->prefix, src_guid_prefix, sizeof (ppguid->prefix)) == 0)
-    /* if the writer is owned by the participant itself, we're not interested */
-    return NULL;
-
-  privguid.prefix = *src_guid_prefix;
-  privguid.entityid = ddsi_to_entityid (DDSI_ENTITYID_PARTICIPANT);
-  ddsi_plist_init_empty(&pp_plist);
-
-  if (ddsi_vendor_is_cloud (vendorid))
-  {
-    ddsi_vendorid_t actual_vendorid;
-    /* Some endpoint that we discovered through the DS, but then it must have at least some locators */
-    GVTRACE (" from-DS %"PRIx32":%"PRIx32":%"PRIx32":%"PRIx32, PGUID (privguid));
-    /* avoid "no address" case, so we never create the proxy participant for nothing (FIXME: rework some of this) */
-    if (!(datap->present & (PP_UNICAST_LOCATOR | PP_MULTICAST_LOCATOR)))
-    {
-      GVTRACE (" data locator absent\n");
-      goto err;
-    }
-    GVTRACE (" new-proxypp "PGUIDFMT"\n", PGUID (*ppguid));
-    /* We need to handle any source of entities, but we really want to try to keep the GIDs (and
-       certainly the systemId component) unchanged for OSPL.  The new proxy participant will take
-       the GID from the GUID if it is from a "modern" OSPL that advertises it includes all GIDs in
-       the endpoint discovery; else if it is OSPL it will take at the systemId and fake the rest.
-       However, (1) Cloud filters out the GIDs from the discovery, and (2) DDSI2 deliberately
-       doesn't include the GID for internally generated endpoints (such as the fictitious transient
-       data readers) to signal that these are internal and have no GID (and not including a GID if
-       there is none is quite a reasonable approach).  Point (2) means we have no reliable way of
-       determining whether GIDs are included based on the first endpoint, and so there is no point
-       doing anything about (1).  That means we fall back to the legacy mode of locally generating
-       GIDs but leaving the system id unchanged if the remote is OSPL.  */
-    actual_vendorid = (datap->present & PP_VENDORID) ?  datap->vendorid : vendorid;
-    (void) ddsi_new_proxy_participant (&proxy_participant, gv, ppguid, 0, &privguid, ddsi_new_addrset(), ddsi_new_addrset(), &pp_plist, DDS_INFINITY, actual_vendorid, DDSI_CF_IMPLICITLY_CREATED_PROXYPP, timestamp, seq);
-  }
-  else if (ppguid->prefix.u[0] == src_guid_prefix->u[0] && ddsi_vendor_is_eclipse_or_opensplice (vendorid))
-  {
-    /* FIXME: requires address sets to be those of ddsi2, no built-in
-       readers or writers, only if remote ddsi2 is provably running
-       with a minimal built-in endpoint set */
-    struct ddsi_proxy_participant *privpp;
-    if ((privpp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, &privguid)) == NULL) {
-      GVTRACE (" unknown-src-proxypp?\n");
-      goto err;
-    } else if (!privpp->is_ddsi2_pp) {
-      GVTRACE (" src-proxypp-not-ddsi2?\n");
-      goto err;
-    } else if (!privpp->minimal_bes_mode) {
-      GVTRACE (" src-ddsi2-not-minimal-bes-mode?\n");
-      goto err;
-    } else {
-      struct ddsi_addrset *as_default, *as_meta;
-      ddsi_plist_t tmp_plist;
-      GVTRACE (" from-ddsi2 "PGUIDFMT, PGUID (privguid));
-      ddsi_plist_init_empty (&pp_plist);
-
-      ddsrt_mutex_lock (&privpp->e.lock);
-      as_default = ddsi_ref_addrset(privpp->as_default);
-      as_meta = ddsi_ref_addrset(privpp->as_meta);
-      /* copy just what we need */
-      tmp_plist = *privpp->plist;
-      tmp_plist.present = PP_PARTICIPANT_GUID | PP_ADLINK_PARTICIPANT_VERSION_INFO;
-      tmp_plist.participant_guid = *ppguid;
-      ddsi_plist_mergein_missing (&pp_plist, &tmp_plist, ~(uint64_t)0, ~(uint64_t)0);
-      ddsrt_mutex_unlock (&privpp->e.lock);
-
-      pp_plist.adlink_participant_version_info.flags &= ~DDSI_ADLINK_FL_PARTICIPANT_IS_DDSI2;
-      (void) ddsi_new_proxy_participant (&proxy_participant, gv, ppguid, 0, &privguid, as_default, as_meta, &pp_plist, DDS_INFINITY, vendorid, DDSI_CF_IMPLICITLY_CREATED_PROXYPP | DDSI_CF_PROXYPP_NO_SPDP, timestamp, seq);
-    }
-  }
-
- err:
-  ddsi_plist_fini (&pp_plist);
-  return ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid);
-}
-
 bool ddsi_check_sedp_kind_and_guid (ddsi_sedp_kind_t sedp_kind, const ddsi_guid_t *entity_guid)
 {
   switch (sedp_kind)
@@ -168,9 +87,7 @@ bool ddsi_check_sedp_kind_and_guid (ddsi_sedp_kind_t sedp_kind, const ddsi_guid_
   return false;
 }
 
-bool ddsi_handle_sedp_checks (struct ddsi_domaingv * const gv, ddsi_sedp_kind_t sedp_kind, ddsi_guid_t *entity_guid, ddsi_plist_t *datap,
-    const ddsi_guid_prefix_t *src_guid_prefix, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp,
-    struct ddsi_proxy_participant **proxypp, ddsi_guid_t *ppguid)
+bool ddsi_handle_sedp_checks (struct ddsi_domaingv * const gv, ddsi_sedp_kind_t sedp_kind, ddsi_guid_t *entity_guid, ddsi_plist_t *datap, ddsi_vendorid_t vendorid, struct ddsi_proxy_participant **proxypp, ddsi_guid_t *ppguid)
 {
 #define E(msg, lbl) do { GVLOGDISC (msg); return false; } while (0)
   if (!ddsi_check_sedp_kind_and_guid (sedp_kind, entity_guid))
@@ -191,13 +108,7 @@ bool ddsi_handle_sedp_checks (struct ddsi_domaingv * const gv, ddsi_sedp_kind_t 
   if (!(datap->qos.present & DDSI_QP_TYPE_NAME))
     E (" no typename?\n", err);
   if ((*proxypp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid)) == NULL)
-  {
-    GVLOGDISC (" unknown-proxypp");
-    if ((*proxypp = ddsi_implicitly_create_proxypp (gv, ppguid, datap, src_guid_prefix, vendorid, timestamp, 0)) == NULL)
-      E ("?\n", err);
-    /* Repeat regular SEDP trace for convenience */
-    GVLOGDISC ("SEDP ST0 "PGUIDFMT" (cont)", PGUID (*entity_guid));
-  }
+    E (" unknown-proxypp", err);
   return true;
 #undef E
 }
@@ -216,12 +127,12 @@ static void ddsi_handle_sedp (const struct ddsi_receiver_state *rst, ddsi_seqno_
         {
           case SEDP_KIND_TOPIC:
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-            ddsi_handle_sedp_alive_topic (rst, seq, &decoded_data, &rst->src_guid_prefix, rst->vendor, serdata->timestamp);
+            ddsi_handle_sedp_alive_topic (rst, seq, &decoded_data, rst->vendor, serdata->timestamp);
 #endif
             break;
           case SEDP_KIND_READER:
           case SEDP_KIND_WRITER:
-            ddsi_handle_sedp_alive_endpoint (rst, seq, &decoded_data, sedp_kind, &rst->src_guid_prefix, rst->vendor, serdata->timestamp);
+            ddsi_handle_sedp_alive_endpoint (rst, seq, &decoded_data, sedp_kind, rst->vendor, serdata->timestamp);
             break;
         }
         break;

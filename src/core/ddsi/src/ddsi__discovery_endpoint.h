@@ -49,7 +49,7 @@ int ddsi_sedp_dispose_unregister_writer (struct ddsi_writer *wr) ddsrt_nonnull_a
 int ddsi_sedp_dispose_unregister_reader (struct ddsi_reader *rd) ddsrt_nonnull_all;
 
 /** @component discovery */
-void ddsi_handle_sedp_alive_endpoint (const struct ddsi_receiver_state *rst, ddsi_seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, ddsi_sedp_kind_t sedp_kind, const ddsi_guid_prefix_t *src_guid_prefix, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp)
+void ddsi_handle_sedp_alive_endpoint (const struct ddsi_receiver_state *rst, ddsi_seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, ddsi_sedp_kind_t sedp_kind, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp)
   ddsrt_nonnull_all;
 
 /** @component discovery */

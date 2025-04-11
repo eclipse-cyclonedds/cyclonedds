@@ -91,7 +91,7 @@ static const char *durability_to_string (dds_durability_kind_t k)
   return "undefined-durability";
 }
 
-void ddsi_handle_sedp_alive_topic (const struct ddsi_receiver_state *rst, ddsi_seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, const ddsi_guid_prefix_t *src_guid_prefix, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp)
+void ddsi_handle_sedp_alive_topic (const struct ddsi_receiver_state *rst, ddsi_seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp)
 {
   struct ddsi_domaingv * const gv = rst->gv;
   struct ddsi_proxy_participant *proxypp;
@@ -104,7 +104,7 @@ void ddsi_handle_sedp_alive_topic (const struct ddsi_receiver_state *rst, ddsi_s
   assert (datap->present & PP_CYCLONE_TOPIC_GUID);
   GVLOGDISC (" "PGUIDFMT, PGUID (datap->topic_guid));
 
-  if (!ddsi_handle_sedp_checks (gv, SEDP_KIND_TOPIC, &datap->topic_guid, datap, src_guid_prefix, vendorid, timestamp, &proxypp, &ppguid))
+  if (!ddsi_handle_sedp_checks (gv, SEDP_KIND_TOPIC, &datap->topic_guid, datap, vendorid, &proxypp, &ppguid))
     return;
 
   xqos = &datap->qos;
