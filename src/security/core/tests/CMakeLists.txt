@@ -106,6 +106,14 @@ if(ENABLE_SSL AND OPENSSL_FOUND)
   add_wrapper(authentication dds_security_auth)
   add_wrapper(cryptography dds_security_crypto)
 
+  FIND_PROGRAM(PKCS11_TOOL_CMD pkcs11-tool)
+  FIND_PROGRAM(SOFTHSM_UTIL_CMD softhsm2-util)
+  if (PKCS11_TOOL_CMD AND SOFTHSM_UTIL_CMD)
+    set(PKCS11_TEST_FILE "pkcs11.c")
+  else()
+    set(PKCS11_TEST_FILE "")
+  endif()
+
   list(APPEND security_core_test_sources
     "common/security_config_test_utils.c"
     "common/test_utils.c"
@@ -119,6 +127,7 @@ if(ENABLE_SSL AND OPENSSL_FOUND)
     "handshake.c"
     "plugin_loading.c"
     "secure_communication.c"
+    ${PKCS11_TEST_FILE}
     ${CYCLONEDDS_OPENSSL_APPLINK})
   # applink.c triggers the dreaded This function or variable may be unsafe
   if(NOT "${CYCLONEDDS_OPENSSL_APPLINK}" STREQUAL "")

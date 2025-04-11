@@ -1298,7 +1298,7 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
 #endif
   }
 
-  gv->xmsgpool = ddsi_xmsgpool_new ();
+  gv->xmsgpool = ddsi_xmsgpool_new (gv->config.protocol_version);
 
   // copy default participant plist into one that is used for this domain's participants
   // a plain copy is safe because it doesn't alias anything
@@ -1733,7 +1733,7 @@ int ddsi_start (struct ddsi_domaingv *gv)
   }
   if (gv->listener)
   {
-    if (ddsi_create_thread (&gv->listen_ts, gv, "listen", (uint32_t (*) (void *)) ddsi_listen_thread, gv->listener) != DDS_RETCODE_OK)
+    if (ddsi_create_thread (&gv->listen_ts, gv, "listen", ddsi_listen_thread, gv->listener) != DDS_RETCODE_OK)
     {
       GVERROR ("failed to create TCP listener thread\n");
       ddsi_listener_free (gv->listener);

@@ -219,10 +219,8 @@ dds_return_t dds_waitset_get_entities (dds_entity_t waitset, dds_entity_t *entit
 }
 
 /* This is called when the observed entity signals a status change. */
-static void dds_waitset_observer (struct dds_waitset *ws, dds_entity_t observed, uint32_t status)
+static void dds_waitset_observer (struct dds_waitset *ws, dds_entity_t observed)
 {
-  (void) status;
-
   ddsrt_mutex_lock (&ws->wait_lock);
   /* Move observed entity to triggered list. */
   size_t i;
@@ -413,7 +411,7 @@ dds_return_t dds_waitset_set_trigger (dds_entity_t waitset, bool trigger)
       oldst = ddsrt_atomic_ld32 (&ent->m_status.m_trigger);
     } while (!ddsrt_atomic_cas32 (&ent->m_status.m_trigger, oldst, trigger));
     if (oldst == 0 && trigger != 0)
-      dds_entity_observers_signal (ent, trigger);
+      dds_entity_observers_signal (ent);
     ddsrt_mutex_unlock (&ent->m_observers_lock);
     dds_entity_unpin (ent);
     return DDS_RETCODE_OK;

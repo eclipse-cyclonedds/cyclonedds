@@ -43,11 +43,11 @@ DDSRT_WARNING_DEPRECATED_OFF
  */
 #define SAMPLE_LAST_READ_SST      (2)
 #define SAMPLE_LAST_OLD_VST       (3)
-#define SAMPLE_IST(idx)           (((idx % 3) == 0) ? DDS_IST_ALIVE              : \
-                                   ((idx % 3) == 1) ? DDS_IST_NOT_ALIVE_DISPOSED : \
-                                                      DDS_IST_NOT_ALIVE_NO_WRITERS )
-#define SAMPLE_VST(idx)           ((idx <= SAMPLE_LAST_OLD_VST ) ? DDS_VST_OLD  : DDS_VST_NEW)
-#define SAMPLE_SST(idx)           ((idx <= SAMPLE_LAST_READ_SST) ? DDS_SST_READ : DDS_SST_NOT_READ)
+#define SAMPLE_IST(idx)           (((idx % 3) == 0) ? DDS_ALIVE_INSTANCE_STATE              : \
+                                   ((idx % 3) == 1) ? DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE : \
+                                                      DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE )
+#define SAMPLE_VST(idx)           ((idx <= SAMPLE_LAST_OLD_VST ) ? DDS_NOT_NEW_VIEW_STATE  : DDS_NEW_VIEW_STATE)
+#define SAMPLE_SST(idx)           ((idx <= SAMPLE_LAST_READ_SST) ? DDS_READ_SAMPLE_STATE : DDS_NOT_READ_SAMPLE_STATE)
 
 static dds_entity_t g_participant = 0;
 static dds_entity_t g_subscriber  = 0;
@@ -139,11 +139,11 @@ reader_init(void)
         ret = dds_write(g_writer, &sample);
         CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
-        if (ist == DDS_IST_NOT_ALIVE_DISPOSED) {
+        if (ist == DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE) {
             ret = dds_dispose(g_writer, &sample);
             CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
         }
-        if (ist == DDS_IST_NOT_ALIVE_NO_WRITERS) {
+        if (ist == DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE) {
             ret = dds_unregister_instance(g_writer, &sample);
             CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
         }
@@ -167,11 +167,11 @@ reader_init(void)
         ret = dds_write(g_writer, &sample);
         CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
-        if ((ist == DDS_IST_NOT_ALIVE_DISPOSED) && (i != 4)) {
+        if ((ist == DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE) && (i != 4)) {
             ret = dds_dispose(g_writer, &sample);
             CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
         }
-        if (ist == DDS_IST_NOT_ALIVE_NO_WRITERS) {
+        if (ist == DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE) {
             ret = dds_unregister_instance(g_writer, &sample);
             CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
         }
@@ -722,7 +722,7 @@ CU_Test(ddsc_read_mask, not_read_sample_state, .init=reader_init, .fini=reader_f
 
         /* Expected states. */
         int                  expected_long_1 = SAMPLE_LAST_READ_SST + 1 + i;
-        dds_sample_state_t   expected_sst    = DDS_SST_NOT_READ;
+        dds_sample_state_t   expected_sst    = DDS_NOT_READ_SAMPLE_STATE;
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
@@ -770,7 +770,7 @@ CU_Test(ddsc_read_mask, read_sample_state, .init=reader_init, .fini=reader_fini)
 
         /* Expected states. */
         int                  expected_long_1 = i;
-        dds_sample_state_t   expected_sst    = DDS_SST_READ;
+        dds_sample_state_t   expected_sst    = DDS_READ_SAMPLE_STATE;
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
@@ -819,7 +819,7 @@ CU_Test(ddsc_read_mask, new_view_state, .init=reader_init, .fini=reader_fini)
         /* Expected states. */
         int                  expected_long_1 = SAMPLE_LAST_OLD_VST + 1 + i;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
-        dds_view_state_t     expected_vst    = DDS_VST_NEW;
+        dds_view_state_t     expected_vst    = DDS_NEW_VIEW_STATE;
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
@@ -867,7 +867,7 @@ CU_Test(ddsc_read_mask, not_new_view_state, .init=reader_init, .fini=reader_fini
         /* Expected states. */
         int                  expected_long_1 = i;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
-        dds_view_state_t     expected_vst    = DDS_VST_OLD;
+        dds_view_state_t     expected_vst    = DDS_NOT_NEW_VIEW_STATE;
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
@@ -916,7 +916,7 @@ CU_Test(ddsc_read_mask, alive_instance_state, .init=reader_init, .fini=reader_fi
         int                  expected_long_1 = i * 3;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-        dds_instance_state_t expected_ist    = DDS_IST_ALIVE;
+        dds_instance_state_t expected_ist    = DDS_ALIVE_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -976,7 +976,7 @@ CU_Test(ddsc_read_mask, not_alive_instance_state, .init=reader_init, .fini=reade
         CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,    expected_sst);
         CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,      expected_vst);
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state,  expected_ist);
-        CU_ASSERT_NOT_EQUAL_FATAL(g_info[i].instance_state, DDS_IST_ALIVE);
+        CU_ASSERT_NOT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
     }
 
     /* All samples should still be available. */
@@ -1013,7 +1013,7 @@ CU_Test(ddsc_read_mask, disposed_instance_state, .init=reader_init, .fini=reader
         int                  expected_long_1 = (i * 3) + 1;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-        dds_instance_state_t expected_ist    = DDS_IST_NOT_ALIVE_DISPOSED;
+        dds_instance_state_t expected_ist    = DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -1061,7 +1061,7 @@ CU_Test(ddsc_read_mask, no_writers_instance_state, .init=reader_init, .fini=read
         int                  expected_long_1 = (i * 3) + 2;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-        dds_instance_state_t expected_ist    = DDS_IST_NOT_ALIVE_NO_WRITERS;
+        dds_instance_state_t expected_ist    = DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -1107,9 +1107,9 @@ CU_Test(ddsc_read_mask, combination_of_states, .init=reader_init, .fini=reader_f
 
         /* Expected states. */
         int                  expected_long_1 = 3;
-        dds_sample_state_t   expected_sst    = DDS_SST_NOT_READ;
-        dds_view_state_t     expected_vst    = DDS_VST_OLD;
-        dds_instance_state_t expected_ist    = DDS_IST_ALIVE;
+        dds_sample_state_t   expected_sst    = DDS_NOT_READ_SAMPLE_STATE;
+        dds_view_state_t     expected_vst    = DDS_NOT_NEW_VIEW_STATE;
+        dds_instance_state_t expected_ist    = DDS_ALIVE_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -1272,7 +1272,7 @@ CU_Test(ddsc_read_mask_wl, not_read_sample_state, .init=reader_init, .fini=reade
 
         /* Expected states. */
         int                  expected_long_1 = SAMPLE_LAST_READ_SST + 1 + i;
-        dds_sample_state_t   expected_sst    = DDS_SST_NOT_READ;
+        dds_sample_state_t   expected_sst    = DDS_NOT_READ_SAMPLE_STATE;
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
@@ -1323,7 +1323,7 @@ CU_Test(ddsc_read_mask_wl, read_sample_state, .init=reader_init, .fini=reader_fi
 
         /* Expected states. */
         int                  expected_long_1 = i;
-        dds_sample_state_t   expected_sst    = DDS_SST_READ;
+        dds_sample_state_t   expected_sst    = DDS_READ_SAMPLE_STATE;
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
@@ -1375,7 +1375,7 @@ CU_Test(ddsc_read_mask_wl, new_view_state, .init=reader_init, .fini=reader_fini)
         /* Expected states. */
         int                  expected_long_1 = SAMPLE_LAST_OLD_VST + 1 + i;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
-        dds_view_state_t     expected_vst    = DDS_VST_NEW;
+        dds_view_state_t     expected_vst    = DDS_NEW_VIEW_STATE;
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
@@ -1426,7 +1426,7 @@ CU_Test(ddsc_read_mask_wl, not_new_view_state, .init=reader_init, .fini=reader_f
         /* Expected states. */
         int                  expected_long_1 = i;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
-        dds_view_state_t     expected_vst    = DDS_VST_OLD;
+        dds_view_state_t     expected_vst    = DDS_NOT_NEW_VIEW_STATE;
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
@@ -1478,7 +1478,7 @@ CU_Test(ddsc_read_mask_wl, alive_instance_state, .init=reader_init, .fini=reader
         int                  expected_long_1 = i * 3;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-        dds_instance_state_t expected_ist    = DDS_IST_ALIVE;
+        dds_instance_state_t expected_ist    = DDS_ALIVE_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -1541,7 +1541,7 @@ CU_Test(ddsc_read_mask_wl, not_alive_instance_state, .init=reader_init, .fini=re
         CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,    expected_sst);
         CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,      expected_vst);
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state,  expected_ist);
-        CU_ASSERT_NOT_EQUAL_FATAL(g_info[i].instance_state, DDS_IST_ALIVE);
+        CU_ASSERT_NOT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
@@ -1581,7 +1581,7 @@ CU_Test(ddsc_read_mask_wl, disposed_instance_state, .init=reader_init, .fini=rea
         int                  expected_long_1 = (i * 3) + 1;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-        dds_instance_state_t expected_ist    = DDS_IST_NOT_ALIVE_DISPOSED;
+        dds_instance_state_t expected_ist    = DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -1632,7 +1632,7 @@ CU_Test(ddsc_read_mask_wl, no_writers_instance_state, .init=reader_init, .fini=r
         int                  expected_long_1 = (i * 3) + 2;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-        dds_instance_state_t expected_ist    = DDS_IST_NOT_ALIVE_NO_WRITERS;
+        dds_instance_state_t expected_ist    = DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -1681,9 +1681,9 @@ CU_Test(ddsc_read_mask_wl, combination_of_states, .init=reader_init, .fini=reade
 
         /* Expected states. */
         int                  expected_long_1 = 3;
-        dds_sample_state_t   expected_sst    = DDS_SST_NOT_READ;
-        dds_view_state_t     expected_vst    = DDS_VST_OLD;
-        dds_instance_state_t expected_ist    = DDS_IST_ALIVE;
+        dds_sample_state_t   expected_sst    = DDS_NOT_READ_SAMPLE_STATE;
+        dds_view_state_t     expected_vst    = DDS_NOT_NEW_VIEW_STATE;
+        dds_instance_state_t expected_ist    = DDS_ALIVE_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -2091,7 +2091,7 @@ CU_Test(ddsc_take_mask, not_read_sample_state, .init=reader_init, .fini=reader_f
 
         /* Expected states. */
         int                  expected_long_1 = SAMPLE_LAST_READ_SST + 1 + i;
-        dds_sample_state_t   expected_sst    = DDS_SST_NOT_READ;
+        dds_sample_state_t   expected_sst    = DDS_NOT_READ_SAMPLE_STATE;
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
@@ -2140,7 +2140,7 @@ CU_Test(ddsc_take_mask, read_sample_state, .init=reader_init, .fini=reader_fini)
 
         /* Expected states. */
         int                  expected_long_1 = i;
-        dds_sample_state_t   expected_sst    = DDS_SST_READ;
+        dds_sample_state_t   expected_sst    = DDS_READ_SAMPLE_STATE;
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
@@ -2190,7 +2190,7 @@ CU_Test(ddsc_take_mask, new_view_state, .init=reader_init, .fini=reader_fini)
         /* Expected states. */
         int                  expected_long_1 = SAMPLE_LAST_OLD_VST + 1 + i;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
-        dds_view_state_t     expected_vst    = DDS_VST_NEW;
+        dds_view_state_t     expected_vst    = DDS_NEW_VIEW_STATE;
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
@@ -2239,7 +2239,7 @@ CU_Test(ddsc_take_mask, not_new_view_state, .init=reader_init, .fini=reader_fini
         /* Expected states. */
         int                  expected_long_1 = i;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
-        dds_view_state_t     expected_vst    = DDS_VST_OLD;
+        dds_view_state_t     expected_vst    = DDS_NOT_NEW_VIEW_STATE;
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
@@ -2289,7 +2289,7 @@ CU_Test(ddsc_take_mask, alive_instance_state, .init=reader_init, .fini=reader_fi
         int                  expected_long_1 = i * 3;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-        dds_instance_state_t expected_ist    = DDS_IST_ALIVE;
+        dds_instance_state_t expected_ist    = DDS_ALIVE_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -2350,7 +2350,7 @@ CU_Test(ddsc_take_mask, not_alive_instance_state, .init=reader_init, .fini=reade
         CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,    expected_sst);
         CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,      expected_vst);
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state,  expected_ist);
-        CU_ASSERT_NOT_EQUAL_FATAL(g_info[i].instance_state, DDS_IST_ALIVE);
+        CU_ASSERT_NOT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
     }
 
     /* Only samples that weren't taken should be available. */
@@ -2388,7 +2388,7 @@ CU_Test(ddsc_take_mask, disposed_instance_state, .init=reader_init, .fini=reader
         int                  expected_long_1 = (i * 3) + 1;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-        dds_instance_state_t expected_ist    = DDS_IST_NOT_ALIVE_DISPOSED;
+        dds_instance_state_t expected_ist    = DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -2437,7 +2437,7 @@ CU_Test(ddsc_take_mask, no_writers_instance_state, .init=reader_init, .fini=read
         int                  expected_long_1 = (i * 3) + 2;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-        dds_instance_state_t expected_ist    = DDS_IST_NOT_ALIVE_NO_WRITERS;
+        dds_instance_state_t expected_ist    = DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -2484,9 +2484,9 @@ CU_Test(ddsc_take_mask, combination_of_states, .init=reader_init, .fini=reader_f
 
         /* Expected states. */
         int                  expected_long_1 = 3;
-        dds_sample_state_t   expected_sst    = DDS_SST_NOT_READ;
-        dds_view_state_t     expected_vst    = DDS_VST_OLD;
-        dds_instance_state_t expected_ist    = DDS_IST_ALIVE;
+        dds_sample_state_t   expected_sst    = DDS_NOT_READ_SAMPLE_STATE;
+        dds_view_state_t     expected_vst    = DDS_NOT_NEW_VIEW_STATE;
+        dds_instance_state_t expected_ist    = DDS_ALIVE_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -2512,11 +2512,11 @@ CU_Test(ddsc_take_mask, take_instance_last_sample)
 #define WOULD_CRASH
 #ifdef WOULD_CRASH
     uint32_t mask = DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ALIVE_INSTANCE_STATE;
-    dds_sample_state_t expected_sst = DDS_SST_NOT_READ;
+    dds_sample_state_t expected_sst = DDS_NOT_READ_SAMPLE_STATE;
     int expected_long_3 = 3;
 #else
     uint32_t mask = DDS_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ALIVE_INSTANCE_STATE;
-    dds_sample_state_t expected_sst = DDS_SST_READ;
+    dds_sample_state_t expected_sst = DDS_READ_SAMPLE_STATE;
     int expected_long_3 = 2;
 #endif
     dds_return_t expected_cnt = 1;
@@ -2605,8 +2605,8 @@ CU_Test(ddsc_take_mask, take_instance_last_sample)
         /* Check states. */
         CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
         CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_VST_OLD);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_IST_ALIVE);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NOT_NEW_VIEW_STATE);
+        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
     }
 
     /* Only samples that weren't taken should be available. */
@@ -2774,7 +2774,7 @@ CU_Test(ddsc_take_mask_wl, not_read_sample_state, .init=reader_init, .fini=reade
 
         /* Expected states. */
         int                  expected_long_1 = SAMPLE_LAST_READ_SST + 1 + i;
-        dds_sample_state_t   expected_sst    = DDS_SST_NOT_READ;
+        dds_sample_state_t   expected_sst    = DDS_NOT_READ_SAMPLE_STATE;
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
@@ -2826,7 +2826,7 @@ CU_Test(ddsc_take_mask_wl, read_sample_state, .init=reader_init, .fini=reader_fi
 
         /* Expected states. */
         int                  expected_long_1 = i;
-        dds_sample_state_t   expected_sst    = DDS_SST_READ;
+        dds_sample_state_t   expected_sst    = DDS_READ_SAMPLE_STATE;
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
@@ -2879,7 +2879,7 @@ CU_Test(ddsc_take_mask_wl, new_view_state, .init=reader_init, .fini=reader_fini)
         /* Expected states. */
         int                  expected_long_1 = SAMPLE_LAST_OLD_VST + 1 + i;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
-        dds_view_state_t     expected_vst    = DDS_VST_NEW;
+        dds_view_state_t     expected_vst    = DDS_NEW_VIEW_STATE;
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
@@ -2931,7 +2931,7 @@ CU_Test(ddsc_take_mask_wl, not_new_view_state, .init=reader_init, .fini=reader_f
         /* Expected states. */
         int                  expected_long_1 = i;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
-        dds_view_state_t     expected_vst    = DDS_VST_OLD;
+        dds_view_state_t     expected_vst    = DDS_NOT_NEW_VIEW_STATE;
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
@@ -2984,7 +2984,7 @@ CU_Test(ddsc_take_mask_wl, alive_instance_state, .init=reader_init, .fini=reader
         int                  expected_long_1 = i * 3;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-        dds_instance_state_t expected_ist    = DDS_IST_ALIVE;
+        dds_instance_state_t expected_ist    = DDS_ALIVE_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -3048,7 +3048,7 @@ CU_Test(ddsc_take_mask_wl, not_alive_instance_state, .init=reader_init, .fini=re
         CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,    expected_sst);
         CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,      expected_vst);
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state,  expected_ist);
-        CU_ASSERT_NOT_EQUAL_FATAL(g_info[i].instance_state, DDS_IST_ALIVE);
+        CU_ASSERT_NOT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
     }
 
     ret = dds_return_loan(g_reader, g_loans, ret);
@@ -3089,7 +3089,7 @@ CU_Test(ddsc_take_mask_wl, disposed_instance_state, .init=reader_init, .fini=rea
         int                  expected_long_1 = (i * 3) + 1;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-        dds_instance_state_t expected_ist    = DDS_IST_NOT_ALIVE_DISPOSED;
+        dds_instance_state_t expected_ist    = DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -3141,7 +3141,7 @@ CU_Test(ddsc_take_mask_wl, no_writers_instance_state, .init=reader_init, .fini=r
         int                  expected_long_1 = (i * 3) + 2;
         dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1);
         dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-        dds_instance_state_t expected_ist    = DDS_IST_NOT_ALIVE_NO_WRITERS;
+        dds_instance_state_t expected_ist    = DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
@@ -3191,9 +3191,9 @@ CU_Test(ddsc_take_mask_wl, combination_of_states, .init=reader_init, .fini=reade
 
         /* Expected states. */
         int                  expected_long_1 = 3;
-        dds_sample_state_t   expected_sst    = DDS_SST_NOT_READ;
-        dds_view_state_t     expected_vst    = DDS_VST_OLD;
-        dds_instance_state_t expected_ist    = DDS_IST_ALIVE;
+        dds_sample_state_t   expected_sst    = DDS_NOT_READ_SAMPLE_STATE;
+        dds_view_state_t     expected_vst    = DDS_NOT_NEW_VIEW_STATE;
+        dds_instance_state_t expected_ist    = DDS_ALIVE_INSTANCE_STATE;
 
         /* Check data. */
         CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );

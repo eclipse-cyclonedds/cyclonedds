@@ -422,8 +422,11 @@ static void durability_service_invalid (dds_qos_t * const q, int const v) {
     case 2: dds_qset_durability_service (q, 0, DDS_HISTORY_KEEP_LAST, 1, 0, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED); break;
     case 3: dds_qset_durability_service (q, 0, DDS_HISTORY_KEEP_LAST, 1, DDS_LENGTH_UNLIMITED, 0, DDS_LENGTH_UNLIMITED); break;
     case 4: dds_qset_durability_service (q, 0, DDS_HISTORY_KEEP_LAST, 1, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED, 0); break;
-    default: dds_qset_durability_service (q, 0, (dds_history_kind_t) ((int) DDS_HISTORY_KEEP_ALL + 1), 0, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED); break;
-
+    default: {
+      union { dds_history_kind_t k; int i; } hk;
+      hk.i = (int) DDS_HISTORY_KEEP_ALL + 1;
+      dds_qset_durability_service (q, 0, hk.k, 0, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED); break;
+    }
   }
 }
 
@@ -1193,5 +1196,61 @@ CU_Test(ddsc_qos_set, remote_endpoints_with_rxo)
   dds_return_t rc = dds_delete (domrd);
   CU_ASSERT_FATAL (rc == 0);
   rc = dds_delete (domwr);
+  CU_ASSERT_FATAL (rc == 0);
+}
+
+CU_Test(ddsc_qos_set, partition_mismatch_no_incompat_qos)
+{
+  const char *config = "${CYCLONEDDS_URI},<Discovery><Tag>${CYCLONEDDS_PID}</Tag></Discovery>";
+  char *conf = ddsrt_expand_envvars (config, 0);
+  const dds_entity_t dom = dds_create_domain (0, conf);
+  CU_ASSERT_FATAL (dom > 0);
+  ddsrt_free (conf);
+  const dds_entity_t dp = dds_create_participant (0, NULL, NULL);
+  CU_ASSERT_FATAL (dp > 0);
+  dds_return_t rc;
+
+  char topicname[100];
+  create_unique_topic_name ("ddsc_qos_set_partition_mismatch_no_incompat_qos", topicname, sizeof (topicname));
+  const dds_entity_t tp = dds_create_topic (dp, &Space_Type1_desc, topicname, NULL, NULL);
+  CU_ASSERT_FATAL (tp > 0);
+
+  dds_qos_t *qos = dds_create_qos ();
+  dds_qset_partition1 (qos, "R");
+  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
+  dds_qset_durability (qos, DDS_DURABILITY_TRANSIENT_LOCAL);
+  // presentation: NIY
+  dds_qset_deadline (qos, DDS_SECS (1));
+  dds_qset_latency_budget (qos, DDS_SECS (1));
+  dds_qset_ownership (qos, DDS_OWNERSHIP_EXCLUSIVE);
+  dds_qset_liveliness (qos, DDS_LIVELINESS_MANUAL_BY_TOPIC, DDS_SECS (1));
+  dds_qset_destination_order (qos, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
+  dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]){DDS_DATA_REPRESENTATION_XCDR2});
+  const dds_entity_t rd = dds_create_reader (dp, tp, qos, NULL);
+  CU_ASSERT_FATAL (rd > 0);
+  
+  dds_qset_partition1 (qos, "W");
+  dds_qset_reliability (qos, DDS_RELIABILITY_BEST_EFFORT, DDS_INFINITY);
+  dds_qset_durability (qos, DDS_DURABILITY_VOLATILE);
+  // presentation: NIY
+  dds_qset_deadline (qos, DDS_SECS (2));
+  dds_qset_latency_budget (qos, DDS_SECS (2));
+  dds_qset_ownership (qos, DDS_OWNERSHIP_SHARED);
+  dds_qset_liveliness (qos, DDS_LIVELINESS_AUTOMATIC, DDS_SECS (2));
+  dds_qset_destination_order (qos, DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP);
+  dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]){DDS_DATA_REPRESENTATION_XCDR1});
+  const dds_entity_t wr = dds_create_writer (dp, tp, qos, NULL);
+  CU_ASSERT_FATAL (wr > 0);
+  dds_delete_qos (qos);
+
+  uint32_t rdstat, wrstat;
+  rc = dds_read_status (rd, &rdstat, DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS);
+  CU_ASSERT_FATAL (rc == 0);
+  rc = dds_read_status (wr, &wrstat, DDS_OFFERED_INCOMPATIBLE_QOS_STATUS);
+  CU_ASSERT_FATAL (rc == 0);
+  
+  CU_ASSERT_FATAL (rdstat == 0 && wrstat == 0);
+
+  rc = dds_delete (dom);
   CU_ASSERT_FATAL (rc == 0);
 }

@@ -32,6 +32,8 @@
 #include "dds__psmx.h"
 #include "dds__guid.h"
 
+extern inline bool dds_source_timestamp_is_valid_ddsi_time (dds_time_t timestamp, ddsi_protocol_version_t protover);
+
 struct ddsi_serdata_plain { struct ddsi_serdata p; };
 struct ddsi_serdata_any   { struct ddsi_serdata a; };
 
@@ -158,7 +160,7 @@ dds_return_t dds_write_ts (dds_entity_t writer, const void *data, dds_time_t tim
   dds_return_t ret;
   dds_writer *wr;
 
-  if (data == NULL || timestamp < 0)
+  if (data == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
@@ -464,6 +466,12 @@ static dds_return_t dds_writecdr_impl_common (struct dds_writer *wr, struct ddsi
   // let refc(din) be r, so upon returning it must be r-1
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   dds_return_t ret;
+
+  if (!dds_source_timestamp_is_valid_ddsi_time (din->a.timestamp.v, wr->protocol_version))
+  {
+    ddsi_serdata_unref (&din->a);
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
 
   // Cases:
   //    din    correct      psmx?   loan?
@@ -804,7 +812,9 @@ dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t timest
   const uint32_t statusinfo =
     (((action & DDS_WR_DISPOSE_BIT) ? DDSI_STATUSINFO_DISPOSE : 0) |
      ((action & DDS_WR_UNREGISTER_BIT) ? DDSI_STATUSINFO_UNREGISTER : 0));
-  int ret = DDS_RETCODE_OK;
+
+  if (!dds_source_timestamp_is_valid_ddsi_time (timestamp, wr->protocol_version))
+    return DDS_RETCODE_BAD_PARAMETER;
 
   if (!evaluate_topic_filter (wr, data, sdkind))
     return DDS_RETCODE_OK;
@@ -852,6 +862,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t timest
   // other form (serialized PSMX loan and/or serdata), but those don't allow for cheap extraction
   // of the key.  So it can't be freed by "dds_write_impl_psmxloan_serdata".
   struct dds_loaned_sample *loan_to_be_freed;
+  dds_return_t ret = DDS_RETCODE_OK;
   if ((ret = dds_write_impl_psmxloan_serdata (wr, data, sdkind, timestamp, statusinfo, &psmx_loan, &serdata, &loan_to_be_freed)) == DDS_RETCODE_OK)
   {
     assert (psmx_loan != NULL || serdata != NULL);
@@ -924,7 +935,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t timest
         ret = dds_write_impl_deliver_via_ddsi (thrst, wr, serdata);
       ddsi_serdata_unref (serdata);
     }
-    
+
     if (loan_to_be_freed)
       dds_loaned_sample_unref (loan_to_be_freed);
   }

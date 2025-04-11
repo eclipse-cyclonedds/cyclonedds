@@ -37,4 +37,10 @@ char * get_permissions_grant (const char * grant_name, const char * subject_name
 char * get_permissions_default_grant (const char * grant_name, const char * subject_name, const char * topic_name);
 char * get_permissions_config (char * grants[], size_t ngrants, bool add_prefix);
 
+typedef char * (smime_sign_function)(const char *config, void *args);
+
+char * get_governance_config_ex (bool allow_unauth_pp, bool enable_join_ac, DDS_Security_ProtectionKind discovery_protection_kind, DDS_Security_ProtectionKind liveliness_protection_kind,
+    DDS_Security_ProtectionKind rtps_protection_kind, const char * topic_rules, smime_sign_function signer, void *signer_arg, bool add_prefix);
+char * get_permissions_config_ex(char * grants[], size_t ngrants, smime_sign_function signer, void *signer_arg, bool add_prefix);
+
 #endif /* SECURITY_CORE_TEST_SECURITY_CONFIG_TEST_UTILS_H_ */

@@ -5,11 +5,19 @@ d=bin
 dur=30
 declare -a pids
 
+# Only check RSS if address sanitizer not used, the check here is a bit
+# sloppy, but probably good enough
+qrss="-Qrss:10"
+if expr "${SANITIZER}" : '.*address' ; then
+    echo "address sanitizer enabled in build, not checking RSS"
+    qrss=""
+fi
+
 #CYCLONEDDS_URI="$CYCLONEDDS_URI,<Int><Test><Xmit>10</>"
 #MallocStackLogging=1 ...
-$d/ddsperf -L -D$dur -n10 -Qminmatch:2 -Qlivemem:1 -Qrss:10 -Qsamples:100000 -Qroundtrips:3000 sub ping & \
+$d/ddsperf -L -D$dur -n10 -Qminmatch:2 -Qlivemem:1 $qrss -Qsamples:100000 -Qroundtrips:3000 sub ping & \
     pids[${#pids}]=$!
-$d/ddsperf -L -D$dur -n10 -Qminmatch:2 -Qlivemem:1 -Qrss:10 pub 100Hz burst 1000 & \
+$d/ddsperf -L -D$dur -n10 -Qminmatch:2 -Qlivemem:1 $qrss pub 100Hz burst 1000 & \
     pids[${#pids}]=$!
 
 sleep $((dur + 1))

@@ -200,7 +200,8 @@ CU_Test (ddsc_dynamic_type, extensibility_invalid, .init = dynamic_type_init, .f
 
   // Invalid extensibility value
   dds_dynamic_type_t dstruct = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "t" });
-  ret = dds_dynamic_type_set_extensibility (&dstruct, (enum dds_dynamic_type_extensibility) 99);
+  union { enum dds_dynamic_type_extensibility dte; int i; } invalid_dte = { .i = 99 };
+  ret = dds_dynamic_type_set_extensibility (&dstruct, invalid_dte.dte);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
   dds_dynamic_type_unref (&dstruct);
 
@@ -667,7 +668,7 @@ CU_Test (ddsc_dynamic_type, existing, .init = dynamic_type_init, .fini = dynamic
     while (!done && dds_take (pub_rd, samples, &si, 1, 1) == 1)
     {
       const dds_builtintopic_endpoint_t *sample = samples[0];
-      done = si.valid_data && si.instance_state == DDS_IST_ALIVE && !strcmp (sample->topic_name, topic_name);
+      done = si.valid_data && si.instance_state == DDS_ALIVE_INSTANCE_STATE && !strcmp (sample->topic_name, topic_name);
     }
     dds_return_loan (pub_rd, samples, 1);
   }
@@ -827,4 +828,42 @@ CU_Test (ddsc_dynamic_type, type_info, .init = dynamic_type_init, .fini = dynami
   ddsrt_free (ti);
   dds_dynamic_type_unref (&dstruct);
   dds_free_typeinfo (type_info);
+}
+
+CU_Test (ddsc_dynamic_type, struct_member_key, .init = dynamic_type_init, .fini = dynamic_type_fini)
+{
+  static const struct {
+    dds_dynamic_type_descriptor_t member_type;
+    dds_return_t ret;
+  } tests[] = {
+    { { .kind = DDS_DYNAMIC_INT32, .name = "m" }, DDS_RETCODE_OK },
+    { { .kind = DDS_DYNAMIC_SEQUENCE, .name = "m", .element_type = TYPE_SPEC_PRIM_NC(DDS_DYNAMIC_INT32), .num_bounds = 0 }, DDS_RETCODE_OK }
+  };
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    dds_dynamic_type_t dtype = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dstruct" });
+    CU_ASSERT_EQUAL_FATAL (dtype.ret, DDS_RETCODE_OK);
+    dds_dynamic_type_t dm = dds_dynamic_type_create (participant, tests[i].member_type);
+    dds_dynamic_type_add_member (&dtype, DDS_DYNAMIC_MEMBER(dm, "m"));
+    dds_return_t ret = dds_dynamic_member_set_key (&dtype, 0, true);
+    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+
+    dds_typeinfo_t *type_info;
+    ret = dds_dynamic_type_register (&dtype, &type_info);
+    CU_ASSERT_EQUAL_FATAL (ret, tests[i].ret);
+
+    dds_topic_descriptor_t *descriptor;
+    ret = dds_create_topic_descriptor (DDS_FIND_SCOPE_LOCAL_DOMAIN, participant, type_info, 0, &descriptor);
+    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+
+    char topic_name[100];
+    create_unique_topic_name ("ddsc_dynamic_type", topic_name, sizeof (topic_name));
+    dds_entity_t topic = dds_create_topic (participant, descriptor, topic_name, NULL, NULL);
+    CU_ASSERT_FATAL (topic >= 0);
+
+    dds_delete_topic_descriptor (descriptor);
+    dds_free_typeinfo (type_info);
+    dds_dynamic_type_unref (&dtype);
+  }
 }

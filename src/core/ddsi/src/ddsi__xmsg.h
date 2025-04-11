@@ -47,7 +47,7 @@ enum ddsi_xmsg_kind {
 };
 
 /** @component rtps_submsg */
-struct ddsi_xmsgpool *ddsi_xmsgpool_new (void)
+struct ddsi_xmsgpool *ddsi_xmsgpool_new (ddsi_protocol_version_t protocol_version)
   ddsrt_attribute_warn_unused_result;
 
 /** @component rtps_submsg */

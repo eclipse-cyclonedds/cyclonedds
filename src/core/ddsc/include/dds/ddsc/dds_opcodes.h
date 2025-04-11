@@ -663,6 +663,21 @@ enum dds_stream_typecode_subtype {
 #define DDS_TOPIC_FIXED_KEY_XCDR2_KEYHASH       (1u << 10)
 
 /**
+ * @anchor DDS_TOPIC_KEY_SEQUENCE
+ * @ingroup topic_flags
+ * @brief Set if any of the key fields of a type is a sequence type.
+ */
+#define DDS_TOPIC_KEY_SEQUENCE                  (1u << 11)
+
+/**
+ * @anchor DDS_TOPIC_KEY_ARRAY_NONPRIM
+ * @ingroup topic_flags
+ * @brief Set if any of the key fields of a type is an array with an
+ * element type that is not a primitive, bitmask or enum.
+ */
+#define DDS_TOPIC_KEY_ARRAY_NONPRIM             (1u << 12)
+
+/**
  * @anchor DDS_FIXED_KEY_MAX_SIZE
  * @ingroup topic_flags
  * @brief Max size of fixed key

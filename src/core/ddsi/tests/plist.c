@@ -346,7 +346,7 @@ CU_Test (ddsi_plist, locator_lists_reject)
           case REJ_GARBAGE:  plist_rej[12] = 1; break;
         }
         const ddsi_plist_src_t src = {
-          .protocol_version = { DDSI_RTPS_MAJOR, DDSI_RTPS_MINOR },
+          .protocol_version = gv.config.protocol_version,
           .vendorid = DDSI_VENDORID_ECLIPSE,
           .encoding = DDSI_RTPS_PL_CDR_BE,
           .buf = plist_rej,
@@ -436,7 +436,7 @@ CU_Test (ddsi_plist, locator_lists_accept)
         HDR(DDSI_PID_SENTINEL, 0)
       };
       const ddsi_plist_src_t src = {
-        .protocol_version = { DDSI_RTPS_MAJOR, DDSI_RTPS_MINOR },
+        .protocol_version = gv.config.protocol_version,
         .vendorid = DDSI_VENDORID_ECLIPSE,
         .encoding = DDSI_RTPS_PL_CDR_BE,
         .buf = plist_ok,

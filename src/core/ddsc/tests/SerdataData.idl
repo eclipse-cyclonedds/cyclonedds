@@ -72,11 +72,10 @@ struct SerdataKeyArr {
     @key uint8 a[12];
 };
 
-// TODO: currently not supported
-// @final
-// struct SerdataKeyArrStrBounded {
-//     @key string<2> a[2];
-// };
+@final
+struct SerdataKeyArrStrBounded {
+    @key string<2> a[2];
+};
 
 
 // Nested aggregated types
@@ -186,3 +185,36 @@ struct SerdataKeyInheritMutable : SerdataKeyInheritMutableBase {
     @id(2) uint16 b;
     @id(1) uint16 c;
 };
+
+/* Sequences */
+@final struct SerdataKeySequence {
+    @key sequence<long> s;
+};
+
+@final @nested struct SerdataKeySequenceSubtype {
+    @key long a;
+    long b;
+};
+@final struct SerdataKeySequenceStruct {
+    @key sequence<SerdataKeySequenceSubtype> s;
+};
+
+@appendable @nested struct SerdataKeySequenceSubtypeAppendable {
+    @key long a;
+    long b;
+};
+@final struct SerdataKeySequenceStructAppendable {
+    @key sequence<SerdataKeySequenceSubtypeAppendable> s;
+};
+
+enum en_seq {
+    EN1,
+    EN2,
+    EN3,
+    EN4
+};
+@final struct SerdataKeySequenceNested {
+    @key sequence<sequence<en_seq>, 6> s;
+};
+
+

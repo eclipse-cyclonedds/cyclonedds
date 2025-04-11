@@ -43,7 +43,7 @@ payload in order to reach the next 4-byte aligned offset. */
 #define DDS_CDR_HDR_PADDING_MASK 0x3
 
 
-#define DDS_CDR_CALCULATED_FLAGS (DDS_TOPIC_FIXED_KEY | DDS_TOPIC_FIXED_KEY_XCDR2 | DDS_TOPIC_FIXED_KEY_XCDR2_KEYHASH | DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE)
+#define DDS_CDR_CALCULATED_FLAGS (DDS_TOPIC_FIXED_KEY | DDS_TOPIC_FIXED_KEY_XCDR2 | DDS_TOPIC_FIXED_KEY_XCDR2_KEYHASH | DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM)
 
 struct dds_cdr_header {
   unsigned short identifier;
@@ -252,7 +252,7 @@ DDS_EXPORT size_t dds_stream_getsize_sample (const char *data, const struct dds_
   ddsrt_nonnull_all;
 
 /** @component cdr_serializer */
-DDS_EXPORT size_t dds_stream_getsize_key (enum dds_cdr_key_serialization_kind ser_kind, const char *sample, const struct dds_cdrstream_desc *desc, uint32_t xcdr_version)
+DDS_EXPORT size_t dds_stream_getsize_key (const char *sample, const struct dds_cdrstream_desc *desc, uint32_t xcdr_version)
   ddsrt_nonnull_all;
 
 /** @component cdr_serializer */

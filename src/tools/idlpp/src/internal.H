@@ -267,11 +267,16 @@ typedef struct ifinfo {
 
 #define compiling       ifstack[0].stat
 
+/* FP2DEST used to evaluate to -1 if fp did not match any of the three,
+   but that case is not a valid input to the functions that get it
+   passed.  In Clang 18 (perhaps earlier) it triggers a static analyzer
+   warning.  Evaluating it to MCPP_DBG seems a reasonable way of avoiding
+   that warning. */
 #define FP2DEST(fp) \
     (fp == fp_out) ? MCPP_OUT : \
     ((fp == fp_err) ? MCPP_ERR : \
     ((fp == fp_debug) ? MCPP_DBG : \
-    ((MCPP_OUTDEST) -1)))
+     MCPP_DBG))
 
 /* VAL_SIGN structure stores information about evaluated number.    */
 typedef struct val_sign {

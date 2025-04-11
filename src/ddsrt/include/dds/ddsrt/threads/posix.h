@@ -14,7 +14,7 @@
 #include <pthread.h>
 
 #define DDSRT_HAVE_THREAD_SETNAME (1)
-#if defined (__linux) || defined (__APPLE__)
+#if defined (__linux) || defined (__APPLE__) || defined (__QNXNTO__)
 #define DDSRT_HAVE_THREAD_LIST (1)
 #else
 #define DDSRT_HAVE_THREAD_LIST (0)
@@ -51,6 +51,11 @@ typedef TASK_ID ddsrt_tid_t;
 #   define PRIdTID "d" /* typedef int TASK_ID */
 # endif
 /* __VXWORKS__ */
+#elif __QNXNTO__
+typedef int ddsrt_tid_t;
+#define PRIdTID "d"
+typedef int ddsrt_thread_list_id_t;
+/* __QNXNTO__ */
 #else
 typedef uintptr_t ddsrt_tid_t;
 #define PRIdTID PRIuPTR

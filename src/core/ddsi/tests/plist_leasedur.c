@@ -262,7 +262,7 @@ static void ddsi_plist_leasedur_new_proxypp_impl (bool include_lease_duration)
 
   // not static nor const: we need to patch in the port number
   unsigned char pkt_header[] = {
-    'R', 'T', 'P', 'S', DDSI_RTPS_MAJOR, DDSI_RTPS_MINOR,
+    'R', 'T', 'P', 'S', gv.config.protocol_version.major, gv.config.protocol_version.minor,
     // vendor id: major 1 is a given
     1, DDSI_VENDORID_MINOR_ECLIPSE,
     // GUID prefix: first two bytes ordinarily have vendor id, so 7,7 is
@@ -281,7 +281,7 @@ static void ddsi_plist_leasedur_new_proxypp_impl (bool include_lease_duration)
     HDR (DDSI_PID_PARTICIPANT_GUID, 16),
       TEST_GUIDPREFIX_BYTES, SER32BE (DDSI_ENTITYID_PARTICIPANT),
     HDR (DDSI_PID_BUILTIN_ENDPOINT_SET, 4),         SER32BE (DDSI_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER),
-    HDR (DDSI_PID_PROTOCOL_VERSION, 4),             DDSI_RTPS_MAJOR, DDSI_RTPS_MINOR, 0,0,
+    HDR (DDSI_PID_PROTOCOL_VERSION, 4),             gv.config.protocol_version.major, gv.config.protocol_version.minor, 0,0,
     HDR (DDSI_PID_VENDORID, 4),                     1, DDSI_VENDORID_MINOR_ECLIPSE, 0,0,
     HDR (DDSI_PID_DEFAULT_UNICAST_LOCATOR, 24),     UDPLOCATOR (127,0,0,1, port),
     HDR (DDSI_PID_METATRAFFIC_UNICAST_LOCATOR, 24), UDPLOCATOR (127,0,0,1, port)
@@ -376,7 +376,7 @@ static void ddsi_plist_leasedur_new_proxyrd_impl (bool include_lease_duration)
 
   // not static nor const: we need to patch in the port number
   const unsigned char pkt_p0[] = {
-    'R', 'T', 'P', 'S', DDSI_RTPS_MAJOR, DDSI_RTPS_MINOR,
+    'R', 'T', 'P', 'S', gv.config.protocol_version.major, gv.config.protocol_version.minor,
     // vendor id: major 1 is a given
     1, DDSI_VENDORID_MINOR_ECLIPSE,
     // GUID prefix: first two bytes ordinarily have vendor id, so 7,7 is

@@ -1927,7 +1927,7 @@ static bool print_generic (char * restrict *buf, size_t * restrict bufsize, cons
 
 static int protocol_version_is_newer (ddsi_protocol_version_t pv)
 {
-  return (pv.major < DDSI_RTPS_MAJOR) ? 0 : (pv.major > DDSI_RTPS_MAJOR) ? 1 : (pv.minor > DDSI_RTPS_MINOR);
+  return (pv.major < DDSI_RTPS_MAJOR) ? 0 : (pv.major > DDSI_RTPS_MAJOR) ? 1 : (pv.minor > DDSI_RTPS_MINOR_LATEST);
 }
 
 static dds_return_t dvx_durability_service (void * restrict dst, const struct dd *dd)
@@ -2609,7 +2609,7 @@ static dds_return_t ddsi_xqos_valid_strictness (const struct ddsrt_log_cfg *logc
       }
     }
   }
-  if ((ret = final_validation_qos (xqos, (ddsi_protocol_version_t) { DDSI_RTPS_MAJOR, DDSI_RTPS_MINOR }, DDSI_VENDORID_ECLIPSE, NULL, strict)) < 0)
+  if ((ret = final_validation_qos (xqos, (ddsi_protocol_version_t) { DDSI_RTPS_MAJOR, DDSI_RTPS_MINOR_LATEST }, DDSI_VENDORID_ECLIPSE, NULL, strict)) < 0)
   {
     DDS_CLOG (DDS_LC_PLIST, logcfg, "ddsi_xqos_valid: final validation failed\n");
   }
@@ -2691,11 +2691,8 @@ void ddsi_plist_delta (uint64_t *pdelta, uint64_t *qdelta, const ddsi_plist_t *x
 
 static dds_return_t validate_external_duration (const ddsi_duration_t *d)
 {
-  /* Accepted are zero, positive, infinite or invalid as defined in
-     the DDS 2.1 spec, table 9.4. */
+  /* Accepted are zero, positive, infinite (= INT32_MAX.UINT32_MAX) */
   if (d->seconds >= 0)
-    return 0;
-  else if (d->seconds == -1 && d->fraction == UINT32_MAX)
     return 0;
   else
     return DDS_RETCODE_BAD_PARAMETER;

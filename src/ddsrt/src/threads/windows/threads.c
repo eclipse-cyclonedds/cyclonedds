@@ -117,6 +117,12 @@ ddsrt_thread_create(
   assert(attr != NULL);
   assert(start_routine != NULL);
 
+  if (attr->schedAffinityN > 0)
+  {
+    /* Didn't implement setting thread affinity on Windows yet */
+    return DDS_RETCODE_ERROR;
+  }
+
   if ((ctx = ddsrt_malloc(sizeof(*ctx))) == NULL ||
       (ctx->name = ddsrt_strdup(name)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;

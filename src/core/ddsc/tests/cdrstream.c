@@ -1686,7 +1686,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc, sample_empty 
     CU_ASSERT_EQUAL_FATAL (ret, 1);
     ret = dds_read (rd, rds, si, 1, 1);
     CU_ASSERT_EQUAL_FATAL (ret, 1);
-    CU_ASSERT_EQUAL_FATAL (si->instance_state, DDS_IST_NOT_ALIVE_DISPOSED);
+    CU_ASSERT_EQUAL_FATAL (si->instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
     dds_return_loan (rd, rds, 1);
   }
 
@@ -1996,7 +1996,8 @@ static void check_t2 (uint8_t *data)
   CU_ASSERT_EQUAL_FATAL (t2->f2.s1, 0);
   CU_ASSERT_EQUAL_FATAL (strlen (t2->f2.s2), 0);
   CU_ASSERT_EQUAL_FATAL (t2->f2.s3, 0);
-  CU_ASSERT_EQUAL_FATAL (t2->f2.s4, NULL);
+  CU_ASSERT_PTR_NOT_NULL_FATAL (t2->f2.s4);
+  CU_ASSERT_EQUAL_FATAL (*t2->f2.s4, 0);
   CU_ASSERT_EQUAL_FATAL (t2->f3, 0.0);
 }
 
@@ -2038,9 +2039,11 @@ static void check_t4 (uint8_t *data)
   struct CdrStreamSkipDefault_t4_sub *t4 = (struct CdrStreamSkipDefault_t4_sub *) data;
   CU_ASSERT_EQUAL_FATAL (t4->f2.s1, 0);
   CU_ASSERT_EQUAL_FATAL (t4->f2.s2.s1, 0);
-  CU_ASSERT_EQUAL_FATAL (t4->f2.s2.s2, NULL);
+  CU_ASSERT_PTR_NOT_NULL_FATAL (t4->f2.s2.s2);
+  CU_ASSERT_EQUAL_FATAL (t4->f2.s2.s2->_length, 0); // only length is reset, buffer and max are retained
   CU_ASSERT_EQUAL_FATAL (t4->f4.s1, 0);
-  CU_ASSERT_EQUAL_FATAL (t4->f4.s2, NULL);
+  CU_ASSERT_PTR_NOT_NULL_FATAL (t4->f4.s2);
+  CU_ASSERT_EQUAL_FATAL (t4->f4.s2->_length, 0);
 }
 
 
@@ -2152,6 +2155,26 @@ CU_Test(ddsc_cdrstream, key_size)
     { D(t27), false, true, 0, 9, true }, // key size: XCDR2: 4 (dh) + 4 (dh) + 1
     { D(t28), false, true, 0, 14, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (dh) + 2 * 1
     { D(t29), false, true, 0, 12, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4
+
+    { D(t30), false, false, VAR, VAR, false },
+    { D(t31), true, true, 16, 16, true }, // key size: 4 (length) + 3 * 4
+    { D(t32), true, true, 11, 11, true }, // key size: 1 + 3 (pad) + 4 (length) + 3 * 1
+    { D(t33), true, true, 6, 10, true }, // key size: XCDR1: 4 (length) + 2 * 1 / XCDR2: 4 (dh) + 4 (length) + 2 * 1
+    { D(t34), false, false, VAR, VAR, false },
+    { D(t35), false, true, 0, 13, true }, // key size: XCDR2: 4 (dh) + 4 (length) + 4 (dh) + 1
+    { D(t36), true, true, 16, 16, true }, // key size: 4 (length) + 12 * 1
+    { D(t37), false, true, 0, 16, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (length) + 4
+    { D(t38), true, true, 12, 16, true }, // key size: XCDR1: 4 (length) + 2 * (1 + 1 (pad) + 2) / XCDR2: 4 (dh) + 4 (length) + 2 * (1 + 1 (pad) + 2)
+
+    { D(t39), true, true, 2, 6, true }, // key size: XCDR1: 2 * 1 / XCDR2: 4 (dh) + 2 * 1
+    { D(t40), true, true, 4, 8, true }, // key size: XCDR1: 4 * 1 / XCDR2: 4 (dh) + 4 * 1
+    { D(t41), false, true, 0, 9, true }, // key size: XCDR2: 4 (dh) + 4 (dh) + 1
+    { D(t42), false, true, 0, 16, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (dh) + 4
+    { D(t43), true, true, 8, 12, true }, // key size: XCDR1: 2 * (1 + 1 (pad) + 2) / XCDR2: 4 (dh) + 2 * (1 + 1 (pad) + 2)
+
+    { D(t44), false, false, VAR, VAR, false },
+    { D(t45), false, false, VAR, VAR, false },
+    { D(t46), false, false, VAR, VAR, false },
   };
 
   for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++) {
@@ -2269,6 +2292,7 @@ CU_Test (ddsc_cdrstream, check_write_reject)
   // Most are for checking it rejects something, but for example with @external
   // it needs to accept null pointers in some cases.  Hence the handful of cases
   // that are expected to result in correct CDR
+  const union { CdrStreamChecking_en2 u; int i; } out_of_range_enum = { .i = 1 };
   const struct {
     const dds_topic_descriptor_t *desc;
     const void *sample;
@@ -2278,7 +2302,7 @@ CU_Test (ddsc_cdrstream, check_write_reject)
   } tests[] = {
     { D(t1), C(t1){.f1={._length=2,._buffer=(uint8_t[]){1,2}}}, "oversize sequence" },
     { D(t1), C(t1){.f1={._length=1,._buffer=NULL}}, "non-empty sequence with null pointer" },
-    { D(t2), C(t2){.f1=(CdrStreamChecking_en2)1}, "out-of-range enum" },
+    { D(t2), C(t2){.f1=out_of_range_enum.u}, "out-of-range enum" },
     { D(t3), C(t3){.f1=2}, "out-of-range bitmask" },
     { D(t4), C(t4){.f1=NULL}, "@external w/ null pointer" },
     { D(t4a), C(t4a){.f1=NULL}, "@external @optional w/ null pointer", 1, (uint8_t[]){0} },
@@ -2324,7 +2348,7 @@ CU_Test (ddsc_cdrstream, check_write_reject)
       // Repeat with key serialization: type and data are so simple that the result should
       // be exactly the same as for the full sample. The point is to check that the key
       // serialization handling also handles these edge cases correctly.
-      size = dds_stream_getsize_key (DDS_CDR_KEY_SERIALIZATION_SAMPLE, tests[i].sample, &desc, xcdr_version);
+      size = dds_stream_getsize_key (tests[i].sample, &desc, xcdr_version);
       os.m_index = 0;
       ret = dds_stream_write_key (&os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, tests[i].sample, &desc);
       CU_ASSERT_FATAL (ret == (tests[i].cdr_if_ok != NULL));

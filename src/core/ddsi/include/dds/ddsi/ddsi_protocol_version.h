@@ -1,4 +1,4 @@
-// Copyright(c) 2006 to 2019 ZettaScale Technology and others
+// Copyright(c) 2025 ZettaScale Technology and others
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License v. 2.0 which is available at
@@ -8,20 +8,27 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-#ifndef DDS__READCOND_H
-#define DDS__READCOND_H
+#ifndef DDSI_PROTOCOL_VERSION_H
+#define DDSI_PROTOCOL_VERSION_H
 
-#include "dds__entity.h"
+#include <stdint.h>
+#include "dds/export.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-/** @component data_query */
-dds_return_t dds_create_readcond_impl (dds_readcond **rdcond_out, dds_reader *rd, dds_entity_kind_t kind, uint32_t mask, dds_querycondition_filter_fn filter);
+typedef struct ddsi_protocol_version {
+  uint8_t major, minor;
+} ddsi_protocol_version_t;
+
+/* This implements DDSI 2.5, accepts 2.1 and later */
+#define DDSI_RTPS_MAJOR 2
+#define DDSI_RTPS_MINOR_LATEST 5
+#define DDSI_RTPS_MINOR_MINIMUM 1
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif /* DDS__READCOND_H */
+#endif

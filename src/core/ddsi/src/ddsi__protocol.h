@@ -59,11 +59,6 @@ extern "C" {
 
 #define DDSI_BES_MASK_NON_SECURITY 0xf000ffffu
 
-/* Only one specific version is grokked */
-#define DDSI_RTPS_MAJOR 2
-#define DDSI_RTPS_MINOR 1
-#define DDSI_RTPS_MINOR_MINIMUM 1
-
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
 #define DDSI_PROTOCOLID_AS_UINT32 (((uint32_t)'R' << 0) | ((uint32_t)'T' << 8) | ((uint32_t)'P' << 16) | ((uint32_t)'S' << 24))
 #elif DDSRT_ENDIAN == DDSRT_BIG_ENDIAN

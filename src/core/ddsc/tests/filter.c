@@ -68,7 +68,7 @@ struct xfarg {
 
 static bool filter_sampleinfo_common (const struct dds_sample_info *si, struct xfarg *arg)
 {
-  if (si->sample_state != DDS_SST_NOT_READ ||
+  if (si->sample_state != DDS_NOT_READ_SAMPLE_STATE ||
       si->sample_rank != 0 ||
       si->generation_rank != 0 ||
       si->absolute_generation_rank != 0 ||
@@ -527,8 +527,8 @@ CU_Test (ddsc_filter, sampleinfo)
   // write two samples with wr[0], only one of which passes the content filter for rd[0]
   // both of which pass for rd[1]
   // disposed, no writer counts are both 0
-  xfarg.viewstate = DDS_VST_NEW;
-  xfarg.inststate = DDS_IST_ALIVE;
+  xfarg.viewstate = DDS_NEW_VIEW_STATE;
+  xfarg.inststate = DDS_ALIVE_INSTANCE_STATE;
   xfarg.insthandle = ih[0];
   ret = dds_write (wr[0], &(Space_Type1){0,0,0});
   CU_ASSERT_FATAL (ret == 0);
@@ -539,14 +539,14 @@ CU_Test (ddsc_filter, sampleinfo)
   CU_ASSERT (!xfarg.invalid_dynamic);
 
   // write two samples with wr[1], neither of which passes the sample info filters
-  xfarg.viewstate = DDS_VST_NEW;
-  xfarg.inststate = DDS_IST_ALIVE;
+  xfarg.viewstate = DDS_NEW_VIEW_STATE;
+  xfarg.inststate = DDS_ALIVE_INSTANCE_STATE;
   xfarg.insthandle = ih[0];
   ret = dds_write (wr[1], &(Space_Type1){0,0,0});
   CU_ASSERT_FATAL (ret == 0);
   CU_ASSERT (!xfarg.invalid_dynamic);
-  xfarg.viewstate = DDS_VST_NEW;
-  xfarg.inststate = DDS_IST_ALIVE;
+  xfarg.viewstate = DDS_NEW_VIEW_STATE;
+  xfarg.inststate = DDS_ALIVE_INSTANCE_STATE;
   xfarg.insthandle = ih[1];
   ret = dds_write (wr[1], &(Space_Type1){1,0,0});
   CU_ASSERT_FATAL (ret == 0);
@@ -578,8 +578,8 @@ CU_Test (ddsc_filter, sampleinfo)
   checkdata (rd[1], &exp1, "rd");
 
   // write it again (so we have data in the reader), then unregister
-  xfarg.viewstate = DDS_VST_OLD;
-  xfarg.inststate = DDS_IST_ALIVE;
+  xfarg.viewstate = DDS_NOT_NEW_VIEW_STATE;
+  xfarg.inststate = DDS_ALIVE_INSTANCE_STATE;
   xfarg.insthandle = ih[1];
   ret = dds_write (wr[0], &(Space_Type1){1,0,1});
   CU_ASSERT_FATAL (ret == 0);
@@ -588,14 +588,14 @@ CU_Test (ddsc_filter, sampleinfo)
   ret = dds_unregister_instance (wr[0], &(Space_Type1){1,0,0});
   CU_ASSERT_FATAL (ret == 0);
   // next write, it should show up in the filter as NOT_ALIVE_NO_WRITERS
-  xfarg.viewstate = DDS_VST_OLD;
-  xfarg.inststate = DDS_IST_NOT_ALIVE_NO_WRITERS;
+  xfarg.viewstate = DDS_NOT_NEW_VIEW_STATE;
+  xfarg.inststate = DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE;
   ret = dds_write (wr[0], &(Space_Type1){1,0,2});
   CU_ASSERT_FATAL (ret == 0);
   CU_ASSERT (!xfarg.invalid_dynamic);
   // new view state and alive again; bumped no writers generation
-  xfarg.viewstate = DDS_VST_NEW;
-  xfarg.inststate = DDS_IST_ALIVE;
+  xfarg.viewstate = DDS_NEW_VIEW_STATE;
+  xfarg.inststate = DDS_ALIVE_INSTANCE_STATE;
   xfarg.insthandle = ih[1];
   xfarg.nowrgen++;
   ret = dds_write (wr[0], &(Space_Type1){1,0,3});
@@ -607,14 +607,14 @@ CU_Test (ddsc_filter, sampleinfo)
   CU_ASSERT_FATAL (ret == 0);
   CU_ASSERT (!xfarg.invalid_dynamic);
   // next write, it should show up in the filter as DISPOSED
-  xfarg.viewstate = DDS_VST_NEW;
-  xfarg.inststate = DDS_IST_NOT_ALIVE_DISPOSED;
+  xfarg.viewstate = DDS_NEW_VIEW_STATE;
+  xfarg.inststate = DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE;
   ret = dds_write (wr[0], &(Space_Type1){1,0,4});
   CU_ASSERT_FATAL (ret == 0);
   CU_ASSERT (!xfarg.invalid_dynamic);
   // alive again; bumped disposed generation
-  xfarg.viewstate = DDS_VST_NEW;
-  xfarg.inststate = DDS_IST_ALIVE;
+  xfarg.viewstate = DDS_NEW_VIEW_STATE;
+  xfarg.inststate = DDS_ALIVE_INSTANCE_STATE;
   xfarg.dispgen++;
   xfarg.insthandle = ih[1];
   ret = dds_write (wr[0], &(Space_Type1){1,0,5});

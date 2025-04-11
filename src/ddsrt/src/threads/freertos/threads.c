@@ -379,6 +379,11 @@ ddsrt_thread_create(
   {
     return DDS_RETCODE_BAD_PARAMETER;
   }
+  /* Didn't implement setting thread affinity on FreeRTOS yet */
+  if (attr->schedAffinityN > 0)
+  {
+    return DDS_RETCODE_ERROR;
+  }
 
   /* Stack size is quietly increased to match at least the minimum. */
   if (attr->stackSize > size) {

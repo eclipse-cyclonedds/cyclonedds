@@ -122,7 +122,7 @@ typedef struct dds_entity_deriver {
 } dds_entity_deriver;
 
 struct dds_waitset;
-typedef void (*dds_entity_callback_t) (struct dds_waitset *observer, dds_entity_t observed, uint32_t status);
+typedef void (*dds_entity_callback_t) (struct dds_waitset *observer, dds_entity_t observed);
 typedef bool (*dds_entity_attach_callback_t) (struct dds_waitset *observer, struct dds_entity *observed, void *attach_arg);
 typedef void (*dds_entity_delete_callback_t) (struct dds_waitset *observer, dds_entity_t observed);
 
@@ -423,6 +423,7 @@ typedef struct dds_writer {
   struct ddsi_whc *m_whc; /* FIXME: ownership still with underlying DDSI writer (cos of DDSI built-in writers )*/
   bool whc_batch; /* FIXME: channels + latency budget */
   struct dds_loan_pool *m_loans; /* administration of associated loans */
+  ddsi_protocol_version_t protocol_version; /* copy of configured protocol version */
 
   /* Status metrics */
 

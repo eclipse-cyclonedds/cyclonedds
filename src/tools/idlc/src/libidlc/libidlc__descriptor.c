@@ -1959,24 +1959,34 @@ static void free_ctype_keys(struct constructed_type_key *key)
 
 static idl_retcode_t get_ctype_keys(const idl_pstate_t *pstate, struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, uint32_t *n_keys, bool parent_is_key, uint32_t base_type_ops_offs);
 
-static idl_retcode_t get_ctype_keys_adr(
-  const idl_pstate_t *pstate,
-  struct descriptor *descriptor,
-  uint32_t offs,
-  uint32_t base_type_ops_offs,
-  struct instruction *inst,
-  struct constructed_type *ctype,
-  uint32_t *n_keys,
-  struct constructed_type_key **ctype_keys)
+
+static idl_retcode_t get_ctype_keys_adr(const idl_pstate_t *pstate, struct descriptor *descriptor, uint32_t offs, uint32_t base_type_ops_offs, struct instruction *inst, struct constructed_type *ctype, uint32_t *n_keys, struct constructed_type_key **ctype_keys)
 {
   idl_retcode_t ret;
+
+  assert(n_keys);
+  assert(ctype_keys);
+  assert(DDS_OP(inst->data.opcode.code) == DDS_OP_ADR);
+
+  /* get the name of the field from the offset instruction, which is the first after the ADR */
+  const struct instruction *inst_offs = &ctype->instructions.table[offs + 1];
+  assert(inst_offs->type == OFFSET);
+  char *type = inst_offs->data.offset.type;
+  char *member = inst_offs->data.offset.member;
+  assert((!type && !member) || (type && member));
+  (void) member;
+
+  if (type == NULL)
+  {
+    /* Additional ADR for nested list-types (e.g. seq of seqs, seq of arrays, etc */
+    assert (DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_ARR || DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_SEQ || DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_BSQ);
+    return IDL_RETCODE_OK;
+  }
 
   struct constructed_type_key *key = idl_calloc (1, sizeof(*key));
   if (!key)
     return IDL_RETCODE_NO_MEMORY;
 
-  assert(n_keys);
-  assert(ctype_keys);
   if (*ctype_keys == NULL)
     *ctype_keys = key;
   else {
@@ -1990,102 +2000,51 @@ static idl_retcode_t get_ctype_keys_adr(
   key->offset = offs + base_type_ops_offs;
   key->order = inst->data.opcode.order;
 
-  if (DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_EXT) {
-    assert(ctype->instructions.table[offs + 2].type == ELEM_OFFSET);
-    const idl_node_t *node = ctype->instructions.table[offs + 2].data.inst_offset.node;
-    struct constructed_type *csubtype = find_ctype(descriptor, node);
-    assert(csubtype);
-    if ((ret = get_ctype_keys(pstate, descriptor, csubtype, &key->sub, n_keys, true, 0)))
-      return ret;
-  } else {
-    bool is_array = DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_ARR;
-    if (is_array) {
-      assert(offs + 2 < ctype->instructions.count);
-      assert(ctype->instructions.table[offs + 2].type == SINGLE);
-      key->dims = ctype->instructions.table[offs + 2].data.single;
+  if (!(key->name = idl_strdup(inst_offs->data.offset.member)))
+    return IDL_RETCODE_NO_MEMORY;
+
+  switch (DDS_OP_TYPE(inst->data.opcode.code)) {
+    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_WCHAR: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+    case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: case DDS_OP_VAL_BST: case DDS_OP_VAL_STR: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_WSTR:
+      (*n_keys)++;
+      break;
+
+    case DDS_OP_VAL_EXT:
+      assert(ctype->instructions.table[offs + 2].type == ELEM_OFFSET);
+      const idl_node_t *node = ctype->instructions.table[offs + 2].data.inst_offset.node;
+      struct constructed_type *csubtype = find_ctype(descriptor, node);
+      assert(csubtype);
+      if ((ret = get_ctype_keys(pstate, descriptor, csubtype, &key->sub, n_keys, true, 0)))
+        return ret;
+      break;
+
+    case DDS_OP_VAL_ARR: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: {
       const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE(inst->data.opcode.code);
       switch (subtype) {
-        case DDS_OP_VAL_BLN:
-        case DDS_OP_VAL_1BY: key->size = key->align = 1; break;
-        case DDS_OP_VAL_WCHAR:
-        case DDS_OP_VAL_2BY: key->size = key->align = 2; break;
-        case DDS_OP_VAL_4BY: key->size = key->align = 4; break;
-        case DDS_OP_VAL_8BY: key->size = key->align = 8; break;
-        case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: {
-          uint32_t sz = DDS_OP_TYPE_SZ(inst->data.opcode.code);
-          assert (sz > 0 && sz <= (subtype == DDS_OP_VAL_ENU ? 4u : 8u));
-          key->size = key->align = sz;
-          key->dheader = true;
-          break;
-        }
-        case DDS_OP_VAL_BST: case DDS_OP_VAL_STR:
-          idl_error (pstate, ctype->node, "Using array with string element type as part of the key is currently unsupported");
-          return IDL_RETCODE_UNSUPPORTED;
-        case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_WSTR:
-          idl_error (pstate, ctype->node, "Using array with wstring element type as part of the key is currently unsupported");
-          return IDL_RETCODE_UNSUPPORTED;
-        case DDS_OP_VAL_ARR: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ:
-          idl_error (pstate, ctype->node, "Using array with collection element type as part of the key is currently unsupported");
-          return IDL_RETCODE_UNSUPPORTED;
-        case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
-          idl_error (pstate, ctype->node, "Using array with aggregated element type as part of the key is currently unsupported");
-          return IDL_RETCODE_UNSUPPORTED;
-        case DDS_OP_VAL_EXT:
-          idl_error (pstate, ctype->node, "Using array with externally defined type as part of the key is currently unsupported");
-          return IDL_RETCODE_UNSUPPORTED;
-      }
-    } else {
-      key->dims = 1;
-      const enum dds_stream_typecode type = DDS_OP_TYPE(inst->data.opcode.code);
-      switch (type) {
-        case DDS_OP_VAL_BLN:
-        case DDS_OP_VAL_1BY: key->size = key->align = 1; break;
-        case DDS_OP_VAL_WCHAR:
-        case DDS_OP_VAL_2BY: key->size = key->align = 2; break;
-        case DDS_OP_VAL_4BY: key->size = key->align = 4; break;
-        case DDS_OP_VAL_8BY: key->size = key->align = 8; break;
-        case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: {
-          uint32_t sz = DDS_OP_TYPE_SZ(inst->data.opcode.code);
-          assert (sz > 0 && sz <= (type == DDS_OP_VAL_ENU ? 4u : 8u));
-          key->size = key->align = sz;
-          break;
-        }
-        case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR: {
-          assert(offs + 2 < ctype->instructions.count);
-          assert(ctype->instructions.table[offs + 2].type == SINGLE);
-          /* string size if stored as bound + 1 */
-          uint32_t str_sz = ctype->instructions.table[offs + 2].data.single;
-          /* use align and add size for 4 byte string-length field */
-          key->align = 4;
-          key->size = 4 + str_sz;
-          break;
-        }
-        case DDS_OP_VAL_ARR: case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR: case DDS_OP_VAL_EXT:
-          key->size = DDS_FIXED_KEY_MAX_SIZE + 1;
-          key->align = 1;
+        case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_WCHAR: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+        case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: case DDS_OP_VAL_BST: case DDS_OP_VAL_STR: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_WSTR:
+        case DDS_OP_VAL_ARR: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_STU:
           break;
         case DDS_OP_VAL_UNI:
-          idl_error (pstate, ctype->node, "Using union type as part of the key is currently unsupported");
+          idl_error (pstate, ctype->node, "Using an array or sequence with a union element type as part of the key is currently unsupported");
           return IDL_RETCODE_UNSUPPORTED;
-        case DDS_OP_VAL_SEQ:
-        case DDS_OP_VAL_BSQ:
-          idl_error (pstate, ctype->node, "Using sequence type as part of the key is currently unsupported");
-          return IDL_RETCODE_UNSUPPORTED;
-        case DDS_OP_VAL_STU:
-          idl_error (pstate, ctype->node, "Using struct type as part of the key is currently unsupported");
-          return IDL_RETCODE_UNSUPPORTED;
+        case DDS_OP_VAL_EXT:
+          abort ();
+          return IDL_RETCODE_BAD_PARAMETER;
       }
+      (*n_keys)++;
+      break;
     }
-    (*n_keys)++;
+
+    case DDS_OP_VAL_UNI:
+        idl_error (pstate, ctype->node, "Using union type as part of the key is currently unsupported");
+        return IDL_RETCODE_UNSUPPORTED;
+
+    case DDS_OP_VAL_STU:
+      abort ();
+      return IDL_RETCODE_BAD_PARAMETER;
   }
 
-  /* get the name of the field from the offset instruction, which is the first after the ADR */
-  const struct instruction *inst1 = &ctype->instructions.table[offs + 1];
-  assert(inst1->type == OFFSET);
-  assert(inst1->data.offset.type);
-  assert(inst1->data.offset.member);
-  if (!(key->name = idl_strdup(inst1->data.offset.member)))
-    return IDL_RETCODE_NO_MEMORY;
   return IDL_RETCODE_OK;
 }
 
@@ -2165,10 +2124,6 @@ static idl_retcode_t descriptor_add_key_recursive(const idl_pstate_t *pstate, st
     } else {
       uint32_t i = descriptor->n_keys;
       descriptor->keys[i].name = idl_strdup(name1);
-      descriptor->keys[i].size = key->size;
-      descriptor->keys[i].dheader = key->dheader;
-      descriptor->keys[i].dims = key->dims;
-      descriptor->keys[i].align = key->align;
 
       /* Use the key order stored in the constructed_type_key object, which is the member
          id of this key member in its parent constructed_type. */

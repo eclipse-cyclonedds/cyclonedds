@@ -418,6 +418,7 @@ static dds_entity_t dds_create_writer_int (dds_entity_t participant_or_publisher
   // and then disable it for a specific writer.  Should somebody runs into a problem because of this
   // we can have another look.
   wr->whc_batch = wqos->writer_batching.batch_updates || gv->config.whc_batch;
+  wr->protocol_version = gv->config.protocol_version;
 
   if ((rc = dds_endpoint_add_psmx_endpoint (&wr->m_endpoint, wqos, &tp->m_ktopic->psmx_topics, DDS_PSMX_ENDPOINT_TYPE_WRITER)) != DDS_RETCODE_OK)
     goto err_pipe_open;

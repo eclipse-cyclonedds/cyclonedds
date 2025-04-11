@@ -13,7 +13,6 @@ static bool dds_stream_write_keyBO_impl (RESTRICT_OSTREAM_T *os, const struct dd
 {
   uint32_t insn = *ops;
   assert (DDS_OP (insn) == DDS_OP_ADR);
-  assert (insn_key_ok_p (insn));
   void *addr = (char *) src + ops[1];
 
   if (op_type_external (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR || DDS_OP_TYPE (insn) == DDS_OP_VAL_WSTR)
@@ -46,48 +45,10 @@ static bool dds_stream_write_keyBO_impl (RESTRICT_OSTREAM_T *os, const struct dd
       if (!dds_stream_write_wcharBO (os, allocator, *(wchar_t *) addr))
         return false;
       break;
-    case DDS_OP_VAL_ARR: {
-      const uint32_t num = ops[2];
-      switch (DDS_OP_SUBTYPE (insn))
-      {
-        case DDS_OP_VAL_BLN:
-          if (!dds_stream_write_bool_arrBO (os, allocator, addr, num))
-            return false;
-          break;
-        case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
-          const uint32_t elem_size = get_primitive_size (DDS_OP_SUBTYPE (insn));
-          const align_t cdr_align = dds_cdr_get_align (os->x.m_xcdr_version, elem_size);
-          dds_cdr_alignto_clear_and_resize_base (&os->x, allocator, cdr_align, num * elem_size);
-          void * const dst = os->x.m_buffer + os->x.m_index;
-          dds_os_put_bytes_base (&os->x, allocator, addr, num * elem_size);
-          dds_stream_swap_if_needed_insituBO (dst, elem_size, num);
-          break;
-        }
-        case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: {
-          uint32_t offs = 0, xcdrv = os->x.m_xcdr_version;
-          if (xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
-          {
-            /* reserve space for DHEADER */
-            dds_os_reserve4BO (os, allocator);
-            offs = os->x.m_index;
-          }
-          bool ok;
-          if (DDS_OP_SUBTYPE (insn) == DDS_OP_VAL_ENU)
-            ok = dds_stream_write_enum_arrBO (os, allocator, insn, (const uint32_t *) addr, num, ops[3]);
-          else
-            ok = dds_stream_write_bitmask_arrBO (os, allocator, insn, (const uint32_t *) addr, num, ops[3], ops[4]);
-          if (!ok)
-            return false;
-          /* write DHEADER */
-          if (xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
-            *((uint32_t *) (os->x.m_buffer + offs - 4)) = to_BO4u(os->x.m_index - offs);
-          break;
-        }
-        default:
-          abort ();
-      }
+    case DDS_OP_VAL_ARR:
+      if (!dds_stream_write_arrBO (os, allocator, addr, ops, insn, CDR_KIND_KEY))
+        return false;
       break;
-    }
     case DDS_OP_VAL_EXT: {
       assert (key_offset_count > 0);
       const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]) + *key_offset_insn;
@@ -95,8 +56,13 @@ static bool dds_stream_write_keyBO_impl (RESTRICT_OSTREAM_T *os, const struct dd
         return false;
       break;
     }
-    case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
-      // FIXME: implement support for sequences and unions as part of the key
+    case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: {
+      if (!dds_stream_write_seqBO (os, allocator, addr, ops, insn, CDR_KIND_KEY))
+        return false;
+      break;
+    }
+    case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
+      // FIXME: implement support for unions as part of the key
       abort ();
       break;
     }
@@ -106,10 +72,7 @@ static bool dds_stream_write_keyBO_impl (RESTRICT_OSTREAM_T *os, const struct dd
 
 static bool dds_stream_write_keyBO_restrict (RESTRICT_OSTREAM_T *os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator *allocator, const char *sample, const struct dds_cdrstream_desc *desc)
 {
-#ifndef NDEBUG
-  const size_t check_start_index = os->x.m_index;
-#endif
-  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE) && ser_kind == DDS_CDR_KEY_SERIALIZATION_SAMPLE)
+  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM) && ser_kind == DDS_CDR_KEY_SERIALIZATION_SAMPLE)
   {
     /* For types with key fields in aggregated types with appendable or mutable
        extensibility, write the key CDR using the regular write functions */
@@ -121,6 +84,11 @@ static bool dds_stream_write_keyBO_restrict (RESTRICT_OSTREAM_T *os, enum dds_cd
     /* Optimized implementation to write key in case all key members are in an aggregated
        type with final extensibility: iterate over keys in key descriptor. Depending on the output
        kind (for a key-only sample or keyhash), use the specific key-list from the descriptor. */
+
+    /* FIXME: a known issue in this implementation is that in case of key-hash CDR output, for key
+       members that are of a collection type (array/seq), and the element type is an aggregated type,
+       the members are not ordered by their member ID, but included in definition order. As a result,
+       the CDR used for calculating the key-hash may be incorrect. */
     bool use_memberid_order = (ser_kind == DDS_CDR_KEY_SERIALIZATION_KEYHASH && os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
     struct dds_cdrstream_desc_key *keylist = use_memberid_order ? desc->keys.keys : desc->keys.keys_definition_order;
     for (uint32_t i = 0; i < desc->keys.nkeys; i++)
@@ -146,10 +114,6 @@ static bool dds_stream_write_keyBO_restrict (RESTRICT_OSTREAM_T *os, enum dds_cd
       }
     }
   }
-#ifndef NDEBUG
-  const size_t check_size = dds_stream_getsize_key (ser_kind, sample, desc, os->x.m_xcdr_version);
-  assert (check_size == os->x.m_index - check_start_index);
-#endif
   return true;
 }
 
@@ -384,7 +348,7 @@ static bool dds_stream_extract_keyBO_from_data_restrict (dds_istream_t *is, REST
   if (keys_remaining == 0)
     return ret;
 
-  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE))
+  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM))
   {
     /* In case the type or any subtype has non-final extensibility, read the sample
        and write the key-only CDR for this sample */
@@ -469,7 +433,7 @@ void dds_stream_extract_keyBO_from_key (dds_istream_t *is, DDS_OSTREAM_T *os, en
      In case any key field is in an appendable or mutable type, or in case a serialized
      key for a keyhash is required (in member-id order), extract and write the key
      in two steps. Otherwise, extract the output CDR in a single step. */
-  if ((desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE)) || ser_kind == DDS_CDR_KEY_SERIALIZATION_KEYHASH)
+  if ((desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM)) || ser_kind == DDS_CDR_KEY_SERIALIZATION_KEYHASH)
     dds_stream_extract_keyBO_from_key_impl (is, (RESTRICT_OSTREAM_T *) os, ser_kind, allocator, desc);
   else
     dds_stream_extract_keyBO_from_key_optimized (is, (RESTRICT_OSTREAM_T *) os, allocator, desc);

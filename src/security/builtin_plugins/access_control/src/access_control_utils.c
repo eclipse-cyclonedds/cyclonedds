@@ -136,6 +136,73 @@ static bool ac_X509_certificate_from_file(const char *filename, X509 **x509Cert,
   }
 }
 
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+static bool ac_X509_certificate_from_pkcs11(const char *uri, X509 **x509Cert, DDS_Security_SecurityException *ex)
+{
+  ENGINE *engine;
+   struct {
+     const char *cert_id;
+     X509 *cert;
+   } parms;
+
+   if (!(engine = ENGINE_by_id("pkcs11"))) {
+     DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to find pkcs11 engine");
+     return false;
+   }
+
+   parms.cert_id = uri;
+   parms.cert = NULL;
+   if (!ENGINE_ctrl_cmd(engine, "LOAD_CERT_CTRL", 0, &parms, NULL, 1))
+   {
+     DDS_Security_Exception_set_with_openssl_error(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to get certificate from pkcs11 engine: ");
+     goto err_or_ok;
+   }
+   *x509Cert = parms.cert;
+
+err_or_ok:
+   ENGINE_free(engine);
+   return (parms.cert ? true : false);
+}
+#else
+static bool ac_X509_certificate_from_pkcs11(const char *uri, X509 **x509Cert, DDS_Security_SecurityException *ex)
+{
+  OSSL_STORE_CTX *store_ctx = NULL;
+  OSSL_STORE_INFO *store_info = NULL;
+  X509 *cert = NULL;
+  assert(uri);
+  assert(x509Cert);
+
+  if (!(store_ctx = OSSL_STORE_open(uri, NULL, NULL, NULL, NULL)))
+  {
+    DDS_Security_Exception_set_with_openssl_error(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to open OSSL_STORE: ");
+    return false;
+  }
+
+  while (!cert)
+  {
+    if ((store_info = OSSL_STORE_load(store_ctx)))
+    {
+      if (OSSL_STORE_INFO_get_type(store_info) == OSSL_STORE_INFO_CERT)
+        *x509Cert = cert = OSSL_STORE_INFO_get1_CERT(store_info);
+      OSSL_STORE_INFO_free(store_info);
+    }
+    else if (OSSL_STORE_error(store_ctx))
+    {
+      DDS_Security_Exception_set_with_openssl_error(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to load OSSL_STORE: ");
+      break;
+    }
+    else
+    {
+      DDS_Security_Exception_set(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to find certificate");
+      break;
+    }
+  }
+  OSSL_STORE_close(store_ctx);
+
+  return (cert != NULL);
+}
+#endif
+
 bool ac_X509_certificate_read(const char *data, X509 **x509Cert, DDS_Security_SecurityException *ex)
 {
   bool result = false;
@@ -152,9 +219,7 @@ bool ac_X509_certificate_read(const char *data, X509 **x509Cert, DDS_Security_Se
     result = ac_X509_certificate_from_data(contents, (int)strlen(contents), x509Cert, ex);
     break;
   case DDS_SECURITY_CONFIG_ITEM_PREFIX_PKCS11:
-    DDS_Security_Exception_set(
-        ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_CERTIFICATE_TYPE_NOT_SUPPORTED_CODE, 0,
-        DDS_SECURITY_ERR_CERTIFICATE_TYPE_NOT_SUPPORTED_MESSAGE " (pkcs11)");
+    result = ac_X509_certificate_from_pkcs11(data, x509Cert, ex);
     break;
   default:
     DDS_Security_Exception_set(

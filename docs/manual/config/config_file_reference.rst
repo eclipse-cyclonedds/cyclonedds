@@ -44,7 +44,7 @@ The default value is: ``any``
 //CycloneDDS/Domain/Compatibility
 =================================
 
-Children: :ref:`AssumeRtiHasPmdEndpoints<//CycloneDDS/Domain/Compatibility/AssumeRtiHasPmdEndpoints>`, :ref:`ExplicitlyPublishQosSetToDefault<//CycloneDDS/Domain/Compatibility/ExplicitlyPublishQosSetToDefault>`, :ref:`ManySocketsMode<//CycloneDDS/Domain/Compatibility/ManySocketsMode>`, :ref:`StandardsConformance<//CycloneDDS/Domain/Compatibility/StandardsConformance>`
+Children: :ref:`AssumeRtiHasPmdEndpoints<//CycloneDDS/Domain/Compatibility/AssumeRtiHasPmdEndpoints>`, :ref:`ExplicitlyPublishQosSetToDefault<//CycloneDDS/Domain/Compatibility/ExplicitlyPublishQosSetToDefault>`, :ref:`ManySocketsMode<//CycloneDDS/Domain/Compatibility/ManySocketsMode>`, :ref:`ProtocolVersion<//CycloneDDS/Domain/Compatibility/ProtocolVersion>`, :ref:`StandardsConformance<//CycloneDDS/Domain/Compatibility/StandardsConformance>`
 
 The Compatibility element allows you to specify various settings related to compatibility with standards and with other DDSI implementations.
 
@@ -87,6 +87,18 @@ This option specifies whether a network socket will be created for each domain p
 Disabling it slightly improves performance and reduces network traffic somewhat. It also causes the set of port numbers needed by Cyclone DDS to become predictable, which may be useful for firewall and NAT configuration.
 
 The default value is: ``single``
+
+
+.. _`//CycloneDDS/Domain/Compatibility/ProtocolVersion`:
+
+//CycloneDDS/Domain/Compatibility/ProtocolVersion
+-------------------------------------------------
+
+Text
+
+This option allows configuring the advertised protocol version.  Valid values are "2.1" and "2.5"
+
+The default value is: ``2.5``
 
 
 .. _`//CycloneDDS/Domain/Compatibility/StandardsConformance`:
@@ -2756,14 +2768,14 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 The default value is: ``none``
 
 ..
-   generated from ddsi_config.h[c4ccfda527ef98e906da3de8bd1e6d1afb456e99] 
-   generated from ddsi_config.c[1a21a7dc4b1a8552fe5ee879fc24c8172b79a478] 
-   generated from ddsi__cfgelems.h[6ecb019e4cc1bb37a145d8a7d72b3fa3a7f40d62] 
+   generated from ddsi_config.h[fd22386b5a5456d010458848b862bbe2be02b3e4] 
+   generated from ddsi_config.c[ea1079220b5c907e79b1f20fe97de87874d360fd] 
+   generated from ddsi__cfgelems.h[94e38d76830ce8487ad67cb37df5366c1b079c12] 
    generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] 
-   generated from _confgen.h[9554f1d72645c0b8bb66ffbfbc3c0fb664fc1a43] 
+   generated from _confgen.h[fd29634526c05c3237dbc3f785030fe022eb7875] 
    generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] 
    generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] 
    generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] 
    generated from generate_rst.c[3c4b523fbb57c8e4a7e247379d06a8021ccc21c4] 
    generated from generate_xsd.c[6b6818d7f17a35d56c376c04ec1410427f34c0f0] 
-   generated from generate_defconfig.c[631cafee70a6f9480e0267db8ffe883d806f5f70] 
+   generated from generate_defconfig.c[ba599ccf70b6f1929c08a597a6c555ff2375e458] 

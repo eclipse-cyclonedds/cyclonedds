@@ -975,6 +975,13 @@ static struct cfgelem compatibility_cfgelems[] = {
       "the liveliness protocol are present in RTI participants even when not "
       "properly advertised by the participant discovery protocol.</p>"
     )),
+  STRING("ProtocolVersion", NULL, 1, "2.5",
+    MEMBER(protocol_version),
+    FUNCTIONS(0, uf_protocol_version, 0, pf_protocol_version),
+    DESCRIPTION(
+      "<p>This option allows configuring the advertised protocol version.  Valid "
+      "values are \"2.1\" and \"2.5\"</p>"
+    )),
   END_MARKER
 };
 

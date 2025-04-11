@@ -195,15 +195,20 @@ CU_Test(idlc_descriptor, key_valid_types)
     { true, "@topic struct test { @key float a; @key double b; @key float c[3]; }; " },
     { true, "enum e { E1, E2 }; @topic struct test { @key e a; @key e b[3]; }; " },
     { true, "bitmask bm { BM1, BM2 }; @topic struct test { @key bm a; @key bm b[3]; }; " },
-    { false, "@topic struct test { @key string a; @key string<5> b; @key string c[3]; }; " },
-    { false, "@topic struct test { @key string<5> a[2]; }; " },
-    { false, "@topic struct test { @key sequence<long> a; }; " },
-    { false, "@topic struct test { @key sequence<long> a[2]; }; " },
+    { true, "@topic struct test { @key string a; @key string<5> b; @key string c[3]; }; " },
+    { true, "@topic struct test { @key string<5> a[2]; }; " },
+    { true, "@topic struct test { @key sequence<long> a; }; " },
+    { true, "@topic struct test { @key sequence<long> a[2]; }; " },
     { true, "@nested struct sub { long a; long b; }; @topic struct test { @key sub a; }; " },
-    { false, "@nested struct sub { long a; }; @topic struct test { @key sub a[2]; }; " },
+    { true, "@nested struct sub { long a; }; @topic struct test { @key sub a[2]; }; " },
     { true, "@nested struct sub { @key long a; long b; }; @topic struct test { @key sub a; }; " },
-    { false, "@nested struct sub { long a; sequence<long> b; }; @topic struct test { @key sub a; }; " },
-    { false, "@nested union u switch(long) { case 1: long a; }; @topic struct test { @key u a; }; " }
+    { true, "@nested struct sub { long a; sequence<long> b; }; @topic struct test { @key sub a; }; " },
+    { true, "typedef sequence<long> seqlong; @nested struct sub { seqlong a; sequence<long> b; }; @topic struct test { @key sequence<sub> a; }; " },
+    { true, "typedef sequence<long> seqlong; @nested @final struct sub { sequence<seqlong, 8> a[4]; sequence<float> b[5]; }; @topic @final struct test { @key sub a[2][3]; };" },
+    { true, "typedef long arrlong[5][6]; @nested @final struct sub { sequence<arrlong, 8> a[4]; arrlong b[5]; }; @topic @final struct test { @key sub a[2][3]; };" },
+    { false, "@nested union u switch(long) { case 1: long a; }; @topic struct test { @key u a; }; " },
+    { false, "@nested union u switch(long) { case 1: long a; }; @topic struct test { @key sequence<u> a; }; " },
+    { false, "@nested union u switch(long) { case 1: long a; }; @topic struct test { @key u a[2]; }; " }
   };
 
   idl_retcode_t ret;
