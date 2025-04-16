@@ -503,13 +503,16 @@ int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *
     return DDS_RETCODE_BAD_PARAMETER;
   }
 
-  /* Set "deleting" flag in particular for Lite, to signal to the receive path it can't
-     trust rdary[] anymore, which is because removing the proxy writer from the hash
-     table will prevent the readers from looking up the proxy writer, and consequently
-     from removing themselves from the proxy writer's rdary[]. */
-  ddsi_local_reader_ary_setinvalid (&pwr->rdary);
   GVLOGDISC ("- deleting\n");
   ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &pwr->e, timestamp, false);
+  ddsrt_mutex_lock (&pwr->e.lock);
+  /* the receive path can't trust rdary[] anymore, which is because removing the proxy
+     writer from the hash table will prevent the readers from looking up the proxy writer,
+     and consequently from removing themselves from the proxy writer's rdary[]. */
+  ddsi_local_reader_ary_setinvalid (&pwr->rdary);
+  ddsi_entidx_remove_proxy_writer_guid (gv->entity_index, pwr);
+  ddsrt_mutex_unlock (&pwr->e.lock);
+  ddsrt_mutex_unlock (&gv->lock);
 #ifdef DDS_HAS_TYPELIB
   /* Unregister from type before removing from entity index, because a tl_lookup_reply
      could be pending and will trigger an update of the endpoint matching for all
@@ -521,8 +524,6 @@ int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *
     ddsi_type_unreg_proxy (gv, pwr->c.type_pair->complete, &pwr->e.guid);
   }
 #endif
-  ddsi_entidx_remove_proxy_writer_guid (gv->entity_index, pwr);
-  ddsrt_mutex_unlock (&gv->lock);
   if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY && pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
     ddsi_lease_unregister (pwr->lease);
   if (ddsi_proxy_writer_set_notalive (pwr, false) != DDS_RETCODE_OK)
