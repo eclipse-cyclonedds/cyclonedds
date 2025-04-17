@@ -1421,6 +1421,15 @@ void ddsi_local_reader_ary_fini (struct ddsi_local_reader_ary *x)
 void ddsi_local_reader_ary_insert (struct ddsi_local_reader_ary *x, struct ddsi_reader *rd)
 {
   ddsrt_mutex_lock (&x->rdary_lock);
+  if (!x->valid)
+  {
+    // "valid" is cleared when the (proxy-)writer is removed from the hash table just
+    // prior to deleting it. This makes it impossible to remove a reader that is being
+    // deleted, thus risking a dangling reader pointer and a use-after-free on checking
+    // the types in this function
+    ddsrt_mutex_unlock (&x->rdary_lock);
+    return;
+  }
   x->rdary = ddsrt_realloc (x->rdary, (x->n_readers + 2) * sizeof (*x->rdary));
   if (x->n_readers <= 1 || rd->type == x->rdary[x->n_readers - 1]->type)
   {
