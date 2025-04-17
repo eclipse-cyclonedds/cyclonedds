@@ -990,7 +990,7 @@ void ddsi_set_deafmute (struct ddsi_domaingv *gv, bool deaf, bool mute, int64_t 
   {
     ddsrt_mtime_t when = ddsrt_mtime_add_duration (ddsrt_time_monotonic (), reset_after);
     GVTRACE (" reset after %"PRId64".%09u ns", reset_after / DDS_NSECS_IN_SEC, (unsigned) (reset_after % DDS_NSECS_IN_SEC));
-    ddsi_qxev_callback (gv->xevents, when, reset_deaf_mute, NULL, 0, true);
+    ddsi_qxev_callback (gv->xevents, when, reset_deaf_mute, NULL, 0, false);
   }
   GVLOGDISC ("\n");
 }
