@@ -462,6 +462,22 @@ static struct rhc_instance *next_nonempty_instance (const struct rhc_instance *i
   return DDSRT_FROM_CIRCLIST (struct rhc_instance, nonempty_list, inst->nonempty_list.next);
 }
 
+static struct rhc_instance *next_nonempty_instance_by_id(const struct dds_rhc_default *rhc, const struct rhc_instance *inst)
+{
+  struct rhc_instance *smallest_greater_instance = NULL;
+  struct rhc_instance *current_instance = DDSRT_FROM_CIRCLIST (struct rhc_instance, nonempty_list, ddsrt_circlist_latest (&rhc->nonempty_instances));
+
+  for(uint32_t i = 0; i < rhc->n_nonempty_instances; i++)
+  {
+    current_instance = DDSRT_FROM_CIRCLIST (struct rhc_instance, nonempty_list, current_instance->nonempty_list.next);
+    if(current_instance->iid <= inst->iid) continue;
+    if(current_instance->iid >= smallest_greater_instance->iid) continue;
+    smallest_greater_instance = current_instance;
+  }
+
+  return smallest_greater_instance;
+}
+
 #ifdef DDS_HAS_LIFESPAN
 static void drop_expired_samples (struct dds_rhc_default *rhc, struct rhc_sample *sample)
 {
@@ -2330,7 +2346,7 @@ abort_on_error: ;
   return rc;
 }
 
-static dds_return_t read_w_qminv (const struct readtake_w_qminv_inst_state *state, bool mark_as_read, dds_instance_handle_t handle)
+static dds_return_t read_w_qminv (const struct readtake_w_qminv_inst_state *state, bool mark_as_read, dds_instance_handle_t handle, bool next_instance)
 {
   struct dds_rhc_default * const rhc = state->rhc;
   dds_return_t rc = DDS_RETCODE_OK;
@@ -2341,7 +2357,16 @@ static dds_return_t read_w_qminv (const struct readtake_w_qminv_inst_state *stat
     rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
     rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples, rhc->n_invsamples,
     rhc->n_vread, rhc->n_invread);
-  if (handle)
+  if (next_instance)
+  {
+    struct rhc_instance template, *inst;
+    template.iid = handle;
+    if ((inst = next_nonempty_instance_by_id (rhc, &template)) != NULL)
+        rc = read_w_qminv_inst(state, mark_as_read, inst);
+    else
+        rc = DDS_RETCODE_NO_DATA;
+  }
+  else if (handle)
   {
     struct rhc_instance template, *inst;
     template.iid = handle;
@@ -2365,7 +2390,7 @@ static dds_return_t read_w_qminv (const struct readtake_w_qminv_inst_state *stat
   return rc;
 }
 
-static dds_return_t take_w_qminv (const struct readtake_w_qminv_inst_state *state, dds_instance_handle_t handle)
+static dds_return_t take_w_qminv (const struct readtake_w_qminv_inst_state *state, dds_instance_handle_t handle, bool next_instance)
 {
   struct dds_rhc_default * const rhc = state->rhc;
   dds_return_t rc = DDS_RETCODE_OK;
@@ -2376,7 +2401,16 @@ static dds_return_t take_w_qminv (const struct readtake_w_qminv_inst_state *stat
     rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
     rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples,
     rhc->n_invsamples, rhc->n_vread, rhc->n_invread);
-  if (handle)
+  if (next_instance)
+  {
+    struct rhc_instance template, *inst;
+    template.iid = handle;
+    if ((inst = next_nonempty_instance_by_id(rhc, &template)) != NULL)
+      rc = take_w_qminv_inst (state, &inst);
+    else
+      rc = DDS_RETCODE_NO_DATA;
+  }
+  else if (handle)
   {
     struct rhc_instance template, *inst;
     template.iid = handle;
@@ -2796,33 +2830,33 @@ static struct readtake_w_qminv_inst_state make_readtake_w_qminv_inst_state (stru
   return st;
 }
 
-static int32_t dds_rhc_default_peek (struct dds_rhc *rhc_common, int32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
+static int32_t dds_rhc_default_peek (struct dds_rhc *rhc_common, int32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg, bool next_instance)
 {
   struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
   int32_t limit = max_samples;
   const struct readtake_w_qminv_inst_state readtake_w_qminv_inst_state =
     make_readtake_w_qminv_inst_state (rhc, &limit, mask, cond, collect_sample, collect_sample_arg);
-  dds_return_t rc = read_w_qminv (&readtake_w_qminv_inst_state, false, handle);
+  dds_return_t rc = read_w_qminv (&readtake_w_qminv_inst_state, false, handle, next_instance);
   return (rc < 0 && limit == max_samples) ? rc : (max_samples - limit);
 }
 
-static int32_t dds_rhc_default_read (struct dds_rhc *rhc_common, int32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
+static int32_t dds_rhc_default_read (struct dds_rhc *rhc_common, int32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg, bool next_instance)
 {
   struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
   int32_t limit = max_samples;
   const struct readtake_w_qminv_inst_state readtake_w_qminv_inst_state =
     make_readtake_w_qminv_inst_state (rhc, &limit, mask, cond, collect_sample, collect_sample_arg);
-  dds_return_t rc = read_w_qminv (&readtake_w_qminv_inst_state, true, handle);
+  dds_return_t rc = read_w_qminv (&readtake_w_qminv_inst_state, true, handle, next_instance);
   return (rc < 0 && limit == max_samples) ? rc : (max_samples - limit);
 }
 
-static int32_t dds_rhc_default_take (struct dds_rhc *rhc_common, int32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
+static int32_t dds_rhc_default_take (struct dds_rhc *rhc_common, int32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg, bool next_instance)
 {
   struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
   int32_t limit = max_samples;
   const struct readtake_w_qminv_inst_state readtake_w_qminv_inst_state =
     make_readtake_w_qminv_inst_state (rhc, &limit, mask, cond, collect_sample, collect_sample_arg);
-  dds_return_t rc = take_w_qminv (&readtake_w_qminv_inst_state, handle);
+  dds_return_t rc = take_w_qminv (&readtake_w_qminv_inst_state, handle, next_instance);
   return (rc < 0 && limit == max_samples) ? rc : (max_samples - limit);
 }
 
