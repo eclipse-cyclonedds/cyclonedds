@@ -502,9 +502,17 @@ dds_return_t dds_read_with_collector (dds_entity_t reader_or_condition, uint32_t
   return dds_read_with_collector_impl (READ_OPER_READ, reader_or_condition, maxs, mask, handle, false, collect_sample, collect_sample_arg);
 }
 
+dds_return_t dds_read_next_instance_with_collector (dds_entity_t reader_or_condition, uint32_t maxs, dds_instance_handle_t handle, uint32_t mask, dds_read_with_collector_fn_t collect_sample, void* collect_sample_arg) {
+  return dds_read_with_collector_impl (READ_OPER_READ_NEXT, reader_or_condition,maxs,mask,handle,false,collect_sample,collect_sample_arg);
+}
+
 dds_return_t dds_take_with_collector (dds_entity_t reader_or_condition, uint32_t maxs, dds_instance_handle_t handle, uint32_t mask, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
 {
   return dds_read_with_collector_impl (READ_OPER_TAKE, reader_or_condition, maxs, mask, handle, false, collect_sample, collect_sample_arg);
+}
+
+dds_return_t dds_take_next_instance_with_collector (dds_entity_t reader_or_condition, uint32_t maxs, dds_instance_handle_t handle, uint32_t mask, dds_read_with_collector_fn_t collect_sample, void* collect_sample_arg) {
+  return dds_read_with_collector_impl (READ_OPER_TAKE_NEXT, reader_or_condition,maxs,mask,handle,false,collect_sample,collect_sample_arg);
 }
 
 static void return_reader_loan_locked_onesample (dds_reader *rd, dds_loaned_sample_t *loan, bool reset)
