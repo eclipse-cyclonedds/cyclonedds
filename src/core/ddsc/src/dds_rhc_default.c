@@ -471,7 +471,7 @@ static struct rhc_instance *next_nonempty_instance_by_id(const struct dds_rhc_de
   {
     current_instance = DDSRT_FROM_CIRCLIST (struct rhc_instance, nonempty_list, current_instance->nonempty_list.next);
     if(current_instance->iid <= inst->iid) continue;
-    if(current_instance->iid >= smallest_greater_instance->iid) continue;
+    if((smallest_greater_instance != NULL) && (current_instance->iid >= smallest_greater_instance->iid)) continue;
     smallest_greater_instance = current_instance;
   }
 

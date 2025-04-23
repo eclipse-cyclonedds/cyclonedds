@@ -338,11 +338,6 @@ dds_return_t dds_read_instance_wl (dds_entity_t reader_or_condition, void **buf,
   return dds_read_instance (reader_or_condition, buf, si, maxs, maxs, handle);
 }
 
-dds_return_t dds_read_next_instance (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs, dds_instance_handle_t previous_handle)
-{
-  return dds_read_impl (READ_OPER_READ_NEXT, reader_or_condition, buf, bufsz, maxs, si, 0, previous_handle, false);
-}
-
 dds_return_t dds_read_instance_mask (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs, dds_instance_handle_t handle, uint32_t mask)
 {
   if (handle == DDS_HANDLE_NIL)
@@ -353,6 +348,26 @@ dds_return_t dds_read_instance_mask (dds_entity_t reader_or_condition, void **bu
 dds_return_t dds_read_instance_mask_wl (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, uint32_t maxs, dds_instance_handle_t handle, uint32_t mask)
 {
   return dds_read_instance_mask (reader_or_condition, buf, si, maxs, maxs, handle, mask);
+}
+
+dds_return_t dds_read_next_instance (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs, dds_instance_handle_t previous_handle)
+{
+  return dds_read_impl (READ_OPER_READ_NEXT, reader_or_condition, buf, bufsz, maxs, si, 0, previous_handle, false);
+}
+
+dds_return_t dds_read_next_instance_wl (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, uint32_t maxs, dds_instance_handle_t previous_handle)
+{
+  return dds_read_next_instance (reader_or_condition, buf, si, maxs, maxs, previous_handle);
+}
+
+dds_return_t dds_read_next_instance_mask (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs, dds_instance_handle_t previous_handle, uint32_t mask)
+{
+  return dds_read_impl (READ_OPER_READ_NEXT, reader_or_condition, buf, bufsz, maxs, si, mask, previous_handle, false);
+}
+
+dds_return_t dds_read_next_instance_mask_wl (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, uint32_t maxs, dds_instance_handle_t previous_handle, uint32_t mask)
+{
+  return dds_read_next_instance_mask (reader_or_condition, buf, si, maxs, maxs, previous_handle, mask);
 }
 
 dds_return_t dds_read_next (dds_entity_t reader, void **buf, dds_sample_info_t *si)
@@ -398,11 +413,6 @@ dds_return_t dds_take_instance_wl (dds_entity_t reader_or_condition, void **buf,
   return dds_take_instance (reader_or_condition, buf, si, maxs, maxs, handle);
 }
 
-dds_return_t dds_take_next_instance (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs, dds_instance_handle_t previous_handle)
-{
-  return dds_read_impl (READ_OPER_TAKE_NEXT, reader_or_condition, buf, bufsz, maxs, si, 0, previous_handle, false);
-}
-
 dds_return_t dds_take_instance_mask (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs, dds_instance_handle_t handle, uint32_t mask)
 {
   if (handle == DDS_HANDLE_NIL)
@@ -413,6 +423,26 @@ dds_return_t dds_take_instance_mask (dds_entity_t reader_or_condition, void **bu
 dds_return_t dds_take_instance_mask_wl (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, uint32_t maxs, dds_instance_handle_t handle, uint32_t mask)
 {
   return dds_take_instance_mask (reader_or_condition, buf, si, maxs, maxs, handle, mask);
+}
+
+dds_return_t dds_take_next_instance (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs, dds_instance_handle_t previous_handle)
+{
+  return dds_read_impl (READ_OPER_TAKE_NEXT, reader_or_condition, buf, bufsz, maxs, si, 0, previous_handle, false);
+}
+
+dds_return_t dds_take_next_instance_wl (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, uint32_t maxs, dds_instance_handle_t previous_handle)
+{
+  return dds_take_next_instance (reader_or_condition, buf, si, maxs, maxs, previous_handle);
+}
+
+dds_return_t dds_take_next_instance_mask (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs, dds_instance_handle_t previous_handle, uint32_t mask)
+{
+  return dds_read_impl (READ_OPER_TAKE_NEXT, reader_or_condition, buf, bufsz, maxs, si, mask, previous_handle, false);
+}
+
+dds_return_t dds_take_next_instance_mask_wl (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, uint32_t maxs, dds_instance_handle_t previous_handle, uint32_t mask)
+{
+  return dds_take_next_instance_mask (reader_or_condition, buf, si, maxs, maxs, previous_handle, mask);
 }
 
 dds_return_t dds_take_next (dds_entity_t reader, void **buf, dds_sample_info_t *si)
