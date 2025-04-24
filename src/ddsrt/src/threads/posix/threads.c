@@ -417,7 +417,7 @@ ddsrt_thread_create (
 
   if (tattr.schedAffinityN > 0)
   {
-#if defined (__linux) && !defined(__ANDROID__)
+#if defined (__linux) && && defined(__GLIBC__)
     cpu_set_t cpuset;
     CPU_ZERO (&cpuset);
     for (uint32_t i = 0; i < tattr.schedAffinityN; i++)
