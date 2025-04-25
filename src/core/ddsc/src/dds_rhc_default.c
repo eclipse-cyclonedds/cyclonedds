@@ -462,22 +462,6 @@ static struct rhc_instance *next_nonempty_instance (const struct rhc_instance *i
   return DDSRT_FROM_CIRCLIST (struct rhc_instance, nonempty_list, inst->nonempty_list.next);
 }
 
-static struct rhc_instance *next_nonempty_instance_by_id(const struct dds_rhc_default *rhc, const struct rhc_instance *inst)
-{
-  struct rhc_instance *smallest_greater_instance = NULL;
-  struct rhc_instance *current_instance = DDSRT_FROM_CIRCLIST (struct rhc_instance, nonempty_list, ddsrt_circlist_latest (&rhc->nonempty_instances));
-
-  for(uint32_t i = 0; i < rhc->n_nonempty_instances; i++)
-  {
-    current_instance = DDSRT_FROM_CIRCLIST (struct rhc_instance, nonempty_list, current_instance->nonempty_list.next);
-    if(current_instance->iid <= inst->iid) continue;
-    if((smallest_greater_instance != NULL) && (current_instance->iid >= smallest_greater_instance->iid)) continue;
-    smallest_greater_instance = current_instance;
-  }
-
-  return smallest_greater_instance;
-}
-
 #ifdef DDS_HAS_LIFESPAN
 static void drop_expired_samples (struct dds_rhc_default *rhc, struct rhc_sample *sample)
 {
@@ -2085,6 +2069,46 @@ static bool readtake_w_qminv_inst_get_rank_info_shortcut (const struct readtake_
   }
 }
 
+static struct rhc_instance *next_nonempty_instance_by_id(const struct readtake_w_qminv_inst_state *state, const struct dds_rhc_default *rhc, const struct rhc_instance *inst)
+{
+  struct rhc_instance *smallest_greater_instance = NULL;
+  struct rhc_instance *current_instance = DDSRT_FROM_CIRCLIST (struct rhc_instance, nonempty_list, ddsrt_circlist_latest (&rhc->nonempty_instances));
+
+  for(uint32_t i = 0; i < rhc->n_nonempty_instances; i++)
+  {
+    current_instance = DDSRT_FROM_CIRCLIST (struct rhc_instance, nonempty_list, current_instance->nonempty_list.next);
+
+    if(current_instance->iid <= inst->iid) continue;
+
+    //C doesn't evaluate the second operation if the first one fails in an && operation, prevents segfaults
+    if((smallest_greater_instance != NULL) && (current_instance->iid >= smallest_greater_instance->iid)) continue;
+
+    //Avoid passing instances that might appear empty due to masks and conditions,
+    //otherwise the application won't be able to get the next instance handle
+
+    //Make sure instance view state matches, otherwise it's as if the instance is empty
+    if((qmask_of_inst(current_instance) & state->qminv) != 0) continue; 
+
+    //check for readable valid samples
+    bool unmasked_sample_exists = false;
+    struct rhc_sample *sample = current_instance->latest->next, * const end1 = sample;
+    do {
+      if ((qmask_of_sample (sample) & state->qminv) == 0 && (state->qcmask == 0 || (sample->conds & state->qcmask)))
+      {
+        unmasked_sample_exists = true;
+        break;
+      }
+      sample = sample->next;
+    } while (sample != end1);
+
+    if(!unmasked_sample_exists) continue;
+
+    smallest_greater_instance = current_instance;
+  }
+
+  return smallest_greater_instance;
+}
+
 static void readtake_w_qminv_inst_get_rank_info (const struct readtake_w_qminv_inst_state *state, struct rhc_instance * const inst, int32_t *limit_at_end_of_instance, uint32_t *last_generation_in_result, bool *invalid_sample_included)
 {
   assert (inst->latest != NULL);
@@ -2361,7 +2385,7 @@ static dds_return_t read_w_qminv (const struct readtake_w_qminv_inst_state *stat
   {
     struct rhc_instance template, *inst;
     template.iid = handle;
-    if ((inst = next_nonempty_instance_by_id (rhc, &template)) != NULL)
+    if ((inst = next_nonempty_instance_by_id (state, rhc, &template)) != NULL)
         rc = read_w_qminv_inst(state, mark_as_read, inst);
     else
         rc = DDS_RETCODE_NO_DATA;
@@ -2405,7 +2429,7 @@ static dds_return_t take_w_qminv (const struct readtake_w_qminv_inst_state *stat
   {
     struct rhc_instance template, *inst;
     template.iid = handle;
-    if ((inst = next_nonempty_instance_by_id(rhc, &template)) != NULL)
+    if ((inst = next_nonempty_instance_by_id(state, rhc, &template)) != NULL)
       rc = take_w_qminv_inst (state, &inst);
     else
       rc = DDS_RETCODE_NO_DATA;
