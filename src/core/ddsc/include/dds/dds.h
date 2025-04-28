@@ -4258,7 +4258,6 @@ dds_take_next_instance(
  * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
  * @param[in,out] buf An array of `bufsz` pointers to samples.
  * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
- * @param[in] bufsz The size of buffer provided.
  * @param[in] maxs Maximum number of samples to read.
  * @param[in] previous_handle Instance handle right before the next instance from which the samples will be read.
  *
@@ -4546,16 +4545,12 @@ dds_read_with_collector (
  * @ingroup reading
  * @component read_data
  *
- * When using a readcondition or querycondition, their masks are or'd with the given mask.
- *
- * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
- * to combine it with, it is treated as equivalent to any sample/view/instance state.
- *
- * Collected samples are marked as read.
+ * See @ref dds_take_with_collector. The matching criterion referred to there is that the instance
+ * handle must equal the `handle` parameter.
  *
  * @param[in] reader_or_condition Handle of a reader or a read/query condition
  * @param[in] maxs Maximum number of samples (1 .. INT32_MAX)
- * @param[in] handle Instance handle or 0 if not reading a specific instance
+ * @param[in] previous_handle Instance handle before the instance for which to read the samples from.
  * @param[in] mask Sample/view/instance state mask
  * @param[in] collect_sample Function be called for each sample in the result
  * @param[in] collect_sample_arg Arbitrary argument passed to "collect_sample"
@@ -4573,10 +4568,10 @@ dds_read_with_collector (
  * @retval < 0 Return value of failing collect_sample on first invocation
  */
 DDS_EXPORT dds_return_t
-dds_read_with_collector (
+dds_read_next_instance_with_collector (
   dds_entity_t reader_or_condition,
   uint32_t maxs,
-  dds_instance_handle_t handle,
+  dds_instance_handle_t previous_handle,
   uint32_t mask,
   dds_read_with_collector_fn_t collect_sample,
   void *collect_sample_arg);
@@ -4622,20 +4617,16 @@ dds_take_with_collector (
   void *collect_sample_arg);
 
 /**
- * @brief Take samples while collecting result in an application-defined way
+ * @brief Take samples from the next non-empty instance while collecting result in an application-defined way
  * @ingroup reading
  * @component read_data
- *
- * When using a readcondition or querycondition, their masks are or'd with the given mask.
- *
- * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
- * to combine it with, it is treated as equivalent to any sample/view/instance state.
- *
- * Collected samples are removed from the history cache.
+ * 
+ * See @ref dds_take_with_collector. The matching criterion referred to there is that the instance
+ * handle must equal the `handle` parameter.
  *
  * @param[in] reader_or_condition Handle of a reader or a read/query condition
  * @param[in] maxs Maximum number of samples (1 .. INT32_MAX)
- * @param[in] handle Instance handle or 0 if not taking from a specific instance
+ * @param[in] previous_handle Instance handle before the instance for which to read the samples from.
  * @param[in] mask Sample/view/instance state mask
  * @param[in] collect_sample Function be called for each sample in the result
  * @param[in] collect_sample_arg Arbitrary argument passed to "collect_sample"
@@ -4656,7 +4647,7 @@ DDS_EXPORT dds_return_t
 dds_take_next_instance_with_collector (
   dds_entity_t reader_or_condition,
   uint32_t maxs,
-  dds_instance_handle_t handle,
+  dds_instance_handle_t previous_handle,
   uint32_t mask,
   dds_read_with_collector_fn_t collect_sample,
   void *collect_sample_arg);
