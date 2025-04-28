@@ -473,9 +473,9 @@ int main (int argc, char **argv)
   dds_rhc_relinquish_ownership (ptr, 1);
   dds_rhc_set_qos (ptr, ptr);
   dds_rhc_free (ptr);
-  dds_rhc_peek (ptr, 0, 0, 1, ptr, 0, 0);
-  dds_rhc_read (ptr, 0, 0, 1, ptr, 0, 0);
-  dds_rhc_take (ptr, 0, 0, 1, ptr, 0, 0);
+  dds_rhc_peek (ptr, 0, 0, 1, ptr, 0, 0, false);
+  dds_rhc_read (ptr, 0, 0, 1, ptr, 0, 0, false);
+  dds_rhc_take (ptr, 0, 0, 1, ptr, 0, 0, false);
   dds_rhc_add_readcondition (ptr, ptr);
   dds_rhc_remove_readcondition (ptr, ptr);
   dds_reader_data_available_cb (ptr);
