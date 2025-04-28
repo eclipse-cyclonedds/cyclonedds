@@ -2072,11 +2072,11 @@ static bool readtake_w_qminv_inst_get_rank_info_shortcut (const struct readtake_
 static struct rhc_instance *next_nonempty_instance_by_id(const struct readtake_w_qminv_inst_state *state, const struct dds_rhc_default *rhc, const struct rhc_instance *inst)
 {
   struct rhc_instance *smallest_greater_instance = NULL;
-  struct rhc_instance *current_instance = DDSRT_FROM_CIRCLIST (struct rhc_instance, nonempty_list, ddsrt_circlist_latest (&rhc->nonempty_instances));
+  struct rhc_instance *current_instance = oldest_nonempty_instance(rhc);
 
   for(uint32_t i = 0; i < rhc->n_nonempty_instances; i++)
   {
-    current_instance = DDSRT_FROM_CIRCLIST (struct rhc_instance, nonempty_list, current_instance->nonempty_list.next);
+    current_instance = next_nonempty_instance(current_instance);
 
     if(current_instance->iid <= inst->iid) continue;
 
