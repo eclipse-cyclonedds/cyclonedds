@@ -831,7 +831,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
   ddsi_xqos_copy (wr->xqos, xqos);
   ddsi_xqos_mergein_missing (wr->xqos, &ddsi_default_qos_writer, ~(uint64_t)0);
   assert (wr->xqos->aliased == 0);
-  ddsi_set_topic_type_name (wr->xqos, topic_name, type->type_name);
+  ddsi_set_xqos_topic_and_type (wr->xqos, topic_name, type);
 
   ELOGDISC (wr, "WRITER "PGUIDFMT" QOS={", PGUID (wr->e.guid));
   ddsi_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, wr->xqos);
@@ -1497,7 +1497,7 @@ dds_return_t ddsi_new_reader (struct ddsi_reader **rd_out, const struct ddsi_gui
   ddsi_xqos_copy (rd->xqos, xqos);
   ddsi_xqos_mergein_missing (rd->xqos, &ddsi_default_qos_reader, ~(uint64_t)0);
   assert (rd->xqos->aliased == 0);
-  ddsi_set_topic_type_name (rd->xqos, topic_name, type->type_name);
+  ddsi_set_xqos_topic_and_type (rd->xqos, topic_name, type);
 
   if (rd->e.gv->logconfig.c.mask & DDS_LC_DISCOVERY)
   {
