@@ -1109,6 +1109,28 @@ emit_struct(
   return IDL_RETCODE_OK;
 }
 
+static bool nested_collection_key(const struct stack_type *stype, const idl_path_t *path)
+{
+  bool is_key_member = false;
+  if (idl_is_sequence(stype->node) || idl_is_array(stype->node))
+  {
+    size_t i = path->length - 1;
+    bool member_found = false;
+    do
+    {
+      if (idl_is_member(path->nodes[i]))
+      {
+        member_found = true;
+        if (((idl_member_t *) path->nodes[i])->key.value)
+          is_key_member = true;
+      }
+      i--;
+    } while (!member_found && i > 0); // index 0 cannot be a member, because it must have a parent struct/union
+    assert (member_found);
+  }
+  return is_key_member;
+}
+
 static idl_retcode_t
 emit_sequence(
   const idl_pstate_t *pstate,
@@ -1161,8 +1183,13 @@ emit_sequence(
     if ((ret = add_typecode(pstate, type_spec, SUBTYPE, false, &opcode)))
       return ret;
     idl_keytype_t keytype;
+    if (idl_is_struct(stype->ctype->node))
+    {
+      if (nested_collection_key (stype, path))
+        opcode |= DDS_OP_FLAG_KEY | DDS_OP_FLAG_MU;
+    }
     if ((keytype = idl_is_topic_key(descriptor->topic, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0, path, &order)) != IDL_KEYTYPE_NONE) {
-      opcode |= DDS_OP_FLAG_KEY | (keytype == IDL_KEYTYPE_EXPLICIT ? DDS_OP_FLAG_MU : 0u);
+      opcode |= DDS_OP_FLAG_KEY | ((keytype == IDL_KEYTYPE_EXPLICIT) ? DDS_OP_FLAG_MU : 0u);
       ctype->has_key_member = true;
     }
 
@@ -1305,6 +1332,11 @@ emit_array(
     if ((ret = add_typecode(pstate, type_spec, SUBTYPE, false, &opcode)))
       return ret;
     idl_keytype_t keytype;
+    if (idl_is_struct(stype->ctype->node))
+    {
+      if (nested_collection_key(stype, path))
+        opcode |= DDS_OP_FLAG_KEY | DDS_OP_FLAG_MU;
+    }
     if ((keytype = idl_is_topic_key(descriptor->topic, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0, path, &order)) != IDL_KEYTYPE_NONE) {
       opcode |= DDS_OP_FLAG_KEY | (keytype == IDL_KEYTYPE_EXPLICIT ? DDS_OP_FLAG_MU : 0u);
       ctype->has_key_member = true;
@@ -1313,8 +1345,8 @@ emit_array(
     /* Array node is the declarator node, so its parent is the member in case
        we're processing a struct type, and this can be used to determine if its
        an external member */
-    idl_node_t *parent = idl_parent(node);
     if (idl_is_struct(stype->node)) {
+      idl_node_t *parent = idl_parent(node);
       assert(idl_is_member(parent));
 
       if (idl_is_external(parent))
