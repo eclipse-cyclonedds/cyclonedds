@@ -118,11 +118,7 @@ static int sedp_write_endpoint_impl
 (
    struct ddsi_writer *wr, int alive, const ddsi_guid_t *guid,
    const struct ddsi_endpoint_common *epcommon,
-   const dds_qos_t *xqos, struct ddsi_addrset *as, ddsi_security_info_t *security
-#ifdef DDS_HAS_TYPELIB
-   , const struct ddsi_sertype *sertype
-#endif
-)
+   const dds_qos_t *xqos, struct ddsi_addrset *as, ddsi_security_info_t *security)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   const dds_qos_t *defqos = NULL;
@@ -247,12 +243,6 @@ static int sedp_write_endpoint_impl
       for (uint32_t i = 0; i < epcommon->psmx_locators.length; i++)
         add_psmx_locator_to_ps (&epcommon->psmx_locators.locators[i], &arg);
     }
-
-#ifdef DDS_HAS_TYPELIB
-    assert (sertype);
-    if ((ps.qos.type_information = ddsi_sertype_typeinfo (sertype)))
-      ps.qos.present |= DDSI_QP_TYPE_INFORMATION;
-#endif
   }
 
   if (xqos)
@@ -283,11 +273,7 @@ int ddsi_sedp_write_writer (struct ddsi_writer *wr)
     security = &tmp;
 #endif
 
-#ifdef DDS_HAS_TYPELIB
-  return sedp_write_endpoint_impl (sedp_wr, 1, &wr->e.guid, &wr->c, wr->xqos, as, security, wr->type);
-#else
   return sedp_write_endpoint_impl (sedp_wr, 1, &wr->e.guid, &wr->c, wr->xqos, as, security);
-#endif
 }
 
 int ddsi_sedp_write_reader (struct ddsi_reader *rd)
@@ -326,11 +312,7 @@ int ddsi_sedp_write_reader (struct ddsi_reader *rd)
     security = &tmp;
   }
 #endif
-#ifdef DDS_HAS_TYPELIB
-  const int ret = sedp_write_endpoint_impl (sedp_wr, 1, &rd->e.guid, &rd->c, rd->xqos, as, security, rd->type);
-#else
   const int ret = sedp_write_endpoint_impl (sedp_wr, 1, &rd->e.guid, &rd->c, rd->xqos, as, security);
-#endif
   ddsi_unref_addrset (as);
   return ret;
 }
@@ -345,11 +327,7 @@ int ddsi_sedp_dispose_unregister_writer (struct ddsi_writer *wr)
   if (sedp_wr == NULL)
     return 0;
 
-#ifdef DDS_HAS_TYPELIB
-  return sedp_write_endpoint_impl (sedp_wr, 0, &wr->e.guid, NULL, NULL, NULL, NULL, NULL);
-#else
   return sedp_write_endpoint_impl (sedp_wr, 0, &wr->e.guid, NULL, NULL, NULL, NULL);
-#endif
 }
 
 int ddsi_sedp_dispose_unregister_reader (struct ddsi_reader *rd)
@@ -362,11 +340,7 @@ int ddsi_sedp_dispose_unregister_reader (struct ddsi_reader *rd)
   if (sedp_wr == NULL)
     return 0;
 
-#ifdef DDS_HAS_TYPELIB
-  return sedp_write_endpoint_impl (sedp_wr, 0, &rd->e.guid, NULL, NULL, NULL, NULL, NULL);
-#else
   return sedp_write_endpoint_impl (sedp_wr, 0, &rd->e.guid, NULL, NULL, NULL, NULL);
-#endif
 }
 
 static const char *durability_to_string (dds_durability_kind_t k)
