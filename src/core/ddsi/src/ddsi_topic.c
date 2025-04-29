@@ -104,7 +104,7 @@ dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpgui
   tp_qos->present |= DDSI_QP_TYPE_INFORMATION;
   tp_qos->type_information = ddsi_sertype_typeinfo (sertype);
   assert (tp_qos->type_information);
-  ddsi_set_topic_type_name (tp_qos, topic_name, sertype->type_name);
+  ddsi_set_xqos_topic_and_type (tp_qos, topic_name, sertype);
 
   if (gv->logconfig.c.mask & DDS_LC_DISCOVERY)
   {

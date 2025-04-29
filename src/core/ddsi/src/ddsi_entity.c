@@ -19,6 +19,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_iid.h"
+#include "dds/ddsi/ddsi_typelib.h"
 #include "ddsi__entity.h"
 #include "ddsi__participant.h"
 #include "ddsi__entity_index.h"
@@ -169,18 +170,29 @@ uint64_t ddsi_get_entity_instanceid (const struct ddsi_domaingv *gv, const struc
   return iid;
 }
 
-int ddsi_set_topic_type_name (dds_qos_t *xqos, const char * topic_name, const char * type_name)
+int ddsi_set_xqos_topic_and_type (dds_qos_t *xqos, const char * topic_name, const struct ddsi_sertype * type)
 {
   if (!(xqos->present & DDSI_QP_TYPE_NAME))
   {
     xqos->present |= DDSI_QP_TYPE_NAME;
-    xqos->type_name = ddsrt_strdup (type_name);
+    xqos->type_name = ddsrt_strdup (type->type_name);
   }
   if (!(xqos->present & DDSI_QP_TOPIC_NAME))
   {
     xqos->present |= DDSI_QP_TOPIC_NAME;
     xqos->topic_name = ddsrt_strdup (topic_name);
   }
+#ifdef DDS_HAS_TYPELIB
+  if (!(xqos->present & DDSI_QP_TYPE_INFORMATION))
+  {
+    ddsi_typeinfo_t * const type_info = ddsi_sertype_typeinfo (type);
+    if (type_info)
+    {
+      xqos->type_information = type_info;
+      xqos->present |= DDSI_QP_TYPE_INFORMATION;
+    }
+  }
+#endif
   return 0;
 }
 
