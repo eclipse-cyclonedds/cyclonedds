@@ -174,12 +174,10 @@ struct dds_cdrstream_ops_info {
 static const uint32_t *dds_stream_skip_adr (uint32_t insn, const uint32_t *ops);
 static const uint32_t *dds_stream_skip_default (char * restrict data, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, enum sample_data_state sample_state);
 static const uint32_t *dds_stream_extract_key_from_data1 (dds_istream_t *is, restrict_ostream_t *os, const struct dds_cdrstream_allocator *allocator,
-  const uint32_t * const op0, const uint32_t *ops, bool mutable_member, bool mutable_member_or_parent,
-  uint32_t n_keys, uint32_t * restrict keys_remaining);
+  const uint32_t *ops, bool mutable_member, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * restrict keys_remaining);
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
 static const uint32_t *dds_stream_extract_keyBE_from_data1 (dds_istream_t *is, restrict_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator,
-  const uint32_t * const op0, const uint32_t *ops, bool mutable_member, bool mutable_member_or_parent,
-  uint32_t n_keys, uint32_t * restrict keys_remaining);
+  const uint32_t *ops, bool mutable_member, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * restrict keys_remaining);
 #endif
 static const uint32_t *stream_normalize_data_impl (char * restrict data, uint32_t * restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t *ops, bool is_mutable_member, enum cdr_data_kind cdr_kind) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static const uint32_t *dds_stream_read_impl (dds_istream_t *is, char * restrict data, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, bool is_mutable_member, enum cdr_data_kind cdr_kind, enum sample_data_state sample_state);
@@ -4752,7 +4750,7 @@ static void dds_stream_extract_key_from_data_skip_subtype (dds_istream_t *is, ui
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
       uint32_t remain = UINT32_MAX;
       for (uint32_t i = 0; i < num; i++)
-        dds_stream_extract_key_from_data1 (is, NULL, NULL, NULL, subops, false, false, remain, &remain);
+        dds_stream_extract_key_from_data1 (is, NULL, NULL, subops, false, false, remain, &remain);
       break;
     }
     case DDS_OP_VAL_EXT: {
