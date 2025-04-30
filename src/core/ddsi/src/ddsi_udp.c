@@ -118,7 +118,7 @@ static void translate_pktinfo (struct ddsi_network_packet_info *pktinfo, ddsrt_m
         pktinfo->dst.kind = DDSI_LOCATOR_KIND_UDPv6;
         pktinfo->dst.port = port;
         memcpy (pktinfo->dst.address, &pkt6->ipi6_addr, 16);
-        pktinfo->if_index = pkt6->ipi6_ifindex;
+        pktinfo->if_index = (uint32_t)pkt6->ipi6_ifindex;
         return;
       }
     }
@@ -751,6 +751,8 @@ static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_lo
     ipv6mreq.ipv6mr_multiaddr = mcip.a6.sin6_addr;
 #if __ZEPHYR__
     ipv6mreq.ipv6mr_ifindex = interf ? interf->if_index : 0;
+#elif __ANDROID__
+    ipv6mreq.ipv6mr_interface = interf ? (int)interf->if_index : 0;
 #else
     ipv6mreq.ipv6mr_interface = interf ? interf->if_index : 0;
 #endif
