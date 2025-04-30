@@ -4258,7 +4258,6 @@ dds_take_next_instance(
  * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
  * @param[in,out] buf An array of `bufsz` pointers to samples.
  * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
- * @param[in] bufsz The size of buffer provided.
  * @param[in] maxs Maximum number of samples to read.
  * @param[in] previous_handle Instance handle right before the next instance from which the samples will be read.
  *
@@ -4542,6 +4541,42 @@ dds_read_with_collector (
   void *collect_sample_arg);
 
 /**
+ * @brief Read samples from the next instance while collecting result in an application-defined way
+ * @ingroup reading
+ * @component read_data
+ *
+ * See @ref dds_take_with_collector. The matching criterion referred to there is that the instance
+ * handle must equal the `handle` parameter.
+ *
+ * @param[in] reader_or_condition Handle of a reader or a read/query condition
+ * @param[in] maxs Maximum number of samples (1 .. INT32_MAX)
+ * @param[in] previous_handle Instance handle before the instance for which to read the samples from.
+ * @param[in] mask Sample/view/instance state mask
+ * @param[in] collect_sample Function be called for each sample in the result
+ * @param[in] collect_sample_arg Arbitrary argument passed to "collect_sample"
+ * @return The number of returned samples or an error code
+ * @retval > 0 number of samples passed successfully collected by collect_sample
+ * @retval 0   success, no matching data
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             One of the given arguments is not valid.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ * @retval < 0 Return value of failing collect_sample on first invocation
+ */
+DDS_EXPORT dds_return_t
+dds_read_next_instance_with_collector (
+  dds_entity_t reader_or_condition,
+  uint32_t maxs,
+  dds_instance_handle_t previous_handle,
+  uint32_t mask,
+  dds_read_with_collector_fn_t collect_sample,
+  void *collect_sample_arg);
+
+/**
  * @brief Take samples while collecting result in an application-defined way
  * @ingroup reading
  * @component read_data
@@ -4577,6 +4612,42 @@ dds_take_with_collector (
   dds_entity_t reader_or_condition,
   uint32_t maxs,
   dds_instance_handle_t handle,
+  uint32_t mask,
+  dds_read_with_collector_fn_t collect_sample,
+  void *collect_sample_arg);
+
+/**
+ * @brief Take samples from the next non-empty instance while collecting result in an application-defined way
+ * @ingroup reading
+ * @component read_data
+ * 
+ * See @ref dds_take_with_collector. The matching criterion referred to there is that the instance
+ * handle must equal the `handle` parameter.
+ *
+ * @param[in] reader_or_condition Handle of a reader or a read/query condition
+ * @param[in] maxs Maximum number of samples (1 .. INT32_MAX)
+ * @param[in] previous_handle Instance handle before the instance for which to read the samples from.
+ * @param[in] mask Sample/view/instance state mask
+ * @param[in] collect_sample Function be called for each sample in the result
+ * @param[in] collect_sample_arg Arbitrary argument passed to "collect_sample"
+ * @return The number of returned samples or an error code
+ * @retval > 0 number of samples passed successfully collected by collect_sample
+ * @retval 0   success, no matching data
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             One of the given arguments is not valid.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ * @retval < 0 Return value of failing collect_sample on first invocation
+ */
+DDS_EXPORT dds_return_t
+dds_take_next_instance_with_collector (
+  dds_entity_t reader_or_condition,
+  uint32_t maxs,
+  dds_instance_handle_t previous_handle,
   uint32_t mask,
   dds_read_with_collector_fn_t collect_sample,
   void *collect_sample_arg);
