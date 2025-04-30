@@ -190,7 +190,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream
         (void) dds_stream_extract_keyBO_from_data1 (is, os, allocator, op0, ops + DDS_OP_JUMP (insn), false, mutable_member_or_parent, n_keys, keys_remaining);
         ops++;
         break;
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM:
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM: case DDS_OP_MID:
         abort ();
         break;
     }
@@ -327,7 +327,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t *is, R
         (void) dds_stream_extract_keyBO_from_data1 (is, os, allocator, op0, ops + DDS_OP_JUMP (insn), mutable_member, mutable_member_or_parent, n_keys, keys_remaining);
         ops++;
         break;
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM:
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM: case DDS_OP_MID:
         abort ();
         break;
       case DDS_OP_DLC:

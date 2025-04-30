@@ -40,7 +40,8 @@ struct instruction {
     MEMBER_OFFSET,          /* PLM with offset to the member instruction within the current type */
     BASE_MEMBERS_OFFSET,    /* PLM with FLAG_BASE set, to jump to PLM list of base type */
     KEY_OFFSET,             /* KOF instruction, lower 16 bits have the number of offsets that follow this instruction */
-    KEY_OFFSET_VAL          /* follows KOF, and has the offset to instruction of a key part */
+    KEY_OFFSET_VAL,         /* follows KOF, and has the offset to instruction of a key part */
+    MEMBER_ID               /* Member ID entry, followed by the member ID value */
   } type;
   union {
     struct {
@@ -50,7 +51,8 @@ struct instruction {
     struct {
       char *type;
       char *member;
-    } offset; /**< name of type and member to generate offsetof */
+      uint32_t member_id;
+    } offset; /**< name of type and member to generate offsetofm and the member ID */
     struct {
       char *type;
     } size; /**< name of type to generate sizeof */
@@ -79,6 +81,11 @@ struct instruction {
       uint16_t offs;
       uint32_t order; /**< in xcdr2 the member id is used for ordening keys */
     } key_offset_val;
+    struct {
+      int16_t addr_offs;
+      const char *type;
+      const char *member;
+    } member_id;
   } data;
 };
 
@@ -115,6 +122,15 @@ struct key_offs {
   uint16_t n;
 };
 
+struct constructed_type_memberid {
+  const struct constructed_type *ctype; /**< Reference to constructed type that contains this member */
+  struct constructed_type_memberid *next; /**< Next item in linked-list */
+  int16_t rel_offs; /**< Relative offset from the ctype's offset */
+  uint32_t value; /**< The actual member ID */
+  const char *type; /**< Name of the containing aggregated type */
+  const char *member; /**< Name of the member */
+};
+
 struct field {
   struct field *previous;
   const void *node;
@@ -148,6 +164,7 @@ struct descriptor {
   struct stack_type *type_stack;
   struct constructed_type *constructed_types;
   struct instructions key_offsets;
+  struct instructions member_ids;
 };
 
 void

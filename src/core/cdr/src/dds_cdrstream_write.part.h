@@ -535,6 +535,16 @@ static const uint32_t *dds_stream_write_uniBO (RESTRICT_OSTREAM_T *os, const str
   return ops;
 }
 
+static void dds_stream_write_paramheaderBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, bool flag_mu, uint32_t member_id, uint32_t *param_length_offset)
+{
+  // Always using long PL encoding
+  uint32_t param_header = DDS_XCDR1_PL_SHORT_FLAG_MU | DDS_XCDR1_PL_SHORT_PID_EXTENDED | DDS_XCDR1_PL_SHORT_PID_EXT_LEN; // support for FLAG_IMPL_EXT not implemented
+  uint32_t param_id = (flag_mu ? DDS_XCDR1_PL_LONG_FLAG_MU : 0) | (member_id & DDS_XCDR1_PL_LONG_PID_MASK);
+  dds_os_put4BO (os, allocator, param_header);
+  dds_os_put4BO (os, allocator, param_id);
+  *param_length_offset = dds_os_reserve4BO (os, allocator);
+}
+
 static const uint32_t *dds_stream_write_adrBO (uint32_t insn, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops, bool is_mutable_member, enum cdr_data_kind cdr_kind)
 {
   // When writing key CDR, don't require an external member to be malloc'ed
@@ -551,12 +561,28 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, RESTRICT_OSTREAM_T
       return NULL;
   }
 
+  uint32_t param_length_offs;
   if (op_type_optional (insn))
   {
+    bool present = (addr != NULL);
     if (!is_mutable_member)
-      dds_os_put1BO (os, allocator, addr ? 1 : 0);
-    if (!addr)
-      return dds_stream_skip_adr (insn, ops);
+    {
+      if (os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
+      {
+        uint32_t flags = DDS_OP_FLAGS (insn);
+        bool must_understand = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
+        uint32_t member_id = 0; // FIXME
+        dds_stream_write_paramheaderBO (os, allocator, must_understand, member_id, &param_length_offs);
+        if (!present)
+          *((uint32_t *) (os->x.m_buffer + param_length_offs - 4)) = to_BO4u (0);
+      }
+      else // DDSI_RTPS_CDR_ENC_VERSION_2
+      {
+        dds_os_put1BO (os, allocator, present ? 1 : 0);
+      }
+      if (!present)
+        return dds_stream_skip_adr (insn, ops);
+    }
   }
   assert (addr || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR || DDS_OP_TYPE (insn) == DDS_OP_VAL_WSTR);
 
@@ -609,6 +635,12 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, RESTRICT_OSTREAM_T
       break;
     }
     case DDS_OP_VAL_STU: abort (); break; /* op type STU only supported as subtype */
+  }
+
+  // In case XCDR1, optional member of a non-mutable type: set the parameter length in the (extended) parameter header
+  if (os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1 && op_type_optional (insn) && !is_mutable_member)
+  {
+    *((uint32_t *) (os->x.m_buffer + param_length_offs - 4)) = to_BO4u (os->x.m_index - param_length_offs);
   }
   return ops;
 }
@@ -722,7 +754,7 @@ static const uint32_t *dds_stream_write_implBO (RESTRICT_OSTREAM_T *os, const st
           return NULL;
         ops++;
         break;
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM:
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM: case DDS_OP_MID:
         abort ();
         break;
       case DDS_OP_DLC:

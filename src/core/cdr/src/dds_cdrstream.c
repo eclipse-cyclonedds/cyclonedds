@@ -112,6 +112,7 @@ typedef struct restrict_ostreamLE {
 #define dds_stream_write_uniBO                        NAME_BYTE_ORDER(dds_stream_write_uni)
 #define dds_stream_writeBO                            NAME_BYTE_ORDER(dds_stream_write)
 #define dds_stream_write_implBO                       NAME_BYTE_ORDER(dds_stream_write_impl)
+#define dds_stream_write_paramheaderBO                NAME_BYTE_ORDER(dds_stream_write_paramheader)
 #define dds_stream_write_adrBO                        NAME_BYTE_ORDER(dds_stream_write_adr)
 #define dds_stream_write_plBO                         NAME_BYTE_ORDER(dds_stream_write_pl)
 #define dds_stream_write_pl_memberlistBO              NAME_BYTE_ORDER(dds_stream_write_pl_memberlist)
@@ -978,10 +979,7 @@ static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struc
         if ((insn & DDS_OP_FLAG_KEY) && nestc == 0)
           info->data_types |= DDS_DATA_TYPE_CONTAINS_KEY;
         if (op_type_optional (insn))
-        {
-          info->min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_2;
           info->data_types |= DDS_DATA_TYPE_CONTAINS_OPTIONAL;
-        }
         if (op_type_external (insn) && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR && DDS_OP_TYPE (insn) != DDS_OP_VAL_WSTR)
           info->data_types |= DDS_DATA_TYPE_CONTAINS_EXTERNAL;
         switch (DDS_OP_TYPE (insn))
@@ -1053,7 +1051,7 @@ static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struc
         ops++;
         break;
       }
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM: {
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM: case DDS_OP_MID: {
         abort ();
         break;
       }
@@ -1577,7 +1575,7 @@ static uint32_t get_length_code (const uint32_t *ops)
     }
     case DDS_OP_JSR:
       return get_length_code (ops + DDS_OP_JUMP (insn));
-    case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM:
+    case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM: case DDS_OP_MID:
       abort ();
       break;
     case DDS_OP_DLC: case DDS_OP_PLC:
@@ -1607,7 +1605,7 @@ static bool is_member_present (const char *data, const uint32_t *ops)
       }
       case DDS_OP_JSR:
         return is_member_present (data, ops + DDS_OP_JUMP (insn));
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF:
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_MID:
       case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM:
         abort ();
         break;
@@ -2189,7 +2187,7 @@ static const uint32_t *dds_stream_getsize_impl (struct getsize_state *st, const 
           return NULL;
         ops++;
         break;
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM:
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM: case DDS_OP_MID:
         abort ();
         break;
       case DDS_OP_DLC:
@@ -2908,7 +2906,7 @@ static void dds_stream_skip_pl_member_default (char * restrict data, const struc
         ops++;
         break;
       case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF:
-      case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM:
+      case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM: case DDS_OP_MID:
         abort ();
         break;
     }
@@ -2968,7 +2966,7 @@ static const uint32_t *dds_stream_skip_default (char * restrict data, const stru
         ops++;
         break;
       }
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM:
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM: case DDS_OP_MID:
         abort ();
         break;
       case DDS_OP_DLC:
@@ -3000,7 +2998,7 @@ static const uint32_t *dds_stream_read_delimited (dds_istream_t *is, char * rest
         ops++;
         break;
       }
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM: {
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM: case DDS_OP_MID: {
         abort ();
         break;
       }
@@ -3107,7 +3105,7 @@ static const uint32_t *dds_stream_read_impl (dds_istream_t *is, char * restrict 
         (void) dds_stream_read_impl (is, data, allocator, ops + DDS_OP_JUMP (insn), is_mutable_member, cdr_kind, sample_state);
         ops++;
         break;
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM:
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM: case DDS_OP_MID:
         abort ();
         break;
       case DDS_OP_DLC:
@@ -3952,7 +3950,7 @@ static const uint32_t *stream_normalize_delimited (char * restrict data, uint32_
           return NULL;
         ops++;
         break;
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM:
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM: case DDS_OP_MID:
         abort ();
         break;
     }
@@ -4120,7 +4118,7 @@ static const uint32_t *stream_normalize_data_impl (char * restrict data, uint32_
         ops++;
         break;
       }
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM: {
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM: case DDS_OP_MID: {
         abort ();
         break;
       }
@@ -4516,7 +4514,7 @@ void dds_stream_free_sample (void *data, const struct dds_cdrstream_allocator *a
         dds_stream_free_sample (data, allocator, ops + DDS_OP_JUMP (insn));
         ops++;
         break;
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM:
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM: case DDS_OP_MID:
         abort ();
         break;
       case DDS_OP_DLC:
@@ -5458,7 +5456,7 @@ static const uint32_t *prtf_delimited (char **buf, size_t *bufsize, dds_istream_
           return NULL;
         ops++;
         break;
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM: {
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM: case DDS_OP_MID: {
         abort ();
         break;
       }
@@ -5567,7 +5565,7 @@ static const uint32_t * dds_stream_print_sample1 (char **buf, size_t *bufsize, d
         cont = dds_stream_print_sample1 (buf, bufsize, is, ops + DDS_OP_JUMP (insn), true, is_mutable_member, cdr_kind) != NULL;
         ops++;
         break;
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM:
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM: case DDS_OP_MID:
         abort ();
         break;
       case DDS_OP_DLC:
@@ -5640,7 +5638,7 @@ bool dds_stream_extensibility (const uint32_t *ops, enum dds_cdr_type_extensibil
       case DDS_OP_PLC:
         *ext = DDS_CDR_TYPE_EXT_MUTABLE;
         return true;
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM:
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM: case DDS_OP_MID:
         abort ();
         break;
     }
@@ -5948,7 +5946,7 @@ static const uint32_t *dds_stream_key_size_delimited (const uint32_t *ops, struc
         ops++;
         break;
       }
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM: {
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM: case DDS_OP_MID: {
         abort ();
         break;
       }
@@ -6082,7 +6080,7 @@ static const uint32_t *dds_stream_key_size (const uint32_t *ops, struct key_prop
         (void) dds_stream_key_size (ops + DDS_OP_JUMP (insn), k);
         ops++;
         break;
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM:
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM: case DDS_OP_MID:
         abort ();
         break;
       case DDS_OP_DLC:
