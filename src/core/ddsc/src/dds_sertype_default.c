@@ -110,12 +110,7 @@ static uint32_t sertype_default_hash (const struct ddsi_sertype *tpcmn)
 static void sertype_default_free (struct ddsi_sertype *tpcmn)
 {
   struct dds_sertype_default *tp = (struct dds_sertype_default *) tpcmn;
-  if (tp->type.keys.nkeys > 0)
-  {
-    dds_free (tp->type.keys.keys);
-    dds_free (tp->type.keys.keys_definition_order);
-  }
-  dds_free (tp->type.ops.ops);
+  dds_cdrstream_desc_fini (&tp->type, &dds_cdrstream_default_allocator);
   if (tp->typeinfo_ser.data != NULL)
     dds_free (tp->typeinfo_ser.data);
   if (tp->typemap_ser.data != NULL)
@@ -300,7 +295,7 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
   st->write_encoding_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? DDSI_RTPS_CDR_ENC_VERSION_1 : DDSI_RTPS_CDR_ENC_VERSION_2;
   st->serpool = domain->serpool;
 
-  dds_cdrstream_desc_init (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_keys, desc->m_nkeys);
+  dds_cdrstream_desc_init (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_keys, desc->m_nkeys, desc->m_mid_table_offs);
 
   if (min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2 && dds_stream_type_nesting_depth (desc->m_ops) > DDS_CDRSTREAM_MAX_NESTING_DEPTH)
   {

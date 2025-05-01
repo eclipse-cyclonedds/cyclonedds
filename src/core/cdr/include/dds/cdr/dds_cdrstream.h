@@ -11,10 +11,11 @@
 #ifndef DDS_CDRSTREAM_H
 #define DDS_CDRSTREAM_H
 
+#include "dds/dds.h"
 #include "dds/ddsrt/bswap.h"
+#include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsc/dds_data_type_properties.h"
-#include "dds/dds.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -46,14 +47,16 @@ payload in order to reach the next 4-byte aligned offset. */
 #define DDS_XCDR1_PL_SHORT_MAX_PARAM_ID     0x3F00u        // Maximum parameter ID that can be used with short PL encoding
 #define DDS_XCDR1_PL_SHORT_MAX_PARAM_LEN    UINT16_MAX     // Maximum parameter length that can be used with short PL encoding
 #define DDS_XCDR1_PL_SHORT_PID_EXTENDED     0x3f010000u    // Indicates the extended (long) PL encoding is used
+#define DDS_XCDR1_PL_SHORT_PID_LIST_END     0x3f020000u    // Indicates the end of the parameter list data structure
 #define DDS_XCDR1_PL_SHORT_PID_EXT_LEN      0x8u           // Value of the param header length field in case of extended PL encoding
 #define DDS_XCDR1_PL_SHORT_FLAG_IMPL_EXT    0x40000000u    // Flag for implementation specific interpretation of the parameter (not implemented)
 #define DDS_XCDR1_PL_SHORT_FLAG_MU          0x20000000u    // Flag to indicate the parameter is must-understand in short PL header
-#define DDS_XCDR1_PL_SHORT_PID_MASK         0x3fff0000u    // Mask for the PID in the short PL header
-#define DDS_XCDR1_PL_SHORT_LEN_MASK         0x0000ffffu    // Mask for the PID in the short PL header
+#define DDS_XCDR1_PL_SHORT_PID_MASK         0x3fff0000u    // Mask for the member ID in the short PL header
+#define DDS_XCDR1_PL_SHORT_LEN_MASK         0x0000ffffu    // Mask for the parameter length in the short PL header
 
-#define DDS_XCDR1_PL_LONG_FLAG_MU           0x20000000u    // Flag to indicate the parameter is must-understand in extended PL header
-#define DDS_XCDR1_PL_LONG_PID_MASK          0x0fffffffu    // Mask for the PID in the long PL header
+#define DDS_XCDR1_PL_LONG_FLAG_IMPL_EXT     0x80000000u    // Flag used for RTPS discovery data types
+#define DDS_XCDR1_PL_LONG_FLAG_MU           0x40000000u    // Flag to indicate the parameter is must-understand in extended PL header
+#define DDS_XCDR1_PL_LONG_MID_MASK          0x0fffffffu    // Mask for the member ID in the long PL header
 
 
 #define DDS_CDR_CALCULATED_FLAGS (DDS_TOPIC_FIXED_KEY | DDS_TOPIC_FIXED_KEY_XCDR2 | DDS_TOPIC_FIXED_KEY_XCDR2_KEYHASH | DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM)
@@ -122,6 +125,16 @@ typedef struct dds_cdrstream_desc_op_seq {
   uint32_t *ops;    /* Marshalling meta data */
 } dds_cdrstream_desc_op_seq_t;
 
+struct dds_cdrstream_desc_mid_table {
+  struct ddsrt_hh *table;
+  const uint32_t * op0;
+};
+
+struct dds_cdrstream_desc_mid {
+  uint32_t adr_offs;
+  uint32_t mid;
+};
+
 struct dds_cdrstream_desc {
   uint32_t size;    /* Size of type */
   uint32_t align;   /* Alignment of top-level type */
@@ -130,6 +143,7 @@ struct dds_cdrstream_desc {
   dds_cdrstream_desc_op_seq_t ops;
   size_t opt_size_xcdr1;
   size_t opt_size_xcdr2;
+  struct dds_cdrstream_desc_mid_table member_ids;
 };
 
 
@@ -183,23 +197,23 @@ DDS_EXPORT bool dds_stream_normalize (void *data, uint32_t size, bool bswap, uin
   ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 /** @component cdr_serializer */
-DDS_EXPORT const uint32_t *dds_stream_normalize_data (char *data, uint32_t *off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t *ops)
+DDS_EXPORT const uint32_t *dds_stream_normalize_xcdr2_data (char *data, uint32_t *off, uint32_t size, bool bswap, const uint32_t *ops)
   ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 /** @component cdr_serializer */
-DDS_EXPORT const uint32_t *dds_stream_write (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops)
+DDS_EXPORT const uint32_t *dds_stream_write (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const char *data, const uint32_t *ops)
   ddsrt_attribute_warn_unused_result;
 
 /** @component cdr_serializer */
-DDS_EXPORT const uint32_t *dds_stream_writeLE (dds_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops)
+DDS_EXPORT const uint32_t *dds_stream_writeLE (dds_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const char *data, const uint32_t *ops)
   ddsrt_attribute_warn_unused_result;
 
 /** @component cdr_serializer */
-DDS_EXPORT const uint32_t *dds_stream_writeBE (dds_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops)
+DDS_EXPORT const uint32_t *dds_stream_writeBE (dds_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const char *data, const uint32_t *ops)
   ddsrt_attribute_warn_unused_result;
 
 /** @component cdr_serializer */
-DDS_EXPORT const uint32_t * dds_stream_write_with_byte_order (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, const char *data, const uint32_t *ops, enum ddsrt_byte_order_selector bo)
+DDS_EXPORT const uint32_t * dds_stream_write_with_byte_order (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const char *data, const uint32_t *ops, enum ddsrt_byte_order_selector bo)
   ddsrt_attribute_warn_unused_result;
 
 /** @component cdr_serializer */
@@ -285,7 +299,7 @@ dds_data_type_properties_t dds_stream_data_types (const uint32_t *ops);
 
 /** @component cdr_serializer */
 DDS_EXPORT void dds_cdrstream_desc_init (struct dds_cdrstream_desc *desc, const struct dds_cdrstream_allocator *allocator,
-    uint32_t size, uint32_t align, uint32_t flagset, const uint32_t *ops, const dds_key_descriptor_t *keys, uint32_t nkeys);
+    uint32_t size, uint32_t align, uint32_t flagset, const uint32_t *ops, const dds_key_descriptor_t *keys, uint32_t nkeys, uint32_t mid_table_offs);
 
 /** @component cdr_serializer */
 DDS_EXPORT void dds_cdrstream_desc_fini (struct dds_cdrstream_desc *desc, const struct dds_cdrstream_allocator *allocator);

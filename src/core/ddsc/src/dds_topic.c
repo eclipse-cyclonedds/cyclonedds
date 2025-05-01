@@ -1172,5 +1172,5 @@ void dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const 
 {
   memset (desc, 0, sizeof (*desc));
   dds_cdrstream_desc_init (desc, &dds_cdrstream_default_allocator, topic_desc->m_size, topic_desc->m_align, topic_desc->m_flagset,
-      topic_desc->m_ops, topic_desc->m_keys, topic_desc->m_nkeys);
+      topic_desc->m_ops, topic_desc->m_keys, topic_desc->m_nkeys, topic_desc->m_mid_table_offs);
 }

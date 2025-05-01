@@ -9,7 +9,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 ddsrt_attribute_warn_unused_result
-static bool dds_stream_write_keyBO_impl (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, const void *src, uint16_t key_offset_count, const uint32_t * key_offset_insn)
+static bool dds_stream_write_keyBO_impl (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, const void *src, uint16_t key_offset_count, const uint32_t * key_offset_insn)
 {
   uint32_t insn = *ops;
   assert (DDS_OP (insn) == DDS_OP_ADR);
@@ -46,18 +46,18 @@ static bool dds_stream_write_keyBO_impl (RESTRICT_OSTREAM_T *os, const struct dd
         return false;
       break;
     case DDS_OP_VAL_ARR:
-      if (!dds_stream_write_arrBO (os, allocator, addr, ops, insn, CDR_KIND_KEY))
+      if (!dds_stream_write_arrBO (os, allocator, mid_table, addr, ops, insn, CDR_KIND_KEY))
         return false;
       break;
     case DDS_OP_VAL_EXT: {
       assert (key_offset_count > 0);
       const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]) + *key_offset_insn;
-      if (!dds_stream_write_keyBO_impl (os, allocator, jsr_ops, addr, --key_offset_count, ++key_offset_insn))
+      if (!dds_stream_write_keyBO_impl (os, allocator, mid_table, jsr_ops, addr, --key_offset_count, ++key_offset_insn))
         return false;
       break;
     }
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: {
-      if (!dds_stream_write_seqBO (os, allocator, addr, ops, insn, CDR_KIND_KEY))
+      if (!dds_stream_write_seqBO (os, allocator, mid_table, addr, ops, insn, CDR_KIND_KEY))
         return false;
       break;
     }
@@ -76,7 +76,7 @@ static bool dds_stream_write_keyBO_restrict (RESTRICT_OSTREAM_T *os, enum dds_cd
   {
     /* For types with key fields in aggregated types with appendable or mutable
        extensibility, write the key CDR using the regular write functions */
-    if (dds_stream_write_implBO (os, allocator, sample, desc->ops.ops, false, CDR_KIND_KEY) == NULL)
+    if (dds_stream_write_implBO (os, allocator, &desc->member_ids, sample, desc->ops.ops, false, CDR_KIND_KEY) == NULL)
       return false;
   }
   else
@@ -99,12 +99,12 @@ static bool dds_stream_write_keyBO_restrict (RESTRICT_OSTREAM_T *os, enum dds_cd
         case DDS_OP_KOF: {
           uint16_t n_offs = DDS_OP_LENGTH (*insnp);
           assert (n_offs > 0);
-          if (!dds_stream_write_keyBO_impl (os, allocator, desc->ops.ops + insnp[1], sample, --n_offs, insnp + 2))
+          if (!dds_stream_write_keyBO_impl (os, allocator, &desc->member_ids, desc->ops.ops + insnp[1], sample, --n_offs, insnp + 2))
             return false;
           break;
         }
         case DDS_OP_ADR: {
-          if (!dds_stream_write_keyBO_impl (os, allocator, insnp, sample, 0, NULL))
+          if (!dds_stream_write_keyBO_impl (os, allocator, &desc->member_ids, insnp, sample, 0, NULL))
             return false;
           break;
         }
@@ -122,7 +122,7 @@ bool dds_stream_write_keyBO (DDS_OSTREAM_T *os, enum dds_cdr_key_serialization_k
   return dds_stream_write_keyBO_restrict ((RESTRICT_OSTREAM_T *) os, ser_kind, allocator, sample, desc);
 }
 
-static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, bool mutable_member, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * restrict keys_remaining)
+static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, bool mutable_member, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * restrict keys_remaining)
 {
   assert (insn == *ops);
   assert (DDS_OP (insn) == DDS_OP_ADR);
@@ -145,7 +145,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
       jsr_ops++;
 
     /* only in case the ADR|EXT has the key flag set, pass the actual ostream, otherwise skip the EXT type by passing NULL for ostream */
-    (void) dds_stream_extract_keyBO_from_data1 (is, is_key ? os : NULL, allocator, jsr_ops, false, mutable_member_or_parent, n_keys, keys_remaining);
+    (void) dds_stream_extract_keyBO_from_data1 (is, is_key ? os : NULL, allocator, mid_table, jsr_ops, false, mutable_member_or_parent, n_keys, keys_remaining);
     ops += jmp ? jmp : 3;
   }
   else
@@ -154,7 +154,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
     {
       assert (*keys_remaining > 0);
       assert (os != NULL);
-      dds_stream_extract_keyBO_from_key_prim_op (is, os, allocator, ops, 0, NULL);
+      dds_stream_extract_keyBO_from_key_prim_op (is, os, allocator, mid_table, ops, 0, NULL);
       ops = dds_stream_skip_adr (insn, ops);
       (*keys_remaining)--;
     }
@@ -164,7 +164,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
   return ops;
 }
 
-static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * restrict keys_remaining)
+static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * restrict keys_remaining)
 {
   uint32_t delimited_sz_is = dds_is_get4 (is), delimited_offs_is = is->m_index, insn;
 
@@ -184,10 +184,10 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream
       case DDS_OP_ADR:
         /* skip fields that are not in serialized data for appendable type */
         ops = (is->m_index - delimited_offs_is < delimited_sz_is) ?
-          dds_stream_extract_keyBO_from_data_adr (insn, is, os, allocator, ops, false, mutable_member_or_parent, n_keys, keys_remaining) : dds_stream_skip_adr (insn, ops);
+          dds_stream_extract_keyBO_from_data_adr (insn, is, os, allocator, mid_table, ops, false, mutable_member_or_parent, n_keys, keys_remaining) : dds_stream_skip_adr (insn, ops);
         break;
       case DDS_OP_JSR:
-        (void) dds_stream_extract_keyBO_from_data1 (is, os, allocator, ops + DDS_OP_JUMP (insn), false, mutable_member_or_parent, n_keys, keys_remaining);
+        (void) dds_stream_extract_keyBO_from_data1 (is, os, allocator, mid_table, ops + DDS_OP_JUMP (insn), false, mutable_member_or_parent, n_keys, keys_remaining);
         ops++;
         break;
       case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM: case DDS_OP_MID:
@@ -210,7 +210,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream
   return ops;
 }
 
-static bool dds_stream_extract_keyBO_from_data_pl_member (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, uint32_t m_id, const uint32_t *ops, uint32_t n_keys, uint32_t * restrict keys_remaining)
+static bool dds_stream_extract_keyBO_from_data_pl_member (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, uint32_t m_id, const uint32_t *ops, uint32_t n_keys, uint32_t * restrict keys_remaining)
 {
   uint32_t insn, ops_csr = 0;
   bool found = false;
@@ -224,7 +224,7 @@ static bool dds_stream_extract_keyBO_from_data_pl_member (dds_istream_t *is, RES
     {
       assert (DDS_OP (plm_ops[0]) == DDS_OP_PLC);
       plm_ops++; /* skip PLC to go to first PLM from base type */
-      found = dds_stream_extract_keyBO_from_data_pl_member (is, os, allocator, m_id, plm_ops, n_keys, keys_remaining);
+      found = dds_stream_extract_keyBO_from_data_pl_member (is, os, allocator, mid_table, m_id, plm_ops, n_keys, keys_remaining);
     }
     else if (ops[ops_csr + 1] == m_id)
     {
@@ -232,7 +232,7 @@ static bool dds_stream_extract_keyBO_from_data_pl_member (dds_istream_t *is, RES
       assert (lc <= LENGTH_CODE_ALSO_NEXTINT8);
       uint32_t data_offs = (lc != LENGTH_CODE_NEXTINT) ? dds_os_reserve4BO (os, allocator) : dds_os_reserve8BO (os, allocator);
 
-      (void) dds_stream_extract_keyBO_from_data1 (is, os, allocator, plm_ops, true, true, n_keys, keys_remaining);
+      (void) dds_stream_extract_keyBO_from_data1 (is, os, allocator, mid_table, plm_ops, true, true, n_keys, keys_remaining);
 
       /* add emheader with data length code and flags and optionally the serialized size of the data */
       uint32_t em_hdr = 0;
@@ -253,7 +253,7 @@ static bool dds_stream_extract_keyBO_from_data_pl_member (dds_istream_t *is, RES
   return found;
 }
 
-static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, uint32_t n_keys, uint32_t * restrict keys_remaining)
+static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, uint32_t n_keys, uint32_t * restrict keys_remaining)
 {
   /* skip PLC op */
   ops++;
@@ -294,7 +294,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t *is,
 
     /* If in skip-mode, member not found or in case no more keys remaining to be found, skip the member
        in the input stream */
-    if (os == NULL || !dds_stream_extract_keyBO_from_data_pl_member (is, os, allocator, m_id, ops, n_keys, keys_remaining))
+    if (os == NULL || !dds_stream_extract_keyBO_from_data_pl_member (is, os, allocator, mid_table, m_id, ops, n_keys, keys_remaining))
     {
       is->m_index += msz;
       if (lc >= LENGTH_CODE_ALSO_NEXTINT)
@@ -313,7 +313,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t *is,
   return ops;
 }
 
-static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, bool mutable_member, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * restrict keys_remaining)
+static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, bool mutable_member, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * restrict keys_remaining)
 {
   uint32_t insn;
   while ((insn = *ops) != DDS_OP_RTS)
@@ -321,20 +321,20 @@ static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t *is, R
     switch (DDS_OP (insn))
     {
       case DDS_OP_ADR:
-        ops = dds_stream_extract_keyBO_from_data_adr (insn, is, os, allocator, ops, mutable_member, mutable_member_or_parent, n_keys, keys_remaining);
+        ops = dds_stream_extract_keyBO_from_data_adr (insn, is, os, allocator, mid_table, ops, mutable_member, mutable_member_or_parent, n_keys, keys_remaining);
         break;
       case DDS_OP_JSR:
-        (void) dds_stream_extract_keyBO_from_data1 (is, os, allocator, ops + DDS_OP_JUMP (insn), mutable_member, mutable_member_or_parent, n_keys, keys_remaining);
+        (void) dds_stream_extract_keyBO_from_data1 (is, os, allocator, mid_table, ops + DDS_OP_JUMP (insn), mutable_member, mutable_member_or_parent, n_keys, keys_remaining);
         ops++;
         break;
       case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM: case DDS_OP_MID:
         abort ();
         break;
       case DDS_OP_DLC:
-        ops = dds_stream_extract_keyBO_from_data_delimited (is, os, allocator, ops, mutable_member_or_parent, n_keys, keys_remaining);
+        ops = dds_stream_extract_keyBO_from_data_delimited (is, os, allocator, mid_table, ops, mutable_member_or_parent, n_keys, keys_remaining);
         break;
       case DDS_OP_PLC:
-        ops = dds_stream_extract_keyBO_from_data_pl (is, os, allocator, ops, n_keys, keys_remaining);
+        ops = dds_stream_extract_keyBO_from_data_pl (is, os, allocator, mid_table, ops, n_keys, keys_remaining);
         break;
     }
   }
@@ -366,7 +366,7 @@ static bool dds_stream_extract_keyBO_from_data_restrict (dds_istream_t *is, REST
   else
   {
     /* optimized solution for keys in type with final extensibility */
-    (void) dds_stream_extract_keyBO_from_data1 (is, os, allocator, desc->ops.ops, false, false, desc->keys.nkeys, &keys_remaining);
+    (void) dds_stream_extract_keyBO_from_data1 (is, os, allocator, &desc->member_ids, desc->ops.ops, false, false, desc->keys.nkeys, &keys_remaining);
 
     /* FIXME: stream_normalize should check for missing keys by implementing the
         must_understand annotation, so the check keys_remaining > 0 can become an assert. */
@@ -406,11 +406,11 @@ static void dds_stream_extract_keyBO_from_key_optimized (dds_istream_t *is, REST
       case DDS_OP_KOF: {
         uint16_t n_offs = DDS_OP_LENGTH (*op);
         assert (n_offs > 0);
-        dds_stream_extract_keyBO_from_key_prim_op (is, os, allocator, desc->ops.ops + op[1], --n_offs, op + 2);
+        dds_stream_extract_keyBO_from_key_prim_op (is, os, allocator, &desc->member_ids, desc->ops.ops + op[1], --n_offs, op + 2);
         break;
       }
       case DDS_OP_ADR: {
-        dds_stream_extract_keyBO_from_key_prim_op (is, os, allocator, op, 0, NULL);
+        dds_stream_extract_keyBO_from_key_prim_op (is, os, allocator, &desc->member_ids, op, 0, NULL);
         break;
       }
       default:
