@@ -2136,23 +2136,51 @@ static struct xt_type *xt_expand_basetype (struct ddsi_domaingv *gv, const struc
 {
   assert (t->_d == DDS_XTypes_TK_STRUCTURE);
   assert (t->_u.structure.base_type);
-  const struct xt_type *b = ddsi_xt_unalias (&t->_u.structure.base_type->xt);
-  if (!xt_is_assignable_check_resolved (b, reason, t, 0))
-    return NULL;
-  struct xt_type *te = xt_has_basetype (b) ? xt_expand_basetype (gv, b, reason) : xt_dup (gv, t);
-  if (!te)
-    return NULL;
-  struct xt_struct_member_seq *ms = &te->_u.structure.members;
 
-  /* Expand members of the base type in the resulting type
-     before the members of the derived type */
-  uint32_t incr = b->_u.structure.members.length;
-  ms->seq = ddsrt_realloc (ms->seq, (ms->length + incr) * sizeof (*ms->seq));
-  memmove (&ms->seq[incr], ms->seq, ms->length * sizeof (*ms->seq));
-  ms->length += incr;
-  for (uint32_t i = 0; i < incr; i++)
-    xt_struct_member_copy (gv, &ms->seq[i], &b->_u.structure.members.seq[i]);
+  // gather all supertypes
+  size_t bs_cap = 10, bs_pos = 0, total_ms = t->_u.structure.members.length;
+  const struct xt_type **bs = ddsrt_malloc (bs_cap * sizeof (*bs));
+  if (bs == NULL)
+    goto fail;
+  bs[0] = t;
+  while (bs[bs_pos]->_u.structure.base_type)
+  {
+    const struct xt_type *b = ddsi_xt_unalias (&bs[bs_pos]->_u.structure.base_type->xt);
+    if (!xt_is_assignable_check_resolved (b, reason, t, 0))
+      goto fail;
+    assert (b->_d == DDS_XTypes_TK_STRUCTURE);
+    if (bs_pos == bs_cap - 1)
+    {
+      bs_cap *= 2;
+      const struct xt_type **bs1 = ddsrt_realloc (bs, bs_cap * sizeof (*bs));
+      if (bs1 == NULL)
+        goto fail;
+      bs = bs1;
+    }
+    bs[++bs_pos] = b;
+    total_ms += b->_u.structure.members.length;
+  }
+
+  // duplicate root of hierarchy
+  struct xt_type *te = xt_dup (gv, bs[bs_pos]);
+  if (!te)
+    goto fail;
+  // then append members of all derived types
+  struct xt_struct_member_seq *ms = &te->_u.structure.members;
+  ms->seq = ddsrt_realloc (ms->seq, total_ms * sizeof (*ms->seq));
+  while (bs_pos-- != 0)
+  {
+    const struct xt_type *x = bs[bs_pos];
+    for (uint32_t i = 0; i < x->_u.structure.members.length; i++)
+      xt_struct_member_copy (gv, &ms->seq[ms->length++], &x->_u.structure.members.seq[i]);
+  }
+  assert (ms->length == total_ms);
+  ddsrt_free (bs);
   return te;
+
+fail:
+  ddsrt_free (bs);
+  return NULL;
 }
 
 static struct xt_type *xt_type_key_erased (struct ddsi_domaingv *gv, const struct xt_type *t)
