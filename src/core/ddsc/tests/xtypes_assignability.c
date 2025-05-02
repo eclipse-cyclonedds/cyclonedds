@@ -44,6 +44,7 @@
 #include "XSpaceMustUnderstand.h"
 #include "XSpaceTypeConsistencyEnforcement.h"
 #include "XSpaceNoTypeInfo.h"
+#include "TypeBuilderTypes.h"
 
 #define DDS_DOMAINID_PUB 0
 #define DDS_DOMAINID_SUB 1
@@ -340,6 +341,65 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
     sample_check c = t ? fn_check2 : fn_check1;
     do_test (t ? desc1 : desc2, NULL, t ? desc2 : desc1, NULL, i != NULL, i, c != NULL, c);
   }
+}
+#undef D
+#undef I
+#undef C
+
+static void sample_init_TBT (void *ptr)
+{
+  TypeBuilderTypes_t45 *sample = ptr;
+  sample->parent.parent.n2_1 = 1;
+  sample->parent.parent.n2_1 = 2;
+  sample->parent.n1_1 = 3;
+  sample->t1 = 4;
+}
+static void sample_check_TBT_n2 (void *ptr1, void *ptr2)
+{
+  TypeBuilderTypes_t45 *s_wr = ptr1;
+  TypeBuilderTypes_t45_n2 *s_rd = ptr2;
+  CU_ASSERT_FATAL (s_wr->parent.parent.n2_1 == s_rd->n2_1);
+  CU_ASSERT_FATAL (s_wr->parent.parent.n2_2 == s_rd->n2_2);
+}
+static void sample_check_TBT_n1 (void *ptr1, void *ptr2)
+{
+  TypeBuilderTypes_t45 *s_wr = ptr1;
+  TypeBuilderTypes_t45_n1 *s_rd = ptr2;
+  sample_check_TBT_n2 (ptr1, ptr2);
+  CU_ASSERT_FATAL (s_wr->parent.n1_1 == s_rd->n1_1);
+}
+
+#define D(n) TypeBuilderTypes_ ## n ## _desc
+#define I(n) sample_init_ ## n
+#define C(n) sample_check_ ## n
+CU_TheoryDataPoints (ddsc_xtypes_assignability, inheritance) = {
+  CU_DataPoints (const char *,                   "final/1",
+  /*                                             |         */"final/2",
+  /*                                             |           |         */"append/1",
+  /*                                             |           |           |          */"append/2",
+  /*                                             |           |           |            |          */"mutable/1",
+  /*                                             |           |           |            |            |           */"mutable/2"),
+  CU_DataPoints (const dds_topic_descriptor_t *, &D(t45),    &D(t45),    &D(t46),     &D(t46),     &D(t47),      &D(t47)    ),
+  CU_DataPoints (const dds_topic_descriptor_t *, &D(t45_n1), &D(t45_n2), &D(t46_n1),  &D(t46_n2),  &D(t47_n1),   &D(t47_n2) ),
+  CU_DataPoints (sample_init,                    I(TBT),     I(TBT),     I(TBT),      I(TBT),      I(TBT),       I(TBT)     ),
+  CU_DataPoints (sample_check,                   C(TBT_n1),  C(TBT_n2),  C(TBT_n1),   C(TBT_n2),   C(TBT_n1),    C(TBT_n2)  ),
+  CU_DataPoints (bool,                           false,      false,      true,        true,        true,         true       )
+};
+
+CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_topic_descriptor_t *desc2, sample_init fn_init, sample_check fn_check, bool assignable),
+    ddsc_xtypes_assignability, inheritance, .init = xtypes_assignability_init, .fini = xtypes_assignability_fini)
+{
+  // final types are not assignable even if the reader is subscribing to the base type of the writer
+  // see XTypes 1.3 Table 19:
+  //
+  // > For the purposes of the above conditions, members belonging to base types of T1 or T2 shall be considered
+  // > “expanded” inside T1 or T2 respectively, as if they had been directly defined as part of the sub-type.
+  //
+  // most impractical, especially considering that inheriting from appendable base types is somewhat unsafe because
+  // of id collisions ...
+  printf ("Running test xtypes_inheritance: %s\n", descr);
+  fflush (stdout);
+  do_test (desc2, NULL, desc1, NULL, assignable, fn_init, true, fn_check);
 }
 #undef D
 #undef I
