@@ -476,4 +476,19 @@ module TypeBuilderTypes {
   @nested struct t44_n2 { sequence<long> n2_1; };
   @nested struct t44_n1 { sequence<sequence<t44_n2> > n1_1[3]; };
   struct t44 { t44_n1 t1; @key t44_n1 t2; };
+
+  // not @nested: also used for inheritance test
+  @final struct t45_n2 { @id(2) @key short n2_1; @id(1) @key short n2_2; };
+  @final struct t45_n1 : t45_n2 { @id(11) long n1_1; };
+  @final struct t45 : t45_n1 { @id(21) long t1; };
+
+  // not @nested: also used for inheritance test
+  @appendable struct t46_n2 { @id(2) @key short n2_1; @id(1) @key short n2_2; };
+  @appendable struct t46_n1 : t46_n2 { @id(11) long n1_1; };
+  @appendable struct t46 : t46_n1 { @id(21) long t1; };
+
+  // not @nested: also used for inheritance test
+  @mutable struct t47_n2 { @id(2) @key short n2_1; @id(1) @key short n2_2; };
+  @mutable struct t47_n1 : t47_n2 { @id(11) long n1_1; };
+  @mutable struct t47 : t47_n1 { @id(21) long t1; };
 };
