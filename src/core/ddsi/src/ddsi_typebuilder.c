@@ -1579,7 +1579,8 @@ static dds_return_t typebuilder_get_keys_push_ops (struct typebuilder_data *tbd,
           n_key_offs++;
           break;
         case KEY_PATH_PART_INHERIT:
-          if ((ret = push_op_arg (ops, 0u)) != DDS_RETCODE_OK)
+          // we get for @final and @appendable types, for appendable we need to skip the DLC instruction
+          if ((ret = push_op_arg (ops, (tbd->toplevel_type.extensibility == DDS_XTypes_IS_FINAL) ? 0u : 1u)) != DDS_RETCODE_OK)
             goto err;
           inherit_mutable = false;
           n_key_offs++;
