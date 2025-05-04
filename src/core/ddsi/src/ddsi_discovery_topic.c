@@ -30,7 +30,7 @@
 #include "ddsi__xqos.h"
 #include "ddsi__typelib.h"
 
-static int ddsi_sedp_write_topic_impl (struct ddsi_writer *wr, int alive, const ddsi_guid_t *guid, const dds_qos_t *xqos, ddsi_typeinfo_t *type_info)
+static int ddsi_sedp_write_topic_impl (struct ddsi_writer *wr, int alive, const ddsi_guid_t *guid, const dds_qos_t *xqos)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   const dds_qos_t *defqos = &ddsi_default_qos_topic;
@@ -48,12 +48,6 @@ static int ddsi_sedp_write_topic_impl (struct ddsi_writer *wr, int alive, const 
   uint64_t qosdiff = ddsi_xqos_delta (xqos, defqos, ~(uint64_t)0);
   if (gv->config.explicitly_publish_qos_set_to_default)
     qosdiff |= ~DDSI_QP_UNRECOGNIZED_INCOMPATIBLE_MASK;
-
-  if (type_info)
-  {
-    ps.qos.type_information = type_info;
-    ps.qos.present |= DDSI_QP_TYPE_INFORMATION;
-  }
   if (xqos)
     ddsi_xqos_mergein_missing (&ps.qos, xqos, qosdiff);
   return ddsi_write_and_fini_plist (wr, &ps, alive);
@@ -74,7 +68,7 @@ int ddsi_sedp_write_topic (struct ddsi_topic *tp, bool alive)
   int ret = 0;
   ddsrt_mutex_lock (&tp->e.qos_lock);
   // the allocation type info object is freed with the plist
-  ret = ddsi_sedp_write_topic_impl (sedp_wr, alive, &tp->e.guid, tp->definition->xqos, ddsi_type_pair_get_typeinfo (tp->e.gv, tp->definition->type_pair));
+  ret = ddsi_sedp_write_topic_impl (sedp_wr, alive, &tp->e.guid, tp->definition->xqos);
   ddsrt_mutex_unlock (&tp->e.qos_lock);
   return ret;
 }
@@ -91,7 +85,7 @@ static const char *durability_to_string (dds_durability_kind_t k)
   return "undefined-durability";
 }
 
-void ddsi_handle_sedp_alive_topic (const struct ddsi_receiver_state *rst, ddsi_seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, const ddsi_guid_prefix_t *src_guid_prefix, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp)
+void ddsi_handle_sedp_alive_topic (const struct ddsi_receiver_state *rst, ddsi_seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp)
 {
   struct ddsi_domaingv * const gv = rst->gv;
   struct ddsi_proxy_participant *proxypp;
@@ -104,7 +98,7 @@ void ddsi_handle_sedp_alive_topic (const struct ddsi_receiver_state *rst, ddsi_s
   assert (datap->present & PP_CYCLONE_TOPIC_GUID);
   GVLOGDISC (" "PGUIDFMT, PGUID (datap->topic_guid));
 
-  if (!ddsi_handle_sedp_checks (gv, SEDP_KIND_TOPIC, &datap->topic_guid, datap, src_guid_prefix, vendorid, timestamp, &proxypp, &ppguid))
+  if (!ddsi_handle_sedp_checks (gv, SEDP_KIND_TOPIC, &datap->topic_guid, datap, vendorid, &proxypp, &ppguid))
     return;
 
   xqos = &datap->qos;

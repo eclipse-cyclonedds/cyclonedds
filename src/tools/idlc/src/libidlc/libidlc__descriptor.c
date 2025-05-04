@@ -1109,6 +1109,28 @@ emit_struct(
   return IDL_RETCODE_OK;
 }
 
+static bool nested_collection_key(const struct stack_type *stype, const idl_path_t *path)
+{
+  bool is_key_member = false;
+  if (idl_is_sequence(stype->node) || idl_is_array(stype->node))
+  {
+    size_t i = path->length - 1;
+    bool member_found = false;
+    do
+    {
+      if (idl_is_member(path->nodes[i]))
+      {
+        member_found = true;
+        if (((idl_member_t *) path->nodes[i])->key.value)
+          is_key_member = true;
+      }
+      i--;
+    } while (!member_found && i > 0); // index 0 cannot be a member, because it must have a parent struct/union
+    assert (member_found);
+  }
+  return is_key_member;
+}
+
 static idl_retcode_t
 emit_sequence(
   const idl_pstate_t *pstate,
@@ -1161,8 +1183,13 @@ emit_sequence(
     if ((ret = add_typecode(pstate, type_spec, SUBTYPE, false, &opcode)))
       return ret;
     idl_keytype_t keytype;
+    if (idl_is_struct(stype->ctype->node))
+    {
+      if (nested_collection_key (stype, path))
+        opcode |= DDS_OP_FLAG_KEY | DDS_OP_FLAG_MU;
+    }
     if ((keytype = idl_is_topic_key(descriptor->topic, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0, path, &order)) != IDL_KEYTYPE_NONE) {
-      opcode |= DDS_OP_FLAG_KEY | (keytype == IDL_KEYTYPE_EXPLICIT ? DDS_OP_FLAG_MU : 0u);
+      opcode |= DDS_OP_FLAG_KEY | ((keytype == IDL_KEYTYPE_EXPLICIT) ? DDS_OP_FLAG_MU : 0u);
       ctype->has_key_member = true;
     }
 
@@ -1305,6 +1332,11 @@ emit_array(
     if ((ret = add_typecode(pstate, type_spec, SUBTYPE, false, &opcode)))
       return ret;
     idl_keytype_t keytype;
+    if (idl_is_struct(stype->ctype->node))
+    {
+      if (nested_collection_key(stype, path))
+        opcode |= DDS_OP_FLAG_KEY | DDS_OP_FLAG_MU;
+    }
     if ((keytype = idl_is_topic_key(descriptor->topic, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0, path, &order)) != IDL_KEYTYPE_NONE) {
       opcode |= DDS_OP_FLAG_KEY | (keytype == IDL_KEYTYPE_EXPLICIT ? DDS_OP_FLAG_MU : 0u);
       ctype->has_key_member = true;
@@ -1313,8 +1345,8 @@ emit_array(
     /* Array node is the declarator node, so its parent is the member in case
        we're processing a struct type, and this can be used to determine if its
        an external member */
-    idl_node_t *parent = idl_parent(node);
     if (idl_is_struct(stype->node)) {
+      idl_node_t *parent = idl_parent(node);
       assert(idl_is_member(parent));
 
       if (idl_is_external(parent))
@@ -1957,15 +1989,15 @@ static void free_ctype_keys(struct constructed_type_key *key)
   }
 }
 
-static idl_retcode_t get_ctype_keys(const idl_pstate_t *pstate, struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, uint32_t *n_keys, bool parent_is_key, uint32_t base_type_ops_offs);
+static idl_retcode_t get_ctype_keys(const idl_pstate_t *pstate, struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, uint32_t *n_keys, bool parent_is_key, uint32_t base_type_ops_offs, bool in_collection);
 
 
-static idl_retcode_t get_ctype_keys_adr(const idl_pstate_t *pstate, struct descriptor *descriptor, uint32_t offs, uint32_t base_type_ops_offs, struct instruction *inst, struct constructed_type *ctype, uint32_t *n_keys, struct constructed_type_key **ctype_keys)
+static idl_retcode_t get_ctype_keys_adr(const idl_pstate_t *pstate, struct descriptor *descriptor, uint32_t offs, uint32_t base_type_ops_offs, struct instruction *inst, struct constructed_type *ctype, uint32_t *n_keys, struct constructed_type_key **ctype_keys, bool in_collection)
 {
   idl_retcode_t ret;
 
-  assert(n_keys);
-  assert(ctype_keys);
+  assert(n_keys != NULL || in_collection);
+  assert(ctype_keys != NULL || in_collection);
   assert(DDS_OP(inst->data.opcode.code) == DDS_OP_ADR);
 
   /* get the name of the field from the offset instruction, which is the first after the ADR */
@@ -1976,55 +2008,93 @@ static idl_retcode_t get_ctype_keys_adr(const idl_pstate_t *pstate, struct descr
   assert((!type && !member) || (type && member));
   (void) member;
 
-  if (type == NULL)
+  if (!in_collection && type == NULL)
   {
-    /* Additional ADR for nested list-types (e.g. seq of seqs, seq of arrays, etc */
+    /* Additional ADR for nested list-types (e.g. seq of seqs, seq of arrays, etc) are processed with their main ADR entry,
+       but because get_ctype_keys iterates over all instructions, it will also hit the additional ADRs and we need to skip
+       them here. */
     assert (DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_ARR || DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_SEQ || DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_BSQ);
     return IDL_RETCODE_OK;
   }
 
-  struct constructed_type_key *key = idl_calloc (1, sizeof(*key));
-  if (!key)
-    return IDL_RETCODE_NO_MEMORY;
+  /* ADR entries must have the KEY flag set at this point, as a result of a key annotation or set because the ADR is
+     implicitly a key field. For nested list-types, the KEY flag is set before the current function is called recursively. */
+  assert((DDS_OP_FLAGS(inst->data.opcode.code) & DDS_OP_FLAG_KEY));
 
-  if (*ctype_keys == NULL)
-    *ctype_keys = key;
-  else {
-    struct constructed_type_key *last = *ctype_keys;
-    while (last->next)
-      last = last->next;
-    last->next = key;
+  /* Members of aggregated types that are wrapped in a collection are not added as separate key entries
+     in the top-level type, so when inside a collection, no key meta-data is collected */
+  struct constructed_type_key *key = NULL;
+  if (!in_collection)
+  {
+    key = idl_calloc (1, sizeof(*key));
+    if (!key)
+      return IDL_RETCODE_NO_MEMORY;
+
+    if (*ctype_keys == NULL)
+      *ctype_keys = key;
+    else {
+      struct constructed_type_key *last = *ctype_keys;
+      while (last->next)
+        last = last->next;
+      last->next = key;
+    }
+
+    key->ctype = ctype;
+    key->offset = offs + base_type_ops_offs;
+    key->order = inst->data.opcode.order;
+    if (!(key->name = idl_strdup(inst_offs->data.offset.member)))
+      return IDL_RETCODE_NO_MEMORY;
   }
-
-  key->ctype = ctype;
-  key->offset = offs + base_type_ops_offs;
-  key->order = inst->data.opcode.order;
-
-  if (!(key->name = idl_strdup(inst_offs->data.offset.member)))
-    return IDL_RETCODE_NO_MEMORY;
 
   switch (DDS_OP_TYPE(inst->data.opcode.code)) {
     case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_WCHAR: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
     case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: case DDS_OP_VAL_BST: case DDS_OP_VAL_STR: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_WSTR:
-      (*n_keys)++;
+      if (!in_collection)
+        (*n_keys)++;
       break;
 
-    case DDS_OP_VAL_EXT:
+    case DDS_OP_VAL_EXT: {
       assert(ctype->instructions.table[offs + 2].type == ELEM_OFFSET);
       const idl_node_t *node = ctype->instructions.table[offs + 2].data.inst_offset.node;
       struct constructed_type *csubtype = find_ctype(descriptor, node);
       assert(csubtype);
-      if ((ret = get_ctype_keys(pstate, descriptor, csubtype, &key->sub, n_keys, true, 0)))
+      if ((ret = get_ctype_keys(pstate, descriptor, csubtype, in_collection ? NULL : &key->sub, n_keys, true, 0, in_collection)))
         return ret;
       break;
+    }
 
     case DDS_OP_VAL_ARR: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: {
       const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE(inst->data.opcode.code);
       switch (subtype) {
         case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_WCHAR: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
         case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: case DDS_OP_VAL_BST: case DDS_OP_VAL_STR: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_WSTR:
-        case DDS_OP_VAL_ARR: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_STU:
           break;
+        case DDS_OP_VAL_ARR: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: {
+          // For a nested collection, jump to ADR for element type
+          uint32_t elem_offs = offs + 3 + ((DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_BSQ) ? 1 : 0);
+          assert(ctype->instructions.table[elem_offs].type == COUPLE);
+          uint32_t elem_insn_offs = ctype->instructions.table[elem_offs].data.couple.low;
+
+          // Nested ADRs for collection element types also need a KEY flag
+          struct instruction *elem_insn = &ctype->instructions.table[offs + elem_insn_offs];
+          if (!(DDS_OP_FLAGS(elem_insn->data.opcode.code) & DDS_OP_FLAG_KEY))
+            elem_insn->data.opcode.code |= DDS_OP_FLAG_KEY;
+
+          if ((ret = get_ctype_keys_adr(pstate, descriptor, offs + elem_insn_offs, base_type_ops_offs, elem_insn, ctype, NULL, NULL, true)))
+            return ret;
+          break;
+        }
+        case DDS_OP_VAL_STU: {
+          // For collection of structs, recurse into the struct type so that the implicit KEY flag is set
+          uint32_t elem_offs = offs + 3 + ((DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_BSQ) ? 1 : 0);
+          assert(ctype->instructions.table[elem_offs].type == ELEM_OFFSET);
+          const idl_node_t *node = ctype->instructions.table[elem_offs].data.inst_offset.node;
+          struct constructed_type *csubtype = find_ctype(descriptor, node);
+          assert(csubtype);
+          if ((ret = get_ctype_keys(pstate, descriptor, csubtype, NULL, NULL, true, 0, true)))
+            return ret;
+          break;
+        }
         case DDS_OP_VAL_UNI:
           idl_error (pstate, ctype->node, "Using an array or sequence with a union element type as part of the key is currently unsupported");
           return IDL_RETCODE_UNSUPPORTED;
@@ -2032,7 +2102,10 @@ static idl_retcode_t get_ctype_keys_adr(const idl_pstate_t *pstate, struct descr
           abort ();
           return IDL_RETCODE_BAD_PARAMETER;
       }
-      (*n_keys)++;
+
+      // Only when not handling a type wrapped in a collection, increase the key count
+      if (!in_collection)
+        (*n_keys)++;
       break;
     }
 
@@ -2048,11 +2121,13 @@ static idl_retcode_t get_ctype_keys_adr(const idl_pstate_t *pstate, struct descr
   return IDL_RETCODE_OK;
 }
 
-static idl_retcode_t get_ctype_keys(const idl_pstate_t *pstate, struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, uint32_t *n_keys, bool parent_is_key, uint32_t base_type_ops_offs)
+static idl_retcode_t get_ctype_keys(const idl_pstate_t *pstate, struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, uint32_t *n_keys, bool parent_is_key, uint32_t base_type_ops_offs, bool in_collection)
 {
   idl_retcode_t ret;
-  assert(keys);
+  assert(n_keys != NULL || in_collection);
+  assert(keys != NULL || in_collection);
   struct constructed_type_key *ctype_keys = NULL;
+
   for (uint32_t offs = 0; offs < ctype->instructions.count; offs++) {
     struct instruction *inst = &ctype->instructions.table[offs];
     switch (inst->type) {
@@ -2064,7 +2139,7 @@ static idl_retcode_t get_ctype_keys(const idl_pstate_t *pstate, struct descripto
            (not allowed in IDL) and therefore is not in the offset list, the offset in this list is the offset
            of the key field in the base type. */
         uint32_t ops_offs = (uint32_t) base_type_ops_offs + (uint32_t) inst->data.inst_offset.addr_offs + (uint32_t) inst->data.inst_offset.elem_offs;
-        if ((ret = get_ctype_keys(pstate, descriptor, cbasetype, &ctype_keys, n_keys, false, ops_offs)) != IDL_RETCODE_OK)
+        if ((ret = get_ctype_keys(pstate, descriptor, cbasetype, &ctype_keys, n_keys, false, ops_offs, in_collection)) != IDL_RETCODE_OK)
           goto err;
         break;
       }
@@ -2083,7 +2158,7 @@ static idl_retcode_t get_ctype_keys(const idl_pstate_t *pstate, struct descripto
               ret = IDL_RETCODE_SYNTAX_ERROR;
               goto err;
             }
-            if ((ret = get_ctype_keys_adr(pstate, descriptor, offs, base_type_ops_offs, inst, ctype, n_keys, &ctype_keys)) != IDL_RETCODE_OK)
+            if ((ret = get_ctype_keys_adr(pstate, descriptor, offs, base_type_ops_offs, inst, ctype, n_keys, &ctype_keys, in_collection)) != IDL_RETCODE_OK)
               goto err;
           }
         }
@@ -2095,7 +2170,8 @@ static idl_retcode_t get_ctype_keys(const idl_pstate_t *pstate, struct descripto
 
   } /* end for loop through all the ctype's instructions */
 
-  *keys = ctype_keys;
+  if (!in_collection)
+    *keys = ctype_keys;
   return IDL_RETCODE_OK;
 
 err:
@@ -2582,7 +2658,7 @@ generate_descriptor_impl(
   struct constructed_type *ctype = find_ctype(descriptor, descriptor->topic);
   assert(ctype);
   uint32_t n_keys = 0;
-  if ((ret = get_ctype_keys(pstate, descriptor, ctype, &ctype_keys, &n_keys, false, 0)) != IDL_RETCODE_OK)
+  if ((ret = get_ctype_keys(pstate, descriptor, ctype, &ctype_keys, &n_keys, false, 0, false)) != IDL_RETCODE_OK)
     goto err;
   if ((ret = descriptor_init_keys(pstate, ctype, ctype_keys, descriptor, n_keys, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0)) < 0)
     goto err;

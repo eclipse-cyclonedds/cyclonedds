@@ -73,6 +73,7 @@ set(ddsc_test_sources
     "qos_set_match.c"
     "querycondition.c"
     "guardcondition.c"
+    "matchstress.c"
     "readcollect.c"
     "readcondition.c"
     "reader.c"
@@ -269,7 +270,7 @@ if(BUILD_SHARED_LIBS)
 else()
   list(APPEND psmx_includes
     "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/ddsrt/include>"
-    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core/include>" 
+    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../ddsrt/include>")
   add_library(psmx_cdds OBJECT ${psmx_cdds_sources} psmx_cdds_data.c)

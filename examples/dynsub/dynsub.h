@@ -34,13 +34,6 @@ struct type_hashid_map {
   int lineno;
 };
 
-struct context {
-  bool valid_data;
-  bool key;
-  size_t offset;
-  size_t maxalign;
-};
-
 struct ppc {
   bool bol;
   int indent;
