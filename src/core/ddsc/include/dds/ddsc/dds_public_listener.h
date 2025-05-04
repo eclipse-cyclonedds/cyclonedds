@@ -126,6 +126,8 @@ DDS_EXPORT void dds_merge_listener (dds_listener_t *dst, const dds_listener_t *s
  * @component listener_obj
  * @brief Set the data_available callback and argument in the listener structure.
  *
+ * @remark: See also the remark on @ref DDS_DATA_AVAILABLE_STATUS)
+ *
  * @param[in,out] listener listener structure to update
  * @param[in] callback the callback to set or a null pointer
  * @param[in] arg callback argument that is passed uninterpreted to the callback function
@@ -140,6 +142,8 @@ DDS_EXPORT dds_return_t dds_lset_data_available_arg (dds_listener_t *listener, d
  * @ingroup listener_setters
  * @component listener_obj
  * @brief Set the data_on_readers callback and argument in the listener structure.
+ *
+ * @remark: See also the remark on @ref DDS_DATA_AVAILABLE_STATUS)
  *
  * @param[in,out] listener listener structure to update
  * @param[in] callback the callback to set or a null pointer
@@ -399,6 +403,8 @@ DDS_EXPORT void dds_lset_sample_lost (dds_listener_t *listener, dds_on_sample_lo
  * @component listener_obj
  * @brief Set the data_available callback in the listener structure.
  *
+ * @remark: See also the remark on @ref DDS_DATA_AVAILABLE_STATUS)
+ *
  * Equivalent to calling @ref dds_lset_data_available_arg with arg set to the argument passed in
  * dds_create_listener() and reset_on_invoke to true, and throwing away the result.
  *
@@ -514,6 +520,8 @@ DDS_EXPORT dds_return_t dds_lget_data_available_arg (const dds_listener_t *liste
  * @ingroup listener_getters
  * @component listener_obj
  * @brief Get the data_on_readers callback from the listener structure.
+ *
+ * @remark: See also the remark on @ref DDS_DATA_AVAILABLE_STATUS)
  *
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
  * @param[out] callback Callback function; may be a null pointer

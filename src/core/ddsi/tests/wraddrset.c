@@ -146,7 +146,7 @@ static void ddsi_wraddrset_some_cases (int casenumber, int cost, bool wr_psmx, c
   setup_and_start ();
   ddsi_thread_state_awake (ddsi_lookup_thread_state(), &gv);
   ddsi_generate_participant_guid (&wrppguid, &gv);
-  ddsi_new_participant (&wrppguid, &gv, RTPS_PF_PRIVILEGED_PP | RTPS_PF_IS_DDSI2_PP, &plist_pp[0]);
+  ddsi_new_participant (&wrppguid, &gv, 0, &plist_pp[0]);
 
   const struct ddsi_sertype st = {
     .ops = &(struct ddsi_sertype_ops){ .free = sertype_free },
@@ -203,7 +203,7 @@ static void ddsi_wraddrset_some_cases (int casenumber, int cost, bool wr_psmx, c
       ddsi_locator_t loc = ucloc[i]; loc.port = 1000 + (unsigned) j;
       ddsi_add_locator_to_addrset (&gv, proxypp_as, &loc);
       ddsi_add_locator_to_addrset (&gv, proxypp_as, &mcloc);
-      ddsi_new_proxy_participant (&proxy_participant, &gv, &rdppguid[i][j], 0, NULL, proxypp_as, ddsi_ref_addrset (proxypp_as), &plist_pp[i], DDS_INFINITY, DDSI_VENDORID_ECLIPSE, 0, ddsrt_time_wallclock (), 1);
+      ddsi_new_proxy_participant (&proxy_participant, &gv, &rdppguid[i][j], 0, proxypp_as, ddsi_ref_addrset (proxypp_as), &plist_pp[i], DDS_INFINITY, DDSI_VENDORID_ECLIPSE, ddsrt_time_wallclock (), 1);
       assert (proxy_participant != NULL);
 
       const ddsi_guid_t rdguid = {

@@ -979,8 +979,8 @@ static const char *en_boolean_default_vs[] = { "default", "false", "true", NULL 
 static const enum ddsi_boolean_default en_boolean_default_ms[] = { DDSI_BOOLDEF_DEFAULT, DDSI_BOOLDEF_FALSE, DDSI_BOOLDEF_TRUE, 0 };
 GENERIC_ENUM_CTYPE (boolean_default, enum ddsi_boolean_default)
 
-static const char *en_besmode_vs[] = { "full", "writers", "minimal", NULL };
-static const enum ddsi_besmode en_besmode_ms[] = { DDSI_BESMODE_FULL, DDSI_BESMODE_WRITERS, DDSI_BESMODE_MINIMAL, 0 };
+static const char *en_besmode_vs[] = { "full", "writers", NULL };
+static const enum ddsi_besmode en_besmode_ms[] = { DDSI_BESMODE_FULL, DDSI_BESMODE_WRITERS, 0 };
 GENERIC_ENUM_CTYPE (besmode, enum ddsi_besmode)
 
 static const char *en_retransmit_merging_vs[] = { "never", "adaptive", "always", NULL };

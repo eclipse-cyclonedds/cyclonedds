@@ -453,4 +453,27 @@ module TypeBuilderTypes {
   //   sequence<t39_1> f1[2];
   // };
 
+  @nested struct t39_n { @key sequence<short> n1[2]; };
+  struct t39 { t39_n t1; };
+
+  @nested struct t40_n2 { sequence<short> n2_1[2]; };
+  @nested struct t40_n1 { @key t40_n2 n1_1; };
+  struct t40 { t40_n1 t1; };
+
+  typedef sequence<sequence<long> > t41_td1;
+  @nested struct t41_n1 { @key t41_td1 n1[2]; };
+  struct t41 { t41_n1 t1; };
+
+  @nested struct t42_n3 { sequence<sequence<short> > n3_1[2]; @key sequence<octet> n3_2; };
+  @nested struct t42_n2 { @key sequence<t42_n3> n2_1[2]; };
+  @nested struct t42_n1 : t42_n2 { long n1_1; };
+  struct t42 { t42_n1 t1[2]; };
+
+  @nested struct t43_n2 { @key short n2_1; short n2_2; };
+  @nested struct t43_n1 { sequence<t43_n2> n1_1[2]; };
+  struct t43 { t43_n1 t1; @key t43_n1 t2[3]; };
+
+  @nested struct t44_n2 { sequence<long> n2_1; };
+  @nested struct t44_n1 { sequence<sequence<t44_n2> > n1_1[3]; };
+  struct t44 { t44_n1 t1; @key t44_n1 t2; };
 };

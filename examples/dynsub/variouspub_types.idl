@@ -33,3 +33,16 @@ struct D {
   wchar wc;
   unsigned long count;
 };
+
+struct U {
+  uint32 w;
+  @key string x;
+  string y;
+  @key uint32 z;
+};
+
+struct E {
+  uint32 a;
+  @key sequence<U> b[2];
+  @key uint32 c;
+};

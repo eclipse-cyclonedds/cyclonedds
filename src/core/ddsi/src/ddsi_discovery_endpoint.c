@@ -118,11 +118,7 @@ static int sedp_write_endpoint_impl
 (
    struct ddsi_writer *wr, int alive, const ddsi_guid_t *guid,
    const struct ddsi_endpoint_common *epcommon,
-   const dds_qos_t *xqos, struct ddsi_addrset *as, ddsi_security_info_t *security
-#ifdef DDS_HAS_TYPELIB
-   , const struct ddsi_sertype *sertype
-#endif
-)
+   const dds_qos_t *xqos, struct ddsi_addrset *as, ddsi_security_info_t *security)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   const dds_qos_t *defqos = NULL;
@@ -247,12 +243,6 @@ static int sedp_write_endpoint_impl
       for (uint32_t i = 0; i < epcommon->psmx_locators.length; i++)
         add_psmx_locator_to_ps (&epcommon->psmx_locators.locators[i], &arg);
     }
-
-#ifdef DDS_HAS_TYPELIB
-    assert (sertype);
-    if ((ps.qos.type_information = ddsi_sertype_typeinfo (sertype)))
-      ps.qos.present |= DDSI_QP_TYPE_INFORMATION;
-#endif
   }
 
   if (xqos)
@@ -283,11 +273,7 @@ int ddsi_sedp_write_writer (struct ddsi_writer *wr)
     security = &tmp;
 #endif
 
-#ifdef DDS_HAS_TYPELIB
-  return sedp_write_endpoint_impl (sedp_wr, 1, &wr->e.guid, &wr->c, wr->xqos, as, security, wr->type);
-#else
   return sedp_write_endpoint_impl (sedp_wr, 1, &wr->e.guid, &wr->c, wr->xqos, as, security);
-#endif
 }
 
 int ddsi_sedp_write_reader (struct ddsi_reader *rd)
@@ -326,11 +312,7 @@ int ddsi_sedp_write_reader (struct ddsi_reader *rd)
     security = &tmp;
   }
 #endif
-#ifdef DDS_HAS_TYPELIB
-  const int ret = sedp_write_endpoint_impl (sedp_wr, 1, &rd->e.guid, &rd->c, rd->xqos, as, security, rd->type);
-#else
   const int ret = sedp_write_endpoint_impl (sedp_wr, 1, &rd->e.guid, &rd->c, rd->xqos, as, security);
-#endif
   ddsi_unref_addrset (as);
   return ret;
 }
@@ -345,11 +327,7 @@ int ddsi_sedp_dispose_unregister_writer (struct ddsi_writer *wr)
   if (sedp_wr == NULL)
     return 0;
 
-#ifdef DDS_HAS_TYPELIB
-  return sedp_write_endpoint_impl (sedp_wr, 0, &wr->e.guid, NULL, NULL, NULL, NULL, NULL);
-#else
   return sedp_write_endpoint_impl (sedp_wr, 0, &wr->e.guid, NULL, NULL, NULL, NULL);
-#endif
 }
 
 int ddsi_sedp_dispose_unregister_reader (struct ddsi_reader *rd)
@@ -362,11 +340,7 @@ int ddsi_sedp_dispose_unregister_reader (struct ddsi_reader *rd)
   if (sedp_wr == NULL)
     return 0;
 
-#ifdef DDS_HAS_TYPELIB
-  return sedp_write_endpoint_impl (sedp_wr, 0, &rd->e.guid, NULL, NULL, NULL, NULL, NULL);
-#else
   return sedp_write_endpoint_impl (sedp_wr, 0, &rd->e.guid, NULL, NULL, NULL, NULL);
-#endif
 }
 
 static const char *durability_to_string (dds_durability_kind_t k)
@@ -439,7 +413,7 @@ struct ddsi_addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, 
   return as;
 }
 
-void ddsi_handle_sedp_alive_endpoint (const struct ddsi_receiver_state *rst, ddsi_seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, ddsi_sedp_kind_t sedp_kind, const ddsi_guid_prefix_t *src_guid_prefix, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp)
+void ddsi_handle_sedp_alive_endpoint (const struct ddsi_receiver_state *rst, ddsi_seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, ddsi_sedp_kind_t sedp_kind, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp)
 {
 #define E(msg, lbl) do { GVLOGDISC (msg); goto lbl; } while (0)
   struct ddsi_domaingv * const gv = rst->gv;
@@ -458,7 +432,7 @@ void ddsi_handle_sedp_alive_endpoint (const struct ddsi_receiver_state *rst, dds
   assert (datap->present & PP_ENDPOINT_GUID);
   GVLOGDISC (" "PGUIDFMT, PGUID (datap->endpoint_guid));
 
-  if (!ddsi_handle_sedp_checks (gv, sedp_kind, &datap->endpoint_guid, datap, src_guid_prefix, vendorid, timestamp, &proxypp, &ppguid))
+  if (!ddsi_handle_sedp_checks (gv, sedp_kind, &datap->endpoint_guid, datap, vendorid, &proxypp, &ppguid))
     goto err;
 
   xqos = &datap->qos;
@@ -507,19 +481,7 @@ void ddsi_handle_sedp_alive_endpoint (const struct ddsi_receiver_state *rst, dds
     prd = ddsi_entidx_lookup_proxy_reader_guid (gv->entity_index, &datap->endpoint_guid);
   if (pwr || prd)
   {
-    /* Re-bind the proxy participant to the discovery service - and do this if it is currently
-       bound to another DS instance, because that other DS instance may have already failed and
-       with a new one taking over, without our noticing it. */
-    GVLOGDISC (" known%s", ddsi_vendor_is_cloud (vendorid) ? "-DS" : "");
-    if (ddsi_vendor_is_cloud (vendorid) && proxypp->implicitly_created && memcmp (&proxypp->privileged_pp_guid.prefix, src_guid_prefix, sizeof(proxypp->privileged_pp_guid.prefix)) != 0)
-    {
-      GVLOGDISC (" "PGUIDFMT" attach-to-DS "PGUIDFMT, PGUID(proxypp->e.guid), PGUIDPREFIX(*src_guid_prefix), proxypp->privileged_pp_guid.entityid.u);
-      ddsrt_mutex_lock (&proxypp->e.lock);
-      proxypp->privileged_pp_guid.prefix = *src_guid_prefix;
-      ddsi_lease_set_expiry (proxypp->lease, DDSRT_ETIME_NEVER);
-      ddsrt_mutex_unlock (&proxypp->e.lock);
-    }
-    GVLOGDISC ("\n");
+    GVLOGDISC (" known");
   }
   else
   {

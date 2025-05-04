@@ -99,6 +99,14 @@ static void *samples_d[] = {
   NULL
 };
 
+static void *samples_e[] = {
+  &(E){ 0, {{0},{0}}, 456 },
+  &(E){ 0, {{0},{._length=1, ._maximum=1, ._buffer=&(U){34,"aap","noot",56}}}, 456},
+  &(E){ 0, {{0},{._length=1, ._maximum=1, ._buffer=&(U){78,"aap","zus",56}}}, 456},
+  &(E){ 0, {{0},{._length=1, ._maximum=1, ._buffer=&(U){78,"wim","zus",90}}}, 456},
+  NULL
+};
+
 static struct tpentry {
   const char *name;
   const dds_topic_descriptor_t *descr;
@@ -110,6 +118,7 @@ static struct tpentry {
   { "C", &C_desc, samples_c, offsetof (C, b.a.count) },
   { "M1::O", &M1_O_desc, samples_M1_O, SIZE_MAX },
   { "D", &D_desc, samples_d, offsetof (D, count) },
+  { "E", &E_desc, samples_e, offsetof (E, a) },
   { NULL, NULL, NULL, 0 }
 };
 

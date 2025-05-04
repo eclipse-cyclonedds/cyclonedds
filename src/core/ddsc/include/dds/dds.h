@@ -222,11 +222,18 @@ typedef enum dds_status_id {
 #define DDS_SAMPLE_REJECTED_STATUS             (1u << DDS_SAMPLE_REJECTED_STATUS_ID)
 /**
  * @anchor DDS_DATA_ON_READERS_STATUS
- * New information is available in some of the data readers of a subscriber. */
+ * New information is available in some of the data readers of a subscriber.
+ * (See also the remark on @ref DDS_DATA_AVAILABLE_STATUS) */
 #define DDS_DATA_ON_READERS_STATUS             (1u << DDS_DATA_ON_READERS_STATUS_ID)
 /**
  * @anchor DDS_DATA_AVAILABLE_STATUS
- * New information is available in a data reader. */
+ * New information is available in a data reader. When a data-available status is
+ * triggered or a data-available listener is invoked, it's possible that a sample
+ * has already been taken from the reader history cache (RHC), leaving no sample
+ * available for reading. This can occur because updating the RHC with a newly
+ * arrived sample and triggering the status update or listener callback are not
+ * performed atomically. As a result, another thread may have consumed the data
+ * from the RHC before the status update or listener invocation has occurred. */
 #define DDS_DATA_AVAILABLE_STATUS              (1u << DDS_DATA_AVAILABLE_STATUS_ID)
 /**
  * @anchor DDS_LIVELINESS_LOST_STATUS

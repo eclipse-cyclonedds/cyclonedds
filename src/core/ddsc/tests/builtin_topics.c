@@ -12,6 +12,9 @@
 #include "dds/ddsrt/environ.h"
 #include "dds__reader.h"
 #include "test_common.h"
+#ifdef DDS_HAS_TYPELIB
+#include "dds/ddsi/ddsi_typelib.h"
+#endif
 
 static dds_entity_t g_domain      = 0;
 static dds_entity_t g_participant = 0;
@@ -174,6 +177,31 @@ CU_Test(ddsc_builtin_topics, availability_builtin_topics, .init = setup, .fini =
   CU_ASSERT_EQUAL_FATAL (topic, 0);
 }
 
+static void check_type_info (const struct dds_qos *xqos, const dds_topic_descriptor_t *topic_desc)
+{
+#ifdef DDS_HAS_TYPELIB
+  CU_ASSERT_FATAL (xqos->present & DDSI_QP_TYPE_INFORMATION);
+  ddsi_typeid_t *d_id_m = ddsi_typeinfo_typeid (xqos->type_information, DDSI_TYPEID_KIND_MINIMAL);
+  ddsi_typeid_t *d_id_c = ddsi_typeinfo_typeid (xqos->type_information, DDSI_TYPEID_KIND_COMPLETE);
+  DDS_XTypes_EquivalenceHash d_hash_m, d_hash_c;
+  ddsi_typeid_get_equivalence_hash (d_id_m, &d_hash_m);
+  ddsi_typeid_get_equivalence_hash (d_id_c, &d_hash_c);
+  ddsi_typeinfo_t *type_info_from_topicdesc = ddsi_typeinfo_deser (topic_desc->type_information.data, topic_desc->type_information.sz);
+  ddsi_typeid_t *t_id_m = ddsi_typeinfo_typeid (type_info_from_topicdesc, DDSI_TYPEID_KIND_MINIMAL);
+  ddsi_typeid_t *t_id_c = ddsi_typeinfo_typeid (type_info_from_topicdesc, DDSI_TYPEID_KIND_COMPLETE);
+  DDS_XTypes_EquivalenceHash t_hash_m, t_hash_c;
+  ddsi_typeid_get_equivalence_hash (t_id_m, &t_hash_m);
+  ddsi_typeid_get_equivalence_hash (t_id_c, &t_hash_c);
+  CU_ASSERT_FATAL (memcmp (&d_hash_m, &t_hash_m, sizeof (d_hash_m)) == 0);
+  CU_ASSERT_FATAL (memcmp (&d_hash_c, &t_hash_c, sizeof (d_hash_c)) == 0);
+  ddsi_typeinfo_free (type_info_from_topicdesc);
+  ddsi_typeid_fini (d_id_m); ddsrt_free (d_id_m);
+  ddsi_typeid_fini (d_id_c); ddsrt_free (d_id_c);
+  ddsi_typeid_fini (t_id_m); ddsrt_free (t_id_m);
+  ddsi_typeid_fini (t_id_c); ddsrt_free (t_id_c);
+#endif
+}
+
 CU_Test(ddsc_builtin_topics, read_publication_data, .init = setup, .fini = teardown)
 {
   dds_entity_t reader;
@@ -190,6 +218,7 @@ CU_Test(ddsc_builtin_topics, read_publication_data, .init = setup, .fini = teard
   data = samples[0];
   CU_ASSERT_FATAL(ret > 0);
   CU_ASSERT_STRING_EQUAL_FATAL(data->topic_name, "RoundTrip");
+  check_type_info (data->qos, &RoundTripModule_DataType_desc);
   dds_return_loan(reader, samples, ret);
 }
 
@@ -220,6 +249,10 @@ CU_Test(ddsc_builtin_topics, read_subscription_data, .init = setup, .fini = tear
         const bool eq = dds_qos_equal(qos, data->qos);
         CU_ASSERT_FATAL(eq);
       }
+    }
+    if (strcmp (data->topic_name, "RoundTrip") == 0)
+    {
+      check_type_info (data->qos, &RoundTripModule_DataType_desc);
     }
   }
   CU_ASSERT_FATAL(seen == 3);
@@ -262,6 +295,10 @@ CU_Test(ddsc_builtin_topics, read_topic_data, .init = setup, .fini = teardown)
     {
       if (strcmp (data->topic_name, exp[j]) == 0)
         seen |= 1u << j;
+    }
+    if (strcmp (data->topic_name, "RoundTrip") == 0)
+    {
+      check_type_info (data->qos, &RoundTripModule_DataType_desc);
     }
   }
   CU_ASSERT_FATAL(seen == 1); // built-in topics should not be reported as DCPSTopic samples
