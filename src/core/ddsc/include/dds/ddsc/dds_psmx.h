@@ -132,7 +132,7 @@
  *
  *   - ops
  *
- *   All other fields will be initialized by the Cyclone DDS after succesful return and
+ *   All other fields will be initialized by Cyclone DDS after succesful return and
  *   the "get_node_id" operation also will be invoked after the constructor returned.
  *
  * Whether the plugin implements version 0 or version 1 of the interface is controlled by
@@ -140,6 +140,14 @@
  * non-null, it is version 0; if both are null it is version 1.  Neither
  * "create_topic_type" nor "delete_psmx" is touched by Cyclone DDS if the interface is
  * version 0, allowing for binary backwards compatibility.
+ *
+ * For creation and deletion of PSMX topics and endpoints, the expected behaviour of the
+ * plugin for version 0 and version 1 is described in the documentation sections of the
+ * create functions:
+ *
+ * - @ref dds_psmx_create_topic_fn (v0)
+ * - @ref dds_psmx_create_topic_with_type_fn (v1)
+ * - @ref dds_psmx_create_endpoint_fn
  *
  * -- Footnotes: --
  *
@@ -254,13 +262,15 @@ typedef bool (*dds_psmx_type_qos_supported_fn) (struct dds_psmx *psmx_instance, 
  * representing a new topic in the DDS Domain Entity.
  *
  * The PSMX Plugin is expected to represent a PSMX Topic using an extended version of the
- * `dds_psmx_topic` structure.
+ * `dds_psmx_topic` structure. The plugin is responsible for setting `ops` to the addresses
+ * of the various functions implementing the operations. The other members of the `dds_psmx_topic`
+ * structure are initialized by Cyclone DDS and should not be initialized by the plugin.
  *
  * If `type_definition` is not a null pointer, it points into the Cyclone type library. A
  * (default, C) serializer can be constructed using `ddsi_topic_descriptor_from_type`,
  * an XTypes TypeObject using `ddsi_type_get_typeobj`.
  *
- * If the function returns failure, creation of the DDS Entity fails.
+ * If the function returns failure (a null pointer), creation of the DDS Entity fails.
  *
  * @param[in] psmx_instance    The PSMX instance.
  * @param[in] topic_name       The name of the topic to create
@@ -287,10 +297,10 @@ typedef struct dds_psmx_topic * (*dds_psmx_create_topic_with_type_fn) (
  * `dds_psmx_create_topic_with_type`, all PSMX Endpoints related to this PSMX Topic will have
  * been destructed prior to calling this function.
  *
- * If the PSMX Topic was created using `dds_psmx_create_topic`, the PSMX Plugin is
- * required to call `dds_psmx_cleanup_topic_generic` and to do so prior to invalidating
- * the memory associated with the PSMX Topic and releasing any memory allocated for it
- * during construction.
+ * When using interface version 0 (so the PSMX Topic was created using `dds_psmx_create_topic`),
+ * the PSMX Plugin is required to call `dds_psmx_topic_cleanup_generic` and to do so prior to
+ * invalidating the memory associated with the PSMX Topic and releasing any memory allocated for
+ * it during construction.
  *
  * @param[in] psmx_topic       The PSMX Topic to destruct
  * @returns A DDS return code, should be DDS_RETCODE_OK.
@@ -324,10 +334,6 @@ typedef struct dds_psmx_topic * (*dds_psmx_create_topic_fn) (
  * Function called on shutdown of a DDS Domain Entity, before unloading the PSMX Plugin
  * and after all other operations have completed and all objects created in the PSMX
  * Instance have been destructed using the various "delete" functions.
- *
- * The PSMX Plugin is required to call `dds_psmx_fini` and to do so prior to
- * invalidating the memory associated with the PSMX Instance and releasing any memory
- * allocated for it during construction.
  *
  * @param[in] psmx_instance    The PSMX Instance to de-initialize
  */
@@ -394,6 +400,22 @@ typedef struct dds_psmx_ops {
 /**
  * @brief Definition of the function for constructing a PSMX Endpoint for a PSMX Topic
  * @ingroup psmx
+ *
+ * The PSMX Plugin is expected to represent a PSMX Endpoint using an extended version of the
+ * `dds_psmx_endpoint` structure. The behaviour of the plugin is dependent on the interface
+ * version it implements:
+ *
+ * - For version 0, it is responsible for setting:
+ *
+ *   - ops            to the addresses of the various functions implementing the operations
+ *   - endpoint_type  to the value that is passed in the `endpoint_type` parameter
+ *   - psmx_topic     to the PSMX Topic that is passed in the `psmx_topic` parameter
+ *
+ * - For version 1, it is responsible for setting:
+ *
+ *   - ops
+ *
+ *   The other members of the `dds_psmx_endpoint` structure are initialized by Cyclone DDS.
  *
  * @param[in] psmx_topic       The PSMX Topic to create the PSMX Endpoint for
  * @param[in] qos              QoS of the corresponding DDS endpoint
@@ -527,7 +549,7 @@ typedef dds_loaned_sample_t * (*dds_psmx_endpoint_take_fn) (struct dds_psmx_endp
  *   if (ls != NULL) {
  *     dds_reader_store_loaned_sample(reader, ls);
  *   }
- *   dds_loaned_sample_unref(data)
+ *   dds_loaned_sample_unref(ls)
  * ```
  * (alternatively calling `dds_reader_store_loaned_sample_wr_metadata` for each sample)
  *
