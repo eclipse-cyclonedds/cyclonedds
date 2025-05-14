@@ -630,11 +630,35 @@ DDS_DEPRECATED_EXPORT dds_return_t dds_add_psmx_topic_to_list (struct dds_psmx_t
  *
  * does nothing, exists for backwards compatibility only
  *
+ * @param[in] psmx_topic       ignored
+ * @param[in,out] list         ignored
+ * @return `DDS_RETCODE_OK`
+ */
+DDS_DEPRECATED_EXPORT dds_return_t dds_remove_psmx_topic_from_list (struct dds_psmx_topic *psmx_topic, void **list);
+
+/**
+ * @brief nop
+ * @ingroup psmx
+ *
+ * does nothing, exists for backwards compatibility only
+ *
  * @param[in] psmx_endpoint    ignored
  * @param[in,out] list         ignored
  * @return `DDS_RETCODE_OK`
  */
 DDS_DEPRECATED_EXPORT dds_return_t dds_add_psmx_endpoint_to_list (struct dds_psmx_endpoint *psmx_endpoint, void **list);
+
+/**
+ * @brief nop
+ * @ingroup psmx
+ *
+ * does nothing, exists for backwards compatibility only
+ *
+ * @param[in] psmx_endpoint    ignored
+ * @param[in,out] list         ignored
+ * @return `DDS_RETCODE_OK`
+ */
+DDS_DEPRECATED_EXPORT dds_return_t dds_remove_psmx_endpoint_from_list (struct dds_psmx_endpoint *psmx_endpoint, void **list);
 
 /**
  * @brief initialization function for PSMX instance (interface version 0)
