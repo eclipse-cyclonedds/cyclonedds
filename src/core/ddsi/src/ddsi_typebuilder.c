@@ -1820,7 +1820,8 @@ dds_return_t ddsi_topic_descriptor_from_type (struct ddsi_domaingv *gv, dds_topi
     goto err;
   }
 
-  if ((ret = typebuilder_add_aggrtype (tbd, &tbd->toplevel_type, type)) != DDS_RETCODE_OK)
+  const struct ddsi_type * unaliased_type = type_unalias (type);
+  if ((ret = typebuilder_add_aggrtype (tbd, &tbd->toplevel_type, unaliased_type)) != DDS_RETCODE_OK)
     goto err;
   set_implicit_keys_aggrtype (&tbd->toplevel_type, true, false);
   if ((ret = get_topic_descriptor (desc, tbd)) != DDS_RETCODE_OK)

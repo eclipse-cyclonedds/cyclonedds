@@ -138,7 +138,8 @@ CU_TheoryDataPoints (ddsc_typebuilder, topic_desc) = {
                                                  &D(t17), &D(t18), &D(t19), &D(t20), &D(t21), &D(t22), &D(t23), &D(t24),
                                                  &D(t25), &D(t26), &D(t27), &D(t28), &D(t29), &D(t30), &D(t31), &D(t32),
                                                  &D(t33), &D(t34), &D(t35), &D(t36), &D(t37), &D(t38), /* TODO &D(t39), */
-                                                 &D(t40), &D(t41), &D(t42), &D(t43), &D(t44), &D(t45), &D(t46), &D(t47) ),
+                                                 &D(t40), &D(t41), &D(t42), &D(t43), &D(t44), &D(t45), &D(t46), &D(t47),
+                                                 &D(t48)),
 };
 #undef D
 
@@ -248,6 +249,55 @@ CU_Test(ddsc_typebuilder, invalid_toplevel, .init = typebuilder_init, .fini = ty
   }
 
   // cleanup
+  ddsrt_free (generated_desc);
+  topic_type_unref (topic, type);
+}
+
+CU_Test(ddsc_typebuilder, alias_toplevel, .init = typebuilder_init, .fini = typebuilder_fini)
+{
+  char topic_name[100];
+  dds_return_t ret;
+  dds_entity_t topic;
+  struct ddsi_type *type;
+  dds_topic_descriptor_t *generated_desc;
+
+  create_unique_topic_name ("ddsc_typebuilder", topic_name, sizeof (topic_name));
+  topic = dds_create_topic (g_participant, &TypeBuilderTypes_t48_desc, topic_name, NULL, NULL);
+  CU_ASSERT_FATAL (topic > 0);
+
+  // generate a topic descriptor
+  topic_type_ref (topic, &type);
+  generated_desc = dds_alloc (sizeof (*generated_desc));
+  assert (generated_desc);
+  assert (type->xt._u.structure.members.length == 1);
+  assert (type->xt._u.structure.members.seq[0].type->xt._d == DDS_XTypes_TK_ALIAS);
+  ret = ddsi_topic_descriptor_from_type (gv_from_topic (topic), generated_desc, type->xt._u.structure.members.seq[0].type);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+
+  // should be able to create a topic
+  char topic_name2[100];
+  create_unique_topic_name ("ddsc_typebuilder", topic_name2, sizeof (topic_name2));
+  const dds_entity_t topic2 = dds_create_topic (g_participant, generated_desc, topic_name2, NULL, NULL);
+  CU_ASSERT_FATAL (topic2 > 0);
+
+  // verify its type really is the alias
+  struct ddsi_type *type2;
+  topic_type_ref (topic2, &type2);
+  CU_ASSERT_EQUAL (type2->xt._d, DDS_XTypes_TK_ALIAS);
+  topic_type_unref (topic2, type2);
+
+#if 0
+  const dds_entity_t wr = dds_create_writer (g_participant, topic2, NULL, NULL);
+  CU_ASSERT_FATAL (wr > 0);
+  while (true)
+  {
+    dds_write (wr, &(TypeBuilderTypes_t48){ .t1 = { .n1 = 33 } });
+    dds_sleepfor (DDS_SECS (1));
+  }
+#endif
+
+  // cleanup
+  ddsi_topic_descriptor_fini (generated_desc);
   ddsrt_free (generated_desc);
   topic_type_unref (topic, type);
 }
