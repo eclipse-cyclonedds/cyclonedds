@@ -2135,24 +2135,24 @@ ddsrt_nonnull_all
 static struct xt_type *xt_expand_basetype (struct ddsi_domaingv *gv, const struct xt_type *t, struct ddsi_non_assignability_reason *reason)
 {
   assert (t->_d == DDS_XTypes_TK_STRUCTURE);
-  assert (t->_u.structure.base_type);
-  const struct xt_type *b = ddsi_xt_unalias (&t->_u.structure.base_type->xt);
-  if (!xt_is_assignable_check_resolved (b, reason, t, 0))
-    return NULL;
-  struct xt_type *te = xt_has_basetype (b) ? xt_expand_basetype (gv, b, reason) : xt_dup (gv, t);
-  if (!te)
-    return NULL;
-  struct xt_struct_member_seq *ms = &te->_u.structure.members;
+  if (!xt_has_basetype (t))
+    return xt_dup (gv, t);
+  else
+  {
+    const struct xt_type * const b = ddsi_xt_unalias (&t->_u.structure.base_type->xt);
+    if (!xt_is_assignable_check_resolved (b, reason, t, 0))
+      return NULL;
+    struct xt_type * const te = xt_expand_basetype (gv, b, reason);
+    if (!te)
+      return NULL;
 
-  /* Expand members of the base type in the resulting type
-     before the members of the derived type */
-  uint32_t incr = b->_u.structure.members.length;
-  ms->seq = ddsrt_realloc (ms->seq, (ms->length + incr) * sizeof (*ms->seq));
-  memmove (&ms->seq[incr], ms->seq, ms->length * sizeof (*ms->seq));
-  ms->length += incr;
-  for (uint32_t i = 0; i < incr; i++)
-    xt_struct_member_copy (gv, &ms->seq[i], &b->_u.structure.members.seq[i]);
-  return te;
+    const uint32_t incr = t->_u.structure.members.length;
+    struct xt_struct_member_seq * const ms = &te->_u.structure.members;
+    ms->seq = ddsrt_realloc (ms->seq, (ms->length + incr) * sizeof (*ms->seq));
+    for (uint32_t i = 0; i < incr; i++)
+      xt_struct_member_copy (gv, &ms->seq[ms->length++], &t->_u.structure.members.seq[i]);
+    return te;
+  }
 }
 
 static struct xt_type *xt_type_key_erased (struct ddsi_domaingv *gv, const struct xt_type *t)

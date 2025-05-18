@@ -85,10 +85,6 @@ typedef struct dds_psmx_endpoint_v0 {
  * and after all other operations have completed and all objects created in the PSMX
  * Instance have been destructed using the various "delete" functions.
  *
- * The PSMX Plugin is required to call `dds_psmx_fini` and to do so prior to
- * invalidating the memory associated with the PSMX Instance and releasing any memory
- * allocated for it during construction.
- *
  * @param[in] psmx    The PSMX Instance to de-initialize
  */
 typedef void (*dds_psmx_delete_int_fn) (struct dds_psmx_int *psmx);
@@ -127,17 +123,12 @@ typedef struct dds_psmx_topic_int * (*dds_psmx_create_topic_with_type_int_fn) (
  * @ingroup psmx
  *
  * Definition for a function that is called on deleting the topic in the DDS Domain.
- * Called exactly once for each successful invocation of `dds_psmx_topic_new`, all
+ * Called exactly once for each successful invocation of `dds_psmx_create_topic_with_type`, all
  * PSMX Endpoints related to this PSMX Topic will have been destructed prior to calling
  * this function.
  *
- * If the PSMX Topic was created using `dds_psmx_topic_new`, the PSMX Plugin is
- * required to call `dds_psmx_topic_fini` and to do so prior to invalidating the
- * memory associated with the PSMX Topic and releasing any memory allocated for it
- * during construction.
- *
  * If it was created using `dds_psmx_create_topic` it is allowed to call
- * `dds_psmx_cleanup_topic_generic` instead of `dds_psmx_topic_fini`
+ * `dds_psmx_topic_cleanup_generic` instead of `dds_psmx_topic_fini`
  * for backwards compatibility.
  *
  * @param[in] psmx_topic       The PSMX Topic to destruct
