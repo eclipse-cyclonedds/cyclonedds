@@ -83,7 +83,21 @@ dds_return_t dds_add_psmx_topic_to_list (struct dds_psmx_topic *psmx_topic, void
   return DDS_RETCODE_OK;
 }
 
+dds_return_t dds_remove_psmx_topic_from_list (struct dds_psmx_topic *psmx_topic, void **list)
+{
+  // deprecated, kept for compatibility with older PSMX Plugin sources
+  (void) psmx_topic; (void) list;
+  return DDS_RETCODE_OK;
+}
+
 dds_return_t dds_add_psmx_endpoint_to_list (struct dds_psmx_endpoint *psmx_endpoint, void **list)
+{
+  // deprecated, kept for compatibility with older PSMX Plugin sources
+  (void) psmx_endpoint; (void) list;
+  return DDS_RETCODE_OK;
+}
+
+dds_return_t dds_remove_psmx_endpoint_from_list (struct dds_psmx_endpoint *psmx_endpoint, void **list)
 {
   // deprecated, kept for compatibility with older PSMX Plugin sources
   (void) psmx_endpoint; (void) list;
