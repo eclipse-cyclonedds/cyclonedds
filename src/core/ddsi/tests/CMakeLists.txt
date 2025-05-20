@@ -19,6 +19,7 @@ set(ddsi_test_sources
     "plist_leasedur.c"
     "pmd_message.c"
     "radmin.c"
+    "receive_packet.c"
     "sysdeps.c"
     "wraddrset.c")
 
