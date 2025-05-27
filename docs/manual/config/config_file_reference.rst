@@ -2775,5 +2775,5 @@ The default value is: ``none``
    generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] 
    generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] 
    generated from generate_rst.c[3c4b523fbb57c8e4a7e247379d06a8021ccc21c4] 
-   generated from generate_xsd.c[6b6818d7f17a35d56c376c04ec1410427f34c0f0] 
+   generated from generate_xsd.c[9bb91084fff7495aee9c025db3108549a0141957] 
    generated from generate_defconfig.c[ba599ccf70b6f1929c08a597a6c555ff2375e458] 
