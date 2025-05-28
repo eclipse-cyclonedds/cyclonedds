@@ -6328,7 +6328,7 @@ void dds_cdrstream_desc_init (struct dds_cdrstream_desc *desc, const struct dds_
     qsort (desc->keys.keys_definition_order, nkeys, sizeof (*desc->keys.keys_definition_order), key_cmp_idx);
 
   /* Get the actual number of ops, excluding the member ID table ops */
-    desc->ops.nops = dds_stream_countops (ops, nkeys, keys);
+  desc->ops.nops = dds_stream_countops (ops, nkeys, keys);
   desc->ops.ops = allocator->malloc (desc->ops.nops * sizeof (*desc->ops.ops));
   memcpy (desc->ops.ops, ops, desc->ops.nops * sizeof (*desc->ops.ops));
 

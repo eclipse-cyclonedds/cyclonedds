@@ -520,7 +520,7 @@ dds_entity_t dds_create_topic_impl (
    * best-effort will do "the right thing" and let a writer still default to
    * reliable ... (and keep behaviour unchanged) */
 
-  if ((rc = dds_ensure_valid_data_representation (new_qos, (*sertype)->allowed_data_representation, true)) != DDS_RETCODE_OK)
+  if ((rc = dds_ensure_valid_data_representation (new_qos, (*sertype)->allowed_data_representation, (*sertype)->data_type_props, true)) != DDS_RETCODE_OK)
     goto error;
 
   struct ddsi_domaingv * const gv = &pp->m_entity.m_domain->gv;
@@ -656,7 +656,6 @@ dds_entity_t dds_create_topic_sertype (dds_entity_t participant, const char *nam
 
 dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descriptor_t *descriptor, const char *name, const dds_qos_t *qos, const dds_listener_t *listener)
 {
-  dds_entity_t hdl;
   struct dds_entity *ppent;
   dds_return_t ret;
 
@@ -681,28 +680,30 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   uint16_t min_xcdrv = dds_stream_minimum_xcdr_version (descriptor->m_ops);
   if (min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
     allowed_repr &= ~DDS_DATA_REPRESENTATION_FLAG_XCDR1;
-  if ((hdl = dds_ensure_valid_data_representation (tpqos, allowed_repr, true)) != DDS_RETCODE_OK)
+  if ((ret = dds_ensure_valid_data_representation (tpqos, allowed_repr, dds_stream_data_types (descriptor->m_ops), true)) != DDS_RETCODE_OK)
     goto err_data_repr;
 
   assert (tpqos->present & DDSI_QP_DATA_REPRESENTATION && tpqos->data_representation.value.n > 0);
   dds_data_representation_id_t data_representation = tpqos->data_representation.value.ids[0];
 
   struct dds_sertype_default *st = ddsrt_malloc (sizeof (*st));
-  if ((hdl = dds_sertype_default_init (ppent->m_domain, st, descriptor, min_xcdrv, data_representation)) < 0)
+  if ((ret = dds_sertype_default_init (ppent->m_domain, st, descriptor, min_xcdrv, data_representation)) < 0)
   {
     ddsrt_free (st);
     goto err_st_init;
   }
 
   struct ddsi_sertype *st_tmp = &st->c;
-  hdl = dds_create_topic_impl (participant, name, false, &st_tmp, tpqos, listener, false);
+  dds_entity_t hdl = dds_create_topic_impl (participant, name, false, &st_tmp, tpqos, listener, false);
   if (hdl < 0)
     ddsi_sertype_unref (st_tmp);
+  ret = hdl;
+
 err_data_repr:
 err_st_init:
   dds_delete_qos (tpqos);
   dds_entity_unpin (ppent);
-  return hdl;
+  return ret;
 }
 
 static dds_topic *pin_if_matching_topic (dds_entity * const e_pp_child, const char *name, const ddsi_typeinfo_t *type_info)
