@@ -36,6 +36,11 @@
 #define TYPE (16)
 #define SUBTYPE (8)
 
+struct visited_ctype {
+  struct constructed_type *ctype;
+  struct visited_ctype *next;
+};
+
 static const uint16_t nop = UINT16_MAX;
 
 static idl_retcode_t push_field(
@@ -209,6 +214,9 @@ stash_offset(
   levels = idl_is_declarator(fld->node) != 0;
   if (IDL_PRINT(&inst.data.offset.type, print_type, idl_ancestor(fld->node, levels)) < 0)
     goto err_type;
+
+  if (idl_is_declarator(fld->node))
+    inst.data.offset.member_id = ((idl_declarator_t *)fld->node)->id.value;
 
   if (stash_instruction(pstate, instructions, index, &inst))
     goto err_stash;
@@ -725,6 +733,43 @@ close_mutable_member(
     return ret;
   return IDL_RETCODE_OK;
 }
+
+static idl_retcode_t
+stash_member_id(
+  const idl_pstate_t *pstate, struct descriptor *descriptor, struct instructions *instructions, uint32_t index, int16_t offs, const char *type, const char *member)
+{
+  struct instruction inst = { MEMBER_ID, { .member_id = { .addr_offs = offs, .type = type, .member = member } } };
+  descriptor->n_opcodes++;
+  return stash_instruction(pstate, instructions, index, &inst);
+}
+
+static idl_retcode_t
+add_member_id_entry(
+  const idl_pstate_t *pstate,
+  struct descriptor *descriptor,
+  struct constructed_type_memberid *mid)
+{
+  idl_retcode_t ret;
+  assert(descriptor->member_ids.count <= INT16_MAX);
+  assert(mid->ctype->offset <= INT32_MAX);
+  assert(mid->ctype->offset < (uint32_t) (INT32_MAX - mid->rel_offs));
+  int32_t offs = ((int32_t)mid->ctype->offset + mid->rel_offs);
+  assert(offs >= INT16_MIN);
+  assert(offs <= INT16_MAX);
+  if ((ret = stash_member_id(pstate, descriptor, &descriptor->member_ids, nop, (int16_t) offs, mid->type, mid->member)) ||
+      (ret = stash_single(pstate, &descriptor->member_ids, nop, mid->value)))
+    return ret;
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+close_member_id_table(
+  const idl_pstate_t *pstate,
+  struct descriptor *descriptor)
+{
+  return stash_opcode(pstate, descriptor, &descriptor->member_ids, nop, DDS_OP_RTS, 0u);
+}
+
 
 static idl_retcode_t
 emit_case(
@@ -1658,6 +1703,9 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
     case DDS_OP_JEQ4:
       vec[len++] = "DDS_OP_JEQ4";
       break;
+    case DDS_OP_MID:
+      vec[len++] = "DDS_OP_MID";
+      break;
     default:
       assert(opcode == DDS_OP_ADR);
       vec[len++] = "DDS_OP_ADR";
@@ -1708,6 +1756,10 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
   if (opcode == DDS_OP_PLM) {
     /* lower 16 bits contain an offset */
     idl_snprintf(buf, sizeof(buf), " | %u", (uint16_t) DDS_OP_JUMP (inst->data.opcode.code));
+    vec[len++] = buf;
+  } else if (opcode == DDS_OP_MID) {
+    /* lower 16 bits contain an offset */
+    idl_snprintf(buf, sizeof(buf), " | %u", (uint16_t) DDS_OP_JUMP (inst->data.member_id.addr_offs));
     vec[len++] = buf;
   } else if (opcode == DDS_OP_JEQ4) {
     enum dds_stream_typecode type = DDS_OP_TYPE(inst->data.opcode.code);
@@ -1808,7 +1860,7 @@ static int print_single(FILE *fp, const struct instruction *inst)
   return idl_fprintf(fp, "%"PRIu32"u", inst->data.single);
 }
 
-static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t *kof_offs)
+static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t *kof_offs, uint32_t *mid_table_offs)
 {
   const struct instruction *inst;
   enum dds_stream_opcode opcode;
@@ -1932,6 +1984,7 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
         }
         case KEY_OFFSET:
         case KEY_OFFSET_VAL:
+        case MEMBER_ID:
           return -1;
       }
       cnt++;
@@ -1968,6 +2021,39 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
       default:
         return -1;
     }
+    cnt++;
+  }
+
+  if (mid_table_offs)
+    *mid_table_offs = descriptor->member_ids.count > 0 ? cnt : 0;
+
+  for (size_t op = 0, brk = 0; op < descriptor->member_ids.count; op++) {
+    inst = &descriptor->member_ids.table[op];
+    const char *sep = seps[op == brk];
+    switch (inst->type)
+    {
+      case MEMBER_ID:
+      {
+        const struct instruction inst_op = { OPCODE, { .opcode = { .code = (DDS_OP_MID & DDS_OP_MASK) | (inst->data.member_id.addr_offs & DDS_KOF_OFFSET_MASK), .order = 0 } } };
+        if (fputs(sep, fp) < 0 || (op == 0 && idl_fprintf(fp, "\n  /* member ID list */\n  ") < 0) || print_opcode(fp, &inst_op) < 0 || idl_fprintf(fp, " /* %s.%s */", inst->data.member_id.type, inst->data.member_id.member) < 0)
+          return -1;
+        brk = op + 2;
+        break;
+      }
+      case SINGLE:
+        if (fputs(sep, fp) < 0 || print_single(fp, inst) < 0)
+          return -1;
+        break;
+      case OPCODE:
+        opcode = DDS_OP(inst->data.opcode.code);
+        assert (opcode == DDS_OP_RTS);
+        if (fputs(sep, fp) < 0 || print_opcode(fp, inst) < 0)
+          return -1;
+        break;
+      default:
+        return -1;
+    }
+    cnt++;
   }
 
   if (fputs("\n};\n\n", fp) < 0)
@@ -2335,6 +2421,177 @@ err_type:
   return -1;
 }
 
+
+static void free_ctype_memberids(struct constructed_type_memberid *mids)
+{
+  struct constructed_type_memberid *tmp = mids, *tmp1;
+  while (tmp) {
+    tmp1 = tmp;
+    tmp = tmp->next;
+    idl_free (tmp1);
+  }
+}
+
+static idl_retcode_t get_ctype_memberids(const idl_pstate_t *pstate, struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_memberid **ctype_mids, struct visited_ctype *visited_ctypes);
+
+static idl_retcode_t get_ctype_memberids_adr(const idl_pstate_t *pstate, struct descriptor *descriptor, uint32_t offs, struct instruction *inst, struct constructed_type *ctype, struct constructed_type_memberid **ctype_mids, struct visited_ctype *visited_ctypes)
+{
+  idl_retcode_t ret;
+
+  assert(DDS_OP(inst->data.opcode.code) == DDS_OP_ADR);
+
+  /* get the name of the field from the offset instruction, which is the first after the ADR */
+  const struct instruction *inst_offs = &ctype->instructions.table[offs + 1];
+  assert(inst_offs->type == OFFSET);
+
+  if (inst->data.opcode.code & DDS_OP_FLAG_OPT)
+  {
+    struct constructed_type_memberid *mid = idl_calloc (1, sizeof(*mid));
+    if (mid == NULL)
+      return IDL_RETCODE_NO_MEMORY;
+    mid->ctype = ctype;
+    mid->rel_offs = (int16_t) offs;
+    mid->value = inst_offs->data.offset.member_id;
+    mid->type = inst_offs->data.offset.type;
+    mid->member = inst_offs->data.offset.member;
+
+    if (*ctype_mids == NULL)
+    {
+      *ctype_mids = mid;
+    }
+    else
+    {
+      struct constructed_type_memberid *last = *ctype_mids;
+      while (!(last->ctype == mid->ctype && last->value == mid->value) && last->next)
+        last = last->next;
+      if (last->next == NULL)
+        last->next = mid;
+      else
+        idl_free (mid);
+    }
+  }
+
+  const enum dds_stream_typecode type = DDS_OP_TYPE(inst->data.opcode.code);
+  switch (type) {
+    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_WCHAR: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+    case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: case DDS_OP_VAL_BST: case DDS_OP_VAL_STR: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_WSTR:
+      break;
+
+    case DDS_OP_VAL_EXT: {
+      assert(ctype->instructions.table[offs + 2].type == ELEM_OFFSET);
+      const idl_node_t *node = ctype->instructions.table[offs + 2].data.inst_offset.node;
+      struct constructed_type *csubtype = find_ctype(descriptor, node);
+      assert(csubtype);
+      if ((ret = get_ctype_memberids(pstate, descriptor, csubtype, ctype_mids, visited_ctypes)))
+        return ret;
+      break;
+    }
+
+    case DDS_OP_VAL_ARR: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: {
+      const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE(inst->data.opcode.code);
+      uint32_t offs_insn_offs = 3;
+      if (type == DDS_OP_VAL_BSQ)
+        offs_insn_offs++;
+      switch (subtype) {
+        case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_WCHAR: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+        case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: case DDS_OP_VAL_BST: case DDS_OP_VAL_STR: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_WSTR:
+          break;
+        case DDS_OP_VAL_ARR: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: {
+          assert(ctype->instructions.table[offs + offs_insn_offs].type == COUPLE);
+          uint16_t elem_addr_offs = ctype->instructions.table[offs + offs_insn_offs].data.couple.low;
+          struct instruction *inst = &ctype->instructions.table[offs + elem_addr_offs];
+          if ((ret = get_ctype_memberids_adr(pstate, descriptor, offs + elem_addr_offs, inst, ctype, ctype_mids, visited_ctypes)))
+            return ret;
+          break;
+        }
+        case DDS_OP_VAL_STU: case DDS_OP_VAL_UNI: {
+          assert(ctype->instructions.table[offs + offs_insn_offs].type == ELEM_OFFSET);
+          const idl_node_t *node = ctype->instructions.table[offs + offs_insn_offs].data.inst_offset.node;
+          struct constructed_type *csubtype = find_ctype(descriptor, node);
+          assert(csubtype);
+          if ((ret = get_ctype_memberids(pstate, descriptor, csubtype, ctype_mids, visited_ctypes)))
+            return ret;
+          break;
+        }
+        case DDS_OP_VAL_EXT:
+          abort ();
+          return IDL_RETCODE_BAD_PARAMETER;
+      }
+      break;
+    }
+
+    case DDS_OP_VAL_UNI:
+      assert(ctype->instructions.table[offs + 2].type == SINGLE);
+      assert(ctype->instructions.table[offs + 3].type == COUPLE);
+      const uint32_t num_cases = ctype->instructions.table[offs + 2].data.single;
+      uint32_t jeq_offs = offs + ctype->instructions.table[offs + 3].data.couple.low;
+      for (uint32_t c = 0; c < num_cases; c++)
+      {
+        if (ctype->instructions.table[jeq_offs].type == OPCODE)
+        {
+          // FIXME: SEQ/BSQ/ARR
+        }
+        else if (ctype->instructions.table[jeq_offs].type == JEQ_OFFSET)
+        {
+          const enum dds_stream_typecode subtype = DDS_OP_TYPE(ctype->instructions.table[jeq_offs].data.inst_offset.inst.opcode);
+          assert (subtype == DDS_OP_VAL_STU || subtype == DDS_OP_VAL_UNI);
+          const idl_node_t *node = ctype->instructions.table[jeq_offs].data.inst_offset.node;
+          struct constructed_type *csubtype = find_ctype(descriptor, node);
+          assert(csubtype);
+          if ((ret = get_ctype_memberids(pstate, descriptor, csubtype, ctype_mids, visited_ctypes)))
+            return ret;
+        }
+        else
+          abort ();
+
+        // move to next JEQ4
+        jeq_offs += 4;
+      }
+      break;
+    case DDS_OP_VAL_STU:
+      return IDL_RETCODE_BAD_PARAMETER;
+  }
+
+  return IDL_RETCODE_OK;
+}
+
+
+static idl_retcode_t get_ctype_memberids(const idl_pstate_t *pstate, struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_memberid **ctype_mids, struct visited_ctype *visited_ctypes)
+{
+  idl_retcode_t ret;
+  struct visited_ctype *vc = visited_ctypes;
+  while (true)
+  {
+    if (vc->ctype == ctype)
+      return IDL_RETCODE_OK;
+    else if (vc->next != NULL)
+      vc = vc->next;
+    else
+    {
+      vc->next = idl_calloc (1, sizeof (*vc->next));
+      vc->next->ctype = ctype;
+      break;
+    }
+  }
+
+  for (uint32_t offs = 0; offs < ctype->instructions.count; offs++)
+  {
+    struct instruction *inst = &ctype->instructions.table[offs];
+    if (inst->type == OPCODE && DDS_OP(inst->data.opcode.code) == DDS_OP_ADR)
+    {
+      if ((ret = get_ctype_memberids_adr(pstate, descriptor, offs, inst, ctype, ctype_mids, visited_ctypes)) != IDL_RETCODE_OK)
+        goto err;
+    }
+  }
+  return IDL_RETCODE_OK;
+
+err:
+  free_ctype_memberids(*ctype_mids);
+  return ret;
+}
+
+
+
 #define MAX_FLAGS 30
 static int print_flags(FILE *fp, struct descriptor *descriptor, bool type_info)
 {
@@ -2390,7 +2647,7 @@ static int print_flags(FILE *fp, struct descriptor *descriptor, bool type_info)
   return fputs(",\n", fp) < 0 ? -1 : 0;
 }
 
-static int print_descriptor(FILE *fp, struct descriptor *descriptor, bool type_info)
+static int print_descriptor(FILE *fp, struct descriptor *descriptor, bool type_info, uint32_t mid_table_offs)
 {
   char *name, *type;
   const char *fmt;
@@ -2453,13 +2710,17 @@ static int print_descriptor(FILE *fp, struct descriptor *descriptor, bool type_i
     }
   }
 
+  fmt = ",\n"
+        "  .m_mid_table_offs = %u";
+  idl_fprintf (fp, fmt, mid_table_offs);
+
   if (idl_fprintf(fp, "\n};\n\n") < 0)
     return -1;
 
   return 0;
 }
 
-static int print_cdrstream_descriptor(FILE *fp, struct descriptor *descriptor, uint32_t offset)
+static int print_cdrstream_descriptor(FILE *fp, struct descriptor *descriptor, uint32_t kof_offs)
 {
   char *name, *type;
   const char *fmt;
@@ -2489,7 +2750,7 @@ static int print_cdrstream_descriptor(FILE *fp, struct descriptor *descriptor, u
     const char *sep = "";
     const char *keyfmt = "%s      { %"PRIu32", %"PRIu32" }";
     for (uint32_t k=0; k < descriptor->n_keys; k++) {
-      if (idl_fprintf(fp, keyfmt, sep, offset + descriptor->keys[k].inst_offs, descriptor->keys[k].key_idx) < 0)
+      if (idl_fprintf(fp, keyfmt, sep, kof_offs + descriptor->keys[k].inst_offs, descriptor->keys[k].key_idx) < 0)
         return -1;
       sep = ",\n";
     }
@@ -2605,7 +2866,8 @@ descriptor_fini(struct descriptor *descriptor)
   }
   instructions_fini(&descriptor->key_offsets);
   descriptor_keys_free(descriptor->keys, descriptor->n_keys);
- idl_free (descriptor->key_offsets.table);
+  idl_free (descriptor->key_offsets.table);
+  idl_free (descriptor->member_ids.table);
   assert(!descriptor->type_stack);
 #if defined(_MSC_VER)
 #pragma warning(pop)
@@ -2664,6 +2926,29 @@ generate_descriptor_impl(
     goto err;
   free_ctype_keys(ctype_keys);
 
+  struct visited_ctype visited_ctypes = { NULL, NULL };
+  struct constructed_type_memberid *ctype_mids = NULL;
+  if ((ret = get_ctype_memberids(pstate, descriptor, ctype, &ctype_mids, &visited_ctypes)) != IDL_RETCODE_OK)
+    goto err;
+  for (struct constructed_type_memberid *mid = ctype_mids; mid != NULL; mid = mid->next)
+  {
+    if ((ret = add_member_id_entry (pstate, descriptor, mid)) < 0)
+      goto err;
+  }
+  if (ctype_mids != NULL)
+  {
+    free_ctype_memberids(ctype_mids);
+    if ((ret = close_member_id_table (pstate, descriptor)) < 0)
+      goto err;
+  }
+  struct visited_ctype *vc = visited_ctypes.next;
+  while (vc != NULL)
+  {
+    struct visited_ctype *vcn = vc->next;
+    idl_free (vc);
+    vc = vcn;
+  }
+
   /* set data representation restriction flag and mask (ignore unsupported data representations) */
   allowable_data_representations_t dr = idl_allowable_data_representations(descriptor->topic);
   if (dr != IDL_ALLOWABLE_DATAREPRESENTATION_DEFAULT && (dr & (IDL_DATAREPRESENTATION_FLAG_XCDR1 | IDL_DATAREPRESENTATION_FLAG_XCDR2))) {
@@ -2685,24 +2970,24 @@ generate_descriptor(
 {
   idl_retcode_t ret;
   struct descriptor descriptor;
-  uint32_t inst_count;
+  uint32_t kof_offs, mid_table_offs;
 
   if ((ret = generate_descriptor_impl(pstate, node, &descriptor)) < 0)
     goto err_gen;
-  if (print_opcodes(generator->source.handle, &descriptor, &inst_count) < 0)
+  if (print_opcodes(generator->source.handle, &descriptor, &kof_offs, &mid_table_offs) < 0)
     { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
-  if (print_keys(generator->source.handle, &descriptor, inst_count) < 0)
+  if (print_keys(generator->source.handle, &descriptor, kof_offs) < 0)
     { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
 #ifdef DDS_HAS_TYPELIB
   if (generator->config.c.generate_type_info && print_type_meta_ser(generator->source.handle, pstate, node) < 0)
     { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
-  if (print_descriptor(generator->source.handle, &descriptor, generator->config.c.generate_type_info) < 0)
+  if (print_descriptor(generator->source.handle, &descriptor, generator->config.c.generate_type_info, mid_table_offs) < 0)
     { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
 #else
-  if (print_descriptor(generator->source.handle, &descriptor, false) < 0)
+  if (print_descriptor(generator->source.handle, &descriptor, false, mid_table_offs) < 0)
     { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
 #endif
-  if (generator->config.generate_cdrstream_desc && print_cdrstream_descriptor(generator->source.handle, &descriptor, inst_count) < 0)
+  if (generator->config.generate_cdrstream_desc && print_cdrstream_descriptor(generator->source.handle, &descriptor, kof_offs) < 0)
     { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
 
 err_print:

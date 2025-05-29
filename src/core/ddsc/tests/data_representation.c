@@ -62,6 +62,8 @@ static void *sample_init_type1 (void)
   sample->t1.s1 = 1;
   sample->t1.s2 = 2;
   sample->t1.s3 = 3;
+  sample->t1.s4 = ddsrt_malloc (sizeof (*sample->t1.s4));
+  sample->t1.s5 = NULL;
   sample->t2 = 100;
   sample->t3 = ddsrt_strdup ("test");
   return sample;
@@ -70,14 +72,25 @@ static bool sample_equal_type1 (const void *a_ptr, const void *b_ptr)
 {
   DataRepresentationTypes_Type1 *a = (DataRepresentationTypes_Type1 *) a_ptr,
     *b = (DataRepresentationTypes_Type1 *) b_ptr;
-  return a->t1.s1 == b->t1.s1 && a->t1.s2 == b->t1.s2 && a->t1.s3 == b->t1.s3 &&
-         a->t2 == b->t2 &&
-         !strcmp (a->t3, b->t3);
+  if (a->t1.s1 != b->t1.s1 || a->t1.s2 != b->t1.s2 || a->t1.s3 != b->t1.s3 || a->t2 != b->t2)
+    return false;
+  if (strcmp (a->t3, b->t3))
+    return false;
+  if ((a->t1.s4 && !b->t1.s4) || (!a->t1.s4 && b->t1.s4) || (a->t1.s4 && b->t1.s4 && *(a->t1.s4) != *(b->t1.s4)))
+    return false;
+  if ((a->t1.s5 && !b->t1.s5) || (!a->t1.s5 && b->t1.s5) || (a->t1.s5 && b->t1.s5 && *(a->t1.s5) != *(b->t1.s5)))
+    return false;
+  return true;
 }
 static void sample_free_type1 (void *p)
 {
   DataRepresentationTypes_Type1 *sample = (DataRepresentationTypes_Type1 *) p;
-  ddsrt_free (sample->t3);
+  if (sample->t3 != NULL)
+    ddsrt_free (sample->t3);
+  if (sample->t1.s4 != NULL)
+    ddsrt_free (sample->t1.s4);
+  if (sample->t1.s5 != NULL)
+    ddsrt_free (sample->t1.s5);
   ddsrt_free (sample);
 }
 
@@ -108,17 +121,29 @@ static void *sample_init_type3 (void)
   for (uint32_t n = 0; n < sizeof (sample->t2) / sizeof (*sample->t2); n++)
     sample->t2[n] = n;
   sample->t3 = 333;
+  sample->t4 = ddsrt_malloc (sizeof (*sample->t4));
+  *sample->t4 = 444;
   return sample;
 }
 static bool sample_equal_type3 (const void *a_ptr, const void *b_ptr)
 {
   DataRepresentationTypes_Type3 *a = (DataRepresentationTypes_Type3 *) a_ptr,
     *b = (DataRepresentationTypes_Type3 *) b_ptr;
-  return a->t1 == b->t1 && !memcmp (a->t2, b->t2, sizeof (a->t2) / sizeof (*a->t2)) && a->t3 == b->t3;
+  if (a->t1 != b->t1)
+    return false;
+  if (memcmp (a->t2, b->t2, sizeof (a->t2) / sizeof (*a->t2)))
+    return false;
+  if (a->t3 != b->t3)
+    return false;
+  if ((a->t4 && !b->t4) || (!a->t4 && b->t4) || (a->t4 && b->t4 && *(a->t4) != *(b->t4)))
+    return false;
+  return true;
 }
 static void sample_free_type3 (void *p)
 {
   DataRepresentationTypes_Type3 *sample = (DataRepresentationTypes_Type3 *) p;
+  if (sample->t4 != NULL)
+    ddsrt_free (sample->t4);
   ddsrt_free (sample);
 }
 
@@ -333,7 +358,7 @@ static void exp_qos (dds_entity_t ent, const datarep_qos_exp_t *d)
   dds_delete_qos (qos);
 }
 
-CU_Test(ddsc_data_representation, extensibility, .init = data_representation_init, .fini = data_representation_fini)
+CU_Test(ddsc_data_representation, data_type_props, .init = data_representation_init, .fini = data_representation_fini)
 {
 #define X_ { { -1 }, 0 }
 #define X1 { { XCDR1 }, 1 }
@@ -354,6 +379,13 @@ CU_Test(ddsc_data_representation, extensibility, .init = data_representation_ini
     { &DESC(TypeFinal),            { X1_2, true, X1_2 }, { X_,   true, X1_2 }, { X_,   true, X1_2 } },
     { &DESC(TypeFinal),            { X1_2, true, X1_2 }, { X2_1, true, X2_1 }, { X_,   true, X1_2 } },
     { &DESC(TypeFinal),            { X_,   true, X1_2 }, { X2,   true, X2   }, { X1,   true, X1   } },
+
+    { &DESC(TypeFinalOptional),    { X_,   true, X2_1 }, { X_,   true, X2_1 }, { X_,   true, X2_1 } },
+    { &DESC(TypeFinalOptional),    { X1,   true, X1   }, { X_,   true, X1   }, { X_,   true, X1   } },
+    { &DESC(TypeFinalOptional),    { X2,   true, X2   }, { X1,   true, X1   }, { X1,   true, X1   } },
+    { &DESC(TypeFinalOptional),    { X1_2, true, X1_2 }, { X1,   true, X1   }, { X1,   true, X1   } },
+    { &DESC(TypeFinalOptional),    { X_,   true, X2_1 }, { X2_1, true, X2_1 }, { X1,   true, X1   } },
+    { &DESC(TypeFinalOptional),    { X_,   true, X2_1 }, { X_,   true, X2_1 }, { X2_1, true, X2_1 } },
 
     { &DESC(TypeAppendable),       { X_,   true,  X2 },  { X_,   true,  X2 },  { X_,   true,  X2 } },
     { &DESC(TypeAppendable),       { X1,   false, X_ },  { X_,   false, X_ },  { X_,   false, X_ } },
@@ -380,7 +412,6 @@ CU_Test(ddsc_data_representation, extensibility, .init = data_representation_ini
     { &DESC(TypeNestedMutableSeq), { X1,   false, X_ },  { X_,   false, X_ },  { X_,   false, X_ } },
     { &DESC(TypeNestedMutableUni), { X_,   true,  X2 },  { X_,   true,  X2 },  { X_,   true,  X2 } },
     { &DESC(TypeNestedMutableUni), { X1,   false, X_ },  { X_,   false, X_ },  { X_,   false, X_ } }
-
   };
 #undef X_
 #undef X1
@@ -393,10 +424,11 @@ CU_Test(ddsc_data_representation, extensibility, .init = data_representation_ini
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
     printf ("running test %u for type %s: ", i, tests[i].desc->m_typename);
-
+    fflush (stdout);
     create_unique_topic_name ("ddsc_data_representation", topicname, sizeof topicname);
 
     printf ("tp ");
+    fflush(stdout);
     dds_qos_t *qos_tp = get_qos (&tests[i].tp);
     dds_entity_t tp = dds_create_topic (dp1, tests[i].desc, topicname, qos_tp, NULL);
     CU_ASSERT_EQUAL_FATAL (tp > 0, tests[i].tp.valid);
@@ -407,6 +439,7 @@ CU_Test(ddsc_data_representation, extensibility, .init = data_representation_ini
     if (tests[i].tp.valid)
     {
       printf ("rd ");
+      fflush (stdout);
       dds_qos_t *qos_rd = get_qos (&tests[i].rd);
       dds_entity_t rd = dds_create_reader (dp1, tp, qos_rd, NULL);
       CU_ASSERT_EQUAL_FATAL (rd > 0, tests[i].rd.valid);
@@ -415,6 +448,7 @@ CU_Test(ddsc_data_representation, extensibility, .init = data_representation_ini
       dds_delete_qos (qos_rd);
 
       printf ("wr ");
+      fflush (stdout);
       dds_qos_t *qos_wr = get_qos (&tests[i].wr);
       dds_entity_t wr = dds_create_writer (dp1, tp, qos_wr, NULL);
       CU_ASSERT_EQUAL_FATAL (wr > 0, tests[i].wr.valid);
