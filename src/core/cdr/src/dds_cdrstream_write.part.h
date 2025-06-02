@@ -561,30 +561,27 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, RESTRICT_OSTREAM_T
       return NULL;
   }
 
-  uint32_t param_length_offs;
-  if (op_type_optional (insn))
+  uint32_t param_length_offs = 0;
+  if (op_type_optional (insn) && !is_mutable_member)
   {
     bool present = (addr != NULL);
-    if (!is_mutable_member)
+    if (os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
     {
-      if (os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
-      {
-        uint32_t flags = DDS_OP_FLAGS (insn);
-        bool must_understand = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
-        uint32_t member_id;
-        if (!find_member_id (mid_table, ops, &member_id))
-          return NULL;
-        dds_stream_write_paramheaderBO (os, allocator, must_understand, member_id, &param_length_offs);
-        if (!present)
-          *((uint32_t *) (os->x.m_buffer + param_length_offs - 4)) = to_BO4u (0);
-      }
-      else // DDSI_RTPS_CDR_ENC_VERSION_2
-      {
-        dds_os_put1BO (os, allocator, present ? 1 : 0);
-      }
+      uint32_t flags = DDS_OP_FLAGS (insn);
+      bool must_understand = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
+      uint32_t member_id;
+      if (!find_member_id (mid_table, ops, &member_id))
+        return NULL;
+      dds_stream_write_paramheaderBO (os, allocator, must_understand, member_id, &param_length_offs);
       if (!present)
-        return dds_stream_skip_adr (insn, ops);
+        *((uint32_t *) (os->x.m_buffer + param_length_offs - 4)) = to_BO4u (0);
     }
+    else // DDSI_RTPS_CDR_ENC_VERSION_2
+    {
+      dds_os_put1BO (os, allocator, present ? 1 : 0);
+    }
+    if (!present)
+      return dds_stream_skip_adr (insn, ops);
   }
   assert (addr || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR || DDS_OP_TYPE (insn) == DDS_OP_VAL_WSTR);
 

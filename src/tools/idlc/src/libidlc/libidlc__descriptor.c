@@ -162,7 +162,7 @@ stash_offset(
   size_t cnt, pos, len, levels;
   const char *ident;
   const struct field *fld;
-  struct instruction inst = { OFFSET, { .offset = { NULL, NULL } } };
+  struct instruction inst = { OFFSET, { .offset = { NULL, NULL, 0 } } };
 
   if (!field)
     return stash_instruction(pstate, instructions, index, &inst);
@@ -2499,8 +2499,8 @@ static idl_retcode_t get_ctype_memberids_adr(const idl_pstate_t *pstate, struct 
         case DDS_OP_VAL_ARR: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: {
           assert(ctype->instructions.table[offs + offs_insn_offs].type == COUPLE);
           uint16_t elem_addr_offs = ctype->instructions.table[offs + offs_insn_offs].data.couple.low;
-          struct instruction *inst = &ctype->instructions.table[offs + elem_addr_offs];
-          if ((ret = get_ctype_memberids_adr(pstate, descriptor, offs + elem_addr_offs, inst, ctype, ctype_mids, visited_ctypes)))
+          struct instruction *elem_inst = &ctype->instructions.table[offs + elem_addr_offs];
+          if ((ret = get_ctype_memberids_adr(pstate, descriptor, offs + elem_addr_offs, elem_inst, ctype, ctype_mids, visited_ctypes)))
             return ret;
           break;
         }

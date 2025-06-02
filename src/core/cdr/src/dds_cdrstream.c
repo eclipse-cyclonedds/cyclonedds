@@ -3960,27 +3960,24 @@ static const uint32_t *stream_normalize_adr (uint32_t insn, char * restrict data
   if (cdr_kind == CDR_KIND_KEY && !is_key)
     return dds_stream_skip_adr (insn, ops);
 
-  uint32_t param_length, off0;
-  if (op_type_optional (insn))
+  uint32_t param_length = 0, off0 = 0;
+  if (op_type_optional (insn) && !is_mutable_member)
   {
     bool present = true;
-    if (!is_mutable_member)
+    if (xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
     {
-      if (xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
-      {
-        assert (mid_table != NULL);
-        bool must_understand;
-        if (!stream_read_normalize_xcdr1_paramheader (data, off, size, bswap, &param_length, &must_understand, mid_table, ops))
-          return NULL;
-        present = (param_length > 0);
-      }
-      else
-      {
-        if (!read_and_normalize_bool (&present, data, off, size))
-          return NULL;
-      }
-      off0 = *off;
+      assert (mid_table != NULL);
+      bool must_understand;
+      if (!stream_read_normalize_xcdr1_paramheader (data, off, size, bswap, &param_length, &must_understand, mid_table, ops))
+        return NULL;
+      present = (param_length > 0);
     }
+    else
+    {
+      if (!read_and_normalize_bool (&present, data, off, size))
+        return NULL;
+    }
+    off0 = *off;
     if (!present)
       return dds_stream_skip_adr (insn, ops);
   }
