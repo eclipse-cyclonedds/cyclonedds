@@ -1761,6 +1761,7 @@ const uint32_t * dds_stream_write_with_byte_order (dds_ostream_t *os, const stru
 
 struct getsize_state {
   size_t pos;
+  size_t align_off; // for XCDR1 mutable encoding
   const size_t alignmask; // max align (= 4 or 8 depending on XCDR version) - 1 => 3 or 7
   const enum cdr_data_kind cdr_kind;
   const uint32_t xcdr_version;
@@ -1774,7 +1775,7 @@ static inline void getsize_reserve (struct getsize_state *st, uint32_t elemsz)
   assert (elemsz == 1 || elemsz == 2 || elemsz == 4 || elemsz == 8);
   assert (st->alignmask == 3 || st->alignmask == 7);
   const size_t a = (elemsz - 1) & st->alignmask;
-  st->pos = ((st->pos + a) & ~a) + elemsz;
+  st->pos = ((st->pos - st->align_off + a) & ~a) + elemsz;
 }
 
 static inline void getsize_reserve_many (struct getsize_state *st, uint32_t elemsz, uint32_t n)
@@ -1783,7 +1784,7 @@ static inline void getsize_reserve_many (struct getsize_state *st, uint32_t elem
   assert (elemsz == 1 || elemsz == 2 || elemsz == 4 || elemsz == 8);
   assert (st->alignmask == 3 || st->alignmask == 7);
   const size_t a = (elemsz - 1) & st->alignmask;
-  st->pos = ((st->pos + a) & ~a) + n * elemsz;
+  st->pos = ((st->pos - st->align_off + a) & ~a) + n * elemsz;
 }
 
 static void dds_stream_getsize_string (struct getsize_state *st, const char *val)
@@ -2068,14 +2069,22 @@ static const uint32_t *dds_stream_getsize_adr (uint32_t insn, struct getsize_sta
   if (st->cdr_kind == CDR_KIND_KEY && !is_key)
     return dds_stream_skip_adr (insn, ops);
 
+  bool alignment_offset_by_4 = false;
   if (op_type_optional (insn))
   {
     if (!is_mutable_member)
     {
-      if (st->xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
-        getsize_reserve_many (st, 4, 3);
-      else
+      if (st->xcdr_version != DDSI_RTPS_CDR_ENC_VERSION_1)
         getsize_reserve (st, 1);
+      else
+      {
+        getsize_reserve_many (st, 4, 3);
+        if (addr && (st->pos % 8) != 0)
+        {
+          st->align_off += 4;
+          alignment_offset_by_4 = true;
+        }
+      }
     }
     if (!addr)
       return dds_stream_skip_adr (insn, ops);
@@ -2116,6 +2125,9 @@ static const uint32_t *dds_stream_getsize_adr (uint32_t insn, struct getsize_sta
     }
     case DDS_OP_VAL_STU: abort (); break; /* op type STU only supported as subtype */
   }
+
+  if (alignment_offset_by_4)
+    st->align_off -= 4;
   return ops;
 }
 
@@ -2223,6 +2235,7 @@ static size_t dds_stream_getsize_sample_impl (const char *data, const uint32_t *
 {
   struct getsize_state st = {
     .pos = 0,
+    .align_off = 0,
     .alignmask = (xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2 ? 3 : 7),
     .cdr_kind = CDR_KIND_DATA,
     .xcdr_version = xcdr_version
@@ -2308,6 +2321,7 @@ size_t dds_stream_getsize_key (const char *sample, const struct dds_cdrstream_de
 {
   struct getsize_state st = {
     .pos = 0,
+    .align_off = 0,
     .alignmask = (xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2 ? 3 : 7),
     .cdr_kind = CDR_KIND_KEY,
     .xcdr_version = xcdr_version
