@@ -342,7 +342,12 @@ static uint32_t dds_cdr_alignto_clear_and_resize_base (restrict_ostream_base_t *
 
 uint32_t dds_cdr_alignto4_clear_and_resize (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t xcdr_version)
 {
-  return dds_cdr_alignto_clear_and_resize_base ((restrict_ostream_base_t *) os, allocator, dds_cdr_get_align (xcdr_version, 4), 0);
+  restrict_ostream_base_t ros;
+  memcpy (&ros, os, sizeof (*os));
+  ros.m_align_off = 0;
+  uint32_t ret = dds_cdr_alignto_clear_and_resize_base (&ros, allocator, dds_cdr_get_align (xcdr_version, 4), 0);
+  memcpy (os, &ros, sizeof (*os));
+  return ret;
 }
 
 ddsrt_nonnull_all
@@ -1793,7 +1798,11 @@ bool dds_stream_write_sampleLE (dds_ostreamLE_t *os, const struct dds_cdrstream_
   const size_t opt_size = os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1 ? desc->opt_size_xcdr1 : desc->opt_size_xcdr2;
   bool res;
   if (opt_size && desc->align && (os->x.m_index % desc->align) == 0) {
-    dds_os_put_bytes_base ((restrict_ostream_base_t *) &os->x, allocator, data, (uint32_t) opt_size);
+    restrict_ostream_t ros;
+    memcpy (&ros, os, sizeof (*os));
+    ros.x.m_align_off = 0;
+    dds_os_put_bytes_base (&ros.x, allocator, data, (uint32_t) opt_size);
+    memcpy (os, &ros, sizeof (*os));
     res = true;
   } else {
     res = dds_stream_writeLE (os, allocator, &desc->member_ids, data, desc->ops.ops) != NULL;
@@ -1834,7 +1843,11 @@ bool dds_stream_write_sampleBE (dds_ostreamBE_t *os, const struct dds_cdrstream_
   const size_t opt_size = os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1 ? desc->opt_size_xcdr1 : desc->opt_size_xcdr2;
   bool res;
   if (opt_size && desc->align && (os->x.m_index % desc->align) == 0) {
-    dds_os_put_bytes_base ((restrict_ostream_base_t *) &os->x, allocator, data, (uint32_t) opt_size);
+    restrict_ostream_t ros;
+    memcpy (&ros, os, sizeof (*os));
+    ros.x.m_align_off = 0;
+    dds_os_put_bytes_base (&ros.x, allocator, data, (uint32_t) opt_size);
+    memcpy (os, &ros, sizeof (*os));
     res = true;
   } else {
     res = dds_stream_writeBE (os, allocator, &desc->member_ids, data, desc->ops.ops) != NULL;
