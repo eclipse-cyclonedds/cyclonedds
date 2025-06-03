@@ -210,7 +210,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream
   return ops;
 }
 
-static bool dds_stream_extract_keyBO_from_data_pl_member (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, uint32_t m_id, const uint32_t *ops, uint32_t n_keys, uint32_t * restrict keys_remaining)
+static bool dds_stream_extract_keyBO_from_data_xcdr2_pl_member (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, uint32_t m_id, const uint32_t *ops, uint32_t n_keys, uint32_t * restrict keys_remaining)
 {
   uint32_t insn, ops_csr = 0;
   bool found = false;
@@ -224,7 +224,7 @@ static bool dds_stream_extract_keyBO_from_data_pl_member (dds_istream_t *is, RES
     {
       assert (DDS_OP (plm_ops[0]) == DDS_OP_PLC);
       plm_ops++; /* skip PLC to go to first PLM from base type */
-      found = dds_stream_extract_keyBO_from_data_pl_member (is, os, allocator, mid_table, m_id, plm_ops, n_keys, keys_remaining);
+      found = dds_stream_extract_keyBO_from_data_xcdr2_pl_member (is, os, allocator, mid_table, m_id, plm_ops, n_keys, keys_remaining);
     }
     else if (ops[ops_csr + 1] == m_id)
     {
@@ -253,7 +253,7 @@ static bool dds_stream_extract_keyBO_from_data_pl_member (dds_istream_t *is, RES
   return found;
 }
 
-static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, uint32_t n_keys, uint32_t * restrict keys_remaining)
+static const uint32_t *dds_stream_extract_keyBO_from_data_xcdr2_pl (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, uint32_t n_keys, uint32_t * restrict keys_remaining)
 {
   /* skip PLC op */
   ops++;
@@ -294,7 +294,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t *is,
 
     /* If in skip-mode, member not found or in case no more keys remaining to be found, skip the member
        in the input stream */
-    if (os == NULL || !dds_stream_extract_keyBO_from_data_pl_member (is, os, allocator, mid_table, m_id, ops, n_keys, keys_remaining))
+    if (os == NULL || !dds_stream_extract_keyBO_from_data_xcdr2_pl_member (is, os, allocator, mid_table, m_id, ops, n_keys, keys_remaining))
     {
       is->m_index += msz;
       if (lc >= LENGTH_CODE_ALSO_NEXTINT)
@@ -334,7 +334,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t *is, R
         ops = dds_stream_extract_keyBO_from_data_delimited (is, os, allocator, mid_table, ops, mutable_member_or_parent, n_keys, keys_remaining);
         break;
       case DDS_OP_PLC:
-        ops = dds_stream_extract_keyBO_from_data_pl (is, os, allocator, mid_table, ops, n_keys, keys_remaining);
+        ops = dds_stream_extract_keyBO_from_data_xcdr2_pl (is, os, allocator, mid_table, ops, n_keys, keys_remaining);
         break;
     }
   }
