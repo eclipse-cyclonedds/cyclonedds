@@ -535,7 +535,7 @@ static const uint32_t *dds_stream_write_uniBO (RESTRICT_OSTREAM_T *os, const str
   return ops;
 }
 
-static void dds_stream_write_paramheaderBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, bool flag_mu, uint32_t member_id, uint32_t *param_length_offset)
+static void dds_stream_write_paramheaderBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, bool flag_mu, uint32_t member_id, uint32_t *param_length_offset, bool *alignment_offset_by_4)
 {
   // Always using long PL encoding
   uint32_t param_header = DDS_XCDR1_PL_SHORT_FLAG_MU | DDS_XCDR1_PL_SHORT_PID_EXTENDED | DDS_XCDR1_PL_SHORT_PID_EXT_LEN; // support for FLAG_IMPL_EXT not implemented
@@ -543,6 +543,18 @@ static void dds_stream_write_paramheaderBO (RESTRICT_OSTREAM_T *os, const struct
   dds_os_put4BO (os, allocator, param_header);
   dds_os_put4BO (os, allocator, param_id);
   *param_length_offset = dds_os_reserve4BO (os, allocator);
+  // Ghastly XCDR1 alignment rules for mutable encoding and the encoding of optionals in non-mutable structs
+  // require us to pretend that the value starts at an offset 0 mod 8. The caller is expected to undo the
+  // change to os->x.m_align_off
+  if ((os->x.m_index % 8) == 0)
+    *alignment_offset_by_4 = false;
+  else
+  {
+    assert ((os->x.m_index % 4) == 0);
+    assert (os->x.m_index >= 4);
+    os->x.m_align_off += 4;
+    *alignment_offset_by_4 = true;
+  }
 }
 
 static const uint32_t *dds_stream_write_adrBO (uint32_t insn, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const char *data, const uint32_t *ops, bool is_mutable_member, enum cdr_data_kind cdr_kind)
@@ -562,6 +574,7 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, RESTRICT_OSTREAM_T
   }
 
   uint32_t param_length_offs = 0;
+  bool alignment_offset_by_4 = false; // for XCDR1 alignment rules
   if (op_type_optional (insn) && !is_mutable_member)
   {
     bool present = (addr != NULL);
@@ -572,7 +585,7 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, RESTRICT_OSTREAM_T
       uint32_t member_id;
       if (!find_member_id (mid_table, ops, &member_id))
         return NULL;
-      dds_stream_write_paramheaderBO (os, allocator, must_understand, member_id, &param_length_offs);
+      dds_stream_write_paramheaderBO (os, allocator, must_understand, member_id, &param_length_offs, &alignment_offset_by_4);
       if (!present)
         *((uint32_t *) (os->x.m_buffer + param_length_offs - 4)) = to_BO4u (0);
     }
@@ -638,8 +651,14 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, RESTRICT_OSTREAM_T
 
   // In case XCDR1, optional member of a non-mutable type: set the parameter length in the (extended) parameter header
   if (os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1 && op_type_optional (insn) && !is_mutable_member)
+  {
     *((uint32_t *) (os->x.m_buffer + param_length_offs - 4)) = to_BO4u (os->x.m_index - param_length_offs);
-
+    if (alignment_offset_by_4)
+    {
+      assert (os->x.m_align_off >= 4);
+      os->x.m_align_off -= 4;
+    }
+  }
   return ops;
 }
 
@@ -770,5 +789,10 @@ static const uint32_t *dds_stream_write_implBO (RESTRICT_OSTREAM_T *os, const st
 
 const uint32_t *dds_stream_writeBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const char *data, const uint32_t *ops)
 {
-  return dds_stream_write_implBO ((RESTRICT_OSTREAM_T *) os, allocator, mid_table, data, ops, false, CDR_KIND_DATA);
+  RESTRICT_OSTREAM_T ros;
+  memcpy (&ros, os, sizeof (*os));
+  ros.x.m_align_off = 0;
+  const uint32_t *ret = dds_stream_write_implBO (&ros, allocator, mid_table, data, ops, false, CDR_KIND_DATA);
+  memcpy (os, &ros, sizeof (*os));
+  return ret;
 }

@@ -63,6 +63,7 @@ static void *sample_init_type1 (void)
   sample->t1.s2 = 2;
   sample->t1.s3 = 3;
   sample->t1.s4 = ddsrt_malloc (sizeof (*sample->t1.s4));
+  *sample->t1.s4 = 4;
   sample->t1.s5 = NULL;
   sample->t2 = 100;
   sample->t3 = ddsrt_strdup ("test");
