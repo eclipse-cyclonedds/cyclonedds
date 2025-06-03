@@ -24,16 +24,12 @@
 
 /************* SEQUENTIAL VERSION ***************/
 
-struct ddsrt_hh_bucket {
-  uint32_t hopinfo;
-  void *data;
-};
-
-struct ddsrt_hh {
-  uint32_t size; /* power of 2 */
-  struct ddsrt_hh_bucket *buckets;
-  ddsrt_hh_hash_fn hash;
-  ddsrt_hh_equals_fn equals;
+static uint32_t ddsrt_hh_hash_0 (const void *x) { (void)x; return 0; }
+static bool ddsrt_hh_equals_false (const void *x, const void *y) { (void)x; (void)y; return false; }
+const struct ddsrt_hh ddsrt_hh_empty = {
+  .size = 1, &(struct ddsrt_hh_bucket){0,0},
+  .hash = ddsrt_hh_hash_0,
+  .equals = ddsrt_hh_equals_false
 };
 
 static void ddsrt_hh_init (struct ddsrt_hh *rt, uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals)
