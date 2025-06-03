@@ -2918,14 +2918,19 @@ static inline const uint32_t *dds_stream_read_adr (uint32_t insn, dds_istream_t 
   uint32_t param_len = 0;
   if (op_type_optional (insn) && !is_mutable_member)
   {
-    if (!stream_is_member_present (is, &param_len))
+    if (!stream_is_member_present (&is1, &param_len))
     {
-      is->m_index += param_len; // param_len is 0 for XCDR2
+      is->m_index = is1.m_index + param_len; // param_len is 0 for XCDR2
       return stream_skip_member (insn, data, addr, allocator, ops, sample_state);
     }
     if (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
     {
-      is1.m_buffer += is->m_index;
+      // increase istream index for member header
+      is->m_index = is1.m_index;
+
+      // Move buffer in temporary istream `is1` to start of parameter value and
+      // set size to param length, so that alignment is reset to 0
+      is1.m_buffer += is1.m_index;
       is1.m_index = 0;
       is1.m_size = param_len;
     }
@@ -5756,15 +5761,20 @@ static const uint32_t * dds_stream_print_adr (char **buf, size_t *bufsize, uint3
   uint32_t param_len = 0;
   if (op_type_optional (insn) && !is_mutable_member)
   {
-    if (!stream_is_member_present (is, &param_len))
+    if (!stream_is_member_present (&is1, &param_len))
     {
       (void) prtf (buf, bufsize, "NULL");
-      is->m_index += param_len; // param_len is 0 for XCDR2
+      is->m_index = is1.m_index + param_len; // param_len is 0 for XCDR2
       return dds_stream_skip_adr (insn, ops);
     }
     if (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
     {
-      is1.m_buffer += is->m_index;
+      // increase istream index for member header
+      is->m_index = is1.m_index;
+
+      // Move buffer in temporary istream `is1` to start of parameter value and
+      // set size to param length, so that alignment is reset to 0
+      is1.m_buffer += is1.m_index;
       is1.m_index = 0;
       is1.m_size = param_len;
     }

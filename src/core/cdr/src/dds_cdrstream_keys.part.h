@@ -143,14 +143,19 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
   dds_istream_t is1 = *is;
   if (op_type_optional (insn) && !mutable_member)
   {
-    if (!stream_is_member_present (is, &param_len))
+    if (!stream_is_member_present (&is1, &param_len))
     {
       assert (!is_key);
-      is->m_index += param_len; // param_len is 0 for XCDR2
+      is->m_index = is1.m_index + param_len; // param_len is 0 for XCDR2
       return dds_stream_skip_adr (insn, ops);
     }
     if (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
     {
+      // increase istream index for member header
+      is->m_index = is1.m_index;
+
+      // Move buffer in temporary istream `is1` to start of parameter value and
+      // set size to param length, so that alignment is reset to 0
       is1.m_buffer += is1.m_index;
       is1.m_index = 0;
       is1.m_size = param_len;
