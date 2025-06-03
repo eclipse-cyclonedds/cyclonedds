@@ -756,8 +756,9 @@ static const uint32_t *dds_stream_write_xcdr2_plBO (RESTRICT_OSTREAM_T *os, cons
   return ops;
 }
 
-static const uint32_t *dds_stream_write_implBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const char *data, const uint32_t *ops, bool is_mutable_member, enum cdr_data_kind cdr_kind)
+static const uint32_t *dds_stream_write_implBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const char *data, const uint32_t *ops0, bool is_mutable_member, enum cdr_data_kind cdr_kind)
 {
+  const uint32_t *ops = ops0; // clang warns about testing a non-null pointer otherwise
   uint32_t insn;
   while (ops && (insn = *ops) != DDS_OP_RTS)
   {
@@ -789,10 +790,11 @@ static const uint32_t *dds_stream_write_implBO (RESTRICT_OSTREAM_T *os, const st
 
 const uint32_t *dds_stream_writeBO (DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const char *data, const uint32_t *ops)
 {
+  const struct dds_cdrstream_desc_mid_table empty_mid_table = { .table = (struct ddsrt_hh *) &ddsrt_hh_empty, .op0 = ops };
   RESTRICT_OSTREAM_T ros;
   memcpy (&ros, os, sizeof (*os));
   ros.x.m_align_off = 0;
-  const uint32_t *ret = dds_stream_write_implBO (&ros, allocator, mid_table, data, ops, false, CDR_KIND_DATA);
+  const uint32_t *ret = dds_stream_write_implBO (&ros, allocator, mid_table ? mid_table : &empty_mid_table, data, ops, false, CDR_KIND_DATA);
   memcpy (os, &ros, sizeof (*os));
   return ret;
 }

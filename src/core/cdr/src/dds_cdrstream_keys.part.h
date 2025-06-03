@@ -8,7 +8,7 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-ddsrt_attribute_warn_unused_result
+ddsrt_attribute_warn_unused_result ddsrt_nonnull ((1, 2, 3, 4, 5))
 static bool dds_stream_write_keyBO_impl (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, const void *src, uint16_t key_offset_count, const uint32_t * key_offset_insn)
 {
   uint32_t insn = *ops;
@@ -70,6 +70,7 @@ static bool dds_stream_write_keyBO_impl (RESTRICT_OSTREAM_T *os, const struct dd
   return true;
 }
 
+ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
 static bool dds_stream_write_keyBO_restrict (RESTRICT_OSTREAM_T *os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator *allocator, const char *sample, const struct dds_cdrstream_desc *desc)
 {
   if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM) && ser_kind == DDS_CDR_KEY_SERIALIZATION_SAMPLE)
@@ -117,6 +118,7 @@ static bool dds_stream_write_keyBO_restrict (RESTRICT_OSTREAM_T *os, enum dds_cd
   return true;
 }
 
+ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
 bool dds_stream_write_keyBO (DDS_OSTREAM_T *os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator *allocator, const char *sample, const struct dds_cdrstream_desc *desc)
 {
   RESTRICT_OSTREAM_T ros;
@@ -127,6 +129,9 @@ bool dds_stream_write_keyBO (DDS_OSTREAM_T *os, enum dds_cdr_key_serialization_k
   return ret;
 }
 
+// If os = NULL, nothing is treated as a key and consequently no output is generated
+// This is used to skip fields marked as a key inside complex types not marked as keys
+ddsrt_attribute_warn_unused_result ddsrt_nonnull ((2, 4, 5, 6, 10))
 static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, bool mutable_member, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * restrict keys_remaining)
 {
   assert (insn == *ops);
@@ -188,6 +193,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
   return ops;
 }
 
+ddsrt_attribute_warn_unused_result ddsrt_nonnull ((1, 3, 4, 5, 8))
 static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * restrict keys_remaining)
 {
   uint32_t delimited_sz_is = dds_is_get4 (is), delimited_offs_is = is->m_index, insn;
@@ -234,6 +240,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream
   return ops;
 }
 
+ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
 static bool dds_stream_extract_keyBO_from_data_xcdr2_pl_member (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, uint32_t m_id, const uint32_t *ops, uint32_t n_keys, uint32_t * restrict keys_remaining)
 {
   uint32_t insn, ops_csr = 0;
@@ -277,6 +284,7 @@ static bool dds_stream_extract_keyBO_from_data_xcdr2_pl_member (dds_istream_t *i
   return found;
 }
 
+ddsrt_attribute_warn_unused_result ddsrt_nonnull ((1, 3, 4, 5, 7))
 static const uint32_t *dds_stream_extract_keyBO_from_data_xcdr2_pl (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, uint32_t n_keys, uint32_t * restrict keys_remaining)
 {
   /* skip PLC op */
@@ -337,6 +345,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_xcdr2_pl (dds_istream_
   return ops;
 }
 
+ddsrt_nonnull ((1, 3, 4, 5, 9))
 static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, bool mutable_member, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * restrict keys_remaining)
 {
   uint32_t insn;
@@ -365,6 +374,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t *is, R
   return ops;
 }
 
+ddsrt_attribute_warn_unused_result ddsrt_nonnull ((1, 3, 4))
 static bool dds_stream_extract_keyBO_from_data_restrict (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc)
 {
   bool ret = true;
@@ -399,6 +409,7 @@ static bool dds_stream_extract_keyBO_from_data_restrict (dds_istream_t *is, REST
   return ret;
 }
 
+ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
 bool dds_stream_extract_keyBO_from_data (dds_istream_t *is, DDS_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc)
 {
   RESTRICT_OSTREAM_T ros;
@@ -409,6 +420,7 @@ bool dds_stream_extract_keyBO_from_data (dds_istream_t *is, DDS_OSTREAM_T *os, c
   return ret;
 }
 
+ddsrt_nonnull ((1, 4, 5))
 static void dds_stream_extract_keyBO_from_key_impl (dds_istream_t *is, RESTRICT_OSTREAM_T *os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc)
 {
   /* The type or any subtype has non-final extensibility, so read a key sample
@@ -425,6 +437,7 @@ static void dds_stream_extract_keyBO_from_key_impl (dds_istream_t *is, RESTRICT_
   allocator->free (sample);
 }
 
+ddsrt_nonnull_all
 static void dds_stream_extract_keyBO_from_key_optimized (dds_istream_t *is, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc)
 {
   for (uint32_t i = 0; i < desc->keys.nkeys; i++)
