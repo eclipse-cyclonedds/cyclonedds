@@ -564,7 +564,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   ddsi_xqos_mergein_missing (rqos, &ddsi_default_qos_reader, ~DDSI_QP_DATA_REPRESENTATION);
   dds_apply_entity_naming(rqos, sub->m_entity.m_qos, gv);
 
-  if ((rc = dds_ensure_valid_data_representation (rqos, tp->m_stype->allowed_data_representation, tp->m_stype->data_type_props, false)) != DDS_RETCODE_OK)
+  if ((rc = dds_ensure_valid_data_representation (rqos, tp->m_stype->allowed_data_representation, tp->m_stype->data_type_props, DDS_KIND_READER)) != DDS_RETCODE_OK)
     goto err_data_repr;
   if ((rc = dds_ensure_valid_psmx_instances (rqos, DDS_PSMX_ENDPOINT_TYPE_READER, tp->m_stype, &sub->m_entity.m_domain->psmx_instances)) != DDS_RETCODE_OK)
     goto err_psmx;

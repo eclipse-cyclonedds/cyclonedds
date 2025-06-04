@@ -520,7 +520,7 @@ dds_entity_t dds_create_topic_impl (
    * best-effort will do "the right thing" and let a writer still default to
    * reliable ... (and keep behaviour unchanged) */
 
-  if ((rc = dds_ensure_valid_data_representation (new_qos, (*sertype)->allowed_data_representation, (*sertype)->data_type_props, true)) != DDS_RETCODE_OK)
+  if ((rc = dds_ensure_valid_data_representation (new_qos, (*sertype)->allowed_data_representation, (*sertype)->data_type_props, DDS_KIND_TOPIC)) != DDS_RETCODE_OK)
     goto error;
 
   struct ddsi_domaingv * const gv = &pp->m_entity.m_domain->gv;
@@ -680,7 +680,7 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   uint16_t min_xcdrv = dds_stream_minimum_xcdr_version (descriptor->m_ops);
   if (min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
     allowed_repr &= ~DDS_DATA_REPRESENTATION_FLAG_XCDR1;
-  if ((ret = dds_ensure_valid_data_representation (tpqos, allowed_repr, dds_stream_data_types (descriptor->m_ops), true)) != DDS_RETCODE_OK)
+  if ((ret = dds_ensure_valid_data_representation (tpqos, allowed_repr, dds_stream_data_types (descriptor->m_ops), DDS_KIND_TOPIC)) != DDS_RETCODE_OK)
     goto err_data_repr;
 
   assert (tpqos->present & DDSI_QP_DATA_REPRESENTATION && tpqos->data_representation.value.n > 0);
