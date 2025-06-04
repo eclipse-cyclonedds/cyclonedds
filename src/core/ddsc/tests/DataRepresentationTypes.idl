@@ -120,12 +120,20 @@ module DataRepresentationTypes {
     long f1;
   };
 
-/*
   @appendable @topic @data_representation(XCDR1)
   struct TypeXcdrA1 {
     long f1;
   };
-*/
+
+  @final @topic @data_representation(XCDR2)
+  struct TypeXcdrNestedA {
+    TypeXcdrA1 f1;
+  };
+
+  @final @topic @data_representation(XCDR1)
+  struct TypeXcdrOptNestedA {
+    @optional TypeXcdrA1 f1;
+  };
 
   @appendable @topic @data_representation(XCDR2)
   struct TypeXcdrA2 {

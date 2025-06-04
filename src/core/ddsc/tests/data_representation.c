@@ -531,7 +531,7 @@ CU_Test(ddsc_data_representation, qos_annotation, .init = data_representation_in
     { &DESC(TypeXcdr1_xml_2), { { X_, true,  X1_2 }, { X1, true,  X1 }, { X2, true,  X2 }, { X1_2, true,  X1_2 } } },
     { &DESC(TypeXcdr1_other), { { X_, true,  X1 },   { X1, true,  X1 }, { X2, false, X_ }, { X1_2, false, X_   } } },
     { &DESC(TypeXcdr2_other), { { X_, true,  X2 },   { X1, false, X_ }, { X2, true,  X2 }, { X1_2, false, X_   } } },
-    //{ &DESC(TypeXcdrA1),      { { X_, false, X_ },   { X1, false, X_ }, { X2, false, X_ }, { X1_2, false, X_   } } },
+    { &DESC(TypeXcdrA1),      { { X_, false, X_ },   { X1, false, X_ }, { X2, false, X_ }, { X1_2, false, X_   } } },
     { &DESC(TypeXcdrA2),      { { X_, true,  X2 },   { X1, false, X_ }, { X2, true,  X2 }, { X1_2, false, X_   } } },
     { &DESC(TypeXcdrA1_2),    { { X_, true,  X2 },   { X1, false, X_ }, { X2, true,  X2 }, { X1_2, false, X_   } } },
   };

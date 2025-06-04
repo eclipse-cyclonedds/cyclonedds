@@ -39,6 +39,46 @@ module MinXcdrVersion {
         long f1;
     };
 
+    @topic @appendable
+    union t_append_u switch (long) {
+        case 1: long f1;
+    };
+
+    @topic @final
+    struct t_append_nested {
+        t_append f1;
+    };
+
+    @topic @final
+    struct t_append_seq {
+        @optional sequence<t_append> f1;
+    };
+
+    @topic @final
+    struct t_append_bseq {
+        @optional sequence<t_append, 3> f1;
+    };
+
+    @topic @final
+    struct t_append_arr {
+        @optional t_append f1[2];
+    };
+
+    @topic @appendable
+    struct t_append_nested_u {
+        t_append_u f1;
+    };
+
+    @topic @final
+    struct t_append_opt {
+        @optional t_append f1;
+    };
+
+    @topic @final
+    struct t_append_opt_u {
+        @optional t_append_u f1;
+    };
+
     @topic @mutable
     struct t_mut {
         long f1;

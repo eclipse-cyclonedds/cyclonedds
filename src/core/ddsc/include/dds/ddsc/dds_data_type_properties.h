@@ -35,6 +35,8 @@ extern "C" {
 #define DDS_DATA_TYPE_CONTAINS_KEY                (0x1ull << 12)
 #define DDS_DATA_TYPE_CONTAINS_BWSTRING           (0x1ull << 13)
 #define DDS_DATA_TYPE_CONTAINS_WCHAR              (0x1ull << 14)
+#define DDS_DATA_TYPE_CONTAINS_APPENDABLE         (0x1ull << 15)
+#define DDS_DATA_TYPE_CONTAINS_MUTABLE            (0x1ull << 16)
 
 #define DDS_DATA_TYPE_IS_MEMCPY_SAFE              (0x1ull << 63)
 

@@ -171,6 +171,7 @@ struct dds_cdrstream_ops_info {
   uint16_t min_xcdrv;
   uint32_t nesting_max;
   dds_data_type_properties_t data_types;
+  bool in_xcdr1_delimited_scope;
 };
 
 const static struct dds_cdrstream_desc_mid_table static_empty_mid_table = { .table = (struct ddsrt_hh *) &ddsrt_hh_empty, .op0 = NULL };
@@ -1094,22 +1095,27 @@ static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struc
             info->data_types |= DDS_DATA_TYPE_CONTAINS_BITMASK;
             break;
           case DDS_OP_VAL_SEQ:
-            ops = dds_stream_get_ops_info_seq (ops, insn, nestc, info);
             info->data_types |= DDS_DATA_TYPE_CONTAINS_SEQUENCE;
+            info->in_xcdr1_delimited_scope = false;
+            ops = dds_stream_get_ops_info_seq (ops, insn, nestc, info);
             break;
           case DDS_OP_VAL_BSQ:
-            ops = dds_stream_get_ops_info_seq (ops, insn, nestc, info);
             info->data_types |= DDS_DATA_TYPE_CONTAINS_BSEQUENCE;
+            info->in_xcdr1_delimited_scope = false;
+            ops = dds_stream_get_ops_info_seq (ops, insn, nestc, info);
             break;
           case DDS_OP_VAL_ARR:
-            ops = dds_stream_get_ops_info_arr (ops, insn, nestc, info);
             info->data_types |= DDS_DATA_TYPE_CONTAINS_ARRAY;
+            info->in_xcdr1_delimited_scope = false;
+            ops = dds_stream_get_ops_info_arr (ops, insn, nestc, info);
             break;
           case DDS_OP_VAL_UNI:
             ops = dds_stream_get_ops_info_uni (ops, nestc, info);
             info->data_types |= DDS_DATA_TYPE_CONTAINS_UNION;
             break;
           case DDS_OP_VAL_EXT: {
+            if (!op_type_optional (insn))
+              info->in_xcdr1_delimited_scope = false;
             const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
             const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
             if (DDS_OP_ADR_JSR (ops[2]) > 0)
@@ -1134,11 +1140,14 @@ static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struc
         break;
       }
       case DDS_OP_DLC: {
-        info->min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_2;
+        info->data_types |= DDS_DATA_TYPE_CONTAINS_APPENDABLE;
+        if (!info->in_xcdr1_delimited_scope)
+          info->min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_2;
         ops++;
         break;
       }
       case DDS_OP_PLC: {
+        info->data_types |= DDS_DATA_TYPE_CONTAINS_MUTABLE;
         info->min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_2;
         ops = dds_stream_get_ops_info_xcdr2_pl (ops, nestc, info);
         break;
@@ -1170,6 +1179,7 @@ static void dds_stream_get_ops_info (const uint32_t *ops, struct dds_cdrstream_o
   info->min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_1;
   info->nesting_max = 0;
   info->data_types = 0ull;
+  info->in_xcdr1_delimited_scope = true;
   dds_stream_get_ops_info1 (ops, 0, info);
 }
 

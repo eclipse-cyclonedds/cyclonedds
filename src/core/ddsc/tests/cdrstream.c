@@ -1841,19 +1841,41 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
 #undef F
 
 #define D(n) (&MinXcdrVersion_ ## n ## _desc)
-CU_TheoryDataPoints (ddsc_cdrstream, min_xcdr_version) = {
-  CU_DataPoints (const dds_topic_descriptor_t *, D(t),  D(t_nested), D(t_inherit), D(t_opt), D(t_ext), D(t_append), D(t_mut), D(t_nested_mut), D(t_nested_opt) ),
-  CU_DataPoints (uint16_t,                       XCDR1, XCDR1,       XCDR1,        XCDR1,    XCDR1,    XCDR2,       XCDR2,    XCDR2,           XCDR1 ),
-};
-
-CU_Theory ((const dds_topic_descriptor_t *desc, uint16_t min_xcdrv),
-    ddsc_cdrstream, min_xcdr_version, .init = cdrstream_init, .fini = cdrstream_fini)
+CU_Test (ddsc_cdrstream, min_xcdr_version)
 {
-  printf("running test for desc: %s\n", desc->m_typename);
-  CU_ASSERT_EQUAL_FATAL (dds_stream_minimum_xcdr_version (desc->m_ops), min_xcdrv);
+  static const struct {
+    const dds_topic_descriptor_t *desc;
+    uint16_t min_xcdrv;
+  } tests[] = {
+    { D(t), XCDR1 },
+    { D(t_nested), XCDR1 },
+    { D(t_inherit), XCDR1 },
+    { D(t_opt), XCDR1 },
+    { D(t_ext), XCDR1 },
+    { D(t_append), XCDR1 },
+    { D(t_append_u), XCDR1 },
+    { D(t_append_nested), XCDR2 },
+    { D(t_append_nested_u), XCDR2 },
+    { D(t_append_opt), XCDR1 },
+    { D(t_append_opt_u), XCDR1 },
+    { D(t_append_seq), XCDR2 },
+    { D(t_append_bseq), XCDR2 },
+    { D(t_append_arr), XCDR2 },
+    { D(t_mut), XCDR2 },
+    { D(t_nested_mut), XCDR2 },
+    { D(t_nested_opt), XCDR1 }
+  };
 
-  entity_init (desc, DDS_DATA_REPRESENTATION_XCDR1, min_xcdrv != XCDR1);
-  entity_init (desc, DDS_DATA_REPRESENTATION_XCDR2, false);
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    printf("running test for desc: %s\n", tests[i].desc->m_typename);
+    cdrstream_init ();
+    CU_ASSERT_EQUAL_FATAL (dds_stream_minimum_xcdr_version (tests[i].desc->m_ops), tests[i].min_xcdrv);
+
+    entity_init (tests[i].desc, DDS_DATA_REPRESENTATION_XCDR1, tests[i].min_xcdrv != XCDR1);
+    entity_init (tests[i].desc, DDS_DATA_REPRESENTATION_XCDR2, false);
+    cdrstream_fini ();
+  }
 }
 #undef D
 
