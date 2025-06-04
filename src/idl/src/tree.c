@@ -1338,45 +1338,55 @@ idl_propagate_autoid(idl_pstate_t *pstate, void *list, idl_autoid_t autoid)
 }
 
 static bool
-set_node_xcdr2_required(void *node)
+set_node_xcdr2_required(void *node, bool in_xcdr1_delimited_scope)
 {
   if (idl_is_alias(node)) {
-    return set_node_xcdr2_required(idl_unalias(node));
+    return set_node_xcdr2_required(idl_unalias(node), in_xcdr1_delimited_scope);
   } else if (idl_is_sequence(node)) {
-    return set_node_xcdr2_required(idl_type_spec(node));
+    return set_node_xcdr2_required(idl_type_spec(node), false);
   } else if (idl_is_struct(node)) {
     idl_struct_t *_struct = (idl_struct_t*)node;
-    if (_struct->requires_xcdr2 != IDL_REQUIRES_XCDR2_UNSET)
-      return (_struct->requires_xcdr2 == IDL_REQUIRES_XCDR2_SETTING) ?
-        false : (_struct->requires_xcdr2 == IDL_REQUIRES_XCDR2_TRUE);
+    if (_struct->requires_xcdr2 == IDL_REQUIRES_XCDR2_SETTING)
+      return false;
     _struct->requires_xcdr2 = IDL_REQUIRES_XCDR2_SETTING;
 
-    bool ret = !idl_is_extensible(node, IDL_FINAL)
-        || (_struct->inherit_spec && set_node_xcdr2_required(idl_type_spec(_struct->inherit_spec)));
+    bool ret = idl_is_extensible(node, IDL_MUTABLE)
+        || (!in_xcdr1_delimited_scope && idl_is_extensible(node, IDL_APPENDABLE))
+        || (_struct->inherit_spec && set_node_xcdr2_required(idl_type_spec(_struct->inherit_spec), in_xcdr1_delimited_scope));
 
     idl_member_t *_member;
     IDL_FOREACH(_member, _struct->members) {
-      if (idl_is_optional(&_member->node) || set_node_xcdr2_required(idl_type_spec(_member))) {
+      bool is_array = false;
+      for (idl_declarator_t *d = _member->declarators; d && !is_array; d = idl_next(d))
+        is_array = idl_is_array(d);
+      if (set_node_xcdr2_required(idl_type_spec(_member), idl_is_optional(&_member->node) && !is_array)) {
         ret = true;
         break;
       }
     };
-    _struct->requires_xcdr2 = ret ? IDL_REQUIRES_XCDR2_TRUE : IDL_REQUIRES_XCDR2_FALSE;
+    // Struct may need XCDR2 because it's used in a non-delimited scope, so we'll
+    // don't do the transition from IDL_REQUIRES_XCDR2_FALSE to IDL_REQUIRES_XCDR2_TRUE
+    if (_struct->requires_xcdr2 != IDL_REQUIRES_XCDR2_TRUE)
+      _struct->requires_xcdr2 = ret ? IDL_REQUIRES_XCDR2_TRUE : IDL_REQUIRES_XCDR2_FALSE;
     return ret;
   } else if (idl_is_union(node)) {
     idl_union_t *_union = (idl_union_t*)node;
-    if (_union->requires_xcdr2 != IDL_REQUIRES_XCDR2_UNSET)
-      return (_union->requires_xcdr2 == IDL_REQUIRES_XCDR2_SETTING) ? false : (_union->requires_xcdr2 == IDL_REQUIRES_XCDR2_TRUE);
+    if (_union->requires_xcdr2 == IDL_REQUIRES_XCDR2_SETTING)
+      return false;
     _union->requires_xcdr2 = IDL_REQUIRES_XCDR2_SETTING;
 
-    bool ret = !idl_is_extensible(node, IDL_FINAL) || set_node_xcdr2_required(idl_type_spec(_union->switch_type_spec));
+    bool ret = idl_is_extensible(node, IDL_MUTABLE)
+        || (!in_xcdr1_delimited_scope && idl_is_extensible(node, IDL_APPENDABLE))
+        || set_node_xcdr2_required(idl_type_spec(_union->switch_type_spec), in_xcdr1_delimited_scope);
 
     idl_case_t *_case;
     IDL_FOREACH(_case, _union->cases) {
-      if (set_node_xcdr2_required(idl_type_spec(_case)))
+      if (set_node_xcdr2_required(idl_type_spec(_case), false))
         ret = true;
     };
-    _union->requires_xcdr2 = ret ? IDL_REQUIRES_XCDR2_TRUE : IDL_REQUIRES_XCDR2_FALSE;
+    // see comment for struct above
+    if (_union->requires_xcdr2 != IDL_REQUIRES_XCDR2_TRUE)
+      _union->requires_xcdr2 = ret ? IDL_REQUIRES_XCDR2_TRUE : IDL_REQUIRES_XCDR2_FALSE;
     return ret;
   }
 
@@ -1395,12 +1405,12 @@ idl_set_xcdr2_required(void *node)
     } else if (idl_mask(node) == IDL_STRUCT) {
       idl_struct_t *_struct = node;
       if (_struct->requires_xcdr2 == IDL_REQUIRES_XCDR2_UNSET)
-        (void) set_node_xcdr2_required(node);
+        (void) set_node_xcdr2_required(node, true);
       assert(_struct->requires_xcdr2 != IDL_REQUIRES_XCDR2_SETTING);
     } else if (idl_mask(node) == IDL_UNION) {
       idl_union_t *_union = node;
       if (_union->requires_xcdr2 == IDL_REQUIRES_XCDR2_UNSET)
-        (void) set_node_xcdr2_required(node);
+        (void) set_node_xcdr2_required(node, true);
       assert(_union->requires_xcdr2 != IDL_REQUIRES_XCDR2_SETTING);
     }
   }
