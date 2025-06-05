@@ -2348,8 +2348,10 @@ static const uint32_t *dds_stream_getsize_impl (struct getsize_state *st, const 
         abort ();
         break;
       case DDS_OP_DLC:
-        assert (st->xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
-        ops = dds_stream_getsize_delimited (st, data, ops);
+        if (st->xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2)
+          ops = dds_stream_getsize_delimited (st, data, ops);
+        else
+          ops = dds_stream_getsize_impl (st, data, ops + 1, false);
         break;
       case DDS_OP_PLC:
         assert (st->xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
@@ -4501,10 +4503,16 @@ static const uint32_t *stream_normalize_data_impl (char * restrict data, uint32_
         break;
       }
       case DDS_OP_DLC: {
-        if (xcdr_version != DDSI_RTPS_CDR_ENC_VERSION_2)
-          return normalize_error_ops ();
-        if ((ops = stream_normalize_delimited (data, off, size, bswap, xcdr_version, mid_table, ops, cdr_kind)) == NULL)
-          return NULL;
+        if (xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2)
+        {
+          if ((ops = stream_normalize_delimited (data, off, size, bswap, xcdr_version, mid_table, ops, cdr_kind)) == NULL)
+            return NULL;
+        }
+        else
+        {
+          if ((ops = stream_normalize_data_impl (data, off, size, bswap, xcdr_version, mid_table, ops + 1, false, cdr_kind)) == NULL)
+            return NULL;
+        }
         break;
       }
       case DDS_OP_PLC: {
@@ -6334,7 +6342,7 @@ static const uint32_t *dds_stream_key_size_delimited (const uint32_t *ops, struc
   ops++;
 
   // dheader
-  add_to_key_size (k, 4, 1, 4);
+  add_to_key_size_xcdrv2 (k, 4, 1, 4);
 
   uint32_t insn;
   while ((insn = *ops) != DDS_OP_RTS)

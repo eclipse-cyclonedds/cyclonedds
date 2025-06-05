@@ -776,8 +776,10 @@ static const uint32_t *dds_stream_write_implBO (RESTRICT_OSTREAM_T *os, const st
         abort ();
         break;
       case DDS_OP_DLC:
-        assert (os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
-        ops = dds_stream_write_delimitedBO (os, allocator, mid_table, data, ops, cdr_kind);
+        if (os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2)
+          ops = dds_stream_write_delimitedBO (os, allocator, mid_table, data, ops, cdr_kind);
+        else
+          ops = dds_stream_write_implBO (os, allocator, mid_table, data, ops + 1, false, cdr_kind);
         break;
       case DDS_OP_PLC:
         assert (os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);

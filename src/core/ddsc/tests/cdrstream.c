@@ -2173,7 +2173,7 @@ CU_Test(ddsc_cdrstream, key_size)
     { D(t20), true, true, 1, 1, true }, // key size: 1
     { D(t21), true, true, 16, 16, true }, // key size XCDR1: 1 + 7 (pad) + 1 * 8 / XCDR2: 1 + 3 (pad) + 4 (dheader) + 1 * 8 /
 
-    { D(t22), false, true, 0, 8, true }, // key size: XCDR2: 4 (dh) + 4
+    { D(t22), true, true, 4, 8, true }, // key size: XCDR1: 4 / XCDR2: 4 (dh) + 4
     { D(t23), false, true, 0, 12, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4
     { D(t24), false, true, 0, 12, true }, // key size: XCDR2: 4 (dh) + 4 (dh) + 4
     { D(t25), false, false, 0, VAR, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (dh) + 4 (emh) + 4

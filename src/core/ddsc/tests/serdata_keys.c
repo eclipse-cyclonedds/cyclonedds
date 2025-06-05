@@ -491,7 +491,16 @@ CU_Test(ddsc_serdata, key_serialization)
     },
     { &SerdataKeyOrderAppendable_desc, init_SerdataKeyOrderAppendable,
       { {
-        0 // not supported
+        MAKE_ENCHDR(CDR),
+        (raw){
+          1,2,0,0,0,0,0,0,SER64(3)
+        }, 16,
+        (raw){
+          1,0,0,0,0,0,0,0,SER64(3)
+        }, 16,
+        (raw){
+          1,0,0,0,0,0,0,0,SER64BE(3)
+        }, 16,
       }, {
         MAKE_ENCHDR(D_CDR2),
         (raw){
@@ -740,7 +749,21 @@ CU_Test(ddsc_serdata, key_serialization)
     },
     { &SerdataKeyStringAppendable_desc, init_SerdataKeyStringAppendable,
       { {
-        0 // not supported
+        MAKE_ENCHDR(CDR),
+        (raw){
+          1,0,0,0,
+          SER32(5),'t','e','s','t','\0',
+          0,0,0 // padding
+        }, 17,
+        (raw){
+          1,0,0,0,
+          SER32(5),'t','e','s','t','\0',
+          0,0,0 // padding
+        }, 17,
+        (raw){
+          1,0,0,0,SER32BE(5),'t','e','s','t','\0',
+          0,0,0 // padding
+        }, 13
       }, {
         MAKE_ENCHDR(D_CDR2),
         (raw){
@@ -763,7 +786,19 @@ CU_Test(ddsc_serdata, key_serialization)
     },
     { &SerdataKeyStringBoundedAppendable_desc, init_SerdataKeyStringBoundedAppendable,
       { {
-        0 // not supported
+        MAKE_ENCHDR(CDR),
+        (raw){
+          1,0,0,0,
+          SER32(4),'t','s','t','\0'
+        }, 16,
+        (raw){
+          1,0,0,0,
+          SER32(4),'t','s','t','\0'
+        }, 16,
+        (raw){
+          1,0,0,0,
+          SER32BE(4),'t','s','t','\0'
+        }, 12
       }, {
         MAKE_ENCHDR(D_CDR2),
         (raw){
