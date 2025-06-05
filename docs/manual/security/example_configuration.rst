@@ -12,11 +12,11 @@
 Example DDS security configuration
 **********************************
 
-This section shows an example |var-project-short| configuration for DDS Security. 
+This section shows an example |var-project-short| configuration for DDS Security.
 
 The steps for configuring DDS Security are:
 
-#. :ref:`create_certificate_authority` 
+#. :ref:`create_certificate_authority`
 #. :ref:`create_identity_certificate`
 #. :ref:`create_governance_document`
 #. :ref:`create_permissions_document`
@@ -45,9 +45,9 @@ To generate the CA for identity management (authentication):
 
    .. code-block:: console
 
-     openssl req -x509 -key example_id_ca_priv_key.pem -out example_id_ca_cert.pem -days 3650 -subj "/C=NL/ST=OV/L=Locality Name/OU=Example OU/O=Example ID CA Organization/CN=Example ID CA/emailAddress=authority@cycloneddssecurity.zettascale.com"
+     openssl req -x509 -key example_id_ca_priv_key.pem -out example_id_ca_cert.pem -days 3650 -subj "/C=NL/ST=OV/L=Locality Name/OU=Example OU/O=Example ID CA Organization/CN=Example ID CA/emailAddress=authority@example.com"
 
-#. Create the private key of the permissions CA (used for signing the AccessControl 
+#. Create the private key of the permissions CA (used for signing the AccessControl
    configuration files):
 
    .. code-block:: console
@@ -58,7 +58,7 @@ To generate the CA for identity management (authentication):
 
    .. code-block:: console
 
-     openssl req -x509 -key example_perm_ca_priv_key.pem -out example_perm_ca_cert.pem -days 3650 -subj "/C=NL/ST=OV/L=Locality Name/OU=Example OU/O=Example CA Organization/CN=Example Permissions CA/emailAddress=authority@cycloneddssecurity.zettascale.com"
+     openssl req -x509 -key example_perm_ca_priv_key.pem -out example_perm_ca_cert.pem -days 3650 -subj "/C=NL/ST=OV/L=Locality Name/OU=Example OU/O=Example CA Organization/CN=Example Permissions CA/emailAddress=authority@example.com"
 
 .. index:: Identity certificate; Creating
 
@@ -70,7 +70,7 @@ Create an identity certificate
 
 Create an identity certificate (signed by the CA), and the private key corresponding to an identity named *Alice*.
 
-.. note:: 
+.. note::
   These steps need to be repeated for each identity in the system.
 
 To create a private key and an identity certificate for an identity named *Alice*:
@@ -85,7 +85,7 @@ To create a private key and an identity certificate for an identity named *Alice
 
    .. code-block:: console
 
-     openssl req -new -key example_alice_priv_key.pem -out example_alice.csr -subj "/C=NL/ST=OV/L=Locality Name/OU=Organizational Unit Name/O=Example Organization/CN=Alice Example/emailAddress=alice@cycloneddssecurity.zettascale.com"
+     openssl req -new -key example_alice_priv_key.pem -out example_alice.csr -subj "/C=NL/ST=OV/L=Locality Name/OU=Organizational Unit Name/O=Example Organization/CN=Alice Example/emailAddress=alice@example.com"
 
 #. Create *Alice's* **identity certificate**:
 
@@ -95,13 +95,13 @@ To create a private key and an identity certificate for an identity named *Alice
 
 #. In the DDS Security authentication configuration:
 
-   - Use *Alice's* private key (example_alice_priv_key.pem) file for the 
-     :ref:`PrivateKey <//CycloneDDS/Domain/Security/Authentication/PrivateKey>` setting. 
+   - Use *Alice's* private key (example_alice_priv_key.pem) file for the
+     :ref:`PrivateKey <//CycloneDDS/Domain/Security/Authentication/PrivateKey>` setting.
 
    - Use *Alice's* identity certificate (example_alice_cert.pem) file for the
-     :ref:`IdentityCertificate <//CycloneDDS/Domain/Security/Authentication/IdentityCertificate>` setting. 
- 
-   - Use the certificate of the CA used for signing this identity (example_id_ca_cert.pem), 
+     :ref:`IdentityCertificate <//CycloneDDS/Domain/Security/Authentication/IdentityCertificate>` setting.
+
+   - Use the certificate of the CA used for signing this identity (example_id_ca_cert.pem),
      for the :ref:`IdentityCA <//CycloneDDS/Domain/Security/Authentication/IdentityCA>` setting.
 
 .. index:: Governance document; Creating
@@ -118,7 +118,7 @@ The following shows an example of a governance document that uses *signing for s
     :linenos:
     :language: xml
 
-The governance document must be signed by the :ref:`permissions CA <create_certificate_authority>`. 
+The governance document must be signed by the :ref:`permissions CA <create_certificate_authority>`.
 
 To sign the governance document:
 
@@ -157,7 +157,7 @@ This document also needs to be signed by the :ref:`permissions CA <create_certif
 Set the security properties in participant QoS
 ==============================================
 
-The following code fragment shows how to set the security properties to a QoS object, and 
+The following code fragment shows how to set the security properties to a QoS object, and
 use this QoS when creating a participant:
 
 .. literalinclude:: ../_static/security_by_qos.c
@@ -187,7 +187,7 @@ variable to this config file:
 
   export CYCLONEDDS_URI=/path/to/secure_config.xml
 
-.. note:: 
+.. note::
   This example configuration uses the attribute ``id=any`` for the ``domain`` element, any participant
   that is created (which implicitly creates a domain) in an application using this configuration gets
   these security settings.
