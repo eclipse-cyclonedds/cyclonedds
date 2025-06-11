@@ -31,7 +31,7 @@ static void free_sample (void *s)
 static void init_desc (struct dds_cdrstream_desc *cdrstream_desc)
 {
   memset (cdrstream_desc, 0, sizeof (*cdrstream_desc));
-  dds_cdrstream_desc_init (cdrstream_desc, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_keys, desc->m_nkeys);
+  dds_cdrstream_desc_init (cdrstream_desc, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_keys, desc->m_nkeys, desc->m_mid_table_offs);
 }
 
 static void print_raw_cdr (dds_ostream_t *os)

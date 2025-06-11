@@ -11,7 +11,7 @@ static void __attribute__((constructor)) print_idl_types_seed() {
 
 static void topic_to_descriptor(struct dds_cdrstream_desc *desc, const dds_topic_descriptor_t *t) {
     memset(desc, 0, sizeof(struct dds_cdrstream_desc));
-    dds_cdrstream_desc_init(desc, &dds_cdrstream_default_allocator, t->m_size, t->m_align, t->m_flagset, t->m_ops, NULL, 0);
+    dds_cdrstream_desc_init(desc, &dds_cdrstream_default_allocator, t->m_size, t->m_align, t->m_flagset, t->m_ops, NULL, 0, 0);
 }
 
 int LLVMFuzzerTestOneInput(void *data, size_t size)

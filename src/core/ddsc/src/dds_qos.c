@@ -866,10 +866,11 @@ bool dds_qget_data_representation (const dds_qos_t *qos, uint32_t *n, dds_data_r
   return true;
 }
 
-dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allowed_data_representations, bool topicqos)
+dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allowed_data_representations, dds_data_type_properties_t data_type_props, bool topicqos)
 {
-  const bool allow1 = allowed_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR1,
-    allow2 = allowed_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR2;
+  const bool allow1 = allowed_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR1;
+  const bool allow2 = allowed_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR2;
+  const bool prefer2 = data_type_props & DDS_DATA_TYPE_CONTAINS_OPTIONAL; // TO-DO: prefer xcdr2 if type contains appendable/mutable
 
   if ((qos->present & DDSI_QP_DATA_REPRESENTATION) && qos->data_representation.value.n > 0)
   {
@@ -897,12 +898,17 @@ dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allo
   {
     if (!allow1 && !allow2)
       return DDS_RETCODE_BAD_PARAMETER;
-    if (!allow1)
-      dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR2 });
-    else if (!topicqos || !allow2)
-      dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR1 });
+
+    if (topicqos && allow1)
+    {
+      assert (allow2);
+      dds_qset_data_representation (qos, 2, (dds_data_representation_id_t[]) {
+            prefer2 ? DDS_DATA_REPRESENTATION_XCDR2 : DDS_DATA_REPRESENTATION_XCDR1, prefer2 ? DDS_DATA_REPRESENTATION_XCDR1 : DDS_DATA_REPRESENTATION_XCDR2 });
+    }
     else
-      dds_qset_data_representation (qos, 2, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR1, DDS_DATA_REPRESENTATION_XCDR2 });
+    {
+      dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { (!allow1 || prefer2) ? DDS_DATA_REPRESENTATION_XCDR2 : DDS_DATA_REPRESENTATION_XCDR1});
+    }
   }
   return DDS_RETCODE_OK;
 }

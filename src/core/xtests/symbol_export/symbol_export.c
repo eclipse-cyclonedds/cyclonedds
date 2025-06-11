@@ -499,13 +499,13 @@ int main (int argc, char **argv)
 
   ret_cdrs = dds_stream_normalize (ptr, 0, 0, 0, ptr2, 0, ptr3);
   (void) ret_cdrs;
-  ret_cdrs = dds_stream_normalize_data (ptr, ptr2, 0, 0, 0, ptr3);
+  ret_cdrs = dds_stream_normalize_xcdr2_data (ptr, ptr2, 0, 0, ptr3);
   (void) ret_cdrs;
 
-  dds_stream_write (ptr, ptr2, ptr3, ptr4);
-  dds_stream_writeLE (ptr, ptr2, ptr3, ptr4);
-  dds_stream_writeBE (ptr, ptr2, ptr3, ptr4);
-  dds_stream_write_with_byte_order (ptr, ptr2, ptr3, ptr4, 0);
+  dds_stream_write (ptr, ptr2, ptr3, ptr4, ptr5);
+  dds_stream_writeLE (ptr, ptr2, ptr3, ptr4, ptr5);
+  dds_stream_writeBE (ptr, ptr2, ptr3, ptr4, ptr5);
+  dds_stream_write_with_byte_order (ptr, ptr2, ptr3, ptr4, ptr5, 0);
   dds_stream_write_sample (ptr, ptr2, ptr3, ptr4);
   dds_stream_write_sampleLE (ptr, ptr2, ptr3, ptr4);
   dds_stream_write_sampleBE (ptr, ptr2, ptr3, ptr4);
@@ -527,7 +527,7 @@ int main (int argc, char **argv)
   dds_stream_extract_keyBE_from_data (ptr, ptr2, ptr3, ptr4);
   dds_stream_extract_keyBE_from_key (ptr, ptr2, 0, ptr3, ptr4);
   dds_cdrstream_desc_from_topic_desc (ptr, ptr2);
-  dds_cdrstream_desc_init (ptr, ptr2, 0, 0, 0, ptr3, ptr4, 0);
+  dds_cdrstream_desc_init (ptr, ptr2, 0, 0, 0, ptr3, ptr4, 0, 0);
   dds_cdrstream_desc_fini (ptr, ptr2);
 
   // dds_psmx.h

@@ -51,7 +51,7 @@ module MinXcdrVersion {
 
     @topic @final
     struct t_nested_opt {
-        t_mut f1;
+        t_opt f1;
     };
 
 };

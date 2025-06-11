@@ -155,7 +155,7 @@ dds_return_t ddsi_sertype_cdr_init (const struct ddsi_domaingv *gv, struct ddsi_
 
   st->encoding_format = ddsi_sertype_extensibility_enc_format (type_ext);
 
-  dds_cdrstream_desc_init (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_keys, desc->m_nkeys);
+  dds_cdrstream_desc_init (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_keys, desc->m_nkeys, desc->m_mid_table_offs);
 
   if (dds_stream_type_nesting_depth (desc->m_ops) > DDS_CDRSTREAM_MAX_NESTING_DEPTH)
   {

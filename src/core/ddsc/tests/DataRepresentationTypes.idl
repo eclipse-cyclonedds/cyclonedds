@@ -15,6 +15,8 @@ module DataRepresentationTypes {
     @id(3) char s1;
     @id(2) @key long long s2;
     @id(1) @key char s3;
+    @id(4) @optional long s4;
+    @id(5) @optional long s5;
   };
 
   @topic
@@ -35,11 +37,17 @@ module DataRepresentationTypes {
     char t1;
     @key long long t2[10];
     long t3;
+    @optional long t4;
   };
 
   @topic @final
   struct TypeFinal {
     long a;
+  };
+
+  @topic @final
+  struct TypeFinalOptional {
+    @optional long a;
   };
 
   @topic @appendable

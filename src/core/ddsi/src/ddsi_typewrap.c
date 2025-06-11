@@ -353,7 +353,7 @@ int ddsi_typeid_compare (const ddsi_typeid_t *a, const ddsi_typeid_t *b)
 void ddsi_typeid_ser (const ddsi_typeid_t *type_id, unsigned char **buf, uint32_t *sz)
 {
   dds_ostreamLE_t os = { .x = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 } };
-  if (!dds_stream_writeLE (&os, &dds_cdrstream_default_allocator, (const void *) type_id, DDS_XTypes_TypeIdentifier_desc.m_ops))
+  if (!dds_stream_writeLE (&os, &dds_cdrstream_default_allocator, NULL, (const void *) type_id, DDS_XTypes_TypeIdentifier_desc.m_ops))
   {
     // input is always valid
     abort ();
@@ -429,7 +429,7 @@ void ddsi_typeobj_get_hash_id_impl (const struct DDS_XTypes_TypeObject *type_obj
   assert (type_id);
   assert (type_obj->_d == DDS_XTypes_EK_MINIMAL || type_obj->_d == DDS_XTypes_EK_COMPLETE);
   dds_ostreamLE_t os = { .x = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 } };
-  if (!dds_stream_writeLE (&os, &dds_cdrstream_default_allocator, (const void *) type_obj, DDS_XTypes_TypeObject_desc.m_ops))
+  if (!dds_stream_writeLE (&os, &dds_cdrstream_default_allocator, NULL, (const void *) type_obj, DDS_XTypes_TypeObject_desc.m_ops))
   {
     // input type object is always valid
     abort ();
