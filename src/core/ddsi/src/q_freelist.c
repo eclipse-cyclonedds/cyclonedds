@@ -120,6 +120,11 @@ void nn_freelist_init (struct nn_freelist *fl, uint32_t max, size_t linkoff)
   fl->count = 0;
   fl->max = (max == UINT32_MAX) ? max-1 : max;
   fl->linkoff = linkoff;
+
+#ifdef DDSRT_WITH_FREERTOSTCP
+  /* init TLS var */
+  ddsrt_thread_tls_set(freelist_inner_idx, DDS_TLS_IDX_FREE, (void*)(-1));
+#endif
 }
 
 static void *get_next (const struct nn_freelist *fl, const void *e)
@@ -160,6 +165,27 @@ void nn_freelist_fini (struct nn_freelist *fl, void (*xfree) (void *))
 
 static ddsrt_atomic_uint32_t freelist_inner_idx_off = DDSRT_ATOMIC_UINT32_INIT(0);
 
+#ifdef DDSRT_WITH_FREERTOSTCP
+static int get_freelist_inner_idx (void)
+{
+  int inner_idx = -1;
+
+  inner_idx = ddsrt_thread_tls_get(DDS_TLS_IDX_FREE, freelist_inner_idx);
+
+  if(inner_idx == -1)
+  {
+    static const uint64_t unihashconsts[] = {
+      UINT64_C (16292676669999574021),
+      UINT64_C (10242350189706880077),
+    };
+    uintptr_t addr;
+    uint64_t t = (uint64_t) ((uintptr_t) &addr) + ddsrt_atomic_ld32 (&freelist_inner_idx_off);
+    inner_idx = (int) (((((uint32_t) t + unihashconsts[0]) * ((uint32_t) (t >> 32) + unihashconsts[1]))) >> (64 - NN_FREELIST_NPAR_LG2));
+  }
+  ddsrt_thread_tls_set(freelist_inner_idx, DDS_TLS_IDX_FREE, inner_idx);
+  return inner_idx;
+}
+#else
 static int get_freelist_inner_idx (void)
 {
   if (freelist_inner_idx == -1)
@@ -174,6 +200,7 @@ static int get_freelist_inner_idx (void)
   }
   return freelist_inner_idx;
 }
+#endif
 
 static int lock_inner (struct nn_freelist *fl)
 {
@@ -185,7 +212,12 @@ static int lock_inner (struct nn_freelist *fl)
     {
       ddsrt_atomic_st32(&fl->cc, 0);
       ddsrt_atomic_inc32(&freelist_inner_idx_off);
+
+      #ifdef DDSRT_WITH_FREERTOSTCP
+      ddsrt_thread_tls_set(freelist_inner_idx, DDS_TLS_IDX_FREE, (void*)(-1));
+      #else
       freelist_inner_idx = -1;
+      #endif
     }
   }
   return k;

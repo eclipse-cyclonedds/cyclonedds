@@ -38,6 +38,8 @@ void dds_sleepfor(dds_duration_t n)
 }
 #endif
 
+#ifndef DDSRT_WITH_FREERTOS
+#warning " ctime in glib, ignore it for FreeRTOS "
 size_t
 ddsrt_ctime(dds_time_t n, char *str, size_t size)
 {
@@ -73,6 +75,7 @@ ddsrt_ctime(dds_time_t n, char *str, size_t size)
 
   return ddsrt_strlcpy(str, buf, size);
 }
+#endif
 
 static void time_to_sec_usec (int32_t * __restrict sec, int32_t * __restrict usec, int64_t t)
 {

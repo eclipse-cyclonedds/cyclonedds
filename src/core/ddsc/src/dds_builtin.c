@@ -374,6 +374,8 @@ void dds__builtin_init (struct dds_domain *dom)
 {
   dds_qos_t *qos = dds__create_builtin_qos ();
 
+  DDS_LOG(DDS_LC_CONFIG, " dds__builtin_init ...");
+
   dom->btif.arg = dom;
   dom->btif.builtintopic_get_tkmap_entry = dds__builtin_get_tkmap_entry;
   dom->btif.builtintopic_is_builtintopic = dds__builtin_is_builtintopic;
@@ -414,6 +416,8 @@ void dds__builtin_init (struct dds_domain *dom)
   dom->builtintopic_writer_publications = new_local_orphan_writer (&dom->gv, to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER), DDS_BUILTIN_TOPIC_PUBLICATION_NAME, dom->builtin_writer_type, qos, builtintopic_whc_new (DSBT_WRITER, gh));
   dom->builtintopic_writer_subscriptions = new_local_orphan_writer (&dom->gv, to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER), DDS_BUILTIN_TOPIC_SUBSCRIPTION_NAME, dom->builtin_reader_type, qos, builtintopic_whc_new (DSBT_READER, gh));
   thread_state_asleep (lookup_thread_state ());
+
+  DDS_LOG(DDS_LC_CONFIG, " builtin_topics writer done");
 
   dds_delete_qos (qos);
 

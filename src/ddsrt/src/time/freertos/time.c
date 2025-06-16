@@ -20,6 +20,9 @@ DDS_EXPORT extern inline TickType_t ddsrt_duration_to_ticks_ceil(dds_duration_t 
 
 dds_time_t dds_time(void)
 {
+#ifdef DDSRT_WITH_FREERTOSTCP
+    return get_timer_us(0U) * 1000U;
+#else
   struct timespec ts;
 
 #if __STDC_VERSION__ >= 201112L
@@ -29,6 +32,7 @@ dds_time_t dds_time(void)
 #endif
 
   return (ts.tv_sec * DDS_NSECS_IN_SEC) + ts.tv_nsec;
+#endif
 }
 
 #define NSECS_PER_TICK (DDS_NSECS_IN_SEC / configTICK_RATE_HZ)

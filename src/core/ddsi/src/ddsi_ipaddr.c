@@ -251,7 +251,11 @@ void ddsi_ipaddr_to_loc (ddsi_locator_t *dst, const struct sockaddr *src, int32_
     {
       const struct sockaddr_in *x = (const struct sockaddr_in *) src;
       assert (kind == NN_LOCATOR_KIND_UDPv4 || kind == NN_LOCATOR_KIND_TCPv4);
+      #ifdef DDSRT_WITH_FREERTOSTCP
+      if (x->sin_addr == htonl (INADDR_ANY))
+      #else
       if (x->sin_addr.s_addr == htonl (INADDR_ANY))
+      #endif
       {
         dst->kind = NN_LOCATOR_KIND_INVALID;
         dst->port = NN_LOCATOR_PORT_INVALID;
@@ -261,7 +265,11 @@ void ddsi_ipaddr_to_loc (ddsi_locator_t *dst, const struct sockaddr *src, int32_
       {
         dst->port = (x->sin_port == 0) ? NN_LOCATOR_PORT_INVALID : ntohs (x->sin_port);
         memset (dst->address, 0, 12);
+        #ifdef DDSRT_WITH_FREERTOSTCP
+        memcpy (dst->address + 12, &x->sin_addr, 4);
+        #else
         memcpy (dst->address + 12, &x->sin_addr.s_addr, 4);
+        #endif
       }
       break;
     }
@@ -310,7 +318,11 @@ void ddsi_ipaddr_from_loc (struct sockaddr_storage *dst, const ddsi_locator_t *s
       struct sockaddr_in *x = (struct sockaddr_in *) dst;
       x->sin_family = AF_INET;
       x->sin_port = (src->port == NN_LOCATOR_PORT_INVALID) ? 0 : htons ((unsigned short) src->port);
+      #ifdef DDSRT_WITH_FREERTOSTCP
+      memcpy (&x->sin_addr, src->address + 12, 4);
+      #else
       memcpy (&x->sin_addr.s_addr, src->address + 12, 4);
+      #endif
       break;
     }
 #if DDSRT_HAVE_IPV6

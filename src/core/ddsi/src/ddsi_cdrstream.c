@@ -861,12 +861,12 @@ static char *dds_stream_reuse_string_bound (dds_istream_t * __restrict is, char 
      so this check is superfluous, but perhaps rejecting such a sample is the
      wrong thing to do */
   if (!alloc)
-    assert (str != NULL);
+  {  assert (str != NULL); }
   else if (str == NULL)
-    str = dds_alloc (size);
+  {  str = dds_alloc (size); }
   memcpy (str, src, length > size ? size : length);
   if (length > size)
-    str[size - 1] = '\0';
+  {  str[size - 1] = '\0'; }
   is->m_index += length;
   return str;
 }
@@ -3821,7 +3821,11 @@ static bool prtf_simple (char * __restrict *buf, size_t * __restrict bufsize, dd
     case DDS_OP_VAL_4BY: {
       const union { int32_t s; uint32_t u; float f; } x = { .u = dds_is_get4 (is) };
       if (flags & DDS_OP_FLAG_FP)
+        #ifdef DDSRT_WITH_FREERTOSTCP
+        return prtf (buf, bufsize, "%f", x.f);
+        #else
         return prtf (buf, bufsize, "%g", x.f);
+        #endif
       else if (flags & DDS_OP_FLAG_SGN)
         return prtf (buf, bufsize, "%"PRId32, x.s);
       else
@@ -3830,7 +3834,11 @@ static bool prtf_simple (char * __restrict *buf, size_t * __restrict bufsize, dd
     case DDS_OP_VAL_8BY: {
       const union { int64_t s; uint64_t u; double f; } x = { .u = dds_is_get8 (is) };
       if (flags & DDS_OP_FLAG_FP)
+        #ifdef DDSRT_WITH_FREERTOSTCP
+        return prtf (buf, bufsize, "%f", x.f);
+        #else
         return prtf (buf, bufsize, "%g", x.f);
+        #endif
       else if (flags & DDS_OP_FLAG_SGN)
         return prtf (buf, bufsize, "%"PRId64, x.s);
       else

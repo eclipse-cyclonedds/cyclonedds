@@ -15,6 +15,17 @@
 #cmakedefine DDSRT_WITH_LWIP 1
 #cmakedefine DDSRT_WITH_FREERTOS 1
 
+/* begin: FreeRTOS_Plus_TCP IP stack */
+#cmakedefine DDSRT_WITH_FREERTOSTCP 1
+
+#cmakedefine DDSRT_TRANS_UDP 1
+#cmakedefine DDSRT_TRANS_TCP 1
+#cmakedefine DDSRT_TRANS_RAWETH 1
+#cmakedefine DDSRT_TRANS_NONE 1
+
+/* end: FreeRTOS_Plus_TCP IP stack */
+
+
 #cmakedefine DDSRT_HAVE_DYNLIB 1
 #cmakedefine DDSRT_HAVE_FILESYSTEM 1
 #cmakedefine DDSRT_HAVE_NETSTAT 1

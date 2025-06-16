@@ -10,10 +10,16 @@
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/misc.h"
-#if _WIN32
-#include "dds/ddsrt/sockets/windows.h"
+
+#if defined DDSRT_WITH_FREERTOSTCP
+  #warning " debug rtos tcp stack including   "
+  #include "dds/ddsrt/sockets/freertos_plus_tcp.h"
 #else
-#include "dds/ddsrt/sockets/posix.h"
+  #if _WIN32
+   #include "dds/ddsrt/sockets/windows.h"
+  #else
+   #include "dds/ddsrt/sockets/posix.h"
+  #endif
 #endif
 
 #if defined (__cplusplus)
@@ -187,9 +193,15 @@ ddsrt_setsockreuse(
 DDS_EXPORT dds_return_t
 ddsrt_select(
   int32_t nfds,
+#ifdef DDSRT_WITH_FREERTOSTCP
+  ddsrt_fd_set_t readfds,
+  ddsrt_fd_set_t writefds,
+  ddsrt_fd_set_t errorfds,
+#else
   fd_set *readfds,
   fd_set *writefds,
   fd_set *errorfds,
+#endif
   dds_duration_t reltime);
 
 #if _WIN32

@@ -26,6 +26,9 @@
 #include <stdbool.h>
 #include "dds/export.h"
 #include "dds/features.h"
+#ifdef DDSRT_WITH_FREERTOSTCP
+#include "dds/ddsrt/align.h"
+#endif
 #include "dds/ddsc/dds_public_alloc.h"
 #include "dds/ddsc/dds_opcodes.h"
 

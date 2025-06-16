@@ -223,6 +223,20 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
          external IP address, this locator will be translated into one
          in the same subnet as our own local ip and selected. */
       assert (gv->n_interfaces == 1); // gv->extmask: the hack is only supported if limited to a single interface
+      #ifdef DDSRT_WITH_FREERTOSTCP
+      in_addr_t tmp4 = *((in_addr_t *) (loc.address + 12));
+      const in_addr_t ownip = *((in_addr_t *) (gv->interfaces[0].loc.address + 12));
+      const in_addr_t extip = *((in_addr_t *) (gv->interfaces[0].extloc.address + 12));
+      const in_addr_t extmask = *((in_addr_t *) (gv->extmask.address + 12));
+
+      if ((tmp4 & extmask) == (extip & extmask))
+      {
+        /* translate network part of the IP address from the external
+           one to the internal one */
+        tmp4 = (tmp4 & ~extmask) | (ownip & extmask);
+        memcpy (loc.address + 12, &tmp4, 4);
+      }
+      #else
       struct in_addr tmp4 = *((struct in_addr *) (loc.address + 12));
       const struct in_addr ownip = *((struct in_addr *) (gv->interfaces[0].loc.address + 12));
       const struct in_addr extip = *((struct in_addr *) (gv->interfaces[0].extloc.address + 12));
@@ -235,6 +249,8 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
         tmp4.s_addr = (tmp4.s_addr & ~extmask.s_addr) | (ownip.s_addr & extmask.s_addr);
         memcpy (loc.address + 12, &tmp4, 4);
       }
+      #endif
+
     }
 
     addrset_from_locatorlists_add_one (gv, &loc, as, &intfs, &direct);

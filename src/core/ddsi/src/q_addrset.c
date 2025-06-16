@@ -96,6 +96,8 @@ int add_addresses_to_addrset (const struct ddsi_domaingv *gv, struct addrset *as
   DDSRT_WARNING_MSVC_OFF(4996);
   char *addrs_copy, *cursor, *a;
   int retval = -1;
+
+  GVLOG (DDS_LC_CONFIG, " add addrs [%s]  @@@@@@@@@@@@", addrs);
   addrs_copy = ddsrt_strdup (addrs);
   cursor = addrs_copy;
   while ((a = ddsrt_strsep (&cursor, ",")) != NULL)

@@ -3177,7 +3177,7 @@ static void handle_rtps_message (struct thread_state1 * const ts1, struct ddsi_d
   else if (hdr->version.major != RTPS_MAJOR || (hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
   {
     if ((hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
-      GVTRACE ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu\n, version mismatch: %d.%d\n",
+      GVWARNING ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu\n, version mismatch: %d.%d\n",
                PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, hdr->version.major, hdr->version.minor);
     if (DDSI_SC_PEDANTIC_P (gv->config))
       malformed_packet_received (gv, msg, NULL, (size_t) sz, hdr->vendorid);
@@ -3197,6 +3197,12 @@ static void handle_rtps_message (struct thread_state1 * const ts1, struct ddsi_d
     if (res != NN_RTPS_MSG_STATE_ERROR)
     {
       handle_submsg_sequence (ts1, gv, conn, srcloc, ddsrt_time_wallclock (), ddsrt_time_elapsed (), &hdr->guid_prefix, guidprefix, msg, (size_t) sz, msg + RTPS_MESSAGE_HEADER_SIZE, rmsg, res == NN_RTPS_MSG_STATE_ENCODED);
+#ifdef DDSRT_WITH_FREERTOSTCP
+    }
+    else
+    {
+      GVWARNING(" decode_rtps_messages error! \n");
+#endif
     }
   }
 }
@@ -3229,7 +3235,7 @@ static bool do_packet (struct thread_state1 * const ts1, struct ddsi_domaingv *g
   buff = (unsigned char *) NN_RMSG_PAYLOAD (rmsg);
   hdr = (Header_t*) buff;
 
-  if (conn->m_stream)
+  if (conn->m_stream)   /* ONLY for TCP conn */
   {
     MsgLen_t * ml = (MsgLen_t*) (hdr + 1);
 
@@ -3446,13 +3452,16 @@ uint32_t listen_thread (struct ddsi_tran_listener *listener)
 static int recv_thread_waitset_add_conn (os_sockWaitset ws, ddsi_tran_conn_t conn)
 {
   if (conn == NULL)
-    return 0;
+  {  return 0; }
   else
   {
     struct ddsi_domaingv *gv = conn->m_base.gv;
     for (uint32_t i = 0; i < gv->n_recv_threads; i++)
+    {
+      /* SKIP add thread "recvUC" / gv->data_conn_uc to waitset! */
       if (gv->recv_threads[i].arg.mode == RTM_SINGLE && gv->recv_threads[i].arg.u.single.conn == conn)
-        return 0;
+      {  return 0; }
+    }
     return os_sockWaitsetAdd (ws, conn);
   }
 }
@@ -3495,6 +3504,12 @@ uint32_t recv_thread (void *vrecv_thread_arg)
   os_sockWaitset waitset = recv_thread_arg->mode == RTM_MANY ? recv_thread_arg->u.many.ws : NULL;
   ddsrt_mtime_t next_thread_cputime = { 0 };
 
+#ifdef DDSRT_WITH_FREERTOS
+  char name[64];
+  ddsrt_thread_getname (name, sizeof (name));
+  DDS_WARNING("recv_thread: called up for thread[%s]  \n", name);
+#endif
+
   nn_rbufpool_setowner (rbpool, ddsrt_thread_self ());
   if (waitset == NULL)
   {
@@ -3515,17 +3530,36 @@ uint32_t recv_thread (void *vrecv_thread_arg)
     {
       int rc;
       if ((rc = recv_thread_waitset_add_conn (waitset, gv->disc_conn_uc)) < 0)
-        DDS_FATAL("recv_thread: failed to add disc_conn_uc to waitset\n");
+      {  DDS_FATAL("recv_thread: failed to add disc_conn_uc to waitset\n"); }
+    #ifdef DDSRT_WITH_FREERTOSTCP
+      if (rc > 0)
+      { DDS_INFO("recv_thread: add disc_conn_uc to waitset ! \n"); }
+    #endif
       num_fixed_uc += (unsigned)rc;
+
       if ((rc = recv_thread_waitset_add_conn (waitset, gv->data_conn_uc)) < 0)
         DDS_FATAL("recv_thread: failed to add data_conn_uc to waitset\n");
+    #ifdef DDSRT_WITH_FREERTOSTCP
+      if (rc > 0)
+      { DDS_INFO("recv_thread: add data_conn_uc to waitset ! \n"); }
+    #endif
       num_fixed_uc += (unsigned)rc;
+
       num_fixed += num_fixed_uc;
       if ((rc = recv_thread_waitset_add_conn (waitset, gv->disc_conn_mc)) < 0)
         DDS_FATAL("recv_thread: failed to add disc_conn_mc to waitset\n");
+    #ifdef DDSRT_WITH_FREERTOSTCP
+      if (rc > 0)
+      { DDS_INFO("recv_thread: add disc_conn_mc to waitset ! \n"); }
+    #endif
       num_fixed += (unsigned)rc;
+
       if ((rc = recv_thread_waitset_add_conn (waitset, gv->data_conn_mc)) < 0)
         DDS_FATAL("recv_thread: failed to add data_conn_mc to waitset\n");
+    #ifdef DDSRT_WITH_FREERTOSTCP
+      if (rc > 0)
+      { DDS_INFO("recv_thread: add data_conn_mc to waitset ! \n"); }
+    #endif
       num_fixed += (unsigned)rc;
 
       // OpenDDS doesn't respect the locator lists and insists on sending to the
@@ -3535,9 +3569,13 @@ uint32_t recv_thread (void *vrecv_thread_arg)
         // Iceoryx gets added as a pseudo-interface but there's no socket to wait
         // for input on
         if (ddsi_conn_handle (gv->xmit_conns[i]) == DDSRT_INVALID_SOCKET)
-          continue;
+        {  continue; }
         if ((rc = recv_thread_waitset_add_conn (waitset, gv->xmit_conns[i])) < 0)
-          DDS_FATAL("recv_thread: failed to add transmit_conn[%d] to waitset\n", i);
+          DDS_FATAL("recv_thread: failed to add xmit_conn[%d] to waitset\n", i);
+        #ifdef DDSRT_WITH_FREERTOSTCP
+        if (rc > 0)
+        { DDS_INFO("recv_thread: add xmit_conn[%d] to waitset ! \n", i); }
+        #endif
         num_fixed += (unsigned)rc;
       }
     }
@@ -3564,7 +3602,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
         for (uint32_t i = 0; i < lps.nps; i++)
         {
           if (lps.ps[i].m_conn)
-            os_sockWaitsetAdd (waitset, lps.ps[i].m_conn);
+          {  os_sockWaitsetAdd (waitset, lps.ps[i].m_conn); }
         }
       }
 
@@ -3575,13 +3613,18 @@ uint32_t recv_thread (void *vrecv_thread_arg)
         while ((idx = os_sockWaitsetNextEvent (ctx, &conn)) >= 0)
         {
           const ddsi_guid_prefix_t *guid_prefix;
-          if (((unsigned)idx < num_fixed) || gv->config.many_sockets_mode != DDSI_MSM_MANY_UNICAST)
-            guid_prefix = NULL;
+          if (((unsigned)idx < num_fixed)
+                || gv->config.many_sockets_mode != DDSI_MSM_MANY_UNICAST)
+          {  guid_prefix = NULL; }
           else
-            guid_prefix = &lps.ps[(unsigned)idx - num_fixed].guid_prefix;
+          {  guid_prefix = &lps.ps[(unsigned)idx - num_fixed].guid_prefix; }
+
           /* Process message and clean out connection if failed or closed */
-          if (!do_packet (ts1, gv, conn, guid_prefix, rbpool) && !conn->m_connless)
+          if (!do_packet (ts1, gv, conn, guid_prefix, rbpool)
+                && !conn->m_connless)
+          {
             ddsi_conn_free (conn);
+          }
         }
       }
     }

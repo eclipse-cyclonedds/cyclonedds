@@ -109,7 +109,12 @@ void thread_states_init (unsigned maxthreads)
      (not strictly required, but it'll get one eventually anyway, and this makes
      it rather more clear). */
 #ifndef NDEBUG
+#ifdef DDSRT_WITH_FREERTOSTCP
+  struct thread_state1 * const ts0 = (struct thread_state1 * const)ddsrt_thread_tls_get(DDS_TLS_IDX_STATE, tsd_thread_state);
+#else
   struct thread_state1 * const ts0 = tsd_thread_state;
+#endif
+
 #endif
   struct thread_state1 * const ts1 = lookup_thread_state_real ();
   assert (ts0 == NULL || ts0 == ts1);
@@ -124,7 +129,12 @@ bool thread_states_fini (void)
   struct thread_state1 *ts1 = lookup_thread_state ();
   assert (vtime_asleep_p (ddsrt_atomic_ld32 (&ts1->vtime)));
   reap_thread_state (ts1, true);
+
+  #ifdef DDSRT_WITH_FREERTOSTCP
+  ddsrt_thread_tls_set(tsd_thread_state, DDS_TLS_IDX_STATE, NULL);
+  #else
   tsd_thread_state = NULL;
+  #endif
 
   /* Some applications threads that, at some point, required a thread state, may still be around.
      Of those, the cleanup routine is invoked when the thread terminates.  This should be rewritten
@@ -215,13 +225,22 @@ static struct thread_state1 *lazy_create_thread_state (ddsrt_thread_t self)
 
 struct thread_state1 *lookup_thread_state_real (void)
 {
+#ifdef DDSRT_WITH_FREERTOSTCP
+  struct thread_state1 *ts1 = (struct thread_state1 *)ddsrt_thread_tls_get(DDS_TLS_IDX_STATE, tsd_thread_state);
+#else
   struct thread_state1 *ts1 = tsd_thread_state;
+#endif
+
   if (ts1 == NULL)
   {
     ddsrt_thread_t self = ddsrt_thread_self ();
     if ((ts1 = find_thread_state (self)) == NULL)
       ts1 = lazy_create_thread_state (self);
+#ifdef DDSRT_WITH_FREERTOSTCP
+    ddsrt_thread_tls_set(tsd_thread_state, DDS_TLS_IDX_STATE, ts1);
+#else
     tsd_thread_state = ts1;
+#endif
   }
   assert (ts1 != NULL);
   return ts1;
@@ -232,9 +251,19 @@ static uint32_t create_thread_wrapper (void *ptr)
   struct thread_state1 * const ts1 = ptr;
   struct ddsi_domaingv const * const gv = ddsrt_atomic_ldvoidp (&ts1->gv);
   if (gv)
-    GVTRACE ("started new thread %"PRIdTID": %s\n", ddsrt_gettid (), ts1->name);
+  {
+    #ifndef DDSRT_WITH_FREERTOSTCP
+    GVTRACE ("started new thread %"PRIdTID": %s \n", ddsrt_gettid (), ts1->name);
+    #else
+    GVTRACE ("started new thread %"PRIdTID": %s, thread_t 0x%lx \n", ddsrt_gettid (), ts1->name, ts1->tid.task);
+    #endif
+  }
   assert (ts1->state == THREAD_STATE_INIT);
+#ifdef DDSRT_WITH_FREERTOSTCP
+  ddsrt_thread_tls_set(tsd_thread_state, DDS_TLS_IDX_STATE, ts1);
+#else
   tsd_thread_state = ts1;
+#endif
   ddsrt_mutex_lock (&thread_states.lock);
   ts1->state = THREAD_STATE_ALIVE;
   ddsrt_mutex_unlock (&thread_states.lock);
@@ -242,7 +271,12 @@ static uint32_t create_thread_wrapper (void *ptr)
   ddsrt_mutex_lock (&thread_states.lock);
   ts1->state = THREAD_STATE_STOPPED;
   ddsrt_mutex_unlock (&thread_states.lock);
+#ifdef DDSRT_WITH_FREERTOSTCP
+  ddsrt_thread_tls_set(tsd_thread_state, DDS_TLS_IDX_STATE, NULL);
+#else
   tsd_thread_state = NULL;
+#endif
+
   return ret;
 }
 

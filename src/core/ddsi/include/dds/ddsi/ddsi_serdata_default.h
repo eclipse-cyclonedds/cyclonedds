@@ -98,6 +98,24 @@ struct ddsi_serdata_default_unpadded {
 #define DDSI_SERDATA_DEFAULT_PAD(n) (n)
 #endif
 
+
+#if 0
+/* un-fold to easy to track in SI */
+struct ddsi_serdata_default {
+    struct ddsi_serdata c;
+    uint32_t pos;
+    uint32_t size;
+    DDSI_SERDATA_DEFAULT_DEBUG_FIELDS
+    struct ddsi_serdata_default_key key;
+    struct serdatapool *serpool;
+    struct ddsi_serdata_default *next; /* in pool->freelist */
+    char pad[DDSI_SERDATA_DEFAULT_PAD (8 - (offsetof (struct ddsi_serdata_default_unpadded, data) % 8))];
+    struct CDRHeader hdr;
+    char data[];
+};
+#endif
+
+
 struct ddsi_serdata_default {
   DDSI_SERDATA_DEFAULT_PREPAD;
   char pad[DDSI_SERDATA_DEFAULT_PAD (8 - (offsetof (struct ddsi_serdata_default_unpadded, data) % 8))];

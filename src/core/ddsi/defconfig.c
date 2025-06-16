@@ -14,7 +14,11 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->externalMaskString = "0.0.0.0";
   cfg->allowMulticast = UINT32_C (2147483648);
   cfg->multicast_ttl = INT32_C (32);
+  #ifdef DDSRT_WITH_FREERTOSTCP
+  cfg->transport_selector = INT32_C (DDSI_TRANS_UDP);
+  #else
   cfg->transport_selector = INT32_C (1);
+  #endif
   cfg->enableMulticastLoopback = INT32_C (1);
   cfg->max_msg_size = UINT32_C (14720);
   cfg->max_rexmit_msg_size = UINT32_C (1456);
@@ -58,8 +62,13 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->const_hb_intv_min = INT64_C (5000000);
   cfg->const_hb_intv_sched_min = INT64_C (20000000);
   cfg->const_hb_intv_sched_max = INT64_C (8000000000);
+  #ifdef DDSRT_WITH_FREERTOSTCP
+  cfg->max_queued_rexmit_bytes = UINT32_C (33554432); /* 524288->32M: > 4K framesize */
+  cfg->max_queued_rexmit_msgs = UINT32_C (18000); /* 200->20480: > 4K framesize / fragmen_size */
+  #else
   cfg->max_queued_rexmit_bytes = UINT32_C (524288);
   cfg->max_queued_rexmit_msgs = UINT32_C (200);
+  #endif
   cfg->writer_linger_duration = INT64_C (1000000000);
   cfg->socket_rcvbuf_size.min.isdefault = 1;
   cfg->socket_rcvbuf_size.max.isdefault = 1;

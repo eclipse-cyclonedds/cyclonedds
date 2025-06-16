@@ -691,7 +691,11 @@ static void wras_add_locator (const struct ddsi_domaingv *gv, struct addrset *ne
     memcpy (&l1, tmploc.c.address, sizeof (l1));
     tmploc.c.kind = NN_LOCATOR_KIND_UDPv4;
     memset (tmploc.c.address, 0, 12);
+    #ifdef DDSRT_WITH_FREERTOSTCP
+    iph = ntohl (l1.ipv4);
+    #else
     iph = ntohl (l1.ipv4.s_addr);
+    #endif
     for (i = 0; i < nreaders; i++)
     {
       cover_info_t ci = cover_get (covered, i, locidx);

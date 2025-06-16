@@ -165,6 +165,19 @@ DDSRT_WARNING_CLANG_ON(missing-prototypes)
   #pragma data_seg()
  #endif
 #else /* _WIN32 */
+
+#ifdef DDSRT_WITH_FREERTOSTCP
+void ddsrt_ctor(void)
+{
+  ddsrt_init();
+}
+
+void ddsrt_dtor(void)
+{
+  ddsrt_fini();
+}
+
+#else
 void __attribute__((constructor)) ddsrt_ctor(void);
 void __attribute__((destructor)) ddsrt_dtor(void);
 
@@ -177,5 +190,8 @@ void __attribute__((destructor)) ddsrt_dtor(void)
 {
   ddsrt_fini();
 }
+
+#endif
+
 #endif /* _WIN32 */
 

@@ -183,7 +183,11 @@ static dds_return_t
 thread_context_acquire(thread_context_t **ctxptr)
 {
   dds_return_t rc = DDS_RETCODE_OK;
+  #ifdef DDSRT_WITH_FREERTOSTCP
+  thread_context_t *ctx = (thread_context_t *)ddsrt_thread_tls_get(DDS_TLS_IDX_CTX, thread_context);
+  #else
   thread_context_t *ctx = thread_context;
+  #endif
 
   if (ctx == NULL) {
     /* Dynamically initialize global thread registry (exactly once). */
@@ -199,7 +203,11 @@ thread_context_acquire(thread_context_t **ctxptr)
       ctx->task = xTaskGetCurrentTaskHandle();
     }
     ddsrt_mutex_unlock(&thread_registry.mutex);
+    #ifdef DDSRT_WITH_FREERTOSTCP
+    ddsrt_thread_tls_set(thread_context, DDS_TLS_IDX_CTX, ctx);
+    #else
     thread_context = ctx;
+    #endif
   } else {
     assert(ctx->func != NULL);
     assert(ctx->stat == THREAD_RUNNING);
@@ -326,7 +334,11 @@ thread_start_routine(void *arg)
      thread because a reference to the thread's context is stored and
      synchronization is considerably easier if it's handled there. */
 
+#ifdef DDSRT_WITH_FREERTOSTCP
+  ddsrt_thread_tls_set(thread_context, DDS_TLS_IDX_CTX, ctx);
+#else
   thread_context = ctx;
+#endif
   ret = ctx->func(ctx->arg);
 
   thread_fini(ctx, ret); /* DO NOT DEREFERENCE THREAD CONTEXT ANYMORE! */
@@ -427,6 +439,10 @@ void
 ddsrt_thread_init(uint32_t reason)
 {
   (void)reason;
+#ifdef DDSRT_WITH_FREERTOSTCP
+    /* init TLS var */
+    ddsrt_thread_tls_set(thread_context, DDS_TLS_IDX_CTX, NULL);
+#endif
   if (thread_context_require() != DDS_RETCODE_OK) {
     assert(0);
   }
@@ -440,7 +456,12 @@ ddsrt_thread_fini(uint32_t reason)
   (void)reason;
   /* NO-OP if no context exists since thread-local storage and cleanup
      handler references are both stored in the thread context. */
+  #ifdef DDSRT_WITH_FREERTOSTCP
+  ctx = (thread_context_t *)ddsrt_thread_tls_get(DDS_TLS_IDX_CTX, thread_context);
+  if ( ctx != NULL) {
+  #else
   if ((ctx = thread_context) != NULL) {
+  #endif
     assert(ctx->func != &non_local_thread);
     thread_fini(ctx, 0);
   }

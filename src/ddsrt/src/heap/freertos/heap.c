@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <FreeRTOS.h>
+#include <FreeRTOS_POSIX.h>
 
 #if defined(configSUPPORT_DYNAMIC_ALLOCATION) && \
            (configSUPPORT_DYNAMIC_ALLOCATION == 0)

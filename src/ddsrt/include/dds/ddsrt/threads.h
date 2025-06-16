@@ -49,7 +49,13 @@ extern "C" {
      supports Thread-local storage since version 2.0. */
   /* VxWorks 7 supports __thread for both GCC and DIAB, older versions may
      support it as well, but that is not verified. */
+
+#ifdef DDSRT_WITH_FREERTOSTCP
+#define ddsrt_thread_local
+#else
 #define ddsrt_thread_local __thread
+#endif
+
 #elif defined(__SUNPRO_C) || defined(__SUNPRO_CC)
 #define ddsrt_thread_local __thread
 #else
@@ -72,6 +78,32 @@ typedef struct {
   /** Specifies the thread stack size */
   uint32_t stackSize;
 } ddsrt_threadattr_t;
+
+
+#ifdef DDSRT_WITH_FREERTOS
+#if configNUM_THREAD_LOCAL_STORAGE_POINTERS <= 0
+#error " Error, FreeRTOS THREAD_LOCAL_STORAGE support NOT enabled!"
+#endif
+
+/*
+add configNUM_THREAD_LOCAL_STORAGE_POINTERS for DDS usage
+ 22    taskguard and FATfs reserved 0~3
+*/
+#define DDS_TLS_IDX_LOGBUFF     4
+#define DDS_TLS_IDX_FREE        5
+#define DDS_TLS_IDX_STATE       6
+#define DDS_TLS_IDX_CTX         7
+
+#define ddsrt_thread_tls_set(d, idx, s) \
+                        vTaskSetThreadLocalStoragePointer(NULL, idx, (void*)s)
+
+#define ddsrt_thread_tls_get(idx, s)   \
+                        pvTaskGetThreadLocalStoragePointer(NULL, idx)
+#else
+#error
+#define ddsrt_thread_tls_set(d, idx, s)         (d) = (s)
+#define ddsrt_thread_tls_get(idx, s)            (s)
+#endif
 
 /**
  * @brief Initialize thread attributes to platform defaults.

@@ -4346,7 +4346,11 @@ static void joinleave_mcast_helper (struct ddsi_domaingv *gv, ddsi_tran_conn_t c
     memcpy (&l1, l.address, sizeof (l1));
     l.kind = NN_LOCATOR_KIND_UDPv4;
     memset (l.address, 0, 12);
+    #ifdef DDSRT_WITH_FREERTOSTCP
+    iph = ntohl (l1.ipv4);
+    #else
     iph = ntohl (l1.ipv4.s_addr);
+    #endif
     for (uint32_t i = 1; i < ((uint32_t)1 << l1.count); i++)
     {
       uint32_t ipn, iph1 = iph;
@@ -5987,9 +5991,9 @@ static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_end
   int ret;
 
   if (is_builtin_entityid (guid->entityid, proxypp->vendor))
-    assert ((plist->qos.present & QP_TYPE_NAME) == 0);
+  {  assert ((plist->qos.present & QP_TYPE_NAME) == 0); }
   else
-    assert ((plist->qos.present & (QP_TOPIC_NAME | QP_TYPE_NAME)) == (QP_TOPIC_NAME | QP_TYPE_NAME));
+  {  assert ((plist->qos.present & (QP_TOPIC_NAME | QP_TYPE_NAME)) == (QP_TOPIC_NAME | QP_TYPE_NAME)); }
 
   name = (plist->present & PP_ENTITY_NAME) ? plist->entity_name : "";
   entity_common_init (e, proxypp->e.gv, guid, name, kind, tcreate, proxypp->vendor, false);

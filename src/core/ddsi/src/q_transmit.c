@@ -323,18 +323,32 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
   {
     if (ddsrt_avl_is_empty (&wr->readers))
     {
+#ifdef DDSRT_WITH_FREERTOSTCP
+      ETRACE (wr, "heartbeat(wr "PGUIDFMT"%s) piggybacked, resched in %u usec (min-ack [none], avail-seq %"PRIu64", xmit %"PRIu64")\n",
+              PGUID (wr->e.guid),
+              *hbansreq ? "" : " final",
+              (hbc->tsched.v == DDS_NEVER) ? DDS_NEVER : ((hbc->tsched.v - tnow.v) / (NANOSECONDS_PER_SECOND / MICROSECONDS_PER_SECOND)),       // usec
+#else
       ETRACE (wr, "heartbeat(wr "PGUIDFMT"%s) piggybacked, resched in %g s (min-ack [none], avail-seq %"PRIu64", xmit %"PRIu64")\n",
               PGUID (wr->e.guid),
               *hbansreq ? "" : " final",
               (hbc->tsched.v == DDS_NEVER) ? INFINITY : (double) (hbc->tsched.v - tnow.v) / 1e9,
+#endif
               whcst->max_seq, writer_read_seq_xmit(wr));
     }
     else
     {
+#ifdef DDSRT_WITH_FREERTOSTCP
+      ETRACE (wr, "heartbeat(wr "PGUIDFMT"%s) piggybacked, resched in %u usec (min-ack %"PRIu64"%s, avail-seq %"PRIu64", xmit %"PRIu64")\n",
+              PGUID (wr->e.guid),
+              *hbansreq ? "" : " final",
+              (hbc->tsched.v == DDS_NEVER) ? DDS_NEVER : ((hbc->tsched.v - tnow.v) / (NANOSECONDS_PER_SECOND / MICROSECONDS_PER_SECOND)),       // usec
+#else
       ETRACE (wr, "heartbeat(wr "PGUIDFMT"%s) piggybacked, resched in %g s (min-ack %"PRIu64"%s, avail-seq %"PRIu64", xmit %"PRIu64")\n",
               PGUID (wr->e.guid),
               *hbansreq ? "" : " final",
               (hbc->tsched.v == DDS_NEVER) ? INFINITY : (double) (hbc->tsched.v - tnow.v) / 1e9,
+#endif
               root_rdmatch (wr)->min_seq,
               root_rdmatch (wr)->all_have_replied_to_hb ? "" : "!",
               whcst->max_seq, writer_read_seq_xmit(wr));

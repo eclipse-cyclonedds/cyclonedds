@@ -531,14 +531,22 @@ struct xeventq * xeventq_new (struct ddsi_domaingv *gv, size_t max_queued_rexmit
 dds_return_t xeventq_start (struct xeventq *evq, const char *name)
 {
   dds_return_t rc;
+#ifdef  DDSRT_WITH_FREERTOSTCP
+  char * evqname = "dds_tev";
+#else
   char * evqname = "tev";
+#endif
   assert (evq->ts == NULL);
 
   if (name)
   {
     size_t slen = strlen (name) + 5;
     evqname = ddsrt_malloc (slen);
+    #ifdef DDSRT_WITH_FREERTOSTCP
+    (void) snprintf (evqname, slen, "dds_tev.%s", name);
+    #else
     (void) snprintf (evqname, slen, "tev.%s", name);
+    #endif
   }
 
   evq->terminate = 0;
@@ -764,20 +772,36 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt
 
   if (ddsrt_avl_is_empty (&wr->readers))
   {
-    GVTRACE ("heartbeat(wr "PGUIDFMT"%s) %s, resched in %g s (min-ack [none], avail-seq %"PRIu64", xmit %"PRIu64")\n",
+#ifdef DDSRT_WITH_FREERTOSTCP
+    GVINFO ("heartbeat(wr "PGUIDFMT"%s) %s, resched in %u usec (min-ack [none], avail-seq %"PRIu64", xmit %"PRIu64")\n",
+             PGUID (wr->e.guid),
+             hbansreq ? "" : " final",
+             msg ? "sent" : "suppressed",
+             (t_next.v == DDS_NEVER) ? DDS_NEVER : ((t_next.v - tnow.v) / (NANOSECONDS_PER_SECOND / MICROSECONDS_PER_SECOND)),       // usec
+#else
+    GVINFO ("heartbeat(wr "PGUIDFMT"%s) %s, resched in %g s (min-ack [none], avail-seq %"PRIu64", xmit %"PRIu64")\n",
              PGUID (wr->e.guid),
              hbansreq ? "" : " final",
              msg ? "sent" : "suppressed",
              (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
+#endif
              whcst.max_seq, writer_read_seq_xmit (wr));
   }
   else
   {
-    GVTRACE ("heartbeat(wr "PGUIDFMT"%s) %s, resched in %g s (min-ack %"PRId64"%s, avail-seq %"PRIu64", xmit %"PRIu64")\n",
+#ifdef DDSRT_WITH_FREERTOSTCP
+    GVINFO("heartbeat(wr "PGUIDFMT"%s) %s, resched in %u usec (min-ack %"PRId64"%s, avail-seq %"PRIu64", xmit %"PRIu64")\n",
              PGUID (wr->e.guid),
              hbansreq ? "" : " final",
              msg ? "sent" : "suppressed",
-             (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
+             (t_next.v == DDS_NEVER) ? DDS_NEVER : ((t_next.v - tnow.v) / (NANOSECONDS_PER_SECOND / MICROSECONDS_PER_SECOND)),       // usec
+#else
+    GVINFO("heartbeat(wr "PGUIDFMT"%s) %s, resched in %g s (min-ack %"PRId64"%s, avail-seq %"PRIu64", xmit %"PRIu64")\n",
+             PGUID (wr->e.guid),
+             hbansreq ? "" : " final",
+             msg ? "sent" : "suppressed",
+             (t_next.v == DDS_NEVER) ? DDS_NEVER : (double)(t_next.v - tnow.v) / 1e9,
+#endif
              ((struct wr_prd_match *) ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers))->min_seq,
              ((struct wr_prd_match *) ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
              whcst.max_seq, writer_read_seq_xmit (wr));
@@ -1028,10 +1052,18 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
     else
     {
       ddsrt_mtime_t tnext = ddsrt_mtime_add_duration (tnow, DDS_SECS (1));
-      GVTRACE ("xmit spdp "PGUIDFMT" to %"PRIx32":%"PRIx32":%"PRIx32":%x (resched %gs)\n",
+#ifdef DDSRT_WITH_FREERTOSTCP
+      GVTRACE ("xmit spdp "PGUIDFMT" to %"PRIx32":%"PRIx32":%"PRIx32":%x (resched %u usec)\n",
+               PGUID (pp->e.guid),
+               PGUIDPREFIX (ev->u.spdp.dest_proxypp_guid_prefix), NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+               (tnext.v - tnow.v) / (NANOSECONDS_PER_SECOND / MICROSECONDS_PER_SECOND)       // usec
+               );
+#else
+      GVTRACE ("xmit spdp "PGUIDFMT" to %"PRIx32":%"PRIx32":%"PRIx32":%x (resched %g s)\n",
                PGUID (pp->e.guid),
                PGUIDPREFIX (ev->u.spdp.dest_proxypp_guid_prefix), NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
                (double)(tnext.v - tnow.v) / 1e9);
+#endif
       (void) resched_xevent_if_earlier (ev, tnext);
     }
   }
@@ -1055,10 +1087,18 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
       intv = gv->config.spdp_interval;
 
     tnext = ddsrt_mtime_add_duration (tnow, intv);
-    GVTRACE ("xmit spdp "PGUIDFMT" to %"PRIx32":%"PRIx32":%"PRIx32":%x (resched %gs)\n",
+    #ifdef DDSRT_WITH_FREERTOSTCP
+    GVTRACE ("xmit spdp "PGUIDFMT" to %"PRIx32":%"PRIx32":%"PRIx32":%x (resched %u usec)\n",
+             PGUID (pp->e.guid),
+             PGUIDPREFIX (ev->u.spdp.dest_proxypp_guid_prefix), NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+             (tnext.v - tnow.v) / (NANOSECONDS_PER_SECOND / MICROSECONDS_PER_SECOND)       // usec
+             );
+    #else
+    GVTRACE ("xmit spdp "PGUIDFMT" to %"PRIx32":%"PRIx32":%"PRIx32":%x (resched %g s)\n",
              PGUID (pp->e.guid),
              PGUIDPREFIX (ev->u.spdp.dest_proxypp_guid_prefix), NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
              (double)(tnext.v - tnow.v) / 1e9);
+    #endif
     (void) resched_xevent_if_earlier (ev, tnext);
   }
 }
@@ -1091,7 +1131,13 @@ static void handle_xevk_pmd_update (struct thread_state1 * const ts1, struct nn_
       tnext.v = tnow.v + intv - DDS_SECS (2);
     else
       tnext.v = tnow.v + 4 * intv / 5;
-    GVTRACE ("resched pmd("PGUIDFMT"): %gs\n", PGUID (pp->e.guid), (double)(tnext.v - tnow.v) / 1e9);
+    #ifdef DDSRT_WITH_FREERTOSTCP
+    GVTRACE ("resched pmd("PGUIDFMT"): %u usec\n", PGUID (pp->e.guid),
+                (tnext.v - tnow.v) / (NANOSECONDS_PER_SECOND / MICROSECONDS_PER_SECOND)       // usec
+                );
+    #else
+    GVTRACE ("resched pmd("PGUIDFMT"): %g s\n", PGUID (pp->e.guid), (double)(tnext.v - tnow.v) / 1e9);
+    #endif
   }
 
   (void) resched_xevent_if_earlier (ev, tnext);
@@ -1127,6 +1173,12 @@ static void handle_individual_xevent (struct thread_state1 * const ts1, struct x
     switch (xev->kind)
     {
       case XEVK_HEARTBEAT:
+        #ifdef DDSRT_WITH_FREERTOSTCP
+        {
+        static uint32_t hb_cnt = 0U;
+        DDS_WARNING("  handle_xevk_heartbeat  %u ... ", hb_cnt++);
+        }
+        #endif
         handle_xevk_heartbeat (xp, xev, tnow);
         break;
       case XEVK_ACKNACK:

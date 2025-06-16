@@ -91,6 +91,9 @@ const struct dds_entity_deriver dds_entity_deriver_participant = {
   .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics
 };
 
+#ifdef DDSRT_WITH_FREERTOSTCP
+char dds_peer[16] = {0};
+#endif
 dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_t *qos, const dds_listener_t *listener)
 {
   dds_domain *dom;
@@ -99,6 +102,29 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   dds_participant * pp;
   ddsi_plist_t plist;
   dds_qos_t *new_qos = NULL;
+
+#ifdef DDSRT_WITH_FREERTOSTCP
+  /* Make sure DDS instance is initialized. */
+  if ((ret = dds_init ()) < 0)
+    goto err_dds_init;
+
+    char xml[1024];
+    memset(xml, 0, sizeof(xml));
+    if (inet_addr(dds_peer) == 0)
+    {
+        strncpy(dds_peer, "192.168.11.2", sizeof(dds_peer));
+        dds_peer[sizeof(dds_peer) - 1] = '\0';
+    }
+
+    snprintf(xml, sizeof(xml) - 1, "<CycloneDDS><Domain id=\"any\">\
+<Discovery>\
+  <Peers><Peer address=\"%s:7400\"/></Peers>\
+</Discovery>\
+</Domain></CycloneDDS>", dds_peer);
+    const char *config = xml;
+    DDS_WARNING("  participant xml [%s] !", xml);
+    //DDS_WARNING("  participant peer using [%s] !", dds_peer);
+#else
   const char *config = "";
 
   /* Make sure DDS instance is initialized. */
@@ -106,6 +132,8 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
     goto err_dds_init;
 
   (void) ddsrt_getenv ("CYCLONEDDS_URI", &config);
+#endif
+
 
   if ((ret = dds_domain_create_internal (&dom, domain, true, config)) < 0)
     goto err_domain_create;
@@ -143,6 +171,7 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
     ret = DDS_RETCODE_ERROR;
     goto err_new_participant;
   }
+  DDS_INFO("  built-in participant done !");
 
   pp = dds_alloc (sizeof (*pp));
   if ((ret = dds_entity_init (&pp->m_entity, &dom->m_entity, DDS_KIND_PARTICIPANT, false, true, new_qos, listener, DDS_PARTICIPANT_STATUS_MASK)) < 0)
@@ -160,6 +189,7 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
 
   dds_entity_init_complete (&pp->m_entity);
+
   /* drop temporary extra ref to domain, dds_init */
   dds_entity_unpin_and_drop_ref (&dom->m_entity);
   dds_entity_unpin_and_drop_ref (&dds_global.m_entity);

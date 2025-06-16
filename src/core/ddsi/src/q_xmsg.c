@@ -121,6 +121,7 @@ struct nn_xmsg {
 
 #ifdef IOV_MAX
 #if IOV_MAX > 0 && IOV_MAX < 256
+#error " you should not be here for DDSRT_WITH_FREERTOSTCP"
 #define NN_XMSG_MAX_MESSAGE_IOVECS IOV_MAX
 #endif
 #endif /* defined IOV_MAX */
@@ -1248,7 +1249,15 @@ static ssize_t nn_xpack_send1 (const ddsi_xlocator_t *loc, void * varg)
       }
       /* Possible number of bytes written can be larger
        * due to security. */
+      #ifdef DDSRT_WITH_FREERTOSTCP
+      if (nbytes < len)
+      {
+        GVERROR (" sent len is NOT right! len %u v %u", len, nbytes);
+        assert (nbytes == -1 || (size_t) nbytes >= len);
+      }
+      #else
       assert (nbytes == -1 || (size_t) nbytes >= len);
+      #endif
     }
 #endif
   }
@@ -1718,7 +1727,7 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
   const uint32_t max_msg_size = rexmit ? xp->gv->config.max_rexmit_msg_size : xp->gv->config.max_msg_size;
   if (xpo_niov > 0 && sz > max_msg_size)
   {
-    GVTRACE (" => now niov %d sz %"PRIuSIZE" > max_msg_size %"PRIu32", nn_xpack_send niov %d sz %"PRIu32" now\n",
+    GVINFO (" => now niov %d sz %"PRIuSIZE" > max_msg_size %"PRIu32", nn_xpack_send niov %d sz %"PRIu32" now\n",
              (int) niov, sz, max_msg_size, (int) xpo_niov, xpo_sz);
     xp->msg_len.length = xpo_sz;
     xp->niov = xpo_niov;

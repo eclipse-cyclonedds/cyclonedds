@@ -52,6 +52,10 @@ dds_cyclonedds_entity dds_global;
 #define CDDS_STATE_STARTING 1u
 #define CDDS_STATE_READY 2u
 #define CDDS_STATE_STOPPING 3u
+
+#ifdef DDSRT_WITH_FREERTOSTCP
+#define MAX_THREAD_NUM  32
+#endif
 static ddsrt_atomic_uint32_t dds_state = DDSRT_ATOMIC_UINT32_INIT (CDDS_STATE_ZERO);
 
 static void common_cleanup (void)
@@ -112,7 +116,11 @@ dds_return_t dds_init (void)
   ddsrt_mutex_init (&dds_global.m_mutex);
   ddsrt_cond_init (&dds_global.m_cond);
   ddsi_iid_init ();
+  #ifdef DDSRT_WITH_FREERTOSTCP
+  thread_states_init (MAX_THREAD_NUM);
+  #else
   thread_states_init (128);
+  #endif
 
   if (dds_handle_server_init () != DDS_RETCODE_OK)
   {

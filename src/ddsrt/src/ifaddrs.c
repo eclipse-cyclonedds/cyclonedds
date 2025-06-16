@@ -19,7 +19,9 @@ ddsrt_freeifaddrs(ddsrt_ifaddrs_t *ifa)
 
   while (ifa != NULL) {
     next = ifa->next;
+    #ifndef DDSRT_WITH_FREERTOSTCP
     ddsrt_free(ifa->name);
+    #endif
     ddsrt_free(ifa->addr);
     ddsrt_free(ifa->netmask);
     ddsrt_free(ifa->broadaddr);

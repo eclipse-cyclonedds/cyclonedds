@@ -24,6 +24,9 @@ extern "C" {
 
 #define GVTRACE(...)        DDS_CTRACE (&gv->logconfig, __VA_ARGS__)
 #define GVLOG(cat, ...)     DDS_CLOG ((cat), &gv->logconfig, __VA_ARGS__)
+#ifdef DDSRT_WITH_FREERTOSTCP
+#define GVINFO(...)         DDS_CLOG (DDS_LC_INFO, &gv->logconfig, __VA_ARGS__)
+#endif
 #define GVWARNING(...)      DDS_CLOG (DDS_LC_WARNING, &gv->logconfig, __VA_ARGS__)
 #define GVERROR(...)        DDS_CLOG (DDS_LC_ERROR, &gv->logconfig, __VA_ARGS__)
 

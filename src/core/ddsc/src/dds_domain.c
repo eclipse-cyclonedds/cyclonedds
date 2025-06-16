@@ -120,6 +120,7 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
       break;
   }
   domain->m_id = domain->gv.config.domainId;
+  DDS_ILOG (DDS_LC_CONFIG, domain->m_id, " domain 0X%08x / 0x%08x config init done \n", domain->m_id, domain_id);
 
   if (rtps_config_prep (&domain->gv, domain->cfgst) != 0)
   {
@@ -127,6 +128,7 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
     domh = DDS_RETCODE_ERROR;
     goto fail_rtps_config;
   }
+  DDS_ILOG (DDS_LC_CONFIG, domain->m_id, " rtps_config_prep done \n");
 
   if (rtps_init (&domain->gv) < 0)
   {
@@ -134,6 +136,7 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
     domh = DDS_RETCODE_ERROR;
     goto fail_rtps_init;
   }
+  DDS_ILOG (DDS_LC_CONFIG, domain->m_id, " rtps_init done! \n");
 
 #ifdef DDS_HAS_SHM
   // if DDS_HAS_SHM is enabled the iceoryx runtime was created in rtps_init and is ready
@@ -151,6 +154,7 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
      domain to configured to do so. */
   if (domain->gv.config.liveliness_monitoring)
   {
+    DDS_ILOG (DDS_LC_CONFIG, domain->m_id, " liveliness monitor thread start ... \n");
     if (dds_global.threadmon_count++ == 0)
     {
       /* FIXME: configure settings */
@@ -169,9 +173,11 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
         goto fail_threadmon_start;
       }
     }
+    DDS_ILOG (DDS_LC_CONFIG, domain->m_id, " liveliness monitor thread start! \n");
   }
 
   dds__builtin_init (domain);
+  DDS_ILOG (DDS_LC_CONFIG, domain->m_id, " dds__builtin_init done! \n");
 
   /* Set additional default participant properties */
 
@@ -187,10 +193,21 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
     domh = DDS_RETCODE_ERROR;
     goto fail_rtps_start;
   }
+  DDS_LOG(DDS_LC_CONFIG, " rtps_start done!");
 
   if (domain->gv.config.liveliness_monitoring)
     ddsi_threadmon_register_domain (dds_global.threadmon, &domain->gv);
   dds_entity_init_complete (&domain->m_entity);
+
+  #if 0 // def DDSRT_WITH_FREERTOSTCP
+  /* CAUTION: NEVER open this slice unless in UT itself. */
+  sleep(2U);    /* wait thread wrapper */
+  DDS_LOG(DDS_LC_CONFIG, " @@@@@@@@@@@@@@@@@@ domain init threads dump");
+  /* dump all threads created in domain_init */
+  //eth_run_cli("ps");
+  sleep(1U);
+  #endif
+
   return domh;
 
 fail_rtps_start:
@@ -234,6 +251,8 @@ static dds_entity_t dds_domain_create_internal_xml_or_raw (dds_domain **domain_o
 
   if (dom)
   {
+    DDS_LOG (DDS_LC_CONFIG, " find dom %p", dom);
+
     if (!implicit)
       domh = DDS_RETCODE_PRECONDITION_NOT_MET;
     else
@@ -254,18 +273,22 @@ static dds_entity_t dds_domain_create_internal_xml_or_raw (dds_domain **domain_o
   }
   else
   {
+    DDS_LOG (DDS_LC_CONFIG, " create dom ...");
     dom = dds_alloc (sizeof (*dom));
     if ((domh = dds_domain_init (dom, id, config, implicit)) < 0)
-      dds_free (dom);
+    {  dds_free (dom); }
     else
     {
+      DDS_LOG (DDS_LC_CONFIG, " dom created, domh = 0x%x ", domh);
       ddsrt_mutex_lock (&dom->m_entity.m_mutex);
       ddsrt_avl_insert (&dds_domaintree_def, &dds_global.m_domains, dom);
       dds_entity_register_child (&dds_global.m_entity, &dom->m_entity);
+      DDS_LOG (DDS_LC_CONFIG, "  register domain to global done ");
       if (implicit)
       {
         dds_entity_add_ref_locked (&dom->m_entity);
         dds_handle_repin (&dom->m_entity.m_hdllink);
+        DDS_LOG (DDS_LC_CONFIG, "  dom->m_entity.m_hdllink.hdl = 0x%x ", dom->m_entity.m_hdllink.hdl);
       }
       domh = dom->m_entity.m_hdllink.hdl;
       ddsrt_mutex_unlock (&dom->m_entity.m_mutex);

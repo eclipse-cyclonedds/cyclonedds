@@ -130,6 +130,13 @@ static enum make_uc_sockets_ret make_uc_sockets (struct ddsi_domaingv *gv, uint3
   }
   ddsi_conn_locator (gv->disc_conn_uc, &gv->loc_meta_uc);
   ddsi_conn_locator (gv->data_conn_uc, &gv->loc_default_uc);
+
+  #ifdef DDSRT_WITH_FREERTOSTCP
+  /* update portid to up */
+  *pdisc = gv->disc_conn_uc->m_base.m_port;
+  *pdata = gv->data_conn_uc->m_base.m_port;
+  #endif
+
   return MUSRET_SUCCESS;
 
 fail_data:
@@ -539,6 +546,7 @@ int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst)
       DDS_ILOG (DDS_LC_ERROR, gv->config.domainId, "Invalid port mapping: %s\n", message);
       goto err_config_late_error;
     }
+    DDS_ILOG (DDS_LC_INFO, gv->config.domainId, " @@@@@@@@@@@ port mapping: <%s> \n", message);
   }
 
   /* retry_on_reject_duration default is dependent on late_ack_mode and responsiveness timeout, so fix up */
@@ -1022,20 +1030,23 @@ static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
        it before it does anything with it. */
     if ((gv->recv_threads[i].arg.rbpool = nn_rbufpool_new (&gv->logconfig, gv->config.rbuf_size, gv->config.rmsg_chunk_size)) == NULL)
     {
-      GVERROR ("rtps_init: can't allocate receive buffer pool for thread %s\n", gv->recv_threads[i].name);
+      GVERROR ("rtps_start: can't allocate receive buffer pool for thread %s\n", gv->recv_threads[i].name);
       goto fail;
     }
+    GVLOG(DDS_LC_CONFIG, "rtps_start: alloc rbpool %p for recv_thread[%d] '%s' done \n",
+            gv->recv_threads[i].arg.rbpool, i, gv->recv_threads[i].name);
     if (gv->recv_threads[i].arg.mode == RTM_MANY)
     {
       if ((gv->recv_threads[i].arg.u.many.ws = os_sockWaitsetNew ()) == NULL)
       {
-        GVERROR ("rtps_init: can't allocate sock waitset for thread %s\n", gv->recv_threads[i].name);
+        GVERROR ("rtps_start: can't allocate sock waitset for thread %s\n", gv->recv_threads[i].name);
         goto fail;
       }
+      GVLOG(DDS_LC_CONFIG, "rtps_start: allocate sock waitset for thread %s done \n", gv->recv_threads[i].name);
     }
     if (create_thread (&gv->recv_threads[i].ts, gv, gv->recv_threads[i].name, recv_thread, &gv->recv_threads[i].arg) != DDS_RETCODE_OK)
     {
-      GVERROR ("rtps_init: failed to start thread %s\n", gv->recv_threads[i].name);
+      GVERROR ("rtps_start: failed to start thread %s\n", gv->recv_threads[i].name);
       goto fail;
     }
   }
@@ -1339,6 +1350,7 @@ int rtps_init (struct ddsi_domaingv *gv)
   gv->listener = NULL;
   gv->debmon = NULL;
 
+#ifndef DDSRT_WITH_FREERTOS
   /* Print start time for referencing relative times in the remainder of the DDS_LOG. */
   {
     int sec = (int) (gv->tstart.v / 1000000000);
@@ -1347,6 +1359,7 @@ int rtps_init (struct ddsi_domaingv *gv)
     ddsrt_ctime(gv->tstart.v, str, sizeof(str));
     GVLOG (DDS_LC_CONFIG, "started at %d.06%d -- %s\n", sec, usec, str);
   }
+#endif
 
   /* Allow configuration to set "deaf_mute" in case we want to start out that way */
   gv->deaf = gv->config.initial_deaf;
@@ -1362,6 +1375,7 @@ int rtps_init (struct ddsi_domaingv *gv)
   {
     case DDSI_TRANS_DEFAULT:
       assert(0);
+#ifdef DDSRT_TRANS_UDP
     case DDSI_TRANS_UDP:
     case DDSI_TRANS_UDP6:
       gv->config.publish_uc_locators = 1;
@@ -1370,6 +1384,8 @@ int rtps_init (struct ddsi_domaingv *gv)
         goto err_udp_tcp_init;
       gv->m_factory = ddsi_factory_find (gv, gv->config.transport_selector == DDSI_TRANS_UDP ? "udp" : "udp6");
       break;
+#endif
+#ifdef DDSRT_TRANS_TCP
     case DDSI_TRANS_TCP:
     case DDSI_TRANS_TCP6:
       gv->config.publish_uc_locators = (gv->config.tcp_port != -1);
@@ -1381,6 +1397,8 @@ int rtps_init (struct ddsi_domaingv *gv)
         goto err_udp_tcp_init;
       gv->m_factory = ddsi_factory_find (gv, gv->config.transport_selector == DDSI_TRANS_TCP ? "tcp" : "tcp6");
       break;
+#endif
+#ifdef DDSRT_TRANS_RAWETH
     case DDSI_TRANS_RAWETH:
       gv->config.publish_uc_locators = 1;
       gv->config.enable_uc_locators = 0;
@@ -1390,6 +1408,8 @@ int rtps_init (struct ddsi_domaingv *gv)
         goto err_udp_tcp_init;
       gv->m_factory = ddsi_factory_find (gv, "raweth");
       break;
+#endif
+#ifdef DDSRT_TRANS_NONE
     case DDSI_TRANS_NONE:
       gv->config.publish_uc_locators = 0;
       gv->config.enable_uc_locators = 0;
@@ -1399,6 +1419,7 @@ int rtps_init (struct ddsi_domaingv *gv)
         goto err_udp_tcp_init;
       gv->m_factory = ddsi_factory_find (gv, "dummy");
       break;
+#endif
   }
   gv->m_factory->m_enable = true;
 
@@ -1423,12 +1444,12 @@ int rtps_init (struct ddsi_domaingv *gv)
     {
       if (!gv->interfaces[i].mc_capable)
       {
-        GVWARNING ("selected interface \"%s\" is not multicast-capable: disabling multicast\n", gv->interfaces[i].name);
         gv->config.allowMulticast = DDSI_AMC_FALSE;
         /* ensure discovery can work: firstly, that the process will be reachable on a "well-known" port
          number, and secondly, that the local interface's IP address gets added to the discovery
          address set */
         gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_AUTO;
+       GVWARNING ("selected interface \"%s\" is not multicast-capable: disabling multicast\n", gv->interfaces[i].name);
       }
       else if (gv->config.allowMulticast & DDSI_AMC_DEFAULT)
       {
@@ -1438,7 +1459,7 @@ int rtps_init (struct ddsi_domaingv *gv)
         if (gv->interfaces[i].mc_flaky)
         {
           gv->config.allowMulticast = DDSI_AMC_SPDP;
-          GVLOG (DDS_LC_CONFIG, "presumed flaky multicast, use for SPDP only\n");
+          GVLOG (DDS_LC_CONFIG, "presumed flaky multicast(0x%08x), use for SPDP only\n", gv->config.allowMulticast);
         }
         else
         {
@@ -1447,6 +1468,12 @@ int rtps_init (struct ddsi_domaingv *gv)
         }
       }
     }
+#ifdef DDSRT_WITH_FREERTOSTCP
+  }
+  else
+  {
+      GVWARNING (" (gv->config.allowMulticast) is false! \n");
+#endif
   }
 
   assert ((gv->config.allowMulticast & DDSI_AMC_DEFAULT) == 0);
@@ -1573,7 +1600,11 @@ int rtps_init (struct ddsi_domaingv *gv)
     memcpy (&gv->ppguid_base.prefix.s[2], digest, sizeof (gv->ppguid_base.prefix.s) - 2);
     gv->ppguid_base.prefix = nn_ntoh_guid_prefix (gv->ppguid_base.prefix);
     gv->ppguid_base.entityid.u = NN_ENTITYID_PARTICIPANT;
+    GVLOG(DDS_LC_CONFIG, " GUID prefix: "PGUIDFMT "vs [%08x %08x %08x]",
+            PGUID (gv->ppguid_base),
+            gv->ppguid_base.prefix.u[0], gv->ppguid_base.prefix.u[1], gv->ppguid_base.prefix.u[2]);
   }
+
 
   ddsrt_mutex_init (&gv->lock);
   ddsrt_mutex_init (&gv->spdp_lock);
@@ -1581,6 +1612,8 @@ int rtps_init (struct ddsi_domaingv *gv)
   gv->spdp_reorder = nn_reorder_new (&gv->logconfig, NN_REORDER_MODE_ALWAYS_DELIVER, gv->config.primary_reorder_maxsamples, false);
 
   gv->m_tkmap = ddsi_tkmap_new (gv);
+
+  GVLOG (DDS_LC_CONFIG, "participantIndex %d \n", gv->config.participantIndex);
 
   if (gv->m_factory->m_connless)
   {
@@ -1600,6 +1633,8 @@ int rtps_init (struct ddsi_domaingv *gv)
           goto err_unicast_sockets;
         case MUSRET_ERROR:
           /* something bad happened; assume make_uc_sockets logged the error */
+          GVERROR ("rtps_init: other failed to create unicast sockets for domain %"PRId32" participant index %d (ports %"PRIu32", %"PRIu32")\n",
+                    gv->config.extDomainId.value, gv->config.participantIndex, port_disc_uc, port_data_uc);
           goto err_unicast_sockets;
       }
     }
@@ -1621,8 +1656,10 @@ int rtps_init (struct ddsi_domaingv *gv)
                      gv->config.extDomainId.value, ppid, port_disc_uc, port_data_uc);
             goto err_unicast_sockets;
           case MUSRET_PORTS_IN_USE: /* Try next one */
+            GVERROR ("Failed to create unicast sockets PORTS_IN_USE \n");
             break;
           case MUSRET_ERROR:
+            GVERROR ("Failed to create unicast sockets ERROR \n");
             /* something bad happened; assume make_uc_sockets logged the error */
             goto err_unicast_sockets;
         }
@@ -1632,6 +1669,7 @@ int rtps_init (struct ddsi_domaingv *gv)
         GVERROR ("Failed to find a free participant index for domain %"PRIu32"\n", gv->config.extDomainId.value);
         goto err_unicast_sockets;
       }
+      GVLOG (DDS_LC_INFO,"find a participant %d index for domain %"PRIu32"\n", ppid, gv->config.extDomainId.value);
       gv->config.participantIndex = ppid;
     }
     else
@@ -1640,11 +1678,12 @@ int rtps_init (struct ddsi_domaingv *gv)
     }
     GVLOG (DDS_LC_CONFIG, "rtps_init: uc ports: disc %"PRIu32" data %"PRIu32"\n", port_disc_uc, port_data_uc);
   }
-  GVLOG (DDS_LC_CONFIG, "rtps_init: domainid %"PRIu32" participantid %d\n", gv->config.domainId, gv->config.participantIndex);
+  GVLOG (DDS_LC_INFO, "rtps_init: domainid %"PRIu32" participantid %d\n", gv->config.domainId, gv->config.participantIndex);
 
   if (gv->config.pcap_file && *gv->config.pcap_file)
   {
     gv->pcap_fp = new_pcap_file (gv, gv->config.pcap_file);
+    GVLOG (DDS_LC_CONFIG, "rtps_init: pcap_file %s done \n", gv->config.pcap_file);
     if (gv->pcap_fp)
     {
       ddsrt_mutex_init (&gv->pcap_lock);
@@ -2032,6 +2071,8 @@ int rtps_start (struct ddsi_domaingv *gv)
       return -1;
     }
   }
+
+#ifdef DDSRT_TRANS_TCP
   if (gv->config.monitor_port >= 0)
   {
     if ((gv->debmon = new_debug_monitor (gv, gv->config.monitor_port)) == NULL)
@@ -2041,6 +2082,7 @@ int rtps_start (struct ddsi_domaingv *gv)
       return -1;
     }
   }
+#endif
 
   return 0;
 }

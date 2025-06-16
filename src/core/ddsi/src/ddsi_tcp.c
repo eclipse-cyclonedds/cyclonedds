@@ -188,7 +188,11 @@ static dds_return_t ddsi_tcp_sock_new (struct ddsi_tran_factory_tcp * const fact
   {
     case NN_LOCATOR_KIND_TCPv4:
       socketname.a4.sin_family = AF_INET;
+      #ifdef DDSRT_WITH_FREERTOSTCP
+      socketname.a4.sin_addr = htonl (INADDR_ANY);
+      #else
       socketname.a4.sin_addr.s_addr = htonl (INADDR_ANY);
+      #endif
       socketname.a4.sin_port = htons (port);
       break;
 #if DDSRT_HAVE_IPV6
@@ -459,8 +463,13 @@ static bool ddsi_tcp_select (struct ddsi_domaingv const * const gv, ddsrt_socket
 
 static int32_t addrfam_to_locator_kind (int af)
 {
+#if DDSRT_HAVE_IPV6
   assert (af == AF_INET || af == AF_INET6);
   return (af == AF_INET) ? NN_LOCATOR_KIND_TCPv4 : NN_LOCATOR_KIND_TCPv6;
+#else
+    assert (af == AF_INET);
+    return (af == AF_INET) ? NN_LOCATOR_KIND_TCPv4 : NN_LOCATOR_KIND_INVALID;
+#endif
 }
 
 static ssize_t ddsi_tcp_conn_read (ddsi_tran_conn_t conn, unsigned char *buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc)
@@ -1072,8 +1081,13 @@ static void ddsi_tcp_unblock_listener (ddsi_tran_listener_t listener)
   switch (addr.a.sa_family)
   {
     case AF_INET:
-      if (addr.a4.sin_addr.s_addr == htonl (INADDR_ANY))
-        addr.a4.sin_addr.s_addr = htonl (INADDR_LOOPBACK);
+        #ifdef DDSRT_WITH_FREERTOSTCP
+        if (addr.a4.sin_addr == htonl (INADDR_ANY))
+        {  addr.a4.sin_addr = htonl (INADDR_LOOPBACK); }
+        #else
+        if (addr.a4.sin_addr.s_addr == htonl (INADDR_ANY))
+        {  addr.a4.sin_addr.s_addr = htonl (INADDR_LOOPBACK); }
+        #endif
       break;
 #if DDSRT_HAVE_IPV6
     case AF_INET6:

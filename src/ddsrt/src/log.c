@@ -38,7 +38,9 @@ typedef struct {
   FILE *out;
 } log_sink_t;
 
+#ifndef DDSRT_WITH_FREERTOS
 static ddsrt_thread_local log_buffer_t log_buffer;
+#endif
 
 static ddsrt_once_t lock_inited = DDSRT_ONCE_INIT;
 static ddsrt_rwlock_t lock;
@@ -50,13 +52,82 @@ struct ddsrt_log_cfg_impl {
 
 DDSRT_STATIC_ASSERT (sizeof (struct ddsrt_log_cfg_impl) <= sizeof (struct ddsrt_log_cfg));
 
+static const uint8_t * ddslstr[] = {
+        "DDS_LC_FATAL",
+        "DDS_LC_ERROR",
+        "DDS_LC_WARNING",
+        "DDS_LC_INFO",
+        "DDS_LC_CONFIG",
+        "DDS_LC_DISCOVERY",
+        "DDS_LC_DATA",
+        "DDS_LC_TRACE",
+        "DDS_LC_RADMIN",
+        "DDS_LC_TIMING",
+        "DDS_LC_TRAFFIC",
+        "DDS_LC_TOPIC",
+        "DDS_LC_TCP",
+        "DDS_LC_PLIST",
+        "DDS_LC_WHC",
+        "DDS_LC_THROTTLE",
+        "DDS_LC_RHC",
+        "DDS_LC_CONTENT",
+        "DDS_LC_SHM",
+    };
+
 static void default_sink (void *ptr, const dds_log_data_t *data)
 {
+  #ifdef DDSRT_WITH_FREERTOSTCP
+
+  (void)ptr;
+  uint32_t lv;
+
+  uint32_t i;
+  for (i = 0U; i < sizeof(int) * 8U; i++)
+  {
+    if (data->priority <= (1U << i))
+    {    break; }
+  }
+
+  switch (data->priority)
+  {
+    case DDS_LC_FATAL:
+    case DDS_LC_ERROR:
+        lv = IPLOG_LEVEL_ERROR;
+        pr_error("[%s] %s @%s-%d", ddslstr[i], data->message, data->function, data->line);
+        break;
+    case DDS_LC_WARNING:
+        lv = IPLOG_LEVEL_WARN;
+        pr_warn("[%s] %s @%s-%d", ddslstr[i], data->message, data->function, data->line);
+        break;
+    case DDS_LC_CONFIG:
+    case DDS_LC_INFO:
+        lv = IPLOG_LEVEL_INFO;
+        pr_info("[%s] %s @%s-%d", ddslstr[i], data->message, data->function, data->line);
+        break;
+    case DDS_LC_TRACE:
+        lv = IPLOG_LEVEL_DEBUG;
+        pr_debug("[%s] %s @%s-%d", ddslstr[i], data->message, data->function, data->line);
+        break;
+
+    case DDS_LC_DISCOVERY:
+        lv = IPLOG_LEVEL_DEBUG;
+        pr_debug("[%s] %s @%s-%d", ddslstr[i], data->message, data->function, data->line);
+        break;
+
+    default:
+        lv = IPLOG_LEVEL_DEBUG;
+        pr_debug("[%s] %s @%s-%d", ddslstr[i], data->message, data->function, data->line);
+        break;
+  }
+  //net_log_print(lv, "[%s] %s @%s-%d", ddslstr[i], data->message, data->function, data->line);
+
+  #else
   if (ptr)
   {
     (void) fwrite (data->message - data->hdrsize, 1, data->hdrsize + data->size + 1, (FILE *) ptr);
     fflush ((FILE *) ptr);
   }
+  #endif
 }
 
 #define LOG (0)
@@ -64,7 +135,14 @@ static void default_sink (void *ptr, const dds_log_data_t *data)
 
 static struct ddsrt_log_cfg_impl logconfig = {
   .c = {
+    #ifdef DDSRT_WITH_FREERTOSTCP
+    .mask = DDS_LC_ALL
+            | DDS_LC_DISCOVERY | DDS_LC_TOPIC
+            | DDS_LC_CONFIG | DDS_LC_INFO | DDS_LC_WARNING
+            | DDS_LC_ERROR | DDS_LC_WARNING | DDS_LC_FATAL,
+    #else
     .mask = DDS_LC_ERROR | DDS_LC_WARNING | DDS_LC_FATAL,
+    #endif
     .tracemask = 0,
     .domid = UINT32_MAX
   },
@@ -172,8 +250,19 @@ static size_t print_header (char *str, uint32_t id)
 {
   int cnt, off;
   char *tid, buf[MAX_TID_LEN+1] = { 0 };
+  #ifdef DDSRT_WITH_FREERTOSTCP
+  /*
+   * for RTOS, printf might not support all format output,
+   * so add explict len other that this STDIO tricks
+   * printf("%.*s", 10, str) - output str with cutoff or prefix padding to 10 chars.
+   */
+  static const char fmt_no_id[] = "%06u.%06d [] %.10s:";
+  static const char fmt_with_id[] = "%06u.%06d [%"PRIu32"] %.10s:";
+  // snprintf (str + off, HDR_LEN - off, fmt_no_id, sec, usec, tid);
+  #else
   static const char fmt_no_id[] = "%10u.%06d [] %*.*s:";
   static const char fmt_with_id[] = "%10u.%06d [%"PRIu32"] %*.*s:";
+  #endif
   dds_time_t time;
   unsigned sec;
   int usec;
@@ -187,18 +276,44 @@ static size_t print_header (char *str, uint32_t id)
   if (id == UINT32_MAX)
   {
     off = MAX_ID_LEN;
+    #ifdef DDSRT_WITH_FREERTOSTCP
+    /* fix  bug, HDR might overwrite log buffer set before.
+        HDR_LEN - off
+        //snprintf (str + off, HDR_LEN, "%10u.%06d [] %*.*s:", sec, usec, MAX_TID_LEN, MAX_TID_LEN, tid)
+    */
+    cnt = snprintf (str + off, HDR_LEN - off, fmt_no_id, sec, usec,
+                                                tid);
+    #else
     cnt = snprintf (str + off, HDR_LEN, fmt_no_id, sec, usec, MAX_TID_LEN, MAX_TID_LEN, tid);
+    #endif
   }
   else
   {
     /* low domain ids tend to be most used from what I have seen */
     off = 9;
     if (id >= 10)
-      for (uint32_t thres = 10; off > 0 && id >= thres; off--, thres *= 10);
+    {  for (uint32_t thres = 10; off > 0 && id >= thres; off--, thres *= 10); }
+
+    #ifdef DDSRT_WITH_FREERTOSTCP
+    cnt = snprintf (str + off, HDR_LEN - off, fmt_with_id, sec, usec, id, tid);
+    #else
     cnt = snprintf (str + off, HDR_LEN, fmt_with_id, sec, usec, id, MAX_TID_LEN, MAX_TID_LEN, tid);
+    #endif
   }
+#ifdef DDSRT_WITH_FREERTOSTCP
+  /* fix CycloneDDS bug
+   * for RTOS printf might not support all STDIO format. "%.*s"
+   */
+  assert (off + cnt < HDR_LEN);
+  for (int i = off + cnt; i < HDR_LEN; i++)
+  {
+    str[i] = ' '; /* Replace snprintf null byte by space. */
+  }
+#else
   assert (off + cnt == (HDR_LEN - 1));
   str[off + cnt] = ' '; /* Replace snprintf null byte by space. */
+#endif
+
   return (size_t) (cnt + 1);
 }
 
@@ -208,6 +323,10 @@ static void vlog1 (const struct ddsrt_log_cfg_impl *cfg, uint32_t cat, uint32_t 
   size_t nrem;
   log_buffer_t *lb;
   dds_log_data_t data;
+
+  #ifdef DDSRT_WITH_FREERTOS
+  log_buffer_t log_buffer = {0};
+  #endif
 
   /* id can be used to override the id in logconfig, so that the global
      logging configuration can be used for reporting errors while inlcuding

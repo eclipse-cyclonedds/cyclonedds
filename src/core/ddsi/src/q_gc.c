@@ -204,7 +204,11 @@ struct gcreq_queue *gcreq_queue_new (struct ddsi_domaingv *gv)
 
 bool gcreq_queue_start (struct gcreq_queue *q)
 {
+#ifdef DDSRT_WITH_FREERTOSTCP
+  if (create_thread (&q->ts, q->gv, "dds_gc", (uint32_t (*) (void *)) gcreq_queue_thread, q) == DDS_RETCODE_OK)
+#else
   if (create_thread (&q->ts, q->gv, "gc", (uint32_t (*) (void *)) gcreq_queue_thread, q) == DDS_RETCODE_OK)
+#endif
     return true;
   else
   {

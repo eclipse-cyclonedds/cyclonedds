@@ -132,7 +132,11 @@ DDS_EXPORT dds_return_t join_thread (struct thread_state1 *ts1);
 DDS_EXPORT void log_stack_traces (const struct ddsrt_log_cfg *logcfg, const struct ddsi_domaingv *gv);
 
 DDS_INLINE_EXPORT inline struct thread_state1 *lookup_thread_state (void) {
+#ifdef DDSRT_WITH_FREERTOSTCP
+  struct thread_state1 *ts1 = (struct thread_state1 *)ddsrt_thread_tls_get(DDS_TLS_IDX_STATE, tsd_thread_state);
+#else
   struct thread_state1 *ts1 = tsd_thread_state;
+#endif
   if (ts1)
     return ts1;
   else

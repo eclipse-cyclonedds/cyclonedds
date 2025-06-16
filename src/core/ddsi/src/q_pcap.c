@@ -145,8 +145,13 @@ void write_pcap_received (struct ddsi_domaingv *gv, ddsrt_wctime_t tstamp, const
     u.ipv4_hdr = ipv4_hdr_template;
     u.ipv4_hdr.totallength = ddsrt_toBE2u ((unsigned short) sz_iud);
     u.ipv4_hdr.ttl = 128;
+    #ifdef DDSRT_WITH_FREERTOSTCP
+    u.ipv4_hdr.srcip = ((struct sockaddr_in*) src)->sin_addr;
+    u.ipv4_hdr.dstip = ((struct sockaddr_in*) dst)->sin_addr;
+    #else
     u.ipv4_hdr.srcip = ((struct sockaddr_in*) src)->sin_addr.s_addr;
     u.ipv4_hdr.dstip = ((struct sockaddr_in*) dst)->sin_addr.s_addr;
+    #endif
     u.ipv4_hdr.checksum = calc_ipv4_checksum (u.x);
     (void) fwrite (&u.ipv4_hdr, sizeof (u.ipv4_hdr), 1, gv->pcap_fp);
     udp_hdr.srcport = ((struct sockaddr_in*) src)->sin_port;
@@ -178,8 +183,13 @@ void write_pcap_sent (struct ddsi_domaingv *gv, ddsrt_wctime_t tstamp, const str
     u.ipv4_hdr = ipv4_hdr_template;
     u.ipv4_hdr.totallength = ddsrt_toBE2u ((unsigned short) sz_iud);
     u.ipv4_hdr.ttl = 255;
+    #ifdef DDSRT_WITH_FREERTOSTCP
+    u.ipv4_hdr.srcip = ((struct sockaddr_in*) src)->sin_addr;
+    u.ipv4_hdr.dstip = ((struct sockaddr_in*) hdr->msg_name)->sin_addr;
+    #else
     u.ipv4_hdr.srcip = ((struct sockaddr_in*) src)->sin_addr.s_addr;
     u.ipv4_hdr.dstip = ((struct sockaddr_in*) hdr->msg_name)->sin_addr.s_addr;
+    #endif
     u.ipv4_hdr.checksum = calc_ipv4_checksum (u.x);
     (void) fwrite (&u.ipv4_hdr, sizeof (u.ipv4_hdr), 1, gv->pcap_fp);
     udp_hdr.srcport = ((struct sockaddr_in*) src)->sin_port;

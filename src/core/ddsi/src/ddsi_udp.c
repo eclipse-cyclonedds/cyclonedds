@@ -88,6 +88,19 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn_cmn, unsigned char * bu
   msghdr.msg_controllen = 0;
 #endif
 
+#ifdef DDSRT_WITH_FREERTOSTCP
+{
+    if (conn->m_base.m_base.m_port == 7410)
+    {
+        GVTRACE(" @@@@@@ waitset UDP RX on port %u ... ", conn->m_base.m_base.m_port);
+    }
+    if (conn->m_base.m_base.m_port == 7411)
+    {
+        GVTRACE(" @@@@@@ uc UDP RX on port %u ... ", conn->m_base.m_base.m_port);
+    }
+}
+#endif
+
   do {
     rc = ddsrt_recvmsg (conn->m_sock, &msghdr, 0, &ret);
   } while (rc == DDS_RETCODE_INTERRUPTED);
@@ -95,7 +108,9 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn_cmn, unsigned char * bu
   if (ret > 0)
   {
     if (srcloc)
-      addr_to_loc (conn->m_base.m_factory, srcloc, &src);
+    {
+        addr_to_loc (conn->m_base.m_factory, srcloc, &src);
+    }
 
     if (gv->pcap_fp)
     {
@@ -153,6 +168,13 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn_cmn, const ddsi_locato
 #if defined(__sun) && !defined(_XPG4_2)
   msg.msg_accrights = NULL;
   msg.msg_accrightslen = 0;
+#elif defined DDSRT_WITH_FREERTOSTCP    /* got whole payload sz for trans */
+  msg.msg_control = NULL;
+  msg.msg_controllen = 0U;
+  for (int ii = 0; ii < niov; ii++)
+  {
+    msg.msg_controllen += iov[ii].iov_len;
+  }
 #else
   msg.msg_control = NULL;
   msg.msg_controllen = 0;
@@ -163,6 +185,7 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn_cmn, const ddsi_locato
   DDSRT_UNUSED_ARG (flags);
 #endif
 #if MSG_NOSIGNAL && !LWIP_SOCKET
+#error
   sendflags |= MSG_NOSIGNAL;
 #endif
   do {
@@ -266,7 +289,13 @@ static dds_return_t set_dont_route (struct ddsi_domaingv const * const gv, ddsrt
   return rc;
 }
 
+#ifdef DDSRT_WITH_FREERTOSTCP
+static dds_return_t set_socket_buffer (struct ddsi_domaingv const * const gv,
+                                ddsrt_socket_t sock, int32_t socket_option, const char *socket_option_name,
+                                const char *name, const struct ddsi_config_socket_buf_size *config, uint32_t default_min_size)
+#else
 static dds_return_t set_socket_buffer (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock, int32_t socket_option, const char *socket_option_name, const char *name, const struct ddsi_config_socket_buf_size *config, uint32_t default_min_size)
+#endif
 {
   // if (min, max)=   and   initbuf=   then  request=  and  result=
   //    (def, def)          < defmin         defmin         whatever it is
@@ -275,9 +304,14 @@ static dds_return_t set_socket_buffer (struct ddsi_domaingv const * const gv, dd
   //    (M,   N<M)          < M              M              error if < M
   //    (M,  N>=M)          anything         N              error if < M
   // defmin = 1MB for receive buffer, 0B for send buffer
+
+#ifdef DDSRT_WITH_FREERTOSTCP
+  const bool always_set_size = true;
+#else
   const bool always_set_size = // whether to call setsockopt unconditionally
     ((config->min.isdefault && !config->max.isdefault) ||
      (!config->min.isdefault && !config->max.isdefault && config->max.value >= config->min.value));
+#endif
   const uint32_t socket_min_buf_size = // error if it ends up below this
     !config->min.isdefault ? config->min.value : 0;
   const uint32_t socket_req_buf_size = // size to request
@@ -289,7 +323,13 @@ static dds_return_t set_socket_buffer (struct ddsi_domaingv const * const gv, dd
   socklen_t optlen = (socklen_t) sizeof (actsize);
   dds_return_t rc;
 
+#ifdef DDSRT_WITH_FREERTOSTCP
+#warning " *** FreeRTOS-Plus-TCP FreeRTOS_Plus_TCP runtime wrapper ..."
+  rc = DDS_RETCODE_OK;
+  actsize = socket_req_buf_size + 1U;   /* stub getsockopt a different value */
+#else
   rc = ddsrt_getsockopt (sock, SOL_SOCKET, socket_option, &actsize, &optlen);
+#endif
   if (rc == DDS_RETCODE_BAD_PARAMETER)
   {
     /* not all stacks support getting/setting RCVBUF */
@@ -304,6 +344,13 @@ static dds_return_t set_socket_buffer (struct ddsi_domaingv const * const gv, dd
 
   if (always_set_size || actsize < socket_req_buf_size)
   {
+    #ifdef DDSRT_WITH_FREERTOSTCP
+    rc = ddsrt_setsockopt (sock, SOL_SOCKET, socket_option, &socket_req_buf_size, sizeof (actsize));
+
+    #warning " *** FreeRTOS-Plus-TCP FreeRTOS_Plus_TCP runtime wrapper ..."
+    actsize = socket_req_buf_size;
+
+    #else
     (void) ddsrt_setsockopt (sock, SOL_SOCKET, socket_option, &socket_req_buf_size, sizeof (actsize));
 
     /* We don't check the return code from setsockopt, because some O/Ss tend
@@ -316,11 +363,15 @@ static dds_return_t set_socket_buffer (struct ddsi_domaingv const * const gv, dd
     }
 
     if (actsize >= socket_req_buf_size)
-      GVLOG (DDS_LC_CONFIG, "socket %s buffer size set to %"PRIu32" bytes\n", name, actsize);
+    {
+        GVLOG (DDS_LC_CONFIG, "socket %s buffer size set to %"PRIu32" bytes\n", name, actsize);
+    }
     else if (actsize >= socket_min_buf_size)
-      GVLOG (DDS_LC_CONFIG,
+    {
+        GVLOG (DDS_LC_CONFIG,
              "failed to increase socket %s buffer size to %"PRIu32" bytes, continuing with %"PRIu32" bytes\n",
              name, socket_req_buf_size, actsize);
+    }
     else
     {
       /* If the configuration states it must be >= X, then error out if the
@@ -330,9 +381,10 @@ static dds_return_t set_socket_buffer (struct ddsi_domaingv const * const gv, dd
              name, socket_min_buf_size, actsize);
       rc = DDS_RETCODE_NOT_ENOUGH_SPACE;
     }
+    #endif
   }
 
-  return (rc < 0) ? rc : (actsize > (uint32_t) INT32_MAX) ? INT32_MAX : (int32_t) actsize;
+  return (rc < 0) ? rc : ((actsize > (uint32_t) INT32_MAX) ? INT32_MAX : (int32_t) actsize);
 }
 
 static dds_return_t set_rcvbuf (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock, const struct ddsi_config_socket_buf_size *config)
@@ -374,6 +426,7 @@ static dds_return_t set_mc_options_transmit_ipv6 (struct ddsi_domaingv const * c
 
 static dds_return_t set_mc_options_transmit_ipv4_if (struct ddsi_domaingv const * const gv, struct nn_interface const * const intf, ddsrt_socket_t sock)
 {
+#ifndef DDSRT_WITH_FREERTOSTCP
 #if (defined(__linux) || defined(__APPLE__)) && !LWIP_SOCKET
   if (gv->config.use_multicast_if_mreqn)
   {
@@ -390,6 +443,7 @@ static dds_return_t set_mc_options_transmit_ipv4_if (struct ddsi_domaingv const 
   }
 #else
   (void) gv;
+#endif
 #endif
   return ddsrt_setsockopt (sock, IPPROTO_IP, IP_MULTICAST_IF, intf->loc.address + 12, 4);
 }
@@ -466,7 +520,11 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
   {
     case NN_LOCATOR_KIND_UDPv4:
       if (bind_to_any)
-        socketname.a4.sin_addr.s_addr = htonl (INADDR_ANY);
+        #ifdef DDSRT_WITH_FREERTOSTCP
+        {  socketname.a4.sin_addr = htonl (INADDR_ANY); }
+        #else
+        {  socketname.a4.sin_addr.s_addr = htonl (INADDR_ANY); }
+        #endif
       break;
 #if DDSRT_HAVE_IPV6
     case NN_LOCATOR_KIND_UDPv6:
@@ -509,11 +567,15 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
         break;
     } while (!ddsrt_atomic_cas32 (&fact->receive_buf_size, old, (uint32_t) rc));
   }
+  GVLOG (DDS_LC_CONFIG, " set_rcvbuf done\n");
 
   if (set_sndbuf (gv, sock, &gv->config.socket_sndbuf_size) < 0)
     goto fail_w_socket;
+  GVLOG (DDS_LC_CONFIG, " set_sndbuf done\n");
+
   if (gv->config.dontRoute && set_dont_route (gv, sock, ipv6) != DDS_RETCODE_OK)
     goto fail_w_socket;
+  GVLOG (DDS_LC_CONFIG, " set_dont_route done\n");
 
   if ((rc = ddsrt_bind (sock, &socketname.a, ddsrt_sockaddr_get_size (&socketname.a))) != DDS_RETCODE_OK)
   {
@@ -531,6 +593,7 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
              (rc == DDS_RETCODE_PRECONDITION_NOT_MET) ? "address in use" : dds_strretcode (rc));
     goto fail_w_socket;
   }
+  GVLOG (DDS_LC_CONFIG, " ddsrt_bind to port %u done \n", get_socket_port (gv, sock));
 
   if (set_mc_xmit_options)
   {
@@ -538,6 +601,7 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
     if (rc != DDS_RETCODE_OK)
       goto fail_w_socket;
   }
+  GVLOG (DDS_LC_CONFIG, " set_mc_options_transmit %d done\n", set_mc_xmit_options);
 
 #ifdef DDS_HAS_NETWORK_CHANNELS
   if (qos->m_diffserv != 0 && fact->m_kind == NN_LOCATOR_KIND_UDPv4)
@@ -571,7 +635,11 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
   conn->m_base.m_disable_multiplexing_fn = ddsi_udp_disable_multiplexing;
   conn->m_base.m_locator_fn = ddsi_udp_conn_locator;
 
+#ifdef DDSRT_WITH_FREERTOSTCP
+  GVLOG (DDS_LC_CONFIG, "ddsi_udp_create_conn %s socket %"PRIdSOCK" port %"PRIu32"\n", purpose_str, conn->m_sock, conn->m_base.m_base.m_port);
+#else
   GVTRACE ("ddsi_udp_create_conn %s socket %"PRIdSOCK" port %"PRIu32"\n", purpose_str, conn->m_sock, conn->m_base.m_base.m_port);
+#endif
   *conn_out = &conn->m_base;
   return DDS_RETCODE_OK;
 
@@ -605,9 +673,13 @@ static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_lo
     struct ip_mreq mreq;
     mreq.imr_multiaddr = mcip.a4.sin_addr;
     if (interf)
-      memcpy (&mreq.imr_interface, interf->loc.address + 12, sizeof (mreq.imr_interface));
+    {  memcpy (&mreq.imr_interface, interf->loc.address + 12, sizeof (mreq.imr_interface)); }
     else
-      mreq.imr_interface.s_addr = htonl (INADDR_ANY);
+        #ifdef DDSRT_WITH_FREERTOSTCP
+    {  mreq.imr_interface = htonl (INADDR_ANY); }
+        #else
+    {  mreq.imr_interface.s_addr = htonl (INADDR_ANY); }
+        #endif
     rc = ddsrt_setsockopt (socket, IPPROTO_IP, join ? IP_ADD_MEMBERSHIP : IP_DROP_MEMBERSHIP, &mreq, sizeof (mreq));
   }
   return (rc == DDS_RETCODE_OK) ? 0 : -1;
@@ -714,15 +786,25 @@ static int ddsi_udp_is_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_
   switch (loc->kind)
   {
     case NN_LOCATOR_KIND_UDPv4: {
+#ifdef DDSRT_WITH_FREERTOSTCP
+      const in_addr_t *ipv4 = (const in_addr_t *) (loc->address + 12);
+      DDSRT_WARNING_GNUC_OFF(sign-conversion)
+      return IN_MULTICAST (ntohl (*ipv4));
+#else
       const struct in_addr *ipv4 = (const struct in_addr *) (loc->address + 12);
       DDSRT_WARNING_GNUC_OFF(sign-conversion)
       return IN_MULTICAST (ntohl (ipv4->s_addr));
+#endif
       DDSRT_WARNING_GNUC_ON(sign-conversion)
     }
     case NN_LOCATOR_KIND_UDPv4MCGEN: {
       const nn_udpv4mcgen_address_t *mcgen = (const nn_udpv4mcgen_address_t *) loc->address;
       DDSRT_WARNING_GNUC_OFF(sign-conversion)
+        #ifdef DDSRT_WITH_FREERTOSTCP
+      return IN_MULTICAST (ntohl (mcgen->ipv4));
+        #else
       return IN_MULTICAST (ntohl (mcgen->ipv4.s_addr));
+        #endif
       DDSRT_WARNING_GNUC_ON(sign-conversion)
     }
 #if DDSRT_HAVE_IPV6
@@ -832,7 +914,11 @@ static char *ddsi_udp_locator_to_string (char *dst, size_t sizeof_dst, const dds
     memcpy (&mcgen, loc->address, sizeof (mcgen));
     memset (&src, 0, sizeof (src));
     src.sin_family = AF_INET;
+    #ifdef DDSRT_WITH_FREERTOSTCP
+    memcpy (&src.sin_addr, &mcgen.ipv4, 4);
+    #else
     memcpy (&src.sin_addr.s_addr, &mcgen.ipv4, 4);
+    #endif
     ddsrt_sockaddrtostr ((const struct sockaddr *) &src, dst, sizeof_dst);
     pos = strlen (dst);
     assert (pos <= sizeof_dst);
@@ -876,9 +962,11 @@ static int ddsi_udp_locator_from_sockaddr (const struct ddsi_tran_factory *tran_
       if (tran->m_kind != NN_LOCATOR_KIND_UDPv4)
         return -1;
       break;
+#if DDSRT_HAVE_IPV6
     case AF_INET6:
       if (tran->m_kind != NN_LOCATOR_KIND_UDPv6)
         return -1;
+#endif
       break;
   }
   ddsi_ipaddr_to_loc (loc, sockaddr, tran->m_kind);

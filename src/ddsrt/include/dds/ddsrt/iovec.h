@@ -26,6 +26,15 @@ typedef unsigned long ddsrt_msg_iovlen_t;
 
 #if DDSRT_WITH_LWIP
 #include <lwip/sockets.h>
+
+#elif defined DDSRT_WITH_FREERTOSTCP
+#warning "debug rtos tcp stack including   "
+/* will implement struct io_vec in freertos_plus_tcp.h wrapper header. */
+
+struct iovec {
+    void  *iov_base;
+    size_t iov_len;
+};
 #else
 #include <stddef.h>
 #include <sys/socket.h>
@@ -35,6 +44,8 @@ typedef struct iovec ddsrt_iovec_t;
 typedef size_t ddsrt_iov_len_t;
 
 #if defined(__linux) && !LWIP_SOCKET
+typedef size_t ddsrt_msg_iovlen_t;
+#elif defined DDSRT_WITH_FREERTOSTCP
 typedef size_t ddsrt_msg_iovlen_t;
 #else /* POSIX says int (which macOS, FreeBSD, Solaris do) */
 typedef int ddsrt_msg_iovlen_t;
