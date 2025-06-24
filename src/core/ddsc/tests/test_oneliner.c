@@ -2063,6 +2063,9 @@ static void dosleep (struct oneliner_ctx *ctx)
 {
   if (nexttok_dur (&ctx->l, NULL, true) != TOK_DURATION)
     error (ctx, "sleep: invalid duration");
+  mprintf (ctx, "sleep: %d.%03ds\n",
+           (int) (ctx->l.v.d / DDS_NSECS_IN_SEC),
+           (int) (((ctx->l.v.d + DDS_NSECS_IN_MSEC - 1) / DDS_NSECS_IN_MSEC) % 1000));
   dds_sleepfor (ctx->l.v.d);
 }
 
