@@ -37,7 +37,7 @@ int main (int argc, char **argv)
   }
   else
   {
-    /* read from stdin, # starts a comment, any line with an indent no greater
+    /* read from stdin, # starts a comment unless preceded by a non-space, any line with an indent no greater
        than the current test's indent starts a new test, i.e.,
          # this is a comment
          r wr w 1
@@ -68,6 +68,8 @@ int main (int argc, char **argv)
       }
 
       char *cmt = strchr (buf, '#');
+      while (cmt && cmt > buf && !isspace ((unsigned char) cmt[-1]))
+        cmt = strchr (cmt + 1, '#');
       if (cmt)
         *cmt = 0;
 
