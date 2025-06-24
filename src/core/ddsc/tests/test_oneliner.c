@@ -1825,47 +1825,31 @@ static void dodelete (struct oneliner_ctx *ctx)
 DDSRT_WARNING_MSVC_ON(6386)
 DDSRT_WARNING_MSVC_ON(6385)
 
-static void dodeaf_maybe_imm (struct oneliner_ctx *ctx, bool immediate)
-{
-  char const * const mode = immediate ? "deaf!" : "deaf";
-  dds_return_t ret;
-  entname_t name;
-  int ent;
-  if ((ent = parse_entity (ctx)) < 0 || (ent % 9) != 0)
-    error (ctx, "%s: requires participant", mode);
-  mprintf (ctx, "%s: %s\n", mode, getentname (&name, ent));
-  DDSRT_WARNING_MSVC_OFF(6385)
-  if ((ret = dds_domain_set_deafmute (ctx->es[ent], true, false, DDS_INFINITY)) != 0)
-    error_dds (ctx, ret, "deaf: dds_domain_set_deafmute failed on %"PRId32, ctx->es[ent]);
-  DDSRT_WARNING_MSVC_ON(6385)
-  if (immediate)
-  {
-    // speed up the process by forcing lease expiry
-    dds_entity *x, *xprime;
-    if ((ret = dds_entity_pin (ctx->es[ent], &x)) < 0)
-      error_dds (ctx, ret, "%s: pin participant failed %"PRId32, mode, ctx->es[ent]);
-    for (int i = 0; i < (int) (sizeof (ctx->doms) / sizeof (ctx->doms[0])); i++)
-    {
-      if (i == ent / 9 || ctx->es[9*i] == 0)
-        continue;
-      if ((ret = dds_entity_pin (ctx->es[9*i], &xprime)) < 0)
-      {
-        dds_entity_unpin (x);
-        error_dds (ctx, ret, "%s: pin counterpart participant failed %"PRId32, mode, ctx->es[9*i]);
-      }
-      ddsi_thread_state_awake (ddsi_lookup_thread_state (), &x->m_domain->gv);
-      ddsi_delete_proxy_participant_by_guid (&x->m_domain->gv, &xprime->m_guid, ddsrt_time_wallclock (), true);
-      ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
-      dds_entity_unpin (xprime);
-    }
-    dds_entity_unpin (x);
-  }
-}
+enum dodeafmute_mode { DONORMAL, DODEAF, DOMUTE, DODEAFMUTE };
 
-static void dodeaf (struct oneliner_ctx *ctx)
+static const char *dodeafmute_modestr (enum dodeafmute_mode mode, bool immediate)
 {
-  const bool immediate = nexttok_if (&ctx->l, '!');
-  dodeaf_maybe_imm (ctx, immediate);
+  if (!immediate)
+  {
+    switch (mode)
+    {
+      case DONORMAL: return "normal";
+      case DODEAF: return "deaf";
+      case DOMUTE: return "mute";
+      case DODEAFMUTE: return "deafmute";
+    }
+  }
+  else
+  {
+    switch (mode)
+    {
+      case DONORMAL: return "normal!";
+      case DODEAF: return "deaf!";
+      case DOMUTE: return "mute!";
+      case DODEAFMUTE: return "deafmute!";
+    }
+  }
+  return "?";
 }
 
 static void wait_for_cleanup (struct oneliner_ctx *ctx, dds_entity_t recovering_participant_handle, const ddsi_guid_t *guid)
@@ -1880,47 +1864,138 @@ static void wait_for_cleanup (struct oneliner_ctx *ctx, dds_entity_t recovering_
   dds_entity_unpin (xprime);
 }
 
-static void dohearing_maybe_imm (struct oneliner_ctx *ctx, bool immediate)
+static void dodeafmute_maybe_imm (struct oneliner_ctx *ctx, enum dodeafmute_mode mode, bool immediate)
 {
-  char const * const mode = immediate ? "hearing!" : "hearing";
+  char const * const modestr = dodeafmute_modestr (mode, immediate);
+  const bool dodeaf = (mode != DONORMAL && mode != DOMUTE);
+  const bool domute = (mode != DONORMAL && mode != DODEAF);
   dds_return_t ret;
-  entname_t name;
   int ent;
   if ((ent = parse_entity (ctx)) < 0 || (ent % 9) != 0)
-    error (ctx, "%s: requires participant", mode);
-  mprintf (ctx, "%s: %s\n", mode, getentname (&name, ent));
+    error (ctx, "%s: requires participant", modestr);
+  entname_t entname;
+  getentname (&entname, ent);
+  mprintf (ctx, "%s: %s\n", modestr, entname.n);
   DDSRT_WARNING_MSVC_OFF(6385)
-  if ((ret = dds_domain_set_deafmute (ctx->es[ent], false, false, DDS_INFINITY)) != 0)
-    error_dds (ctx, ret, "%s: dds_domain_set_deafmute failed %"PRId32, mode, ctx->es[ent]);
+  if ((ret = dds_domain_set_deafmute (ctx->es[ent], dodeaf, domute, DDS_INFINITY)) != 0)
+    error_dds (ctx, ret, "%s: dds_domain_set_deafmute failed on %s", modestr, entname.n);
   DDSRT_WARNING_MSVC_ON(6385)
   if (immediate)
   {
-    // speed up the process by forcing SPDP publication on the remote
-    // better wait until our local GC completed because we block
-    // rediscovery of the remote participant while we're still cleaning
-    // up after it
-    for (int i = 0; i < (int) (sizeof (ctx->doms) / sizeof (ctx->doms[0])); i++)
+    dds_entity *x, *xprime;
+    if ((ret = dds_entity_pin (ctx->es[ent], &x)) < 0)
+      error_dds (ctx, ret, "%s: pin participant failed %s", modestr, entname.n);
+
+    if (dodeaf) // force lease expiry
     {
-      if (i == ent / 9 || ctx->es[9*i] == 0)
-        continue;
-      dds_entity *xprime;
-      struct ddsi_participant *pp;
-      if ((ret = dds_entity_pin (ctx->es[9*i], &xprime)) < 0)
-        error_dds (ctx, ret, "%s: pin counterpart participant failed %"PRId32, mode, ctx->es[9*i]);
-      wait_for_cleanup (ctx, ctx->es[ent], &xprime->m_guid);
-      ddsi_thread_state_awake (ddsi_lookup_thread_state (), &xprime->m_domain->gv);
-      if ((pp = ddsi_entidx_lookup_participant_guid (xprime->m_domain->gv.entity_index, &xprime->m_guid)) != NULL)
-        ddsi_spdp_force_republish (pp->e.gv->spdp_schedule, pp, NULL);
-      ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
-      dds_entity_unpin (xprime);
+      for (int i = 0; i < (int) (sizeof (ctx->doms) / sizeof (ctx->doms[0])); i++)
+      {
+        if (i == ent / 9 || ctx->es[9*i] == 0)
+          continue;
+        if ((ret = dds_entity_pin (ctx->es[9*i], &xprime)) < 0)
+        {
+          dds_entity_unpin (x);
+          entname_t ent1name;
+          getentname (&ent1name, 9*i);
+          error_dds (ctx, ret, "%s: pin counterpart participant failed %s", modestr, ent1name.n);
+        }
+        ddsi_thread_state_awake (ddsi_lookup_thread_state (), &x->m_domain->gv);
+        ddsi_delete_proxy_participant_by_guid (&x->m_domain->gv, &xprime->m_guid, ddsrt_time_wallclock (), true);
+        ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+        dds_entity_unpin (xprime);
+      }
     }
+    else
+    {
+      // speed up rediscovery process by forcing SPDP publication on the remote
+      // better wait until our local GC completed because we block
+      // rediscovery of the remote participant while we're still cleaning
+      // up after it
+      for (int i = 0; i < (int) (sizeof (ctx->doms) / sizeof (ctx->doms[0])); i++)
+      {
+        if (i == ent / 9 || ctx->es[9*i] == 0)
+          continue;
+        entname_t ent1name;
+        getentname (&ent1name, 9*i);
+        struct ddsi_participant *pp;
+        if ((ret = dds_entity_pin (ctx->es[9*i], &xprime)) < 0)
+          error_dds (ctx, ret, "%s: pin counterpart participant failed %s", modestr, ent1name.n);
+        wait_for_cleanup (ctx, ctx->es[ent], &xprime->m_guid);
+        ddsi_thread_state_awake (ddsi_lookup_thread_state (), &xprime->m_domain->gv);
+        if ((pp = ddsi_entidx_lookup_participant_guid (xprime->m_domain->gv.entity_index, &xprime->m_guid)) != NULL)
+          ddsi_spdp_force_republish (pp->e.gv->spdp_schedule, pp, NULL);
+        ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+        dds_entity_unpin (xprime);
+      }
+    }
+
+    if (domute) // force lease expiry in remotes
+    {
+      for (int i = 0; i < (int) (sizeof (ctx->doms) / sizeof (ctx->doms[0])); i++)
+      {
+        if (i == ent / 9 || ctx->es[9*i] == 0)
+          continue;
+        if ((ret = dds_entity_pin (ctx->es[9*i], &xprime)) < 0)
+        {
+          dds_entity_unpin (x);
+          entname_t ent1name;
+          getentname (&ent1name, 9*i);
+          error_dds (ctx, ret, "%s: pin counterpart participant failed %s", modestr, ent1name.n);
+        }
+        ddsi_thread_state_awake (ddsi_lookup_thread_state (), &xprime->m_domain->gv);
+        ddsi_delete_proxy_participant_by_guid (&xprime->m_domain->gv, &x->m_guid, ddsrt_time_wallclock (), true);
+        ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+        dds_entity_unpin (xprime);
+      }
+    }
+    else
+    {
+      // speed up rediscovery process by forcing SPDP publication on the remote
+      // better wait until our remote GC to complete because we block
+      // rediscovery of the remote participant while we're still cleaning
+      // up after it
+      for (int i = 0; i < (int) (sizeof (ctx->doms) / sizeof (ctx->doms[0])); i++)
+      {
+        if (i == ent / 9 || ctx->es[9*i] == 0)
+          continue;
+        wait_for_cleanup (ctx, ctx->es[9*i], &x->m_guid);
+      }
+      // force republication of SPDP for this participant
+      {
+        struct ddsi_participant *pp;
+        ddsi_thread_state_awake (ddsi_lookup_thread_state (), &x->m_domain->gv);
+        if ((pp = ddsi_entidx_lookup_participant_guid (x->m_domain->gv.entity_index, &x->m_guid)) != NULL)
+          ddsi_spdp_force_republish (pp->e.gv->spdp_schedule, pp, NULL);
+        ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+      }
+    }
+
+    dds_entity_unpin (x);
   }
 }
 
-static void dohearing (struct oneliner_ctx *ctx)
+static void donormal (struct oneliner_ctx *ctx)
 {
   const bool immediate = nexttok_if (&ctx->l, '!');
-  dohearing_maybe_imm (ctx, immediate);
+  dodeafmute_maybe_imm (ctx, DONORMAL, immediate);
+}
+
+static void dodeaf (struct oneliner_ctx *ctx)
+{
+  const bool immediate = nexttok_if (&ctx->l, '!');
+  dodeafmute_maybe_imm (ctx, DODEAF, immediate);
+}
+
+static void domute (struct oneliner_ctx *ctx)
+{
+  const bool immediate = nexttok_if (&ctx->l, '!');
+  dodeafmute_maybe_imm (ctx, DOMUTE, immediate);
+}
+
+static void dodeafmute (struct oneliner_ctx *ctx)
+{
+  const bool immediate = nexttok_if (&ctx->l, '!');
+  dodeafmute_maybe_imm (ctx, DODEAFMUTE, immediate);
 }
 
 static void dosleep (struct oneliner_ctx *ctx)
@@ -2035,7 +2110,10 @@ static void dispatchcmd (struct oneliner_ctx *ctx)
     { "take",       dotake },
     { "read",       doread },
     { "deaf",       dodeaf },
-    { "hearing",    dohearing },
+    { "mute",       domute },
+    { "deafmute",   dodeafmute },
+    { "normal",     donormal },
+    { "hearing",    donormal }, // backwards compat
     { "sleep",      dosleep },
     { "setflags",   dosetflags },
   };
