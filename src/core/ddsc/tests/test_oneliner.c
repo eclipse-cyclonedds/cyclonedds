@@ -1512,6 +1512,7 @@ static void doreadlike (struct oneliner_ctx *ctx, const char *name, dds_return_t
 
 static void dotake (struct oneliner_ctx *ctx) { doreadlike (ctx, "take", dds_take); }
 static void doread (struct oneliner_ctx *ctx) { doreadlike (ctx, "read", dds_read); }
+static void dopeek (struct oneliner_ctx *ctx) { doreadlike (ctx, "peek", dds_peek); }
 
 static void dowritelike (struct oneliner_ctx *ctx, const char *name, bool fail, dds_return_t (*fn) (dds_entity_t wr, const void *sample, dds_time_t ts))
 {
@@ -2196,6 +2197,7 @@ static void dispatchcmd (struct oneliner_ctx *ctx)
     { "flush",      dowriteflush },
     { "take",       dotake },
     { "read",       doread },
+    { "peek",       dopeek },
     { "deaf",       dodeaf },
     { "mute",       domute },
     { "deafmute",   dodeafmute },
