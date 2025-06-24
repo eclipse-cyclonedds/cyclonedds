@@ -1204,6 +1204,8 @@ struct doreadlike_sample {
   int wrent;
   Space_Type1 data;
   bool valid_data;
+  int disposed_generation_count;
+  int no_writers_generation_count;
   const char *begin, *end;
 };
 
@@ -1249,6 +1251,8 @@ static bool doreadlike_parse_sample (struct oneliner_ctx *ctx, struct doreadlike
   s->ts = -1;
   s->wrent = -1;
   s->wrih = 0;
+  s->no_writers_generation_count = -1;
+  s->disposed_generation_count = -1;
   struct oneliner_lex l1 = ctx->l;
   if (nexttok_if (&ctx->l, TOK_NAME))
   {
@@ -1278,6 +1282,18 @@ static bool doreadlike_parse_sample (struct oneliner_ctx *ctx, struct doreadlike
   s->wrent = parse_entity1 (&ctx->l, NULL);
   if (nexttok_if (&ctx->l, TOK_TIMESTAMP))
     s->ts = ctx->l.v.d;
+  while (nexttok_if (&ctx->l, '#')) {
+    int *cnt;
+    if (*ctx->l.inp == 'd')
+      cnt = &s->disposed_generation_count;
+    else if (*ctx->l.inp == 'u')
+      cnt = &s->no_writers_generation_count;
+    else
+      return false;
+    ctx->l.inp++;
+    if (!nexttok_int (&ctx->l, cnt))
+      return false;
+  }
   s->end = ctx->l.inp;
   return true;
 }
@@ -1292,7 +1308,9 @@ static bool doreadlike_ismatch (const dds_sample_info_t *si, const Space_Type1 *
           (!exp->valid_data || exp->data.long_2 < 0 || s->long_2 == exp->data.long_2) &&
           (!exp->valid_data || exp->data.long_3 < 0 || s->long_3 == exp->data.long_3) &&
           (exp->ts < 0 || si->source_timestamp == exp->ts) &&
-          (exp->wrent < 0 || si->publication_handle == exp->wrih));
+          (exp->wrent < 0 || si->publication_handle == exp->wrih) &&
+          (exp->disposed_generation_count < 0 || (uint32_t)exp->disposed_generation_count == si->disposed_generation_count) &&
+          (exp->no_writers_generation_count < 0 || (uint32_t)exp->no_writers_generation_count == si->no_writers_generation_count));
 }
 
 static bool doreadlike_matchstep (const dds_sample_info_t *si, const Space_Type1 *s, const struct doreadlike_sample *exp, int nexp, bool ellipsis, unsigned *tomatch, int *cursor, dds_instance_handle_t *lastih, int *matchidx)
@@ -1437,6 +1455,10 @@ static void doreadlike (struct oneliner_ctx *ctx, const char *name, dds_return_t
         error (ctx, "%s%s: unknown publication handle received", name, namesuf);
       mprintf (ctx, "%s", wrname.n);
       print_timestamp (ctx, si[i].source_timestamp);
+      if (si[i].no_writers_generation_count != 0)
+        mprintf (ctx, "#u%"PRIu32, si[i].no_writers_generation_count);
+      if (si[i].disposed_generation_count != 0)
+        mprintf (ctx, "#d%"PRIu32, si[i].disposed_generation_count);
       if (!doreadlike_matchstep (&si[i], s, exp, nexp, ellipsis, &tomatch, &cursor, &lastih, &matchidx[i]))
       {
         mprintf (ctx, "?");
