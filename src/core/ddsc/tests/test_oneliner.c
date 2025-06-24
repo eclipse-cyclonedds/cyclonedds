@@ -2200,7 +2200,6 @@ static void dispatchcmd (struct oneliner_ctx *ctx)
     { "mute",       domute },
     { "deafmute",   dodeafmute },
     { "normal",     donormal },
-    { "hearing",    donormal }, // backwards compat
     { "sleep",      dosleep },
     { "setflags",   dosetflags },
   };
