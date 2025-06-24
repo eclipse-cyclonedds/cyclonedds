@@ -1204,6 +1204,7 @@ struct doreadlike_sample {
   int wrent;
   Space_Type1 data;
   bool valid_data;
+  const char *begin, *end;
 };
 
 static bool wrname_from_pubhandle (const struct oneliner_ctx *ctx, int ent, dds_instance_handle_t pubhandle, entname_t *wrname)
@@ -1242,6 +1243,8 @@ static bool doreadlike_parse_sample (struct oneliner_ctx *ctx, struct doreadlike
   // the first is an invalid sample, the second a valid one, the third says anything goes
   // state is a combination of: sample state (F,S fresh/stale), instance state (A,U,D), view state (N,O)
   // unspecified: don't care
+  advancetok (&ctx->l); // eat whitespace so s->begin is exact
+  s->begin = ctx->l.inp;
   s->state = 0;
   s->ts = -1;
   s->wrent = -1;
@@ -1275,6 +1278,7 @@ static bool doreadlike_parse_sample (struct oneliner_ctx *ctx, struct doreadlike
   s->wrent = parse_entity1 (&ctx->l, NULL);
   if (nexttok_if (&ctx->l, TOK_TIMESTAMP))
     s->ts = ctx->l.v.d;
+  s->end = ctx->l.inp;
   return true;
 }
 
@@ -1435,12 +1439,8 @@ static void doreadlike (struct oneliner_ctx *ctx, const char *name, dds_return_t
       print_timestamp (ctx, si[i].source_timestamp);
       if (!doreadlike_matchstep (&si[i], s, exp, nexp, ellipsis, &tomatch, &cursor, &lastih, &matchidx[i]))
       {
-        mprintf (ctx, "[unexpected]");
+        mprintf (ctx, "?");
         matchok = false;
-      }
-      else
-      {
-        mprintf (ctx, "[#%d]", matchidx[i]);
       }
     }
     mprintf (ctx, "}:");
@@ -1459,7 +1459,17 @@ static void doreadlike (struct oneliner_ctx *ctx, const char *name, dds_return_t
   }
   if (tomatch != 0)
   {
-    mprintf (ctx, " (samples missing)");
+    mprintf (ctx, " missing {");
+    first = true;
+    for (int i = 0; i < nexp; i++)
+    {
+      if (!(tomatch & (1u << i)))
+        continue;
+      const int len = (int) (exp[i].end - exp[i].begin);
+      mprintf (ctx, "%s%*.*s", (first ? "" : ","), len, len, exp[i].begin);
+      first = false;
+    }
+    mprintf (ctx, "}:");
     matchok = false;
   }
   if (exp_nvalid >= 0 && (count[1] != exp_nvalid))
