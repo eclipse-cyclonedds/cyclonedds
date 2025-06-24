@@ -1424,11 +1424,20 @@ static void doreadlike (struct oneliner_ctx *ctx, const char *name, dds_return_t
       mprintf (ctx, "%s", wrname.n);
       print_timestamp (ctx, si[i].source_timestamp);
       if (!doreadlike_matchstep (&si[i], s, exp, nexp, ellipsis, &tomatch, &cursor, &lastih, &matchidx[i]))
+      {
+        mprintf (ctx, "[unexpected]");
         matchok = false;
+      }
+      else
+      {
+        mprintf (ctx, "[#%d]", matchidx[i]);
+      }
     }
     mprintf (ctx, "}:");
+#if 0 // printing cursor is more confusing then helpful
     for (int i = 0; i < n; i++)
       mprintf (ctx, " %d", matchidx[i]);
+#endif
   }
   if (ws)
   {
@@ -1443,12 +1452,17 @@ static void doreadlike (struct oneliner_ctx *ctx, const char *name, dds_return_t
     mprintf (ctx, " (samples missing)");
     matchok = false;
   }
-  mprintf (ctx, " valid %d %d invalid %d %d", count[1], exp_nvalid, count[0], exp_ninvalid);
   if (exp_nvalid >= 0 && (count[1] != exp_nvalid))
+  {
+    mprintf (ctx, " %d valid samples instead of expected %d", count[1], exp_nvalid);
     matchok = false;
+  }
   if (exp_ninvalid >= 0 && (count[0] != exp_ninvalid))
+  {
+    mprintf (ctx, " %d invalid samples instead of expected %d", count[0], exp_ninvalid);
     matchok = false;
-  mprintf (ctx, "\n");
+  }
+  mprintf (ctx, " %s\n", matchok ? "ok" : "fail");
   if (!matchok)
     testfail (ctx, "%s%s: mismatch between actual and expected set\n", name, namesuf);
 #undef MAXN
