@@ -164,17 +164,17 @@
  *
  *                       Delay program execution for D s (D is a floating-point number)
  *
- *               | deaf ENTITY-NAME
- *               | deaf! ENTITY-NAME
- *               | hearing ENTITY-NAME
- *               | hearing! ENTITY-NAME
+ *               | normal[!] ENTITY-NAME
+ *               | deaf[!] ENTITY-NAME
+ *               | mute[!] ENTITY-NAME
+ *               | deafmute[!] ENTITY-NAME
  *
- *                       Makes the domain wherein the specified entity exists deaf,
- *                       respectively restoring hearing.  The entity must be either P or
- *                       P' and both must exist.  The ones suffixed with "!" play use
- *                       some tricks to speed up lease expiry and reconnection (like
- *                       forcibly deleting a proxy participant or triggering the publication
- *                       of SPDP packets).
+ *                       Makes the domain wherein the specified entity exists communicate
+ *                       normally, deaf, mute or both deaf and mute.  respectively
+ *                       restoring hearing.  The entity must be a participant.  If
+ *                       suffixed with "!", use some tricks to speed up lease expiry and
+ *                       reconnection (like forcibly deleting a proxy participant or
+ *                       triggering the publication of SPDP packets).
  *
  *               | setflags(FLAGS) ENTITY-NAME
  *
