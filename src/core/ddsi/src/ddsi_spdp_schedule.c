@@ -810,7 +810,7 @@ static void ddsi_spdp_handle_live_locators_xevent_cb (struct ddsi_domaingv *gv, 
 bool ddsi_spdp_force_republish (struct spdp_admin *adm, const struct ddsi_participant *pp, const struct ddsi_proxy_reader *prd)
 {
   // Used for: initial publication, QoS update, dispose+unregister, faster rediscovery in
-  // oneliner in implementation of "hearing!"
+  // oneliner in implementation of "normal!"
   //
   // It seems there's no need to update the scheduled next publication for any of these cases.
   //
