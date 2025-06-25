@@ -1784,7 +1784,9 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
       .keys.nkeys = 0,
       .keys.keys = NULL,
       .ops.nops = dds_stream_countops (topic_desc_wr->m_ops, topic_desc_wr->m_nkeys, topic_desc_wr->m_keys),
-      .ops.ops = (uint32_t *) topic_desc_wr->m_ops
+      .ops.ops = (uint32_t *) topic_desc_wr->m_ops,
+      .member_ids.op0 = (uint32_t *) topic_desc_wr->m_ops,
+      .member_ids.table = NULL
     };
 
     void * msg_wr = t ? sample_init_fn2 () : sample_init_fn1 ();
@@ -1807,7 +1809,9 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
       .keys.nkeys = 0,
       .keys.keys = NULL,
       .ops.nops = dds_stream_countops (topic_desc_rd->m_ops, topic_desc_rd->m_nkeys, topic_desc_rd->m_keys),
-      .ops.ops = (uint32_t *) topic_desc_rd->m_ops
+      .ops.ops = (uint32_t *) topic_desc_rd->m_ops,
+      .member_ids.op0 = (uint32_t *) topic_desc_wr->m_ops,
+      .member_ids.table = NULL
     };
 
     void *msg_rd = ddsrt_calloc (1, desc_rd.size);
@@ -1839,7 +1843,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
 #define D(n) (&MinXcdrVersion_ ## n ## _desc)
 CU_TheoryDataPoints (ddsc_cdrstream, min_xcdr_version) = {
   CU_DataPoints (const dds_topic_descriptor_t *, D(t),  D(t_nested), D(t_inherit), D(t_opt), D(t_ext), D(t_append), D(t_mut), D(t_nested_mut), D(t_nested_opt) ),
-  CU_DataPoints (uint16_t,                       XCDR1, XCDR1,       XCDR1,        XCDR2,    XCDR1,    XCDR2,       XCDR2,    XCDR2,           XCDR2 ),
+  CU_DataPoints (uint16_t,                       XCDR1, XCDR1,       XCDR1,        XCDR1,    XCDR1,    XCDR2,       XCDR2,    XCDR2,           XCDR1 ),
 };
 
 CU_Theory ((const dds_topic_descriptor_t *desc, uint16_t min_xcdrv),
@@ -2270,7 +2274,7 @@ CU_Test(ddsc_cdrstream, init_sequence_in_external_struct)
   };
   struct dds_cdrstream_desc descr;
   memset (&descr, 0, sizeof (descr));
-  dds_cdrstream_desc_init (&descr, &dds_cdrstream_default_allocator, sizeof (ExternMutStructSeq), dds_alignof (ExternMutStructSeq), 0, ExternMutStructSeq_ops, NULL, 0);
+  dds_cdrstream_desc_init (&descr, &dds_cdrstream_default_allocator, sizeof (ExternMutStructSeq), dds_alignof (ExternMutStructSeq), 0, ExternMutStructSeq_ops, NULL, 0, 0);
   uint32_t actual_size;
   const bool byteswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
   const bool norm_ok = dds_stream_normalize (cdr, sizeof (cdr), byteswap, DDSI_RTPS_CDR_ENC_VERSION_2, &descr, false, &actual_size);
@@ -2597,7 +2601,7 @@ CU_Test (ddsc_cdrstream, check_wstring_valid)
 
     dds_ostream_t os;
     dds_ostream_init (&os, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
-    const bool wok = dds_stream_write (&os, &dds_cdrstream_default_allocator, tests[i].data, desc.ops.ops);
+    const bool wok = dds_stream_write (&os, &dds_cdrstream_default_allocator, NULL, tests[i].data, desc.ops.ops);
     CU_ASSERT_FATAL (wok);
 
     CU_ASSERT_FATAL (os.m_index == tests[i].cdrsize);

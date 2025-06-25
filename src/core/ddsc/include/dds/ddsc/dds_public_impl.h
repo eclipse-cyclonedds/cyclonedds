@@ -168,6 +168,7 @@ typedef struct dds_topic_descriptor
                                                    only present if flag DDS_TOPIC_XTYPES_METADATA is set */
   const uint32_t restrict_data_representation; /**< restrictions on the data representations allowed for the top-level type for this topic,
                                            only present if flag DDS_TOPIC_RESTRICT_DATA_REPRESENTATION */
+  const uint32_t m_mid_table_offs;     /**< Offset of the member ID table in the ops (0 if not present) */
 }
 dds_topic_descriptor_t;
 

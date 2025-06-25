@@ -57,7 +57,7 @@ extern "C" {
    DDSI_QP_ENTITY_NAME | DDSI_QP_PSMX | DDSI_QP_CYCLONE_WRITER_BATCHING)
 
 /** @component qos_obj */
-dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allowed_data_representations, bool topicqos);
+dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allowed_data_representations, dds_data_type_properties_t data_type_props, bool topicqos);
 
 /** @component qos_obj */
 dds_return_t dds_ensure_valid_psmx_instances (dds_qos_t *qos, dds_psmx_endpoint_type_t forwhat, const struct ddsi_sertype *stype, const struct dds_psmx_set *psmx_instances);
