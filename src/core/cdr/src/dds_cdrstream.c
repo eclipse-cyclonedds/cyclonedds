@@ -174,13 +174,13 @@ struct dds_cdrstream_ops_info {
   bool in_xcdr1_delimited_scope;
 };
 
-const static struct dds_cdrstream_desc_mid_table static_empty_mid_table = { .table = (struct ddsrt_hh *) &ddsrt_hh_empty, .op0 = NULL };
+static const struct dds_cdrstream_desc_mid_table static_empty_mid_table = { .table = (struct ddsrt_hh *) &ddsrt_hh_empty, .op0 = NULL };
 
 static const uint32_t *dds_stream_skip_adr (uint32_t insn, const uint32_t *ops)
   ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 static const uint32_t *dds_stream_skip_default (char * restrict data, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, enum sample_data_state sample_state)
-  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+  ddsrt_nonnull_all;
 
 static const uint32_t *dds_stream_extract_key_from_data1 (dds_istream_t *is, restrict_ostream_t *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table,
   const uint32_t *ops, bool mutable_member, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * restrict keys_remaining)
@@ -196,7 +196,7 @@ static const uint32_t *stream_normalize_data_impl (char * restrict data, uint32_
   ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 static const uint32_t *dds_stream_read_impl (dds_istream_t *is, char * restrict data, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, bool is_mutable_member, enum cdr_data_kind cdr_kind, enum sample_data_state sample_state)
-  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+  ddsrt_nonnull_all;
 
 static const uint32_t *stream_free_sample_adr (uint32_t insn, void * restrict data, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops)
   ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
@@ -205,7 +205,7 @@ static const uint32_t *dds_stream_skip_adr_default (uint32_t insn, char * restri
   ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 static const uint32_t *dds_stream_key_size (const uint32_t *ops, struct key_props *k)
-  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+  ddsrt_nonnull_all;
 
 static const uint32_t *dds_stream_free_sample_uni (char * restrict discaddr, char * restrict baseaddr, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, uint32_t insn)
   ddsrt_nonnull_all;
@@ -1183,7 +1183,7 @@ static void dds_stream_get_ops_info (const uint32_t *ops, struct dds_cdrstream_o
   dds_stream_get_ops_info1 (ops, 0, info);
 }
 
-ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
+ddsrt_nonnull_all
 static char *dds_stream_reuse_string_bound (dds_istream_t *is, char * restrict str, const uint32_t size)
 {
   const uint32_t length = dds_is_get4 (is);
@@ -1198,7 +1198,7 @@ static char *dds_stream_reuse_string_bound (dds_istream_t *is, char * restrict s
   return str;
 }
 
-ddsrt_attribute_warn_unused_result ddsrt_nonnull ((1, 3))
+ddsrt_nonnull ((1, 3))
 static char *dds_stream_reuse_string (dds_istream_t *is, char * restrict str, const struct dds_cdrstream_allocator *allocator, enum sample_data_state sample_state)
 {
   const uint32_t length = dds_is_get4 (is);
@@ -1215,7 +1215,7 @@ static char *dds_stream_reuse_string (dds_istream_t *is, char * restrict str, co
   return str;
 }
 
-ddsrt_attribute_warn_unused_result ddsrt_nonnull ((2))
+ddsrt_nonnull ((2))
 static char *dds_stream_reuse_string_empty (char * restrict str, const struct dds_cdrstream_allocator *allocator, enum sample_data_state sample_state)
 {
   if (sample_state == SAMPLE_DATA_INITIALIZED && str != NULL)
@@ -1889,7 +1889,7 @@ struct getsize_state {
   const uint32_t xcdr_version;
 };
 
-ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
+ddsrt_nonnull_all
 static const uint32_t *dds_stream_getsize_impl (struct getsize_state *st, const char *data, const uint32_t *ops, bool is_mutable_member);
 
 ddsrt_nonnull_all
@@ -3178,7 +3178,7 @@ static const uint32_t *dds_stream_skip_xcdr2_pl_default (char * restrict data, c
   return dds_stream_skip_xcdr2_pl_memberlist_default (data, allocator, ++ops, sample_state);
 }
 
-ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
+ddsrt_nonnull_all
 static const uint32_t *dds_stream_skip_default (char * restrict data, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, enum sample_data_state sample_state)
 {
   uint32_t insn;
@@ -3323,7 +3323,6 @@ static const uint32_t *dds_stream_read_xcdr2_pl (dds_istream_t *is, char * restr
   return ops;
 }
 
-ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
 static const uint32_t *dds_stream_read_impl (dds_istream_t *is, char * restrict data, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, bool is_mutable_member, enum cdr_data_kind cdr_kind, enum sample_data_state sample_state)
 {
   uint32_t insn;
