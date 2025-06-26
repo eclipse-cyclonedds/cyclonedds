@@ -538,10 +538,12 @@ static const uint32_t *dds_stream_write_uniBO (RESTRICT_OSTREAM_T *os, const str
 static void dds_stream_write_paramheaderBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, bool flag_mu, uint32_t member_id, uint32_t *param_length_offset, bool *alignment_offset_by_4)
 {
   // Always using long PL encoding
-  uint32_t param_header = DDS_XCDR1_PL_SHORT_FLAG_MU | DDS_XCDR1_PL_SHORT_PID_EXTENDED | DDS_XCDR1_PL_SHORT_PID_EXT_LEN; // support for FLAG_IMPL_EXT not implemented
-  uint32_t param_id = (flag_mu ? DDS_XCDR1_PL_LONG_FLAG_MU : 0) | (member_id & DDS_XCDR1_PL_LONG_MID_MASK);
-  dds_os_put4BO (os, allocator, param_header);
-  dds_os_put4BO (os, allocator, param_id);
+  uint16_t phdr = DDS_XCDR1_PL_SHORT_FLAG_MU | DDS_XCDR1_PL_SHORT_PID_EXTENDED; // support for FLAG_IMPL_EXT not implemented
+  uint16_t slen = DDS_XCDR1_PL_SHORT_PID_EXT_LEN;
+  uint32_t pid = (flag_mu ? DDS_XCDR1_PL_LONG_FLAG_MU : 0) | (member_id & DDS_XCDR1_PL_LONG_MID_MASK);
+  dds_os_put2BO (os, allocator, phdr);
+  dds_os_put2BO (os, allocator, slen);
+  dds_os_put4BO (os, allocator, pid);
   *param_length_offset = dds_os_reserve4BO (os, allocator);
   // Ghastly XCDR1 alignment rules for mutable encoding and the encoding of optionals in non-mutable structs
   // require us to pretend that the value starts at an offset 0 mod 8. The caller is expected to undo the

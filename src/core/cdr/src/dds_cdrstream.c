@@ -2587,7 +2587,8 @@ static bool stream_is_member_present (dds_istream_t *is, uint32_t *param_len)
 {
   if (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
   {
-    uint32_t phdr = dds_is_get4 (is);
+    uint16_t phdr = dds_is_get2 (is);
+    uint16_t slen = dds_is_get2 (is);
     uint32_t plen;
     if ((phdr & DDS_XCDR1_PL_SHORT_PID_MASK) == DDS_XCDR1_PL_SHORT_PID_EXTENDED)
     {
@@ -2596,7 +2597,7 @@ static bool stream_is_member_present (dds_istream_t *is, uint32_t *param_len)
     }
     else
     {
-      plen = (uint32_t) (phdr & DDS_XCDR1_PL_SHORT_LEN_MASK);
+      plen = (uint32_t) slen;
     }
     *param_len = plen;
     return plen > 0;
@@ -4117,15 +4118,18 @@ enum normalize_xcdr1_paramheader_result {
 ddsrt_nonnull_all
 static enum normalize_xcdr1_paramheader_result stream_read_normalize_xcdr1_paramheader (char * restrict data, uint32_t * restrict off, uint32_t size, bool bswap, uint32_t *param_length, bool *must_understand, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *adr_op)
 {
-  uint32_t phdr, phdr_mid, plen;
-  if (!read_and_normalize_uint32 (&phdr, data, off, size, bswap))
+  uint16_t phdr, slen;
+  uint32_t phdr_mid, plen;
+  if (!read_and_normalize_uint16 (&phdr, data, off, size, bswap))
+    return NPHR1_ERROR;
+  if (!read_and_normalize_uint16 (&slen, data, off, size, bswap))
     return NPHR1_ERROR;
   if ((phdr & DDS_XCDR1_PL_SHORT_PID_MASK) == DDS_XCDR1_PL_SHORT_PID_EXTENDED)
   {
     // Extended header
 
     // Check length and must understand in short param header
-    if ((phdr & DDS_XCDR1_PL_SHORT_LEN_MASK) != DDS_XCDR1_PL_SHORT_PID_EXT_LEN)
+    if (slen != DDS_XCDR1_PL_SHORT_PID_EXT_LEN)
       return NPHR1_ERROR;
     if (!(phdr & DDS_XCDR1_PL_SHORT_FLAG_MU))
       return NPHR1_ERROR;
@@ -4154,7 +4158,7 @@ static enum normalize_xcdr1_paramheader_result stream_read_normalize_xcdr1_param
   {
     // Short header
     *must_understand = (phdr & DDS_XCDR1_PL_SHORT_FLAG_MU);
-    plen = (uint32_t) (phdr & DDS_XCDR1_PL_SHORT_LEN_MASK);
+    plen = (uint32_t) slen;
     *param_length = plen;
     // reject if fewer than plen bytes remain in the input
     if (plen > size - *off)

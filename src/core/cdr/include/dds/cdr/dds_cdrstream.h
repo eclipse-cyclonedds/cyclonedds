@@ -44,18 +44,19 @@ payload in order to reach the next 4-byte aligned offset. */
 #define DDS_CDR_HDR_PADDING_MASK 0x3
 
 
-#define DDS_XCDR1_PL_SHORT_MAX_PARAM_ID     0x3F00u        // Maximum parameter ID that can be used with short PL encoding
+#define DDS_XCDR1_PL_SHORT_MAX_PARAM_ID     0x3f00u        // Maximum parameter ID that can be used with short PL encoding
 #define DDS_XCDR1_PL_SHORT_MAX_PARAM_LEN    UINT16_MAX     // Maximum parameter length that can be used with short PL encoding
-#define DDS_XCDR1_PL_SHORT_PID_EXTENDED     0x3f010000u    // Indicates the extended (long) PL encoding is used
-#define DDS_XCDR1_PL_SHORT_PID_LIST_END     0x3f020000u    // Indicates the end of the parameter list data structure
+#define DDS_XCDR1_PL_SHORT_PID_EXTENDED     0x3f01u        // Indicates the extended (long) PL encoding is used
+#define DDS_XCDR1_PL_SHORT_PID_LIST_END     0x3f02u        // Indicates the end of the parameter list data structure
 #define DDS_XCDR1_PL_SHORT_PID_EXT_LEN      0x8u           // Value of the param header length field in case of extended PL encoding
-#define DDS_XCDR1_PL_SHORT_FLAG_IMPL_EXT    0x40000000u    // Flag for implementation specific interpretation of the parameter (not implemented)
-#define DDS_XCDR1_PL_SHORT_FLAG_MU          0x20000000u    // Flag to indicate the parameter is must-understand in short PL header
-#define DDS_XCDR1_PL_SHORT_PID_MASK         0x3fff0000u    // Mask for the member ID in the short PL header
-#define DDS_XCDR1_PL_SHORT_LEN_MASK         0x0000ffffu    // Mask for the parameter length in the short PL header
+#define DDS_XCDR1_PL_SHORT_FLAG_IMPL_EXT    0x4000u        // Flag for implementation specific interpretation of the parameter (not implemented)
+#define DDS_XCDR1_PL_SHORT_FLAG_MU          0x2000u        // Flag to indicate the parameter is must-understand in short PL header
+#define DDS_XCDR1_PL_SHORT_PID_MASK         0x3fffu        // Mask for the member ID in the short PL header
 
 #define DDS_XCDR1_PL_LONG_FLAG_IMPL_EXT     0x80000000u    // Flag used for RTPS discovery data types
 #define DDS_XCDR1_PL_LONG_FLAG_MU           0x40000000u    // Flag to indicate the parameter is must-understand in extended PL header
+#define DDS_XCDR1_PL_LONG_UNSPECIFIED1      0x20000000u    // For future extension
+#define DDS_XCDR1_PL_LONG_UNSPECIFIED2      0x10000000u    // For future extension
 #define DDS_XCDR1_PL_LONG_MID_MASK          0x0fffffffu    // Mask for the member ID in the long PL header
 
 
