@@ -33,6 +33,7 @@
 #include "CdrStreamDataTypeInfo.h"
 #include "CdrStreamChecking.h"
 #include "CdrStreamWstring.h"
+#include "CdrStreamParamHeader.h"
 #include "mem_ser.h"
 
 #define DDS_DOMAINID1 0
@@ -2689,6 +2690,49 @@ CU_Test (ddsc_cdrstream, check_wstring_normalize)
     void *cdr = ddsrt_memdup (tests[i].cdr, tests[i].cdrsize);
     const bool nok = dds_stream_normalize (cdr, tests[i].cdrsize, false, DDSI_RTPS_CDR_ENC_VERSION_2, &desc, false, &act_size);
     CU_ASSERT_FATAL (!nok);
+    ddsrt_free (cdr);
+    dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+  }
+}
+
+#define PHDR(pid,plen) 16,(pid),16,(plen)
+#define PHDR_EXT(pid,plen) PHDR(DDS_XCDR1_PL_SHORT_PID_EXTENDED, 8), 32,(pid), 32,(plen)
+
+CU_Test (ddsc_cdrstream, check_xcdr1_param_normalize)
+{
+  const struct {
+    bool valid;
+    uint32_t cdrsize;
+    const uint8_t *cdr;
+  } tests[] = {
+    { false, CDR(PHDR(0, 4), 8,1) },    // insufficient data (len 4 in header, 1 byte present)
+    { false, CDR(PHDR(1, 4), 32,1) },   // incorrect member id 1 (should be 0)
+    { false, CDR(PHDR(0, 2), 16,1) },   // incorrect member length (member is int32)
+    { true,  CDR(PHDR(0, 4), 32,1) },   // valid, present
+    { true,  CDR(PHDR(0, 0)) },         // valid, not present
+
+    { false, CDR(PHDR(DDS_XCDR1_PL_SHORT_PID_EXTENDED, 6), 32,0, 32,4, 32,1) },   // extended header: incorrect slen for extended header (should be 8)
+    { false, CDR(PHDR(~DDS_XCDR1_PL_SHORT_FLAG_MU & DDS_XCDR1_PL_SHORT_PID_EXTENDED, 8), 32,0, 32,4, 32,1) },   // extended header: MU flag missing
+    { false, CDR(PHDR_EXT(1, 4), 32,1) },   // extended header: incorrect member id
+    { false, CDR(PHDR_EXT(1, 2), 16,1) },   // extended header: incorrect member length
+    { true,  CDR(PHDR_EXT(0, 4), 32,1) },   // extended header: valid, present
+    { true,  CDR(PHDR_EXT(0, 0)) }          // extended header: valid, not present
+  };
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    printf("running test %"PRIu32" \n", i);
+    struct dds_cdrstream_desc desc;
+    dds_cdrstream_desc_from_topic_desc (&desc, &CdrStreamParamHeader_t1_desc);
+    assert (desc.ops.ops);
+    dds_ostream_t os;
+    dds_ostream_init (&os, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_1);
+    uint32_t act_size;
+    void *cdr = ddsrt_memdup (tests[i].cdr, tests[i].cdrsize);
+    const bool res = dds_stream_normalize (cdr, tests[i].cdrsize, false, DDSI_RTPS_CDR_ENC_VERSION_1, &desc, false, &act_size);
+    CU_ASSERT_FATAL (res == tests[i].valid);
+    if (res)
+      CU_ASSERT_EQUAL_FATAL (tests[i].cdrsize, act_size);
     ddsrt_free (cdr);
     dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
   }
