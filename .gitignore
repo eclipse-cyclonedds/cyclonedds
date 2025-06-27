@@ -7,3 +7,6 @@ gen.*
 .vscode/
 build/
 *~
+.zed
+.cache
+compile_commands.json

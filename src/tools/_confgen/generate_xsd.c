@@ -127,7 +127,7 @@ printattr(
   type[0] = '\0';
   if (elem->meta.unit)
     snprintf(type, sizeof(type), " type=\"config:%s\"", elem->meta.unit);
-  else if (!isstring(elem))
+  else if (!isstring(elem) && isbuiltintopic(elem))
     snprintf(type, sizeof(type), " type=\"xs:%s\"", isbuiltintopic(elem));
 
   required[0] = '\0';
@@ -136,6 +136,10 @@ printattr(
 
   printspc(out, cols, fmt, name(elem), type, required);
   printdesc(out, cols+2, flags, elem, units);
+  if (isenum(elem))
+    printenum(out, cols+2, flags, elem, units);
+  else if (islist(elem))
+    printlist(out, cols+2, flags, elem, units);
   printspc(out, cols, "</xs:attribute>\n");
 }
 

@@ -1042,7 +1042,7 @@ static void ddsi_tcp_close_conn (struct ddsi_tran_conn * tc)
     ddsi_tcp_conn_t conn = (ddsi_tcp_conn_t) tc;
     sockaddr_to_string_with_port(buff, sizeof(buff), &conn->m_peer_addr.a);
     GVLOG (DDS_LC_TCP, "tcp close %s connection on socket %"PRIdSOCK" to %s\n", conn->m_base.m_server ? "server" : "client", conn->m_sock, buff);
-    (void) shutdown (conn->m_sock, 2);
+    (void) ddsrt_shutdown (conn->m_sock, DDSRT_SHUTDOWN_READ_WRITE);
     ddsi_ipaddr_to_loc(&loc.c, &conn->m_peer_addr.a, addrfam_to_locator_kind(conn->m_peer_addr.a.sa_family));
     loc.c.port = conn->m_peer_port;
     loc.conn = tc;

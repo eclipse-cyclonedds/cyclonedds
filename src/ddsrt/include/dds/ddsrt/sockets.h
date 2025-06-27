@@ -408,6 +408,23 @@ ddsrt_select(
   fd_set *errorfds,
   dds_duration_t reltime);
 
+enum ddsrt_shutdown_how {
+  DDSRT_SHUTDOWN_READ,
+  DDSRT_SHUTDOWN_WRITE,
+  DDSRT_SHUTDOWN_READ_WRITE
+};
+
+/**
+ * @brief Shutdown all or part of a full-duplex connection
+ *
+ * @param[in] sock Socket to operate on
+ * @param[in] how  What to shut down
+ *  */
+dds_return_t
+ddsrt_shutdown(
+  ddsrt_socket_t sock,
+  enum ddsrt_shutdown_how how);
+
 #if _WIN32
 /* SOCKETs on Windows are NOT integers. The nfds parameter is only there for
    compatibility, the implementation ignores it. Implicit casts will generate

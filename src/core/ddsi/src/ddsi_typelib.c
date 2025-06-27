@@ -658,9 +658,9 @@ static bool valid_top_level_type (const struct ddsi_type *type)
     return false;
   if (type->xt.kind != DDSI_TYPEID_KIND_COMPLETE && type->xt.kind != DDSI_TYPEID_KIND_MINIMAL)
     return false;
-  if (ddsi_xt_is_resolved (&type->xt) && type->xt._d != DDS_XTypes_TK_STRUCTURE && type->xt._d != DDS_XTypes_TK_UNION)
-    return false;
-  return true;
+  while (ddsi_xt_is_resolved (&type->xt) && type->xt._d == DDS_XTypes_TK_ALIAS)
+    type = type->xt._u.alias.related_type;
+  return (ddsi_xt_is_unresolved (&type->xt) || type->xt._d == DDS_XTypes_TK_STRUCTURE || type->xt._d == DDS_XTypes_TK_UNION);
 }
 
 static dds_return_t type_add_ref_impl (struct ddsi_domaingv *gv, struct ddsi_type **type, const ddsi_typeinfo_t *type_info, const ddsi_typemap_t *type_map, ddsi_typeid_kind_t kind)

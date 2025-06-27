@@ -907,12 +907,17 @@ static const char *getentname (entname_t *name, int ent)
 {
   DDSRT_STATIC_ASSERT (sizeof (knownentities) == 10);
   DDSRT_STATIC_ASSERT (MAXDOMS == 3);
-  name->n[0] = knownentities[ent % 9];
-  const int dom = ent / 9;
-  int i;
-  for (i = 1; i <= dom; i++)
-    name->n[i] = '\'';
-  name->n[i] = 0;
+  if (ent < 0) {
+    name->n[0] = '?';
+    name->n[1] = 0;
+  } else {
+    name->n[0] = knownentities[ent % 9];
+    const int dom = ent / 9;
+    int i;
+    for (i = 1; i <= dom; i++)
+      name->n[i] = '\'';
+    name->n[i] = 0;
+  }
   return name->n;
 }
 
@@ -990,10 +995,11 @@ static void make_participant (struct oneliner_ctx *ctx, int ent, dds_qos_t *qos,
 
 static void make_entity1 (struct oneliner_ctx *ctx, int ent, dds_listener_t *list)
 {
-  entname_t wrname;
+  entname_t name;
   dds_return_t ret;
   int domid = ent / 9;
   int ent1 = ent % 9;
+  getentname (&name, ent);
   switch (ent1)
   {
     case 0:
@@ -1006,7 +1012,7 @@ static void make_entity1 (struct oneliner_ctx *ctx, int ent, dds_listener_t *lis
         make_entity1 (ctx, ent-1, NULL);
         mprintf (ctx, "] ");
       }
-      mprintf (ctx, "create subscriber %s", getentname (&wrname, ent));
+      mprintf (ctx, "create subscriber %s", name.n);
       ctx->es[ent] = dds_create_subscriber (ctx->es[ent-1], ctx->entqos, list);
       break;
     case 2:
@@ -1016,7 +1022,7 @@ static void make_entity1 (struct oneliner_ctx *ctx, int ent, dds_listener_t *lis
         make_entity1 (ctx, ent-2, NULL);
         mprintf (ctx, "] ");
       }
-      mprintf (ctx, "create publisher %s", getentname (&wrname, ent));
+      mprintf (ctx, "create publisher %s", name.n);
       ctx->es[ent] = dds_create_publisher (ctx->es[ent-2], ctx->entqos, list);
       break;
     case 3: case 4: case 5:
@@ -1026,7 +1032,7 @@ static void make_entity1 (struct oneliner_ctx *ctx, int ent, dds_listener_t *lis
         make_entity1 (ctx, 9*domid+1, NULL);
         mprintf (ctx, "] ");
       }
-      mprintf (ctx, "create reader %s", getentname (&wrname, ent));
+      mprintf (ctx, "create reader %s", name.n);
       ctx->es[ent] = dds_create_reader (ctx->es[9*domid+1], ctx->tps[domid], ctx->entqos, list);
       break;
     case 6: case 7: case 8:
@@ -1036,7 +1042,7 @@ static void make_entity1 (struct oneliner_ctx *ctx, int ent, dds_listener_t *lis
         make_entity1 (ctx, 9*domid+2, NULL);
         mprintf (ctx, "] ");
       }
-      mprintf (ctx, "create writer %s", getentname (&wrname, ent));
+      mprintf (ctx, "create writer %s", name.n);
       ctx->es[ent] = dds_create_writer (ctx->es[9*domid+2], ctx->tps[domid], ctx->entqos, list);
       break;
     default:
@@ -1044,9 +1050,9 @@ static void make_entity1 (struct oneliner_ctx *ctx, int ent, dds_listener_t *lis
   }
   mprintf (ctx, " = %"PRId32, ctx->es[ent]);
   if (ctx->es[ent] <= 0)
-    error_dds (ctx, ctx->es[ent], "create entity %d failed", ent);
+    error_dds (ctx, ctx->es[ent], "create %s failed", name.n);
   if ((ret = dds_get_instance_handle (ctx->es[ent], &ctx->esi[ent])) != 0)
-    error_dds (ctx, ret, "get instance handle for entity %"PRId32" failed", ctx->es[ent]);
+    error_dds (ctx, ret, "get instance handle for %s failed", name.n);
   //mprintf (ctx, " %"PRIx64, es->esi[ent]);
 }
 
@@ -1090,17 +1096,19 @@ static void setlistener (struct oneliner_ctx *ctx, struct oneliner_lex *l, int l
   }
   else
   {
+    entname_t name;
+    getentname (&name, ent);
     dds_listener_t *tmplist = dds_create_listener (&ctx->cb[dom]);
     if ((ret = dds_get_listener (ctx->es[ent], tmplist)) != 0)
     {
       dds_delete_listener (tmplist);
-      error_dds (ctx, ret, "set listener: dds_get_listener failed on %"PRId32, ctx->es[ent]);
+      error_dds (ctx, ret, "set listener: dds_get_listener failed on %s", name.n);
     }
     dds_merge_listener (list, tmplist);
     dds_delete_listener (tmplist);
-    mprintf (ctx, " on entity %"PRId32"\n", ctx->es[ent]);
+    mprintf (ctx, " on %s\n", name.n);
     if ((ret = dds_set_listener (ctx->es[ent], list)) != 0)
-      error_dds (ctx, ret, "set listener: dds_set_listener failed on %"PRId32, ctx->es[ent]);
+      error_dds (ctx, ret, "set listener: dds_set_listener failed on %s", name.n);
   }
 }
 
@@ -1196,6 +1204,9 @@ struct doreadlike_sample {
   int wrent;
   Space_Type1 data;
   bool valid_data;
+  int disposed_generation_count;
+  int no_writers_generation_count;
+  const char *begin, *end;
 };
 
 static bool wrname_from_pubhandle (const struct oneliner_ctx *ctx, int ent, dds_instance_handle_t pubhandle, entname_t *wrname)
@@ -1234,10 +1245,14 @@ static bool doreadlike_parse_sample (struct oneliner_ctx *ctx, struct doreadlike
   // the first is an invalid sample, the second a valid one, the third says anything goes
   // state is a combination of: sample state (F,S fresh/stale), instance state (A,U,D), view state (N,O)
   // unspecified: don't care
+  advancetok (&ctx->l); // eat whitespace so s->begin is exact
+  s->begin = ctx->l.inp;
   s->state = 0;
   s->ts = -1;
   s->wrent = -1;
   s->wrih = 0;
+  s->no_writers_generation_count = -1;
+  s->disposed_generation_count = -1;
   struct oneliner_lex l1 = ctx->l;
   if (nexttok_if (&ctx->l, TOK_NAME))
   {
@@ -1267,6 +1282,19 @@ static bool doreadlike_parse_sample (struct oneliner_ctx *ctx, struct doreadlike
   s->wrent = parse_entity1 (&ctx->l, NULL);
   if (nexttok_if (&ctx->l, TOK_TIMESTAMP))
     s->ts = ctx->l.v.d;
+  while (nexttok_if (&ctx->l, '#')) {
+    int *cnt;
+    if (*ctx->l.inp == 'd')
+      cnt = &s->disposed_generation_count;
+    else if (*ctx->l.inp == 'u')
+      cnt = &s->no_writers_generation_count;
+    else
+      return false;
+    ctx->l.inp++;
+    if (!nexttok_int (&ctx->l, cnt))
+      return false;
+  }
+  s->end = ctx->l.inp;
   return true;
 }
 
@@ -1280,7 +1308,9 @@ static bool doreadlike_ismatch (const dds_sample_info_t *si, const Space_Type1 *
           (!exp->valid_data || exp->data.long_2 < 0 || s->long_2 == exp->data.long_2) &&
           (!exp->valid_data || exp->data.long_3 < 0 || s->long_3 == exp->data.long_3) &&
           (exp->ts < 0 || si->source_timestamp == exp->ts) &&
-          (exp->wrent < 0 || si->publication_handle == exp->wrih));
+          (exp->wrent < 0 || si->publication_handle == exp->wrih) &&
+          (exp->disposed_generation_count < 0 || (uint32_t)exp->disposed_generation_count == si->disposed_generation_count) &&
+          (exp->no_writers_generation_count < 0 || (uint32_t)exp->no_writers_generation_count == si->no_writers_generation_count));
 }
 
 static bool doreadlike_matchstep (const dds_sample_info_t *si, const Space_Type1 *s, const struct doreadlike_sample *exp, int nexp, bool ellipsis, unsigned *tomatch, int *cursor, dds_instance_handle_t *lastih, int *matchidx)
@@ -1372,7 +1402,9 @@ static void doreadlike (struct oneliner_ctx *ctx, const char *name, dds_return_t
       error (ctx, "%s%s: instance lookup failed", name, namesuf);
   }
 
-  mprintf (ctx, "entity %"PRId32": %s%s: ", ctx->es[ent], name, namesuf);
+  entname_t entname;
+  getentname (&entname, ent);
+  mprintf (ctx, "%s: %s%s: ", entname.n, name, namesuf);
   Space_Type1 data[MAXN];
   void *raw[MAXN];
   for (int i = 0; i < MAXN; i++)
@@ -1388,12 +1420,12 @@ static void doreadlike (struct oneliner_ctx *ctx, const char *name, dds_return_t
   const dds_duration_t abstimeout = dds_time () + DDS_SECS (5);
   if (blocking) {
     if ((ws = dds_create_waitset (dds_get_participant (ctx->es[ent]))) < 0)
-      error_dds (ctx, ws, "%s%s: failed to create waitset for %"PRId32, name, namesuf, ctx->es[ent]);
+      error_dds (ctx, ws, "%s%s: failed to create waitset for %s", name, namesuf, entname.n);
     if ((readcond = dds_create_readcondition (ctx->es[ent], DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE))< 0)
-      error_dds (ctx, readcond, "%s%s: failed to create read condition for %"PRId32, name, namesuf, ctx->es[ent]);
+      error_dds (ctx, readcond, "%s%s: failed to create read condition for %s", name, namesuf, entname.n);
     dds_return_t rc;
     if ((rc = dds_waitset_attach (ws, readcond, 0)) < 0)
-      error_dds (ctx, rc, "%s%s: failed to attach read condition to waitset for %"PRId32, name, namesuf, ctx->es[ent]);
+      error_dds (ctx, rc, "%s%s: failed to attach read condition to waitset for %s", name, namesuf, entname.n);
   }
   while (first || (tomatch != 0 && ws && dds_waitset_wait_until (ws, NULL, 0, abstimeout) > 0))
   {
@@ -1401,7 +1433,7 @@ static void doreadlike (struct oneliner_ctx *ctx, const char *name, dds_return_t
     const uint32_t maxs = (uint32_t) (sizeof (raw) / sizeof (raw[0]));
     const int32_t n = fn (ctx->es[ent], raw, si, maxs, maxs);
     if (n < 0)
-      error_dds (ctx, n, "%s%s: failed on %"PRId32, name, namesuf, ctx->es[ent]);
+      error_dds (ctx, n, "%s%s: failed on %s", name, namesuf, entname.n);
     dds_instance_handle_t lastih = 0;
     int cursor = -1;
     mprintf (ctx, "{");
@@ -1423,12 +1455,21 @@ static void doreadlike (struct oneliner_ctx *ctx, const char *name, dds_return_t
         error (ctx, "%s%s: unknown publication handle received", name, namesuf);
       mprintf (ctx, "%s", wrname.n);
       print_timestamp (ctx, si[i].source_timestamp);
+      if (si[i].no_writers_generation_count != 0)
+        mprintf (ctx, "#u%"PRIu32, si[i].no_writers_generation_count);
+      if (si[i].disposed_generation_count != 0)
+        mprintf (ctx, "#d%"PRIu32, si[i].disposed_generation_count);
       if (!doreadlike_matchstep (&si[i], s, exp, nexp, ellipsis, &tomatch, &cursor, &lastih, &matchidx[i]))
+      {
+        mprintf (ctx, "?");
         matchok = false;
+      }
     }
     mprintf (ctx, "}:");
+#if 0 // printing cursor is more confusing then helpful
     for (int i = 0; i < n; i++)
       mprintf (ctx, " %d", matchidx[i]);
+#endif
   }
   if (ws)
   {
@@ -1440,15 +1481,30 @@ static void doreadlike (struct oneliner_ctx *ctx, const char *name, dds_return_t
   }
   if (tomatch != 0)
   {
-    mprintf (ctx, " (samples missing)");
+    mprintf (ctx, " missing {");
+    first = true;
+    for (int i = 0; i < nexp; i++)
+    {
+      if (!(tomatch & (1u << i)))
+        continue;
+      const int len = (int) (exp[i].end - exp[i].begin);
+      mprintf (ctx, "%s%*.*s", (first ? "" : ","), len, len, exp[i].begin);
+      first = false;
+    }
+    mprintf (ctx, "}:");
     matchok = false;
   }
-  mprintf (ctx, " valid %d %d invalid %d %d", count[1], exp_nvalid, count[0], exp_ninvalid);
   if (exp_nvalid >= 0 && (count[1] != exp_nvalid))
+  {
+    mprintf (ctx, " %d valid samples instead of expected %d", count[1], exp_nvalid);
     matchok = false;
+  }
   if (exp_ninvalid >= 0 && (count[0] != exp_ninvalid))
+  {
+    mprintf (ctx, " %d invalid samples instead of expected %d", count[0], exp_ninvalid);
     matchok = false;
-  mprintf (ctx, "\n");
+  }
+  mprintf (ctx, " %s\n", matchok ? "ok" : "fail");
   if (!matchok)
     testfail (ctx, "%s%s: mismatch between actual and expected set\n", name, namesuf);
 #undef MAXN
@@ -1456,6 +1512,7 @@ static void doreadlike (struct oneliner_ctx *ctx, const char *name, dds_return_t
 
 static void dotake (struct oneliner_ctx *ctx) { doreadlike (ctx, "take", dds_take); }
 static void doread (struct oneliner_ctx *ctx) { doreadlike (ctx, "read", dds_read); }
+static void dopeek (struct oneliner_ctx *ctx) { doreadlike (ctx, "peek", dds_peek); }
 
 static void dowritelike (struct oneliner_ctx *ctx, const char *name, bool fail, dds_return_t (*fn) (dds_entity_t wr, const void *sample, dds_time_t ts))
 {
@@ -1474,7 +1531,9 @@ static void dowritelike (struct oneliner_ctx *ctx, const char *name, bool fail, 
     error (ctx, "%s: expecting sample value", name);
   if (nexttok_if (&ctx->l, TOK_TIMESTAMP))
     ts = ctx->l.v.d;
-  mprintf (ctx, "entity %"PRId32": %s (%"PRId32",%"PRId32",%"PRId32")", ctx->es[ent], name, sample.long_1, sample.long_2, sample.long_3);
+  entname_t entname;
+  getentname (&entname, ent);
+  mprintf (ctx, "%s: %s (%"PRId32",%"PRId32",%"PRId32")", entname.n, name, sample.long_1, sample.long_2, sample.long_3);
   print_timestamp (ctx, ts);
   mprintf (ctx, "\n");
   ret = fn (ctx->es[ent], &sample, ts);
@@ -1511,7 +1570,9 @@ static void dowriteflush (struct oneliner_ctx *ctx)
   if (ctx->es[ent] == 0)
     make_entity (ctx, ent, NULL);
   DDSRT_WARNING_MSVC_ON(6385)
-  mprintf (ctx, "entity %"PRId32": flush\n", ctx->es[ent]);
+  entname_t entname;
+  getentname (&entname, ent);
+  mprintf (ctx, "%s: flush\n", entname.n);
   if ((ret = dds_write_flush (ctx->es[ent])) != 0)
     error_dds (ctx, ret, "flush: failed");
 }
@@ -1627,7 +1688,9 @@ static void checklistener (struct oneliner_ctx *ctx, int ll, int ent, struct one
   uint32_t status;
   const int dom = ent / 9;
   dds_return_t ret;
-  mprintf (ctx, "listener %s: check called for entity %"PRId32, lldesc[ll].name, ctx->es[ent]);
+  entname_t entname;
+  getentname (&entname, ent);
+  mprintf (ctx, "listener %s: check called for %s", lldesc[ll].name, entname.n);
   if (argl && lldesc[ll].cb_status_off == 0)
   {
     // those that don't have a status can check the number of invocations
@@ -1655,11 +1718,21 @@ static void checklistener (struct oneliner_ctx *ctx, int ll, int ent, struct one
     testfail (ctx, "listener %s: not invoked [%"PRIu32",%"PRIu32"] times", lldesc[ll].name, min_cnt, max_cnt);
   }
   dds_entity_t * const cb_entity = (dds_entity_t *) ((char *) &ctx->cb[dom] + lldesc[ll].cb_entity_off);
-  mprintf (ctx, " cb_entity %"PRId32" %"PRId32" (%s)", *cb_entity, ctx->es[ent], (*cb_entity == ctx->es[ent]) ? "ok" : "fail");
-  if (*cb_entity != ctx->es[ent])
+  if (*cb_entity == ctx->es[ent])
+    mprintf (ctx, " (ok)");
+  else
   {
+    int cb_ent_i;
+    for (cb_ent_i = 0; cb_ent_i < (int) (sizeof (ctx->es) / sizeof (ctx->es[0])); cb_ent_i++)
+      if (ctx->es[cb_ent_i] == *cb_entity)
+        break;
+    if (cb_ent_i == (int) (sizeof (ctx->es) / sizeof (ctx->es[0])))
+      cb_ent_i = -1;
+    entname_t ent1name;
+    getentname (&ent1name, cb_ent_i);
+    mprintf (ctx, " cb_entity %s instead of %s (%s)", ent1name.n, entname.n, "fail");
     ddsrt_mutex_unlock (&ctx->g_mutex);
-    testfail (ctx, "listener %s: invoked on %"PRId32" instead of %"PRId32, lldesc[ll].name, *cb_entity, ctx->es[ent]);
+    testfail (ctx, "listener %s: invoked on %s instead of %s", lldesc[ll].name, ent1name.n, entname.n);
   }
   if (!(ctx->doms[0] && ctx->doms[1]))
   {
@@ -1688,7 +1761,7 @@ static void checklistener (struct oneliner_ctx *ctx, int ll, int ent, struct one
   ctx->cb[dom].cb_called[lldesc[ll].id] = 0;
   ddsrt_mutex_unlock (&ctx->g_mutex);
   if ((ret = dds_get_status_changes (ctx->es[ent], &status)) != 0)
-    error_dds (ctx, ret, "listener %s: dds_get_status_change on %"PRId32, lldesc[ll].name, ctx->es[ent]);
+    error_dds (ctx, ret, "listener %s: dds_get_status_change on %s", lldesc[ll].name, entname.n);
   if ((status & (1u << lldesc[ll].id)) != 0)
     testfail (ctx, "listener %s: status mask not cleared", lldesc[ll].name);
 }
@@ -1719,23 +1792,30 @@ static void dowaitforack (struct oneliner_ctx *ctx)
   if (ctx->es[ent] == 0)
     make_entity (ctx, ent, NULL);
   DDSRT_WARNING_MSVC_ON(6385)
-  mprintf (ctx, "wait for ack %"PRId32" reader %"PRId32"\n", ctx->es[ent], ent1 < 0 ? 0 : ctx->es[ent1]);
+  entname_t entname, ent1name;
+  getentname (&entname, ent);
+  getentname (&ent1name, ent1);
+  mprintf (ctx, "wait for ack %s ", entname.n);
+  if (ent1 < 0)
+    mprintf (ctx, "(all readers)\n");
+  else
+    mprintf (ctx, "reader %s\n", ent1name.n);
 
   // without a reader argument a simple dds_wait_for_acks (ctx->es[ent], DDS_SECS (5)) suffices
   struct dds_entity *x;
   if ((ret = dds_entity_pin (ctx->es[ent], &x)) < 0)
-    error_dds (ctx, ret, "wait for ack: pin entity failed %"PRId32, ctx->es[ent]);
+    error_dds (ctx, ret, "wait for ack: pin entity failed %s", entname.n);
   if (dds_entity_kind (x) != DDS_KIND_WRITER)
-    error_dds (ctx, ret, "wait for ack: %"PRId32" is not a writer", ctx->es[ent]);
+    error_dds (ctx, ret, "wait for ack: %s is not a writer", entname.n);
   else
     ret = dds__ddsi_writer_wait_for_acks ((struct dds_writer *) x, (ent1 < 0) ? NULL : &rdguid.i, dds_time () + DDS_SECS (5));
   dds_entity_unpin (x);
   if (ret != 0)
   {
     if (ret == DDS_RETCODE_TIMEOUT)
-      testfail (ctx, "wait for acks timed out on entity %"PRId32, ctx->es[ent]);
+      testfail (ctx, "wait for acks timed out on %s", entname.n);
     else
-      error_dds (ctx, ret, "wait for acks failed on entity %"PRId32, ctx->es[ent]);
+      error_dds (ctx, ret, "wait for acks failed on %s", entname.n);
   }
 }
 
@@ -1808,7 +1888,11 @@ static void dodelete (struct oneliner_ctx *ctx)
   if ((ent = parse_entity (ctx)) < 0)
     error (ctx, "delete: requires entity");
   if ((ret = dds_delete (ctx->es[ent])) != 0)
-    error_dds (ctx, ret, "delete: failed on %"PRId32, ctx->es[ent]);
+  {
+    entname_t entname;
+    getentname (&entname, ent);
+    error_dds (ctx, ret, "delete: failed on %s", entname.n);
+  }
   ctx->es[ent] = 0;
   // clear dependent entities
   int a, b;
@@ -1825,47 +1909,31 @@ static void dodelete (struct oneliner_ctx *ctx)
 DDSRT_WARNING_MSVC_ON(6386)
 DDSRT_WARNING_MSVC_ON(6385)
 
-static void dodeaf_maybe_imm (struct oneliner_ctx *ctx, bool immediate)
-{
-  char const * const mode = immediate ? "deaf!" : "deaf";
-  dds_return_t ret;
-  entname_t name;
-  int ent;
-  if ((ent = parse_entity (ctx)) < 0 || (ent % 9) != 0)
-    error (ctx, "%s: requires participant", mode);
-  mprintf (ctx, "%s: %s\n", mode, getentname (&name, ent));
-  DDSRT_WARNING_MSVC_OFF(6385)
-  if ((ret = dds_domain_set_deafmute (ctx->es[ent], true, false, DDS_INFINITY)) != 0)
-    error_dds (ctx, ret, "deaf: dds_domain_set_deafmute failed on %"PRId32, ctx->es[ent]);
-  DDSRT_WARNING_MSVC_ON(6385)
-  if (immediate)
-  {
-    // speed up the process by forcing lease expiry
-    dds_entity *x, *xprime;
-    if ((ret = dds_entity_pin (ctx->es[ent], &x)) < 0)
-      error_dds (ctx, ret, "%s: pin participant failed %"PRId32, mode, ctx->es[ent]);
-    for (int i = 0; i < (int) (sizeof (ctx->doms) / sizeof (ctx->doms[0])); i++)
-    {
-      if (i == ent / 9 || ctx->es[9*i] == 0)
-        continue;
-      if ((ret = dds_entity_pin (ctx->es[9*i], &xprime)) < 0)
-      {
-        dds_entity_unpin (x);
-        error_dds (ctx, ret, "%s: pin counterpart participant failed %"PRId32, mode, ctx->es[9*i]);
-      }
-      ddsi_thread_state_awake (ddsi_lookup_thread_state (), &x->m_domain->gv);
-      ddsi_delete_proxy_participant_by_guid (&x->m_domain->gv, &xprime->m_guid, ddsrt_time_wallclock (), true);
-      ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
-      dds_entity_unpin (xprime);
-    }
-    dds_entity_unpin (x);
-  }
-}
+enum dodeafmute_mode { DONORMAL, DODEAF, DOMUTE, DODEAFMUTE };
 
-static void dodeaf (struct oneliner_ctx *ctx)
+static const char *dodeafmute_modestr (enum dodeafmute_mode mode, bool immediate)
 {
-  const bool immediate = nexttok_if (&ctx->l, '!');
-  dodeaf_maybe_imm (ctx, immediate);
+  if (!immediate)
+  {
+    switch (mode)
+    {
+      case DONORMAL: return "normal";
+      case DODEAF: return "deaf";
+      case DOMUTE: return "mute";
+      case DODEAFMUTE: return "deafmute";
+    }
+  }
+  else
+  {
+    switch (mode)
+    {
+      case DONORMAL: return "normal!";
+      case DODEAF: return "deaf!";
+      case DOMUTE: return "mute!";
+      case DODEAFMUTE: return "deafmute!";
+    }
+  }
+  return "?";
 }
 
 static void wait_for_cleanup (struct oneliner_ctx *ctx, dds_entity_t recovering_participant_handle, const ddsi_guid_t *guid)
@@ -1880,60 +1948,153 @@ static void wait_for_cleanup (struct oneliner_ctx *ctx, dds_entity_t recovering_
   dds_entity_unpin (xprime);
 }
 
-static void dohearing_maybe_imm (struct oneliner_ctx *ctx, bool immediate)
+static void dodeafmute_maybe_imm (struct oneliner_ctx *ctx, enum dodeafmute_mode mode, bool immediate)
 {
-  char const * const mode = immediate ? "hearing!" : "hearing";
+  char const * const modestr = dodeafmute_modestr (mode, immediate);
+  const bool dodeaf = (mode != DONORMAL && mode != DOMUTE);
+  const bool domute = (mode != DONORMAL && mode != DODEAF);
   dds_return_t ret;
-  entname_t name;
   int ent;
   if ((ent = parse_entity (ctx)) < 0 || (ent % 9) != 0)
-    error (ctx, "%s: requires participant", mode);
-  mprintf (ctx, "%s: %s\n", mode, getentname (&name, ent));
+    error (ctx, "%s: requires participant", modestr);
+  entname_t entname;
+  getentname (&entname, ent);
+  mprintf (ctx, "%s: %s\n", modestr, entname.n);
   DDSRT_WARNING_MSVC_OFF(6385)
-  if ((ret = dds_domain_set_deafmute (ctx->es[ent], false, false, DDS_INFINITY)) != 0)
-    error_dds (ctx, ret, "%s: dds_domain_set_deafmute failed %"PRId32, mode, ctx->es[ent]);
+  if ((ret = dds_domain_set_deafmute (ctx->es[ent], dodeaf, domute, DDS_INFINITY)) != 0)
+    error_dds (ctx, ret, "%s: dds_domain_set_deafmute failed on %s", modestr, entname.n);
   DDSRT_WARNING_MSVC_ON(6385)
   if (immediate)
   {
-    // speed up the process by forcing SPDP publication on the remote
-    // better wait until our local GC completed because we block
-    // rediscovery of the remote participant while we're still cleaning
-    // up after it
-    for (int i = 0; i < (int) (sizeof (ctx->doms) / sizeof (ctx->doms[0])); i++)
+    dds_entity *x, *xprime;
+    if ((ret = dds_entity_pin (ctx->es[ent], &x)) < 0)
+      error_dds (ctx, ret, "%s: pin participant failed %s", modestr, entname.n);
+
+    if (dodeaf) // force lease expiry
     {
-      if (i == ent / 9 || ctx->es[9*i] == 0)
-        continue;
-      dds_entity *xprime;
-      struct ddsi_participant *pp;
-      if ((ret = dds_entity_pin (ctx->es[9*i], &xprime)) < 0)
-        error_dds (ctx, ret, "%s: pin counterpart participant failed %"PRId32, mode, ctx->es[9*i]);
-      wait_for_cleanup (ctx, ctx->es[ent], &xprime->m_guid);
-      ddsi_thread_state_awake (ddsi_lookup_thread_state (), &xprime->m_domain->gv);
-      if ((pp = ddsi_entidx_lookup_participant_guid (xprime->m_domain->gv.entity_index, &xprime->m_guid)) != NULL)
-        ddsi_spdp_force_republish (pp->e.gv->spdp_schedule, pp, NULL);
-      ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
-      dds_entity_unpin (xprime);
+      for (int i = 0; i < (int) (sizeof (ctx->doms) / sizeof (ctx->doms[0])); i++)
+      {
+        if (i == ent / 9 || ctx->es[9*i] == 0)
+          continue;
+        if ((ret = dds_entity_pin (ctx->es[9*i], &xprime)) < 0)
+        {
+          dds_entity_unpin (x);
+          entname_t ent1name;
+          getentname (&ent1name, 9*i);
+          error_dds (ctx, ret, "%s: pin counterpart participant failed %s", modestr, ent1name.n);
+        }
+        ddsi_thread_state_awake (ddsi_lookup_thread_state (), &x->m_domain->gv);
+        ddsi_delete_proxy_participant_by_guid (&x->m_domain->gv, &xprime->m_guid, ddsrt_time_wallclock (), true);
+        ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+        dds_entity_unpin (xprime);
+      }
     }
+    else
+    {
+      // speed up rediscovery process by forcing SPDP publication on the remote
+      // better wait until our local GC completed because we block
+      // rediscovery of the remote participant while we're still cleaning
+      // up after it
+      for (int i = 0; i < (int) (sizeof (ctx->doms) / sizeof (ctx->doms[0])); i++)
+      {
+        if (i == ent / 9 || ctx->es[9*i] == 0)
+          continue;
+        entname_t ent1name;
+        getentname (&ent1name, 9*i);
+        struct ddsi_participant *pp;
+        if ((ret = dds_entity_pin (ctx->es[9*i], &xprime)) < 0)
+          error_dds (ctx, ret, "%s: pin counterpart participant failed %s", modestr, ent1name.n);
+        wait_for_cleanup (ctx, ctx->es[ent], &xprime->m_guid);
+        ddsi_thread_state_awake (ddsi_lookup_thread_state (), &xprime->m_domain->gv);
+        if ((pp = ddsi_entidx_lookup_participant_guid (xprime->m_domain->gv.entity_index, &xprime->m_guid)) != NULL)
+          ddsi_spdp_force_republish (pp->e.gv->spdp_schedule, pp, NULL);
+        ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+        dds_entity_unpin (xprime);
+      }
+    }
+
+    if (domute) // force lease expiry in remotes
+    {
+      for (int i = 0; i < (int) (sizeof (ctx->doms) / sizeof (ctx->doms[0])); i++)
+      {
+        if (i == ent / 9 || ctx->es[9*i] == 0)
+          continue;
+        if ((ret = dds_entity_pin (ctx->es[9*i], &xprime)) < 0)
+        {
+          dds_entity_unpin (x);
+          entname_t ent1name;
+          getentname (&ent1name, 9*i);
+          error_dds (ctx, ret, "%s: pin counterpart participant failed %s", modestr, ent1name.n);
+        }
+        ddsi_thread_state_awake (ddsi_lookup_thread_state (), &xprime->m_domain->gv);
+        ddsi_delete_proxy_participant_by_guid (&xprime->m_domain->gv, &x->m_guid, ddsrt_time_wallclock (), true);
+        ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+        dds_entity_unpin (xprime);
+      }
+    }
+    else
+    {
+      // speed up rediscovery process by forcing SPDP publication on the remote
+      // better wait until our remote GC to complete because we block
+      // rediscovery of the remote participant while we're still cleaning
+      // up after it
+      for (int i = 0; i < (int) (sizeof (ctx->doms) / sizeof (ctx->doms[0])); i++)
+      {
+        if (i == ent / 9 || ctx->es[9*i] == 0)
+          continue;
+        wait_for_cleanup (ctx, ctx->es[9*i], &x->m_guid);
+      }
+      // force republication of SPDP for this participant
+      {
+        struct ddsi_participant *pp;
+        ddsi_thread_state_awake (ddsi_lookup_thread_state (), &x->m_domain->gv);
+        if ((pp = ddsi_entidx_lookup_participant_guid (x->m_domain->gv.entity_index, &x->m_guid)) != NULL)
+          ddsi_spdp_force_republish (pp->e.gv->spdp_schedule, pp, NULL);
+        ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+      }
+    }
+
+    dds_entity_unpin (x);
   }
 }
 
-static void dohearing (struct oneliner_ctx *ctx)
+static void donormal (struct oneliner_ctx *ctx)
 {
   const bool immediate = nexttok_if (&ctx->l, '!');
-  dohearing_maybe_imm (ctx, immediate);
+  dodeafmute_maybe_imm (ctx, DONORMAL, immediate);
+}
+
+static void dodeaf (struct oneliner_ctx *ctx)
+{
+  const bool immediate = nexttok_if (&ctx->l, '!');
+  dodeafmute_maybe_imm (ctx, DODEAF, immediate);
+}
+
+static void domute (struct oneliner_ctx *ctx)
+{
+  const bool immediate = nexttok_if (&ctx->l, '!');
+  dodeafmute_maybe_imm (ctx, DOMUTE, immediate);
+}
+
+static void dodeafmute (struct oneliner_ctx *ctx)
+{
+  const bool immediate = nexttok_if (&ctx->l, '!');
+  dodeafmute_maybe_imm (ctx, DODEAFMUTE, immediate);
 }
 
 static void dosleep (struct oneliner_ctx *ctx)
 {
   if (nexttok_dur (&ctx->l, NULL, true) != TOK_DURATION)
     error (ctx, "sleep: invalid duration");
+  mprintf (ctx, "sleep: %d.%03ds\n",
+           (int) (ctx->l.v.d / DDS_NSECS_IN_SEC),
+           (int) (((ctx->l.v.d + DDS_NSECS_IN_MSEC - 1) / DDS_NSECS_IN_MSEC) % 1000));
   dds_sleepfor (ctx->l.v.d);
 }
 
 static void dosetflags (struct oneliner_ctx *ctx)
 {
   dds_return_t ret;
-  entname_t name;
   int ent;
   int tok;
   union oneliner_tokval flagstok;
@@ -1949,11 +2110,13 @@ static void dosetflags (struct oneliner_ctx *ctx)
     error (ctx, "setflags: requires writer");
   if (ctx->es[ent] == 0)
     make_entity (ctx, ent, NULL);
-  mprintf (ctx, "setflags(%s): %s\n", flagstok.n, getentname (&name, ent));
+  entname_t entname;
+  getentname (&entname, ent);
+  mprintf (ctx, "setflags(%s): %s\n", flagstok.n, entname.n);
 
   dds_entity *xwr;
   if ((ret = dds_entity_pin (ctx->es[ent], &xwr)) < 0)
-    error_dds (ctx, ret, "setflags: pin writer failed %"PRId32, ctx->es[ent]);
+    error_dds (ctx, ret, "setflags: pin writer failed %s", entname.n);
   if (xwr->m_kind != DDS_KIND_WRITER)
   {
     dds_entity_unpin (xwr);
@@ -2034,8 +2197,11 @@ static void dispatchcmd (struct oneliner_ctx *ctx)
     { "flush",      dowriteflush },
     { "take",       dotake },
     { "read",       doread },
+    { "peek",       dopeek },
     { "deaf",       dodeaf },
-    { "hearing",    dohearing },
+    { "mute",       domute },
+    { "deafmute",   dodeafmute },
+    { "normal",     donormal },
     { "sleep",      dosleep },
     { "setflags",   dosetflags },
   };
@@ -2137,9 +2303,10 @@ int test_oneliner_fini (struct oneliner_ctx *ctx)
   // mutex and the condition variable -- must do this going down the
   // hierarchy, or listeners may remain set through inheritance
   dds_return_t ret;
+  entname_t entname;
   for (size_t i = 0; i < sizeof (ctx->es) / sizeof (ctx->es[0]); i++)
     if (ctx->es[i] && (ret = dds_set_listener (ctx->es[i], NULL)) != 0)
-      setresult (ctx, ret, "terminate: reset listener failed on %"PRId32, ctx->es[i]);
+      setresult (ctx, ret, "terminate: reset listener failed on %s", getentname (&entname, (int)i));
   if (ctx->result == 0)
   {
     mprintf (ctx, "\n-- dumping content of readers after failure --\n");

@@ -36,7 +36,7 @@ CU_Test (ddsc_asymdisconnect, reader_keeps_nacking)
     // - this really is just a little devil dropping some packets
     "  setflags(r) w'"
     // restoring hearing triggers discovery
-    "  hearing! P"
+    "  normal! P"
     // r should see w' again
     // - r will send a pre-emptive ACKNACK, w' will respond with heartbeat
     // - r will then send ACKNACKs requesting retransmit, w' forgets to send the data
@@ -58,7 +58,7 @@ CU_Test (ddsc_asymdisconnect, reader_keeps_nacking)
     "  setflags() w'"
     // without the fix and with flags cleared, disconnecting and reconnecting fixes it:
     //   sleep 2 !?!da take{} r // so no data!
-    //   deaf! P ?sm r hearing! P ?sm r // dis-/reconnect
+    //   deaf! P ?sm r normal! P ?sm r // dis-/reconnect
     //   ?da r take{(1,0,0)} r
     // with fix present:
     "  ?da r take{(1,0,0)} r"

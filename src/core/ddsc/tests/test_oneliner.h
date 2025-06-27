@@ -89,8 +89,8 @@
  *                       In the third form, the exact result set is given by the sample
  *                       Si, which is a comma-separated list of samples:
  *
- *                         [STATE]K[ENTITY-NAME][@DT]
- *                         [STATE](K,X,Y)[ENTITY-NAME][@DT]
+ *                         [STATE]K[ENTITY-NAME][@DT][#dD][#uU]
+ *                         [STATE](K,X,Y)[ENTITY-NAME][@DT][#dD][#uU]
  *
  *                       Suffixing READ-LIKE with an exclamation mark in this third form
  *                       makes it wait until all specified data has been received (with
@@ -109,7 +109,9 @@
  *                       publication_handle.  Not specifying a writer means any writer is
  *                       ok.  DT is the timestamp in the same manner as the write-like
  *                       operations.  Not specifying a timestamp means any timestamp is
- *                       ok.
+ *                       ok.  #dD specifies that the "disposed generation count must" be
+ *                       D, similarly, #uU specifies that the "no writers generation
+ *                       count" must be U.
  *
  *                       If the expected set ends up with "..." there may be other samples
  *                       in the result as well.
@@ -164,17 +166,17 @@
  *
  *                       Delay program execution for D s (D is a floating-point number)
  *
- *               | deaf ENTITY-NAME
- *               | deaf! ENTITY-NAME
- *               | hearing ENTITY-NAME
- *               | hearing! ENTITY-NAME
+ *               | normal[!] ENTITY-NAME
+ *               | deaf[!] ENTITY-NAME
+ *               | mute[!] ENTITY-NAME
+ *               | deafmute[!] ENTITY-NAME
  *
- *                       Makes the domain wherein the specified entity exists deaf,
- *                       respectively restoring hearing.  The entity must be either P or
- *                       P' and both must exist.  The ones suffixed with "!" play use
- *                       some tricks to speed up lease expiry and reconnection (like
- *                       forcibly deleting a proxy participant or triggering the publication
- *                       of SPDP packets).
+ *                       Makes the domain wherein the specified entity exists communicate
+ *                       normally, deaf, mute or both deaf and mute.  respectively
+ *                       restoring hearing.  The entity must be a participant.  If
+ *                       suffixed with "!", use some tricks to speed up lease expiry and
+ *                       reconnection (like forcibly deleting a proxy participant or
+ *                       triggering the publication of SPDP packets).
  *
  *               | setflags(FLAGS) ENTITY-NAME
  *
