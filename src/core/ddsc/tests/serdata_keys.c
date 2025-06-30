@@ -754,12 +754,12 @@ CU_Test(ddsc_serdata, key_serialization)
           1,0,0,0,
           SER32(5),'t','e','s','t','\0',
           0,0,0 // padding
-        }, 17,
+        }, 13,
         (raw){
           1,0,0,0,
           SER32(5),'t','e','s','t','\0',
           0,0,0 // padding
-        }, 17,
+        }, 13,
         (raw){
           1,0,0,0,SER32BE(5),'t','e','s','t','\0',
           0,0,0 // padding
@@ -790,11 +790,11 @@ CU_Test(ddsc_serdata, key_serialization)
         (raw){
           1,0,0,0,
           SER32(4),'t','s','t','\0'
-        }, 16,
+        }, 12,
         (raw){
           1,0,0,0,
           SER32(4),'t','s','t','\0'
-        }, 16,
+        }, 12,
         (raw){
           1,0,0,0,
           SER32BE(4),'t','s','t','\0'

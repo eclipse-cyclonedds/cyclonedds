@@ -9,7 +9,58 @@
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 module CdrStreamParamHeader {
-  @final struct t1 {
+  @final
+  struct t1 {
     @optional long f1;
   };
+
+  @final
+  struct t2 {
+    @optional @id(321) boolean f1;
+    @optional @id(123) long f2;
+  };
+
+  @final
+  struct t3_1 {
+    @optional @id(10) boolean s1;
+  };
+  @appendable
+  struct t3 {
+    t3_1 f1;
+    @optional @id(99) string f2;
+    @optional long long f3;
+  };
+
+};
+
+module CdrStreamAppedable {
+  @final
+  struct f1 {
+    long m1;
+    long m2;
+  };
+
+  @appendable
+  struct a1 {
+    long m1;
+    long m2;
+  };
+
+  @appendable
+  struct a2 {
+    long m1;
+    @optional long m2;
+  };
+
+  @appendable
+  struct a3_1 {
+    long s1;
+    long s2;
+  };
+  @appendable
+  struct a3 {
+    long m1;
+    @optional a3_1 m2;
+  };
+
 };

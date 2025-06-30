@@ -34,6 +34,7 @@
 #include "CdrStreamChecking.h"
 #include "CdrStreamWstring.h"
 #include "CdrStreamParamHeader.h"
+#include "CdrStreamSerDes.h"
 #include "mem_ser.h"
 
 #define DDS_DOMAINID1 0
@@ -63,46 +64,6 @@ typedef void (*sample_free2) (void *, void *);
 /**********************************************
  * Nested structs
  **********************************************/
-typedef struct TestIdl_SubMsg1
-{
-  uint32_t submsg_field1;
-} TestIdl_SubMsg1;
-
-typedef struct TestIdl_SubMsg2
-{
-  uint32_t submsg_field1;
-  uint32_t * submsg_field2;
-  TestIdl_SubMsg1 submsg_field3;
-} TestIdl_SubMsg2;
-
-typedef struct TestIdl_MsgNested
-{
-  TestIdl_SubMsg1 msg_field1;
-  TestIdl_SubMsg2 msg_field2;
-  TestIdl_SubMsg1 msg_field3;
-} TestIdl_MsgNested;
-
-static const uint32_t TestIdl_MsgNested_ops [] =
-{
-  // Msg2
-  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (TestIdl_MsgNested, msg_field1), (3u << 16u) + 18u,  // SubMsg1
-  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (TestIdl_MsgNested, msg_field2), (3u << 16u) + 7u,   // SubMsg2
-  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (TestIdl_MsgNested, msg_field3), (3u << 16u) + 12u,  // SubMsg1
-  DDS_OP_RTS,
-
-  // SubMsg2
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_SubMsg2, submsg_field1),
-  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_4BY, offsetof (TestIdl_SubMsg2, submsg_field2),
-  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (TestIdl_SubMsg2, submsg_field3), (3u << 16u) + 4u, // SubMsg2
-  DDS_OP_RTS,
-
-  // SubMsg1
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_SubMsg1, submsg_field1),
-  DDS_OP_RTS
-};
-
-const dds_topic_descriptor_t TestIdl_MsgNested_desc = { sizeof (TestIdl_MsgNested), 4u, 0u, 0u, "TestIdl::MsgNested", NULL, 17, TestIdl_MsgNested_ops, "" };
-
 static void * sample_init_nested (void)
 {
   uint32_t *subf2 = ddsrt_malloc (sizeof (*subf2));
@@ -134,30 +95,6 @@ static void sample_free_nested (void *s)
 /**********************************************
  * String types
  **********************************************/
-typedef struct TestIdl_StrType
-{
-  char * str1;
-  char str2[6]; // bounded (6)
-  char * strseq3[2];
-  char strseq4[3][6]; // bounded (6)
-} TestIdl_StrType;
-
-typedef struct TestIdl_MsgStr
-{
-  TestIdl_StrType msg_field1;
-} TestIdl_MsgStr;
-
-static const uint32_t TestIdl_Msg_ops [] =
-{
-  DDS_OP_ADR | DDS_OP_TYPE_STR, offsetof (TestIdl_MsgStr, msg_field1.str1),
-  DDS_OP_ADR | DDS_OP_TYPE_BST, offsetof (TestIdl_MsgStr, msg_field1.str2), 6,
-  DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_STR, offsetof (TestIdl_MsgStr, msg_field1.strseq3), 2,
-  DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_BST, offsetof (TestIdl_MsgStr, msg_field1.strseq4), 3, 0, 6,
-  DDS_OP_RTS
-};
-
-const dds_topic_descriptor_t TestIdl_MsgStr_desc = { sizeof (TestIdl_MsgStr), sizeof (char *), 0u, 0u, "TestIdl::MsgStr", NULL, 14, TestIdl_Msg_ops, "" };
-
 static void * sample_init_str (void)
 {
   TestIdl_MsgStr *msg = ddsrt_calloc (1, sizeof (*msg));
@@ -201,75 +138,6 @@ static void sample_free_str (void *s)
 /**********************************************
  * Unions
  **********************************************/
-typedef enum TestIdl_Kind1
-{
-  TestIdl_KIND1_0,
-  TestIdl_KIND1_1,
-  TestIdl_KIND1_2
-} TestIdl_Kind1;
-
-typedef enum TestIdl_Kind2
-{
-  TestIdl_KIND2_0,
-  TestIdl_KIND2_5 = 5,
-  TestIdl_KIND2_6,
-  TestIdl_KIND2_10 = 10
-} TestIdl_Kind2;
-
-typedef enum TestIdl_Kind3
-{
-  TestIdl_KIND3_0,
-  TestIdl_KIND3_1,
-  TestIdl_KIND3_2
-} TestIdl_Kind3;
-
-typedef struct TestIdl_Union0
-{
-  int32_t _d;
-  union
-  {
-    int32_t field0_1;
-    uint32_t field0_2;
-  } _u;
-} TestIdl_Union0;
-
-typedef struct TestIdl_Union1
-{
-  TestIdl_Kind3 _d;
-  union
-  {
-    int32_t field1;
-    TestIdl_Kind2 field2;
-    TestIdl_Union0 field3;
-  } _u;
-} TestIdl_Union1;
-
-typedef struct TestIdl_MsgUnion
-{
-  TestIdl_Kind1 msg_field1;
-  TestIdl_Kind2 msg_field2;
-  TestIdl_Union1 msg_field3;
-} TestIdl_MsgUnion;
-
-static const uint32_t TestIdl_MsgUnion_ops [] =
-{
-  DDS_OP_ADR | DDS_OP_TYPE_ENU, offsetof (TestIdl_MsgUnion, msg_field1), 2u,
-  DDS_OP_ADR | DDS_OP_TYPE_ENU, offsetof (TestIdl_MsgUnion, msg_field2), 10u,
-
-  DDS_OP_ADR | DDS_OP_TYPE_UNI | DDS_OP_SUBTYPE_ENU, offsetof (TestIdl_MsgUnion, msg_field3._d), 3u, (26u << 16) + 5u, 2u,
-    DDS_OP_JEQ | DDS_OP_TYPE_4BY | DDS_OP_FLAG_SGN | 0, TestIdl_KIND3_0, offsetof (TestIdl_MsgUnion, msg_field3._u.field1),
-    DDS_OP_JEQ4 | DDS_OP_TYPE_ENU, TestIdl_KIND3_1, offsetof (TestIdl_MsgUnion, msg_field3._u.field2), 10u,
-    DDS_OP_JEQ | DDS_OP_TYPE_UNI | 3, TestIdl_KIND3_2, offsetof (TestIdl_MsgUnion, msg_field3._u.field3),
-
-  DDS_OP_ADR | DDS_OP_TYPE_UNI | DDS_OP_SUBTYPE_4BY | DDS_OP_FLAG_SGN, offsetof (TestIdl_Union0, _d), 2u, (10u << 16) + 4u,
-    DDS_OP_JEQ | DDS_OP_TYPE_4BY | DDS_OP_FLAG_SGN | 0, 0, offsetof (TestIdl_Union0, _u.field0_1),
-    DDS_OP_JEQ | DDS_OP_TYPE_4BY | 0, 1, offsetof (TestIdl_Union0, _u.field0_2),
-  DDS_OP_RTS,
-  DDS_OP_RTS
-};
-
-const dds_topic_descriptor_t TestIdl_MsgUnion_desc = { sizeof (TestIdl_MsgUnion), 4u, 0u, 0u, "TestIdl::MsgUnion", NULL, 3, TestIdl_MsgUnion_ops, "" };
-
 static void * sample_init_union (void)
 {
   TestIdl_MsgUnion msg = { .msg_field1 = TestIdl_KIND1_1, .msg_field2 = TestIdl_KIND2_10, .msg_field3._d = TestIdl_KIND3_1, .msg_field3._u.field2 = TestIdl_KIND2_6 };
@@ -293,6 +161,8 @@ static void sample_free_union (void *s)
 /**********************************************
  * Recursive types
  **********************************************/
+
+// FIXME: IDLC fails with memory leaks because of the recursion
 
 struct TestIdl_SubMsgRecursive;
 
@@ -380,55 +250,6 @@ static void sample_free_recursive (void *s)
 /**********************************************
  * External fields
  **********************************************/
-typedef struct TestIdl_MsgExt_b
-{
-  int32_t * b1;
-} TestIdl_MsgExt_b;
-
-typedef struct dds_sequence_short
-{
-  uint32_t _maximum;
-  uint32_t _length;
-  int16_t *_buffer;
-  bool _release;
-} dds_sequence_short;
-
-typedef struct dds_sequence_TestIdl_MsgExt_b
-{
-  uint32_t _maximum;
-  uint32_t _length;
-  struct TestIdl_MsgExt_b *_buffer;
-  bool _release;
-} dds_sequence_TestIdl_MsgExt_b;
-
-typedef struct TestIdl_MsgExt
-{
-  char * f1;
-  char (* f2)[33];
-  struct TestIdl_MsgExt_b * f3;
-  int16_t (* f4)[3];
-  dds_sequence_short * f5;
-  dds_sequence_TestIdl_MsgExt_b * f6;
-} TestIdl_MsgExt;
-
-static const uint32_t TestIdl_MsgExt_ops [] =
-{
-  /* TestIdl_MsgExt */
-  DDS_OP_ADR | DDS_OP_TYPE_STR, offsetof (TestIdl_MsgExt, f1),
-  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_BST, offsetof (TestIdl_MsgExt, f2), 33u,
-  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_EXT, offsetof (TestIdl_MsgExt, f3), (4u << 16u) + 14u /* TestIdl_MsgExt_b */, sizeof (TestIdl_MsgExt_b),
-  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_2BY | DDS_OP_FLAG_SGN, offsetof (TestIdl_MsgExt, f4), 3u,
-  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_2BY | DDS_OP_FLAG_SGN, offsetof (TestIdl_MsgExt, f5),
-  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_STU, offsetof (TestIdl_MsgExt, f6), sizeof (TestIdl_MsgExt_b), (4u << 16u) + 5u /* TestIdl_MsgExt_b */,
-  DDS_OP_RTS,
-
-  /* TestIdl_MsgExt_b */
-  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_4BY | DDS_OP_FLAG_SGN, offsetof (TestIdl_MsgExt_b, b1),
-  DDS_OP_RTS
-};
-
-const dds_topic_descriptor_t TestIdl_MsgExt_desc = { sizeof (TestIdl_MsgExt), sizeof (char *), 0u, 0u, "TestIdl_MsgExt", NULL, 9, TestIdl_MsgExt_ops, "" };
-
 static void * sample_init_ext (void)
 {
   TestIdl_MsgExt *msg = ddsrt_malloc (sizeof (*msg));
@@ -500,50 +321,8 @@ static void sample_free_ext (void *s)
 }
 
 /**********************************************
- * External fields
+ * Optional fields
  **********************************************/
-
-typedef struct TestIdl_MsgOpt_b
-{
-  bool * b1;
-} TestIdl_MsgOpt_b;
-
-typedef struct TestIdl_MsgOpt_dds_sequence_b
-{
-  uint32_t _maximum;
-  uint32_t _length;
-  struct TestIdl_MsgOpt_b *_buffer;
-  bool _release;
-} TestIdl_MsgOpt_dds_sequence_b;
-
-typedef struct TestIdl_MsgOpt
-{
-  int32_t * f1;
-  char * f2;
-  struct TestIdl_MsgOpt_b * f3;
-  char (* f4)[33];
-  int32_t (* f5)[3];
-  TestIdl_MsgOpt_dds_sequence_b * f6;
-} TestIdl_MsgOpt;
-
-static const uint32_t TestIdl_MsgOpt_ops [] =
-{
-  /* TestIdl_MsgOpt */
-  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_4BY | DDS_OP_FLAG_OPT | DDS_OP_FLAG_SGN, offsetof (TestIdl_MsgOpt, f1),
-  DDS_OP_ADR | DDS_OP_TYPE_STR | DDS_OP_FLAG_OPT, offsetof (TestIdl_MsgOpt, f2),
-  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_EXT | DDS_OP_FLAG_OPT, offsetof (TestIdl_MsgOpt, f3), (4u << 16u) + 15u /* TestIdl_MsgOpt_b */, sizeof (TestIdl_MsgOpt_b),
-  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_BST | DDS_OP_FLAG_OPT, offsetof (TestIdl_MsgOpt, f4), 33u,
-  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_ARR | DDS_OP_FLAG_OPT | DDS_OP_SUBTYPE_4BY | DDS_OP_FLAG_SGN, offsetof (TestIdl_MsgOpt, f5), 3u,
-  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_SEQ | DDS_OP_FLAG_OPT | DDS_OP_SUBTYPE_STU, offsetof (TestIdl_MsgOpt, f6), sizeof (TestIdl_MsgOpt_b), (4u << 16u) + 5u /* TestIdl_MsgOpt_b */,
-  DDS_OP_RTS,
-
-  /* TestIdl_MsgOpt_b */
-  DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_1BY | DDS_OP_FLAG_OPT, offsetof (TestIdl_MsgOpt_b, b1),
-  DDS_OP_RTS
-};
-
-const dds_topic_descriptor_t TestIdl_MsgOpt_desc = { sizeof (TestIdl_MsgOpt), sizeof (char *), 0u, 0u, "TestIdl_MsgOpt", NULL, 9, TestIdl_MsgOpt_ops, "" };
-
 static void * sample_init_opt (void)
 {
   TestIdl_MsgOpt *msg = ddsrt_calloc (1, sizeof (*msg));
@@ -638,108 +417,21 @@ static void sample_free_opt (void *s)
 /**********************************************
  * Appendable types
  **********************************************/
-
-/* @appendable */
-typedef struct TestIdl_AppendableUnion0
-{
-  int8_t _d;
-  union
-  {
-    uint32_t field1;
-    int32_t field2;
-  } _u;
-} TestIdl_AppendableUnion0;
-
-/* @appendable */
-typedef struct TestIdl_AppendableSubMsg1
-{
-  uint32_t submsg1_field1;
-  char *submsg1_field2;
-} TestIdl_AppendableSubMsg1;
-
-/* @appendable */
-typedef struct TestIdl_AppendableSubMsg2
-{
-  uint32_t submsg2_field1;
-  uint32_t submsg2_field2;
-} TestIdl_AppendableSubMsg2;
-
-/* @appendable */
-typedef struct TestIdl_AppendableMsg_msg_field3_seq
-{
-  uint32_t _maximum;
-  uint32_t _length;
-  struct TestIdl_AppendableSubMsg2 *_buffer;
-  bool _release;
-} TestIdl_AppendableMsg_msg_field3_seq;
-
-/* @appendable */
-typedef struct TestIdl_AppendableMsg_msg_field5_seq
-{
-  uint32_t _maximum;
-  uint32_t _length;
-  struct TestIdl_AppendableUnion0 *_buffer;
-  bool _release;
-} TestIdl_AppendableMsg_msg_field5_seq;
-
-/* @appendable */
-typedef struct TestIdl_AppendableMsg
-{
-  TestIdl_AppendableSubMsg1 msg_field1;
-  TestIdl_AppendableSubMsg2 msg_field2;
-  TestIdl_AppendableMsg_msg_field3_seq msg_field3;
-  TestIdl_AppendableUnion0 msg_field4;
-  TestIdl_AppendableMsg_msg_field5_seq msg_field5;
-} TestIdl_AppendableMsg;
-
-static const uint32_t TestIdl_AppendableMsg_ops [] =
-{
-  /* AppendableMsg */
-  DDS_OP_DLC,
-  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (TestIdl_AppendableMsg, msg_field1), (3u << 16u) + 18u,  // AppendableSubMsg1
-  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (TestIdl_AppendableMsg, msg_field2), (3u << 16u) + 21u, // AppendableSubMsg2
-  DDS_OP_ADR | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_STU , offsetof (TestIdl_AppendableMsg, msg_field3), sizeof (TestIdl_AppendableSubMsg2), (4u << 16u) + 18u,  // sequence<AppendableSubMsg2>
-  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (TestIdl_AppendableMsg, msg_field4), (3u << 16u) + 20u,  // AppendableUnion0
-  DDS_OP_ADR | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_UNI, offsetof (TestIdl_AppendableMsg, msg_field5), sizeof (TestIdl_AppendableUnion0), (4u << 16u) + 17u,   // sequenec<AppendableUnion0>
-  DDS_OP_RTS,
-
-  /* AppendableSubMsg1 */
-  DDS_OP_DLC,
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_AppendableSubMsg1, submsg1_field1),
-  DDS_OP_ADR | DDS_OP_TYPE_STR, offsetof (TestIdl_AppendableSubMsg1, submsg1_field2),
-  DDS_OP_RTS,
-
-  /* AppendableSubMsg2 */
-  DDS_OP_DLC,
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_AppendableSubMsg2, submsg2_field1),
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_AppendableSubMsg2, submsg2_field2),
-  DDS_OP_RTS,
-
-  /* AppendableUnion0 */
-  DDS_OP_DLC,
-  DDS_OP_ADR | DDS_OP_TYPE_UNI | DDS_OP_SUBTYPE_1BY, offsetof (TestIdl_AppendableUnion0, _d), 2u, (10u << 16) + 4u,
-    DDS_OP_JEQ | DDS_OP_TYPE_4BY | 0, 0, offsetof (TestIdl_AppendableUnion0, _u.field1),
-    DDS_OP_JEQ | DDS_OP_TYPE_4BY | DDS_OP_FLAG_SGN | 0, 1, offsetof (TestIdl_AppendableUnion0, _u.field2),
-  DDS_OP_RTS,
-};
-
-const dds_topic_descriptor_t TestIdl_MsgAppendable_desc = { sizeof (TestIdl_AppendableMsg), 4u, 0u, 0u, "TestIdl::AppendableMsg", NULL, 4, TestIdl_AppendableMsg_ops, "" };
-
 static void * sample_init_appendable (void)
 {
   TestIdl_AppendableSubMsg2 sseq[] = { { .submsg2_field1 = 111, .submsg2_field2 = 222 }, { .submsg2_field1 = 333, .submsg2_field2 = 444 } };
   TestIdl_AppendableUnion0 useq[] = { { ._d = 0, ._u.field1 = 555 }, { ._d = 1, ._u.field2 = -555 }, { ._d = 0, ._u.field1 = 666 } };
-  TestIdl_AppendableMsg msg = {
+  TestIdl_MsgAppendable msg = {
           .msg_field1 = { .submsg1_field1 = 1100, .submsg1_field2 = "test0123" },
           .msg_field2 = { .submsg2_field1 = 2100, .submsg2_field2 = 2200 },
           .msg_field3 = { ._length = 2, ._maximum = 2, ._buffer = ddsrt_memdup (sseq, 2 * sizeof (TestIdl_AppendableSubMsg2)) },
           .msg_field4 = { ._d = 1, ._u.field2 = -10 },
           .msg_field5 = { ._length = 3, ._maximum = 3, ._buffer = ddsrt_memdup (useq, 3 * sizeof (TestIdl_AppendableUnion0)) }
   };
-  return ddsrt_memdup (&msg, sizeof (TestIdl_AppendableMsg));
+  return ddsrt_memdup (&msg, sizeof (TestIdl_MsgAppendable));
 }
 
-static bool sample_equal_appendable_TestIdl_AppendableSubMsg2_seq (TestIdl_AppendableMsg_msg_field3_seq *s1, TestIdl_AppendableMsg_msg_field3_seq *s2)
+static bool sample_equal_appendable_TestIdl_AppendableSubMsg2_seq (dds_sequence_TestIdl_AppendableSubMsg2 *s1, dds_sequence_TestIdl_AppendableSubMsg2 *s2)
 {
   if (s1->_length != s2->_length)
     return false;
@@ -752,7 +444,7 @@ static bool sample_equal_appendable_TestIdl_AppendableSubMsg2_seq (TestIdl_Appen
   return true;
 }
 
-static bool sample_equal_appendable_TestIdl_AppendableUnion0_seq (TestIdl_AppendableMsg_msg_field5_seq *s1, TestIdl_AppendableMsg_msg_field5_seq *s2)
+static bool sample_equal_appendable_TestIdl_AppendableUnion0_seq (dds_sequence_TestIdl_AppendableUnion0 *s1, dds_sequence_TestIdl_AppendableUnion0 *s2)
 {
   if (s1->_length != s2->_length)
     return false;
@@ -767,7 +459,7 @@ static bool sample_equal_appendable_TestIdl_AppendableUnion0_seq (TestIdl_Append
 
 static bool sample_equal_appendable (void *s1, void *s2)
 {
-  TestIdl_AppendableMsg *msg1 = (TestIdl_AppendableMsg *) s1, *msg2 = (TestIdl_AppendableMsg *) s2;
+  TestIdl_MsgAppendable *msg1 = (TestIdl_MsgAppendable *) s1, *msg2 = (TestIdl_MsgAppendable *) s2;
   return (
     msg1->msg_field1.submsg1_field1 == msg2->msg_field1.submsg1_field1
     && !strcmp (msg1->msg_field1.submsg1_field2, msg2->msg_field1.submsg1_field2)
@@ -782,7 +474,7 @@ static bool sample_equal_appendable (void *s1, void *s2)
 
 static void sample_free_appendable (void *s)
 {
-  TestIdl_AppendableMsg *msg = (TestIdl_AppendableMsg *) s;
+  TestIdl_MsgAppendable *msg = (TestIdl_MsgAppendable *) s;
   ddsrt_free (msg->msg_field3._buffer);
   ddsrt_free (msg->msg_field5._buffer);
   ddsrt_free (s);
@@ -791,77 +483,6 @@ static void sample_free_appendable (void *s)
 /**********************************************
  * Keys in nested (appendable/mutable) types
  **********************************************/
-
-/* @mutable */
-typedef struct TestIdl_SubMsgKeysNested2
-{
-  uint32_t submsg2_field1;
-  uint32_t submsg2_field2;
-} TestIdl_SubMsgKeysNested2;
-
-/* @appendable */
-typedef struct TestIdl_SubMsgKeysNested
-{
-  uint32_t submsg_field1;
-  uint32_t submsg_field2;
-  uint32_t submsg_field3;
-  TestIdl_SubMsgKeysNested2 submsg_field4;
-} TestIdl_SubMsgKeysNested;
-
-typedef struct TestIdl_MsgKeysNested_msg_field2_seq
-{
-  uint32_t _maximum;
-  uint32_t _length;
-  TestIdl_SubMsgKeysNested *_buffer;
-  bool _release;
-} TestIdl_MsgKeysNested_msg_field2_seq;
-
-/* @final */
-typedef struct TestIdl_MsgKeysNested
-{
-  TestIdl_SubMsgKeysNested msg_field1;
-  TestIdl_MsgKeysNested_msg_field2_seq msg_field2;
-} TestIdl_MsgKeysNested;
-
-static const uint32_t TestIdl_MsgKeysNested_ops [] =
-{
-  // Msg
-  DDS_OP_ADR | DDS_OP_TYPE_EXT | DDS_OP_FLAG_KEY, offsetof (TestIdl_MsgKeysNested, msg_field1), (3u << 16u) + 8u,  // SubMsgKeysNested
-  DDS_OP_ADR | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_STU, offsetof (TestIdl_MsgKeysNested, msg_field2), sizeof (TestIdl_SubMsgKeysNested), (4u << 16u) + 5u, // sequence<SubMsgKeysNested>
-  DDS_OP_RTS,
-
-  // SubMsg
-  DDS_OP_DLC,
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_SubMsgKeysNested, submsg_field1),
-  DDS_OP_ADR | DDS_OP_TYPE_4BY | DDS_OP_FLAG_KEY, offsetof (TestIdl_SubMsgKeysNested, submsg_field2),
-  DDS_OP_ADR | DDS_OP_TYPE_4BY | DDS_OP_FLAG_KEY, offsetof (TestIdl_SubMsgKeysNested, submsg_field3),
-  DDS_OP_ADR | DDS_OP_TYPE_EXT | DDS_OP_FLAG_KEY, offsetof (TestIdl_SubMsgKeysNested, submsg_field4), (3u << 16) + 4u, // SubMsgKeysNested2
-  DDS_OP_RTS,
-
-  // SubMsg2
-  DDS_OP_PLC,
-    DDS_OP_PLM | 5u, 1,
-    DDS_OP_PLM | 6u, 2,
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_SubMsgKeysNested2, submsg2_field1),
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_4BY | DDS_OP_FLAG_KEY, offsetof (TestIdl_SubMsgKeysNested2, submsg2_field2),
-  DDS_OP_RTS,
-
-  DDS_OP_KOF | 2u, 0u, 3u,      // msg_field1.submsg_field2
-  DDS_OP_KOF | 2u, 0u, 5u,      // msg_field1.submsg_field3
-  DDS_OP_KOF | 3u, 0u, 7u, 9u   // msg_field1.submsg_field4.submsg2_field2
-};
-
-static const dds_key_descriptor_t TestIdl_MsgKeysNested_keys[3] =
-{
-  { "msg_field1.submsg_field2", 31, 0 },
-  { "msg_field1.submsg_field3", 34, 1 },
-  { "msg_field1.submsg_field4.submsg2_field2", 37, 2 }
-};
-
-const dds_topic_descriptor_t TestIdl_MsgKeysNested_desc = { sizeof (TestIdl_MsgKeysNested), sizeof (char *), 0u, 3u, "TestIdl::MsgKeysNested", TestIdl_MsgKeysNested_keys, 8, TestIdl_MsgKeysNested_ops, "" };
-
 static void * sample_empty_keysnested (void)
 {
   TestIdl_MsgKeysNested *msg = ddsrt_calloc (1, sizeof (*msg));
@@ -921,51 +542,6 @@ static void sample_free_keysnested (void *s)
 /**********************************************
  * Arrays
  **********************************************/
-typedef struct TestIdl_SubMsgArr
-{
-  int32_t field1;
-  int32_t field2;
-} TestIdl_SubMsgArr;
-
-typedef struct TestIdl_UnionArr
-{
-  int32_t _d;
-  union
-  {
-    int32_t union_field1;
-    uint32_t union_field2;
-  } _u;
-} TestIdl_UnionArr;
-
-typedef struct TestIdl_MsgArr
-{
-   int32_t msg_field1[2];
-   TestIdl_SubMsgArr msg_field2[2];
-   TestIdl_UnionArr msg_field3[2];
-} TestIdl_MsgArr;
-
-static const uint32_t TestIdl_MsgArr_ops [] =
-{
-  /* TestIdl_MsgArr */
-  DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_4BY, offsetof (TestIdl_MsgArr, msg_field1), 2u,
-  DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_STU, offsetof (TestIdl_MsgArr, msg_field2), 2u, (5u << 16) + 11u, sizeof (TestIdl_SubMsgArr),
-  DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_UNI, offsetof (TestIdl_MsgArr, msg_field3), 2u, (5u << 16) + 11u, sizeof (TestIdl_UnionArr),
-  DDS_OP_RTS,
-
-  /* TestIdl_SubMsgArr */
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_SubMsgArr, field1),
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_SubMsgArr, field2),
-  DDS_OP_RTS,
-
-  /* TestIdl_UnionArr */
-  DDS_OP_ADR | DDS_OP_TYPE_UNI | DDS_OP_SUBTYPE_4BY | DDS_OP_FLAG_SGN, offsetof (TestIdl_UnionArr, _d), 2u, (10u << 16) + 4u,
-    DDS_OP_JEQ | DDS_OP_TYPE_4BY | DDS_OP_FLAG_SGN | 0, 0, offsetof (TestIdl_UnionArr, _u.union_field1),
-    DDS_OP_JEQ | DDS_OP_TYPE_4BY | 0, 1, offsetof (TestIdl_UnionArr, _u.union_field2),
-  DDS_OP_RTS
-};
-
-const dds_topic_descriptor_t TestIdl_MsgArr_desc = { sizeof (TestIdl_MsgArr), sizeof (char *), 0u, 0u, "TestIdl::MsgArr", NULL, 6, TestIdl_MsgArr_ops, "" };
-
 static void * sample_init_arr (void)
 {
   TestIdl_MsgArr msg = {
@@ -1001,84 +577,24 @@ static void sample_free_arr (void *s)
 /**********************************************
  * Appendable types: structs
  **********************************************/
-
-/* @appendable */
-typedef struct TestIdl_SubMsgAppendStruct1
-{
-  uint32_t submsg_field1;
-  uint32_t submsg_field2;
-} TestIdl_SubMsgAppendStruct1;
-
-/* @appendable */
-typedef struct TestIdl_MsgAppendStruct1
-{
-  uint32_t msg_field1;
-  TestIdl_SubMsgAppendStruct1 msg_field2;
-  uint32_t msg_field3;
-} TestIdl_MsgAppendStruct1;
-
-static const uint32_t TestIdl_MsgAppendStruct1_ops [] =
-{
-  DDS_OP_DLC,
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_MsgAppendStruct1, msg_field1),
-  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (TestIdl_MsgAppendStruct1, msg_field2), (3u << 16u) + 6u,
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_MsgAppendStruct1, msg_field3),
-  DDS_OP_RTS,
-
-  DDS_OP_DLC,
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_SubMsgAppendStruct1, submsg_field1),
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_SubMsgAppendStruct1, submsg_field2),
-  DDS_OP_RTS
-};
-
-/* @appendable */
-typedef struct TestIdl_SubMsgAppendStruct2
-{
-  uint32_t submsg_field1;
-  uint32_t submsg_field2;
-  uint32_t submsg_field3[10000];
-} TestIdl_SubMsgAppendStruct2;
-
-/* @appendable */
-typedef struct TestIdl_MsgAppendStruct2
-{
-  uint32_t msg_field1;
-  TestIdl_SubMsgAppendStruct2 msg_field2;
-  uint32_t msg_field3;
-  uint32_t msg_field4[10000];
-} TestIdl_MsgAppendStruct2;
-
-static const uint32_t TestIdl_MsgAppendStruct2_ops [] =
-{
-  DDS_OP_DLC,
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_MsgAppendStruct2, msg_field1),
-  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (TestIdl_MsgAppendStruct2, msg_field2), (3u << 16u) + 9u,
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_MsgAppendStruct2, msg_field3),
-  DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_4BY, offsetof (TestIdl_MsgAppendStruct2, msg_field4), 10000u,
-  DDS_OP_RTS,
-
-  DDS_OP_DLC,
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_SubMsgAppendStruct2, submsg_field1),
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_SubMsgAppendStruct2, submsg_field2),
-  DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_4BY, offsetof (TestIdl_SubMsgAppendStruct2, submsg_field3), 10000u,
-  DDS_OP_RTS
-};
-
-const dds_topic_descriptor_t TestIdl_MsgAppendStruct1_desc = { sizeof (TestIdl_MsgAppendStruct1), 4u, 0u, 0u, "TestIdl::MsgAppendStruct1", NULL, 0, TestIdl_MsgAppendStruct1_ops, "" };
-const dds_topic_descriptor_t TestIdl_MsgAppendStruct2_desc = { sizeof (TestIdl_MsgAppendStruct2), 4u, 0u, 0u, "TestIdl::MsgAppendStruct2", NULL, 0, TestIdl_MsgAppendStruct2_ops, "" };
-
 static void * sample_init_appendstruct1 (void)
 {
-  TestIdl_MsgAppendStruct1 msg = { .msg_field1 = 1, .msg_field2 = { .submsg_field1 = 11, .submsg_field2 = 22 }, .msg_field3 = 3 };
+  TestIdl_MsgAppendStruct1 msg = { .msg_field1 = 1, .msg_field3 = 3 };
+  msg.msg_field2 = ddsrt_malloc (sizeof (*msg.msg_field2));
+  msg.msg_field2->submsg_field1 = 11;
+  msg.msg_field2->submsg_field2 = 22;
   return ddsrt_memdup (&msg, sizeof (TestIdl_MsgAppendStruct1));
 }
 
 static void * sample_init_appendstruct2 (void)
 {
-  TestIdl_MsgAppendStruct2 msg = { .msg_field1 = 101, .msg_field2 = { .submsg_field1 = 1011, .submsg_field2 = 1022 }, .msg_field3 = 103 };
+  TestIdl_MsgAppendStruct2 msg = { .msg_field1 = 101, .msg_field3 = 103 };
+  msg.msg_field2 = ddsrt_malloc (sizeof (*msg.msg_field2));
+  msg.msg_field2->submsg_field1 = 1011;
+  msg.msg_field2->submsg_field2 = 1022;
   for (uint32_t n = 0; n < 10000; n++)
   {
-    msg.msg_field2.submsg_field3[n] = 1 + n;
+    msg.msg_field2->submsg_field3[n] = 1 + n;
     msg.msg_field4[n] = 1 + n;
   }
   return ddsrt_memdup (&msg, sizeof (TestIdl_MsgAppendStruct2));
@@ -1090,11 +606,11 @@ static bool sample_equal_appendstruct1 (void *s_wr, void *s_rd)
   TestIdl_MsgAppendStruct2 *msg_rd = s_rd;
   bool eq = true;
   for (int n = 0; n < 10000 && eq; n++)
-    eq = msg_rd->msg_field2.submsg_field3[n] == 0 && msg_rd->msg_field4[n] == 0;
+    eq = msg_rd->msg_field2->submsg_field3[n] == 0 && msg_rd->msg_field4[n] == 0;
   return eq
     && msg_wr->msg_field1 == msg_rd->msg_field1
-    && msg_wr->msg_field2.submsg_field1 == msg_rd->msg_field2.submsg_field1
-    && msg_wr->msg_field2.submsg_field2 == msg_rd->msg_field2.submsg_field2
+    && msg_wr->msg_field2->submsg_field1 == msg_rd->msg_field2->submsg_field1
+    && msg_wr->msg_field2->submsg_field2 == msg_rd->msg_field2->submsg_field2
     && msg_wr->msg_field3 == msg_rd->msg_field3
   ;
 }
@@ -1105,14 +621,18 @@ static bool sample_equal_appendstruct2 (void *s_wr, void *s_rd)
   TestIdl_MsgAppendStruct1 *msg_rd = s_rd;
   return
     msg_wr->msg_field1 == msg_rd->msg_field1
-    && msg_wr->msg_field2.submsg_field1 == msg_rd->msg_field2.submsg_field1
-    && msg_wr->msg_field2.submsg_field2 == msg_rd->msg_field2.submsg_field2
+    && msg_wr->msg_field2->submsg_field1 == msg_rd->msg_field2->submsg_field1
+    && msg_wr->msg_field2->submsg_field2 == msg_rd->msg_field2->submsg_field2
     && msg_wr->msg_field3 == msg_rd->msg_field3
   ;
 }
 
-static void sample_free_appendstruct (void *s1, void *s2)
+static void sample_free_appendstruct (void *p1, void *p2)
 {
+  TestIdl_MsgAppendStruct1 *s1 = p1;
+  TestIdl_MsgAppendStruct2 *s2 = p2;
+  ddsrt_free (s1->msg_field2);
+  ddsrt_free (s2->msg_field2);
   ddsrt_free (s1);
   ddsrt_free (s2);
 }
@@ -1120,118 +640,6 @@ static void sample_free_appendstruct (void *s1, void *s2)
 /**********************************************
  * Appendable types: default values for types
  **********************************************/
-
-/* @appendable */
-typedef struct TestIdl_MsgAppendDefaults1
-{
-  uint32_t msg_field1;
-} TestIdl_MsgAppendDefaults1;
-
-static const uint32_t TestIdl_MsgAppendDefaults1_ops [] =
-{
-  DDS_OP_DLC,
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_MsgAppendDefaults1, msg_field1),
-  DDS_OP_RTS,
-};
-
-typedef struct TestIdl_SubMsgAppendDefaults2
-{
-  uint32_t submsg_field1;
-} TestIdl_SubMsgAppendDefaults2;
-
-typedef struct TestIdl_MsgAppendDefaults2_msg_field_su8_seq
-{
-  uint32_t _maximum;
-  uint32_t _length;
-  uint8_t *_buffer;
-  bool _release;
-} TestIdl_MsgAppendDefaults2_msg_field_su8_seq;
-
-typedef struct TestIdl_MsgAppendDefaults2_msg_field_subm_seq
-{
-  uint32_t _maximum;
-  uint32_t _length;
-  TestIdl_SubMsgAppendDefaults2 *_buffer;
-  bool _release;
-} TestIdl_MsgAppendDefaults2_msg_field_subm_seq;
-
-typedef enum TestIdl_MsgAppendDefaults2_Enum
-{
-  TestIdl_APPEND_DEFAULTS_KIND1,
-  TestIdl_APPEND_DEFAULTS_KIND2,
-  TestIdl_APPEND_DEFAULTS_KIND3
-} TestIdl_MsgAppendDefaults2_Enum;
-
-typedef struct TestIdl_MsgAppendDefaults2Union
-{
-  int32_t _d;
-  union
-  {
-    int32_t field1;
-    uint32_t field2;
-    uint8_t field3;
-  } _u;
-} TestIdl_MsgAppendDefaults2Union;
-
-/* @appendable */
-typedef struct TestIdl_MsgAppendDefaults2
-{
-  uint32_t msg_field1;
-
-  int8_t msg_field_i8;
-  uint8_t msg_field_u8;
-  int16_t msg_field_i16;
-  uint16_t msg_field_u16;
-  int32_t msg_field_i32;
-  uint32_t msg_field_u32;
-  int64_t msg_field_i64;
-  uint64_t msg_field_u64;
-  uint8_t msg_field_au8[100];
-  uint64_t msg_field_au64[100];
-  TestIdl_MsgAppendDefaults2_Enum msg_field_enum;
-  char *msg_field_str;
-  char msg_field_bstr[100];
-  TestIdl_MsgAppendDefaults2Union msg_field_uni;
-  TestIdl_MsgAppendDefaults2_msg_field_su8_seq msg_field_su8;
-  TestIdl_SubMsgAppendDefaults2 msg_field_subm;
-  TestIdl_SubMsgAppendDefaults2 msg_field_asubm[100];
-  TestIdl_MsgAppendDefaults2_msg_field_subm_seq msg_field_ssubm;
-} TestIdl_MsgAppendDefaults2;
-
-static const uint32_t TestIdl_MsgAppendDefaults2_ops [] =
-{
-  DDS_OP_DLC,
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_MsgAppendDefaults2, msg_field1),
-  DDS_OP_ADR | DDS_OP_TYPE_1BY, offsetof (TestIdl_MsgAppendDefaults2, msg_field_i8),
-  DDS_OP_ADR | DDS_OP_TYPE_1BY, offsetof (TestIdl_MsgAppendDefaults2, msg_field_u8),
-  DDS_OP_ADR | DDS_OP_TYPE_2BY, offsetof (TestIdl_MsgAppendDefaults2, msg_field_i16),
-  DDS_OP_ADR | DDS_OP_TYPE_2BY, offsetof (TestIdl_MsgAppendDefaults2, msg_field_u16),
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_MsgAppendDefaults2, msg_field_i32),
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_MsgAppendDefaults2, msg_field_u32),
-  DDS_OP_ADR | DDS_OP_TYPE_8BY, offsetof (TestIdl_MsgAppendDefaults2, msg_field_i64),
-  DDS_OP_ADR | DDS_OP_TYPE_8BY, offsetof (TestIdl_MsgAppendDefaults2, msg_field_u64),
-  DDS_OP_ADR | DDS_OP_TYPE_ENU, offsetof (TestIdl_MsgAppendDefaults2, msg_field_enum), 2u,
-  DDS_OP_ADR | DDS_OP_TYPE_STR, offsetof (TestIdl_MsgAppendDefaults2, msg_field_str),
-  DDS_OP_ADR | DDS_OP_TYPE_BST, offsetof (TestIdl_MsgAppendDefaults2, msg_field_bstr), 100u,
-  DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_1BY, offsetof (TestIdl_MsgAppendDefaults2, msg_field_au8), 100u,
-  DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_8BY, offsetof (TestIdl_MsgAppendDefaults2, msg_field_au64), 100u,
-  DDS_OP_ADR | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_1BY, offsetof (TestIdl_MsgAppendDefaults2, msg_field_su8),
-  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (TestIdl_MsgAppendDefaults2, msg_field_subm), (3u << 16u) + 27u,
-  DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_STU, offsetof (TestIdl_MsgAppendDefaults2, msg_field_asubm), 100, (5u << 16u) + 24u, sizeof (TestIdl_SubMsgAppendDefaults2),
-  DDS_OP_ADR | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_STU, offsetof (TestIdl_MsgAppendDefaults2, msg_field_ssubm), sizeof (TestIdl_SubMsgAppendDefaults2), (4u << 16u) + 19u,
-  DDS_OP_ADR | DDS_OP_TYPE_UNI | DDS_OP_SUBTYPE_ENU, offsetof (TestIdl_MsgAppendDefaults2, msg_field_uni._d), 3u, (14u << 16) + 5u, 2u,
-    DDS_OP_JEQ | DDS_OP_TYPE_4BY | DDS_OP_FLAG_SGN | 0, TestIdl_APPEND_DEFAULTS_KIND1, offsetof (TestIdl_MsgAppendDefaults2, msg_field_uni._u.field1),
-    DDS_OP_JEQ | DDS_OP_TYPE_4BY | 0, TestIdl_APPEND_DEFAULTS_KIND2, offsetof (TestIdl_MsgAppendDefaults2, msg_field_uni._u.field2),
-    DDS_OP_JEQ | DDS_OP_TYPE_1BY | 0, TestIdl_APPEND_DEFAULTS_KIND3, offsetof (TestIdl_MsgAppendDefaults2, msg_field_uni._u.field3),
-  DDS_OP_RTS,
-
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_SubMsgAppendDefaults2, submsg_field1),
-  DDS_OP_RTS,
-};
-
-const dds_topic_descriptor_t TestIdl_MsgAppendDefaults1_desc = { sizeof (TestIdl_MsgAppendDefaults1), 4u, 0u, 0u, "TestIdl::MsgAppendDefaults1", NULL, 0, TestIdl_MsgAppendDefaults1_ops, "" };
-const dds_topic_descriptor_t TestIdl_MsgAppendDefaults2_desc = { sizeof (TestIdl_MsgAppendDefaults2), 4u, 0u, 0u, "TestIdl::MsgAppendDefaults2", NULL, 0, TestIdl_MsgAppendDefaults2_ops, "" };
-
 static void * sample_init_appenddefaults1 (void)
 {
   TestIdl_MsgAppendDefaults1 msg = { .msg_field1 = 123 };
@@ -1300,151 +708,10 @@ static void sample_free_appenddefaults2 (void *s_wr, void *s_rd)
 /**********************************************
  * Mutable type
  **********************************************/
-typedef struct TestIdl_SubMsgMutable1 {
-  uint32_t submsg_field1;
-  uint32_t submsg_field2[3];
-} TestIdl_SubMsgMutable1;
-
-typedef struct TestIdl_SubMsgMutable1_seq
-{
-  uint32_t _maximum;
-  uint32_t _length;
-  TestIdl_SubMsgMutable1 *_buffer;
-  bool _release;
-} TestIdl_SubMsgMutable1_seq;
-
-typedef struct TestIdl_MsgMutable1 {
-  uint32_t msg_field1;
-  uint16_t msg_field2;
-  TestIdl_SubMsgMutable1 msg_field3;
-  TestIdl_SubMsgMutable1 msg_field4[2];
-  int32_t msg_field5;
-  double msg_field7;
-  TestIdl_SubMsgMutable1 msg_field8;
-  TestIdl_SubMsgMutable1_seq msg_field10;
-  uint8_t msg_field11;
-} TestIdl_MsgMutable1;
-
-static const uint32_t TestIdl_MsgMutable1_ops [] =
-{
-  DDS_OP_PLC,
-    DDS_OP_PLM | 19u, 1,
-    DDS_OP_PLM | 20u, 2,
-    DDS_OP_PLM | 21u, 3,
-    DDS_OP_PLM | 23u, 4,
-    DDS_OP_PLM | 27u, 5,
-    DDS_OP_PLM | 28u, 7,
-    DDS_OP_PLM | 29u, 8,
-    DDS_OP_PLM | 31u, 10,
-    DDS_OP_PLM | 34u, 11,
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_4BY | DDS_OP_FLAG_MU, offsetof (TestIdl_MsgMutable1, msg_field1),
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_2BY, offsetof (TestIdl_MsgMutable1, msg_field2),
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (TestIdl_MsgMutable1, msg_field3), (3u << 16u) + 28u,
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_STU, offsetof (TestIdl_MsgMutable1, msg_field4), 2u, (5u << 16u) + 24u, sizeof (TestIdl_SubMsgMutable1),
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_4BY | DDS_OP_FLAG_SGN, offsetof (TestIdl_MsgMutable1, msg_field5),
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_8BY | DDS_OP_FLAG_FP, offsetof (TestIdl_MsgMutable1, msg_field7),
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (TestIdl_MsgMutable1, msg_field8), (3u << 16u) + 12u,
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_STU, offsetof (TestIdl_MsgMutable1, msg_field10), sizeof (TestIdl_SubMsgMutable1), (4u << 16u) + 8u,
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_1BY, offsetof (TestIdl_MsgMutable1, msg_field11),
-  DDS_OP_RTS,
-
-  DDS_OP_PLC,
-    DDS_OP_PLM | 5u, 1,
-    DDS_OP_PLM | 6u, 2,
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_SubMsgMutable1, submsg_field1),
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_4BY, offsetof (TestIdl_SubMsgMutable1, submsg_field2), 3u,
-  DDS_OP_RTS,
-};
-
-typedef struct TestIdl_SubMsgMutable2 {
-  uint32_t submsg_field1;
-  uint32_t submsg_field2[3];
-} TestIdl_SubMsgMutable2;
-
-typedef struct TestIdl_SubMsgMutable2_seq
-{
-  uint32_t _maximum;
-  uint32_t _length;
-  TestIdl_SubMsgMutable2 *_buffer;
-  bool _release;
-} TestIdl_SubMsgMutable2_seq;
-
-typedef struct TestIdl_MsgMutable2 {
-  uint32_t msg_field1;
-  uint16_t msg_field2;
-  TestIdl_SubMsgMutable2 msg_field3;
-  TestIdl_SubMsgMutable2 msg_field4[2];
-  int32_t msg_field6;
-  double msg_field7;
-  TestIdl_SubMsgMutable2 msg_field9;
-  TestIdl_SubMsgMutable2_seq msg_field10;
-  uint8_t msg_field11;
-  TestIdl_SubMsgMutable2_seq msg_field12;
-} TestIdl_MsgMutable2;
-
-static const uint32_t TestIdl_MsgMutable2_ops [] =
-{
-  DDS_OP_PLC,
-    DDS_OP_PLM | DDS_OP_FLAG_MU << 16 | 21u, 1,
-    DDS_OP_PLM | 22u, 2,
-    DDS_OP_PLM | 23u, 3,
-    DDS_OP_PLM | 25u, 4,
-    DDS_OP_PLM | 29u, 6,
-    DDS_OP_PLM | 30u, 7,
-    DDS_OP_PLM | 31u, 9,
-    DDS_OP_PLM | 33u, 10,
-    DDS_OP_PLM | 36u, 11,
-    DDS_OP_PLM | 37u, 12,
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_MsgMutable2, msg_field1),
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_2BY, offsetof (TestIdl_MsgMutable2, msg_field2),
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (TestIdl_MsgMutable2, msg_field3), (3u << 16u) + 33u,
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_STU, offsetof (TestIdl_MsgMutable2, msg_field4), 2u, (5u << 16u) + 29u, sizeof (TestIdl_SubMsgMutable2),
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_4BY | DDS_OP_FLAG_SGN, offsetof (TestIdl_MsgMutable2, msg_field6),
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_8BY | DDS_OP_FLAG_FP, offsetof (TestIdl_MsgMutable2, msg_field7),
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (TestIdl_MsgMutable2, msg_field9), (3u << 16u) + 17u,
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_STU, offsetof (TestIdl_MsgMutable2, msg_field10), sizeof (TestIdl_SubMsgMutable2), (4u << 16u) + 13u,
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_1BY, offsetof (TestIdl_MsgMutable2, msg_field11),
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_STU, offsetof (TestIdl_MsgMutable2, msg_field12), sizeof (TestIdl_SubMsgMutable2), (4u << 16u) + 5u,
-  DDS_OP_RTS,
-
-  DDS_OP_PLC,
-    DDS_OP_PLM | 5u, 1,
-    DDS_OP_PLM | 6u, 2,
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (TestIdl_SubMsgMutable2, submsg_field1),
-  DDS_OP_RTS,
-  DDS_OP_ADR | DDS_OP_TYPE_ARR | DDS_OP_SUBTYPE_4BY, offsetof (TestIdl_SubMsgMutable2, submsg_field2), 3u,
-  DDS_OP_RTS,
-};
-
-const dds_topic_descriptor_t TestIdl_MsgMutable1_desc = { sizeof (TestIdl_MsgMutable1), 4u, 0u, 0u, "TestIdl::MsgMutable1", NULL, 0, TestIdl_MsgMutable1_ops, "" };
-const dds_topic_descriptor_t TestIdl_MsgMutable2_desc = { sizeof (TestIdl_MsgMutable2), 4u, 0u, 0u, "TestIdl::MsgMutable2", NULL, 0, TestIdl_MsgMutable2_ops, "" };
-
 static void * sample_init_mutable1 (void)
 {
   TestIdl_SubMsgMutable1 sseq[] = { { .submsg_field1 = 1001, .submsg_field2 = { 1002, 1003, 1004 } }, { .submsg_field1 = 1003, .submsg_field2 = { 1005, 1006, 1007 } } };
-  TestIdl_SubMsgMutable1_seq seq = { ._length = 2, ._maximum = 2, ._buffer = ddsrt_memdup (sseq, 2 * sizeof (TestIdl_SubMsgMutable1)) };
+  dds_sequence_TestIdl_SubMsgMutable1 seq = { ._length = 2, ._maximum = 2, ._buffer = ddsrt_memdup (sseq, 2 * sizeof (TestIdl_SubMsgMutable1)) };
   TestIdl_MsgMutable1 msg = {
       .msg_field1 = 1,
       .msg_field2 = 2,
@@ -1462,9 +729,9 @@ static void * sample_init_mutable1 (void)
 static void * sample_init_mutable2 (void)
 {
   TestIdl_SubMsgMutable2 sseq[] = { { .submsg_field1 = 2001, .submsg_field2 = { 2002, 2003, 2004 } }, { .submsg_field1 = 2003, .submsg_field2 = { 2005, 2006, 2007 } } };
-  TestIdl_SubMsgMutable2_seq seq = { ._length = 2, ._maximum = 2, ._buffer = ddsrt_memdup (sseq, 2 * sizeof (TestIdl_SubMsgMutable2)) };
+  dds_sequence_TestIdl_SubMsgMutable2 seq = { ._length = 2, ._maximum = 2, ._buffer = ddsrt_memdup (sseq, 2 * sizeof (TestIdl_SubMsgMutable2)) };
   TestIdl_SubMsgMutable2 sseq2[] = { { .submsg_field1 = 2001, .submsg_field2 = { 2002, 2003, 2004 } }, { .submsg_field1 = 2005, .submsg_field2 = { 2006, 2007, 2008 } }, { .submsg_field1 = 2009, .submsg_field2 = { 2010, 2011, 2012 } } };
-  TestIdl_SubMsgMutable2_seq seq2 = { ._length = 3, ._maximum = 3, ._buffer = ddsrt_memdup (sseq2, 3 * sizeof (TestIdl_SubMsgMutable2)) };
+  dds_sequence_TestIdl_SubMsgMutable2 seq2 = { ._length = 3, ._maximum = 3, ._buffer = ddsrt_memdup (sseq2, 3 * sizeof (TestIdl_SubMsgMutable2)) };
   TestIdl_MsgMutable2 msg = {
       .msg_field1 = 101,
       .msg_field2 = 102,
@@ -1488,7 +755,7 @@ static bool sample_equal_mutable1_intseq (uint32_t *seq1, uint32_t *seq2, uint32
   return true;
 }
 
-static bool sample_equal_mutable_TestIdl_SubMsgMutable_seq (TestIdl_SubMsgMutable1_seq *s1, TestIdl_SubMsgMutable2_seq *s2)
+static bool sample_equal_mutable_TestIdl_SubMsgMutable_seq (dds_sequence_TestIdl_SubMsgMutable1 *s1, dds_sequence_TestIdl_SubMsgMutable2 *s2)
 {
   if (s1->_length != s2->_length)
     return false;
@@ -1619,219 +886,232 @@ static void cdrstream_fini (void)
 #define C(n) sample_equal_ ## n
 #define F(n) sample_free_ ## n
 
-CU_TheoryDataPoints (ddsc_cdrstream, ser_des) = {
-  CU_DataPoints (const char *,                   "nested structs",
-  /*                                             |          */"string types",
-  /*                                             |           |       */"unions",
-  /*                                             |           |        |         */"recursive",
-  /*                                             |           |        |          |             */"appendable",
-  /*                                             |           |        |          |              |              */"keys nested",
-  /*                                             |           |        |          |              |               |              */"arrays" ),
-  CU_DataPoints (const dds_topic_descriptor_t *, &D(Nested), &D(Str), &D(Union), &D(Recursive), &D(Appendable), &D(KeysNested), &D(Arr)  ),
-  CU_DataPoints (sample_empty,                   0,           0,       0,         0,             0,              E(keysnested),  0       ),
-  CU_DataPoints (sample_init,                    I(nested),   I(str),  I(union),  I(recursive),  I(appendable),  I(keysnested),  I(arr)  ),
-  CU_DataPoints (keys_equal,                     0,           0,       0,         0,             0,              K(keysnested),  0       ),
-  CU_DataPoints (sample_equal,                   C(nested),   C(str),  C(union),  C(recursive),  C(appendable),  C(keysnested),  C(arr)  ),
-  CU_DataPoints (sample_free,                    F(nested),   F(str),  F(union),  F(recursive),  F(appendable),  F(keysnested),  F(arr)  ),
-};
-
-CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc, sample_empty sample_empty_fn, sample_init sample_init_fn, keys_equal keys_equal_fn, sample_equal sample_equal_fn, sample_free sample_free_fn),
-    ddsc_cdrstream, ser_des, .init = cdrstream_init, .fini = cdrstream_fini)
+CU_Test (ddsc_cdrstream, ser_des, .init = cdrstream_init, .fini = cdrstream_fini)
 {
-  dds_return_t ret;
-  tprintf ("Running test ser_des: %s\n", descr);
+  const struct {
+    const char *descr;
+    bool test_xcdr1;
+    const dds_topic_descriptor_t *desc;
+    sample_empty sample_empty_fn;
+    sample_init sample_init_fn;
+    keys_equal keys_equal_fn;
+    sample_equal sample_equal_fn;
+    sample_free sample_free_fn;
+  } tests[] = {
+    { "nested structs", true, &D(Nested), 0, I(nested), 0,C(nested), F(nested) },
+    { "string types", true, &D(Str), 0, I(str), 0, C(str), F(str) },
+    { "unions", true, &D(Union), 0, I(union), 0, C(union), F(union) },
+    { "recursive", true, &D(Recursive), 0, I(recursive), 0, C(recursive), F(recursive) },
+    { "appendable", false, &D(Appendable), 0, I(appendable), 0, C(appendable), F(appendable) },
+    { "keys nested", false, &D(KeysNested), E(keysnested), I(keysnested), K(keysnested), C(keysnested), F(keysnested) },
+    { "arrays", true, &D(Arr), 0, I(arr), 0, C(arr), F(arr) },
+  };
 
-  entity_init (desc, DDS_DATA_REPRESENTATION_XCDR2, false);
-  dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
-  dds_entity_t ws = dds_create_waitset (dp2);
-  ret = dds_waitset_attach (ws, rd, rd);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-
-  void * msg = sample_init_fn ();
-
-  ret = dds_write (wr, msg);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-  if (desc->m_nkeys > 0)
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
-    assert (sample_empty_fn);
-    assert (keys_equal_fn);
-    void * key_data = sample_empty_fn ();
-    dds_instance_handle_t ih = dds_lookup_instance (wr, msg);
-    CU_ASSERT_PTR_NOT_NULL_FATAL (ih);
-    ret = dds_instance_get_key(wr, ih, key_data);
-    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-    bool eq = keys_equal_fn (msg, key_data);
-    CU_ASSERT_FATAL (eq);
-    sample_free_fn (key_data);
+    for (uint32_t x = 0; x <= (tests[i].test_xcdr1 ? 1 : 0); x++)
+    {
+      dds_return_t ret;
+      tprintf ("Running test ser_des: %s, XCDR%d\n", tests[i].descr, x ? 1 : 2);
+
+      entity_init (tests[i].desc, x ? DDS_DATA_REPRESENTATION_XCDR1 : DDS_DATA_REPRESENTATION_XCDR2, false);
+      dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
+      dds_entity_t ws = dds_create_waitset (dp2);
+      ret = dds_waitset_attach (ws, rd, rd);
+      CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+
+      void * msg = tests[i].sample_init_fn ();
+
+      ret = dds_write (wr, msg);
+      CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+      if (tests[i].desc->m_nkeys > 0)
+      {
+        assert (tests[i].sample_empty_fn);
+        assert (tests[i].keys_equal_fn);
+        void * key_data = tests[i].sample_empty_fn ();
+        dds_instance_handle_t ih = dds_lookup_instance (wr, msg);
+        CU_ASSERT_PTR_NOT_NULL_FATAL (ih);
+        ret = dds_instance_get_key(wr, ih, key_data);
+        CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+        bool eq = tests[i].keys_equal_fn (msg, key_data);
+        CU_ASSERT_FATAL (eq);
+        tests[i].sample_free_fn (key_data);
+      }
+
+      dds_attach_t triggered;
+      ret = dds_waitset_wait (ws, &triggered, 1, DDS_SECS(5));
+      CU_ASSERT_EQUAL_FATAL (ret, 1);
+
+      void * rds[1] = { NULL };
+      dds_sample_info_t si[1];
+      ret = dds_read (rd, rds, si, 1, 1);
+      CU_ASSERT_EQUAL_FATAL (ret, 1);
+      bool eq = tests[i].sample_equal_fn (msg, rds[0]);
+      CU_ASSERT_FATAL (eq);
+      dds_return_loan (rd, rds, 1);
+
+      /* In case type has keys, write a dispose so that write key
+        and read key code from cdrstream serializer is used */
+      if (tests[i].desc->m_nkeys > 0)
+      {
+        ret = dds_dispose (wr, msg);
+        CU_ASSERT_EQUAL_FATAL (ret, 0);
+        ret = dds_waitset_wait (ws, &triggered, 1, DDS_SECS(5));
+        CU_ASSERT_EQUAL_FATAL (ret, 1);
+        ret = dds_read (rd, rds, si, 1, 1);
+        CU_ASSERT_EQUAL_FATAL (ret, 1);
+        CU_ASSERT_EQUAL_FATAL (si->instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
+        dds_return_loan (rd, rds, 1);
+      }
+
+      // cleanup
+      tests[i].sample_free_fn (msg);
+    }
   }
-
-  dds_attach_t triggered;
-  ret = dds_waitset_wait (ws, &triggered, 1, DDS_SECS(5));
-  CU_ASSERT_EQUAL_FATAL (ret, 1);
-
-  void * rds[1] = { NULL };
-  dds_sample_info_t si[1];
-  ret = dds_read (rd, rds, si, 1, 1);
-  CU_ASSERT_EQUAL_FATAL (ret, 1);
-  bool eq = sample_equal_fn (msg, rds[0]);
-  CU_ASSERT_FATAL (eq);
-  dds_return_loan (rd, rds, 1);
-
-  /* In case type has keys, write a dispose so that write key
-     and read key code from cdrstream serializer is used */
-  if (desc->m_nkeys > 0)
-  {
-    ret = dds_dispose (wr, msg);
-    CU_ASSERT_EQUAL_FATAL (ret, 0);
-    ret = dds_waitset_wait (ws, &triggered, 1, DDS_SECS(5));
-    CU_ASSERT_EQUAL_FATAL (ret, 1);
-    ret = dds_read (rd, rds, si, 1, 1);
-    CU_ASSERT_EQUAL_FATAL (ret, 1);
-    CU_ASSERT_EQUAL_FATAL (si->instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
-    dds_return_loan (rd, rds, 1);
-  }
-
-  // cleanup
-  sample_free_fn (msg);
 }
 
-CU_TheoryDataPoints (ddsc_cdrstream, ser_des_multiple) = {
-  CU_DataPoints (const char *,                   "nested structs",
-  /*                                             |          */"string types",
-  /*                                             |           |       */"unions",
-  /*                                             |           |        |         */"recursive",
-  /*                                             |           |        |          |             */"appendable",
-  /*                                             |           |        |          |              |              */"keys nested",
-  /*                                             |           |        |          |              |               |              */"arrays",
-  /*                                             |           |        |          |              |               |               |       */"ext",
-  /*                                             |           |        |          |              |               |               |        |       */"opt"  ),
-  CU_DataPoints (const dds_topic_descriptor_t *, &D(Nested), &D(Str), &D(Union), &D(Recursive), &D(Appendable), &D(KeysNested), &D(Arr), &D(Ext), &D(Opt) ),
-  CU_DataPoints (sample_init,                    I(nested),   I(str),  I(union),  I(recursive),  I(appendable),  I(keysnested),  I(arr),  I(ext), I(opt)  ),
-  CU_DataPoints (sample_equal,                   C(nested),   C(str),  C(union),  C(recursive),  C(appendable),  C(keysnested),  C(arr),  C(ext), C(opt)  ),
-  CU_DataPoints (sample_free,                    F(nested),   F(str),  F(union),  F(recursive),  F(appendable),  F(keysnested),  F(arr),  F(ext), F(opt)  ),
-};
-
 #define NUM_SAMPLES 10
-CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc, sample_init sample_init_fn, sample_equal sample_equal_fn, sample_free sample_free_fn),
-    ddsc_cdrstream, ser_des_multiple, .init = cdrstream_init, .fini = cdrstream_fini)
+CU_Test (ddsc_cdrstream, ser_des_multiple, .init = cdrstream_init, .fini = cdrstream_fini)
 {
-  dds_return_t ret;
-  tprintf ("Running test ser_des_multiple: %s\n", descr);
+  const struct {
+    const char *descr;
+    bool test_xcdr1;
+    const dds_topic_descriptor_t *desc;
+    sample_init sample_init_fn;
+    sample_equal sample_equal_fn;
+    sample_free sample_free_fn;
+  } tests[] = {
+    { "nested structs", true, &D(Nested), I(nested), C(nested), F(nested) },
+    { "string types", true, &D(Str), I(str), C(str), F(str) },
+    { "unions", true, &D(Union), I(union), C(union), F(union) },
+    { "recursive", true, &D(Recursive), I(recursive), C(recursive), F(recursive) },
+    { "appendable", false, &D(Appendable), I(appendable), C(appendable), F(appendable) },
+    { "keys nested", false, &D(KeysNested), I(keysnested), C(keysnested), F(keysnested) },
+    { "arrays", true, &D(Arr), I(arr), C(arr), F(arr) },
+    { "ext", true, &D(Ext), I(ext), C(ext), F(ext) },
+    { "opt", true, &D(Opt), I(opt), C(opt), F(opt) }
+  };
 
-  entity_init (desc, DDS_DATA_REPRESENTATION_XCDR2, false);
-
-  void * rds[1] = { NULL };
-  for (int n = 0; n < NUM_SAMPLES; n++)
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
-    void * msg = sample_init_fn ();
-    ret = dds_write (wr, msg);
-    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-    while (ret <= 0)
+    for (uint32_t x = 0; x <= (tests[i].test_xcdr1 ? 1 : 0); x++)
     {
-      dds_sample_info_t si[1];
-      if ((ret = dds_take (rd, rds, si, 1, 1)) > 0)
+      dds_return_t ret;
+      tprintf ("Running test ser_des_multiple: %s\n", tests[i].descr);
+
+      entity_init (tests[i].desc, x ? DDS_DATA_REPRESENTATION_XCDR1 : DDS_DATA_REPRESENTATION_XCDR2, false);
+
+      void * rds[1] = { NULL };
+      for (int n = 0; n < NUM_SAMPLES; n++)
       {
-        CU_ASSERT_EQUAL_FATAL (ret, 1);
-        bool eq = sample_equal_fn (msg, rds[0]);
-        CU_ASSERT_FATAL (eq);
+        void * msg = tests[i].sample_init_fn ();
+        ret = dds_write (wr, msg);
+        CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+        while (ret <= 0)
+        {
+          dds_sample_info_t si[1];
+          if ((ret = dds_take (rd, rds, si, 1, 1)) > 0)
+          {
+            CU_ASSERT_EQUAL_FATAL (ret, 1);
+            bool eq = tests[i].sample_equal_fn (msg, rds[0]);
+            CU_ASSERT_FATAL (eq);
+          }
+          else
+            dds_sleepfor (DDS_MSECS (10));
+        }
+        tests[i].sample_free_fn (msg);
       }
-      else
-        dds_sleepfor (DDS_MSECS (10));
+      dds_return_loan (rd, rds, 1);
     }
-    sample_free_fn (msg);
   }
-  dds_return_loan (rd, rds, 1);
 }
 #undef NUM_SAMPLES
 
-CU_TheoryDataPoints (ddsc_cdrstream, appendable_mutable) = {
-  CU_DataPoints (const char *,                   "appendable struct",
-  /*                                              |                 */"appendable defaults",
-  /*                                              |                  |                     */"mutable"),
-  CU_DataPoints (const dds_topic_descriptor_t *, &D(AppendStruct1), &D(AppendDefaults1),  &D(Mutable1) ),
-  CU_DataPoints (const dds_topic_descriptor_t *, &D(AppendStruct2), &D(AppendDefaults2),  &D(Mutable2) ),
-  CU_DataPoints (sample_init,                     I(appendstruct1),  I(appenddefaults1),   I(mutable1) ),
-  CU_DataPoints (sample_init,                     I(appendstruct2),  I(appenddefaults2),   I(mutable2) ),
-  CU_DataPoints (sample_equal,                    C(appendstruct1),  C(appenddefaults1),   C(mutable1) ),
-  CU_DataPoints (sample_equal,                    C(appendstruct2),  C(appenddefaults2),   C(mutable2) ),
-  CU_DataPoints (sample_free2,                    F(appendstruct),   F(appenddefaults1),   F(mutable1) ),
-  CU_DataPoints (sample_free2,                    F(appendstruct),   F(appenddefaults2),   F(mutable2) ),
-};
-
-CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_topic_descriptor_t *desc2,
-    sample_init sample_init_fn1, sample_init sample_init_fn2, sample_equal sample_equal_fn1, sample_equal sample_equal_fn2, sample_free2 sample_free_fn1, sample_free2 sample_free_fn2),
-    ddsc_cdrstream, appendable_mutable, .init = cdrstream_init, .fini = cdrstream_fini)
+CU_Test (ddsc_cdrstream, appendable_mutable, .init = cdrstream_init, .fini = cdrstream_fini)
 {
-  for (int t = 0; t <= 1; t++)
+  const struct {
+    const char *descr;
+    bool test_xcdr1;
+    const dds_topic_descriptor_t *d1;
+    const dds_topic_descriptor_t *d2;
+    sample_init i1;
+    sample_init i2;
+    sample_equal e1;
+    sample_equal e2;
+    sample_free2 f1;
+    sample_free2 f2;
+  } tests[] = {
+    { "appendable struct", true, &D(AppendStruct1), &D(AppendStruct2), I(appendstruct1), I(appendstruct2), C(appendstruct1), C(appendstruct2), F(appendstruct), F(appendstruct) },
+    { "appendable defaults", true, &D(AppendDefaults1), &D(AppendDefaults2), I(appenddefaults1), I(appenddefaults2), C(appenddefaults1), C(appenddefaults2), F(appenddefaults1), F(appenddefaults2) },
+    { "mutable", false, &D(Mutable1), &D(Mutable2), I(mutable1), I(mutable2), C(mutable1), C(mutable2), F(mutable1), F(mutable2) }
+  };
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
-    tprintf ("Running test appendable_mutable: %s (run %d/2)\n", descr, t + 1);
+    for (uint32_t x = 0; x <= (tests[i].test_xcdr1 ? 1 : 0); x++)
+    {
+      for (int t = 0; t <= 1; t++)
+      {
+        tprintf ("Running test appendable_mutable: %s, XCDR%d, (run %d/2)\n", tests[i].descr, x ? 1 : 2, t + 1);
 
-    const dds_topic_descriptor_t *topic_desc_wr = t ? desc2 : desc1;
-    const dds_topic_descriptor_t *topic_desc_rd = t ? desc1 : desc2;
+        const dds_topic_descriptor_t *topic_desc_wr = t ? tests[i].d2 : tests[i].d1;
+        const dds_topic_descriptor_t *topic_desc_rd = t ? tests[i].d1 : tests[i].d2;
 
-    /* Write data */
-    dds_ostream_t os;
-    os.m_buffer = NULL;
-    os.m_index = 0;
-    os.m_size = 0;
-    os.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
+        /* Write data */
+        dds_ostream_t os;
+        os.m_buffer = NULL;
+        os.m_index = 0;
+        os.m_size = 0;
+        os.m_xcdr_version = x ? DDSI_RTPS_CDR_ENC_VERSION_1 : DDSI_RTPS_CDR_ENC_VERSION_2;
 
-    struct dds_cdrstream_desc desc_wr;
-    memset (&desc_wr, 0, sizeof (desc_wr));
-    desc_wr = (struct dds_cdrstream_desc) {
-      .size = topic_desc_wr->m_size,
-      .align = topic_desc_wr->m_align,
-      .flagset = topic_desc_wr->m_flagset,
-      .keys.nkeys = 0,
-      .keys.keys = NULL,
-      .ops.nops = dds_stream_countops (topic_desc_wr->m_ops, topic_desc_wr->m_nkeys, topic_desc_wr->m_keys),
-      .ops.ops = (uint32_t *) topic_desc_wr->m_ops,
-      .member_ids.op0 = (uint32_t *) topic_desc_wr->m_ops,
-      .member_ids.table = NULL
-    };
+        struct dds_cdrstream_desc desc_wr;
+        dds_cdrstream_desc_from_topic_desc (&desc_wr, topic_desc_wr);
+        uint16_t min_xcdrv_wr = dds_stream_minimum_xcdr_version (desc_wr.ops.ops);
+        CU_ASSERT (x == 0 || min_xcdrv_wr == DDSI_RTPS_CDR_ENC_VERSION_1);
 
-    void * msg_wr = t ? sample_init_fn2 () : sample_init_fn1 ();
-    bool ret = dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, msg_wr, &desc_wr);
-    CU_ASSERT_FATAL (ret);
+        void * msg_wr = t ? tests[i].i2 () : tests[i].i1 ();
+        bool ret = dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, msg_wr, &desc_wr);
+        CU_ASSERT_FATAL (ret);
 
-    /* Read data */
-    dds_istream_t is;
-    is.m_buffer = os.m_buffer;
-    is.m_index = 0;
-    is.m_size = os.m_size;
-    is.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
+        /* Read data */
+        dds_istream_t is;
+        is.m_buffer = os.m_buffer;
+        is.m_index = 0;
+        is.m_size = os.m_index;
+        is.m_xcdr_version = os.m_xcdr_version;
 
-    struct dds_cdrstream_desc desc_rd;
-    memset (&desc_rd, 0, sizeof (desc_rd));
-    desc_rd = (struct dds_cdrstream_desc) {
-      .size = topic_desc_rd->m_size,
-      .align = topic_desc_rd->m_align,
-      .flagset = topic_desc_rd->m_flagset,
-      .keys.nkeys = 0,
-      .keys.keys = NULL,
-      .ops.nops = dds_stream_countops (topic_desc_rd->m_ops, topic_desc_rd->m_nkeys, topic_desc_rd->m_keys),
-      .ops.ops = (uint32_t *) topic_desc_rd->m_ops,
-      .member_ids.op0 = (uint32_t *) topic_desc_wr->m_ops,
-      .member_ids.table = NULL
-    };
+        struct dds_cdrstream_desc desc_rd;
+        dds_cdrstream_desc_from_topic_desc (&desc_rd, topic_desc_rd);
+        uint16_t min_xcdrv_rd = dds_stream_minimum_xcdr_version (desc_wr.ops.ops);
+        CU_ASSERT (x == 0 || min_xcdrv_rd == DDSI_RTPS_CDR_ENC_VERSION_1);
 
-    void *msg_rd = ddsrt_calloc (1, desc_rd.size);
-    dds_stream_read_sample (&is, msg_rd, &dds_cdrstream_default_allocator, &desc_rd);
+        uint32_t act_size;
+        void *cdr_copy = ddsrt_memdup (os.m_buffer, os.m_index);
+        const bool res = dds_stream_normalize (cdr_copy, os.m_index, false, os.m_xcdr_version, &desc_rd, false, &act_size);
+        CU_ASSERT_FATAL (res);
+        ddsrt_free (cdr_copy);
 
-    /* Check for expected result */
-    bool eq = t ? sample_equal_fn2 (msg_wr, msg_rd) : sample_equal_fn1 (msg_wr, msg_rd);
-    CU_ASSERT_FATAL (eq);
+        void *msg_rd = ddsrt_calloc (1, desc_rd.size);
+        dds_stream_read_sample (&is, msg_rd, &dds_cdrstream_default_allocator, &desc_rd);
 
-    /* print result */
-    char buf[5000];
-    is.m_index = 0;
-    dds_stream_print_sample (&is, &desc_rd, buf, 5000);
-    printf ("read sample: %s\n\n", buf);
+        /* Check for expected result */
+        bool eq = t ? tests[i].e2 (msg_wr, msg_rd) : tests[i].e1 (msg_wr, msg_rd);
+        CU_ASSERT_FATAL (eq);
 
-    // cleanup
-    t ? sample_free_fn2 (msg_wr, msg_rd) : sample_free_fn1 (msg_wr, msg_rd);
-    dds_free (os.m_buffer);
-  }
+        /* print result */
+        char buf[5000];
+        is.m_index = 0;
+        dds_stream_print_sample (&is, &desc_rd, buf, 5000);
+        printf ("read sample: %s\n\n", buf);
+
+        // cleanup
+        t ? tests[i].f2 (msg_wr, msg_rd) : tests[i].f1 (msg_wr, msg_rd);
+        dds_free (os.m_buffer);
+        dds_cdrstream_desc_fini (&desc_wr, &dds_cdrstream_default_allocator);
+        dds_cdrstream_desc_fini (&desc_rd, &dds_cdrstream_default_allocator);
+      } // wr/rd topic
+    } // xcdr1/2
+  } // iterate over tests
 }
 
 #undef D
@@ -2551,7 +1831,10 @@ static bool eq_CdrStreamWstring_t5 (const void *va, const void *vb)
 #define UTF16(x_) 16,x_
 #define WSTR0 32,0
 #define WSTR(...) 32,(2*DDSRT_COUNT_ARGS(__VA_ARGS__)), DDSRT_FOREACH_WRAP(UTF16, COMMA, __VA_ARGS__)
+#define PAD4 32,0
 #define PAD2 16,0
+#define PAD1 8,0
+#define PAD3 PAD1, PAD2
 #define DHDR(...) 32,(SERSIZE(__VA_ARGS__)), __VA_ARGS__
 
 #define CSEQ0 { ._length = 0, ._buffer = NULL }
@@ -2698,42 +1981,106 @@ CU_Test (ddsc_cdrstream, check_wstring_normalize)
 #define PHDR(pid,plen) 16,(pid),16,(plen)
 #define PHDR_EXT(pid,plen) PHDR(DDS_XCDR1_PL_SHORT_PID_EXTENDED, 8), 32,(pid), 32,(plen)
 
+static void run_test_xcdr1_normalize (const dds_topic_descriptor_t *tdesc, const uint8_t *cdr, uint32_t cdrsize, bool valid, uint32_t *act_size)
+{
+  struct dds_cdrstream_desc desc;
+  dds_cdrstream_desc_from_topic_desc (&desc, tdesc);
+  assert (desc.ops.ops);
+  dds_ostream_t os;
+  dds_ostream_init (&os, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_1);
+  void *cdr_copy = ddsrt_memdup (cdr, cdrsize);
+  const bool res = dds_stream_normalize (cdr_copy, cdrsize, false, DDSI_RTPS_CDR_ENC_VERSION_1, &desc, false, act_size);
+  CU_ASSERT_FATAL (res == valid);
+  ddsrt_free (cdr_copy);
+  dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+}
+
+#define D(n) (&CdrStreamParamHeader_ ## n ## _desc)
 CU_Test (ddsc_cdrstream, check_xcdr1_param_normalize)
 {
   const struct {
+    const dds_topic_descriptor_t *desc;
     bool valid;
     uint32_t cdrsize;
     const uint8_t *cdr;
   } tests[] = {
-    { false, CDR(PHDR(0, 4), 8,1) },    // insufficient data (len 4 in header, 1 byte present)
-    { false, CDR(PHDR(1, 4), 32,1) },   // incorrect member id 1 (should be 0)
-    { false, CDR(PHDR(0, 2), 16,1) },   // incorrect member length (member is int32)
-    { true,  CDR(PHDR(0, 4), 32,1) },   // valid, present
-    { true,  CDR(PHDR(0, 0)) },         // valid, not present
+    { D(t1), false, CDR(PHDR(0, 4), 8,1) },    // insufficient data (len 4 in header, 1 byte present)
+    { D(t1), false, CDR(PHDR(1, 4), 32,1) },   // incorrect member id 1 (should be 0)
+    { D(t1), false, CDR(PHDR(0, 2), 16,1) },   // incorrect member length (member is int32)
+    { D(t1), true,  CDR(PHDR(0, 4), 32,1) },   // valid, present
+    { D(t1), true,  CDR(PHDR(0, 0)) },         // valid, not present
 
-    { false, CDR(PHDR(DDS_XCDR1_PL_SHORT_PID_EXTENDED, 6), 32,0, 32,4, 32,1) },   // extended header: incorrect slen for extended header (should be 8)
-    { false, CDR(PHDR(~DDS_XCDR1_PL_SHORT_FLAG_MU & DDS_XCDR1_PL_SHORT_PID_EXTENDED, 8), 32,0, 32,4, 32,1) },   // extended header: MU flag missing
-    { false, CDR(PHDR_EXT(1, 4), 32,1) },   // extended header: incorrect member id
-    { false, CDR(PHDR_EXT(1, 2), 16,1) },   // extended header: incorrect member length
-    { true,  CDR(PHDR_EXT(0, 4), 32,1) },   // extended header: valid, present
-    { true,  CDR(PHDR_EXT(0, 0)) }          // extended header: valid, not present
+    { D(t1), false, CDR(PHDR(DDS_XCDR1_PL_SHORT_PID_EXTENDED, 6), 32,0, 32,4, 32,1) },   // extended header: incorrect slen for extended header (should be 8)
+    { D(t1), false, CDR(PHDR(~DDS_XCDR1_PL_SHORT_FLAG_MU & DDS_XCDR1_PL_SHORT_PID_EXTENDED, 8), 32,0, 32,4, 32,1) },   // extended header: MU flag missing
+    { D(t1), false, CDR(PHDR_EXT(1, 4), 32,1) },   // extended header: incorrect member id
+    { D(t1), false, CDR(PHDR_EXT(1, 2), 16,1) },   // extended header: incorrect member length
+    { D(t1), true,  CDR(PHDR_EXT(0, 4), 32,1) },   // extended header: valid, present
+    { D(t1), true,  CDR(PHDR_EXT(0, 0)) },          // extended header: valid, not present
+
+    { D(t2), true,  CDR(PHDR(321, 1), 8,1, PAD3, PHDR(123, 4), 32,1 ) },       // valid, present
+    { D(t2), true,  CDR(PHDR(321, 0),            PHDR(123, 4), 32,1 ) },       // valid, not-present/present
+    { D(t2), false, CDR(PHDR(321, 0),            PHDR(124, 0) ) },             // invalid, incorrect member id
+    { D(t2), true,  CDR(PHDR(321, 1), 8,1, PAD3, PHDR_EXT(123, 4), 32,1 ) },   // valid, short/extended header, present
+    { D(t2), true,  CDR(PHDR_EXT(321, 0),        PHDR_EXT(123, 0) ) },         // valid, extended header, not-present
+    { D(t2), false, CDR(PHDR(321, 0),            PHDR(DDS_XCDR1_PL_SHORT_FLAG_IMPL_EXT & DDS_XCDR1_PL_SHORT_PID_EXTENDED, 8), 32,123, 32,4, 32,1) },   // invalid extended header: impl_ext flag set
+
+    { D(t3), true,  CDR(PHDR(10, 1), 8,1, PAD3, PHDR(99, 9), 32,5, 8,'a', 8,'b', 8,'c', 8,'d', 8,'\0', PAD3, PHDR(100, 8), 64,1) },          // valid, present
+    { D(t3), true,  CDR(PHDR_EXT(10, 1), 8,1, PAD3, PHDR_EXT(99, 9), 32,5, 8,'a', 8,'b', 8,'c', 8,'d', 8,'\0', PAD3, PHDR(100, 8), 64,1) },  // valid, short/extended header, present
+    { D(t3), false, CDR(PHDR_EXT(10, 5), 8,1, PAD3, PHDR(99, 0), PHDR(100,8), 64,1) },                                                       // incorrect length, present/not-present
+    { D(t3), false, CDR(PHDR_EXT(10, 0), PHDR(99, 0), PHDR(100,5), 64,1) }                                                                  // incorrect length, present/not-present
   };
 
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
-    printf("running test %"PRIu32" \n", i);
-    struct dds_cdrstream_desc desc;
-    dds_cdrstream_desc_from_topic_desc (&desc, &CdrStreamParamHeader_t1_desc);
-    assert (desc.ops.ops);
-    dds_ostream_t os;
-    dds_ostream_init (&os, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_1);
     uint32_t act_size;
-    void *cdr = ddsrt_memdup (tests[i].cdr, tests[i].cdrsize);
-    const bool res = dds_stream_normalize (cdr, tests[i].cdrsize, false, DDSI_RTPS_CDR_ENC_VERSION_1, &desc, false, &act_size);
-    CU_ASSERT_FATAL (res == tests[i].valid);
-    if (res)
+    printf("running test %"PRIu32" for type %s\n", i, tests[i].desc->m_typename);
+    run_test_xcdr1_normalize (tests[i].desc, tests[i].cdr, tests[i].cdrsize, tests[i].valid, &act_size);
+    if (tests[i].valid)
       CU_ASSERT_EQUAL_FATAL (tests[i].cdrsize, act_size);
-    ddsrt_free (cdr);
-    dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
   }
 }
+#undef D
+
+#define D(n) (&CdrStreamAppedable_ ## n ## _desc)
+CU_Test (ddsc_cdrstream, check_xcdr1_appendable_normalize)
+{
+  const struct {
+    const dds_topic_descriptor_t *desc;
+    bool normalize_valid;
+    int32_t dsize;
+    uint32_t cdrsize;
+    const uint8_t *cdr;
+  } tests[] = {
+    { D(a1), true, 0,  CDR(32,1, 32,2) },         // valid
+    { D(a1), true, 0,  CDR(32,1, 32,2, 32,3) },   // valid, 1 extra member in CDR
+    { D(a1), true, 0,  CDR(32,1) },               // valid, 1 member missing in CDR
+
+    { D(f1), true,  0, CDR(32,1, 32,2) },         // valid
+    { D(f1), true,  4, CDR(32,1, 32,2, 32,3) },   // too much data in CDR, normalize succeeds, but actual size differs from CDR size
+    { D(f1), false, 0, CDR(32,1) },               // insufficient data in CDR
+
+    { D(a2), true, 0,  CDR(32,1, PHDR(1, 4), 32,2, 32,3) },     // valid, 1 extra member in CDR
+    { D(a2), true, 0,  CDR(32,1, PHDR(1, 0), 32,3) },           // valid, 1 extra member in CDR after not-present optional
+    { D(a2), true, 0,  CDR(32,1) },                             // valid, optional member missing in CDR
+    { D(a2), true, 0,  CDR(32,1, PHDR(1, 0), PHDR(2, 0)) },     // valid, 1 extra optional member in CDR after not-present optional
+    { D(a2), true, 0,  CDR(32,1, PHDR_EXT(1, 4), 32,1, PHDR_EXT(2, 8), 64,1) },  // valid, 1 extra optional member in CDR after not-present optional, with extended headers
+
+    { D(a3), true, 0,  CDR(32,1, PHDR(1, 8), 32,2, 32,3) },               // valid
+    { D(a3), true, 0,  CDR(32,1, PHDR(1, 8), 32,2, 32,3, 32,4) },         // valid, 1 extra member for type a3
+    { D(a3), true, 0,  CDR(32,1, PHDR(1, 12), 32,2, 32,3, 32,4) },        // valid, 1 extra member for type a3_1
+    { D(a3), true, 0,  CDR(32,1, PHDR(1, 12), 32,2, 32,3, 32,4, 32,5) },  // valid, 1 extra member for type a3 and a3_1
+    { D(a3), true, 0,  CDR(32,1, PHDR(1, 4), 32,2) },                     // valid, 1 member missing for a3_1
+    { D(a3), true, 0,  CDR(32,1, PHDR(1, 0), 32,2) },                     // valid, m2 not present, extra member for a3
+    { D(a3), true, 0,  CDR(32,1, PHDR(1, 24), 32,2, 32,3, PHDR_EXT(1, 4), 32,4) },  // valid, extra optional member for a3_1
+  };
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    uint32_t act_size;
+    printf("running test %"PRIu32" for type %s\n", i, tests[i].desc->m_typename);
+    run_test_xcdr1_normalize (tests[i].desc, tests[i].cdr, tests[i].cdrsize, tests[i].normalize_valid, &act_size);
+    if (tests[i].normalize_valid)
+      CU_ASSERT_FATAL (tests[i].cdrsize == (uint32_t) ((int32_t) act_size + tests[i].dsize));
+  }
+}
+#undef D

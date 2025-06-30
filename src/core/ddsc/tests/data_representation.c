@@ -256,8 +256,8 @@ CU_Test(ddsc_data_representation, matching, .init = data_representation_init, .f
     { true,  { -1 },           0, { -1 },    0 },
     { true,  { -1 },           0, { XCDR1 }, 1 },
     { true,  { -1 },           0, { XCDR2 }, 1 },
-    { true,  { XCDR1 },        1, { -1 },    0 },
-    { false, { XCDR2 },        1, { -1 },    0 },
+    { false, { XCDR1 },        1, { -1 },    0 },
+    { true,  { XCDR2 },        1, { -1 },    0 },
   };
 
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
@@ -373,27 +373,27 @@ CU_Test(ddsc_data_representation, data_type_props, .init = data_representation_i
     datarep_qos_exp_t wr;
   } tests[] = {
     //Descriptor                   /tp                   /rd                   /wr
-    { &DESC(TypeFinal),            { X_,   true, X1_2 }, { X_,   true, X1_2 }, { X_,   true, X1_2 } },
-    { &DESC(TypeFinal),            { X1,   true, X1   }, { X1,   true, X1   }, { X1,   true, X1   } },
-    { &DESC(TypeFinal),            { X2,   true, X2   }, { X2,   true, X2   }, { X2,   true, X2   } },
-    { &DESC(TypeFinal),            { X2,   true, X2   }, { X_,   true, X2   }, { X_,   true, X2   } },
-    { &DESC(TypeFinal),            { X1_2, true, X1_2 }, { X_,   true, X1_2 }, { X_,   true, X1_2 } },
-    { &DESC(TypeFinal),            { X1_2, true, X1_2 }, { X2_1, true, X2_1 }, { X_,   true, X1_2 } },
-    { &DESC(TypeFinal),            { X_,   true, X1_2 }, { X2,   true, X2   }, { X1,   true, X1   } },
+    { &DESC(TypeFinal),            { X_,   true, X1_2 }, { X_,   true, X1_2 }, { X_,   true, X1 } },
+    { &DESC(TypeFinal),            { X1,   true, X1   }, { X1,   true, X1   }, { X1,   true, X1 } },
+    { &DESC(TypeFinal),            { X2,   true, X2   }, { X2,   true, X2   }, { X2,   true, X2 } },
+    { &DESC(TypeFinal),            { X2,   true, X2   }, { X_,   true, X2   }, { X_,   true, X2 } },
+    { &DESC(TypeFinal),            { X1_2, true, X1_2 }, { X_,   true, X1_2 }, { X_,   true, X1 } },
+    { &DESC(TypeFinal),            { X1_2, true, X1_2 }, { X2_1, true, X2_1 }, { X_,   true, X1 } },
+    { &DESC(TypeFinal),            { X_,   true, X1_2 }, { X2,   true, X2   }, { X1,   true, X1 } },
 
-    { &DESC(TypeFinalOptional),    { X_,   true, X2_1 }, { X_,   true, X2_1 }, { X_,   true, X2_1 } },
-    { &DESC(TypeFinalOptional),    { X1,   true, X1   }, { X_,   true, X1   }, { X_,   true, X1   } },
-    { &DESC(TypeFinalOptional),    { X2,   true, X2   }, { X1,   true, X1   }, { X1,   true, X1   } },
-    { &DESC(TypeFinalOptional),    { X1_2, true, X1_2 }, { X1,   true, X1   }, { X1,   true, X1   } },
-    { &DESC(TypeFinalOptional),    { X_,   true, X2_1 }, { X2_1, true, X2_1 }, { X1,   true, X1   } },
-    { &DESC(TypeFinalOptional),    { X_,   true, X2_1 }, { X_,   true, X2_1 }, { X2_1, true, X2_1 } },
+    { &DESC(TypeFinalOptional),    { X_,   true, X2_1 }, { X_,   true, X2_1 }, { X_,   true, X2 } },
+    { &DESC(TypeFinalOptional),    { X1,   true, X1   }, { X_,   true, X1   }, { X_,   true, X1 } },
+    { &DESC(TypeFinalOptional),    { X2,   true, X2   }, { X1,   true, X1   }, { X1,   true, X1 } },
+    { &DESC(TypeFinalOptional),    { X1_2, true, X1_2 }, { X1,   true, X1   }, { X1,   true, X1 } },
+    { &DESC(TypeFinalOptional),    { X_,   true, X2_1 }, { X2_1, true, X2_1 }, { X1,   true, X1 } },
+    { &DESC(TypeFinalOptional),    { X_,   true, X2_1 }, { X_,   true, X2_1 }, { X2_1, true, X2 } },
 
-    { &DESC(TypeAppendable),       { X_,   true,  X2 },  { X_,   true,  X2 },  { X_,   true,  X2 } },
-    { &DESC(TypeAppendable),       { X1,   false, X_ },  { X_,   false, X_ },  { X_,   false, X_ } },
-    { &DESC(TypeAppendable),       { X2_1, false, X_ },  { X_,   false, X_ },  { X_,   false, X_ } },
-    { &DESC(TypeAppendable),       { X2,   true,  X2 },  { X_,   true,  X2 },  { X_,   true,  X2 } },
-    { &DESC(TypeAppendable),       { X2,   true,  X2 },  { X1,   false, X_ },  { X2,   true,  X2 } },
-    { &DESC(TypeAppendable),       { X2,   true,  X2 },  { X2_1, false, X_ },  { X2_1, false, X_ } },
+    { &DESC(TypeAppendable),       { X_,   true, X2_1 }, { X_,   true,  X2_1 },{ X_,   true,  X2 } },
+    { &DESC(TypeAppendable),       { X1,   true, X1 },   { X_,   true,  X1 },  { X_,   true,  X1 } },
+    { &DESC(TypeAppendable),       { X2_1, true, X2_1 }, { X_,   true,  X2_1 },{ X_,   true,  X2 } },
+    { &DESC(TypeAppendable),       { X2,   true, X2 },   { X_,   true,  X2 },  { X_,   true,  X2 } },
+    { &DESC(TypeAppendable),       { X2,   true, X2 },   { X1,   true,  X1 },  { X2,   true,  X2 } },
+    { &DESC(TypeAppendable),       { X2,   true, X2 },   { X2_1, true,  X2_1 },{ X2_1, true,  X2 } },
 
     { &DESC(TypeMutable),          { X_,   true,  X2 },  { X_,   true,  X2 },  { X_,   true,  X2 } },
     { &DESC(TypeMutable),          { X2_1, false, X_ },  { X_,   false, X_ },  { X_,   false, X_ } },
@@ -484,6 +484,8 @@ CU_Test (ddsc_data_representation, update_qos, .init = data_representation_init,
     {
       // data representation should be implicitly set to XCDR1, XCDR2
       datarep_qos_exp_t exp = { .exp = { { XCDR1, XCDR2 }, 2 } };
+      if (tests[i] == WR)
+        exp.exp.n = 1;
       exp_qos (ent, &exp);
 
       // change a mutable qos: allowed, and implicit data representation should remain unchanged
@@ -525,15 +527,17 @@ CU_Test(ddsc_data_representation, qos_annotation, .init = data_representation_in
     const dds_topic_descriptor_t *desc;
     datarep_qos_exp_t tp[4];
   } tests[] = {
-    { &DESC(TypeXcdr1),       { { X_, true,  X1 },   { X1, true,  X1 }, { X2, false, X_ }, { X1_2, false, X_   } } },
-    { &DESC(TypeXcdr2),       { { X_, true,  X2 },   { X1, false, X_ }, { X2, true,  X2 }, { X1_2, false, X_   } } },
-    { &DESC(TypeXcdr1_2),     { { X_, true,  X1_2 }, { X1, true,  X1 }, { X2, true,  X2 }, { X1_2, true,  X1_2 } } },
-    { &DESC(TypeXcdr1_xml_2), { { X_, true,  X1_2 }, { X1, true,  X1 }, { X2, true,  X2 }, { X1_2, true,  X1_2 } } },
-    { &DESC(TypeXcdr1_other), { { X_, true,  X1 },   { X1, true,  X1 }, { X2, false, X_ }, { X1_2, false, X_   } } },
-    { &DESC(TypeXcdr2_other), { { X_, true,  X2 },   { X1, false, X_ }, { X2, true,  X2 }, { X1_2, false, X_   } } },
-    { &DESC(TypeXcdrA1),      { { X_, false, X_ },   { X1, false, X_ }, { X2, false, X_ }, { X1_2, false, X_   } } },
-    { &DESC(TypeXcdrA2),      { { X_, true,  X2 },   { X1, false, X_ }, { X2, true,  X2 }, { X1_2, false, X_   } } },
-    { &DESC(TypeXcdrA1_2),    { { X_, true,  X2 },   { X1, false, X_ }, { X2, true,  X2 }, { X1_2, false, X_   } } },
+    { &DESC(TypeXcdr1),          { { X_, true,  X1 },   { X1, true,  X1 }, { X2, false, X_ }, { X1_2, false, X_   } } },
+    { &DESC(TypeXcdr2),          { { X_, true,  X2 },   { X1, false, X_ }, { X2, true,  X2 }, { X1_2, false, X_   } } },
+    { &DESC(TypeXcdr1_2),        { { X_, true,  X1_2 }, { X1, true,  X1 }, { X2, true,  X2 }, { X1_2, true,  X1_2 } } },
+    { &DESC(TypeXcdr1_xml_2),    { { X_, true,  X1_2 }, { X1, true,  X1 }, { X2, true,  X2 }, { X1_2, true,  X1_2 } } },
+    { &DESC(TypeXcdr1_other),    { { X_, true,  X1 },   { X1, true,  X1 }, { X2, false, X_ }, { X1_2, false, X_   } } },
+    { &DESC(TypeXcdr2_other),    { { X_, true,  X2 },   { X1, false, X_ }, { X2, true,  X2 }, { X1_2, false, X_   } } },
+    { &DESC(TypeXcdrA1),         { { X_, true,  X1 },   { X1, true,  X1 }, { X2, false, X_ }, { X1_2, false, X_   } } },
+    { &DESC(TypeXcdrA2),         { { X_, true,  X2 },   { X1, false, X_ }, { X2, true,  X2 }, { X1_2, false, X_   } } },
+    { &DESC(TypeXcdrA1_2),       { { X_, true,  X2_1 }, { X1, true,  X1 }, { X2, true,  X2 }, { X1_2, true,  X1_2 } } },
+    { &DESC(TypeXcdrNestedA),    { { X_, true,  X2 },   { X1, false, X_ }, { X2, true,  X2 }, { X1_2, false, X_   } } },
+    { &DESC(TypeXcdrOptNestedA), { { X_, true,  X1 },   { X1, true,  X1 }, { X2, false, X_ }, { X1_2, false, X_   } } },
   };
 #undef X_
 #undef X1
@@ -544,9 +548,12 @@ CU_Test(ddsc_data_representation, qos_annotation, .init = data_representation_in
   char topicname[100];
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
-    printf ("running tests for type %s \n", tests[i].desc->m_typename);
+    printf ("running tests for type %s ", tests[i].desc->m_typename);
+    fflush (stdout);
     for (uint32_t t = 0; t < 4; t++)
     {
+      printf (".");
+      fflush (stdout);
       dds_qos_t *qos_tp = get_qos (&tests[i].tp[t]);
       create_unique_topic_name ("ddsc_data_representation", topicname, sizeof topicname);
       dds_entity_t tp = dds_create_topic (dp1, tests[i].desc, topicname, qos_tp, NULL);
@@ -555,5 +562,6 @@ CU_Test(ddsc_data_representation, qos_annotation, .init = data_representation_in
         exp_qos (tp, &tests[i].tp[t]);
       dds_delete_qos (qos_tp);
     }
+    printf ("\n");
   }
 }

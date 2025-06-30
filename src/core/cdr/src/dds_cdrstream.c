@@ -4308,12 +4308,8 @@ static const uint32_t *stream_normalize_adr (uint32_t insn, char * restrict data
 }
 
 ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
-static const uint32_t *stream_normalize_delimited (char * restrict data, uint32_t * restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, enum cdr_data_kind cdr_kind)
+static const uint32_t *stream_normalize_delimited_impl (char * restrict data, uint32_t * restrict off, uint32_t size, uint32_t delimited_sz, bool bswap, uint32_t xcdr_version, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, enum cdr_data_kind cdr_kind)
 {
-  uint32_t delimited_sz;
-  if (!read_and_normalize_uint32 (&delimited_sz, data, off, size, bswap))
-    return NULL;
-
   // can't trust the declared size in the header: certainly it must fit in the remaining bytes
   if (delimited_sz > size - *off)
     return normalize_error_ops ();
@@ -4360,6 +4356,16 @@ static const uint32_t *stream_normalize_delimited (char * restrict data, uint32_
   assert (*off <= size1);
   *off = size1;
   return ops;
+}
+
+ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
+static const uint32_t *stream_normalize_delimited (char * restrict data, uint32_t * restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, enum cdr_data_kind cdr_kind)
+{
+  assert (xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
+  uint32_t delimited_sz;
+  if (!read_and_normalize_uint32 (&delimited_sz, data, off, size, bswap))
+    return NULL;
+  return stream_normalize_delimited_impl (data, off, size, delimited_sz, bswap, xcdr_version, mid_table, ops, cdr_kind);
 }
 
 enum normalize_xcdr2_pl_member_result {
@@ -4517,7 +4523,8 @@ static const uint32_t *stream_normalize_data_impl (char * restrict data, uint32_
         }
         else
         {
-          if ((ops = stream_normalize_data_impl (data, off, size, bswap, xcdr_version, mid_table, ops + 1, false, cdr_kind)) == NULL)
+          uint32_t dsize = size;
+          if ((ops = stream_normalize_delimited_impl (data, off, size, dsize, bswap, xcdr_version, mid_table, ops, cdr_kind)) == NULL)
             return NULL;
         }
         break;
@@ -5851,12 +5858,10 @@ static const uint32_t * dds_stream_print_adr (char **buf, size_t *bufsize, uint3
   return ops;
 }
 
-static const uint32_t *prtf_delimited (char **buf, size_t *bufsize, dds_istream_t *is, const uint32_t *ops, enum cdr_data_kind cdr_kind)
+static const uint32_t *prtf_delimited_impl (char **buf, size_t *bufsize, uint32_t delimited_sz, dds_istream_t *is, const uint32_t *ops, enum cdr_data_kind cdr_kind)
 {
-  uint32_t delimited_sz = dds_is_get4 (is), delimited_offs = is->m_index, insn;
+  uint32_t delimited_offs = is->m_index, insn;
   bool needs_comma = false;
-  if (!prtf (buf, bufsize, "dlh:%"PRIu32, delimited_sz))
-    return NULL;
   ops++;
   while ((insn = *ops) != DDS_OP_RTS)
   {
@@ -5885,6 +5890,15 @@ static const uint32_t *prtf_delimited (char **buf, size_t *bufsize, dds_istream_
   if (delimited_sz > is->m_index - delimited_offs)
     is->m_index += delimited_sz - (is->m_index - delimited_offs);
   return ops;
+}
+
+static const uint32_t *prtf_delimited (char **buf, size_t *bufsize, dds_istream_t *is, const uint32_t *ops, enum cdr_data_kind cdr_kind)
+{
+  assert (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
+  uint32_t delimited_sz = dds_is_get4 (is);
+  if (!prtf (buf, bufsize, "dlh:%"PRIu32",", delimited_sz))
+    return NULL;
+  return prtf_delimited_impl (buf, bufsize, delimited_sz, is, ops, cdr_kind);
 }
 
 static bool prtf_xcdr2_plm (char **buf, size_t *bufsize, dds_istream_t *is, uint32_t m_id, const uint32_t *ops, enum cdr_data_kind cdr_kind)
@@ -5988,8 +6002,10 @@ static const uint32_t * dds_stream_print_sample1 (char **buf, size_t *bufsize, d
         abort ();
         break;
       case DDS_OP_DLC:
-        assert (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
-        ops = prtf_delimited (buf, bufsize, is, ops, cdr_kind);
+        if (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2)
+          ops = prtf_delimited (buf, bufsize, is, ops, cdr_kind);
+        else
+          ops = prtf_delimited_impl (buf, bufsize, is->m_size, is, ops, cdr_kind);
         break;
       case DDS_OP_PLC:
         assert (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
