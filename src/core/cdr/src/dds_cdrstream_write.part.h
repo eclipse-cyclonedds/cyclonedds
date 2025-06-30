@@ -541,6 +541,8 @@ static void dds_stream_write_paramheaderBO (RESTRICT_OSTREAM_T *os, const struct
   uint16_t phdr = DDS_XCDR1_PL_SHORT_FLAG_MU | DDS_XCDR1_PL_SHORT_PID_EXTENDED; // support for FLAG_IMPL_EXT not implemented
   uint16_t slen = DDS_XCDR1_PL_SHORT_PID_EXT_LEN;
   uint32_t pid = (flag_mu ? DDS_XCDR1_PL_LONG_FLAG_MU : 0) | (member_id & DDS_XCDR1_PL_LONG_MID_MASK);
+
+  dds_cdr_alignto_clear_and_resize_base (&os->x, allocator, dds_cdr_get_align (os->x.m_xcdr_version, 4), 4);
   dds_os_put2BO (os, allocator, phdr);
   dds_os_put2BO (os, allocator, slen);
   dds_os_put4BO (os, allocator, pid);

@@ -2587,6 +2587,7 @@ static bool stream_is_member_present (dds_istream_t *is, uint32_t *param_len)
 {
   if (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
   {
+    dds_cdr_alignto (is, dds_cdr_get_align (is->m_xcdr_version, 4));
     uint16_t phdr = dds_is_get2 (is);
     uint16_t slen = dds_is_get2 (is);
     uint32_t plen;
@@ -4120,6 +4121,9 @@ static enum normalize_xcdr1_paramheader_result stream_read_normalize_xcdr1_param
 {
   uint16_t phdr, slen;
   uint32_t phdr_mid, plen;
+
+  if ((*off = check_align_prim (*off, size, 2, 2)) == UINT32_MAX)
+    return NPHR1_ERROR;
   if (!read_and_normalize_uint16 (&phdr, data, off, size, bswap))
     return NPHR1_ERROR;
   if (!read_and_normalize_uint16 (&slen, data, off, size, bswap))
@@ -4252,10 +4256,10 @@ static const uint32_t *stream_normalize_adr (uint32_t insn, char * restrict data
     switch (stream_read_normalize_xcdr1_paramheader (data, off, size, bswap, &param_length, &must_understand, mid_table, ops))
     {
       case NPHR1_ERROR:
-        return NULL;
+        return normalize_error_ops ();
       case NPHR1_NOT_FOUND:
         if (must_understand) // must_understand and unknown means we have to reject the input
-          return NULL;
+          return normalize_error_ops ();
         *off += param_length;
         /* fall through */
       case NPHR1_NOT_PRESENT:
@@ -4292,7 +4296,7 @@ static const uint32_t *stream_normalize_adr (uint32_t insn, char * restrict data
         const uint32_t input_offset = *off;
         uint32_t off1 = 0;
         if ((ops = stream_normalize_adr_impl (insn, data + input_offset, &off1, param_length, bswap, xcdr_version, mid_table, ops, cdr_kind)) == NULL)
-          return NULL;
+          return normalize_error_ops ();
         assert (off1 <= param_length);
         // move forward by parameter length, ignoring any extraneous bytes
         *off += param_length;
