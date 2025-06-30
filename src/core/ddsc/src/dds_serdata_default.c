@@ -388,7 +388,7 @@ static struct dds_serdata_default *serdata_default_from_ser_common (const struct
   const uint32_t pad = ddsrt_fromBE2u (d->hdr.options) & DDS_CDR_HDR_PADDING_MASK;
   const uint32_t xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
   const uint32_t encoding_format = ddsi_sertype_enc_id_enc_format (d->hdr.identifier);
-  if (ddsi_sertype_get_native_enc_identifier (xcdr_version, encoding_format) != ddsi_sertype_get_native_enc_identifier (tp->write_encoding_version /* FIXME: is this correct, or use xcdr_version from data? */, tp->encoding_format))
+  if (encoding_format != tp->encoding_format)
     goto err;
 
   uint32_t actual_size;
