@@ -2535,6 +2535,7 @@ static idl_retcode_t get_ctype_memberids_adr(const idl_pstate_t *pstate, struct 
         {
           const enum dds_stream_typecode subtype = DDS_OP_TYPE(ctype->instructions.table[jeq_offs].data.inst_offset.inst.opcode);
           assert (subtype == DDS_OP_VAL_STU || subtype == DDS_OP_VAL_UNI);
+          (void) subtype;
           const idl_node_t *node = ctype->instructions.table[jeq_offs].data.inst_offset.node;
           struct constructed_type *csubtype = find_ctype(descriptor, node);
           assert(csubtype);
