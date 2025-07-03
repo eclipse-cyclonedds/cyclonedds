@@ -1899,7 +1899,7 @@ static inline void getsize_reserve (struct getsize_state *st, uint32_t elemsz)
   assert (elemsz == 1 || elemsz == 2 || elemsz == 4 || elemsz == 8);
   assert (st->alignmask == 3 || st->alignmask == 7);
   const size_t a = (elemsz - 1) & st->alignmask;
-  st->pos = ((st->pos - st->align_off + a) & ~a) + elemsz;
+  st->pos = ((st->pos - st->align_off + a) & ~a) + elemsz + st->align_off;
 }
 
 ddsrt_nonnull_all
@@ -1909,7 +1909,7 @@ static inline void getsize_reserve_many (struct getsize_state *st, uint32_t elem
   assert (elemsz == 1 || elemsz == 2 || elemsz == 4 || elemsz == 8);
   assert (st->alignmask == 3 || st->alignmask == 7);
   const size_t a = (elemsz - 1) & st->alignmask;
-  st->pos = ((st->pos - st->align_off + a) & ~a) + n * elemsz;
+  st->pos = ((st->pos - st->align_off + a) & ~a) + n * elemsz + st->align_off;
 }
 
 ddsrt_nonnull ((1))
