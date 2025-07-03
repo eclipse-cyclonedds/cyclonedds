@@ -455,11 +455,12 @@ validate_datarepresentation(
   (void) path;
   (void) user_data;
 
+  assert (idl_is_struct(node) || idl_is_union(node));
   allowable_data_representations_t val = idl_allowable_data_representations(node);
-  if ((idl_is_extensible(node, IDL_APPENDABLE) || idl_is_extensible(node, IDL_MUTABLE)) &&
-      !(val & IDL_DATAREPRESENTATION_FLAG_XCDR2)) {
+  idl_requires_xcdr2_t requires_xcdr2 = idl_is_struct(node) ? ((idl_struct_t *)node)->requires_xcdr2 : ((idl_union_t *)node)->requires_xcdr2;
+  if (requires_xcdr2 == IDL_REQUIRES_XCDR2_TRUE && !(val & IDL_DATAREPRESENTATION_FLAG_XCDR2)) {
     idl_error(pstate, idl_location(node),
-      "Datarepresentation does not support XCDR2, but non-final extensibility set.");
+      "Datarepresentation does not support XCDR2, but mutable extensibility set.");
     return IDL_RETCODE_SEMANTIC_ERROR;
   }
 
@@ -565,6 +566,9 @@ grammar:
     }
   }
 
+  if ((ret = idl_set_xcdr2_required(pstate->root) != IDL_RETCODE_OK))
+    goto err;
+
   idl_visitor_t visitor;
   memset(&visitor, 0, sizeof(visitor));
   visitor.visit = IDL_STRUCT | IDL_UNION;
@@ -585,8 +589,6 @@ grammar:
   if ((ret = validate_bitbound(pstate)))
     goto err;
   if ((ret = idl_propagate_autoid(pstate, pstate->root, IDL_SEQUENTIAL)) != IDL_RETCODE_OK)
-    goto err;
-  if ((ret = idl_set_xcdr2_required(pstate->root) != IDL_RETCODE_OK))
     goto err;
 
   set_nestedness(pstate, pstate->root, pstate->config.default_nested);

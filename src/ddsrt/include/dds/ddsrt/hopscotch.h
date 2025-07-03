@@ -67,12 +67,26 @@ typedef bool (*ddsrt_hh_equals_fn) (const void *a, const void *b);
 typedef void (*ddsrt_hh_buckets_gc_fn) (void *bs, void *arg);
 
 /* Sequential version */
+
+/**
+ * @brief One bucket in the hash table.
+ */
+struct ddsrt_hh_bucket {
+  uint32_t hopinfo;
+  void *data;
+};
+
 /**
  * @brief The hopscotch hash table.
  * @see ddsrt_hh_new
  * @see ddsrt_hh_free
  */
-struct ddsrt_hh;
+struct ddsrt_hh {
+  uint32_t size; /* power of 2 */
+  struct ddsrt_hh_bucket *buckets;
+  ddsrt_hh_hash_fn hash;
+  ddsrt_hh_equals_fn equals;
+};
 
 /**
  * @brief Iter object for the iterator to store its progress and know where to go next.
@@ -82,6 +96,11 @@ struct ddsrt_hh_iter {
     struct ddsrt_hh *hh;
     uint32_t cursor;
 };
+
+/**
+ * @brief Degenerate empty hash table that will return "not present" for any lookup
+ */
+extern const struct ddsrt_hh ddsrt_hh_empty;
 
 /**
  * @brief Create a hopscotch hash table.

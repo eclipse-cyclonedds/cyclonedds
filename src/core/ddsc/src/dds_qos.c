@@ -866,10 +866,12 @@ bool dds_qget_data_representation (const dds_qos_t *qos, uint32_t *n, dds_data_r
   return true;
 }
 
-dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allowed_data_representations, bool topicqos)
+dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allowed_data_representations, dds_data_type_properties_t data_type_props, dds_entity_kind_t entitykind)
 {
-  const bool allow1 = allowed_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR1,
-    allow2 = allowed_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR2;
+  assert (entitykind == DDS_KIND_TOPIC || entitykind == DDS_KIND_READER || entitykind == DDS_KIND_WRITER);
+  const bool allow1 = allowed_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR1;
+  const bool allow2 = allowed_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR2;
+  const bool prefer2 = data_type_props & (DDS_DATA_TYPE_CONTAINS_OPTIONAL | DDS_DATA_TYPE_CONTAINS_APPENDABLE | DDS_DATA_TYPE_CONTAINS_MUTABLE);
 
   if ((qos->present & DDSI_QP_DATA_REPRESENTATION) && qos->data_representation.value.n > 0)
   {
@@ -892,17 +894,31 @@ dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allo
           return DDS_RETCODE_BAD_PARAMETER;
       }
     }
+    if (entitykind == DDS_KIND_WRITER)
+    {
+      dds_data_representation_id_t xs[1] = { qos->data_representation.value.ids[0] };
+      dds_qset_data_representation (qos, 1, xs);
+    }
   }
   else
   {
     if (!allow1 && !allow2)
       return DDS_RETCODE_BAD_PARAMETER;
-    if (!allow1)
-      dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR2 });
-    else if (!topicqos || !allow2)
-      dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR1 });
+
+    dds_data_representation_id_t xs[2];
+    uint32_t nxs = 0;
+    if (prefer2)
+    {
+      if (allow2) xs[nxs++] = DDS_DATA_REPRESENTATION_XCDR2;
+      if (allow1) xs[nxs++] = DDS_DATA_REPRESENTATION_XCDR1;
+    }
     else
-      dds_qset_data_representation (qos, 2, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR1, DDS_DATA_REPRESENTATION_XCDR2 });
+    {
+      if (allow1) xs[nxs++] = DDS_DATA_REPRESENTATION_XCDR1;
+      if (allow2) xs[nxs++] = DDS_DATA_REPRESENTATION_XCDR2;
+    }
+    assert (nxs >= 1);
+    dds_qset_data_representation (qos, (entitykind == DDS_KIND_TOPIC || entitykind == DDS_KIND_READER) ? nxs : 1, xs);
   }
   return DDS_RETCODE_OK;
 }

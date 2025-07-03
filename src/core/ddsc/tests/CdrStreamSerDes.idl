@@ -1,0 +1,276 @@
+// Copyright(c) 2024 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
+module TestIdl {
+
+  // Nested Structs
+  @final struct SubMsg1 {
+    uint32 submsg_field1;
+  };
+
+  @final struct SubMsg2 {
+    uint32 submsg_field1;
+    @external uint32 submsg_field2;
+    SubMsg1 submsg_field3;
+  };
+
+  @final struct MsgNested {
+    SubMsg1 msg_field1;
+    SubMsg2 msg_field2;
+    SubMsg1 msg_field3;
+  };
+
+  // String types
+  @final struct StrType {
+    string str1;
+    string<5> str2;
+    string strseq3[2];
+    string<5> strseq4[3];
+  };
+
+  @final struct MsgStr {
+    StrType msg_field1;
+  };
+
+  // Unions
+  enum Kind1 { KIND1_0, KIND1_1, KIND1_2 };
+  enum Kind2 { KIND2_0, @value(5) KIND2_5, KIND2_6, @value(10) KIND2_10 };
+  enum Kind3 { KIND3_0, KIND3_1, KIND3_2 };
+
+  @final union Union0 switch (long) {
+    case 0: int32 field0_1;
+    case 1: uint32 field0_2;
+  };
+
+  @final union Union1 switch (Kind3) {
+    case KIND3_0: int32 field1;
+    case KIND3_1: Kind2 field2;
+    case KIND3_2: Union0 field3;
+  };
+
+  @final struct MsgUnion {
+    Kind1 msg_field1;
+    Kind2 msg_field2;
+    Union1 msg_field3;
+  };
+
+
+  // Recursive types
+  // struct SubMsgRecursive;
+  // @final struct SubMsgRecursive {
+  //   uint32 submsg_field1;
+  //   sequence<SubMsgRecursive> submsg_field2;
+  //   int32 submsg_field3;
+  // };
+
+  // @final struct MsgRecursive {
+  //   uint32 msg_field1;
+  //   SubMsgRecursive msg_field2;
+  //   int32 msg_field3;
+  // };
+
+
+  // External fields
+  @final struct MsgExt_b {
+    @external int32 b1;
+  };
+
+  @final struct MsgExt {
+    @external string f1;
+    @external string<32> f2;
+    @external MsgExt_b f3;
+    @external int16 f4[3];
+    @external sequence<short> f5;
+    @external sequence<MsgExt_b> f6;
+  };
+
+  // Optional fields
+  @final struct MsgOpt_b {
+    @optional boolean b1;
+  };
+
+  @final struct MsgOpt {
+    @optional int32 f1;
+    @optional string f2;
+    @optional MsgOpt_b f3;
+    @optional string<32> f4;
+    @optional int32 f5[3];
+    @optional sequence<MsgOpt_b> f6;
+  };
+
+  // Appendable types
+  @appendable union AppendableUnion0 switch (octet) {
+    case 0: uint32 field1;
+    case 1: int32 field2;
+  };
+
+  @appendable struct AppendableSubMsg1 {
+    uint32 submsg1_field1;
+    string submsg1_field2;
+  };
+  @appendable struct AppendableSubMsg2 {
+    uint32 submsg2_field1;
+    uint32 submsg2_field2;
+  };
+
+  @appendable struct MsgAppendable {
+    AppendableSubMsg1 msg_field1;
+    AppendableSubMsg2 msg_field2;
+    sequence<AppendableSubMsg2> msg_field3;
+    AppendableUnion0 msg_field4;
+    sequence<AppendableUnion0> msg_field5;
+  };
+
+  // Keys in nested (appendable/mutable) types
+  @mutable struct SubMsgKeysNested2 {
+    uint32 submsg2_field1;
+    @key uint32 submsg2_field2;
+  };
+
+  @appendable struct SubMsgKeysNested
+  {
+    uint32 submsg_field1;
+    @key uint32 submsg_field2;
+    @key uint32 submsg_field3;
+    SubMsgKeysNested2 submsg_field4;
+  };
+
+  @final struct MsgKeysNested {
+    SubMsgKeysNested msg_field1;
+    sequence<SubMsgKeysNested> msg_field2;
+  };
+
+  // Arrays
+  @final struct SubMsgArr {
+    int32 field1;
+    int32 field2;
+  };
+
+  @final union UnionArr switch (int32) {
+    case 0: int32 union_field1;
+    case 1: uint32 union_field2;
+  };
+
+  @final struct MsgArr
+  {
+    int32 msg_field1[2];
+    SubMsgArr msg_field2[2];
+    UnionArr msg_field3[2];
+  };
+
+
+ // Appendable types: structs
+  @appendable struct SubMsgAppendStruct1 {
+    uint32 submsg_field1;
+    uint32 submsg_field2;
+  };
+
+  @appendable struct MsgAppendStruct1 {
+    uint32 msg_field1;
+    @optional SubMsgAppendStruct1 msg_field2;
+    uint32 msg_field3;
+  };
+
+  @appendable struct SubMsgAppendStruct2 {
+    uint32 submsg_field1;
+    uint32 submsg_field2;
+    uint32 submsg_field3[10000];
+  };
+
+  @appendable struct MsgAppendStruct2 {
+    uint32 msg_field1;
+    @optional SubMsgAppendStruct2 msg_field2;
+    uint32 msg_field3;
+    uint32 msg_field4[10000];
+  };
+
+
+  // Appendable types: default values for types
+  @appendable struct MsgAppendDefaults1 {
+    uint32 msg_field1;
+  };
+
+  @final struct SubMsgAppendDefaults2 {
+    uint32 submsg_field1;
+  };
+
+  enum MsgAppendDefaults2_Enum {
+    APPEND_DEFAULTS_KIND1,
+    APPEND_DEFAULTS_KIND2,
+    APPEND_DEFAULTS_KIND3
+  };
+
+  @final union MsgAppendDefaults2Union switch (MsgAppendDefaults2_Enum) {
+    case APPEND_DEFAULTS_KIND1: int32 field1;
+    case APPEND_DEFAULTS_KIND2: uint32 field2;
+    case APPEND_DEFAULTS_KIND3: uint8 field3;
+  };
+
+  @appendable struct MsgAppendDefaults2 {
+    uint32 msg_field1;
+
+    int8 msg_field_i8;
+    uint8 msg_field_u8;
+    int16 msg_field_i16;
+    uint16 msg_field_u16;
+    int32 msg_field_i32;
+    uint32 msg_field_u32;
+    int64 msg_field_i64;
+    uint64 msg_field_u64;
+    uint8 msg_field_au8[100];
+    uint64 msg_field_au64[100];
+    MsgAppendDefaults2_Enum msg_field_enum;
+    string msg_field_str;
+    string<99> msg_field_bstr;
+    MsgAppendDefaults2Union msg_field_uni;
+    sequence<octet> msg_field_su8;
+    SubMsgAppendDefaults2 msg_field_subm;
+    SubMsgAppendDefaults2 msg_field_asubm[100];
+    sequence<SubMsgAppendDefaults2> msg_field_ssubm;
+  };
+
+  // Mutable types
+  @mutable struct SubMsgMutable1 {
+    @id(1) uint32 submsg_field1;
+    @id(2) uint32 submsg_field2[3];
+  };
+
+  @mutable struct MsgMutable1 {
+    @id(1) @must_understand uint32 msg_field1;
+    @id(2) uint16 msg_field2;
+    @id(3) SubMsgMutable1 msg_field3;
+    @id(4) SubMsgMutable1 msg_field4[2];
+    @id(5) int32 msg_field5;
+    @id(7) double msg_field7;
+    @id(8) SubMsgMutable1 msg_field8;
+    @id(10) sequence<SubMsgMutable1> msg_field10;
+    @id(11) uint8 msg_field11;
+  };
+
+  @mutable struct SubMsgMutable2 {
+    @id(1) uint32 submsg_field1;
+    @id(2) uint32 submsg_field2[3];
+  };
+
+  @mutable struct MsgMutable2 {
+    @id(1) @must_understand uint32 msg_field1;
+    @id(2) uint16 msg_field2;
+    @id(3) SubMsgMutable2 msg_field3;
+    @id(4) SubMsgMutable2 msg_field4[2];
+    @id(6) int32 msg_field6;
+    @id(7) double msg_field7;
+    @id(9) SubMsgMutable2 msg_field9;
+    @id(10) sequence<SubMsgMutable2> msg_field10;
+    @id(11) uint8 msg_field11;
+    @id(12) sequence<SubMsgMutable2> msg_field12;
+  };
+
+};
+
