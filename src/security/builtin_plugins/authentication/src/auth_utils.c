@@ -756,7 +756,7 @@ DDS_Security_ValidationResult_t load_X509_certificate(const char *data, X509 **x
     break;
   default:
     result = DDS_SECURITY_VALIDATION_FAILED;
-    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, (int)result, "Specified certificate has wrong format:\n%s", data);
+    DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, (int)result, "Certificate specification has wrong format (expecting \"file:\", \"data:,\" or \"pkcs11:\" prefix):\n%s", data);
     break;
   }
   ddsrt_free(contents);
