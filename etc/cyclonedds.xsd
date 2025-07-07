@@ -47,6 +47,7 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
+        <xs:element minOccurs="0" ref="config:AllowInvalidTryConstruct"/>
         <xs:element minOccurs="0" ref="config:AssumeRtiHasPmdEndpoints"/>
         <xs:element minOccurs="0" ref="config:ExplicitlyPublishQosSetToDefault"/>
         <xs:element minOccurs="0" ref="config:ManySocketsMode"/>
@@ -54,6 +55,13 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:StandardsConformance"/>
       </xs:all>
     </xs:complexType>
+  </xs:element>
+  <xs:element name="AllowInvalidTryConstruct" type="xs:boolean">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;Setting option makes the TypeObject validation code accept types with the two "try construct" bits both set to 0, which is explicitly noted as an invalid setting in the spec.&lt;/p&gt;
+&lt;p&gt;The default value is: &lt;code&gt;false&lt;/code&gt;&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
   </xs:element>
   <xs:element name="AssumeRtiHasPmdEndpoints" type="xs:boolean">
     <xs:annotation>
@@ -2030,9 +2038,9 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:restriction>
   </xs:simpleType>
 </xs:schema>
-<!--- generated from ddsi_config.h[d7db98ce697e409412ec7fb0b900e10261a66c44] -->
+<!--- generated from ddsi_config.h[8299fab4740952cc1acc40640aa1de627480a6f4] -->
 <!--- generated from ddsi_config.c[45ed16f4e3201ec8b634ae28b5f9f9b5bedba49d] -->
-<!--- generated from ddsi__cfgelems.h[741151ccf40cab43638e8c32cac3a4b9c3e73566] -->
+<!--- generated from ddsi__cfgelems.h[3d3f8ab09dbca93b26483df6ef95453952484ee4] -->
 <!--- generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] -->
 <!--- generated from _confgen.h[fd29634526c05c3237dbc3f785030fe022eb7875] -->
 <!--- generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] -->

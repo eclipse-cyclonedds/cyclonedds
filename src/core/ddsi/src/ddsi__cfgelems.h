@@ -982,6 +982,14 @@ static struct cfgelem compatibility_cfgelems[] = {
       "<p>This option allows configuring the advertised protocol version.  Valid "
       "values are \"2.1\" and \"2.5\"</p>"
     )),
+  BOOL("AllowInvalidTryConstruct", NULL, 1, "false",
+    MEMBER(allow_invalid_try_construct),
+    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
+    DESCRIPTION(
+      "<p>Setting option makes the TypeObject validation code accept types with "
+      "the two \"try construct\" bits both set to 0, which is explicitly noted "
+      "as an invalid setting in the spec.</p>"
+    )),
   END_MARKER
 };
 
