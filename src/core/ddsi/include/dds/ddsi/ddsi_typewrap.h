@@ -88,6 +88,9 @@ DDS_EXPORT void ddsi_typeid_fini (ddsi_typeid_t *type_id);
 /** @component xtypes_wrapper */
 void ddsi_typeobj_fini (ddsi_typeobj_t *typeobj);
 
+/** @component xtypes_wrapper */
+int ddsi_typeid_compare_assignability_check (const ddsi_typeid_t *a, const ddsi_typeid_t *b);
+
 #else /* DDS_HAS_TYPELIB */
 
 typedef void ddsi_typeid_t;

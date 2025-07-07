@@ -249,7 +249,7 @@ bool ddsi_qos_match_mask_p (
 
     if (tce.kind == DDS_TYPE_CONSISTENCY_DISALLOW_TYPE_COERCION)
     {
-      if (ddsi_typeid_compare (ddsi_type_pair_minimal_id (rd_type_pair), ddsi_type_pair_minimal_id (wr_type_pair)))
+      if (ddsi_typeid_compare_assignability_check (ddsi_type_pair_minimal_id (rd_type_pair), ddsi_type_pair_minimal_id (wr_type_pair)))
       {
         *reason = DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID;
         return false;

@@ -195,12 +195,29 @@ const char * ddsi_typekind_descr (unsigned char disc)
   }
 }
 
-static int plain_collection_header_compare (struct DDS_XTypes_PlainCollectionHeader a, struct DDS_XTypes_PlainCollectionHeader b)
+static int plain_collection_header_compare (struct DDS_XTypes_PlainCollectionHeader a, struct DDS_XTypes_PlainCollectionHeader b, bool is_assignability_check)
 {
   if (a.equiv_kind != b.equiv_kind)
     return a.equiv_kind > b.equiv_kind ? 1 : -1;
-  if (a.element_flags != b.element_flags)
-    return a.element_flags > b.element_flags ? 1 : -1;
+  uint16_t aef = a.element_flags, bef = b.element_flags;
+  // Some implementations leave the "try construct" bits both at 0 in some cases. This is an invalid value but
+  // we have to at least offer the possibility of accepting them in the type validation for compatibility. The
+  // setting of the flag matters in the assignability check so we can rewrite them here if we're just doing an
+  // assignability check.
+  //
+  // In other cases, we can't do this: it also affects the hash id of the type, and we have to store the types
+  // with the same flag settings or we will treat it is equivalent in type lookups and fail to actually insert
+  // the (incorrect) type from a peer in our type library if we happen to have the correct one already present
+  // in the library, e.g., because of a topic definition.
+  if (is_assignability_check)
+  {
+    if ((aef & (DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_TRY_CONSTRUCT2)) == 0)
+      aef |= DDS_XTypes_TRY_CONSTRUCT1;
+    if ((bef & (DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_TRY_CONSTRUCT2)) == 0)
+      bef |= DDS_XTypes_TRY_CONSTRUCT1;
+  }
+  if (aef != bef)
+    return aef > bef ? 1 : -1;
   return 0;
 }
 
@@ -255,7 +272,7 @@ bool ddsi_type_id_with_deps_equal (const struct DDS_XTypes_TypeIdentifierWithDep
     && (!deps || type_id_with_sizeseq_equal (&a->dependent_typeids, &b->dependent_typeids));
 }
 
-int ddsi_typeid_compare_impl (const struct DDS_XTypes_TypeIdentifier *a, const struct DDS_XTypes_TypeIdentifier *b)
+static int ddsi_typeid_compare_acflag (const struct DDS_XTypes_TypeIdentifier *a, const struct DDS_XTypes_TypeIdentifier *b, bool is_assignability_check)
 {
   int r;
   if (a == NULL && b == NULL)
@@ -279,23 +296,23 @@ int ddsi_typeid_compare_impl (const struct DDS_XTypes_TypeIdentifier *a, const s
         return a->_u.string_ldefn.bound > b->_u.string_ldefn.bound ? 1 : -1;
       return 0;
     case DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL:
-      if ((r = plain_collection_header_compare (a->_u.seq_sdefn.header, b->_u.seq_sdefn.header)) != 0)
+      if ((r = plain_collection_header_compare (a->_u.seq_sdefn.header, b->_u.seq_sdefn.header, is_assignability_check)) != 0)
         return r;
-      if ((r = ddsi_typeid_compare_impl (a->_u.seq_sdefn.element_identifier, b->_u.seq_sdefn.element_identifier)) != 0)
+      if ((r = ddsi_typeid_compare_acflag (a->_u.seq_sdefn.element_identifier, b->_u.seq_sdefn.element_identifier, is_assignability_check)) != 0)
         return r;
       if (a->_u.seq_sdefn.bound != b->_u.seq_sdefn.bound)
         return a->_u.seq_sdefn.bound > b->_u.seq_sdefn.bound ? 1 : -1;
       return 0;
     case DDS_XTypes_TI_PLAIN_SEQUENCE_LARGE:
-      if ((r = plain_collection_header_compare (a->_u.seq_ldefn.header, b->_u.seq_ldefn.header)) != 0)
+      if ((r = plain_collection_header_compare (a->_u.seq_ldefn.header, b->_u.seq_ldefn.header, is_assignability_check)) != 0)
         return r;
-      if ((r = ddsi_typeid_compare_impl (a->_u.seq_ldefn.element_identifier, b->_u.seq_ldefn.element_identifier)) != 0)
+      if ((r = ddsi_typeid_compare_acflag (a->_u.seq_ldefn.element_identifier, b->_u.seq_ldefn.element_identifier, is_assignability_check)) != 0)
         return r;
       if (a->_u.seq_ldefn.bound != b->_u.seq_ldefn.bound)
         return a->_u.seq_ldefn.bound > b->_u.seq_ldefn.bound ? 1 : -1;
       return 0;
     case DDS_XTypes_TI_PLAIN_ARRAY_SMALL:
-      if ((r = plain_collection_header_compare (a->_u.array_sdefn.header, b->_u.array_sdefn.header)) != 0)
+      if ((r = plain_collection_header_compare (a->_u.array_sdefn.header, b->_u.array_sdefn.header, is_assignability_check)) != 0)
         return r;
       if (a->_u.array_sdefn.array_bound_seq._length != b->_u.array_sdefn.array_bound_seq._length)
         return a->_u.array_sdefn.array_bound_seq._length > b->_u.array_sdefn.array_bound_seq._length ? 1 : -1;
@@ -303,9 +320,9 @@ int ddsi_typeid_compare_impl (const struct DDS_XTypes_TypeIdentifier *a, const s
         if ((r = memcmp (a->_u.array_sdefn.array_bound_seq._buffer, b->_u.array_sdefn.array_bound_seq._buffer,
                           a->_u.array_sdefn.array_bound_seq._length * sizeof (*a->_u.array_sdefn.array_bound_seq._buffer))) != 0)
           return r;
-      return ddsi_typeid_compare_impl (a->_u.array_sdefn.element_identifier, b->_u.array_sdefn.element_identifier);
+      return ddsi_typeid_compare_acflag (a->_u.array_sdefn.element_identifier, b->_u.array_sdefn.element_identifier, is_assignability_check);
     case DDS_XTypes_TI_PLAIN_ARRAY_LARGE:
-      if ((r = plain_collection_header_compare (a->_u.array_ldefn.header, b->_u.array_ldefn.header)) != 0)
+      if ((r = plain_collection_header_compare (a->_u.array_ldefn.header, b->_u.array_ldefn.header, is_assignability_check)) != 0)
         return r;
       if (a->_u.array_ldefn.array_bound_seq._length != b->_u.array_ldefn.array_bound_seq._length)
         return a->_u.array_ldefn.array_bound_seq._length > b->_u.array_ldefn.array_bound_seq._length ? 1 : -1;
@@ -313,27 +330,27 @@ int ddsi_typeid_compare_impl (const struct DDS_XTypes_TypeIdentifier *a, const s
         if ((r = memcmp (a->_u.array_ldefn.array_bound_seq._buffer, b->_u.array_ldefn.array_bound_seq._buffer,
                           a->_u.array_ldefn.array_bound_seq._length * sizeof (*a->_u.array_ldefn.array_bound_seq._buffer))) != 0)
           return r;
-      return ddsi_typeid_compare_impl (a->_u.array_ldefn.element_identifier, b->_u.array_ldefn.element_identifier);
+      return ddsi_typeid_compare_acflag (a->_u.array_ldefn.element_identifier, b->_u.array_ldefn.element_identifier, is_assignability_check);
     case DDS_XTypes_TI_PLAIN_MAP_SMALL:
-      if ((r = plain_collection_header_compare (a->_u.map_sdefn.header, b->_u.map_sdefn.header)) != 0)
+      if ((r = plain_collection_header_compare (a->_u.map_sdefn.header, b->_u.map_sdefn.header, is_assignability_check)) != 0)
         return r;
       if (a->_u.map_sdefn.bound != b->_u.map_sdefn.bound)
         return a->_u.map_sdefn.bound > b->_u.map_sdefn.bound ? 1 : -1;
-      if ((r = ddsi_typeid_compare_impl (a->_u.map_sdefn.element_identifier, b->_u.map_sdefn.element_identifier)) != 0)
+      if ((r = ddsi_typeid_compare_acflag (a->_u.map_sdefn.element_identifier, b->_u.map_sdefn.element_identifier, is_assignability_check)) != 0)
         return r;
       if (a->_u.map_sdefn.key_flags != b->_u.map_sdefn.key_flags)
         return a->_u.map_sdefn.key_flags != b->_u.map_sdefn.key_flags ? 1 : -1;
-      return ddsi_typeid_compare_impl (a->_u.map_sdefn.key_identifier, b->_u.map_sdefn.key_identifier);
+      return ddsi_typeid_compare_acflag (a->_u.map_sdefn.key_identifier, b->_u.map_sdefn.key_identifier, is_assignability_check);
     case DDS_XTypes_TI_PLAIN_MAP_LARGE:
-      if ((r = plain_collection_header_compare (a->_u.map_ldefn.header, b->_u.map_ldefn.header)) != 0)
+      if ((r = plain_collection_header_compare (a->_u.map_ldefn.header, b->_u.map_ldefn.header, is_assignability_check)) != 0)
         return r;
       if (a->_u.map_ldefn.bound != b->_u.map_ldefn.bound)
         return a->_u.map_ldefn.bound > b->_u.map_ldefn.bound ? 1 : -1;
-      if ((r = ddsi_typeid_compare_impl (a->_u.map_ldefn.element_identifier, b->_u.map_ldefn.element_identifier)) != 0)
+      if ((r = ddsi_typeid_compare_acflag (a->_u.map_ldefn.element_identifier, b->_u.map_ldefn.element_identifier, is_assignability_check)) != 0)
         return r;
       if (a->_u.map_ldefn.key_flags != b->_u.map_ldefn.key_flags)
         return a->_u.map_ldefn.key_flags > b->_u.map_ldefn.key_flags ? 1 : -1;
-      return ddsi_typeid_compare_impl (a->_u.map_ldefn.key_identifier, b->_u.map_ldefn.key_identifier);
+      return ddsi_typeid_compare_acflag (a->_u.map_ldefn.key_identifier, b->_u.map_ldefn.key_identifier, is_assignability_check);
     case DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT:
       return strongly_connected_component_id_compare (a->_u.sc_component_id, b->_u.sc_component_id);
     case DDS_XTypes_EK_COMPLETE:
@@ -345,9 +362,19 @@ int ddsi_typeid_compare_impl (const struct DDS_XTypes_TypeIdentifier *a, const s
   }
 }
 
+int ddsi_typeid_compare_impl (const struct DDS_XTypes_TypeIdentifier *a, const struct DDS_XTypes_TypeIdentifier *b)
+{
+  return ddsi_typeid_compare_acflag (a, b, false);
+}
+
 int ddsi_typeid_compare (const ddsi_typeid_t *a, const ddsi_typeid_t *b)
 {
-  return ddsi_typeid_compare_impl (&a->x, &b->x);
+  return ddsi_typeid_compare_acflag (&a->x, &b->x, false);
+}
+
+int ddsi_typeid_compare_assignability_check (const ddsi_typeid_t *a, const ddsi_typeid_t *b)
+{
+  return ddsi_typeid_compare_acflag (&a->x, &b->x, true);
 }
 
 void ddsi_typeid_ser (const ddsi_typeid_t *type_id, unsigned char **buf, uint32_t *sz)
@@ -2385,12 +2412,12 @@ static bool xt_is_delimited (struct ddsi_domaingv *gv, const struct xt_type *t)
   return ext == DDS_XTypes_IS_MUTABLE;
 }
 
-static bool xt_is_equivalent_minimal (const struct xt_type *t1, const struct xt_type *t2)
+static bool xt_is_equivalent_minimal (const struct xt_type *t1, const struct xt_type *t2, bool is_assignability_check)
 {
   // Minimal equivalence relation (XTypes spec v1.3 section 7.3.4.7)
   if (xt_is_fully_descriptive (t1) || xt_is_minimal_hash_typeid (t1))
   {
-    if (!ddsi_typeid_compare (&t1->id, &t2->id))
+    if (!ddsi_typeid_compare_acflag (&t1->id.x, &t2->id.x, is_assignability_check))
       return true;
   }
   return false;
@@ -2403,7 +2430,7 @@ ddsrt_nonnull_all
 static bool xt_is_strongly_assignable_from (struct ddsi_domaingv *gv, const struct xt_type *t1a, const struct xt_type *t2a, const dds_type_consistency_enforcement_qospolicy_t *tce, struct ddsi_non_assignability_reason *reason)
 {
   const struct xt_type *t1 = ddsi_xt_unalias (t1a), *t2 = ddsi_xt_unalias (t2a);
-  if (xt_is_equivalent_minimal (t1, t2))
+  if (xt_is_equivalent_minimal (t1, t2, true))
     return true;
   if (xt_is_delimited (gv, t2))
     return xt_is_assignable_from_impl (gv, t1, t2, tce, reason);
@@ -2864,7 +2891,7 @@ static bool xt_is_assignable_from_impl (struct ddsi_domaingv *gv, const struct x
   if (!xt_is_assignable_check_resolved (t1, reason, NULL, 0) || !xt_is_assignable_check_resolved (t2, reason, NULL, 0))
     return false;
 
-  if (xt_is_equivalent_minimal (t1, t2))
+  if (xt_is_equivalent_minimal (t1, t2, true))
     return true;
 
   /* Bitmask type: must be equal, except bitmask can be assigned to uint types and vv */
