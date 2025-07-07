@@ -5438,7 +5438,7 @@ static const uint32_t *prtf_delimited (char **buf, size_t *bufsize, dds_istream_
 {
   uint32_t delimited_sz = dds_is_get4 (is), delimited_offs = is->m_index, insn;
   bool needs_comma = false;
-  if (!prtf (buf, bufsize, "dlh:%"PRIu32, delimited_sz))
+  if (!prtf (buf, bufsize, "<%"PRIu32">", delimited_sz))
     return NULL;
   ops++;
   while ((insn = *ops) != DDS_OP_RTS)
