@@ -3236,7 +3236,7 @@ void ddsi_xt_get_typeobject_kind_impl (const struct xt_type *xt, struct DDS_XTyp
         break;
       case DDS_XTypes_TK_MAP:
         ddsi_xt_get_typeid_impl (&xt->_u.map.c.element_type->xt, &mto->_u.map_type.element.common.type, DDSI_TYPEID_KIND_MINIMAL);
-        mto->_u.array_type.element.common.element_flags = xt->_u.map.c.element_flags;
+        mto->_u.map_type.element.common.element_flags = xt->_u.map.c.element_flags;
         ddsi_xt_get_typeid_impl (&xt->_u.map.key_type->xt, &mto->_u.map_type.key.common.type, DDSI_TYPEID_KIND_MINIMAL);
         mto->_u.map_type.header.common.bound = xt->_u.map.bound;
         break;
@@ -3378,7 +3378,7 @@ void ddsi_xt_get_typeobject_kind_impl (const struct xt_type *xt, struct DDS_XTyp
         break;
       case DDS_XTypes_TK_MAP:
         ddsi_xt_get_typeid_impl (&xt->_u.map.c.element_type->xt, &cto->_u.map_type.element.common.type, DDSI_TYPEID_KIND_COMPLETE);
-        cto->_u.array_type.element.common.element_flags = xt->_u.map.c.element_flags;
+        cto->_u.map_type.element.common.element_flags = xt->_u.map.c.element_flags;
         ddsi_xt_get_typeid_impl (&xt->_u.map.key_type->xt, &cto->_u.map_type.key.common.type, DDSI_TYPEID_KIND_COMPLETE);
         cto->_u.map_type.header.common.bound = xt->_u.map.bound;
         break;
