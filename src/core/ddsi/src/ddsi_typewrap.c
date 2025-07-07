@@ -857,18 +857,22 @@ static dds_return_t xt_valid_member_flags (struct ddsi_domaingv *gv, uint16_t fl
 {
   dds_return_t ret = DDS_RETCODE_OK;
 
-  /* FIXME: (flags & (T1|T2)) == 0 is also invalid, but as we use this (invalid)
-     value for the try-construct flags in the 0.9 release, this check cannot currently
-     be added here */
+  /* (flags & (T1|T2)) == 0 is invalid, but because there are some implementations
+     that set this incorrectly, we can't reject it outright. (Cyclone got it wrong
+     in the 0.9 release, but that is no longer sufficient reason to allow it.) */
 
   switch (member_flag_kind)
   {
     case MEMBER_FLAG_COLLECTION_ELEMENT:
       if (flags & ~(T1|T2|X))
         ret = DDS_RETCODE_BAD_PARAMETER;
+      if ((flags & (T1|T2)) == 0 && !gv->config.allow_invalid_try_construct)
+        ret = DDS_RETCODE_BAD_PARAMETER;
       break;
     case MEMBER_FLAG_STRUCT_MEMBER:
       if (flags & ~(T1|T2|O|M|K|X))
+        ret = DDS_RETCODE_BAD_PARAMETER;
+      if ((flags & (T1|T2)) == 0 && !gv->config.allow_invalid_try_construct)
         ret = DDS_RETCODE_BAD_PARAMETER;
       if (in_key && (flags & O))
         ret = DDS_RETCODE_BAD_PARAMETER;
@@ -878,10 +882,14 @@ static dds_return_t xt_valid_member_flags (struct ddsi_domaingv *gv, uint16_t fl
     case MEMBER_FLAG_UNION_MEMBER:
       if (flags & ~(T1|T2|D|X))
         ret = DDS_RETCODE_BAD_PARAMETER;
+      if ((flags & (T1|T2)) == 0 && !gv->config.allow_invalid_try_construct)
+        ret = DDS_RETCODE_BAD_PARAMETER;
       break;
     case MEMBER_FLAG_UNION_DISC:
       // must-understand not in spec
       if (flags & ~(T1|T2|M|K))
+        ret = DDS_RETCODE_BAD_PARAMETER;
+      if ((flags & (T1|T2)) == 0 && !gv->config.allow_invalid_try_construct)
         ret = DDS_RETCODE_BAD_PARAMETER;
       if (in_key && (flags & O))
         ret = DDS_RETCODE_BAD_PARAMETER;

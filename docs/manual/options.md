@@ -20,9 +20,17 @@ The default value is: `any`
 
 
 ### //CycloneDDS/Domain/Compatibility
-Children: [AssumeRtiHasPmdEndpoints](#cycloneddsdomaincompatibilityassumertihaspmdendpoints), [ExplicitlyPublishQosSetToDefault](#cycloneddsdomaincompatibilityexplicitlypublishqossettodefault), [ManySocketsMode](#cycloneddsdomaincompatibilitymanysocketsmode), [ProtocolVersion](#cycloneddsdomaincompatibilityprotocolversion), [StandardsConformance](#cycloneddsdomaincompatibilitystandardsconformance)
+Children: [AllowInvalidTryConstruct](#cycloneddsdomaincompatibilityallowinvalidtryconstruct), [AssumeRtiHasPmdEndpoints](#cycloneddsdomaincompatibilityassumertihaspmdendpoints), [ExplicitlyPublishQosSetToDefault](#cycloneddsdomaincompatibilityexplicitlypublishqossettodefault), [ManySocketsMode](#cycloneddsdomaincompatibilitymanysocketsmode), [ProtocolVersion](#cycloneddsdomaincompatibilityprotocolversion), [StandardsConformance](#cycloneddsdomaincompatibilitystandardsconformance)
 
 The Compatibility element allows you to specify various settings related to compatibility with standards and with other DDSI implementations.
+
+
+#### //CycloneDDS/Domain/Compatibility/AllowInvalidTryConstruct
+Boolean
+
+Setting option makes the TypeObject validation code accept types with the two "try construct" bits both set to 0, which is explicitly noted as an invalid setting in the spec.
+
+The default value is: `false`
 
 
 #### //CycloneDDS/Domain/Compatibility/AssumeRtiHasPmdEndpoints
@@ -1940,9 +1948,9 @@ While none prevents any message from being written to a DDSI2 log file.
 The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful verbosity levels are config, fine and finest.
 
 The default value is: `none`
-<!--- generated from ddsi_config.h[d7db98ce697e409412ec7fb0b900e10261a66c44] -->
+<!--- generated from ddsi_config.h[8299fab4740952cc1acc40640aa1de627480a6f4] -->
 <!--- generated from ddsi_config.c[45ed16f4e3201ec8b634ae28b5f9f9b5bedba49d] -->
-<!--- generated from ddsi__cfgelems.h[741151ccf40cab43638e8c32cac3a4b9c3e73566] -->
+<!--- generated from ddsi__cfgelems.h[3d3f8ab09dbca93b26483df6ef95453952484ee4] -->
 <!--- generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] -->
 <!--- generated from _confgen.h[fd29634526c05c3237dbc3f785030fe022eb7875] -->
 <!--- generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] -->
