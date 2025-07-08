@@ -8,6 +8,11 @@
 *****************************************************************/
 #include "dds/ddsi/ddsi_xt_typelookup.h"
 
+#if defined(_MSC_VER) && (_MSC_VER > 1943)
+__pragma(warning(push))
+__pragma(warning(disable: 5287))
+#endif
+
 static const uint32_t DDS_Builtin_TypeLookup_Request_ops [] =
 {
   /* TypeLookup_Request */
@@ -863,6 +868,10 @@ static const uint32_t DDS_Builtin_TypeLookup_Reply_ops [] =
   DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (DDS_XTypes_TypeIdentifierWithSize, typeobject_serialized_size),
   DDS_OP_RTS
 };
+
+#if defined(_MSC_VER) && (_MSC_VER > 1943)
+__pragma(warning(pop))
+#endif
 
 const dds_topic_descriptor_t DDS_Builtin_TypeLookup_Reply_desc =
 {

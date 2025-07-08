@@ -873,49 +873,49 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
     case DDS_OP_VAL_4BY:
     case DDS_OP_VAL_8BY:
       flags |= get_type_flags (tb_type);
-      PUSH_OP (DDS_OP_ADR | ((DDS_OP_VAL_1BY + (tb_type->type_code - DDS_OP_VAL_1BY)) << 16) | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) ((DDS_OP_VAL_1BY + (tb_type->type_code - DDS_OP_VAL_1BY)) << 16) | flags);
       PUSH_ARG (member_offset);
       break;
     case DDS_OP_VAL_BLN:
-      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_BLN | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_BLN | flags);
       PUSH_ARG (member_offset);
       break;
     case DDS_OP_VAL_ENU:
       flags |= get_type_flags (tb_type);
-      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_ENU | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_ENU | flags);
       PUSH_ARG (member_offset);
       PUSH_ARG (tb_type->args.enum_args.max);
       break;
     case DDS_OP_VAL_BMK:
       flags |= get_type_flags (tb_type);
-      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_BMK | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_BMK | flags);
       PUSH_ARG (member_offset);
       PUSH_ARG (tb_type->args.bitmask_args.bits_h);
       PUSH_ARG (tb_type->args.bitmask_args.bits_l);
       break;
     case DDS_OP_VAL_STR:
       flags &= ~DDS_OP_FLAG_EXT;
-      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_STR | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_STR | flags);
       PUSH_ARG (member_offset);
       break;
     case DDS_OP_VAL_WSTR:
       flags &= ~DDS_OP_FLAG_EXT;
-      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_WSTR | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_WSTR | flags);
       PUSH_ARG (member_offset);
       break;
     case DDS_OP_VAL_BST:
-      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_BST | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_BST | flags);
       PUSH_ARG (member_offset);
       PUSH_ARG (tb_type->args.string_args.max_size);
       break;
     case DDS_OP_VAL_BWSTR:
-      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_BWSTR | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_BWSTR | flags);
       PUSH_ARG (member_offset);
       PUSH_ARG (tb_type->args.string_args.max_size);
       break;
     case DDS_OP_VAL_WCHAR:
       flags |= get_type_flags (tb_type);
-      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_WCHAR | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_WCHAR | flags);
       PUSH_ARG (member_offset);
       break;
     case DDS_OP_VAL_BSQ:
@@ -925,7 +925,7 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
       assert (element_type);
       flags |= get_type_flags (element_type);
       uint32_t adr_index = ops->index;
-      PUSH_OP (DDS_OP_ADR | (uint32_t) (bounded ? DDS_OP_TYPE_BSQ : DDS_OP_TYPE_SEQ) | (element_type->type_code << 8u) | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) (bounded ? DDS_OP_TYPE_BSQ : DDS_OP_TYPE_SEQ) | (element_type->type_code << 8u) | flags);
       PUSH_ARG (member_offset);
       if (bounded)
         PUSH_ARG (tb_type->args.collection_args.bound);
@@ -970,7 +970,7 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
     case DDS_OP_VAL_EXT: {
       bool ext = flags & DDS_OP_FLAG_EXT;
       tb_type->args.external_type_args.external_type.ref_base = ops->index;
-      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_EXT | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_EXT | flags);
       PUSH_ARG (member_offset);
       tb_type->args.external_type_args.external_type.ref_insn = ops->index;
       PUSH_ARG ((3 + (ext ? 1u : 0u)) << 16u);  // set next_insn, elem_insn is set after emitting external type
@@ -983,7 +983,7 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
       assert (element_type);
       flags |= get_type_flags (element_type);
       uint32_t adr_index = ops->index;
-      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_ARR | (element_type->type_code << 8u) | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_ARR | (element_type->type_code << 8u) | flags);
       PUSH_ARG (member_offset);
       PUSH_ARG (tb_type->args.collection_args.bound);
       switch (element_type->type_code)
@@ -1101,40 +1101,40 @@ static dds_return_t get_ops_union_case (struct typebuilder_type *tb_type, uint32
     case DDS_OP_VAL_2BY:
     case DDS_OP_VAL_4BY:
     case DDS_OP_VAL_8BY:
-      PUSH_OP (DDS_OP_JEQ4 | ((DDS_OP_VAL_1BY + (tb_type->type_code - DDS_OP_VAL_1BY)) << 16) | flags);
+      PUSH_OP ((uint32_t) DDS_OP_JEQ4 | (uint32_t) ((DDS_OP_VAL_1BY + (tb_type->type_code - DDS_OP_VAL_1BY)) << 16) | flags);
       PUSH_ARG (disc_value);
       PUSH_ARG (offset);
       PUSH_ARG (0);
       break;
     case DDS_OP_VAL_BLN:
-      PUSH_OP (DDS_OP_JEQ4 | DDS_OP_TYPE_BLN | flags);
+      PUSH_OP ((uint32_t) DDS_OP_JEQ4 | (uint32_t) DDS_OP_TYPE_BLN | flags);
       PUSH_ARG (disc_value);
       PUSH_ARG (offset);
       PUSH_ARG (0);
       break;
     case DDS_OP_VAL_ENU:
       flags |= get_type_flags (tb_type);
-      PUSH_OP (DDS_OP_JEQ4 | DDS_OP_TYPE_ENU | flags);
+      PUSH_OP ((uint32_t) DDS_OP_JEQ4 | (uint32_t) DDS_OP_TYPE_ENU | flags);
       PUSH_ARG (disc_value);
       PUSH_ARG (offset);
       PUSH_ARG (tb_type->args.enum_args.max);
       break;
     case DDS_OP_VAL_STR:
       flags &= ~DDS_OP_FLAG_EXT;
-      PUSH_OP (DDS_OP_JEQ4 | DDS_OP_TYPE_STR | flags);
+      PUSH_OP ((uint32_t) DDS_OP_JEQ4 | (uint32_t) DDS_OP_TYPE_STR | flags);
       PUSH_ARG (disc_value);
       PUSH_ARG (offset);
       PUSH_ARG (0);
       break;
     case DDS_OP_VAL_WSTR:
       flags &= ~DDS_OP_FLAG_EXT;
-      PUSH_OP (DDS_OP_JEQ4 | DDS_OP_TYPE_WSTR | flags);
+      PUSH_OP ((uint32_t) DDS_OP_JEQ4 | (uint32_t) DDS_OP_TYPE_WSTR | flags);
       PUSH_ARG (disc_value);
       PUSH_ARG (offset);
       PUSH_ARG (0);
       break;
     case DDS_OP_VAL_WCHAR:
-      PUSH_OP (DDS_OP_JEQ4 | DDS_OP_TYPE_WCHAR | flags);
+      PUSH_OP ((uint32_t) DDS_OP_JEQ4 | (uint32_t) DDS_OP_TYPE_WCHAR | flags);
       PUSH_ARG (disc_value);
       PUSH_ARG (offset);
       PUSH_ARG (0);
@@ -1144,7 +1144,7 @@ static dds_return_t get_ops_union_case (struct typebuilder_type *tb_type, uint32
       flags |= get_type_flags (tb_type);
       tb_type->args.external_type_args.external_type.ref_base = ops->index;
       tb_type->args.external_type_args.external_type.ref_insn = ops->index;
-      PUSH_OP (DDS_OP_JEQ4 | (tb_type->type_code << 16u) | flags);
+      PUSH_OP ((uint32_t) DDS_OP_JEQ4 | ((uint32_t) tb_type->type_code << 16u) | flags);
       PUSH_ARG (disc_value);
       PUSH_ARG (offset);
       PUSH_ARG (flags & DDS_OP_FLAG_EXT ? tb_type->args.external_type_args.external_type.type->size : 0);
@@ -1221,7 +1221,7 @@ static dds_return_t get_ops_union (const struct typebuilder_union *tb_union, uin
     flags |= tb_union->cases[c].is_default ? DDS_OP_FLAG_DEF : 0u;
 
   uint32_t next_insn_offs = ops->index;
-  PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_UNI | (tb_union->disc_type.type_code << 8) | flags);
+  PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_UNI | (uint32_t) (tb_union->disc_type.type_code << 8) | flags);
   PUSH_ARG (0u);
   PUSH_ARG (tb_union->n_cases);
   uint32_t next_insn_idx = ops->index;

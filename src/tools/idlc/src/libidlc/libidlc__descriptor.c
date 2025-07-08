@@ -1864,9 +1864,18 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
   char *type = NULL;
   const char *seps[] = { ", ", ",\n  " };
   uint32_t cnt = 0;
+  const char *str;
 
   if (IDL_PRINTA(&type, print_type, descriptor->topic) < 0)
     return -1;
+
+  str = "#if defined(_MSC_VER) && (_MSC_VER > 1943)\n" \
+        "__pragma(warning(push))\n"
+        "__pragma(warning(disable: 5287))\n"
+        "#endif\n";
+  if (fputs(str, fp) < 0)
+    return -1;
+
   if (idl_fprintf(fp, "static const uint32_t %s_ops [] =\n{\n", type) < 0)
     return -1;
 
@@ -2050,6 +2059,12 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
   }
 
   if (fputs("\n};\n\n", fp) < 0)
+    return -1;
+
+  str = "#if defined(_MSC_VER) && (_MSC_VER > 1943)\n" \
+        "__pragma(warning(pop))\n" \
+        "#endif\n";
+  if (fputs(str, fp) < 0)
     return -1;
 
   if (cnt > INT32_MAX)

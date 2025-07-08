@@ -8,6 +8,11 @@
 *****************************************************************/
 #include "dds/ddsi/ddsi_xt_typemap.h"
 
+#if defined(_MSC_VER) && (_MSC_VER > 1943)
+__pragma(warning(push))
+__pragma(warning(disable: 5287))
+#endif
+
 static const uint32_t DDS_XTypes_TypeMapping_ops [] =
 {
   /* TypeMapping */
@@ -620,6 +625,10 @@ static const uint32_t DDS_XTypes_TypeMapping_ops [] =
   DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (DDS_XTypes_TypeIdentifierPair, type_identifier2), (3u << 16u) + 64514u /* TypeIdentifier */,
   DDS_OP_RTS
 };
+
+#if defined(_MSC_VER) && (_MSC_VER > 1943)
+__pragma(warning(pop))
+#endif
 
 const dds_topic_descriptor_t DDS_XTypes_TypeMapping_desc =
 {
