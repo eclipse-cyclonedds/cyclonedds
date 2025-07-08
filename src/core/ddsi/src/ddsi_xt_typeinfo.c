@@ -8,6 +8,11 @@
 *****************************************************************/
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
 
+#if defined(_MSC_VER) && (_MSC_VER > 1943)
+__pragma(warning(push))
+__pragma(warning(disable: 5287))
+#endif
+
 static const uint32_t DDS_XTypes_TypeIdentifier_ops [] =
 {
   /* TypeIdentifier */
@@ -867,6 +872,10 @@ static const uint32_t DDS_XTypes_TypeInformation_ops [] =
   DDS_OP_RTS,
   DDS_OP_RTS
 };
+
+#if defined(_MSC_VER) && (_MSC_VER > 1943)
+__pragma(warning(pop))
+#endif
 
 const dds_topic_descriptor_t DDS_XTypes_TypeInformation_desc =
 {

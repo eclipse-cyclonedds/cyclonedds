@@ -150,6 +150,12 @@ if(ENABLE_QOS_PROVIDER)
 endif()
 
 add_cunit_executable(cunit_ddsc ${ddsc_test_sources})
+
+if(MSVC)
+  # ignore warning 5286 and 5287 about enum type conversion
+  target_compile_options(cunit_ddsc PRIVATE /wd5286 /wd5287)
+endif()
+
 target_include_directories(
   cunit_ddsc PRIVATE
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"

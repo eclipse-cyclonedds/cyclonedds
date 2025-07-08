@@ -154,6 +154,11 @@ endforeach()
 
 add_library(idl SHARED ${headers} ${sources})
 
+if(MSVC)
+  # ignore warning 5286 and 5287 about enum type conversion
+  target_compile_options(idl PRIVATE /wd5286 /wd5287)
+endif()
+
 set_target_properties(
   idl PROPERTIES
   OUTPUT_NAME "cycloneddsidl"
