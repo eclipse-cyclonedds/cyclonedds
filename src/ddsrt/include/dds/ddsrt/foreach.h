@@ -73,9 +73,9 @@
 
 /* Operating on pairs of arguments */
 #define DDSRT_COUNT_PAIRS_MSVC_WORKAROUND(x) x
-#define DDSRT_COUNT_PAIRS(...) DDSRT_COUNT_PAIRS1 (__VA_ARGS__, 20,20,19,19,18,18,17,17,16,16,15,15,14,14,13,13,12,12,11,11,10,10,9,9,8,8,7,7,6,6,5,5,4,4,3,3,2,2,1,1,0,0)
+#define DDSRT_COUNT_PAIRS(...) DDSRT_COUNT_PAIRS1 (__VA_ARGS__, 24,24,23,23,22,22,21,21,20,20,19,19,18,18,17,17,16,16,15,15,14,14,13,13,12,12,11,11,10,10,9,9,8,8,7,7,6,6,5,5,4,4,3,3,2,2,1,1,0,0)
 #define DDSRT_COUNT_PAIRS1(...) DDSRT_COUNT_PAIRS_MSVC_WORKAROUND (DDSRT_COUNT_PAIRS_ARGN (__VA_ARGS__))
-#define DDSRT_COUNT_PAIRS_ARGN(a,a1,b,b1,c,c1,d,d1,e,e1,f,f1,g,g1,h,h1,i,i1,j,j1, k,k1,l,l1,m,m1,n,n1,o,o1,p,p1,q,q1,r,r1,s,s1,t,t1, N,...) N
+#define DDSRT_COUNT_PAIRS_ARGN(a,a1,b,b1,c,c1,d,d1,e,e1,f,f1,g,g1,h,h1,i,i1,j,j1, k,k1,l,l1,m,m1,n,n1,o,o1,p,p1,q,q1,r,r1,s,s1,t,t1, u,u1,v,v1,w,w1,x,x1, N,...) N
 
 #define DDSRT_FOREACH_PAIR_3_MSVC_WORKAROUND(x) x
 #define DDSRT_FOREACH_PAIR_3_1(f, sep, x,y)       f(x,y)
@@ -98,6 +98,11 @@
 #define DDSRT_FOREACH_PAIR_3_18(f, sep, x,y, ...) f(x,y) sep() DDSRT_FOREACH_PAIR_3_MSVC_WORKAROUND(DDSRT_FOREACH_PAIR_3_17(f, sep, __VA_ARGS__))
 #define DDSRT_FOREACH_PAIR_3_19(f, sep, x,y, ...) f(x,y) sep() DDSRT_FOREACH_PAIR_3_MSVC_WORKAROUND(DDSRT_FOREACH_PAIR_3_18(f, sep, __VA_ARGS__))
 #define DDSRT_FOREACH_PAIR_3_20(f, sep, x,y, ...) f(x,y) sep() DDSRT_FOREACH_PAIR_3_MSVC_WORKAROUND(DDSRT_FOREACH_PAIR_3_19(f, sep, __VA_ARGS__))
+#define DDSRT_FOREACH_PAIR_3_21(f, sep, x,y, ...) f(x,y) sep() DDSRT_FOREACH_PAIR_3_MSVC_WORKAROUND(DDSRT_FOREACH_PAIR_3_20(f, sep, __VA_ARGS__))
+#define DDSRT_FOREACH_PAIR_3_22(f, sep, x,y, ...) f(x,y) sep() DDSRT_FOREACH_PAIR_3_MSVC_WORKAROUND(DDSRT_FOREACH_PAIR_3_21(f, sep, __VA_ARGS__))
+#define DDSRT_FOREACH_PAIR_3_23(f, sep, x,y, ...) f(x,y) sep() DDSRT_FOREACH_PAIR_3_MSVC_WORKAROUND(DDSRT_FOREACH_PAIR_3_22(f, sep, __VA_ARGS__))
+#define DDSRT_FOREACH_PAIR_3_24(f, sep, x,y, ...) f(x,y) sep() DDSRT_FOREACH_PAIR_3_MSVC_WORKAROUND(DDSRT_FOREACH_PAIR_3_23(f, sep, __VA_ARGS__))
+#define DDSRT_FOREACH_PAIR_3_25(f, sep, x,y, ...) f(x,y) sep() DDSRT_FOREACH_PAIR_3_MSVC_WORKAROUND(DDSRT_FOREACH_PAIR_3_24(f, sep, __VA_ARGS__))
 #define DDSRT_FOREACH_PAIR_2(n, f, sep, ...) DDSRT_FOREACH_PAIR_3_MSVC_WORKAROUND(DDSRT_FOREACH_PAIR_3_##n(f, sep, __VA_ARGS__))
 #define DDSRT_FOREACH_PAIR_1(n, f, sep, ...) DDSRT_FOREACH_PAIR_2(n, f, sep, __VA_ARGS__)
 #define DDSRT_FOREACH_PAIR(f, sep, ...) DDSRT_FOREACH_PAIR_1(DDSRT_COUNT_PAIRS(__VA_ARGS__), f, sep,  __VA_ARGS__)
