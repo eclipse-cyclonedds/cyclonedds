@@ -496,4 +496,50 @@ module TypeBuilderTypes {
   @nested struct t48_n1 { long n1; };
   typedef t48_n1 t48_a1;
   struct t48 { t48_a1 t1; };
+
+  // used for testing member id table for optional members
+  @nested @final struct t49a { @optional @id(40) long a1; };
+  @nested @final struct t49b { @optional @id(50) long b1; };
+  @nested @final struct t49d { @optional @id(60) long d1; };
+  @nested @final struct t49f { @optional @id(70) long f1; };
+  @nested @final struct t49g { @optional @id(80) long g1; };
+  @nested @final struct t49h { @optional @id(90) long h1; };
+  @nested @final struct t49i { @optional @id(100) long i1; };
+  @nested @final struct t49j { @optional @id(110) long j1; };
+  @nested @final struct t49l { @optional @id(120) long j1; };
+  typedef sequence<t49j> td49[3];
+  @nested @final struct t49c {
+    @optional @id(30) string c1;
+    @optional @id(31) char c2;
+    @optional @id(32) long long c3;
+    @optional @id(33) t49a c4;
+    @optional @id(34) @external t49a c5;
+    @optional @id(35) sequence<t49a> c6;
+    @optional @id(36) sequence<t49b> c7;
+    @optional @id(37) t49g c8;
+  };
+  @nested @final union t49e switch (long) {
+    case 1:
+      t49f u1;
+    case 2:
+      t49h u2[3];
+    case 3:
+      sequence<t49i> u3[2];
+    case 4:
+      td49 u4[4];
+  };
+  @nested @final union t49k switch (long) {
+    case 1:
+      t49l u1;
+  };
+  struct t49 : t49a {
+    @optional @id(20) t49a f1;
+    @optional @id(21) t49a f2;
+    @optional @id(22) t49c f3;
+    @optional @id(23) t49d f4[2];
+    @optional @id(24) t49e f5;
+    @optional @id(25) sequence<sequence<t49a> > f6;
+    @optional @id(26) sequence<sequence<t49k> > f7;
+  };
+
 };

@@ -99,6 +99,12 @@ extern "C" {
  */
 #define DDS_KOF_OFFSET_MASK       0x0000ffff
 
+/**
+ * @anchor DDS_MID_OFFSET_MASK
+ * @ingroup serialization
+ * @brief Mask for the MID offset
+ */
+#define DDS_MID_OFFSET_MASK       0x0000ffff
 
 
 /**
@@ -366,7 +372,18 @@ enum dds_stream_opcode {
   DDS_OP_KOF = 0x07 << 24,
 
   /** see comment for JEQ/JEQ4 above */
-  DDS_OP_JEQ4 = 0x08 << 24
+  DDS_OP_JEQ4 = 0x08 << 24,
+
+  /**
+   * [MID, 0, elem-insn] [member id]
+       For members of aggregated final and appendable types. Currently only for optional members
+       the member ID is included, to facilitate adding the parameter header in XCDR1 data
+       representation.
+       where
+         [elem-insn] = (unsigned 16 bits) offset to instruction for element, from start of insn
+         [member id] = id for this member
+   */
+  DDS_OP_MID = 0x09 << 24
 };
 
 /**

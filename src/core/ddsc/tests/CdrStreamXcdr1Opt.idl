@@ -1,0 +1,15 @@
+// Copyright(c) 2024 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
+module CdrStreamXcdr1Optional {
+  @final struct t1 { @optional int32 f1; @key uint32 k; };
+  @final struct t2 { uint32 f0; @optional int32 f1; uint64 f2; @key uint32 k; };
+  @final struct t3 { @optional int64 f1; uint64 f2; @key uint32 k; };
+};

@@ -805,7 +805,7 @@ static dds_return_t deser_type_information (void * restrict dst, struct flagset 
   dds_return_t ret = 0;
 
   buf = ddsrt_memdup (dd->buf, dd->bufsz);
-  if (!dds_stream_normalize_data ((char *) buf, &srcoff, (uint32_t) dd->bufsz, dd->bswap, DDSI_RTPS_CDR_ENC_VERSION_2, DDS_XTypes_TypeInformation_desc.m_ops))
+  if (!dds_stream_normalize_xcdr2_data ((char *) buf, &srcoff, (uint32_t) dd->bufsz, dd->bswap, DDS_XTypes_TypeInformation_desc.m_ops))
   {
     ret = DDS_RETCODE_BAD_PARAMETER;
     goto err_normalize;
@@ -827,7 +827,7 @@ static dds_return_t ser_type_information (struct ddsi_xmsg *xmsg, ddsi_parameter
   ddsi_typeinfo_t const * const * x = deser_generic_src (src, &srcoff, plist_alignof (ddsi_typeinfo_t *));
 
   dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
-  if (!dds_stream_write_with_byte_order (&os, &dds_cdrstream_default_allocator, (const void *) *x, DDS_XTypes_TypeInformation_desc.m_ops, bo))
+  if (!dds_stream_write_with_byte_order (&os, &dds_cdrstream_default_allocator, NULL, (const void *) *x, DDS_XTypes_TypeInformation_desc.m_ops, bo))
   {
     // There are two possible errors from serializing: bad input and running out of
     // memory.  The input here is generated internally and can be assumed to be valid.

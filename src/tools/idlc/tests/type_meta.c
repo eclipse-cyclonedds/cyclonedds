@@ -120,7 +120,7 @@ static void xcdr2_deser (unsigned char *buf, uint32_t sz, void **obj, const stru
   {
     data = malloc (sz);
     memcpy (data, buf, sz);
-    const uint32_t *ret = dds_stream_normalize_data ((char *) data, &srcoff, sz, bswap, DDSI_RTPS_CDR_ENC_VERSION_2, desc->ops.ops);
+    const uint32_t *ret = dds_stream_normalize_xcdr2_data ((char *) data, &srcoff, sz, bswap, desc->ops.ops);
     CU_ASSERT_NOT_EQUAL_FATAL (ret, NULL);
   }
   else
