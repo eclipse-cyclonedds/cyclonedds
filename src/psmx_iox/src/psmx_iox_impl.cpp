@@ -24,11 +24,23 @@
 #include "dds/ddsc/dds_loaned_sample.h"
 #include "dds/ddsc/dds_psmx.h"
 
-#include "iceoryx_hoofs/posix_wrapper/signal_watcher.hpp"
 #include "iceoryx_posh/popo/untyped_publisher.hpp"
 #include "iceoryx_posh/popo/untyped_subscriber.hpp"
 #include "iceoryx_posh/popo/listener.hpp"
 #include "iceoryx_posh/runtime/posh_runtime.hpp"
+#include "iceoryx_versions.hpp"
+
+#if ICEORYX_VERSION_MAJOR >= 2
+#if ICEORYX_VERSION_MINOR >= 95
+#if ICEORYX_VERSION_PATCH >= 4
+#define IOX_INTERFACE_VERSION_3
+#endif
+#endif
+#endif
+
+#ifndef IOX_INTERFACE_VERSION_3
+  #include "iceoryx_hoofs/posix_wrapper/signal_watcher.hpp"
+#endif
 
 #include "psmx_iox_impl.hpp"
 #include "machineid.hpp"
@@ -49,16 +61,16 @@ static dds_psmx_node_identifier_t iox_psmx_get_node_id(const struct dds_psmx * p
 static dds_psmx_features_t iox_supported_features(const struct dds_psmx *psmx);
 
 static const dds_psmx_ops_t psmx_ops = {
-  .type_qos_supported = iox_type_qos_supported,
-  .create_topic = iox_create_topic,
-  .delete_topic = iox_delete_topic,
-  .deinit = iox_psmx_deinit,
-  .get_node_id = iox_psmx_get_node_id,
-  .supported_features = iox_supported_features,
+  /*.type_qos_supported = */iox_type_qos_supported,
+  /*.create_topic = */iox_create_topic,
+  /*.delete_topic = */iox_delete_topic,
+  /*.deinit = */iox_psmx_deinit,
+  /*.get_node_id = */iox_psmx_get_node_id,
+  /*.supported_features = */iox_supported_features,
   // backwards compatibility means the following two need not be set,
   // but leaving them out results in a compiler warning here
-  .create_topic_with_type = nullptr,
-  .delete_psmx = nullptr
+  /*.create_topic_with_type = */nullptr,
+  /*.delete_psmx = */nullptr
 };
 
 
@@ -66,8 +78,8 @@ static struct dds_psmx_endpoint * iox_create_endpoint(struct dds_psmx_topic * ps
 static dds_return_t iox_delete_endpoint(struct dds_psmx_endpoint * psmx_endpoint);
 
 static const dds_psmx_topic_ops_t psmx_topic_ops = {
-  .create_endpoint = iox_create_endpoint,
-  .delete_endpoint = iox_delete_endpoint
+  /*.create_endpoint = */iox_create_endpoint,
+  /*.delete_endpoint = */iox_delete_endpoint
 };
 
 
@@ -77,20 +89,20 @@ static dds_loaned_sample_t * iox_take(struct dds_psmx_endpoint * psmx_endpoint);
 static dds_return_t iox_on_data_available(struct dds_psmx_endpoint * psmx_endpoint, dds_entity_t reader);
 
 static const dds_psmx_endpoint_ops_t psmx_ep_ops = {
-  .request_loan = iox_req_loan,
-  .write = iox_write,
-  .take = iox_take,
-  .on_data_available = iox_on_data_available,
+  /*.request_loan = */iox_req_loan,
+  /*.write = */iox_write,
+  /*.take = */iox_take,
+  /*.on_data_available = */iox_on_data_available,
   // backwards compatibility means the following need not be set,
   // but leaving it out results in a compiler warning here
-  .write_with_key = nullptr
+  /*.write_with_key = */nullptr
 };
 
 
 static void iox_loaned_sample_free(dds_loaned_sample_t *to_fini);
 
 static const dds_loaned_sample_ops_t ls_ops = {
-  .free = iox_loaned_sample_free
+  /*.free = */iox_loaned_sample_free
 };
 
 
@@ -117,18 +129,22 @@ static thread_local bool sched_info_set = false;
 
 iox_psmx::iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service_name, const dds_psmx_node_identifier_t& node_id, bool support_keyed_topics, bool allow_nondisc_wr, sched::sched_info sched_info) :
   dds_psmx_t {
-    .ops = psmx_ops,
-    .instance_name = dds_string_dup (service_name.c_str()),
-    .priority = 0,
-    .locator = nullptr,
-    .instance_id = identifier,
-    .psmx_topics = nullptr,
+    /*.ops = */psmx_ops,
+    /*.instance_name = */dds_string_dup (service_name.c_str()),
+    /*.priority = */0,
+    /*.locator = */nullptr,
+    /*.instance_id = */identifier,
+    /*.psmx_topics = */nullptr,
   },
-  _support_keyed_topics{support_keyed_topics},
-  _allow_nondisc_wr{allow_nondisc_wr},
-  _service_name{iox::capro::IdString_t(iox::cxx::TruncateToCapacity, service_name)},
-  _listener{},
-  _sched_info{sched_info}
+  _support_keyed_topics(support_keyed_topics),
+  _allow_nondisc_wr(allow_nondisc_wr),
+#ifdef IOX_INTERFACE_VERSION_3
+  _service_name(iox::capro::IdString_t(iox::TruncateToCapacity, service_name.c_str())),
+#else
+  _service_name(iox::capro::IdString_t(iox::cxx::TruncateToCapacity, service_name.c_str())),
+#endif
+  _listener(),
+  _sched_info(sched_info)
 {
   uint64_t instance_hash = (uint64_t) ddsrt_random() << 32 | ddsrt_random();
   char iox_runtime_name[64];
@@ -217,9 +233,9 @@ char *iox_psmx_endpoint::get_partition_topic(const char * partition, const char 
 iox_psmx_endpoint::iox_psmx_endpoint(iox_psmx_topic &psmx_topic, const struct dds_qos * qos, dds_psmx_endpoint_type_t endpoint_type):
   dds_psmx_endpoint_t
   {
-    .ops = psmx_ep_ops,
-    .psmx_topic = &psmx_topic,
-    .endpoint_type = endpoint_type
+    /*.ops = */psmx_ep_ops,
+    /*.psmx_topic = */&psmx_topic,
+    /*.endpoint_type = */endpoint_type
   }, _parent(psmx_topic)
 {
   char *partition_topic;
@@ -325,11 +341,11 @@ struct iox_loaned_sample : public dds_loaned_sample_t
 
 iox_loaned_sample::iox_loaned_sample(struct dds_psmx_endpoint * origin, const void * iox_payload):
   dds_loaned_sample_t {
-    .ops = ls_ops,
-    .loan_origin = { .origin_kind = DDS_LOAN_ORIGIN_KIND_PSMX, .psmx_endpoint = origin },
-    .metadata = const_cast<dds_psmx_metadata_t *>(static_cast<const dds_psmx_metadata_t *>(iox::mepoo::ChunkHeader::fromUserPayload(iox_payload)->userHeader())),
-    .sample_ptr = const_cast<void *>(iox_payload),
-    .refc = { .v = 1 }
+    /*.ops = */ls_ops,
+    /*.loan_origin = */{/* .origin_kind = */DDS_LOAN_ORIGIN_KIND_PSMX, /*.psmx_endpoint = */origin },
+    /*.metadata = */const_cast<dds_psmx_metadata_t *>(static_cast<const dds_psmx_metadata_t *>(iox::mepoo::ChunkHeader::fromUserPayload(iox_payload)->userHeader())),
+    /*.sample_ptr = */const_cast<void *>(iox_payload),
+    /*.refc = */{ /*.v = */1 }
   }
 {
 }
@@ -631,6 +647,19 @@ static std::optional<std::string> get_config_option_val(const char *conf, const 
 
 static std::optional<iox::log::LogLevel> to_loglevel(const std::string& str)
 {
+#ifdef IOX_INTERFACE_VERSION_3
+  if (str == "off") return iox::log::LogLevel::Off;
+  if (str == "fatal") return iox::log::LogLevel::Fatal;
+  if (str == "error") return iox::log::LogLevel::Error;
+  if (str == "warn") return iox::log::LogLevel::Warn;
+  if (str == "info") return iox::log::LogLevel::Info;
+  if (str == "debug") return iox::log::LogLevel::Debug;
+  if (str == "trace")  return iox::log::LogLevel::Trace;
+  if (str == "verbose") {
+    std::cerr << ERROR_PREFIX "verbose loglevel is deprecated, use trace instead" << std::endl;
+    return iox::log::LogLevel::Trace;
+  }
+#else
   if (str == "off") return iox::log::LogLevel::kOff;
   if (str == "fatal") return iox::log::LogLevel::kFatal;
   if (str == "error") return iox::log::LogLevel::kError;
@@ -638,6 +667,7 @@ static std::optional<iox::log::LogLevel> to_loglevel(const std::string& str)
   if (str == "info") return iox::log::LogLevel::kInfo;
   if (str == "debug") return iox::log::LogLevel::kDebug;
   if (str == "verbose") return iox::log::LogLevel::kVerbose;
+#endif
   return std::nullopt;
 }
 
@@ -669,7 +699,11 @@ dds_return_t iox_create_psmx(struct dds_psmx **psmx, dds_psmx_instance_id_t inst
     auto loglevel = to_loglevel (opt_loglevel.value());
     if (!loglevel.has_value())
       return DDS_RETCODE_ERROR;
+#ifdef IOX_INTERFACE_VERSION_3
+    iox::log::Logger::get().init(loglevel.value());
+#else
     iox::log::LogManager::GetLogManager().SetDefaultLogLevel(loglevel.value(), iox::log::LogLevelOutput::kHideLogLevel);
+#endif
   }
 
   auto opt_service_name = get_config_option_val(config, "SERVICE_NAME");

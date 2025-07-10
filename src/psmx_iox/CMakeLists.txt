@@ -47,6 +47,10 @@ if(BUILD_SHARED_LIBS)
   target_link_libraries(psmx_iox PRIVATE ddsc)
 endif()
 
+if(MSVC)
+  target_compile_definitions(psmx_iox PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
+
 install(TARGETS psmx_iox
   EXPORT "${PROJECT_NAME}"
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
