@@ -141,7 +141,7 @@ Receiving of data is split into multiple threads:
    - Liveliness assertions
 
 - One or more delivery threads dedicated to the handling of application data:
-   - deserialisation
+   - deserialization
    - delivery to the DCPS data reader caches
 
 Fragmented data first enters the defragmentation stage, which is per proxy writer. The
