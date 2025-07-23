@@ -1553,7 +1553,7 @@ dds_get_type_name(dds_entity_t topic, char *name, size_t size);
  *    - instance_state       set to instance state if sample being filtered
  *                           matches an existing instance, NEW if not
  *    - generation counts    set to instance's generation counts if the sample
- *                           matches an existing instance instance, 0 if not
+ *                           matches an existing instance, 0 if not
  */
 
 /**
@@ -2919,7 +2919,7 @@ dds_waitset_set_trigger(
   bool trigger);
 
 /**
- * @brief This operation allows an application thread to wait for the a status
+ * @brief This operation allows an application thread to wait for a status
  *        change or other trigger on (one of) the entities that are attached to
  *        the WaitSet.
  * @ingroup waitset
@@ -2993,7 +2993,7 @@ dds_waitset_wait(
   dds_duration_t reltimeout);
 
 /**
- * @brief This operation allows an application thread to wait for the a status
+ * @brief This operation allows an application thread to wait for a status
  *        change or other trigger on (one of) the entities that are attached to
  *        the WaitSet.
  * @ingroup waitset
@@ -4128,7 +4128,7 @@ dds_take_next_wl(
  *           the sample was successfully handled and reading can continue
  * @retval otherwise
  *           an error, this will propagated to the caller if it occurs on the first call
- *           otherwise the return valu eof read/take will be the number of samples
+ *           otherwise the return value of read/take will be the number of samples
  *           successfully collected
  */
 typedef dds_return_t (*dds_read_with_collector_fn_t) (
