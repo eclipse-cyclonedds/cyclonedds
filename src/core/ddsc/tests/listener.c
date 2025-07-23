@@ -301,7 +301,7 @@ CU_Test (ddsc_listener, matched)
   //
   // Waiting for an acknowledgement therefore makes sense (and in the other runs, a 0.3s sleep
   // kind-a solves the problem of not known exactly how many events there will be: it means at
-  // least one event has been observed, and behaviour of Cyclone in a simple case like this means
+  // least one event has been observed, and behavior of Cyclone in a simple case like this means
   // the full retransmit request will be replied to with a single packet, and that therefore the
   // likelihood of the retransmitted data arriving within a window of 0.3s is very high.  (Where
   // 0.3s is an attempt to pick a duration on the long side of what's needed and short enough not
