@@ -1330,7 +1330,7 @@ static const idl_builtin_annotation_t annotations[] = {
               "TryConstructFailAction value default USE_DEFAULT;\n"
               "};",
     .summary =
-      "<p>This annotation allows setting the (fallback)behaviour when constructing fails.</p>",
+      "<p>This annotation allows setting the (fallback)behavior when constructing fails.</p>",
     .callback = annotate_try_construct },
   { .syntax = "@annotation ignore_literal_names { boolean value default TRUE; };",
     .summary =

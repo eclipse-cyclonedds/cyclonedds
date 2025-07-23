@@ -896,8 +896,8 @@ CU_Theory((bool use_nop_listener), ddsc_waitset_triggering, after_listener, .ini
     ret = dds_take_status (reader, &status, DDS_DATA_AVAILABLE_STATUS);
     CU_ASSERT_FATAL (ret == 0);
 
-    // If a nop listener, expected observed behaviour to be: first listener, then waitset
-    // which maps to 7; else, expected observed behaviour is just listener and no waitset
+    // If a nop listener, expected observed behavior to be: first listener, then waitset
+    // which maps to 7; else, expected observed behavior is just listener and no waitset
     // trigger
     //
     // There is no guarantee that the initial evaluation of the conditions by wait() won't

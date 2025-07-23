@@ -932,7 +932,7 @@ static struct cfgelem compatibility_cfgelems[] = {
       "have been published, the current text is in effect, and "
       "that is what pedantic currently does.</li>\n"
       "<li><i>strict</i>: a relatively less strict view of the standard than "
-      "does pedantic: it follows the established behaviour where the "
+      "does pedantic: it follows the established behavior where the "
       "standard is obviously in error.</li>\n"
       "<li><i>lax</i>: attempt to provide the smoothest possible "
       "interoperability, anticipating future revisions of elements in the "
@@ -1066,7 +1066,7 @@ static struct cfgelem control_topic_cfgattrs[] = {
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
     DESCRIPTION(
       "<p>This element controls whether Cyclone DDS should dynamically "
-      "create a topic to control Cyclone DDS's behaviour.<p>")),
+      "create a topic to control Cyclone DDS's behavior.<p>")),
   STRING(DEPRECATED("InitialReset"), NULL, 1, "inf",
     MEMBER(initial_deaf_mute_reset),
     FUNCTIONS(0, uf_duration_inf, 0, pf_duration),
@@ -1083,15 +1083,15 @@ static struct cfgelem control_topic_cfgelems[] = {
     FUNCTIONS(0, uf_deaf_mute, 0, pf_boolean),
     DESCRIPTION(
       "<p>This element controls whether Cyclone DDS defaults to deaf mode or to "
-      "normal mode. This controls the initial behaviour and what "
-      "behaviour it auto-reverts to.</p>")),
+      "normal mode. This controls the initial behavior and what "
+      "behavior it auto-reverts to.</p>")),
   BOOL(DEPRECATED("Mute"), NULL, 1, "false",
     MEMBER(initial_mute),
     FUNCTIONS(0, uf_deaf_mute, 0, pf_boolean),
     DESCRIPTION(
       "<p>This element controls whether Cyclone DDS defaults to mute mode or to "
-      "normal mode. This controls the initial behaviour and what "
-      "behaviour it auto-reverts to.</p>")),
+      "normal mode. This controls the initial behavior and what "
+      "behavior it auto-reverts to.</p>")),
   END_MARKER
 };
 
@@ -1273,7 +1273,7 @@ static struct cfgelem internal_cfgelems[] = {
     DESCRIPTION(
       "<p>This element enables heartbeat-to-ack latency among Cyclone DDS "
       "services by prepending timestamps to Heartbeat and AckNack messages "
-      "and calculating round trip times. This is non-standard behaviour. The "
+      "and calculating round trip times. This is non-standard behavior. The "
       "measured latencies are quite noisy and are currently not used "
       "anywhere.</p>")),
   INT("SynchronousDeliveryPriorityThreshold", NULL, 1, "0",

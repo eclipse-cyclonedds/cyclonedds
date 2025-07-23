@@ -108,7 +108,7 @@ The keyword *trace* enables all categories from *fatal* to *throttle*.
   
 The *topic* and *plist* categories are useful only for particular classes of discovery failures.
 
-The *radmin* and *whc* categories only help in analysing the detailed behaviour of those two
+The *radmin* and *whc* categories only help in analysing the detailed behavior of those two
 components and produce significant amounts of output.
 
 The file location is set in the configuration: :ref:`OutputFile <//CycloneDDS/Domain/Tracing/OutputFile>`

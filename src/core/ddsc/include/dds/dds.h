@@ -922,8 +922,8 @@ dds_get_listener(dds_entity_t entity, dds_listener_t * listener);
  * In case a related callback within the Listener is not set, the Listener of
  * the Parent entity is called recursively, until a Listener with the appropriate
  * callback set has been found and called. This allows the application to set
- * (for instance) a default behaviour in the Listener of the containing Publisher
- * and a DataWriter specific behaviour when needed. In case the callback is not
+ * (for instance) a default behavior in the Listener of the containing Publisher
+ * and a DataWriter specific behavior when needed. In case the callback is not
  * set in the Publishers' Listener either, the communication status will be
  * propagated to the Listener of the DomainParticipant of the containing
  * DomainParticipant. In case the callback is not set in the DomainParticipants'
@@ -987,7 +987,7 @@ dds_set_listener(dds_entity_t entity, const dds_listener_t * listener);
  * domain entity is created using a configuration taken from the CYCLONEDDS_URI
  * environment variable.
  *
- * The domain id may be specified as DDS_DOMAIN_DEFAULT, in which case the behaviour
+ * The domain id may be specified as DDS_DOMAIN_DEFAULT, in which case the behavior
  * depends on whether some domain entity already exists or not.  If there is at least one,
  * the one with the lowest id will be used.  If there are none, one is created with the
  * domain id taken from the first domain id specified in the configuration file (i.e.,

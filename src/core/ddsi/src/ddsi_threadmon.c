@@ -68,7 +68,7 @@ static void update_av_ary (struct ddsi_threadmon *sl, uint32_t nthreads)
       av_ary[i].alive = true;
       av_ary[i].vt = 0;
     }
-    // passing a null pointer to memcpy is undefined behaviour, even when
+    // passing a null pointer to memcpy is undefined behavior, even when
     // copying 0 bytes
     if (sl->av_ary)
       memcpy (&av_ary[i], sl->av_ary, sl->av_ary_size * sizeof (*av_ary));

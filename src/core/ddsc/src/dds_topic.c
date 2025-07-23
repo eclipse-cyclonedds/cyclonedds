@@ -518,7 +518,7 @@ dds_entity_t dds_create_topic_impl (
    *
    * Leaving the topic QoS sparse means a default-default topic QoS of
    * best-effort will do "the right thing" and let a writer still default to
-   * reliable ... (and keep behaviour unchanged) */
+   * reliable ... (and keep behavior unchanged) */
 
   if ((rc = dds_ensure_valid_data_representation (new_qos, (*sertype)->allowed_data_representation, (*sertype)->data_type_props, DDS_KIND_TOPIC)) != DDS_RETCODE_OK)
     goto error;

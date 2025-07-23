@@ -99,7 +99,7 @@ CycloneDDS configuration</xs:documentation>
       <xs:documentation>
 &lt;p&gt;This element sets the level of standards conformance of this instance of the Cyclone DDS Service. Stricter conformance typically means less interoperability with other implementations. Currently, three modes are defined:&lt;/p&gt;
 &lt;ul&gt;&lt;li&gt;&lt;i&gt;pedantic&lt;/i&gt;: very strictly conform to the specification, ultimately for compliance testing, but currently of little value because it adheres even to what will most likely turn out to be editing errors in the DDSI standard. Arguably, as long as no errata have been published, the current text is in effect, and that is what pedantic currently does.&lt;/li&gt;
-&lt;li&gt;&lt;i&gt;strict&lt;/i&gt;: a relatively less strict view of the standard than does pedantic: it follows the established behaviour where the standard is obviously in error.&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;strict&lt;/i&gt;: a relatively less strict view of the standard than does pedantic: it follows the established behavior where the standard is obviously in error.&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;lax&lt;/i&gt;: attempt to provide the smoothest possible interoperability, anticipating future revisions of elements in the standard in areas that other implementations do not adhere to, even though there is no good reason not to.&lt;/li&gt;&lt;/ul&gt;
 &lt;p&gt;The default value is: &lt;code&gt;lax&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
@@ -935,7 +935,7 @@ CycloneDDS configuration</xs:documentation>
   <xs:element name="MeasureHbToAckLatency" type="xs:boolean">
     <xs:annotation>
       <xs:documentation>
-&lt;p&gt;This element enables heartbeat-to-ack latency among Cyclone DDS services by prepending timestamps to Heartbeat and AckNack messages and calculating round trip times. This is non-standard behaviour. The measured latencies are quite noisy and are currently not used anywhere.&lt;/p&gt;
+&lt;p&gt;This element enables heartbeat-to-ack latency among Cyclone DDS services by prepending timestamps to Heartbeat and AckNack messages and calculating round trip times. This is non-standard behavior. The measured latencies are quite noisy and are currently not used anywhere.&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;false&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>

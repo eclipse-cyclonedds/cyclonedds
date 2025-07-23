@@ -69,7 +69,7 @@ void ddsi_sock_waitset_trigger (struct ddsi_sock_waitset * ws);
  *
  * A connection may be associated with only one waitset at any time, and
  * may be added to the waitset only once.  Failure to comply with this
- * restriction results in undefined behaviour.
+ * restriction results in undefined behavior.
  *
  * Closing a connection associated with a waitset is handled gracefully:
  * no operations will signal errors because of it.
@@ -85,7 +85,7 @@ int ddsi_sock_waitset_add (struct ddsi_sock_waitset * ws, struct ddsi_tran_conn 
  * @component socket_waitset
  *
  * Index 0 corresponds to the first connection added to the waitset, index 1 to the
- * second, etc. Behaviour is undefined when called after a successful wait but before
+ * second, etc. behavior is undefined when called after a successful wait but before
  * all events had been enumerated.
  *
  * @param ws        The socket waitset

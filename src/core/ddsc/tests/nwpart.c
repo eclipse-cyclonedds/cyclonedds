@@ -443,7 +443,7 @@ CU_TheoryDataPoints(ddsc_nwpart, selected_addrs) = {
     (const char *[]){ // other host, mc in as_default: no,  SEDP 2 uc, 0 mc
       "udp/193.168.0.2:31416@1001", NULL },
     //
-    // Expected behaviour: if SEDP gives:
+    // Expected behavior: if SEDP gives:
     // - no addresses, use ppant uni- and multicast addresses
     // - only multicast, use those for multicast and use ppant address for unicast
     // - only unicast, use only those (i.e., disable multicast for this reader, cos

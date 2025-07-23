@@ -52,7 +52,7 @@ typedef struct dds_security_fsm_state {
  * Template for user-defined debug methods.
  * It'll be called for every dispatched event, regardless of which state it
  * is in (which is also provided).
- * This can be used to get extra information about the behaviour of the
+ * This can be used to get extra information about the behavior of the
  * state machine.
  * It is not allowed to call any fsm API functions from within this
  * debug callback.

@@ -46,7 +46,7 @@ CycloneDDS configuration""" ] ]
         & [ a:documentation [ xml:lang="en" """
 <p>This element sets the level of standards conformance of this instance of the Cyclone DDS Service. Stricter conformance typically means less interoperability with other implementations. Currently, three modes are defined:</p>
 <ul><li><i>pedantic</i>: very strictly conform to the specification, ultimately for compliance testing, but currently of little value because it adheres even to what will most likely turn out to be editing errors in the DDSI standard. Arguably, as long as no errata have been published, the current text is in effect, and that is what pedantic currently does.</li>
-<li><i>strict</i>: a relatively less strict view of the standard than does pedantic: it follows the established behaviour where the standard is obviously in error.</li>
+<li><i>strict</i>: a relatively less strict view of the standard than does pedantic: it follows the established behavior where the standard is obviously in error.</li>
 <li><i>lax</i>: attempt to provide the smoothest possible interoperability, anticipating future revisions of elements in the standard in areas that other implementations do not adhere to, even though there is no good reason not to.</li></ul>
 <p>The default value is: <code>lax</code></p>""" ] ]
         element StandardsConformance {
@@ -599,7 +599,7 @@ CycloneDDS configuration""" ] ]
           memsize
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element enables heartbeat-to-ack latency among Cyclone DDS services by prepending timestamps to Heartbeat and AckNack messages and calculating round trip times. This is non-standard behaviour. The measured latencies are quite noisy and are currently not used anywhere.</p>
+<p>This element enables heartbeat-to-ack latency among Cyclone DDS services by prepending timestamps to Heartbeat and AckNack messages and calculating round trip times. This is non-standard behavior. The measured latencies are quite noisy and are currently not used anywhere.</p>
 <p>The default value is: <code>false</code></p>""" ] ]
         element MeasureHbToAckLatency {
           xsd:boolean
