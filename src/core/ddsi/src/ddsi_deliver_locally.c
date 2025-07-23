@@ -194,7 +194,7 @@ static dds_return_t deliver_locally_slowpath (struct ddsi_domaingv *gv, struct d
       payload = ops->makesample (&tk, gv, rd->type, vsourceinfo);
       type_sample_cache_store (&tsc, rd->type, payload, tk);
     }
-    /* check payload to allow for deserialisation failures */
+    /* check payload to allow for deserialization failures */
     if (payload)
     {
       EETRACE (source_entity, "%s "PGUIDFMT, trace_is_first ? " =>" : "", PGUID (rd->e.guid));
