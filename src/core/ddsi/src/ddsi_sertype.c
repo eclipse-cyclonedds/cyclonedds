@@ -271,6 +271,7 @@ uint32_t ddsi_sertype_enc_id_xcdr_version (uint16_t cdr_identifier)
   switch (cdr_identifier)
   {
     case DDSI_RTPS_CDR_LE: case DDSI_RTPS_CDR_BE:
+    case DDSI_RTPS_PL_CDR_LE: case DDSI_RTPS_PL_CDR_BE:
       return DDSI_RTPS_CDR_ENC_VERSION_1;
     case DDSI_RTPS_CDR2_LE: case DDSI_RTPS_CDR2_BE:
     case DDSI_RTPS_D_CDR2_LE: case DDSI_RTPS_D_CDR2_BE:
@@ -290,6 +291,7 @@ uint32_t ddsi_sertype_enc_id_enc_format (uint16_t cdr_identifier)
       return DDSI_RTPS_CDR_ENC_FORMAT_PLAIN;
     case DDSI_RTPS_D_CDR2_LE: case DDSI_RTPS_D_CDR2_BE:
       return DDSI_RTPS_CDR_ENC_FORMAT_DELIMITED;
+    case DDSI_RTPS_PL_CDR_LE: case DDSI_RTPS_PL_CDR_BE:
     case DDSI_RTPS_PL_CDR2_LE: case DDSI_RTPS_PL_CDR2_BE:
       return DDSI_RTPS_CDR_ENC_FORMAT_PL;
     default:

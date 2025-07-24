@@ -228,7 +228,8 @@ static struct dds_serdata_default *serdata_default_new (const struct dds_sertype
 
 static inline bool is_valid_xcdr1_id (unsigned short cdr_identifier)
 {
-  return (cdr_identifier == DDSI_RTPS_CDR_LE || cdr_identifier == DDSI_RTPS_CDR_BE);
+  return (cdr_identifier == DDSI_RTPS_CDR_LE || cdr_identifier == DDSI_RTPS_CDR_BE
+    || cdr_identifier == DDSI_RTPS_PL_CDR_LE || cdr_identifier == DDSI_RTPS_PL_CDR_BE);
 }
 
 static inline bool is_valid_xcdr2_id (unsigned short cdr_identifier)
