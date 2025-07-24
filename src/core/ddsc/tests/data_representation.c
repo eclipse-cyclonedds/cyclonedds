@@ -395,24 +395,24 @@ CU_Test(ddsc_data_representation, data_type_props, .init = data_representation_i
     { &DESC(TypeAppendable),       { X2,   true, X2 },   { X1,   true,  X1 },  { X2,   true,  X2 } },
     { &DESC(TypeAppendable),       { X2,   true, X2 },   { X2_1, true,  X2_1 },{ X2_1, true,  X2 } },
 
-    { &DESC(TypeMutable),          { X_,   true,  X2 },  { X_,   true,  X2 },  { X_,   true,  X2 } },
-    { &DESC(TypeMutable),          { X2_1, false, X_ },  { X_,   false, X_ },  { X_,   false, X_ } },
+    { &DESC(TypeMutable),          { X_,   true,  X2_1 },{ X_,   true,  X2_1 },{ X_,   true,  X2 } },
+    { &DESC(TypeMutable),          { X2_1, true,  X2_1 },{ X_,   true,  X2_1 },{ X_,   true,  X2 } },
     { &DESC(TypeMutable),          { X2,   true,  X2 },  { X_,   true,  X2 },  { X_,   true,  X2 } },
 
     { &DESC(TypeNestedAppendable), { X_,   true,  X2 },  { X_,   true,  X2 },  { X_,   true,  X2 } },
     { &DESC(TypeNestedAppendable), { X2_1, false, X_ },  { X_,   false, X_ },  { X_,   false, X_ } },
     { &DESC(TypeNestedAppendable), { X2,   true,  X2 },  { X_,   true,  X2 },  { X_,   true,  X2 } },
 
-    { &DESC(TypeNestedMutable),    { X_,   true,  X2 },  { X_,   true,  X2 },  { X_,   true,  X2 } },
-    { &DESC(TypeNestedMutable),    { X2_1, false, X_ },  { X_,   false, X_ },  { X_,   false, X_ } },
+    { &DESC(TypeNestedMutable),    { X_,   true,  X2_1 },{ X_,   true,  X2_1 },{ X_,   true,  X2 } },
+    { &DESC(TypeNestedMutable),    { X2_1, true,  X2_1 },{ X_,   true,  X2_1 },{ X_,   true,  X2 } },
     { &DESC(TypeNestedMutable),    { X2,   true,  X2 },  { X_,   true,  X2 },  { X_,   true,  X2 } },
 
-    { &DESC(TypeNestedMutableArr), { X_,   true,  X2 },  { X_,   true,  X2 },  { X_,   true,  X2 } },
-    { &DESC(TypeNestedMutableArr), { X1,   false, X_ },  { X_,   false, X_ },  { X_,   false, X_ } },
-    { &DESC(TypeNestedMutableSeq), { X_,   true,  X2 },  { X_,   true,  X2 },  { X_,   true,  X2 } },
-    { &DESC(TypeNestedMutableSeq), { X1,   false, X_ },  { X_,   false, X_ },  { X_,   false, X_ } },
-    { &DESC(TypeNestedMutableUni), { X_,   true,  X2 },  { X_,   true,  X2 },  { X_,   true,  X2 } },
-    { &DESC(TypeNestedMutableUni), { X1,   false, X_ },  { X_,   false, X_ },  { X_,   false, X_ } }
+    { &DESC(TypeNestedMutableArr), { X_,   true,  X2_1 },{ X_,   true,  X2_1 },{ X_,   true,  X2 } },
+    { &DESC(TypeNestedMutableArr), { X1,   true,  X1 },  { X_,   true,  X1 },  { X_,   true,  X1 } },
+    { &DESC(TypeNestedMutableSeq), { X_,   true,  X2_1 },{ X_,   true,  X2_1 },{ X_,   true,  X2 } },
+    { &DESC(TypeNestedMutableSeq), { X1,   true,  X1 },  { X_,   true,  X1 },  { X_,   true,  X1 } },
+    { &DESC(TypeNestedMutableUni), { X_,   true,  X2_1 },{ X_,   true,  X2_1 },{ X_,   true,  X2 } },
+    { &DESC(TypeNestedMutableUni), { X1,   true,  X1 },  { X_,   true,  X1 },  { X_,   true,  X1 } }
   };
 #undef X_
 #undef X1
