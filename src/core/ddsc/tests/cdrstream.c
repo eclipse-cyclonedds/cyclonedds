@@ -1044,7 +1044,7 @@ CU_Test (ddsc_cdrstream, appendable_mutable, .init = cdrstream_init, .fini = cdr
   } tests[] = {
     { "appendable struct", true, &D(AppendStruct1), &D(AppendStruct2), I(appendstruct1), I(appendstruct2), C(appendstruct1), C(appendstruct2), F(appendstruct), F(appendstruct) },
     { "appendable defaults", true, &D(AppendDefaults1), &D(AppendDefaults2), I(appenddefaults1), I(appenddefaults2), C(appenddefaults1), C(appenddefaults2), F(appenddefaults1), F(appenddefaults2) },
-    { "mutable", false, &D(Mutable1), &D(Mutable2), I(mutable1), I(mutable2), C(mutable1), C(mutable2), F(mutable1), F(mutable2) }
+    { "mutable", true, &D(Mutable1), &D(Mutable2), I(mutable1), I(mutable2), C(mutable1), C(mutable2), F(mutable1), F(mutable2) }
   };
 
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
@@ -1145,8 +1145,8 @@ CU_Test (ddsc_cdrstream, min_xcdr_version)
     { D(t_append_seq), XCDR2 },
     { D(t_append_bseq), XCDR2 },
     { D(t_append_arr), XCDR2 },
-    { D(t_mut), XCDR2 },
-    { D(t_nested_mut), XCDR2 },
+    { D(t_mut), XCDR1 },
+    { D(t_nested_mut), XCDR1 },
     { D(t_nested_opt), XCDR1 }
   };
 
@@ -1380,45 +1380,49 @@ CU_Test (ddsc_cdrstream, skip_default)
     sample_init_fn *init_sub;
     default_check_fn *check_sub;
     const char *description;
+    bool test_xcdr1;
   } tests[] = {
-    { D(t1_pub), D(t1_sub), init_sub1, check_t1, "appendable top-level, appendable member" },
-    { D(t2_pub), D(t2_sub), init_sub2, check_t2, "appendable top-level, mutable member" },
-    { D(t3_pub), D(t3_sub), init_sub3, check_t3, "mutable top-level, nested mutable member" },
-    { D(t4_pub), D(t4_sub), init_sub4, check_t4, "mutable top-level, nested appendable member" },
-    { D(t5_pub), D(t5_sub), init_sub5, check_t5, "top-level equal, mutable member different" }
+    { D(t1_pub), D(t1_sub), init_sub1, check_t1, "appendable top-level, appendable member", false },
+    { D(t2_pub), D(t2_sub), init_sub2, check_t2, "appendable top-level, mutable member", true },
+    { D(t3_pub), D(t3_sub), init_sub3, check_t3, "mutable top-level, nested mutable member", true },
+    { D(t4_pub), D(t4_sub), init_sub4, check_t4, "mutable top-level, nested appendable member", false },
+    { D(t5_pub), D(t5_sub), init_sub5, check_t5, "top-level equal, mutable member different", true }
   };
 
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
-    printf("running test for desc %s/%s: %s\n", tests[i].desc_pub->m_typename, tests[i].desc_sub->m_typename, tests[i].description);
+    for (uint32_t x = 0; x <= (tests[i].test_xcdr1 ? 1u : 0u); x++)
+    {
+      printf("running test for desc %s/%s, XCDR%u: %s\n", tests[i].desc_pub->m_typename, tests[i].desc_sub->m_typename, x ? 1 : 2, tests[i].description);
 
-    struct dds_cdrstream_desc desc_pub, desc_sub;
-    dds_cdrstream_desc_from_topic_desc (&desc_pub, tests[i].desc_pub);
-    assert (desc_pub.ops.ops);
-    dds_cdrstream_desc_from_topic_desc (&desc_sub, tests[i].desc_sub);
-    assert (desc_sub.ops.ops);
+      struct dds_cdrstream_desc desc_pub, desc_sub;
+      dds_cdrstream_desc_from_topic_desc (&desc_pub, tests[i].desc_pub);
+      assert (desc_pub.ops.ops);
+      dds_cdrstream_desc_from_topic_desc (&desc_sub, tests[i].desc_sub);
+      assert (desc_sub.ops.ops);
 
-    dds_ostream_t os = { .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
-    uint8_t *sample_pub = ddsrt_malloc (desc_pub.size);
-    memset (sample_pub, 0xef, desc_pub.size); // assumes no pointers (strings, sequences, @external, @optional) in pub type
-    bool ret = dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, sample_pub, &desc_pub);
-    CU_ASSERT_FATAL (ret);
+      dds_ostream_t os = { .m_xcdr_version = x ? DDSI_RTPS_CDR_ENC_VERSION_1 : DDSI_RTPS_CDR_ENC_VERSION_2 };
+      uint8_t *sample_pub = ddsrt_malloc (desc_pub.size);
+      memset (sample_pub, 0xef, desc_pub.size); // assumes no pointers (strings, sequences, @external, @optional) in pub type
+      bool ret = dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, sample_pub, &desc_pub);
+      CU_ASSERT_FATAL (ret);
 
-    uint8_t *sample_sub = ddsrt_malloc (desc_sub.size);
-    memset (sample_sub, 0xbe, desc_sub.size);
-    tests[i].init_sub (sample_sub);
-    dds_istream_t is = { .m_buffer = os.m_buffer, .m_index = 0, .m_size = os.m_size, .m_xcdr_version = os.m_xcdr_version };
-    dds_stream_read_sample (&is, sample_sub, &dds_cdrstream_default_allocator, &desc_sub);
-    tests[i].check_sub (sample_sub);
+      uint8_t *sample_sub = ddsrt_malloc (desc_sub.size);
+      memset (sample_sub, 0xbe, desc_sub.size);
+      tests[i].init_sub (sample_sub);
+      dds_istream_t is = { .m_buffer = os.m_buffer, .m_index = 0, .m_size = os.m_index, .m_xcdr_version = os.m_xcdr_version };
+      dds_stream_read_sample (&is, sample_sub, &dds_cdrstream_default_allocator, &desc_sub);
+      tests[i].check_sub (sample_sub);
 
-    // clean-up
-    dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
-    ddsrt_free (sample_pub);
-    dds_stream_free_sample (sample_sub, &dds_cdrstream_default_allocator, desc_sub.ops.ops);
-    ddsrt_free (sample_sub);
+      // clean-up
+      dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
+      ddsrt_free (sample_pub);
+      dds_stream_free_sample (sample_sub, &dds_cdrstream_default_allocator, desc_sub.ops.ops);
+      ddsrt_free (sample_sub);
 
-    dds_cdrstream_desc_fini (&desc_pub, &dds_cdrstream_default_allocator);
-    dds_cdrstream_desc_fini (&desc_sub, &dds_cdrstream_default_allocator);
+      dds_cdrstream_desc_fini (&desc_pub, &dds_cdrstream_default_allocator);
+      dds_cdrstream_desc_fini (&desc_sub, &dds_cdrstream_default_allocator);
+    }
   }
 }
 #undef D
@@ -1458,13 +1462,13 @@ CU_Test(ddsc_cdrstream, key_size)
     { D(t21), true, true, 16, 16, true }, // key size XCDR1: 1 + 7 (pad) + 1 * 8 / XCDR2: 1 + 3 (pad) + 4 (dheader) + 1 * 8 /
 
     { D(t22), true, true, 4, 8, true }, // key size: XCDR1: 4 / XCDR2: 4 (dh) + 4
-    { D(t23), false, true, 0, 12, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4
+    { D(t23), false, true, VAR, 12, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4
     { D(t24), false, true, 0, 12, true }, // key size: XCDR2: 4 (dh) + 4 (dh) + 4
-    { D(t25), false, false, 0, VAR, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (dh) + 4 (emh) + 4
+    { D(t25), false, false, VAR, VAR, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (dh) + 4 (emh) + 4
     { D(t26), false, false, 0, VAR, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (emh-nextint) + 4 (dh) + 1
     { D(t27), false, true, 0, 9, true }, // key size: XCDR2: 4 (dh) + 4 (dh) + 1
-    { D(t28), false, true, 0, 14, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (dh) + 2 * 1
-    { D(t29), false, true, 0, 12, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4
+    { D(t28), false, true, VAR, 14, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (dh) + 2 * 1
+    { D(t29), false, true, VAR, 12, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4
 
     { D(t30), false, false, VAR, VAR, false },
     { D(t31), true, true, 16, 16, true }, // key size: 4 (length) + 3 * 4
@@ -1473,13 +1477,13 @@ CU_Test(ddsc_cdrstream, key_size)
     { D(t34), false, false, VAR, VAR, false },
     { D(t35), false, true, 0, 13, true }, // key size: XCDR2: 4 (dh) + 4 (length) + 4 (dh) + 1
     { D(t36), true, true, 16, 16, true }, // key size: 4 (length) + 12 * 1
-    { D(t37), false, true, 0, 16, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (length) + 4
+    { D(t37), false, true, VAR, 16, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (length) + 4
     { D(t38), true, true, 12, 16, true }, // key size: XCDR1: 4 (length) + 2 * (1 + 1 (pad) + 2) / XCDR2: 4 (dh) + 4 (length) + 2 * (1 + 1 (pad) + 2)
 
     { D(t39), true, true, 2, 6, true }, // key size: XCDR1: 2 * 1 / XCDR2: 4 (dh) + 2 * 1
     { D(t40), true, true, 4, 8, true }, // key size: XCDR1: 4 * 1 / XCDR2: 4 (dh) + 4 * 1
     { D(t41), false, true, 0, 9, true }, // key size: XCDR2: 4 (dh) + 4 (dh) + 1
-    { D(t42), false, true, 0, 16, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (dh) + 4
+    { D(t42), false, true, VAR, 16, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (dh) + 4
     { D(t43), true, true, 8, 12, true }, // key size: XCDR1: 2 * (1 + 1 (pad) + 2) / XCDR2: 4 (dh) + 2 * (1 + 1 (pad) + 2)
 
     { D(t44), false, false, VAR, VAR, false },
