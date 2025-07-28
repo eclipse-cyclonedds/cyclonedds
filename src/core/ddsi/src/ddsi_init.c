@@ -1344,13 +1344,13 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
 
 #ifdef DDS_HAS_TYPELIB
   ddsrt_mutex_init (&gv->typelib_lock);
-  ddsrt_cond_init (&gv->typelib_resolved_cond);
+  ddsrt_cond_etime_init (&gv->typelib_resolved_cond);
   ddsrt_avl_init (&ddsi_typelib_treedef, &gv->typelib);
   ddsrt_avl_init (&ddsi_typedeps_treedef, &gv->typedeps);
   ddsrt_avl_init (&ddsi_typedeps_reverse_treedef, &gv->typedeps_reverse);
 #endif
   ddsrt_mutex_init (&gv->new_topic_lock);
-  ddsrt_cond_init (&gv->new_topic_cond);
+  ddsrt_cond_etime_init (&gv->new_topic_cond);
   gv->new_topic_version = 0;
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   ddsrt_mutex_init (&gv->topic_defs_lock);
@@ -1659,13 +1659,13 @@ err_unicast_sockets:
   ddsrt_mutex_destroy (&gv->topic_defs_lock);
 #endif
   ddsrt_mutex_destroy (&gv->new_topic_lock);
-  ddsrt_cond_destroy (&gv->new_topic_cond);
+  ddsrt_cond_etime_destroy (&gv->new_topic_cond);
 #ifdef DDS_HAS_TYPELIB
   ddsrt_avl_free (&ddsi_typelib_treedef, &gv->typelib, 0);
   ddsrt_avl_free (&ddsi_typedeps_treedef, &gv->typedeps, 0);
   ddsrt_avl_free (&ddsi_typedeps_reverse_treedef, &gv->typedeps_reverse, 0);
   ddsrt_mutex_destroy (&gv->typelib_lock);
-  ddsrt_cond_destroy (&gv->typelib_resolved_cond);
+  ddsrt_cond_etime_destroy (&gv->typelib_resolved_cond);
 #endif
 #ifdef DDS_HAS_SECURITY
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_wr);

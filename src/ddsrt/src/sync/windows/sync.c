@@ -13,202 +13,255 @@
 
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/time.h"
+#include "dds/ddsrt/static_assert.h"
 
-void ddsrt_mutex_init(ddsrt_mutex_t *mutex)
+void ddsrt_mutex_init (ddsrt_mutex_t *mutex)
 {
-  assert(mutex != NULL);
-  InitializeSRWLock(&mutex->lock);
+  InitializeSRWLock (&mutex->lock);
 }
 
-void ddsrt_mutex_destroy(ddsrt_mutex_t *mutex)
+void ddsrt_mutex_destroy (ddsrt_mutex_t *mutex)
 {
-  assert(mutex != NULL);
+  (void) mutex;
 }
 
-void ddsrt_mutex_lock(ddsrt_mutex_t *mutex)
+void ddsrt_mutex_lock (ddsrt_mutex_t *mutex)
 {
-  assert(mutex != NULL);
-  AcquireSRWLockExclusive(&mutex->lock);
+  AcquireSRWLockExclusive (&mutex->lock);
 }
 
-bool ddsrt_mutex_trylock(ddsrt_mutex_t *mutex)
+bool ddsrt_mutex_trylock (ddsrt_mutex_t *mutex)
 {
-  assert(mutex != NULL);
-  return TryAcquireSRWLockExclusive(&mutex->lock);
+  return TryAcquireSRWLockExclusive (&mutex->lock);
 }
 
-void ddsrt_mutex_unlock(ddsrt_mutex_t *mutex)
+void ddsrt_mutex_unlock (ddsrt_mutex_t *mutex)
 {
-  assert(mutex != NULL);
-  ReleaseSRWLockExclusive(&mutex->lock);
+  ReleaseSRWLockExclusive (&mutex->lock);
 }
 
 void ddsrt_cond_init (ddsrt_cond_t *cond)
 {
-  assert(cond != NULL);
-  InitializeConditionVariable(&cond->cond);
+  InitializeConditionVariable (&cond->cond);
 }
 
-void ddsrt_cond_destroy(ddsrt_cond_t *cond)
+void ddsrt_cond_wctime_init (ddsrt_cond_wctime_t *cond)
 {
-  assert(cond != NULL);
+  InitializeConditionVariable (&cond->cond);
 }
 
-void
-ddsrt_cond_wait(ddsrt_cond_t *cond, ddsrt_mutex_t *mutex)
+void ddsrt_cond_mtime_init (ddsrt_cond_mtime_t *cond)
 {
-  assert(cond != NULL);
-  assert(mutex != NULL);
+  InitializeConditionVariable (&cond->cond);
+}
 
-  if (!SleepConditionVariableSRW(&cond->cond, &mutex->lock, INFINITE, 0)) {
+void ddsrt_cond_etime_init (ddsrt_cond_etime_t *cond)
+{
+  InitializeConditionVariable (&cond->cond);
+}
+
+void ddsrt_cond_destroy (ddsrt_cond_t *cond)
+{
+  (void) cond;
+}
+
+void ddsrt_cond_wctime_destroy (ddsrt_cond_wctime_t *cond)
+{
+  (void) cond;
+}
+
+void ddsrt_cond_mtime_destroy (ddsrt_cond_mtime_t *cond)
+{
+  (void) cond;
+}
+
+void ddsrt_cond_etime_destroy (ddsrt_cond_etime_t *cond)
+{
+  (void) cond;
+}
+
+static void ddsrt_cond_wait_impl (CONDITION_VARIABLE *cond, SRWLOCK *mutex)
+{
+  if (!SleepConditionVariableSRW(cond, mutex, INFINITE, 0)) {
     abort();
   }
 }
 
-bool
-ddsrt_cond_waituntil(
-  ddsrt_cond_t *cond,
-  ddsrt_mutex_t *mutex,
-  dds_time_t abstime)
+void ddsrt_cond_wait (ddsrt_cond_t *cond, ddsrt_mutex_t *mutex)
 {
-  dds_duration_t reltime;
-
-  assert(cond != NULL);
-  assert(mutex != NULL);
-
-  if (abstime == DDS_NEVER) {
-    reltime = DDS_INFINITY;
-  } else {
-    dds_time_t time = dds_time();
-    reltime = (abstime > time ? abstime - time : 0);
-  }
-
-  return ddsrt_cond_waitfor(cond, mutex, reltime);
+  ddsrt_cond_wait_impl (&cond->cond, &mutex->lock);
 }
 
-bool
-ddsrt_cond_waitfor(
-  ddsrt_cond_t *cond,
-  ddsrt_mutex_t *mutex,
-  dds_duration_t reltime)
+void ddsrt_cond_wctime_wait (ddsrt_cond_wctime_t *cond, ddsrt_mutex_t *mutex)
 {
-  dds_time_t abstime;
-  DWORD msecs;
+  ddsrt_cond_wait_impl (&cond->cond, &mutex->lock);
+}
 
-  assert(cond != NULL);
-  assert(mutex != NULL);
+void ddsrt_cond_mtime_wait (ddsrt_cond_mtime_t *cond, ddsrt_mutex_t *mutex)
+{
+  ddsrt_cond_wait_impl (&cond->cond, &mutex->lock);
+}
 
-  if (reltime == DDS_INFINITY) {
-    ddsrt_cond_wait(cond, mutex);
+void ddsrt_cond_etime_wait (ddsrt_cond_etime_t *cond, ddsrt_mutex_t *mutex)
+{
+  ddsrt_cond_wait_impl (&cond->cond, &mutex->lock);
+}
+
+static bool ddsrt_cond_waituntil_impl (CONDITION_VARIABLE *cond, SRWLOCK *mutex, int64_t tnow, int64_t abstimeout)
+{
+  if (abstimeout == DDS_NEVER)
+  {
+    if (!SleepConditionVariableSRW (cond, mutex, INFINITE, 0))
+      abort ();
     return true;
   }
-
-  abstime = ddsrt_time_add_duration(dds_time(), reltime);
-  msecs = ddsrt_duration_to_msecs_ceil(reltime);
-  if (SleepConditionVariableSRW(&cond->cond, &mutex->lock, msecs, 0)) {
-    return true;
-  } else if (GetLastError() != ERROR_TIMEOUT) {
-    abort();
+  else if (abstimeout < tnow)
+  {
+    return false;
   }
+  else
+  {
+    DDSRT_STATIC_ASSERT (INFINITE < (DDS_NEVER / DDS_NSECS_IN_MSEC));
+    const int64_t timeout = abstimeout - tnow;
+    DWORD msecs;
+    bool truncated;
+    if (timeout < (INFINITE - 1) * DDS_NSECS_IN_MSEC - (DDS_NSECS_IN_MSEC - 1))
+    {
+      msecs = (DWORD) ((timeout + DDS_NSECS_IN_MSEC - 1) / DDS_NSECS_IN_MSEC);
+      truncated = false;
+    }
+    else
+    {
+      msecs = INFINITE - 1;
+      truncated = true;
+    }
+    if (SleepConditionVariableSRW (cond, mutex, msecs, 0))
+      return true;
+    if (GetLastError () != ERROR_TIMEOUT)
+      abort ();
+    return truncated;
+  }
+}
 
-  return (dds_time() >= abstime) ? false : true;
+bool ddsrt_cond_wctime_waituntil (ddsrt_cond_wctime_t *cond, ddsrt_mutex_t *mutex, ddsrt_wctime_t abstimeout)
+{
+  return ddsrt_cond_waituntil_impl (&cond->cond, &mutex->lock, ddsrt_time_wallclock().v, abstimeout.v);
+}
+
+bool ddsrt_cond_mtime_waituntil (ddsrt_cond_mtime_t *cond, ddsrt_mutex_t *mutex, ddsrt_mtime_t abstimeout)
+{
+  return ddsrt_cond_waituntil_impl (&cond->cond, &mutex->lock, ddsrt_time_monotonic().v, abstimeout.v);
+}
+
+bool ddsrt_cond_etime_waituntil (ddsrt_cond_etime_t *cond, ddsrt_mutex_t *mutex, ddsrt_etime_t abstimeout)
+{
+  return ddsrt_cond_waituntil_impl (&cond->cond, &mutex->lock, ddsrt_time_elapsed().v, abstimeout.v);
 }
 
 void ddsrt_cond_signal (ddsrt_cond_t *cond)
 {
-  assert(cond != NULL);
-  WakeConditionVariable(&cond->cond);
+  WakeConditionVariable (&cond->cond);
+}
+
+void ddsrt_cond_wctime_signal (ddsrt_cond_wctime_t *cond)
+{
+  WakeConditionVariable (&cond->cond);
+}
+
+void ddsrt_cond_mtime_signal (ddsrt_cond_mtime_t *cond)
+{
+  WakeConditionVariable (&cond->cond);
+}
+
+void ddsrt_cond_etime_signal (ddsrt_cond_etime_t *cond)
+{
+  WakeConditionVariable (&cond->cond);
 }
 
 void ddsrt_cond_broadcast (ddsrt_cond_t *cond)
 {
-  assert(cond != NULL);
-  WakeAllConditionVariable(&cond->cond);
+  WakeAllConditionVariable (&cond->cond);
+}
+
+void ddsrt_cond_wctime_broadcast (ddsrt_cond_wctime_t *cond)
+{
+  WakeAllConditionVariable (&cond->cond);
+}
+
+void ddsrt_cond_mtime_broadcast (ddsrt_cond_mtime_t *cond)
+{
+  WakeAllConditionVariable (&cond->cond);
+}
+
+void ddsrt_cond_etime_broadcast (ddsrt_cond_etime_t *cond)
+{
+  WakeAllConditionVariable (&cond->cond);
 }
 
 void ddsrt_rwlock_init (ddsrt_rwlock_t *rwlock)
 {
-  assert(rwlock);
-  InitializeSRWLock(&rwlock->lock);
+  InitializeSRWLock (&rwlock->lock);
   rwlock->state = 0;
 }
 
 void ddsrt_rwlock_destroy (ddsrt_rwlock_t *rwlock)
 {
-  assert(rwlock);
+  (void) rwlock;
 }
 
 void ddsrt_rwlock_read (ddsrt_rwlock_t *rwlock)
 {
-  assert(rwlock);
-  AcquireSRWLockShared(&rwlock->lock);
+  AcquireSRWLockShared (&rwlock->lock);
   rwlock->state = 1;
 }
 
-void ddsrt_rwlock_write(ddsrt_rwlock_t *rwlock)
+void ddsrt_rwlock_write (ddsrt_rwlock_t *rwlock)
 {
-  assert(rwlock);
-  AcquireSRWLockExclusive(&rwlock->lock);
+  AcquireSRWLockExclusive (&rwlock->lock);
   rwlock->state = -1;
 }
 
 bool ddsrt_rwlock_tryread (ddsrt_rwlock_t *rwlock)
 {
-  assert(rwlock);
-  if (TryAcquireSRWLockShared(&rwlock->lock)) {
-    rwlock->state = 1;
-    return true;
-  }
-  return false;
+  if (!TryAcquireSRWLockShared (&rwlock->lock))
+    return false;
+  rwlock->state = 1;
+  return true;
 }
 
 bool ddsrt_rwlock_trywrite (ddsrt_rwlock_t *rwlock)
 {
-  assert(rwlock);
-  if (TryAcquireSRWLockExclusive(&rwlock->lock)) {
-    rwlock->state = -1;
-    return true;
-  }
-  return false;
+  if (!TryAcquireSRWLockExclusive(&rwlock->lock))
+    return false;
+  rwlock->state = -1;
+  return true;
 }
 
 void ddsrt_rwlock_unlock (ddsrt_rwlock_t *rwlock)
 {
-  assert(rwlock);
-  assert(rwlock->state != 0);
-  if (rwlock->state > 0) {
-    ReleaseSRWLockShared(&rwlock->lock);
-  } else {
-    ReleaseSRWLockExclusive(&rwlock->lock);
-  }
+  assert (rwlock->state != 0);
+  if (rwlock->state > 0)
+    ReleaseSRWLockShared (&rwlock->lock);
+  else
+    ReleaseSRWLockExclusive (&rwlock->lock);
 }
 
 typedef struct {
   ddsrt_once_fn init_fn;
 } once_arg_t;
 
-static BOOL WINAPI
-once_wrapper(
-  PINIT_ONCE InitOnce,
-  PVOID Parameter,
-  PVOID *Context)
+static BOOL WINAPI once_wrapper (PINIT_ONCE InitOnce, PVOID Parameter, PVOID *Context)
 {
-  once_arg_t *wrap = (once_arg_t *)Parameter;
-
-  (void)InitOnce;
-  assert(Parameter != NULL);
-  assert(Context == NULL);
-
-  wrap->init_fn();
-
+  once_arg_t *wrap = (once_arg_t *) Parameter;
+  (void) InitOnce;
+  assert (Parameter != NULL);
+  assert (Context == NULL);
+  wrap->init_fn ();
   return TRUE;
 }
 
-void
-ddsrt_once(
-  ddsrt_once_t *control,
-  ddsrt_once_fn init_fn)
+void ddsrt_once (ddsrt_once_t *control, ddsrt_once_fn init_fn)
 {
   once_arg_t wrap = { .init_fn = init_fn };
-  (void) InitOnceExecuteOnce(control, &once_wrapper, &wrap, NULL);
+  (void) InitOnceExecuteOnce (control, &once_wrapper, &wrap, NULL);
 }

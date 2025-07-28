@@ -674,7 +674,7 @@ void ddsi_writer_clear_retransmitting (struct ddsi_writer *wr)
   wr->retransmitting = 0;
   wr->t_whc_high_upd = wr->t_rexmit_end = ddsrt_time_elapsed();
   wr->time_retransmit += (uint64_t) (wr->t_rexmit_end.v - wr->t_rexmit_start.v);
-  ddsrt_cond_broadcast (&wr->throttle_cond);
+  ddsrt_cond_mtime_broadcast (&wr->throttle_cond);
 }
 
 unsigned ddsi_remove_acked_messages (struct ddsi_writer *wr, struct ddsi_whc_state *whcst, struct ddsi_whc_node **deferred_free_list)
@@ -684,7 +684,7 @@ unsigned ddsi_remove_acked_messages (struct ddsi_writer *wr, struct ddsi_whc_sta
   ASSERT_MUTEX_HELD (&wr->e.lock);
   n = ddsi_whc_remove_acked_messages (wr->whc, ddsi_writer_max_drop_seq (wr), whcst, deferred_free_list);
   /* trigger anyone waiting in throttle_writer() or wait_for_acks() */
-  ddsrt_cond_broadcast (&wr->throttle_cond);
+  ddsrt_cond_mtime_broadcast (&wr->throttle_cond);
   if (wr->retransmitting && whcst->unacked_bytes == 0)
     ddsi_writer_clear_retransmitting (wr);
   if (wr->state == WRST_LINGERING && whcst->unacked_bytes == 0)
@@ -784,7 +784,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
 
-  ddsrt_cond_init (&wr->throttle_cond);
+  ddsrt_cond_mtime_init (&wr->throttle_cond);
   wr->seq = 0;
   ddsrt_atomic_st64 (&wr->seq_xmit, (uint64_t) 0);
   wr->hbcount = 1;
@@ -1152,7 +1152,7 @@ static void gc_delete_writer (struct ddsi_gcreq *gcreq)
   ddsi_xqos_fini (wr->xqos);
   ddsrt_free (wr->xqos);
   ddsi_local_reader_ary_fini (&wr->rdary);
-  ddsrt_cond_destroy (&wr->throttle_cond);
+  ddsrt_cond_mtime_destroy (&wr->throttle_cond);
 
   ddsi_sertype_unref ((struct ddsi_sertype *) wr->type);
   endpoint_common_fini (&wr->e, &wr->c);
@@ -1167,7 +1167,7 @@ static void gc_delete_writer_throttlewait (struct ddsi_gcreq *gcreq)
   assert (wr->state == WRST_DELETING);
   ddsrt_mutex_lock (&wr->e.lock);
   while (wr->throttling)
-    ddsrt_cond_wait (&wr->throttle_cond, &wr->e.lock);
+    ddsrt_cond_mtime_wait (&wr->throttle_cond, &wr->e.lock);
   ddsrt_mutex_unlock (&wr->e.lock);
   ddsi_gcreq_requeue (gcreq, gc_delete_writer);
 }
@@ -1193,7 +1193,7 @@ static void writer_set_state (struct ddsi_writer *wr, enum ddsi_writer_state new
        write() is a problem because it prevents the gc thread from
        cleaning up the writer.  (Note: late assignment to wr->state is
        ok, 'tis all protected by the writer lock.) */
-    ddsrt_cond_broadcast (&wr->throttle_cond);
+    ddsrt_cond_mtime_broadcast (&wr->throttle_cond);
   }
   wr->state = newstate;
 }
@@ -1214,7 +1214,7 @@ dds_return_t ddsi_unblock_throttled_writer (struct ddsi_domaingv *gv, const stru
   return 0;
 }
 
-dds_return_t ddsi_writer_wait_for_acks (struct ddsi_writer *wr, const ddsi_guid_t *rdguid, dds_time_t abstimeout)
+dds_return_t ddsi_writer_wait_for_acks (struct ddsi_writer *wr, const ddsi_guid_t *rdguid, ddsrt_mtime_t abstimeout)
 {
   dds_return_t rc;
   ddsi_seqno_t ref_seq;
@@ -1223,7 +1223,7 @@ dds_return_t ddsi_writer_wait_for_acks (struct ddsi_writer *wr, const ddsi_guid_
   if (rdguid == NULL)
   {
     while (wr->state == WRST_OPERATIONAL && ref_seq > ddsi_writer_max_drop_seq (wr))
-      if (!ddsrt_cond_waituntil (&wr->throttle_cond, &wr->e.lock, abstimeout))
+      if (!ddsrt_cond_mtime_waituntil (&wr->throttle_cond, &wr->e.lock, abstimeout))
         break;
     rc = (ref_seq <= ddsi_writer_max_drop_seq (wr)) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
   }
@@ -1232,7 +1232,7 @@ dds_return_t ddsi_writer_wait_for_acks (struct ddsi_writer *wr, const ddsi_guid_
     struct ddsi_wr_prd_match *m = ddsrt_avl_lookup (&ddsi_wr_readers_treedef, &wr->readers, rdguid);
     while (wr->state == WRST_OPERATIONAL && m && ref_seq > m->seq)
     {
-      if (!ddsrt_cond_waituntil (&wr->throttle_cond, &wr->e.lock, abstimeout))
+      if (!ddsrt_cond_mtime_waituntil (&wr->throttle_cond, &wr->e.lock, abstimeout))
         break;
       m = ddsrt_avl_lookup (&ddsi_wr_readers_treedef, &wr->readers, rdguid);
     }

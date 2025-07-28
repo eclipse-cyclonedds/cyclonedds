@@ -40,7 +40,7 @@ struct fsm_timer_event
   ddsrt_fibheap_node_t heapnode;
   struct dds_security_fsm *fsm;
   fsm_timeout_kind_t kind;
-  dds_time_t endtime;
+  ddsrt_etime_t endtime;
 };
 
 struct dds_security_fsm
@@ -63,7 +63,7 @@ struct dds_security_fsm
 struct dds_security_fsm_control
 {
   ddsrt_mutex_t lock;
-  ddsrt_cond_t cond;
+  ddsrt_cond_etime_t cond;
   struct ddsi_thread_state *thrst;
   struct ddsi_domaingv *gv;
   struct dds_security_fsm *first_fsm;
@@ -83,7 +83,7 @@ static int compare_timer_event (const void *va, const void *vb)
 {
   const struct fsm_timer_event *a = va;
   const struct fsm_timer_event *b = vb;
-  return (a->endtime == b->endtime) ? 0 : (a->endtime < b->endtime) ? -1 : 1;
+  return (a->endtime.v == b->endtime.v) ? 0 : (a->endtime.v < b->endtime.v) ? -1 : 1;
 }
 
 static void append_event(struct dds_security_fsm_control *control, struct fsm_event *event)
@@ -177,37 +177,37 @@ static void set_state_timer (struct dds_security_fsm *fsm)
 
   if (fsm->current && fsm->current->timeout > 0 && fsm->current->timeout != DDS_NEVER)
   {
-    fsm->state_timeout_event.endtime = ddsrt_time_add_duration (dds_time(), fsm->current->timeout);
+    fsm->state_timeout_event.endtime = ddsrt_etime_add_duration (ddsrt_time_elapsed(), fsm->current->timeout);
     ddsrt_fibheap_insert (&timer_events_fhdef, &control->timers, &fsm->state_timeout_event);
   }
   else
-    fsm->state_timeout_event.endtime = DDS_NEVER;
+    fsm->state_timeout_event.endtime = DDSRT_ETIME_NEVER;
 }
 
 static void clear_state_timer (struct dds_security_fsm *fsm)
 {
   struct dds_security_fsm_control *control = fsm->control;
 
-  if (fsm->state_timeout_event.endtime != DDS_NEVER)
+  if (fsm->state_timeout_event.endtime.v != DDS_NEVER)
     ddsrt_fibheap_delete (&timer_events_fhdef, &control->timers, &fsm->state_timeout_event);
-  fsm->state_timeout_event.endtime = DDS_NEVER;
+  fsm->state_timeout_event.endtime = DDSRT_ETIME_NEVER;
 }
 
 static void clear_overall_timer (struct dds_security_fsm *fsm)
 {
   struct dds_security_fsm_control *control = fsm->control;
 
-  if (fsm->overall_timeout_event.endtime != DDS_NEVER)
+  if (fsm->overall_timeout_event.endtime.v != DDS_NEVER)
     ddsrt_fibheap_delete (&timer_events_fhdef, &control->timers, &fsm->overall_timeout_event);
-  fsm->overall_timeout_event.endtime = DDS_NEVER;
+  fsm->overall_timeout_event.endtime = DDSRT_ETIME_NEVER;
 }
 
-static dds_time_t first_timeout (struct dds_security_fsm_control *control)
+static ddsrt_etime_t first_timeout (struct dds_security_fsm_control *control)
 {
   struct fsm_timer_event *min;
   if ((min = ddsrt_fibheap_min (&timer_events_fhdef, &control->timers)) != NULL)
     return min->endtime;
-  return DDS_NEVER;
+  return DDSRT_ETIME_NEVER;
 }
 
 static void fsm_check_auto_state_change (struct dds_security_fsm *fsm)
@@ -258,7 +258,7 @@ static void fsm_state_change (struct dds_security_fsm_control *control, struct f
       if (!fsm->deleting)
         fsm_check_auto_state_change (fsm);
       else
-        ddsrt_cond_broadcast(&control->cond);
+        ddsrt_cond_etime_broadcast(&control->cond);
       break;
     }
   }
@@ -278,7 +278,7 @@ static void fsm_handle_timeout (struct dds_security_fsm_control *control, struct
       fsm->overall_timeout_action (fsm, fsm->arg);
     ddsrt_mutex_lock (&control->lock);
     if (fsm->deleting)
-      ddsrt_cond_broadcast(&control->cond);
+      ddsrt_cond_etime_broadcast(&control->cond);
     break;
   }
 }
@@ -300,19 +300,19 @@ static uint32_t handle_events (void *vcontrol)
     }
     else
     {
-      dds_time_t timeout = first_timeout (control);
-
-      if (timeout > dds_time ())
+      const ddsrt_etime_t timeout = first_timeout (control);
+      const ddsrt_etime_t tnow = ddsrt_time_elapsed ();
+      if (timeout.v > tnow.v)
       {
         ddsi_thread_state_asleep (thrst);
-        (void)ddsrt_cond_waituntil (&control->cond, &control->lock, timeout);
+        (void)ddsrt_cond_etime_waituntil (&control->cond, &control->lock, timeout);
         ddsi_thread_state_awake (thrst, control->gv);
       }
       else
       {
         struct fsm_timer_event *timer_event = ddsrt_fibheap_extract_min (&timer_events_fhdef, &control->timers);
         /* set endtime to NEVER to maintain the invariant that (on heap) <=> (endtime != NEVER) */
-        timer_event->endtime = DDS_NEVER;
+        timer_event->endtime = DDSRT_ETIME_NEVER;
         fsm_handle_timeout (control, timer_event);
       }
     }
@@ -335,10 +335,10 @@ void dds_security_fsm_set_timeout (struct dds_security_fsm *fsm, dds_security_fs
     {
       clear_overall_timer(fsm);
       fsm->overall_timeout_action = action;
-      fsm->overall_timeout_event.endtime = ddsrt_time_add_duration(dds_time(), timeout);
+      fsm->overall_timeout_event.endtime = ddsrt_etime_add_duration (ddsrt_time_elapsed (), timeout);
       ddsrt_fibheap_insert (&timer_events_fhdef, &fsm->control->timers, &fsm->overall_timeout_event);
-      if (fsm->overall_timeout_event.endtime < first_timeout(fsm->control))
-        ddsrt_cond_broadcast (&fsm->control->cond);
+      if (fsm->overall_timeout_event.endtime.v < first_timeout (fsm->control).v)
+        ddsrt_cond_etime_broadcast (&fsm->control->cond);
     }
     else
       clear_overall_timer (fsm);
@@ -355,7 +355,7 @@ void dds_security_fsm_dispatch (struct dds_security_fsm *fsm, int32_t event_id, 
   if (!fsm->deleting)
   {
     fsm_dispatch (fsm, event_id, prio);
-    ddsrt_cond_broadcast (&fsm->control->cond);
+    ddsrt_cond_etime_broadcast (&fsm->control->cond);
   }
   ddsrt_mutex_unlock (&fsm->control->lock);
 }
@@ -438,10 +438,10 @@ struct dds_security_fsm * dds_security_fsm_create (struct dds_security_fsm_contr
     fsm->debug_func = NULL;
     fsm->overall_timeout_action = NULL;
     fsm->state_timeout_event.kind = FSM_TIMEOUT_STATE;
-    fsm->state_timeout_event.endtime = DDS_NEVER;
+    fsm->state_timeout_event.endtime = DDSRT_ETIME_NEVER;
     fsm->state_timeout_event.fsm = fsm;
     fsm->overall_timeout_event.kind = FSM_TIMEOUT_OVERALL;
-    fsm->overall_timeout_event.endtime = DDS_NEVER;
+    fsm->overall_timeout_event.endtime = DDSRT_ETIME_NEVER;
     fsm->overall_timeout_event.fsm = fsm;
     fsm->deleting = false;
     fsm->busy = false;
@@ -489,7 +489,7 @@ static void fsm_delete (struct dds_security_fsm_control *control, struct dds_sec
   remove_fsm_from_list (control, fsm);
   fsm_deactivate (control, fsm);
   while (fsm->busy)
-    ddsrt_cond_wait (&control->cond, &control->lock);
+    ddsrt_cond_etime_wait (&control->cond, &control->lock);
   ddsrt_free(fsm);
 }
 
@@ -518,7 +518,7 @@ struct dds_security_fsm_control * dds_security_fsm_control_create (struct ddsi_d
   control->last_fsm = NULL;
   control->gv = gv;
   ddsrt_mutex_init (&control->lock);
-  ddsrt_cond_init (&control->cond);
+  ddsrt_cond_etime_init (&control->cond);
   ddsrt_fibheap_init (&timer_events_fhdef, &control->timers);
 
   return control;
@@ -543,7 +543,7 @@ void dds_security_fsm_control_free (struct dds_security_fsm_control *control)
     ddsrt_free (event);
   }
 
-  ddsrt_cond_destroy (&control->cond);
+  ddsrt_cond_etime_destroy (&control->cond);
   ddsrt_mutex_destroy (&control->lock);
   ddsrt_free (control);
 }
@@ -568,7 +568,7 @@ void dds_security_fsm_control_stop (struct dds_security_fsm_control *control)
 
   ddsrt_mutex_lock (&control->lock);
   control->running = false;
-  ddsrt_cond_broadcast (&control->cond);
+  ddsrt_cond_etime_broadcast (&control->cond);
   ddsrt_mutex_unlock (&control->lock);
 
   ddsi_join_thread (control->thrst);
