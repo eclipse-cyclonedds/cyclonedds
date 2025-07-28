@@ -28,7 +28,7 @@ struct ddsi_gcreq_queue {
   struct ddsi_gcreq *first;
   struct ddsi_gcreq *last;
   ddsrt_mutex_t lock;
-  ddsrt_cond_t cond;
+  ddsrt_cond_etime_t cond;
   int terminate;
   int32_t count;
   struct ddsi_domaingv *gv;
@@ -166,7 +166,7 @@ static uint32_t gcreq_queue_thread (void *vq)
         } else {
           to = delay;
         }
-        (void) ddsrt_cond_waitfor (&q->cond, &q->lock, to);
+        (void) ddsrt_cond_etime_waituntil (&q->cond, &q->lock, ddsrt_etime_add_duration (ddsrt_time_elapsed (), to));
       }
       if (q->first)
       {
@@ -233,7 +233,7 @@ struct ddsi_gcreq_queue *ddsi_gcreq_queue_new (struct ddsi_domaingv *gv)
   q->gv = gv;
   q->thrst = NULL;
   ddsrt_mutex_init (&q->lock);
-  ddsrt_cond_init (&q->cond);
+  ddsrt_cond_etime_init (&q->cond);
   return q;
 }
 
@@ -254,7 +254,7 @@ void ddsi_gcreq_queue_drain (struct ddsi_gcreq_queue *q)
 {
   ddsrt_mutex_lock (&q->lock);
   while (q->count != 0)
-    ddsrt_cond_wait (&q->cond, &q->lock);
+    ddsrt_cond_etime_wait (&q->cond, &q->lock);
   ddsrt_mutex_unlock (&q->lock);
 }
 
@@ -275,7 +275,7 @@ void ddsi_gcreq_queue_free (struct ddsi_gcreq_queue *q)
        allocated (this is also why we can't use "drain" here). Then
        we know the gc system is quiet. */
     while (q->count != 1)
-      ddsrt_cond_wait (&q->cond, &q->lock);
+      ddsrt_cond_etime_wait (&q->cond, &q->lock);
     ddsrt_mutex_unlock (&q->lock);
 
     /* Force the gc thread to wake up by enqueueing our no-op. The
@@ -287,7 +287,7 @@ void ddsi_gcreq_queue_free (struct ddsi_gcreq_queue *q)
     ddsi_join_thread (q->thrst);
     assert (q->first == NULL);
   }
-  ddsrt_cond_destroy (&q->cond);
+  ddsrt_cond_etime_destroy (&q->cond);
   ddsrt_mutex_destroy (&q->lock);
   ddsrt_free (q);
 }
@@ -312,7 +312,7 @@ void ddsi_gcreq_free (struct ddsi_gcreq *gcreq)
   ddsrt_mutex_lock (&gcreq_queue->lock);
   --gcreq_queue->count;
   if (gcreq_queue->count <= 1)
-    ddsrt_cond_broadcast (&gcreq_queue->cond);
+    ddsrt_cond_etime_broadcast (&gcreq_queue->cond);
   ddsrt_mutex_unlock (&gcreq_queue->lock);
   ddsrt_free (gcreq);
 }
@@ -335,7 +335,7 @@ static int gcreq_enqueue_common (struct ddsi_gcreq *gcreq)
   }
   gcreq_queue->last = gcreq;
   if (isfirst)
-    ddsrt_cond_broadcast (&gcreq_queue->cond);
+    ddsrt_cond_etime_broadcast (&gcreq_queue->cond);
   ddsrt_mutex_unlock (&gcreq_queue->lock);
   return isfirst;
 }

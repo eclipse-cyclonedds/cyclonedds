@@ -34,7 +34,7 @@ enum logger_state {
 
 struct logger_arg {
   ddsrt_mutex_t lock;
-  ddsrt_cond_t cond;
+  ddsrt_cond_mtime_t cond;
   bool enabled;
   bool data_seen;
   bool acknack_seen;
@@ -105,7 +105,7 @@ static void logger (void *ptr, const dds_log_data_t *data)
           check_destination_addresses (msg, arg->mc_for_data);
           arg->state[data->domid][thridx] = LST_INACTIVE;
           arg->data_seen = true;
-          ddsrt_cond_broadcast (&arg->cond);
+          ddsrt_cond_mtime_broadcast (&arg->cond);
         }
         break;
       case LST_ACKNACK:
@@ -114,7 +114,7 @@ static void logger (void *ptr, const dds_log_data_t *data)
           check_destination_addresses (msg, false);
           arg->state[data->domid][thridx] = LST_INACTIVE;
           arg->acknack_seen = true;
-          ddsrt_cond_broadcast (&arg->cond);
+          ddsrt_cond_mtime_broadcast (&arg->cond);
         }
         break;
     }
@@ -135,7 +135,7 @@ CU_Test (ddsc_redundant_networking, uc_data_on_all_intfs)
     .state = { { LST_INACTIVE, LST_INACTIVE }, {LST_INACTIVE, LST_INACTIVE } }
   };
   ddsrt_mutex_init (&larg.lock);
-  ddsrt_cond_init (&larg.cond);
+  ddsrt_cond_mtime_init (&larg.cond);
   dds_set_log_mask (DDS_LC_TRACE);
   dds_set_log_sink (&logger, &larg);
   dds_set_trace_sink (&logger, &larg);
@@ -158,7 +158,7 @@ CU_Test (ddsc_redundant_networking, uc_data_on_all_intfs)
     CU_ASSERT_FATAL (rc == 0);
     dds_set_log_sink (NULL, NULL);
     dds_set_trace_sink (NULL, NULL);
-    ddsrt_cond_destroy (&larg.cond);
+    ddsrt_cond_mtime_destroy (&larg.cond);
     ddsrt_mutex_destroy (&larg.lock);
     return;
   }
@@ -249,15 +249,15 @@ CU_Test (ddsc_redundant_networking, uc_data_on_all_intfs)
 
   // The ACK can be processed before the "xpack_send" line is output by the sending tev thread
   // this gives a bit of extra time
-  dds_time_t waituntil = dds_time () + DDS_SECS (1);
+  ddsrt_mtime_t waituntil = ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_SECS (1));
   ddsrt_mutex_lock (&larg.lock);
   while (!larg.acknack_seen)
-    ddsrt_cond_waituntil (&larg.cond, &larg.lock, waituntil);
+    ddsrt_cond_mtime_waituntil (&larg.cond, &larg.lock, waituntil);
   ddsrt_mutex_unlock (&larg.lock);
 
   dds_set_log_sink (NULL, NULL);
   dds_set_trace_sink (NULL, NULL);
-  ddsrt_cond_destroy (&larg.cond);
+  ddsrt_cond_mtime_destroy (&larg.cond);
   ddsrt_mutex_destroy (&larg.lock);
 
   CU_ASSERT_FATAL (larg.data_seen && larg.acknack_seen);
