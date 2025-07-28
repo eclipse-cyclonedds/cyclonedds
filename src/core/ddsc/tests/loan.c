@@ -345,3 +345,88 @@ CU_Test (ddsc_loan, read_cleanup, .init = create_entities, .fini = delete_entiti
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
 }
 
+
+CU_Test(ddsc_loan, read_take_cleanup_repeat)
+{
+  #define MSG_CNT 50
+  const bool do_return_loan[] = {false, true};
+  const size_t do_return_loan_len = sizeof(do_return_loan) / sizeof(*do_return_loan);
+  const bool do_take[] = {false, true};
+  const size_t do_take_len = sizeof(do_take) / sizeof(*do_take);
+  dds_return_t ret = DDS_RETCODE_OK;
+
+  for(size_t idx_method = 0; idx_method < do_return_loan_len; ++idx_method){
+    for(size_t idx_receive_method = 0; idx_receive_method < do_take_len; ++idx_receive_method){
+      dds_entity_t pt, rd, wr, ws, rc;
+      Space_Type1* msg_arr[MSG_CNT] = {0};
+      dds_sample_info_t info[MSG_CNT];
+      {
+        pt = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
+        CU_ASSERT_FATAL(pt > 0);
+        dds_qos_t* qos = dds_create_qos();
+        dds_qset_history (qos, DDS_HISTORY_KEEP_LAST, 4096);
+        dds_entity_t tp = dds_create_topic(pt, &Space_Type1_desc, "Topic1", qos, NULL);
+        CU_ASSERT_FATAL(tp > 0);
+        rd = dds_create_reader(pt, tp, qos, NULL);
+        CU_ASSERT_FATAL(rd > 0);
+        wr = dds_create_writer(pt, tp, qos, NULL);
+        CU_ASSERT_FATAL(wr > 0);
+        dds_delete_qos(qos);
+        ws = dds_create_waitset(pt);
+        CU_ASSERT_FATAL(ws > 0);
+        rc = dds_create_readcondition(
+          rd,
+          do_take[idx_receive_method] ? DDS_ANY_STATE : (DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE)
+        );
+        CU_ASSERT_FATAL(rc > 0);
+        ret = dds_waitset_attach(ws, rc, 0);
+        CU_ASSERT_FATAL(ret == DDS_RETCODE_OK);
+      }
+      Space_Type1* msg = NULL;
+      int payload = 0;
+
+      /*
+      Repeatedly test returning loans for decreasing number of writes.
+      This exposes a bug (if present) where the NULL terminator in the buffer isn't set properly.
+      */
+      for(int write_cnt = MSG_CNT; write_cnt >= 0; --write_cnt){
+        for(int idx = 0; idx < write_cnt; ++idx){
+          ret = dds_request_loan(wr, (void**)&msg);
+          CU_ASSERT_FATAL(ret == DDS_RETCODE_OK);
+          msg->long_1 = 1;
+          msg->long_2 = payload++;
+          msg->long_3 = 0;
+          ret = dds_write(wr, msg);
+          CU_ASSERT_FATAL(ret == DDS_RETCODE_OK);
+        }
+
+        const int cnt_expect = write_cnt;
+        {
+          int cnt_actual = 0;
+          while( cnt_actual < cnt_expect ){
+            ret = dds_waitset_wait(ws, NULL, 0, DDS_SECS(3));
+            CU_ASSERT_FATAL(ret > 0);
+            do{
+              Space_Type1* msg_arr_cpy[MSG_CNT];
+              memcpy(msg_arr_cpy, msg_arr, sizeof(msg_arr));
+              ret = (do_take[idx_receive_method] ?
+                dds_take(rc, (void**)msg_arr, info, MSG_CNT, MSG_CNT)
+              :
+                dds_read(rc, (void**)msg_arr, info, MSG_CNT, MSG_CNT)
+              );
+              CU_ASSERT_FATAL(ret >= 0);
+              cnt_actual += ret;
+              if( do_return_loan[idx_method] ){
+                ret = dds_return_loan(rd, (void**)msg_arr, MSG_CNT);
+                CU_ASSERT_FATAL(ret == DDS_RETCODE_OK);
+                break; // Explicit method: return loans by calling dds_return_loan(), do not loop.
+              }
+            }while( ret > 0 ); // Implicit method: return loans by looping until dds_take() returns 0.
+          }
+        }
+      }
+      dds_delete(pt);
+    }
+  }
+  #undef MSG_CNT
+}
