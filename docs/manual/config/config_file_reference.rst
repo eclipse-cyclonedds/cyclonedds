@@ -302,7 +302,7 @@ This attribute determines controls the localhost will automatically be added to 
 
  * true: always
 
- * default: if multicast discovery is unavailable * 
+ * default: if multicast discovery is unavailable *
 
 The default value is: ``default``
 
@@ -639,7 +639,7 @@ The default value is: ``empty``
 
 Text
 
-Provide an initial seed for the entity naming. Your string will be hashed to provide the random state. When provided, the same sequence of names is generated every run. Creating your entities in the same order will ensure they are the same between runs. If you run multiple nodes, set this via environment variable to ensure every node generates unique names. A random starting seed is chosen when left empty, (the default). 
+Provide an initial seed for the entity naming. Your string will be hashed to provide the random state. When provided, the same sequence of names is generated every run. Creating your entities in the same order will ensure they are the same between runs. If you run multiple nodes, set this via environment variable to ensure every node generates unique names. A random starting seed is chosen when left empty, (the default).
 
 The default value is: ``<empty>``
 
@@ -710,7 +710,7 @@ This element defines a network interface. You can set autodetermine="true" to au
 
 Text
 
-This attribute specifies the address of the interface. With ipv4 allows  matching on the network part if the host part is set to zero. 
+This attribute specifies the address of the interface. With ipv4 allows  matching on the network part if the host part is set to zero.
 
 The default value is: ``<empty>``
 
@@ -773,7 +773,7 @@ The default value is: ``default``
 
 Text
 
-This attribute specifies the name of the interface. 
+This attribute specifies the name of the interface.
 
 The default value is: ``<empty>``
 
@@ -2179,7 +2179,7 @@ Examples file URIs:
 
 Content-Type: multipart/signed; protocol="application/x-pkcs7-signature"; micalg="sha-256"; boundary="----F9A8A198D6F08E1285A292ADF14DD04F"
 
-This is an S/MIME signed message 
+This is an S/MIME signed message
 
 ------F9A8A198D6F08E1285A292ADF14DD04F
 
@@ -2191,7 +2191,7 @@ xsi:noNamespaceSchemaLocation="omg\_shared\_ca\_governance.xsd">
 
 <domain\_access\_rules>
 
- . . . 
+ . . .
 
 </domain\_access\_rules>
 
@@ -2959,14 +2959,14 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 The default value is: ``none``
 
 ..
-   generated from ddsi_config.h[94ad20bdb44ea1f393ba906865b1da591bbe1b57] 
-   generated from ddsi_config.c[9fb9ace4394a1b7d50f4e0fa3905bbba2a183e36] 
-   generated from ddsi__cfgelems.h[6e57a9213340839aeac89e7417646451cc5bb706] 
-   generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] 
-   generated from _confgen.h[bb9a0fc6ef1f7f7c46790ee00132e340e5fff36d] 
-   generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] 
-   generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] 
-   generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] 
-   generated from generate_rst.c[3c4b523fbb57c8e4a7e247379d06a8021ccc21c4] 
-   generated from generate_xsd.c[9bb91084fff7495aee9c025db3108549a0141957] 
-   generated from generate_defconfig.c[02afff6935d72b7f04dc64c8a649b09f9f6143ac] 
+   generated from ddsi_config.h[d7db98ce697e409412ec7fb0b900e10261a66c44]
+   generated from ddsi_config.c[2307247d4f7ee49c30fe95465ff55c8f9c692a64]
+   generated from ddsi__cfgelems.h[256ead267e23bf4c3079a5aaa51425875b96ff24]
+   generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752]
+   generated from _confgen.h[bb9a0fc6ef1f7f7c46790ee00132e340e5fff36d]
+   generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6]
+   generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934]
+   generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01]
+   generated from generate_rst.c[3c4b523fbb57c8e4a7e247379d06a8021ccc21c4]
+   generated from generate_xsd.c[9bb91084fff7495aee9c025db3108549a0141957]
+   generated from generate_defconfig.c[02afff6935d72b7f04dc64c8a649b09f9f6143ac]
