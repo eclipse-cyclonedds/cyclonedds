@@ -108,8 +108,7 @@ dds_return_t dds_wait_for_acks (dds_entity_t publisher_or_writer, dds_duration_t
   if ((ret = dds_entity_pin (publisher_or_writer, &p_or_w_ent)) < 0)
     return ret;
 
-  const dds_time_t tnow = dds_time ();
-  const dds_time_t abstimeout = (DDS_INFINITY - timeout <= tnow) ? DDS_NEVER : (tnow + timeout);
+  const ddsrt_mtime_t abstimeout = ddsrt_mtime_add_duration (ddsrt_time_monotonic (), timeout);
   switch (dds_entity_kind (p_or_w_ent))
   {
     case DDS_KIND_PUBLISHER:

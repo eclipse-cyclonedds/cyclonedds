@@ -40,7 +40,7 @@ static bool is_triggered (struct dds_entity *e)
   return t;
 }
 
-static dds_return_t dds_waitset_wait_impl (dds_entity_t waitset, dds_attach_t *xs, size_t nxs, dds_time_t abstimeout)
+static dds_return_t dds_waitset_wait_impl (dds_entity_t waitset, dds_attach_t *xs, size_t nxs, ddsrt_etime_t abstimeout)
 {
   dds_waitset *ws;
   dds_return_t ret;
@@ -78,7 +78,7 @@ static dds_return_t dds_waitset_wait_impl (dds_entity_t waitset, dds_attach_t *x
 
   /* Only wait/keep waiting when we have something to observe and there aren't any triggers yet. */
   while (ws->nentities > 0 && ws->ntriggered == 0 && !dds_handle_is_closed (&ws->m_entity.m_hdllink))
-    if (!ddsrt_cond_waituntil (&ws->wait_cond, &ws->wait_lock, abstimeout))
+    if (!ddsrt_cond_etime_waituntil (&ws->wait_cond, &ws->wait_lock, abstimeout))
       break;
 
   ret = (int32_t) ws->ntriggered;
@@ -94,7 +94,7 @@ static void dds_waitset_interrupt (struct dds_entity *e)
   dds_waitset *ws = (dds_waitset *) e;
   ddsrt_mutex_lock (&ws->wait_lock);
   assert (dds_handle_is_closed (&ws->m_entity.m_hdllink));
-  ddsrt_cond_broadcast (&ws->wait_cond);
+  ddsrt_cond_etime_broadcast (&ws->wait_cond);
   ddsrt_mutex_unlock (&ws->wait_lock);
 }
 
@@ -109,7 +109,7 @@ static void dds_waitset_close (struct dds_entity *e)
     {
       /* can't be pinned => being deleted => will be removed from wait set soon enough
        and go through delete_observer (which will trigger the condition variable) */
-      ddsrt_cond_wait (&ws->wait_cond, &ws->wait_lock);
+      ddsrt_cond_etime_wait (&ws->wait_cond, &ws->wait_lock);
     }
     else
     {
@@ -128,7 +128,7 @@ static dds_return_t dds_waitset_delete (struct dds_entity *e)
 {
   dds_waitset *ws = (dds_waitset *) e;
   ddsrt_mutex_destroy (&ws->wait_lock);
-  ddsrt_cond_destroy (&ws->wait_cond);
+  ddsrt_cond_etime_destroy (&ws->wait_cond);
   ddsrt_free (ws->entities);
   return DDS_RETCODE_OK;
 }
@@ -173,7 +173,7 @@ dds_entity_t dds_create_waitset (dds_entity_t owner)
   dds_waitset *waitset = dds_alloc (sizeof (*waitset));
   dds_entity_t hdl = dds_entity_init (&waitset->m_entity, e, DDS_KIND_WAITSET, false, true, NULL, NULL, 0);
   ddsrt_mutex_init (&waitset->wait_lock);
-  ddsrt_cond_init (&waitset->wait_cond);
+  ddsrt_cond_etime_init (&waitset->wait_cond);
   waitset->m_entity.m_iid = ddsi_iid_gen ();
   dds_entity_register_child (e, &waitset->m_entity);
   waitset->nentities = 0;
@@ -234,7 +234,7 @@ static void dds_waitset_observer (struct dds_waitset *ws, dds_entity_t observed)
     ws->entities[ws->ntriggered++] = tmp;
   }
   /* Trigger waitset to wake up. */
-  ddsrt_cond_broadcast (&ws->wait_cond);
+  ddsrt_cond_etime_broadcast (&ws->wait_cond);
   ddsrt_mutex_unlock (&ws->wait_lock);
 }
 
@@ -258,7 +258,7 @@ static bool dds_waitset_attach_observer (struct dds_waitset *ws, struct dds_enti
     ws->entities[i] = ws->entities[ws->ntriggered];
     ws->entities[ws->ntriggered++] = tmp;
   }
-  ddsrt_cond_broadcast (&ws->wait_cond);
+  ddsrt_cond_etime_broadcast (&ws->wait_cond);
   ddsrt_mutex_unlock (&ws->wait_lock);
   return true;
 }
@@ -282,7 +282,7 @@ static void dds_waitset_delete_observer (struct dds_waitset *ws, dds_entity_t ob
       ws->entities[i] = ws->entities[--ws->nentities];
     }
   }
-  ddsrt_cond_broadcast (&ws->wait_cond);
+  ddsrt_cond_etime_broadcast (&ws->wait_cond);
   ddsrt_mutex_unlock (&ws->wait_lock);
 }
 
@@ -380,15 +380,18 @@ dds_return_t dds_waitset_detach (dds_entity_t waitset, dds_entity_t entity)
 
 dds_return_t dds_waitset_wait_until (dds_entity_t waitset, dds_attach_t *xs, size_t nxs, dds_time_t abstimeout)
 {
-  return dds_waitset_wait_impl (waitset, xs, nxs, abstimeout);
+  // FIXME: perhaps there's a better way?
+  const ddsrt_wctime_t tnow_wc = ddsrt_time_wallclock ();
+  const ddsrt_etime_t tnow_e = ddsrt_time_elapsed ();
+  const ddsrt_etime_t abstimeout_e = (abstimeout <= tnow_wc.v) ? (ddsrt_etime_t){0} : ddsrt_etime_add_duration (tnow_e, abstimeout - tnow_wc.v);
+  return dds_waitset_wait_impl (waitset, xs, nxs, abstimeout_e);
 }
 
 dds_return_t dds_waitset_wait (dds_entity_t waitset, dds_attach_t *xs, size_t nxs, dds_duration_t reltimeout)
 {
   if (reltimeout < 0)
     return DDS_RETCODE_BAD_PARAMETER;
-  const dds_time_t tnow = dds_time ();
-  const dds_time_t abstimeout = (DDS_INFINITY - reltimeout <= tnow) ? DDS_NEVER : (tnow + reltimeout);
+  const ddsrt_etime_t abstimeout = ddsrt_etime_add_duration (ddsrt_time_elapsed (), reltimeout);
   return dds_waitset_wait_impl (waitset, xs, nxs, abstimeout);
 }
 

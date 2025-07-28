@@ -318,7 +318,7 @@ struct oneliner_ctx {
   int mprintf_needs_timestamp;
 
   ddsrt_mutex_t g_mutex;
-  ddsrt_cond_t g_cond;
+  ddsrt_cond_mtime_t g_cond;
   struct oneliner_cb cb[3];
 
   const char *config_override; // optional

@@ -103,7 +103,7 @@ struct ddsi_xeventq {
   struct ddsi_thread_state *thrst;
   struct ddsi_domaingv *gv;
   ddsrt_mutex_t lock;
-  ddsrt_cond_t cond;
+  ddsrt_cond_mtime_t cond;
 
   size_t cum_rexmit_bytes;
   size_t ntxl_length;
@@ -213,7 +213,7 @@ static void add_to_non_timed_xmit_list (struct ddsi_xeventq *evq, struct ddsi_xe
   if (ev->kind == XEVK_MSG_REXMIT)
     remember_msg (evq, ev);
 
-  ddsrt_cond_broadcast (&evq->cond);
+  ddsrt_cond_mtime_broadcast (&evq->cond);
 }
 
 static struct ddsi_xevent_nt *getnext_from_non_timed_xmit_list  (struct ddsi_xeventq *evq, ddsrt_mtime_t tnow)
@@ -284,7 +284,7 @@ static void ddsi_delete_xevent_nosync (struct ddsi_xeventq *evq, struct ddsi_xev
   }
   /* TSCHED_DELETE is absolute minimum time, so chances are we need to
      wake up the thread.  The superfluous signal is harmless. */
-  ddsrt_cond_broadcast (&evq->cond);
+  ddsrt_cond_mtime_broadcast (&evq->cond);
 }
 
 static void ddsi_delete_xevent_sync (struct ddsi_xeventq *evq, struct ddsi_xevent *ev)
@@ -300,7 +300,7 @@ static void ddsi_delete_xevent_sync (struct ddsi_xeventq *evq, struct ddsi_xeven
     }
     if (ev->sync_state == CSODS_EXECUTING)
     {
-      ddsrt_cond_wait (&evq->cond, &evq->lock);
+      ddsrt_cond_mtime_wait (&evq->cond, &evq->lock);
     }
   }
   free_xevent (ev);
@@ -352,7 +352,7 @@ int ddsi_resched_xevent_if_earlier (struct ddsi_xevent *ev, ddsrt_mtime_t tsched
     }
     is_resched = 1;
     if (tsched.v < tbefore.v)
-      ddsrt_cond_broadcast (&evq->cond);
+      ddsrt_cond_mtime_broadcast (&evq->cond);
   }
   ddsrt_mutex_unlock (&evq->lock);
   return is_resched;
@@ -407,7 +407,7 @@ static void qxev_insert (struct ddsi_xevent *ev)
     ddsrt_mtime_t tbefore = earliest_in_xeventq (evq);
     ddsrt_fibheap_insert (&evq_xevents_fhdef, &evq->xevents, ev);
     if (ev->tsched.v < tbefore.v)
-      ddsrt_cond_broadcast (&evq->cond);
+      ddsrt_cond_mtime_broadcast (&evq->cond);
   }
 }
 
@@ -442,7 +442,7 @@ struct ddsi_xeventq * ddsi_xeventq_new (struct ddsi_domaingv *gv, size_t max_que
   evq->queued_rexmit_msgs = 0;
   evq->gv = gv;
   ddsrt_mutex_init (&evq->lock);
-  ddsrt_cond_init (&evq->cond);
+  ddsrt_cond_mtime_init (&evq->cond);
 
   evq->cum_rexmit_bytes = 0;
   evq->ntxl_length_time = 0;
@@ -479,7 +479,7 @@ void ddsi_xeventq_stop (struct ddsi_xeventq *evq)
   assert (evq->thrst != NULL);
   ddsrt_mutex_lock (&evq->lock);
   evq->terminate = 1;
-  ddsrt_cond_broadcast (&evq->cond);
+  ddsrt_cond_mtime_broadcast (&evq->cond);
   ddsrt_mutex_unlock (&evq->lock);
   ddsi_join_thread (evq->thrst);
   evq->thrst = NULL;
@@ -508,7 +508,7 @@ void ddsi_xeventq_free (struct ddsi_xeventq *evq)
   }
 
   assert (ddsrt_avl_is_empty (&evq->msg_xevents));
-  ddsrt_cond_destroy (&evq->cond);
+  ddsrt_cond_mtime_destroy (&evq->cond);
   ddsrt_mutex_destroy (&evq->lock);
   ddsrt_free (evq);
 }
@@ -537,7 +537,7 @@ static void handle_timed_xevent (struct ddsi_xeventq *evq, struct ddsi_xevent *x
     xev->cb.cb (evq->gv, xev, xp, xev->arg, tnow);
     ddsrt_mutex_lock (&evq->lock);
     xev->sync_state = CSODS_SCHEDULED;
-    ddsrt_cond_broadcast (&evq->cond);
+    ddsrt_cond_mtime_broadcast (&evq->cond);
   }
 }
 
@@ -675,21 +675,7 @@ static uint32_t xevent_thread (void *vevq)
     else
     {
       ddsrt_mtime_t twakeup = earliest_in_xeventq (evq);
-      if (twakeup.v == DDS_NEVER)
-      {
-        /* no scheduled events nor any non-timed events */
-        ddsrt_cond_wait (&evq->cond, &evq->lock);
-      }
-      else
-      {
-        /* "Wrong" time-base here ... should make cond_waitfor time-base aware */
-        tnow = ddsrt_time_monotonic ();
-        if (twakeup.v > tnow.v)
-        {
-          twakeup.v -= tnow.v;
-          ddsrt_cond_waitfor (&evq->cond, &evq->lock, twakeup.v);
-        }
-      }
+      ddsrt_cond_mtime_waituntil (&evq->cond, &evq->lock, twakeup);
     }
   }
   ddsrt_mutex_unlock (&evq->lock);
