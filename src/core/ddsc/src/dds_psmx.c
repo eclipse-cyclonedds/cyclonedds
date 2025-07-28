@@ -64,7 +64,7 @@ static bool get_check_interface_version (enum dds_psmx_interface_version *ifver,
   // on all supported platforms sizeof(void(*)()) == sizeof(void*) and so the offset
   // of create_topic_with_type matches the offset of instance_name
   //
-  // This check probably invokes undefined behaviour ...
+  // This check probably invokes undefined behavior ...
   DDSRT_STATIC_ASSERT(
     offsetof (struct dds_psmx, ops) == 0 &&
     offsetof (struct dds_psmx_ops, create_topic_with_type) == offsetof (struct dds_psmx_v0, instance_name));

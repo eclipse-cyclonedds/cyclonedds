@@ -1205,7 +1205,7 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
 
   if (!gv->m_factory->m_connless)
   {
-    // equivalent to all behaviour where global setting was simply forced to false
+    // equivalent to all behavior where global setting was simply forced to false
     // FIXME: it'd perhaps be nicer to give an error if any of these is explicitly set to allow multicast when we cannot do that
     gv->config.allowMulticast = DDSI_AMC_FALSE;
     for (int i = 0; i < gv->n_interfaces; i++)

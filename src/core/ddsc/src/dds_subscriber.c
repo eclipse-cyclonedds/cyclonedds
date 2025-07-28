@@ -113,7 +113,7 @@ bool dds_subscriber_compute_data_on_readers_locked (dds_subscriber *sub)
   // sub->m_entity.m_mutex must be locked
   ddsrt_avl_iter_t it;
 
-  // Returning true when some reader has DATA_AVAILABLE set isn't the correct behaviour
+  // Returning true when some reader has DATA_AVAILABLE set isn't the correct behavior
   // because it doesn't reset the DATA_ON_READERS state on the first read/take on one of
   // the subscriber's readers.  It seems highly unlikely to be a problem in practice:
   //

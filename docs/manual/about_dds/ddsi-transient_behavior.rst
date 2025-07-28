@@ -1,7 +1,7 @@
-.. _`DDSI-specific transient-local behaviour`:
+.. _`DDSI-specific transient-local behavior`:
 
 ***************************************
-DDSI-Specific Transient-Local Behaviour
+DDSI-Specific Transient-Local behavior
 ***************************************
 
 The DCPS specification provides *transient-local*, *transient*,
