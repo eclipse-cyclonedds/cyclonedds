@@ -910,6 +910,8 @@ static dds_entity_t dds_find_topic_impl (dds_find_scope_t scope, dds_entity_t pa
 
   if (name == NULL || !is_valid_name (name))
     return DDS_RETCODE_BAD_PARAMETER;
+  if (timeout < 0)
+    return DDS_RETCODE_BAD_PARAMETER;
   if ((ret = dds_entity_pin (participant, &e)) < 0)
     return ret;
   if (e->m_kind != DDS_KIND_PARTICIPANT)
