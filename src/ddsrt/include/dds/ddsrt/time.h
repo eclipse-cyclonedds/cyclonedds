@@ -238,37 +238,6 @@ DDS_INLINE_EXPORT inline ddsrt_etime_t ddsrt_etime_add_duration(ddsrt_etime_t ab
   return t;
 }
 
-#if _WIN32
-/**
- * @brief Convert a relative time to microseconds rounding up.
- *
- * @param[in]  reltime  Relative time to convert.
- *
- * @returns INFINITE if @reltime was @DDS_INIFINITY, relative time converted to
- *          microseconds otherwise.
- */
-inline DWORD
-ddsrt_duration_to_msecs_ceil(dds_duration_t reltime)
-{
-  if (reltime == DDS_INFINITY) {
-    return INFINITE;
-  } else if (reltime > 0) {
-    assert(INFINITE < (DDS_INFINITY / DDS_NSECS_IN_MSEC));
-    dds_duration_t max_nsecs = (INFINITE - 1) * DDS_NSECS_IN_MSEC;
-
-    if (reltime < (max_nsecs - (DDS_NSECS_IN_MSEC - 1))) {
-      reltime += (DDS_NSECS_IN_MSEC - 1);
-    } else {
-      reltime = max_nsecs;
-    }
-
-    return (DWORD)(reltime / DDS_NSECS_IN_MSEC);
-  }
-
-  return 0;
-}
-#endif
-
 /**
  * @brief Convert monotonic time seconds & microseconds
  *
