@@ -15,7 +15,7 @@
 
 struct record_netload_state;
 
-void record_netload (struct record_netload_state *st, const char *prefix, dds_time_t tnow);
+void record_netload (struct record_netload_state *st, const char *prefix, ddsrt_hrtime_t tnow);
 struct record_netload_state *record_netload_new (const char *dev, double bw);
 void record_netload_free (struct record_netload_state *st);
 
