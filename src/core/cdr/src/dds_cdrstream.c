@@ -2209,7 +2209,7 @@ static const uint32_t *dds_stream_getsize_adr (uint32_t insn, struct getsize_sta
       else
       {
         getsize_reserve_many (st, 4, 3);
-        if (addr && (st->pos % 8) != 0)
+        if (addr && ((st->pos - st->align_off) % 8) != 0)
         {
           st->align_off += 4;
           alignment_offset_by_4 = true;

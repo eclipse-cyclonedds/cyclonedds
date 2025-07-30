@@ -550,7 +550,7 @@ static void dds_stream_write_xcdr1_paramheaderBO (RESTRICT_OSTREAM_T *os, const 
   // Ghastly XCDR1 alignment rules for mutable encoding and the encoding of optionals in non-mutable structs
   // require us to pretend that the value starts at an offset 0 mod 8. The caller is expected to undo the
   // change to os->x.m_align_off
-  if ((os->x.m_index % 8) == 0)
+  if (((os->x.m_index - os->x.m_align_off) % 8) == 0)
     *alignment_offset_by_4 = false;
   else
   {
