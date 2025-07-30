@@ -1001,6 +1001,7 @@ int main (int argc, char **argv)
   ddsrt_time_wallclock ();
   ddsrt_time_monotonic ();
   ddsrt_time_elapsed ();
+  ddsrt_time_highres ();
   ddsrt_ctime (0, ptr, 0);
   ddsrt_time_add_duration (0, 0);
   ddsrt_mtime_add_duration (mt, 0);
