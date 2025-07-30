@@ -2124,7 +2124,7 @@ CU_Test (ddsc_cdrstream, check_xcdr1_param_normalize)
 }
 #undef D
 
-#define D(n) (&CdrStreamAppedable_ ## n ## _desc)
+#define D(n) (&CdrStreamAppendable_ ## n ## _desc)
 CU_Test (ddsc_cdrstream, check_xcdr1_appendable_normalize)
 {
   const struct {
