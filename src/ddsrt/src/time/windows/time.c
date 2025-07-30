@@ -14,9 +14,7 @@
 
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/misc.h"
-
-extern inline DWORD
-ddsrt_duration_to_msecs_ceil(dds_duration_t reltime);
+#include "dds/ddsrt/static_assert.h"
 
 /* GetSystemTimePreciseAsFileTime was introduced with Windows 8, so
    starting from _WIN32_WINNET = 0x0602.  When building for an older
@@ -167,7 +165,20 @@ ddsrt_etime_t ddsrt_time_elapsed(void)
   return (ddsrt_etime_t) { qpc.QuadPart * qpc_freq };
 }
 
-void dds_sleepfor(dds_duration_t reltime)
+void dds_sleepfor (dds_duration_t timeout)
 {
-  Sleep(ddsrt_duration_to_msecs_ceil(reltime));
+  DWORD msecs;
+  if (timeout == DDS_INFINITY)
+    msecs = INFINITE;
+  else if (timeout <= 0)
+    msecs = 0;
+  else
+  {
+    DDSRT_STATIC_ASSERT (INFINITE < (DDS_INFINITY / DDS_NSECS_IN_MSEC));
+    if (timeout < (INFINITE - 1) * DDS_NSECS_IN_MSEC - (DDS_NSECS_IN_MSEC - 1))
+      msecs = (DWORD) ((timeout + DDS_NSECS_IN_MSEC - 1) / DDS_NSECS_IN_MSEC);
+    else
+      msecs = INFINITE - 1;
+  }
+  Sleep (msecs);
 }
