@@ -3316,6 +3316,10 @@ static const uint32_t *dds_stream_read_xcdr2_pl (dds_istream_t *is, char * restr
         break;
     }
 
+#ifndef NDEBUG
+    /* next field starts here (length embedded in member does not include it's own 4 bytes): */
+    const uint32_t next_off = is->m_index + msz + ((lc >= LENGTH_CODE_ALSO_NEXTINT) ? 4 : 0);
+#endif
     /* find member and deserialize */
     if (!dds_stream_read_xcdr2_pl_member (is, data, allocator, m_id, ops, cdr_kind, sample_state))
     {
@@ -3323,6 +3327,7 @@ static const uint32_t *dds_stream_read_xcdr2_pl (dds_istream_t *is, char * restr
       if (lc >= LENGTH_CODE_ALSO_NEXTINT)
         is->m_index += 4; /* length embedded in member does not include it's own 4 bytes */
     }
+    assert (next_off == is->m_index);
   }
 
   /* skip all PLM-memberid pairs */
@@ -4484,6 +4489,10 @@ static const uint32_t *stream_normalize_xcdr2_pl (char * restrict data, uint32_t
         *off = size2;
         break;
       case NPMR2_FOUND:
+        /* XCDR2 final can't be changed, appendable is delimited, mutable always runs
+           to the end and so no padding at the end of a parameter is ever needed.
+
+           read & print make this assumption but verify it. */
         if (*off != size2)
           return normalize_error_ops ();
         break;
@@ -5968,6 +5977,10 @@ static const uint32_t *prtf_xcdr2_pl (char **buf, size_t *bufsize, dds_istream_t
         break;
     }
 
+#ifndef NDEBUG
+    /* next field starts here (length embedded in member does not include it's own 4 bytes): */
+    const uint32_t next_off = is->m_index + msz + ((lc >= LENGTH_CODE_ALSO_NEXTINT) ? 4 : 0);
+#endif
     /* find member and deserialize */
     if (!prtf_xcdr2_plm (buf, bufsize, is, m_id, ops, cdr_kind))
     {
@@ -5975,6 +5988,7 @@ static const uint32_t *prtf_xcdr2_pl (char **buf, size_t *bufsize, dds_istream_t
       if (lc >= LENGTH_CODE_ALSO_NEXTINT)
         is->m_index += 4; /* length embedded in member does not include it's own 4 bytes */
     }
+    assert (is->m_index == next_off);
   }
 
   /* skip all PLM-memberid pairs */
