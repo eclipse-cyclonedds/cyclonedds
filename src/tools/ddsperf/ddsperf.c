@@ -191,6 +191,9 @@ static bool sublatency = false;
 /* Use writer loans (only for memcpy-able types) */
 static bool use_writer_loan = false;
 
+/* Stop when no peers remain */
+static bool stop_when_lonely = false;
+
 /* Event queue for processing discovery events (data available on
    DCPSParticipant, subscription & publication matched)
    asynchronously to avoid deadlocking on creating a reader from
@@ -1919,6 +1922,7 @@ OPTIONS:\n\
                       from -Qmaxwait:DUR because that doesn't delay starting\n\
                       and doesn't terminate the process before doing\n\
                       anything.)\n\
+  -0                  stop when no peers remain\n\
   -1                  print \"sub\" stats every second, even when there is\n\
                       data\n\
   -X                  output extended statistics\n\
@@ -2263,11 +2267,12 @@ int main (int argc, char *argv[])
 
   argv0 = argv[0];
 
-  while ((opt = getopt (argc, argv, "1cd:D:i:n:k:ulLK:T:Q:R:Xh")) != EOF)
+  while ((opt = getopt (argc, argv, "01cd:D:i:n:k:ulLK:T:Q:R:Xh")) != EOF)
   {
     int pos;
     switch (opt)
     {
+      case '0': stop_when_lonely = true; break;
       case '1': substat_every_second = true; break;
       case 'c': collect_stats = true; break;
       case 'd': {
@@ -2728,6 +2733,11 @@ int main (int argc, char *argv[])
       if (pp && pp->tdeadline < tnext)
       {
         twakeup = pp->tdeadline;
+      }
+      if (stop_when_lonely && ddsrt_avl_is_singleton (&ppants) && matchcount > 0)
+      {
+        // last peer left
+        ddsrt_atomic_st32 (&termflag, 1);
       }
       ddsrt_mutex_unlock (&disc_lock);
     }

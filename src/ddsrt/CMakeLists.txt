@@ -27,6 +27,9 @@ set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}")
 set(binary_dir "${CMAKE_CURRENT_BINARY_DIR}")
 
 add_library(ddsrt INTERFACE)
+if(ENABLE_MIMALLOC)
+  target_link_libraries(ddsrt INTERFACE mimalloc)
+endif()
 target_include_directories(
   ddsrt INTERFACE
     "$<BUILD_INTERFACE:${source_dir}/include>"
@@ -368,7 +371,7 @@ set(DDSRT_WITH_LWIP ${WITH_LWIP})
 set(DDSRT_WITH_FREERTOS ${WITH_FREERTOS})
 
 foreach(feature TCP_TLS SECURITY LIFESPAN DEADLINE_MISSED NETWORK_PARTITIONS
-                TYPELIB TYPE_DISCOVERY TOPIC_DISCOVERY QOS_PROVIDER)
+                TYPELIB TYPE_DISCOVERY TOPIC_DISCOVERY QOS_PROVIDER MIMALLOC)
   set(DDS_HAS_${feature} ${ENABLE_${feature}})
 endforeach()
 
