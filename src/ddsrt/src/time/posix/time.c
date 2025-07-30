@@ -15,6 +15,11 @@
 #include <time.h>
 #include <sys/time.h>
 
+#ifdef __QNXNTO__
+#include <sys/neutrino.h>
+#include <sys/syspage.h>
+#endif
+
 #include "dds/ddsrt/time.h"
 
 dds_time_t dds_time(void)
@@ -44,4 +49,21 @@ ddsrt_etime_t ddsrt_time_elapsed(void)
   struct timespec ts;
   (void)clock_gettime(CLOCK_MONOTONIC, &ts);
   return (ddsrt_etime_t) { (ts.tv_sec * DDS_NSECS_IN_SEC) + ts.tv_nsec };
+}
+
+ddsrt_hrtime_t ddsrt_time_highres(void)
+{
+#ifdef __QNXNTO__
+  static uint64_t freq = 0;
+  static uint64_t multiplier = 0;
+  if (freq == 0) {
+    freq = SYSPAGE_ENTRY(qtime)->cycles_per_sec;
+    multiplier = (uint64_t) DDS_NSECS_IN_SEC / freq;
+  }
+  uint64_t cycles = ClockCycles ();
+  return (ddsrt_hrtime_t) { cycles * multiplier };
+#else
+  ddsrt_mtime_t mt = ddsrt_time_monotonic();
+  return (ddsrt_hrtime_t) { (uint64_t) mt.v };
+#endif
 }

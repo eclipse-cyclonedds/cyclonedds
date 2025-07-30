@@ -86,6 +86,10 @@ typedef struct {
   dds_time_t v;
 } ddsrt_etime_t;
 
+typedef struct {
+  uint64_t v;
+} ddsrt_hrtime_t;
+
 #define DDSRT_MTIME_NEVER ((ddsrt_mtime_t) { DDS_NEVER })
 #define DDSRT_WCTIME_NEVER ((ddsrt_wctime_t) { DDS_NEVER })
 #define DDSRT_ETIME_NEVER ((ddsrt_etime_t) { DDS_NEVER })
@@ -144,6 +148,20 @@ DDS_EXPORT ddsrt_mtime_t ddsrt_time_monotonic(void);
  * @returns Elapsed time if available, otherwise return monotonic time.
  */
 DDS_EXPORT ddsrt_etime_t ddsrt_time_elapsed(void);
+
+/**
+ * @brief Get high resolution, elapsed (and thus monotonic) time since some
+ * fixed unspecified past time.
+ *
+ * The elapsed time clock is a clock with near real-time progression and can be
+ * used when a high-resolution suspend-aware monotonic clock is needed, without
+ * having to deal with the complications of discontinuities if for example the
+ * time is changed. The fixed point from which the elapsed time is returned is
+ * not guaranteed to be fixed over reboots of the system.
+ *
+ * @returns Elapsed time if available, otherwise return monotonic time.
+ */
+DDS_EXPORT ddsrt_hrtime_t ddsrt_time_highres(void);
 
 /**
  * @brief Convert time into a human readable string in RFC 3339 format.

@@ -113,9 +113,7 @@ ddsrt_wctime_t ddsrt_time_wallclock(void)
 ddsrt_mtime_t ddsrt_time_monotonic(void)
 {
   ULONGLONG ubit;
-
   (void)QueryUnbiasedInterruptTime(&ubit); /* 100ns ticks */
-
   return (ddsrt_mtime_t) { (dds_time_t)ubit * 100 };
 }
 
@@ -163,6 +161,13 @@ ddsrt_etime_t ddsrt_time_elapsed(void)
   QueryPerformanceCounter(&qpc);
 
   return (ddsrt_etime_t) { qpc.QuadPart * qpc_freq };
+}
+
+ddsrt_hrtime_t ddsrt_time_highres(void)
+{
+  ULONGLONG ubit;
+  (void)QueryUnbiasedInterruptTime(&ubit); /* 100ns ticks */
+  return (ddsrt_hrtime_t) { ubit * 100 };
 }
 
 void dds_sleepfor (dds_duration_t timeout)
