@@ -105,6 +105,66 @@ ddsrt_cond_destroy(
 ddsrt_nonnull_all;
 
 /**
+ * @brief Initialize a condition variable.
+ *
+ * @param[in]  cond  Condition variable to initialize.
+ */
+DDS_EXPORT void
+ddsrt_cond_wctime_init(
+  ddsrt_cond_wctime_t *cond)
+ddsrt_nonnull_all;
+
+/**
+ * @brief Destroy a condition variable.
+ *
+ * @param[in]  cond  Condition variable to destroy.
+ */
+DDS_EXPORT void
+ddsrt_cond_wctime_destroy(
+  ddsrt_cond_wctime_t *cond)
+ddsrt_nonnull_all;
+
+/**
+ * @brief Initialize a condition variable.
+ *
+ * @param[in]  cond  Condition variable to initialize.
+ */
+DDS_EXPORT void
+ddsrt_cond_mtime_init(
+  ddsrt_cond_mtime_t *cond)
+ddsrt_nonnull_all;
+
+/**
+ * @brief Destroy a condition variable.
+ *
+ * @param[in]  cond  Condition variable to destroy.
+ */
+DDS_EXPORT void
+ddsrt_cond_mtime_destroy(
+  ddsrt_cond_mtime_t *cond)
+ddsrt_nonnull_all;
+
+/**
+ * @brief Initialize a condition variable.
+ *
+ * @param[in]  cond  Condition variable to initialize.
+ */
+DDS_EXPORT void
+ddsrt_cond_etime_init(
+  ddsrt_cond_etime_t *cond)
+ddsrt_nonnull_all;
+
+/**
+ * @brief Destroy a condition variable.
+ *
+ * @param[in]  cond  Condition variable to destroy.
+ */
+DDS_EXPORT void
+ddsrt_cond_etime_destroy(
+  ddsrt_cond_etime_t *cond)
+ddsrt_nonnull_all;
+
+/**
  * @brief Wait for a condition variable to be signalled.
  *
  * @param[in]  cond   Condition variable to block on.
@@ -117,6 +177,54 @@ ddsrt_nonnull_all;
 DDS_EXPORT void
 ddsrt_cond_wait(
   ddsrt_cond_t *cond,
+  ddsrt_mutex_t *mutex)
+ddsrt_nonnull_all;
+
+/**
+ * @brief Wait for a condition variable to be signalled.
+ *
+ * @param[in]  cond   Condition variable to block on.
+ * @param[in]  mutex  Mutex to associate with condition variable.
+ *
+ * @pre The calling thread must hold the mutex specified by @mutex.
+ *
+ * @post The calling thread will hold the mutex specified by @mutex.
+ */
+DDS_EXPORT void
+ddsrt_cond_wctime_wait(
+  ddsrt_cond_wctime_t *cond,
+  ddsrt_mutex_t *mutex)
+ddsrt_nonnull_all;
+
+/**
+ * @brief Wait for a condition variable to be signalled.
+ *
+ * @param[in]  cond   Condition variable to block on.
+ * @param[in]  mutex  Mutex to associate with condition variable.
+ *
+ * @pre The calling thread must hold the mutex specified by @mutex.
+ *
+ * @post The calling thread will hold the mutex specified by @mutex.
+ */
+DDS_EXPORT void
+ddsrt_cond_mtime_wait(
+  ddsrt_cond_mtime_t *cond,
+  ddsrt_mutex_t *mutex)
+ddsrt_nonnull_all;
+
+/**
+ * @brief Wait for a condition variable to be signalled.
+ *
+ * @param[in]  cond   Condition variable to block on.
+ * @param[in]  mutex  Mutex to associate with condition variable.
+ *
+ * @pre The calling thread must hold the mutex specified by @mutex.
+ *
+ * @post The calling thread will hold the mutex specified by @mutex.
+ */
+DDS_EXPORT void
+ddsrt_cond_etime_wait(
+  ddsrt_cond_etime_t *cond,
   ddsrt_mutex_t *mutex)
 ddsrt_nonnull_all;
 
@@ -135,31 +243,52 @@ ddsrt_nonnull_all;
  *          absolute time specified by @abstime passed, otherwise true.
  */
 DDS_EXPORT bool
-ddsrt_cond_waituntil(
-  ddsrt_cond_t *cond,
+ddsrt_cond_wctime_waituntil(
+  ddsrt_cond_wctime_t *cond,
   ddsrt_mutex_t *mutex,
-  dds_time_t abstime)
+  ddsrt_wctime_t abstime)
 ddsrt_nonnull((1,2));
 
 /**
- * @brief Wait for @reltime for a condition variable to be signalled.
+ * @brief Wait until @abstime for a condition variable to be signalled.
  *
  * @param[in]  cond     Condition variable to block on.
  * @param[in]  mutex    Mutex to associate with condition variable.
- * @param[in]  reltime  Time in nanoseconds since UNIX Epoch.
+ * @param[in]  abstime  Time in nanoseconds since UNIX Epoch.
  *
  * @pre The calling thread must hold the mutex specified by @mutex.
  *
  * @post The calling thread will hold the mutex specified by @mutex.
  *
  * @returns false if the condition variable was not signalled before the
- *          relative time specified by @reltime passed, otherwise true.
+ *          absolute time specified by @abstime passed, otherwise true.
  */
 DDS_EXPORT bool
-ddsrt_cond_waitfor(
-  ddsrt_cond_t *cond,
+ddsrt_cond_mtime_waituntil(
+  ddsrt_cond_mtime_t *cond,
   ddsrt_mutex_t *mutex,
-  dds_duration_t reltime)
+  ddsrt_mtime_t abstime)
+ddsrt_nonnull((1,2));
+
+/**
+ * @brief Wait until @abstime for a condition variable to be signalled.
+ *
+ * @param[in]  cond     Condition variable to block on.
+ * @param[in]  mutex    Mutex to associate with condition variable.
+ * @param[in]  abstime  Time in nanoseconds since UNIX Epoch.
+ *
+ * @pre The calling thread must hold the mutex specified by @mutex.
+ *
+ * @post The calling thread will hold the mutex specified by @mutex.
+ *
+ * @returns false if the condition variable was not signalled before the
+ *          absolute time specified by @abstime passed, otherwise true.
+ */
+DDS_EXPORT bool
+ddsrt_cond_etime_waituntil(
+  ddsrt_cond_etime_t *cond,
+  ddsrt_mutex_t *mutex,
+  ddsrt_etime_t abstime)
 ddsrt_nonnull((1,2));
 
 /**
@@ -177,6 +306,49 @@ ddsrt_cond_signal(
 ddsrt_nonnull_all;
 
 /**
+ * @brief Signal a condition variable and unblock at least one thread.
+ *
+ * @param[in]  cond  Condition variable to signal.
+ *
+ * @pre The mutex associated with the condition in general should be acquired
+ *      by the calling thread before setting the condition state and
+ *      signalling.
+ */
+DDS_EXPORT void
+ddsrt_cond_wctime_signal(
+  ddsrt_cond_wctime_t *cond)
+ddsrt_nonnull_all;
+
+/**
+ * @brief Signal a condition variable and unblock at least one thread.
+ *
+ * @param[in]  cond  Condition variable to signal.
+ *
+ * @pre The mutex associated with the condition in general should be acquired
+ *      by the calling thread before setting the condition state and
+ *      signalling.
+ */
+
+DDS_EXPORT void
+ddsrt_cond_mtime_signal(
+  ddsrt_cond_mtime_t *cond)
+ddsrt_nonnull_all;
+
+/**
+ * @brief Signal a condition variable and unblock at least one thread.
+ *
+ * @param[in]  cond  Condition variable to signal.
+ *
+ * @pre The mutex associated with the condition in general should be acquired
+ *      by the calling thread before setting the condition state and
+ *      signalling.
+ */
+DDS_EXPORT void
+ddsrt_cond_etime_signal(
+  ddsrt_cond_etime_t *cond)
+ddsrt_nonnull_all;
+
+/**
  * @brief Signal a condition variable and unblock all threads.
  *
  * @param[in]  cond  Condition variable to signal.
@@ -188,6 +360,48 @@ ddsrt_nonnull_all;
 DDS_EXPORT void
 ddsrt_cond_broadcast(
   ddsrt_cond_t *cond)
+ddsrt_nonnull_all;
+
+/**
+ * @brief Signal a condition variable and unblock all threads.
+ *
+ * @param[in]  cond  Condition variable to signal.
+ *
+ * @pre The mutex associated with the condition in general should be acquired
+ *      by the calling thread before setting the condition state and
+ *      signalling
+ */
+DDS_EXPORT void
+ddsrt_cond_wctime_broadcast(
+  ddsrt_cond_wctime_t *cond)
+ddsrt_nonnull_all;
+
+/**
+ * @brief Signal a condition variable and unblock all threads.
+ *
+ * @param[in]  cond  Condition variable to signal.
+ *
+ * @pre The mutex associated with the condition in general should be acquired
+ *      by the calling thread before setting the condition state and
+ *      signalling
+ */
+DDS_EXPORT void
+ddsrt_cond_mtime_broadcast(
+  ddsrt_cond_mtime_t *cond)
+ddsrt_nonnull_all;
+
+/**
+ * @brief Signal a condition variable and unblock all threads.
+ *
+ * @param[in]  cond  Condition variable to signal.
+ *
+ * @pre The mutex associated with the condition in general should be acquired
+ *      by the calling thread before setting the condition state and
+ *      signalling
+ */
+DDS_EXPORT void
+ddsrt_cond_etime_broadcast(
+  ddsrt_cond_etime_t *cond)
 ddsrt_nonnull_all;
 
 /**

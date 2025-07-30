@@ -150,7 +150,7 @@ static int find_handshake (DDS_Security_HandshakeHandle handle)
   return -1;
 }
 
-static void handle_process_message (dds_domainid_t domain_id, DDS_Security_IdentityHandle handshake, dds_time_t abstimeout)
+static void handle_process_message (dds_domainid_t domain_id, DDS_Security_IdentityHandle handshake, ddsrt_mtime_t abstimeout)
 {
   struct message *msg;
   switch (test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_PROCESS_HANDSHAKE, 0, 0, handshake, abstimeout, &msg))
@@ -177,7 +177,7 @@ static void handle_process_message (dds_domainid_t domain_id, DDS_Security_Ident
   }
 }
 
-static void handle_begin_handshake_request (dds_domainid_t domain_id, struct Handshake *hs, DDS_Security_IdentityHandle lid, DDS_Security_IdentityHandle rid, dds_time_t abstimeout)
+static void handle_begin_handshake_request (dds_domainid_t domain_id, struct Handshake *hs, DDS_Security_IdentityHandle lid, DDS_Security_IdentityHandle rid, ddsrt_mtime_t abstimeout)
 {
   struct message *msg;
   print_test_msg ("handle begin handshake request %"PRId64"<->%"PRId64"\n", lid, rid);
@@ -204,7 +204,7 @@ static void handle_begin_handshake_request (dds_domainid_t domain_id, struct Han
   }
 }
 
-static void handle_begin_handshake_reply (dds_domainid_t domain_id, struct Handshake *hs, DDS_Security_IdentityHandle lid, DDS_Security_IdentityHandle rid, dds_time_t abstimeout)
+static void handle_begin_handshake_reply (dds_domainid_t domain_id, struct Handshake *hs, DDS_Security_IdentityHandle lid, DDS_Security_IdentityHandle rid, ddsrt_mtime_t abstimeout)
 {
   struct message *msg;
   print_test_msg ("handle begin handshake reply %"PRId64"<->%"PRId64"\n", lid, rid);
@@ -231,7 +231,7 @@ static void handle_begin_handshake_reply (dds_domainid_t domain_id, struct Hands
   }
 }
 
-static void handle_validate_remote_identity (dds_domainid_t domain_id, DDS_Security_IdentityHandle lid, int count, dds_time_t abstimeout)
+static void handle_validate_remote_identity (dds_domainid_t domain_id, DDS_Security_IdentityHandle lid, int count, ddsrt_mtime_t abstimeout)
 {
   enum take_message_result res = TAKE_MESSAGE_OK;
   struct message *msg;
@@ -270,7 +270,7 @@ static void handle_validate_remote_identity (dds_domainid_t domain_id, DDS_Secur
   }
 }
 
-static void handle_validate_local_identity (dds_domainid_t domain_id, bool exp_localid_fail, const char * exp_localid_msg, dds_time_t abstimeout)
+static void handle_validate_local_identity (dds_domainid_t domain_id, bool exp_localid_fail, const char * exp_localid_msg, ddsrt_mtime_t abstimeout)
 {
   struct message *msg;
   switch (test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_VALIDATE_LOCAL_IDENTITY, 0, 0, 0, abstimeout, &msg))
@@ -301,7 +301,7 @@ static void handle_validate_local_identity (dds_domainid_t domain_id, bool exp_l
 
 void validate_handshake (dds_domainid_t domain_id, bool exp_localid_fail, const char * exp_localid_msg, struct Handshake *hs_list[], int *nhs, dds_duration_t timeout)
 {
-  dds_time_t abstimeout = dds_time() + timeout;
+  ddsrt_mtime_t abstimeout = ddsrt_mtime_add_duration (ddsrt_time_monotonic (), timeout);
   clear_stores ();
 
   if (nhs)

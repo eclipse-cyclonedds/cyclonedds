@@ -20,6 +20,18 @@ typedef struct {
 } ddsrt_cond_t;
 
 typedef struct {
+    CONDITION_VARIABLE cond;
+} ddsrt_cond_wctime_t;
+
+typedef struct {
+    CONDITION_VARIABLE cond;
+} ddsrt_cond_mtime_t;
+
+typedef struct {
+    CONDITION_VARIABLE cond;
+} ddsrt_cond_etime_t;
+
+typedef struct {
     SRWLOCK lock;
 } ddsrt_mutex_t;
 

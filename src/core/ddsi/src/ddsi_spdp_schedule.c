@@ -470,7 +470,7 @@ dds_return_t ddsi_spdp_register_participant (struct spdp_admin *adm, const struc
   }
   else
   {
-    const ddsrt_mtime_t tsched = ddsrt_mtime_add_duration (ddsrt_time_monotonic(), DDS_MSECS (100)); // FIXME: initial schedule ...
+    const ddsrt_mtime_t tsched = ddsrt_mtime_add_duration (ddsrt_time_monotonic(), DDS_MSECS (1)); // FIXME: initial schedule ...
     ppn->pp = pp;
     ppn->tsched = tsched;
     ddsrt_avl_insert_ipath (&spdp_pp_td, &adm->pp, ppn, &ip);

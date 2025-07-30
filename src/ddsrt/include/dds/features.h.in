@@ -44,5 +44,8 @@
 /* Whether or not support for qos provider is included */
 #cmakedefine DDS_HAS_QOS_PROVIDER 1
 
+/* Whether or not support for mimalloc is included */
+#cmakedefine DDS_HAS_MIMALLOC 1
+
 
 #endif

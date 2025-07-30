@@ -282,10 +282,15 @@ static struct ddsi_xmsg *ddsi_xmsg_allocnew (struct ddsi_xmsgpool *pool, size_t 
 struct ddsi_xmsg *ddsi_xmsg_new (struct ddsi_xmsgpool *pool, const ddsi_guid_t *src_guid, struct ddsi_participant *pp, size_t expected_size, enum ddsi_xmsg_kind kind)
 {
   struct ddsi_xmsg *m;
+#ifndef DDS_HAS_MIMALLOC
   if ((m = ddsi_freelist_pop (&pool->freelist)) != NULL)
     ddsi_xmsg_reinit (m, kind);
-  else if ((m = ddsi_xmsg_allocnew (pool, expected_size, kind)) == NULL)
-    return NULL;
+  else
+#endif
+  {
+    if ((m = ddsi_xmsg_allocnew (pool, expected_size, kind)) == NULL)
+      return NULL;
+  }
   m->data->src.guid_prefix = ddsi_hton_guid_prefix (src_guid->prefix);
 
 #ifdef DDS_HAS_SECURITY
@@ -313,7 +318,6 @@ static void ddsi_xmsg_realfree (struct ddsi_xmsg *m)
 
 void ddsi_xmsg_free (struct ddsi_xmsg *m)
 {
-  struct ddsi_xmsgpool *pool = m->pool;
   if (m->refd_payload)
     ddsi_serdata_to_ser_unref (m->refd_payload, &m->refd_payload_iov);
 #ifdef DDS_HAS_SECURITY
@@ -332,7 +336,9 @@ void ddsi_xmsg_free (struct ddsi_xmsg *m)
       break;
   }
   /* Only cache the smallest xmsgs; data messages store the payload by reference and are small */
-  if (m->maxsz > DDSI_XMSG_CHUNK_SIZE || !ddsi_freelist_push (&pool->freelist, m))
+#ifndef DDS_HAS_MIMALLOC
+  if (m->maxsz > DDSI_XMSG_CHUNK_SIZE || !ddsi_freelist_push (&m->pool->freelist, m))
+#endif
   {
     ddsi_xmsg_realfree (m);
   }

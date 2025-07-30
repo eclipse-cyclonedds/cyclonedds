@@ -621,7 +621,7 @@ dds_entity_t dds_create_topic_impl (
   {
     ddsrt_mutex_lock (&gv->new_topic_lock);
     gv->new_topic_version++;
-    ddsrt_cond_broadcast (&gv->new_topic_cond);
+    ddsrt_cond_etime_broadcast (&gv->new_topic_cond);
     ddsrt_mutex_unlock (&gv->new_topic_lock);
   }
 
@@ -910,6 +910,8 @@ static dds_entity_t dds_find_topic_impl (dds_find_scope_t scope, dds_entity_t pa
 
   if (name == NULL || !is_valid_name (name))
     return DDS_RETCODE_BAD_PARAMETER;
+  if (timeout < 0)
+    return DDS_RETCODE_BAD_PARAMETER;
   if ((ret = dds_entity_pin (participant, &e)) < 0)
     return ret;
   if (e->m_kind != DDS_KIND_PARTICIPANT)
@@ -919,8 +921,7 @@ static dds_entity_t dds_find_topic_impl (dds_find_scope_t scope, dds_entity_t pa
   }
   dds_participant *pp_topic = (dds_participant *) e;
   struct ddsi_domaingv * gv = &e->m_domain->gv;
-  const dds_time_t tnow = dds_time ();
-  const dds_time_t abstimeout = (DDS_INFINITY - timeout <= tnow) ? DDS_NEVER : (tnow + timeout);
+  const ddsrt_etime_t abstimeout = ddsrt_etime_add_duration (ddsrt_time_elapsed (), timeout);
   do
   {
     ddsrt_mutex_lock (&gv->new_topic_lock);
@@ -937,7 +938,7 @@ static dds_entity_t dds_find_topic_impl (dds_find_scope_t scope, dds_entity_t pa
       ddsrt_mutex_lock (&gv->new_topic_lock);
       while (hdl != DDS_RETCODE_TIMEOUT && gv->new_topic_version == tv)
       {
-        if (!ddsrt_cond_waituntil (&gv->new_topic_cond, &gv->new_topic_lock, abstimeout))
+        if (!ddsrt_cond_etime_waituntil (&gv->new_topic_cond, &gv->new_topic_lock, abstimeout))
           hdl = DDS_RETCODE_TIMEOUT;
       }
       ddsrt_mutex_unlock (&gv->new_topic_lock);

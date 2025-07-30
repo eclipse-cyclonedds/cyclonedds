@@ -309,7 +309,7 @@ struct ddsi_domaingv {
   ddsrt_avl_tree_t typelib;
   ddsrt_avl_tree_t typedeps;
   ddsrt_avl_tree_t typedeps_reverse;
-  ddsrt_cond_t typelib_resolved_cond;
+  ddsrt_cond_etime_t typelib_resolved_cond;
 #endif
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   ddsrt_mutex_t topic_defs_lock;
@@ -317,7 +317,7 @@ struct ddsi_domaingv {
 #endif
 
   ddsrt_mutex_t new_topic_lock;
-  ddsrt_cond_t new_topic_cond;
+  ddsrt_cond_etime_t new_topic_cond;
   uint32_t new_topic_version;
 
   /* security globals */

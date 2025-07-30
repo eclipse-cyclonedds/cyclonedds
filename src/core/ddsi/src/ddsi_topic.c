@@ -460,7 +460,7 @@ dds_return_t ddsi_new_proxy_topic (struct ddsi_proxy_participant *proxypp, ddsi_
     ddsi_builtintopic_write_topic (gv->builtin_topic_interface, tpd, timestamp, true);
     ddsrt_mutex_lock (&gv->new_topic_lock);
     gv->new_topic_version++;
-    ddsrt_cond_broadcast (&gv->new_topic_cond);
+    ddsrt_cond_etime_broadcast (&gv->new_topic_cond);
     ddsrt_mutex_unlock (&gv->new_topic_lock);
   }
 
@@ -514,7 +514,7 @@ void ddsi_update_proxy_topic (struct ddsi_proxy_participant *proxypp, struct dds
 
     ddsrt_mutex_lock (&gv->new_topic_lock);
     gv->new_topic_version++;
-    ddsrt_cond_broadcast (&gv->new_topic_cond);
+    ddsrt_cond_etime_broadcast (&gv->new_topic_cond);
     ddsrt_mutex_unlock (&gv->new_topic_lock);
   }
 }

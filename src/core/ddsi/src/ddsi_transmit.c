@@ -694,22 +694,14 @@ static dds_return_t throttle_writer (struct ddsi_thread_state * const thrst, str
 
   while (ddsrt_atomic_ld32 (&gv->rtps_keepgoing) && !writer_may_continue (wr, &whcst))
   {
-    int64_t reltimeout;
-    tnow = ddsrt_time_monotonic ();
-    reltimeout = abstimeout.v - tnow.v;
     result = DDS_RETCODE_TIMEOUT;
-    if (reltimeout > 0)
-    {
-      ddsi_thread_state_asleep (thrst);
-      if (ddsrt_cond_waitfor (&wr->throttle_cond, &wr->e.lock, reltimeout))
-        result = DDS_RETCODE_OK;
-      ddsi_thread_state_awake_domain_ok (thrst);
-      ddsi_whc_get_state(wr->whc, &whcst);
-    }
+    ddsi_thread_state_asleep (thrst);
+    if (ddsrt_cond_mtime_waituntil (&wr->throttle_cond, &wr->e.lock, abstimeout))
+      result = DDS_RETCODE_OK;
+    ddsi_thread_state_awake_domain_ok (thrst);
+    ddsi_whc_get_state(wr->whc, &whcst);
     if (result == DDS_RETCODE_TIMEOUT)
-    {
       break;
-    }
   }
 
   wr->throttling--;
@@ -717,7 +709,7 @@ static dds_return_t throttle_writer (struct ddsi_thread_state * const thrst, str
   if (wr->state != WRST_OPERATIONAL)
   {
     /* gc_delete_writer may be waiting */
-    ddsrt_cond_broadcast (&wr->throttle_cond);
+    ddsrt_cond_mtime_broadcast (&wr->throttle_cond);
   }
 
   GVLOG (DDS_LC_THROTTLE,
