@@ -186,10 +186,23 @@ T_INIT_SIMPLE(SerdataKeyOrderMutable)
 }
 
 T_INIT_NESTED(SerdataKeyOrderFinalNestedMutable)
+T_INIT_NESTED(SerdataKeyOrderFinalNestedNonKeyMutable)
 T_INIT_NESTED(SerdataKeyOrderAppendableNestedMutable)
 T_INIT_NESTED(SerdataKeyOrderMutableNestedMutable)
 T_INIT_NESTED(SerdataKeyOrderMutableNestedAppendable)
 T_INIT_NESTED(SerdataKeyOrderMutableNestedFinal)
+
+static void *init_SerdataKeyOrderFinalNestedNonKeyAppendable (void)
+{
+  SerdataKeyOrderFinalNestedNonKeyAppendable *sample = ddsrt_malloc (sizeof (*sample));
+  sample->x = 10;
+  sample->y = 20;
+  sample->z = ddsrt_malloc (sizeof (*sample->z));
+  sample->z->a = 1;
+  sample->z->b = 2;
+  sample->z->c = 3;
+  return sample;
+}
 
 static void *init_SerdataKeyString (void)
 {
@@ -447,8 +460,9 @@ CU_Test(ddsc_serdata, key_serialization)
           1,0,0,0,0,0,0,0,SER64(3)
         }, 16,
         (raw){
-          1,0,0,0,0,0,0,0,SER64BE(3)
-        }, 16
+          SER64BE(3),1,
+          0,0,0 // padding
+        }, 9
       }, {
         MAKE_ENCHDR(CDR2),
         (raw){
@@ -473,8 +487,9 @@ CU_Test(ddsc_serdata, key_serialization)
           1,0,0,0,0,0,0,0,SER64(3)
         }, 16,
         (raw){
-          1,0,0,0,0,0,0,0,SER64BE(3)
-        }, 16
+          SER64BE(3),1,
+          0,0,0, // padding
+        }, 9
       }, {
         MAKE_ENCHDR(CDR2),
         (raw){
@@ -499,8 +514,9 @@ CU_Test(ddsc_serdata, key_serialization)
           1,0,0,0,0,0,0,0,SER64(3)
         }, 16,
         (raw){
-          1,0,0,0,0,0,0,0,SER64BE(3)
-        }, 16,
+          SER64BE(3),1,
+          0,0,0 // padding
+        }, 9
       }, {
         MAKE_ENCHDR(D_CDR2),
         (raw){
@@ -519,7 +535,22 @@ CU_Test(ddsc_serdata, key_serialization)
     },
     { &SerdataKeyOrderMutable_desc, init_SerdataKeyOrderMutable,
       { {
-        0 // not supported
+        MAKE_ENCHDR(PL_CDR),
+        (raw){
+          SER_PHDR_EXT(1,1,3),1,0,0,0,
+          SER_PHDR_EXT(0,1,2),2,0,0,0,
+          SER_PHDR_EXT(1,8,1),SER64(3),
+          SER_PHDR_END(),
+        }, 56,
+        (raw){
+          SER_PHDR_EXT(1,1,3),1,0,0,0,
+          SER_PHDR_EXT(1,8,1),SER64(3),
+          SER_PHDR_END(),
+        }, 40,
+        (raw){
+          SER64BE(3),1,
+          0,0,0 // padding
+        }, 9
       }, {
         MAKE_ENCHDR(PL_CDR2),
         (raw){
@@ -541,7 +572,25 @@ CU_Test(ddsc_serdata, key_serialization)
     },
     { &SerdataKeyOrderFinalNestedMutable_desc, init_SerdataKeyOrderFinalNestedMutable,
       { {
-        0 // not supported
+        MAKE_ENCHDR(CDR),
+        (raw){
+          10,20,0,0,
+            SER_PHDR_EXT(1,1,3),1,0,0,0,
+            SER_PHDR_EXT(0,1,2),2,0,0,0,
+            SER_PHDR_EXT(1,8,1),SER64(3),
+            SER_PHDR_END(),
+        }, 60,
+        (raw){
+          10,0,0,0,
+            SER_PHDR_EXT(1,1,3),1,0,0,0,
+            SER_PHDR_EXT(1,8,1),SER64(3),
+            SER_PHDR_END(),
+        }, 44,
+        (raw){
+          SER64BE(3),1,
+          10,
+          0,0 // padding
+        }, 10
       }, {
         MAKE_ENCHDR(CDR2),
         (raw){
@@ -564,9 +613,104 @@ CU_Test(ddsc_serdata, key_serialization)
         }, 10
       } }
     },
+    { &SerdataKeyOrderFinalNestedNonKeyMutable_desc, init_SerdataKeyOrderFinalNestedNonKeyMutable,
+      { {
+        MAKE_ENCHDR(CDR),
+        (raw){
+          10,20,0,0,
+            SER_PHDR_EXT(1,1,3),1,0,0,0,
+            SER_PHDR_EXT(0,1,2),2,0,0,0,
+            SER_PHDR_EXT(1,8,1),SER64(3),
+            SER_PHDR_END(),
+        }, 60,
+        (raw){
+          10,
+          0,0,0 // padding
+        }, 1,
+        (raw){
+          10,
+          0,0,0 // padding
+        }, 1
+      }, {
+        MAKE_ENCHDR(CDR2),
+        (raw){
+          10,20,0,0,
+            SER_DHEADER(28),
+            SER_EMHEADER(1,0,3),1,0,0,0,
+            SER_EMHEADER(0,0,2),2,0,0,0,
+            SER_EMHEADER(1,3,1),SER64(3)
+        }, 36,
+        (raw){
+          10,
+          0,0,0, // padding
+        }, 1,
+        (raw){
+          10,
+          0,0,0 // padding
+        }, 1
+      } }
+    },
+    { &SerdataKeyOrderFinalNestedNonKeyAppendable_desc, init_SerdataKeyOrderFinalNestedNonKeyAppendable,
+      { {
+        MAKE_ENCHDR(CDR),
+        (raw){
+          10,20,0,0,
+          SER_PHDR_EXT(0,16,1),
+            1,2,
+            0,0, // padding
+            0,0,0,0, // more padding because of XCDR1 alignment rules
+            SER64(3),
+        }, 32,
+        (raw){
+          10,
+          0,0,0 // padding
+        }, 1,
+        (raw){
+          10,
+          0,0,0 // padding
+        }, 1
+      }, {
+        MAKE_ENCHDR(CDR2),
+        (raw){
+          10,20,
+          1, // optional: present
+            0, // padding
+            SER_DHEADER(12),
+            1,2,
+            0,0, // padding
+            SER64(3)
+        }, 20,
+        (raw){
+          10,
+          0,0,0, // padding
+        }, 1,
+        (raw){
+          10,
+          0,0,0 // padding
+        }, 1
+      } }
+    },
     { &SerdataKeyOrderAppendableNestedMutable_desc, init_SerdataKeyOrderAppendableNestedMutable,
       { {
-        0 // not supported
+        MAKE_ENCHDR(CDR),
+        (raw){
+          10,20,0,0,
+            SER_PHDR_EXT(1,1,3),1,0,0,0,
+            SER_PHDR_EXT(0,1,2),2,0,0,0,
+            SER_PHDR_EXT(1,8,1),SER64(3),
+            SER_PHDR_END(),
+        }, 60,
+        (raw){
+          10,0,0,0,
+            SER_PHDR_EXT(1,1,3),1,0,0,0,
+            SER_PHDR_EXT(1,8,1),SER64(3),
+            SER_PHDR_END(),
+        }, 44,
+        (raw){
+          SER64BE(3),1,
+          10,
+          0,0 // padding
+        }, 10
       }, {
         MAKE_ENCHDR(D_CDR2),
         (raw){
@@ -591,7 +735,30 @@ CU_Test(ddsc_serdata, key_serialization)
     },
     { &SerdataKeyOrderMutableNestedMutable_desc, init_SerdataKeyOrderMutableNestedMutable,
       { {
-        0 // not supported
+        MAKE_ENCHDR(PL_CDR),
+        (raw){
+          SER_PHDR_EXT(1,1,3),10,0,0,0,
+          SER_PHDR_EXT(0,1,2),20,0,0,0,
+          SER_PHDR_EXT(1,56,1),
+            SER_PHDR_EXT(1,1,3),1,0,0,0,
+            SER_PHDR_EXT(0,1,2),2,0,0,0,
+            SER_PHDR_EXT(1,8,1),SER64(3),
+            SER_PHDR_END(),
+          SER_PHDR_END(),
+        }, 104,
+        (raw){
+          SER_PHDR_EXT(1,1,3),10,0,0,0,
+          SER_PHDR_EXT(1,40,1),
+            SER_PHDR_EXT(1,1,3),1,0,0,0,
+            SER_PHDR_EXT(1,8,1),SER64(3),
+            SER_PHDR_END(),
+          SER_PHDR_END(),
+        }, 72,
+        (raw){
+          SER64BE(3),1,
+          10,
+          0,0 // padding
+        }, 10
       }, {
         MAKE_ENCHDR(PL_CDR2),
         (raw){
@@ -648,7 +815,31 @@ CU_Test(ddsc_serdata, key_serialization)
     },
     { &SerdataKeyOrderMutableNestedFinal_desc, init_SerdataKeyOrderMutableNestedFinal,
       { {
-        0 // not supported
+        MAKE_ENCHDR(PL_CDR),
+        (raw){
+          SER_PHDR_EXT(1,1,3),10,0,0,0,
+          SER_PHDR_EXT(0,1,2),20,0,0,0,
+          SER_PHDR_EXT(1,16,1),
+            1,2,0,0,
+            0,0,0,0, // padding
+            SER64(3),
+          SER_PHDR_END()
+        }, 64,
+        (raw){
+          SER_PHDR_EXT(1,1,3),10,0,0,0,
+          SER_PHDR_EXT(1,16,1),
+            1,0,0,0,
+            0,0,0,0, // padding
+            SER64(3),
+          SER_PHDR_END()
+        }, 48,
+        (raw){
+          1,0,0,0,
+          0,0,0,0, // padding
+          SER64BE(3),
+          10,
+          0,0,0 // padding
+        }, 17
       }, {
         MAKE_ENCHDR(PL_CDR2),
         (raw){
@@ -909,12 +1100,13 @@ CU_Test(ddsc_serdata, key_serialization)
           SER32(20)
         }, 20,
         (raw){
-          // d
-          1,2,
-            3,0,0,0,0,0,SER64BE(5),
-          // f
-          SER32BE(20)
-        }, 20
+          SER32BE(20),  // f
+          3,0,0,0,      // d.z.a
+          SER64BE(5),   // d.z.c
+          2,            // d.y
+          1,            // d.x
+          0,0           // padding
+        }, 18
       }, {
         MAKE_ENCHDR(CDR2),
         (raw){
@@ -989,7 +1181,50 @@ CU_Test(ddsc_serdata, key_serialization)
     },
     { &SerdataKeyNestedMutableImplicit_desc, init_SerdataKeyNestedMutableImplicit,
       { {
-        0 // not supported
+        MAKE_ENCHDR(CDR),
+        (raw){
+          // d
+          SER_PHDR_EXT(1,1,3),1,0,0,0,
+          SER_PHDR_EXT(1,1,2),2,0,0,0,
+          SER_PHDR_EXT(1,16,1),
+            3,4,0,0,
+            0,0,0,0, // padding
+            SER64(5),
+          SER_PHDR_END(),
+          // e
+          /* FIXME: for these 3 members the must-understand bit is set because the
+              type is also used as key. Is this correct, or shouldn't the bit be set
+              in when used as non-key? */
+          SER_PHDR_EXT(1,1,3),11,0,0,0,
+          SER_PHDR_EXT(1,1,2),12,0,0,0,
+          SER_PHDR_EXT(1,16,1),
+            13,14,0,0,
+            0,0,0,0, // padding
+            SER64(5),
+          SER_PHDR_END(),
+          // f
+          SER32(20)
+        }, 132,
+        (raw){
+          // d
+          SER_PHDR_EXT(1,1,3),1,0,0,0,
+          SER_PHDR_EXT(1,1,2),2,0,0,0,
+          SER_PHDR_EXT(1,16,1),
+            3,0,0,0,
+            0,0,0,0, // padding
+            SER64(5),
+          SER_PHDR_END(),
+          // f
+          SER32(20)
+        }, 68,
+        (raw){
+          SER32BE(20),  // f
+          3,0,0,0,      // d.z.a
+          SER64BE(5),   // d.z.c
+          2,            // d.y
+          1,            // d.x
+          0,0           // padding
+        }, 18
       }, {
         MAKE_ENCHDR(D_CDR2),
         (raw){

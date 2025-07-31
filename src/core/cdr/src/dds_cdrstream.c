@@ -116,9 +116,13 @@ typedef struct restrict_ostreamLE {
 #define dds_stream_writeBO                                  NAME_BYTE_ORDER(dds_stream_write)
 #define dds_stream_write_implBO                             NAME_BYTE_ORDER(dds_stream_write_impl)
 #define dds_stream_write_xcdr1_paramheaderBO                NAME_BYTE_ORDER(dds_stream_write_xcdr1_paramheader)
+#define dds_stream_write_xcdr1_paramheader_closeBO          NAME_BYTE_ORDER(dds_stream_write_xcdr1_paramheader_closeBO)
+#define dds_stream_write_xcdr1_param_list_endBO             NAME_BYTE_ORDER(dds_stream_write_xcdr1_param_list_end)
 #define dds_stream_write_adrBO                              NAME_BYTE_ORDER(dds_stream_write_adr)
+#define dds_stream_write_xcdr1_plBO                         NAME_BYTE_ORDER(dds_stream_write_xcdr1_pl)
 #define dds_stream_write_xcdr2_plBO                         NAME_BYTE_ORDER(dds_stream_write_xcdr2_pl)
-#define dds_stream_write_xcdr2_pl_memberlistBO              NAME_BYTE_ORDER(dds_stream_write_xcdr2_pl_memberlist)
+#define dds_stream_write_pl_memberlistBO                    NAME_BYTE_ORDER(dds_stream_write_pl_memberlist)
+#define dds_stream_write_xcdr1_pl_memberBO                  NAME_BYTE_ORDER(dds_stream_write_xcdr1_pl_member)
 #define dds_stream_write_xcdr2_pl_memberBO                  NAME_BYTE_ORDER(dds_stream_write_xcdr2_pl_member)
 #define dds_stream_write_delimitedBO                        NAME_BYTE_ORDER(dds_stream_write_delimited)
 #define dds_stream_write_keyBO                              NAME_BYTE_ORDER(dds_stream_write_key)
@@ -130,9 +134,7 @@ typedef struct restrict_ostreamLE {
 #define dds_stream_extract_keyBO_from_data1                 NAME2_BYTE_ORDER(dds_stream_extract_key, _from_data1)
 #define dds_stream_extract_keyBO_from_data_adr              NAME2_BYTE_ORDER(dds_stream_extract_key, _from_data_adr)
 #define dds_stream_extract_keyBO_from_key_prim_op           NAME2_BYTE_ORDER(dds_stream_extract_key, _from_key_prim_op)
-#define dds_stream_extract_keyBO_from_data_delimited        NAME2_BYTE_ORDER(dds_stream_extract_key, _from_data_delimited)
-#define dds_stream_extract_keyBO_from_data_xcdr2_pl         NAME2_BYTE_ORDER(dds_stream_extract_key, _from_data_xcdr2_pl)
-#define dds_stream_extract_keyBO_from_data_xcdr2_pl_member  NAME2_BYTE_ORDER(dds_stream_extract_key, _from_data_xcdr2_pl_member)
+#define dds_stream_extract_keyBO_from_data_skip_delimited   NAME2_BYTE_ORDER(dds_stream_extract_key, _from_data_skip_delimited)
 #define dds_stream_extract_keyBO_from_key_impl              NAME2_BYTE_ORDER(dds_stream_extract_key, _from_key_impl)
 #define dds_stream_extract_keyBO_from_key_optimized         NAME2_BYTE_ORDER(dds_stream_extract_key, _from_key_optimized)
 #define dds_stream_extract_keyBO_from_key                   NAME2_BYTE_ORDER(dds_stream_extract_key, _from_key)
@@ -183,13 +185,13 @@ static const uint32_t *dds_stream_skip_default (char * restrict data, const stru
   ddsrt_nonnull_all;
 
 static const uint32_t *dds_stream_extract_key_from_data1 (dds_istream_t *is, restrict_ostream_t *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table,
-  const uint32_t *ops, bool mutable_member, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * restrict keys_remaining)
-  ddsrt_nonnull ((1, 3, 4, 5, 9));
+  const uint32_t *ops, bool mutable_member, uint32_t n_keys, uint32_t * restrict keys_remaining)
+  ddsrt_nonnull ((1, 3, 4, 5, 8));
 
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
 static const uint32_t *dds_stream_extract_keyBE_from_data1 (dds_istream_t *is, restrict_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table,
-  const uint32_t *ops, bool mutable_member, bool mutable_member_or_parent, uint32_t n_keys, uint32_t * restrict keys_remaining)
-  ddsrt_nonnull ((1, 3, 4, 5, 9));
+  const uint32_t *ops, bool mutable_member, uint32_t n_keys, uint32_t * restrict keys_remaining)
+  ddsrt_nonnull ((1, 3, 4, 5, 8));
 #endif
 
 static const uint32_t *stream_normalize_data_impl (char * restrict data, uint32_t * restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, bool is_mutable_member, enum cdr_data_kind cdr_kind)
@@ -211,10 +213,10 @@ static const uint32_t *dds_stream_free_sample_uni (char * restrict discaddr, cha
   ddsrt_nonnull_all;
 
 static const uint32_t *dds_stream_write_implLE (restrict_ostreamLE_t *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const char *data, const uint32_t *ops, bool is_mutable_member, enum cdr_data_kind cdr_kind)
-  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull ((1, 2, 3, 4, 5));
 
 static const uint32_t *dds_stream_write_implBE (restrict_ostreamBE_t *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const char *data, const uint32_t *ops, bool is_mutable_member, enum cdr_data_kind cdr_kind)
-  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull ((1, 2, 3, 4, 5));
 
 #ifndef NDEBUG
 typedef struct align { uint32_t a; } align_t;
@@ -841,10 +843,10 @@ size_t dds_stream_check_optimize (const struct dds_cdrstream_desc *desc, uint32_
 }
 
 ddsrt_nonnull_all
-static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struct dds_cdrstream_ops_info *info, bool in_xcdr1_delimited_scope);
+static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struct dds_cdrstream_ops_info *info, bool in_xcdr1_delimited_scope, bool in_recursive);
 
 ddsrt_nonnull_all
-static const uint32_t *dds_stream_get_ops_info_seq (const uint32_t *ops, uint32_t insn, uint32_t nestc, struct dds_cdrstream_ops_info *info)
+static const uint32_t *dds_stream_get_ops_info_seq (const uint32_t *ops, uint32_t insn, uint32_t nestc, struct dds_cdrstream_ops_info *info, bool in_recursive)
 {
   uint32_t bound_op = seq_is_bounded (DDS_OP_TYPE (insn)) ? 1 : 0;
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
@@ -886,8 +888,9 @@ static const uint32_t *dds_stream_get_ops_info_seq (const uint32_t *ops, uint32_
       uint32_t const * const jsr_ops = ops + DDS_OP_ADR_JSR (ops[3 + bound_op]);
       if (ops + 4 + bound_op > info->ops_end)
         info->ops_end = ops + 4 + bound_op;
-      if (DDS_OP_ADR_JSR (ops[3 + bound_op]) > 0)
-        dds_stream_get_ops_info1 (jsr_ops, nestc + (subtype == DDS_OP_VAL_UNI || subtype == DDS_OP_VAL_STU ? 1 : 0), info, false);
+      bool recursive = DDS_OP_ADR_JSR (ops[3 + bound_op]) <= 0;
+      if (!in_recursive)
+        dds_stream_get_ops_info1 (jsr_ops, nestc + (subtype == DDS_OP_VAL_UNI || subtype == DDS_OP_VAL_STU ? 1 : 0), info, false, recursive);
       ops += (jmp ? jmp : (4 + bound_op)); /* FIXME: why would jmp be 0? */
       break;
     }
@@ -901,7 +904,7 @@ static const uint32_t *dds_stream_get_ops_info_seq (const uint32_t *ops, uint32_
 }
 
 ddsrt_nonnull_all
-static const uint32_t *dds_stream_get_ops_info_arr (const uint32_t *ops, uint32_t insn, uint32_t nestc, struct dds_cdrstream_ops_info *info)
+static const uint32_t *dds_stream_get_ops_info_arr (const uint32_t *ops, uint32_t insn, uint32_t nestc, struct dds_cdrstream_ops_info *info, bool in_recursive)
 {
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
   switch (subtype)
@@ -942,8 +945,9 @@ static const uint32_t *dds_stream_get_ops_info_arr (const uint32_t *ops, uint32_
       const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[3]);
       if (ops + 5 > info->ops_end)
         info->ops_end = ops + 5;
-      if (DDS_OP_ADR_JSR (ops[3]) > 0)
-        dds_stream_get_ops_info1 (jsr_ops, nestc + (subtype == DDS_OP_VAL_UNI || subtype == DDS_OP_VAL_STU ? 1 : 0), info, false);
+      bool recursive = DDS_OP_ADR_JSR (ops[3]) <= 0;
+      if (!in_recursive)
+        dds_stream_get_ops_info1 (jsr_ops, nestc + (subtype == DDS_OP_VAL_UNI || subtype == DDS_OP_VAL_STU ? 1 : 0), info, false, recursive);
       ops += (jmp ? jmp : 5);
       break;
     }
@@ -957,7 +961,7 @@ static const uint32_t *dds_stream_get_ops_info_arr (const uint32_t *ops, uint32_
 }
 
 ddsrt_nonnull_all
-static const uint32_t *dds_stream_get_ops_info_uni (const uint32_t *ops, uint32_t nestc, struct dds_cdrstream_ops_info *info)
+static const uint32_t *dds_stream_get_ops_info_uni (const uint32_t *ops, uint32_t nestc, struct dds_cdrstream_ops_info *info, bool in_recursive)
 {
   enum dds_stream_typecode disc_type = DDS_OP_SUBTYPE (ops[0]);
   if (disc_type == DDS_OP_VAL_ENU)
@@ -990,10 +994,12 @@ static const uint32_t *dds_stream_get_ops_info_uni (const uint32_t *ops, uint32_
         info->data_types |= DDS_DATA_TYPE_CONTAINS_STRUCT;
         /* fall-through */
       case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR:
-      case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_BMK:
-        if (DDS_OP_ADR_JSR (jeq_op[0]) > 0)
-          dds_stream_get_ops_info1 (jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), nestc + (valtype == DDS_OP_VAL_UNI || valtype == DDS_OP_VAL_STU ? 1 : 0), info, false);
+      case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_BMK: {
+        bool recursive = DDS_OP_ADR_JSR (jeq_op[0]) <= 0;
+        if (!in_recursive)
+          dds_stream_get_ops_info1 (jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), nestc + (valtype == DDS_OP_VAL_UNI || valtype == DDS_OP_VAL_STU ? 1 : 0), info, false, recursive);
         break;
+      }
       case DDS_OP_VAL_EXT:
         abort (); // not allowed
         break;
@@ -1009,7 +1015,7 @@ static const uint32_t *dds_stream_get_ops_info_uni (const uint32_t *ops, uint32_
 }
 
 ddsrt_nonnull_all
-static const uint32_t *dds_stream_get_ops_info_xcdr2_pl (const uint32_t *ops, uint32_t nestc, struct dds_cdrstream_ops_info *info, bool in_xcdr1_delimited_scope)
+static const uint32_t *dds_stream_get_ops_info_pl (const uint32_t *ops, uint32_t nestc, struct dds_cdrstream_ops_info *info, bool in_xcdr1_delimited_scope, bool in_recursive)
 {
   uint32_t insn;
   assert (ops[0] == DDS_OP_PLC);
@@ -1022,9 +1028,9 @@ static const uint32_t *dds_stream_get_ops_info_xcdr2_pl (const uint32_t *ops, ui
         uint32_t flags = DDS_PLM_FLAGS (insn);
         const uint32_t *plm_ops = ops + DDS_OP_ADR_PLM (insn);
         if (flags & DDS_OP_FLAG_BASE)
-          (void) dds_stream_get_ops_info_xcdr2_pl (plm_ops, nestc, info, in_xcdr1_delimited_scope);
-        else
-          dds_stream_get_ops_info1 (plm_ops, nestc, info, in_xcdr1_delimited_scope);
+          (void) dds_stream_get_ops_info_pl (plm_ops, nestc, info, in_xcdr1_delimited_scope, in_recursive);
+        else if (!in_recursive)
+          dds_stream_get_ops_info1 (plm_ops, nestc, info, in_xcdr1_delimited_scope, in_recursive);
         ops += 2;
         break;
       }
@@ -1039,7 +1045,7 @@ static const uint32_t *dds_stream_get_ops_info_xcdr2_pl (const uint32_t *ops, ui
 }
 
 ddsrt_nonnull_all
-static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struct dds_cdrstream_ops_info *info, bool in_xcdr1_delimited_scope)
+static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struct dds_cdrstream_ops_info *info, bool in_xcdr1_delimited_scope, bool in_recursive)
 {
   uint32_t insn;
   if (info->nesting_max < nestc)
@@ -1099,18 +1105,18 @@ static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struc
             break;
           case DDS_OP_VAL_SEQ:
             info->data_types |= DDS_DATA_TYPE_CONTAINS_SEQUENCE;
-            ops = dds_stream_get_ops_info_seq (ops, insn, nestc, info);
+            ops = dds_stream_get_ops_info_seq (ops, insn, nestc, info, in_recursive);
             break;
           case DDS_OP_VAL_BSQ:
             info->data_types |= DDS_DATA_TYPE_CONTAINS_BSEQUENCE;
-            ops = dds_stream_get_ops_info_seq (ops, insn, nestc, info);
+            ops = dds_stream_get_ops_info_seq (ops, insn, nestc, info, in_recursive);
             break;
           case DDS_OP_VAL_ARR:
             info->data_types |= DDS_DATA_TYPE_CONTAINS_ARRAY;
-            ops = dds_stream_get_ops_info_arr (ops, insn, nestc, info);
+            ops = dds_stream_get_ops_info_arr (ops, insn, nestc, info, in_recursive);
             break;
           case DDS_OP_VAL_UNI:
-            ops = dds_stream_get_ops_info_uni (ops, nestc, info);
+            ops = dds_stream_get_ops_info_uni (ops, nestc, info, in_recursive);
             info->data_types |= DDS_DATA_TYPE_CONTAINS_UNION;
             break;
           case DDS_OP_VAL_EXT: {
@@ -1118,8 +1124,9 @@ static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struc
               in_xcdr1_delimited_scope = false;
             const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
             const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
-            if (DDS_OP_ADR_JSR (ops[2]) > 0)
-              dds_stream_get_ops_info1 (jsr_ops, nestc + 1, info, in_xcdr1_delimited_scope);
+            bool recursive = DDS_OP_ADR_JSR (ops[2]) <= 0;
+            if (!in_recursive)
+              dds_stream_get_ops_info1 (jsr_ops, nestc + 1, info, in_xcdr1_delimited_scope, recursive);
             ops += jmp ? jmp : 3;
             break;
           }
@@ -1130,8 +1137,9 @@ static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struc
         break;
       }
       case DDS_OP_JSR: {
-        if (DDS_OP_JUMP (insn) > 0)
-          dds_stream_get_ops_info1 (ops + DDS_OP_JUMP (insn), nestc, info, in_xcdr1_delimited_scope);
+        bool recursive = DDS_OP_JUMP (insn) <= 0;
+        if (!in_recursive)
+          dds_stream_get_ops_info1 (ops + DDS_OP_JUMP (insn), nestc, info, in_xcdr1_delimited_scope, recursive);
         ops++;
         break;
       }
@@ -1148,8 +1156,7 @@ static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struc
       }
       case DDS_OP_PLC: {
         info->data_types |= DDS_DATA_TYPE_CONTAINS_MUTABLE;
-        info->min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_2;
-        ops = dds_stream_get_ops_info_xcdr2_pl (ops, nestc, info, in_xcdr1_delimited_scope);
+        ops = dds_stream_get_ops_info_pl (ops, nestc, info, in_xcdr1_delimited_scope, in_recursive);
         break;
       }
     }
@@ -1179,7 +1186,7 @@ static void dds_stream_get_ops_info (const uint32_t *ops, struct dds_cdrstream_o
   info->min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_1;
   info->nesting_max = 0;
   info->data_types = 0ull;
-  dds_stream_get_ops_info1 (ops, 0, info, true);
+  dds_stream_get_ops_info1 (ops, 0, info, true, false);
 }
 
 ddsrt_nonnull_all
@@ -2200,23 +2207,21 @@ static const uint32_t *dds_stream_getsize_adr (uint32_t insn, struct getsize_sta
     return dds_stream_skip_adr (insn, ops);
 
   bool alignment_offset_by_4 = false;
-  if (op_type_optional (insn))
+  if (op_type_optional (insn) && !is_mutable_member)
   {
-    if (!is_mutable_member)
+    bool present = op_type_optional (insn) ? (addr != NULL) : true;
+    if (st->xcdr_version != DDSI_RTPS_CDR_ENC_VERSION_1)
+      getsize_reserve (st, 1);
+    else
     {
-      if (st->xcdr_version != DDSI_RTPS_CDR_ENC_VERSION_1)
-        getsize_reserve (st, 1);
-      else
+      getsize_reserve_many (st, 4, 3);
+      if (present && ((st->pos - st->align_off) % 8) != 0)
       {
-        getsize_reserve_many (st, 4, 3);
-        if (addr && (st->pos % 8) != 0)
-        {
-          st->align_off += 4;
-          alignment_offset_by_4 = true;
-        }
+        st->align_off += 4;
+        alignment_offset_by_4 = true;
       }
     }
-    if (!addr)
+    if (!present)
     {
       if (alignment_offset_by_4)
         st->align_off -= 4;
@@ -2273,6 +2278,32 @@ static const uint32_t *dds_stream_getsize_delimited (struct getsize_state *st, c
   return ops;
 }
 
+static bool dds_stream_getsize_xcdr1_pl_member (struct getsize_state *st, const char *data, const uint32_t *ops)
+{
+  /* get flags from first member op */
+  uint32_t flags = DDS_OP_FLAGS (ops[0]);
+  bool is_key = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
+
+  if (st->cdr_kind == CDR_KIND_KEY && !is_key)
+    return true;
+
+  bool alignment_offset_by_4 = false;
+  getsize_reserve_many (st, 4, 3);
+  if (((st->pos - st->align_off) % 8) != 0)
+  {
+    st->align_off += 4;
+    alignment_offset_by_4 = true;
+  }
+
+  if (!(dds_stream_getsize_impl (st, data, ops, true)))
+    return false;
+
+  if (alignment_offset_by_4)
+    st->align_off -= 4;
+
+  return true;
+}
+
 static bool dds_stream_getsize_xcdr2_pl_member (struct getsize_state *st, const char *data, const uint32_t *ops)
 {
   /* get flags from first member op */
@@ -2291,7 +2322,7 @@ static bool dds_stream_getsize_xcdr2_pl_member (struct getsize_state *st, const 
   return true;
 }
 
-static const uint32_t *dds_stream_getsize_xcdr2_pl_memberlist (struct getsize_state *st, const char *data, const uint32_t *ops)
+static const uint32_t *dds_stream_getsize_pl_memberlist (struct getsize_state *st, const char *data, const uint32_t *ops)
 {
   uint32_t insn;
   while (ops && (insn = *ops) != DDS_OP_RTS)
@@ -2305,13 +2336,21 @@ static const uint32_t *dds_stream_getsize_xcdr2_pl_memberlist (struct getsize_st
         {
           assert (plm_ops[0] == DDS_OP_PLC);
           plm_ops++; /* skip PLC op to go to first PLM for the base type */
-          if (!dds_stream_getsize_xcdr2_pl_memberlist (st, data, plm_ops))
+          if (!dds_stream_getsize_pl_memberlist (st, data, plm_ops))
             return NULL;
         }
         else if (is_member_present (data, plm_ops))
         {
-          if (!dds_stream_getsize_xcdr2_pl_member (st, data, plm_ops))
-            return NULL;
+          if (st->xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2)
+          {
+            if (!dds_stream_getsize_xcdr2_pl_member (st, data, plm_ops))
+              return NULL;
+          }
+          else
+          {
+            if (!dds_stream_getsize_xcdr1_pl_member (st, data, plm_ops))
+              return NULL;
+          }
         }
         ops += 2;
         break;
@@ -2324,6 +2363,20 @@ static const uint32_t *dds_stream_getsize_xcdr2_pl_memberlist (struct getsize_st
   return ops;
 }
 
+static const uint32_t *dds_stream_getsize_xcdr1_pl (struct getsize_state *st, const char *data, const uint32_t *ops)
+{
+  /* skip PLC op */
+  ops++;
+
+  /* members, including members from base types */
+  ops = dds_stream_getsize_pl_memberlist (st, data, ops);
+
+  /* list-end parameter (4-byte aligned) */
+  getsize_reserve (st, 4);
+
+  return ops;
+}
+
 static const uint32_t *dds_stream_getsize_xcdr2_pl (struct getsize_state *st, const char *data, const uint32_t *ops)
 {
   /* skip PLC op */
@@ -2331,7 +2384,7 @@ static const uint32_t *dds_stream_getsize_xcdr2_pl (struct getsize_state *st, co
   /* alloc space for dheader */
   getsize_reserve (st, 4);
   /* members, including members from base types */
-  return dds_stream_getsize_xcdr2_pl_memberlist (st, data, ops);
+  return dds_stream_getsize_pl_memberlist (st, data, ops);
 }
 
 static const uint32_t *dds_stream_getsize_impl (struct getsize_state *st, const char *data, const uint32_t *ops0, bool is_mutable_member)
@@ -2360,8 +2413,10 @@ static const uint32_t *dds_stream_getsize_impl (struct getsize_state *st, const 
           ops = dds_stream_getsize_impl (st, data, ops + 1, false);
         break;
       case DDS_OP_PLC:
-        assert (st->xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
-        ops = dds_stream_getsize_xcdr2_pl (st, data, ops);
+        if (st->xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2)
+          ops = dds_stream_getsize_xcdr2_pl (st, data, ops);
+        else
+          ops = dds_stream_getsize_xcdr1_pl (st, data, ops);
         break;
     }
   }
@@ -2589,26 +2644,43 @@ static void adjust_sequence_buffer (dds_sequence_t *seq, const struct dds_cdrstr
   }
 }
 
+static void stream_read_xcdr1_paramheader (dds_istream_t *is, uint32_t *param_mid, uint32_t *param_len, bool *paramlist_end)
+{
+  assert (param_len);
+  dds_cdr_alignto (is, dds_cdr_get_align (is->m_xcdr_version, 4));
+  uint16_t phdr = dds_is_get2 (is);
+  uint16_t slen = dds_is_get2 (is);
+  if ((phdr & DDS_XCDR1_PL_SHORT_PID_MASK) == DDS_XCDR1_PL_SHORT_PID_LIST_END)
+  {
+    if (paramlist_end)
+      *paramlist_end = true;
+  }
+  else if ((phdr & DDS_XCDR1_PL_SHORT_PID_MASK) == DDS_XCDR1_PL_SHORT_PID_EXTENDED)
+  {
+    uint32_t ehdr = dds_is_get4 (is);
+    if (param_mid)
+      *param_mid = ehdr & DDS_XCDR1_PL_LONG_MID_MASK;
+    *param_len = dds_is_get4 (is);
+    if (paramlist_end)
+      *paramlist_end = false;
+  }
+  else
+  {
+    if (param_mid)
+      *param_mid = (phdr & DDS_XCDR1_PL_SHORT_PID_MASK);
+    *param_len = (uint32_t) slen;
+    if (paramlist_end)
+      *paramlist_end = false;
+  }
+}
+
 ddsrt_nonnull_all
 static bool stream_is_member_present (dds_istream_t *is, uint32_t *param_len)
 {
   if (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
   {
-    dds_cdr_alignto (is, dds_cdr_get_align (is->m_xcdr_version, 4));
-    uint16_t phdr = dds_is_get2 (is);
-    uint16_t slen = dds_is_get2 (is);
-    uint32_t plen;
-    if ((phdr & DDS_XCDR1_PL_SHORT_PID_MASK) == DDS_XCDR1_PL_SHORT_PID_EXTENDED)
-    {
-      (void) dds_is_get4 (is); /* skip param ID (is checked in normalize) */
-      plen = dds_is_get4 (is);
-    }
-    else
-    {
-      plen = (uint32_t) slen;
-    }
-    *param_len = plen;
-    return plen > 0;
+    stream_read_xcdr1_paramheader (is, NULL, param_len, NULL);
+    return *param_len > 0;
   }
   else
   {
@@ -3124,7 +3196,7 @@ static const uint32_t *dds_stream_skip_delimited_default (char * restrict data, 
 }
 
 ddsrt_nonnull_all
-static void dds_stream_skip_xcdr2_pl_member_default (char * restrict data, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, enum sample_data_state sample_state)
+static void dds_stream_skip_pl_member_default (char * restrict data, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, enum sample_data_state sample_state)
 {
   uint32_t insn;
   while ((insn = *ops) != DDS_OP_RTS)
@@ -3136,7 +3208,7 @@ static void dds_stream_skip_xcdr2_pl_member_default (char * restrict data, const
         break;
       }
       case DDS_OP_JSR:
-        dds_stream_skip_xcdr2_pl_member_default (data, allocator, ops + DDS_OP_JUMP (insn), sample_state);
+        dds_stream_skip_pl_member_default (data, allocator, ops + DDS_OP_JUMP (insn), sample_state);
         ops++;
         break;
       case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF:
@@ -3148,7 +3220,7 @@ static void dds_stream_skip_xcdr2_pl_member_default (char * restrict data, const
 }
 
 ddsrt_nonnull_all
-static const uint32_t *dds_stream_skip_xcdr2_pl_memberlist_default (char * restrict data, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops0, enum sample_data_state sample_state)
+static const uint32_t *dds_stream_skip_pl_memberlist_default (char * restrict data, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops0, enum sample_data_state sample_state)
 {
   const uint32_t *ops = ops0;
   uint32_t insn;
@@ -3163,11 +3235,11 @@ static const uint32_t *dds_stream_skip_xcdr2_pl_memberlist_default (char * restr
         {
           assert (plm_ops[0] == DDS_OP_PLC);
           plm_ops++; /* skip PLC op to go to first PLM for the base type */
-          (void) dds_stream_skip_xcdr2_pl_memberlist_default (data, allocator, plm_ops, sample_state);
+          (void) dds_stream_skip_pl_memberlist_default (data, allocator, plm_ops, sample_state);
         }
         else
         {
-          dds_stream_skip_xcdr2_pl_member_default (data, allocator, plm_ops, sample_state);
+          dds_stream_skip_pl_member_default (data, allocator, plm_ops, sample_state);
         }
         ops += 2;
         break;
@@ -3181,10 +3253,10 @@ static const uint32_t *dds_stream_skip_xcdr2_pl_memberlist_default (char * restr
 }
 
 ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
-static const uint32_t *dds_stream_skip_xcdr2_pl_default (char * restrict data, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, enum sample_data_state sample_state)
+static const uint32_t *dds_stream_skip_pl_default (char * restrict data, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, enum sample_data_state sample_state)
 {
   /* skip PLC op */
-  return dds_stream_skip_xcdr2_pl_memberlist_default (data, allocator, ++ops, sample_state);
+  return dds_stream_skip_pl_memberlist_default (data, allocator, ++ops, sample_state);
 }
 
 ddsrt_nonnull_all
@@ -3211,7 +3283,7 @@ static const uint32_t *dds_stream_skip_default (char * restrict data, const stru
         ops = dds_stream_skip_delimited_default (data, allocator, ops, sample_state);
         break;
       case DDS_OP_PLC:
-        ops = dds_stream_skip_xcdr2_pl_default (data, allocator, ops, sample_state);
+        ops = dds_stream_skip_pl_default (data, allocator, ops, sample_state);
         break;
     }
   }
@@ -3249,8 +3321,8 @@ static const uint32_t *dds_stream_read_delimited (dds_istream_t *is, char * rest
   return ops;
 }
 
-ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
-static bool dds_stream_read_xcdr2_pl_member (dds_istream_t *is, char * restrict data, const struct dds_cdrstream_allocator *allocator, uint32_t m_id, const uint32_t *ops, enum cdr_data_kind cdr_kind, enum sample_data_state sample_state)
+ddsrt_nonnull_all
+static bool dds_stream_read_pl_member (dds_istream_t *is, char * restrict data, const struct dds_cdrstream_allocator *allocator, uint32_t m_id, const uint32_t *ops, enum cdr_data_kind cdr_kind, enum sample_data_state sample_state)
 {
   uint32_t insn, ops_csr = 0;
   bool found = false;
@@ -3266,7 +3338,7 @@ static bool dds_stream_read_xcdr2_pl_member (dds_istream_t *is, char * restrict 
     {
       assert (DDS_OP (plm_ops[0]) == DDS_OP_PLC);
       plm_ops++; /* skip PLC to go to first PLM from base type */
-      found = dds_stream_read_xcdr2_pl_member (is, data, allocator, m_id, plm_ops, cdr_kind, sample_state);
+      found = dds_stream_read_pl_member (is, data, allocator, m_id, plm_ops, cdr_kind, sample_state);
     }
     else if (ops[ops_csr + 1] == m_id)
     {
@@ -3280,6 +3352,46 @@ static bool dds_stream_read_xcdr2_pl_member (dds_istream_t *is, char * restrict 
 }
 
 ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
+static const uint32_t *dds_stream_read_xcdr1_pl (dds_istream_t *is, char * restrict data, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, enum cdr_data_kind cdr_kind, enum sample_data_state sample_state)
+{
+  /* skip PLC op */
+  ops++;
+
+  /* default-initialize all members
+      FIXME: optimize so that only members not in received data are initialized */
+  dds_stream_skip_pl_memberlist_default (data, allocator, ops, sample_state);
+
+  bool paramlist_end;
+  do
+  {
+    uint32_t param_mid, param_len;
+    stream_read_xcdr1_paramheader (is, &param_mid, &param_len, &paramlist_end);
+    if (!paramlist_end)
+    {
+      // Move buffer in temporary istream `is1` to start of parameter value and
+      // set size to param length, so that alignment is reset to 0
+      dds_istream_t is1 = *is;
+      is1.m_buffer += is1.m_index;
+      is1.m_index = 0;
+      is1.m_size = param_len;
+
+      // find member and deserialize
+      (void) dds_stream_read_pl_member (&is1, data, allocator, param_mid, ops, cdr_kind, sample_state);
+
+      // forward index in CDR by param_len if found, and also in case member not known
+      is->m_index += param_len;
+    }
+  }
+  while (!paramlist_end);
+
+  /* skip all PLM-memberid pairs */
+  while (ops[0] != DDS_OP_RTS)
+    ops += 2;
+
+  return ops;
+}
+
+ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
 static const uint32_t *dds_stream_read_xcdr2_pl (dds_istream_t *is, char * restrict data, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, enum cdr_data_kind cdr_kind, enum sample_data_state sample_state)
 {
   /* skip PLC op */
@@ -3287,7 +3399,7 @@ static const uint32_t *dds_stream_read_xcdr2_pl (dds_istream_t *is, char * restr
 
   /* default-initialize all members
       FIXME: optimize so that only members not in received data are initialized */
-  dds_stream_skip_xcdr2_pl_memberlist_default (data, allocator, ops, sample_state);
+  dds_stream_skip_pl_memberlist_default (data, allocator, ops, sample_state);
 
   /* read DHEADER */
   uint32_t pl_sz = dds_is_get4 (is), pl_offs = is->m_index;
@@ -3316,13 +3428,18 @@ static const uint32_t *dds_stream_read_xcdr2_pl (dds_istream_t *is, char * restr
         break;
     }
 
+#ifndef NDEBUG
+    /* next field starts here (length embedded in member does not include it's own 4 bytes): */
+    const uint32_t next_off = is->m_index + msz + ((lc >= LENGTH_CODE_ALSO_NEXTINT) ? 4 : 0);
+#endif
     /* find member and deserialize */
-    if (!dds_stream_read_xcdr2_pl_member (is, data, allocator, m_id, ops, cdr_kind, sample_state))
+    if (!dds_stream_read_pl_member (is, data, allocator, m_id, ops, cdr_kind, sample_state))
     {
       is->m_index += msz;
       if (lc >= LENGTH_CODE_ALSO_NEXTINT)
         is->m_index += 4; /* length embedded in member does not include it's own 4 bytes */
     }
+    assert (next_off == is->m_index);
   }
 
   /* skip all PLM-memberid pairs */
@@ -3365,8 +3482,10 @@ static const uint32_t *dds_stream_read_impl (dds_istream_t *is, char * restrict 
         break;
       }
       case DDS_OP_PLC:
-        assert (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
-        ops = dds_stream_read_xcdr2_pl (is, data, allocator, ops, cdr_kind, sample_state);
+        if (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2)
+          ops = dds_stream_read_xcdr2_pl (is, data, allocator, ops, cdr_kind, sample_state);
+        else
+          ops = dds_stream_read_xcdr1_pl (is, data, allocator, ops, cdr_kind, sample_state);
         break;
     }
   }
@@ -4116,18 +4235,49 @@ static const uint32_t *normalize_uni (char * restrict data, uint32_t * restrict 
   return ops;
 }
 
+
+// Alignment rules madness: XCDR1 serialization of optionals/mutable shifts
+// reference position, so int64/float64 alignment is no longer always at
+// multiple of 8:
+//
+//    Member of mutable aggregated type (structure, union), version 1 encoding
+//    using short PL encoding when both M.id <= 2^14 and M.value.ssize <= 2^16
+//    (24) XCDR[1] << {M : MMEMBER} =
+//        XCDR
+//        << ALIGN(4)
+//        << { FLAG_I + FLAG_M + M.id : UInt16 }
+//        << { M.value.ssize : UInt16 }
+//        << PUSH( ORIGIN=0 )
+//        << { M.value : M.value.type }
+//
+//    Member of mutable aggregated type (structure, union), version 1 encoding
+//    using long PL encoding
+//    (25) XCDR[1] << {M : MMEMBER} =
+//        XCDR
+//        << ALIGN(4)
+//        << { FLAG_I + FLAG_M + PID_EXTENDED : UInt16 }
+//        << { slength=8 : UInt16 }
+//        << { M.id : UInt32 }
+//        << { M.value.ssize : UInt32 }
+//        << PUSH( ORIGIN=0 )
+//        << { M.value : M.value.type }
+//
+// (with a presumed-missing POP(ORIGIN) at the end of both)
+
+
 enum normalize_xcdr1_paramheader_result {
   NPHR1_NOT_FOUND,   // unknown memberid, param_length and must_understand set
   NPHR1_NOT_PRESENT, // known memberid, param_length = 0, must_understand set
   NPHR1_PRESENT,     // known memberid, param_length != 0, must_understand set
+  NPHR1_LIST_END,    // list-end found
   NPHR1_ERROR        // normalization failed; param_length and must_understand undefined
 };
 
 ddsrt_nonnull_all
-static enum normalize_xcdr1_paramheader_result stream_read_normalize_xcdr1_paramheader (char * restrict data, uint32_t * restrict off, uint32_t size, bool bswap, uint32_t *param_length, bool *must_understand, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *adr_op)
+static enum normalize_xcdr1_paramheader_result stream_read_normalize_xcdr1_paramheader (char * restrict data, uint32_t * restrict off, uint32_t size, bool bswap, uint32_t *param_length, bool *must_understand, uint32_t *phdr_mid)
 {
   uint16_t phdr, slen;
-  uint32_t phdr_mid, plen;
+  uint32_t plen;
 
   if ((*off = check_align_prim (*off, size, 2, 2)) == UINT32_MAX)
     return NPHR1_ERROR;
@@ -4151,7 +4301,7 @@ static enum normalize_xcdr1_paramheader_result stream_read_normalize_xcdr1_param
       return NPHR1_ERROR;
     if (pid & DDS_XCDR1_PL_LONG_FLAG_IMPL_EXT)
       return NPHR1_ERROR;
-    phdr_mid = pid & DDS_XCDR1_PL_LONG_MID_MASK;
+    *phdr_mid = pid & DDS_XCDR1_PL_LONG_MID_MASK;
     *must_understand = (pid & DDS_XCDR1_PL_LONG_FLAG_MU);
 
     // Read the extended parameter length
@@ -4180,20 +4330,39 @@ static enum normalize_xcdr1_paramheader_result stream_read_normalize_xcdr1_param
 
     uint32_t pid = (phdr & DDS_XCDR1_PL_SHORT_PID_MASK);
     if (pid == DDS_XCDR1_PL_SHORT_PID_LIST_END)
-      return NPHR1_ERROR;
+      return NPHR1_LIST_END;
     if (pid >= 0x3F04 && pid <= 0x3FFF) // reserved value
       return NPHR1_NOT_FOUND;
-    phdr_mid = pid;
+    *phdr_mid = pid;
   }
-
-  uint32_t adr_mid;
-  if (!find_member_id (mid_table, adr_op, &adr_mid))
-    return NPHR1_NOT_FOUND;
-  if (adr_mid != phdr_mid)
-    return NPHR1_ERROR;
 
   return plen > 0 ? NPHR1_PRESENT : NPHR1_NOT_PRESENT;
 }
+
+
+ddsrt_nonnull_all
+static enum normalize_xcdr1_paramheader_result stream_read_normalize_xcdr1_paramheader_optional (char * restrict data, uint32_t * restrict off, uint32_t size, bool bswap, uint32_t *param_length, bool *must_understand, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *adr_op)
+{
+  uint32_t adr_mid, phdr_mid;
+  enum normalize_xcdr1_paramheader_result res = stream_read_normalize_xcdr1_paramheader (data, off, size, bswap, param_length, must_understand, &phdr_mid);
+  switch (res)
+  {
+    case NPHR1_ERROR:
+    case NPHR1_LIST_END:
+    case NPHR1_NOT_FOUND:
+      break;
+
+    case NPHR1_PRESENT:
+    case NPHR1_NOT_PRESENT:
+      if (!find_member_id (mid_table, adr_op, &adr_mid))
+        res = NPHR1_NOT_FOUND;
+      else if (adr_mid != phdr_mid)
+        res = NPHR1_ERROR;
+      break;
+  }
+  return res;
+}
+
 
 ddsrt_nonnull_all
 static const uint32_t *stream_normalize_adr_impl (uint32_t insn, char * restrict data, uint32_t * restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, enum cdr_data_kind cdr_kind)
@@ -4256,13 +4425,14 @@ static const uint32_t *stream_normalize_adr (uint32_t insn, char * restrict data
     else
       return stream_normalize_adr_impl (insn, data, off, size, bswap, xcdr_version, mid_table, ops, cdr_kind);
   }
-  else // xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1
+  else // optional member in xcdr version 1
   {
     uint32_t param_length = 0;
     bool must_understand = false;
-    switch (stream_read_normalize_xcdr1_paramheader (data, off, size, bswap, &param_length, &must_understand, mid_table, ops))
+    switch (stream_read_normalize_xcdr1_paramheader_optional (data, off, size, bswap, &param_length, &must_understand, mid_table, ops))
     {
       case NPHR1_ERROR:
+      case NPHR1_LIST_END:
         return normalize_error_ops ();
       case NPHR1_NOT_FOUND:
         if (must_understand) // must_understand and unknown means we have to reject the input
@@ -4273,33 +4443,7 @@ static const uint32_t *stream_normalize_adr (uint32_t insn, char * restrict data
         ops = dds_stream_skip_adr (insn, ops);
         break;
       case NPHR1_PRESENT: {
-        // alignment rules madness: XCDR1 serialization of optionals/mutable shifts
-        // reference position, so int64/float64 alignment is no longer always at
-        // multiple of 8:
-        //
-        //    Member of mutable aggregated type (structure, union), version 1 encoding
-        //    using short PL encoding when both M.id <= 2^14 and M.value.ssize <= 2^16
-        //    (24) XCDR[1] << {M : MMEMBER} =
-        //        XCDR
-        //        << ALIGN(4)
-        //        << { FLAG_I + FLAG_M + M.id : UInt16 }
-        //        << { M.value.ssize : UInt16 }
-        //        << PUSH( ORIGIN=0 )
-        //        << { M.value : M.value.type }
-        //
-        //    Member of mutable aggregated type (structure, union), version 1 encoding
-        //    using long PL encoding
-        //    (25) XCDR[1] << {M : MMEMBER} =
-        //        XCDR
-        //        << ALIGN(4)
-        //        << { FLAG_I + FLAG_M + PID_EXTENDED : UInt16 }
-        //        << { slength=8 : UInt16 }
-        //        << { M.id : UInt32 }
-        //        << { M.value.ssize : UInt32 }
-        //        << PUSH( ORIGIN=0 )
-        //        << { M.value : M.value.type }
-        //
-        // (with a presumed-missing POP(ORIGIN) at the end of both)
+        // see remark on XCDR1 parameter alignment rules above
         const uint32_t input_offset = *off;
         uint32_t off1 = 0;
         if ((ops = stream_normalize_adr_impl (insn, data + input_offset, &off1, param_length, bswap, xcdr_version, mid_table, ops, cdr_kind)) == NULL)
@@ -4375,18 +4519,18 @@ static const uint32_t *stream_normalize_delimited (char * restrict data, uint32_
   return stream_normalize_delimited_impl (data, off, size, delimited_sz, bswap, xcdr_version, mid_table, ops, cdr_kind);
 }
 
-enum normalize_xcdr2_pl_member_result {
-  NPMR2_NOT_FOUND,
-  NPMR2_FOUND,
-  NPMR2_ERROR // found the data, but normalization failed
+enum normalize_pl_member_result {
+  NPMR_NOT_FOUND,
+  NPMR_FOUND,
+  NPMR_ERROR // found the data, but normalization failed
 };
 
 ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
-static enum normalize_xcdr2_pl_member_result dds_stream_normalize_xcdr2_pl_member (char * restrict data, uint32_t m_id, uint32_t * restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, enum cdr_data_kind cdr_kind)
+static enum normalize_pl_member_result dds_stream_normalize_pl_member (char * restrict data, uint32_t m_id, uint32_t * restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, enum cdr_data_kind cdr_kind)
 {
   uint32_t insn, ops_csr = 0;
-  enum normalize_xcdr2_pl_member_result result = NPMR2_NOT_FOUND;
-  while (result == NPMR2_NOT_FOUND && (insn = ops[ops_csr]) != DDS_OP_RTS)
+  enum normalize_pl_member_result result = NPMR_NOT_FOUND;
+  while (result == NPMR_NOT_FOUND && (insn = ops[ops_csr]) != DDS_OP_RTS)
   {
     assert (DDS_OP (insn) == DDS_OP_PLM);
     uint32_t flags = DDS_PLM_FLAGS (insn);
@@ -4395,14 +4539,14 @@ static enum normalize_xcdr2_pl_member_result dds_stream_normalize_xcdr2_pl_membe
     {
       assert (DDS_OP (plm_ops[0]) == DDS_OP_PLC);
       plm_ops++; /* skip PLC to go to first PLM from base type */
-      result = dds_stream_normalize_xcdr2_pl_member (data, m_id, off, size, bswap, xcdr_version, mid_table, plm_ops, cdr_kind);
+      result = dds_stream_normalize_pl_member (data, m_id, off, size, bswap, xcdr_version, mid_table, plm_ops, cdr_kind);
     }
     else if (ops[ops_csr + 1] == m_id)
     {
       if (stream_normalize_data_impl (data, off, size, bswap, xcdr_version, mid_table, plm_ops, true, cdr_kind))
-        result = NPMR2_FOUND;
+        result = NPMR_FOUND;
       else
-        result = NPMR2_ERROR;
+        result = NPMR_ERROR;
       break;
     }
     ops_csr += 2;
@@ -4410,8 +4554,76 @@ static enum normalize_xcdr2_pl_member_result dds_stream_normalize_xcdr2_pl_membe
   return result;
 }
 
+
 ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
-static const uint32_t *stream_normalize_xcdr2_pl (char * restrict data, uint32_t * restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, enum cdr_data_kind cdr_kind)
+static const uint32_t *stream_normalize_xcdr1_pl (char * restrict data, uint32_t * restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, enum cdr_data_kind cdr_kind)
+{
+  /* skip PLC op */
+  ops++;
+
+  bool paramlist_end = false;
+  do
+  {
+    uint32_t phdr_mid;
+    uint32_t param_length = 0;
+    bool must_understand = false;
+    switch (stream_read_normalize_xcdr1_paramheader (data, off, size, bswap, &param_length, &must_understand, &phdr_mid))
+    {
+      case NPHR1_ERROR:
+        return normalize_error_ops ();
+      case NPHR1_LIST_END:
+        paramlist_end = true;
+        break;
+      case NPHR1_NOT_FOUND:
+      case NPHR1_NOT_PRESENT:
+        if (must_understand) // must_understand and unknown means we have to reject the input
+          return normalize_error_ops ();
+        *off += param_length;
+        break;
+      case NPHR1_PRESENT: {
+        // see remark on XCDR1 parameter alignment rules above
+        const uint32_t input_offset = *off;
+
+        // reject if fewer than msz bytes remain in declared size of the parameter list
+        if (param_length > size - *off)
+          return normalize_error_ops ();
+        // don't allow member values that exceed its declared size
+        uint32_t off1 = 0;
+        switch (dds_stream_normalize_pl_member (data + input_offset, phdr_mid, &off1, param_length, bswap, xcdr_version, mid_table, ops, cdr_kind))
+        {
+          case NPMR_NOT_FOUND:
+            /* FIXME: the caller should be able to differentiate between a sample that
+              is dropped because of an unknown member that has the must-understand flag
+              and a sample that is dropped because the data is invalid. This requires
+              changes in the cdrstream interface, but also in the serdata interface to
+              pass the return value to ddsi_receive. */
+            if (must_understand)
+              return normalize_error_ops ();
+            break;
+          case NPMR_FOUND:
+            if (off1 != param_length)
+              return normalize_error_ops ();
+            break;
+          case NPMR_ERROR:
+            return NULL;
+        }
+        *off += param_length;
+        break;
+      }
+    }
+  }
+  while (!paramlist_end);
+
+  /* skip all PLM-memberid pairs */
+  while (ops[0] != DDS_OP_RTS)
+    ops += 2;
+
+  return ops;
+}
+
+
+ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
+static const uint32_t *stream_normalize_xcdr2_pl (char * restrict data, uint32_t * restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t *ops, enum cdr_data_kind cdr_kind)
 {
   /* skip PLC op */
   ops++;
@@ -4471,9 +4683,9 @@ static const uint32_t *stream_normalize_xcdr2_pl (char * restrict data, uint32_t
       return normalize_error_ops ();
     // don't allow member values that exceed its declared size
     const uint32_t size2 = *off + msz;
-    switch (dds_stream_normalize_xcdr2_pl_member (data, m_id, off, size2, bswap, xcdr_version, mid_table, ops, cdr_kind))
+    switch (dds_stream_normalize_pl_member (data, m_id, off, size2, bswap, xcdr_version, &static_empty_mid_table, ops, cdr_kind))
     {
-      case NPMR2_NOT_FOUND:
+      case NPMR_NOT_FOUND:
         /* FIXME: the caller should be able to differentiate between a sample that
            is dropped because of an unknown member that has the must-understand flag
            and a sample that is dropped because the data is invalid. This requires
@@ -4483,11 +4695,15 @@ static const uint32_t *stream_normalize_xcdr2_pl (char * restrict data, uint32_t
           return normalize_error_ops ();
         *off = size2;
         break;
-      case NPMR2_FOUND:
+      case NPMR_FOUND:
+        /* XCDR2 final can't be changed, appendable is delimited, mutable always runs
+           to the end and so no padding at the end of a parameter is ever needed.
+
+           read & print make this assumption but verify it. */
         if (*off != size2)
           return normalize_error_ops ();
         break;
-      case NPMR2_ERROR:
+      case NPMR_ERROR:
         return NULL;
     }
   }
@@ -4537,10 +4753,16 @@ static const uint32_t *stream_normalize_data_impl (char * restrict data, uint32_
         break;
       }
       case DDS_OP_PLC: {
-        if (xcdr_version != DDSI_RTPS_CDR_ENC_VERSION_2)
-          return normalize_error_ops ();
-        if ((ops = stream_normalize_xcdr2_pl (data, off, size, bswap, xcdr_version, mid_table, ops, cdr_kind)) == NULL)
-          return NULL;
+        if (xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2)
+        {
+          if ((ops = stream_normalize_xcdr2_pl (data, off, size, bswap, xcdr_version, ops, cdr_kind)) == NULL)
+            return NULL;
+        }
+        else
+        {
+          if ((ops = stream_normalize_xcdr1_pl (data, off, size, bswap, xcdr_version, mid_table, ops, cdr_kind)) == NULL)
+            return NULL;
+        }
         break;
       }
     }
@@ -5129,6 +5351,7 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t *is, restri
 }
 #endif
 
+ddsrt_nonnull ((1))
 static void dds_stream_extract_key_from_data_skip_subtype (dds_istream_t *is, uint32_t num, uint32_t insn, enum dds_stream_typecode subtype, const uint32_t *subops)
 {
   assert (subops != NULL || DDS_OP (insn) == DDS_OP_ADR);
@@ -5162,7 +5385,7 @@ static void dds_stream_extract_key_from_data_skip_subtype (dds_istream_t *is, ui
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
       uint32_t remain = UINT32_MAX;
       for (uint32_t i = 0; i < num; i++)
-        dds_stream_extract_key_from_data1 (is, NULL, &dds_cdrstream_default_allocator, &static_empty_mid_table, subops, false, false, remain, &remain);
+        dds_stream_extract_key_from_data1 (is, NULL, &dds_cdrstream_default_allocator, &static_empty_mid_table, subops, false, remain, &remain);
       break;
     }
     case DDS_OP_VAL_EXT: {
@@ -5172,6 +5395,7 @@ static void dds_stream_extract_key_from_data_skip_subtype (dds_istream_t *is, ui
   }
 }
 
+ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
 static const uint32_t *dds_stream_extract_key_from_data_skip_array (dds_istream_t *is, const uint32_t *ops)
 {
   const uint32_t insn = *ops;
@@ -5192,6 +5416,7 @@ static const uint32_t *dds_stream_extract_key_from_data_skip_array (dds_istream_
   return skip_array_insns (insn, ops);
 }
 
+ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
 static const uint32_t *dds_stream_extract_key_from_data_skip_sequence (dds_istream_t *is, const uint32_t *ops)
 {
   const uint32_t insn = *ops;
@@ -5218,6 +5443,7 @@ static const uint32_t *dds_stream_extract_key_from_data_skip_sequence (dds_istre
   return skip_sequence_insns (insn, ops);
 }
 
+ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
 static const uint32_t *dds_stream_extract_key_from_data_skip_union (dds_istream_t *is, const uint32_t *ops)
 {
   const uint32_t insn = *ops;
@@ -5229,6 +5455,42 @@ static const uint32_t *dds_stream_extract_key_from_data_skip_union (dds_istream_
   return ops + DDS_OP_ADR_JMP (ops[3]);
 }
 
+ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
+static const uint32_t *dds_stream_extract_key_from_data_skip_pl (dds_istream_t *is, const uint32_t *ops)
+{
+  /* skip PLC op */
+  ops++;
+
+  if (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
+  {
+    bool paramlist_end;
+    do
+    {
+      uint32_t param_mid, param_len;
+      stream_read_xcdr1_paramheader (is, &param_mid, &param_len, &paramlist_end);
+      if (!paramlist_end)
+      {
+        // forward index in CDR by param_len
+        is->m_index += param_len;
+      }
+    }
+    while (!paramlist_end);
+  }
+  else
+  {
+    /* read DHEADER and skip bytes in input */
+    uint32_t pl_sz = dds_is_get4 (is);
+    is->m_index += pl_sz;
+  }
+
+  /* skip all PLM-memberid pairs */
+  while (ops[0] != DDS_OP_RTS)
+    ops += 2;
+
+  return ops;
+}
+
+ddsrt_attribute_warn_unused_result ddsrt_nonnull ((1, 2))
 static const uint32_t *dds_stream_extract_key_from_data_skip_adr (dds_istream_t *is, const uint32_t *ops, enum dds_stream_typecode type)
 {
   switch (type)
@@ -5908,7 +6170,7 @@ static const uint32_t *prtf_delimited (char **buf, size_t *bufsize, dds_istream_
   return prtf_delimited_impl (buf, bufsize, delimited_sz, is, ops, cdr_kind);
 }
 
-static bool prtf_xcdr2_plm (char **buf, size_t *bufsize, dds_istream_t *is, uint32_t m_id, const uint32_t *ops, enum cdr_data_kind cdr_kind)
+static bool prtf_plm (char **buf, size_t *bufsize, dds_istream_t *is, uint32_t m_id, const uint32_t *ops, enum cdr_data_kind cdr_kind)
 {
   uint32_t insn, ops_csr = 0;
   bool found = false;
@@ -5921,7 +6183,7 @@ static bool prtf_xcdr2_plm (char **buf, size_t *bufsize, dds_istream_t *is, uint
     {
       assert (DDS_OP (plm_ops[0]) == DDS_OP_PLC);
       plm_ops++; /* skip PLC to go to first PLM from base type */
-      found = prtf_xcdr2_plm (buf, bufsize, is, m_id, plm_ops, cdr_kind);
+      found = prtf_plm (buf, bufsize, is, m_id, plm_ops, cdr_kind);
     }
     else if (ops[ops_csr + 1] == m_id)
     {
@@ -5932,6 +6194,39 @@ static bool prtf_xcdr2_plm (char **buf, size_t *bufsize, dds_istream_t *is, uint
     ops_csr += 2;
   }
   return found;
+}
+
+static const uint32_t *prtf_xcdr1_pl (char **buf, size_t *bufsize, dds_istream_t *is, const uint32_t *ops, enum cdr_data_kind cdr_kind)
+{
+  /* skip PLC op */
+  ops++;
+
+  bool paramlist_end;
+  do
+  {
+    uint32_t param_mid, param_len;
+    stream_read_xcdr1_paramheader (is, &param_mid, &param_len, &paramlist_end);
+    if (!paramlist_end)
+    {
+      // Move buffer in temporary istream `is1` to start of parameter value and
+      // set size to param length, so that alignment is reset to 0
+      dds_istream_t is1 = *is;
+      is1.m_buffer += is1.m_index;
+      is1.m_index = 0;
+      is1.m_size = param_len;
+
+      /* find member and deserialize; skip if not found */
+      (void) prtf_plm (buf, bufsize, &is1, param_mid, ops, cdr_kind);
+      is->m_index += param_len;
+    }
+  }
+  while (!paramlist_end);
+
+  /* skip all PLM-memberid pairs */
+  while (ops[0] != DDS_OP_RTS)
+    ops += 2;
+
+  return ops;
 }
 
 static const uint32_t *prtf_xcdr2_pl (char **buf, size_t *bufsize, dds_istream_t *is, const uint32_t *ops, enum cdr_data_kind cdr_kind)
@@ -5968,13 +6263,18 @@ static const uint32_t *prtf_xcdr2_pl (char **buf, size_t *bufsize, dds_istream_t
         break;
     }
 
+#ifndef NDEBUG
+    /* next field starts here (length embedded in member does not include it's own 4 bytes): */
+    const uint32_t next_off = is->m_index + msz + ((lc >= LENGTH_CODE_ALSO_NEXTINT) ? 4 : 0);
+#endif
     /* find member and deserialize */
-    if (!prtf_xcdr2_plm (buf, bufsize, is, m_id, ops, cdr_kind))
+    if (!prtf_plm (buf, bufsize, is, m_id, ops, cdr_kind))
     {
       is->m_index += msz;
       if (lc >= LENGTH_CODE_ALSO_NEXTINT)
         is->m_index += 4; /* length embedded in member does not include it's own 4 bytes */
     }
+    assert (is->m_index == next_off);
   }
 
   /* skip all PLM-memberid pairs */
@@ -6015,8 +6315,10 @@ static const uint32_t * dds_stream_print_sample1 (char **buf, size_t *bufsize, d
           ops = prtf_delimited_impl (buf, bufsize, is->m_size, is, ops, cdr_kind);
         break;
       case DDS_OP_PLC:
-        assert (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
-        ops = prtf_xcdr2_pl (buf, bufsize, is, ops, cdr_kind);
+        if (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2)
+          ops = prtf_xcdr2_pl (buf, bufsize, is, ops, cdr_kind);
+        else
+          ops = prtf_xcdr1_pl (buf, bufsize, is, ops, cdr_kind);
         break;
     }
   }
@@ -6397,22 +6699,31 @@ static const uint32_t *dds_stream_key_size_delimited (const uint32_t *ops, struc
   return ops;
 }
 
-static bool dds_stream_key_size_xcdr2_pl_member (const uint32_t *ops, struct key_props *k)
+static bool dds_stream_key_size_pl_member (const uint32_t *ops, struct key_props *k)
 {
   uint32_t flags = DDS_OP_FLAGS (ops[0]);
   bool is_key = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
   if (!is_key)
     return true;
 
+  // XCDR1 parameter header (extended) - as long as we don't write the short
+  // header, there is no need to take the alignment rules for PL-XCDR1 into
+  // account, because the extended header followed by the key value and the
+  // parameter list-end don't fit into 16 bytes, and the key size will be
+  // set to DDS_FIXED_KEY_MAX_SIZE
+  add_to_key_size_xcdrv1 (k, 4, 3, 4);
+
+  // XCDR2 member header
   uint32_t lc = get_length_code (ops);
   assert (lc <= LENGTH_CODE_ALSO_NEXTINT8);
-  add_to_key_size (k, 4, 1, 4);
+  add_to_key_size_xcdrv2 (k, 4, 1, 4);
   if (lc == LENGTH_CODE_NEXTINT)
-    add_to_key_size (k, 4, 1, 4);
+    add_to_key_size_xcdrv2 (k, 4, 1, 4);
+
   return dds_stream_key_size (ops, k);
 }
 
-static const uint32_t *dds_stream_key_size_xcdr2_pl_memberlist (const uint32_t *ops, struct key_props *k)
+static const uint32_t *dds_stream_key_size_pl_memberlist (const uint32_t *ops, struct key_props *k)
 {
   uint32_t insn;
   while (ops && (insn = *ops) != DDS_OP_RTS)
@@ -6426,12 +6737,12 @@ static const uint32_t *dds_stream_key_size_xcdr2_pl_memberlist (const uint32_t *
         {
           assert (plm_ops[0] == DDS_OP_PLC);
           plm_ops++; /* skip PLC op to go to first PLM for the base type */
-          if (!dds_stream_key_size_xcdr2_pl_memberlist (plm_ops, k))
+          if (!dds_stream_key_size_pl_memberlist (plm_ops, k))
             return NULL;
         }
         else
         {
-          if (!dds_stream_key_size_xcdr2_pl_member (plm_ops, k))
+          if (!dds_stream_key_size_pl_member (plm_ops, k))
             return NULL;
         }
         ops += 2;
@@ -6445,16 +6756,21 @@ static const uint32_t *dds_stream_key_size_xcdr2_pl_memberlist (const uint32_t *
   return ops;
 }
 
-static const uint32_t *dds_stream_key_size_xcdr2_pl (const uint32_t *ops, struct key_props *k)
+static const uint32_t *dds_stream_key_size_pl (const uint32_t *ops, struct key_props *k)
 {
   // skip PLC op
   ops++;
 
-  // add dheader size
-  add_to_key_size (k, 4, 1, 4);
+  // add dheader size for XCDR2
+  add_to_key_size_xcdrv2 (k, 4, 1, 4);
 
   // add members
-  return dds_stream_key_size_xcdr2_pl_memberlist (ops, k);
+  ops = dds_stream_key_size_pl_memberlist (ops, k);
+
+  // add parameter-list end for XCDR1
+  add_to_key_size_xcdrv1 (k, 4, 1, 4);
+
+  return ops;
 }
 
 static void dds_stream_key_size_prim_op (const uint32_t *ops, uint16_t key_offset_count, const uint32_t * key_offset_insn, struct key_props *k)
@@ -6531,7 +6847,7 @@ static const uint32_t *dds_stream_key_size (const uint32_t *ops, struct key_prop
         break;
       case DDS_OP_PLC:
         k->is_mutable = true;
-        ops = dds_stream_key_size_xcdr2_pl (ops, k);
+        ops = dds_stream_key_size_pl (ops, k);
         break;
     }
   }
