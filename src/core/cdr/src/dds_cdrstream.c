@@ -843,10 +843,10 @@ size_t dds_stream_check_optimize (const struct dds_cdrstream_desc *desc, uint32_
 }
 
 ddsrt_nonnull_all
-static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struct dds_cdrstream_ops_info *info, bool in_xcdr1_delimited_scope);
+static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struct dds_cdrstream_ops_info *info, bool in_xcdr1_delimited_scope, bool in_recursive);
 
 ddsrt_nonnull_all
-static const uint32_t *dds_stream_get_ops_info_seq (const uint32_t *ops, uint32_t insn, uint32_t nestc, struct dds_cdrstream_ops_info *info)
+static const uint32_t *dds_stream_get_ops_info_seq (const uint32_t *ops, uint32_t insn, uint32_t nestc, struct dds_cdrstream_ops_info *info, bool in_recursive)
 {
   uint32_t bound_op = seq_is_bounded (DDS_OP_TYPE (insn)) ? 1 : 0;
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
@@ -888,8 +888,9 @@ static const uint32_t *dds_stream_get_ops_info_seq (const uint32_t *ops, uint32_
       uint32_t const * const jsr_ops = ops + DDS_OP_ADR_JSR (ops[3 + bound_op]);
       if (ops + 4 + bound_op > info->ops_end)
         info->ops_end = ops + 4 + bound_op;
-      if (DDS_OP_ADR_JSR (ops[3 + bound_op]) > 0)
-        dds_stream_get_ops_info1 (jsr_ops, nestc + (subtype == DDS_OP_VAL_UNI || subtype == DDS_OP_VAL_STU ? 1 : 0), info, false);
+      bool recursive = DDS_OP_ADR_JSR (ops[3 + bound_op]) <= 0;
+      if (!in_recursive)
+        dds_stream_get_ops_info1 (jsr_ops, nestc + (subtype == DDS_OP_VAL_UNI || subtype == DDS_OP_VAL_STU ? 1 : 0), info, false, recursive);
       ops += (jmp ? jmp : (4 + bound_op)); /* FIXME: why would jmp be 0? */
       break;
     }
@@ -903,7 +904,7 @@ static const uint32_t *dds_stream_get_ops_info_seq (const uint32_t *ops, uint32_
 }
 
 ddsrt_nonnull_all
-static const uint32_t *dds_stream_get_ops_info_arr (const uint32_t *ops, uint32_t insn, uint32_t nestc, struct dds_cdrstream_ops_info *info)
+static const uint32_t *dds_stream_get_ops_info_arr (const uint32_t *ops, uint32_t insn, uint32_t nestc, struct dds_cdrstream_ops_info *info, bool in_recursive)
 {
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
   switch (subtype)
@@ -944,8 +945,9 @@ static const uint32_t *dds_stream_get_ops_info_arr (const uint32_t *ops, uint32_
       const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[3]);
       if (ops + 5 > info->ops_end)
         info->ops_end = ops + 5;
-      if (DDS_OP_ADR_JSR (ops[3]) > 0)
-        dds_stream_get_ops_info1 (jsr_ops, nestc + (subtype == DDS_OP_VAL_UNI || subtype == DDS_OP_VAL_STU ? 1 : 0), info, false);
+      bool recursive = DDS_OP_ADR_JSR (ops[3]) <= 0;
+      if (!in_recursive)
+        dds_stream_get_ops_info1 (jsr_ops, nestc + (subtype == DDS_OP_VAL_UNI || subtype == DDS_OP_VAL_STU ? 1 : 0), info, false, recursive);
       ops += (jmp ? jmp : 5);
       break;
     }
@@ -959,7 +961,7 @@ static const uint32_t *dds_stream_get_ops_info_arr (const uint32_t *ops, uint32_
 }
 
 ddsrt_nonnull_all
-static const uint32_t *dds_stream_get_ops_info_uni (const uint32_t *ops, uint32_t nestc, struct dds_cdrstream_ops_info *info)
+static const uint32_t *dds_stream_get_ops_info_uni (const uint32_t *ops, uint32_t nestc, struct dds_cdrstream_ops_info *info, bool in_recursive)
 {
   enum dds_stream_typecode disc_type = DDS_OP_SUBTYPE (ops[0]);
   if (disc_type == DDS_OP_VAL_ENU)
@@ -992,10 +994,12 @@ static const uint32_t *dds_stream_get_ops_info_uni (const uint32_t *ops, uint32_
         info->data_types |= DDS_DATA_TYPE_CONTAINS_STRUCT;
         /* fall-through */
       case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR:
-      case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_BMK:
-        if (DDS_OP_ADR_JSR (jeq_op[0]) > 0)
-          dds_stream_get_ops_info1 (jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), nestc + (valtype == DDS_OP_VAL_UNI || valtype == DDS_OP_VAL_STU ? 1 : 0), info, false);
+      case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_BMK: {
+        bool recursive = DDS_OP_ADR_JSR (jeq_op[0]) <= 0;
+        if (!in_recursive)
+          dds_stream_get_ops_info1 (jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), nestc + (valtype == DDS_OP_VAL_UNI || valtype == DDS_OP_VAL_STU ? 1 : 0), info, false, recursive);
         break;
+      }
       case DDS_OP_VAL_EXT:
         abort (); // not allowed
         break;
@@ -1011,7 +1015,7 @@ static const uint32_t *dds_stream_get_ops_info_uni (const uint32_t *ops, uint32_
 }
 
 ddsrt_nonnull_all
-static const uint32_t *dds_stream_get_ops_info_pl (const uint32_t *ops, uint32_t nestc, struct dds_cdrstream_ops_info *info, bool in_xcdr1_delimited_scope)
+static const uint32_t *dds_stream_get_ops_info_pl (const uint32_t *ops, uint32_t nestc, struct dds_cdrstream_ops_info *info, bool in_xcdr1_delimited_scope, bool in_recursive)
 {
   uint32_t insn;
   assert (ops[0] == DDS_OP_PLC);
@@ -1024,9 +1028,9 @@ static const uint32_t *dds_stream_get_ops_info_pl (const uint32_t *ops, uint32_t
         uint32_t flags = DDS_PLM_FLAGS (insn);
         const uint32_t *plm_ops = ops + DDS_OP_ADR_PLM (insn);
         if (flags & DDS_OP_FLAG_BASE)
-          (void) dds_stream_get_ops_info_pl (plm_ops, nestc, info, in_xcdr1_delimited_scope);
-        else
-          dds_stream_get_ops_info1 (plm_ops, nestc, info, in_xcdr1_delimited_scope);
+          (void) dds_stream_get_ops_info_pl (plm_ops, nestc, info, in_xcdr1_delimited_scope, in_recursive);
+        else if (!in_recursive)
+          dds_stream_get_ops_info1 (plm_ops, nestc, info, in_xcdr1_delimited_scope, in_recursive);
         ops += 2;
         break;
       }
@@ -1041,7 +1045,7 @@ static const uint32_t *dds_stream_get_ops_info_pl (const uint32_t *ops, uint32_t
 }
 
 ddsrt_nonnull_all
-static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struct dds_cdrstream_ops_info *info, bool in_xcdr1_delimited_scope)
+static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struct dds_cdrstream_ops_info *info, bool in_xcdr1_delimited_scope, bool in_recursive)
 {
   uint32_t insn;
   if (info->nesting_max < nestc)
@@ -1101,18 +1105,18 @@ static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struc
             break;
           case DDS_OP_VAL_SEQ:
             info->data_types |= DDS_DATA_TYPE_CONTAINS_SEQUENCE;
-            ops = dds_stream_get_ops_info_seq (ops, insn, nestc, info);
+            ops = dds_stream_get_ops_info_seq (ops, insn, nestc, info, in_recursive);
             break;
           case DDS_OP_VAL_BSQ:
             info->data_types |= DDS_DATA_TYPE_CONTAINS_BSEQUENCE;
-            ops = dds_stream_get_ops_info_seq (ops, insn, nestc, info);
+            ops = dds_stream_get_ops_info_seq (ops, insn, nestc, info, in_recursive);
             break;
           case DDS_OP_VAL_ARR:
             info->data_types |= DDS_DATA_TYPE_CONTAINS_ARRAY;
-            ops = dds_stream_get_ops_info_arr (ops, insn, nestc, info);
+            ops = dds_stream_get_ops_info_arr (ops, insn, nestc, info, in_recursive);
             break;
           case DDS_OP_VAL_UNI:
-            ops = dds_stream_get_ops_info_uni (ops, nestc, info);
+            ops = dds_stream_get_ops_info_uni (ops, nestc, info, in_recursive);
             info->data_types |= DDS_DATA_TYPE_CONTAINS_UNION;
             break;
           case DDS_OP_VAL_EXT: {
@@ -1120,8 +1124,9 @@ static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struc
               in_xcdr1_delimited_scope = false;
             const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
             const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
-            if (DDS_OP_ADR_JSR (ops[2]) > 0)
-              dds_stream_get_ops_info1 (jsr_ops, nestc + 1, info, in_xcdr1_delimited_scope);
+            bool recursive = DDS_OP_ADR_JSR (ops[2]) <= 0;
+            if (!in_recursive)
+              dds_stream_get_ops_info1 (jsr_ops, nestc + 1, info, in_xcdr1_delimited_scope, recursive);
             ops += jmp ? jmp : 3;
             break;
           }
@@ -1132,8 +1137,9 @@ static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struc
         break;
       }
       case DDS_OP_JSR: {
-        if (DDS_OP_JUMP (insn) > 0)
-          dds_stream_get_ops_info1 (ops + DDS_OP_JUMP (insn), nestc, info, in_xcdr1_delimited_scope);
+        bool recursive = DDS_OP_JUMP (insn) <= 0;
+        if (!in_recursive)
+          dds_stream_get_ops_info1 (ops + DDS_OP_JUMP (insn), nestc, info, in_xcdr1_delimited_scope, recursive);
         ops++;
         break;
       }
@@ -1150,7 +1156,7 @@ static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struc
       }
       case DDS_OP_PLC: {
         info->data_types |= DDS_DATA_TYPE_CONTAINS_MUTABLE;
-        ops = dds_stream_get_ops_info_pl (ops, nestc, info, in_xcdr1_delimited_scope);
+        ops = dds_stream_get_ops_info_pl (ops, nestc, info, in_xcdr1_delimited_scope, in_recursive);
         break;
       }
     }
@@ -1180,7 +1186,7 @@ static void dds_stream_get_ops_info (const uint32_t *ops, struct dds_cdrstream_o
   info->min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_1;
   info->nesting_max = 0;
   info->data_types = 0ull;
-  dds_stream_get_ops_info1 (ops, 0, info, true);
+  dds_stream_get_ops_info1 (ops, 0, info, true, false);
 }
 
 ddsrt_nonnull_all
