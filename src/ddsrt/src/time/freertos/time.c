@@ -48,6 +48,12 @@ ddsrt_etime_t ddsrt_time_elapsed (void)
   return (ddsrt_etime_t) { xTaskGetTickCount() * NSECS_PER_TICK };
 }
 
+ddsrt_hrtime_t ddsrt_time_highres(void)
+{
+  ddsrt_mtime_t mt = ddsrt_time_monotonic();
+  return (ddsrt_hrtime_t) { (uint64_t) mt.v };
+}
+
 void dds_sleepfor (dds_duration_t reltime)
 {
   TickType_t ticks;
