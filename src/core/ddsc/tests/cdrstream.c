@@ -1745,8 +1745,8 @@ CU_Test (ddsc_cdrstream, check_normalize_boolean)
 struct test_cdr_params {
   const dds_topic_descriptor_t *desc;
   bool (*eq) (const void *a, const void *b);
-  bool do_write;
   const void *data;
+  bool do_write;
   bool xcdr_valid;
   uint32_t xcdr_version;
   uint32_t cdrsize;
@@ -1926,7 +1926,7 @@ static bool eq_CdrStreamWstring_t5 (const void *va, const void *vb)
   return true;
 }
 
-#define D(n, ...) (&CdrStreamWstring_ ## n ## _desc), eq_CdrStreamWstring_ ## n, true, (&(CdrStreamWstring_ ## n){ __VA_ARGS__ }), true
+#define D(n, ...) (&CdrStreamWstring_ ## n ## _desc), eq_CdrStreamWstring_ ## n, (&(CdrStreamWstring_ ## n){ __VA_ARGS__ }), true, true
 CU_Test (ddsc_cdrstream, check_wstring_valid)
 {
   const struct test_cdr_params tests[] = {
@@ -1989,8 +1989,8 @@ static bool eq_CdrStreamMutable_t1 (const void *va, const void *vb)
           (a->f2._length == 0 || memcmp (a->f2._buffer, b->f2._buffer, a->f2._length) == 0));
 }
 
-#define D(n, ...) (&CdrStreamMutable_ ## n ## _desc), eq_CdrStreamMutable_ ## n, true, (&(CdrStreamMutable_ ## n){ __VA_ARGS__ })
-#define D_NOWRITE(n, ...) (&CdrStreamMutable_ ## n ## _desc), eq_CdrStreamMutable_ ## n, false, (&(CdrStreamMutable_ ## n){ __VA_ARGS__ })
+#define D(n, ...) (&CdrStreamMutable_ ## n ## _desc), eq_CdrStreamMutable_ ## n, (&(CdrStreamMutable_ ## n){ __VA_ARGS__ }), true
+#define D_NOWRITE(n, ...) (&CdrStreamMutable_ ## n ## _desc), eq_CdrStreamMutable_ ## n, (&(CdrStreamMutable_ ## n){ __VA_ARGS__ }), false
 CU_Test (ddsc_cdrstream, check_mutable_paramlen)
 {
   const struct test_cdr_params tests[] = {
@@ -2015,7 +2015,7 @@ CU_Test (ddsc_cdrstream, check_mutable_paramlen)
 #define OPTi64(val_) OPT(int64_t,val_)
 #define OPTNULL NULL
 
-#define D(n, ...) (&CdrStreamXcdr1Optional_ ## n ## _desc), eq_CdrStreamXcdr1Optional_ ## n, true, (&(CdrStreamXcdr1Optional_ ## n){ __VA_ARGS__ }), true
+#define D(n, ...) (&CdrStreamXcdr1Optional_ ## n ## _desc), eq_CdrStreamXcdr1Optional_ ## n, (&(CdrStreamXcdr1Optional_ ## n){ __VA_ARGS__ }), true, true
 
 static bool eq_CdrStreamXcdr1Optional_t1 (const void *va, const void *vb)
 {
