@@ -75,3 +75,9 @@ ddsrt_etime_t ddsrt_time_elapsed(void)
   return (ddsrt_etime_t) { mt.v };
 #endif
 }
+
+ddsrt_hrtime_t ddsrt_time_highres(void)
+{
+  ddsrt_mtime_t mt = ddsrt_time_monotonic();
+  return (ddsrt_hrtime_t) { (uint64_t) mt.v };
+}

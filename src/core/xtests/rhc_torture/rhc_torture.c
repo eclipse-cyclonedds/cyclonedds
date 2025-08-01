@@ -903,31 +903,30 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
 }
 
 struct stacktracethread_arg {
-  dds_time_t when;
-  dds_time_t period;
+  ddsrt_mtime_t when;
+  dds_duration_t period;
   bool stop;
   ddsrt_mutex_t lock;
-  ddsrt_cond_t cond;
+  ddsrt_cond_mtime_t cond;
 };
 
 static uint32_t stacktracethread (void *varg)
 {
   struct stacktracethread_arg * const arg = varg;
   ddsrt_log_cfg_t logcfg;
-  dds_time_t when = arg->when;
+  ddsrt_mtime_t when = arg->when;
   dds_log_cfg_init (&logcfg, 0, ~0u, stdout, stdout);
   ddsrt_mutex_lock (&arg->lock);
   while (!arg->stop)
   {
-    if (ddsrt_cond_waituntil (&arg->cond, &arg->lock, when))
+    if (ddsrt_cond_mtime_waituntil (&arg->cond, &arg->lock, when))
       continue;
     ddsrt_mutex_unlock (&arg->lock);
     ddsi_log_stack_traces (&logcfg, NULL);
     ddsrt_mutex_lock (&arg->lock);
     if (arg->period == 0)
       break;
-    if (when < INT64_MAX)
-      when += arg->period;
+    when = ddsrt_mtime_add_duration (when, arg->period);
   }
   ddsrt_mutex_unlock (&arg->lock);
   return 0;
@@ -964,11 +963,11 @@ int main (int argc, char **argv)
     xchecks = atoi (argv[5]);
   if (argc > 6)
   {
-    sttarg.when = dds_time () + DDS_SECS (atoi (argv[6]));
+    sttarg.when = ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_SECS (atoi (argv[6])));
     sttarg.period = DDS_SECS (1);
     sttarg.stop = 0;
     ddsrt_mutex_init (&sttarg.lock);
-    ddsrt_cond_init (&sttarg.cond);
+    ddsrt_cond_mtime_init (&sttarg.cond);
     ddsrt_threadattr_t tattr;
     ddsrt_threadattr_init (&tattr);
     if (ddsrt_thread_create (&stttid, "stacktracethread", &tattr, stacktracethread, &sttarg) != 0)
@@ -1171,14 +1170,14 @@ int main (int argc, char **argv)
   ddsi_sertype_unref (mdtype);
   dds_delete (pp);
 
-  if (sttarg.when)
+  if (sttarg.when.v)
   {
     ddsrt_mutex_lock (&sttarg.lock);
     sttarg.stop = 1;
-    ddsrt_cond_signal (&sttarg.cond);
+    ddsrt_cond_mtime_signal (&sttarg.cond);
     ddsrt_mutex_unlock (&sttarg.lock);
     (void) ddsrt_thread_join (stttid, NULL);
-    ddsrt_cond_destroy (&sttarg.cond);
+    ddsrt_cond_mtime_destroy (&sttarg.cond);
     ddsrt_mutex_destroy (&sttarg.lock);
   }
   ddsrt_fini ();

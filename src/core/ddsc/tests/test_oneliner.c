@@ -55,7 +55,7 @@ typedef struct { char n[MAXDOMS + 1]; } entname_t;
     cb->cb_##kind = kind; \
     cb->cb_##name##_status = status; \
     cb->cb_called[DDS_##NAME##_STATUS_ID]++; \
-    ddsrt_cond_broadcast (&cb->ctx->g_cond); \
+    ddsrt_cond_mtime_broadcast (&cb->ctx->g_cond); \
     ddsrt_mutex_unlock (&cb->ctx->g_mutex); \
   }
 
@@ -77,7 +77,7 @@ static void data_on_readers_cb (dds_entity_t subscriber, void *arg)
   ddsrt_mutex_lock (&cb->ctx->g_mutex);
   cb->cb_subscriber = subscriber;
   cb->cb_called[DDS_DATA_ON_READERS_STATUS_ID]++;
-  ddsrt_cond_broadcast (&cb->ctx->g_cond);
+  ddsrt_cond_mtime_broadcast (&cb->ctx->g_cond);
   ddsrt_mutex_unlock (&cb->ctx->g_mutex);
 }
 
@@ -87,7 +87,7 @@ static void data_available_cb (dds_entity_t reader, void *arg)
   ddsrt_mutex_lock (&cb->ctx->g_mutex);
   cb->cb_reader = reader;
   cb->cb_called[DDS_DATA_AVAILABLE_STATUS_ID]++;
-  ddsrt_cond_broadcast (&cb->ctx->g_cond);
+  ddsrt_cond_mtime_broadcast (&cb->ctx->g_cond);
   ddsrt_mutex_unlock (&cb->ctx->g_mutex);
 }
 
@@ -1702,15 +1702,15 @@ static void checklistener (struct oneliner_ctx *ctx, int ll, int ent, struct one
     min_cnt = max_cnt = (uint32_t) cnt;
   }
   ddsrt_mutex_lock (&ctx->g_mutex);
-  const dds_time_t twait_begin = dds_time ();
+  const ddsrt_mtime_t twait_begin = ddsrt_time_monotonic ();
   bool cnt_ok = (ctx->cb[dom].cb_called[lldesc[ll].id] >= min_cnt && ctx->cb[dom].cb_called[lldesc[ll].id] <= max_cnt);
   while (ctx->cb[dom].cb_called[lldesc[ll].id] < min_cnt && signalled)
   {
-    signalled = ddsrt_cond_waitfor (&ctx->g_cond, &ctx->g_mutex, DDS_SECS (5));
+    signalled = ddsrt_cond_mtime_waituntil (&ctx->g_cond, &ctx->g_mutex, ddsrt_mtime_add_duration (twait_begin, DDS_SECS (5)));
     cnt_ok = (ctx->cb[dom].cb_called[lldesc[ll].id] >= min_cnt && ctx->cb[dom].cb_called[lldesc[ll].id] <= max_cnt);
   }
-  const dds_time_t twait_end = dds_time ();
-  const dds_duration_t dt = (twait_end - twait_begin);
+  const ddsrt_mtime_t twait_end = ddsrt_time_monotonic ();
+  const dds_duration_t dt = (twait_end.v - twait_begin.v);
   mprintf (ctx, " cb_called %"PRIu32" (%s) after %"PRId64".%06us", ctx->cb[dom].cb_called[lldesc[ll].id], cnt_ok ? "ok" : "fail", dt / DDS_NSECS_IN_SEC, (unsigned) (dt % DDS_NSECS_IN_SEC) / 1000);
   if (!cnt_ok)
   {
@@ -1808,7 +1808,7 @@ static void dowaitforack (struct oneliner_ctx *ctx)
   if (dds_entity_kind (x) != DDS_KIND_WRITER)
     error_dds (ctx, ret, "wait for ack: %s is not a writer", entname.n);
   else
-    ret = dds__ddsi_writer_wait_for_acks ((struct dds_writer *) x, (ent1 < 0) ? NULL : &rdguid.i, dds_time () + DDS_SECS (5));
+    ret = dds__ddsi_writer_wait_for_acks ((struct dds_writer *) x, (ent1 < 0) ? NULL : &rdguid.i, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_SECS (5)));
   dds_entity_unpin (x);
   if (ret != 0)
   {
@@ -2273,7 +2273,7 @@ void test_oneliner_init (struct oneliner_ctx *ctx, const char *config_override)
 
   ctx->mprintf_needs_timestamp = 1;
   ddsrt_mutex_init (&ctx->g_mutex);
-  ddsrt_cond_init (&ctx->g_cond);
+  ddsrt_cond_mtime_init (&ctx->g_cond);
 
   create_unique_topic_name ("test_oneliner", ctx->topicname, sizeof (ctx->topicname));
 }
@@ -2326,7 +2326,7 @@ int test_oneliner_fini (struct oneliner_ctx *ctx)
     }
   }
   ddsrt_mutex_destroy (&ctx->g_mutex);
-  ddsrt_cond_destroy (&ctx->g_cond);
+  ddsrt_cond_mtime_destroy (&ctx->g_cond);
   for (size_t i = 0; i < sizeof (ctx->doms) / sizeof (ctx->doms[0]); i++)
     if (ctx->doms[i] && (ret = dds_delete (ctx->doms[i])) != 0)
       setresult (ctx, ret, "terminate: delete domain on %"PRId32, ctx->doms[i]);

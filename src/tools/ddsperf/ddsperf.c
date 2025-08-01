@@ -37,6 +37,7 @@
 #include "dds/ddsrt/fibheap.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/time.h"
 
 #include "cputime.h"
 #include "netload.h"
@@ -160,7 +161,7 @@ static dds_ignorelocal_kind_t ignorelocal = DDS_IGNORELOCAL_PARTICIPANT;
 
 /* Pinging interval for roundtrip testing, 0 means as fast as
    possible, DDS_INFINITY means never */
-static dds_duration_t ping_intv;
+static uint64_t ping_intv;
 
 /* Number of times a new ping was sent before all expected
    pongs had been received */
@@ -190,6 +191,9 @@ static bool sublatency = false;
 
 /* Use writer loans (only for memcpy-able types) */
 static bool use_writer_loan = false;
+
+/* Stop when no peers remain */
+static bool stop_when_lonely = false;
 
 /* Event queue for processing discovery events (data available on
    DCPSParticipant, subscription & publication matched)
@@ -282,8 +286,8 @@ static struct subthread_arg_pongstat *pongstat;
    changes, and a timestamp after which a warning is printed
    when a new ping is published.  [All protected by
    pongwr_lock] */
-static dds_time_t cur_ping_time;
-static dds_time_t twarn_ping_timeout;
+static ddsrt_hrtime_t cur_ping_time;
+static ddsrt_hrtime_t twarn_ping_timeout;
 static uint32_t cur_ping_seq;
 static uint32_t n_pong_seen;
 
@@ -332,8 +336,8 @@ struct ppant {
   dds_guid_t guid;              /* participant GUID */
   char *hostname;               /* hostname is taken from user_data QoS */
   uint32_t pid;                 /* pid is also taken from user_data QoS */
-  dds_time_t tdisc;             /* time at which it was discovered */
-  dds_time_t tdeadline;         /* by what time must unmatched be 0 */
+  ddsrt_hrtime_t tdisc;         /* time at which it was discovered */
+  ddsrt_hrtime_t tdeadline;     /* by what time must unmatched be 0 */
   uint32_t unmatched;           /* expected but not yet detected endpoints */
 };
 
@@ -353,7 +357,7 @@ static int cmp_ppant_tdeadline (const void *va, const void *vb)
 {
   const struct ppant *a = va;
   const struct ppant *b = vb;
-  return (a->tdeadline == b->tdeadline) ? 0 : (a->tdeadline < b->tdeadline) ? -1 : 1;
+  return (a->tdeadline.v == b->tdeadline.v) ? 0 : (a->tdeadline.v < b->tdeadline.v) ? -1 : 1;
 }
 
 static ddsrt_fibheap_def_t ppants_to_match_fhd = DDSRT_FIBHEAPDEF_INITIALIZER (offsetof (struct ppant, fhnode), cmp_ppant_tdeadline);
@@ -543,7 +547,7 @@ static void xsnprintf(char *buf, size_t bufsz, size_t *p, const char *fmt, ...)
   }
 }
 
-static void hist_print (const char *prefix, struct hist *h, dds_time_t dt, int reset)
+static void hist_print (const char *prefix, struct hist *h, uint64_t dt, int reset)
 {
   const size_t l_size = sizeof(char) * h->nbins + 200 + strlen (prefix);
   const size_t hist_size = sizeof(char) * h->nbins + 1;
@@ -699,7 +703,7 @@ static uint32_t pubthread (void *varg)
 {
   int result;
   dds_instance_handle_t *ihs;
-  dds_time_t ntot = 0, tfirst;
+  ddsrt_hrtime_t ntot = {0}, tfirst;
   union data data;
   void *baggage = NULL;
   (void) varg;
@@ -733,13 +737,13 @@ static uint32_t pubthread (void *varg)
     }
   }
 
-  uint32_t time_interval = 1; // call dds_time() once for this many samples
+  uint32_t time_interval = 1; // call ddsrt_time_highres() once for this many samples
   uint32_t time_counter = time_interval; // how many more samples on current time stamp
   uint32_t batch_counter = 0; // number of samples in current batch
   if (keyvaloff != SIZE_MAX)
     *((uint32_t *) ((char *) &data + keyvaloff)) = 0;
-  tfirst = dds_time();
-  dds_time_t t_write = tfirst;
+  tfirst = ddsrt_time_highres ();
+  ddsrt_hrtime_t t_write = tfirst;
   while (!ddsrt_atomic_ld32 (&termflag))
   {
     /* lsb of timestamp is abused to signal whether the sample is a ping requiring a response or not */
@@ -760,7 +764,7 @@ static uint32_t pubthread (void *varg)
         *((uint32_t *) ((char *) dataptr + keyvaloff)) = *((uint32_t *) ((char *) &data + keyvaloff));
     }
 
-    if ((result = dds_write_ts (wr_data, dataptr, (t_write & ~1) | reqresp)) != DDS_RETCODE_OK)
+    if ((result = dds_write_ts (wr_data, dataptr, (dds_time_t) ((t_write.v & ~(uint64_t)1) | (unsigned)reqresp))) != DDS_RETCODE_OK)
     {
       printf ("write error: %d\n", result);
       fflush (stdout);
@@ -777,8 +781,8 @@ static uint32_t pubthread (void *varg)
       dds_write_flush (wr_data);
     }
 
-    const dds_time_t t_post_write = (time_counter == 1) ? dds_time () : t_write;
-    const dds_duration_t dt = t_post_write - t_write;
+    const ddsrt_hrtime_t t_post_write = (time_counter == 1) ? ddsrt_time_highres () : t_write;
+    const uint64_t dt = t_post_write.v - t_write.v;
     if (--time_counter == 0)
     {
       // try to read out the clock only every now and then
@@ -796,8 +800,8 @@ static uint32_t pubthread (void *varg)
       time_counter = time_interval;
     }
     ddsrt_mutex_lock (&pubstat_lock);
-    hist_record (pubstat_hist, (uint64_t) dt, 1);
-    ntot++;
+    hist_record (pubstat_hist, dt, 1);
+    ntot.v++;
     ddsrt_mutex_unlock (&pubstat_lock);
 
     (*((uint32_t *) ((char *) &data + seqoff)))++;
@@ -812,12 +816,12 @@ static uint32_t pubthread (void *varg)
       if (++batch_counter == burstsize)
       {
         /* FIXME: should average rate over a short-ish period, rather than over the entire run */
-        while (((double) (ntot / burstsize) / ((double) (t_write - tfirst) / 1e9 + 5e-3)) > pub_rate && !ddsrt_atomic_ld32 (&termflag))
+        while (((double) (ntot.v / burstsize) / ((double) (t_write.v - tfirst.v) / 1e9 + 5e-3)) > pub_rate && !ddsrt_atomic_ld32 (&termflag))
         {
           /* FIXME: flushing manually because batching is not yet implemented properly */
           dds_write_flush (wr_data);
           dds_sleepfor (DDS_MSECS (1));
-          t_write = dds_time ();
+          t_write = ddsrt_time_highres ();
           time_counter = time_interval = 1;
         }
         batch_counter = 0;
@@ -1126,7 +1130,7 @@ static bool process_data (dds_entity_t rd, struct subthread_arg *arg)
     {
       // time stamp is only used when tracking latency, and reading the clock a couple of
       // times every microsecond is rather costly
-      const int64_t tdelta = sublatency ? dds_time () - iseq[i].source_timestamp : 0;
+      const int64_t tdelta = sublatency ? (int64_t) (ddsrt_time_highres().v - (uint64_t)iseq[i].source_timestamp) : 0;
       uint32_t seq = 0, keyval = 0, size = 0;
       switch (topicsel)
       {
@@ -1197,23 +1201,23 @@ static bool process_pong (dds_entity_t rd, struct subthread_arg *arg)
     error2 ("dds_take (rd_pong): %d\n", (int) nread_pong);
   else if (nread_pong > 0)
   {
-    dds_time_t tnow = dds_time ();
+    ddsrt_hrtime_t tnow = ddsrt_time_highres ();
     for (int32_t i = 0; i < nread_pong; i++)
       if (iseq[i].valid_data)
       {
         uint32_t * const seq = mseq[i];
         const bool isping = (iseq[i].source_timestamp & 1) != 0;
-        const bool all = update_roundtrip (iseq[i].publication_handle, (tnow - iseq[i].source_timestamp) / 2, isping, *seq);
+        const bool all = update_roundtrip (iseq[i].publication_handle, (int64_t)(tnow.v - (uint64_t)iseq[i].source_timestamp) / 2, isping, *seq);
         if (isping && all && ping_intv == 0)
         {
           /* If it is a pong sent in response to a ping, and all known nodes have responded, send out a new ping */
           dds_return_t rc;
           ddsrt_mutex_lock (&pongwr_lock);
           n_pong_seen = 0;
-          cur_ping_time = dds_time ();
+          cur_ping_time = ddsrt_time_highres ();
           cur_ping_seq = ++(*seq);
           ddsrt_mutex_unlock (&pongwr_lock);
-          if ((rc = dds_write_ts (wr_ping, mseq[i], dds_time () | 1)) < 0 && rc != DDS_RETCODE_TIMEOUT)
+          if ((rc = dds_write_ts (wr_ping, mseq[i], (dds_time_t) (cur_ping_time.v | 1))) < 0 && rc != DDS_RETCODE_TIMEOUT)
             error2 ("dds_write (wr_ping, mseq[i]): %d\n", (int) rc);
         }
       }
@@ -1221,17 +1225,17 @@ static bool process_pong (dds_entity_t rd, struct subthread_arg *arg)
   return (nread_pong > 0);
 }
 
-static void maybe_send_new_ping (dds_time_t tnow, dds_time_t *tnextping)
+static void maybe_send_new_ping (ddsrt_hrtime_t tnow, ddsrt_hrtime_t *tnextping)
 {
   void *baggage;
   union data data;
   int32_t rc;
   assert (ping_intv != DDS_INFINITY);
   ddsrt_mutex_lock (&pongwr_lock);
-  if (tnow < cur_ping_time + (ping_intv == 0 ? DDS_SECS (1) : ping_intv))
+  if (tnow.v < cur_ping_time.v + (ping_intv == 0 ? DDS_SECS (1) : ping_intv))
   {
     if (ping_intv == 0)
-      *tnextping = cur_ping_time + DDS_SECS (1);
+      tnextping->v = cur_ping_time.v + DDS_SECS (1);
     ddsrt_mutex_unlock (&pongwr_lock);
   }
   else
@@ -1239,17 +1243,17 @@ static void maybe_send_new_ping (dds_time_t tnow, dds_time_t *tnextping)
     if (n_pong_seen < n_pong_expected)
     {
       ping_timeouts++;
-      if (tnow > twarn_ping_timeout)
+      if (tnow.v > twarn_ping_timeout.v)
       {
         printf ("[%"PRIdPID"] ping timed out (total %"PRIu32" times) ... sending new ping\n", ddsrt_getpid (), ping_timeouts);
-        twarn_ping_timeout = tnow + DDS_SECS (1);
+        twarn_ping_timeout.v = tnow.v + DDS_SECS (1);
         fflush (stdout);
       }
     }
     n_pong_seen = 0;
     if (ping_intv == 0)
     {
-      *tnextping = tnow + DDS_SECS (1);
+      tnextping->v = tnow.v + DDS_SECS (1);
       cur_ping_time = tnow;
     }
     else
@@ -1257,15 +1261,15 @@ static void maybe_send_new_ping (dds_time_t tnow, dds_time_t *tnextping)
       /* tnow should be ~ cur_ping_time + ping_intv, but it won't be if the
          wakeup was delayed significantly, the machine was suspended in the
          meantime, so slow down if we can't keep up */
-      cur_ping_time += ping_intv;
-      if (cur_ping_time < tnow - ping_intv / 2)
+      cur_ping_time.v += ping_intv;
+      if (cur_ping_time.v < tnow.v - ping_intv / 2)
         cur_ping_time = tnow;
-      *tnextping = cur_ping_time + ping_intv;
+      tnextping->v = cur_ping_time.v + ping_intv;
     }
     cur_ping_seq++;
     baggage = init_sample (&data, cur_ping_seq);
     ddsrt_mutex_unlock (&pongwr_lock);
-    if ((rc = dds_write_ts (wr_ping, &data, dds_time () | 1)) < 0 && rc != DDS_RETCODE_TIMEOUT)
+    if ((rc = dds_write_ts (wr_ping, &data, (dds_time_t) (ddsrt_time_highres().v | 1))) < 0 && rc != DDS_RETCODE_TIMEOUT)
       error2 ("send_new_ping: dds_write (wr_ping, &data): %d\n", (int) rc);
     if (baggage)
       free (baggage);
@@ -1452,7 +1456,7 @@ static void async_participant_data_listener (dds_entity_t rd, void *arg)
         }
 
         ddsrt_avl_delete_dpath (&ppants_td, &ppants, pp, &dpath);
-        if (pp->tdeadline != DDS_NEVER)
+        if (pp->tdeadline.v != DDS_NEVER)
           ddsrt_fibheap_delete (&ppants_to_match_fhd, &ppants_to_match, pp);
         free_ppant (pp);
       }
@@ -1490,8 +1494,8 @@ static void async_participant_data_listener (dds_entity_t rd, void *arg)
             pp->guid = sample->key;
             pp->hostname = hostname;
             pp->pid = (uint32_t) pid;
-            pp->tdisc = dds_time ();
-            pp->tdeadline = pp->tdisc + DDS_SECS (5);
+            pp->tdisc = ddsrt_time_highres ();
+            pp->tdeadline = (ddsrt_hrtime_t){ pp->tdisc.v + DDS_SECS (5) };
             if (pp->handle != dp_handle || ignorelocal == DDS_IGNORELOCAL_NONE)
               pp->unmatched = MM_ALL & ~(has_reader ? 0 : MM_RD_DATA) & ~(rd_data ? 0 : MM_WR_DATA);
             else
@@ -1526,7 +1530,7 @@ static void async_participant_data_listener (dds_entity_t rd, void *arg)
     /* potential initial packet loss & lazy writer creation conspire against receiving
        the expected number of responses, so allow for a few attempts before starting to
        warn about timeouts */
-    twarn_ping_timeout = dds_time () + DDS_MSECS (3333);
+    twarn_ping_timeout.v = ddsrt_time_highres().v + DDS_MSECS (3333);
     //printf ("[%"PRIdPID"] n_pong_expected = %u\n", ddsrt_getpid (), n_pong_expected);
     ddsrt_mutex_unlock (&pongwr_lock);
   }
@@ -1663,17 +1667,17 @@ struct dds_stats {
   const struct dds_stat_keyvalue *discarded_bytes;
 };
 
-static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, struct record_cputime_state *cputime_state, struct record_netload_state *netload_state, struct dds_stats *stats)
+static bool print_stats (ddsrt_hrtime_t tref, ddsrt_hrtime_t tnow, ddsrt_hrtime_t tprev, struct record_cputime_state *cputime_state, struct record_netload_state *netload_state, struct dds_stats *stats)
 {
   char prefix[128];
-  const double ts = (double) (tnow - tref) / 1e9;
+  const double ts = (double) (tnow.v - tref.v) / 1e9;
   bool output = false;
   snprintf (prefix, sizeof (prefix), "[%"PRIdPID"] %.3f ", ddsrt_getpid (), ts);
 
   if (pub_rate > 0)
   {
     ddsrt_mutex_lock (&pubstat_lock);
-    hist_print (prefix, pubstat_hist, tnow - tprev, 1);
+    hist_print (prefix, pubstat_hist, tnow.v - tprev.v, 1);
     ddsrt_mutex_unlock (&pubstat_lock);
     output = true;
   }
@@ -1711,7 +1715,7 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
 
     if (nrecv > 0 || substat_every_second)
     {
-      const double dt = (double) (tnow - tprev);
+      const double dt = (double) (tnow.v - tprev.v);
       printf ("%s size %"PRIu32" total %"PRIu64" lost %"PRIu64" delta %"PRIu64" lost %"PRIu64" rate %.2f kS/s %.2f Mb/s (%.2f kS/s %.2f Mb/s)\n",
               prefix, last_size, tot_nrecv, tot_nlost, nrecv, nlost,
               (double) nrecv * 1e6 / dt, (double) nrecv_bytes * 8 * 1e3 / dt,
@@ -1852,11 +1856,11 @@ static void sigxfsz_handler (int sig __attribute__ ((unused)))
   static ddsrt_atomic_uint32_t seen = DDSRT_ATOMIC_UINT32_INIT (0);
   if (!ddsrt_atomic_or32_ov (&seen, 1))
   {
-    dds_time_t tnow = dds_time ();
+    ddsrt_hrtime_t tnow = ddsrt_time_highres ();
     if (write (2, msg, sizeof (msg) - 1) < 0) {
       /* may not ignore return value according to Linux/gcc */
     }
-    print_stats (0, tnow, tnow - DDS_SECS (1), NULL, NULL, NULL);
+    print_stats ((ddsrt_hrtime_t){0}, tnow, (ddsrt_hrtime_t){tnow.v - DDS_SECS (1)}, NULL, NULL, NULL);
     kill (getpid (), 9);
   }
 }
@@ -1919,6 +1923,7 @@ OPTIONS:\n\
                       from -Qmaxwait:DUR because that doesn't delay starting\n\
                       and doesn't terminate the process before doing\n\
                       anything.)\n\
+  -0                  stop when no peers remain\n\
   -1                  print \"sub\" stats every second, even when there is\n\
                       data\n\
   -X                  output extended statistics\n\
@@ -2099,7 +2104,7 @@ static void set_mode_ping (int *xoptind, int xargc, char * const xargv[])
     {
       ping_rate *= mult;
       if (ping_rate == 0) ping_intv = DDS_INFINITY;
-      else if (ping_rate > 0) ping_intv = (dds_duration_t) (1e9 / ping_rate + 0.5);
+      else if (ping_rate > 0) ping_intv = (uint64_t) (1e9 / ping_rate + 0.5);
       else error3 ("%s: invalid ping rate\n", xargv[*xoptind]);
     }
     else if (set_simple_uint32 (xoptind, xargc, xargv, "size", size_units, &baggagesize))
@@ -2216,15 +2221,15 @@ static void set_mode (int xoptind, int xargc, char * const xargv[])
 
 static bool wait_for_initial_matches (void)
 {
-  dds_time_t tnow = dds_time ();
-  const dds_time_t tendwait = tnow + (dds_duration_t) (initmaxwait * 1e9);
+  ddsrt_hrtime_t tnow = ddsrt_time_highres ();
+  const ddsrt_hrtime_t tendwait = { tnow.v + (uint64_t) (initmaxwait * 1e9) };
   ddsrt_mutex_lock (&disc_lock);
-  while (matchcount < minmatch && tnow < tendwait)
+  while (matchcount < minmatch && tnow.v < tendwait.v)
   {
     ddsrt_mutex_unlock (&disc_lock);
     dds_sleepfor (DDS_MSECS (100));
     ddsrt_mutex_lock (&disc_lock);
-    tnow = dds_time ();
+    tnow = ddsrt_time_highres ();
   }
   const bool ok = (matchcount >= minmatch);
   if (!ok)
@@ -2248,7 +2253,7 @@ int main (int argc, char *argv[])
   dds_listener_t *listener;
   int opt;
   bool collect_stats = false;
-  dds_time_t tref = DDS_INFINITY;
+  ddsrt_hrtime_t tref = { DDS_NEVER };
   ddsrt_threadattr_t attr;
   ddsrt_thread_t pubtid, subtid, subpingtid, subpongtid;
 #if !_WIN32 && !DDSRT_WITH_FREERTOS && !__ZEPHYR__
@@ -2263,11 +2268,12 @@ int main (int argc, char *argv[])
 
   argv0 = argv[0];
 
-  while ((opt = getopt (argc, argv, "1cd:D:i:n:k:ulLK:T:Q:R:Xh")) != EOF)
+  while ((opt = getopt (argc, argv, "01cd:D:i:n:k:ulLK:T:Q:R:Xh")) != EOF)
   {
     int pos;
     switch (opt)
     {
+      case '0': stop_when_lonely = true; break;
       case '1': substat_every_second = true; break;
       case 'c': collect_stats = true; break;
       case 'd': {
@@ -2331,8 +2337,8 @@ int main (int argc, char *argv[])
       }
       case 'X': extended_stats = true; break;
       case 'R': {
-        tref = 0;
-        if (sscanf (optarg, "%"SCNd64"%n", &tref, &pos) != 1 || optarg[pos] != 0)
+        tref.v = 0;
+        if (sscanf (optarg, "%"SCNu64"%n", &tref.v, &pos) != 1 || optarg[pos] != 0)
           error3 ("-R %s: invalid reference time\n", optarg);
         break;
       }
@@ -2669,35 +2675,34 @@ int main (int argc, char *argv[])
 #endif
 #endif
 
-  /* Run until time limit reached or a signal received.  (The time calculations
-     ignore the possibility of overflow around the year 2260.) */
-  dds_time_t tnow = dds_time ();
-  const dds_time_t tstart = tnow;
-  if (tref == DDS_INFINITY)
+  /* Run until time limit reached or a signal received */
+  ddsrt_hrtime_t tnow = ddsrt_time_highres ();
+  const ddsrt_hrtime_t tstart = tnow;
+  if (tref.v == DDS_INFINITY)
     tref = tstart;
-  dds_time_t tminmatch = DDS_NEVER;
-  dds_time_t tmatch = (maxwait == HUGE_VAL) ? DDS_NEVER : tstart + (int64_t) (maxwait * 1e9 + 0.5);
-  const dds_time_t tstop = (dur == HUGE_VAL) ? DDS_NEVER : tstart + (int64_t) (dur * 1e9 + 0.5);
-  dds_time_t tnext = tstart + DDS_SECS (1);
-  dds_time_t tlast = tstart;
-  dds_time_t tnextping = (ping_intv == DDS_INFINITY) ? DDS_NEVER : (ping_intv == 0) ? tstart + DDS_SECS (1) : tstart + ping_intv;
-  while (!ddsrt_atomic_ld32 (&termflag) && tnow < tstop)
+  ddsrt_hrtime_t tminmatch = { DDS_NEVER };
+  ddsrt_hrtime_t tmatch = { (maxwait == HUGE_VAL) ? DDS_NEVER : tstart.v + (uint64_t) (maxwait * 1e9 + 0.5) };
+  const ddsrt_hrtime_t tstop = { (dur == HUGE_VAL) ? DDS_NEVER : tstart.v + (uint64_t) (dur * 1e9 + 0.5) };
+  ddsrt_hrtime_t tnext = { tstart.v + DDS_SECS (1) };
+  ddsrt_hrtime_t tlast = tstart;
+  ddsrt_hrtime_t tnextping = { (ping_intv == DDS_INFINITY) ? DDS_NEVER : (ping_intv == 0) ? tstart.v + DDS_SECS (1) : tstart.v + ping_intv };
+  while (!ddsrt_atomic_ld32 (&termflag) && tnow.v < tstop.v)
   {
-    dds_time_t twakeup = DDS_NEVER;
+    ddsrt_hrtime_t twakeup = { DDS_NEVER };
     int32_t nxs;
 
-    if (tnow < tminmatch && matchcount >= minmatch)
+    if (tnow.v < tminmatch.v && matchcount >= minmatch)
       tminmatch = tnow;
 
     /* bail out if too few readers discovered within the deadline */
-    if (tnow >= tmatch)
+    if (tnow.v >= tmatch.v)
     {
       bool status_ok;
       ddsrt_mutex_lock (&disc_lock);
       status_ok = (matchcount >= minmatch);
       ddsrt_mutex_unlock (&disc_lock);
       if (status_ok)
-        tmatch = DDS_NEVER;
+        tmatch.v = DDS_NEVER;
       else
       {
         /* set minmatch to an impossible value to avoid a match occurring between now and
@@ -2713,53 +2718,60 @@ int main (int argc, char *argv[])
     {
       struct ppant *pp;
       ddsrt_mutex_lock (&disc_lock);
-      while ((pp = ddsrt_fibheap_min (&ppants_to_match_fhd, &ppants_to_match)) != NULL && pp->tdeadline < tnow)
+      while ((pp = ddsrt_fibheap_min (&ppants_to_match_fhd, &ppants_to_match)) != NULL && pp->tdeadline.v < tnow.v)
       {
         (void) ddsrt_fibheap_extract_min (&ppants_to_match_fhd, &ppants_to_match);
         if (pp->unmatched != 0)
         {
-          printf ("[%"PRIdPID"] participant %s:%"PRIu32": failed to match in %.3fs\n", ddsrt_getpid (), pp->hostname, pp->pid, (double) (pp->tdeadline - pp->tdisc) / 1e9);
+          printf ("[%"PRIdPID"] participant %s:%"PRIu32": failed to match in %.3fs\n", ddsrt_getpid (), pp->hostname, pp->pid, (double) (pp->tdeadline.v - pp->tdisc.v) / 1e9);
           fflush (stdout);
           matchtimeout++;
         }
         /* keep the participant in the admin so we will never look at it again */
-        pp->tdeadline = DDS_NEVER;
+        pp->tdeadline.v = DDS_NEVER;
       }
-      if (pp && pp->tdeadline < tnext)
+      if (pp && pp->tdeadline.v < tnext.v)
       {
         twakeup = pp->tdeadline;
+      }
+      if (stop_when_lonely && ddsrt_avl_is_singleton (&ppants) && matchcount > 0)
+      {
+        // last peer left
+        ddsrt_atomic_st32 (&termflag, 1);
       }
       ddsrt_mutex_unlock (&disc_lock);
     }
 
     /* next wakeup should be when the next event occurs */
-    if (tnext < twakeup)
+    if (tnext.v < twakeup.v)
       twakeup = tnext;
-    if (tstop < twakeup)
+    if (tstop.v < twakeup.v)
       twakeup = tstop;
-    if (tmatch < twakeup)
+    if (tmatch.v < twakeup.v)
       twakeup = tmatch;
-    if (tnextping < twakeup)
+    if (tnextping.v < twakeup.v)
       twakeup = tnextping;
+    if (twakeup.v < tnow.v)
+      twakeup.v = tnow.v;
 
-    if ((nxs = dds_waitset_wait_until (ws, NULL, 0, twakeup)) < 0)
+    if ((nxs = dds_waitset_wait (ws, NULL, 0, (dds_duration_t)(twakeup.v - tnow.v))) < 0)
       error2 ("dds_waitset_wait_until(main): error %d\n", (int) nxs);
 
     /* try to print exactly once per second, but do gracefully handle a very late wakeup */
-    tnow = dds_time ();
-    if (tnext <= tnow)
+    tnow = ddsrt_time_highres ();
+    if (tnext.v <= tnow.v)
     {
       bool output;
       output = print_stats (tref, tnow, tlast, cputime_state, netload_state, &stats);
       tlast = tnow;
-      if (tnow > tnext + DDS_MSECS (500))
-        tnext = tnow + DDS_SECS (1);
+      if (tnow.v > tnext.v + DDS_MSECS (500))
+        tnext.v = tnow.v + DDS_SECS (1);
       else
-        tnext += DDS_SECS (1);
+        tnext.v += DDS_SECS (1);
 
       // For initial RSS value use the one 5s after the minimum number of matches occurred or
       // whatever is the latest one prior to that
-      if (tnow > tminmatch && (rss_init == 0.0 || tnow <= tminmatch + DDS_SECS (5)) && output)
+      if (tnow.v > tminmatch.v && (rss_init == 0.0 || tnow.v <= tminmatch.v + DDS_SECS (5)) && output)
       {
         rss_init = record_cputime_read_rss (cputime_state);
         livemem_init = ddsrt_atomic_ld32 (&ddsperf_malloc_live);
@@ -2773,7 +2785,7 @@ int main (int argc, char *argv[])
        or stopping a process, as a result of packet loss if best-effort reliability is
        selected, or as a result of overwhelming the ping/pong from the data publishing thread
        (as the QoS is a simple keep-last-1) */
-    if (tnextping <= tnow)
+    if (tnextping.v <= tnow.v)
     {
       maybe_send_new_ping (tnow, &tnextping);
     }
