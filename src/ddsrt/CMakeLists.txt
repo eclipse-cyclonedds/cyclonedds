@@ -27,6 +27,9 @@ set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}")
 set(binary_dir "${CMAKE_CURRENT_BINARY_DIR}")
 
 add_library(ddsrt INTERFACE)
+if(ENABLE_MIMALLOC)
+  target_link_libraries(ddsrt INTERFACE mimalloc)
+endif()
 target_include_directories(
   ddsrt INTERFACE
     "$<BUILD_INTERFACE:${source_dir}/include>"
@@ -170,6 +173,7 @@ check_symbol_exists("inet_ntop" ${inet_header} DDSRT_HAVE_INET_NTOP)
 check_symbol_exists("inet_pton" ${inet_header} DDSRT_HAVE_INET_PTON)
 check_symbol_exists("getaddrinfo" ${netdb_header} DDSRT_HAVE_GETADDRINFO)
 check_symbol_exists("gethostbyname_r" ${netdb_header} DDSRT_HAVE_GETHOSTBYNAME_R)
+check_symbol_exists("pthread_condattr_setclock" "pthread.h" DDSRT_HAVE_CONDATTR_SETCLOCK)
 if(DDSRT_HAVE_GETADDRINFO OR DDSRT_HAVE_GETHOSTBYNAME_R)
   set(DDSRT_HAVE_DNS TRUE)
 endif()
@@ -220,6 +224,11 @@ if(DDSRT_HAVE_SSM)
   message(STATUS "Building with source-specific multicast support")
 else()
   message(STATUS "Building without source-specific multicast support")
+endif()
+if(DDSRT_HAVE_CONDATTR_SETCLOCK)
+  message(STATUS "Building with support for cond_timewait using different clocks")
+else()
+  message(STATUS "Building without support for cond_timewait using different clocks")
 endif()
 
 if(WITH_FREERTOS)
@@ -362,7 +371,7 @@ set(DDSRT_WITH_LWIP ${WITH_LWIP})
 set(DDSRT_WITH_FREERTOS ${WITH_FREERTOS})
 
 foreach(feature TCP_TLS SECURITY LIFESPAN DEADLINE_MISSED NETWORK_PARTITIONS
-                TYPELIB TYPE_DISCOVERY TOPIC_DISCOVERY QOS_PROVIDER)
+                TYPELIB TYPE_DISCOVERY TOPIC_DISCOVERY QOS_PROVIDER MIMALLOC)
   set(DDS_HAS_${feature} ${ENABLE_${feature}})
 endforeach()
 

@@ -27,5 +27,6 @@
 #cmakedefine DDSRT_HAVE_GETHOSTNAME 1
 #cmakedefine DDSRT_HAVE_INET_NTOP 1
 #cmakedefine DDSRT_HAVE_INET_PTON 1
+#cmakedefine DDSRT_HAVE_CONDATTR_SETCLOCK 1
 
 #endif

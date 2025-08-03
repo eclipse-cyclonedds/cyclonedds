@@ -70,7 +70,11 @@
    while using large messages -- actually, it stands to reason that this would
    be the same as the WHC node pool size */
 #define MAX_POOL_SIZE 8192
+#ifndef DDS_HAS_MIMALLOC
 #define MAX_SIZE_FOR_POOL 256
+#else
+#define MAX_SIZE_FOR_POOL 0
+#endif
 #define DEFAULT_NEW_SIZE 128
 #define CHUNK_SIZE 128
 
@@ -183,7 +187,9 @@ static void serdata_default_free(struct ddsi_serdata *dcmn)
   if (d->c.loan)
     dds_loaned_sample_unref (d->c.loan);
   if (d->size > MAX_SIZE_FOR_POOL || !ddsi_freelist_push (&d->serpool->freelist, d))
+  {
     dds_free (d);
+  }
 }
 
 static void serdata_default_init(struct dds_serdata_default *d, const struct dds_sertype_default *tp, enum ddsi_serdata_kind kind, uint32_t xcdr_version)

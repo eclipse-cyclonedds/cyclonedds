@@ -12,6 +12,9 @@
 
 #include "dds/ddsrt/attributes.h"
 #include "dds/ddsrt/heap.h"
+#ifdef DDS_HAS_MIMALLOC
+#include "mimalloc-override.h"
+#endif
 
 static ddsrt_allocation_ops_t ddsrt_allocator = {
   .malloc = malloc,

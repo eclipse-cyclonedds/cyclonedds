@@ -33,9 +33,8 @@ typedef struct {
   ddsrt_atomic_uint32_t cnt;
   ddsrt_mutex_t lock;
   ddsrt_rwlock_t rwlock;
-  ddsrt_cond_t cond;
-  dds_time_t abstime;
-  dds_time_t reltime;
+  ddsrt_cond_wctime_t cond;
+  ddsrt_wctime_t abstime;
 } thread_arg_t;
 
 static uint32_t mutex_lock_routine(void *ptr)
@@ -244,113 +243,94 @@ CU_Test(ddsrt_sync, once_conc)
   CU_ASSERT_EQUAL(ddsrt_atomic_ld32(&once_count), 2);
 }
 
-static uint32_t waitfor_routine(void *ptr)
+#define WAITUNTIL_ARG(tb_) \
+  struct waituntil_##tb_##_arg { \
+    ddsrt_atomic_uint32_t flag; \
+    ddsrt_mutex_t lock; \
+    ddsrt_cond_t sync_cond; \
+    ddsrt_cond_##tb_##_t cond; \
+    ddsrt_##tb_##_t abstimeout; \
+  }
+
+WAITUNTIL_ARG(wctime);
+WAITUNTIL_ARG(mtime);
+WAITUNTIL_ARG(etime);
+
+static uint32_t waituntil_check (const char *tname, int64_t after, int64_t abstimeout, uint32_t cnt)
 {
-  dds_time_t before, after;
-  dds_duration_t reltime;
-  thread_arg_t *arg = (thread_arg_t *)ptr;
-  uint32_t cnt = 0, res = 0;
-
-  while (ddsrt_atomic_ld32(&arg->cnt) == 0)
-    /* Wait for go-ahead. */ ;
-  ddsrt_mutex_lock(&arg->lock);
-  before = dds_time();
-  reltime = arg->reltime;
-  while (ddsrt_cond_waitfor(&arg->cond, &arg->lock, reltime)) {
-    after = dds_time();
-    if ((after - before) < arg->reltime && (after - before) > 0) {
-      reltime = arg->reltime - (after - before);
-    } else {
-      reltime = 0;
-    }
-    cnt++;
+  fprintf (stderr, "%s: expected to wait until %"PRId64" ns\n", tname, abstimeout);
+  fprintf (stderr, "%s: waited until %"PRId64" ns = exp + %"PRId64" ns\n", tname, after, after - abstimeout);
+  fprintf (stderr, "%s: woke up %"PRIu32" times\n", tname, cnt);
+  uint32_t res = 0;
+  if (after > abstimeout)
+  {
+    /* An arbitrary number to ensure the implementation did not just spin, aka is completely broken. */
+    res = cnt < 3;
   }
-  after = dds_time();
-  reltime = after - before;
-  fprintf(stderr, "waited for %"PRId64" (nanoseconds)\n", reltime);
-  fprintf(stderr, "expected to wait %"PRId64" (nanoseconds)\n", arg->reltime);
-  fprintf(stderr, "woke up %"PRIu32" times\n", cnt);
-  ddsrt_mutex_unlock(&arg->lock);
-  if (reltime >= arg->reltime) {
-    /* Ensure that the condition variable at least waited for the amount of
-       time so that time calculation is not (too) broken.*/
-    res = cnt < 3; /* An arbitrary number to ensure the implementation
-                      did not just spin, aka is completely broken. */
-  }
-
   return res;
 }
 
-CU_Test(ddsrt_sync, cond_waitfor)
-{
-  dds_return_t rc;
-  ddsrt_thread_t thr;
-  ddsrt_threadattr_t attr;
-  thread_arg_t arg = { .cnt = DDSRT_ATOMIC_UINT32_INIT(0), .reltime = DDS_MSECS(100) };
-  uint32_t res = 0;
-
-  ddsrt_mutex_init(&arg.lock);
-  ddsrt_cond_init(&arg.cond);
-  ddsrt_mutex_lock(&arg.lock);
-  ddsrt_threadattr_init(&attr);
-  rc = ddsrt_thread_create(&thr, "cond_waitfor", &attr, &waitfor_routine, &arg);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
-  ddsrt_mutex_unlock(&arg.lock);
-  /* Give go-ahead. */
-  ddsrt_atomic_inc32(&arg.cnt);
-  /* Wait a little longer than the waiting thread. */
-  dds_sleepfor(arg.reltime * 2);
-  /* Send a signal too avoid blocking indefinitely. */
-  ddsrt_cond_signal(&arg.cond);
-  rc = ddsrt_thread_join(thr, &res);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
-  CU_ASSERT_EQUAL(res, 1);
-}
-
-static uint32_t waituntil_routine(void *ptr)
-{
-  dds_time_t after;
-  thread_arg_t *arg = (thread_arg_t *)ptr;
-  uint32_t cnt = 0, res = 0;
-
-  ddsrt_mutex_lock(&arg->lock);
-  while(ddsrt_cond_waituntil(&arg->cond, &arg->lock, arg->abstime)) {
-    cnt++;
-  }
-  after = dds_time();
-  ddsrt_mutex_unlock(&arg->lock);
-  fprintf(stderr, "waited until %"PRId64" (nanoseconds)\n", after);
-  fprintf(stderr, "expected to wait until %"PRId64" (nanoseconds)\n", arg->abstime);
-  fprintf(stderr, "woke up %"PRIu32" times\n", cnt);
-  if (after > arg->abstime) {
-    res = cnt < 3; /* An arbitrary number to ensure the implementation
-                      did not just spin, aka is completely broken. */
+#define WAITUNTIL_THREAD(tb_, tname_) \
+  static uint32_t waituntil_##tb_##_routine (void *ptr) \
+  { \
+    struct waituntil_##tb_##_arg * const arg = ptr; \
+    uint32_t cnt = 0; \
+    ddsrt_mutex_lock (&arg->lock); \
+    ddsrt_atomic_st32 (&arg->flag, 1); \
+    ddsrt_cond_signal (&arg->sync_cond); \
+    while (ddsrt_cond_##tb_##_waituntil (&arg->cond, &arg->lock, arg->abstimeout)) \
+      cnt++; \
+    ddsrt_##tb_##_t after = ddsrt_time_##tname_ (); \
+    ddsrt_mutex_unlock (&arg->lock); \
+    return waituntil_check (#tname_, after.v, arg->abstimeout.v, cnt); \
   }
 
-  return res;
+WAITUNTIL_THREAD(wctime, wallclock)
+WAITUNTIL_THREAD(mtime, monotonic)
+WAITUNTIL_THREAD(etime, elapsed)
+
+#define COND_WAITUNTIL_DELAY DDS_MSECS(100)
+
+#define WAITUNTIL_TEST(tb_, tname_) \
+  static void do_test_cond_waituntil_##tb_ (void) \
+  { \
+    ddsrt_thread_t thr; \
+    ddsrt_threadattr_t tattr; \
+    ddsrt_threadattr_init (&tattr); \
+    struct waituntil_##tb_##_arg arg = { .flag = DDSRT_ATOMIC_UINT32_INIT (0) }; \
+    ddsrt_mutex_init (&arg.lock); \
+    ddsrt_cond_init (&arg.sync_cond); \
+    ddsrt_cond_##tb_##_init (&arg.cond); \
+    arg.abstimeout = ddsrt_##tb_##_add_duration (ddsrt_time_##tname_ (), COND_WAITUNTIL_DELAY); \
+    ddsrt_mutex_lock (&arg.lock); \
+    dds_return_t rc = ddsrt_thread_create (&thr, "cond_waituntil", &tattr, &waituntil_##tb_##_routine, &arg); \
+    CU_ASSERT_EQUAL_FATAL (rc, DDS_RETCODE_OK); \
+    while (ddsrt_atomic_ld32 (&arg.flag) == 0) \
+      ddsrt_cond_wait (&arg.sync_cond, &arg.lock); \
+    ddsrt_mutex_unlock (&arg.lock); \
+    dds_sleepfor (2 * COND_WAITUNTIL_DELAY); \
+    ddsrt_cond_##tb_##_signal (&arg.cond); \
+    uint32_t res = 0; \
+    rc = ddsrt_thread_join (thr, &res); \
+    CU_ASSERT_EQUAL_FATAL (rc, DDS_RETCODE_OK); \
+    CU_ASSERT_EQUAL (res, 1); \
+  }
+
+WAITUNTIL_TEST(wctime, wallclock)
+WAITUNTIL_TEST(mtime, monotonic)
+WAITUNTIL_TEST(etime, elapsed)
+
+CU_Test(ddsrt_sync, cond_waituntil_wctime)
+{
+  do_test_cond_waituntil_wctime ();
 }
 
-CU_Test(ddsrt_sync, cond_waituntil)
+CU_Test(ddsrt_sync, cond_waituntil_mtime)
 {
-  dds_return_t rc;
-  dds_duration_t delay = DDS_MSECS(100);
-  ddsrt_thread_t thr;
-  ddsrt_threadattr_t attr;
-  thread_arg_t arg = { .cnt = DDSRT_ATOMIC_UINT32_INIT(0) };
-  uint32_t res = 0;
+  do_test_cond_waituntil_mtime ();
+}
 
-  arg.abstime = dds_time() + delay;
-  ddsrt_mutex_init(&arg.lock);
-  ddsrt_cond_init(&arg.cond);
-  ddsrt_mutex_lock(&arg.lock);
-  ddsrt_threadattr_init(&attr);
-  rc = ddsrt_thread_create(&thr, "cond_waituntil", &attr, &waituntil_routine, &arg);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
-  ddsrt_mutex_unlock(&arg.lock);
-  dds_sleepfor(delay * 2);
-  /* Send a signal too avoid blocking indefinitely. */
-  ddsrt_cond_signal(&arg.cond);
-  rc = ddsrt_thread_join(thr, &res);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
-  CU_ASSERT_EQUAL(res, 1);
+CU_Test(ddsrt_sync, cond_waituntil_etime)
+{
+  do_test_cond_waituntil_etime ();
 }
