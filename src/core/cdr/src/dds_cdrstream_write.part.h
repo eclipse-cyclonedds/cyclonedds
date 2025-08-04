@@ -43,28 +43,28 @@ static bool dds_stream_write_bitmask_valueBO (RESTRICT_OSTREAM_T *os, const stru
   {
     case 1: {
       const uint8_t *ptr = (const uint8_t *) addr;
-      if (!bitmask_value_valid (*ptr, bits_h, bits_l))
+      if (!bitmask_value_valid (0, *ptr, bits_h, bits_l))
         return false;
       dds_os_put1BO (os, allocator, *ptr);
       break;
     }
     case 2: {
       const uint16_t *ptr = (const uint16_t *) addr;
-      if (!bitmask_value_valid (*ptr, bits_h, bits_l))
+      if (!bitmask_value_valid (0, *ptr, bits_h, bits_l))
         return false;
       dds_os_put2BO (os, allocator, *ptr);
       break;
     }
     case 4: {
       const uint32_t *ptr = (const uint32_t *) addr;
-      if (!bitmask_value_valid (*ptr, bits_h, bits_l))
+      if (!bitmask_value_valid (0, *ptr, bits_h, bits_l))
         return false;
       dds_os_put4BO (os, allocator, *ptr);
       break;
     }
     case 8: {
       const uint64_t *ptr = (const uint64_t *) addr;
-      if (!bitmask_value_valid (*ptr, bits_h, bits_l))
+      if (!bitmask_value_valid ((uint32_t) (*ptr >> 32), (uint32_t) *ptr, bits_h, bits_l))
         return false;
       dds_os_put8BO (os, allocator, *ptr);
       break;
@@ -179,7 +179,7 @@ static bool dds_stream_write_bitmask_arrBO (RESTRICT_OSTREAM_T *os, const struct
       const uint8_t *ptr = (const uint8_t *) addr;
       for (uint32_t i = 0; i < num; i++)
       {
-        if (!bitmask_value_valid (ptr[i], bits_h, bits_l))
+        if (!bitmask_value_valid (0, ptr[i], bits_h, bits_l))
           return false;
         dds_os_put1BO (os, allocator, ptr[i]);
       }
@@ -189,7 +189,7 @@ static bool dds_stream_write_bitmask_arrBO (RESTRICT_OSTREAM_T *os, const struct
       const uint16_t *ptr = (const uint16_t *) addr;
       for (uint32_t i = 0; i < num; i++)
       {
-        if (!bitmask_value_valid (ptr[i], bits_h, bits_l))
+        if (!bitmask_value_valid (0, ptr[i], bits_h, bits_l))
           return false;
         dds_os_put2BO (os, allocator, ptr[i]);
       }
@@ -199,7 +199,7 @@ static bool dds_stream_write_bitmask_arrBO (RESTRICT_OSTREAM_T *os, const struct
       const uint32_t *ptr = (const uint32_t *) addr;
       for (uint32_t i = 0; i < num; i++)
       {
-        if (!bitmask_value_valid (ptr[i], bits_h, bits_l))
+        if (!bitmask_value_valid (0, ptr[i], bits_h, bits_l))
           return false;
         dds_os_put4BO (os, allocator, ptr[i]);
       }
@@ -209,7 +209,7 @@ static bool dds_stream_write_bitmask_arrBO (RESTRICT_OSTREAM_T *os, const struct
       const uint64_t *ptr = (const uint64_t *) addr;
       for (uint32_t i = 0; i < num; i++)
       {
-        if (!bitmask_value_valid (ptr[i], bits_h, bits_l))
+        if (!bitmask_value_valid ((uint32_t) (ptr[i] >> 32), (uint32_t) ptr[i], bits_h, bits_l))
           return false;
         dds_os_put8BO (os, allocator, ptr[i]);
       }

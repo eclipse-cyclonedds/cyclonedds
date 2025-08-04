@@ -713,9 +713,9 @@ static bool seq_is_bounded (enum dds_stream_typecode type)
   return type == DDS_OP_VAL_BSQ;
 }
 
-static inline bool bitmask_value_valid (uint64_t val, uint32_t bits_h, uint32_t bits_l)
+static inline bool bitmask_value_valid (uint32_t val_h, uint32_t val_l, uint32_t bits_h, uint32_t bits_l)
 {
-  return (val >> 32 & ~bits_h) == 0 && ((uint32_t) val & ~bits_l) == 0;
+  return (val_h & ~bits_h) == 0 && (val_l & ~bits_l) == 0;
 }
 
 static inline bool op_type_external (const uint32_t insn)
@@ -3724,6 +3724,8 @@ static bool read_normalize_bitmask (uint64_t * restrict val, char * restrict dat
       uint8_t val8;
       if (!read_and_normalize_uint8 (&val8, data, off, size))
         return false;
+      if (!bitmask_value_valid (0, val8, bits_h, bits_l))
+        return normalize_error_bool ();
       *val = val8;
       break;
     }
@@ -3731,6 +3733,8 @@ static bool read_normalize_bitmask (uint64_t * restrict val, char * restrict dat
       uint16_t val16;
       if (!read_and_normalize_uint16 (&val16, data, off, size, bswap))
         return false;
+      if (!bitmask_value_valid (0, val16, bits_h, bits_l))
+        return normalize_error_bool ();
       *val = val16;
       break;
     }
@@ -3738,18 +3742,20 @@ static bool read_normalize_bitmask (uint64_t * restrict val, char * restrict dat
       uint32_t val32;
       if (!read_and_normalize_uint32 (&val32, data, off, size, bswap))
         return false;
+      if (!bitmask_value_valid (0, val32, bits_h, bits_l))
+        return normalize_error_bool ();
       *val = val32;
       break;
     }
     case 8:
       if (!read_and_normalize_uint64 (val, data, off, size, bswap, xcdr_version))
         return false;
+      if (!bitmask_value_valid ((uint32_t) (*val >> 32), (uint32_t) *val, bits_h, bits_l))
+        return normalize_error_bool ();
       break;
     default:
       abort ();
   }
-  if (!bitmask_value_valid (*val, bits_h, bits_l))
-    return normalize_error_bool ();
   return true;
 }
 
@@ -3933,7 +3939,7 @@ static bool normalize_bitmaskarray (char * restrict data, uint32_t * restrict of
         return false;
       uint8_t * const xs = (uint8_t *) (data + *off);
       for (uint32_t i = 0; i < num; i++)
-        if (!bitmask_value_valid (xs[i], bits_h, bits_l))
+        if (!bitmask_value_valid (0, xs[i], bits_h, bits_l))
           return normalize_error_bool ();
       *off += num;
       break;
@@ -3943,8 +3949,12 @@ static bool normalize_bitmaskarray (char * restrict data, uint32_t * restrict of
         return false;
       uint16_t * const xs = (uint16_t *) (data + *off);
       for (uint32_t i = 0; i < num; i++)
-        if (!bitmask_value_valid (bswap ? (xs[i] = ddsrt_bswap2u (xs[i])) : xs[i], bits_h, bits_l))
+      {
+        if (bswap)
+          xs[i] = ddsrt_bswap2u (xs[i]);
+        if (!bitmask_value_valid (0, xs[i], bits_h, bits_l))
           return normalize_error_bool ();
+      }
       *off += 2 * num;
       break;
     }
@@ -3953,25 +3963,34 @@ static bool normalize_bitmaskarray (char * restrict data, uint32_t * restrict of
         return false;
       uint32_t * const xs = (uint32_t *) (data + *off);
       for (uint32_t i = 0; i < num; i++)
-        if (!bitmask_value_valid (bswap ? (xs[i] = ddsrt_bswap4u (xs[i])) : xs[i], bits_h, bits_l))
+      {
+        if (bswap)
+          xs[i] = ddsrt_bswap4u (xs[i]);
+        if (!bitmask_value_valid (0, xs[i], bits_h, bits_l))
           return normalize_error_bool ();
+      }
       *off += 4 * num;
       break;
     }
     case 8: {
       if ((*off = check_align_prim_many (*off, size, xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2 ? 2 : 3, 3, num)) == UINT32_MAX)
         return false;
-      uint64_t * const xs = (uint64_t *) (data + *off);
+      uint32_t * const xs = (uint32_t *) (data + *off);
       for (uint32_t i = 0; i < num; i++)
       {
         if (bswap)
         {
-          uint32_t x = ddsrt_bswap4u (* (uint32_t *) &xs[i]);
-          *(uint32_t *) &xs[i] = ddsrt_bswap4u (* (((uint32_t *) &xs[i]) + 1));
-          *(((uint32_t *) &xs[i]) + 1) = x;
+          uint32_t x = ddsrt_bswap4u (xs[2*i]);
+          xs[2*i] = ddsrt_bswap4u (xs[2*i+1]);
+          xs[2*i+1] = x;
         }
-        if (!bitmask_value_valid (xs[i], bits_h, bits_l))
+#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
+        if (!bitmask_value_valid (xs[2*i+1], xs[2*i], bits_h, bits_l))
           return normalize_error_bool ();
+#else
+        if (!bitmask_value_valid (xs[2*i], xs[2*i+1], bits_h, bits_l))
+          return normalize_error_bool ();
+#endif
       }
       *off += 8 * num;
       break;
