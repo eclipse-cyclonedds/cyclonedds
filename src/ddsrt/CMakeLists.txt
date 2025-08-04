@@ -231,8 +231,7 @@ endif()
 if(WITH_FREERTOS)
   list(APPEND headers
     "${source_dir}/include/dds/ddsrt/sync/freertos.h"
-    "${source_dir}/include/dds/ddsrt/threads/freertos.h"
-    "${source_dir}/include/dds/ddsrt/time/freertos.h")
+    "${source_dir}/include/dds/ddsrt/threads/freertos.h")
   list(APPEND sources
     "${source_dir}/src/environ/posix/environ.c"
     "${source_dir}/src/heap/freertos/heap.c"

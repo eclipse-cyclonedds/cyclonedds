@@ -20,33 +20,24 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/time.h"
 
-void ddsrt_mutex_init(ddsrt_mutex_t *mutex)
+void ddsrt_mutex_init (ddsrt_mutex_t *mutex)
 {
   SemaphoreHandle_t sem;
-
-  assert(mutex != NULL);
-
-  if ((sem = xSemaphoreCreateMutex()) == NULL) {
+  if ((sem = xSemaphoreCreateMutex ()) == NULL) {
     abort();
   }
-
-  (void)memset(mutex, 0, sizeof(*mutex));
+  (void)memset (mutex, 0, sizeof (*mutex));
   mutex->sem = sem;
 }
 
-void ddsrt_mutex_destroy(ddsrt_mutex_t *mutex)
+void ddsrt_mutex_destroy (ddsrt_mutex_t *mutex)
 {
-  assert(mutex != NULL);
-
-  vSemaphoreDelete(mutex->sem);
-  (void)memset(mutex, 0, sizeof(*mutex));
+  vSemaphoreDelete (mutex->sem);
+  (void)memset (mutex, 0, sizeof (*mutex));
 }
 
-static bool
-mutex_lock(ddsrt_mutex_t *mutex, int blk)
+static bool mutex_lock (ddsrt_mutex_t *mutex, int blk)
 {
-  assert(mutex != NULL);
-
   if (xSemaphoreTake(mutex->sem, (blk == 1 ? portMAX_DELAY : 0)) != pdPASS) {
     /* xSemaphoreTake will only return pdFAIL on timeout. The wait will be
        indefinite if INCLUDE_vTaskSuspend is set to 1 in FreeRTOSConfig.h
@@ -54,194 +45,229 @@ mutex_lock(ddsrt_mutex_t *mutex, int blk)
     assert(blk == 0);
     return false;
   }
-
   return true;
 }
 
-void ddsrt_mutex_lock(ddsrt_mutex_t *mutex)
+void ddsrt_mutex_lock (ddsrt_mutex_t *mutex)
 {
-  if (!mutex_lock(mutex, 1)) {
-    DDS_FATAL("Failed to lock 0x%p", mutex);
+  if (!mutex_lock (mutex, 1)) {
+    DDS_FATAL ("Failed to lock 0x%p", mutex);
   }
 }
 
-bool ddsrt_mutex_trylock(ddsrt_mutex_t *mutex)
+bool ddsrt_mutex_trylock (ddsrt_mutex_t *mutex)
 {
-  return mutex_lock(mutex, 0);
+  return mutex_lock (mutex, 0);
 }
 
-void ddsrt_mutex_unlock(ddsrt_mutex_t *mutex)
+void ddsrt_mutex_unlock (ddsrt_mutex_t *mutex)
 {
-  assert(mutex != NULL);
-
-  if (xSemaphoreGive(mutex->sem) != pdPASS) {
-    DDS_FATAL("Failed to unlock 0x%p", mutex->sem);
+  if (xSemaphoreGive (mutex->sem) != pdPASS) {
+    DDS_FATAL ("Failed to unlock 0x%p", mutex->sem);
   }
 }
 
-static dds_return_t
-cond_timedwait(
-  ddsrt_cond_t *cond,
-  ddsrt_mutex_t *mutex,
-  dds_duration_t reltime)
+static bool cond_waituntil_impl (ddsrt_cond_t *cond, ddsrt_mutex_t *mutex, int64_t tnow, int64_t abstimeout)
 {
-  dds_return_t rc = DDS_RETCODE_OK;
-  dds_time_t abstime;
-  TaskHandle_t task;
+  if (abstimeout < tnow)
+    return false;
+
   TickType_t ticks = 0;
+  bool truncated;
+  if (abstimeout == DDS_NEVER)
+  {
+    ticks = portMAX_DELAY;
+    truncated = true;
+  }
+  else
+  {
+#define NSECS_PER_TICK (DDS_NSECS_IN_SEC / configTICK_RATE_HZ)
+    assert (portMAX_DELAY > configTICK_RATE_HZ);
+    int64_t timeout = abstimeout - tnow;
+    const int64_t max_nsecs =
+      (DDS_INFINITY / NSECS_PER_TICK < portMAX_DELAY
+       ? DDS_INFINITY - 1 : portMAX_DELAY * NSECS_PER_TICK);
+    if (timeout < max_nsecs - (NSECS_PER_TICK - 1))
+    {
+      ticks = (TickType_t) ((timeout + (NSECS_PER_TICK - 1)) / NSECS_PER_TICK);
+      truncated = false;
+    }
+    else
+    {
+      ticks = portMAX_DELAY;
+      truncated = true;
+    }
+#undef NSECS_PER_TICK
+  }
 
-  assert(cond != NULL);
-  assert(mutex != NULL);
+  TaskHandle_t task;
 
-  abstime = ddsrt_time_add_duration(dds_time(), reltime);
-  ticks = ddsrt_duration_to_ticks_ceil(reltime);
+  xSemaphoreTake (cond->sem, portMAX_DELAY);
+  ddsrt_mutex_unlock (mutex);
 
-  xSemaphoreTake(cond->sem, portMAX_DELAY);
-  ddsrt_mutex_unlock(mutex);
-
-  task = xTaskGetCurrentTaskHandle();
+  task = xTaskGetCurrentTaskHandle ();
   /* Register current task with condition. */
-  ddsrt_tasklist_push(&cond->tasks, task);
+  ddsrt_tasklist_push (&cond->tasks, task);
   /* Discard pending notifications. */
-  ulTaskNotifyTake(1, 0);
+  ulTaskNotifyTake (1, 0);
 
-  xSemaphoreGive(cond->sem);
+  xSemaphoreGive (cond->sem);
   /* Wait to be notified. */
-  switch (ulTaskNotifyTake(1, ticks)) {
+  bool triggered;
+  switch (ulTaskNotifyTake (1, ticks)) {
     case 0:
-      xSemaphoreTake(cond->sem, ticks);
-      ddsrt_tasklist_pop(&cond->tasks, task);
-      xSemaphoreGive(cond->sem);
+      xSemaphoreTake (cond->sem, ticks);
+      ddsrt_tasklist_pop (&cond->tasks, task);
+      xSemaphoreGive (cond->sem);
+      triggered = truncated;
       break;
     default:
       /* Task already removed from condition. */
+      triggered = true;
       break;
   }
 
-  /* Timeout must only be returned if the time has actually passed. */
-  if (dds_time() >= abstime) {
-    rc = DDS_RETCODE_TIMEOUT;
-  }
-
   ddsrt_mutex_lock(mutex);
-
-  return rc;
+  return triggered;
 }
 
-void ddsrt_cond_init(ddsrt_cond_t *cond)
+void ddsrt_cond_init (ddsrt_cond_t *cond)
 {
   SemaphoreHandle_t sem;
   ddsrt_tasklist_t tasks;
-
-  assert(cond != NULL);
-
-  if (ddsrt_tasklist_init(&tasks) == -1) {
-    abort();
+  if (ddsrt_tasklist_init (&tasks) == -1) {
+    abort ();
   }
-  if ((sem = xSemaphoreCreateMutex()) == NULL) {
-    ddsrt_tasklist_fini(&tasks);
-    abort();
+  if ((sem = xSemaphoreCreateMutex ()) == NULL) {
+    ddsrt_tasklist_fini (&tasks);
+    abort ();
   }
-
-  (void)memset(cond, 0, sizeof(*cond));
+  (void)memset (cond, 0, sizeof (*cond));
   cond->sem = sem;
   cond->tasks = tasks;
 }
 
-void ddsrt_cond_destroy(ddsrt_cond_t *cond)
+void ddsrt_cond_wctime_init (ddsrt_cond_wctime_t *cond)
 {
-  assert(cond != NULL);
-
-  vSemaphoreDelete(cond->sem);
-  ddsrt_tasklist_fini(&cond->tasks);
-  (void)memset(cond, 0, sizeof(*cond));
+  ddsrt_cond_init (&cond->cond);
 }
 
-void ddsrt_cond_wait(ddsrt_cond_t *cond, ddsrt_mutex_t *mutex)
+void ddsrt_cond_mtime_init (ddsrt_cond_mtime_t *cond)
 {
-  assert(cond != NULL);
-  assert(mutex != NULL);
-
-  (void)cond_timedwait(cond, mutex, DDS_INFINITY);
+  ddsrt_cond_init (&cond->cond);
 }
 
-bool
-ddsrt_cond_waitfor(
-  ddsrt_cond_t *cond,
-  ddsrt_mutex_t *mutex,
-  dds_duration_t reltime)
+void ddsrt_cond_etime_init (ddsrt_cond_etime_t *cond)
 {
-  dds_return_t rc;
-
-  assert(cond != NULL);
-  assert(mutex != NULL);
-
-  switch ((rc = cond_timedwait(cond, mutex, reltime))) {
-    case DDS_RETCODE_OUT_OF_RESOURCES:
-      abort();
-    case DDS_RETCODE_TIMEOUT:
-      return false;
-    default:
-      assert(rc == DDS_RETCODE_OK);
-      break;
-  }
-
-  return true;
+  ddsrt_cond_init (&cond->cond);
 }
 
-bool
-ddsrt_cond_waituntil(
-  ddsrt_cond_t *cond,
-  ddsrt_mutex_t *mutex,
-  dds_time_t abstime)
+void ddsrt_cond_destroy (ddsrt_cond_t *cond)
 {
-  dds_return_t rc;
-  dds_time_t time;
-  dds_duration_t reltime;
-
-  assert(cond != NULL);
-  assert(mutex != NULL);
-
-  time = dds_time();
-  reltime = (abstime > time ? abstime - time : 0);
-
-  switch ((rc = cond_timedwait(cond, mutex, reltime))) {
-    case DDS_RETCODE_OUT_OF_RESOURCES:
-      abort();
-    case DDS_RETCODE_TIMEOUT:
-      return false;
-    default:
-      assert(rc == DDS_RETCODE_OK);
-      break;
-  }
-
-  return true;
+  vSemaphoreDelete (cond->sem);
+  ddsrt_tasklist_fini (&cond->tasks);
+  (void)memset (cond, 0, sizeof (*cond));
 }
 
-void ddsrt_cond_signal(ddsrt_cond_t *cond)
+void ddsrt_cond_wctime_destroy (ddsrt_cond_wctime_t *cond)
+{
+  ddsrt_cond_destroy (&cond->cond);
+}
+
+void ddsrt_cond_mtime_destroy (ddsrt_cond_mtime_t *cond)
+{
+  ddsrt_cond_destroy (&cond->cond);
+}
+
+void ddsrt_cond_etime_destroy (ddsrt_cond_etime_t *cond)
+{
+  ddsrt_cond_destroy (&cond->cond);
+}
+
+void ddsrt_cond_wait (ddsrt_cond_t *cond, ddsrt_mutex_t *mutex)
+{
+  (void)cond_waituntil_impl (cond, mutex, INT64_MIN, DDS_NEVER);
+}
+
+void ddsrt_cond_wctime_wait (ddsrt_cond_wctime_t *cond, ddsrt_mutex_t *mutex)
+{
+  (void)cond_waituntil_impl (&cond->cond, mutex, INT64_MIN, DDS_NEVER);
+}
+
+void ddsrt_cond_mtime_wait (ddsrt_cond_mtime_t *cond, ddsrt_mutex_t *mutex)
+{
+  (void)cond_waituntil_impl (&cond->cond, mutex, INT64_MIN, DDS_NEVER);
+}
+
+void ddsrt_cond_etime_wait (ddsrt_cond_etime_t *cond, ddsrt_mutex_t *mutex)
+{
+  (void)cond_waituntil_impl (&cond->cond, mutex, INT64_MIN, DDS_NEVER);
+}
+
+bool ddsrt_cond_wctime_waituntil (ddsrt_cond_wctime_t *cond, ddsrt_mutex_t *mutex, ddsrt_wctime_t abstimeout)
+{
+  return cond_waituntil_impl (&cond->cond, mutex, ddsrt_time_wallclock().v, abstimeout.v);
+}
+
+bool ddsrt_cond_mtime_waituntil (ddsrt_cond_mtime_t *cond, ddsrt_mutex_t *mutex, ddsrt_mtime_t abstimeout)
+{
+  return cond_waituntil_impl (&cond->cond, mutex, ddsrt_time_monotonic().v, abstimeout.v);
+}
+
+bool ddsrt_cond_etime_waituntil (ddsrt_cond_etime_t *cond, ddsrt_mutex_t *mutex, ddsrt_etime_t abstimeout)
+{
+  return cond_waituntil_impl (&cond->cond, mutex, ddsrt_time_elapsed().v, abstimeout.v);
+}
+
+
+void ddsrt_cond_signal (ddsrt_cond_t *cond)
 {
   TaskHandle_t task;
-
-  assert(cond != NULL);
-
-  xSemaphoreTake(cond->sem, portMAX_DELAY);
-  if ((task = ddsrt_tasklist_pop(&cond->tasks, NULL)) != NULL) {
-    xTaskNotifyGive(task);
+  xSemaphoreTake (cond->sem, portMAX_DELAY);
+  if ((task = ddsrt_tasklist_pop (&cond->tasks, NULL)) != NULL) {
+    xTaskNotifyGive (task);
   }
-  xSemaphoreGive(cond->sem);
+  xSemaphoreGive (cond->sem);
 }
 
-void ddsrt_cond_broadcast(ddsrt_cond_t *cond)
+void ddsrt_cond_wctime_signal (ddsrt_cond_wctime_t *cond)
+{
+  ddsrt_cond_signal (&cond->cond);
+}
+
+void ddsrt_cond_mtime_signal (ddsrt_cond_mtime_t *cond)
+{
+  ddsrt_cond_signal (&cond->cond);
+}
+
+void ddsrt_cond_etime_signal (ddsrt_cond_etime_t *cond)
+{
+  ddsrt_cond_signal (&cond->cond);
+}
+
+void ddsrt_cond_broadcast (ddsrt_cond_t *cond)
 {
   TaskHandle_t task;
-
-  assert(cond != NULL);
-
-  xSemaphoreTake(cond->sem, portMAX_DELAY);
-  while ((task = ddsrt_tasklist_pop(&cond->tasks, NULL)) != NULL) {
-    xTaskNotifyGive(task);
+  xSemaphoreTake (cond->sem, portMAX_DELAY);
+  while ((task = ddsrt_tasklist_pop (&cond->tasks, NULL)) != NULL) {
+    xTaskNotifyGive (task);
   }
-  xSemaphoreGive(cond->sem);
+  xSemaphoreGive (cond->sem);
+}
+
+void ddsrt_cond_wctime_broadcast (ddsrt_cond_wctime_t *cond)
+{
+  ddsrt_cond_broadcast (&cond->cond);
+}
+
+void ddsrt_cond_mtime_broadcast (ddsrt_cond_mtime_t *cond)
+{
+  ddsrt_cond_broadcast (&cond->cond);
+}
+
+void ddsrt_cond_etime_broadcast (ddsrt_cond_etime_t *cond)
+{
+  ddsrt_cond_broadcast (&cond->cond);
 }
 
 #define WRITE_LOCKED (-1)
