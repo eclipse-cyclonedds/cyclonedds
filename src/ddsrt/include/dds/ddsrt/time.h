@@ -287,8 +287,4 @@ DDS_EXPORT void ddsrt_etime_to_sec_usec (int32_t *sec, int32_t *usec, ddsrt_etim
 }
 #endif
 
-#if DDSRT_WITH_FREERTOS
-#include "dds/ddsrt/time/freertos.h"
-#endif
-
 #endif /* DDSRT_TIME_H */
