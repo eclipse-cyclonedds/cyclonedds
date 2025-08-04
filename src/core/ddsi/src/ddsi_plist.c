@@ -1778,7 +1778,7 @@ static bool print_generic1 (char * restrict *buf, size_t * restrict bufsize, con
       }
       case XE1: case XE2: case XE3: { /* enum */
         enum xe3_prototype const * const x = deser_generic_src (src, &srcoff, plist_alignof (enum xe3_prototype));
-        if (!prtf (buf, bufsize, "%s%"PRIu32, sep, *x))
+        if (!prtf (buf, bufsize, "%s%"PRIu32, sep, (uint32_t) *x))
           return false;
         srcoff += sizeof (*x);
         break;
