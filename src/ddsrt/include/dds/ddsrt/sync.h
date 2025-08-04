@@ -105,7 +105,7 @@ ddsrt_cond_destroy(
 ddsrt_nonnull_all;
 
 /**
- * @brief Initialize a condition variable.
+ * @brief Initialize a condition variable bound to the wall clock.
  *
  * @param[in]  cond  Condition variable to initialize.
  */
@@ -115,7 +115,7 @@ ddsrt_cond_wctime_init(
 ddsrt_nonnull_all;
 
 /**
- * @brief Destroy a condition variable.
+ * @brief Destroy a condition variable bound to the wall clock.
  *
  * @param[in]  cond  Condition variable to destroy.
  */
@@ -125,7 +125,7 @@ ddsrt_cond_wctime_destroy(
 ddsrt_nonnull_all;
 
 /**
- * @brief Initialize a condition variable.
+ * @brief Initialize a condition variable bound to the monotonic clock.
  *
  * @param[in]  cond  Condition variable to initialize.
  */
@@ -135,7 +135,7 @@ ddsrt_cond_mtime_init(
 ddsrt_nonnull_all;
 
 /**
- * @brief Destroy a condition variable.
+ * @brief Destroy a condition variable bound to the monotonic clock.
  *
  * @param[in]  cond  Condition variable to destroy.
  */
@@ -145,7 +145,7 @@ ddsrt_cond_mtime_destroy(
 ddsrt_nonnull_all;
 
 /**
- * @brief Initialize a condition variable.
+ * @brief Initialize a condition variable bound to the elasped clock.
  *
  * @param[in]  cond  Condition variable to initialize.
  */
@@ -155,7 +155,7 @@ ddsrt_cond_etime_init(
 ddsrt_nonnull_all;
 
 /**
- * @brief Destroy a condition variable.
+ * @brief Destroy a condition variable bound to the elapsed clock.
  *
  * @param[in]  cond  Condition variable to destroy.
  */
@@ -181,7 +181,7 @@ ddsrt_cond_wait(
 ddsrt_nonnull_all;
 
 /**
- * @brief Wait for a condition variable to be signalled.
+ * @brief Wait for a condition variable bound to the wall clock to be signalled.
  *
  * @param[in]  cond   Condition variable to block on.
  * @param[in]  mutex  Mutex to associate with condition variable.
@@ -197,7 +197,7 @@ ddsrt_cond_wctime_wait(
 ddsrt_nonnull_all;
 
 /**
- * @brief Wait for a condition variable to be signalled.
+ * @brief Wait for a condition variable bound to the monotonic clock to be signalled.
  *
  * @param[in]  cond   Condition variable to block on.
  * @param[in]  mutex  Mutex to associate with condition variable.
@@ -213,7 +213,7 @@ ddsrt_cond_mtime_wait(
 ddsrt_nonnull_all;
 
 /**
- * @brief Wait for a condition variable to be signalled.
+ * @brief Wait for a condition variable bound to the elapsed clock to be signalled.
  *
  * @param[in]  cond   Condition variable to block on.
  * @param[in]  mutex  Mutex to associate with condition variable.
@@ -229,7 +229,10 @@ ddsrt_cond_etime_wait(
 ddsrt_nonnull_all;
 
 /**
- * @brief Wait until @abstime for a condition variable to be signalled.
+ * @brief Wait until @abstime for a condition variable bound to the wall clock to be signalled.
+ *
+ * For platforms that only provide relative timeouts, the function will convert the absolute timeout
+ * to a relative one by subtracting the current time according to the wall clock.
  *
  * @param[in]  cond     Condition variable to block on.
  * @param[in]  mutex    Mutex to associate with condition variable.
@@ -250,7 +253,13 @@ ddsrt_cond_wctime_waituntil(
 ddsrt_nonnull((1,2));
 
 /**
- * @brief Wait until @abstime for a condition variable to be signalled.
+ * @brief Wait until @abstime for a condition variable bound to the monotonic clock to be signalled.
+ *
+ * For platforms that only provide relative timeouts, the function will convert the absolute timeout
+ * to a relative one by subtracting the current time according to the monotonic clock. For platforms
+ * that do not support binding a condition variable to a specific clock and require an absolute timeout
+ * the timeout is calculated by converting the relative timeout to an absolute timeout on the wall clock
+ * by adding the current time according to the wall clock.
  *
  * @param[in]  cond     Condition variable to block on.
  * @param[in]  mutex    Mutex to associate with condition variable.
@@ -271,7 +280,13 @@ ddsrt_cond_mtime_waituntil(
 ddsrt_nonnull((1,2));
 
 /**
- * @brief Wait until @abstime for a condition variable to be signalled.
+ * @brief Wait until @abstime for a condition variable bound to the elapsed clock to be signalled.
+ *
+ * For platforms that only provide relative timeouts, the function will convert the absolute timeout
+ * to a relative one by subtracting the current time according to the elapsed clock. For platforms
+ * that do not support binding a condition variable to a specific clock and require an absolute timeout
+ * the timeout is calculated by converting the relative timeout to an absolute timeout on the wall clock
+ * by adding the current time according to the wall clock.
  *
  * @param[in]  cond     Condition variable to block on.
  * @param[in]  mutex    Mutex to associate with condition variable.
@@ -306,7 +321,7 @@ ddsrt_cond_signal(
 ddsrt_nonnull_all;
 
 /**
- * @brief Signal a condition variable and unblock at least one thread.
+ * @brief Signal a condition variable bound to the wall clock and unblock at least one thread.
  *
  * @param[in]  cond  Condition variable to signal.
  *
@@ -320,7 +335,7 @@ ddsrt_cond_wctime_signal(
 ddsrt_nonnull_all;
 
 /**
- * @brief Signal a condition variable and unblock at least one thread.
+ * @brief Signal a condition variable bound to the monotonic clock and unblock at least one thread.
  *
  * @param[in]  cond  Condition variable to signal.
  *
@@ -335,7 +350,7 @@ ddsrt_cond_mtime_signal(
 ddsrt_nonnull_all;
 
 /**
- * @brief Signal a condition variable and unblock at least one thread.
+ * @brief Signal a condition variable bound to the elapsed clock and unblock at least one thread.
  *
  * @param[in]  cond  Condition variable to signal.
  *
@@ -363,7 +378,7 @@ ddsrt_cond_broadcast(
 ddsrt_nonnull_all;
 
 /**
- * @brief Signal a condition variable and unblock all threads.
+ * @brief Signal a condition variable bound to the wall clock and unblock all threads.
  *
  * @param[in]  cond  Condition variable to signal.
  *
@@ -377,7 +392,7 @@ ddsrt_cond_wctime_broadcast(
 ddsrt_nonnull_all;
 
 /**
- * @brief Signal a condition variable and unblock all threads.
+ * @brief Signal a condition variable bound to the monotonic clock and unblock all threads.
  *
  * @param[in]  cond  Condition variable to signal.
  *
@@ -391,7 +406,7 @@ ddsrt_cond_mtime_broadcast(
 ddsrt_nonnull_all;
 
 /**
- * @brief Signal a condition variable and unblock all threads.
+ * @brief Signal a condition variable bound to the elapsed clock and unblock all threads.
  *
  * @param[in]  cond  Condition variable to signal.
  *

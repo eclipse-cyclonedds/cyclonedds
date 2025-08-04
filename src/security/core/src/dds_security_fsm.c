@@ -63,7 +63,7 @@ struct dds_security_fsm
 struct dds_security_fsm_control
 {
   ddsrt_mutex_t lock;
-  ddsrt_cond_etime_t cond;
+  ddsrt_cond_etime_t cond; // etime: timeouts in protocol machine (but see comment for xevent)
   struct ddsi_thread_state *thrst;
   struct ddsi_domaingv *gv;
   struct dds_security_fsm *first_fsm;

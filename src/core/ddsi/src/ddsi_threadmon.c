@@ -45,7 +45,7 @@ struct ddsi_threadmon {
   bool noprogress_log_stacktraces;
 
   ddsrt_mutex_t lock;
-  ddsrt_cond_mtime_t cond;
+  ddsrt_cond_mtime_t cond; // mtime: thread progress is absent when sleeping
   struct ddsi_thread_state *thrst;
   struct ddsrt_hh *domains;
 };

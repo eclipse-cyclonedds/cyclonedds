@@ -116,12 +116,12 @@ DDS_EXPORT void dds_sleepfor (dds_duration_t reltime);
  * @brief Get the current time in nanoseconds since the UNIX Epoch.  Identical
  * to (ddsrt_wctime_t){dds_time()}
  *
- * @returns Curren time.
+ * @returns Current time.
  */
 DDS_EXPORT ddsrt_wctime_t ddsrt_time_wallclock(void);
 
 /**
- * @brief Get high resolution, monotonic time.
+ * @brief Get monotonic time.
  *
  * The monotonic clock is a clock with near real-time progression and can be
  * used when a high-resolution time is needed without the need for it to be
@@ -136,7 +136,7 @@ DDS_EXPORT ddsrt_wctime_t ddsrt_time_wallclock(void);
 DDS_EXPORT ddsrt_mtime_t ddsrt_time_monotonic(void);
 
 /**
- * @brief Get high resolution, elapsed (and thus monotonic) time since some
+ * @brief Get elapsed (and thus monotonic) time since some
  * fixed unspecified past time.
  *
  * The elapsed time clock is a clock with near real-time progression and can be
@@ -150,16 +150,14 @@ DDS_EXPORT ddsrt_mtime_t ddsrt_time_monotonic(void);
 DDS_EXPORT ddsrt_etime_t ddsrt_time_elapsed(void);
 
 /**
- * @brief Get high resolution, elapsed (and thus monotonic) time since some
- * fixed unspecified past time.
+ * @brief Get a high resolution, monotonic time suitable for measuring time differences.
  *
- * The elapsed time clock is a clock with near real-time progression and can be
- * used when a high-resolution suspend-aware monotonic clock is needed, without
- * having to deal with the complications of discontinuities if for example the
- * time is changed. The fixed point from which the elapsed time is returned is
- * not guaranteed to be fixed over reboots of the system.
+ * On most systems, the other time functions return a high resolution time stamp
+ * anyway and this is just an alias for a monotonic timestamp. On some systems
+ * this function provides a higher resolution. It should not be used for anything other
+ * than measuring (short) time intervals.
  *
- * @returns Elapsed time if available, otherwise return monotonic time.
+ * @returns High resolution time stamp.
  */
 DDS_EXPORT ddsrt_hrtime_t ddsrt_time_highres(void);
 
