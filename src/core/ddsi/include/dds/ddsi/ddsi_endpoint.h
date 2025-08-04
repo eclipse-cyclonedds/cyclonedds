@@ -72,7 +72,7 @@ struct ddsi_writer
   struct ddsi_endpoint_common c;
   ddsi_status_cb_t status_cb;
   void * status_cb_entity;
-  ddsrt_cond_mtime_t throttle_cond; /* used to trigger a transmit thread blocked in throttle_writer() or wait_for_acks() */
+  ddsrt_cond_mtime_t throttle_cond; /* FIXME: mtime is historical, etime should be better because of max_blocking_time; used to trigger a transmit thread blocked in throttle_writer() or wait_for_acks() */
   ddsi_seqno_t seq; /* last sequence number (transmitted seqs are 1 ... seq, 0 when nothing published yet) */
   seq_xmit_t seq_xmit; /* last sequence number actually transmitted */
   ddsi_seqno_t min_local_readers_reject_seq; /* mimum of local_readers->last_deliv_seq */

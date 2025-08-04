@@ -103,6 +103,11 @@ struct ddsi_xeventq {
   struct ddsi_thread_state *thrst;
   struct ddsi_domaingv *gv;
   ddsrt_mutex_t lock;
+  
+  // Use monotonic clock to be independent of time jumps and because all timings was
+  // using the monotonic clock already. Using etime would cause the least delay for
+  // protocol messages that should have been sent while sleeping, but at the time scale
+  // at which the protocol operates, it probably doesn't matter
   ddsrt_cond_mtime_t cond;
 
   size_t cum_rexmit_bytes;
