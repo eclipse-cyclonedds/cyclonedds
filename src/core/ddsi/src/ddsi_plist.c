@@ -3355,7 +3355,28 @@ dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist,
        the spec */
     pid = (ddsi_parameterid_t) (dd.bswap ? ddsrt_bswap2u (par->parameterid) : par->parameterid);
     length = (uint16_t) (dd.bswap ? ddsrt_bswap2u (par->length) : par->length);
-    if (pid == DDSI_PID_SENTINEL)
+    /* XTypes 1.3, table 34:
+
+         RTPS specifies that the PID value 1 shall be used to terminate parameter lists
+         within the DDS built-in topic data types. Rather than reserving this parameter ID
+         for all types, thereby complicating the member ID-to-parameter ID mapping rules
+         for all producers and consumers of this Data Representation, Simple Discovery
+         types shall be subject to a special limitation: member ID 1 shall not be used and
+         parameter ID 1 shall terminate the parameter list to provide backwards
+         compatibility.  Implementations shall be robust to receiving parameter ID 0x3F02
+         to indicate the end of a list as well.  These types consist of the built-in topic
+         data types, and those other types that contain them as members, as defined by
+         [RTPS].
+
+       and:
+
+         When reading data, implementations of this specification shall be robust to any
+         setting of the FLAG_MUST_UNDERSTAND bit and accept the parameter nevertheless.
+
+       Reality is weirder than fiction, and then there's the OMG ... changing the RTPS
+       specification in what amounts to a footnote (even if it is not quite literally one)
+       in the XTypes specification ... */
+    if (pid == DDSI_PID_SENTINEL || (pid & 0xbfff) == 0x3f02)
     {
       /* Sentinel terminates list, the length is ignored, DDSI 9.4.2.11. */
       bool dursvc_accepted_allzero;
@@ -3450,7 +3471,8 @@ dds_return_t ddsi_plist_findparam_checking (const void *buf, size_t bufsz, uint1
     length = (uint16_t) (bswap ? ddsrt_bswap2u (par->length) : par->length);
     pl += sizeof (*par);
 
-    if (pid == DDSI_PID_SENTINEL)
+    // See note in ddsi_plist_init_frommsg for weird second term
+    if (pid == DDSI_PID_SENTINEL || (pid & 0xbfff) == 0x3f02)
       return (needlep && *needlep == NULL) ? DDS_RETCODE_NOT_FOUND : DDS_RETCODE_OK;
     else if (length > (size_t) (endp - pl) || (length % 4) != 0 /* DDSI 9.4.2.11 */)
       return DDS_RETCODE_BAD_PARAMETER;
@@ -3504,7 +3526,8 @@ unsigned char *ddsi_plist_quickscan (struct ddsi_rsample_info *dest, const ddsi_
     pid = (ddsi_parameterid_t) (dest->bswap ? ddsrt_bswap2u (par->parameterid) : par->parameterid);
     length = (uint16_t) (dest->bswap ? ddsrt_bswap2u (par->length) : par->length);
     pl += sizeof (*par);
-    if (pid == DDSI_PID_SENTINEL)
+    // See note in ddsi_plist_init_frommsg for weird second term
+    if (pid == DDSI_PID_SENTINEL || (pid & 0xbfff) == 0x3f02)
       return (unsigned char *) pl;
     if (length > src->bufsz - (size_t)(pl - src->buf))
     {
