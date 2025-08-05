@@ -1744,7 +1744,7 @@ CU_Test (ddsc_cdrstream, check_normalize_boolean)
 #define XCDR2 DDSI_RTPS_CDR_ENC_VERSION_2
 
 #define PHDR(pid,plen) 16,(pid),16,(plen)
-#define PHDR_EXT(pid,plen) PHDR(DDS_XCDR1_PL_SHORT_PID_EXTENDED, 8), 32,(pid), 32,(plen)
+#define PHDR_EXT(pid,plen) PHDR(DDS_XCDR1_PL_SHORT_PID_EXTENDED | DDS_XCDR1_PL_SHORT_FLAG_MU, 8), 32,(pid), 32,(plen)
 
 struct test_cdr_params {
   const dds_topic_descriptor_t *desc;
@@ -2147,7 +2147,8 @@ CU_Test (ddsc_cdrstream, check_xcdr1_param_normalize)
     { D(t1), true,  CDR(PHDR(0, 0)) },         // valid, not present
 
     { D(t1), false, CDR(PHDR(DDS_XCDR1_PL_SHORT_PID_EXTENDED, 6), 32,0, 32,4, 32,1) },   // extended header: incorrect slen for extended header (should be 8)
-    { D(t1), false, CDR(PHDR(~DDS_XCDR1_PL_SHORT_FLAG_MU & DDS_XCDR1_PL_SHORT_PID_EXTENDED, 8), 32,0, 32,4, 32,1) },   // extended header: MU flag missing
+    { D(t1), true, CDR(PHDR(DDS_XCDR1_PL_SHORT_PID_EXTENDED, 8), 32,0, 32,4, 32,1) },   // extended header: MU flag missing
+    { D(t1), true, CDR(PHDR(DDS_XCDR1_PL_SHORT_FLAG_MU | DDS_XCDR1_PL_SHORT_PID_EXTENDED, 8), 32,0, 32,4, 32,1) },   // extended header: MU flag present
     { D(t1), false, CDR(PHDR_EXT(1, 4), 32,1) },   // extended header: incorrect member id
     { D(t1), false, CDR(PHDR_EXT(1, 2), 16,1) },   // extended header: incorrect member length
     { D(t1), true,  CDR(PHDR_EXT(0, 4), 32,1) },   // extended header: valid, present

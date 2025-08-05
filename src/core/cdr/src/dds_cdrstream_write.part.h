@@ -563,7 +563,8 @@ static void dds_stream_write_xcdr1_paramheaderBO (RESTRICT_OSTREAM_T *os, const 
 
 static void dds_stream_write_xcdr1_param_list_endBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator)
 {
-  uint16_t phdr = DDS_XCDR1_PL_SHORT_PID_LIST_END;
+  // XTypes 1.3 table 34: must understand should be set in generated CDR
+  uint16_t phdr = DDS_XCDR1_PL_SHORT_FLAG_MU | DDS_XCDR1_PL_SHORT_PID_LIST_END;
   uint16_t slen = 0;
 
   dds_cdr_alignto_clear_and_resize_base (&os->x, allocator, dds_cdr_get_align (os->x.m_xcdr_version, 4), 4);
