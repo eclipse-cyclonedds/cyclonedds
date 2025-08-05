@@ -2209,7 +2209,7 @@ static const uint32_t *dds_stream_getsize_adr (uint32_t insn, struct getsize_sta
   bool alignment_offset_by_4 = false;
   if (op_type_optional (insn) && !is_mutable_member)
   {
-    bool present = op_type_optional (insn) ? (addr != NULL) : true;
+    bool present = (addr != NULL);
     if (st->xcdr_version != DDSI_RTPS_CDR_ENC_VERSION_1)
       getsize_reserve (st, 1);
     else
