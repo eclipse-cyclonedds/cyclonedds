@@ -4311,8 +4311,16 @@ static enum normalize_xcdr1_paramheader_result stream_read_normalize_xcdr1_param
     // Check length and must understand in short param header
     if (slen != DDS_XCDR1_PL_SHORT_PID_EXT_LEN)
       return NPHR1_ERROR;
+    // XTypes 1.3 note immediately following table 34:
+    //
+    // When writing data, implementations of this specification shall set the
+    // FLAG_MUST_UNDERSTAND bit as described in Table 34. When reading data,
+    // implementations of this specification shall be robust to any setting of
+    // the FLAG_MUST_UNDERSTAND bit and accept the parameter nevertheless.
+#if 0
     if (!(phdr & DDS_XCDR1_PL_SHORT_FLAG_MU))
       return NPHR1_ERROR;
+#endif
 
     // Read and check the extended parameter ID
     uint32_t pid;
