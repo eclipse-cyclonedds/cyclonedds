@@ -2159,7 +2159,7 @@ CU_Test (ddsc_cdrstream, check_xcdr1_param_normalize)
     { D(t2), false, CDR(PHDR(321, 0),            PHDR(124, 0) ) },             // invalid, incorrect member id
     { D(t2), true,  CDR(PHDR(321, 1), 8,1, PAD3, PHDR_EXT(123, 4), 32,1 ) },   // valid, short/extended header, present
     { D(t2), true,  CDR(PHDR_EXT(321, 0),        PHDR_EXT(123, 0) ) },         // valid, extended header, not-present
-    { D(t2), false, CDR(PHDR(321, 0),            PHDR(DDS_XCDR1_PL_SHORT_FLAG_IMPL_EXT & DDS_XCDR1_PL_SHORT_PID_EXTENDED, 8), 32,123, 32,4, 32,1) },   // invalid extended header: impl_ext flag set
+    { D(t2), false, CDR(PHDR(321, 0),            PHDR(DDS_XCDR1_PL_SHORT_FLAG_IMPL_EXT | DDS_XCDR1_PL_SHORT_PID_EXTENDED, 8), 32,123, 32,4, 32,1) },   // invalid extended header: impl_ext flag set
 
     { D(t3), true,  CDR(PHDR(10, 1), 8,1, PAD3, PHDR(99, 9), 32,5, 8,'a', 8,'b', 8,'c', 8,'d', 8,'\0', PAD3, PHDR(100, 8), 64,1) },          // valid, present
     { D(t3), true,  CDR(PHDR_EXT(10, 1), 8,1, PAD3, PHDR_EXT(99, 9), 32,5, 8,'a', 8,'b', 8,'c', 8,'d', 8,'\0', PAD3, PHDR(100, 8), 64,1) },  // valid, short/extended header, present
