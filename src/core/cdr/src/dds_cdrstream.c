@@ -2644,43 +2644,46 @@ static void adjust_sequence_buffer (dds_sequence_t *seq, const struct dds_cdrstr
   }
 }
 
-static void stream_read_xcdr1_paramheader (dds_istream_t *is, uint32_t *param_mid, uint32_t *param_len, bool *paramlist_end)
+/**
+ * @param[in,out] is                  input stream
+ * @param[out]    param_mid  parameter id if return is true, else left unchanged
+ * @param[out]    param_len  parameter length if return is true, else left unchanged
+ * @return true if a parameter was read, false if parameter list end marker was read */
+ddsrt_attribute_warn_unused_result ddsrt_nonnull ((1))
+static bool stream_read_xcdr1_paramheader (dds_istream_t *is, uint32_t *param_mid, uint32_t *param_len)
 {
   assert (param_len);
   dds_cdr_alignto (is, dds_cdr_get_align (is->m_xcdr_version, 4));
   uint16_t phdr = dds_is_get2 (is);
   uint16_t slen = dds_is_get2 (is);
   if ((phdr & DDS_XCDR1_PL_SHORT_PID_MASK) == DDS_XCDR1_PL_SHORT_PID_LIST_END)
-  {
-    if (paramlist_end)
-      *paramlist_end = true;
-  }
+    return false;
   else if ((phdr & DDS_XCDR1_PL_SHORT_PID_MASK) == DDS_XCDR1_PL_SHORT_PID_EXTENDED)
   {
     uint32_t ehdr = dds_is_get4 (is);
     if (param_mid)
       *param_mid = ehdr & DDS_XCDR1_PL_LONG_MID_MASK;
     *param_len = dds_is_get4 (is);
-    if (paramlist_end)
-      *paramlist_end = false;
+    return true;
   }
   else
   {
     if (param_mid)
       *param_mid = (phdr & DDS_XCDR1_PL_SHORT_PID_MASK);
     *param_len = (uint32_t) slen;
-    if (paramlist_end)
-      *paramlist_end = false;
+    return true;
   }
 }
 
-ddsrt_nonnull_all
+ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
 static bool stream_is_member_present (dds_istream_t *is, uint32_t *param_len)
 {
   if (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
   {
-    stream_read_xcdr1_paramheader (is, NULL, param_len, NULL);
-    return *param_len > 0;
+    if (stream_read_xcdr1_paramheader (is, NULL, param_len))
+      return *param_len > 0;
+    *param_len = 0;
+    return false;
   }
   else
   {
@@ -3361,28 +3364,22 @@ static const uint32_t *dds_stream_read_xcdr1_pl (dds_istream_t *is, char * restr
       FIXME: optimize so that only members not in received data are initialized */
   dds_stream_skip_pl_memberlist_default (data, allocator, ops, sample_state);
 
-  bool paramlist_end;
-  do
+  uint32_t param_mid, param_len;
+  while (stream_read_xcdr1_paramheader (is, &param_mid, &param_len))
   {
-    uint32_t param_mid, param_len;
-    stream_read_xcdr1_paramheader (is, &param_mid, &param_len, &paramlist_end);
-    if (!paramlist_end)
-    {
-      // Move buffer in temporary istream `is1` to start of parameter value and
-      // set size to param length, so that alignment is reset to 0
-      dds_istream_t is1 = *is;
-      is1.m_buffer += is1.m_index;
-      is1.m_index = 0;
-      is1.m_size = param_len;
+    // Move buffer in temporary istream `is1` to start of parameter value and
+    // set size to param length, so that alignment is reset to 0
+    dds_istream_t is1 = *is;
+    is1.m_buffer += is1.m_index;
+    is1.m_index = 0;
+    is1.m_size = param_len;
 
-      // find member and deserialize
-      (void) dds_stream_read_pl_member (&is1, data, allocator, param_mid, ops, cdr_kind, sample_state);
+    // find member and deserialize
+    (void) dds_stream_read_pl_member (&is1, data, allocator, param_mid, ops, cdr_kind, sample_state);
 
-      // forward index in CDR by param_len if found, and also in case member not known
-      is->m_index += param_len;
-    }
+    // forward index in CDR by param_len if found, and also in case member not known
+    is->m_index += param_len;
   }
-  while (!paramlist_end);
 
   /* skip all PLM-memberid pairs */
   while (ops[0] != DDS_OP_RTS)
@@ -4288,7 +4285,7 @@ enum normalize_xcdr1_paramheader_result {
   NPHR1_NOT_FOUND,   // unknown memberid, param_length and must_understand set
   NPHR1_NOT_PRESENT, // known memberid, param_length = 0, must_understand set
   NPHR1_PRESENT,     // known memberid, param_length != 0, must_understand set
-  NPHR1_LIST_END,    // list-end found
+  NPHR1_LIST_END,    // list-end found; param_length and must_understand undefined
   NPHR1_ERROR        // normalization failed; param_length and must_understand undefined
 };
 
@@ -5488,18 +5485,12 @@ static const uint32_t *dds_stream_extract_key_from_data_skip_pl (dds_istream_t *
 
   if (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
   {
-    bool paramlist_end;
-    do
+    uint32_t param_mid, param_len;
+    while (stream_read_xcdr1_paramheader (is, &param_mid, &param_len))
     {
-      uint32_t param_mid, param_len;
-      stream_read_xcdr1_paramheader (is, &param_mid, &param_len, &paramlist_end);
-      if (!paramlist_end)
-      {
-        // forward index in CDR by param_len
-        is->m_index += param_len;
-      }
+      // forward index in CDR by param_len
+      is->m_index += param_len;
     }
-    while (!paramlist_end);
   }
   else
   {
@@ -6226,26 +6217,20 @@ static const uint32_t *prtf_xcdr1_pl (char **buf, size_t *bufsize, dds_istream_t
   /* skip PLC op */
   ops++;
 
-  bool paramlist_end;
-  do
+  uint32_t param_mid, param_len;
+  while (stream_read_xcdr1_paramheader (is, &param_mid, &param_len))
   {
-    uint32_t param_mid, param_len;
-    stream_read_xcdr1_paramheader (is, &param_mid, &param_len, &paramlist_end);
-    if (!paramlist_end)
-    {
-      // Move buffer in temporary istream `is1` to start of parameter value and
-      // set size to param length, so that alignment is reset to 0
-      dds_istream_t is1 = *is;
-      is1.m_buffer += is1.m_index;
-      is1.m_index = 0;
-      is1.m_size = param_len;
+    // Move buffer in temporary istream `is1` to start of parameter value and
+    // set size to param length, so that alignment is reset to 0
+    dds_istream_t is1 = *is;
+    is1.m_buffer += is1.m_index;
+    is1.m_index = 0;
+    is1.m_size = param_len;
 
-      /* find member and deserialize; skip if not found */
-      (void) prtf_plm (buf, bufsize, &is1, param_mid, ops, cdr_kind);
-      is->m_index += param_len;
-    }
+    /* find member and deserialize; skip if not found */
+    (void) prtf_plm (buf, bufsize, &is1, param_mid, ops, cdr_kind);
+    is->m_index += param_len;
   }
-  while (!paramlist_end);
 
   /* skip all PLM-memberid pairs */
   while (ops[0] != DDS_OP_RTS)
