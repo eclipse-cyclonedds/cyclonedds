@@ -4326,8 +4326,6 @@ static enum normalize_xcdr1_paramheader_result stream_read_normalize_xcdr1_param
     uint32_t pid;
     if (!read_and_normalize_uint32 (&pid, data, off, size, bswap))
       return NPHR1_ERROR;
-    if (pid & DDS_XCDR1_PL_LONG_FLAG_IMPL_EXT)
-      return NPHR1_ERROR;
     *phdr_mid = pid & DDS_XCDR1_PL_LONG_MID_MASK;
     *must_understand = (pid & DDS_XCDR1_PL_LONG_FLAG_MU);
 
