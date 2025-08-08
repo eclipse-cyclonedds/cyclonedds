@@ -74,3 +74,8 @@ dl:not(.c):not(.cpp):not(.py):not(.simple) > dd {
     /* Don't indent top-level code */
     margin-inline-start: 0;
 }
+
+/* Sphinx tabs extension style adjustments */
+.sphinx-tabs-panel {
+    background: rgba(36, 36, 41, 0.0);
+}

@@ -200,3 +200,7 @@
 .. |url::omg_xml_1.0| raw:: html
 
     <a href="https://www.omg.org/spec/DDS-XML/1.0/" target="_blank">DDS Consolidated XML Syntax</a>
+
+.. |url::omg_idl_4.2| raw:: html
+
+    <a href="https://www.omg.org/spec/IDL/4.2/" target="_blank">OMG IDL 4.2</a>

@@ -4,7 +4,7 @@
 
 .. _idl_compiler:
 
-IDL compiler
+IDL Compiler
 ============
 
 The |var-project-short| IDL compiler translates module names into namespaces 
