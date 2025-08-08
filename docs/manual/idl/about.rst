@@ -1,16 +1,17 @@
-.. index:: IDL
+.. include:: ../external-links.part.rst
 
 .. _idl_bm:
 
-===
-IDL
-===
+###################################
+IDL (Interface Definition Language)
+###################################
 
 .. toctree::
    :maxdepth: 1
    :hidden:
 
-   idl_compilers
+   compiler
+   syntax
 
 IDL is a language to defined data types and interfaces that are platform and language 
 agnostic. There are tools that have been developed to then consume that IDL and emit 
@@ -73,3 +74,4 @@ For example, the following IDL code:
             message: str
 
 See also: :ref:`helloworld_idl`.
+
