@@ -17,8 +17,6 @@ message(STATUS "Building Iceoryx PSMX plugin")
 set(psmx_iox_sources
   src/psmx_iox_impl.cpp
   include/psmx_iox_impl.hpp
-  src/machineid.cpp
-  src/machineid.hpp
   src/scheduling.hpp
   src/scheduling.cpp)
 

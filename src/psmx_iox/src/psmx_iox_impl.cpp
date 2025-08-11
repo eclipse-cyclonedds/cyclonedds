@@ -21,6 +21,7 @@
 #include "dds/ddsrt/random.h"
 #include "dds/ddsrt/strtol.h"
 #include "dds/ddsrt/threads.h"
+#include "dds/ddsrt/machineid.h"
 #include "dds/ddsc/dds_loaned_sample.h"
 #include "dds/ddsc/dds_psmx.h"
 
@@ -43,7 +44,6 @@
 #endif
 
 #include "psmx_iox_impl.hpp"
-#include "machineid.hpp"
 #include "scheduling.hpp"
 
 #define ERROR_PREFIX "=== [ICEORYX] "
@@ -720,7 +720,13 @@ dds_return_t iox_create_psmx(struct dds_psmx **psmx, dds_psmx_instance_id_t inst
   if (opt_node_id.has_value()) {
     node_id = to_node_identifier(opt_node_id.value());
   } else {
-    node_id = get_machineid ();
+    ddsrt_machineid_t machine_id;
+    if (!ddsrt_get_machineid (&machine_id)) {
+      std::cerr << ERROR_PREFIX "Could not determine machine id" << std::endl;
+      return DDS_RETCODE_ERROR;
+    }
+    static_assert (sizeof (machine_id) == sizeof (dds_psmx_node_identifier_t), "machine id size mismatch");
+    node_id = *reinterpret_cast<dds_psmx_node_identifier_t *>(&machine_id);
   }
   if (!node_id.has_value())
     return DDS_RETCODE_ERROR;

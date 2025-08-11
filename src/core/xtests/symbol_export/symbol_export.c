@@ -30,6 +30,7 @@
 #include "dds/ddsrt/random.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/log.h"
+#include "dds/ddsrt/machineid.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
@@ -1184,6 +1185,9 @@ int main (int argc, char **argv)
   ddsrt_xmlp_get_bufpos (ptr);
   ddsrt_xmlp_free (ptr);
   ddsrt_xmlp_parse (ptr);
+
+  // ddsrt/machineid.h
+  ddsrt_get_machineid (ptr);
 
 #if DDSRT_HAVE_FILESYSTEM
   // ddsrt/filesystem.h

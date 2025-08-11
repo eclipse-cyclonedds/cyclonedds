@@ -1,4 +1,4 @@
-// Copyright(c) 2024 ZettaScale Technology and others
+// Copyright(c) 2025 ZettaScale Technology and others
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License v. 2.0 which is available at
@@ -8,17 +8,27 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-#include "machineid.hpp"
+#if defined(__linux) || defined(__APPLE__)
+#define _GNU_SOURCE
+#endif
 
+#include <string.h>
+#include <stdlib.h>
+
+#include "dds/ddsrt/machineid.h"
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/ifaddrs.h"
+#include "dds/ddsrt/static_assert.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/string.h"
+#include "dds/ddsrt/strtol.h"
 #if defined(__linux) && !LWIP_SOCKET
 #include "linux/if_packet.h"
 #elif defined(__APPLE__) || defined(__QNXNTO__) || defined(__FreeBSD__)
 #include "net/if_dl.h"
 #endif
 
-std::optional<dds_psmx_node_identifier_t> get_machineid ()
+bool ddsrt_get_machineid (ddsrt_machineid_t *id)
 {
   // the non-foolproof strategy here: if we have some MAC addresses, use the
   // MD5 hash of the concatenation of those as the machine id.  If we don't
@@ -39,7 +49,7 @@ std::optional<dds_psmx_node_identifier_t> get_machineid ()
   // FIXME: our getifaddrs on Windows doesn't return MAC addresses
   struct ddsrt_ifaddrs *ifa_root;
   if (ddsrt_getifaddrs (&ifa_root, NULL) != DDS_RETCODE_OK)
-    return std::nullopt;
+    return false;
   bool have_mac = false, have_ip = false;
   ddsrt_md5_state_t md5st_mac, md5st_ip;
   ddsrt_md5_init (&md5st_mac);
@@ -80,15 +90,14 @@ std::optional<dds_psmx_node_identifier_t> get_machineid ()
     }
   }
   ddsrt_freeifaddrs (ifa_root);
-  dds_psmx_node_identifier_t mid;
-  static_assert (sizeof (mid.x) == 16);
+  DDSRT_STATIC_ASSERT (sizeof (id->x) == 16);
   if (have_mac) {
-    ddsrt_md5_finish (&md5st_mac, static_cast<ddsrt_md5_byte_t *>(mid.x));
-    return mid;
+    ddsrt_md5_finish (&md5st_mac, (ddsrt_md5_byte_t *)(id->x));
+    return true;
   } else if (have_ip) {
-    ddsrt_md5_finish (&md5st_ip, static_cast<ddsrt_md5_byte_t *>(mid.x));
-    return mid;
+    ddsrt_md5_finish (&md5st_ip, (ddsrt_md5_byte_t *)(id->x));
+    return true;
   } else {
-    return std::nullopt;
+    return false;
   }
 }
