@@ -313,11 +313,32 @@ else()
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 endif()
 
-########################################################################
-# If Iceoryx is available, then also run all PSMX tests using Iceoryx. #
-# Colcon complicates things too much and it doesn't affect Cyclone's   #
-# CI run anyway.                                                       #
-########################################################################
+################################################################################
+# If Iceoryx / Iceoryx2 is available, then also run all PSMX tests using them. #
+# Colcon complicates things too much and it doesn't affect Cyclone's           #
+# CI run anyway.                                                               #
+################################################################################
+
+get_property(test_names DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY TESTS)
+list(FILTER test_names INCLUDE REGEX "^CUnit_ddsc_psmx_[A-Za-z_0-9]+$")
+
+# Iceoryx2
+if(ENABLE_ICEORYX2 AND NOT DEFINED ENV{COLCON})
+  if(BUILD_SHARED_LIBS)
+    foreach(fullname ${test_names})
+      string(REGEX REPLACE "^CUnit_ddsc_psmx_(.*)" "\\1" shortname "${fullname}")
+      add_test(NAME ${fullname}_iox2 COMMAND cunit_ddsc -s ddsc_psmx -t ${shortname})
+      set_tests_properties(${fullname}_iox2 PROPERTIES ENVIRONMENT "CDDS_PSMX_NAME=iox2;LD_LIBRARY_PATH=$<TARGET_FILE_DIR:psmx_iox2>:$ENV{LD_LIBRARY_PATH}")
+    endforeach()
+  else()
+    # Rewire the default set of tests to use Iceoryx2 instead of adding Iceoryx2 variants
+    foreach(fullname ${test_names})
+      set_tests_properties(${fullname} PROPERTIES ENVIRONMENT "CDDS_PSMX_NAME=iox2")
+    endforeach()
+  endif()
+endif()
+
+# Iceoryx
 if(ENABLE_ICEORYX AND NOT DEFINED ENV{COLCON})
   # We need to start RouDi, so we need to find it
   find_program(ICEORYX_ROUDI iox-roudi REQUIRED)
@@ -362,8 +383,6 @@ kill -0 `cat ctest_fixture_iox_roudi.pid`")
 
   # Construct Iceoryx-variants of all PSMX tests if building shared libraries, map them to
   # Iceoryx in a static build (because I don't know how to delete tests!)
-  get_property(test_names DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY TESTS)
-  list(FILTER test_names INCLUDE REGEX "^CUnit_ddsc_psmx_[A-Za-z_0-9]+$")
   if(BUILD_SHARED_LIBS)
     foreach(fullname ${test_names})
       string(REGEX REPLACE "^CUnit_ddsc_psmx_(.*)" "\\1" shortname "${fullname}")
