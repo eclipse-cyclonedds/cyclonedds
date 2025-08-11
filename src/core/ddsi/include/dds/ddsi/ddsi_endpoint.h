@@ -123,6 +123,7 @@ struct ddsi_writer
   uint32_t rexmit_count; /* cum samples retransmitted (counting events; 1 sample can be counted many times) */
   uint32_t rexmit_lost_count; /* cum samples lost but retransmit requested (also counting events) */
   uint64_t rexmit_bytes; /* cum bytes queued for retransmit */
+  uint64_t sent_bytes; /* cum bytes sent (excluding retransmits) */
   uint64_t time_throttled; /* cum time in throttled state */
   uint64_t time_retransmit; /* cum time in retransmitting state */
   struct ddsi_xeventq *evq; /* timed event queue to be used by this writer */

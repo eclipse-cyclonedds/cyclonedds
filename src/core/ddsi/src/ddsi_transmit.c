@@ -879,6 +879,7 @@ static int write_sample (struct ddsi_thread_state * const thrst, struct ddsi_xpa
   serdata->twrite = tnow;
 
   seq = ++wr->seq;
+  wr->sent_bytes += ddsi_serdata_size (serdata);
   if ((r = insert_sample_in_whc (wr, seq, serdata, tk)) < 0)
   {
     /* Failure of some kind */

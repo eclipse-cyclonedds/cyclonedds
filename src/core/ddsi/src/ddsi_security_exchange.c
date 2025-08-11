@@ -65,6 +65,7 @@ bool ddsi_write_auth_handshake_message(const struct ddsi_participant *pp, const 
 
   serdata = ddsi_serdata_from_sample (wr->type, SDK_DATA, &pmg);
   serdata->timestamp = ddsrt_time_wallclock ();
+  wr->sent_bytes += ddsi_serdata_size (serdata);
   result = ddsi_enqueue_sample_wrlock_held (wr, seq, serdata, prd, 1) == 0;
   ddsi_serdata_unref (serdata);
   ddsrt_mutex_unlock (&wr->e.lock);
@@ -173,6 +174,7 @@ static bool write_crypto_exchange_message(const struct ddsi_participant *pp, con
   serdata = ddsi_serdata_from_sample (wr->type, SDK_DATA, &pmg);
   serdata->timestamp = ddsrt_time_wallclock ();
   tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
+  wr->sent_bytes += ddsi_serdata_size (serdata);
   r = ddsi_write_sample_p2p_wrlock_held(wr, seq, serdata, tk, prd);
   ddsrt_mutex_unlock (&wr->e.lock);
   ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
