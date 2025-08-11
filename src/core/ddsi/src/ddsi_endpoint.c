@@ -806,6 +806,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
   wr->rexmit_count = 0;
   wr->rexmit_lost_count = 0;
   wr->rexmit_bytes = 0;
+  wr->sent_bytes = 0;
   wr->time_throttled = 0;
   wr->time_retransmit = 0;
   wr->force_md5_keyhash = 0;

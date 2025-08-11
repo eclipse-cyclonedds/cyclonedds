@@ -375,6 +375,7 @@ static void print_writer (struct st *st, void *varg)
     cpfkobj (st, "ack", print_writer_ack, w);
   }
   cpfku64 (st, "rexmit_bytes", w->rexmit_bytes);
+  cpfku64 (st, "sent_bytes", w->sent_bytes);
   cpfku32 (st, "throttle_count", w->throttle_count);
   cpfku64 (st, "time_throttled", w->time_throttled);
   cpfku64 (st, "time_retransmit", w->time_retransmit);
