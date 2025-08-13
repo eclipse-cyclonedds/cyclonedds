@@ -164,6 +164,7 @@ struct ddsi_reader
 #ifdef DDS_HAS_SECURITY
   struct ddsi_reader_sec_attributes *sec_attr;
 #endif
+  ddsrt_atomic_uint64_t received_bytes; /* cum bytes received (excluding retransmits) */
 };
 
 struct ddsi_generic_endpoint

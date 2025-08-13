@@ -286,6 +286,7 @@ static void print_reader (struct st *st, void *varg)
   if (r->uc_as || r->mc_as)
     cpfobj (st, print_nwpart_seq, r);
 #endif
+  cpfku64 (st, "received_bytes", ddsrt_atomic_ld64(&r->received_bytes));
   cpfkseq (st, "local_writers", print_reader_wrseq, r);
   cpfkseq (st, "proxy_writers", print_reader_pwrseq, r);
   ddsrt_mutex_unlock (&r->e.lock);

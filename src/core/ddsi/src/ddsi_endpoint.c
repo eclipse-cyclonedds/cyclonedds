@@ -1531,6 +1531,7 @@ dds_return_t ddsi_new_reader (struct ddsi_reader **rd_out, const struct ddsi_gui
   rd->status_cb = status_cb;
   rd->status_cb_entity = status_entity;
   rd->rhc = rhc;
+  ddsrt_atomic_st64 (&rd->received_bytes, (uint64_t) 0);
   /* set rhc qos for reader */
   if (rhc)
   {
