@@ -42,6 +42,14 @@ void ddsrt_init(void);
  * (when the reference count is 1) actually finalizes it.
  */
 void ddsrt_fini(void);
+///
+/// @brief Lock the pooled memory allocator
+///
+dds_return_t ddsrt_lock(void);
+
+/// @brief Unlock the pooled memory allocator
+///
+dds_return_t ddsrt_unlock(void);
 
 /**
  * @brief Get a pointer to the global 'init_mutex'
