@@ -18,6 +18,8 @@
 #if defined(__linux) || defined(__APPLE__)
 #include <pthread.h>
 #include <sched.h>
+#elif defined(_WIN32)
+#include <windows.h>
 #endif
 
 namespace iox_psmx { namespace sched {

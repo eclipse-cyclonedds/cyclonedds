@@ -40,6 +40,17 @@ jobs:
         iceoryx: on
         cc: gcc
         coverage: on
+      'Ubuntu 24.04 (Debug, x86_64, Iceoryx2)':
+        image: ubuntu-24.04
+        # No address sanitizer because of this in test run:
+        #  Shadow memory range interleaves with an existing memory mapping.
+        #  ASan cannot proceed correctly. ABORTING.
+        #  ASan shadow was supposed to be located in the [0x00007fff7000-0x10007fff7fff]
+        #  range.
+        sanitizer: undefined
+        iceoryx2: on
+        cc: gcc
+        coverage: on
       'Ubuntu 24.04 (Release, x86_64)':
         image: ubuntu-24.04
         build_type: Release

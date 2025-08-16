@@ -153,6 +153,20 @@ elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
   endif()
 endif()
 
+# Since GCC 10 and llvm.org Clang 11, -fno-common is the default.  However Apple's Xcode
+# Clang still defaults to -fcommon.  With -fcommon in effect, we get a linker warning like:
+#
+#    ld: warning: reducing alignment of section __DATA,__common from 0x8000 to 0x4000
+#    because it exceeds segment maximum alignment
+#
+# with XCode 16.3
+#
+# Fortunately, we don't need -fcommon
+if("${CMAKE_C_COMPILER_ID}" STREQUAL "AppleClang")
+  add_compile_options(-fno-common)
+endif()
+
+
 # I don't know how to enable warnings properly so that they are enabled in Xcode projects as well
 if(${CMAKE_GENERATOR} STREQUAL "Xcode")
   set (CMAKE_XCODE_ATTRIBUTE_CLANG_WARN_EMPTY_BODY YES)
