@@ -129,6 +129,19 @@ jobs:
         build_type: Release
         sharedlibs: off
         iceoryx: on
+      'Android 13 with API level 33 (Release, armv8)':
+        image: ubuntu-24.04
+        build_type: Release
+        sanitizer: undefined
+        testing: off
+        examples: off
+        idlc: off
+        idlc_xtests: off
+        android: on
+        android_platform: android-33
+        arch: arm64-v8a
+        ssl: off
+        ddsperf: off
 
   steps:
     - template: /.azure/templates/build-test.yml

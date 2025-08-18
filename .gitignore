@@ -6,6 +6,7 @@ gen.*
 .vs/
 .vscode/
 build/
+build*/
 *~
 .zed
 .cache
