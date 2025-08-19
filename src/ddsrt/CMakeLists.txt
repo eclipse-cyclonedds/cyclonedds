@@ -128,7 +128,7 @@ if(WITH_LWIP)
 else()
   if(WIN32)
     if(POLICY CMP0075)
-      # suppress warnings concerning a change in behaviour of check_include_files in
+      # suppress warnings concerning a change in behavior of check_include_files in
       # combination with CMAKE_REQUIRED_LIBRARIES
       cmake_policy(SET CMP0075 NEW)
     endif()

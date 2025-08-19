@@ -34,7 +34,7 @@ through :c:func:`dds_write()`.
 
 .. note::
   When a loaned sample has been returned to the shared memory pool (by invoking 
-  :c:func:`dds_write()`), dereferencing the pointer is undefined behaviour.
+  :c:func:`dds_write()`), dereferencing the pointer is undefined behavior.
 
 If |var-project-short| is configured to use shared memory, but it is not possible to 
 use the loan mechanism, a :c:func:`dds_write()` still writes to the shared memory 

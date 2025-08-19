@@ -57,7 +57,7 @@ For each defined channel:
     :widths: 20 80
 
     * - ``dq.channel-name``
-      - Deserialisation and asynchronous delivery of all user data.
+      - Deserialization and asynchronous delivery of all user data.
     * - ``tev.channel-name``
       - Channel-specific "timed-event" handling transmission of control messages for reliable writers 
         and Readers and re-transmission of data on request. 
