@@ -695,7 +695,7 @@ static bool dds_stream_write_xcdr1_pl_memberBO (RESTRICT_OSTREAM_T *os, const st
 {
   /* get flags from first member op */
   uint32_t flags = DDS_OP_FLAGS (ops[0]);
-  bool is_key = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
+  bool is_key = flags & DDS_OP_FLAG_KEY;
   bool must_understand = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
 
   if (cdr_kind == CDR_KIND_KEY && !is_key)
@@ -719,7 +719,7 @@ static bool dds_stream_write_xcdr2_pl_memberBO (RESTRICT_OSTREAM_T *os, const st
 
   /* get flags from first member op */
   uint32_t flags = DDS_OP_FLAGS (ops[0]);
-  bool is_key = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
+  bool is_key = flags & DDS_OP_FLAG_KEY;
   bool must_understand = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
 
   if (cdr_kind == CDR_KIND_KEY && !is_key)

@@ -2282,7 +2282,7 @@ static bool dds_stream_getsize_xcdr1_pl_member (struct getsize_state *st, const 
 {
   /* get flags from first member op */
   uint32_t flags = DDS_OP_FLAGS (ops[0]);
-  bool is_key = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
+  bool is_key = flags & DDS_OP_FLAG_KEY;
 
   if (st->cdr_kind == CDR_KIND_KEY && !is_key)
     return true;
@@ -2308,7 +2308,7 @@ static bool dds_stream_getsize_xcdr2_pl_member (struct getsize_state *st, const 
 {
   /* get flags from first member op */
   uint32_t flags = DDS_OP_FLAGS (ops[0]);
-  bool is_key = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
+  bool is_key = flags & DDS_OP_FLAG_KEY;
 
   if (st->cdr_kind == CDR_KIND_KEY && !is_key)
     return true;
@@ -6712,7 +6712,7 @@ static const uint32_t *dds_stream_key_size_delimited (const uint32_t *ops, struc
 static bool dds_stream_key_size_pl_member (const uint32_t *ops, struct key_props *k)
 {
   uint32_t flags = DDS_OP_FLAGS (ops[0]);
-  bool is_key = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
+  bool is_key = flags & DDS_OP_FLAG_KEY;
   if (!is_key)
     return true;
 
