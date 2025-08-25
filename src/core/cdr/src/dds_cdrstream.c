@@ -5725,9 +5725,7 @@ void dds_stream_extract_keyBE_from_key (dds_istream_t *is, dds_ostreamBE_t *os, 
  *******************************************************************************************/
 
 /* Returns true if buffer not yet exhausted, false otherwise */
-static bool prtf (char **buf, size_t *bufsize, const char *fmt, ...)
-  ddsrt_attribute_format_printf(3, 4);
-
+ddsrt_attribute_warn_unused_result ddsrt_attribute_format_printf(3, 4)
 static bool prtf (char **buf, size_t *bufsize, const char *fmt, ...)
 {
   va_list ap;
@@ -5755,6 +5753,7 @@ static bool prtf (char **buf, size_t *bufsize, const char *fmt, ...)
   }
 }
 
+ddsrt_attribute_warn_unused_result
 static bool prtf_str (char **buf, size_t *bufsize, dds_istream_t *is)
 {
   size_t sz = dds_is_get4 (is);
@@ -5763,6 +5762,7 @@ static bool prtf_str (char **buf, size_t *bufsize, dds_istream_t *is)
   return ret;
 }
 
+ddsrt_attribute_warn_unused_result
 static bool prtf_utf32 (char **buf, size_t *bufsize, uint32_t utf32)
 {
   unsigned char utf8[5], lead;
@@ -5780,6 +5780,7 @@ static bool prtf_utf32 (char **buf, size_t *bufsize, uint32_t utf32)
   return prtf (buf, bufsize, "%s", utf8);
 }
 
+ddsrt_attribute_warn_unused_result
 static bool prtf_wstr (char **buf, size_t *bufsize, dds_istream_t *is)
 {
   size_t sz = dds_is_get4 (is);
@@ -5811,6 +5812,7 @@ static size_t isprint_runlen (const unsigned char *s, size_t n)
   return m;
 }
 
+ddsrt_attribute_warn_unused_result
 static bool prtf_enum_bitmask (char **buf, size_t *bufsize, dds_istream_t *is, uint32_t flags)
 {
   switch (DDS_OP_FLAGS_SZ (flags))
@@ -5837,6 +5839,7 @@ static bool prtf_enum_bitmask (char **buf, size_t *bufsize, dds_istream_t *is, u
   return false;
 }
 
+ddsrt_attribute_warn_unused_result
 static bool prtf_simple (char **buf, size_t *bufsize, dds_istream_t *is, enum dds_stream_typecode type, uint32_t flags)
 {
   switch (type)
@@ -5891,51 +5894,62 @@ static bool prtf_simple (char **buf, size_t *bufsize, dds_istream_t *is, enum dd
   return false;
 }
 
+ddsrt_attribute_warn_unused_result
 static bool prtf_simple_array (char **buf, size_t *bufsize, dds_istream_t *is, uint32_t num, enum dds_stream_typecode type, uint32_t flags)
 {
-  bool cont = prtf (buf, bufsize, "{");
+  if (!prtf (buf, bufsize, "{"))
+    return false;
   switch (type)
   {
     case DDS_OP_VAL_1BY: {
       size_t i = 0, j;
-      while (cont && i < num)
+      while (i < num)
       {
         size_t m = isprint_runlen ((unsigned char *) (is->m_buffer + is->m_index), num - i);
         if (m >= 4)
         {
-          cont = prtf (buf, bufsize, "%s\"", i != 0 ? "," : "");
-          for (j = 0; cont && j < m; j++)
-            cont = prtf (buf, bufsize, "%c", is->m_buffer[is->m_index + j]);
-          cont = prtf (buf, bufsize, "\"");
+          if (!prtf (buf, bufsize, "%s\"", i != 0 ? "," : ""))
+            return false;
+          for (j = 0; j < m; j++)
+            if (!prtf (buf, bufsize, "%c", is->m_buffer[is->m_index + j]))
+              return false;
+          if (!prtf (buf, bufsize, "\""))
+            return false;
           is->m_index += (uint32_t) m;
           i += m;
         }
         else
         {
           if (i != 0)
-            (void) prtf (buf, bufsize, ",");
-          cont = prtf_simple (buf, bufsize, is, type, flags);
+            if (!prtf (buf, bufsize, ","))
+              return false;
+          if (!prtf_simple (buf, bufsize, is, type, flags))
+            return false;
           i++;
         }
       }
       break;
     }
     case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK:
-      for (size_t i = 0; cont && i < num; i++)
+      for (size_t i = 0; i < num; i++)
       {
         if (i != 0)
-          (void) prtf (buf, bufsize, ",");
-        cont = prtf_enum_bitmask (buf, bufsize, is, flags);
+          if (!prtf (buf, bufsize, ","))
+            return false;
+        if (!prtf_enum_bitmask (buf, bufsize, is, flags))
+          return false;
       }
       break;
     case DDS_OP_VAL_BLN: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_WCHAR:
     case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
     case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR:
-      for (size_t i = 0; cont && i < num; i++)
+      for (size_t i = 0; i < num; i++)
       {
         if (i != 0)
-          (void) prtf (buf, bufsize, ",");
-        cont = prtf_simple (buf, bufsize, is, type, flags);
+          if (!prtf (buf, bufsize, ","))
+            return false;
+        if (!prtf_simple (buf, bufsize, is, type, flags))
+          return false;
       }
       break;
     case DDS_OP_VAL_SEQ:
@@ -5950,8 +5964,10 @@ static bool prtf_simple_array (char **buf, size_t *bufsize, dds_istream_t *is, u
   return prtf (buf, bufsize, "}");
 }
 
+ddsrt_attribute_warn_unused_result
 static const uint32_t *dds_stream_print_sample1 (char **buf, size_t *bufsize, dds_istream_t *is, const uint32_t *ops, bool add_braces, bool is_mutable_member, enum cdr_data_kind cdr_kind);
 
+ddsrt_attribute_warn_unused_result
 static const uint32_t *prtf_seq (char **buf, size_t *bufsize, dds_istream_t *is, const uint32_t *ops, uint32_t insn, enum cdr_data_kind cdr_kind)
 {
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
@@ -5962,18 +5978,21 @@ static const uint32_t *prtf_seq (char **buf, size_t *bufsize, dds_istream_t *is,
   const uint32_t num = dds_is_get4 (is);
   if (num == 0)
   {
-    (void) prtf (buf, bufsize, "{}");
+    if (!prtf (buf, bufsize, "{}"))
+      return NULL;
     return skip_sequence_insns (insn, ops);
   }
   switch (subtype)
   {
     case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_WCHAR:
-      (void) prtf_simple_array (buf, bufsize, is, num, subtype, DDS_OP_FLAGS (insn));
+      if (!prtf_simple_array (buf, bufsize, is, num, subtype, DDS_OP_FLAGS (insn)))
+        return NULL;
       return ops + 2 + bound_op;
     case DDS_OP_VAL_STR: case DDS_OP_VAL_BST:
     case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR:
     case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: {
-      (void) prtf_simple_array (buf, bufsize, is, num, subtype, DDS_OP_FLAGS (insn));
+      if (!prtf_simple_array (buf, bufsize, is, num, subtype, DDS_OP_FLAGS (insn)))
+        return NULL;
       const uint32_t *ret_ops = ops + 2 + bound_op;
       if (subtype == DDS_OP_VAL_BMK)
         ret_ops += 2;
@@ -5988,10 +6007,13 @@ static const uint32_t *prtf_seq (char **buf, size_t *bufsize, dds_istream_t *is,
       for (uint32_t i = 0; cont && i < num; i++)
       {
         if (i > 0)
-          (void) prtf (buf, bufsize, ",");
-        cont = dds_stream_print_sample1 (buf, bufsize, is, jsr_ops, subtype == DDS_OP_VAL_STU, false, cdr_kind) != NULL;
+          if (!prtf (buf, bufsize, ","))
+            return NULL;
+        if (dds_stream_print_sample1 (buf, bufsize, is, jsr_ops, subtype == DDS_OP_VAL_STU, false, cdr_kind) == NULL)
+          return NULL;
       }
-      (void) prtf (buf, bufsize, "}");
+      if (!prtf (buf, bufsize, "}"))
+        return NULL;
       return ops + (jmp ? jmp : (4 + bound_op)); /* FIXME: why would jmp be 0? */
     }
     case DDS_OP_VAL_EXT: {
@@ -6002,6 +6024,7 @@ static const uint32_t *prtf_seq (char **buf, size_t *bufsize, dds_istream_t *is,
   return NULL;
 }
 
+ddsrt_attribute_warn_unused_result
 static const uint32_t *prtf_arr (char **buf, size_t *bufsize, dds_istream_t *is, const uint32_t *ops, uint32_t insn, enum cdr_data_kind cdr_kind)
 {
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
@@ -6013,7 +6036,8 @@ static const uint32_t *prtf_arr (char **buf, size_t *bufsize, dds_istream_t *is,
     case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
     case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_WCHAR:
     case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: {
-      (void) prtf_simple_array (buf, bufsize, is, num, subtype, DDS_OP_FLAGS (insn));
+      if (!prtf_simple_array (buf, bufsize, is, num, subtype, DDS_OP_FLAGS (insn)))
+        return NULL;
       const uint32_t *ret_ops = ops + 3;
       if (subtype == DDS_OP_VAL_BST || subtype == DDS_OP_VAL_BWSTR || subtype == DDS_OP_VAL_BMK)
         ret_ops += 2;
@@ -6024,13 +6048,18 @@ static const uint32_t *prtf_arr (char **buf, size_t *bufsize, dds_istream_t *is,
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
       const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[3]);
       const uint32_t jmp = DDS_OP_ADR_JMP (ops[3]);
-      bool cont = prtf (buf, bufsize, "{");
-      for (uint32_t i = 0; cont && i < num; i++)
+      if (!prtf (buf, bufsize, "{"))
+        return NULL;
+      for (uint32_t i = 0; i < num; i++)
       {
-        if (i > 0) (void) prtf (buf, bufsize, ",");
-        cont = dds_stream_print_sample1 (buf, bufsize, is, jsr_ops, subtype == DDS_OP_VAL_STU, false, cdr_kind) != NULL;
+        if (i > 0)
+          if (!prtf (buf, bufsize, ","))
+            return NULL;
+        if (dds_stream_print_sample1 (buf, bufsize, is, jsr_ops, subtype == DDS_OP_VAL_STU, false, cdr_kind) == NULL)
+          return NULL;
       }
-      (void) prtf (buf, bufsize, "}");
+      if (!prtf (buf, bufsize, "}"))
+        return NULL;
       return ops + (jmp ? jmp : 5);
     }
     case DDS_OP_VAL_EXT: {
@@ -6041,11 +6070,13 @@ static const uint32_t *prtf_arr (char **buf, size_t *bufsize, dds_istream_t *is,
   return NULL;
 }
 
+ddsrt_attribute_warn_unused_result
 static const uint32_t *prtf_uni (char **buf, size_t *bufsize, dds_istream_t *is, const uint32_t *ops, uint32_t insn, enum cdr_data_kind cdr_kind)
 {
   const uint32_t disc = read_union_discriminant (is, insn);
   uint32_t const * const jeq_op = find_union_case (ops, disc);
-  (void) prtf (buf, bufsize, "%"PRIu32":", disc);
+  if (!prtf (buf, bufsize, "%"PRIu32":", disc))
+    return NULL;
   ops += DDS_OP_ADR_JMP (ops[3]);
   if (jeq_op)
   {
@@ -6054,10 +6085,12 @@ static const uint32_t *prtf_uni (char **buf, size_t *bufsize, dds_istream_t *is,
     {
       case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_ENU:
       case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: case DDS_OP_VAL_WSTR: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_WCHAR:
-        (void) prtf_simple (buf, bufsize, is, valtype, DDS_OP_FLAGS (jeq_op[0]));
+        if (!prtf_simple (buf, bufsize, is, valtype, DDS_OP_FLAGS (jeq_op[0])))
+          return NULL;
         break;
       case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: case DDS_OP_VAL_BMK:
-        (void) dds_stream_print_sample1 (buf, bufsize, is, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), valtype == DDS_OP_VAL_STU, false, cdr_kind);
+        if (dds_stream_print_sample1 (buf, bufsize, is, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), valtype == DDS_OP_VAL_STU, false, cdr_kind) == NULL)
+          return NULL;
         break;
       case DDS_OP_VAL_EXT: {
         abort (); /* not supported, use UNI instead */
@@ -6068,6 +6101,7 @@ static const uint32_t *prtf_uni (char **buf, size_t *bufsize, dds_istream_t *is,
   return ops;
 }
 
+ddsrt_attribute_warn_unused_result
 static const uint32_t * dds_stream_print_adr (char **buf, size_t *bufsize, uint32_t insn, dds_istream_t *is, const uint32_t *ops, bool is_mutable_member, enum cdr_data_kind cdr_kind)
 {
   const bool is_key = (insn & DDS_OP_FLAG_KEY);
@@ -6080,7 +6114,8 @@ static const uint32_t * dds_stream_print_adr (char **buf, size_t *bufsize, uint3
   {
     if (!stream_is_member_present (&is1, &param_len))
     {
-      (void) prtf (buf, bufsize, "NULL");
+      if (!prtf (buf, bufsize, "NULL"))
+        return NULL;
       is->m_index = is1.m_index + param_len; // param_len is 0 for XCDR2
       return dds_stream_skip_adr (insn, ops);
     }
@@ -6143,6 +6178,7 @@ static const uint32_t * dds_stream_print_adr (char **buf, size_t *bufsize, uint3
   return ops;
 }
 
+ddsrt_attribute_warn_unused_result
 static const uint32_t *prtf_delimited_impl (char **buf, size_t *bufsize, uint32_t delimited_sz, dds_istream_t *is, const uint32_t *ops, enum cdr_data_kind cdr_kind)
 {
   uint32_t delimited_offs = is->m_index, insn;
@@ -6151,7 +6187,8 @@ static const uint32_t *prtf_delimited_impl (char **buf, size_t *bufsize, uint32_
   while ((insn = *ops) != DDS_OP_RTS)
   {
     if (needs_comma)
-      (void) prtf (buf, bufsize, ",");
+      if (!prtf (buf, bufsize, ","))
+        return NULL;
     needs_comma = true;
     switch (DDS_OP (insn))
     {
@@ -6177,6 +6214,7 @@ static const uint32_t *prtf_delimited_impl (char **buf, size_t *bufsize, uint32_
   return ops;
 }
 
+ddsrt_attribute_warn_unused_result
 static const uint32_t *prtf_delimited (char **buf, size_t *bufsize, dds_istream_t *is, const uint32_t *ops, enum cdr_data_kind cdr_kind)
 {
   assert (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
@@ -6186,11 +6224,12 @@ static const uint32_t *prtf_delimited (char **buf, size_t *bufsize, dds_istream_
   return prtf_delimited_impl (buf, bufsize, delimited_sz, is, ops, cdr_kind);
 }
 
-static bool prtf_plm (char **buf, size_t *bufsize, dds_istream_t *is, uint32_t m_id, const uint32_t *ops, enum cdr_data_kind cdr_kind)
+ddsrt_attribute_warn_unused_result
+static bool prtf_plm (char **buf, size_t *bufsize, dds_istream_t *is, uint32_t m_id, const uint32_t *ops, enum cdr_data_kind cdr_kind, bool *found)
 {
   uint32_t insn, ops_csr = 0;
-  bool found = false;
-  while (!found && (insn = ops[ops_csr]) != DDS_OP_RTS)
+  bool cont = true;
+  while (cont && !*found && (insn = ops[ops_csr]) != DDS_OP_RTS)
   {
     assert (DDS_OP (insn) == DDS_OP_PLM);
     uint32_t flags = DDS_PLM_FLAGS (insn);
@@ -6199,19 +6238,20 @@ static bool prtf_plm (char **buf, size_t *bufsize, dds_istream_t *is, uint32_t m
     {
       assert (DDS_OP (plm_ops[0]) == DDS_OP_PLC);
       plm_ops++; /* skip PLC to go to first PLM from base type */
-      found = prtf_plm (buf, bufsize, is, m_id, plm_ops, cdr_kind);
+      cont = prtf_plm (buf, bufsize, is, m_id, plm_ops, cdr_kind, found);
     }
     else if (ops[ops_csr + 1] == m_id)
     {
-      (void) dds_stream_print_sample1 (buf, bufsize, is, plm_ops, true, true, cdr_kind);
-      found = true;
+      *found = true;
+      cont = (dds_stream_print_sample1 (buf, bufsize, is, plm_ops, true, true, cdr_kind) != NULL);
       break;
     }
     ops_csr += 2;
   }
-  return found;
+  return cont;
 }
 
+ddsrt_attribute_warn_unused_result
 static const uint32_t *prtf_xcdr1_pl (char **buf, size_t *bufsize, dds_istream_t *is, const uint32_t *ops, enum cdr_data_kind cdr_kind)
 {
   /* skip PLC op */
@@ -6228,7 +6268,9 @@ static const uint32_t *prtf_xcdr1_pl (char **buf, size_t *bufsize, dds_istream_t
     is1.m_size = param_len;
 
     /* find member and deserialize; skip if not found */
-    (void) prtf_plm (buf, bufsize, &is1, param_mid, ops, cdr_kind);
+    bool found = false;
+    if (!prtf_plm (buf, bufsize, &is1, param_mid, ops, cdr_kind, &found))
+      return NULL;
     is->m_index += param_len;
   }
 
@@ -6239,6 +6281,7 @@ static const uint32_t *prtf_xcdr1_pl (char **buf, size_t *bufsize, dds_istream_t
   return ops;
 }
 
+ddsrt_attribute_warn_unused_result
 static const uint32_t *prtf_xcdr2_pl (char **buf, size_t *bufsize, dds_istream_t *is, const uint32_t *ops, enum cdr_data_kind cdr_kind)
 {
   /* skip PLC op */
@@ -6278,7 +6321,10 @@ static const uint32_t *prtf_xcdr2_pl (char **buf, size_t *bufsize, dds_istream_t
     const uint32_t next_off = is->m_index + msz + ((lc >= LENGTH_CODE_ALSO_NEXTINT) ? 4 : 0);
 #endif
     /* find member and deserialize */
-    if (!prtf_plm (buf, bufsize, is, m_id, ops, cdr_kind))
+    bool found = false;
+    if (!prtf_plm (buf, bufsize, is, m_id, ops, cdr_kind, &found))
+      return NULL;
+    if (!found)
     {
       is->m_index += msz;
       if (lc >= LENGTH_CODE_ALSO_NEXTINT)
@@ -6294,17 +6340,19 @@ static const uint32_t *prtf_xcdr2_pl (char **buf, size_t *bufsize, dds_istream_t
   return ops;
 }
 
+ddsrt_attribute_warn_unused_result
 static const uint32_t * dds_stream_print_sample1 (char **buf, size_t *bufsize, dds_istream_t *is, const uint32_t *ops, bool add_braces, bool is_mutable_member, enum cdr_data_kind cdr_kind)
 {
   uint32_t insn;
-  bool cont = true;
   bool needs_comma = false;
   if (add_braces)
-    (void) prtf (buf, bufsize, "{");
-  while (ops && cont && (insn = *ops) != DDS_OP_RTS)
+    if (!prtf (buf, bufsize, "{"))
+      return NULL;
+  while (ops && (insn = *ops) != DDS_OP_RTS)
   {
     if (needs_comma)
-      (void) prtf (buf, bufsize, ",");
+      if (!prtf (buf, bufsize, ","))
+        return NULL;
     needs_comma = true;
     switch (DDS_OP (insn))
     {
@@ -6312,7 +6360,8 @@ static const uint32_t * dds_stream_print_sample1 (char **buf, size_t *bufsize, d
         ops = dds_stream_print_adr (buf, bufsize, insn, is, ops, is_mutable_member, cdr_kind);
         break;
       case DDS_OP_JSR:
-        cont = dds_stream_print_sample1 (buf, bufsize, is, ops + DDS_OP_JUMP (insn), true, is_mutable_member, cdr_kind) != NULL;
+        if (dds_stream_print_sample1 (buf, bufsize, is, ops + DDS_OP_JUMP (insn), true, is_mutable_member, cdr_kind) == NULL)
+          return NULL;
         ops++;
         break;
       case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM: case DDS_OP_MID:
@@ -6333,21 +6382,28 @@ static const uint32_t * dds_stream_print_sample1 (char **buf, size_t *bufsize, d
     }
   }
   if (add_braces)
-    (void) prtf (buf, bufsize, "}");
+    if (!prtf (buf, bufsize, "}"))
+      return NULL;
   return ops;
 }
 
+#include "dds/ddsrt/misc.h"
+
 size_t dds_stream_print_sample (dds_istream_t *is, const struct dds_cdrstream_desc *desc, char *buf, size_t size)
 {
+  DDSRT_WARNING_GNUC_OFF (unused-result)
   (void) dds_stream_print_sample1 (&buf, &size, is, desc->ops.ops, true, false, CDR_KIND_DATA);
+  DDSRT_WARNING_GNUC_ON (unused-result)
   return size;
 }
 
 size_t dds_stream_print_key (dds_istream_t *is, const struct dds_cdrstream_desc *desc, char *buf, size_t size)
 {
+  DDSRT_WARNING_GNUC_OFF (unused-result)
   (void) prtf (&buf, &size, ":k:{");
   (void) dds_stream_print_sample1 (&buf, &size, is, desc->ops.ops, true, false, CDR_KIND_KEY);
   (void) prtf (&buf, &size, "}");
+  DDSRT_WARNING_GNUC_ON (unused-result)
   return size;
 }
 
