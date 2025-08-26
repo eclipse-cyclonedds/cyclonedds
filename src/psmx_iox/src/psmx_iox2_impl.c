@@ -157,7 +157,7 @@ static const dds_psmx_topic_ops_t psmx_topic_ops = {
 
 static dds_loaned_sample_t *iox2_req_loan (dds_psmx_endpoint_t *psmx_endpoint, uint32_t size_requested);
 static dds_return_t iox2_write (dds_psmx_endpoint_t *psmx_endpoint, dds_loaned_sample_t *data);
-static dds_loaned_sample_t *iox2_take_unsafe (iox2_psmx_endpoint_t *iox2_endpoint);
+static dds_loaned_sample_t *iox2_take_locked (psmx_iox2_endpoint_t *iox2_endpoint);
 static dds_loaned_sample_t *iox2_take (dds_psmx_endpoint_t *psmx_endpoint);
 static dds_return_t iox2_on_data_available (dds_psmx_endpoint_t *psmx_endpoint, dds_entity_t reader);
 
@@ -281,7 +281,7 @@ static void on_event_try_take (iox2_partition_topic_t * const part_topic)
     iox2_psmx_endpoint_t * const ep = part_topic->readers[n];
 
     ddsrt_mutex_lock (&ep->lock);
-    dds_loaned_sample_t *loaned_sample = iox2_take_unsafe (ep);
+    dds_loaned_sample_t *loaned_sample = iox2_take_locked (ep);
     if (loaned_sample)
     {
       if (ep->part_topic->topic->parent->allow_nondisc_wr) {
@@ -1040,7 +1040,7 @@ static dds_return_t iox2_write (dds_psmx_endpoint_t *psmx_endpoint, dds_loaned_s
 }
 
 // IOX2 sample retrieval function; may only be called with iox2_endpoint->lock held
-static dds_loaned_sample_t *iox2_take_unsafe (iox2_psmx_endpoint_t *iox2_endpoint)
+static dds_loaned_sample_t *iox2_take_locked (iox2_psmx_endpoint_t *iox2_endpoint)
 {
   iox2_loaned_sample_t *loaned_sample = NULL;
   iox2_sample_h sample = NULL;
@@ -1074,7 +1074,7 @@ static dds_loaned_sample_t *iox2_take (dds_psmx_endpoint_t *psmx_endpoint)
 {
   iox2_psmx_endpoint_t *iox2_endpoint = (iox2_psmx_endpoint_t*) psmx_endpoint;
   ddsrt_mutex_lock (&iox2_endpoint->lock);
-  dds_loaned_sample_t *loaned_sample = iox2_take_unsafe (iox2_endpoint);
+  dds_loaned_sample_t *loaned_sample = iox2_take_locked (iox2_endpoint);
   ddsrt_mutex_unlock (&iox2_endpoint->lock);
   return loaned_sample;
 }
