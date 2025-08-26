@@ -30,4 +30,4 @@ DDS_EXPORT bool ddsrt_get_machineid (ddsrt_machineid_t *id);
 }
 #endif
 
-#endif /* DDSRT_NETSTAT_H */
+#endif /* DDSRT_MACHINEID_H */
