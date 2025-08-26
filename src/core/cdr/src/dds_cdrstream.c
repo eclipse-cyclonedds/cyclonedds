@@ -5224,30 +5224,34 @@ static void dds_stream_extract_key_from_key_prim_op (dds_istream_t *is, restrict
     }
     case DDS_OP_VAL_ARR: {
       const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
-      uint32_t elem_size, offs = 0, xcdrv = os->x.m_xcdr_version;
-      if (is_dheader_needed (subtype, xcdrv))
+      const uint32_t is_xcdrv = is->m_xcdr_version;
+      const uint32_t os_xcdrv = os->x.m_xcdr_version;
+      uint32_t elem_size, offs = 0;
+      if (is_dheader_needed (subtype, os_xcdrv))
       {
         /* In case of non-primitive element type, reserve space for DHEADER in the
-           output stream, and skip the DHEADER in the input */
+         output stream, and skip the DHEADER in the input */
         dds_os_reserve4 (os, allocator);
         offs = os->x.m_index;
-        (void) dds_is_get4 (is);
       }
+      if (is_dheader_needed (subtype, is_xcdrv))
+        (void) dds_is_get4 (is);
       if (is_primitive_type (subtype))
         elem_size = get_primitive_size (subtype);
       else if (subtype == DDS_OP_VAL_ENU || subtype == DDS_OP_VAL_BMK)
         elem_size = DDS_OP_TYPE_SZ (insn);
       else
         abort ();
-      const align_t cdr_align = dds_cdr_get_align (os->x.m_xcdr_version, elem_size);
+      const align_t is_cdr_align = dds_cdr_get_align (is_xcdrv, elem_size);
+      const align_t os_cdr_align = dds_cdr_get_align (os_xcdrv, elem_size);
       const uint32_t num = ops[2];
-      dds_cdr_alignto (is, cdr_align);
-      dds_cdr_alignto_clear_and_resize_base (&os->x, allocator, cdr_align, num * elem_size);
+      dds_cdr_alignto (is, is_cdr_align);
+      dds_cdr_alignto_clear_and_resize_base (&os->x, allocator, os_cdr_align, num * elem_size);
       void * const dst = os->x.m_buffer + os->x.m_index;
       dds_is_get_bytes (is, dst, num, elem_size);
       os->x.m_index += num * elem_size;
       /* set DHEADER */
-      if (is_dheader_needed (subtype, xcdrv))
+      if (is_dheader_needed (subtype, os_xcdrv))
         *((uint32_t *) (os->x.m_buffer + offs - 4)) = os->x.m_index - offs;
       break;
     }
@@ -5333,13 +5337,18 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t *is, restri
     }
     case DDS_OP_VAL_ARR: {
       const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
-      uint32_t elem_size, offs = 0, xcdrv = os->x.m_xcdr_version;
-      if (is_dheader_needed (subtype, xcdrv))
+      uint32_t elem_size, offs = 0;
+      const uint32_t is_xcdrv = is->m_xcdr_version;
+      const uint32_t os_xcdrv = os->x.m_xcdr_version;
+      if (is_dheader_needed (subtype, os_xcdrv))
       {
         /* In case of non-primitive element type, reserve space for DHEADER in the
-           output stream, and skip the DHEADER in the input */
+         output stream, and skip the DHEADER in the input */
         dds_os_reserve4BE (os, allocator);
         offs = os->x.m_index;
+      }
+      if (is_dheader_needed (subtype, is_xcdrv))
+      {
         (void) dds_is_get4 (is);
       }
       if (is_primitive_type (subtype))
@@ -5348,10 +5357,11 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t *is, restri
         elem_size = DDS_OP_TYPE_SZ (insn);
       else
         abort ();
-      const align_t cdr_align = dds_cdr_get_align (os->x.m_xcdr_version, elem_size);
+      const align_t is_cdr_align = dds_cdr_get_align (is_xcdrv, elem_size);
+      const align_t os_cdr_align = dds_cdr_get_align (os_xcdrv, elem_size);
       const uint32_t num = ops[2];
-      dds_cdr_alignto (is, cdr_align);
-      dds_cdr_alignto_clear_and_resize_base (&os->x, allocator, cdr_align, num * elem_size);
+      dds_cdr_alignto (is, is_cdr_align);
+      dds_cdr_alignto_clear_and_resize_base (&os->x, allocator, os_cdr_align, num * elem_size);
       void const * const src = is->m_buffer + is->m_index;
       void * const dst = os->x.m_buffer + os->x.m_index;
       dds_stream_swap_copy (dst, src, elem_size, num);
@@ -5359,7 +5369,7 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t *is, restri
       is->m_index += num * elem_size;
 
       /* set DHEADER */
-      if (is_dheader_needed (subtype, xcdrv))
+      if (is_dheader_needed (subtype, os_xcdrv))
         *((uint32_t *) (os->x.m_buffer + offs - 4)) = ddsrt_toBE4u(os->x.m_index - offs);
       break;
     }
