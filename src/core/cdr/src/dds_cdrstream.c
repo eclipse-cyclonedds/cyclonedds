@@ -1774,6 +1774,10 @@ static inline void dds_stream_to_LE_insitu (void *vbuf, uint32_t size, uint32_t 
 #define dds_stream_to__insitu dds_stream_to_BE_insitu
 #endif /* if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN */
 
+static void write_error (void) { }
+static const uint32_t *write_error_ops (void) { write_error (); return NULL; }
+static bool write_error_bool (void) { write_error (); return false; }
+
 // Little-endian
 #define NAME_BYTE_ORDER_EXT LE
 #include "dds_cdrstream_write.part.h"

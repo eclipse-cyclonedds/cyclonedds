@@ -19,7 +19,7 @@ static inline bool dds_stream_write_bool_valueBO (RESTRICT_OSTREAM_T *os, const 
 static bool dds_stream_write_enum_valueBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, uint32_t insn, uint32_t val, uint32_t max)
 {
   if (val > max)
-    return false;
+    return write_error_bool ();
   switch (DDS_OP_TYPE_SZ (insn))
   {
     case 1:
@@ -44,28 +44,28 @@ static bool dds_stream_write_bitmask_valueBO (RESTRICT_OSTREAM_T *os, const stru
     case 1: {
       const uint8_t *ptr = (const uint8_t *) addr;
       if (!bitmask_value_valid (0, *ptr, bits_h, bits_l))
-        return false;
+        return write_error_bool ();
       dds_os_put1BO (os, allocator, *ptr);
       break;
     }
     case 2: {
       const uint16_t *ptr = (const uint16_t *) addr;
       if (!bitmask_value_valid (0, *ptr, bits_h, bits_l))
-        return false;
+        return write_error_bool ();
       dds_os_put2BO (os, allocator, *ptr);
       break;
     }
     case 4: {
       const uint32_t *ptr = (const uint32_t *) addr;
       if (!bitmask_value_valid (0, *ptr, bits_h, bits_l))
-        return false;
+        return write_error_bool ();
       dds_os_put4BO (os, allocator, *ptr);
       break;
     }
     case 8: {
       const uint64_t *ptr = (const uint64_t *) addr;
       if (!bitmask_value_valid ((uint32_t) (*ptr >> 32), (uint32_t) *ptr, bits_h, bits_l))
-        return false;
+        return write_error_bool ();
       dds_os_put8BO (os, allocator, *ptr);
       break;
     }
@@ -120,9 +120,9 @@ static bool dds_stream_write_wcharBO (RESTRICT_OSTREAM_T *os, const struct dds_c
 {
   // surrogates are forbidden
   if ((uint32_t) val >= 0xd800 && (uint32_t) val < 0xe000)
-    return false;
+    return write_error_bool ();
   else if ((uint32_t) val > 0xffff) // out-of-range
-    return false;
+    return write_error_bool ();
   dds_os_put2BO (os, allocator, (uint16_t) val);
   return true;
 }
@@ -132,7 +132,7 @@ static bool dds_stream_write_bool_arrBO (RESTRICT_OSTREAM_T *os, const struct dd
   for (uint32_t i = 0; i < num; i++)
   {
     if (!dds_stream_write_bool_valueBO (os, allocator, addr[i]))
-      return false;
+      return write_error_bool ();
   }
   return true;
 }
@@ -145,7 +145,7 @@ static bool dds_stream_write_enum_arrBO (RESTRICT_OSTREAM_T *os, const struct dd
       for (uint32_t i = 0; i < num; i++)
       {
         if (addr[i] > max)
-          return false;
+          return write_error_bool ();
         dds_os_put1BO (os, allocator, (uint8_t) addr[i]);
       }
       break;
@@ -153,7 +153,7 @@ static bool dds_stream_write_enum_arrBO (RESTRICT_OSTREAM_T *os, const struct dd
       for (uint32_t i = 0; i < num; i++)
       {
         if (addr[i] > max)
-          return false;
+          return write_error_bool ();
         dds_os_put2BO (os, allocator, (uint16_t) addr[i]);
       }
       break;
@@ -161,7 +161,7 @@ static bool dds_stream_write_enum_arrBO (RESTRICT_OSTREAM_T *os, const struct dd
       for (uint32_t i = 0; i < num; i++)
       {
         if (addr[i] > max)
-          return false;
+          return write_error_bool ();
         dds_os_put4BO (os, allocator, addr[i]);
       }
       break;
@@ -180,7 +180,7 @@ static bool dds_stream_write_bitmask_arrBO (RESTRICT_OSTREAM_T *os, const struct
       for (uint32_t i = 0; i < num; i++)
       {
         if (!bitmask_value_valid (0, ptr[i], bits_h, bits_l))
-          return false;
+          return write_error_bool ();
         dds_os_put1BO (os, allocator, ptr[i]);
       }
       break;
@@ -190,7 +190,7 @@ static bool dds_stream_write_bitmask_arrBO (RESTRICT_OSTREAM_T *os, const struct
       for (uint32_t i = 0; i < num; i++)
       {
         if (!bitmask_value_valid (0, ptr[i], bits_h, bits_l))
-          return false;
+          return write_error_bool ();
         dds_os_put2BO (os, allocator, ptr[i]);
       }
       break;
@@ -200,7 +200,7 @@ static bool dds_stream_write_bitmask_arrBO (RESTRICT_OSTREAM_T *os, const struct
       for (uint32_t i = 0; i < num; i++)
       {
         if (!bitmask_value_valid (0, ptr[i], bits_h, bits_l))
-          return false;
+          return write_error_bool ();
         dds_os_put4BO (os, allocator, ptr[i]);
       }
       break;
@@ -210,7 +210,7 @@ static bool dds_stream_write_bitmask_arrBO (RESTRICT_OSTREAM_T *os, const struct
       for (uint32_t i = 0; i < num; i++)
       {
         if (!bitmask_value_valid ((uint32_t) (ptr[i] >> 32), (uint32_t) ptr[i], bits_h, bits_l))
-          return false;
+          return write_error_bool ();
         dds_os_put8BO (os, allocator, ptr[i]);
       }
       break;
@@ -239,9 +239,9 @@ static const uint32_t *dds_stream_write_seqBO (RESTRICT_OSTREAM_T *os, const str
 
   const uint32_t num = seq->_length;
   if (bound && num > bound)
-    return NULL;
+    return write_error_ops ();
   if (num > 0 && seq->_buffer == NULL)
-    return NULL;
+    return write_error_ops ();
 
   dds_os_put4BO (os, allocator, num);
 
@@ -498,7 +498,7 @@ static const uint32_t *dds_stream_write_uniBO (RESTRICT_OSTREAM_T *os, const str
       assert (DDS_OP (jeq_op[0]) == DDS_OP_JEQ4);
       valaddr = *(char **) valaddr;
       if (valaddr == NULL)
-        return NULL;
+        return write_error_ops ();
     }
 
     switch (valtype)
@@ -595,7 +595,7 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, RESTRICT_OSTREAM_T
   {
     addr = *(char **) addr;
     if (addr == NULL && !(op_type_optional (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR || DDS_OP_TYPE (insn) == DDS_OP_VAL_WSTR))
-      return NULL;
+      return write_error_ops ();
   }
 
   uint32_t param_length_offs = 0;
@@ -609,7 +609,7 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, RESTRICT_OSTREAM_T
       bool must_understand = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
       uint32_t member_id;
       if (!find_member_id (mid_table, ops, &member_id))
-        return NULL;
+        return write_error_ops ();
       dds_stream_write_xcdr1_paramheaderBO (os, allocator, must_understand, member_id, &param_length_offs, &alignment_offset_by_4);
       if (!present)
         dds_stream_write_xcdr1_paramheader_closeBO (os, param_length_offs, 0, alignment_offset_by_4);
