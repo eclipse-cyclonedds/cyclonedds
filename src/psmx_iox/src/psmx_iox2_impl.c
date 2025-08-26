@@ -59,22 +59,22 @@ typedef struct {
   bool allow_nondisc_wr;
   dds_psmx_node_identifier_t node_id;
   iox2_node_h node_handle;
-} iox2_psmx_t;
+} psmx_iox2_t;
 
 // the psmx topic, this is just a dummy, as the partitions are implemented as their own
 // IOX2 topic counterparts
 typedef struct {
   dds_psmx_topic_t base;
-  iox2_psmx_t *parent;
+  psmx_iox2_t *parent;
   uint32_t type_size;
   const char *topic_name;
   const char *type_name;
   iox2_type_variant_e type_variant;
   ddsrt_avl_tree_t partitions;
   ddsrt_mutex_t lock;
-} iox2_psmx_topic_t;
+} psmx_iox2_topic_t;
 
-typedef struct iox2_psmx_endpoint iox2_psmx_endpoint_t;
+typedef struct psmx_iox2_endpoint psmx_iox2_endpoint_t;
 
 enum listener_thread_state {
   LISTENER_THREAD_NONE,
@@ -89,7 +89,7 @@ typedef struct {
   ddsrt_avl_node_t avl_node;
   uint32_t refc;
   char *iox2_topic_name;
-  iox2_psmx_topic_t *topic;
+  psmx_iox2_topic_t *topic;
   iox2_port_factory_pub_sub_h service_handle;
   iox2_port_factory_event_h factory_event_handle;
   ddsrt_mutex_t lock;
@@ -100,16 +100,16 @@ typedef struct {
   iox2_notifier_h notifier;
 
   //attached readers
-  iox2_psmx_endpoint_t **readers;
+  psmx_iox2_endpoint_t **readers;
   uint32_t n_readers;
   uint32_t c_readers;
-} iox2_partition_topic_t;
+} psmx_iox2_partition_topic_t;
 
 // the endpoints, will have either an IOX2 publisher or subscriber associated with them
-// will be underneath the iox2_partition_topic_t
-struct iox2_psmx_endpoint {
+// will be underneath the psmx_iox2_partition_topic_t
+struct psmx_iox2_endpoint {
   dds_psmx_endpoint_t base;
-  iox2_partition_topic_t *part_topic;
+  psmx_iox2_partition_topic_t *part_topic;
   union {
     iox2_publisher_h wr;
     iox2_subscriber_h rd;
@@ -126,59 +126,59 @@ typedef struct {
     iox2_sample_mut_h mut;
     iox2_sample_h cnst;
   } iox2_ptr;
-} iox2_loaned_sample_t;
+} psmx_iox2_loaned_sample_t;
 
-static bool iox2_type_qos_supported (dds_psmx_t *psmx, dds_psmx_endpoint_type_t forwhat, dds_data_type_properties_t data_type, const dds_qos_t *qos);
-static dds_return_t iox2_delete_topic (dds_psmx_topic_t *psmx_topic);
-static dds_psmx_node_identifier_t iox2_psmx_get_node_id (const dds_psmx_t *psmx);
-static dds_psmx_features_t iox2_supported_features (const dds_psmx_t *psmx);
-static dds_psmx_topic_t *iox2_create_topic_w_type (dds_psmx_t *psmx,
+static bool psmx_iox2_type_qos_supported (dds_psmx_t *psmx, dds_psmx_endpoint_type_t forwhat, dds_data_type_properties_t data_type, const dds_qos_t *qos);
+static dds_return_t psmx_iox2_delete_topic (dds_psmx_topic_t *psmx_topic);
+static dds_psmx_node_identifier_t psmx_iox2_get_node_id (const dds_psmx_t *psmx);
+static dds_psmx_features_t psmx_iox2_supported_features (const dds_psmx_t *psmx);
+static dds_psmx_topic_t *psmx_iox2_create_topic_w_type (dds_psmx_t *psmx,
     const char *topic_name, const char *type_name, dds_data_type_properties_t data_type_props, const struct ddsi_type *type_definition, uint32_t sizeof_type);
-static void iox2_psmx_deinit_v2 (dds_psmx_t *psmx);
+static void psmx_iox2_deinit_v2 (dds_psmx_t *psmx);
 
 static const dds_psmx_ops_t psmx_ops = {
-  .type_qos_supported = iox2_type_qos_supported,
+  .type_qos_supported = psmx_iox2_type_qos_supported,
   .create_topic = NULL,
-  .delete_topic = iox2_delete_topic,
+  .delete_topic = psmx_iox2_delete_topic,
   .deinit = NULL,
-  .get_node_id = iox2_psmx_get_node_id,
-  .supported_features = iox2_supported_features,
-  .create_topic_with_type = iox2_create_topic_w_type,
-  .delete_psmx = iox2_psmx_deinit_v2
+  .get_node_id = psmx_iox2_get_node_id,
+  .supported_features = psmx_iox2_supported_features,
+  .create_topic_with_type = psmx_iox2_create_topic_w_type,
+  .delete_psmx = psmx_iox2_deinit_v2
 };
 
-static dds_psmx_endpoint_t *iox2_create_endpoint (dds_psmx_topic_t *psmx_topic, const dds_qos_t *qos, dds_psmx_endpoint_type_t endpoint_type);
-static dds_return_t iox2_delete_endpoint (dds_psmx_endpoint_t *psmx_endpoint);
+static dds_psmx_endpoint_t *psmx_iox2_create_endpoint (dds_psmx_topic_t *psmx_topic, const dds_qos_t *qos, dds_psmx_endpoint_type_t endpoint_type);
+static dds_return_t psmx_iox2_delete_endpoint (dds_psmx_endpoint_t *psmx_endpoint);
 
 static const dds_psmx_topic_ops_t psmx_topic_ops = {
-  .create_endpoint = iox2_create_endpoint,
-  .delete_endpoint = iox2_delete_endpoint
+  .create_endpoint = psmx_iox2_create_endpoint,
+  .delete_endpoint = psmx_iox2_delete_endpoint
 };
 
-static dds_loaned_sample_t *iox2_req_loan (dds_psmx_endpoint_t *psmx_endpoint, uint32_t size_requested);
-static dds_return_t iox2_write (dds_psmx_endpoint_t *psmx_endpoint, dds_loaned_sample_t *data);
-static dds_loaned_sample_t *iox2_take_locked (psmx_iox2_endpoint_t *iox2_endpoint);
-static dds_loaned_sample_t *iox2_take (dds_psmx_endpoint_t *psmx_endpoint);
-static dds_return_t iox2_on_data_available (dds_psmx_endpoint_t *psmx_endpoint, dds_entity_t reader);
+static dds_loaned_sample_t *psmx_iox2_req_loan (dds_psmx_endpoint_t *psmx_endpoint, uint32_t size_requested);
+static dds_return_t psmx_iox2_write (dds_psmx_endpoint_t *psmx_endpoint, dds_loaned_sample_t *data);
+static dds_loaned_sample_t *psmx_iox2_take_locked (psmx_iox2_endpoint_t *psmx_iox2_endpoint);
+static dds_loaned_sample_t *psmx_iox2_take (dds_psmx_endpoint_t *psmx_endpoint);
+static dds_return_t psmx_iox2_on_data_available (dds_psmx_endpoint_t *psmx_endpoint, dds_entity_t reader);
 
 static const dds_psmx_endpoint_ops_t psmx_ep_ops = {
-  .request_loan = iox2_req_loan,
-  .write = iox2_write,
-  .take = iox2_take,
-  .on_data_available = iox2_on_data_available,
+  .request_loan = psmx_iox2_req_loan,
+  .write = psmx_iox2_write,
+  .take = psmx_iox2_take,
+  .on_data_available = psmx_iox2_on_data_available,
   // backwards compatibility means the following need not be set,
   // but leaving it out results in a compiler warning here
   .write_with_key = NULL  //!!!TODO!!! check whether this can be implemented in IOX2
 };
 
-static void iox2_loaned_sample_const_free (dds_loaned_sample_t *to_fini);
-static void iox2_loaned_sample_mut_free (dds_loaned_sample_t *to_fini);
+static void psmx_iox2_loaned_sample_const_free (dds_loaned_sample_t *to_fini);
+static void psmx_iox2_loaned_sample_mut_free (dds_loaned_sample_t *to_fini);
 
 static const dds_loaned_sample_ops_t loaned_sample_const_ops = {
-  .free = iox2_loaned_sample_const_free
+  .free = psmx_iox2_loaned_sample_const_free
 };
 static const dds_loaned_sample_ops_t loaned_sample_mut_ops = {
-  .free = iox2_loaned_sample_mut_free
+  .free = psmx_iox2_loaned_sample_mut_free
 };
 
 static const iox2_event_id_t data_event = { 0 };
@@ -200,7 +200,7 @@ static void log_error (const char *fmt, ...)
 // this will stop the listener thread associated with a partition topic
 // NOT thread safe
 // called on destruction of the partition topic or when the last reader is deleted
-static void stop_listener_thread (iox2_partition_topic_t *part_topic)
+static void stop_listener_thread (psmx_iox2_partition_topic_t *part_topic)
 {
   assert (part_topic->n_readers == 0);
   
@@ -241,7 +241,7 @@ static void stop_listener_thread (iox2_partition_topic_t *part_topic)
 
 // removes the association of a reader type endpoint with the partition topic
 // will stop the listener thread if the number of readers reaches 0
-static dds_return_t remove_reader_from_part_topic (iox2_partition_topic_t *part_topic, iox2_psmx_endpoint_t *ep)
+static dds_return_t remove_reader_from_part_topic (psmx_iox2_partition_topic_t *part_topic, psmx_iox2_endpoint_t *ep)
 {
   ddsrt_mutex_lock(&part_topic->topic->lock);
   ddsrt_mutex_lock (&part_topic->lock);
@@ -270,18 +270,18 @@ static dds_return_t remove_reader_from_part_topic (iox2_partition_topic_t *part_
 typedef struct {
   iox2_waitset_guard_h_ref guard;
   iox2_listener_h_ref listener;
-  iox2_partition_topic_t *part_topic;
+  psmx_iox2_partition_topic_t *part_topic;
 } on_event_arg;
 
-static void on_event_try_take (iox2_partition_topic_t * const part_topic)
+static void on_event_try_take (psmx_iox2_partition_topic_t * const part_topic)
 {
   ddsrt_mutex_lock (&part_topic->lock);
   for (uint32_t n = 0; n < part_topic->n_readers; n++)
   {
-    iox2_psmx_endpoint_t * const ep = part_topic->readers[n];
+    psmx_iox2_endpoint_t * const ep = part_topic->readers[n];
 
     ddsrt_mutex_lock (&ep->lock);
-    dds_loaned_sample_t *loaned_sample = iox2_take_locked (ep);
+    dds_loaned_sample_t *loaned_sample = psmx_iox2_take_locked (ep);
     if (loaned_sample)
     {
       if (ep->part_topic->topic->parent->allow_nondisc_wr) {
@@ -305,7 +305,7 @@ static void on_event_try_take (iox2_partition_topic_t * const part_topic)
   ddsrt_mutex_unlock (&part_topic->lock);
 }
 
-static iox2_callback_progression_e on_event_try (iox2_partition_topic_t * const part_topic, iox2_listener_h_ref listener)
+static iox2_callback_progression_e on_event_try (psmx_iox2_partition_topic_t * const part_topic, iox2_listener_h_ref listener)
 {
   while (true)
   {
@@ -349,7 +349,7 @@ static iox2_callback_progression_e on_event_try (iox2_partition_topic_t * const 
 static iox2_callback_progression_e on_event (iox2_waitset_attachment_id_h attachment_id, void *varg)
 {
   on_event_arg * const arg = varg;
-  iox2_partition_topic_t * const part_topic = arg->part_topic;
+  psmx_iox2_partition_topic_t * const part_topic = arg->part_topic;
 
 #if USE_LISTENER_THREAD_STATE
   if (ddsrt_atomic_ld32 (&part_topic->listener_thread_state) == LISTENER_THREAD_STOPREQ)
@@ -370,7 +370,7 @@ static iox2_callback_progression_e on_event (iox2_waitset_attachment_id_h attach
 
 // conversion function of waitset errorcodes to string
 // implementing this myself, as IOX2 seems to strangely omit this function
-static const char *iox2_waitset_run_result_string (const iox2_waitset_run_result_e e)
+static const char *psmx_iox2_waitset_run_result_string (const iox2_waitset_run_result_e e)
 {
   switch(e) {
     case iox2_waitset_run_result_e_TERMINATION_REQUEST:
@@ -390,7 +390,7 @@ static const char *iox2_waitset_run_result_string (const iox2_waitset_run_result
 // creates waitset and listener and then continues to wait for data until signalled not to
 static uint32_t thread_listener_func (void *p)
 {
-  iox2_partition_topic_t * const part_topic = (iox2_partition_topic_t *) p;
+  psmx_iox2_partition_topic_t * const part_topic = (psmx_iox2_partition_topic_t *) p;
   uint32_t success = false;
   iox2_listener_h listener_handle = NULL;
   iox2_waitset_h waitset = NULL;
@@ -461,7 +461,7 @@ static uint32_t thread_listener_func (void *p)
   if (e != IOX2_OK)
     log_error ("Waitset wait and process error: %s [%d]", iox2_waitset_run_error_string ((iox2_waitset_run_error_e)e), e);
   else if (result != iox2_waitset_run_result_e_ALL_EVENTS_HANDLED && result != iox2_waitset_run_result_e_STOP_REQUEST)
-    log_error ("Waitset wait and process abnormal result: %s [%d]", iox2_waitset_run_result_string (result), result);
+    log_error ("Waitset wait and process abnormal result: %s [%d]", psmx_iox2_waitset_run_result_string (result), result);
   else
     success = true;
   iox2_waitset_guard_drop (guard);
@@ -474,7 +474,7 @@ err:
   return (uint32_t) success;
 }
 
-static dds_return_t add_reader_to_part_topic (iox2_partition_topic_t *part_topic, iox2_psmx_endpoint_t *ep)
+static dds_return_t add_reader_to_part_topic (psmx_iox2_partition_topic_t *part_topic, psmx_iox2_endpoint_t *ep)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   ddsrt_mutex_lock (&part_topic->topic->lock);
@@ -483,7 +483,7 @@ static dds_return_t add_reader_to_part_topic (iox2_partition_topic_t *part_topic
   {
     const uint32_t oldc = part_topic->c_readers;
     const uint32_t newc = (oldc == 0) ? 1 : oldc * 2;
-    iox2_psmx_endpoint_t **new_readers = ddsrt_realloc (part_topic->readers, newc * sizeof (*part_topic->readers));
+    psmx_iox2_endpoint_t **new_readers = ddsrt_realloc (part_topic->readers, newc * sizeof (*part_topic->readers));
     if (new_readers == NULL)
     {
       ddsrt_mutex_unlock (&part_topic->lock);
@@ -515,7 +515,7 @@ static dds_return_t add_reader_to_part_topic (iox2_partition_topic_t *part_topic
   return ret;
 }
 
-static void free_part_topic (iox2_partition_topic_t *part_topic)
+static void free_part_topic (psmx_iox2_partition_topic_t *part_topic)
 {
   if (part_topic->iox2_topic_name != NULL)
     ddsrt_free (part_topic->iox2_topic_name);
@@ -535,19 +535,19 @@ static void free_part_topic (iox2_partition_topic_t *part_topic)
 
 static int compare_iox2_topic (const void *va, const void *vb)
 {
-  const iox2_partition_topic_t *a = va, *b = vb;
+  const psmx_iox2_partition_topic_t *a = va, *b = vb;
   return strcmp (a->iox2_topic_name, b->iox2_topic_name);
 }
 
-const ddsrt_avl_treedef_t iox2_partitions_td = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (iox2_partition_topic_t, avl_node), 0, compare_iox2_topic, 0);
+static const ddsrt_avl_treedef_t psmx_iox2_partitions_td = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (psmx_iox2_partition_topic_t, avl_node), 0, compare_iox2_topic, 0);
 
-static void unref_part_topic (iox2_partition_topic_t *part_topic)
+static void unref_part_topic (psmx_iox2_partition_topic_t *part_topic)
 {
-  iox2_psmx_topic_t * const topic = part_topic->topic;
+  psmx_iox2_topic_t * const topic = part_topic->topic;
   ddsrt_mutex_lock (&topic->lock);
   if (--part_topic->refc == 0)
   {
-    ddsrt_avl_delete (&iox2_partitions_td, &part_topic->topic->partitions, part_topic);
+    ddsrt_avl_delete (&psmx_iox2_partitions_td, &part_topic->topic->partitions, part_topic);
     free_part_topic (part_topic);
   }
   ddsrt_mutex_unlock (&topic->lock);
@@ -555,7 +555,7 @@ static void unref_part_topic (iox2_partition_topic_t *part_topic)
 
 // conversion function of IOX2 type detail errorcodes to string
 // implementing this myself, as IOX2 seems to strangely omit this function
-static const char *iox2_type_detail_error_string (const iox2_type_detail_error_e e)
+static const char *psmx_iox2_type_detail_error_string (const iox2_type_detail_error_e e)
 {
   switch (e) {
     case iox2_type_detail_error_e_INVALID_TYPE_NAME:
@@ -603,7 +603,7 @@ static char *create_iox2_topic_name (const char *topic_name, const dds_qos_t *qo
 // partition topic lazy initialization function
 // will only initialize a partition topic if one does not yet exist
 // will create the waitset, notifier, service and publisher/subscriber factories
-static iox2_partition_topic_t *get_part_topic (iox2_psmx_topic_t *topic, const dds_qos_t *qos)
+static psmx_iox2_partition_topic_t *get_part_topic (psmx_iox2_topic_t *topic, const dds_qos_t *qos)
 {
   char *iox2_name = create_iox2_topic_name (topic->topic_name, qos);
   if (iox2_name == NULL)
@@ -612,8 +612,8 @@ static iox2_partition_topic_t *get_part_topic (iox2_psmx_topic_t *topic, const d
   ddsrt_mutex_lock (&topic->lock);
 
   // Lookup, if present, return early
-  iox2_partition_topic_t template = { .iox2_topic_name = iox2_name };
-  iox2_partition_topic_t *part_topic = ddsrt_avl_lookup (&iox2_partitions_td, &topic->partitions, &template);
+  psmx_iox2_partition_topic_t template = { .iox2_topic_name = iox2_name };
+  psmx_iox2_partition_topic_t *part_topic = ddsrt_avl_lookup (&psmx_iox2_partitions_td, &topic->partitions, &template);
   if (part_topic != NULL)
   {
     part_topic->refc++;
@@ -649,14 +649,14 @@ static iox2_partition_topic_t *get_part_topic (iox2_psmx_topic_t *topic, const d
   // set pub sub payload type
   ret = iox2_service_builder_pub_sub_set_payload_type_details (&service_builder_pub_sub_handle, topic->type_variant, topic->type_name, strlen(topic->type_name), topic->type_size, 8);
   if (ret != IOX2_OK) {
-    log_error ("Unable to set type details: %s [%d]", iox2_type_detail_error_string ((iox2_type_detail_error_e)ret), ret);
+    log_error ("Unable to set type details: %s [%d]", psmx_iox2_type_detail_error_string ((iox2_type_detail_error_e)ret), ret);
     goto cleanup_service_pub_sub;
   }
 
   //set header type
   ret = iox2_service_builder_pub_sub_set_user_header_type_details (&service_builder_pub_sub_handle, iox2_type_variant_e_FIXED_SIZE, "dds_psmx_metadata_t", strlen("dds_psmx_metadata_t"), sizeof(dds_psmx_metadata_t), 8);
   if (ret != IOX2_OK) {
-    log_error ("Unable to set header details: %s [%d]", iox2_type_detail_error_string ((iox2_type_detail_error_e)ret), ret);
+    log_error ("Unable to set header details: %s [%d]", psmx_iox2_type_detail_error_string ((iox2_type_detail_error_e)ret), ret);
     goto cleanup_service_pub_sub;
   }
 
@@ -740,7 +740,7 @@ static iox2_partition_topic_t *get_part_topic (iox2_psmx_topic_t *topic, const d
   ddsrt_atomic_st32 (&part_topic->listener_thread_state, LISTENER_THREAD_NONE);
 #endif
   ddsrt_mutex_init (&part_topic->lock);
-  ddsrt_avl_insert (&iox2_partitions_td, &topic->partitions, part_topic);
+  ddsrt_avl_insert (&psmx_iox2_partitions_td, &topic->partitions, part_topic);
   ddsrt_mutex_unlock (&topic->lock);
   return part_topic;
 
@@ -765,10 +765,10 @@ static int is_wildcard_partition (const char *str)
 }
 
 // checking function for compatibility of QoS policies with IOX2
-static bool iox2_type_qos_supported (dds_psmx_t *psmx, dds_psmx_endpoint_type_t forwhat, dds_data_type_properties_t data_type_props, const dds_qos_t *qos)
+static bool psmx_iox2_type_qos_supported (dds_psmx_t *psmx, dds_psmx_endpoint_type_t forwhat, dds_data_type_properties_t data_type_props, const dds_qos_t *qos)
 {
-  iox2_psmx_t * const iox2_psmx = (iox2_psmx_t *) psmx;
-  if ((data_type_props & DDS_DATA_TYPE_CONTAINS_KEY) != 0U && !iox2_psmx->support_keyed_topics)
+  psmx_iox2_t * const psmx_iox2 = (psmx_iox2_t *) psmx;
+  if ((data_type_props & DDS_DATA_TYPE_CONTAINS_KEY) != 0U && !psmx_iox2->support_keyed_topics)
     return false;
 
   // Everything else is really dependent on the endpoint QoS, not the topic QoS,
@@ -805,9 +805,9 @@ static bool iox2_type_qos_supported (dds_psmx_t *psmx, dds_psmx_endpoint_type_t 
   return true;
 }
 
-static dds_return_t iox2_delete_topic (dds_psmx_topic_t *psmx_topic)
+static dds_return_t psmx_iox2_delete_topic (dds_psmx_topic_t *psmx_topic)
 {
-  iox2_psmx_topic_t * const iox2_topic = (iox2_psmx_topic_t *) psmx_topic;
+  psmx_iox2_topic_t * const iox2_topic = (psmx_iox2_topic_t *) psmx_topic;
   assert (ddsrt_avl_is_empty (&iox2_topic->partitions));
   ddsrt_mutex_destroy (&iox2_topic->lock);
   ddsrt_free (iox2_topic);
@@ -815,17 +815,17 @@ static dds_return_t iox2_delete_topic (dds_psmx_topic_t *psmx_topic)
 }
 
 // PSMX topic creation function
-static dds_psmx_topic_t *iox2_create_topic_w_type (dds_psmx_t *psmx, const char *topic_name, const char *type_name, dds_data_type_properties_t data_type_props, const struct ddsi_type *type_definition, uint32_t sizeof_type)
+static dds_psmx_topic_t *psmx_iox2_create_topic_w_type (dds_psmx_t *psmx, const char *topic_name, const char *type_name, dds_data_type_properties_t data_type_props, const struct ddsi_type *type_definition, uint32_t sizeof_type)
 {
-  iox2_psmx_t * const iox2_psmx = (iox2_psmx_t *) psmx;
+  psmx_iox2_t * const psmx_iox2 = (psmx_iox2_t *) psmx;
   (void) type_definition;
 
-  iox2_psmx_topic_t *topic = ddsrt_calloc (1, sizeof (*topic));
+  psmx_iox2_topic_t *topic = ddsrt_calloc (1, sizeof (*topic));
   if (topic == NULL)
     return NULL;
   ddsrt_mutex_init (&topic->lock);
-  ddsrt_avl_init (&iox2_partitions_td, &topic->partitions);
-  topic->parent = iox2_psmx;
+  ddsrt_avl_init (&psmx_iox2_partitions_td, &topic->partitions);
+  topic->parent = psmx_iox2;
   topic->base.ops = psmx_topic_ops;
   topic->type_size = sizeof_type;
   topic->type_variant = ((data_type_props & DDS_DATA_TYPE_IS_MEMCPY_SAFE) == DDS_DATA_TYPE_IS_MEMCPY_SAFE) ? iox2_type_variant_e_FIXED_SIZE : iox2_type_variant_e_DYNAMIC;
@@ -834,21 +834,21 @@ static dds_psmx_topic_t *iox2_create_topic_w_type (dds_psmx_t *psmx, const char 
   return &topic->base;
 }
 
-static void iox2_psmx_deinit_v2 (dds_psmx_t *psmx)
+static void psmx_iox2_deinit_v2 (dds_psmx_t *psmx)
 {
-  iox2_psmx_t * const iox2_psmx = (iox2_psmx_t *) psmx;
-  iox2_node_drop (iox2_psmx->node_handle);
-  ddsrt_free (iox2_psmx);
+  psmx_iox2_t * const psmx_iox2 = (psmx_iox2_t *) psmx;
+  iox2_node_drop (psmx_iox2->node_handle);
+  ddsrt_free (psmx_iox2);
 }
 
 // IOX2 unique node id retrieval function
-static dds_psmx_node_identifier_t iox2_psmx_get_node_id (const dds_psmx_t * psmx)
+static dds_psmx_node_identifier_t psmx_iox2_get_node_id (const dds_psmx_t * psmx)
 {
-  return ((const iox2_psmx_t *)psmx)->node_id;
+  return ((const psmx_iox2_t *)psmx)->node_id;
 }
 
 // IOX2 supported features function
-static dds_psmx_features_t iox2_supported_features (const dds_psmx_t * psmx)
+static dds_psmx_features_t psmx_iox2_supported_features (const dds_psmx_t * psmx)
 {
   (void) psmx;
   return DDS_PSMX_FEATURE_SHARED_MEMORY | DDS_PSMX_FEATURE_ZERO_COPY;
@@ -857,7 +857,7 @@ static dds_psmx_features_t iox2_supported_features (const dds_psmx_t * psmx)
 // IOX2 endpoint creation function
 // will initialize the service for the topic/partition combo if it does not
 // exist already and then create an endpoint for that topic/partition
-static bool iox2_init_reader (iox2_psmx_endpoint_t *ep, const dds_qos_t *qos)
+static bool psmx_iox2_init_reader (psmx_iox2_endpoint_t *ep, const dds_qos_t *qos)
 {
   iox2_port_factory_subscriber_builder_h subscriber_builder_handle = iox2_port_factory_pub_sub_subscriber_builder (&ep->part_topic->service_handle, NULL);
   if (subscriber_builder_handle == NULL) {
@@ -880,7 +880,7 @@ static bool iox2_init_reader (iox2_psmx_endpoint_t *ep, const dds_qos_t *qos)
   return true;
 }
 
-static bool iox2_init_writer (iox2_psmx_endpoint_t *ep, iox2_psmx_topic_t *iox2_topic, const dds_qos_t *qos)
+static bool psmx_iox2_init_writer (psmx_iox2_endpoint_t *ep, psmx_iox2_topic_t *iox2_topic, const dds_qos_t *qos)
 {
   iox2_port_factory_publisher_builder_h publisher_builder_handle = iox2_port_factory_pub_sub_publisher_builder (&ep->part_topic->service_handle, NULL);
   if (publisher_builder_handle == NULL) {
@@ -906,33 +906,33 @@ static bool iox2_init_writer (iox2_psmx_endpoint_t *ep, iox2_psmx_topic_t *iox2_
   return true;
 }
 
-static bool iox2_init_endpoint (iox2_psmx_endpoint_t *ep, iox2_psmx_topic_t *iox2_topic, const dds_qos_t *qos, dds_psmx_endpoint_type_t endpoint_type)
+static bool psmx_iox2_init_endpoint (psmx_iox2_endpoint_t *ep, psmx_iox2_topic_t *iox2_topic, const dds_qos_t *qos, dds_psmx_endpoint_type_t endpoint_type)
 {
   switch (endpoint_type)
   {
     case DDS_PSMX_ENDPOINT_TYPE_READER:
-      return iox2_init_reader (ep, qos);
+      return psmx_iox2_init_reader (ep, qos);
     case DDS_PSMX_ENDPOINT_TYPE_WRITER:
-      return iox2_init_writer (ep, iox2_topic, qos);
+      return psmx_iox2_init_writer (ep, iox2_topic, qos);
     case DDS_PSMX_ENDPOINT_TYPE_UNSET:
       break;
   }
   return false;
 }
 
-static dds_psmx_endpoint_t *iox2_create_endpoint (dds_psmx_topic_t *psmx_topic, const dds_qos_t *qos, dds_psmx_endpoint_type_t endpoint_type)
+static dds_psmx_endpoint_t *psmx_iox2_create_endpoint (dds_psmx_topic_t *psmx_topic, const dds_qos_t *qos, dds_psmx_endpoint_type_t endpoint_type)
 {
-  iox2_psmx_topic_t * const iox2_topic = (iox2_psmx_topic_t *) psmx_topic;
-  iox2_partition_topic_t * const part_topic = get_part_topic (iox2_topic, qos);
+  psmx_iox2_topic_t * const iox2_topic = (psmx_iox2_topic_t *) psmx_topic;
+  psmx_iox2_partition_topic_t * const part_topic = get_part_topic (iox2_topic, qos);
   if (part_topic == NULL)
     goto fail_iox2_service;
-  iox2_psmx_endpoint_t *ep = ddsrt_calloc (1, sizeof(*ep));
+  psmx_iox2_endpoint_t *ep = ddsrt_calloc (1, sizeof(*ep));
   if (ep == NULL)
     goto fail_alloc;
   ep->base.ops = psmx_ep_ops;
   ep->part_topic = part_topic;
   ddsrt_mutex_init (&ep->lock);
-  if (!iox2_init_endpoint (ep, iox2_topic, qos, endpoint_type))
+  if (!psmx_iox2_init_endpoint (ep, iox2_topic, qos, endpoint_type))
     goto fail_iox2_init_endpoint;
   return &ep->base;
 
@@ -945,9 +945,9 @@ fail_alloc:
   return NULL;
 }
 
-static dds_return_t iox2_delete_endpoint (dds_psmx_endpoint_t *psmx_endpoint)
+static dds_return_t psmx_iox2_delete_endpoint (dds_psmx_endpoint_t *psmx_endpoint)
 {
-  iox2_psmx_endpoint_t *iox2_endpoint = (iox2_psmx_endpoint_t *) psmx_endpoint;
+  psmx_iox2_endpoint_t *iox2_endpoint = (psmx_iox2_endpoint_t *) psmx_endpoint;
   dds_return_t ret = DDS_RETCODE_OK;
   switch (iox2_endpoint->base.endpoint_type)
   {
@@ -974,9 +974,9 @@ static dds_return_t iox2_delete_endpoint (dds_psmx_endpoint_t *psmx_endpoint)
   return ret;
 }
 
-static dds_loaned_sample_t *iox2_req_loan (dds_psmx_endpoint_t *psmx_endpoint, uint32_t size_requested)
+static dds_loaned_sample_t *psmx_iox2_req_loan (dds_psmx_endpoint_t *psmx_endpoint, uint32_t size_requested)
 {
-  iox2_psmx_endpoint_t * const iox2_endpoint = (iox2_psmx_endpoint_t*)psmx_endpoint;
+  psmx_iox2_endpoint_t * const iox2_endpoint = (psmx_iox2_endpoint_t*)psmx_endpoint;
   assert (iox2_endpoint->base.endpoint_type == DDS_PSMX_ENDPOINT_TYPE_WRITER);
 
   ddsrt_mutex_lock (&iox2_endpoint->lock);
@@ -992,7 +992,7 @@ static dds_loaned_sample_t *iox2_req_loan (dds_psmx_endpoint_t *psmx_endpoint, u
     return NULL;
   }
 
-  iox2_loaned_sample_t *loaned_sample = ddsrt_calloc (1, sizeof (*loaned_sample));
+  psmx_iox2_loaned_sample_t *loaned_sample = ddsrt_calloc (1, sizeof (*loaned_sample));
   if (loaned_sample == NULL)
   {
     // FIXME: perhaps dropping a mut sample without holding the publisher lock is allowed?
@@ -1009,10 +1009,10 @@ static dds_loaned_sample_t *iox2_req_loan (dds_psmx_endpoint_t *psmx_endpoint, u
   return &loaned_sample->base;
 }
 
-static dds_return_t iox2_write (dds_psmx_endpoint_t *psmx_endpoint, dds_loaned_sample_t *data)
+static dds_return_t psmx_iox2_write (dds_psmx_endpoint_t *psmx_endpoint, dds_loaned_sample_t *data)
 {
-  iox2_psmx_endpoint_t *iox2_endpoint = (iox2_psmx_endpoint_t *) psmx_endpoint;
-  iox2_loaned_sample_t *iox2_sample = (iox2_loaned_sample_t *) data;
+  psmx_iox2_endpoint_t *iox2_endpoint = (psmx_iox2_endpoint_t *) psmx_endpoint;
+  psmx_iox2_loaned_sample_t *iox2_sample = (psmx_iox2_loaned_sample_t *) data;
   int iox2_ret;
 
   ddsrt_mutex_lock (&iox2_endpoint->lock);
@@ -1040,9 +1040,9 @@ static dds_return_t iox2_write (dds_psmx_endpoint_t *psmx_endpoint, dds_loaned_s
 }
 
 // IOX2 sample retrieval function; may only be called with iox2_endpoint->lock held
-static dds_loaned_sample_t *iox2_take_locked (iox2_psmx_endpoint_t *iox2_endpoint)
+static dds_loaned_sample_t *psmx_iox2_take_locked (psmx_iox2_endpoint_t *iox2_endpoint)
 {
-  iox2_loaned_sample_t *loaned_sample = NULL;
+  psmx_iox2_loaned_sample_t *loaned_sample = NULL;
   iox2_sample_h sample = NULL;
   int iox2_ret;
   if ((iox2_ret = iox2_subscriber_receive (&iox2_endpoint->iox2_handle.rd, NULL, &sample)) != IOX2_OK)
@@ -1070,40 +1070,40 @@ static dds_loaned_sample_t *iox2_take_locked (iox2_psmx_endpoint_t *iox2_endpoin
   return &loaned_sample->base;
 }
 
-static dds_loaned_sample_t *iox2_take (dds_psmx_endpoint_t *psmx_endpoint)
+static dds_loaned_sample_t *psmx_iox2_take (dds_psmx_endpoint_t *psmx_endpoint)
 {
-  iox2_psmx_endpoint_t *iox2_endpoint = (iox2_psmx_endpoint_t*) psmx_endpoint;
+  psmx_iox2_endpoint_t *iox2_endpoint = (psmx_iox2_endpoint_t*) psmx_endpoint;
   ddsrt_mutex_lock (&iox2_endpoint->lock);
-  dds_loaned_sample_t *loaned_sample = iox2_take_locked (iox2_endpoint);
+  dds_loaned_sample_t *loaned_sample = psmx_iox2_take_locked (iox2_endpoint);
   ddsrt_mutex_unlock (&iox2_endpoint->lock);
   return loaned_sample;
 }
 
-static dds_return_t iox2_on_data_available (dds_psmx_endpoint_t *psmx_endpoint, dds_entity_t reader)
+static dds_return_t psmx_iox2_on_data_available (dds_psmx_endpoint_t *psmx_endpoint, dds_entity_t reader)
 {
-  iox2_psmx_endpoint_t * const iox2_endpoint = (iox2_psmx_endpoint_t *) psmx_endpoint;
+  psmx_iox2_endpoint_t * const iox2_endpoint = (psmx_iox2_endpoint_t *) psmx_endpoint;
   iox2_endpoint->cdds_endpoint = reader;
   return add_reader_to_part_topic (iox2_endpoint->part_topic, iox2_endpoint);
 }
 
-static void iox2_loaned_sample_const_free (dds_loaned_sample_t *loan)
+static void psmx_iox2_loaned_sample_const_free (dds_loaned_sample_t *loan)
 {
-  iox2_loaned_sample_t * const iox2_loan = (iox2_loaned_sample_t *) loan;
+  psmx_iox2_loaned_sample_t * const iox2_loan = (psmx_iox2_loaned_sample_t *) loan;
   if (iox2_loan->iox2_ptr.cnst)
   {
-    iox2_psmx_endpoint_t * const iox2_ep = (iox2_psmx_endpoint_t *) loan->loan_origin.psmx_endpoint;
+    psmx_iox2_endpoint_t * const iox2_ep = (psmx_iox2_endpoint_t *) loan->loan_origin.psmx_endpoint;
     ddsrt_mutex_lock (&iox2_ep->lock);
     iox2_sample_drop (iox2_loan->iox2_ptr.cnst);
     ddsrt_mutex_unlock (&iox2_ep->lock);
   }
 }
 
-static void iox2_loaned_sample_mut_free (dds_loaned_sample_t *loan)
+static void psmx_iox2_loaned_sample_mut_free (dds_loaned_sample_t *loan)
 {
-  iox2_loaned_sample_t * const iox2_loan = (iox2_loaned_sample_t *) loan;
+  psmx_iox2_loaned_sample_t * const iox2_loan = (psmx_iox2_loaned_sample_t *) loan;
   if (iox2_loan->iox2_ptr.mut)
   {
-    iox2_psmx_endpoint_t * const iox2_ep = (iox2_psmx_endpoint_t *) loan->loan_origin.psmx_endpoint;
+    psmx_iox2_endpoint_t * const iox2_ep = (psmx_iox2_endpoint_t *) loan->loan_origin.psmx_endpoint;
     ddsrt_mutex_lock (&iox2_ep->lock);
     iox2_sample_mut_drop (iox2_loan->iox2_ptr.mut);
     ddsrt_mutex_unlock (&iox2_ep->lock);
@@ -1264,8 +1264,8 @@ dds_return_t iox2_create_psmx (dds_psmx_t **psmx, dds_psmx_instance_id_t instanc
 #endif
 
   iox2_set_log_level (log_level);
-  iox2_psmx_t * const iox2_psmx = ddsrt_calloc (1, sizeof (*iox2_psmx));
-  if (iox2_psmx == NULL)
+  psmx_iox2_t * const psmx_iox2 = ddsrt_calloc (1, sizeof (*psmx_iox2));
+  if (psmx_iox2 == NULL)
     return DDS_RETCODE_ERROR;
 
   // create a new config based on the global config
@@ -1301,7 +1301,7 @@ dds_return_t iox2_create_psmx (dds_psmx_t **psmx, dds_psmx_instance_id_t instanc
   iox2_node_builder_set_signal_handling_mode (&node_builder_handle, iox2_signal_handling_mode_e_DISABLED);
 
   int iox2_ret;
-  if ((iox2_ret = iox2_node_builder_create (node_builder_handle, NULL, iox2_service_type_e_IPC, &iox2_psmx->node_handle)) != IOX2_OK)
+  if ((iox2_ret = iox2_node_builder_create (node_builder_handle, NULL, iox2_service_type_e_IPC, &psmx_iox2->node_handle)) != IOX2_OK)
   {
     log_error ("Error during IOX2 node creation: %s [%d]", iox2_node_creation_failure_string ((iox2_node_creation_failure_e)iox2_ret), iox2_ret);
     goto err_instance_name;
@@ -1309,14 +1309,14 @@ dds_return_t iox2_create_psmx (dds_psmx_t **psmx, dds_psmx_instance_id_t instanc
   iox2_config_drop (config);
   ddsrt_free (instance_name);
 
-  iox2_psmx->base.ops = psmx_ops;
-  iox2_psmx->support_keyed_topics = keyed_topics;
-  iox2_psmx->allow_nondisc_wr = allow_nondisc_wr;
-  iox2_psmx->node_id = node_id;
+  psmx_iox2->base.ops = psmx_ops;
+  psmx_iox2->support_keyed_topics = keyed_topics;
+  psmx_iox2->allow_nondisc_wr = allow_nondisc_wr;
+  psmx_iox2->node_id = node_id;
 #if 0
-  iox2_psmx->sched_info = si;
+  psmx_iox2->sched_info = si;
 #endif
-  *psmx = &iox2_psmx->base;
+  *psmx = &psmx_iox2->base;
   return DDS_RETCODE_OK;
 
 err_instance_name:
