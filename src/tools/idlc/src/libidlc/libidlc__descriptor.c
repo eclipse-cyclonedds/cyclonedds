@@ -2446,7 +2446,7 @@ static void free_ctype_memberids(struct constructed_type_memberid *mids)
 
 static idl_retcode_t get_ctype_memberids(const idl_pstate_t *pstate, struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_memberid **ctype_mids, struct visited_ctype *visited_ctypes);
 
-static idl_retcode_t get_ctype_memberids_adr(const idl_pstate_t *pstate, struct descriptor *descriptor, uint32_t offs, struct instruction *inst, struct constructed_type *ctype, struct constructed_type_memberid **ctype_mids, struct visited_ctype *visited_ctypes)
+static idl_retcode_t get_ctype_memberids_adr(const idl_pstate_t *pstate, struct descriptor *descriptor, uint32_t offs, struct instruction *inst, struct constructed_type *ctype, struct constructed_type_memberid **ctype_mids, struct visited_ctype *visited_ctypes, bool is_mutable_member)
 {
   idl_retcode_t ret;
 
@@ -2456,7 +2456,9 @@ static idl_retcode_t get_ctype_memberids_adr(const idl_pstate_t *pstate, struct 
   const struct instruction *inst_offs = &ctype->instructions.table[offs + 1];
   assert(inst_offs->type == OFFSET);
 
-  if (inst->data.opcode.code & DDS_OP_FLAG_OPT)
+  /* Mutable encoding does not need a MID table, because
+     it uses PLM ops as part of the type's ops */
+  if ((inst->data.opcode.code & DDS_OP_FLAG_OPT) && !is_mutable_member)
   {
     struct constructed_type_memberid *mid = idl_calloc (1, sizeof(*mid));
     if (mid == NULL)
@@ -2512,7 +2514,7 @@ static idl_retcode_t get_ctype_memberids_adr(const idl_pstate_t *pstate, struct 
           assert(ctype->instructions.table[offs + offs_insn_offs].type == COUPLE);
           uint16_t elem_addr_offs = ctype->instructions.table[offs + offs_insn_offs].data.couple.low;
           struct instruction *elem_inst = &ctype->instructions.table[offs + elem_addr_offs];
-          if ((ret = get_ctype_memberids_adr(pstate, descriptor, offs + elem_addr_offs, elem_inst, ctype, ctype_mids, visited_ctypes)))
+          if ((ret = get_ctype_memberids_adr(pstate, descriptor, offs + elem_addr_offs, elem_inst, ctype, ctype_mids, visited_ctypes, false)))
             return ret;
           break;
         }
@@ -2587,17 +2589,12 @@ static idl_retcode_t get_ctype_memberids(const idl_pstate_t *pstate, struct desc
     }
   }
 
-  /* Mutable encoding does not need a MID table, because
-     it uses PLM ops as part of the type's ops */
-  if (idl_is_extensible(ctype->node, IDL_MUTABLE))
-    return IDL_RETCODE_OK;
-
   for (uint32_t offs = 0; offs < ctype->instructions.count; offs++)
   {
     struct instruction *inst = &ctype->instructions.table[offs];
     if (inst->type == OPCODE && DDS_OP(inst->data.opcode.code) == DDS_OP_ADR)
     {
-      if ((ret = get_ctype_memberids_adr(pstate, descriptor, offs, inst, ctype, ctype_mids, visited_ctypes)) != IDL_RETCODE_OK)
+      if ((ret = get_ctype_memberids_adr(pstate, descriptor, offs, inst, ctype, ctype_mids, visited_ctypes, idl_is_extensible(ctype->node, IDL_MUTABLE))) != IDL_RETCODE_OK)
         goto err;
     }
   }
