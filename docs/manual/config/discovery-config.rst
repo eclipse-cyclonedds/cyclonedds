@@ -33,13 +33,13 @@ be configured as 'addresses to be contacted', by specifying peers in:
 :ref:`Discovery/Peers <//CycloneDDS/Domain/Discovery/Peers>`. Each time an 
 SPDP message is sent, it is sent to all of these addresses.
 
-The default behaviour is to include each IP address several times in the set of addresses
+The default behavior is to include each IP address several times in the set of addresses
 (for participant indices 0 through 
 :ref:`Discovery/MaxAutoParticipantIndex <//CycloneDDS/Domain/Discovery/MaxAutoParticipantIndex>`).
 Each IP address then has a different UDP port number, each corresponding to a participant index. 
 Configuring several peers in this way causes a large burst of packets to be sent each 
 time an SPDP message is sent out, and each local DDSI participant causes a burst of 
-its own messages. Because most participant indices are not used, this is wasteful behaviour and is 
+its own messages. Because most participant indices are not used, this is wasteful behavior and is 
 only attractive when it is known that there is a single DDSI process on that node.
 
 .. todo:: clarify the above section.
