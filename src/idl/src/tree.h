@@ -305,4 +305,8 @@ idl_retcode_t
 idl_set_xcdr2_required(
   void *node);
 
+idl_retcode_t
+idl_set_xcdr2_is_default(
+  void *node);
+
 #endif /* TREE_H */
