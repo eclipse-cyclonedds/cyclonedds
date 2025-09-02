@@ -2014,13 +2014,39 @@ static bool is_topic_allowed_by_permissions (const struct permissions_parser *pe
   const struct allow_deny_rule *rule;
   if (!rule_iter_init (&it, permissions, domain_id, identity_subject_name, ex))
     return false;
+
+  bool subscribe_rule_found = false;
+  bool publish_rule_found = false;
+
+  bool subscribe_allowed = true;
+  bool publish_allowed = true;
+
   while ((rule = rule_iter_next (&it)) != NULL)
   {
     for (const struct criteria *crit = rule->criteria; crit; crit = (const struct criteria *) crit->node.next)
+    {
       if (is_topic_in_criteria (crit, topic_name))
-        return is_allowed_by_rule (rule, topic_name, ex);
+      {
+        if (!subscribe_rule_found && crit->criteria_type == SUBSCRIBE_CRITERIA)
+        {
+          subscribe_rule_found = true;
+          subscribe_allowed = is_allowed_by_rule (rule, topic_name, ex);
+        }
+        else if (!publish_rule_found && crit->criteria_type == PUBLISH_CRITERIA)
+        {
+          publish_rule_found = true;
+          publish_allowed = is_allowed_by_rule (rule, topic_name, ex);
+        }
+      }
+    }
   }
-  return is_allowed_by_default_rule (it.grant, topic_name, ex);
+
+  if (!subscribe_rule_found)
+    subscribe_allowed = is_allowed_by_default_rule (it.grant, topic_name, ex);
+  if (!publish_rule_found)
+    publish_allowed = is_allowed_by_default_rule (it.grant, topic_name, ex);
+
+  return publish_allowed || subscribe_allowed;
 }
 
 static bool is_readwrite_allowed_by_permissions (struct permissions_parser *permissions, int domain_id, const char *topic_name, const DDS_Security_PartitionQosPolicy *partitions, const char *identity_subject_name, permission_criteria_type criteria_type, DDS_Security_SecurityException *ex)
