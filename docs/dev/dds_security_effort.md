@@ -280,7 +280,7 @@ DDS_RETCODE_NOT_ALLOWED_BY_SECURITY in the ddsc API (not used)).
 
 Maybe we have to do some additional cleanup when a failure is encountered.
 
-Some tests probably have to be adjusted for the new behaviour.
+Some tests probably have to be adjusted for the new behavior.
 
 
 ## Multiple configurations<a name="multiple-configurations" />
