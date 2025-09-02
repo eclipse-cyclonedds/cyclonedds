@@ -832,7 +832,7 @@ CU_Test(ddssec_access_control, readwrite_protection, .timeout=60)
                 bool exp_wr_fail = write_ac && !allow_pub && (deny_pub || default_deny);
                 bool exp_rd_fail = read_ac && !allow_sub && (deny_sub || default_deny);
                 /* if both read_ac and write_ac are enabled, and pub and sub not allowed, topic creation should fail */
-                bool exp_tp_fail = write_ac && read_ac && !allow_pub && !allow_sub && (deny_pub || deny_sub || default_deny);
+                bool exp_tp_fail = write_ac && read_ac && !allow_pub && !allow_sub && ((deny_pub && deny_sub) || default_deny);
                 /* participant creation should fail under same conditions as topic creation (as opposed to the DDS Security spec,
                   table 63, that states that participant creation fails when there is not any topic that has enable_read/write_ac
                   set to false and join_ac is enabled; it seems that the allow_rule condition is missing there) */
