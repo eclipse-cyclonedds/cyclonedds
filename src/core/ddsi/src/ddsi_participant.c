@@ -722,7 +722,14 @@ static void update_participant_spdp_sample_locked (struct ddsi_participant *pp, 
 
   ddsi_plist_t ps;
   struct ddsi_participant_builtin_topic_data_locators locs;
-  ddsi_get_participant_builtin_topic_data (pp, &ps, &locs);
+  if (isalive)
+    ddsi_get_participant_builtin_topic_data (pp, &ps, &locs);
+  else
+  {
+    ddsi_plist_init_empty (&ps);
+    ps.present = PP_PARTICIPANT_GUID;
+    ps.participant_guid = pp->e.guid;
+  }
   struct ddsi_serdata * const serdata = ddsi_serdata_from_sample (pp->e.gv->spdp_type, isalive ? SDK_DATA : SDK_KEY, &ps);
   ddsi_plist_fini (&ps);
   serdata->statusinfo = isalive ? 0 : (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER);
