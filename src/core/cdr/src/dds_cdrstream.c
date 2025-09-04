@@ -4627,8 +4627,18 @@ static const uint32_t *stream_normalize_xcdr1_pl (char * restrict data, uint32_t
               return normalize_error_ops ();
             break;
           case NPMR_FOUND:
-            if (off1 != param_length)
-              return normalize_error_ops ();
+            // For final types, off1 == param_length must hold according to XTypes 1.3.
+            // Unfortunately RTI only implements this starting from Connext 7.3.0 and
+            // then only if some special options are set, so we can't check.
+            //
+            // XTypes 1.1 and RTI default behaviour is to pad the value length to the
+            // next multiple of 4.  This causes an ambiguity when deserializing an
+            // appendable type.
+            //
+            // For appendable types, we don't expect to consume all param_length bytes.
+            //
+            // The only practical compromise is to accept padding under all
+            // circumstances ...
             break;
           case NPMR_ERROR:
             return NULL;
