@@ -1350,8 +1350,7 @@ set_node_xcdr2_required(void *node, bool in_xcdr1_delimited_scope)
       return false;
     _struct->requires_xcdr2 = IDL_REQUIRES_XCDR2_SETTING;
 
-    bool ret = idl_is_extensible(node, IDL_MUTABLE)
-        || (!in_xcdr1_delimited_scope && idl_is_extensible(node, IDL_APPENDABLE))
+    bool ret = (!in_xcdr1_delimited_scope && idl_is_extensible(node, IDL_APPENDABLE))
         || (_struct->inherit_spec && set_node_xcdr2_required(idl_type_spec(_struct->inherit_spec), in_xcdr1_delimited_scope));
 
     idl_member_t *_member;
