@@ -852,38 +852,23 @@ static const uint32_t *dds_stream_get_ops_info_seq (const uint32_t *ops, uint32_
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
   switch (subtype)
   {
-    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_WCHAR:
       ops += 2 + bound_op;
       break;
-    case DDS_OP_VAL_STR:
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR:
+      info->data_types &= ~DDS_DATA_TYPE_IS_MEMCPY_SAFE;
       ops += 2 + bound_op;
-      info->data_types |= DDS_DATA_TYPE_CONTAINS_STRING;
       break;
-    case DDS_OP_VAL_BST:
+    case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_ENU:
       ops += 3 + bound_op;
-      info->data_types |= DDS_DATA_TYPE_CONTAINS_BSTRING;
-      break;
-    case DDS_OP_VAL_WSTR:
-      ops += 2 + bound_op;
-      info->data_types |= DDS_DATA_TYPE_CONTAINS_WSTRING;
-      break;
-    case DDS_OP_VAL_BWSTR:
-      ops += 3 + bound_op;
-      info->data_types |= DDS_DATA_TYPE_CONTAINS_BWSTRING;
-      break;
-    case DDS_OP_VAL_WCHAR:
-      ops += 2 + bound_op;
-      info->data_types |= DDS_DATA_TYPE_CONTAINS_WCHAR;
-      break;
-    case DDS_OP_VAL_ENU:
-      ops += 3 + bound_op;
-      info->data_types |= DDS_DATA_TYPE_CONTAINS_ENUM;
       break;
     case DDS_OP_VAL_BMK:
       ops += 4 + bound_op;
-      info->data_types |= DDS_DATA_TYPE_CONTAINS_BITMASK;
       break;
-    case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
+    case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ:
+      info->data_types &= ~DDS_DATA_TYPE_IS_MEMCPY_SAFE;
+      /* fall through */
+    case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
       const uint32_t jmp = DDS_OP_ADR_JMP (ops[3 + bound_op]);
       uint32_t const * const jsr_ops = ops + DDS_OP_ADR_JSR (ops[3 + bound_op]);
       if (ops + 4 + bound_op > info->ops_end)
@@ -909,38 +894,23 @@ static const uint32_t *dds_stream_get_ops_info_arr (const uint32_t *ops, uint32_
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
   switch (subtype)
   {
-    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+    case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_WCHAR:
       ops += 3;
       break;
-    case DDS_OP_VAL_STR:
+    case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR:
+      info->data_types &= ~DDS_DATA_TYPE_IS_MEMCPY_SAFE;
       ops += 3;
-      info->data_types |= DDS_DATA_TYPE_CONTAINS_STRING;
-      break;
-    case DDS_OP_VAL_WSTR:
-      ops += 3;
-      info->data_types |= DDS_DATA_TYPE_CONTAINS_WSTRING;
-      break;
-    case DDS_OP_VAL_WCHAR:
-      ops += 3;
-      info->data_types |= DDS_DATA_TYPE_CONTAINS_WCHAR;
       break;
     case DDS_OP_VAL_ENU:
       ops += 4;
-      info->data_types |= DDS_DATA_TYPE_CONTAINS_ENUM;
       break;
-    case DDS_OP_VAL_BST:
+    case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_BMK:
       ops += 5;
-      info->data_types |= DDS_DATA_TYPE_CONTAINS_BSTRING;
       break;
-    case DDS_OP_VAL_BWSTR:
-      ops += 5;
-      info->data_types |= DDS_DATA_TYPE_CONTAINS_BWSTRING;
-      break;
-    case DDS_OP_VAL_BMK:
-      ops += 5;
-      info->data_types |= DDS_DATA_TYPE_CONTAINS_BITMASK;
-      break;
-    case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
+    case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ:
+      info->data_types &= ~DDS_DATA_TYPE_IS_MEMCPY_SAFE;
+      /* fall through */
+    case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
       const uint32_t jmp = DDS_OP_ADR_JMP (ops[3]);
       const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[3]);
       if (ops + 5 > info->ops_end)
@@ -963,38 +933,26 @@ static const uint32_t *dds_stream_get_ops_info_arr (const uint32_t *ops, uint32_
 ddsrt_nonnull_all
 static const uint32_t *dds_stream_get_ops_info_uni (const uint32_t *ops, uint32_t nestc, struct dds_cdrstream_ops_info *info, bool in_recursive)
 {
-  enum dds_stream_typecode disc_type = DDS_OP_SUBTYPE (ops[0]);
-  if (disc_type == DDS_OP_VAL_ENU)
-    info->data_types |= DDS_DATA_TYPE_CONTAINS_ENUM;
-
   const uint32_t numcases = ops[2];
   const uint32_t *jeq_op = ops + DDS_OP_ADR_JSR (ops[3]);
   for (uint32_t i = 0; i < numcases; i++)
   {
     const enum dds_stream_typecode valtype = DDS_JEQ_TYPE (jeq_op[0]);
-    if (op_type_external (jeq_op[0]) && valtype != DDS_OP_VAL_STR && valtype != DDS_OP_VAL_WSTR)
-      info->data_types |= DDS_DATA_TYPE_CONTAINS_EXTERNAL;
+    if (op_type_external (jeq_op[0]) || op_type_optional (jeq_op[0]))
+      info->data_types &= ~DDS_DATA_TYPE_IS_MEMCPY_SAFE;
     switch (valtype)
     {
       case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+      case DDS_OP_VAL_WCHAR: case DDS_OP_VAL_ENU:
         break;
-      case DDS_OP_VAL_STR:
-        info->data_types |= DDS_DATA_TYPE_CONTAINS_STRING;
+      case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR:
+        info->data_types &= ~DDS_DATA_TYPE_IS_MEMCPY_SAFE;
         break;
-      case DDS_OP_VAL_WSTR:
-        info->data_types |= DDS_DATA_TYPE_CONTAINS_WSTRING;
-        break;
-      case DDS_OP_VAL_WCHAR:
-        info->data_types |= DDS_DATA_TYPE_CONTAINS_WCHAR;
-        break;
-      case DDS_OP_VAL_ENU:
-        info->data_types |= DDS_DATA_TYPE_CONTAINS_ENUM;
-        break;
-      case DDS_OP_VAL_STU:
-        info->data_types |= DDS_DATA_TYPE_CONTAINS_STRUCT;
-        /* fall-through */
-      case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR:
-      case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_BMK: {
+      case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ:
+        info->data_types &= ~DDS_DATA_TYPE_IS_MEMCPY_SAFE;
+        /* fall through */
+      case DDS_OP_VAL_STU: case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR:
+      case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_BMK: {
         bool recursive = DDS_OP_ADR_JSR (jeq_op[0]) <= 0;
         if (!in_recursive)
           dds_stream_get_ops_info1 (jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), nestc + (valtype == DDS_OP_VAL_UNI || valtype == DDS_OP_VAL_STU ? 1 : 0), info, false, recursive);
@@ -1056,68 +1014,40 @@ static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struc
     {
       case DDS_OP_ADR: {
         if (info->toplevel_op == NULL)
-        {
           info->toplevel_op = ops;
-          if (DDS_OP_TYPE (insn) != DDS_OP_VAL_UNI)
-            info->data_types |= DDS_DATA_TYPE_CONTAINS_STRUCT;
-        }
         if ((insn & DDS_OP_FLAG_KEY) && nestc == 0)
           info->data_types |= DDS_DATA_TYPE_CONTAINS_KEY;
+        if (op_type_external (insn) || op_type_optional (insn))
+          info->data_types &= ~DDS_DATA_TYPE_IS_MEMCPY_SAFE;
         if (op_type_optional (insn))
         {
-          info->data_types |= DDS_DATA_TYPE_CONTAINS_OPTIONAL;
+          info->data_types |= DDS_DATA_TYPE_DEFAULTS_TO_XCDR2;
           in_xcdr1_delimited_scope = true;
         }
-        if (op_type_external (insn) && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR && DDS_OP_TYPE (insn) != DDS_OP_VAL_WSTR)
-          info->data_types |= DDS_DATA_TYPE_CONTAINS_EXTERNAL;
         switch (DDS_OP_TYPE (insn))
         {
-          case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+          case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_WCHAR:
             ops += 2;
             break;
-          case DDS_OP_VAL_STR:
+          case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR:
+            info->data_types &= ~DDS_DATA_TYPE_IS_MEMCPY_SAFE;
             ops += 2;
-            info->data_types |= DDS_DATA_TYPE_CONTAINS_STRING;
             break;
-          case DDS_OP_VAL_WSTR:
-            ops += 2;
-            info->data_types |= DDS_DATA_TYPE_CONTAINS_WSTRING;
-            break;
-          case DDS_OP_VAL_WCHAR:
-            ops += 2;
-            info->data_types |= DDS_DATA_TYPE_CONTAINS_WCHAR;
-            break;
-          case DDS_OP_VAL_BST:
+          case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR: case DDS_OP_VAL_ENU:
             ops += 3;
-            info->data_types |= DDS_DATA_TYPE_CONTAINS_BSTRING;
-            break;
-          case DDS_OP_VAL_BWSTR:
-            ops += 3;
-            info->data_types |= DDS_DATA_TYPE_CONTAINS_BWSTRING;
-            break;
-          case DDS_OP_VAL_ENU:
-            ops += 3;
-            info->data_types |= DDS_DATA_TYPE_CONTAINS_ENUM;
             break;
           case DDS_OP_VAL_BMK:
             ops += 4;
-            info->data_types |= DDS_DATA_TYPE_CONTAINS_BITMASK;
             break;
-          case DDS_OP_VAL_SEQ:
-            info->data_types |= DDS_DATA_TYPE_CONTAINS_SEQUENCE;
-            ops = dds_stream_get_ops_info_seq (ops, insn, nestc, info, in_recursive);
-            break;
-          case DDS_OP_VAL_BSQ:
-            info->data_types |= DDS_DATA_TYPE_CONTAINS_BSEQUENCE;
+          case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ:
+            info->data_types &= ~DDS_DATA_TYPE_IS_MEMCPY_SAFE;
             ops = dds_stream_get_ops_info_seq (ops, insn, nestc, info, in_recursive);
             break;
           case DDS_OP_VAL_ARR:
-            info->data_types |= DDS_DATA_TYPE_CONTAINS_ARRAY;
             ops = dds_stream_get_ops_info_arr (ops, insn, nestc, info, in_recursive);
             break;
           case DDS_OP_VAL_UNI:
             ops = dds_stream_get_ops_info_uni (ops, nestc, info, in_recursive);
-            info->data_types |= DDS_DATA_TYPE_CONTAINS_UNION;
             break;
           case DDS_OP_VAL_EXT: {
             if (!op_type_optional (insn))
@@ -1148,14 +1078,14 @@ static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struc
         break;
       }
       case DDS_OP_DLC: {
-        info->data_types |= DDS_DATA_TYPE_CONTAINS_APPENDABLE;
+        info->data_types |= DDS_DATA_TYPE_DEFAULTS_TO_XCDR2;
         if (!in_xcdr1_delimited_scope)
           info->min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_2;
         ops++;
         break;
       }
       case DDS_OP_PLC: {
-        info->data_types |= DDS_DATA_TYPE_CONTAINS_MUTABLE;
+        info->data_types |= DDS_DATA_TYPE_DEFAULTS_TO_XCDR2;
         ops = dds_stream_get_ops_info_pl (ops, nestc, info, in_xcdr1_delimited_scope, in_recursive);
         break;
       }
@@ -1185,7 +1115,7 @@ static void dds_stream_get_ops_info (const uint32_t *ops, struct dds_cdrstream_o
   info->ops_end = ops;
   info->min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_1;
   info->nesting_max = 0;
-  info->data_types = 0ull;
+  info->data_types = DDS_DATA_TYPE_IS_MEMCPY_SAFE;
   dds_stream_get_ops_info1 (ops, 0, info, true, false);
 }
 
@@ -6477,27 +6407,12 @@ uint32_t dds_stream_type_nesting_depth (const uint32_t *ops)
   return info.nesting_max;
 }
 
-static bool data_type_contains_indirections (dds_data_type_properties_t props)
-{
-  return props & (DDS_DATA_TYPE_CONTAINS_OPTIONAL
-                  | DDS_DATA_TYPE_CONTAINS_STRING
-                  | DDS_DATA_TYPE_CONTAINS_WSTRING
-                  | DDS_DATA_TYPE_CONTAINS_SEQUENCE
-                  | DDS_DATA_TYPE_CONTAINS_BSEQUENCE
-                  | DDS_DATA_TYPE_CONTAINS_EXTERNAL);
-}
-
 dds_data_type_properties_t dds_stream_data_types (const uint32_t *ops)
 {
   struct dds_cdrstream_ops_info info;
   dds_stream_get_ops_info (ops, &info);
-  if (!data_type_contains_indirections (info.data_types))
-    info.data_types |= DDS_DATA_TYPE_IS_MEMCPY_SAFE;
   return info.data_types;
 }
-
-
-
 
 // Calculate key size
 
