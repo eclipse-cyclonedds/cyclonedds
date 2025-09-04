@@ -871,7 +871,7 @@ dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allo
   assert (entitykind == DDS_KIND_TOPIC || entitykind == DDS_KIND_READER || entitykind == DDS_KIND_WRITER);
   const bool allow1 = allowed_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR1;
   const bool allow2 = allowed_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR2;
-  const bool prefer2 = data_type_props & (DDS_DATA_TYPE_CONTAINS_OPTIONAL | DDS_DATA_TYPE_CONTAINS_APPENDABLE | DDS_DATA_TYPE_CONTAINS_MUTABLE);
+  const bool prefer2 = data_type_props & DDS_DATA_TYPE_DEFAULTS_TO_XCDR2_MASK;
 
   if ((qos->present & DDSI_QP_DATA_REPRESENTATION) && qos->data_representation.value.n > 0)
   {
