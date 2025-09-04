@@ -708,6 +708,11 @@ static bool dds_stream_write_xcdr1_pl_memberBO (RESTRICT_OSTREAM_T *os, const st
   if (!(dds_stream_write_implBO (os, allocator, mid_table, data, ops, true, cdr_kind)))
     return false;
 
+  // XTypes 1.3 says the parameter length in the header must be the exact length
+  // of the serialized data. However, Xtypes 1.1 said it should be a multiple of 4.
+  // RTI unfortunately sticks to XTypes 1.1 until very recently and doesn't handle
+  // well-formed XCDR1 (and neither does Wireshark).
+  dds_cdr_alignto_clear_and_resize_base (&os->x, allocator, dds_cdr_get_align (os->x.m_xcdr_version, 4), 0);
   dds_stream_write_xcdr1_paramheader_closeBO (os, param_length_offs, os->x.m_index - param_length_offs, alignment_offset_by_4);
 
   return true;
