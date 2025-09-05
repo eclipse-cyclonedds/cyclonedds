@@ -606,7 +606,9 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, RESTRICT_OSTREAM_T
     if (os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
     {
       uint32_t flags = DDS_OP_FLAGS (insn);
-      bool must_understand = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
+      // RTI can't handle "must understand" on key fields where it doesn't expect it, hence only
+      // setting must_understand if FLAG_MU, rather than if (FLAG_MU | FLAG_KEY)
+      bool must_understand = flags & DDS_OP_FLAG_MU;
       uint32_t member_id;
       if (!find_member_id (mid_table, ops, &member_id))
         return write_error_ops ();
@@ -696,7 +698,10 @@ static bool dds_stream_write_xcdr1_pl_memberBO (RESTRICT_OSTREAM_T *os, const st
   /* get flags from first member op */
   uint32_t flags = DDS_OP_FLAGS (ops[0]);
   bool is_key = flags & DDS_OP_FLAG_KEY;
-  bool must_understand = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
+  // RTI can't handle the "must understand" flag on keys that do not have it set explicit in XCDR1
+  // mode, so we have to leave it unset despite it being required and actually serving a purpose
+  // when type discovery isn't available
+  bool must_understand = flags & DDS_OP_FLAG_MU;
 
   if (cdr_kind == CDR_KIND_KEY && !is_key)
     return true;

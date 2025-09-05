@@ -560,14 +560,14 @@ CU_Test(ddsc_serdata, key_serialization)
       { {
         MAKE_ENCHDR(PL_CDR),
         (raw){
-          SER_PHDR_EXT(1,4,3),1,0,0,0,
+          SER_PHDR_EXT(0,4,3),1,0,0,0,
           SER_PHDR_EXT(0,4,2),2,0,0,0,
-          SER_PHDR_EXT(1,8,1),SER64(3),
+          SER_PHDR_EXT(0,8,1),SER64(3),
           SER_PHDR_END(),
         }, 56,
         (raw){
-          SER_PHDR_EXT(1,4,3),1,0,0,0,
-          SER_PHDR_EXT(1,8,1),SER64(3),
+          SER_PHDR_EXT(0,4,3),1,0,0,0,
+          SER_PHDR_EXT(0,8,1),SER64(3),
           SER_PHDR_END(),
         }, 40,
         (raw){
@@ -598,15 +598,15 @@ CU_Test(ddsc_serdata, key_serialization)
         MAKE_ENCHDR(CDR),
         (raw){
           10,20,0,0,
-            SER_PHDR_EXT(1,4,3),1,0,0,0,
+            SER_PHDR_EXT(0,4,3),1,0,0,0,
             SER_PHDR_EXT(0,4,2),2,0,0,0,
-            SER_PHDR_EXT(1,8,1),SER64(3),
+            SER_PHDR_EXT(0,8,1),SER64(3),
             SER_PHDR_END(),
         }, 60,
         (raw){
           10,0,0,0,
-            SER_PHDR_EXT(1,4,3),1,0,0,0,
-            SER_PHDR_EXT(1,8,1),SER64(3),
+            SER_PHDR_EXT(0,4,3),1,0,0,0,
+            SER_PHDR_EXT(0,8,1),SER64(3),
             SER_PHDR_END(),
         }, 44,
         (raw){
@@ -641,9 +641,9 @@ CU_Test(ddsc_serdata, key_serialization)
         MAKE_ENCHDR(CDR),
         (raw){
           10,20,0,0,
-            SER_PHDR_EXT(1,4,3),1,0,0,0,
+            SER_PHDR_EXT(0,4,3),1,0,0,0,
             SER_PHDR_EXT(0,4,2),2,0,0,0,
-            SER_PHDR_EXT(1,8,1),SER64(3),
+            SER_PHDR_EXT(0,8,1),SER64(3),
             SER_PHDR_END(),
         }, 60,
         (raw){
@@ -718,15 +718,15 @@ CU_Test(ddsc_serdata, key_serialization)
         MAKE_ENCHDR(CDR),
         (raw){
           10,20,0,0,
-            SER_PHDR_EXT(1,4,3),1,0,0,0,
+            SER_PHDR_EXT(0,4,3),1,0,0,0,
             SER_PHDR_EXT(0,4,2),2,0,0,0,
-            SER_PHDR_EXT(1,8,1),SER64(3),
+            SER_PHDR_EXT(0,8,1),SER64(3),
             SER_PHDR_END(),
         }, 60,
         (raw){
           10,0,0,0,
-            SER_PHDR_EXT(1,4,3),1,0,0,0,
-            SER_PHDR_EXT(1,8,1),SER64(3),
+            SER_PHDR_EXT(0,4,3),1,0,0,0,
+            SER_PHDR_EXT(0,8,1),SER64(3),
             SER_PHDR_END(),
         }, 44,
         (raw){
@@ -760,20 +760,20 @@ CU_Test(ddsc_serdata, key_serialization)
       { {
         MAKE_ENCHDR(PL_CDR),
         (raw){
-          SER_PHDR_EXT(1,4,3),10,0,0,0,
+          SER_PHDR_EXT(0,4,3),10,0,0,0,
           SER_PHDR_EXT(0,4,2),20,0,0,0,
-          SER_PHDR_EXT(1,56,1),
-            SER_PHDR_EXT(1,4,3),1,0,0,0,
+          SER_PHDR_EXT(0,56,1),
+            SER_PHDR_EXT(0,4,3),1,0,0,0,
             SER_PHDR_EXT(0,4,2),2,0,0,0,
-            SER_PHDR_EXT(1,8,1),SER64(3),
+            SER_PHDR_EXT(0,8,1),SER64(3),
             SER_PHDR_END(),
           SER_PHDR_END(),
         }, 104,
         (raw){
-          SER_PHDR_EXT(1,4,3),10,0,0,0,
-          SER_PHDR_EXT(1,40,1),
-            SER_PHDR_EXT(1,4,3),1,0,0,0,
-            SER_PHDR_EXT(1,8,1),SER64(3),
+          SER_PHDR_EXT(0,4,3),10,0,0,0,
+          SER_PHDR_EXT(0,40,1),
+            SER_PHDR_EXT(0,4,3),1,0,0,0,
+            SER_PHDR_EXT(0,8,1),SER64(3),
             SER_PHDR_END(),
           SER_PHDR_END(),
         }, 72,
@@ -840,17 +840,17 @@ CU_Test(ddsc_serdata, key_serialization)
       { {
         MAKE_ENCHDR(PL_CDR),
         (raw){
-          SER_PHDR_EXT(1,4,3),10,0,0,0,
+          SER_PHDR_EXT(0,4,3),10,0,0,0,
           SER_PHDR_EXT(0,4,2),20,0,0,0,
-          SER_PHDR_EXT(1,16,1),
+          SER_PHDR_EXT(0,16,1),
             1,2,0,0,
             0,0,0,0, // padding
             SER64(3),
           SER_PHDR_END()
         }, 64,
         (raw){
-          SER_PHDR_EXT(1,4,3),10,0,0,0,
-          SER_PHDR_EXT(1,16,1),
+          SER_PHDR_EXT(0,4,3),10,0,0,0,
+          SER_PHDR_EXT(0,16,1),
             1,0,0,0,
             0,0,0,0, // padding
             SER64(3),
@@ -1207,17 +1207,17 @@ CU_Test(ddsc_serdata, key_serialization)
         MAKE_ENCHDR(CDR),
         (raw){
           // d
-          SER_PHDR_EXT(1,4,3),1,0,0,0,
-          SER_PHDR_EXT(1,4,2),2,0,0,0,
-          SER_PHDR_EXT(1,16,1),
+          SER_PHDR_EXT(0,4,3),1,0,0,0,
+          SER_PHDR_EXT(0,4,2),2,0,0,0,
+          SER_PHDR_EXT(0,16,1),
             3,4,0,0,
             0,0,0,0, // padding
             SER64(5),
           SER_PHDR_END(),
           // e
-          SER_PHDR_EXT(1,4,3),11,0,0,0,
-          SER_PHDR_EXT(1,4,2),12,0,0,0,
-          SER_PHDR_EXT(1,16,1),
+          SER_PHDR_EXT(0,4,3),11,0,0,0,
+          SER_PHDR_EXT(0,4,2),12,0,0,0,
+          SER_PHDR_EXT(0,16,1),
             13,14,0,0,
             0,0,0,0, // padding
             SER64(15),
@@ -1227,9 +1227,9 @@ CU_Test(ddsc_serdata, key_serialization)
         }, 132,
         (raw){
           // d
-          SER_PHDR_EXT(1,4,3),1,0,0,0,
-          SER_PHDR_EXT(1,4,2),2,0,0,0,
-          SER_PHDR_EXT(1,16,1),
+          SER_PHDR_EXT(0,4,3),1,0,0,0,
+          SER_PHDR_EXT(0,4,2),2,0,0,0,
+          SER_PHDR_EXT(0,16,1),
             3,0,0,0,
             0,0,0,0, // padding
             SER64(5),
