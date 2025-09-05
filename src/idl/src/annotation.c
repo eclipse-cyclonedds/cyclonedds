@@ -843,11 +843,6 @@ annotate_datarepresentation(
     ((idl_module_t*)node)->data_representation.annotation = annotation_appl;
     ((idl_module_t*)node)->data_representation.value = val;
   } else if (idl_is_struct(node)) {
-    if (((idl_struct_t*)node)->extensibility.value == IDL_MUTABLE && !(val & IDL_DATAREPRESENTATION_FLAG_XCDR2)) {
-      idl_error(pstate, idl_location(annotation_appl),
-        "Datarepresentation does not support XCDR2, but mutable extensibility set.");
-      return IDL_RETCODE_SEMANTIC_ERROR;
-    }
     ((idl_struct_t*)node)->data_representation.annotation = annotation_appl;
     ((idl_struct_t*)node)->data_representation.value = val;
   } else if (idl_is_union(node)) {

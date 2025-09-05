@@ -814,7 +814,7 @@ CU_Test(idl_annotation, extensibility)
     { IDL_UNION, U("@mutable"), IDL_MUTABLE, IDL_RETCODE_OK },
     { IDL_UNION, U("@extensibility(APPENDABLE)"), IDL_APPENDABLE, IDL_RETCODE_OK },
     //clashes with datarepresentation
-    { IDL_STRUCT, S("@mutable @data_representation(XCDR1)"), IDL_MUTABLE, IDL_RETCODE_SEMANTIC_ERROR },
+    { IDL_STRUCT, S("@mutable @data_representation(XCDR1)"), IDL_MUTABLE, IDL_RETCODE_OK },
     { IDL_UNION, U("@mutable @data_representation(XCDR1)"), IDL_MUTABLE, IDL_RETCODE_SEMANTIC_ERROR },
 
     /* FIXME: extensibility on bitmask and enum not supported yet
