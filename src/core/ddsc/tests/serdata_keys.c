@@ -163,6 +163,7 @@ CU_Test(ddsc_serdata, key_write_xcdrv)
 
 #define T_INIT_SIMPLE(t) static void *init_ ## t (void) { \
   t *sample = ddsrt_malloc (sizeof (*sample)); \
+  memset (sample, 0, sizeof (*sample)); \
   sample->a = 1; \
   sample->b = 2; \
   sample->c = 3; \
@@ -177,6 +178,7 @@ T_INIT_SIMPLE(SerdataKeyOrderMutable)
 
 #define T_INIT_NESTED(t) static void *init_ ## t (void) { \
   t *sample = ddsrt_malloc (sizeof (*sample)); \
+  memset (sample, 0, sizeof (*sample)); \
   sample->x = 10; \
   sample->y = 20; \
   sample->z.a = 1; \
@@ -195,9 +197,11 @@ T_INIT_NESTED(SerdataKeyOrderMutableNestedFinal)
 static void *init_SerdataKeyOrderFinalNestedNonKeyAppendable (void)
 {
   SerdataKeyOrderFinalNestedNonKeyAppendable *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->x = 10;
   sample->y = 20;
   sample->z = ddsrt_malloc (sizeof (*sample->z));
+  memset (sample->z, 0, sizeof (*sample->z));
   sample->z->a = 1;
   sample->z->b = 2;
   sample->z->c = 3;
@@ -207,6 +211,7 @@ static void *init_SerdataKeyOrderFinalNestedNonKeyAppendable (void)
 static void *init_SerdataKeyString (void)
 {
   SerdataKeyString *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->a = 1;
   sample->b = ddsrt_strdup ("test");
   return sample;
@@ -215,6 +220,7 @@ static void *init_SerdataKeyString (void)
 static void *init_SerdataKeyStringBounded (void)
 {
   SerdataKeyStringBounded *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->a = 1;
   ddsrt_strlcpy (sample->b, "ts", 4);
   return sample;
@@ -223,6 +229,7 @@ static void *init_SerdataKeyStringBounded (void)
 static void *init_SerdataKeyStringAppendable (void)
 {
   SerdataKeyStringAppendable *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->a = 1;
   sample->b = ddsrt_strdup ("test");
   return sample;
@@ -231,6 +238,7 @@ static void *init_SerdataKeyStringAppendable (void)
 static void *init_SerdataKeyStringBoundedAppendable (void)
 {
   SerdataKeyStringBoundedAppendable *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->a = 1;
   ddsrt_strlcpy (sample->b, "tst", 4);
   return sample;
@@ -239,6 +247,7 @@ static void *init_SerdataKeyStringBoundedAppendable (void)
 static void *init_SerdataKeyArr (void)
 {
   SerdataKeyArr *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   for (uint32_t n = 0; n < 12; n++)
     sample->a[n] = (uint8_t) n;
   return sample;
@@ -247,6 +256,7 @@ static void *init_SerdataKeyArr (void)
 static void *init_SerdataKeyArrStrBounded (void)
 {
   SerdataKeyArrStrBounded *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   for (uint32_t n = 0; n < 2; n++)
     ddsrt_strlcpy (sample->a[n], "ts", 3);
   return sample;
@@ -255,9 +265,11 @@ static void *init_SerdataKeyArrStrBounded (void)
 static void *init_SerdataKeySequence (void)
 {
   SerdataKeySequence *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->s._length = sample->s._maximum = 2;
   sample->s._release = true;
   sample->s._buffer = ddsrt_malloc (2 * sizeof (*sample->s._buffer));
+  memset (sample->s._buffer, 0, 2 * sizeof (*sample->s._buffer));
   sample->s._buffer[0] = 5;
   sample->s._buffer[1] = 6;
   return sample;
@@ -266,9 +278,11 @@ static void *init_SerdataKeySequence (void)
 static void *init_SerdataKeySequenceStruct (void)
 {
   SerdataKeySequenceStruct *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->s._length = sample->s._maximum = 2;
   sample->s._release = true;
   sample->s._buffer = ddsrt_malloc (2 * sizeof (*sample->s._buffer));
+  memset (sample->s._buffer, 0, 2 * sizeof (*sample->s._buffer));
   sample->s._buffer[0].a = 5;
   sample->s._buffer[0].b = 6;
   sample->s._buffer[1].a = 7;
@@ -279,9 +293,11 @@ static void *init_SerdataKeySequenceStruct (void)
 static void *init_SerdataKeySequenceStructAppendable (void)
 {
   SerdataKeySequenceStructAppendable *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->s._length = sample->s._maximum = 2;
   sample->s._release = true;
   sample->s._buffer = ddsrt_malloc (2 * sizeof (*sample->s._buffer));
+  memset (sample->s._buffer, 0, 2 * sizeof (*sample->s._buffer));
   sample->s._buffer[0].a = 5;
   sample->s._buffer[0].b = 6;
   sample->s._buffer[1].a = 7;
@@ -292,14 +308,17 @@ static void *init_SerdataKeySequenceStructAppendable (void)
 static void *init_SerdataKeySequenceNested (void)
 {
   SerdataKeySequenceNested *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->s._length = sample->s._maximum = 2;
   sample->s._release = true;
   sample->s._buffer = ddsrt_malloc (2 * sizeof (*sample->s._buffer));
+  memset (sample->s._buffer, 0, 2 * sizeof (*sample->s._buffer));
 
   for (int32_t i = 0; i < (int32_t) sample->s._length; i++) {
     sample->s._buffer[i]._length = sample->s._buffer[i]._maximum = 2;
     sample->s._buffer[i]._release = true;
     sample->s._buffer[i]._buffer = ddsrt_malloc (2 * sizeof (*sample->s._buffer[i]._buffer));
+    memset (sample->s._buffer[i]._buffer, 0, 2 * sizeof (*sample->s._buffer[i]._buffer));
     sample->s._buffer[i]._buffer[0] = (enum en_seq) (2 * i);
     sample->s._buffer[i]._buffer[1] = (enum en_seq) (2 * i + 1);
   }
@@ -310,6 +329,7 @@ static void *init_SerdataKeySequenceNested (void)
 static void *init_SerdataKeyNestedFinalImplicit (void)
 {
   SerdataKeyNestedFinalImplicit *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->d = (SerdataKeyNestedFinalImplicitSubtype) { .x = 1, .y = 2, .z = { .a = 3, .b = 4, .c = 5 } };
   sample->e = (SerdataKeyNestedFinalImplicitSubtype) { .x = 11, .y = 12, .z = { .a = 13, .b = 14, .c = 15 } };
   sample->f = 20;
@@ -319,6 +339,7 @@ static void *init_SerdataKeyNestedFinalImplicit (void)
 static void *init_SerdataKeyNestedFinalImplicit2 (void)
 {
   SerdataKeyNestedFinalImplicit2 *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->a = (SerdataKeyNestedFinalImplicit2Subtype1) { .c = { .e = { .x = 1, .y = 2 }, .f = { .x = 3, .y = 4 } }, .d = { .e = { .x = 5, .y = 6 }, .f = { .x = 7, .y = 8 } } };
   sample->b = (SerdataKeyNestedFinalImplicit2Subtype1) { .c = { .e = { .x = 11, .y = 12 }, .f = { .x = 13, .y = 14 } }, .d = { .e = { .x = 15, .y = 16 }, .f = { .x = 17, .y = 18 } } };
   return sample;
@@ -327,6 +348,7 @@ static void *init_SerdataKeyNestedFinalImplicit2 (void)
 static void *init_SerdataKeyNestedMutableImplicit (void)
 {
   SerdataKeyNestedMutableImplicit *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->d = (SerdataKeyNestedMutableImplicitSubtype) { .x = 1, .y = 2, .z = { .a = 3, .b = 4, .c = 5 } };
   sample->e = (SerdataKeyNestedMutableImplicitSubtype) { .x = 11, .y = 12, .z = { .a = 13, .b = 14, .c = 15 } };
   sample->f = 20;
@@ -336,6 +358,7 @@ static void *init_SerdataKeyNestedMutableImplicit (void)
 static void *init_SerdataKeyInheritMutable (void)
 {
   SerdataKeyInheritMutable *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->a = (SerdataKeyInheritMutableNested) { .nx = 1, .ny = 2, .nz = 3 };
   sample->b = 4;
   sample->c = 5;
@@ -1200,7 +1223,7 @@ CU_Test(ddsc_serdata, key_serialization)
           SER_PHDR_EXT(1,16,1),
             13,14,0,0,
             0,0,0,0, // padding
-            SER64(5),
+            SER64(15),
           SER_PHDR_END(),
           // f
           SER32(20)
@@ -1450,15 +1473,12 @@ CU_Test(ddsc_serdata, key_serialization)
         CU_ASSERT_FATAL (sd != NULL);
         assert (sd != NULL);
 
-        if (data_repr[dr] == DDS_DATA_REPRESENTATION_XCDR2)
-        {
-          size_t exp_sz_aligned = alignN (tests[test_index].xcdrv[dr].data_sz, 4);
-          printf ("Data: ");
-          print_check_cdr (sd, tests[test_index].xcdrv[dr].data, exp_sz_aligned);
-          CU_ASSERT_EQUAL (exp_sz_aligned, sd->pos);
-          int cmp = memcmp (sd->data, tests[test_index].xcdrv[dr].data, exp_sz_aligned);
-          CU_ASSERT_EQUAL (cmp, 0);
-        }
+        size_t exp_sz_aligned = alignN (tests[test_index].xcdrv[dr].data_sz, 4);
+        printf ("Data: ");
+        print_check_cdr (sd, tests[test_index].xcdrv[dr].data, exp_sz_aligned);
+        CU_ASSERT_EQUAL (exp_sz_aligned, sd->pos);
+        int cmp = memcmp (sd->data, tests[test_index].xcdrv[dr].data, exp_sz_aligned);
+        CU_ASSERT_EQUAL (cmp, 0);
 
         check_key_keyhash (sd, tests[test_index].xcdrv[1].key, tests[test_index].xcdrv[1].key_sz,
             tests[test_index].xcdrv[dr].keyhash, tests[test_index].xcdrv[dr].keyhash_sz);
