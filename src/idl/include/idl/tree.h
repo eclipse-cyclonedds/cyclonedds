@@ -211,6 +211,13 @@ typedef enum {
   IDL_REQUIRES_XCDR2_FALSE
 } idl_requires_xcdr2_t;
 
+typedef enum {
+  IDL_XCDR2_IS_DEFAULT_UNSET,
+  IDL_XCDR2_IS_DEFAULT_SETTING,
+  IDL_XCDR2_IS_DEFAULT_TRUE,
+  IDL_XCDR2_IS_DEFAULT_FALSE
+} idl_xcdr2_is_default_t;
+
 /* most types have convenience members for information that is shared between
    generators or makes sense to calculate in advance. e.g. the field
    identifier for struct members, which can be assigned through @id, @hashid,
@@ -361,6 +368,7 @@ struct idl_struct {
   /* metadata */
   idl_keylist_t *keylist; /**< if type is a topic (#pragma keylist) */
   idl_requires_xcdr2_t requires_xcdr2;
+  idl_xcdr2_is_default_t xcdr2_is_default;
   IDL_ANNOTATABLE(uint32_t) id;
   IDL_ANNOTATABLE(idl_autoid_t) autoid;
   /* constructed types are not considered @nested types by default, implicitly
@@ -425,6 +433,7 @@ struct idl_union {
   idl_case_label_t *default_case;
   uint64_t unused_labels; /**< number of unused labels */
   idl_requires_xcdr2_t requires_xcdr2;
+  idl_xcdr2_is_default_t xcdr2_is_default;
   IDL_ANNOTATABLE(bool) nested; /**< if type is nested or a topic */
   IDL_ANNOTATABLE(idl_extensibility_t) extensibility;
   IDL_ANNOTATABLE(idl_autoid_t) autoid;
@@ -588,6 +597,7 @@ IDL_EXPORT uint32_t idl_array_size(const void *node);
 IDL_EXPORT uint32_t idl_bound(const void *node);
 IDL_EXPORT const idl_literal_t *idl_default_value(const void *node);
 IDL_EXPORT bool idl_requires_xcdr2(const void *node);
+IDL_EXPORT bool idl_xcdr2_is_default(const void *node);
 IDL_EXPORT allowable_data_representations_t idl_allowable_data_representations(const void *node);
 IDL_EXPORT uint32_t idl_enum_max_value(const void *node);
 
