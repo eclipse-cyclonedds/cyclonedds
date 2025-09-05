@@ -606,7 +606,9 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, RESTRICT_OSTREAM_T
     if (os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
     {
       uint32_t flags = DDS_OP_FLAGS (insn);
-      bool must_understand = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
+      // RTI can't handle "must understand" on key fields where it doesn't expect it, hence only
+      // setting must_understand if FLAG_MU, rather than if (FLAG_MU | FLAG_KEY)
+      bool must_understand = flags & DDS_OP_FLAG_MU;
       uint32_t member_id;
       if (!find_member_id (mid_table, ops, &member_id))
         return write_error_ops ();
@@ -696,7 +698,10 @@ static bool dds_stream_write_xcdr1_pl_memberBO (RESTRICT_OSTREAM_T *os, const st
   /* get flags from first member op */
   uint32_t flags = DDS_OP_FLAGS (ops[0]);
   bool is_key = flags & DDS_OP_FLAG_KEY;
-  bool must_understand = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
+  // RTI can't handle the "must understand" flag on keys that do not have it set explicit in XCDR1
+  // mode, so we have to leave it unset despite it being required and actually serving a purpose
+  // when type discovery isn't available
+  bool must_understand = flags & DDS_OP_FLAG_MU;
 
   if (cdr_kind == CDR_KIND_KEY && !is_key)
     return true;
@@ -708,6 +713,11 @@ static bool dds_stream_write_xcdr1_pl_memberBO (RESTRICT_OSTREAM_T *os, const st
   if (!(dds_stream_write_implBO (os, allocator, mid_table, data, ops, true, cdr_kind)))
     return false;
 
+  // XTypes 1.3 says the parameter length in the header must be the exact length
+  // of the serialized data. However, Xtypes 1.1 said it should be a multiple of 4.
+  // RTI unfortunately sticks to XTypes 1.1 until very recently and doesn't handle
+  // well-formed XCDR1 (and neither does Wireshark).
+  dds_cdr_alignto_clear_and_resize_base (&os->x, allocator, dds_cdr_get_align (os->x.m_xcdr_version, 4), 0);
   dds_stream_write_xcdr1_paramheader_closeBO (os, param_length_offs, os->x.m_index - param_length_offs, alignment_offset_by_4);
 
   return true;

@@ -447,7 +447,15 @@ get_struct_member_flags(const idl_member_t *member)
   if (member->optional.value)
     flags |= DDS_XTypes_IS_OPTIONAL;
   // XTypes spec 7.2.2.4.4.4.8: Key members shall always have their 'must understand' attribute set to true
-  if (member->must_understand.value || member->key.value)
+  //
+  // but ... this is not how all implementors read it, and RTI can't deal with 'must understand' on incoming
+  // mutable data where it didn't expect it ... and so while this should read
+  //
+  //   member->must_understand.value || member->key.value
+  //
+  // we have to leave out the key part.  This allows for some abuse in the absence of type discovery, but
+  // not much worse than there would be anyway.
+  if (member->must_understand.value)
     flags |= DDS_XTypes_IS_MUST_UNDERSTAND;
   return flags;
 }

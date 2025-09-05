@@ -1227,10 +1227,10 @@ emit_sequence(
     if (idl_is_struct(stype->ctype->node))
     {
       if (nested_collection_key (stype, path))
-        opcode |= DDS_OP_FLAG_KEY | DDS_OP_FLAG_MU;
+        opcode |= DDS_OP_FLAG_KEY;
     }
     if ((keytype = idl_is_topic_key(descriptor->topic, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0, path, &order)) != IDL_KEYTYPE_NONE) {
-      opcode |= DDS_OP_FLAG_KEY | ((keytype == IDL_KEYTYPE_EXPLICIT) ? DDS_OP_FLAG_MU : 0u);
+      opcode |= DDS_OP_FLAG_KEY;
       ctype->has_key_member = true;
     }
 
@@ -1246,7 +1246,7 @@ emit_sequence(
 
       if (((idl_member_t *)member_node)->key.value)
       {
-        opcode |= DDS_OP_FLAG_KEY | DDS_OP_FLAG_MU;
+        opcode |= DDS_OP_FLAG_KEY;
         ctype->has_key_member = true;
       }
 
@@ -1376,10 +1376,10 @@ emit_array(
     if (idl_is_struct(stype->ctype->node))
     {
       if (nested_collection_key(stype, path))
-        opcode |= DDS_OP_FLAG_KEY | DDS_OP_FLAG_MU;
+        opcode |= DDS_OP_FLAG_KEY;
     }
     if ((keytype = idl_is_topic_key(descriptor->topic, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0, path, &order)) != IDL_KEYTYPE_NONE) {
-      opcode |= DDS_OP_FLAG_KEY | (keytype == IDL_KEYTYPE_EXPLICIT ? DDS_OP_FLAG_MU : 0u);
+      opcode |= DDS_OP_FLAG_KEY;
       ctype->has_key_member = true;
     }
 
@@ -1395,7 +1395,7 @@ emit_array(
 
       if (((idl_member_t *)parent)->key.value)
       {
-        opcode |= DDS_OP_FLAG_KEY | DDS_OP_FLAG_MU;
+        opcode |= DDS_OP_FLAG_KEY;
         ctype->has_key_member = true;
       }
 
@@ -1601,12 +1601,12 @@ emit_declarator(
     idl_keytype_t keytype;
     if ((keytype = idl_is_topic_key(descriptor->topic, keylist, path, &order)) != IDL_KEYTYPE_NONE)
     {
-      opcode |= DDS_OP_FLAG_KEY | (keytype == IDL_KEYTYPE_EXPLICIT ? DDS_OP_FLAG_MU : 0u);
+      opcode |= DDS_OP_FLAG_KEY;
       ctype->has_key_member = true;
     }
     else if (idl_is_member(parent) && ((idl_member_t *)parent)->key.value)
     {
-      opcode |= DDS_OP_FLAG_KEY | DDS_OP_FLAG_MU;
+      opcode |= DDS_OP_FLAG_KEY;
       ctype->has_key_member = true;
     }
     if (idl_is_struct(stype->node) && (idl_is_external(parent) || idl_is_optional(parent))) {
