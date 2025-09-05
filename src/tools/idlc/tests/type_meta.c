@@ -221,7 +221,7 @@ static DDS_XTypes_TypeObject *get_typeobj1 (void)
     DDS_XTypes_IS_APPENDABLE,
     (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_NONE },
     8, (smember_t[]) {
-      { 0, DDS_XTypes_IS_KEY | DDS_XTypes_IS_MUST_UNDERSTAND | DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_INT64 }, "f1" },
+      { 0, DDS_XTypes_IS_KEY | DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_INT64 }, "f1" },
       { 1, DDS_XTypes_IS_OPTIONAL | DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TI_STRING8_SMALL, ._u.string_sdefn.bound = 0 }, "f2" },
       { 4, DDS_XTypes_IS_EXTERNAL | DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_CHAR8 }, "f3" },
       { 3, DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_INT8 }, "f4" },
