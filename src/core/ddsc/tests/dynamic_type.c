@@ -94,56 +94,6 @@ CU_Test (ddsc_dynamic_type, entity_kinds, .init = dynamic_type_init, .fini = dyn
   }
 }
 
-/* Copy of the DDS_DYNAMIC_TYPE_SPEC_PRIM macro, without the explicit cast because
-   that causes a build error on MSVC when used in a designated initializer. */
-#define TYPE_SPEC_PRIM_NC(p) { .kind = DDS_DYNAMIC_TYPE_KIND_PRIMITIVE, .type.primitive = (p) }
-
-CU_Test (ddsc_dynamic_type, type_create, .init = dynamic_type_init, .fini = dynamic_type_fini)
-{
-  static const uint32_t bounds[] = { 10 };
-  static const struct {
-    dds_dynamic_type_descriptor_t desc;
-    dds_return_t ret;
-  } tests[] = {
-    { { .kind = DDS_DYNAMIC_NONE, .name = "t" }, DDS_RETCODE_BAD_PARAMETER },
-    { { .kind = DDS_DYNAMIC_BOOLEAN, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_BYTE, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_INT16, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_INT32, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_INT64, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_UINT16, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_UINT32, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_UINT64, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_FLOAT32, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_FLOAT64, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_FLOAT128, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_INT8, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_UINT8, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_CHAR8, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_CHAR16, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_STRING8, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_STRING16, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_ENUMERATION, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_BITMASK, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_ALIAS, .name = "t", .base_type = TYPE_SPEC_PRIM_NC(DDS_DYNAMIC_INT32) }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_ARRAY, .name = "t", .element_type = TYPE_SPEC_PRIM_NC(DDS_DYNAMIC_INT32), .bounds = bounds, .num_bounds = 1 }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_SEQUENCE, .name = "t", .element_type = TYPE_SPEC_PRIM_NC(DDS_DYNAMIC_INT32) }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_MAP, .name = "t" }, DDS_RETCODE_UNSUPPORTED },
-    { { .kind = DDS_DYNAMIC_STRUCTURE, .name = "t" }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_UNION, .name = "t", .discriminator_type = TYPE_SPEC_PRIM_NC(DDS_DYNAMIC_INT32) }, DDS_RETCODE_OK },
-    { { .kind = DDS_DYNAMIC_BITSET, .name = "t" }, DDS_RETCODE_UNSUPPORTED }
-  };
-
-  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
-  {
-    dds_dynamic_type_t dtype = dds_dynamic_type_create (participant, tests[i].desc);
-    printf("create type kind %u, return code %d\n", tests[i].desc.kind, dtype.ret);
-    CU_ASSERT_EQUAL_FATAL (dtype.ret, tests[i].ret);
-    if (tests[i].ret == DDS_RETCODE_OK)
-      dds_dynamic_type_unref (&dtype);
-  }
-}
-
 static struct ddsi_type * get_ddsi_type (dds_dynamic_type_t *dtype)
 {
   struct ddsi_domaingv *gv = get_domaingv (participant);
@@ -156,6 +106,85 @@ static struct ddsi_type * get_ddsi_type (dds_dynamic_type_t *dtype)
   CU_ASSERT_FATAL (type != NULL);
   dds_free_typeinfo (type_info);
   return type;
+}
+
+/* Copy of the DDS_DYNAMIC_TYPE_SPEC_PRIM macro, without the explicit cast because
+   that causes a build error on MSVC when used in a designated initializer. */
+#define TYPE_SPEC_PRIM_NC(p) { .kind = DDS_DYNAMIC_TYPE_KIND_PRIMITIVE, .type.primitive = (p) }
+
+typedef void (*type_init_fn) (dds_dynamic_type_t *);
+
+static void tcr_init_enum (dds_dynamic_type_t *dtype) { dds_dynamic_type_add_enum_literal (dtype, "V1", DDS_DYNAMIC_ENUM_LITERAL_VALUE_AUTO, false); }
+static void tcr_init_bitmask (dds_dynamic_type_t *dtype) { dds_dynamic_type_add_bitmask_field (dtype, "B1", DDS_DYNAMIC_BITMASK_POSITION_AUTO); }
+static void tcr_init_struct (dds_dynamic_type_t *dtype) { dds_dynamic_type_add_member (dtype, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_INT32, "s1")); }
+static void tcr_init_union (dds_dynamic_type_t *dtype) { dds_dynamic_type_add_member (dtype, DDS_DYNAMIC_UNION_MEMBER_PRIM(DDS_DYNAMIC_INT32, "u1", 1, ((int32_t[]) { 1 }))); }
+
+CU_Test (ddsc_dynamic_type, type_create, .init = dynamic_type_init, .fini = dynamic_type_fini)
+{
+  static const uint32_t bounds[] = { 10 };
+  static const struct {
+    dds_dynamic_type_descriptor_t desc;
+    dds_return_t ret;
+    DDS_XTypes_TypeKind xt_type_kind;
+    type_init_fn init_fn;
+  } tests[] = {
+    { { .kind = DDS_DYNAMIC_NONE, .name = "t" }, DDS_RETCODE_BAD_PARAMETER, DDS_XTypes_TK_NONE, NULL },
+    { { .kind = DDS_DYNAMIC_BOOLEAN, .name = "t" }, DDS_RETCODE_OK, DDS_XTypes_TK_BOOLEAN, NULL },
+    { { .kind = DDS_DYNAMIC_BYTE, .name = "t" }, DDS_RETCODE_OK, DDS_XTypes_TK_BYTE, NULL },
+    { { .kind = DDS_DYNAMIC_INT16, .name = "t" }, DDS_RETCODE_OK, DDS_XTypes_TK_INT16, NULL },
+    { { .kind = DDS_DYNAMIC_INT32, .name = "t" }, DDS_RETCODE_OK, DDS_XTypes_TK_INT32, NULL },
+    { { .kind = DDS_DYNAMIC_INT64, .name = "t" }, DDS_RETCODE_OK, DDS_XTypes_TK_INT64, NULL },
+    { { .kind = DDS_DYNAMIC_UINT16, .name = "t" }, DDS_RETCODE_OK, DDS_XTypes_TK_UINT16, NULL },
+    { { .kind = DDS_DYNAMIC_UINT32, .name = "t" }, DDS_RETCODE_OK, DDS_XTypes_TK_UINT32, NULL },
+    { { .kind = DDS_DYNAMIC_UINT64, .name = "t" }, DDS_RETCODE_OK, DDS_XTypes_TK_UINT64, NULL },
+    { { .kind = DDS_DYNAMIC_FLOAT32, .name = "t" }, DDS_RETCODE_OK, DDS_XTypes_TK_FLOAT32, NULL },
+    { { .kind = DDS_DYNAMIC_FLOAT64, .name = "t" }, DDS_RETCODE_OK, DDS_XTypes_TK_FLOAT64, NULL },
+    { { .kind = DDS_DYNAMIC_FLOAT128, .name = "t" }, DDS_RETCODE_OK, DDS_XTypes_TK_FLOAT128, NULL },
+    { { .kind = DDS_DYNAMIC_INT8, .name = "t" }, DDS_RETCODE_OK, DDS_XTypes_TK_INT8, NULL },
+    { { .kind = DDS_DYNAMIC_UINT8, .name = "t" }, DDS_RETCODE_OK, DDS_XTypes_TK_UINT8, NULL },
+    { { .kind = DDS_DYNAMIC_CHAR8, .name = "t" }, DDS_RETCODE_OK, DDS_XTypes_TK_CHAR8, NULL },
+    { { .kind = DDS_DYNAMIC_CHAR16, .name = "t" }, DDS_RETCODE_OK, DDS_XTypes_TK_CHAR16, NULL },
+    { { .kind = DDS_DYNAMIC_STRING8, .name = "t" }, DDS_RETCODE_OK, DDS_XTypes_TK_STRING8, NULL },
+    { { .kind = DDS_DYNAMIC_STRING16, .name = "t" }, DDS_RETCODE_OK, DDS_XTypes_TK_STRING16, NULL },
+    { { .kind = DDS_DYNAMIC_ENUMERATION, .name = "t" }, DDS_RETCODE_OK, DDS_XTypes_TK_ENUM, tcr_init_enum },
+    { { .kind = DDS_DYNAMIC_BITMASK, .name = "t" }, DDS_RETCODE_OK, DDS_XTypes_TK_BITMASK, tcr_init_bitmask },
+    { { .kind = DDS_DYNAMIC_ALIAS, .name = "t", .base_type = TYPE_SPEC_PRIM_NC(DDS_DYNAMIC_INT32) }, DDS_RETCODE_OK, DDS_XTypes_TK_ALIAS, NULL },
+    { { .kind = DDS_DYNAMIC_ARRAY, .name = "t", .element_type = TYPE_SPEC_PRIM_NC(DDS_DYNAMIC_INT32), .bounds = bounds, .num_bounds = 1 }, DDS_RETCODE_OK, DDS_XTypes_TK_ARRAY, NULL },
+    { { .kind = DDS_DYNAMIC_SEQUENCE, .name = "t", .element_type = TYPE_SPEC_PRIM_NC(DDS_DYNAMIC_INT32) }, DDS_RETCODE_OK, DDS_XTypes_TK_SEQUENCE, NULL },
+    { { .kind = DDS_DYNAMIC_MAP, .name = "t" }, DDS_RETCODE_UNSUPPORTED, DDS_XTypes_TK_NONE, NULL },
+    { { .kind = DDS_DYNAMIC_STRUCTURE, .name = "t" }, DDS_RETCODE_OK, DDS_XTypes_TK_STRUCTURE, tcr_init_struct },
+    { { .kind = DDS_DYNAMIC_UNION, .name = "t", .discriminator_type = TYPE_SPEC_PRIM_NC(DDS_DYNAMIC_INT32) }, DDS_RETCODE_OK, DDS_XTypes_TK_UNION, tcr_init_union },
+    { { .kind = DDS_DYNAMIC_BITSET, .name = "t" }, DDS_RETCODE_UNSUPPORTED, DDS_XTypes_TK_NONE, NULL }
+  };
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    dds_dynamic_type_t dtype = dds_dynamic_type_create (participant, tests[i].desc);
+    printf("create type kind %u, return code %d\n", tests[i].desc.kind, dtype.ret);
+    CU_ASSERT_EQUAL_FATAL (dtype.ret, tests[i].ret);
+    if (tests[i].ret == DDS_RETCODE_OK)
+    {
+      dds_dynamic_type_t dstruct = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "t" });
+
+      // add primitive type using macro
+      if (tests[i].desc.kind <= DDS_DYNAMIC_CHAR16)
+        dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER_PRIM(tests[i].desc.kind, "mp"));
+
+      // add elements for types that need at least one
+      if (tests[i].init_fn != NULL)
+        tests[i].init_fn (&dtype);
+
+      // add member, also re-add for primitives
+      dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER(dtype, "m"));
+
+      // check that member(s) have expected type
+      struct ddsi_type *type = get_ddsi_type (&dstruct);
+      CU_ASSERT_EQUAL_FATAL (type->xt._u.structure.members.seq[0].type->xt._d, tests[i].xt_type_kind);
+      if (tests[i].desc.kind <= DDS_DYNAMIC_CHAR16)
+        CU_ASSERT_EQUAL_FATAL (type->xt._u.structure.members.seq[1].type->xt._d, tests[i].xt_type_kind);
+      dds_dynamic_type_unref (&dstruct);
+    }
+  }
 }
 
 CU_Test (ddsc_dynamic_type, struct_member_id, .init = dynamic_type_init, .fini = dynamic_type_fini)

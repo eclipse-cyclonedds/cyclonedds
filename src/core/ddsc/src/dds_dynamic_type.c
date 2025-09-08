@@ -31,40 +31,6 @@ static dds_return_t get_entity_gv (dds_entity_t entity, struct ddsi_domaingv **g
   return ret;
 }
 
-static DDS_XTypes_TypeKind typekind_to_xtkind (dds_dynamic_type_kind_t type_kind)
-{
-  switch (type_kind) {
-    case DDS_DYNAMIC_NONE:        return DDS_XTypes_TK_NONE;
-    case DDS_DYNAMIC_BOOLEAN:     return DDS_XTypes_TK_BOOLEAN;
-    case DDS_DYNAMIC_BYTE:        return DDS_XTypes_TK_BYTE;
-    case DDS_DYNAMIC_INT16:       return DDS_XTypes_TK_INT16;
-    case DDS_DYNAMIC_INT32:       return DDS_XTypes_TK_INT32;
-    case DDS_DYNAMIC_INT64:       return DDS_XTypes_TK_INT64;
-    case DDS_DYNAMIC_UINT16:      return DDS_XTypes_TK_UINT16;
-    case DDS_DYNAMIC_UINT32:      return DDS_XTypes_TK_UINT32;
-    case DDS_DYNAMIC_UINT64:      return DDS_XTypes_TK_UINT64;
-    case DDS_DYNAMIC_FLOAT32:     return DDS_XTypes_TK_FLOAT32;
-    case DDS_DYNAMIC_FLOAT64:     return DDS_XTypes_TK_FLOAT64;
-    case DDS_DYNAMIC_FLOAT128:    return DDS_XTypes_TK_FLOAT128;
-    case DDS_DYNAMIC_INT8:        return DDS_XTypes_TK_INT8;
-    case DDS_DYNAMIC_UINT8:       return DDS_XTypes_TK_UINT8;
-    case DDS_DYNAMIC_CHAR8:       return DDS_XTypes_TK_CHAR8;
-    case DDS_DYNAMIC_CHAR16:      return DDS_XTypes_TK_CHAR16;
-    case DDS_DYNAMIC_STRING8:     return DDS_XTypes_TK_STRING8;
-    case DDS_DYNAMIC_STRING16:    return DDS_XTypes_TK_STRING16;
-    case DDS_DYNAMIC_ENUMERATION: return DDS_XTypes_TK_ENUM;
-    case DDS_DYNAMIC_BITMASK:     return DDS_XTypes_TK_BITMASK;
-    case DDS_DYNAMIC_ALIAS:       return DDS_XTypes_TK_ALIAS;
-    case DDS_DYNAMIC_ARRAY:       return DDS_XTypes_TK_ARRAY;
-    case DDS_DYNAMIC_SEQUENCE:    return DDS_XTypes_TK_SEQUENCE;
-    case DDS_DYNAMIC_MAP:         return DDS_XTypes_TK_MAP;
-    case DDS_DYNAMIC_STRUCTURE:   return DDS_XTypes_TK_STRUCTURE;
-    case DDS_DYNAMIC_UNION:       return DDS_XTypes_TK_UNION;
-    case DDS_DYNAMIC_BITSET:      return DDS_XTypes_TK_BITSET;
-  }
-  return DDS_XTypes_TK_NONE;
-}
-
 static dds_dynamic_type_kind_t xtkind_to_typekind (DDS_XTypes_TypeKind xt_kind)
 {
   switch (xt_kind) {
@@ -113,7 +79,7 @@ static dds_dynamic_type_t dyntype_from_typespec (struct ddsi_domaingv *gv, dds_d
       return (dds_dynamic_type_t) { .ret = DDS_RETCODE_OK };
     case DDS_DYNAMIC_TYPE_KIND_PRIMITIVE: {
       dds_dynamic_type_t type = { 0 };
-      type.ret = ddsi_dynamic_type_create_primitive (gv, get_dtype_complete_addr (&type), typekind_to_xtkind (type_spec.type.primitive));
+      type.ret = ddsi_dynamic_type_create_primitive (gv, get_dtype_complete_addr (&type), type_spec.type.primitive);
       return type;
     }
     case DDS_DYNAMIC_TYPE_KIND_DEFINITION:
