@@ -73,6 +73,8 @@ static dds_return_t dynamic_type_complete_type_specific (struct ddsi_type *type)
   switch (type->xt._d)
   {
     case DDS_XTypes_TK_ENUM: {
+      if (type->xt._u.enum_type.literals.length == 0)
+        return DDS_RETCODE_BAD_PARAMETER;
       bool has_default = false;
       for (uint32_t l = 0; !has_default && l < type->xt._u.enum_type.literals.length; l++)
         has_default = type->xt._u.enum_type.literals.seq[l].flags & DDS_XTypes_IS_DEFAULT;
@@ -99,7 +101,8 @@ static dds_return_t dynamic_type_complete_locked (struct ddsi_type **type)
   }
 
   /* Specific finalization for types */
-  dynamic_type_complete_type_specific (*type);
+  if ((ret = dynamic_type_complete_type_specific (*type)) != DDS_RETCODE_OK)
+    return ret;
 
   struct DDS_XTypes_TypeIdentifier ti;
   assert (ddsi_typeid_is_none (&(*type)->xt.id));
