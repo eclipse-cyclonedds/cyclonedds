@@ -89,6 +89,7 @@ static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_
           dds_return_loan (triggered_reader, &epraw, 1);
           goto error;
         }
+        dds_qset_data_representation (ep->qos, 0, NULL);
         if ((*topic = dds_create_topic (participant, descriptor, ep->topic_name, ep->qos, NULL)) < 0)
         {
           fprintf (stderr, "dds_create_topic_descriptor: %s (be sure to enable topic discovery in the configuration)\n", dds_strretcode (*topic));
