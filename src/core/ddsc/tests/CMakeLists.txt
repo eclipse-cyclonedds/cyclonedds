@@ -49,6 +49,7 @@ set(ddsc_test_sources
     "cdr.c"
     "config.c"
     "data_avail_stress.c"
+    "data_on_readers.c"
     "destorder.c"
     "discstress.c"
     "dispose.c"
