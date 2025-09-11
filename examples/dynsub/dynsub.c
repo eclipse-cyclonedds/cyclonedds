@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <locale.h>
+#include <signal.h>
 
 #include "dds/dds.h"
 #include "dynsub.h"
@@ -31,11 +32,17 @@
 // corresponding XTypes objects: DDS_XTypes_TypeObject and DDS_XTypes_TypeInformation.  Rather than casting
 // pointers like we do here, they should be defined in a slightly different way so that they are not really
 // opaque.  For now, this'll have to do.
+#include "dds/ddsc/dds_public_alloc.h"
+#include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
+
+#include "dds/ddsrt/threads.h"
+#include "dds/ddsi/ddsi_serdata.h"
 
 // For convenience, the DDS participant is global
 static dds_entity_t participant;
 
+static dds_entity_t termcond;
 
 // Helper function to wait for a DCPSPublication/DCPSSubscription to show up with the desired topic name,
 // then calls dds_find_topic to create a topic for that data writer's/reader's type up the retrieves the
@@ -143,6 +150,31 @@ error:
   return (*xtypeobj != NULL) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
 }
 
+#if !DDSRT_WITH_FREERTOS && !__ZEPHYR__
+static void signal_handler (int sig)
+{
+  (void) sig;
+  dds_set_guardcondition (termcond, true);
+}
+#endif
+
+#if !_WIN32 && !DDSRT_WITH_FREERTOS && !__ZEPHYR__
+static uint32_t sigthread (void *varg)
+{
+  sigset_t *set = varg;
+  int sig;
+  if (sigwait (set, &sig) == 0)
+    signal_handler (sig);
+  return 0;
+}
+#endif
+
+static void usage (const char *argv0)
+{
+  fprintf (stderr, "usage: %s [-r] topicname\n", argv0);
+  exit (2);
+}
+
 int main (int argc, char **argv)
 {
   dds_return_t ret = 0;
@@ -178,7 +210,35 @@ int main (int argc, char **argv)
   const dds_entity_t waitset = dds_create_waitset (participant);
   const dds_entity_t readcond = dds_create_readcondition (reader, DDS_ANY_STATE);
   (void) dds_waitset_attach (waitset, readcond, 0);
-  while (1)
+
+  termcond = dds_create_guardcondition (participant);
+  (void) dds_waitset_attach (waitset, termcond, 0);
+
+#ifdef _WIN32
+  signal (SIGINT, signal_handler);
+#elif !DDSRT_WITH_FREERTOS && !__ZEPHYR__
+  ddsrt_thread_t sigtid;
+  sigset_t sigset, osigset;
+  sigemptyset (&sigset);
+#ifdef __APPLE__
+  DDSRT_WARNING_GNUC_OFF(sign-conversion)
+#endif
+  sigaddset (&sigset, SIGHUP);
+  sigaddset (&sigset, SIGINT);
+  sigaddset (&sigset, SIGTERM);
+#ifdef __APPLE__
+  DDSRT_WARNING_GNUC_ON(sign-conversion)
+#endif
+  sigprocmask (SIG_BLOCK, &sigset, &osigset);
+  {
+    ddsrt_threadattr_t tattr;
+    ddsrt_threadattr_init (&tattr);
+    ddsrt_thread_create (&sigtid, "sigthread", &tattr, sigthread, &sigset);
+  }
+#endif
+
+  bool termflag = false;
+  while (!termflag)
   {
     (void) dds_waitset_wait (waitset, NULL, 0, DDS_INFINITY);
     void *raw = NULL;
@@ -192,9 +252,27 @@ int main (int argc, char **argv)
       if ((ret = dds_return_loan (reader, &raw, 1)) < 0)
         goto error;
     }
+    dds_read_guardcondition (termcond, &termflag);
   }
 
- error:
+#if _WIN32
+  signal_handler (SIGINT);
+#elif !DDSRT_WITH_FREERTOS && !__ZEPHYR__
+  {
+    /* get the attention of the signal handler thread */
+    void (*osigint) (int);
+    void (*osigterm) (int);
+    kill (getpid (), SIGTERM);
+    ddsrt_thread_join (sigtid, NULL);
+    osigint = signal (SIGINT, SIG_IGN);
+    osigterm = signal (SIGTERM, SIG_IGN);
+    sigprocmask (SIG_SETMASK, &osigset, NULL);
+    signal (SIGINT, osigint);
+    signal (SIGINT, osigterm);
+  }
+#endif
+
+error:
   type_cache_free ();
   dds_delete (participant);
   return ret < 0;
