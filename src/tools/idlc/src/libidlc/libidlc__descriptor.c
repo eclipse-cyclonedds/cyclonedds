@@ -1223,13 +1223,12 @@ emit_sequence(
     opcode |= idl_is_bounded(node) ? DDS_OP_TYPE_BSQ : DDS_OP_TYPE_SEQ;
     if ((ret = add_typecode(pstate, type_spec, SUBTYPE, false, &opcode)))
       return ret;
-    idl_keytype_t keytype;
     if (idl_is_struct(stype->ctype->node))
     {
       if (nested_collection_key (stype, path))
         opcode |= DDS_OP_FLAG_KEY;
     }
-    if ((keytype = idl_is_topic_key(descriptor->topic, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0, path, &order)) != IDL_KEYTYPE_NONE) {
+    if (idl_is_topic_key(descriptor->topic, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0, path, &order) != IDL_KEYTYPE_NONE) {
       opcode |= DDS_OP_FLAG_KEY;
       ctype->has_key_member = true;
     }
@@ -1372,13 +1371,12 @@ emit_array(
 
     if ((ret = add_typecode(pstate, type_spec, SUBTYPE, false, &opcode)))
       return ret;
-    idl_keytype_t keytype;
     if (idl_is_struct(stype->ctype->node))
     {
       if (nested_collection_key(stype, path))
         opcode |= DDS_OP_FLAG_KEY;
     }
-    if ((keytype = idl_is_topic_key(descriptor->topic, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0, path, &order)) != IDL_KEYTYPE_NONE) {
+    if (idl_is_topic_key(descriptor->topic, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0, path, &order) != IDL_KEYTYPE_NONE) {
       opcode |= DDS_OP_FLAG_KEY;
       ctype->has_key_member = true;
     }
@@ -1598,8 +1596,7 @@ emit_declarator(
         member is not part of the key (which resulted in idl_is_topic_key returning false).
         The reason for adding the key flag here, is that if any other member (that is a key)
         refers to this type, it will require the key flag. */
-    idl_keytype_t keytype;
-    if ((keytype = idl_is_topic_key(descriptor->topic, keylist, path, &order)) != IDL_KEYTYPE_NONE)
+    if (idl_is_topic_key(descriptor->topic, keylist, path, &order) != IDL_KEYTYPE_NONE)
     {
       opcode |= DDS_OP_FLAG_KEY;
       ctype->has_key_member = true;
