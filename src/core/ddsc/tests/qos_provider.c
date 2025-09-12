@@ -10,6 +10,8 @@
 #include "CUnit/Theory.h"
 #include "dds/dds.h"
 
+#include "config_env.h"
+
 #include "dds/ddsc/dds_public_qos_provider.h"
 
 #include "dds/ddsrt/hopscotch.h"
@@ -39,7 +41,7 @@
   "\n   <" #kind "_qos name=\""#nm"\">"qos"\n   </" #kind "_qos>"
 
 
-CU_TheoryDataPoints(qos_provider, create) = {
+CU_TheoryDataPoints(ddsc_qos_provider, create) = {
   // The various of sysdef configuration files
   CU_DataPoints(char *,
     DEF(LIB(lib0,PRO(pro0,ENT("",datareader)ENT("",datawriter)
@@ -77,7 +79,7 @@ CU_TheoryDataPoints(qos_provider, create) = {
   )
 };
 // @brief This tests creating qos_provider with different sysdef files.
-CU_Theory((char *configuration, dds_return_t ret), qos_provider, create)
+CU_Theory((char *configuration, dds_return_t ret), ddsc_qos_provider, create)
 {
   dds_qos_provider_t *provider = NULL;
   // init qos provider with given configuration file
@@ -148,7 +150,7 @@ typedef struct cscope_tokens
 
 #define SCOPE(scp,exp) {.scope=scp, .expct=exp}
 #define N NO_QOS_PROVIDER_CONF
-CU_TheoryDataPoints(qos_provider, create_scope) = {
+CU_TheoryDataPoints(ddsc_qos_provider, create_scope) = {
   // The sysdef file with multiple libs/profiles/entity qos.
   CU_DataPoints(char *,
     N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N),
@@ -193,7 +195,7 @@ static void inspect_qos_items(void *vnode, void *vargs)
 }
 
 // @brief This tests creating qos_provider with the same sysdef file but with different scope.
-CU_Theory((char * configuration, cscope_tokens_t tok, int32_t n),qos_provider, create_scope)
+CU_Theory((char * configuration, cscope_tokens_t tok, int32_t n), ddsc_qos_provider, create_scope)
 {
   dds_qos_provider_t *provider = NULL;
   // init qos provider with given scope
@@ -215,7 +217,7 @@ CU_Theory((char * configuration, cscope_tokens_t tok, int32_t n),qos_provider, c
 #define TP DDS_TOPIC_QOS
 #define OK DDS_RETCODE_OK
 #define BAD DDS_RETCODE_BAD_PARAMETER
-CU_TheoryDataPoints(qos_provider, get_qos) = {
+CU_TheoryDataPoints(ddsc_qos_provider, get_qos) = {
   // The sysdef file with multiple libs/profiles/entity qos
   CU_DataPoints(char *,
     N,N,N,N,N,N,
@@ -247,7 +249,7 @@ CU_TheoryDataPoints(qos_provider, get_qos) = {
 #undef RD
 #undef N
 
-CU_Theory((char *configuration, char *key, dds_qos_kind_t kind, dds_return_t code),qos_provider, get_qos)
+CU_Theory((char *configuration, char *key, dds_qos_kind_t kind, dds_return_t code), ddsc_qos_provider, get_qos)
 {
   dds_qos_provider_t *provider = NULL;
   // init qos provider with provided configuration
@@ -1029,7 +1031,7 @@ static dds_return_t get_single_configuration(dds_qos_t *qos, sysdef_qos_conf_t *
 
 #define N nsec
 #define S sec
-CU_TheoryDataPoints(qos_provider, get_qos_default) = {
+CU_TheoryDataPoints(ddsc_qos_provider, get_qos_default) = {
   // The type of entity_qos that will be tested with it default qos.
   CU_DataPoints(dds_qos_kind_t,
     DDS_TOPIC_QOS,DDS_READER_QOS,DDS_WRITER_QOS),
@@ -1042,7 +1044,7 @@ CU_TheoryDataPoints(qos_provider, get_qos_default) = {
 #undef S
 
 // @brief This test check sysdef file qos created correctly by qos_provider (in this case with default qos).
-CU_Theory((dds_qos_kind_t kind, sysdef_qos_conf_t dur_conf), qos_provider, get_qos_default)
+CU_Theory((dds_qos_kind_t kind, sysdef_qos_conf_t dur_conf), ddsc_qos_provider, get_qos_default)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   char *full_configuration = NULL;
@@ -1146,7 +1148,7 @@ CU_Theory((dds_qos_kind_t kind, sysdef_qos_conf_t dur_conf), qos_provider, get_q
     Q_DURABILITYSERVICE(DDS_SECS(1),DDS_HISTORY_KEEP_ALL,-1,1,1,1) \
   }
 
-CU_TheoryDataPoints(qos_provider, get_qos_all) = {
+CU_TheoryDataPoints(ddsc_qos_provider, get_qos_all) = {
   // The type of entity_qos that will be tested with custom qos.
   CU_DataPoints(dds_qos_kind_t,
     DDS_PARTICIPANT_QOS,DDS_PUBLISHER_QOS,DDS_SUBSCRIBER_QOS,
@@ -1156,7 +1158,7 @@ CU_TheoryDataPoints(qos_provider, get_qos_all) = {
 #define Q QOS_ALL_BASE
 // @brief This test check sysdef file qos created correctly by qos_provider
 // (in this case with custom qos with all possible values presented).
-CU_Theory((dds_qos_kind_t kind),qos_provider, get_qos_all)
+CU_Theory((dds_qos_kind_t kind), ddsc_qos_provider, get_qos_all)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   char *full_configuration = NULL;
@@ -1181,7 +1183,7 @@ CU_Theory((dds_qos_kind_t kind),qos_provider, get_qos_all)
   dds_delete_qos_provider(provider);
 }
 
-CU_TheoryDataPoints(qos_provider, create_wrong_qos) = {
+CU_TheoryDataPoints(ddsc_qos_provider, create_wrong_qos) = {
   // The type of entity_qos that will be tested with wrong qos
   CU_DataPoints(dds_qos_kind_t,
     DDS_PARTICIPANT_QOS,DDS_PUBLISHER_QOS,DDS_SUBSCRIBER_QOS,
@@ -1197,7 +1199,7 @@ CU_TheoryDataPoints(qos_provider, create_wrong_qos) = {
   qos.present ^= (excl_msk); \
   ret = qos_to_conf(&qos, &conf, &qos_conf, kind, &validate_mask, true);
 
-CU_Theory((dds_qos_kind_t kind, dds_return_t code),qos_provider, create_wrong_qos)
+CU_Theory((dds_qos_kind_t kind, dds_return_t code), ddsc_qos_provider, create_wrong_qos)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   char *full_configuration = NULL;
@@ -1246,3 +1248,24 @@ CU_Theory((dds_qos_kind_t kind, dds_return_t code),qos_provider, create_wrong_qo
 }
 #undef QOS_TO_CONF_SNGL
 #undef Q
+
+CU_Test(ddsc_qos_provider, read_sysdef)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
+  dds_qos_provider_t *provider = NULL;
+  // uri base
+  const char *configuration_uri = CONFIG_ENV_READ_SYSDEF;
+  ret = dds_create_qos_provider(configuration_uri, &provider);
+  CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
+  CU_ASSERT_PTR_NOT_NULL(provider);
+
+  dds_delete_qos_provider(provider);
+  provider = NULL;
+  // reg path base
+  const char uri_prefix[] = "file://";
+  ret = dds_create_qos_provider(configuration_uri+sizeof(uri_prefix)-1U, &provider);
+  CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
+  CU_ASSERT_PTR_NOT_NULL(provider);
+
+  dds_delete_qos_provider(provider);
+}

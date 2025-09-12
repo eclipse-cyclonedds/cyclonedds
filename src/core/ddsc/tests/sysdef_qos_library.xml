@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dds xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://www.omg.org/spec/DDS-XML"
+         xsi:schemaLocation="http://www.omg.org/spec/DDS-XML/20180501/dds-xml_qos_definitions.xsd">
+    <qos_library name="OurLibrary">
+        <qos_profile name="ProfileA"></qos_profile>
+        <qos_profile name="ProfileB"></qos_profile>
+    </qos_library>
+</dds>
