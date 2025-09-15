@@ -1262,28 +1262,32 @@ static dds_return_t delete_writer_nolinger_locked (struct ddsi_writer *wr)
   }
 
   ELOGDISC (wr, "ddsi_delete_writer_nolinger(guid "PGUIDFMT") ...\n", PGUID (wr->e.guid));
-  ddsi_builtintopic_write_endpoint (wr->e.gv->builtin_topic_interface, &wr->e, ddsrt_time_wallclock(), false);
-  ddsi_local_reader_ary_setinvalid (&wr->rdary);
-  ddsi_entidx_remove_writer_guid (wr->e.gv->entity_index, wr);
-  writer_set_state (wr, WRST_DELETING);
-  if (wr->lease_duration != NULL) {
-    wr->lease_duration->ldur = DDS_DURATION_INVALID;
-    if (wr->xqos->liveliness.kind == DDS_LIVELINESS_AUTOMATIC)
-    {
-      ddsrt_mutex_lock (&wr->c.pp->e.lock);
-      ddsrt_fibheap_delete (&ddsi_ldur_fhdef, &wr->c.pp->ldur_auto_wr, wr->lease_duration);
-      ddsrt_mutex_unlock (&wr->c.pp->e.lock);
-      ddsi_resched_xevent_if_earlier (wr->c.pp->pmd_update_xevent, ddsrt_time_monotonic ());
+  struct ddsi_writer * const tryremove_result = ddsi_entidx_tryremove_writer_guid (wr->e.gv->entity_index, &wr->e.guid);
+  assert (tryremove_result == NULL || tryremove_result == wr);
+  if (tryremove_result != NULL)
+  {
+    ddsi_builtintopic_write_endpoint (wr->e.gv->builtin_topic_interface, &wr->e, ddsrt_time_wallclock(), false);
+    ddsi_local_reader_ary_setinvalid (&wr->rdary);
+    writer_set_state (wr, WRST_DELETING);
+    if (wr->lease_duration != NULL) {
+      wr->lease_duration->ldur = DDS_DURATION_INVALID;
+      if (wr->xqos->liveliness.kind == DDS_LIVELINESS_AUTOMATIC)
+      {
+        ddsrt_mutex_lock (&wr->c.pp->e.lock);
+        ddsrt_fibheap_delete (&ddsi_ldur_fhdef, &wr->c.pp->ldur_auto_wr, wr->lease_duration);
+        ddsrt_mutex_unlock (&wr->c.pp->e.lock);
+        ddsi_resched_xevent_if_earlier (wr->c.pp->pmd_update_xevent, ddsrt_time_monotonic ());
+      }
+      else
+      {
+        if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
+          ddsi_lease_unregister (wr->lease);
+        if (writer_set_notalive_locked (wr, false) != DDS_RETCODE_OK)
+          ELOGDISC (wr, "writer_set_notalive failed for "PGUIDFMT"\n", PGUID (wr->e.guid));
+      }
     }
-    else
-    {
-      if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
-        ddsi_lease_unregister (wr->lease);
-      if (writer_set_notalive_locked (wr, false) != DDS_RETCODE_OK)
-        ELOGDISC (wr, "writer_set_notalive failed for "PGUIDFMT"\n", PGUID (wr->e.guid));
-    }
+    gcreq_writer (wr);
   }
-  gcreq_writer (wr);
   return 0;
 }
 
@@ -1631,14 +1635,13 @@ dds_return_t ddsi_delete_reader (struct ddsi_domaingv *gv, const struct ddsi_gui
 {
   struct ddsi_reader *rd;
   assert (!ddsi_is_writer_entityid (guid->entityid));
-  if ((rd = ddsi_entidx_lookup_reader_guid (gv->entity_index, guid)) == NULL)
+  if ((rd = ddsi_entidx_tryremove_reader_guid (gv->entity_index, guid)) == NULL)
   {
     GVLOGDISC ("delete_reader_guid(guid "PGUIDFMT") - unknown guid\n", PGUID (*guid));
     return DDS_RETCODE_BAD_PARAMETER;
   }
   GVLOGDISC ("delete_reader_guid(guid "PGUIDFMT") ...\n", PGUID (*guid));
   ddsi_builtintopic_write_endpoint (rd->e.gv->builtin_topic_interface, &rd->e, ddsrt_time_wallclock(), false);
-  ddsi_entidx_remove_reader_guid (gv->entity_index, rd);
   gcreq_reader (rd);
   return 0;
 }

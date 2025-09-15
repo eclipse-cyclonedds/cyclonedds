@@ -495,10 +495,8 @@ int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *
   DDSRT_UNUSED_ARG (lease_expired);
   GVLOGDISC ("ddsi_delete_proxy_writer ("PGUIDFMT") ", PGUID (*guid));
 
-  ddsrt_mutex_lock (&gv->lock);
-  if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (gv->entity_index, guid)) == NULL)
+  if ((pwr = ddsi_entidx_tryremove_proxy_writer_guid (gv->entity_index, guid)) == NULL)
   {
-    ddsrt_mutex_unlock (&gv->lock);
     GVLOGDISC ("- unknown\n");
     return DDS_RETCODE_BAD_PARAMETER;
   }
@@ -510,9 +508,7 @@ int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *
      writer from the hash table will prevent the readers from looking up the proxy writer,
      and consequently from removing themselves from the proxy writer's rdary[]. */
   ddsi_local_reader_ary_setinvalid (&pwr->rdary);
-  ddsi_entidx_remove_proxy_writer_guid (gv->entity_index, pwr);
   ddsrt_mutex_unlock (&pwr->e.lock);
-  ddsrt_mutex_unlock (&gv->lock);
 #ifdef DDS_HAS_TYPELIB
   /* Unregister from type before removing from entity index, because a tl_lookup_reply
      could be pending and will trigger an update of the endpoint matching for all
@@ -820,13 +816,12 @@ int ddsi_delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *
   (void)lease_expired;
   GVLOGDISC ("ddsi_delete_proxy_reader ("PGUIDFMT") ", PGUID (*guid));
 
-  ddsrt_mutex_lock (&gv->lock);
-  if ((prd = ddsi_entidx_lookup_proxy_reader_guid (gv->entity_index, guid)) == NULL)
+  if ((prd = ddsi_entidx_tryremove_proxy_reader_guid (gv->entity_index, guid)) == NULL)
   {
-    ddsrt_mutex_unlock (&gv->lock);
     GVLOGDISC ("- unknown\n");
     return DDS_RETCODE_BAD_PARAMETER;
   }
+
   ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &prd->e, timestamp, false);
 #ifdef DDS_HAS_TYPELIB
   /* Unregister the proxy guid with the ddsi_type before removing from
@@ -840,16 +835,13 @@ int ddsi_delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *
     ddsi_type_unreg_proxy (gv, prd->c.type_pair->complete, &prd->e.guid);
   }
 #endif
-  ddsi_entidx_remove_proxy_reader_guid (gv->entity_index, prd);
-  ddsrt_mutex_unlock (&gv->lock);
   GVLOGDISC ("- deleting\n");
-
+    
   /* If the proxy reader is reliable, pretend it has just acked all
      messages: this allows a throttled writer to once again make
      progress, which in turn is necessary for the garbage collector to
      do its work. */
   proxy_reader_set_delete_and_ack_all_messages (prd);
-
   gcreq_proxy_reader (prd);
   return 0;
 }
