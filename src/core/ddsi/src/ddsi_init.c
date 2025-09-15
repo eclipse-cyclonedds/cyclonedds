@@ -678,7 +678,6 @@ err_disc:
 static void ddsi_term_prep (struct ddsi_domaingv *gv)
 {
   /* Stop all I/O */
-  ddsrt_mutex_lock (&gv->lock);
   if (ddsrt_atomic_ld32 (&gv->rtps_keepgoing))
   {
     ddsrt_atomic_st32 (&gv->rtps_keepgoing, 0); /* so threads will stop once they get round to checking */
@@ -686,7 +685,6 @@ static void ddsi_term_prep (struct ddsi_domaingv *gv)
     /* can't wake up throttle_writer, currently, but it'll check every few seconds */
     ddsi_trigger_recv_threads (gv);
   }
-  ddsrt_mutex_unlock (&gv->lock);
 }
 
 struct wait_for_receive_threads_helper_arg {
@@ -1402,7 +1400,6 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
     gv->ppguid_base.entityid.u = DDSI_ENTITYID_PARTICIPANT;
   }
 
-  ddsrt_mutex_init (&gv->lock);
   ddsrt_mutex_init (&gv->spdp_lock);
   gv->spdp_defrag = ddsi_defrag_new (&gv->logconfig, DDSI_DEFRAG_DROP_OLDEST, gv->config.defrag_unreliable_maxsamples);
   gv->spdp_reorder = ddsi_reorder_new (&gv->logconfig, DDSI_REORDER_MODE_ALWAYS_DELIVER, gv->config.primary_reorder_maxsamples, false);
@@ -1636,7 +1633,6 @@ err_unicast_sockets:
   ddsi_reorder_free (gv->spdp_reorder);
   ddsi_defrag_free (gv->spdp_defrag);
   ddsrt_mutex_destroy (&gv->spdp_lock);
-  ddsrt_mutex_destroy (&gv->lock);
   ddsrt_mutex_destroy (&gv->naming_lock);
 
   ddsi_entity_index_free (gv->entity_index);
@@ -2011,8 +2007,6 @@ void ddsi_fini (struct ddsi_domaingv *gv)
   ddsi_xqos_fini (&gv->builtin_endpoint_xqos_rd);
   ddsi_xqos_fini (&gv->spdp_endpoint_xqos);
   ddsi_xqos_fini (&gv->default_local_xqos_pp);
-
-  ddsrt_mutex_destroy (&gv->lock);
 
   while (gv->recvips)
   {

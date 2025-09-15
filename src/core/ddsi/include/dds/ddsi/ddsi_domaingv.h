@@ -199,8 +199,6 @@ struct ddsi_domaingv {
   */
   struct spdp_admin *spdp_schedule;
 
-  ddsrt_mutex_t lock;
-
   /* Receive thread. (We can only has one for now, cos of the signal
      trigger socket.) Receive buffer pool is per receive thread,
      it is only a global variable because it needs to be freed way later
