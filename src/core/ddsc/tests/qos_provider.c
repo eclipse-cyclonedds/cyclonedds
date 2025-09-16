@@ -976,11 +976,7 @@ fail:
 
 #undef QOS_FORMAT
 
-static dds_qos_t get_supported_qos(dds_qos_t qos)
-{
-  qos.present &= ~DDSI_QP_ADLINK_ENTITY_FACTORY;
-  return qos;
-}
+#define get_supported_qos(qos) qos
 
 static dds_return_t get_single_configuration(dds_qos_t *qos, sysdef_qos_conf_t *conf, dds_qos_kind_t kind, char **out_conf, uint64_t *validate_mask)
 {
