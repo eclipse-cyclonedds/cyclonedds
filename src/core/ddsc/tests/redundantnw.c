@@ -73,7 +73,7 @@ static void logger (void *ptr, const dds_log_data_t *data)
   struct logger_arg * const arg = ptr;
   const char *msg = data->message - data->hdrsize;
   ddsrt_mutex_lock (&arg->lock);
-  printf ("%s ", arg->enabled ? "+" : " ");
+  tprintf ("%s ", arg->enabled ? "+" : " ");
   fputs (msg, stdout);
   if (data->domid == DDS_DOMAIN_DEFAULT)
     goto skip;

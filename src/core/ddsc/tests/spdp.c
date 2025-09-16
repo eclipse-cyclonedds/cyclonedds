@@ -121,7 +121,7 @@ static dds_entity_t make_domain_and_participant (uint32_t domainid, int base_por
                   participant_index,
                   peers);
   ddsrt_free (peers);
-  //printf ("%s\n", config);
+  //tprintf ("%s\n", config);
 
   const dds_entity_t dom = dds_create_domain (domainid, config);
   CU_ASSERT_FATAL (dom > 0);
@@ -238,7 +238,7 @@ static void run_one (int base_port, const struct cfg *cfg, const struct logger_a
     {
       if (((larg.found[d] & (1u << i)) != 0) != larg.expected[d][i].present)
       {
-        printf ("dom %"PRIu32" pattern %s: %s\n",
+        tprintf ("dom %"PRIu32" pattern %s: %s\n",
                 d, larg.expected[d][i].pat,
                 larg.expected[d][i].present ? "missing" : "present unexpectedly");
         all_ok = false;

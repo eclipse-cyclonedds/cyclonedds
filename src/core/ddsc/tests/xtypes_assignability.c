@@ -336,7 +336,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
 {
   for (int t = 0; t <= 1; t++)
   {
-    printf ("Running test xtypes_basic: %s (run %d/2)\n", descr, t + 1);
+    tprintf ("Running test xtypes_basic: %s (run %d/2)\n", descr, t + 1);
     sample_init i = t ? fn_init2 : fn_init1;
     sample_check c = t ? fn_check2 : fn_check1;
     do_test (t ? desc1 : desc2, NULL, t ? desc2 : desc1, NULL, i != NULL, i, c != NULL, c);
@@ -397,7 +397,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
   //
   // most impractical, especially considering that inheriting from appendable base types is somewhat unsafe because
   // of id collisions ...
-  printf ("Running test xtypes_inheritance: %s\n", descr);
+  tprintf ("Running test xtypes_inheritance: %s\n", descr);
   fflush (stdout);
   do_test (desc2, NULL, desc1, NULL, assignable, fn_init, true, fn_check);
 }
@@ -464,7 +464,7 @@ CU_TheoryDataPoints (ddsc_xtypes_assignability, must_understand) = {
 CU_Theory ((const dds_topic_descriptor_t *rd_desc, const dds_topic_descriptor_t *wr_desc, bool assignable, sample_init fn_init, bool read_sample),
     ddsc_xtypes_assignability, must_understand, .init = xtypes_assignability_init, .fini = xtypes_assignability_fini)
 {
-  printf ("Running test xtypes_must_understand: %s %s\n", wr_desc->m_typename, rd_desc->m_typename);
+  tprintf ("Running test xtypes_must_understand: %s %s\n", wr_desc->m_typename, rd_desc->m_typename);
   do_test (rd_desc, NULL, wr_desc, NULL, assignable, fn_init, read_sample, 0);
 }
 #undef D
@@ -522,7 +522,7 @@ CU_Theory ((const char *test, const dds_topic_descriptor_t *rd_desc, const dds_t
     bool prevent_type_widening, bool ignore_seq_bounds, bool ignore_str_bounds, bool ignore_member_names, bool force_type_validation, bool assignable),
   ddsc_xtypes_assignability, type_consistency_enforcement, .init = xtypes_assignability_init, .fini = xtypes_assignability_fini)
 {
-  printf ("Running test xtypes_type_consistency_enforcement: %s wr %s rd %s\n", test, wr_desc->m_typename, rd_desc->m_typename);
+  tprintf ("Running test xtypes_type_consistency_enforcement: %s wr %s rd %s\n", test, wr_desc->m_typename, rd_desc->m_typename);
   dds_qos_t *rd_qos = dds_create_qos ();
   dds_qset_type_consistency (rd_qos, kind, ignore_seq_bounds, ignore_str_bounds, ignore_member_names, prevent_type_widening, force_type_validation);
   do_test (rd_desc, rd_qos, wr_desc, NULL, assignable, 0, false, 0);
@@ -544,7 +544,7 @@ CU_Test (ddsc_xtypes_assignability, type_consistency_enforcement_force_validatio
   for (uint32_t n = 0; n <= 1; n++)
   {
     bool force_type_validation = (n == 1);
-    printf ("Running test type_consistency_enforcement_force_validation: force_type_validation = %s\n", force_type_validation ? "true" : "false");
+    tprintf ("Running test type_consistency_enforcement_force_validation: force_type_validation = %s\n", force_type_validation ? "true" : "false");
     dds_qos_t *rd_qos = dds_create_qos ();
     dds_qset_type_consistency (rd_qos, DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION, true, true, false, false, force_type_validation);
     do_test (&XSpaceNoTypeInfo_t1_desc, rd_qos, &XSpaceNoTypeInfo_t1_desc, NULL, !force_type_validation, 0, false, 0);
@@ -591,7 +591,7 @@ CU_TheoryDataPoints (ddsc_xtypes_assignability, enum_extensibility) = {
 CU_Theory ((const dds_topic_descriptor_t *rd_desc, const dds_topic_descriptor_t *wr_desc, bool assignable, sample_init fn_init, bool read_sample),
     ddsc_xtypes_assignability, enum_extensibility, .init = xtypes_assignability_init, .fini = xtypes_assignability_fini)
 {
-  printf ("Running test xtypes_enum: %s %s\n", wr_desc->m_typename, rd_desc->m_typename);
+  tprintf ("Running test xtypes_enum: %s %s\n", wr_desc->m_typename, rd_desc->m_typename);
   do_test (rd_desc, NULL, wr_desc, NULL, assignable, fn_init, read_sample, 0);
 }
 

@@ -211,7 +211,7 @@ CU_TheoryDataPoints (ddsc_xtypes_typeinfo, invalid_type_object_local) = {
 CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, typeobj_modify mod, bool matching_typeinfo), ddsc_xtypes_typeinfo, invalid_type_object_local, .init = xtypes_typeinfo_init, .fini = xtypes_typeinfo_fini)
 {
   char topic_name[100];
-  printf("Test invalid_type_object_local: %s\n", test_descr);
+  tprintf("Test invalid_type_object_local: %s\n", test_descr);
 
   dds_topic_descriptor_t desc;
   xtypes_util_modify_type_meta (&desc, topic_desc, mod, matching_typeinfo, DDS_XTypes_EK_MINIMAL);
@@ -286,7 +286,7 @@ CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, ty
 {
 #ifdef DDS_HAS_TYPE_DISCOVERY
   struct ddsi_domaingv *gv = get_domaingv (g_participant1);
-  printf("Test invalid_type_object_remote: %s\n", test_descr);
+  tprintf("Test invalid_type_object_remote: %s\n", test_descr);
 
   char topic_name[100];
   create_unique_topic_name ("ddsc_typelookup", topic_name, sizeof (topic_name));

@@ -660,7 +660,7 @@ static void do_entity_one (const uint32_t appl_mask, const uint32_t check_mask, 
       {
         for (v[2] = 0; v[2] <= qostable[i].max[2]; v[2]++)
         {
-          printf ("%s: %d %d %d\n", qostable[i].name, v[0], v[1], v[2]);
+          tprintf ("%s: %d %d %d\n", qostable[i].name, v[0], v[1], v[2]);
           dds_qos_t *qos = dds_create_qos ();
           qostable[i].set (qos, v);
           const dds_entity_t ent = create (base, qos);
@@ -1020,8 +1020,7 @@ static void do_ddsc_qos_set_endpoints_with_rxo (const dds_entity_t dprd, const d
                 CU_ASSERT_FATAL (tpwr > 0);
 
                 dds_qos_t *qos;
-                printf ("%s: wr %d %d %d rd %d %d %d", qostable[i].name, vwr[0], vwr[1], vwr[2], vrd[0], vrd[1], vrd[2]);
-                fflush (stdout);
+                tprintf ("%s: wr %d %d %d rd %d %d %d", qostable[i].name, vwr[0], vwr[1], vwr[2], vrd[0], vrd[1], vrd[2]);
 
                 qos = dds_create_qos ();
                 qostable[i].set (qos, vrd);
@@ -1131,6 +1130,7 @@ static void do_ddsc_qos_set_endpoints_with_rxo (const dds_entity_t dprd, const d
                 rc = dds_delete (tprd);
                 CU_ASSERT_FATAL (rc == 0);
                 printf ("\n");
+                fflush (stdout);
               }
             }
           }
@@ -1228,7 +1228,7 @@ CU_Test(ddsc_qos_set, partition_mismatch_no_incompat_qos)
   dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]){DDS_DATA_REPRESENTATION_XCDR2});
   const dds_entity_t rd = dds_create_reader (dp, tp, qos, NULL);
   CU_ASSERT_FATAL (rd > 0);
-  
+
   dds_qset_partition1 (qos, "W");
   dds_qset_reliability (qos, DDS_RELIABILITY_BEST_EFFORT, DDS_INFINITY);
   dds_qset_durability (qos, DDS_DURABILITY_VOLATILE);
@@ -1248,7 +1248,7 @@ CU_Test(ddsc_qos_set, partition_mismatch_no_incompat_qos)
   CU_ASSERT_FATAL (rc == 0);
   rc = dds_read_status (wr, &wrstat, DDS_OFFERED_INCOMPATIBLE_QOS_STATUS);
   CU_ASSERT_FATAL (rc == 0);
-  
+
   CU_ASSERT_FATAL (rdstat == 0 && wrstat == 0);
 
   rc = dds_delete (dom);

@@ -510,7 +510,7 @@ static void check_statuses(dds_entity_t wr, dds_entity_t rd, uint32_t cnt_1, uin
   if (!(constraint)) { \
     rerun_test = true; \
     deadline_period *= 2; \
-    printf("Timing is off: restarting test with wider deadline. New deadline now %d...\n", deadline_period); \
+    tprintf("Timing is off: restarting test with wider deadline. New deadline now %d...\n", deadline_period); \
     goto delete_entities; \
   }
 

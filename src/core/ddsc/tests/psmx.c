@@ -1127,7 +1127,7 @@ CU_Test(ddsc_psmx, partition_xtalk)
   for (size_t i = 0; i < sizeof (testcases) / sizeof (testcases[0]); i++)
   {
     const struct testcase *tc = &testcases[i];
-    printf ("wr %s %s rd %s %s checkwr %s\n",
+    tprintf ("wr %s %s rd %s %s checkwr %s\n",
             tc->wr.p[0] ? tc->wr.p[0] : "(null)",
             tc->wr.p[1] ? tc->wr.p[1] : "(null)",
             tc->rd.p[0] ? tc->rd.p[0] : "(null)",
@@ -1491,7 +1491,7 @@ CU_Test (ddsc_psmx, writer_loan)
           {
             const bool rdloan = rdloan_i;
             dds_qos_t *qos;
-            printf ("ddsc_psmx writer_loan: %s psmx %d %d wrloan %d rdloan %d", cases[k].desc->m_typename, wr_psmx_enabled, rd_psmx_enabled, wrloan, rdloan);
+            tprintf ("ddsc_psmx writer_loan: %s psmx %d %d wrloan %d rdloan %d", cases[k].desc->m_typename, wr_psmx_enabled, rd_psmx_enabled, wrloan, rdloan);
             fflush (stdout);
 
             qos = dds_create_qos ();
@@ -1623,7 +1623,7 @@ CU_Test (ddsc_psmx, reader_loan_on_delete)
   void *vwrdata;
   rc = dds_request_loan (wr, &vwrdata);
   CU_ASSERT_FATAL (rc == 0);
-  printf ("wrdata = %p\n", vwrdata);
+  tprintf ("wrdata = %p\n", vwrdata);
   PsmxLoanTest0 * const wrdata = vwrdata;
   wrdata->xy.x = 0x12345678;
   wrdata->xy.y = 0x55;
@@ -1637,7 +1637,7 @@ CU_Test (ddsc_psmx, reader_loan_on_delete)
   rc = dds_take (rd, &rddata, &si, 1, 1);
   CU_ASSERT_FATAL (rc == 1);
 
-  printf ("rddata = %p\n", rddata);
+  tprintf ("rddata = %p\n", rddata);
   fflush (stdout);
 
   // delete reader with loan still outstanding

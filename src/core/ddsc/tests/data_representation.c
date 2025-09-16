@@ -263,7 +263,7 @@ CU_Test(ddsc_data_representation, matching, .init = data_representation_init, .f
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
     dds_return_t ret;
-    printf ("running test %u: %s %u/%u\n", i, tests[i].match ? "true" : "false", tests[i].n_ids_rd, tests[i].n_ids_wr);
+    tprintf ("running test %u: %s %u/%u\n", i, tests[i].match ? "true" : "false", tests[i].n_ids_rd, tests[i].n_ids_wr);
     dds_qos_t *qos_rd = dds_create_qos (), *qos_wr = dds_create_qos ();
     dds_qset_history(qos_rd, DDS_HISTORY_KEEP_ALL, DDS_LENGTH_UNLIMITED);
     dds_qset_durability(qos_rd, DDS_DURABILITY_TRANSIENT_LOCAL);
@@ -424,7 +424,7 @@ CU_Test(ddsc_data_representation, data_type_props, .init = data_representation_i
 
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
-    printf ("running test %u for type %s: ", i, tests[i].desc->m_typename);
+    tprintf ("running test %u for type %s: ", i, tests[i].desc->m_typename);
     fflush (stdout);
     create_unique_topic_name ("ddsc_data_representation", topicname, sizeof topicname);
 
@@ -458,6 +458,7 @@ CU_Test(ddsc_data_representation, data_type_props, .init = data_representation_i
       dds_delete_qos (qos_wr);
     }
     printf ("\n");
+    fflush (stdout);
   }
 }
 
@@ -475,9 +476,9 @@ CU_Test (ddsc_data_representation, update_qos, .init = data_representation_init,
   {
     dds_entity_t ent = 0;
     switch (tests[i]) {
-      case RD: printf("RD\n"); ent = dds_create_reader (dp1, tp1, NULL, NULL); break;
-      case WR: printf("WR\n"); ent = dds_create_writer (dp1, tp1, NULL, NULL); break;
-      case TP: printf("TP\n"); ent = tp1; break;
+      case RD: tprintf("RD\n"); ent = dds_create_reader (dp1, tp1, NULL, NULL); break;
+      case WR: tprintf("WR\n"); ent = dds_create_writer (dp1, tp1, NULL, NULL); break;
+      case TP: tprintf("TP\n"); ent = tp1; break;
     }
     CU_ASSERT_FATAL (ent > 0);
 
@@ -548,7 +549,7 @@ CU_Test(ddsc_data_representation, qos_annotation, .init = data_representation_in
   char topicname[100];
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
-    printf ("running tests for type %s ", tests[i].desc->m_typename);
+    tprintf ("running tests for type %s ", tests[i].desc->m_typename);
     fflush (stdout);
     for (uint32_t t = 0; t < 4; t++)
     {
@@ -563,5 +564,6 @@ CU_Test(ddsc_data_representation, qos_annotation, .init = data_representation_in
       dds_delete_qos (qos_tp);
     }
     printf ("\n");
+    fflush (stdout);
   }
 }
