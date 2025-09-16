@@ -132,6 +132,14 @@
     goto status_ok; \
   } while (0)
 
+#define CREATE_NODE_GENERIC(pstate, element_type, element_kind, element_init, element_fini, parent_kind, current) \
+  do { \
+    _CREATE_NODE(pstate, element_type, element_kind, ELEMENT_DATA_TYPE_GENERIC, parent_kind, current, element_init, element_fini); \
+    current->retain = false; \
+    current->handle_close = true; \
+    goto status_ok; \
+  } while (0)
+
 #define CREATE_NODE_DURATION(pstate, element_type, element_kind, element_init, element_fini, parent_kind, current) \
   do { \
     _CREATE_NODE(pstate, element_type, element_kind, ELEMENT_DATA_TYPE_DURATION, parent_kind, current, element_init, element_fini); \
@@ -595,6 +603,11 @@ static int init_qos (UNUSED_ARG (struct parse_sysdef_state * const pstate), stru
   sdqos->kind = qos_kind;
   return 0;
 }
+
+#define INIT_QOS_POLICY_DATA(policy) \
+  static int init_qos_ ## policy (struct parse_sysdef_state * const pstate, struct xml_element * node) { \
+    return set_ ## policy ## _VALUE (pstate, (struct dds_sysdef_QOS_POLICY_ ## policy *) node, NULL, -1); \
+  }
 
 static int init_type_external_ref (UNUSED_ARG (struct parse_sysdef_state * const pstate), struct xml_element *node)
 {
@@ -1171,6 +1184,28 @@ static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *n
         } \
       } while (0)
 
+#define ELEM_CLOSE_QOS_POLICY_DATA_VALUE(policy, policy_desc) \
+  do { \
+    struct dds_sysdef_QOS_POLICY_ ## policy *qpol = (struct dds_sysdef_QOS_POLICY_ ## policy *) pstate->current->parent; \
+    if (!(qpol->populated & QOS_POLICY_ ## policy ## _PARAM_VALUE)) { \
+      assert (qpol->values.value == NULL); assert (qpol->values.length == 0U); \
+      qpol->populated |= QOS_POLICY_ ## policy ## _PARAM_VALUE; \
+    } else { \
+      PARSER_ERROR (pstate, line, "Parameter '%s' already set", STR(VALUE)); \
+      ret = SD_PARSE_RESULT_SYNTAX_ERR; \
+    } \
+  } while (0)
+
+#define ELEM_CLOSE_QOS_POLICY_DATA(policy, policy_desc) \
+  do { \
+    struct dds_sysdef_QOS_POLICY_ ## policy *qpol = (struct dds_sysdef_QOS_POLICY_ ## policy *) pstate->current; \
+    if (!(qpol->populated & QOS_POLICY_ ## policy ## _PARAM_VALUE)) { \
+      assert (qpol->values.value == NULL); assert (qpol->values.length == 0U); \
+      qpol->populated |= QOS_POLICY_ ## policy ## _PARAM_VALUE; \
+    } \
+    ELEM_CLOSE_QOS_POLICY(policy, policy_desc); \
+  } while (0)
+
 #define ELEM_CLOSE_QOS_DURATION_PROPERTY(policy, param, element_name) \
       do { \
         assert (pstate->current->data_type == ELEMENT_DATA_TYPE_DURATION); \
@@ -1501,9 +1536,6 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UNUSED_
       case ELEMENT_KIND_QOS_POLICY_DURABILITYSERVICE_SERVICE_CLEANUP_DELAY:
         ELEM_CLOSE_QOS_DURATION_PROPERTY(DURABILITYSERVICE, SERVICE_CLEANUP_DELAY, service_cleanup_delay);
         break;
-      case ELEMENT_KIND_QOS_POLICY_GROUPDATA:
-        ELEM_CLOSE_QOS_POLICY(GROUPDATA, "Group Data");
-        break;
       case ELEMENT_KIND_QOS_POLICY_HISTORY: {
         struct dds_sysdef_QOS_POLICY_HISTORY *tmp_qp = (struct dds_sysdef_QOS_POLICY_HISTORY *) pstate->current;
         if ((tmp_qp->populated & QOS_POLICY_HISTORY_PARAM_KIND) && tmp_qp->values.kind == DDS_HISTORY_KEEP_ALL)
@@ -1565,14 +1597,26 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UNUSED_
       case ELEMENT_KIND_QOS_POLICY_TIMEBASEDFILTER:
         ELEM_CLOSE_QOS_POLICY(TIMEBASEDFILTER, "Time-based Filter");
         break;
-      case ELEMENT_KIND_QOS_POLICY_TOPICDATA:
-        ELEM_CLOSE_QOS_POLICY(TOPICDATA, "Topic Data");
-        break;
       case ELEMENT_KIND_QOS_POLICY_TRANSPORTPRIORITY:
         ELEM_CLOSE_QOS_POLICY(TRANSPORTPRIORITY, "Transport Priority");
         break;
       case ELEMENT_KIND_QOS_POLICY_USERDATA:
-        ELEM_CLOSE_QOS_POLICY(USERDATA, "User data");
+        ELEM_CLOSE_QOS_POLICY_DATA(USERDATA, "User Data");
+        break;
+      case ELEMENT_KIND_QOS_POLICY_TOPICDATA:
+        ELEM_CLOSE_QOS_POLICY_DATA(TOPICDATA, "Topic Data");
+        break;
+      case ELEMENT_KIND_QOS_POLICY_GROUPDATA:
+        ELEM_CLOSE_QOS_POLICY_DATA(GROUPDATA, "Group Data");
+        break;
+      case ELEMENT_KIND_QOS_POLICY_USERDATA_VALUE:
+        ELEM_CLOSE_QOS_POLICY_DATA_VALUE(USERDATA, "User Data value");
+        break;
+      case ELEMENT_KIND_QOS_POLICY_TOPICDATA_VALUE:
+        ELEM_CLOSE_QOS_POLICY_DATA_VALUE(TOPICDATA, "Topic Data value");
+        break;
+      case ELEMENT_KIND_QOS_POLICY_GROUPDATA_VALUE:
+        ELEM_CLOSE_QOS_POLICY_DATA_VALUE(GROUPDATA, "Group Data value");
         break;
       case ELEMENT_KIND_QOS_POLICY_WRITERDATALIFECYCLE:
         ELEM_CLOSE_QOS_POLICY(WRITERDATALIFECYCLE, "Writer Data Life-cycle");
@@ -1753,7 +1797,11 @@ static uint32_t b64_decode (const unsigned char *text, const uint32_t sz, unsign
     { \
       (void) pstate; (void) line; \
       int ret = SD_PARSE_RESULT_OK; \
-      uint32_t buff_sz = b64_decode((const unsigned char *)value, (uint32_t)strlen(value), &qp->values.param_data_field); \
+      uint32_t buff_sz = 0U; \
+      qp->values.param_data_field = NULL; \
+      if (value != NULL) { \
+        buff_sz = b64_decode((const unsigned char *)value, (uint32_t)strlen(value), &qp->values.param_data_field); \
+      } \
       qp->values.param_length_field = buff_sz; \
       return ret; \
     }
@@ -1900,6 +1948,10 @@ QOS_PARAM_SET_BOOLEAN(WRITERBATCHING, BATCH_UPDATES, batch_updates)
 QOS_PARAM_SET_BASE64(GROUPDATA, VALUE, value, length)
 QOS_PARAM_SET_BASE64(TOPICDATA, VALUE, value, length)
 QOS_PARAM_SET_BASE64(USERDATA, VALUE, value, length)
+
+INIT_QOS_POLICY_DATA(USERDATA);
+INIT_QOS_POLICY_DATA(GROUPDATA);
+INIT_QOS_POLICY_DATA(TOPICDATA);
 
 static int parse_tsn_traffic_transmission_selection (struct parse_sysdef_state * const pstate, enum dds_sysdef_tsn_traffic_transmission_selection *s, const char *value, int line)
 {
@@ -2354,7 +2406,7 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
       else if (ddsrt_strcasecmp (name, "qos_profile") == 0)
         CREATE_NODE_LIST (pstate, dds_sysdef_qos_profile, ELEMENT_KIND_QOS_PROFILE, NO_INIT, fini_qos_profile, qos_profiles, dds_sysdef_qos_lib, ELEMENT_KIND_QOS_LIB, pstate->current);
 
-      else if (ddsrt_strcasecmp (name, "domain_participant_qos") == 0)
+      else if (ddsrt_strcasecmp (name, "domain_participant_qos") == 0 || ddsrt_strcasecmp (name, "domainparticipant_qos") == 0)
       {
         if (pstate->current->kind == ELEMENT_KIND_QOS_PROFILE)
           CREATE_NODE_LIST (pstate, dds_sysdef_qos, ELEMENT_KIND_QOS_PARTICIPANT, init_qos, fini_qos, qos, dds_sysdef_qos_profile, ELEMENT_KIND_QOS_PROFILE, pstate->current);
@@ -2421,7 +2473,7 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
       else if (ddsrt_strcasecmp (name, "entity_factory") == 0)
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_ENTITYFACTORY, ELEMENT_KIND_QOS_POLICY_ENTITYFACTORY, NO_INIT, NO_FINI, pstate->current);
       else if (ddsrt_strcasecmp (name, "group_data") == 0)
-        CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_GROUPDATA, ELEMENT_KIND_QOS_POLICY_GROUPDATA, NO_INIT, fini_qos_groupdata, pstate->current);
+        CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_GROUPDATA, ELEMENT_KIND_QOS_POLICY_GROUPDATA, init_qos_GROUPDATA, fini_qos_groupdata, pstate->current);
       else if (ddsrt_strcasecmp (name, "history") == 0)
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_HISTORY, ELEMENT_KIND_QOS_POLICY_HISTORY, NO_INIT, NO_FINI, pstate->current);
       else if (ddsrt_strcasecmp (name, "latency_budget") == 0)
@@ -2447,11 +2499,11 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
       else if (ddsrt_strcasecmp (name, "time_based_filter") == 0)
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_TIMEBASEDFILTER, ELEMENT_KIND_QOS_POLICY_TIMEBASEDFILTER, NO_INIT, NO_FINI, pstate->current);
       else if (ddsrt_strcasecmp (name, "topic_data") == 0)
-        CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_TOPICDATA, ELEMENT_KIND_QOS_POLICY_TOPICDATA, NO_INIT, fini_qos_topicdata, pstate->current);
+        CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_TOPICDATA, ELEMENT_KIND_QOS_POLICY_TOPICDATA, init_qos_TOPICDATA, fini_qos_topicdata, pstate->current);
       else if (ddsrt_strcasecmp (name, "transport_priority") == 0)
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_TRANSPORTPRIORITY, ELEMENT_KIND_QOS_POLICY_TRANSPORTPRIORITY, NO_INIT, NO_FINI, pstate->current);
       else if (ddsrt_strcasecmp (name, "user_data") == 0)
-        CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_USERDATA, ELEMENT_KIND_QOS_POLICY_USERDATA, NO_INIT, fini_qos_userdata, pstate->current);
+        CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_USERDATA, ELEMENT_KIND_QOS_POLICY_USERDATA, init_qos_USERDATA, fini_qos_userdata, pstate->current);
       else if (ddsrt_strcasecmp (name, "writer_data_lifecycle") == 0)
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_WRITERDATALIFECYCLE, ELEMENT_KIND_QOS_POLICY_WRITERDATALIFECYCLE, NO_INIT, NO_FINI, pstate->current);
       else if (ddsrt_strcasecmp (name, "writer_batching") == 0)
@@ -2552,11 +2604,11 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
       else if (ddsrt_strcasecmp (name, "value") == 0)
       {
         if (pstate->current->kind == ELEMENT_KIND_QOS_POLICY_GROUPDATA)
-          CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_GROUPDATA_VALUE, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_GROUPDATA, pstate->current);
+          CREATE_NODE_GENERIC (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_GROUPDATA_VALUE, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_GROUPDATA, pstate->current);
         else if (pstate->current->kind == ELEMENT_KIND_QOS_POLICY_TOPICDATA)
-          CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_TOPICDATA_VALUE, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_TOPICDATA, pstate->current);
+          CREATE_NODE_GENERIC (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_TOPICDATA_VALUE, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_TOPICDATA, pstate->current);
         else if (pstate->current->kind == ELEMENT_KIND_QOS_POLICY_USERDATA)
-          CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_USERDATA_VALUE, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_USERDATA, pstate->current);
+          CREATE_NODE_GENERIC (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_USERDATA_VALUE, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_USERDATA, pstate->current);
         else if (pstate->current->kind == ELEMENT_KIND_QOS_POLICY_OWNERSHIPSTRENGTH)
           CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_OWNERSHIPSTRENGTH_VALUE, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_OWNERSHIPSTRENGTH, pstate->current);
         else if (pstate->current->kind == ELEMENT_KIND_QOS_POLICY_TRANSPORTPRIORITY)
