@@ -25,6 +25,7 @@ void tprintf (const char *msg, ...)
   va_start (args, msg);
   vprintf (msg, args);
   va_end (args);
+  fflush (stdout);
 }
 
 char *create_unique_topic_name (const char *prefix, char *name, size_t size)
