@@ -635,14 +635,12 @@ static psmx_iox2_partition_topic_t *get_part_topic (psmx_iox2_topic_t *topic, co
   iox2_service_name_ptr service_name_ptr = iox2_cast_service_name_ptr (service_name_handle);
   if (service_name_ptr == NULL) {
     log_error ("Unable to cast service name");
-    ret = IOX2_OK+1;
     goto cleanup_service_name_handle;
   }
 
   iox2_service_builder_pub_sub_h service_builder_pub_sub_handle = iox2_service_builder_pub_sub(iox2_node_service_builder (&topic->parent->node_handle, NULL, service_name_ptr));
   if (service_builder_pub_sub_handle == NULL) {
     log_error ("Unable to create pubsub service builder");
-    ret = IOX2_OK+1;
     goto cleanup_service_name_handle;
   }
 
@@ -685,7 +683,6 @@ static psmx_iox2_partition_topic_t *get_part_topic (psmx_iox2_topic_t *topic, co
   iox2_service_builder_event_h service_builder_event_handle = iox2_service_builder_event (iox2_node_service_builder (&topic->parent->node_handle, NULL, service_name_ptr));
   if (service_builder_event_handle == NULL) {
     log_error ("Unable to create event service builders");
-    ret = IOX2_OK+1;
     goto cleanup_service_pub_sub;
   }
 

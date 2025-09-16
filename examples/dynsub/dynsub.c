@@ -161,7 +161,7 @@ static bool print_sample_normal (dds_entity_t reader, const DDS_XTypes_TypeObjec
   {
     // ... that we then print
     print_sample (si.valid_data, raw, &xtypeobj->_u.complete);
-    if ((ret = dds_return_loan (reader, &raw, 1)) < 0)
+    if (dds_return_loan (reader, &raw, 1) < 0)
       return false;
   }
   return true;
