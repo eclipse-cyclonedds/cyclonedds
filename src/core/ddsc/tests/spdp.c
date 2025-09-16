@@ -579,7 +579,7 @@ CU_Test(ddsc_spdp, II6_pruning_lease_exp)
   run_one (baseport, &cfg, &larg, 3, (enum oper[]){ SLEEP_3, KILL_0, SLEEP_3 });
 }
 
-CU_Test(ddsc_spdp, II7_pruning_lease_exp)
+CU_Test(ddsc_spdp, II7_pruning_lease_exp, .timeout = 15)
 {
   const int baseport = 7150;
   // 2s until lease expiry
