@@ -1471,6 +1471,17 @@ static bool qget_WRITERBATCHING (dds_qos_t *qos)
   return dds_qget_writer_batching (qos, NULL);
 }
 
+static bool qget_ENTITYFACTORY (dds_qos_t *qos)
+{
+  return qos->present & DDSI_QP_ADLINK_ENTITY_FACTORY;
+}
+
+static void qset_ENTITYFACTORY (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_ENTITYFACTORY *qp)
+{
+  qos->present |= DDSI_QP_ADLINK_ENTITY_FACTORY;
+  qos->entity_factory.autoenable_created_entities = qp->values.autoenable_created_entities;
+}
+
 static void qset_WRITERBATCHING (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_WRITERBATCHING *qp)
 {
   dds_qset_writer_batching (qos, qp->values.batch_updates);
@@ -1625,9 +1636,7 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UNUSED_
         ELEM_CLOSE_QOS_POLICY(WRITERBATCHING, "Writer Batching");
         break;
       case ELEMENT_KIND_QOS_POLICY_ENTITYFACTORY:
-        //ELEM_CLOSE_QOS_POLICY(ENTITYFACTORY, "Entity factory");
-        PARSER_ERROR (pstate, line, "Unsupported QoS policy");
-        ret = SD_PARSE_RESULT_NOT_SUPPORTED;
+        ELEM_CLOSE_QOS_POLICY(ENTITYFACTORY, "Entity factory");
         break;
       case ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER_TRAFFIC_SPEC_PERIODICITY: {
         struct dds_sysdef_tsn_traffic_specification *t = (struct dds_sysdef_tsn_traffic_specification *) pstate->current->parent;
