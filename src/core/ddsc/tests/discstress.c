@@ -90,7 +90,7 @@ static uint32_t createwriter_publisher (void *varg)
      reliable transport like a local loopback).  So other than waiting for some readers to show up
      at all, there's no need to look at matching events or to use anything other than volatile,
      provided the readers accept an initial short sequence in the first batch.  */
-  printf ("=== Publishing while waiting for some reader ...\n");
+  tprintf ("=== Publishing while waiting for some reader ...\n");
   fflush (stdout);
   uint32_t seq = 0;
   int32_t round = -1;
@@ -108,7 +108,7 @@ static uint32_t createwriter_publisher (void *varg)
       matched = (mc == N_READERS * N_WRITERS);
       if (matched)
       {
-        printf ("All readers found; continuing at [%"PRIu32",%"PRIu32"] for %d rounds\n",
+        tprintf ("All readers found; continuing at [%"PRIu32",%"PRIu32"] for %d rounds\n",
                 wrseq * N_WRITERS + 1, (wrseq + 1) * N_WRITERS, N_ROUNDS);
         fflush (stdout);
       }
@@ -222,22 +222,22 @@ static bool checksample (struct ddsrt_hh *wrinfo, const dds_sample_info_t *si, c
     logbuf->logidx = 0;
 
   if (wri->wr_iid != 0 && wri->wr_iid != si->publication_handle) {
-    printf ("Mismatch between wrid %"PRIx64" and publication handle %"PRIx64"\n", wri->wr_iid, si->publication_handle);
+    tprintf ("Mismatch between wrid %"PRIx64" and publication handle %"PRIx64"\n", wri->wr_iid, si->publication_handle);
     result = false;
   }
   if (wri->seen & (1u << s->histidx)) {
-    printf ("Duplicate sample (wri->seen %"PRIx32" s->histidx %"PRIu32")\n", wri->seen, s->histidx);
+    tprintf ("Duplicate sample (wri->seen %"PRIx32" s->histidx %"PRIu32")\n", wri->seen, s->histidx);
     result = false;
   }
   //if (s->histidx > 0)
   //  XASSERT ((wri->seen & (1u << (s->histidx - 1))) != 0, "Out of order sample (1)\n");
 
   if (s->histidx > 0 && !(wri->seen & (1u << (s->histidx - 1)))) {
-    printf ("Out of order sample (1) (wri->seen %"PRIx32" s->histidx %"PRIu32")\n", wri->seen, s->histidx);
+    tprintf ("Out of order sample (1) (wri->seen %"PRIx32" s->histidx %"PRIu32")\n", wri->seen, s->histidx);
     result = false;
   }
   if (!(wri->seen < (1u << s->histidx))) {
-    printf ("Out of order sample (2) (wri->seen %"PRIx32" s->histidx %"PRIu32")\n", wri->seen, s->histidx);
+    tprintf ("Out of order sample (2) (wri->seen %"PRIx32" s->histidx %"PRIu32")\n", wri->seen, s->histidx);
     result = false;
   }
   wri->wr_iid = si->publication_handle;
@@ -280,7 +280,7 @@ static uint32_t createwriter_subscriber (void *varg)
     CU_ASSERT_FATAL (readers[i] > 0);
   }
 
-  printf ("--- Waiting for some writer to match ...\n");
+  tprintf ("--- Waiting for some writer to match ...\n");
   fflush (stdout);
 
   /* Wait until we have matching writers */
@@ -317,7 +317,7 @@ static uint32_t createwriter_subscriber (void *varg)
   }
 
   /* Loop while we have some matching writers */
-  printf ("--- Checking data ...\n");
+  tprintf ("--- Checking data ...\n");
   fflush (stdout);
   struct ddsrt_hh *wrinfo = ddsrt_hh_new (1, wrinfo_hash, wrinfo_eq);
   dds_entity_t xreader = 0;
@@ -352,13 +352,13 @@ static uint32_t createwriter_subscriber (void *varg)
     CU_ASSERT_FATAL (nxs >= 0);
     if (nxs == 0 && matched)
     {
-      printf ("--- Unexpected timeout\n");
+      tprintf ("--- Unexpected timeout\n");
       for (int i = 0; i < N_READERS; i++)
       {
         dds_subscription_matched_status_t st;
         rc = dds_get_subscription_matched_status (readers[i], &st);
         CU_ASSERT_FATAL (rc == 0);
-        printf ("--- reader %d current_count %"PRIu32"\n", i, st.current_count);
+        tprintf ("--- reader %d current_count %"PRIu32"\n", i, st.current_count);
       }
       fflush (stdout);
       CU_ASSERT_FATAL (0);
@@ -421,7 +421,7 @@ static uint32_t createwriter_subscriber (void *varg)
     nwri++;
     if (wri->seen != (1u << DEPTH) - 1)
     {
-      printf ("err: wri->seen = %x rdid %"PRIu32" wrid %"PRIu32" iid %"PRIx64" lna %d\n",
+      tprintf ("err: wri->seen = %x rdid %"PRIu32" wrid %"PRIu32" iid %"PRIx64" lna %d\n",
               wri->seen, wri->rdid, wri->wrid, wri->wr_iid, wri->last_not_alive);
       err++;
     }
@@ -431,7 +431,7 @@ static uint32_t createwriter_subscriber (void *varg)
   ddsrt_hh_free (wrinfo);
   CU_ASSERT_FATAL (err == 0);
   CU_ASSERT_FATAL (nwri >= (N_ROUNDS / 3) * N_READERS * N_WRITERS);
-  printf ("--- Done after %"PRIu32" sets\n", nwri / (N_READERS * N_WRITERS));
+  tprintf ("--- Done after %"PRIu32" sets\n", nwri / (N_READERS * N_WRITERS));
   return 0;
 }
 

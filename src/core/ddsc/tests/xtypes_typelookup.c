@@ -145,7 +145,7 @@ static void get_type (dds_entity_t entity, ddsi_typeid_t **type_id, char **type_
 
 static void print_ep (const dds_guid_t *key)
 {
-  printf ("endpoint ");
+  tprintf ("endpoint ");
   for (size_t j = 0; j < sizeof (key->v); j++)
     printf ("%s%02x", (j == 0 || j % 4) ? "" : ":", key->v[j]);
 }
@@ -194,11 +194,13 @@ static endpoint_info_t * find_typeid_match (dds_entity_t participant, dds_entity
           ddsi_typeid_fini (tid);
           ddsrt_free (tid);
           printf("\n");
+          fflush (stdout);
         }
         else
         {
           print_ep (&data->key);
           printf (" no type\n");
+          fflush (stdout);
         }
       }
     }

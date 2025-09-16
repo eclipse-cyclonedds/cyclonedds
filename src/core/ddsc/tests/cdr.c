@@ -236,7 +236,7 @@ static struct ddsi_serdata *sd_from_ser (const struct ddsi_sertype *tpcmn, enum 
   };
   const ddsi_keyhash_t *kh = ddsi_serdata_keyhash_from_fragchain (fragchain);
   CU_ASSERT_FATAL (kh != NULL);
-  printf ("kh rcv %02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x\n",
+  tprintf ("kh rcv %02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x\n",
           kh->value[0], kh->value[1], kh->value[2], kh->value[3],
           kh->value[4], kh->value[5], kh->value[6], kh->value[7],
           kh->value[8], kh->value[9], kh->value[10], kh->value[11],
@@ -439,7 +439,7 @@ static void sd_get_keyhash (const struct ddsi_serdata *serdata_common, struct dd
 {
   struct sd const * const sd = (const struct sd *) serdata_common;
   sdx_get_keyhash (&sd->x, buf, force_md5);
-  printf ("kh gen %02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x\n",
+  tprintf ("kh gen %02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x\n",
           buf->value[0], buf->value[1], buf->value[2], buf->value[3],
           buf->value[4], buf->value[5], buf->value[6], buf->value[7],
           buf->value[8], buf->value[9], buf->value[10], buf->value[11],

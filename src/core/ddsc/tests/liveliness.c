@@ -574,21 +574,21 @@ static void test_create_delete_writer_stress(bool remote_reader)
       alive_writers_man++;
   }
   dds_delete_qos(wqos);
-  tprintf("%"PRId64" alive_writers_auto: %"PRIu32", alive_writers_man: %"PRIu32"\n", dds_time(), alive_writers_auto, alive_writers_man);
+  tprintf("alive_writers_auto: %"PRIu32", alive_writers_man: %"PRIu32"\n", alive_writers_auto, alive_writers_man);
 
   /* wait for auto liveliness writers to become alive and manual-by-pp writers to become not-alive */
   do
   {
     CU_ASSERT_EQUAL_FATAL(dds_get_liveliness_changed_status(reader, &lstatus), DDS_RETCODE_OK);
-    tprintf("%"PRId64" alive: %"PRIu32", not-alive: %"PRIu32"\n", dds_time(), lstatus.alive_count, lstatus.not_alive_count);
+    tprintf("alive: %"PRIu32", not-alive: %"PRIu32"\n", lstatus.alive_count, lstatus.not_alive_count);
     dds_sleepfor(DDS_MSECS(50));
   } while (lstatus.alive_count != alive_writers_auto || lstatus.not_alive_count != alive_writers_man);
 
   /* check that counts are stable after a delay */
-  tprintf("%"PRId64" wait for half ldur (%"PRId64"ms)\n", dds_time(), ldur);
+  tprintf("wait for half ldur (%"PRId64"ms)\n", ldur);
   dds_sleepfor(DDS_MSECS(ldur / 2));
   CU_ASSERT_EQUAL_FATAL(dds_get_liveliness_changed_status(reader, &lstatus), DDS_RETCODE_OK);
-  tprintf("%"PRId64" alive: %"PRIu32", not-alive: %"PRIu32"\n", dds_time(), lstatus.alive_count, lstatus.not_alive_count);
+  tprintf("alive: %"PRIu32", not-alive: %"PRIu32"\n", lstatus.alive_count, lstatus.not_alive_count);
   CU_ASSERT_FATAL(lstatus.alive_count == alive_writers_auto && lstatus.not_alive_count == alive_writers_man);
 
   /* cleanup remaining writers */
@@ -601,7 +601,7 @@ static void test_create_delete_writer_stress(bool remote_reader)
   do
   {
     CU_ASSERT_EQUAL_FATAL(dds_get_liveliness_changed_status(reader, &lstatus), DDS_RETCODE_OK);
-    tprintf("%"PRId64" alive: %"PRIu32", not: %"PRIu32"\n", dds_time(), lstatus.alive_count, lstatus.not_alive_count);
+    tprintf("alive: %"PRIu32", not: %"PRIu32"\n", lstatus.alive_count, lstatus.not_alive_count);
     dds_sleepfor(DDS_MSECS(ldur / 10));
   } while (lstatus.alive_count > 0 || lstatus.not_alive_count > 0);
   CU_ASSERT_EQUAL_FATAL(dds_waitset_detach(waitset, reader), DDS_RETCODE_OK);
@@ -1156,7 +1156,7 @@ CU_Test(ddsc_liveliness, lease_duration_zero_or_one, .init = liveliness_init, .f
           dds_duration_t d = ldur[ldur_idx];
           tprintf ("### lease_duration_zero_or_one: sleep = %"PRId64" lkind = %d ldur = %"PRId64" reader = %s\n", s, (int) k, d, rrd ? "remote" : "local");
           lease_duration_zero_or_one_impl (s, k, d, rrd);
-          printf ("\n");
+          tprintf ("\n");
         }
       }
     }

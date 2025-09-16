@@ -160,7 +160,7 @@ CU_Test (ddsc_dynamic_type, type_create, .init = dynamic_type_init, .fini = dyna
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
     dds_dynamic_type_t dtype = dds_dynamic_type_create (participant, tests[i].desc);
-    printf("create type kind %u, return code %d\n", tests[i].desc.kind, dtype.ret);
+    tprintf("create type kind %u, return code %d\n", tests[i].desc.kind, dtype.ret);
     CU_ASSERT_EQUAL_FATAL (dtype.ret, tests[i].ret);
     if (tests[i].ret == DDS_RETCODE_OK)
     {

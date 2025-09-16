@@ -106,7 +106,7 @@ static uint32_t pp_thread (void *varg)
           if (arg->master)
           {
             bool eq = (usz == expusz && (usz == 0 || memcmp (ud, expud, usz) == 0));
-            printf ("expected %u %zu/%s received %zu/%s\n", exp_index, expusz, expud, usz, ud ? (char *) ud : "(null)");
+            tprintf ("expected %u %zu/%s received %zu/%s\n", exp_index, expusz, expud, usz, ud ? (char *) ud : "(null)");
             fflush (stdout);
             CU_ASSERT_FATAL (eq);
             if (++exp_index == sizeof (exp_ud) / sizeof (exp_ud[0]))
@@ -123,13 +123,13 @@ static uint32_t pp_thread (void *varg)
           }
           else
           {
-            printf ("slave: received %zu/%s\n", usz, ud ? (char *) ud : "(null)");
+            tprintf ("slave: received %zu/%s\n", usz, ud ? (char *) ud : "(null)");
             fflush (stdout);
             expud = ud;
             expusz = usz;
           }
 
-          printf ("%s: set qos to %zu/%s\n", arg->master ? "master" : "slave", expusz, expud);
+          tprintf ("%s: set qos to %zu/%s\n", arg->master ? "master" : "slave", expusz, expud);
           fflush (stdout);
           dds_qset_userdata (qos, expud, expusz);
           rc = dds_set_qos (dp, qos);
@@ -343,7 +343,7 @@ static uint32_t rw_thread (void *varg)
           if (arg->master)
           {
             bool eq = (usz == expusz && (usz == 0 || memcmp (ud, expud, usz) == 0));
-            printf ("expected %u %zu/%s received %zu/%s\n", exp_index, expusz, expud, usz, ud ? (char *) ud : "(null)");
+            tprintf ("expected %u %zu/%s received %zu/%s\n", exp_index, expusz, expud, usz, ud ? (char *) ud : "(null)");
             CU_ASSERT_FATAL (eq);
             if (++exp_index == sizeof (exp_rwud) / sizeof (exp_rwud[0]))
             {
@@ -359,7 +359,7 @@ static uint32_t rw_thread (void *varg)
           }
           else
           {
-            printf ("slave: received %zu/%s\n", usz, ud ? (char *) ud : "(null)");
+            tprintf ("slave: received %zu/%s\n", usz, ud ? (char *) ud : "(null)");
             expud = ud;
             expusz = usz;
           }

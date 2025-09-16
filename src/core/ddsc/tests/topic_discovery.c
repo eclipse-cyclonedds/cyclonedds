@@ -173,6 +173,7 @@ static void check_topic_samples (dds_entity_t topic_rd, char *topic_name, uint32
       printf ("%02x", match_key[i]);
   }
   printf ("}\n");
+  fflush (stdout);
   unsigned char first_key[16];
   dds_entity_t ws = dds_create_waitset (dds_get_participant (topic_rd));
   CU_ASSERT_FATAL (ws > 0);
@@ -205,6 +206,7 @@ static void check_topic_samples (dds_entity_t topic_rd, char *topic_name, uint32
     for (uint32_t i = 0; i < sizeof (first_key); i++)
       printf ("%02x", sample->key.d[i]);
     printf ("} %sALIVE\n", not_alive ? "NOT_" : "");
+    fflush (stdout);
     if (!not_alive && (topic_name == NULL || !strcmp (sample->topic_name, topic_name)))
     {
       if (topic_seen != 0) {

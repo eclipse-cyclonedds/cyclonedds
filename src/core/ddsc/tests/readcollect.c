@@ -43,7 +43,7 @@ static dds_return_t coll_fail_always (void *varg, const dds_sample_info_t *si, c
   (void)varg;
   CU_ASSERT_FATAL (!si->valid_data || st == sd->type);
   Space_Type1 s = getdata (si, st, sd);
-  printf ("coll_fail_always: %d, %d\n", s.long_1, s.long_2);
+  tprintf ("coll_fail_always: %d, %d\n", s.long_1, s.long_2);
   return INT32_MIN; // easily recognized negative number that is not a return code from Cyclone DDS
 }
 
@@ -57,7 +57,7 @@ static dds_return_t coll_fail_after_1 (void *varg, const dds_sample_info_t *si, 
   CU_ASSERT_FATAL (!si->valid_data || st == sd->type);
   struct coll_fail_after_1_arg * const arg = varg;
   Space_Type1 s = getdata (si, st, sd);
-  printf ("coll_fail_after_1: %d, %d\n", s.long_1, s.long_2);
+  tprintf ("coll_fail_after_1: %d, %d\n", s.long_1, s.long_2);
   arg->k = s.long_1;
   return (arg->count++ == 0) ? 0 : INT32_MIN;
 }
@@ -122,7 +122,7 @@ static void dotest (read_op op)
     ptrs[i] = &xs[i];
   rc = dds_take (rd, ptrs, si, (size_t) (2 + isread + isnew), (uint32_t) (2 + isread + isnew));
   for (int i = 0; i < rc; i++)
-    printf ("take(1) %"PRId32", %"PRId32" %c%c\n", xs[i].long_1, xs[i].long_2,
+    tprintf ("take(1) %"PRId32", %"PRId32" %c%c\n", xs[i].long_1, xs[i].long_2,
             (si[i].sample_state == DDS_NOT_READ_SAMPLE_STATE) ? 'f' : 's',
             (si[i].view_state == DDS_NEW_VIEW_STATE) ? 'n' : 'o');
   CU_ASSERT_FATAL (rc == (int32_t) (2 + isread + isnew));
@@ -134,7 +134,7 @@ static void dotest (read_op op)
   }
   rc = dds_take_instance (rd, ptrs, si, (size_t) (2 + isread + isnew), (uint32_t) (2 + isread + isnew), ih);
   for (int i = 0; i < rc; i++)
-    printf ("take(2) %"PRId32", %"PRId32" %c%c\n", xs[i].long_1, xs[i].long_2,
+    tprintf ("take(2) %"PRId32", %"PRId32" %c%c\n", xs[i].long_1, xs[i].long_2,
             (si[i].sample_state == DDS_NOT_READ_SAMPLE_STATE) ? 'f' : 's',
             (si[i].view_state == DDS_NEW_VIEW_STATE) ? 'n' : 'o');
   CU_ASSERT_FATAL (rc == (int32_t) (2 + isread + isnew));
@@ -146,7 +146,7 @@ static void dotest (read_op op)
   }
   rc = dds_take (rd, ptrs, si, 10, 10);
   for (int i = 0; i < rc; i++)
-    printf ("take(3) %"PRId32", %"PRId32" %c%c\n", xs[i].long_1, xs[i].long_2,
+    tprintf ("take(3) %"PRId32", %"PRId32" %c%c\n", xs[i].long_1, xs[i].long_2,
             (si[i].sample_state == DDS_NOT_READ_SAMPLE_STATE) ? 'f' : 's',
             (si[i].view_state == DDS_NEW_VIEW_STATE) ? 'n' : 'o');
   CU_ASSERT_FATAL (rc == 3);

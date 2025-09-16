@@ -414,7 +414,7 @@ static void do_psmxif_shared_memory (const char *dummylib)
 
     // Check number of calls against expected counts.
     dummy_mockstats_tostring(dmock, strbuf, strbuf_size);
-    printf("ddsc_psmxif_shared_memory calls counts:\n%s\n", strbuf);
+    tprintf("ddsc_psmxif_shared_memory calls counts:\n%s\n", strbuf);
 
     CU_ASSERT_FATAL(dmock->cnt_create_psmx == 1);
 

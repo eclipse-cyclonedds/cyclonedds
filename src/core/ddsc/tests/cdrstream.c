@@ -913,7 +913,7 @@ CU_Test (ddsc_cdrstream, ser_des, .init = cdrstream_init, .fini = cdrstream_fini
     for (uint32_t x = 0; x <= (tests[i].test_xcdr1 ? 1u : 0u); x++)
     {
       dds_return_t ret;
-      tprintf ("Running test ser_des: %s, XCDR%d\n", tests[i].descr, x ? 1 : 2);
+      printf ("Running test ser_des: %s, XCDR%d\n", tests[i].descr, x ? 1 : 2);
 
       entity_init (tests[i].desc, x ? DDS_DATA_REPRESENTATION_XCDR1 : DDS_DATA_REPRESENTATION_XCDR2, false);
       dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
@@ -998,7 +998,7 @@ CU_Test (ddsc_cdrstream, ser_des_multiple, .init = cdrstream_init, .fini = cdrst
     for (uint32_t x = 0; x <= (tests[i].test_xcdr1 ? 1u : 0u); x++)
     {
       dds_return_t ret;
-      tprintf ("Running test ser_des_multiple: %s, XCDR%d\n", tests[i].descr, x ? 1 : 2);
+      printf ("Running test ser_des_multiple: %s, XCDR%d\n", tests[i].descr, x ? 1 : 2);
 
       entity_init (tests[i].desc, x ? DDS_DATA_REPRESENTATION_XCDR1 : DDS_DATA_REPRESENTATION_XCDR2, false);
 
@@ -1053,7 +1053,7 @@ CU_Test (ddsc_cdrstream, appendable_mutable, .init = cdrstream_init, .fini = cdr
     {
       for (int t = 0; t <= 1; t++)
       {
-        tprintf ("Running test appendable_mutable: %s, XCDR%d, (run %d/2)\n", tests[i].descr, x ? 1 : 2, t + 1);
+        printf ("Running test appendable_mutable: %s, XCDR%d, (run %d/2)\n", tests[i].descr, x ? 1 : 2, t + 1);
 
         const dds_topic_descriptor_t *topic_desc_wr = t ? tests[i].d2 : tests[i].d1;
         const dds_topic_descriptor_t *topic_desc_rd = t ? tests[i].d1 : tests[i].d2;

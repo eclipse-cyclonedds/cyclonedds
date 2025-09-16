@@ -3250,7 +3250,7 @@ static void do_readtake_sample_rank (const char *opname_past_tense, dds_return_t
   while (nsamp[3] == 0)
   {
     int totsamp = 0;
-    printf ("samples/instance: ");
+    tprintf ("samples/instance: ");
     for (int i = 0; nsamp[i] > 0; i++) {
       totsamp += nsamp[i];
       printf (" %d", nsamp[i]);
@@ -3260,7 +3260,7 @@ static void do_readtake_sample_rank (const char *opname_past_tense, dds_return_t
 
     for (int skip_even_long_2 = 0; skip_even_long_2 <= 1; skip_even_long_2++)
     {
-      printf ("  skip_even_long_2 %d\n", skip_even_long_2);
+      tprintf ("  skip_even_long_2 %d\n", skip_even_long_2);
       int totsamp_after_maybe_skipping_even = 0;
       if (!skip_even_long_2)
         totsamp_after_maybe_skipping_even = totsamp;
@@ -3339,10 +3339,11 @@ static void do_readtake_sample_rank (const char *opname_past_tense, dds_return_t
 
         assert (rdlimit < (int) (sizeof (xs) / sizeof (xs[0])));
         int n = (int) op (rd, buf, si, (size_t) rdlimit, (uint32_t) rdlimit, (skip_even_long_2 ? DDS_NOT_READ_SAMPLE_STATE : 0));
-        printf ("  -- %s %d (<= %d), ranks:", opname_past_tense, n, rdlimit);
+        tprintf ("  -- %s %d (<= %d), ranks:", opname_past_tense, n, rdlimit);
         for (int i = 0; i < n; i++)
           printf (" %"PRIu32, si[i].sample_rank);
         printf ("\n");
+        fflush (stdout);
         CU_ASSERT_FATAL (n == ((rdlimit <= totsamp_after_maybe_skipping_even) ? rdlimit : totsamp_after_maybe_skipping_even));
 
         {
@@ -3353,7 +3354,7 @@ static void do_readtake_sample_rank (const char *opname_past_tense, dds_return_t
             CU_ASSERT_FATAL (!skip_even_long_2 || (xs[i].long_2 % 2) != 0);
             const int nsamp_after_maybe_skipping_even = skip_even_long_2 ? nsamp[xs[i].long_1] / 2 : nsamp[xs[i].long_1];
             const int nsamp_of_inst = (i + nsamp_after_maybe_skipping_even < n) ? nsamp_after_maybe_skipping_even : n - i;
-            //printf ("i = %d nsamp_of_inst = %d\n", i, nsamp_of_inst);
+            //tprintf ("i = %d nsamp_of_inst = %d\n", i, nsamp_of_inst);
             assert (nsamp_of_inst > 0);
             CU_ASSERT_FATAL (si[i].sample_rank == (uint32_t) (nsamp_of_inst - 1));
             CU_ASSERT_FATAL ((!si[i].valid_data && xs[i].long_3 == 0) || (si[i].valid_data && xs[i].long_3 == 1));

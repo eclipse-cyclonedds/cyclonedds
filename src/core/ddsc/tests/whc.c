@@ -117,7 +117,7 @@ static void check_intermediate_whc_state(dds_entity_t writer, ddsi_seqno_t exp_m
   get_writer_whc_state (writer, &whcst);
   /* WHC must not contain any samples < exp_min and must contain at least exp_max if it
      contains at least one sample.  (We never know for certain when ACKs arrive.) */
-  printf(" -- intermediate state: unacked: %zu; min %"PRIu64" (exp %"PRIu64"); max %"PRIu64" (exp %"PRIu64")\n", whcst.unacked_bytes, whcst.min_seq, exp_min, whcst.max_seq, exp_max);
+  tprintf(" -- intermediate state: unacked: %zu; min %"PRIu64" (exp %"PRIu64"); max %"PRIu64" (exp %"PRIu64")\n", whcst.unacked_bytes, whcst.min_seq, exp_min, whcst.max_seq, exp_max);
   CU_ASSERT_FATAL (whcst.min_seq >= exp_min || (whcst.min_seq == 0 && whcst.max_seq == 0));
   CU_ASSERT_FATAL (whcst.max_seq == exp_max || (whcst.min_seq == 0 && whcst.max_seq == 0));
 }
@@ -126,7 +126,7 @@ static void check_whc_state(dds_entity_t writer, ddsi_seqno_t exp_min, ddsi_seqn
 {
   struct ddsi_whc_state whcst;
   get_writer_whc_state (writer, &whcst);
-  printf(" -- final state: unacked: %zu; min %"PRIu64" (exp %"PRIu64"); max %"PRIu64" (exp %"PRIu64")\n", whcst.unacked_bytes, whcst.min_seq, exp_min, whcst.max_seq, exp_max);
+  tprintf(" -- final state: unacked: %zu; min %"PRIu64" (exp %"PRIu64"); max %"PRIu64" (exp %"PRIu64")\n", whcst.unacked_bytes, whcst.min_seq, exp_min, whcst.max_seq, exp_max);
   CU_ASSERT_EQUAL_FATAL (whcst.unacked_bytes, 0);
   CU_ASSERT_EQUAL_FATAL (whcst.min_seq, exp_min);
   CU_ASSERT_EQUAL_FATAL (whcst.max_seq, exp_max);
@@ -150,7 +150,7 @@ static void test_whc_end_state(dds_durability_kind_t d, dds_reliability_kind_t r
   dds_return_t ret;
   int32_t s, i;
 
-  printf ("test_whc_end_state: %s, %s, %s(%d), durability %s(%d), readers: %u local, %u remote, instances: %"PRId32", key %u, deadline %"PRId64"\n",
+  tprintf ("test_whc_end_state: %s, %s, %s(%d), durability %s(%d), readers: %u local, %u remote, instances: %"PRId32", key %u, deadline %"PRId64"\n",
       d == V ? "volatile" : "TL",
       r == BE ? "best-effort" : "reliable",
       h == KA ? "keep-all" : "keep-last", h == KA ? 0 : hd,

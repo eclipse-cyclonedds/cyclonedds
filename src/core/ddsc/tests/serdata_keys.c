@@ -398,6 +398,7 @@ static void print_check_cdr (const struct dds_serdata_default *sd, const unsigne
       printf ("%02x%s", (uint8_t) sd->data[i], ((i % 4) == 3) ? " " : "");
     printf("\n");
   }
+  fflush (stdout);
 }
 
 static void check_key_keyhash (struct dds_serdata_default *sd,
@@ -408,7 +409,7 @@ static void check_key_keyhash (struct dds_serdata_default *sd,
   CU_ASSERT_EQUAL (sd->key.keysize, expected_key_sz_xcdrv2);
   int cmp_key = memcmp (serdata_default_keybuf (sd), expected_key_xcdrv2, expected_key_sz_xcdrv2);
   if (cmp_key != 0)
-    printf("** key match failed **\n");
+    tprintf("** key match failed **\n");
   CU_ASSERT_EQUAL (cmp_key, 0);
 
   // get and check keyhash
@@ -422,7 +423,7 @@ static void check_key_keyhash (struct dds_serdata_default *sd,
 
   int cmp = memcmp (kh.value, exp_kh.value, 16);
   if (cmp != 0)
-    printf("** keyhash match failed **\n");
+    tprintf("** keyhash match failed **\n");
   CU_ASSERT_FATAL (cmp == 0);
 }
 
@@ -1442,11 +1443,11 @@ CU_Test(ddsc_serdata, key_serialization)
 
     for (uint32_t dr = 0; dr < sizeof (data_repr) / sizeof (data_repr[0]); dr++)
     {
-      printf ("\ntest type %s (XCDRv%u)\n", tests[test_index].desc->m_typename, dr + 1);
+      tprintf ("\ntest type %s (XCDRv%u)\n", tests[test_index].desc->m_typename, dr + 1);
       if (dds_stream_minimum_xcdr_version (tests[test_index].desc->m_ops) == DDSI_RTPS_CDR_ENC_VERSION_2
           && data_repr[dr] != DDS_DATA_REPRESENTATION_XCDR2)
       {
-        printf ("xcdrv not supported\n");
+        tprintf ("xcdrv not supported\n");
         continue;
       }
 
@@ -1471,7 +1472,7 @@ CU_Test(ddsc_serdata, key_serialization)
         assert (sd != NULL);
 
         size_t exp_sz_aligned = alignN (tests[test_index].xcdrv[dr].data_sz, 4);
-        printf ("Data: ");
+        tprintf ("Data: ");
         print_check_cdr (sd, tests[test_index].xcdrv[dr].data, exp_sz_aligned);
         CU_ASSERT_EQUAL (exp_sz_aligned, sd->pos);
         int cmp = memcmp (sd->data, tests[test_index].xcdrv[dr].data, exp_sz_aligned);
@@ -1491,7 +1492,7 @@ CU_Test(ddsc_serdata, key_serialization)
         size_t exp_sz = tests[test_index].xcdrv[dr].key_sz;
         const unsigned char *exp_data = tests[test_index].xcdrv[dr].key;
         size_t exp_sz_aligned = alignN (exp_sz, 4);
-        printf ("Key: ");
+        tprintf ("Key: ");
         print_check_cdr (sd, exp_data, exp_sz_aligned);
         CU_ASSERT_EQUAL (exp_sz_aligned, sd->pos);
         int cmp = memcmp (sd->data, exp_data, exp_sz_aligned);
