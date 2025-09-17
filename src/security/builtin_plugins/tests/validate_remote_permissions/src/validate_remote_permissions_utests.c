@@ -280,7 +280,7 @@ static int validate_local_identity_and_permissions(void)
   DDS_Security_DomainId domain_id = 0;
   DDS_Security_Qos participant_qos;
   DDS_Security_GUID_t candidate_participant_guid;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_GuidPrefix_t prefix = {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb};
   DDS_Security_EntityId_t entityId = {{0xb0, 0xb1, 0xb2}, 0x1};
 
@@ -332,7 +332,7 @@ static int validate_local_identity_and_permissions(void)
 
 static void clear_local_identity_and_permissions(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_boolean success;
 
   if (local_permissions_handle != DDS_SECURITY_HANDLE_NIL)
@@ -377,7 +377,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, valid_permissions, .init = s
   DDS_Security_PermissionsHandle result;
   DDS_Security_PermissionsToken permissions_token;
   DDS_Security_AuthenticatedPeerCredentialToken credential_token;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   int r;
 
   /* Check if we actually have validate_remote_permissions function. */
@@ -419,7 +419,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, permissions_unknown_ca, .ini
   DDS_Security_PermissionsHandle result;
   DDS_Security_PermissionsToken permissions_token;
   DDS_Security_AuthenticatedPeerCredentialToken credential_token;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   int r;
 
   /* Check if we actually have validate_remote_permissions function. */
@@ -474,7 +474,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, permissions_not_signed, .ini
   DDS_Security_PermissionsHandle result;
   DDS_Security_PermissionsToken permissions_token;
   DDS_Security_AuthenticatedPeerCredentialToken credential_token;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   int r;
 
   /* Check if we actually have validate_remote_permissions function. */
@@ -529,7 +529,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, invalid_credential_token, .i
   DDS_Security_PermissionsHandle result;
   DDS_Security_PermissionsToken permissions_token;
   DDS_Security_AuthenticatedPeerCredentialToken credential_token;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   /* Check if we actually have validate_remote_permissions function. */
   CU_ASSERT_FATAL(access_control != NULL);
@@ -802,7 +802,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, invalid_xml, .init = suite_v
   DDS_Security_PermissionsHandle result;
   DDS_Security_PermissionsToken permissions_token;
   DDS_Security_AuthenticatedPeerCredentialToken credential_token;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   int r;
 
   /* Check if we actually have validate_remote_permissions function. */
@@ -848,7 +848,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, permissions_expired, .init =
   DDS_Security_PermissionsHandle result;
   DDS_Security_PermissionsToken permissions_token;
   DDS_Security_AuthenticatedPeerCredentialToken credential_token;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   int r;
 
   /* Check if we actually have validate_remote_permissions function. */
@@ -889,7 +889,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, permissions_not_yet, .init =
   DDS_Security_PermissionsHandle result;
   DDS_Security_PermissionsToken permissions_token;
   DDS_Security_AuthenticatedPeerCredentialToken credential_token;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   int r;
 
   /* Check if we actually have validate_remote_permissions function. */
@@ -930,7 +930,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, permissions_unknown_subject_
   DDS_Security_PermissionsHandle result;
   DDS_Security_PermissionsToken permissions_token;
   DDS_Security_AuthenticatedPeerCredentialToken credential_token;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   int r;
 
   /* Check if we actually have validate_remote_permissions function. */
@@ -996,7 +996,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, permissions_different_subjec
   DDS_Security_PermissionsHandle result;
   DDS_Security_PermissionsToken permissions_token;
   DDS_Security_AuthenticatedPeerCredentialToken credential_token;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   int r;
 
   /* Check if we actually have validate_remote_permissions function. */
@@ -1037,7 +1037,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, corrupted_signature, .init =
   DDS_Security_PermissionsHandle result;
   DDS_Security_PermissionsToken permissions_token;
   DDS_Security_AuthenticatedPeerCredentialToken credential_token;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   int r;
 
   /* Check if we actually have validate_remote_permissions function. */

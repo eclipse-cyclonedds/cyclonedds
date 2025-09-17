@@ -27,6 +27,7 @@
 
 #include "dds/security/dds_security_api.h"
 #include "dds/security/openssl_support.h"
+#include "dds/security/core/dds_security_utils.h"
 
 #include <dds/ddsrt/heap.h>
 #include <dds/ddsrt/string.h>
@@ -632,7 +633,7 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
     DDS_Security_boolean success;
@@ -739,7 +740,7 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_certificate)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
@@ -827,7 +828,7 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_root)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
@@ -912,7 +913,7 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_chain)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
@@ -998,7 +999,7 @@ CU_Test(ddssec_builtin_validate_local_identity,certificate_key_too_small)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
@@ -1051,7 +1052,7 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_private_key)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
@@ -1136,7 +1137,7 @@ CU_Test(ddssec_builtin_validate_local_identity,private_key_too_small)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
@@ -1188,7 +1189,7 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_certificate_property)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
@@ -1246,7 +1247,7 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_ca_property)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
@@ -1301,7 +1302,7 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_private_key_property)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
@@ -1354,7 +1355,7 @@ CU_Test(ddssec_builtin_validate_local_identity,unsupported_certification_format)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
     char *cert;
@@ -1414,7 +1415,7 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
@@ -1502,7 +1503,7 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key_no_password)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
@@ -1578,7 +1579,7 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key_invalid_password)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
@@ -1665,7 +1666,7 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day_elliptic)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
     DDS_Security_boolean success;
@@ -1771,7 +1772,7 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_ec_key)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
@@ -1858,7 +1859,7 @@ CU_Test(ddssec_builtin_validate_local_identity,elliptic_unsupported_certificate)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
@@ -1910,7 +1911,7 @@ CU_Test(ddssec_builtin_validate_local_identity,elliptic_unsupported_private_key)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
@@ -1962,7 +1963,7 @@ CU_Test(ddssec_builtin_validate_local_identity,return_freed_handle)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
     DDS_Security_boolean success;
@@ -2036,7 +2037,7 @@ CU_Test(ddssec_builtin_validate_local_identity,no_file)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
@@ -2153,7 +2154,7 @@ CU_Test(ddssec_builtin_validate_local_identity,with_extended_certificate_check)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
     DDS_Security_boolean success;
@@ -2243,7 +2244,7 @@ CU_Test(ddssec_builtin_validate_local_identity,crl)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
@@ -2329,7 +2330,7 @@ CU_Test(ddssec_builtin_validate_local_identity,trusted_ca_dir_and_crl)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 

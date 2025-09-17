@@ -67,7 +67,7 @@ CU_Test(ddssec_builtin_register_local_participant, happy_day, .init = suite_regi
 
   /* Dummy (even un-initialized) data for now. */
   DDS_Security_IdentityHandle participant_identity = 5; //valid dummy value
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PermissionsHandle participant_permissions = 2; /*dummy but valid */
   DDS_Security_PropertySeq participant_properties;
   DDS_Security_ParticipantSecurityAttributes participant_security_attributes;
@@ -116,7 +116,7 @@ CU_Test(ddssec_builtin_register_local_participant, empty_identity, .init = suite
 
   /* Dummy (even un-initialized) data for now. */
   DDS_Security_IdentityHandle participant_identity = 0; //empty identity
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   DDS_Security_PermissionsHandle participant_permissions = 2; /*dummy but valid */
   DDS_Security_PropertySeq participant_properties;

@@ -85,7 +85,7 @@ static void prepare_participant_security_attributes(DDS_Security_ParticipantSecu
 
 static int register_local_participant(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PermissionsHandle participant_permissions = 3; //valid dummy value
   DDS_Security_PropertySeq participant_properties;
   DDS_Security_ParticipantSecurityAttributes participant_security_attributes;
@@ -112,7 +112,7 @@ static int register_local_participant(void)
 
 static int register_remote_participant(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PermissionsHandle remote_participant_permissions = 5;
 
   remote_particpant_crypto =
@@ -143,7 +143,7 @@ static void prepare_endpoint_security_attributes(DDS_Security_EndpointSecurityAt
 
 static int register_local_datawriter(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq datawriter_properties;
   DDS_Security_EndpointSecurityAttributes datawriter_security_attributes;
 
@@ -170,7 +170,7 @@ static int register_local_datawriter(void)
 
 static int register_remote_datareader(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   remote_reader_crypto =
       crypto->crypto_key_factory->register_matched_remote_datareader(
@@ -213,7 +213,7 @@ static void suite_create_local_datawriter_crypto_tokens_init(void)
 
 static void suite_create_local_datawriter_crypto_tokens_fini(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   if (remote_reader_crypto)
   {
@@ -344,7 +344,7 @@ static bool check_token_validity(const DDS_Security_DatawriterCryptoTokenSeq *to
 CU_Test(ddssec_builtin_create_local_datawriter_crypto_tokens, happy_day, .init = suite_create_local_datawriter_crypto_tokens_init, .fini = suite_create_local_datawriter_crypto_tokens_fini)
 {
   DDS_Security_boolean result;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_DatawriterCryptoTokenSeq tokens;
 
   CU_ASSERT_FATAL(crypto != NULL);
@@ -394,7 +394,7 @@ CU_Test(ddssec_builtin_create_local_datawriter_crypto_tokens, happy_day, .init =
 CU_Test(ddssec_builtin_create_local_datawriter_crypto_tokens, invalid_args, .init = suite_create_local_datawriter_crypto_tokens_init, .fini = suite_create_local_datawriter_crypto_tokens_fini)
 {
   DDS_Security_boolean result;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_DatawriterCryptoTokenSeq tokens;
 
   /* Check if we actually have the validate_local_identity() function. */

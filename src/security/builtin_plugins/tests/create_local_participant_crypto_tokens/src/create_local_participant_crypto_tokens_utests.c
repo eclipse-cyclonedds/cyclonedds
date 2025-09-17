@@ -78,7 +78,7 @@ static int register_participants(void)
 {
   int r = 0;
   DDS_Security_IdentityHandle participant_identity = 5; /* valid dummy value */
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PermissionsHandle participant_permissions = 3;        /* valid but dummy value */
   DDS_Security_PermissionsHandle remote_participant_permissions = 5; /*valid dummy value */
   DDS_Security_PropertySeq participant_properties;
@@ -126,7 +126,7 @@ static int register_participants(void)
 static void unregister_participants(void)
 {
   DDS_Security_boolean status;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   if (local_crypto_handle)
   {
@@ -203,7 +203,7 @@ CU_Test(ddssec_builtin_create_local_participant_crypto_tokens, happy_day, .init 
   DDS_Security_boolean result;
 
   /* Dummy (even un-initialized) data for now. */
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_ParticipantCryptoTokenSeq tokens;
 
   /* Check if we actually have the validate_local_identity() function. */
@@ -256,7 +256,7 @@ CU_Test(ddssec_builtin_create_local_participant_crypto_tokens, invalid_args, .in
   DDS_Security_boolean result;
 
   /* Dummy (even un-initialized) data for now. */
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_ParticipantCryptoTokenSeq tokens;
 
   /* Check if we actually have the validate_local_identity() function. */

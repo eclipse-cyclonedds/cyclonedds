@@ -68,7 +68,7 @@ CU_Test(ddssec_builtin_register_remote_participant, happy_day, .init = suite_reg
 
   /* Dummy (even un-initialized) data for now. */
   DDS_Security_IdentityHandle participant_identity = 5; //valid dummy value
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq participant_properties;
   DDS_Security_PermissionsHandle remote_participant_permissions = 5; /*valid dummy value */
   DDS_Security_SharedSecretHandle shared_secret_handle;
@@ -151,7 +151,7 @@ CU_Test(ddssec_builtin_register_remote_participant, empty_identity, .init = suit
   /* Dummy (even un-initialized) data for now. */
   DDS_Security_IdentityHandle participant_identity = 5;              //empty identity
   DDS_Security_IdentityHandle remote_participant_identity_empty = 0; //empty identity
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   DDS_Security_PermissionsHandle participant_permissions = 2; /*valid but dummy value */
   DDS_Security_PropertySeq participant_properties;

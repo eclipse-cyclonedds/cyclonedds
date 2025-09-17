@@ -229,7 +229,7 @@ static bool create_local_identity(DDS_Security_DomainId domain_id, const char *g
   DDS_Security_ValidationResult_t result;
   DDS_Security_Qos participant_qos;
   DDS_Security_GUID_t candidate_participant_guid;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_GuidPrefix_t prefix = {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb};
   DDS_Security_EntityId_t entityId = {{0xb0, 0xb1, 0xb2}, 0x1};
 
@@ -276,7 +276,7 @@ static bool create_local_identity(DDS_Security_DomainId domain_id, const char *g
 
 static void clear_local_identity(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_boolean success;
 
   if (local_identity_handle != DDS_SECURITY_HANDLE_NIL)
@@ -485,7 +485,7 @@ static bool verify_topic_attributes(SEC_TOPIC_TYPE topic_type, DDS_Security_Topi
 
 CU_Test(ddssec_builtin_get_xxx_sec_attributes, participant_happy_day, .init = suite_get_xxx_sec_attributes_init, .fini = suite_get_xxx_sec_attributes_fini)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_ParticipantSecurityAttributes attributes;
   bool result;
 
@@ -543,7 +543,7 @@ CU_Test(ddssec_builtin_get_xxx_sec_attributes, participant_happy_day, .init = su
 
 CU_Test(ddssec_builtin_get_xxx_sec_attributes, datawriter_happy_day, .init = suite_get_xxx_sec_attributes_init, .fini = suite_get_xxx_sec_attributes_fini)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PartitionQosPolicy *partition = NULL;
   DDS_Security_DataTagQosPolicy data_tag;
   DDS_Security_EndpointSecurityAttributes attributes;
@@ -595,7 +595,7 @@ CU_Test(ddssec_builtin_get_xxx_sec_attributes, datawriter_happy_day, .init = sui
 
 CU_Test(ddssec_builtin_get_xxx_sec_attributes, datawriter_non_existing_topic, .init = suite_get_xxx_sec_attributes_init, .fini = suite_get_xxx_sec_attributes_fini)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PartitionQosPolicy *partition = NULL;
   DDS_Security_DataTagQosPolicy data_tag;
   DDS_Security_EndpointSecurityAttributes attributes;
@@ -637,7 +637,7 @@ CU_Test(ddssec_builtin_get_xxx_sec_attributes, datawriter_non_existing_topic, .i
 
 CU_Test(ddssec_builtin_get_xxx_sec_attributes, datareader_happy_day, .init = suite_get_xxx_sec_attributes_init, .fini = suite_get_xxx_sec_attributes_fini)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PartitionQosPolicy *partition = NULL;
   DDS_Security_DataTagQosPolicy data_tag;
   DDS_Security_EndpointSecurityAttributes attributes;
@@ -689,7 +689,7 @@ CU_Test(ddssec_builtin_get_xxx_sec_attributes, datareader_happy_day, .init = sui
 
 CU_Test(ddssec_builtin_get_xxx_sec_attributes, datareader_non_existing_topic, .init = suite_get_xxx_sec_attributes_init, .fini = suite_get_xxx_sec_attributes_fini)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PartitionQosPolicy *partition = NULL;
   DDS_Security_DataTagQosPolicy data_tag;
   DDS_Security_EndpointSecurityAttributes attributes;
@@ -730,7 +730,7 @@ CU_Test(ddssec_builtin_get_xxx_sec_attributes, datareader_non_existing_topic, .i
 
 CU_Test(ddssec_builtin_get_xxx_sec_attributes, participant_invalid_param, .init = suite_get_xxx_sec_attributes_init, .fini = suite_get_xxx_sec_attributes_fini)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_ParticipantSecurityAttributes attributes;
   bool result;
 
@@ -788,7 +788,7 @@ CU_Test(ddssec_builtin_get_xxx_sec_attributes, participant_invalid_param, .init 
 
 CU_Test(ddssec_builtin_get_xxx_sec_attributes, datareader_invalid_param, .init = suite_get_xxx_sec_attributes_init, .fini = suite_get_xxx_sec_attributes_fini)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PartitionQosPolicy *partition = NULL;
   DDS_Security_DataTagQosPolicy data_tag;
   DDS_Security_EndpointSecurityAttributes attributes;
@@ -874,7 +874,7 @@ CU_Test(ddssec_builtin_get_xxx_sec_attributes, datareader_invalid_param, .init =
 
 CU_Test(ddssec_builtin_get_xxx_sec_attributes, datawriter_invalid_param, .init = suite_get_xxx_sec_attributes_init, .fini = suite_get_xxx_sec_attributes_fini)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PartitionQosPolicy *partition = NULL;
   DDS_Security_DataTagQosPolicy data_tag;
   DDS_Security_EndpointSecurityAttributes attributes;
@@ -960,7 +960,7 @@ CU_Test(ddssec_builtin_get_xxx_sec_attributes, datawriter_invalid_param, .init =
 
 CU_Test(ddssec_builtin_get_xxx_sec_attributes, topic_happy_day, .init = suite_get_xxx_sec_attributes_init, .fini = suite_get_xxx_sec_attributes_fini)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_TopicSecurityAttributes attributes;
   bool result;
   unsigned i;
@@ -1008,7 +1008,7 @@ CU_Test(ddssec_builtin_get_xxx_sec_attributes, topic_happy_day, .init = suite_ge
 
 CU_Test(ddssec_builtin_get_xxx_sec_attributes, topic_non_existing_topic, .init = suite_get_xxx_sec_attributes_init, .fini = suite_get_xxx_sec_attributes_fini)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_TopicSecurityAttributes attributes;
   bool result;
 
@@ -1050,7 +1050,7 @@ CU_Test(ddssec_builtin_get_xxx_sec_attributes, topic_non_existing_topic, .init =
 
 CU_Test(ddssec_builtin_get_xxx_sec_attributes, topic_invalid_param, .init = suite_get_xxx_sec_attributes_init, .fini = suite_get_xxx_sec_attributes_fini)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_TopicSecurityAttributes attributes;
   bool result;
 
@@ -1129,7 +1129,7 @@ CU_Test(ddssec_builtin_get_xxx_sec_attributes, topic_invalid_param, .init = suit
 
 CU_Test(ddssec_builtin_get_xxx_sec_attributes, participant_2nd_rule, .init = suite_get_xxx_sec_attributes_init, .fini = suite_get_xxx_sec_attributes_fini)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_ParticipantSecurityAttributes attributes;
   bool result;
 
@@ -1200,7 +1200,7 @@ static void test_liveliness_discovery_participant_attr(
   DDS_Security_unsigned_long mask = DDS_SECURITY_PARTICIPANT_ATTRIBUTES_FLAG_IS_VALID |
                                     liveliness_mask |
                                     discovery_mask;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_ParticipantSecurityAttributes attr;
   bool result;
 
@@ -1239,7 +1239,7 @@ static void test_liveliness_discovery_writer_attr(
     DDS_Security_unsigned_long submsg_mask)
 {
   DDS_Security_unsigned_long mask = DDS_SECURITY_PARTICIPANT_ATTRIBUTES_FLAG_IS_VALID | submsg_mask;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_EndpointSecurityAttributes attr;
   DDS_Security_DataTagQosPolicy data_tag;
   DDS_Security_PartitionQosPolicy *partition = NULL;
@@ -1285,7 +1285,7 @@ static void test_liveliness_discovery_reader_attr(
     DDS_Security_unsigned_long submsg_mask)
 {
   DDS_Security_unsigned_long mask = DDS_SECURITY_PARTICIPANT_ATTRIBUTES_FLAG_IS_VALID | submsg_mask;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_EndpointSecurityAttributes attr;
   DDS_Security_DataTagQosPolicy data_tag;
   DDS_Security_PartitionQosPolicy *partition = NULL;

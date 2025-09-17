@@ -1952,8 +1952,7 @@ static bool is_allowed_by_default_rule (const struct grant *permissions_grant, c
   }
 }
 
-static bool is_allowed_by_rule (const struct allow_deny_rule *current_rule, const char *topic_name, DDS_Security_SecurityException *ex) ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
-
+ddsrt_nonnull_all ddsrt_attribute_warn_unused_result
 static bool is_allowed_by_rule (const struct allow_deny_rule *current_rule, const char *topic_name, DDS_Security_SecurityException *ex)
 {
   switch (current_rule->rule_type)

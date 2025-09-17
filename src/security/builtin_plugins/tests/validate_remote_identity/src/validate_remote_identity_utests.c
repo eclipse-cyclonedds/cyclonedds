@@ -247,7 +247,7 @@ create_local_identity(void)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb};
     DDS_Security_EntityId_t entityId = {{0xb0,0xb1,0xb2},0x1};
 
@@ -288,7 +288,7 @@ create_local_identity(void)
 static void
 clear_local_identity(void)
 {
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_boolean success;
 
     if (local_identity_handle != DDS_SECURITY_HANDLE_NIL) {
@@ -434,7 +434,7 @@ CU_Test(ddssec_builtin_validate_remote_identity,happy_day_nil_auth_req )
     DDS_Security_AuthRequestMessageToken local_auth_request_token = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_IdentityToken remote_identity_token;
     DDS_Security_GUID_t remote_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
     /* Check if we actually have validate_local_identity function. */
     CU_ASSERT (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
@@ -494,7 +494,7 @@ CU_Test(ddssec_builtin_validate_remote_identity,happy_day_with_auth_req )
     DDS_Security_AuthRequestMessageToken remote_auth_request_token;
     DDS_Security_IdentityToken remote_identity_token;
     DDS_Security_GUID_t remote_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_boolean success;
 
     /* Check if we actually have validate_local_identity function. */
@@ -550,7 +550,7 @@ CU_Test(ddssec_builtin_validate_remote_identity,invalid_parameters )
     DDS_Security_AuthRequestMessageToken remote_auth_request_token;
     DDS_Security_IdentityToken remote_identity_token;
     DDS_Security_GUID_t remote_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
     /* Check if we actually have validate_local_identity function. */
     CU_ASSERT_FATAL (auth != NULL);
@@ -632,7 +632,7 @@ CU_Test(ddssec_builtin_validate_remote_identity,unknown_local_identity )
     DDS_Security_AuthRequestMessageToken remote_auth_request_token;
     DDS_Security_IdentityToken remote_identity_token;
     DDS_Security_GUID_t remote_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
     /* Check if we actually have validate_local_identity function. */
     CU_ASSERT_FATAL (auth != NULL);
@@ -678,7 +678,7 @@ CU_Test(ddssec_builtin_validate_remote_identity,invalid_remote_identity_token )
     DDS_Security_AuthRequestMessageToken remote_auth_request_token;
     DDS_Security_IdentityToken remote_identity_token;
     DDS_Security_GUID_t remote_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
     /* Check if we actually have validate_local_identity function. */
     CU_ASSERT_FATAL (auth != NULL);
@@ -751,7 +751,7 @@ CU_Test(ddssec_builtin_validate_remote_identity,invalid_auth_req_token )
     DDS_Security_AuthRequestMessageToken remote_auth_request_token;
     DDS_Security_IdentityToken remote_identity_token;
     DDS_Security_GUID_t remote_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     unsigned char *futureChallenge;
 
     /* Check if we actually have validate_local_identity function. */
@@ -1004,7 +1004,7 @@ CU_Test(ddssec_builtin_validate_remote_identity,already_validated_same_token )
     DDS_Security_AuthRequestMessageToken remote_auth_request_token;
     DDS_Security_IdentityToken remote_identity_token;
     DDS_Security_GUID_t remote_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_boolean success;
 
     /* Check if we actually have validate_local_identity function. */
@@ -1083,7 +1083,7 @@ CU_Test(ddssec_builtin_validate_remote_identity,already_validated_different_toke
     DDS_Security_IdentityToken remote_identity_token;
     DDS_Security_IdentityToken remote_identity_token2;
     DDS_Security_GUID_t remote_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_boolean success;
 
     /* Check if we actually have validate_local_identity function. */
