@@ -56,7 +56,7 @@ static void reset_exception(DDS_Security_SecurityException *ex)
 static void suite_register_local_datawriter_init(void)
 {
   DDS_Security_IdentityHandle participant_identity = 5; //valid dummy value
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq participant_properties;
   DDS_Security_PermissionsHandle remote_participant_permissions = 5; //valid dummy value
   DDS_Security_SharedSecretHandleImpl *shared_secret_handle_impl;
@@ -114,7 +114,7 @@ static void suite_register_local_datawriter_init(void)
 
 static void suite_register_local_datawriter_fini(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   crypto->crypto_key_factory->unregister_participant(crypto->crypto_key_factory, remote_participant_crypto_handle, &exception);
   reset_exception(&exception);
@@ -143,7 +143,7 @@ CU_Test(ddssec_builtin_register_local_datawriter, happy_day, .init = suite_regis
   DDS_Security_DatawriterCryptoHandle result;
 
   /* Dummy (even un-initialized) data for now. */
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq datawriter_properties;
   DDS_Security_EndpointSecurityAttributes datawriter_security_attributes;
   local_datawriter_crypto *writer_crypto;
@@ -201,7 +201,7 @@ CU_Test(ddssec_builtin_register_local_datawriter, builtin_endpoint, .init = suit
   DDS_Security_DatawriterCryptoHandle result;
 
   /* Dummy (even un-initialized) data for now. */
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq datawriter_properties;
   DDS_Security_EndpointSecurityAttributes datawriter_security_attributes;
   local_datawriter_crypto *writer_crypto;
@@ -265,7 +265,7 @@ CU_Test(ddssec_builtin_register_local_datawriter, special_endpoint_name, .init =
 {
   DDS_Security_DatawriterCryptoHandle result;
 
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq datawriter_properties;
   DDS_Security_EndpointSecurityAttributes datawriter_security_attributes;
 
@@ -313,7 +313,7 @@ CU_Test(ddssec_builtin_register_local_datawriter, invalid_participant, .init = s
   DDS_Security_DatawriterCryptoHandle result;
 
   /* Dummy (even un-initialized) data for now. */
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq datawriter_properties;
   DDS_Security_EndpointSecurityAttributes datawriter_security_attributes;
 

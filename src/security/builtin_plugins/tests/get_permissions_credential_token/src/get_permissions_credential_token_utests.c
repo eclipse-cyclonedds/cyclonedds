@@ -237,7 +237,7 @@ static int local_permissions_init(DDS_Security_DomainId domain_id)
   DDS_Security_Qos participant_qos;
   DDS_Security_GUID_t local_participant_guid;
   DDS_Security_GUID_t candidate_participant_guid;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_GuidPrefix_t prefix = {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb};
   DDS_Security_EntityId_t entityId = {{0xb0, 0xb1, 0xb2}, 0x1};
 
@@ -290,7 +290,7 @@ static int local_permissions_init(DDS_Security_DomainId domain_id)
 
 static void local_permissions_clean(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_boolean success;
 
   if (local_permissions_handle != DDS_SECURITY_HANDLE_NIL)
@@ -370,7 +370,7 @@ static bool validate_permissions_token(DDS_Security_PermissionsCredentialToken *
 CU_Test(ddssec_builtin_get_permissions_credential_token, happy_day, .init = suite_get_permissions_credential_token_init, .fini = suite_get_permissions_credential_token_fini)
 {
   DDS_Security_PermissionsCredentialToken token;
-  DDS_Security_SecurityException exception;
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_boolean result;
 
   /* Pre-requisites. */
@@ -406,7 +406,7 @@ CU_Test(ddssec_builtin_get_permissions_credential_token, happy_day, .init = suit
 CU_Test(ddssec_builtin_get_permissions_credential_token, invalid_args, .init = suite_get_permissions_credential_token_init, .fini = suite_get_permissions_credential_token_fini)
 {
   DDS_Security_PermissionsCredentialToken token;
-  DDS_Security_SecurityException exception;
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_boolean result;
 
   /* Pre-requisites. */

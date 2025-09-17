@@ -429,7 +429,7 @@ validate_local_identity_and_permissions(int32_t permission_expiry)
   DDS_Security_DomainId domain_id = 0;
   DDS_Security_Qos participant_qos;
   DDS_Security_GUID_t candidate_participant_guid;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_GuidPrefix_t prefix = {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb};
   DDS_Security_EntityId_t entityId = {{0xb0, 0xb1, 0xb2}, 0x1};
 
@@ -486,7 +486,7 @@ validate_local_identity_and_permissions(int32_t permission_expiry)
 
 static void clear_local_identity_and_permissions(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_boolean success;
 
   if (local_permissions_handle != DDS_SECURITY_HANDLE_NIL)
@@ -554,7 +554,7 @@ CU_Test(ddssec_builtin_listeners_access_control, local_2secs)
   DDS_Security_PermissionsHandle result;
   DDS_Security_PermissionsToken permissions_token;
   DDS_Security_AuthenticatedPeerCredentialToken credential_token;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_long valid;
   int r;
   dds_duration_t time_left = DDS_MSECS(10000);

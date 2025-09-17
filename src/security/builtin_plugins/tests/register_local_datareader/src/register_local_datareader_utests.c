@@ -56,7 +56,7 @@ static void reset_exception(DDS_Security_SecurityException *ex)
 static void suite_register_local_datareader_init(void)
 {
   DDS_Security_IdentityHandle participant_identity = 5; //valid dummy value
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq participant_properties;
   DDS_Security_PermissionsHandle remote_participant_permissions = 5; //valid dummy value
   DDS_Security_SharedSecretHandleImpl *shared_secret_handle_impl;
@@ -111,7 +111,7 @@ static void suite_register_local_datareader_init(void)
 static void suite_register_local_datareader_fini(void)
 {
   DDS_Security_SharedSecretHandleImpl *shared_secret_handle_impl = (DDS_Security_SharedSecretHandleImpl *)shared_secret_handle;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   crypto->crypto_key_factory->unregister_participant(crypto->crypto_key_factory, remote_participant_crypto_handle, &exception);
   reset_exception(&exception);
@@ -144,7 +144,7 @@ CU_Test(ddssec_builtin_register_local_datareader, happy_day, .init = suite_regis
   DDS_Security_DatareaderCryptoHandle result;
 
   /* Dummy (even un-initialized) data for now. */
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq datareader_properties;
   DDS_Security_EndpointSecurityAttributes datareader_security_attributes;
   local_datareader_crypto *reader_crypto;
@@ -189,7 +189,7 @@ CU_Test(ddssec_builtin_register_local_datareader, builtin_endpoint, .init = suit
   DDS_Security_DatareaderCryptoHandle result;
 
   /* Dummy (even un-initialized) data for now. */
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq datareader_properties;
   DDS_Security_EndpointSecurityAttributes datareader_security_attributes;
   local_datareader_crypto *reader_crypto;
@@ -243,7 +243,7 @@ CU_Test(ddssec_builtin_register_local_datareader, builtin_endpoint, .init = suit
 CU_Test(ddssec_builtin_register_local_datareader, special_endpoint_name, .init = suite_register_local_datareader_init, .fini = suite_register_local_datareader_fini)
 {
   DDS_Security_DatareaderCryptoHandle result;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq datareader_properties;
   DDS_Security_EndpointSecurityAttributes datareader_security_attributes;
 
@@ -290,7 +290,7 @@ CU_Test(ddssec_builtin_register_local_datareader, invalid_participant, .init = s
   DDS_Security_DatareaderCryptoHandle result;
 
   /* Dummy (even un-initialized) data for now. */
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq datareader_properties;
   DDS_Security_EndpointSecurityAttributes datareader_security_attributes;
 

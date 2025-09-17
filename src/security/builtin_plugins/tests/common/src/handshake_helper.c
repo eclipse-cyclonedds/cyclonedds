@@ -919,7 +919,7 @@ check_shared_secret(
     size_t skeylen;
     EVP_PKEY *dh_remote_public = NULL;
     DDS_Security_SharedSecretHandle shared_secret_local_handle;
-    DDS_Security_SecurityException exception;
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_octet *shared_secret_local;
     DDS_Security_octet shared_secret_remote[SHA256_DIGEST_LENGTH];
     DDS_Security_octet *secret;

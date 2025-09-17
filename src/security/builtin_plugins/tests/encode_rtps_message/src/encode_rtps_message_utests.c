@@ -128,7 +128,7 @@ static void print_octets(const char *msg, const unsigned char *data, uint32_t sz
 
 static int register_local_participant(DDS_Security_ParticipantSecurityAttributes *participant_security_attributes, DDS_Security_PropertySeq *participant_properties)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PermissionsHandle participant_permissions = 2; /* dummy but valid */
 
   local_particpant_crypto =
@@ -150,7 +150,7 @@ static int register_local_participant(DDS_Security_ParticipantSecurityAttributes
 
 static void unregister_local_participant(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   if (local_particpant_crypto)
   {
     crypto->crypto_key_factory->unregister_participant(crypto->crypto_key_factory, local_particpant_crypto, &exception);
@@ -160,7 +160,7 @@ static void unregister_local_participant(void)
 
 static int register_remote_participants(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PermissionsHandle remote_participant_permissions = 5;
 
   unsigned i;
@@ -192,7 +192,7 @@ static void
 unregister_remote_participants(void)
 {
   unsigned i;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   for (i = 0; i < sizeof(remote_particpant_cryptos) / sizeof(remote_particpant_cryptos[0]); ++i)
   {
     if (remote_particpant_cryptos[i])
@@ -775,7 +775,7 @@ static void encode_rtps_message_not_authenticated(DDS_Security_CryptoTransformKi
   DDS_Security_boolean result;
   DDS_Security_DatareaderCryptoHandleSeq reader_list;
   int32_t index;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_OctetSeq plain_buffer;
   DDS_Security_OctetSeq encoded_buffer;
   DDS_Security_OctetSeq decoded_buffer;
@@ -911,7 +911,7 @@ static void encode_rtps_message_sign(DDS_Security_CryptoTransformKind_Enum trans
   DDS_Security_boolean result;
   DDS_Security_DatareaderCryptoHandleSeq reader_list;
   int32_t index;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_OctetSeq plain_buffer;
   DDS_Security_OctetSeq encoded_buffer;
   DDS_Security_OctetSeq decoded_buffer;
@@ -1074,7 +1074,7 @@ CU_Test(ddssec_builtin_encode_rtps_message, invalid_args, .init = suite_encode_r
   DDS_Security_ParticipantCryptoHandleSeq reader_list;
   DDS_Security_ParticipantCryptoHandleSeq empty_reader_list;
   int32_t index;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_OctetSeq plain_buffer;
   DDS_Security_OctetSeq encoded_buffer;
   DDS_Security_ParticipantSecurityAttributes attributes;

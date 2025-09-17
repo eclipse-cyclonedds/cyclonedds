@@ -76,7 +76,7 @@ static void prepare_participant_security_attributes(DDS_Security_ParticipantSecu
 
 static int register_local_participant(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PermissionsHandle participant_permissions = 3; //valid dummy value
   DDS_Security_PropertySeq participant_properties;
   DDS_Security_ParticipantSecurityAttributes participant_security_attributes;
@@ -103,7 +103,7 @@ static int register_local_participant(void)
 
 static int register_remote_participant(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PermissionsHandle remote_participant_permissions = 5;
 
   remote_crypto_handle =
@@ -124,7 +124,7 @@ static int register_remote_participant(void)
 static int create_crypto_tokens(void)
 {
   DDS_Security_boolean status;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   status = crypto->crypto_key_exchange->create_local_participant_crypto_tokens(
       crypto->crypto_key_exchange,
       &tokens,
@@ -140,7 +140,7 @@ static int create_crypto_tokens(void)
 static void unregister_participants(void)
 {
   DDS_Security_boolean status;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   if (tokens._length != 0)
   {
@@ -198,7 +198,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, happy_day, .init = 
   DDS_Security_boolean result;
 
   /* Dummy (even un-initialized) data for now. */
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   /* Check if we actually have the validate_local_identity() function. */
   CU_ASSERT_FATAL(crypto != NULL);
@@ -231,7 +231,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, invalid_args, .init
   DDS_Security_boolean result;
 
   /* Dummy (even un-initialized) data for now. */
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq participant_properties;
 
   /* Check if we actually have the validate_local_identity() function. */
@@ -326,7 +326,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, invalid_tokens, .in
   DDS_Security_boolean result;
 
   /* Dummy (even un-initialized) data for now. */
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq participant_properties;
   DDS_Security_ParticipantCryptoTokenSeq invalid_tokens;
   DDS_Security_KeyMaterial_AES_GCM_GMAC keymat;

@@ -504,7 +504,7 @@ validate_local_identity(const char *trusted_ca_dir, const char *crl_data)
     DDS_Security_ValidationResult_t result;
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GUID_t local_participant_guid;
     DDS_Security_GuidPrefix_t prefix = {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb};
     DDS_Security_EntityId_t entityId = {{0xb0,0xb1,0xb2},0x1};
@@ -599,7 +599,7 @@ validate_local_identity(const char *trusted_ca_dir, const char *crl_data)
 static void
 release_local_identity(void)
 {
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_boolean success;
 
     if (local_identity_handle != DDS_SECURITY_HANDLE_NIL) {
@@ -756,7 +756,7 @@ validate_remote_identities (const char *remote_id_certificate)
     static DDS_Security_AuthRequestMessageToken local_auth_request_token = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_GUID_t guid1;
     DDS_Security_GUID_t guid2;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix1 = {0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0xab};
     DDS_Security_GuidPrefix_t prefix2 = {0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xc9, 0xca, 0xcb};
     DDS_Security_EntityId_t entityId = {{0xb0,0xb1,0xb2},0x1};
@@ -874,7 +874,7 @@ validate_remote_identities (const char *remote_id_certificate)
 static void
 release_remote_identities(void)
 {
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_boolean success;
 
     if (remote_identity_handle1 != DDS_SECURITY_HANDLE_NIL) {
@@ -1222,7 +1222,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply, happy_day,  .init = init_
     DDS_Security_HandshakeHandle handshake_handle;
     DDS_Security_HandshakeMessageToken handshake_token_in = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_HandshakeMessageToken handshake_token_out = DDS_SECURITY_TOKEN_INIT;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_boolean success;
 
     CU_ASSERT_FATAL (auth != NULL);
@@ -1274,7 +1274,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,future_challenge,  .init =
     DDS_Security_HandshakeHandle handshake_handle;
     DDS_Security_HandshakeMessageToken handshake_token_in = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_HandshakeMessageToken handshake_token_out = DDS_SECURITY_TOKEN_INIT;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_boolean success;
 
     CU_ASSERT_FATAL (auth != NULL);
@@ -1328,7 +1328,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,invalid_arguments,  .init 
     DDS_Security_HandshakeHandle handshake_handle;
     DDS_Security_HandshakeMessageToken handshake_token_in = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_HandshakeMessageToken handshake_token_out = DDS_SECURITY_TOKEN_INIT;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_OctetSeq serdata = DDS_SECURITY_SEQUENCE_INIT;
 
     CU_ASSERT_FATAL (auth != NULL);
@@ -1477,7 +1477,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,invalid_certificate,  .ini
     DDS_Security_HandshakeHandle handshake_handle;
     DDS_Security_HandshakeMessageToken handshake_token_in = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_HandshakeMessageToken handshake_token_out = DDS_SECURITY_TOKEN_INIT;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
     CU_ASSERT_FATAL (auth != NULL);
     assert (auth != NULL);
@@ -1547,7 +1547,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,invalid_participant_data ,
     DDS_Security_HandshakeHandle handshake_handle;
     DDS_Security_HandshakeMessageToken handshake_token_in = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_HandshakeMessageToken handshake_token_out = DDS_SECURITY_TOKEN_INIT;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_BinaryProperty_t *property;
 
     CU_ASSERT_FATAL (auth != NULL);
@@ -1626,7 +1626,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,invalid_dsign_algo ,  .ini
     DDS_Security_HandshakeHandle handshake_handle;
     DDS_Security_HandshakeMessageToken handshake_token_in = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_HandshakeMessageToken handshake_token_out = DDS_SECURITY_TOKEN_INIT;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
     CU_ASSERT_FATAL (auth != NULL);
     assert (auth != NULL);
@@ -1697,7 +1697,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,invalid_kagree_algo ,  .in
     DDS_Security_HandshakeHandle handshake_handle;
     DDS_Security_HandshakeMessageToken handshake_token_in = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_HandshakeMessageToken handshake_token_out = DDS_SECURITY_TOKEN_INIT;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
     CU_ASSERT_FATAL (auth != NULL);
     assert (auth != NULL);
@@ -1768,7 +1768,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,invalid_diffie_hellman ,  
     DDS_Security_HandshakeHandle handshake_handle;
     DDS_Security_HandshakeMessageToken handshake_token_in = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_HandshakeMessageToken handshake_token_out = DDS_SECURITY_TOKEN_INIT;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
     CU_ASSERT_FATAL (auth != NULL);
     assert (auth != NULL);
@@ -1839,7 +1839,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,invalid_challenge ,  .init
     DDS_Security_HandshakeHandle handshake_handle;
     DDS_Security_HandshakeMessageToken handshake_token_in = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_HandshakeMessageToken handshake_token_out = DDS_SECURITY_TOKEN_INIT;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
     CU_ASSERT_FATAL (auth != NULL);
     assert (auth != NULL);
@@ -1929,7 +1929,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,return_handle,  .init = in
     DDS_Security_HandshakeHandle handshake_handle;
     DDS_Security_HandshakeMessageToken handshake_token_in = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_HandshakeMessageToken handshake_token_out = DDS_SECURITY_TOKEN_INIT;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_boolean success;
 
     CU_ASSERT_FATAL (auth != NULL);
@@ -1990,7 +1990,7 @@ CU_Test(validate_begin_handshake_reply,extended_certificate_check,  .init = init
     DDS_Security_HandshakeHandle handshake_handle;
     DDS_Security_HandshakeMessageToken handshake_token_in = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_HandshakeMessageToken handshake_token_out = DDS_SECURITY_TOKEN_INIT;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_boolean success;
 
     release_local_identity();
@@ -2130,7 +2130,7 @@ CU_Test(validate_begin_handshake_reply,crl,  .init = init_testcase, .fini = fini
     DDS_Security_HandshakeHandle handshake_handle;
     DDS_Security_HandshakeMessageToken handshake_token_in = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_HandshakeMessageToken handshake_token_out = DDS_SECURITY_TOKEN_INIT;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
     release_local_identity();
     release_remote_identities();

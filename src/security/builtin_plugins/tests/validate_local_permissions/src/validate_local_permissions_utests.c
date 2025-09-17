@@ -246,7 +246,7 @@ static DDS_Security_IdentityHandle create_local_identity(DDS_Security_Qos *parti
   DDS_Security_DomainId domain_id = 0;
   DDS_Security_GUID_t local_participant_guid;
   DDS_Security_GUID_t candidate_participant_guid;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_GuidPrefix_t prefix = {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb};
   DDS_Security_EntityId_t entityId = {{0xb0, 0xb1, 0xb2}, 0x1};
 
@@ -283,7 +283,7 @@ static DDS_Security_IdentityHandle create_local_identity(DDS_Security_Qos *parti
  * authorization plugin.*/
 static void clear_local_identity(DDS_Security_IdentityHandle local_id_hdl)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_boolean success;
 
   if (local_id_hdl != DDS_SECURITY_HANDLE_NIL)
@@ -465,7 +465,7 @@ static DDS_Security_long test_failure_scenario(DDS_Security_Qos *participant_qos
   DDS_Security_long code = DDS_SECURITY_ERR_OK_CODE;
   DDS_Security_IdentityHandle local_id_hdl = DDS_SECURITY_HANDLE_NIL;
   DDS_Security_PermissionsHandle result;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   /* Prepare testing environment. */
   local_id_hdl = test_setup(participant_qos);
@@ -629,7 +629,7 @@ CU_Test(ddssec_builtin_validate_local_permissions, valid_file, .init = suite_val
   DDS_Security_IdentityHandle local_id_hdl = DDS_SECURITY_HANDLE_NIL;
   DDS_Security_PermissionsHandle result;
   DDS_Security_Qos participant_qos;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   qos_init_file(&participant_qos,
                 "Test_Permissions_ca.pem",
@@ -667,7 +667,7 @@ CU_Test(ddssec_builtin_validate_local_permissions, valid_data, .init = suite_val
   DDS_Security_IdentityHandle local_id_hdl = DDS_SECURITY_HANDLE_NIL;
   DDS_Security_PermissionsHandle result;
   DDS_Security_Qos participant_qos;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   qos_init_data(&participant_qos,
                 "Test_Permissions_ca.pem",

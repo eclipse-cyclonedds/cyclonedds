@@ -111,7 +111,7 @@ static void prepare_participant_security_attributes(DDS_Security_ParticipantSecu
 
 static int register_local_participant(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PermissionsHandle participant_permissions = 3; //valid dummy value
   DDS_Security_PropertySeq participant_properties;
   DDS_Security_ParticipantSecurityAttributes participant_security_attributes;
@@ -138,7 +138,7 @@ static int register_local_participant(void)
 
 static void unregister_local_participant(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   if (local_participant_handle)
   {
     crypto->crypto_key_factory->unregister_participant(crypto->crypto_key_factory, local_participant_handle, &exception);
@@ -148,7 +148,7 @@ static void unregister_local_participant(void)
 
 static int register_remote_participant(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PermissionsHandle remote_participant_permissions = 5;
 
   remote_participant_handle =
@@ -170,7 +170,7 @@ static int register_remote_participant(void)
 
 static void unregister_remote_participant(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   if (remote_participant_handle)
   {
     crypto->crypto_key_factory->unregister_participant(crypto->crypto_key_factory, remote_participant_handle, &exception);
@@ -190,7 +190,7 @@ static void prepare_endpoint_security_attributes(DDS_Security_EndpointSecurityAt
 static DDS_Security_DatawriterCryptoHandle register_local_datawriter(bool encrypted)
 {
   DDS_Security_DatawriterCryptoHandle writer_crypto;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq datawriter_properties;
   DDS_Security_EndpointSecurityAttributes datawriter_security_attributes;
 
@@ -223,7 +223,7 @@ static DDS_Security_DatawriterCryptoHandle register_local_datawriter(bool encryp
 static DDS_Security_DatawriterCryptoHandle register_remote_datawriter(DDS_Security_DatareaderCryptoHandle reader_crypto)
 {
   DDS_Security_DatawriterCryptoHandle writer_crypto;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   writer_crypto =
       crypto->crypto_key_factory->register_matched_remote_datawriter(
@@ -244,7 +244,7 @@ static DDS_Security_DatawriterCryptoHandle register_remote_datawriter(DDS_Securi
 
 static void unregister_datawriter(DDS_Security_DatawriterCryptoHandle writer_crypto)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   if (writer_crypto)
   {
     crypto->crypto_key_factory->unregister_datawriter(crypto->crypto_key_factory, writer_crypto, &exception);
@@ -255,7 +255,7 @@ static void unregister_datawriter(DDS_Security_DatawriterCryptoHandle writer_cry
 static DDS_Security_DatareaderCryptoHandle register_local_datareader(bool encrypted)
 {
   DDS_Security_DatareaderCryptoHandle reader_crypto;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq datareader_properties;
   DDS_Security_EndpointSecurityAttributes datareader_security_attributes;
 
@@ -286,7 +286,7 @@ static DDS_Security_DatareaderCryptoHandle register_local_datareader(bool encryp
 static DDS_Security_DatareaderCryptoHandle register_remote_datareader(DDS_Security_DatawriterCryptoHandle writer_crypto)
 {
   DDS_Security_DatareaderCryptoHandle reader_crypto;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq datawriter_properties;
 
   memset(&datawriter_properties, 0, sizeof(datawriter_properties));
@@ -310,7 +310,7 @@ static DDS_Security_DatareaderCryptoHandle register_remote_datareader(DDS_Securi
 
 static void unregister_datareader(DDS_Security_DatareaderCryptoHandle reader_crypto)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   if (reader_crypto)
   {
     crypto->crypto_key_factory->unregister_datareader(crypto->crypto_key_factory, reader_crypto, &exception);
@@ -326,7 +326,7 @@ set_remote_datawriter_tokens(
     DDS_Security_DatawriterCryptoHandle remote_writer_crypto)
 {
   DDS_Security_boolean result;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_DatawriterCryptoTokenSeq tokens;
 
   memset(&tokens, 0, sizeof(tokens));
@@ -439,7 +439,7 @@ static bool split_encoded_data(unsigned char *data, size_t size, struct crypto_h
 static void decode_serialized_payload_check(uint32_t key_size, bool encrypted)
 {
   DDS_Security_boolean result;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_DatawriterCryptoHandle local_writer_crypto;
   DDS_Security_DatareaderCryptoHandle local_reader_crypto;
   DDS_Security_DatawriterCryptoHandle remote_writer_crypto;
@@ -557,7 +557,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, signcheck_256, .init = suite_d
 CU_Test(ddssec_builtin_decode_serialized_payload, invalid_args, .init = suite_decode_serialized_payload_init, .fini = suite_decode_serialized_payload_fini)
 {
   DDS_Security_boolean result;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_DatawriterCryptoHandle local_writer_crypto;
   DDS_Security_DatareaderCryptoHandle local_reader_crypto;
   DDS_Security_DatawriterCryptoHandle remote_writer_crypto;
@@ -720,7 +720,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_args, .init = suite_de
 CU_Test(ddssec_builtin_decode_serialized_payload, invalid_data, .init = suite_decode_serialized_payload_init, .fini = suite_decode_serialized_payload_fini)
 {
   DDS_Security_boolean result;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_DatawriterCryptoHandle local_writer_crypto;
   DDS_Security_DatareaderCryptoHandle local_reader_crypto;
   DDS_Security_DatawriterCryptoHandle remote_writer_crypto;

@@ -57,7 +57,7 @@ static void prepare_endpoint_security_attributes(DDS_Security_EndpointSecurityAt
 
 static void register_local_regular(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq datawriter_properties;
   DDS_Security_EndpointSecurityAttributes datawriter_security_attributes;
 
@@ -80,7 +80,7 @@ static void register_local_regular(void)
 static void suite_register_matched_remote_datareader_init(void)
 {
   DDS_Security_IdentityHandle participant_identity = 5; //valid dummy value
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq participant_properties;
   DDS_Security_PermissionsHandle remote_participant_permissions = 5; //valid dummy value
   DDS_Security_SharedSecretHandleImpl *shared_secret_handle_impl;
@@ -140,7 +140,7 @@ static void suite_register_matched_remote_datareader_init(void)
 
 static void suite_register_matched_remote_datareader_fini(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   (void)crypto->crypto_key_factory->unregister_participant(
       crypto->crypto_key_factory,
       remote_participant_crypto_handle,
@@ -170,7 +170,7 @@ CU_Test(ddssec_builtin_register_remote_datareader, happy_day, .init = suite_regi
   bool unregister_result = false;
 
   /* Dummy (even un-initialized) data for now. */
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   remote_datareader_crypto *reader_crypto;
 
   /* Check if we actually have the function. */
@@ -222,7 +222,7 @@ CU_Test(ddssec_builtin_register_remote_datareader, volatile_secure, .init = suit
   DDS_Security_DatawriterCryptoHandle local_volatile_secure_writer;
   DDS_Security_PropertySeq datawriter_properties;
   DDS_Security_EndpointSecurityAttributes datawriter_security_attributes;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   memset(&datawriter_properties, 0, sizeof(datawriter_properties));
 
@@ -278,7 +278,7 @@ CU_Test(ddssec_builtin_register_remote_datareader, with_origin_authentication, .
   local_datawriter_crypto *writer_crypto;
 
   /* Dummy (even un-initialized) data for now. */
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   remote_datareader_crypto *reader_crypto;
 
   /* Check if we actually have the function. */
@@ -337,7 +337,7 @@ CU_Test(ddssec_builtin_register_remote_datareader, invalid_participant, .init = 
   DDS_Security_DatawriterCryptoHandle result;
 
   /* Dummy (even un-initialized) data for now. */
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   /* Check if we actually have the function. */
   CU_ASSERT_FATAL(crypto != NULL);
@@ -370,7 +370,7 @@ CU_Test(ddssec_builtin_register_remote_datareader, invalid_writer_properties, .i
   DDS_Security_DatawriterCryptoHandle result;
 
   /* Dummy (even un-initialized) data for now. */
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   /* Check if we actually have the function. */
   CU_ASSERT_FATAL(crypto != NULL);
