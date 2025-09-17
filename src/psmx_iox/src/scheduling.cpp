@@ -84,7 +84,7 @@ bool sched_info_setpriority(sched_info& si, const std::string& x)
     std::string cstr = x.substr(0, priostart);
     trim(cstr);
     std::transform(cstr.begin(), cstr.end(), cstr.begin(), [](unsigned char c){ return std::toupper(c); });
-#if defined(__linux) || defined(__APPLE_)
+#if defined(__linux) || defined(__APPLE__)
     if (cstr == "OTHER")         cl = SCHED_OTHER;
     else if (cstr == "FIFO")     cl = SCHED_FIFO;
     else if (cstr == "RT")       cl = SCHED_RR;
