@@ -1171,7 +1171,7 @@ CU_Test(ddsc_qos_set, semilocal_endpoints_with_rxo)
   CU_ASSERT_FATAL (rc == 0);
 }
 
-CU_Test(ddsc_qos_set, remote_endpoints_with_rxo)
+CU_Test(ddsc_qos_set, remote_endpoints_with_rxo, .timeout = 20)
 {
   /* Domains for pub and sub use a different domain id, but the portgain setting
    * in configuration is 0, so that both domains will map to the same port number.
