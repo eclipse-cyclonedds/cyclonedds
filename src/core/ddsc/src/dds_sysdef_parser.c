@@ -132,8 +132,13 @@
     goto status_ok; \
   } while (0)
 
-#define CREATE_NODE_GENERIC(pstate, element_type, element_kind, element_init, element_fini, parent_kind, current) \
+#define CREATE_NODE_VALUE(pstate, element_type, element_kind, element_init, element_fini, parent_type, parent_kind, current) \
   do { \
+    struct parent_type *parent = (struct parent_type *) current; \
+    if (parent->populated != 0U) { \
+      PARSER_ERROR (pstate, line, "Duplicate element '%s'", STR(value)); \
+      return SD_PARSE_RESULT_SYNTAX_ERR; \
+    } \
     _CREATE_NODE(pstate, element_type, element_kind, ELEMENT_DATA_TYPE_GENERIC, parent_kind, current, element_init, element_fini); \
     current->retain = false; \
     current->handle_close = true; \
@@ -1190,9 +1195,6 @@ static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *n
     if (!(qpol->populated & QOS_POLICY_ ## policy ## _PARAM_VALUE)) { \
       assert (qpol->values.value == NULL); assert (qpol->values.length == 0U); \
       qpol->populated |= QOS_POLICY_ ## policy ## _PARAM_VALUE; \
-    } else { \
-      PARSER_ERROR (pstate, line, "Parameter '%s' already set", STR(VALUE)); \
-      ret = SD_PARSE_RESULT_SYNTAX_ERR; \
     } \
   } while (0)
 
@@ -1578,6 +1580,8 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UNUSED_
       case ELEMENT_KIND_QOS_POLICY_OWNERSHIPSTRENGTH:
         ELEM_CLOSE_QOS_POLICY(OWNERSHIPSTRENGTH, "Ownership Strength");
         break;
+      case ELEMENT_KIND_QOS_POLICY_OWNERSHIPSTRENGTH_VALUE:
+        break;
       case ELEMENT_KIND_QOS_POLICY_PARTITION:
         ELEM_CLOSE_QOS_POLICY(PARTITION, "Partition");
         break;
@@ -1610,6 +1614,8 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UNUSED_
         break;
       case ELEMENT_KIND_QOS_POLICY_TRANSPORTPRIORITY:
         ELEM_CLOSE_QOS_POLICY(TRANSPORTPRIORITY, "Transport Priority");
+        break;
+      case ELEMENT_KIND_QOS_POLICY_TRANSPORTPRIORITY_VALUE:
         break;
       case ELEMENT_KIND_QOS_POLICY_USERDATA:
         ELEM_CLOSE_QOS_POLICY_DATA(USERDATA, "User Data");
@@ -2613,15 +2619,15 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
       else if (ddsrt_strcasecmp (name, "value") == 0)
       {
         if (pstate->current->kind == ELEMENT_KIND_QOS_POLICY_GROUPDATA)
-          CREATE_NODE_GENERIC (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_GROUPDATA_VALUE, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_GROUPDATA, pstate->current);
+          CREATE_NODE_VALUE (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_GROUPDATA_VALUE, NO_INIT, NO_FINI, dds_sysdef_QOS_POLICY_GROUPDATA, ELEMENT_KIND_QOS_POLICY_GROUPDATA, pstate->current);
         else if (pstate->current->kind == ELEMENT_KIND_QOS_POLICY_TOPICDATA)
-          CREATE_NODE_GENERIC (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_TOPICDATA_VALUE, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_TOPICDATA, pstate->current);
+          CREATE_NODE_VALUE (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_TOPICDATA_VALUE, NO_INIT, NO_FINI, dds_sysdef_QOS_POLICY_TOPICDATA, ELEMENT_KIND_QOS_POLICY_TOPICDATA, pstate->current);
         else if (pstate->current->kind == ELEMENT_KIND_QOS_POLICY_USERDATA)
-          CREATE_NODE_GENERIC (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_USERDATA_VALUE, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_USERDATA, pstate->current);
+          CREATE_NODE_VALUE (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_USERDATA_VALUE, NO_INIT, NO_FINI, dds_sysdef_QOS_POLICY_USERDATA, ELEMENT_KIND_QOS_POLICY_USERDATA, pstate->current);
         else if (pstate->current->kind == ELEMENT_KIND_QOS_POLICY_OWNERSHIPSTRENGTH)
-          CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_OWNERSHIPSTRENGTH_VALUE, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_OWNERSHIPSTRENGTH, pstate->current);
+          CREATE_NODE_VALUE (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_OWNERSHIPSTRENGTH_VALUE, NO_INIT, NO_FINI, dds_sysdef_QOS_POLICY_OWNERSHIPSTRENGTH, ELEMENT_KIND_QOS_POLICY_OWNERSHIPSTRENGTH, pstate->current);
         else if (pstate->current->kind == ELEMENT_KIND_QOS_POLICY_TRANSPORTPRIORITY)
-          CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_TRANSPORTPRIORITY_VALUE, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_TRANSPORTPRIORITY, pstate->current);
+          CREATE_NODE_VALUE (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_TRANSPORTPRIORITY_VALUE, NO_INIT, NO_FINI, dds_sysdef_QOS_POLICY_TRANSPORTPRIORITY, ELEMENT_KIND_QOS_POLICY_TRANSPORTPRIORITY, pstate->current);
         else
           PARSER_ERROR_INVALID_PARENT_KIND ();
       }
