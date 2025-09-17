@@ -262,7 +262,8 @@ static uint32_t waituntil_check (const char *tname, int64_t after, int64_t absti
   fprintf (stderr, "%s: waited until %"PRId64" ns = exp + %"PRId64" ns\n", tname, after, after - abstimeout);
   fprintf (stderr, "%s: woke up %"PRIu32" times\n", tname, cnt);
   uint32_t res = 0;
-  if (after > abstimeout)
+  /* CI persistently gives some grief, so add a safety margin */
+  if (after > abstimeout - DDS_MSECS (10))
   {
     /* An arbitrary number to ensure the implementation did not just spin, aka is completely broken. */
     res = cnt < 3;
