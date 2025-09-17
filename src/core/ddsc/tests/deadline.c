@@ -47,6 +47,11 @@ static dds_entity_t g_remote_participant = 0;
 static dds_entity_t g_remote_subscriber  = 0;
 static dds_entity_t g_remote_topic       = 0;
 
+// mutex + condvar just so we can sleep until a specific time
+static ddsrt_mutex_t mutex;
+static ddsrt_cond_mtime_t condvar;
+static ddsrt_mtime_t tref;
+
 static dds_entity_t create_and_sync_reader(dds_entity_t participant, dds_entity_t subscriber, dds_entity_t topic, dds_qos_t *qos, dds_entity_t writer)
 {
   dds_entity_t reader = dds_create_reader(subscriber, topic, qos, NULL);
@@ -98,10 +103,18 @@ static void ddsi_deadline_init(void)
   dds_qset_durability(g_qos, DDS_DURABILITY_TRANSIENT_LOCAL);
   dds_qset_reliability(g_qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
   dds_qset_writer_data_lifecycle(g_qos, false);
+
+  ddsrt_mutex_init (&mutex);
+  ddsrt_mutex_lock (&mutex);
+  ddsrt_cond_mtime_init (&condvar);
 }
 
 static void ddsi_deadline_fini(void)
 {
+  ddsrt_cond_mtime_destroy (&condvar);
+  ddsrt_mutex_unlock (&mutex);
+  ddsrt_mutex_destroy (&mutex);
+
   dds_delete_qos(g_qos);
   dds_delete(g_subscriber);
   dds_delete(g_remote_subscriber);
@@ -115,7 +128,9 @@ static void ddsi_deadline_fini(void)
 
 static void sleepfor(dds_duration_t sleep_dur)
 {
-  dds_sleepfor (sleep_dur);
+  tref = ddsrt_mtime_add_duration (tref, sleep_dur);
+  while (ddsrt_cond_mtime_waituntil (&condvar, &mutex, tref))
+    ; // skip
   tprintf("after sleeping %"PRId64"\n", sleep_dur);
 }
 
@@ -163,6 +178,9 @@ CU_Test(ddsc_deadline, basic, .init=ddsi_deadline_init, .fini=ddsi_deadline_fini
 
     ret = dds_set_status_mask(writer, DDS_OFFERED_DEADLINE_MISSED_STATUS);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+
+    // reference time
+    tref = ddsrt_time_monotonic ();
 
     /* Write first sample */
     tprintf("write sample 1\n");
@@ -288,6 +306,9 @@ CU_Theory((dds_durability_kind_t dur_kind, dds_reliability_kind_t rel_kind, dds_
     ret = dds_set_status_mask(writer, DDS_OFFERED_DEADLINE_MISSED_STATUS);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
+    // reference time
+    tref = ddsrt_time_monotonic ();
+
     /* Write sample */
     ret = dds_write (writer, &sample);
     CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
@@ -362,6 +383,9 @@ CU_Theory((int32_t n_inst, uint8_t unreg_nth, uint8_t dispose_nth), ddsc_deadlin
     writer = dds_create_writer(g_publisher, g_topic, g_qos, NULL);
     CU_ASSERT_FATAL(writer > 0);
     reader_dl = create_and_sync_reader(g_participant, g_subscriber, g_topic, g_qos, writer);
+
+    // reference time
+    tref = ddsrt_time_monotonic ();
 
     /* Write first sample for each instance */
     n_dispose = 0;
