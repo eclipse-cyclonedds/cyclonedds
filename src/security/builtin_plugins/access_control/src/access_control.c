@@ -445,6 +445,11 @@ check_create_topic(dds_security_access_control *instance,
   /* Find a topic with the specified topic name in the Governance */
   result = is_topic_allowed_by_permissions(local_rights->permissions_tree, domain_id, topic_name, local_rights->identity_subject_name, ex);
 
+  /* ex may have been set because of encountering a deny rule even though topic creation is allowed,
+     leaving the exception set causes a memory leak */
+  if (result)
+    DDS_Security_Exception_reset(ex);
+
 exit:
   ACCESS_CONTROL_OBJECT_RELEASE(local_rights);
   return result;
