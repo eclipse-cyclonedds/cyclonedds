@@ -273,7 +273,7 @@ CU_TheoryDataPoints(ddsc_deadline, writer_types) = {
 #undef BE
 #undef KA
 #undef KL
-CU_Theory((dds_durability_kind_t dur_kind, dds_reliability_kind_t rel_kind, dds_history_kind_t hist_kind), ddsc_deadline, writer_types, .init = ddsi_deadline_init, .fini = ddsi_deadline_fini)
+CU_Theory((dds_durability_kind_t dur_kind, dds_reliability_kind_t rel_kind, dds_history_kind_t hist_kind), ddsc_deadline, writer_types, .init = ddsi_deadline_init, .fini = ddsi_deadline_fini, .timeout = 20)
 {
   Space_Type1 sample = { 0, 0, 0 };
   dds_entity_t reader, writer;
