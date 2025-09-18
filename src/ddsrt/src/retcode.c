@@ -50,7 +50,7 @@ const char *dds_strretcode (dds_return_t ret)
   /* Retcodes used to be positive, but return values from the API would be a negative
      and so there are/were/may be places outside the core library where dds_strretcode
      is called with a -N for N a API return value, so ... play it safe and use the
-     magnitude.  Specially handle INT32_MIN to avoid undefined behaviour on integer
+     magnitude.  Specially handle INT32_MIN to avoid undefined behavior on integer
      overflow. */
   if (ret == INT32_MIN)
     return xretcodes[0];

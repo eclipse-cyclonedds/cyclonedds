@@ -133,7 +133,7 @@ ddsrt_etime_t ddsrt_time_elapsed(void)
    * around available (comparing the progress with the progress made by
    * GetTickCount), but for now we live with a risk of a forward jump on buggy
    * hardware. Since Microsoft does maintain a list of hardware which exhibits
-   * the behaviour, it is possible to only have the workaround in place only
+   * the behavior, it is possible to only have the workaround in place only
    * on the faulty hardware (see KB274323 for a list and more info).
    *
    * TODO: When the API is extended to support retrieval of clock-properties,
