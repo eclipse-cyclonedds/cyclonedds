@@ -80,8 +80,7 @@ static void cleanup_qos_items (void *vnode, void *varg)
 #define PROVIDER_ALLOWED_QOS_MASK \
   (DDS_TOPIC_QOS_MASK | DDS_READER_QOS_MASK | DDS_WRITER_QOS_MASK | \
    DDS_SUBSCRIBER_QOS_MASK | DDS_PUBLISHER_QOS_MASK | DDS_PARTICIPANT_QOS_MASK) ^ \
-  (DDSI_QP_ENTITY_NAME | DDSI_QP_ADLINK_ENTITY_FACTORY | \
-    DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_PSMX)
+  (DDSI_QP_ENTITY_NAME | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_PSMX)
 static dds_return_t read_validate_sysdef(const char *path, struct dds_sysdef_system **sysdef)
 {
   dds_return_t ret = DDS_RETCODE_OK;
