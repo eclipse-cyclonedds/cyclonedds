@@ -559,8 +559,13 @@ static enum handle_spdp_result handle_spdp_alive (const struct ddsi_receiver_sta
   {
     DDSRT_STATIC_ASSERT (sizeof (rst->pktinfo.src) == sizeof (gv->intf_xlocators[0].c));
     for (int i = 0; i < gv->n_interfaces; i++)
+    {
       if (memcmp (&rst->pktinfo.src, &gv->intf_xlocators[i].c, sizeof (rst->pktinfo.src)) == 0)
+      {
+        RSTTRACE ("SPDP ST0 "PGUIDFMT" (loopback)", PGUID (datap->participant_guid));
         return HSR_NOT_INTERESTING;
+      }
+    }
   }
 
   // Don't just process any SPDP packet but look at the network interface and uni/multicast
