@@ -258,7 +258,8 @@ static void stop_and_teardown (void)
 static void ddsi_plist_leasedur_new_proxypp_impl (bool include_lease_duration)
 {
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
-  const uint32_t port = gv.loc_meta_uc.port;
+  const uint32_t rport = gv.loc_meta_uc.port;
+  const uint32_t xport = 1 + (gv.intf_xlocators[0].c.port % 65535);
 
   // not static nor const: we need to patch in the port number
   unsigned char pkt_header[] = {
@@ -283,8 +284,8 @@ static void ddsi_plist_leasedur_new_proxypp_impl (bool include_lease_duration)
     HDR (DDSI_PID_BUILTIN_ENDPOINT_SET, 4),         SER32BE (DDSI_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER),
     HDR (DDSI_PID_PROTOCOL_VERSION, 4),             gv.config.protocol_version.major, gv.config.protocol_version.minor, 0,0,
     HDR (DDSI_PID_VENDORID, 4),                     1, DDSI_VENDORID_MINOR_ECLIPSE, 0,0,
-    HDR (DDSI_PID_DEFAULT_UNICAST_LOCATOR, 24),     UDPLOCATOR (127,0,0,1, port),
-    HDR (DDSI_PID_METATRAFFIC_UNICAST_LOCATOR, 24), UDPLOCATOR (127,0,0,1, port)
+    HDR (DDSI_PID_DEFAULT_UNICAST_LOCATOR, 24),     UDPLOCATOR (127,0,0,1, rport),
+    HDR (DDSI_PID_METATRAFFIC_UNICAST_LOCATOR, 24), UDPLOCATOR (127,0,0,1, rport)
   };
   unsigned char pkt_leasedur[] = {
     HDR (DDSI_PID_PARTICIPANT_LEASE_DURATION, 8),   SER32BE (3), SER32BE (0x12345679),
@@ -294,6 +295,7 @@ static void ddsi_plist_leasedur_new_proxypp_impl (bool include_lease_duration)
   };
   struct ddsi_network_packet_info pktinfo;
   ddsi_conn_locator (gv.xmit_conns[0], &pktinfo.src);
+  pktinfo.src.port = xport;
   pktinfo.dst.kind = DDSI_LOCATOR_KIND_INVALID;
   pktinfo.if_index = 0;
   const ddsi_guid_t proxypp_guid = {
