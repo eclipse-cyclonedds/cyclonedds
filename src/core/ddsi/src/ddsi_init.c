@@ -1572,6 +1572,7 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
     GVLOG (DDS_LC_CONFIG, "interface %s: transmit port %d\n", gv->interfaces[i].name, (int) ddsi_conn_port (gv->xmit_conns[i]));
     gv->intf_xlocators[i].conn = gv->xmit_conns[i];
     gv->intf_xlocators[i].c = gv->interfaces[i].loc;
+    gv->intf_xlocators[i].c.port = ddsi_conn_port (gv->xmit_conns[i]);
   }
 
   // Now that we know the interfaces and xmit_conns, we can convert the strings in the
