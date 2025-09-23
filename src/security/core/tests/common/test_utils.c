@@ -78,6 +78,7 @@ void print_test_msg (const char *msg, ...)
   va_start (args, msg);
   vprintf (msg, args);
   va_end (args);
+  fflush (stdout);
 }
 
 static void add_local_identity (DDS_Security_IdentityHandle handle, DDS_Security_GUID_t *guid)
