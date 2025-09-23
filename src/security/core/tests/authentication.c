@@ -339,17 +339,25 @@ CU_Test(ddssec_authentication, unauthenticated_pp)
 
   print_test_msg ("writing sample for plain topic\n");
   dds_entity_t pub, sub, pub_tp, sub_tp, wr, rd;
+  print_test_msg (".. init\n");
   rd_wr_init (g_participant1, &pub, &pub_tp, &wr, g_participant2, &sub, &sub_tp, &rd, topic_name_plain);
+  print_test_msg (".. sync\n");
   sync_writer_to_readers(g_participant1, wr, 1, dds_time() + DDS_SECS(5));
+  print_test_msg (".. write/read\n");
   write_read_for (wr, g_participant2, rd, DDS_MSECS (10), false, false);
 
   print_test_msg ("writing sample for secured topic\n");
   dds_entity_t spub, ssub, spub_tp, ssub_tp, swr, srd;
+  print_test_msg (".. init\n");
   rd_wr_init (g_participant1, &spub, &spub_tp, &swr, g_participant2, &ssub, &ssub_tp, &srd, topic_name_secure);
+  print_test_msg (".. sync\n");
   sync_writer_to_readers(g_participant1, swr, 0, dds_time() + DDS_SECS(2));
+  print_test_msg (".. write/read\n");
   write_read_for (swr, g_participant2, srd, DDS_MSECS (10), false, true);
 
+  print_test_msg ("authentication_fini\n");
   authentication_fini (true, true, (void * []) { gov_config, gov_topic_rules, topic_rule_sec, topic_rule_plain, grants[0], perm_config, ca, id1_subj, id1 }, 9);
+  print_test_msg ("done\n");
 }
 
 CU_TheoryDataPoints(ddssec_authentication, crl) = {
