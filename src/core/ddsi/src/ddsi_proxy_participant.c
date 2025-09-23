@@ -447,7 +447,7 @@ int ddsi_update_proxy_participant_plist_locked (struct ddsi_proxy_participant *p
   return 0;
 }
 
-int ddsi_ref_proxy_participant (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_endpoint_common *c)
+dds_return_t ddsi_ref_proxy_participant_begin (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_endpoint_common *c)
 {
   ddsrt_mutex_lock (&proxypp->e.lock);
   if (proxypp->deleting)
@@ -457,18 +457,28 @@ int ddsi_ref_proxy_participant (struct ddsi_proxy_participant *proxypp, struct d
   }
 
   proxypp->refc++;
-  if (c != NULL)
-  {
-    c->proxypp = proxypp;
-    c->next_ep = proxypp->endpoints;
-    c->prev_ep = NULL;
-    if (c->next_ep)
-      c->next_ep->prev_ep = c;
-    proxypp->endpoints = c;
-  }
+  c->proxypp = proxypp;
+  c->next_ep = proxypp->endpoints;
+  c->prev_ep = NULL;
+  if (c->next_ep)
+    c->next_ep->prev_ep = c;
+  proxypp->endpoints = c;
   ddsrt_mutex_unlock (&proxypp->e.lock);
-
   return DDS_RETCODE_OK;
+}
+
+dds_return_t ddsi_ref_proxy_participant_complete (struct ddsi_proxy_participant *proxypp)
+{
+  dds_return_t ret;
+  ddsrt_mutex_lock (&proxypp->e.lock);
+  if (!proxypp->deleting)
+    ret = DDS_RETCODE_OK;
+  else if (proxypp->lease_expired)
+    ret = DDS_RETCODE_TIMEOUT;
+  else
+    ret = DDS_RETCODE_ALREADY_DELETED;
+  ddsrt_mutex_unlock (&proxypp->e.lock);
+  return ret;
 }
 
 void ddsi_unref_proxy_participant (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_endpoint_common *c)
@@ -560,7 +570,7 @@ static void delete_proxy_participant (struct ddsi_proxy_participant *proxypp, dd
   }
   ddsrt_mutex_unlock (&proxypp->e.lock);
 
-  ELOGDISC (proxypp, "delete_ppt("PGUIDFMT") - deleting endpoints\n", PGUID (proxypp->e.guid));
+  ELOGDISC (proxypp, "delete_proxy_participant("PGUIDFMT") - deleting endpoints\n", PGUID (proxypp->e.guid));
   ddsi_guid_t ep_guid = { .prefix = proxypp->e.guid.prefix, .entityid = { 0 } };
   for (uint32_t n = 0; n < n_child_entities; n++)
   {
