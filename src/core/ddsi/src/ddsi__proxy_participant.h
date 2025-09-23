@@ -38,10 +38,16 @@ int ddsi_update_proxy_participant_plist_locked (struct ddsi_proxy_participant *p
 void ddsi_purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocator_t *loc);
 
 /** @component ddsi_proxy_participant */
-int ddsi_ref_proxy_participant (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_endpoint_common *c);
+dds_return_t ddsi_ref_proxy_participant_begin (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_endpoint_common *c)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 /** @component ddsi_proxy_participant */
-void ddsi_unref_proxy_participant (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_endpoint_common *c);
+dds_return_t ddsi_ref_proxy_participant_complete (struct ddsi_proxy_participant *proxypp)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+
+/** @component ddsi_proxy_participant */
+void ddsi_unref_proxy_participant (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_endpoint_common *c)
+  ddsrt_nonnull ((1));
 
 /** @component ddsi_proxy_participant */
 void ddsi_proxy_participant_add_pwr_lease_locked (struct ddsi_proxy_participant * proxypp, const struct ddsi_proxy_writer * pwr);
