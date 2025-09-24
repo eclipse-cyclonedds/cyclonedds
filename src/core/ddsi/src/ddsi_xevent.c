@@ -684,7 +684,9 @@ static uint32_t xevent_thread (void *vevq)
     }
   }
   ddsrt_mutex_unlock (&evq->lock);
+  ddsi_thread_state_awake_fixed_domain (thrst);
   ddsi_xpack_send (xp, false);
+  ddsi_thread_state_asleep (thrst);
   ddsi_xpack_free (xp);
   return 0;
 }
