@@ -109,7 +109,10 @@ static void logger (void *ptr, const dds_log_data_t *data)
         }
         break;
       case LST_ACKNACK:
-        if (ddsi_patmatch ("*xpack_send*", msg))
+        // tev sometimes pushes out an SPDP as a consequence of having to send an ACK. ACKs never
+        // go to port number 7400, SPDP always goes to 239.255.0.1:7400. Ignoring the latter should
+        // eliminate a few false positives
+        if (ddsi_patmatch ("*xpack_send*", msg) && !ddsi_patmatch ("*udp/239.255.0.1:7400@*", msg))
         {
           check_destination_addresses (msg, false);
           arg->state[data->domid][thridx] = LST_INACTIVE;
