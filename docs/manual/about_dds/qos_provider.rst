@@ -397,6 +397,5 @@ Known limitations
 
 - Inheritance of QoS policies and QoS profiles in XML using the "base_name" attribute is not supported
 - The "topic_filter" attribute for writer, reader and topic QoSes to associate a set of topics to a specific QoS when that QoS is part of a DDS profile, is not supported yet.
-- The "entity_factory" attribute  for participant, writer and reader QoSes, is not supported yet.
-- The <(user|topic|group)_data> base64 syntax is not supported yet.
+- The "entity_factory" attribute  for participant, writer and reader QoSes, support only "true" for "<autoenable_created_entities>".
 - The C++ API QosProvider may throw an UnsupportedError when trying to access a policy that is not supported yet.
