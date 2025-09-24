@@ -949,11 +949,18 @@ static void sync_on_discovery (const dds_entity_t dprd, const dds_entity_t dpwr)
   CU_ASSERT_FATAL (dds_get_matched_publications (rd, NULL, 0) == 1);
   rc = dds_waitset_detach (ws, rd);
   CU_ASSERT_FATAL (rc == 0);
-  rc = dds_waitset_attach (ws, wr, 0);
+  rc = dds_waitset_attach (ws, wr, 1);
   CU_ASSERT_FATAL (rc == 0);
-  rc = dds_waitset_wait (ws, NULL, 0, DDS_INFINITY);
+  dds_attach_t xs[1];
+  rc = dds_waitset_wait (ws, xs, 1, DDS_INFINITY);
   CU_ASSERT_FATAL (rc == 1);
-  CU_ASSERT_FATAL (dds_get_matched_subscriptions (wr, NULL, 0) == 1);
+  CU_ASSERT_FATAL (xs[0] == 1);
+  rc = dds_get_matched_subscriptions (wr, NULL, 0);
+  dds_publication_matched_status_t st;
+  CU_ASSERT_FATAL (dds_get_publication_matched_status (wr, &st) == 0);
+  tprintf ("dds_get_matched_subscriptions: %d\n", rc);
+  tprintf ("pub matched status = %d,%d,%"PRIx64",%d,%d\n", (int)st.current_count, (int)st.current_count_change, st.last_subscription_handle, (int)st.total_count, (int)st.total_count_change);
+  CU_ASSERT_FATAL (rc == 1);
   rc = dds_waitset_detach (ws, wr);
   CU_ASSERT_FATAL (rc == 0);
   rc = dds_delete (ws);
@@ -1104,11 +1111,16 @@ static void do_ddsc_qos_set_endpoints_with_rxo (const dds_entity_t dprd, const d
                     }
                   }
                 }
-                printf (" match %d", match);
+                printf (" ");
+                tprintf ("match %d", match);
                 fflush (stdout);
                 rc = dds_get_matched_publications (rd, NULL, 0);
+                printf (" matched-pub %d", (int) rc);
+                fflush (stdout);
                 CU_ASSERT_FATAL (rc == (int) match);
                 rc = dds_get_matched_subscriptions (wr, NULL, 0);
+                printf (" matched-sub %d", (int) rc);
+                fflush (stdout);
                 CU_ASSERT_FATAL (rc == (int) match);
                 if (expect_incompatible_qos)
                 {
