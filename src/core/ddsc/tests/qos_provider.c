@@ -200,12 +200,19 @@ CU_Theory((char * configuration, cscope_tokens_t tok, int32_t n), ddsc_qos_provi
   dds_qos_provider_t *provider = NULL;
   // init qos provider with given scope
   dds_return_t ret = dds_create_qos_provider_scope(configuration, &provider, tok.scope);
-  CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
-  struct cscope_inspect_arg arg = {.scope = tok.expct, .n = n};
-  // examinate qos in qos provider
-  ddsrt_hh_enum(provider->keyed_qos, inspect_qos_items, &arg);
-  CU_ASSERT_EQUAL(arg.n, 0);
-  dds_delete_qos_provider(provider);
+  /* NOTE:
+   * wrong scope initialization are handled and by itsef signal about
+   * BAD_PARAMETER error */
+  if (n == 0U) {
+    CU_ASSERT_EQUAL(ret, DDS_RETCODE_BAD_PARAMETER);
+  } else {
+    CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
+    struct cscope_inspect_arg arg = {.scope = tok.expct, .n = n};
+    // examinate qos in qos provider
+    ddsrt_hh_enum(provider->keyed_qos, inspect_qos_items, &arg);
+    CU_ASSERT_EQUAL(arg.n, 0);
+    dds_delete_qos_provider(provider);
+  }
 }
 
 #define N NO_QOS_PROVIDER_CONF

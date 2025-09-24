@@ -110,22 +110,28 @@ static dds_return_t init_qos_provider (const struct dds_sysdef_system *sysdef, c
   dds_return_t ret = DDS_RETCODE_OK;
   dds_qos_provider_t *qos_provider = (dds_qos_provider_t *)ddsrt_malloc(sizeof(*qos_provider));
   struct ddsrt_hh *keyed_qos = ddsrt_hh_new(1, qos_item_hash_fn, qos_item_equals_fn);
+  assert (lib_scope != NULL && prof_scope != NULL && ent_scope != NULL);
+  bool strict_lib = strcmp(lib_scope,  PROVIDER_ITEM_SCOPE_NONE);
+  bool strict_pro = strcmp(prof_scope, PROVIDER_ITEM_SCOPE_NONE);
+  bool strict_ent = strcmp(ent_scope,  PROVIDER_ITEM_SCOPE_NONE);
+  char *lib_name = NULL, *prof_name = NULL, *ent_name = NULL;
   for (const struct dds_sysdef_qos_lib *lib = sysdef->qos_libs; lib != NULL; lib = (const struct dds_sysdef_qos_lib *)lib->xmlnode.next)
   {
-    char *lib_name = lib->name;
-    if (lib_scope != NULL && strcmp(lib_scope, PROVIDER_ITEM_SCOPE_NONE) != 0 && strcmp(lib_name, lib_scope) != 0)
+    if (lib_scope != NULL && strict_lib && strcmp(lib->name, lib_scope) != 0)
       continue;
+    lib_name = lib->name;
     for (const struct dds_sysdef_qos_profile *prof = lib->qos_profiles; prof != NULL; prof = (const struct dds_sysdef_qos_profile *)prof->xmlnode.next)
     {
-      char *prof_name = prof->name;
-      if (prof_scope != NULL && strcmp(prof_scope, PROVIDER_ITEM_SCOPE_NONE) != 0 && strcmp(prof_name, prof_scope) != 0)
+      if (prof_scope != NULL && strict_pro && strcmp(prof->name, prof_scope) != 0)
         continue;
+      prof_name = prof->name;
       char *prefix;
       (void) ddsrt_asprintf(&prefix, "%s"PROVIDER_ITEM_SEP"%s", lib_name, prof_name);
       for (const struct dds_sysdef_qos *qos = prof->qos; qos != NULL; qos = (const struct dds_sysdef_qos *)qos->xmlnode.next)
       {
-        if (ent_scope != NULL && strcmp(ent_scope, PROVIDER_ITEM_SCOPE_NONE) != 0 && (qos->name == NULL || strcmp(qos->name, ent_scope) != 0))
+        if (ent_scope != NULL && strict_ent && (qos->name == NULL || strcmp(qos->name, ent_scope) != 0))
           continue;
+        ent_name = qos->name;
         dds_qos_item_t *item = ddsrt_malloc(sizeof(*item));
         dds_qos_kind_t kind;
         switch(qos->kind)
@@ -173,6 +179,14 @@ static dds_return_t init_qos_provider (const struct dds_sysdef_system *sysdef, c
       ddsrt_free(prefix);
     }
   }
+  if (   (strict_lib && (lib_name  == NULL || strcmp(lib_name,  lib_scope)))
+      || (strict_pro && (prof_name == NULL || strcmp(prof_name, prof_scope)))
+      || (strict_ent && (ent_name  == NULL || strcmp(ent_name,  ent_scope))))
+  {
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto err_prov;
+  }
+
   qos_provider->file_path = ddsrt_strdup(path);
   qos_provider->keyed_qos = keyed_qos;
   *provider = qos_provider;
@@ -272,7 +286,7 @@ dds_return_t dds_create_qos_provider_scope (const char *path, dds_qos_provider_t
   if ((ret = read_validate_sysdef(path, &sysdef)) != DDS_RETCODE_OK)
     return ret;
   char *lib_name = NULL, *prof_name = NULL, *ent_name = NULL;
-  (void)resolve_token(key, &lib_name, &prof_name, &ent_name);
+  (void) resolve_token(key, &lib_name, &prof_name, &ent_name);
   if ((ret = init_qos_provider(sysdef, path, provider, lib_name, prof_name, ent_name)) != DDS_RETCODE_OK)
   {
     QOSPROV_ERROR("Failed to create qos provider file: %s, scope: %s", path, key);
