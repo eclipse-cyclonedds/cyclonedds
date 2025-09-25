@@ -1795,7 +1795,7 @@ The deserializer operates from the
 {\*\expandedcolortbl;;}
 \pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
 
-\f0\fs18 \cf0 given that the kernel can only do groupWrite, and not deliver data to an individual reader, might as well design to that behaviour}</string>
+\f0\fs18 \cf0 given that the kernel can only do groupWrite, and not deliver data to an individual reader, might as well design to that behavior}</string>
 								<key>VerticalPad</key>
 								<real>2</real>
 							</dict>

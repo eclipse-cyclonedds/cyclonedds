@@ -82,7 +82,7 @@ static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_
       // topic is discovery is enabled and/or if the topic has a durability kind of of transient or persistent:
       // - using a different topic QoS might result in an incompatible QoS notification if topic discovery is
       //   enabled (everything would still work).
-      // - transient/persistent data behaviour is defined in terms of the topic QoS actually really matters
+      // - transient/persistent data behavior is defined in terms of the topic QoS actually really matters
       //
       // So we try to use dds_find_topic, and if that fails, try to go the other route using the writer's QoS
       // as an approximation of the topic QoS.
