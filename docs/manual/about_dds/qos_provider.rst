@@ -228,11 +228,11 @@ The following C application is an example to illustrate how the QoS settings fro
           (void) argv;
 
           // provider will contains:
-          // myqoslib::foo_profile                     READER (KEEP_LAST 5)
-          // myqoslib::foo_profile                     WRITER (KEEP_LAST 1)
-          // myqoslib::foo_profile::my_topic           TOPIC  (KEEP_ALL)
-          // myqoslib::bar_profile                     WRITER (KEEP_ALL)
-          // myqoslib::bar_profile::my_topic           TOPIC  (KEEP_LAST 10)
+          //    myqoslib::foo_profile                     READER (KEEP_LAST 5)
+          //    myqoslib::foo_profile                     WRITER (KEEP_LAST 1)
+          //    myqoslib::foo_profile::my_topic           TOPIC  (KEEP_ALL)
+          //    myqoslib::bar_profile                     WRITER (KEEP_ALL)
+          //    myqoslib::bar_profile::my_topic           TOPIC  (KEEP_LAST 10)
           dds_qos_provider_t *provider;
           dds_return_t ret = dds_create_qos_provider ("/path/to/qos_definitions.xml", &provider);
           assert (ret == DDS_RETCODE_OK);
@@ -265,15 +265,18 @@ The following C application is an example to illustrate how the QoS settings fro
 
         int main()
         {
-          // provider will contains:
-          // myqoslib::foo_profile                     READER (KEEP_LAST 5)
-          // myqoslib::foo_profile                     WRITER (KEEP_LAST 1)
-          // myqoslib::foo_profile::my_topic           TOPIC  (KEEP_ALL)
-          // myqoslib::bar_profile                     WRITER (KEEP_ALL)
-          // myqoslib::bar_profile::my_topic           TOPIC  (KEEP_LAST 10)
-          dds::core::QosProvider provider("/path/to/qos_definitions.xml");
-          auto topic_qos = provider.topic_qos("myqoslib::bar_profile::my_topic");
-          auto writer_qos = provider.datawriter_qos("myqoslib::bar_profile");
+          // foo_provider will contains:
+          //    myqoslib::foo_profile                     READER (KEEP_LAST 5)
+          //    myqoslib::foo_profile                     WRITER (KEEP_LAST 1)
+          //    myqoslib::foo_profile::my_topic           TOPIC  (KEEP_ALL)
+          // bar_provider will contains:
+          //    myqoslib::bar_profile                     WRITER (KEEP_ALL)
+          //    myqoslib::bar_profile::my_topic           TOPIC  (KEEP_LAST 10)
+
+          dds::core::QosProvider foo_provider("/path/to/qos_definitions.xml", "myqoslib::foo_profile");
+          dds::core::QosProvider bar_provider("/path/to/qos_definitions.xml", "myqoslib::bar_profile");
+          auto topic_qos = bar_provider.topic_qos("my_topic");
+          auto writer_qos = bar_provider.datawriter_qos();
 
           dds::domain::DomainParticipant participant(domain::default_id());
           dds::topic::Topic<DataType::Msg> topic(participant, "topic_A", topic_qos);
@@ -284,6 +287,12 @@ The following C application is an example to illustrate how the QoS settings fro
         }
 
 Also C API allows you to specify which library, profile QoS Provider should contains.
+
+.. important::
+
+      CXX API doesn't allow wild cards and have strict initialization/access format
+
+
 Let's extend XML file example above, and omit QoS settings details for simplicity.
 
 .. code-block:: xml
@@ -333,22 +342,22 @@ Let's create QoS Provider that contains versions of both profiles from different
             (void) argv;
 
             // foo_provider will contains:
-            // qos1_lib::foo_profile                     READER
-            // qos1_lib::foo_profile                     WRITER
-            // qos1_lib::foo_profile                     TOPIC
-            // qos2_lib::foo_profile                     READER
-            // qos2_lib::foo_profile                     WRITER
-            // qos2_lib::foo_profile                     TOPIC
+            //    qos1_lib::foo_profile                     READER
+            //    qos1_lib::foo_profile                     WRITER
+            //    qos1_lib::foo_profile                     TOPIC
+            //    qos2_lib::foo_profile                     READER
+            //    qos2_lib::foo_profile                     WRITER
+            //    qos2_lib::foo_profile                     TOPIC
             dds_qos_provider_t *foo_provider;
             char *foo_scope = "*::foo_profile";
             dds_return_t ret = dds_create_qos_provider_scope ("/path/to/qos_definitions.xml", &foo_provider, foo_scope);
             assert (ret == DDS_RETCODE_OK);
 
             // bar_provider will contains:
-            // qos1_lib::bar_profile                     WRITER
-            // qos1_lib::bar_profile                     TOPIC
-            // qos2_lib::bar_profile                     WRITER
-            // qos2_lib::bar_profile                     TOPIC
+            //    qos1_lib::bar_profile                     WRITER
+            //    qos1_lib::bar_profile                     TOPIC
+            //    qos2_lib::bar_profile                     WRITER
+            //    qos2_lib::bar_profile                     TOPIC
             dds_qos_provider_t *bar_provider;
             char *bar_scope = "*::bar_profile";
             dds_return_t ret = dds_create_qos_provider_scope ("/path/to/qos_definitions.xml", &bar_provider, bar_scope);
@@ -371,23 +380,25 @@ Let's create QoS Provider that contains versions of both profiles from different
 
           int main()
           {
-            // foo_provider will contains:
-            // qos1_lib::foo_profile                     READER
-            // qos1_lib::foo_profile                     WRITER
-            // qos1_lib::foo_profile                     TOPIC
-            // qos2_lib::foo_profile                     READER
-            // qos2_lib::foo_profile                     WRITER
-            // qos2_lib::foo_profile                     TOPIC
-            std::string foo_scope = "*::foo_profile";
-            dds::core::QosProvider foo_provider("/path/to/qos_definitions.xml", foo_scope);
+            // foo_provider1 will contains:
+            //    qos1_lib::foo_profile                     READER
+            //    qos1_lib::foo_profile                     WRITER
+            //    qos1_lib::foo_profile                     TOPIC
+            // foo_provider2 will contains:
+            //    qos2_lib::foo_profile                     READER
+            //    qos2_lib::foo_profile                     WRITER
+            //    qos2_lib::foo_profile                     TOPIC
+            dds::core::QosProvider foo_provider1("/path/to/qos_definitions.xml", "qos1_lib::foo_profile");
+            dds::core::QosProvider foo_provider2("/path/to/qos_definitions.xml", "qos2_lib::foo_profile");
 
             // bar_provider will contains:
-            // qos1_lib::bar_profile                     WRITER
-            // qos1_lib::bar_profile                     TOPIC
-            // qos2_lib::bar_profile                     WRITER
-            // qos2_lib::bar_profile                     TOPIC
-            std::string bar_scope = "*::bar_profile";
-            dds::core::QosProvider bar_provider("/path/to/qos_definitions.xml", bar_scope);
+            //    qos1_lib::bar_profile                     WRITER
+            //    qos1_lib::bar_profile                     TOPIC
+            // bar_provider2 will contains:
+            //    qos2_lib::bar_profile                     WRITER
+            //    qos2_lib::bar_profile                     TOPIC
+            dds::core::QosProvider bar_provider1("/path/to/qos_definitions.xml", "qos1_lib::bar_profile");
+            dds::core::QosProvider bar_provider2("/path/to/qos_definitions.xml", "qos2_lib::bar_profile");
             ...
             return 0;
           }
@@ -397,6 +408,5 @@ Known limitations
 
 - Inheritance of QoS policies and QoS profiles in XML using the "base_name" attribute is not supported
 - The "topic_filter" attribute for writer, reader and topic QoSes to associate a set of topics to a specific QoS when that QoS is part of a DDS profile, is not supported yet.
-- The "entity_factory" attribute  for participant, writer and reader QoSes, is not supported yet.
-- The <(user|topic|group)_data> base64 syntax is not supported yet.
+- The "entity_factory" attribute  for participant, writer and reader QoSes, support only "true" for "<autoenable_created_entities>".
 - The C++ API QosProvider may throw an UnsupportedError when trying to access a policy that is not supported yet.
