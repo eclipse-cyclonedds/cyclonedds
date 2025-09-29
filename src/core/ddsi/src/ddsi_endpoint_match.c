@@ -254,7 +254,7 @@ static void connect_writer_with_proxy_reader (struct ddsi_writer *wr, struct dds
   const int isb0 = (ddsi_is_builtin_entityid (wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE) != 0);
   const int isb1 = (ddsi_is_builtin_entityid (prd->e.guid.entityid, prd->c.vendor) != 0);
   dds_qos_policy_id_t reason;
-  int64_t crypto_handle;
+  int64_t crypto_handle = 0;
   bool relay_only;
 
   DDSRT_UNUSED_ARG(tnow);
@@ -298,7 +298,7 @@ static void connect_proxy_writer_with_reader (struct ddsi_proxy_writer *pwr, str
   dds_qos_policy_id_t reason;
   ddsi_count_t init_count;
   struct ddsi_alive_state alive_state;
-  int64_t crypto_handle;
+  int64_t crypto_handle = 0;
 
   if (isb0 != isb1)
     return;
