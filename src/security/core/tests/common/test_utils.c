@@ -542,13 +542,16 @@ void write_read_for(dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_du
   bool write_fail = false, read_fail = false;
 
   dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
-  do
-  {
+  do {
     print_test_msg ("write\n");
     if (dds_write (wr, &sample) != DDS_RETCODE_OK)
+    {
       write_fail = true;
+      break;
+    }
 
-    while (!write_fail)
+    bool data_available = false;
+    while (true)
     {
       if ((ret = dds_take (rd, samples, info, 1, 1)) > 0)
       {
@@ -563,18 +566,34 @@ void write_read_for(dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_du
         CU_ASSERT_EQUAL_FATAL (ret, 1);
         break;
       }
-      if (ret < 0 || !reader_wait_for_data (pp_rd, rd, DDS_MSECS (1000)))
+      else if (ret == 0 && data_available)
       {
-        print_test_msg ("take no sample\n");
+        print_test_msg ("data available, but took no samples\n");
         read_fail = true;
         break;
       }
+      else if (ret < 0)
+      {
+        print_test_msg ("take failed: %"PRId32"\n", ret);
+        read_fail = true;
+        break;
+      }
+      else if (!reader_wait_for_data (pp_rd, rd, DDS_MSECS (1000)))
+      {
+        print_test_msg ("wait timed out\n");
+        read_fail = true;
+        break;
+      }
+      else
+      {
+        print_test_msg ("wait returned successfully\n");
+        data_available = true;
+      }
     }
-    if (write_fail || read_fail)
+    if (read_fail)
       break;
     dds_sleepfor (DDS_MSECS (100));
-  }
-  while (dds_time () < tend);
+  } while (dds_time () < tend);
   CU_ASSERT_EQUAL_FATAL (write_fail, exp_write_fail);
   CU_ASSERT_EQUAL_FATAL (read_fail, exp_read_fail);
 }
