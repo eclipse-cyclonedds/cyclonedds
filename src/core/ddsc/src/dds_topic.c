@@ -589,8 +589,9 @@ dds_entity_t dds_create_topic_impl (
 
   // mintype: needs to be unref'd if ddsi_type_ref_local fails for complete type
   // compltype: used for PSMX
-  struct ddsi_type *mintype = NULL, *compltype = NULL;
+  struct ddsi_type *compltype = NULL;
 #ifdef DDS_HAS_TYPELIB
+  struct ddsi_type *mintype = NULL;
   if (ddsi_type_ref_local (gv, &mintype, sertype_registered, DDSI_TYPEID_KIND_MINIMAL) != DDS_RETCODE_OK)
   {
     GVTRACE ("dds_create_topic_impl: invalid type (minimal type)\n");
