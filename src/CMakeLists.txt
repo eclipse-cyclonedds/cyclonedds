@@ -151,5 +151,5 @@ if(BUILD_IDLC)
   add_subdirectory(idl)
 endif()
 add_subdirectory(security)
-add_subdirectory(psmx_iox)
 add_subdirectory(core)
+add_subdirectory(psmx_iox) # Links to ddsc that is defined in core

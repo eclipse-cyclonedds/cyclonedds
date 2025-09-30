@@ -27,7 +27,13 @@ if(MSVC)
   # and 5286 and 5287 about enum type conversion
   target_compile_options(idlc PRIVATE /wd6255 /wd6263 /wd5286 /wd5287)
 endif()
-target_link_libraries(idlc PRIVATE compat idl idlpp ddsc ${CMAKE_DL_LIBS})
+target_link_libraries(idlc
+    PRIVATE
+    ${PROJECT_NAME}::compat
+    ${PROJECT_NAME}::idl # It already links to ddsc
+    ${PROJECT_NAME}::idlpp
+    ${CMAKE_DL_LIBS}
+)
 
 target_include_directories(
   idlc PRIVATE
@@ -40,10 +46,10 @@ target_include_directories(
 
 add_executable(${PROJECT_NAME}::idlc ALIAS idlc)
 
-set(
-  libidlc_hdrs
-  include/libidlc/libidlc_generator.h
-  ${CMAKE_CURRENT_BINARY_DIR}/config.h)
+set(libidlc_hdrs
+    include/libidlc/libidlc_generator.h
+    ${CMAKE_CURRENT_BINARY_DIR}/config.h
+)
 
 set(
   libidlc_srcs
@@ -54,8 +60,7 @@ set(
   src/libidlc/libidlc__generator.c
   src/libidlc/libidlc__types.c)
 
-add_library(
-  libidlc SHARED ${libidlc_srcs} ${libidlc_hdrs})
+add_library(libidlc SHARED ${libidlc_srcs} ${libidlc_hdrs})
 
 if(MSVC)
   # ignore warning 5286 and 5287 about enum type conversion
@@ -78,21 +83,20 @@ endif()
 
 target_include_directories(
   libidlc
-  PRIVATE
-    include
   PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/libidlc>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/libidlc>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../core/ddsi/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../core/cdr/include>")
 
-target_link_libraries(libidlc PRIVATE idl ddsc)
+target_link_libraries(libidlc PUBLIC ${PROJECT_NAME}::idl PRIVATE ${PROJECT_NAME}::ddsc)
 
 add_library(${PROJECT_NAME}::libidlc ALIAS libidlc)
 
 install(
   TARGETS libidlc
-  EXPORT "${CMAKE_PROJECT_NAME}"
+  EXPORT "${PROJECT_NAME}"
   RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT lib
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib)
@@ -108,7 +112,7 @@ install(
 
 install(
   TARGETS idlc
-  EXPORT "${CMAKE_PROJECT_NAME}"
+  EXPORT "${PROJECT_NAME}"
   DESTINATION "${CMAKE_INSTALL_BINDIR}"
   COMPONENT dev)
 

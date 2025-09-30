@@ -153,6 +153,8 @@ foreach(source ${templates})
 endforeach()
 
 add_library(idl SHARED ${headers} ${sources})
+add_library(${PROJECT_NAME}::idl ALIAS idl)
+target_compile_definitions(idl PRIVATE $<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:DDS_STATIC_DEFINE>)
 
 if(MSVC)
   # ignore warning 5286 and 5287 about enum type conversion
@@ -163,11 +165,16 @@ set_target_properties(
   idl PROPERTIES
   OUTPUT_NAME "cycloneddsidl"
   VERSION ${PROJECT_VERSION}
-  SOVERSION ${PROJECT_VERSION_MAJOR})
+  SOVERSION ${PROJECT_VERSION_MAJOR}
+  POSITION_INDEPENDENT_CODE ON)
 
 generate_export_header(idl EXPORT_FILE_NAME include/idl/export.h)
 
-target_link_libraries(idl PUBLIC ddsc)
+target_link_libraries(idl
+  PUBLIC
+  ${PROJECT_NAME}::ddsc
+  $<$<NOT:$<STREQUAL:"${CMAKE_PROJECT_NAME}","CycloneDDS">>:${PROJECT_NAME}::cdr>
+)
 
 target_include_directories(
   idl
@@ -194,7 +201,7 @@ install(
 
 install(
   TARGETS idl
-  EXPORT "${CMAKE_PROJECT_NAME}"
+  EXPORT "${PROJECT_NAME}"
   RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT lib
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib)

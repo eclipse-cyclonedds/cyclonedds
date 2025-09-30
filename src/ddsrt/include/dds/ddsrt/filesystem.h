@@ -121,6 +121,6 @@ DDS_EXPORT const char* ddsrt_file_sep(void);
 }
 #endif
 
-#endif // DDRT_HAVE_FILESYSTEM
+#endif // DDSRT_HAVE_FILESYSTEM
 
 #endif // DDSRT_FILESYSTEM_H

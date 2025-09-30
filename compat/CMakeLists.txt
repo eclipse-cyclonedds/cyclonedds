@@ -8,3 +8,5 @@ if(WIN32 OR NOT HAVE_GETOPT_H)
 else()
   add_library(compat INTERFACE)
 endif()
+
+add_library(${PROJECT_NAME}::compat ALIAS compat)

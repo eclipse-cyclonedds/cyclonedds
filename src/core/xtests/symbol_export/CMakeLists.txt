@@ -12,7 +12,10 @@
 
 add_executable(symbol_export_test symbol_export.c)
 
-target_link_libraries(symbol_export_test PRIVATE ddsc)
+target_link_libraries(symbol_export_test PRIVATE
+    ${PROJECT_NAME}::ddsc
+    $<$<NOT:$<STREQUAL:"${CMAKE_PROJECT_NAME}","CycloneDDS">>:${PROJECT_NAME}::cdr>
+)
 target_include_directories(symbol_export_test PRIVATE
     "$<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>"
     "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
