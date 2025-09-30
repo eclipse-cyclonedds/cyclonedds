@@ -31,7 +31,7 @@
 
 /* We already used "liveliness" for participant lease durations in the API
    (including the built-in topics), and now dropped the "participant lease
-   duration" everywhere *except* in the (de)serialisation code.
+   duration" everywhere *except* in the (de)serialization code.
 
    That means the discovery (de)serializer is now aware of whether it is
    processing SPDP or SEDP data, and now needs to ignore DDSI_PI_LIVELINESS

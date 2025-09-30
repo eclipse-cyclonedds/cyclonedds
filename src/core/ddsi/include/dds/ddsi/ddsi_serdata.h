@@ -115,7 +115,7 @@ typedef void (*ddsi_serdata_to_ser_unref_t) (struct ddsi_serdata *d, const ddsrt
 
 /* Turn serdata into an application sample (or just the key values if only key values are
    available); return false on error (typically out-of-memory, but if from_ser doesn't do any
-   validation it might be a deserialisation error, too).
+   validation it might be a deserialization error, too).
 
    If (bufptr != 0), then *bufptr .. buflim is space to be used from *bufptr up (with minimal
    padding) for any data in the sample that needs to be allocated (e.g., strings, sequences);

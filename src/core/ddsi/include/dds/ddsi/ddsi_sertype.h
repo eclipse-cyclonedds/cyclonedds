@@ -61,7 +61,7 @@ struct ddsi_sertype {
 
 /* The old and the new happen to have the same memory layout on a 64-bit machine
    and so any user that memset's the ddsi_sertype to 0 before filling out the
-   required fields gets unchanged behaviour.  32-bit machines have a different
+   required fields gets unchanged behavior.  32-bit machines have a different
    layout and no such luck.
 
    There are presumably very few users of this type outside Cyclone DDS itself,
