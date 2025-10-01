@@ -3550,7 +3550,7 @@ search:
     if (! fullname)                 /* Non-existent or directory    */
         return  FALSE;
     if (standard && included( fullname))        /* Once included    */
-        goto  true;
+        goto  label_true;
 
     if ((fp = fopen( fullname, "r")) == NULL) {
         if (errno == EMFILE) {
@@ -3558,7 +3558,7 @@ search:
     "#include nest reached at the maximum of system: %d, returned errno: %d\n"
                         , include_nest, errno);
         }
-        goto  false;
+        goto  label_false;
     }
     /* Truncate buffer of the includer to save memory   */
     len = (size_t)(file->bptr - file->buffer);
@@ -3606,10 +3606,10 @@ search:
     if (mkdep && ((mkdep & MD_SYSHEADER) || ! infile->sys_header))
         put_depend( fullname);          /* Output dependency line   */
 
-true:
+label_true:
     free( fullname);
     return  TRUE;
-false:
+label_false:
     free( fullname);
     return  FALSE;
 }
