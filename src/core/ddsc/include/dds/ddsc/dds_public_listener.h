@@ -46,7 +46,7 @@ typedef void (*dds_on_subscription_matched_fn) (dds_entity_t reader, const dds_s
  * @ingroup internal
  * @brief Default initial value (nullptr) for listener functions.
  */
-#define DDS_LUNSET 0
+#define DDS_LUNSET ((void *) 0)
 
 /**
  * @brief DDS Listener struct (opaque)

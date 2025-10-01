@@ -70,21 +70,21 @@ CU_Test(ddsrt_getifaddrs, ipv4)
   const int afs[] = { AF_INET, DDSRT_AF_TERM };
 
   ret = ddsrt_getifaddrs(&ifa_root, afs);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   for (ifa = ifa_root; ifa; ifa = ifa->next) {
-    CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->addr, NULL);
-    CU_ASSERT_EQUAL(ifa->addr->sa_family, AF_INET);
+    CU_ASSERT_NEQ_FATAL (ifa->addr, NULL);
+    CU_ASSERT_EQ (ifa->addr->sa_family, AF_INET);
     if (ifa->addr->sa_family == AF_INET) {
       if (ifa->flags & IFF_LOOPBACK) {
-        CU_ASSERT(ddsrt_sockaddr_isloopback(ifa->addr));
+        CU_ASSERT (ddsrt_sockaddr_isloopback(ifa->addr));
       } else {
-        CU_ASSERT(!ddsrt_sockaddr_isloopback(ifa->addr));
+        CU_ASSERT (!ddsrt_sockaddr_isloopback(ifa->addr));
       }
       seen = 1;
     }
   }
 
-  CU_ASSERT_EQUAL(seen, 1);
+  CU_ASSERT_EQ (seen, 1);
   ddsrt_freeifaddrs(ifa_root);
 }
 
@@ -95,13 +95,13 @@ CU_Test(ddsrt_getifaddrs, null_filter)
   ddsrt_ifaddrs_t *ifa_root, *ifa;
 
   ret = ddsrt_getifaddrs(&ifa_root, NULL);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   for (ifa = ifa_root; ifa; ifa = ifa->next) {
-    CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->addr, NULL);
+    CU_ASSERT_NEQ_FATAL (ifa->addr, NULL);
     cnt++;
   }
 
-  CU_ASSERT(cnt > 0);
+  CU_ASSERT_GT (cnt, 0);
   ddsrt_freeifaddrs(ifa_root);
 }
 
@@ -112,8 +112,8 @@ CU_Test(ddsrt_getifaddrs, empty_filter)
   const int afs[] = { DDSRT_AF_TERM };
 
   ret = ddsrt_getifaddrs(&ifa_root, afs);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-  CU_ASSERT_PTR_EQUAL(ifa_root, NULL);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (ifa_root, NULL);
   ddsrt_freeifaddrs(ifa_root);
 }
 
@@ -127,10 +127,10 @@ CU_Test(ddsrt_getifaddrs, ipv6)
     const int afs[] = { AF_INET6, DDSRT_AF_TERM };
 
     ret = ddsrt_getifaddrs(&ifa_root, afs);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     for (ifa = ifa_root; ifa; ifa = ifa->next) {
-      CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->addr, NULL);
-      CU_ASSERT_EQUAL(ifa->addr->sa_family, AF_INET6);
+      CU_ASSERT_NEQ_FATAL (ifa->addr, NULL);
+      CU_ASSERT_EQ (ifa->addr->sa_family, AF_INET6);
       if (ifa->addr->sa_family == AF_INET6) {
         have_ipv6 = 1;
         /* macOS assigns a link-local address to the loopback interface, so
@@ -138,12 +138,12 @@ CU_Test(ddsrt_getifaddrs, ipv6)
            but the loopback interface can have addresses other than the
            loopback address assigned. */
         if (ddsrt_sockaddr_isloopback(ifa->addr)) {
-          CU_ASSERT(ifa->flags & IFF_LOOPBACK);
+          CU_ASSERT_NEQ (ifa->flags & IFF_LOOPBACK, 0);
         }
       }
     }
 
-    CU_ASSERT_EQUAL(have_ipv6, 1);
+    CU_ASSERT_EQ (have_ipv6, 1);
     ddsrt_freeifaddrs(ifa_root);
     CU_PASS("IPv6 enabled in test environment");
   } else {
@@ -167,11 +167,10 @@ CU_Test(ddsrt_getifaddrs, ipv4_n_ipv6)
     const int afs[] = { AF_INET, AF_INET6, DDSRT_AF_TERM };
 
     ret = ddsrt_getifaddrs(&ifa_root, afs);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     for (ifa = ifa_root; ifa; ifa = ifa->next) {
-      CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->addr, NULL);
-      CU_ASSERT(ifa->addr->sa_family == AF_INET ||
-                ifa->addr->sa_family == AF_INET6);
+      CU_ASSERT_NEQ_FATAL (ifa->addr, NULL);
+      CU_ASSERT (ifa->addr->sa_family == AF_INET || ifa->addr->sa_family == AF_INET6);
       if (ifa->addr->sa_family == AF_INET) {
         have_ipv4 = 1;
       } else if (ifa->addr->sa_family == AF_INET6) {
@@ -179,8 +178,8 @@ CU_Test(ddsrt_getifaddrs, ipv4_n_ipv6)
       }
     }
 
-    CU_ASSERT_EQUAL(have_ipv4, 1);
-    CU_ASSERT_EQUAL(have_ipv6, 1);
+    CU_ASSERT_EQ (have_ipv4, 1);
+    CU_ASSERT_EQ (have_ipv6, 1);
     ddsrt_freeifaddrs(ifa_root);
     CU_PASS("IPv6 enabled in test environment");
   } else {

@@ -20,9 +20,9 @@ CU_Test (ddsc_sertype_default, compare)
 {
   dds_return_t ret;
   dds_entity_t domain = dds_create_domain (0, NULL);
-  CU_ASSERT_FATAL (domain >= 0);
+  CU_ASSERT_GEQ_FATAL (domain, 0);
   dds_entity_t participant = dds_create_participant (0, NULL, NULL);
-  CU_ASSERT_FATAL (participant >= 0);
+  CU_ASSERT_GEQ_FATAL (participant, 0);
 
   char topic_name[100];
   create_unique_topic_name ("ddsc_dynamic_type", topic_name, sizeof (topic_name));
@@ -40,15 +40,15 @@ CU_Test (ddsc_sertype_default, compare)
   const struct ddsi_sertype *rd_sertype, *wr_sertype;
 
   ret = dds_get_entity_sertype (rd, &rd_sertype);
-  CU_ASSERT_EQUAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
   ret = dds_get_entity_sertype (wr, &wr_sertype);
-  CU_ASSERT_EQUAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
 
 #ifdef DDS_HAS_TYPELIB
   ret = dds_get_typeinfo (rd, &rd_type_info);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_get_typeinfo (wr, &wr_type_info);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
   // Minimal types should be equal, but complete types different because of annotation on type 1a
   const ddsi_typeid_t * rd_type_min = ddsi_typeinfo_minimal_typeid (rd_type_info);
@@ -56,19 +56,19 @@ CU_Test (ddsc_sertype_default, compare)
   const ddsi_typeid_t * rd_type_compl = ddsi_typeinfo_complete_typeid (rd_type_info);
   const ddsi_typeid_t * wr_type_compl = ddsi_typeinfo_complete_typeid (wr_type_info);
 
-  CU_ASSERT (ddsi_typeid_compare (rd_type_min, wr_type_min) == 0);
-  CU_ASSERT (ddsi_typeid_compare (rd_type_compl, wr_type_compl) != 0);
+  CU_ASSERT_EQ (ddsi_typeid_compare (rd_type_min, wr_type_min), 0);
+  CU_ASSERT_NEQ (ddsi_typeid_compare (rd_type_compl, wr_type_compl), 0);
 
   // Sertypes should be different, because of different complete types
-  CU_ASSERT_NOT_EQUAL (rd_sertype, wr_sertype);
+  CU_ASSERT_NEQ (rd_sertype, wr_sertype);
 #else
   ret = dds_get_typeinfo (rd, &rd_type_info);
-  CU_ASSERT_NOT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_NEQ_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_get_typeinfo (rd, &wr_type_info);
-  CU_ASSERT_NOT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_NEQ_FATAL (ret, DDS_RETCODE_OK);
 
   // Sertypes should be the same, because other than type-info, types are equal
-  CU_ASSERT_EQUAL (rd_sertype, wr_sertype);
+  CU_ASSERT_EQ (rd_sertype, wr_sertype);
 #endif
 
   dds_free_typeinfo (rd_type_info);

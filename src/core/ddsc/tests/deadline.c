@@ -55,10 +55,10 @@ static ddsrt_mtime_t tref;
 static dds_entity_t create_and_sync_reader(dds_entity_t participant, dds_entity_t subscriber, dds_entity_t topic, dds_qos_t *qos, dds_entity_t writer)
 {
   dds_entity_t reader = dds_create_reader(subscriber, topic, qos, NULL);
-  CU_ASSERT_FATAL(reader > 0);
+  CU_ASSERT_GT_FATAL (reader, 0);
   sync_reader_writer (participant, reader, g_participant, writer);
   dds_return_t ret = dds_set_status_mask(reader, DDS_REQUESTED_DEADLINE_MISSED_STATUS);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   return reader;
 }
 
@@ -77,27 +77,27 @@ static void ddsi_deadline_init(void)
   dds_free(conf_sub);
 
   g_qos = dds_create_qos();
-  CU_ASSERT_PTR_NOT_NULL_FATAL(g_qos);
+  CU_ASSERT_NEQ_FATAL (g_qos, NULL);
 
   g_participant = dds_create_participant(DDS_DOMAINID_PUB, NULL, NULL);
-  CU_ASSERT_FATAL(g_participant > 0);
+  CU_ASSERT_GT_FATAL (g_participant, 0);
   g_remote_participant = dds_create_participant(DDS_DOMAINID_SUB, NULL, NULL);
-  CU_ASSERT_FATAL(g_remote_participant > 0);
+  CU_ASSERT_GT_FATAL (g_remote_participant, 0);
 
   g_subscriber = dds_create_subscriber(g_participant, NULL, NULL);
-  CU_ASSERT_FATAL(g_subscriber > 0);
+  CU_ASSERT_GT_FATAL (g_subscriber, 0);
 
   g_remote_subscriber = dds_create_subscriber(g_remote_participant, NULL, NULL);
-  CU_ASSERT_FATAL(g_remote_subscriber > 0);
+  CU_ASSERT_GT_FATAL (g_remote_subscriber, 0);
 
   g_publisher = dds_create_publisher(g_participant, NULL, NULL);
-  CU_ASSERT_FATAL(g_publisher > 0);
+  CU_ASSERT_GT_FATAL (g_publisher, 0);
 
   create_unique_topic_name("ddsc_qos_deadline_test", name, sizeof name);
   g_topic = dds_create_topic(g_participant, &Space_Type1_desc, name, NULL, NULL);
-  CU_ASSERT_FATAL(g_topic > 0);
+  CU_ASSERT_GT_FATAL (g_topic, 0);
   g_remote_topic = dds_create_topic(g_remote_participant, &Space_Type1_desc, name, NULL, NULL);
-  CU_ASSERT_FATAL(g_remote_topic > 0);
+  CU_ASSERT_GT_FATAL (g_remote_topic, 0);
 
   dds_qset_history(g_qos, DDS_HISTORY_KEEP_ALL, DDS_LENGTH_UNLIMITED);
   dds_qset_durability(g_qos, DDS_DURABILITY_TRANSIENT_LOCAL);
@@ -138,7 +138,7 @@ static bool check_missed_deadline_reader(dds_entity_t reader, uint32_t exp_misse
 {
   struct dds_requested_deadline_missed_status dstatus;
   dds_return_t ret = dds_get_requested_deadline_missed_status(reader, &dstatus);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   tprintf("- check reader total actual %u == expected %u / change actual %d == expected %d\n", dstatus.total_count, exp_missed_total, dstatus.total_count_change, exp_missed_change);
   return dstatus.total_count == exp_missed_total && dstatus.total_count_change == exp_missed_change;
 }
@@ -147,7 +147,7 @@ static bool check_missed_deadline_writer(dds_entity_t writer, uint32_t exp_misse
 {
   struct dds_offered_deadline_missed_status dstatus;
   dds_return_t ret = dds_get_offered_deadline_missed_status(writer, &dstatus);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   tprintf("- check writer total actual %u == expected %u / change actual %d == expected %d\n", dstatus.total_count, exp_missed_total, dstatus.total_count_change, exp_missed_change);
   return dstatus.total_count == exp_missed_total && dstatus.total_count_change == exp_missed_change;
 }
@@ -167,7 +167,7 @@ CU_Test(ddsc_deadline, basic, .init=ddsi_deadline_init, .fini=ddsi_deadline_fini
 
     dds_qset_deadline(g_qos, deadline_dur);
     writer = dds_create_writer(g_publisher, g_topic, g_qos, NULL);
-    CU_ASSERT_FATAL(writer > 0);
+    CU_ASSERT_GT_FATAL (writer, 0);
 
     reader_dl = create_and_sync_reader(g_participant, g_subscriber, g_topic, g_qos, writer);
     reader_dl_remote = create_and_sync_reader(g_remote_participant, g_remote_subscriber, g_remote_topic, g_qos, writer);
@@ -177,7 +177,7 @@ CU_Test(ddsc_deadline, basic, .init=ddsi_deadline_init, .fini=ddsi_deadline_fini
     reader_remote = create_and_sync_reader(g_remote_participant, g_remote_subscriber, g_remote_topic, g_qos, writer);
 
     ret = dds_set_status_mask(writer, DDS_OFFERED_DEADLINE_MISSED_STATUS);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     // reference time
     tref = ddsrt_time_monotonic ();
@@ -185,7 +185,7 @@ CU_Test(ddsc_deadline, basic, .init=ddsi_deadline_init, .fini=ddsi_deadline_fini
     /* Write first sample */
     tprintf("write sample 1\n");
     ret = dds_write (writer, &sample);
-    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* Sleep 0.5 * deadline_dur: expect no missed deadlines for reader and writer */
     sleepfor(deadline_dur / 2);
@@ -200,7 +200,7 @@ CU_Test(ddsc_deadline, basic, .init=ddsi_deadline_init, .fini=ddsi_deadline_fini
       /* Write another sample */
       tprintf("write sample 2\n");
       ret = dds_write (writer, &sample);
-      CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+      CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
       /* Sleep 0.5 * deadline_dur: expect no missed deadlines for reader and writer */
       sleepfor(deadline_dur / 2);
@@ -293,34 +293,34 @@ CU_Theory((dds_durability_kind_t dur_kind, dds_reliability_kind_t rel_kind, dds_
     tprintf("deadline test: duration %"PRId64", writer type %d %d %s\n", deadline_dur, dur_kind, rel_kind, hist_kind == DDS_HISTORY_KEEP_ALL ? "all" : "1");
 
     qos = dds_create_qos();
-    CU_ASSERT_PTR_NOT_NULL_FATAL(qos);
+    CU_ASSERT_NEQ_FATAL (qos, NULL);
     dds_qset_durability(qos, dur_kind);
     dds_qset_reliability(qos, rel_kind, DDS_INFINITY);
     dds_qset_history(qos, hist_kind, (hist_kind == DDS_HISTORY_KEEP_ALL) ? 0 : 1);
     dds_qset_deadline(qos, deadline_dur);
     writer = dds_create_writer(g_publisher, g_topic, qos, NULL);
-    CU_ASSERT_FATAL(writer > 0);
+    CU_ASSERT_GT_FATAL (writer, 0);
     reader = create_and_sync_reader(g_participant, g_subscriber, g_topic, qos, writer);
 
     /* Set status mask on writer to get offered deadline missed status */
     ret = dds_set_status_mask(writer, DDS_OFFERED_DEADLINE_MISSED_STATUS);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     // reference time
     tref = ddsrt_time_monotonic ();
 
     /* Write sample */
     ret = dds_write (writer, &sample);
-    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* Take sample */
     ret = dds_take (reader, samples, &info, 1, 1);
-    CU_ASSERT_EQUAL_FATAL (ret, 1);
+    CU_ASSERT_EQ_FATAL (ret, 1);
 
     /* Sleep 2 * deadline_dur: expect missed deadlines for writer */
     sleepfor(2 * deadline_dur);
     ret = dds_get_offered_deadline_missed_status(writer, &dstatus);
-    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     tprintf("- check writer total actual %u > 0 / change actual %d > 0\n", dstatus.total_count, dstatus.total_count_change);
     if (dstatus.total_count == 0 || dstatus.total_count_change == 0)
       deadline_dur *= 10 / (run + 1);
@@ -331,7 +331,7 @@ CU_Theory((dds_durability_kind_t dur_kind, dds_reliability_kind_t rel_kind, dds_
       /* Sleep 3 * deadline_dur: expect more missed deadlines for writer */
       sleepfor(3 * deadline_dur);
       ret = dds_get_offered_deadline_missed_status(writer, &dstatus);
-      CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+      CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
       tprintf("- check reader total actual %u > expected %u / change actual %d > 0\n", dstatus.total_count, prev_cnt, dstatus.total_count_change);
       if (dstatus.total_count <= prev_cnt || dstatus.total_count_change == 0)
         deadline_dur *= 10 / (run + 1);
@@ -378,10 +378,10 @@ CU_Theory((int32_t n_inst, uint8_t unreg_nth, uint8_t dispose_nth), ddsc_deadlin
   {
     tprintf("deadline test: duration %"PRId64", instance count %d, unreg %dth, dispose %dth\n", deadline_dur, n_inst, unreg_nth, dispose_nth);
     dds_qset_deadline(g_qos, deadline_dur);
-    CU_ASSERT_PTR_NOT_NULL_FATAL(g_qos);
+    CU_ASSERT_NEQ_FATAL (g_qos, NULL);
 
     writer = dds_create_writer(g_publisher, g_topic, g_qos, NULL);
-    CU_ASSERT_FATAL(writer > 0);
+    CU_ASSERT_GT_FATAL (writer, 0);
     reader_dl = create_and_sync_reader(g_participant, g_subscriber, g_topic, g_qos, writer);
 
     // reference time
@@ -393,16 +393,16 @@ CU_Theory((int32_t n_inst, uint8_t unreg_nth, uint8_t dispose_nth), ddsc_deadlin
     {
       sample.long_1 = n;
       ret = dds_write (writer, &sample);
-      CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+      CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
       if (unreg_nth && n % unreg_nth == 0)
       {
         ret = dds_unregister_instance (writer, &sample);
-        CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+        CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
       }
       else if (dispose_nth && n % dispose_nth == 0)
       {
         ret = dds_dispose (writer, &sample);
-        CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+        CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
         n_dispose++;
       }
     }
@@ -428,7 +428,7 @@ CU_Theory((int32_t n_inst, uint8_t unreg_nth, uint8_t dispose_nth), ddsc_deadlin
         {
           sample.long_1 = n;
           ret = dds_write (writer, &sample);
-          CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+          CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
         }
 
         /* Sleep deadline_dur + 25%: expect new trigger for missed deadline for non-disposed instances */
@@ -489,7 +489,7 @@ static void write_and_update(dds_entity_t wr, int msg_id, ddsrt_mtime_t *writeti
 {
   Space_Type1 msg = { msg_id, 0, 0 };
   dds_return_t rc = dds_write(wr, &msg);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
   ddsrt_mtime_t now = ddsrt_time_monotonic();
   *expiredcnt += (uint32_t)((now.v-writetime->v)/deadline_period);
   *writetime = now;
@@ -502,16 +502,16 @@ static void check_statuses_explicit(dds_entity_t wr, dds_entity_t rd, uint32_t c
   dds_requested_deadline_missed_status_t rstatus;
 
   dds_return_t rc = dds_get_requested_deadline_missed_status (rd, &rstatus);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
-  CU_ASSERT (rstatus.total_count == cnt);
-  CU_ASSERT (rstatus.last_instance_handle == hdl);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (rstatus.total_count, cnt);
+  CU_ASSERT_EQ (rstatus.last_instance_handle, hdl);
 
   dds_offered_deadline_missed_status_t ostatus;
 
   rc = dds_get_offered_deadline_missed_status (wr, &ostatus);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
-  CU_ASSERT (ostatus.total_count == cnt);
-  CU_ASSERT (ostatus.last_instance_handle == hdl);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (ostatus.total_count, cnt);
+  CU_ASSERT_EQ (ostatus.last_instance_handle, hdl);
 }
 
 //this function takes into account the last write times and total expired deadlines count
@@ -552,12 +552,12 @@ CU_Test(ddsc_deadline, update)
   do {
     rerun_test = false;
     dds_entity_t pp = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-    CU_ASSERT_FATAL(pp > 0);
+    CU_ASSERT_GT_FATAL (pp, 0);
 
     char topicname[100];
     create_unique_topic_name ("ddsc_deadline_update", topicname, sizeof topicname);
     dds_entity_t tp = dds_create_topic(pp, &Space_Type1_desc, topicname, NULL, NULL);
-    CU_ASSERT_FATAL(tp > 0);
+    CU_ASSERT_GT_FATAL (tp, 0);
 
     //qos
     dds_qos_t qos;
@@ -569,13 +569,13 @@ CU_Test(ddsc_deadline, update)
     qos.deadline.deadline = deadline_period;
 
     dds_entity_t wr = dds_create_writer(pp, tp, &qos, NULL);
-    CU_ASSERT_FATAL(wr > 0);
+    CU_ASSERT_GT_FATAL (wr, 0);
 
     dds_entity_t rd = dds_create_reader (pp, tp, &qos, NULL);
-    CU_ASSERT_FATAL(rd > 0);
+    CU_ASSERT_GT_FATAL (rd, 0);
 
     dds_return_t rc = dds_set_status_mask(wr, DDS_PUBLICATION_MATCHED_STATUS);
-    CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
 
     uint32_t status = 0;
     while(!(status & DDS_PUBLICATION_MATCHED_STATUS))
@@ -583,7 +583,7 @@ CU_Test(ddsc_deadline, update)
       /* Polling sleep. */
       dds_sleepfor (DDS_MSECS(1));
 
-      CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+      CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
       rc = dds_get_status_changes (wr, &status);
     }
 
@@ -594,16 +594,16 @@ CU_Test(ddsc_deadline, update)
       ddsrt_mtime_add_duration(time_offset, (dds_duration_t)(0.5*deadline_period)),
       cb,
       &deadline_period, sizeof(int32_t), true);  //this should sleep the thread that updates the statuses from 0.5*deadline_period to 1.5*deadline_period
-    CU_ASSERT_FATAL(xev != NULL);
+    CU_ASSERT_NEQ_FATAL (xev, NULL);
 
     Space_Type1 msg1 = { 1, 0, 0 },
                 msg2 = { 2, 0, 0 };
     rc = dds_write(wr, &msg1);  // should expire @ deadline_period
     ddsrt_mtime_t tw1 = ddsrt_time_monotonic();
-    CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
     rc = dds_write(wr, &msg2);  // should expire @ deadline_period
     ddsrt_mtime_t tw2 = ddsrt_time_monotonic();
-    CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
 
     dds_instance_handle_t ih1 = dds_lookup_instance(wr, &msg1),
                           ih2 = dds_lookup_instance(wr, &msg2);
@@ -699,7 +699,7 @@ CU_Test(ddsc_deadline, insanely_short)
     (void) ddsrt_asprintf (&program, program_template, deadlines[i], deadlines[i]);
     int result = test_oneliner (program);
     ddsrt_free (program);
-    CU_ASSERT_FATAL (result > 0);
+    CU_ASSERT_GT_FATAL (result, 0);
   }
 }
 
@@ -722,6 +722,6 @@ CU_Test(ddsc_deadline, insanely_long)
     (void) ddsrt_asprintf (&program, program_template, deadlines[i], deadlines[i]);
     int result = test_oneliner (program);
     ddsrt_free (program);
-    CU_ASSERT_FATAL (result > 0);
+    CU_ASSERT_GT_FATAL (result, 0);
   }
 }

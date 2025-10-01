@@ -1328,7 +1328,7 @@ fill_handshake_message_token(
            set_binary_property_string(c_kagree_algo, DDS_AUTHTOKEN_PROP_C_KAGREE_ALGO "x", "rubbish");
         }
 
-        CU_ASSERT_FATAL(hash1_from_request != NULL);
+        CU_ASSERT_NEQ_FATAL (hash1_from_request, NULL);
 
         set_binary_property_value(hash_c1, DDS_AUTHTOKEN_PROP_HASH_C1, hash1_from_request->value._buffer, hash1_from_request->value._length);
 
@@ -1414,7 +1414,7 @@ fill_handshake_message_token(
             }
             else
             {
-                CU_ASSERT_FATAL (rc == DDS_SECURITY_VALIDATION_OK);
+                CU_ASSERT_EQ_FATAL (rc, DDS_SECURITY_VALIDATION_OK);
                 set_binary_property_value(signature, DDS_AUTHTOKEN_PROP_SIGNATURE, sign, (uint32_t)signlen);
                 ddsrt_free(sign);
             }
@@ -1438,8 +1438,8 @@ fill_handshake_message_token(
         dh2 = &tokens[idx++];
         hash_c2 = &tokens[idx++];
 
-        CU_ASSERT(hash1_from_request != NULL);
-        CU_ASSERT(hash2_from_reply != NULL);
+        CU_ASSERT_NEQ (hash1_from_request, NULL);
+        CU_ASSERT_NEQ (hash2_from_reply, NULL);
 
         set_binary_property_value(hash_c1, DDS_AUTHTOKEN_PROP_HASH_C1, hash1_from_request->value._buffer, hash1_from_request->value._length);
         set_binary_property_value(hash_c2, DDS_AUTHTOKEN_PROP_HASH_C2, hash2_from_reply->value._buffer, hash2_from_reply->value._length);
@@ -1568,7 +1568,7 @@ CU_Test(ddssec_builtin_listeners_auth, local_remote_set_before_validation)
          * Just take our losses and quit, simulating a success. */
         return;
     }
-    CU_ASSERT_FATAL (valid == DDS_SECURITY_ERR_OK_CODE);
+    CU_ASSERT_EQ_FATAL (valid, DDS_SECURITY_ERR_OK_CODE);
 
     /*Generate remote certificate*/
     create_certificate_from_csr( bob_csr, 4, BOB_IDENTITY_CERT_FILE, &remote_expiry_date );
@@ -1580,17 +1580,14 @@ CU_Test(ddssec_builtin_listeners_auth, local_remote_set_before_validation)
 
 
     /* Check if we actually have validate_remote_permissions function. */
-    CU_ASSERT_FATAL (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
-    CU_ASSERT_FATAL(access_control != NULL);
-    assert(access_control != NULL);
-    CU_ASSERT_FATAL(access_control->validate_remote_permissions != NULL);
-    assert(access_control->validate_remote_permissions != 0);
-    CU_ASSERT_FATAL(access_control->return_permissions_handle != NULL);
-    assert(access_control->return_permissions_handle != 0);
+    CU_ASSERT_NEQ_FATAL (local_identity_handle, DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_NEQ_FATAL (access_control, NULL);
+    CU_ASSERT_NEQ_FATAL (access_control->validate_remote_permissions, NULL);
+    CU_ASSERT_NEQ_FATAL (access_control->return_permissions_handle, NULL);
 
     fill_permissions_token(&permissions_token);
     r = fill_peer_credential_token(&credential_token);
-    CU_ASSERT_FATAL (r);
+    CU_ASSERT_NEQ_FATAL (r, 0);
 
 
 
@@ -1616,9 +1613,9 @@ CU_Test(ddssec_builtin_listeners_auth, local_remote_set_before_validation)
 
     hash1_sent_in_request = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C1);
 
-    CU_ASSERT_FATAL(dh1 != NULL);
-    CU_ASSERT_FATAL(dh1->value._length > 0);
-    CU_ASSERT_FATAL(dh1->value._buffer != NULL);
+    CU_ASSERT_NEQ_FATAL (dh1, NULL);
+    CU_ASSERT_NEQ_FATAL (dh1->value._length > 0, 0);
+    CU_ASSERT_NEQ_FATAL (dh1->value._buffer, NULL);
 
     dh1_pub_key.data = dh1->value._buffer;
     dh1_pub_key.length = dh1->value._length;
@@ -1639,8 +1636,8 @@ CU_Test(ddssec_builtin_listeners_auth, local_remote_set_before_validation)
                         handshake_handle,
                         &exception);
 
-    CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE);
-    CU_ASSERT(handshake_handle != DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_EQ_FATAL (result, DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE);
+    CU_ASSERT_NEQ (handshake_handle, DDS_SECURITY_HANDLE_NIL);
 
     result = access_control->validate_remote_permissions(
                 access_control,
@@ -1654,7 +1651,7 @@ CU_Test(ddssec_builtin_listeners_auth, local_remote_set_before_validation)
     if (result == 0) {
         printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
         //TODO: Clean-up before failing
-        CU_ASSERT_FATAL (exception.code == DDS_SECURITY_ERR_VALIDITY_PERIOD_EXPIRED_CODE);
+        CU_ASSERT_EQ_FATAL (exception.code, DDS_SECURITY_ERR_VALIDITY_PERIOD_EXPIRED_CODE);
 //        goto end;
 
     }
@@ -1700,7 +1697,7 @@ CU_Test(ddssec_builtin_listeners_auth, local_remote_set_before_validation)
     DDS_Security_DataHolder_deinit((DDS_Security_DataHolder *) &credential_token);
 
 
-    CU_ASSERT_TRUE (result == 1);
+    CU_ASSERT_EQ (result, 1);
 
     reset_exception(&exception);
 

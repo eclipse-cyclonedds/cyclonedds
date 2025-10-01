@@ -49,17 +49,17 @@ static uint32_t pp_thread (void *varg)
   dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, 0);
   dds_qset_userdata (qos, expud, expusz);
   dp = dds_create_participant (arg->domainid, qos, NULL);
-  CU_ASSERT_FATAL (dp > 0);
+  CU_ASSERT_GT_FATAL (dp, 0);
   rc = dds_get_instance_handle (dp, &dpih);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   rd = dds_create_reader (dp, DDS_BUILTIN_TOPIC_DCPSPARTICIPANT, qos, NULL);
-  CU_ASSERT_FATAL (rd > 0);
+  CU_ASSERT_GT_FATAL (rd, 0);
   rc = dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   ws = dds_create_waitset (dp);
-  CU_ASSERT_FATAL (ws > 0);
+  CU_ASSERT_GT_FATAL (ws, 0);
   rc = dds_waitset_attach (ws, rd, 0);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 
   bool done = false;
   bool synced = !arg->master;
@@ -68,7 +68,7 @@ static uint32_t pp_thread (void *varg)
   while (!done)
   {
     rc = dds_waitset_wait (ws, NULL, 0, DDS_INFINITY);
-    CU_ASSERT_FATAL (rc >= 0);
+    CU_ASSERT_GEQ_FATAL (rc, 0);
 
     void *raw = NULL;
     dds_sample_info_t si;
@@ -86,7 +86,7 @@ static uint32_t pp_thread (void *varg)
         size_t usz = 0;
         if (!dds_qget_userdata (sample->qos, &ud, &usz))
         {
-          CU_ASSERT_FATAL (0);
+          CU_FAIL_FATAL ("no user data present in QoS");
         }
         if (ud == NULL || strncmp (ud, prefix, sizeof (prefix) - 1) != 0)
         {
@@ -133,16 +133,16 @@ static uint32_t pp_thread (void *varg)
           fflush (stdout);
           dds_qset_userdata (qos, expud, expusz);
           rc = dds_set_qos (dp, qos);
-          CU_ASSERT_FATAL (rc == 0);
+          CU_ASSERT_EQ_FATAL (rc, 0);
 
           dds_qos_t *chk = dds_create_qos ();
           rc = dds_get_qos (dp, chk);
-          CU_ASSERT_FATAL (rc == 0);
+          CU_ASSERT_EQ_FATAL (rc, 0);
 
           void *chkud = NULL;
           size_t chkusz = 0;
           if (!dds_qget_userdata (chk, &chkud, &chkusz))
-            CU_ASSERT_FATAL (0);
+            CU_FAIL_FATAL ("no user data present in QoS");
           CU_ASSERT_FATAL (chkusz == expusz && (expusz == 0 || memcmp (chkud, expud, expusz) == 0));
           dds_free (chkud);
           dds_delete_qos (chk);
@@ -150,13 +150,13 @@ static uint32_t pp_thread (void *varg)
         dds_free (ud);
       }
     }
-    CU_ASSERT_FATAL (n == 0);
+    CU_ASSERT_EQ_FATAL (n, 0);
     dds_return_loan (rd, &raw, 1);
     fflush (stdout);
   }
   dds_delete_qos (qos);
   rc = dds_delete (dp);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   return 0;
 #undef prefix
 }
@@ -175,9 +175,9 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
   char *master_conf = ddsrt_expand_envvars (config, 0);
   char *slave_conf = ddsrt_expand_envvars (config, 1);
   const dds_entity_t master_dom = dds_create_domain (0, master_conf);
-  CU_ASSERT_FATAL (master_dom > 0);
+  CU_ASSERT_GT_FATAL (master_dom, 0);
   const dds_entity_t slave_dom = dds_create_domain (1, slave_conf);
-  CU_ASSERT_FATAL (slave_dom > 0);
+  CU_ASSERT_GT_FATAL (slave_dom, 0);
   ddsrt_free (master_conf);
   ddsrt_free (slave_conf);
 
@@ -194,7 +194,7 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
     .ncycles = ncycles
   };
   rc = ddsrt_thread_create (&master_tid, "master_thread", &tattr, pp_thread, &master_arg);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 
   struct pp_thread_arg slave_arg = {
     .domainid = 0,
@@ -202,15 +202,15 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
     .ncycles = ncycles
   };
   rc = ddsrt_thread_create (&slave_tid, "slave_thread", &tattr, pp_thread, &slave_arg);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 
   ddsrt_thread_join (master_tid, NULL);
   ddsrt_thread_join (slave_tid, NULL);
 
   rc = dds_delete (master_dom);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   rc = dds_delete (slave_dom);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 }
 
 enum rwud {
@@ -244,36 +244,36 @@ static uint32_t rw_thread (void *varg)
   size_t expusz = strlen (expud);
 
   qos = dds_create_qos ();
-  CU_ASSERT_FATAL (qos != NULL);
+  CU_ASSERT_NEQ_FATAL (qos, NULL);
   dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, 0);
   dp = dds_create_participant (arg->domainid, NULL, NULL);
-  CU_ASSERT_FATAL (dp > 0);
+  CU_ASSERT_GT_FATAL (dp, 0);
   tp = dds_create_topic (dp, &RWData_Msg_desc, arg->topicname, qos, NULL);
-  CU_ASSERT_FATAL (tp > 0);
+  CU_ASSERT_GT_FATAL (tp, 0);
   if (arg->master)
   {
     rdep = dds_create_reader (dp, DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, qos, NULL);
-    CU_ASSERT_FATAL (rdep > 0);
+    CU_ASSERT_GT_FATAL (rdep, 0);
     grp = dds_create_publisher (dp, qos, NULL);
-    CU_ASSERT_FATAL (grp > 0);
+    CU_ASSERT_GT_FATAL (grp, 0);
     ep = dds_create_writer (grp, tp, qos, NULL);
-    CU_ASSERT_FATAL (ep > 0);
+    CU_ASSERT_GT_FATAL (ep, 0);
   }
   else
   {
     rdep = dds_create_reader (dp, DDS_BUILTIN_TOPIC_DCPSPUBLICATION, qos, NULL);
-    CU_ASSERT_FATAL (rdep > 0);
+    CU_ASSERT_GT_FATAL (rdep, 0);
     grp = dds_create_subscriber (dp, qos, NULL);
-    CU_ASSERT_FATAL (grp > 0);
+    CU_ASSERT_GT_FATAL (grp, 0);
     ep = dds_create_reader (grp, tp, qos, NULL);
-    CU_ASSERT_FATAL (ep > 0);
+    CU_ASSERT_GT_FATAL (ep, 0);
   }
   rc = dds_set_status_mask (rdep, DDS_DATA_AVAILABLE_STATUS);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   ws = dds_create_waitset (dp);
-  CU_ASSERT_FATAL (ws > 0);
+  CU_ASSERT_GT_FATAL (ws, 0);
   rc = dds_waitset_attach (ws, rdep, 0);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 
   switch (arg->which)
   {
@@ -286,7 +286,7 @@ static uint32_t rw_thread (void *varg)
       qget = dds_qget_groupdata;
       qset = dds_qset_groupdata;
       qent = grp;
-      CU_ASSERT_FATAL (qent > 0);
+      CU_ASSERT_GT_FATAL (qent, 0);
       break;
     case RWUD_TOPICDATA:
       qget = dds_qget_topicdata;
@@ -299,7 +299,7 @@ static uint32_t rw_thread (void *varg)
   {
     qset (qos, expud, expusz);
     rc = dds_set_qos (qent, qos);
-    CU_ASSERT_FATAL (rc == 0);
+    CU_ASSERT_EQ_FATAL (rc, 0);
   }
 
   bool done = false;
@@ -310,7 +310,7 @@ static uint32_t rw_thread (void *varg)
   while (!done)
   {
     rc = dds_waitset_wait (ws, NULL, 0, DDS_INFINITY);
-    CU_ASSERT_FATAL (rc >= 0);
+    CU_ASSERT_GEQ_FATAL (rc, 0);
 
     void *raw = NULL;
     dds_sample_info_t si;
@@ -330,7 +330,7 @@ static uint32_t rw_thread (void *varg)
         size_t usz = 0;
         if (!qget (sample->qos, &ud, &usz))
         {
-          CU_ASSERT_FATAL (0);
+          CU_FAIL_FATAL ("no user/topic/group data present in QoS");
         }
         else if (!synced && (ud == NULL || strcmp (ud, expud) != 0))
         {
@@ -366,16 +366,16 @@ static uint32_t rw_thread (void *varg)
 
           qset (qos, expud, expusz);
           rc = dds_set_qos (qent, qos);
-          CU_ASSERT_FATAL (rc == 0);
+          CU_ASSERT_EQ_FATAL (rc, 0);
 
           dds_qos_t *chk = dds_create_qos ();
           rc = dds_get_qos (ep, chk);
-          CU_ASSERT_FATAL (rc == 0);
+          CU_ASSERT_EQ_FATAL (rc, 0);
 
           void *chkud = NULL;
           size_t chkusz = 0;
           if (!qget (chk, &chkud, &chkusz))
-            CU_ASSERT_FATAL (0);
+            CU_FAIL_FATAL ("no user/topic/group data present in QoS");
           CU_ASSERT_FATAL (chkusz == expusz && (expusz == 0 || (chkud != NULL && expud != NULL && memcmp (chkud, expud, expusz) == 0)));
           dds_free (chkud);
           dds_delete_qos (chk);
@@ -383,14 +383,14 @@ static uint32_t rw_thread (void *varg)
         dds_free (ud);
       }
     }
-    CU_ASSERT_FATAL (n == 0);
+    CU_ASSERT_EQ_FATAL (n, 0);
     dds_return_loan (rdep, &raw, 1);
     fflush (stdout);
   }
   dds_delete_qos (qos);
 
   rc = dds_delete (dp);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   return 0;
 }
 
@@ -403,9 +403,9 @@ static void rw_test (enum rwud which)
   char *master_conf = ddsrt_expand_envvars (config, 0);
   char *slave_conf = ddsrt_expand_envvars (config, 1);
   const dds_entity_t master_dom = dds_create_domain (0, master_conf);
-  CU_ASSERT_FATAL (master_dom > 0);
+  CU_ASSERT_GT_FATAL (master_dom, 0);
   const dds_entity_t slave_dom = dds_create_domain (1, slave_conf);
-  CU_ASSERT_FATAL (slave_dom > 0);
+  CU_ASSERT_GT_FATAL (slave_dom, 0);
   ddsrt_free (master_conf);
   ddsrt_free (slave_conf);
 
@@ -427,7 +427,7 @@ static void rw_test (enum rwud which)
     .which = which
   };
   rc = ddsrt_thread_create (&master_tid, "master_thread", &tattr, rw_thread, &master_arg);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 
   struct rw_thread_arg slave_arg = {
     .domainid = 1,
@@ -437,15 +437,15 @@ static void rw_test (enum rwud which)
     .which = which
   };
   rc = ddsrt_thread_create (&slave_tid, "slave_thread", &tattr, rw_thread, &slave_arg);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 
   ddsrt_thread_join (master_tid, NULL);
   ddsrt_thread_join (slave_tid, NULL);
 
   rc = dds_delete (master_dom);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   rc = dds_delete (slave_dom);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 }
 
 CU_Test(ddsc_userdata, endpoint)

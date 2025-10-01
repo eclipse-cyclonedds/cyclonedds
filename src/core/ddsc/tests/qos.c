@@ -168,7 +168,7 @@ static void
 qos_init(void)
 {
     g_qos = dds_create_qos();
-    CU_ASSERT_PTR_NOT_NULL_FATAL(g_qos);
+    CU_ASSERT_NEQ_FATAL (g_qos, NULL);
 
     g_pol_userdata.value = (void*)c_userdata;
     g_pol_userdata.sz = strlen((char*)g_pol_userdata.value) + 1;
@@ -251,7 +251,7 @@ CU_Test(ddsc_qos, copy_bad_source, .init=qos_init, .fini=qos_fini)
     dds_return_t result;
 
         result = dds_copy_qos(g_qos, NULL);
-        CU_ASSERT_EQUAL_FATAL(result, DDS_RETCODE_BAD_PARAMETER);
+        CU_ASSERT_EQ_FATAL (result, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsc_qos, copy_bad_destination, .init=qos_init, .fini=qos_fini)
@@ -259,7 +259,7 @@ CU_Test(ddsc_qos, copy_bad_destination, .init=qos_init, .fini=qos_fini)
         dds_return_t result;
 
         result = dds_copy_qos(NULL, g_qos);
-        CU_ASSERT_EQUAL_FATAL(result, DDS_RETCODE_BAD_PARAMETER);
+        CU_ASSERT_EQ_FATAL (result, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsc_qos, copy_with_partition, .init=qos_init, .fini=qos_fini)
@@ -269,17 +269,17 @@ CU_Test(ddsc_qos, copy_with_partition, .init=qos_init, .fini=qos_fini)
         struct pol_partition p = { 0, NULL };
 
         qos = dds_create_qos();
-        CU_ASSERT_PTR_NOT_NULL_FATAL(qos);
+        CU_ASSERT_NEQ_FATAL (qos, NULL);
 
         dds_qset_partition(g_qos, g_pol_partition.n, (const char **)g_pol_partition.ps);
         result = dds_copy_qos(qos, g_qos);
 
-        CU_ASSERT_EQUAL_FATAL(result, DDS_RETCODE_OK);
+        CU_ASSERT_EQ_FATAL (result, DDS_RETCODE_OK);
         dds_qget_partition(qos, &p.n, &p.ps);
-        CU_ASSERT_EQUAL_FATAL(p.n, g_pol_partition.n);
+        CU_ASSERT_EQ_FATAL (p.n, g_pol_partition.n);
 
         for (uint32_t cnt = 0; cnt < p.n; cnt++) {
-            CU_ASSERT_STRING_EQUAL_FATAL(p.ps[cnt], g_pol_partition.ps[cnt]);
+            CU_ASSERT_STREQ_FATAL (p.ps[cnt], g_pol_partition.ps[cnt]);
         }
 
         for (uint32_t cnt = 0; cnt < p.n; cnt++) {
@@ -301,8 +301,8 @@ CU_Test(ddsc_qos, userdata, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_userdata(g_qos, g_pol_userdata.value, g_pol_userdata.sz);
     dds_qget_userdata(g_qos, &p.value, &p.sz);
-    CU_ASSERT_EQUAL_FATAL(p.sz, g_pol_userdata.sz);
-    CU_ASSERT_STRING_EQUAL_FATAL(p.value, g_pol_userdata.value);
+    CU_ASSERT_EQ_FATAL (p.sz, g_pol_userdata.sz);
+    CU_ASSERT_STREQ_FATAL (p.value, g_pol_userdata.value);
 
     dds_free(p.value);
 }
@@ -319,8 +319,8 @@ CU_Test(ddsc_qos, topicdata, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_topicdata(g_qos, g_pol_topicdata.value, g_pol_topicdata.sz);
     dds_qget_topicdata(g_qos, &p.value, &p.sz);
-    CU_ASSERT_EQUAL_FATAL(p.sz, g_pol_topicdata.sz);
-    CU_ASSERT_STRING_EQUAL_FATAL(p.value, g_pol_topicdata.value);
+    CU_ASSERT_EQ_FATAL (p.sz, g_pol_topicdata.sz);
+    CU_ASSERT_STREQ_FATAL (p.value, g_pol_topicdata.value);
 
     dds_free(p.value);
 }
@@ -337,8 +337,8 @@ CU_Test(ddsc_qos, groupdata, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_groupdata(g_qos, g_pol_groupdata.value, g_pol_groupdata.sz);
     dds_qget_groupdata(g_qos, &p.value, &p.sz);
-    CU_ASSERT_EQUAL_FATAL(p.sz, g_pol_groupdata.sz);
-    CU_ASSERT_STRING_EQUAL_FATAL(p.value, g_pol_groupdata.value);
+    CU_ASSERT_EQ_FATAL (p.sz, g_pol_groupdata.sz);
+    CU_ASSERT_STREQ_FATAL (p.value, g_pol_groupdata.value);
 
     dds_free(p.value);
 }
@@ -355,7 +355,7 @@ CU_Test(ddsc_qos, durability, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_durability(g_qos, g_pol_durability.kind);
     dds_qget_durability(g_qos, &p.kind);
-    CU_ASSERT_EQUAL_FATAL(p.kind, g_pol_durability.kind);
+    CU_ASSERT_EQ_FATAL (p.kind, g_pol_durability.kind);
 }
 
 CU_Test(ddsc_qos, history, .init=qos_init, .fini=qos_fini)
@@ -370,8 +370,8 @@ CU_Test(ddsc_qos, history, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_history(g_qos, g_pol_history.kind, g_pol_history.depth);
     dds_qget_history(g_qos, &p.kind, &p.depth);
-    CU_ASSERT_EQUAL_FATAL(p.kind, g_pol_history.kind);
-    CU_ASSERT_EQUAL_FATAL(p.depth, g_pol_history.depth);
+    CU_ASSERT_EQ_FATAL (p.kind, g_pol_history.kind);
+    CU_ASSERT_EQ_FATAL (p.depth, g_pol_history.depth);
 }
 
 CU_Test(ddsc_qos, resource_limits, .init=qos_init, .fini=qos_fini)
@@ -386,9 +386,9 @@ CU_Test(ddsc_qos, resource_limits, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_resource_limits(g_qos, g_pol_resource_limits.max_samples, g_pol_resource_limits.max_instances, g_pol_resource_limits.max_samples_per_instance);
     dds_qget_resource_limits(g_qos, &p.max_samples, &p.max_instances, &p.max_samples_per_instance);
-    CU_ASSERT_EQUAL_FATAL(p.max_samples, g_pol_resource_limits.max_samples);
-    CU_ASSERT_EQUAL_FATAL(p.max_instances, g_pol_resource_limits.max_instances);
-    CU_ASSERT_EQUAL_FATAL(p.max_samples_per_instance, g_pol_resource_limits.max_samples_per_instance);
+    CU_ASSERT_EQ_FATAL (p.max_samples, g_pol_resource_limits.max_samples);
+    CU_ASSERT_EQ_FATAL (p.max_instances, g_pol_resource_limits.max_instances);
+    CU_ASSERT_EQ_FATAL (p.max_samples_per_instance, g_pol_resource_limits.max_samples_per_instance);
 }
 
 CU_Test(ddsc_qos, presentation, .init=qos_init, .fini=qos_fini)
@@ -403,9 +403,9 @@ CU_Test(ddsc_qos, presentation, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_presentation(g_qos, g_pol_presentation.access_scope, g_pol_presentation.coherent_access, g_pol_presentation.ordered_access);
     dds_qget_presentation(g_qos, &p.access_scope, &p.coherent_access, &p.ordered_access);
-    CU_ASSERT_EQUAL_FATAL(p.access_scope, g_pol_presentation.access_scope);
-    CU_ASSERT_EQUAL_FATAL(p.coherent_access, g_pol_presentation.coherent_access);
-    CU_ASSERT_EQUAL_FATAL(p.ordered_access, g_pol_presentation.ordered_access);
+    CU_ASSERT_EQ_FATAL (p.access_scope, g_pol_presentation.access_scope);
+    CU_ASSERT_EQ_FATAL (p.coherent_access, g_pol_presentation.coherent_access);
+    CU_ASSERT_EQ_FATAL (p.ordered_access, g_pol_presentation.ordered_access);
 }
 
 CU_Test(ddsc_qos, lifespan, .init=qos_init, .fini=qos_fini)
@@ -420,7 +420,7 @@ CU_Test(ddsc_qos, lifespan, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_lifespan(g_qos, g_pol_lifespan.lifespan);
     dds_qget_lifespan(g_qos, &p.lifespan);
-    CU_ASSERT_EQUAL_FATAL(p.lifespan, g_pol_lifespan.lifespan);
+    CU_ASSERT_EQ_FATAL (p.lifespan, g_pol_lifespan.lifespan);
 }
 
 CU_Test(ddsc_qos, deadline, .init=qos_init, .fini=qos_fini)
@@ -435,7 +435,7 @@ CU_Test(ddsc_qos, deadline, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_deadline(g_qos, g_pol_deadline.deadline);
     dds_qget_deadline(g_qos, &p.deadline);
-    CU_ASSERT_EQUAL_FATAL(p.deadline, g_pol_deadline.deadline);
+    CU_ASSERT_EQ_FATAL (p.deadline, g_pol_deadline.deadline);
 }
 
 CU_Test(ddsc_qos, latency_budget, .init=qos_init, .fini=qos_fini)
@@ -450,7 +450,7 @@ CU_Test(ddsc_qos, latency_budget, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_latency_budget(g_qos, g_pol_latency_budget.duration);
     dds_qget_latency_budget(g_qos, &p.duration);
-    CU_ASSERT_EQUAL_FATAL(p.duration, g_pol_latency_budget.duration);
+    CU_ASSERT_EQ_FATAL (p.duration, g_pol_latency_budget.duration);
 }
 
 CU_Test(ddsc_qos, ownership, .init=qos_init, .fini=qos_fini)
@@ -465,7 +465,7 @@ CU_Test(ddsc_qos, ownership, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_ownership(g_qos, g_pol_ownership.kind);
     dds_qget_ownership(g_qos, &p.kind);
-    CU_ASSERT_EQUAL_FATAL(p.kind, g_pol_ownership.kind);
+    CU_ASSERT_EQ_FATAL (p.kind, g_pol_ownership.kind);
 }
 
 CU_Test(ddsc_qos, ownership_strength, .init=qos_init, .fini=qos_fini)
@@ -480,7 +480,7 @@ CU_Test(ddsc_qos, ownership_strength, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_ownership_strength(g_qos, g_pol_ownership_strength.value);
     dds_qget_ownership_strength(g_qos, &p.value);
-    CU_ASSERT_EQUAL_FATAL(p.value, g_pol_ownership_strength.value);
+    CU_ASSERT_EQ_FATAL (p.value, g_pol_ownership_strength.value);
 }
 
 CU_Test(ddsc_qos, liveliness, .init=qos_init, .fini=qos_fini)
@@ -495,8 +495,8 @@ CU_Test(ddsc_qos, liveliness, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_liveliness(g_qos, g_pol_liveliness.kind, g_pol_liveliness.lease_duration);
     dds_qget_liveliness(g_qos, &p.kind, &p.lease_duration);
-    CU_ASSERT_EQUAL_FATAL(p.kind, g_pol_liveliness.kind);
-    CU_ASSERT_EQUAL_FATAL(p.lease_duration, g_pol_liveliness.lease_duration);
+    CU_ASSERT_EQ_FATAL (p.kind, g_pol_liveliness.kind);
+    CU_ASSERT_EQ_FATAL (p.lease_duration, g_pol_liveliness.lease_duration);
 }
 
 CU_Test(ddsc_qos, time_base_filter, .init=qos_init, .fini=qos_fini)
@@ -511,7 +511,7 @@ CU_Test(ddsc_qos, time_base_filter, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_time_based_filter(g_qos, g_pol_time_based_filter.minimum_separation);
     dds_qget_time_based_filter(g_qos, &p.minimum_separation);
-    CU_ASSERT_EQUAL_FATAL(p.minimum_separation, g_pol_time_based_filter.minimum_separation);
+    CU_ASSERT_EQ_FATAL (p.minimum_separation, g_pol_time_based_filter.minimum_separation);
 }
 
 CU_Test(ddsc_qos, partition, .init=qos_init, .fini=qos_fini)
@@ -526,10 +526,10 @@ CU_Test(ddsc_qos, partition, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_partition(g_qos, g_pol_partition.n, c_partitions);
     dds_qget_partition(g_qos, &p.n, &p.ps);
-    CU_ASSERT_EQUAL_FATAL(p.n, 2);
-    CU_ASSERT_EQUAL_FATAL(p.n, g_pol_partition.n);
-    CU_ASSERT_STRING_EQUAL_FATAL(p.ps[0], g_pol_partition.ps[0]);
-    CU_ASSERT_STRING_EQUAL_FATAL(p.ps[1], g_pol_partition.ps[1]);
+    CU_ASSERT_EQ_FATAL (p.n, 2);
+    CU_ASSERT_EQ_FATAL (p.n, g_pol_partition.n);
+    CU_ASSERT_STREQ_FATAL (p.ps[0], g_pol_partition.ps[0]);
+    CU_ASSERT_STREQ_FATAL (p.ps[1], g_pol_partition.ps[1]);
 
     dds_free(p.ps[0]);
     dds_free(p.ps[1]);
@@ -548,8 +548,8 @@ CU_Test(ddsc_qos, reliability, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_reliability(g_qos, g_pol_reliability.kind, g_pol_reliability.max_blocking_time);
     dds_qget_reliability(g_qos, &p.kind, &p.max_blocking_time);
-    CU_ASSERT_EQUAL_FATAL(p.kind, g_pol_reliability.kind);
-    CU_ASSERT_EQUAL_FATAL(p.max_blocking_time, g_pol_reliability.max_blocking_time);
+    CU_ASSERT_EQ_FATAL (p.kind, g_pol_reliability.kind);
+    CU_ASSERT_EQ_FATAL (p.max_blocking_time, g_pol_reliability.max_blocking_time);
 }
 
 CU_Test(ddsc_qos, transport_priority, .init=qos_init, .fini=qos_fini)
@@ -564,7 +564,7 @@ CU_Test(ddsc_qos, transport_priority, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_transport_priority(g_qos, g_pol_transport_priority.value);
     dds_qget_transport_priority(g_qos, &p.value);
-    CU_ASSERT_EQUAL_FATAL(p.value, g_pol_transport_priority.value);
+    CU_ASSERT_EQ_FATAL (p.value, g_pol_transport_priority.value);
 }
 
 CU_Test(ddsc_qos, destination_order, .init=qos_init, .fini=qos_fini)
@@ -579,7 +579,7 @@ CU_Test(ddsc_qos, destination_order, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_destination_order(g_qos, g_pol_destination_order.kind);
     dds_qget_destination_order(g_qos, &p.kind);
-    CU_ASSERT_EQUAL_FATAL(p.kind, g_pol_destination_order.kind);
+    CU_ASSERT_EQ_FATAL (p.kind, g_pol_destination_order.kind);
 }
 
 CU_Test(ddsc_qos, writer_data_lifecycle, .init=qos_init, .fini=qos_fini)
@@ -594,7 +594,7 @@ CU_Test(ddsc_qos, writer_data_lifecycle, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_writer_data_lifecycle(g_qos, g_pol_writer_data_lifecycle.autodispose);
     dds_qget_writer_data_lifecycle(g_qos, &p.autodispose);
-    CU_ASSERT_EQUAL_FATAL(p.autodispose, g_pol_writer_data_lifecycle.autodispose);
+    CU_ASSERT_EQ_FATAL (p.autodispose, g_pol_writer_data_lifecycle.autodispose);
 }
 
 CU_Test(ddsc_qos, reader_data_lifecycle, .init=qos_init, .fini=qos_fini)
@@ -609,8 +609,8 @@ CU_Test(ddsc_qos, reader_data_lifecycle, .init=qos_init, .fini=qos_fini)
     /* Getting after setting, should yield the original input. */
     dds_qset_reader_data_lifecycle(g_qos, g_pol_reader_data_lifecycle.autopurge_nowriter_samples_delay, g_pol_reader_data_lifecycle.autopurge_disposed_samples_delay);
     dds_qget_reader_data_lifecycle(g_qos, &p.autopurge_nowriter_samples_delay, &p.autopurge_disposed_samples_delay);
-    CU_ASSERT_EQUAL_FATAL(p.autopurge_nowriter_samples_delay, g_pol_reader_data_lifecycle.autopurge_nowriter_samples_delay);
-    CU_ASSERT_EQUAL_FATAL(p.autopurge_disposed_samples_delay, g_pol_reader_data_lifecycle.autopurge_disposed_samples_delay);
+    CU_ASSERT_EQ_FATAL (p.autopurge_nowriter_samples_delay, g_pol_reader_data_lifecycle.autopurge_nowriter_samples_delay);
+    CU_ASSERT_EQ_FATAL (p.autopurge_disposed_samples_delay, g_pol_reader_data_lifecycle.autopurge_disposed_samples_delay);
 }
 
 CU_Test(ddsc_qos, durability_service, .init=qos_init, .fini=qos_fini)
@@ -655,12 +655,12 @@ CU_Test(ddsc_qos, durability_service, .init=qos_init, .fini=qos_fini)
             &p.max_samples,
             &p.max_instances,
             &p.max_samples_per_instance);
-    CU_ASSERT_EQUAL_FATAL(p.service_cleanup_delay, g_pol_durability_service.service_cleanup_delay);
-    CU_ASSERT_EQUAL_FATAL(p.history_kind, g_pol_durability_service.history_kind);
-    CU_ASSERT_EQUAL_FATAL(p.history_depth, g_pol_durability_service.history_depth);
-    CU_ASSERT_EQUAL_FATAL(p.max_samples, g_pol_durability_service.max_samples);
-    CU_ASSERT_EQUAL_FATAL(p.max_instances, g_pol_durability_service.max_instances);
-    CU_ASSERT_EQUAL_FATAL(p.max_samples_per_instance, g_pol_durability_service.max_samples_per_instance);
+    CU_ASSERT_EQ_FATAL (p.service_cleanup_delay, g_pol_durability_service.service_cleanup_delay);
+    CU_ASSERT_EQ_FATAL (p.history_kind, g_pol_durability_service.history_kind);
+    CU_ASSERT_EQ_FATAL (p.history_depth, g_pol_durability_service.history_depth);
+    CU_ASSERT_EQ_FATAL (p.max_samples, g_pol_durability_service.max_samples);
+    CU_ASSERT_EQ_FATAL (p.max_instances, g_pol_durability_service.max_instances);
+    CU_ASSERT_EQ_FATAL (p.max_samples_per_instance, g_pol_durability_service.max_samples_per_instance);
 }
 
 CU_Test(ddsc_qos, property, .init=qos_init, .fini=qos_fini)
@@ -683,35 +683,35 @@ CU_Test(ddsc_qos, property, .init=qos_init, .fini=qos_fini)
     dds_qset_prop (g_qos, c_property_names[0], NULL);
     CU_ASSERT_FATAL (!dds_qget_prop (g_qos, c_property_names[0], &value));
     dds_qset_prop (g_qos, c_property_names[0], "");
-    CU_ASSERT_FATAL (dds_qget_prop (g_qos, c_property_names[0], &value));
-    CU_ASSERT_STRING_EQUAL_FATAL (value, "");
+    CU_ASSERT_NEQ_FATAL (dds_qget_prop (g_qos, c_property_names[0], &value), 0);
+    CU_ASSERT_STREQ_FATAL (value, "");
     dds_free (value);
 
     /* Getting after setting, should yield the original input. */
     dds_qset_prop (g_qos, c_property_names[0], c_property_values[0]);
-    CU_ASSERT_FATAL (dds_qget_prop (g_qos, c_property_names[0], &value));
-    CU_ASSERT_STRING_EQUAL_FATAL (value, c_property_values[0]);
+    CU_ASSERT_NEQ_FATAL (dds_qget_prop (g_qos, c_property_names[0], &value), 0);
+    CU_ASSERT_STREQ_FATAL (value, c_property_values[0]);
     dds_free (value);
 
     /* Overwrite value for existing property (and reset value) */
     dds_qset_prop (g_qos, c_property_names[0], c_property_values[1]);
-    CU_ASSERT_FATAL (dds_qget_prop (g_qos, c_property_names[0], &value));
-    CU_ASSERT_STRING_EQUAL_FATAL (value, c_property_values[1]);
+    CU_ASSERT_NEQ_FATAL (dds_qget_prop (g_qos, c_property_names[0], &value), 0);
+    CU_ASSERT_STREQ_FATAL (value, c_property_values[1]);
     dds_free (value);
     dds_qset_prop (g_qos, c_property_names[0], c_property_values[0]);
 
     /* Set 2nd prop and get length */
     dds_qset_prop (g_qos, c_property_names[1], c_property_values[1]);
-    CU_ASSERT_FATAL (dds_qget_propnames (g_qos, &cnt, NULL));
-    CU_ASSERT_EQUAL_FATAL (cnt, 2);
+    CU_ASSERT_NEQ_FATAL (dds_qget_propnames (g_qos, &cnt, NULL), 0);
+    CU_ASSERT_EQ_FATAL (cnt, 2);
 
     /* Set another property and get list of property names */
     dds_qset_prop (g_qos, c_property_names[2], c_property_values[2]);
-    CU_ASSERT_FATAL (dds_qget_propnames (g_qos, &cnt, &names));
-    CU_ASSERT_EQUAL_FATAL (cnt, 3);
+    CU_ASSERT_NEQ_FATAL (dds_qget_propnames (g_qos, &cnt, &names), 0);
+    CU_ASSERT_EQ_FATAL (cnt, 3);
     for (uint32_t i = 0; i < cnt; i++)
     {
-        CU_ASSERT_STRING_EQUAL_FATAL (names[i], c_property_names[i]);
+        CU_ASSERT_STREQ_FATAL (names[i], c_property_names[i]);
         dds_free (names[i]);
     }
     dds_free (names);
@@ -719,13 +719,13 @@ CU_Test(ddsc_qos, property, .init=qos_init, .fini=qos_fini)
     /* Unset a property and check if removed */
     dds_qunset_prop (g_qos, c_property_names[1]);
     CU_ASSERT_FATAL (!dds_qget_prop (g_qos, c_property_names[1], &value));
-    CU_ASSERT_FATAL (dds_qget_propnames (g_qos, &cnt, NULL));
-    CU_ASSERT_EQUAL_FATAL (cnt, 2);
-    CU_ASSERT_FATAL(dds_qget_prop (g_qos, c_property_names[0], &value));
-    CU_ASSERT_STRING_EQUAL_FATAL (value, c_property_values[0]);
+    CU_ASSERT_NEQ_FATAL (dds_qget_propnames (g_qos, &cnt, NULL), 0);
+    CU_ASSERT_EQ_FATAL (cnt, 2);
+    CU_ASSERT_NEQ_FATAL (dds_qget_prop (g_qos, c_property_names[0], &value), 0);
+    CU_ASSERT_STREQ_FATAL (value, c_property_values[0]);
     dds_free (value);
-    CU_ASSERT_FATAL (dds_qget_prop (g_qos, c_property_names[2], &value));
-    CU_ASSERT_STRING_EQUAL_FATAL (value, c_property_values[2]);
+    CU_ASSERT_NEQ_FATAL (dds_qget_prop (g_qos, c_property_names[2], &value), 0);
+    CU_ASSERT_STREQ_FATAL (value, c_property_values[2]);
     dds_free (value);
     dds_qunset_prop (g_qos, c_property_names[0]);
     dds_qunset_prop (g_qos, c_property_names[2]);
@@ -751,41 +751,41 @@ CU_Test(ddsc_qos, bproperty, .init=qos_init, .fini=qos_fini)
 
     /* Set null value should succeed */
     dds_qset_bprop (g_qos, c_bproperty_names[0], NULL, 0);
-    CU_ASSERT_FATAL (dds_qget_bprop (g_qos, c_bproperty_names[0], &bvalue, &size));
-    CU_ASSERT_EQUAL_FATAL (bvalue, NULL);
-    CU_ASSERT_EQUAL_FATAL (size, 0);
+    CU_ASSERT_NEQ_FATAL (dds_qget_bprop (g_qos, c_bproperty_names[0], &bvalue, &size), 0);
+    CU_ASSERT_EQ_FATAL (bvalue, NULL);
+    CU_ASSERT_EQ_FATAL (size, 0);
 
     /* Getting after setting, should yield the original input. */
     dds_qset_bprop (g_qos, c_bproperty_names[0], c_bproperty_values[0], 3);
-    CU_ASSERT_FATAL(dds_qget_bprop (g_qos, c_bproperty_names[0], &bvalue, &size));
-    CU_ASSERT_FATAL (bvalue != NULL);
-    CU_ASSERT_EQUAL_FATAL (size, 3);
-    CU_ASSERT_FATAL (c_bproperty_values[0] != NULL);
-    CU_ASSERT_EQUAL_FATAL (memcmp (bvalue, c_bproperty_values[0], size), 0);
+    CU_ASSERT_NEQ_FATAL (dds_qget_bprop (g_qos, c_bproperty_names[0], &bvalue, &size), 0);
+    CU_ASSERT_NEQ_FATAL (bvalue, NULL);
+    CU_ASSERT_EQ_FATAL (size, 3);
+    CU_ASSERT_NEQ_FATAL ((void *) c_bproperty_values[0], NULL);
+    CU_ASSERT_MEMEQ_FATAL (bvalue, size, c_bproperty_values[0], size);
     dds_free (bvalue);
 
     /* Overwrite value for existing binary property (and reset value) */
     dds_qset_bprop (g_qos, c_bproperty_names[0], c_bproperty_values[1], 3);
-    CU_ASSERT_FATAL (dds_qget_bprop (g_qos, c_bproperty_names[0], &bvalue, &size));
-    CU_ASSERT_FATAL (bvalue != NULL);
-    CU_ASSERT_EQUAL_FATAL (size, 3);
-    CU_ASSERT_FATAL (c_bproperty_values[1] != NULL);
-    CU_ASSERT_EQUAL_FATAL (memcmp (bvalue, c_bproperty_values[1], size), 0);
+    CU_ASSERT_NEQ_FATAL (dds_qget_bprop (g_qos, c_bproperty_names[0], &bvalue, &size), 0);
+    CU_ASSERT_NEQ_FATAL (bvalue, NULL);
+    CU_ASSERT_EQ_FATAL (size, 3);
+    CU_ASSERT_NEQ_FATAL ((void *) c_bproperty_values[1], NULL);
+    CU_ASSERT_MEMEQ_FATAL (bvalue, size, c_bproperty_values[1], size);
     dds_free (bvalue);
     dds_qset_bprop (g_qos, c_bproperty_names[0], &c_bproperty_values[0], 3);
 
     /* Set 2nd binary prop and get length */
     dds_qset_bprop (g_qos, c_bproperty_names[1], &c_bproperty_values[1], 3);
-    CU_ASSERT_FATAL (dds_qget_bpropnames (g_qos, &cnt, NULL));
-    CU_ASSERT_EQUAL_FATAL (cnt, 2);
+    CU_ASSERT_NEQ_FATAL (dds_qget_bpropnames (g_qos, &cnt, NULL), 0);
+    CU_ASSERT_EQ_FATAL (cnt, 2);
 
     /* Set another binary property and get list of property names */
     dds_qset_bprop (g_qos, c_bproperty_names[2], &c_bproperty_values[2], 3);
-    CU_ASSERT_FATAL (dds_qget_bpropnames (g_qos, &cnt, &names));
-    CU_ASSERT_EQUAL_FATAL (cnt, 3);
+    CU_ASSERT_NEQ_FATAL (dds_qget_bpropnames (g_qos, &cnt, &names), 0);
+    CU_ASSERT_EQ_FATAL (cnt, 3);
     for (uint32_t i = 0; i < cnt; i++)
     {
-        CU_ASSERT_STRING_EQUAL_FATAL (names[i], c_bproperty_names[i]);
+        CU_ASSERT_STREQ_FATAL (names[i], c_bproperty_names[i]);
         dds_free (names[i]);
     }
     dds_free (names);
@@ -793,19 +793,19 @@ CU_Test(ddsc_qos, bproperty, .init=qos_init, .fini=qos_fini)
     /* Unset a binary property and check if removed */
     dds_qunset_bprop (g_qos, c_bproperty_names[1]);
     CU_ASSERT_FATAL (!dds_qget_bprop (g_qos, c_bproperty_names[1], &bvalue, &size));
-    CU_ASSERT_FATAL (dds_qget_bpropnames (g_qos, &cnt, NULL));
-    CU_ASSERT_EQUAL_FATAL (cnt, 2);
-    CU_ASSERT_FATAL (dds_qget_bprop (g_qos, c_bproperty_names[0], &bvalue, &size));
-    CU_ASSERT_FATAL (bvalue != NULL);
-    CU_ASSERT_EQUAL_FATAL (size, 3);
-    CU_ASSERT_FATAL (c_bproperty_values[0] != NULL);
-    CU_ASSERT_EQUAL_FATAL (memcmp (bvalue, c_bproperty_values[0], size), 0);
+    CU_ASSERT_NEQ_FATAL (dds_qget_bpropnames (g_qos, &cnt, NULL), 0);
+    CU_ASSERT_EQ_FATAL (cnt, 2);
+    CU_ASSERT_NEQ_FATAL (dds_qget_bprop (g_qos, c_bproperty_names[0], &bvalue, &size), 0);
+    CU_ASSERT_NEQ_FATAL (bvalue, NULL);
+    CU_ASSERT_EQ_FATAL (size, 3);
+    CU_ASSERT_NEQ_FATAL ((void *) c_bproperty_values[0], NULL);
+    CU_ASSERT_MEMEQ_FATAL (bvalue, size, c_bproperty_values[0], size);
     dds_free (bvalue);
-    CU_ASSERT_FATAL (dds_qget_bprop (g_qos, c_bproperty_names[2], &bvalue, &size));
-    CU_ASSERT_FATAL (bvalue != NULL);
-    CU_ASSERT_EQUAL_FATAL (size, 3);
-    CU_ASSERT_FATAL (c_bproperty_values[2] != NULL);
-    CU_ASSERT_EQUAL_FATAL (memcmp (bvalue, c_bproperty_values[2], size), 0);
+    CU_ASSERT_NEQ_FATAL (dds_qget_bprop (g_qos, c_bproperty_names[2], &bvalue, &size), 0);
+    CU_ASSERT_NEQ_FATAL (bvalue, NULL);
+    CU_ASSERT_EQ_FATAL (size, 3);
+    CU_ASSERT_NEQ_FATAL ((void *) c_bproperty_values[2], NULL);
+    CU_ASSERT_MEMEQ_FATAL (bvalue, size, c_bproperty_values[2], size);
     dds_free (bvalue);
     dds_qunset_bprop (g_qos, c_bproperty_names[0]);
     dds_qunset_bprop (g_qos, c_bproperty_names[2]);
@@ -824,26 +824,26 @@ CU_Test(ddsc_qos, property_mixed, .init=qos_init, .fini=qos_fini)
     dds_qset_bprop (g_qos, c_property_names[0], c_bproperty_values[0], 3);
 
     /* Check property values and count */
-    CU_ASSERT_FATAL (dds_qget_bprop (g_qos, c_property_names[0], &bvalue, &size));
-    CU_ASSERT_FATAL (bvalue != NULL);
-    CU_ASSERT_EQUAL_FATAL (size, 3);
-    CU_ASSERT_FATAL (c_bproperty_values[0] != NULL);
-    CU_ASSERT_EQUAL_FATAL (memcmp (bvalue, c_bproperty_values[0], size), 0);
+    CU_ASSERT_NEQ_FATAL (dds_qget_bprop (g_qos, c_property_names[0], &bvalue, &size), 0);
+    CU_ASSERT_NEQ_FATAL (bvalue, NULL);
+    CU_ASSERT_EQ_FATAL (size, 3);
+    CU_ASSERT_NEQ_FATAL ((void *) c_bproperty_values[0], NULL);
+    CU_ASSERT_MEMEQ_FATAL (bvalue, size, c_bproperty_values[0], size);
     dds_free (bvalue);
-    CU_ASSERT_FATAL (dds_qget_prop (g_qos, c_property_names[0], &value));
-    CU_ASSERT_STRING_EQUAL_FATAL (value, c_property_values[0]);
+    CU_ASSERT_NEQ_FATAL (dds_qget_prop (g_qos, c_property_names[0], &value), 0);
+    CU_ASSERT_STREQ_FATAL (value, c_property_values[0]);
     dds_free (value);
 
-    CU_ASSERT_FATAL (dds_qget_propnames (g_qos, &cnt, NULL));
-    CU_ASSERT_EQUAL_FATAL (cnt, 1);
-    CU_ASSERT_FATAL (dds_qget_bpropnames (g_qos, &cnt, NULL));
-    CU_ASSERT_EQUAL_FATAL (cnt, 1);
+    CU_ASSERT_NEQ_FATAL (dds_qget_propnames (g_qos, &cnt, NULL), 0);
+    CU_ASSERT_EQ_FATAL (cnt, 1);
+    CU_ASSERT_NEQ_FATAL (dds_qget_bpropnames (g_qos, &cnt, NULL), 0);
+    CU_ASSERT_EQ_FATAL (cnt, 1);
 
     /* Unset and check */
     dds_qunset_bprop (g_qos, c_property_names[0]);
     CU_ASSERT_FATAL (!dds_qget_bprop (g_qos, c_property_names[0], &bvalue, &size));
-    CU_ASSERT_FATAL (dds_qget_prop (g_qos, c_property_names[0], &value));
-    CU_ASSERT_STRING_EQUAL_FATAL (value, c_property_values[0]);
+    CU_ASSERT_NEQ_FATAL (dds_qget_prop (g_qos, c_property_names[0], &value), 0);
+    CU_ASSERT_STREQ_FATAL (value, c_property_values[0]);
     dds_free (value);
 
     dds_qunset_prop (g_qos, c_property_names[0]);
@@ -888,10 +888,10 @@ CU_Test(ddsc_qos, type_consistency, .init=qos_init, .fini=qos_fini)
         &p.ignore_member_names,
         &p.prevent_type_widening,
         &p.force_type_validation);
-    CU_ASSERT_EQUAL_FATAL(p.kind, g_pol_type_consistency_enforcement.kind);
-    CU_ASSERT_EQUAL_FATAL(p.ignore_sequence_bounds, g_pol_type_consistency_enforcement.ignore_sequence_bounds);
-    CU_ASSERT_EQUAL_FATAL(p.ignore_string_bounds, g_pol_type_consistency_enforcement.ignore_string_bounds);
-    CU_ASSERT_EQUAL_FATAL(p.ignore_member_names, g_pol_type_consistency_enforcement.ignore_member_names);
-    CU_ASSERT_EQUAL_FATAL(p.prevent_type_widening, g_pol_type_consistency_enforcement.prevent_type_widening);
-    CU_ASSERT_EQUAL_FATAL(p.force_type_validation, g_pol_type_consistency_enforcement.force_type_validation);
+    CU_ASSERT_EQ_FATAL (p.kind, g_pol_type_consistency_enforcement.kind);
+    CU_ASSERT_EQ_FATAL (p.ignore_sequence_bounds, g_pol_type_consistency_enforcement.ignore_sequence_bounds);
+    CU_ASSERT_EQ_FATAL (p.ignore_string_bounds, g_pol_type_consistency_enforcement.ignore_string_bounds);
+    CU_ASSERT_EQ_FATAL (p.ignore_member_names, g_pol_type_consistency_enforcement.ignore_member_names);
+    CU_ASSERT_EQ_FATAL (p.prevent_type_widening, g_pol_type_consistency_enforcement.prevent_type_widening);
+    CU_ASSERT_EQ_FATAL (p.force_type_validation, g_pol_type_consistency_enforcement.force_type_validation);
 }

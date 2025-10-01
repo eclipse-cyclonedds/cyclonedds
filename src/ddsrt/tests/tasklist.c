@@ -16,20 +16,20 @@
 
 static void fill(ddsrt_tasklist_t *list)
 {
-  CU_ASSERT_PTR_NOT_NULL_FATAL(list);
-  CU_ASSERT_EQUAL_FATAL(list->len, DDSRT_TASKLIST_INITIAL);
+  CU_ASSERT_NEQ_FATAL (list, NULL)
+  CU_ASSERT_EQ_FATAL (list->len, DDSRT_TASKLIST_INITIAL);
 
   for (size_t i = 1; i <= DDSRT_TASKLIST_INITIAL; i++) {
     ddsrt_tasklist_push(list, (TaskHandle_t)i);
-    CU_ASSERT_EQUAL_FATAL(list->cnt, i);
-    CU_ASSERT_EQUAL_FATAL(list->off, 0);
-    CU_ASSERT_EQUAL_FATAL(list->end, i - 1);
+    CU_ASSERT_EQ_FATAL (list->cnt, i);
+    CU_ASSERT_EQ_FATAL (list->off, 0);
+    CU_ASSERT_EQ_FATAL (list->end, i - 1);
   }
 
-  CU_ASSERT_EQUAL_FATAL(list->len, DDSRT_TASKLIST_INITIAL);
-  CU_ASSERT_EQUAL_FATAL(list->cnt, DDSRT_TASKLIST_INITIAL);
-  CU_ASSERT_EQUAL_FATAL(list->off, 0);
-  CU_ASSERT_EQUAL_FATAL(list->end, DDSRT_TASKLIST_INITIAL - 1);
+  CU_ASSERT_EQ_FATAL (list->len, DDSRT_TASKLIST_INITIAL);
+  CU_ASSERT_EQ_FATAL (list->cnt, DDSRT_TASKLIST_INITIAL);
+  CU_ASSERT_EQ_FATAL (list->off, 0);
+  CU_ASSERT_EQ_FATAL (list->end, DDSRT_TASKLIST_INITIAL - 1);
 }
 
 static void fill_wrapped(ddsrt_tasklist_t *list)
@@ -40,22 +40,22 @@ static void fill_wrapped(ddsrt_tasklist_t *list)
 
   for (i = 1; i <= DDSRT_TASKLIST_CHUNK; i++) {
     ddsrt_tasklist_pop(list, NULL);
-    CU_ASSERT_EQUAL_FATAL(list->cnt, DDSRT_TASKLIST_INITIAL - i);
-    CU_ASSERT_EQUAL_FATAL(list->off, i);
-    CU_ASSERT_EQUAL_FATAL(list->end, DDSRT_TASKLIST_INITIAL - 1);
+    CU_ASSERT_EQ_FATAL (list->cnt, DDSRT_TASKLIST_INITIAL - i);
+    CU_ASSERT_EQ_FATAL (list->off, i);
+    CU_ASSERT_EQ_FATAL (list->end, DDSRT_TASKLIST_INITIAL - 1);
   }
 
   for (i = (DDSRT_TASKLIST_INITIAL+1); i <= (DDSRT_TASKLIST_INITIAL+DDSRT_TASKLIST_CHUNK); i++) {
     ddsrt_tasklist_push(list, (TaskHandle_t)i);
-    CU_ASSERT_EQUAL_FATAL(list->cnt, i - DDSRT_TASKLIST_CHUNK);
-    CU_ASSERT_EQUAL_FATAL(list->off, DDSRT_TASKLIST_CHUNK);
-    CU_ASSERT_EQUAL_FATAL(list->end, (i - 1) - DDSRT_TASKLIST_INITIAL);
+    CU_ASSERT_EQ_FATAL (list->cnt, i - DDSRT_TASKLIST_CHUNK);
+    CU_ASSERT_EQ_FATAL (list->off, DDSRT_TASKLIST_CHUNK);
+    CU_ASSERT_EQ_FATAL (list->end, (i - 1) - DDSRT_TASKLIST_INITIAL);
   }
 
-  CU_ASSERT_EQUAL_FATAL(list->len, DDSRT_TASKLIST_INITIAL);
-  CU_ASSERT_EQUAL_FATAL(list->cnt, DDSRT_TASKLIST_INITIAL);
-  CU_ASSERT_EQUAL_FATAL(list->off, DDSRT_TASKLIST_CHUNK);
-  CU_ASSERT_EQUAL_FATAL(list->end, DDSRT_TASKLIST_CHUNK - 1);
+  CU_ASSERT_EQ_FATAL (list->len, DDSRT_TASKLIST_INITIAL);
+  CU_ASSERT_EQ_FATAL (list->cnt, DDSRT_TASKLIST_INITIAL);
+  CU_ASSERT_EQ_FATAL (list->off, DDSRT_TASKLIST_CHUNK);
+  CU_ASSERT_EQ_FATAL (list->end, DDSRT_TASKLIST_CHUNK - 1);
 }
 
 typedef void(*fill_t)(ddsrt_tasklist_t *);
@@ -76,23 +76,23 @@ CU_Theory((fill_t func, size_t first, size_t last), ddsrt_sync, tasklist_pop_all
   func(&list);
 
   task = ddsrt_tasklist_pop(&list, NULL);
-  CU_ASSERT_PTR_EQUAL(task, (TaskHandle_t)first);
+  CU_ASSERT_EQ (task, (TaskHandle_t)first);
 
   for (size_t i = first + 1; i < last; i++) {
     task = ddsrt_tasklist_pop(&list, NULL);
-    CU_ASSERT_PTR_EQUAL(task, (TaskHandle_t)i);
+    CU_ASSERT_EQ (task, (TaskHandle_t)i);
   }
 
-  CU_ASSERT_EQUAL(list.cnt, 1);
-  CU_ASSERT_EQUAL(list.off, ((DDSRT_TASKLIST_INITIAL*2) - last) - 1);
-  CU_ASSERT_EQUAL(list.end, ((DDSRT_TASKLIST_INITIAL*2) - last) - 1);
+  CU_ASSERT_EQ (list.cnt, 1);
+  CU_ASSERT_EQ (list.off, ((DDSRT_TASKLIST_INITIAL*2) - last) - 1);
+  CU_ASSERT_EQ (list.end, ((DDSRT_TASKLIST_INITIAL*2) - last) - 1);
   task = ddsrt_tasklist_pop(&list, NULL);
-  CU_ASSERT_PTR_EQUAL(task, (TaskHandle_t)last);
+  CU_ASSERT_EQ (task, (TaskHandle_t)last);
   task = ddsrt_tasklist_pop(&list, NULL);
-  CU_ASSERT_PTR_NULL(task);
-  CU_ASSERT_EQUAL(list.cnt, 0);
-  CU_ASSERT_EQUAL(list.off, 0);
-  CU_ASSERT_EQUAL(list.end, 0);
+  CU_ASSERT_EQ (task, NULL)
+  CU_ASSERT_EQ (list.cnt, 0);
+  CU_ASSERT_EQ (list.off, 0);
+  CU_ASSERT_EQ (list.end, 0);
 
   ddsrt_tasklist_fini(&list);
 }
@@ -131,15 +131,15 @@ CU_Theory((fill_t func, TaskHandle_t task, size_t pos, size_t end), ddsrt_sync, 
   if (task == NULL) {
     ddsrt_tasklist_pop(&list, NULL);
   } else {
-    CU_ASSERT_PTR_EQUAL(ddsrt_tasklist_pop(&list, task), task);
-    CU_ASSERT_PTR_NULL(ddsrt_tasklist_pop(&list, task));
+    CU_ASSERT_EQ (ddsrt_tasklist_pop(&list, task), task);
+    CU_ASSERT_EQ (ddsrt_tasklist_pop(&list, task), NULL)
   }
-  CU_ASSERT_PTR_EQUAL(list.tasks[pos], NULL);
+  CU_ASSERT_EQ (list.tasks[pos], NULL);
   task = (TaskHandle_t)(DDSRT_TASKLIST_INITIAL*2);
-  CU_ASSERT_NOT_EQUAL_FATAL(ddsrt_tasklist_push(&list, task), -1);
-  CU_ASSERT_PTR_EQUAL(list.tasks[end], task);
-  CU_ASSERT_EQUAL(list.len, DDSRT_TASKLIST_INITIAL);
-  CU_ASSERT_EQUAL(list.cnt, DDSRT_TASKLIST_INITIAL);
+  CU_ASSERT_NEQ_FATAL (ddsrt_tasklist_push(&list, task), -1);
+  CU_ASSERT_EQ (list.tasks[end], task);
+  CU_ASSERT_EQ (list.len, DDSRT_TASKLIST_INITIAL);
+  CU_ASSERT_EQ (list.cnt, DDSRT_TASKLIST_INITIAL);
 
   ddsrt_tasklist_fini(&list);
 }
@@ -153,13 +153,13 @@ CU_Test(ddsrt_sync, tasklist_ltrim)
 
   ddsrt_tasklist_pop(&list, (TaskHandle_t)2);
   ddsrt_tasklist_pop(&list, (TaskHandle_t)3);
-  CU_ASSERT_EQUAL(list.cnt, DDSRT_TASKLIST_INITIAL - 2);
-  CU_ASSERT_EQUAL(list.off, 0);
-  CU_ASSERT_EQUAL(list.end, 9);
+  CU_ASSERT_EQ (list.cnt, DDSRT_TASKLIST_INITIAL - 2);
+  CU_ASSERT_EQ (list.off, 0);
+  CU_ASSERT_EQ (list.end, 9);
   ddsrt_tasklist_pop(&list, (TaskHandle_t)1);
-  CU_ASSERT_EQUAL(list.cnt, DDSRT_TASKLIST_INITIAL - 3);
-  CU_ASSERT_EQUAL(list.off, 3);
-  CU_ASSERT_EQUAL(list.end, 9);
+  CU_ASSERT_EQ (list.cnt, DDSRT_TASKLIST_INITIAL - 3);
+  CU_ASSERT_EQ (list.off, 3);
+  CU_ASSERT_EQ (list.end, 9);
 
   ddsrt_tasklist_fini(&list);
 }
@@ -173,13 +173,13 @@ CU_Test(ddsrt_sync, tasklist_rtrim)
 
   ddsrt_tasklist_pop(&list, (TaskHandle_t)(DDSRT_TASKLIST_INITIAL - 1));
   ddsrt_tasklist_pop(&list, (TaskHandle_t)(DDSRT_TASKLIST_INITIAL - 2));
-  CU_ASSERT_EQUAL(list.cnt, DDSRT_TASKLIST_INITIAL - 2);
-  CU_ASSERT_EQUAL(list.off, 0);
-  CU_ASSERT_EQUAL(list.end, DDSRT_TASKLIST_INITIAL - 1);
+  CU_ASSERT_EQ (list.cnt, DDSRT_TASKLIST_INITIAL - 2);
+  CU_ASSERT_EQ (list.off, 0);
+  CU_ASSERT_EQ (list.end, DDSRT_TASKLIST_INITIAL - 1);
   ddsrt_tasklist_pop(&list, (TaskHandle_t)DDSRT_TASKLIST_INITIAL);
-  CU_ASSERT_EQUAL(list.cnt, DDSRT_TASKLIST_INITIAL - 3);
-  CU_ASSERT_EQUAL(list.off, 0);
-  CU_ASSERT_EQUAL(list.end, DDSRT_TASKLIST_INITIAL - 4);
+  CU_ASSERT_EQ (list.cnt, DDSRT_TASKLIST_INITIAL - 3);
+  CU_ASSERT_EQ (list.off, 0);
+  CU_ASSERT_EQ (list.end, DDSRT_TASKLIST_INITIAL - 4);
 
   ddsrt_tasklist_fini(&list);
 }
@@ -194,18 +194,18 @@ CU_Test(ddsrt_sync, tasklist_wrapped_ltrim)
   for (size_t i = DDSRT_TASKLIST_CHUNK+2; i < DDSRT_TASKLIST_INITIAL; i++) {
     ddsrt_tasklist_pop(&list, (TaskHandle_t)i);
   }
-  CU_ASSERT_EQUAL(list.cnt, DDSRT_TASKLIST_INITIAL - (DDSRT_TASKLIST_CHUNK - 2));
-  CU_ASSERT_EQUAL(list.off, DDSRT_TASKLIST_CHUNK);
-  CU_ASSERT_EQUAL(list.end, DDSRT_TASKLIST_CHUNK - 1);
+  CU_ASSERT_EQ (list.cnt, DDSRT_TASKLIST_INITIAL - (DDSRT_TASKLIST_CHUNK - 2));
+  CU_ASSERT_EQ (list.off, DDSRT_TASKLIST_CHUNK);
+  CU_ASSERT_EQ (list.end, DDSRT_TASKLIST_CHUNK - 1);
   ddsrt_tasklist_pop(&list, (TaskHandle_t)(DDSRT_TASKLIST_CHUNK+1));
-  CU_ASSERT_EQUAL(list.cnt, DDSRT_TASKLIST_INITIAL - (DDSRT_TASKLIST_CHUNK - 1));
-  CU_ASSERT_EQUAL(list.off, DDSRT_TASKLIST_INITIAL - 1);
-  CU_ASSERT_EQUAL(list.end, DDSRT_TASKLIST_CHUNK - 1);
+  CU_ASSERT_EQ (list.cnt, DDSRT_TASKLIST_INITIAL - (DDSRT_TASKLIST_CHUNK - 1));
+  CU_ASSERT_EQ (list.off, DDSRT_TASKLIST_INITIAL - 1);
+  CU_ASSERT_EQ (list.end, DDSRT_TASKLIST_CHUNK - 1);
   ddsrt_tasklist_pop(&list, (TaskHandle_t)(DDSRT_TASKLIST_INITIAL+1));
   ddsrt_tasklist_pop(&list, (TaskHandle_t)DDSRT_TASKLIST_INITIAL);
-  CU_ASSERT_EQUAL(list.cnt, DDSRT_TASKLIST_INITIAL - (DDSRT_TASKLIST_CHUNK + 1));
-  CU_ASSERT_EQUAL(list.off, 1);
-  CU_ASSERT_EQUAL(list.end, DDSRT_TASKLIST_CHUNK - 1);
+  CU_ASSERT_EQ (list.cnt, DDSRT_TASKLIST_INITIAL - (DDSRT_TASKLIST_CHUNK + 1));
+  CU_ASSERT_EQ (list.off, 1);
+  CU_ASSERT_EQ (list.end, DDSRT_TASKLIST_CHUNK - 1);
 
   ddsrt_tasklist_fini(&list);
 }
@@ -221,23 +221,23 @@ CU_Test(ddsrt_sync, tasklist_wrapped_rtrim)
   for (size_t i = last - 1; i > DDSRT_TASKLIST_INITIAL + 1; i--) {
     ddsrt_tasklist_pop(&list, (TaskHandle_t)i);
   }
-  CU_ASSERT_EQUAL(list.cnt, (DDSRT_TASKLIST_INITIAL - DDSRT_TASKLIST_CHUNK) + 2);
-  CU_ASSERT_EQUAL(list.off, DDSRT_TASKLIST_CHUNK);
-  CU_ASSERT_EQUAL(list.end, DDSRT_TASKLIST_CHUNK - 1);
+  CU_ASSERT_EQ (list.cnt, (DDSRT_TASKLIST_INITIAL - DDSRT_TASKLIST_CHUNK) + 2);
+  CU_ASSERT_EQ (list.off, DDSRT_TASKLIST_CHUNK);
+  CU_ASSERT_EQ (list.end, DDSRT_TASKLIST_CHUNK - 1);
   ddsrt_tasklist_pop(&list, (TaskHandle_t)(DDSRT_TASKLIST_INITIAL + DDSRT_TASKLIST_CHUNK));
-  CU_ASSERT_EQUAL(list.cnt, (DDSRT_TASKLIST_INITIAL - DDSRT_TASKLIST_CHUNK) + 1);
-  CU_ASSERT_EQUAL(list.off, DDSRT_TASKLIST_CHUNK);
-  CU_ASSERT_EQUAL(list.end, 0);
+  CU_ASSERT_EQ (list.cnt, (DDSRT_TASKLIST_INITIAL - DDSRT_TASKLIST_CHUNK) + 1);
+  CU_ASSERT_EQ (list.off, DDSRT_TASKLIST_CHUNK);
+  CU_ASSERT_EQ (list.end, 0);
   ddsrt_tasklist_pop(&list, (TaskHandle_t)(DDSRT_TASKLIST_INITIAL - 1));
   ddsrt_tasklist_pop(&list, (TaskHandle_t)(DDSRT_TASKLIST_INITIAL - 2));
   ddsrt_tasklist_pop(&list, (TaskHandle_t)(DDSRT_TASKLIST_INITIAL + 1));
-  CU_ASSERT_EQUAL(list.cnt, (DDSRT_TASKLIST_INITIAL - DDSRT_TASKLIST_CHUNK) - 2);
-  CU_ASSERT_EQUAL(list.off, DDSRT_TASKLIST_CHUNK);
-  CU_ASSERT_EQUAL(list.end, DDSRT_TASKLIST_INITIAL - 1);
+  CU_ASSERT_EQ (list.cnt, (DDSRT_TASKLIST_INITIAL - DDSRT_TASKLIST_CHUNK) - 2);
+  CU_ASSERT_EQ (list.off, DDSRT_TASKLIST_CHUNK);
+  CU_ASSERT_EQ (list.end, DDSRT_TASKLIST_INITIAL - 1);
   ddsrt_tasklist_pop(&list, (TaskHandle_t)DDSRT_TASKLIST_INITIAL);
-  CU_ASSERT_EQUAL(list.cnt, (DDSRT_TASKLIST_INITIAL - DDSRT_TASKLIST_CHUNK) - 3);
-  CU_ASSERT_EQUAL(list.off, DDSRT_TASKLIST_CHUNK);
-  CU_ASSERT_EQUAL(list.end, DDSRT_TASKLIST_INITIAL - 4);
+  CU_ASSERT_EQ (list.cnt, (DDSRT_TASKLIST_INITIAL - DDSRT_TASKLIST_CHUNK) - 3);
+  CU_ASSERT_EQ (list.off, DDSRT_TASKLIST_CHUNK);
+  CU_ASSERT_EQ (list.end, DDSRT_TASKLIST_INITIAL - 4);
 
   ddsrt_tasklist_fini(&list);
 }
@@ -252,41 +252,41 @@ CU_Test(ddsrt_sync, tasklist_resize)
 
   /* Grow one past initial. Buffer should increase by chunk. */
   ret = ddsrt_tasklist_push(&list, (TaskHandle_t)(DDSRT_TASKLIST_INITIAL + 1));
-  CU_ASSERT_EQUAL_FATAL(ret, 0);
-  CU_ASSERT_EQUAL(list.len, DDSRT_TASKLIST_INITIAL + DDSRT_TASKLIST_CHUNK);
-  CU_ASSERT_EQUAL(list.off, 0);
-  CU_ASSERT_EQUAL(list.end, DDSRT_TASKLIST_INITIAL);
+  CU_ASSERT_EQ_FATAL (ret, 0);
+  CU_ASSERT_EQ (list.len, DDSRT_TASKLIST_INITIAL + DDSRT_TASKLIST_CHUNK);
+  CU_ASSERT_EQ (list.off, 0);
+  CU_ASSERT_EQ (list.end, DDSRT_TASKLIST_INITIAL);
   /* Grow one past initial+chunk. Buffer should increase by chunk again. */
   for (size_t i = 2; i <= DDSRT_TASKLIST_CHUNK + 1; i++) {
     ret = ddsrt_tasklist_push(&list, (TaskHandle_t)(DDSRT_TASKLIST_INITIAL + i));
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQ_FATAL (ret, 0);
   }
-  CU_ASSERT_EQUAL(list.len, DDSRT_TASKLIST_INITIAL + (DDSRT_TASKLIST_CHUNK*2));
-  CU_ASSERT_EQUAL(list.off, 0);
-  CU_ASSERT_EQUAL(list.end, DDSRT_TASKLIST_INITIAL + DDSRT_TASKLIST_CHUNK);
+  CU_ASSERT_EQ (list.len, DDSRT_TASKLIST_INITIAL + (DDSRT_TASKLIST_CHUNK*2));
+  CU_ASSERT_EQ (list.off, 0);
+  CU_ASSERT_EQ (list.end, DDSRT_TASKLIST_INITIAL + DDSRT_TASKLIST_CHUNK);
 
   /* Shrink one past initial+chunk. Buffer should not decrease by chunk. */
   for (size_t i = 1; i <= DDSRT_TASKLIST_CHUNK; i++) {
     ddsrt_tasklist_pop(&list, (TaskHandle_t)i);
   }
-  CU_ASSERT_EQUAL(list.len, DDSRT_TASKLIST_INITIAL + (DDSRT_TASKLIST_CHUNK*2));
-  CU_ASSERT_EQUAL(list.off, DDSRT_TASKLIST_CHUNK);
-  CU_ASSERT_EQUAL(list.end, DDSRT_TASKLIST_INITIAL + DDSRT_TASKLIST_CHUNK);
+  CU_ASSERT_EQ (list.len, DDSRT_TASKLIST_INITIAL + (DDSRT_TASKLIST_CHUNK*2));
+  CU_ASSERT_EQ (list.off, DDSRT_TASKLIST_CHUNK);
+  CU_ASSERT_EQ (list.end, DDSRT_TASKLIST_INITIAL + DDSRT_TASKLIST_CHUNK);
 
   /* Shrink to initial. Buffer should decrease by chunk. */
   ddsrt_tasklist_pop(&list, (TaskHandle_t)(DDSRT_TASKLIST_CHUNK + 1));
-  CU_ASSERT_EQUAL(list.len, DDSRT_TASKLIST_INITIAL + DDSRT_TASKLIST_CHUNK);
-  CU_ASSERT_EQUAL(list.off, 0);
-  CU_ASSERT_EQUAL(list.end, DDSRT_TASKLIST_INITIAL - 1);
+  CU_ASSERT_EQ (list.len, DDSRT_TASKLIST_INITIAL + DDSRT_TASKLIST_CHUNK);
+  CU_ASSERT_EQ (list.off, 0);
+  CU_ASSERT_EQ (list.end, DDSRT_TASKLIST_INITIAL - 1);
 
   /* Shrink to initial-chunk. Buffer should decrease by chunk. */
   for (size_t i = DDSRT_TASKLIST_CHUNK+1; i <= (DDSRT_TASKLIST_CHUNK*2)+1; i++) {
     ddsrt_tasklist_pop(&list, (TaskHandle_t)i);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQ_FATAL (ret, 0);
   }
-  CU_ASSERT_EQUAL(list.len, DDSRT_TASKLIST_INITIAL);
-  CU_ASSERT_EQUAL(list.off, 0);
-  CU_ASSERT_EQUAL(list.end, (DDSRT_TASKLIST_INITIAL - DDSRT_TASKLIST_CHUNK) - 1);
+  CU_ASSERT_EQ (list.len, DDSRT_TASKLIST_INITIAL);
+  CU_ASSERT_EQ (list.off, 0);
+  CU_ASSERT_EQ (list.end, (DDSRT_TASKLIST_INITIAL - DDSRT_TASKLIST_CHUNK) - 1);
 
   ddsrt_tasklist_fini(&list);
 }
@@ -301,40 +301,40 @@ CU_Test(ddsrt_sync, tasklist_wrapped_resize)
 
   /* Grow one past initial. Buffer should increase by chunk. */
   ret = ddsrt_tasklist_push(&list, (TaskHandle_t)(DDSRT_TASKLIST_INITIAL + DDSRT_TASKLIST_CHUNK + 1));
-  CU_ASSERT_EQUAL_FATAL(ret, 0);
-  CU_ASSERT_EQUAL(list.len, DDSRT_TASKLIST_INITIAL + DDSRT_TASKLIST_CHUNK);
-  CU_ASSERT_EQUAL(list.off, DDSRT_TASKLIST_INITIAL);
-  CU_ASSERT_EQUAL(list.end, DDSRT_TASKLIST_CHUNK);
+  CU_ASSERT_EQ_FATAL (ret, 0);
+  CU_ASSERT_EQ (list.len, DDSRT_TASKLIST_INITIAL + DDSRT_TASKLIST_CHUNK);
+  CU_ASSERT_EQ (list.off, DDSRT_TASKLIST_INITIAL);
+  CU_ASSERT_EQ (list.end, DDSRT_TASKLIST_CHUNK);
   /* Grow one past initial+chunk. Buffer should increase by chunk again. */
   for (size_t i = 2; i <= (DDSRT_TASKLIST_CHUNK + 1); i++) {
     ret = ddsrt_tasklist_push(&list, (TaskHandle_t)(DDSRT_TASKLIST_INITIAL + DDSRT_TASKLIST_CHUNK + i));
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQ_FATAL (ret, 0);
   }
-  CU_ASSERT_EQUAL(list.len, DDSRT_TASKLIST_INITIAL + (DDSRT_TASKLIST_CHUNK*2));
-  CU_ASSERT_EQUAL(list.off, DDSRT_TASKLIST_INITIAL + DDSRT_TASKLIST_CHUNK);
-  CU_ASSERT_EQUAL(list.end, DDSRT_TASKLIST_INITIAL);
+  CU_ASSERT_EQ (list.len, DDSRT_TASKLIST_INITIAL + (DDSRT_TASKLIST_CHUNK*2));
+  CU_ASSERT_EQ (list.off, DDSRT_TASKLIST_INITIAL + DDSRT_TASKLIST_CHUNK);
+  CU_ASSERT_EQ (list.end, DDSRT_TASKLIST_INITIAL);
 
   /* Shrink one past initial+chunk. Buffer should not decrease by chunk. */
   for (size_t i = 1; i <= DDSRT_TASKLIST_CHUNK; i++) {
     ddsrt_tasklist_pop(&list, (TaskHandle_t)(DDSRT_TASKLIST_CHUNK + i));
   }
-  CU_ASSERT_EQUAL(list.len, DDSRT_TASKLIST_INITIAL + (DDSRT_TASKLIST_CHUNK*2));
-  CU_ASSERT_EQUAL(list.off, 0);
-  CU_ASSERT_EQUAL(list.end, DDSRT_TASKLIST_INITIAL);
+  CU_ASSERT_EQ (list.len, DDSRT_TASKLIST_INITIAL + (DDSRT_TASKLIST_CHUNK*2));
+  CU_ASSERT_EQ (list.off, 0);
+  CU_ASSERT_EQ (list.end, DDSRT_TASKLIST_INITIAL);
 
   /* Shrink to initial. Buffer should decrease by chunk. */
   ddsrt_tasklist_pop(&list, (TaskHandle_t)((DDSRT_TASKLIST_CHUNK*2) + 1));
-  CU_ASSERT_EQUAL(list.len, DDSRT_TASKLIST_INITIAL + DDSRT_TASKLIST_CHUNK);
-  CU_ASSERT_EQUAL(list.off, 0);
-  CU_ASSERT_EQUAL(list.end, DDSRT_TASKLIST_INITIAL - 1);
+  CU_ASSERT_EQ (list.len, DDSRT_TASKLIST_INITIAL + DDSRT_TASKLIST_CHUNK);
+  CU_ASSERT_EQ (list.off, 0);
+  CU_ASSERT_EQ (list.end, DDSRT_TASKLIST_INITIAL - 1);
 
   /* Shrink to initial-chunk. Buffer should decrease by chunk. */
   for (size_t i = 2; i <= DDSRT_TASKLIST_CHUNK + 1; i++) {
     ddsrt_tasklist_pop(&list, (TaskHandle_t)((DDSRT_TASKLIST_CHUNK*2) + i));
   }
-  CU_ASSERT_EQUAL(list.len, DDSRT_TASKLIST_INITIAL);
-  CU_ASSERT_EQUAL(list.off, 0);
-  CU_ASSERT_EQUAL(list.end, (DDSRT_TASKLIST_INITIAL - DDSRT_TASKLIST_CHUNK) - 1);
+  CU_ASSERT_EQ (list.len, DDSRT_TASKLIST_INITIAL);
+  CU_ASSERT_EQ (list.off, 0);
+  CU_ASSERT_EQ (list.end, (DDSRT_TASKLIST_INITIAL - DDSRT_TASKLIST_CHUNK) - 1);
 
   ddsrt_tasklist_fini(&list);
 }

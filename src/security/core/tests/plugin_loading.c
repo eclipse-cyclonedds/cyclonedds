@@ -92,14 +92,14 @@ CU_Test(ddssec_security_plugin_loading, all_ok, .init = ddsrt_init, .fini = ddsr
 
   set_logger_exp(log_expected);
   domain = dds_create_domain(0, sec_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, NULL, NULL);
-  CU_ASSERT_FATAL(participant > 0);
+  CU_ASSERT_GT_FATAL (participant, 0);
   dds_delete(participant);
   dds_delete(domain);
   reset_logger();
 
-  CU_ASSERT_FATAL(found == 0x1);
+  CU_ASSERT_EQ_FATAL (found, 0x1);
 }
 
 CU_Test(ddssec_security_plugin_loading, missing_finalize, .init = ddsrt_init, .fini = ddsrt_fini)
@@ -139,13 +139,13 @@ CU_Test(ddssec_security_plugin_loading, missing_finalize, .init = ddsrt_init, .f
 
   set_logger_exp(log_expected);
   domain = dds_create_domain(0, sec_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, NULL, NULL);
-  CU_ASSERT_EQUAL_FATAL(participant, DDS_RETCODE_ERROR);
+  CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
   dds_delete(domain);
   reset_logger();
 
-  CU_ASSERT_FATAL(found == 0x3);
+  CU_ASSERT_EQ_FATAL (found, 0x3);
 }
 
 CU_Test(ddssec_security_plugin_loading, authentication_missing_function, .init = ddsrt_init, .fini = ddsrt_fini)
@@ -185,13 +185,13 @@ CU_Test(ddssec_security_plugin_loading, authentication_missing_function, .init =
 
   set_logger_exp(log_expected);
   domain = dds_create_domain(0, sec_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, NULL, NULL);
-  CU_ASSERT_EQUAL_FATAL(participant, DDS_RETCODE_ERROR);
+  CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
   dds_delete(domain);
   reset_logger();
 
-  CU_ASSERT_FATAL(found == 0x3);
+  CU_ASSERT_EQ_FATAL (found, 0x3);
 }
 
 CU_Test(ddssec_security_plugin_loading, access_control_missing_function, .init = ddsrt_init, .fini = ddsrt_fini)
@@ -231,13 +231,13 @@ CU_Test(ddssec_security_plugin_loading, access_control_missing_function, .init =
 
   set_logger_exp(log_expected);
   domain = dds_create_domain(0, sec_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, NULL, NULL);
-  CU_ASSERT_EQUAL_FATAL(participant, DDS_RETCODE_ERROR);
+  CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
   dds_delete(domain);
   reset_logger();
 
-  CU_ASSERT_FATAL(found == 0x3);
+  CU_ASSERT_EQ_FATAL (found, 0x3);
 }
 
 CU_Test(ddssec_security_plugin_loading, cryptography_missing_function, .init = ddsrt_init, .fini = ddsrt_fini)
@@ -277,13 +277,13 @@ CU_Test(ddssec_security_plugin_loading, cryptography_missing_function, .init = d
 
   set_logger_exp(log_expected);
   domain = dds_create_domain(0, sec_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, NULL, NULL);
-  CU_ASSERT_EQUAL_FATAL(participant, DDS_RETCODE_ERROR);
+  CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
   dds_delete(domain);
   reset_logger();
 
-  CU_ASSERT_FATAL(found == 0x3);
+  CU_ASSERT_EQ_FATAL (found, 0x3);
 }
 
 CU_Test(ddssec_security_plugin_loading, no_library_in_path, .init = ddsrt_init, .fini = ddsrt_fini)
@@ -326,13 +326,13 @@ CU_Test(ddssec_security_plugin_loading, no_library_in_path, .init = ddsrt_init, 
 
   set_logger_exp(log_expected);
   domain = dds_create_domain(0, sec_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, NULL, NULL);
-  CU_ASSERT_EQUAL_FATAL(participant, DDS_RETCODE_ERROR);
+  CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
   dds_delete(domain);
   reset_logger();
 
-  CU_ASSERT_FATAL(found == 0x19 || found == 0x1a || found == 0x1c);
+  CU_ASSERT_FATAL (found == 0x19 || found == 0x1a || found == 0x1c);
 }
 
 CU_Test(ddssec_security_plugin_loading, init_error, .init = ddsrt_init, .fini = ddsrt_fini)
@@ -373,13 +373,13 @@ CU_Test(ddssec_security_plugin_loading, init_error, .init = ddsrt_init, .fini = 
 
   set_logger_exp(log_expected);
   domain = dds_create_domain(0, sec_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, NULL, NULL);
-  CU_ASSERT_EQUAL_FATAL(participant, DDS_RETCODE_ERROR);
+  CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
   dds_delete(domain);
   reset_logger();
 
-  CU_ASSERT_FATAL(found == 0x7);
+  CU_ASSERT_EQ_FATAL (found, 0x7);
 }
 
 CU_Test(ddssec_security_plugin_loading, all_ok_with_props, .init = ddsrt_init, .fini = ddsrt_fini)
@@ -391,7 +391,7 @@ CU_Test(ddssec_security_plugin_loading, all_ok_with_props, .init = ddsrt_init, .
       NULL};
 
   unsigned char bvalue[3] = {0x01, 0x02, 0x03};
-  CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
+  CU_ASSERT_NEQ_FATAL (qos = dds_create_qos(), NULL);
   dds_qset_prop(qos, "test.prop1", "testtext_value1_testtext");
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_IDENTITY_CA, "testtext_IdentityCA_testtext");
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_PRIV_KEY, "testtext_PrivateKey_testtext");
@@ -418,15 +418,15 @@ CU_Test(ddssec_security_plugin_loading, all_ok_with_props, .init = ddsrt_init, .
 
   set_logger_exp(log_expected);
   domain = dds_create_domain(0, default_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, qos, NULL);
-  CU_ASSERT_FATAL(participant > 0);
+  CU_ASSERT_GT_FATAL (participant, 0);
   dds_delete(participant);
   dds_delete(domain);
   dds_delete_qos(qos);
   reset_logger();
 
-  CU_ASSERT_FATAL(found == 0x1);
+  CU_ASSERT_EQ_FATAL (found, 0x1);
 }
 
 CU_Test(ddssec_security_plugin_loading, missing_plugin_property_with_props, .init = ddsrt_init, .fini = ddsrt_fini)
@@ -439,7 +439,7 @@ CU_Test(ddssec_security_plugin_loading, missing_plugin_property_with_props, .ini
       NULL};
 
   unsigned char bvalue[3] = {0x01, 0x02, 0x03};
-  CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
+  CU_ASSERT_NEQ_FATAL (qos = dds_create_qos(), NULL);
   dds_qset_prop(qos, "test.prop1", "testtext_value1_testtext");
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_IDENTITY_CA, "testtext_IdentityCA_testtext");
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_PRIV_KEY, "testtext_PrivateKey_testtext");
@@ -466,14 +466,14 @@ CU_Test(ddssec_security_plugin_loading, missing_plugin_property_with_props, .ini
 
   set_logger_exp(log_expected);
   domain = dds_create_domain(0, default_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, qos, NULL);
-  CU_ASSERT_EQUAL_FATAL(participant, DDS_RETCODE_ERROR);
+  CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
   dds_delete_qos(qos);
   dds_delete(domain);
   reset_logger();
 
-  CU_ASSERT_FATAL(found == 0x3);
+  CU_ASSERT_EQ_FATAL (found, 0x3);
 }
 
 CU_Test(ddssec_security_plugin_loading, empty_plugin_property_with_props, .init = ddsrt_init, .fini = ddsrt_fini)
@@ -486,7 +486,7 @@ CU_Test(ddssec_security_plugin_loading, empty_plugin_property_with_props, .init 
       NULL};
 
   unsigned char bvalue[3] = {0x01, 0x02, 0x03};
-  CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
+  CU_ASSERT_NEQ_FATAL (qos = dds_create_qos(), NULL);
   dds_qset_prop(qos, "test.prop1", "testtext_value1_testtext");
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_IDENTITY_CA, "testtext_IdentityCA_testtext");
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_PRIV_KEY, "testtext_PrivateKey_testtext");
@@ -513,14 +513,14 @@ CU_Test(ddssec_security_plugin_loading, empty_plugin_property_with_props, .init 
 
   set_logger_exp(log_expected);
   domain = dds_create_domain(0, default_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(DDS_DOMAIN_DEFAULT, qos, NULL);
-  CU_ASSERT_EQUAL_FATAL(participant, DDS_RETCODE_ERROR);
+  CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
   dds_delete_qos(qos);
   dds_delete(domain);
   reset_logger();
 
-  CU_ASSERT_FATAL(found == 0x3);
+  CU_ASSERT_EQ_FATAL (found, 0x3);
 }
 
 CU_Test(ddssec_security_plugin_loading, missing_security_property_with_props, .init = ddsrt_init, .fini = ddsrt_fini)
@@ -533,7 +533,7 @@ CU_Test(ddssec_security_plugin_loading, missing_security_property_with_props, .i
       NULL};
 
   unsigned char bvalue[3] = {0x01, 0x02, 0x03};
-  CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
+  CU_ASSERT_NEQ_FATAL (qos = dds_create_qos(), NULL);
   dds_qset_prop(qos, "test.prop1", "testtext_value1_testtext");
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_IDENTITY_CA, "testtext_IdentityCA_testtext");
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_PRIV_KEY, "testtext_PrivateKey_testtext");
@@ -560,14 +560,14 @@ CU_Test(ddssec_security_plugin_loading, missing_security_property_with_props, .i
 
   set_logger_exp(log_expected);
   domain = dds_create_domain(0, default_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(DDS_DOMAIN_DEFAULT, qos, NULL);
-  CU_ASSERT_EQUAL_FATAL(participant, DDS_RETCODE_ERROR);
+  CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
   dds_delete_qos(qos);
   dds_delete(domain);
   reset_logger();
 
-  CU_ASSERT_FATAL(found == 0x3);
+  CU_ASSERT_EQ_FATAL (found, 0x3);
 }
 
 CU_Test(ddssec_security_plugin_loading, multiple_domains_different_config, .init = ddsrt_init, .fini = ddsrt_fini)
@@ -636,12 +636,12 @@ CU_Test(ddssec_security_plugin_loading, multiple_domains_different_config, .init
   set_logger_exp(log_expected);
 
   domain1 = dds_create_domain(1, sec_config);
-  CU_ASSERT_FATAL(domain1 > 0);
+  CU_ASSERT_GT_FATAL (domain1, 0);
   domain2 = dds_create_domain(2, sec_config);
-  CU_ASSERT_FATAL(domain2 > 0);
+  CU_ASSERT_GT_FATAL (domain2, 0);
 
   /* Create the qos */
-  CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
+  CU_ASSERT_NEQ_FATAL (qos = dds_create_qos(), NULL);
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_IDENTITY_CA, "testtext_IdentityCA_testtext");
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_PRIV_KEY, "testtext_PrivateKey_testtext");
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_IDENTITY_CERT, "testtext_IdentityCertificate_testtext");
@@ -665,13 +665,13 @@ CU_Test(ddssec_security_plugin_loading, multiple_domains_different_config, .init
   participant1 = dds_create_participant(1, NULL, NULL);
   participant2 = dds_create_participant(2, NULL, NULL);
   participant3 = dds_create_participant(2, qos, NULL);
-  CU_ASSERT_FATAL(participant1 > 0);
-  CU_ASSERT_FATAL(participant2 > 0);
-  CU_ASSERT_FATAL(participant3 > 0);
+  CU_ASSERT_GT_FATAL (participant1, 0);
+  CU_ASSERT_GT_FATAL (participant2, 0);
+  CU_ASSERT_GT_FATAL (participant3, 0);
   dds_delete_qos(qos);
   dds_delete(domain1);
   dds_delete(domain2);
   reset_logger();
 
-  CU_ASSERT_FATAL(found == 0xf);
+  CU_ASSERT_EQ_FATAL (found, 0xf);
 }

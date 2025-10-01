@@ -47,11 +47,11 @@ static void topic_discovery_init (void)
   dds_free (conf2);
 
   g_participant1 = dds_create_participant (DDS_DOMAINID1, NULL, NULL);
-  CU_ASSERT_FATAL (g_participant1 > 0);
+  CU_ASSERT_GT_FATAL (g_participant1, 0);
   g_subscriber1 = dds_create_subscriber (g_participant1, NULL, NULL);
-  CU_ASSERT_FATAL (g_subscriber1 > 0);
+  CU_ASSERT_GT_FATAL (g_subscriber1, 0);
   g_publisher1 = dds_create_publisher (g_participant1, NULL, NULL);
-  CU_ASSERT_FATAL (g_publisher1 > 0);
+  CU_ASSERT_GT_FATAL (g_publisher1, 0);
 }
 
 static void topic_discovery_fini (void)
@@ -72,7 +72,7 @@ CU_Theory ((uint32_t num_pp, uint32_t num_tp, bool hist_data, bool live_data), d
 {
   tprintf ("ddsc_topic_discovery.remote_topics: %u participants, %u topics,%s%s\n", num_pp, num_tp, hist_data ? " historical-data" : "", live_data ? " live-data" : "");
 
-  CU_ASSERT_FATAL (num_pp > 0);
+  CU_ASSERT_GT_FATAL (num_pp, 0);
   CU_ASSERT_FATAL (num_tp > 0 && num_tp <= 64);
   CU_ASSERT_FATAL (hist_data || live_data);
 
@@ -84,7 +84,7 @@ CU_Theory ((uint32_t num_pp, uint32_t num_tp, bool hist_data, bool live_data), d
   for (uint32_t p = 0; p < num_pp; p++)
   {
     participant_remote[p] = dds_create_participant (DDS_DOMAINID2, NULL, NULL);
-    CU_ASSERT_FATAL (participant_remote[p] > 0);
+    CU_ASSERT_GT_FATAL (participant_remote[p], 0);
     seen[p] = seen[num_pp + p] = 0;
   }
 
@@ -97,7 +97,7 @@ CU_Theory ((uint32_t num_pp, uint32_t num_tp, bool hist_data, bool live_data), d
         topic_names[p * num_tp + t] = ddsrt_malloc (101);
         create_unique_topic_name ("ddsc_topic_discovery_rem_tp", topic_names[p * num_tp + t], 100);
         dds_entity_t topic = dds_create_topic (participant_remote[p], &Space_Type1_desc, topic_names[p * num_tp + t], NULL, NULL);
-        CU_ASSERT_FATAL (topic > 0);
+        CU_ASSERT_GT_FATAL (topic, 0);
       }
 
     /* sleep for some time so that ddsi_deliver_historical_data will be used for (at least some of)
@@ -107,7 +107,7 @@ CU_Theory ((uint32_t num_pp, uint32_t num_tp, bool hist_data, bool live_data), d
 
   /* create reader for DCPSTopic */
   dds_entity_t topic_rd = dds_create_reader (g_participant1, DDS_BUILTIN_TOPIC_DCPSTOPIC, NULL, NULL);
-  CU_ASSERT_FATAL (topic_rd > 0);
+  CU_ASSERT_GT_FATAL (topic_rd, 0);
 
   /* create more topics after reader has been created */
   if (live_data)
@@ -119,7 +119,7 @@ CU_Theory ((uint32_t num_pp, uint32_t num_tp, bool hist_data, bool live_data), d
         topic_names[offs + p * num_tp + t] = ddsrt_malloc (101);
         create_unique_topic_name ("ddsc_topic_discovery_rem2_tp", topic_names[offs + p * num_tp + t], 100);
         dds_entity_t topic = dds_create_topic (participant_remote[p], &Space_Type1_desc, topic_names[offs + p * num_tp + t], NULL, NULL);
-        CU_ASSERT_FATAL (topic > 0);
+        CU_ASSERT_GT_FATAL (topic, 0);
       }
   }
 
@@ -132,7 +132,7 @@ CU_Theory ((uint32_t num_pp, uint32_t num_tp, bool hist_data, bool live_data), d
     dds_return_t n;
     while ((n = dds_take (topic_rd, raw, sample_info, 1, 1)) > 0)
     {
-      CU_ASSERT_EQUAL_FATAL (n, 1);
+      CU_ASSERT_EQ_FATAL (n, 1);
       if (sample_info[0].valid_data)
       {
         dds_builtintopic_topic_t *sample = raw[0];
@@ -176,9 +176,9 @@ static void check_topic_samples (dds_entity_t topic_rd, char *topic_name, uint32
   fflush (stdout);
   unsigned char first_key[16];
   dds_entity_t ws = dds_create_waitset (dds_get_participant (topic_rd));
-  CU_ASSERT_FATAL (ws > 0);
+  CU_ASSERT_GT_FATAL (ws, 0);
   dds_entity_t readcond = dds_create_readcondition (topic_rd, DDS_ANY_STATE);
-  CU_ASSERT_FATAL (readcond > 0);
+  CU_ASSERT_GT_FATAL (readcond, 0);
   (void) dds_waitset_attach (ws, readcond, 0);
 
   // Wait for "straggler_wait" once the expected number of samples has been received;
@@ -190,17 +190,16 @@ static void check_topic_samples (dds_entity_t topic_rd, char *topic_name, uint32
     void *raw[1] = { 0 };
     dds_sample_info_t sample_info[1];
     dds_return_t n = dds_take (topic_rd, raw, sample_info, 1, 1);
-    CU_ASSERT_FATAL (n > 0);
+    CU_ASSERT_GT_FATAL (n, 0);
     if (!sample_info[0].valid_data)
     {
       (void) dds_return_loan (topic_rd, raw, n);
       continue;
     }
 
-    CU_ASSERT_EQUAL_FATAL (n, 1);
+    CU_ASSERT_EQ_FATAL (n, 1);
     dds_builtintopic_topic_t *sample = raw[0];
-    CU_ASSERT_PTR_NOT_NULL_FATAL (sample);
-    assert (sample); // for Clang static analyzer
+    CU_ASSERT_NEQ_FATAL (sample, NULL);
     bool not_alive = sample_info->instance_state != DDS_ALIVE_INSTANCE_STATE;
     tprintf ("read topic: %s, key={", sample->topic_name);
     for (uint32_t i = 0; i < sizeof (first_key); i++)
@@ -210,16 +209,16 @@ static void check_topic_samples (dds_entity_t topic_rd, char *topic_name, uint32
     if (!not_alive && (topic_name == NULL || !strcmp (sample->topic_name, topic_name)))
     {
       if (topic_seen != 0) {
-        CU_ASSERT_EQUAL_FATAL (memcmp (&first_key, &sample->key, sizeof (first_key)) == 0, equal_keys);
+        CU_ASSERT_EQ_FATAL (memcmp (&first_key, &sample->key, sizeof (first_key)) == 0, equal_keys);
       } else {
         memcpy (&first_key, &sample->key, sizeof (first_key));
         if (key != NULL)
           memcpy (key, &sample->key, sizeof (first_key));
       }
       if (match_key != NULL) {
-        CU_ASSERT_EQUAL_FATAL (memcmp (match_key, &sample->key, sizeof (first_key)) == 0, equal_keys);
+        CU_ASSERT_EQ_FATAL (memcmp (match_key, &sample->key, sizeof (first_key)) == 0, equal_keys);
       }
-      CU_ASSERT_FATAL (topic_seen < exp_count);
+      CU_ASSERT_LT_FATAL (topic_seen, exp_count);
       if (++topic_seen == exp_count)
       {
         assert (t_exp == DDS_NEVER);
@@ -229,7 +228,7 @@ static void check_topic_samples (dds_entity_t topic_rd, char *topic_name, uint32
     (void) dds_return_loan (topic_rd, raw, n);
   }
   tprintf ("check_topic_samples: %s topic_seen %"PRIu32"\n", topic_name, topic_seen);
-  CU_ASSERT_FATAL (topic_seen == exp_count);
+  CU_ASSERT_EQ_FATAL (topic_seen, exp_count);
   dds_delete (ws);
   dds_delete (readcond);
 }
@@ -241,25 +240,25 @@ CU_Test (ddsc_topic_discovery, single_topic_def, .init = topic_discovery_init, .
   char topic_name[100];
   create_unique_topic_name ("ddsc_topic_discovery_test_single_def", topic_name, 100);
   dds_entity_t participant_remote = dds_create_participant (DDS_DOMAINID2, NULL, NULL);
-  CU_ASSERT_FATAL (participant_remote > 0);
+  CU_ASSERT_GT_FATAL (participant_remote, 0);
 
   /* create topic */
   dds_entity_t topic = dds_create_topic (g_participant1, &Space_Type1_desc, topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (topic > 0);
+  CU_ASSERT_GT_FATAL (topic, 0);
 
   /* create reader for DCPSTopic and for the application topic */
   dds_entity_t topic_rd = dds_create_reader (g_participant1, DDS_BUILTIN_TOPIC_DCPSTOPIC, NULL, NULL);
-  CU_ASSERT_FATAL (topic_rd > 0);
+  CU_ASSERT_GT_FATAL (topic_rd, 0);
   dds_entity_t app_rd = dds_create_reader (g_participant1, topic, NULL, NULL);
-  CU_ASSERT_FATAL (app_rd > 0);
+  CU_ASSERT_GT_FATAL (app_rd, 0);
 
   /* create 'remote' topic and a reader and writer using this topic */
   dds_entity_t topic_remote = dds_create_topic (participant_remote, &Space_Type1_desc, topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (topic_remote > 0);
+  CU_ASSERT_GT_FATAL (topic_remote, 0);
   dds_entity_t reader_remote = dds_create_reader (participant_remote, topic_remote, NULL, NULL);
-  CU_ASSERT_FATAL (reader_remote > 0);
+  CU_ASSERT_GT_FATAL (reader_remote, 0);
   dds_entity_t writer_remote = dds_create_writer (participant_remote, topic_remote, NULL, NULL);
-  CU_ASSERT_FATAL (writer_remote > 0);
+  CU_ASSERT_GT_FATAL (writer_remote, 0);
 
   /* check that a single DCPSTopic sample is received */
   unsigned char key[16];
@@ -271,12 +270,12 @@ CU_Test (ddsc_topic_discovery, single_topic_def, .init = topic_discovery_init, .
 
   /* check that a new DCPSTopic sample is received for remote topic */
   dds_return_t ret = dds_set_qos(topic_remote, qos);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   check_topic_samples (topic_rd, topic_name, 1, false, NULL, key);
 
   /* .. and for local topic: no new sample received because it is using the same topic definition as the updated remote topic */
   ret = dds_set_qos(topic, qos);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   check_topic_samples (topic_rd, topic_name, 0, false, NULL, NULL);
 
   dds_delete_qos (qos);
@@ -289,19 +288,19 @@ CU_Test (ddsc_topic_discovery, different_type, .init = topic_discovery_init, .fi
   char topic_name[100];
   create_unique_topic_name ("ddsc_topic_discovery_test_type", topic_name, 100);
   dds_entity_t participant_remote = dds_create_participant (DDS_DOMAINID2, NULL, NULL);
-  CU_ASSERT_FATAL (participant_remote > 0);
+  CU_ASSERT_GT_FATAL (participant_remote, 0);
 
   /* create topic */
   dds_entity_t topic = dds_create_topic (g_participant1, &Space_Type1_desc, topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (topic > 0);
+  CU_ASSERT_GT_FATAL (topic, 0);
 
   /* create reader for DCPSTopic */
   dds_entity_t topic_rd = dds_create_reader (g_participant1, DDS_BUILTIN_TOPIC_DCPSTOPIC, NULL, NULL);
-  CU_ASSERT_FATAL (topic_rd > 0);
+  CU_ASSERT_GT_FATAL (topic_rd, 0);
 
   /* create 'remote' topic with different type */
   dds_entity_t topic_remote = dds_create_topic (participant_remote, &Space_Type3_desc, topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (topic_remote > 0);
+  CU_ASSERT_GT_FATAL (topic_remote, 0);
 
   /* check that a DCPSTopic sample is received for local topic and remote topic (with different key) */
   check_topic_samples (topic_rd, topic_name, 2, false, NULL, NULL);
@@ -375,15 +374,15 @@ CU_Test (ddsc_topic_discovery, topic_qos_update, .init = topic_discovery_init, .
   for (uint32_t p = 0; p < NUM_PP; p++)
   {
     participants[p] = dds_create_participant (DDS_DOMAINID1, NULL, NULL);
-    CU_ASSERT_FATAL (participants[p] > 0);
+    CU_ASSERT_GT_FATAL (participants[p], 0);
     participants_remote[p] = dds_create_participant (DDS_DOMAINID2, NULL, NULL);
-    CU_ASSERT_FATAL (participants_remote[p] > 0);
+    CU_ASSERT_GT_FATAL (participants_remote[p], 0);
     topic_rds[p] = dds_create_reader (participants[p], DDS_BUILTIN_TOPIC_DCPSTOPIC, NULL, NULL);
-    CU_ASSERT_FATAL (topic_rds[p] > 0);
+    CU_ASSERT_GT_FATAL (topic_rds[p], 0);
   }
 
   ret = ddsrt_thread_create (&tid, "ddsc_topic_discovery_test_rd", &tattr, read_topic_thread, 0);
-  CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
   dds_qos_t *qos = dds_create_qos ();
   for (uint32_t p = 0; p < NUM_PP; p++)
@@ -394,15 +393,15 @@ CU_Test (ddsc_topic_discovery, topic_qos_update, .init = topic_discovery_init, .
       char topic_name[100];
       create_unique_topic_name ("ddsc_topic_discovery_qos_upd", topic_name, 100);
       topics[p][t] = dds_create_topic (participants[p], &Space_Type1_desc, topic_name, qos, NULL);
-      CU_ASSERT_FATAL (topics[p][t] > 0);
+      CU_ASSERT_GT_FATAL (topics[p][t], 0);
       topics_remote[p][t] = dds_create_topic (participants_remote[p], &Space_Type1_desc, topic_name, NULL, NULL);
-      CU_ASSERT_FATAL (topics_remote[p][t] > 0);
+      CU_ASSERT_GT_FATAL (topics_remote[p][t], 0);
     }
 
   ret = ddsrt_thread_create (&tid, "ddsc_topic_discovery_test_pp", &tattr, delete_participants_thread, 0);
-  CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   ret = ddsrt_thread_create (&tid, "ddsc_topic_discovery_test_tp", &tattr, delete_topics_thread, 0);
-  CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
   uint32_t v;
   uint32_t c = 0;
@@ -420,7 +419,7 @@ CU_Test (ddsc_topic_discovery, topic_qos_update, .init = topic_discovery_init, .
         v = ddsrt_random ();
         dds_qset_topicdata (qos, &v, sizeof (v));
         ret = dds_set_qos(topics_remote[p][t], qos);
-        CU_ASSERT_FATAL(ret == DDS_RETCODE_OK || ret == DDS_RETCODE_BAD_PARAMETER); /* topic may be deleted */
+        CU_ASSERT_FATAL (ret == DDS_RETCODE_OK || ret == DDS_RETCODE_BAD_PARAMETER); /* topic may be deleted */
 
         dds_sleepfor (DDS_MSECS (1));
         c++;
