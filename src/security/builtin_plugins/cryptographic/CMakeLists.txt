@@ -46,9 +46,9 @@ generate_export_header(
         EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/security/export.h"
 )
 
-target_link_libraries(dds_security_crypto PRIVATE security_openssl)
+target_link_libraries(dds_security_crypto PRIVATE ${PROJECT_NAME}::security_openssl)
 if(BUILD_SHARED_LIBS)
-  target_link_libraries(dds_security_crypto PUBLIC ddsc)
+  target_link_libraries(dds_security_crypto PUBLIC ${PROJECT_NAME}::ddsc)
 endif()
 target_link_libraries(dds_security_crypto PUBLIC OpenSSL::SSL)
 if(CMAKE_GENERATOR MATCHES "Visual Studio")

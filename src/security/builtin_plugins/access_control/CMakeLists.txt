@@ -30,6 +30,7 @@ else()
   set_property(GLOBAL APPEND PROPERTY cdds_plugin_list dds_security_ac)
   set_property(GLOBAL PROPERTY dds_security_ac_symbols init_access_control finalize_access_control)
 endif()
+add_library(${PROJECT_NAME}::dds_security_ac ALIAS dds_security_ac)
 
 generate_export_header(
     dds_security_ac
@@ -37,9 +38,9 @@ generate_export_header(
         EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/security/export.h"
 )
 
-target_link_libraries(dds_security_ac PRIVATE security_openssl)
+target_link_libraries(dds_security_ac PRIVATE ${PROJECT_NAME}::security_openssl)
 if(BUILD_SHARED_LIBS)
-  target_link_libraries(dds_security_ac PUBLIC ddsc)
+  target_link_libraries(dds_security_ac PUBLIC ${PROJECT_NAME}::ddsc)
 endif()
 target_link_libraries(dds_security_ac PUBLIC OpenSSL::SSL)
 if(CMAKE_GENERATOR MATCHES "Visual Studio")
