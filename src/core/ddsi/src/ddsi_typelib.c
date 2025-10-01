@@ -90,7 +90,7 @@ ddsi_typeinfo_t *ddsi_typeinfo_deser (const unsigned char *data, uint32_t sz)
   uint32_t srcoff = 0;
 
   if (sz == 0 || data == NULL)
-    return false;
+    return NULL;
 
   /* Type objects are stored as a LE serialized CDR blob in the topic descriptor */
   DDSRT_WARNING_MSVC_OFF(6326)
