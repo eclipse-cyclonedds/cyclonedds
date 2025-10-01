@@ -64,7 +64,9 @@ option(BUILD_DDSPERF "Build ddsperf tool" ${not_crosscompiling})
 
 option(WITH_ZEPHYR "Build for Zephyr RTOS" OFF)
 
-set(CMAKE_C_STANDARD 99)
+# We require C99, test code can benefit from C23
+set(CMAKE_C_STANDARD 23)
+set(CMAKE_C_STANDARD_REQUIRED FALSE)
 if(CMAKE_SYSTEM_NAME STREQUAL "VxWorks")
   add_definitions(-std=c99)
 endif()
