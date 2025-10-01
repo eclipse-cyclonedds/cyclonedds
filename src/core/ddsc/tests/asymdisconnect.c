@@ -63,5 +63,5 @@ CU_Test (ddsc_asymdisconnect, reader_keeps_nacking)
     // with fix present:
     "  ?da r take{(1,0,0)} r"
     , config);
-  CU_ASSERT (result > 0);
+  CU_ASSERT_GT (result, 0);
 }

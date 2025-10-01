@@ -66,45 +66,45 @@ static void readcondition_init (void)
   char name[100];
 
   g_participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
-  CU_ASSERT_FATAL (g_participant > 0);
+  CU_ASSERT_GT_FATAL (g_participant, 0);
 
   g_waitset = dds_create_waitset (g_participant);
-  CU_ASSERT_FATAL (g_waitset > 0);
+  CU_ASSERT_GT_FATAL (g_waitset, 0);
 
   g_topic = dds_create_topic (g_participant, &Space_Type1_desc, create_unique_topic_name ("ddsc_readcondition_test", name, 100), NULL, NULL);
-  CU_ASSERT_FATAL (g_topic > 0);
+  CU_ASSERT_GT_FATAL (g_topic, 0);
 
   /* Create a reader that keeps last sample of all instances. */
   dds_qset_history (qos, DDS_HISTORY_KEEP_LAST, 1);
   g_reader = dds_create_reader (g_participant, g_topic, qos, NULL);
-  CU_ASSERT_FATAL (g_reader > 0);
+  CU_ASSERT_GT_FATAL (g_reader, 0);
 
   /* Create a reader that will not automatically dispose unregistered samples. */
   dds_qset_writer_data_lifecycle (qos, false);
   g_writer = dds_create_writer (g_participant, g_topic, qos, NULL);
-  CU_ASSERT_FATAL (g_writer > 0);
+  CU_ASSERT_GT_FATAL (g_writer, 0);
 
   /* Sync g_reader to g_writer. */
   ret = dds_set_status_mask (g_reader, DDS_SUBSCRIPTION_MATCHED_STATUS);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_waitset_attach (g_waitset, g_reader, g_reader);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_waitset_wait (g_waitset, &triggered, 1, DDS_SECS (1));
-  CU_ASSERT_EQUAL_FATAL (ret, 1);
-  CU_ASSERT_EQUAL_FATAL (g_reader, (dds_entity_t) triggered);
+  CU_ASSERT_EQ_FATAL (ret, 1);
+  CU_ASSERT_EQ_FATAL (g_reader, (dds_entity_t) triggered);
   ret = dds_waitset_detach (g_waitset, g_reader);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
   /* Sync g_writer to g_reader. */
   ret = dds_set_status_mask (g_writer, DDS_PUBLICATION_MATCHED_STATUS);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_waitset_attach (g_waitset, g_writer, g_writer);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_waitset_wait (g_waitset, &triggered, 1, DDS_SECS (1));
-  CU_ASSERT_EQUAL_FATAL (ret, 1);
-  CU_ASSERT_EQUAL_FATAL (g_writer, (dds_entity_t) triggered);
+  CU_ASSERT_EQ_FATAL (ret, 1);
+  CU_ASSERT_EQ_FATAL (g_writer, (dds_entity_t) triggered);
   ret = dds_waitset_detach (g_waitset, g_writer);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
   /* Initialize reading buffers. */
   memset (g_data, 0, sizeof (g_data));
@@ -122,23 +122,23 @@ static void readcondition_init (void)
     sample.long_3 = i/3;
 
     ret = dds_write (g_writer, &sample);
-    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     if (ist == DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE)
     {
       ret = dds_dispose (g_writer, &sample);
-      CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+      CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     }
     if (ist == DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE)
     {
       ret = dds_unregister_instance (g_writer, &sample);
-      CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+      CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     }
   }
 
   /* Read samples to get read&old_view states. */
   ret = dds_read (g_reader, g_samples, g_info, MAX_SAMPLES, SAMPLE_LAST_OLD_VST + 1);
-  CU_ASSERT_EQUAL_FATAL (ret, SAMPLE_LAST_OLD_VST + 1);
+  CU_ASSERT_EQ_FATAL (ret, SAMPLE_LAST_OLD_VST + 1);
 #ifdef VERBOSE_INIT
   for (int i = 0; i < ret; i++)
   {
@@ -155,17 +155,17 @@ static void readcondition_init (void)
     sample.long_3 = i/3;
 
     ret = dds_write (g_writer, &sample);
-    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     if ((ist == DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE) && (i != 4))
     {
       ret = dds_dispose (g_writer, &sample);
-      CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+      CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     }
     if (ist == DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE)
     {
       ret = dds_unregister_instance (g_writer, &sample);
-      CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+      CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     }
   }
 
@@ -175,7 +175,7 @@ static void readcondition_init (void)
 static void readcondition_fini (void)
 {
   dds_return_t ret = dds_delete (g_participant);
-  CU_ASSERT_FATAL (ret == 0);
+  CU_ASSERT_EQ_FATAL (ret, 0);
 }
 
 CU_Test(ddsc_readcondition_create, second, .init=readcondition_init, .fini=readcondition_fini)
@@ -186,15 +186,15 @@ CU_Test(ddsc_readcondition_create, second, .init=readcondition_init, .fini=readc
   dds_return_t ret;
 
   cond1 = dds_create_readcondition (g_reader, mask);
-  CU_ASSERT_FATAL (cond1 > 0);
+  CU_ASSERT_GT_FATAL (cond1, 0);
   cond2 = dds_create_readcondition (g_reader, mask);
-  CU_ASSERT_FATAL (cond2 > 0);
+  CU_ASSERT_GT_FATAL (cond2, 0);
 
   /* Also, we should be able to delete both. */
   ret = dds_delete (cond1);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_delete (cond2);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 }
 
 CU_Test(ddsc_readcondition_create, deleted_reader, .init=readcondition_init, .fini=readcondition_fini)
@@ -203,7 +203,7 @@ CU_Test(ddsc_readcondition_create, deleted_reader, .init=readcondition_init, .fi
   dds_entity_t cond;
   dds_delete (g_reader);
   cond = dds_create_readcondition (g_reader, mask);
-  CU_ASSERT_EQUAL_FATAL (cond, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ_FATAL (cond, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_TheoryDataPoints(ddsc_readcondition_create, invalid_readers) = {
@@ -214,7 +214,7 @@ CU_Theory((dds_entity_t rdr), ddsc_readcondition_create, invalid_readers, .init=
   uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
   dds_entity_t cond;
   cond = dds_create_readcondition (rdr, mask);
-  CU_ASSERT_EQUAL_FATAL (cond, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ_FATAL (cond, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_TheoryDataPoints(ddsc_readcondition_create, non_readers) = {
@@ -225,7 +225,7 @@ CU_Theory((dds_entity_t *rdr), ddsc_readcondition_create, non_readers, .init=rea
   uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
   dds_entity_t cond;
   cond = dds_create_readcondition (*rdr, mask);
-  CU_ASSERT_EQUAL_FATAL (cond, DDS_RETCODE_ILLEGAL_OPERATION);
+  CU_ASSERT_EQ_FATAL (cond, DDS_RETCODE_ILLEGAL_OPERATION);
 }
 
 CU_Test(ddsc_readcondition_get_mask, deleted, .init=readcondition_init, .fini=readcondition_fini)
@@ -234,11 +234,11 @@ CU_Test(ddsc_readcondition_get_mask, deleted, .init=readcondition_init, .fini=re
   dds_entity_t condition;
   dds_return_t ret;
   condition = dds_create_readcondition (g_reader, mask);
-  CU_ASSERT_FATAL (condition > 0);
+  CU_ASSERT_GT_FATAL (condition, 0);
   dds_delete (condition);
   mask = 0;
   ret = dds_get_mask (condition, &mask);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsc_readcondition_get_mask, null, .init=readcondition_init, .fini=readcondition_fini)
@@ -247,11 +247,11 @@ CU_Test(ddsc_readcondition_get_mask, null, .init=readcondition_init, .fini=readc
   dds_entity_t condition;
   dds_return_t ret;
   condition = dds_create_readcondition (g_reader, mask);
-  CU_ASSERT_FATAL (condition > 0);
+  CU_ASSERT_GT_FATAL (condition, 0);
   DDSRT_WARNING_MSVC_OFF (6387); /* Disable SAL warning on intentional misuse of the API */
   ret = dds_get_mask (condition, NULL);
   DDSRT_WARNING_MSVC_ON (6387);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
   dds_delete (condition);
 }
 
@@ -263,7 +263,7 @@ CU_Theory((dds_entity_t cond), ddsc_readcondition_get_mask, invalid_conditions, 
   dds_return_t ret;
   uint32_t mask;
   ret = dds_get_mask (cond, &mask);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_TheoryDataPoints(ddsc_readcondition_get_mask, non_conditions) = {
@@ -274,7 +274,7 @@ CU_Theory((dds_entity_t *cond), ddsc_readcondition_get_mask, non_conditions, .in
   dds_return_t ret;
   uint32_t mask;
   ret = dds_get_mask (*cond, &mask);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_ILLEGAL_OPERATION);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_ILLEGAL_OPERATION);
 }
 
 CU_TheoryDataPoints(ddsc_readcondition_get_mask, various_masks) = {
@@ -290,14 +290,14 @@ CU_Theory((uint32_t ss, uint32_t vs, uint32_t is), ddsc_readcondition_get_mask, 
   dds_return_t ret;
 
   condition = dds_create_readcondition (g_reader, maskIn);
-  CU_ASSERT_FATAL (condition > 0);
+  CU_ASSERT_GT_FATAL (condition, 0);
 
   ret = dds_get_mask (condition, &maskOut);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-  CU_ASSERT_EQUAL_FATAL (maskIn, maskOut);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (maskIn, maskOut);
 
   ret = dds_delete (condition);
-  CU_ASSERT_FATAL (ret == 0);
+  CU_ASSERT_EQ_FATAL (ret, 0);
 }
 
 
@@ -307,13 +307,13 @@ CU_Test(ddsc_readcondition_read, already_deleted, .init=readcondition_init, .fin
   dds_return_t ret;
 
   condition = dds_create_readcondition (g_reader, DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE);
-  CU_ASSERT_FATAL (condition > 0);
+  CU_ASSERT_GT_FATAL (condition, 0);
 
   ret = dds_delete (condition);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
   ret = dds_read (condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsc_readcondition_take, already_deleted, .init=readcondition_init, .fini=readcondition_fini)
@@ -322,13 +322,13 @@ CU_Test(ddsc_readcondition_take, already_deleted, .init=readcondition_init, .fin
   dds_return_t ret;
 
   condition = dds_create_readcondition (g_reader, DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE);
-  CU_ASSERT_FATAL (condition > 0);
+  CU_ASSERT_GT_FATAL (condition, 0);
 
   ret = dds_delete (condition);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
   ret = dds_take (condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
 }
 
 static void check_expected_long_1 (int expected_long_1, const Space_Type1 *s, const dds_sample_info_t *si)
@@ -337,14 +337,14 @@ static void check_expected_long_1 (int expected_long_1, const Space_Type1 *s, co
   dds_view_state_t expected_vst = SAMPLE_VST (expected_long_1);
   dds_instance_state_t expected_ist = SAMPLE_IST (expected_long_1);
 
-  CU_ASSERT_EQUAL_FATAL (s->long_1, expected_long_1);
-  CU_ASSERT_EQUAL_FATAL (s->long_2, expected_long_1/2);
-  CU_ASSERT_EQUAL_FATAL (s->long_3, expected_long_1/3);
+  CU_ASSERT_EQ_FATAL (s->long_1, expected_long_1);
+  CU_ASSERT_EQ_FATAL (s->long_2, expected_long_1/2);
+  CU_ASSERT_EQ_FATAL (s->long_3, expected_long_1/3);
 
-  CU_ASSERT_EQUAL_FATAL (si->valid_data, true);
-  CU_ASSERT_EQUAL_FATAL (si->sample_state, expected_sst);
-  CU_ASSERT_EQUAL_FATAL (si->view_state, expected_vst);
-  CU_ASSERT_EQUAL_FATAL (si->instance_state, expected_ist);
+  CU_ASSERT_EQ_FATAL (si->valid_data, true);
+  CU_ASSERT_EQ_FATAL (si->sample_state, expected_sst);
+  CU_ASSERT_EQ_FATAL (si->view_state, expected_vst);
+  CU_ASSERT_EQ_FATAL (si->instance_state, expected_ist);
 }
 
 
@@ -403,7 +403,7 @@ static const char *sst_str (uint32_t sst)
     case DDS_ANY_SAMPLE_STATE: return "any";
     case DDS_READ_SAMPLE_STATE: return "read";
     case DDS_NOT_READ_SAMPLE_STATE: return "not_read";
-    default: CU_ASSERT_FATAL (0); return "INVALID";
+    default: CU_FAIL_FATAL ("invalid value for sample state"); return "INVALID";
   }
 }
 
@@ -414,7 +414,7 @@ static const char *vst_str (uint32_t vst)
     case DDS_ANY_VIEW_STATE: return "any";
     case DDS_NEW_VIEW_STATE: return "new";
     case DDS_NOT_NEW_VIEW_STATE: return "old";
-    default: CU_ASSERT_FATAL (0); return "INVALID";
+    default: CU_FAIL_FATAL ("invalid value for view state"); return "INVALID";
   }
 }
 
@@ -432,7 +432,7 @@ static const char *ist_str (uint32_t ist)
       return "!nowriters";
     case DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE:
       return "!alive";
-    default: CU_ASSERT_FATAL (0); return "INVALID";
+    default: CU_FAIL_FATAL ("invalid value for instance state"); return "INVALID";
   }
 }
 
@@ -453,7 +453,7 @@ static void readcondition_readtake (
     ist = DDS_ANY_INSTANCE_STATE;
 
   condition = dds_create_readcondition (g_reader, sst | vst | ist);
-  CU_ASSERT_FATAL (condition > 0);
+  CU_ASSERT_GT_FATAL (condition, 0);
 
   if (mask == 0)
   {
@@ -478,13 +478,13 @@ static void readcondition_readtake (
     tprintf ("- %d %s/%s/%s\n", (int) s->long_1, sst_str (si->sample_state), vst_str (si->view_state), ist_str (si->instance_state));
   }
 
-  CU_ASSERT_EQUAL_FATAL (ret, expn);
+  CU_ASSERT_EQ_FATAL (ret, expn);
   for (int i = 0; i < expn; i++)
   {
     // sanity check the expectation itself, then the data
-    CU_ASSERT_FATAL ((SAMPLE_SST (exp[i]) & (sst | mask)) != 0);
-    CU_ASSERT_FATAL ((SAMPLE_VST (exp[i]) & (vst | mask)) != 0);
-    CU_ASSERT_FATAL ((SAMPLE_IST (exp[i]) & (ist | mask)) != 0);
+    CU_ASSERT_NEQ_FATAL ((SAMPLE_SST (exp[i]) & (sst | mask)), 0);
+    CU_ASSERT_NEQ_FATAL ((SAMPLE_VST (exp[i]) & (vst | mask)), 0);
+    CU_ASSERT_NEQ_FATAL ((SAMPLE_IST (exp[i]) & (ist | mask)), 0);
     check_expected_long_1 (exp[i], g_samples[i], &g_info[i]);
   }
 }
@@ -538,21 +538,21 @@ CU_Test(ddsc_readcondition, stress)
   dds_return_t rc;
 
   const dds_entity_t pp = dds_create_participant (0, NULL, NULL);
-  CU_ASSERT_FATAL (pp > 0);
+  CU_ASSERT_GT_FATAL (pp, 0);
 
   char tpname[100];
   create_unique_topic_name ("ddsc_data_avail_stress_delete_reader", tpname, sizeof (tpname));
 
   dds_qos_t * const qos = dds_create_qos ();
-  CU_ASSERT_FATAL (qos != NULL);
+  CU_ASSERT_NEQ_FATAL (qos, NULL);
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS (1));
   dds_qset_writer_data_lifecycle (qos, false);
   const dds_entity_t tp = dds_create_topic (pp, &Space_Type1_desc, tpname, qos, NULL);
-  CU_ASSERT_FATAL (tp > 0);
+  CU_ASSERT_GT_FATAL (tp, 0);
   dds_delete_qos (qos);
 
   const dds_entity_t wr = dds_create_writer (pp, tp, NULL, NULL);
-  CU_ASSERT_FATAL (wr > 0);
+  CU_ASSERT_GT_FATAL (wr, 0);
   struct writethread_arg wrarg = {
     .wr = wr,
     .stop = DDSRT_ATOMIC_UINT32_INIT (0)
@@ -561,12 +561,12 @@ CU_Test(ddsc_readcondition, stress)
   ddsrt_thread_t wrtid;
   ddsrt_threadattr_init (&tattr);
   rc = ddsrt_thread_create (&wrtid, "writer", &tattr, writethread, &wrarg);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 
   const dds_entity_t rd = dds_create_reader (pp, tp, NULL, NULL);
-  CU_ASSERT_FATAL (rd > 0);
+  CU_ASSERT_GT_FATAL (rd, 0);
   const dds_entity_t ws = dds_create_waitset (pp);
-  CU_ASSERT_FATAL (ws > 0);
+  CU_ASSERT_GT_FATAL (ws, 0);
 
   const dds_time_t tend = dds_time () + duration;
   uint32_t nconds = 0;
@@ -577,17 +577,17 @@ CU_Test(ddsc_readcondition, stress)
     if (conds[condidx])
     {
       rc = dds_delete (conds[condidx]);
-      CU_ASSERT_FATAL (rc == 0);
+      CU_ASSERT_EQ_FATAL (rc, 0);
       conds[condidx] = 0;
     }
 
     conds[condidx] = dds_create_readcondition (rd, DDS_ANY_STATE);
-    CU_ASSERT_FATAL (conds[condidx] > 0);
+    CU_ASSERT_GT_FATAL (conds[condidx], 0);
 
     // the fact that read conditions get updated even when not attached to a waitset is
     // probably a bug, so let's attach it to a waitset for good measure
     rc = dds_waitset_attach (ws, conds[condidx], conds[condidx]);
-    CU_ASSERT_FATAL (rc == 0);
+    CU_ASSERT_EQ_FATAL (rc, 0);
 
     // take whatever sample happens to be present: we want the read condition to be triggered
     // by the _arrival_ of a sample
@@ -612,10 +612,10 @@ CU_Test(ddsc_readcondition, stress)
   tprintf ("nconds %"PRIu32"\n", nconds);
   tprintf ("stop %"PRIu32"\n", ddsrt_atomic_ld32 (&wrarg.stop));
 
-  CU_ASSERT_FATAL (nconds > 100); // sanity check
+  CU_ASSERT_GT_FATAL (nconds, 100); // sanity check
   CU_ASSERT_FATAL (!(ddsrt_atomic_ld32 (&wrarg.stop) & 2));
 
   rc = dds_delete (pp);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 #undef NCONDS
 }

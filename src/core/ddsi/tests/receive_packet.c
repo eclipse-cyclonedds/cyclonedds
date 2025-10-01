@@ -422,5 +422,5 @@ CU_Test (ddsi_receive_packet, rti_dispose_with_key)
   ddsi_rmsg_commit (rmsg);
 
   receive_packet_fini ();
-  CU_ASSERT (rhc.stored);
+  CU_ASSERT_NEQ (rhc.stored, 0);
 }

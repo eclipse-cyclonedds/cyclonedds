@@ -63,15 +63,15 @@ CU_Test(ddsrt_sync, mutex_lock_conc)
   ddsrt_mutex_lock(&arg.lock);
   ddsrt_threadattr_init(&attr);
   ret = ddsrt_thread_create(&thr, "mutex_lock_conc", &attr, &mutex_lock_routine, &arg);
-  CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
   while (ddsrt_atomic_ld32(&arg.cnt) == 0)
     /* Wait for thread to be scheduled. */ ;
   ddsrt_atomic_inc32(&arg.cnt);
   ddsrt_mutex_unlock(&arg.lock);
   ret = ddsrt_thread_join(thr, &res);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-  CU_ASSERT_EQUAL(res, 1);
-  CU_ASSERT_EQUAL(ddsrt_atomic_ld32(&arg.cnt), 4UL);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (res, 1);
+  CU_ASSERT_EQ (ddsrt_atomic_ld32(&arg.cnt), 4UL);
   ddsrt_mutex_destroy(&arg.lock);
 }
 
@@ -93,12 +93,12 @@ CU_Test(ddsrt_sync, mutex_trylock)
 
   ddsrt_mutex_init(&lock);
   locked = ddsrt_mutex_trylock(&lock);
-  CU_ASSERT(locked == true);
+  CU_ASSERT_EQ (locked, true);
   locked = ddsrt_mutex_trylock (&lock);
   /* NOTE: On VxWorks RTP mutexes seemingly can be locked recursively. Still,
            behavior should be consistent across targets. If this fails, fix
            the implementation instead. */
-  CU_ASSERT(locked == false);
+  CU_ASSERT_EQ (locked, false);
   ddsrt_mutex_unlock(&lock);
   ddsrt_mutex_destroy(&lock);
 }
@@ -141,10 +141,10 @@ CU_Test(ddsrt_sync, mutex_trylock_conc)
   ddsrt_mutex_lock(&arg.lock);
   ddsrt_threadattr_init(&attr);
   ret = ddsrt_thread_create(&thr, "mutex_trylock_conc", &attr, &mutex_trylock_routine, &arg);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   ret = ddsrt_thread_join(thr, &res);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-  CU_ASSERT_EQUAL(res, 1);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (res, 1);
   ddsrt_mutex_unlock(&arg.lock);
   ddsrt_mutex_destroy(&arg.lock);
 }
@@ -184,11 +184,11 @@ CU_Theory((uint32_t lock, uint32_t trylock, uint32_t exp), ddsrt_sync, rwlock_tr
 
   ddsrt_threadattr_init(&attr);
   ret = ddsrt_thread_create(&thr, "rwlock_trylock_conc", &attr, func, &arg);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   ret = ddsrt_thread_join(thr, &res);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   ddsrt_rwlock_unlock(&arg.rwlock);
-  CU_ASSERT_EQUAL(res, exp);
+  CU_ASSERT_EQ (res, exp);
   ddsrt_rwlock_destroy(&arg.rwlock);
 }
 
@@ -227,7 +227,7 @@ CU_Test(ddsrt_sync, once_conc)
   for (int i = 0; i < ONCE_THREADS; i++) {
     (void)snprintf(buf, sizeof(buf), "once_conc%d", i + 1);
     ret = ddsrt_thread_create(&thrs[i], buf, &attr, &once_routine, NULL);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   }
 
   ddsrt_atomic_st32(&once_count, 1);
@@ -235,12 +235,12 @@ CU_Test(ddsrt_sync, once_conc)
   for (int i = 0; i < ONCE_THREADS; i++) {
     res = 0;
     ret = ddsrt_thread_join(thrs[i], &res);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-    CU_ASSERT_EQUAL(res, 2);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ (res, 2);
   }
 
   ddsrt_once(&once_control, &do_once);
-  CU_ASSERT_EQUAL(ddsrt_atomic_ld32(&once_count), 2);
+  CU_ASSERT_EQ (ddsrt_atomic_ld32(&once_count), 2);
 }
 
 #define WAITUNTIL_ARG(tb_) \
@@ -305,7 +305,7 @@ WAITUNTIL_THREAD(etime, elapsed)
     arg.abstimeout = ddsrt_##tb_##_add_duration (ddsrt_time_##tname_ (), COND_WAITUNTIL_DELAY); \
     ddsrt_mutex_lock (&arg.lock); \
     dds_return_t rc = ddsrt_thread_create (&thr, "cond_waituntil", &tattr, &waituntil_##tb_##_routine, &arg); \
-    CU_ASSERT_EQUAL_FATAL (rc, DDS_RETCODE_OK); \
+    CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK); \
     while (ddsrt_atomic_ld32 (&arg.flag) == 0) \
       ddsrt_cond_wait (&arg.sync_cond, &arg.lock); \
     ddsrt_mutex_unlock (&arg.lock); \
@@ -313,8 +313,8 @@ WAITUNTIL_THREAD(etime, elapsed)
     ddsrt_cond_##tb_##_signal (&arg.cond); \
     uint32_t res = 0; \
     rc = ddsrt_thread_join (thr, &res); \
-    CU_ASSERT_EQUAL_FATAL (rc, DDS_RETCODE_OK); \
-    CU_ASSERT_EQUAL (res, 1); \
+    CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK); \
+    CU_ASSERT_EQ (res, 1); \
   }
 
 WAITUNTIL_TEST(wctime, wallclock)

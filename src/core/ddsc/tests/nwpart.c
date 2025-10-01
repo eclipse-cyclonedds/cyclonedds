@@ -266,11 +266,11 @@ CU_Theory ((struct ddsi_config_networkpartition_listelem ps, bool allow_mc, cons
   setup (&gv, &config, allow_mc, true);
   int rc = ddsi_convert_nwpart_config (&gv, 31415);
   if (uc == NULL) {
-    CU_ASSERT_FATAL (rc < 0);
-    CU_ASSERT_FATAL (errcount > 0);
+    CU_ASSERT_LT_FATAL (rc, 0);
+    CU_ASSERT_GT_FATAL (errcount, 0);
   } else {
-    CU_ASSERT_FATAL (rc == 0);
-    CU_ASSERT_FATAL (errcount == 0);
+    CU_ASSERT_EQ_FATAL (rc, 0);
+    CU_ASSERT_EQ_FATAL (errcount, 0);
     CU_ASSERT_FATAL (check_address_list (uc, ps.uc_addresses));
     CU_ASSERT_FATAL (check_address_list (mc, ps.asm_addresses));
   }
@@ -295,7 +295,7 @@ CU_Test (ddsc_nwpart, duplicate)
     "  </NetworkPartitions>"
     "</Partitioning>";
   dds_entity_t eh = dds_create_domain (0, config);
-  CU_ASSERT_FATAL (eh < 0);
+  CU_ASSERT_LT_FATAL (eh, 0);
 #endif
 }
 
@@ -323,7 +323,7 @@ CU_Test (ddsc_nwpart, mapping_undefined)
   char *config1 = ddsrt_expand_envvars (config, 0);
   dds_entity_t eh = dds_create_domain (0, config1);
   ddsrt_free (config1);
-  CU_ASSERT_FATAL (eh < 0);
+  CU_ASSERT_LT_FATAL (eh, 0);
 #endif
 }
 
@@ -352,26 +352,26 @@ CU_Test (ddsc_nwpart, mapping_multiple)
   char *config1 = ddsrt_expand_envvars (config, 0);
   dds_entity_t eh = dds_create_domain (0, config1);
   ddsrt_free (config1);
-  CU_ASSERT_FATAL (eh > 0);
+  CU_ASSERT_GT_FATAL (eh, 0);
   struct ddsi_domaingv * const gv = get_domaingv (eh);
   // all of this is order preserving; check that the entries meet that expectation
   struct ddsi_config_partitionmapping_listelem *m0, *m1;
   m0 = gv->config.partitionMappings;
   m1 = m0->next;
-  CU_ASSERT_FATAL (strcmp (m0->networkPartition, "P0") == 0);
-  CU_ASSERT_FATAL (strcmp (m1->networkPartition, "p2") == 0);
-  CU_ASSERT_FATAL (m1->next == NULL);
+  CU_ASSERT_STREQ_FATAL (m0->networkPartition, "P0");
+  CU_ASSERT_STREQ_FATAL (m1->networkPartition, "p2");
+  CU_ASSERT_EQ_FATAL (m1->next, NULL);
   struct ddsi_config_networkpartition_listelem *p0, *p1, *p2;
   p2 = gv->config.networkPartitions; // this order matches the names
   p1 = p2->next;
   p0 = p1->next;
-  CU_ASSERT_FATAL (strcmp (p2->name, "p2") == 0);
-  CU_ASSERT_FATAL (strcmp (p1->name, "p1") == 0);
-  CU_ASSERT_FATAL (strcmp (p0->name, "p0") == 0);
-  CU_ASSERT_FATAL (p0->next == NULL);
+  CU_ASSERT_STREQ_FATAL (p2->name, "p2");
+  CU_ASSERT_STREQ_FATAL (p1->name, "p1");
+  CU_ASSERT_STREQ_FATAL (p0->name, "p0");
+  CU_ASSERT_EQ_FATAL (p0->next, NULL);
   // given that:
-  CU_ASSERT_FATAL (m0->partition == p0);
-  CU_ASSERT_FATAL (m1->partition == p2);
+  CU_ASSERT_EQ_FATAL (m0->partition, p0);
+  CU_ASSERT_EQ_FATAL (m1->partition, p2);
   dds_delete (eh);
 #endif
 }
@@ -637,7 +637,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
     printf ("\n");
     tprintf ("(in any order)\n");
   }
-  CU_ASSERT (arg.ok);
+  CU_ASSERT_NEQ (arg.ok, 0);
   ddsi_unref_addrset (as);
   // not calling plist_fini: we didn't allocate anything
   ddsi_unref_addrset (as_default);
@@ -662,9 +662,9 @@ CU_Theory ((const char *pistr, const char *msmstr), ddsc_nwpart, full_stack_init
   // failures caused by running several tests in parallel (using a unique
   // domain id would help, too, but where to find a unique id?)
   dds_entity_t eh = dds_create_domain (0, NULL);
-  CU_ASSERT_FATAL (eh > 0);
+  CU_ASSERT_GT_FATAL (eh, 0);
   const struct ddsi_domaingv *gv = get_domaingv (eh);
-  CU_ASSERT_FATAL (gv != NULL);
+  CU_ASSERT_NEQ_FATAL (gv, NULL);
   // construct a configuration using this interface
   char *config = NULL;
   (void) ddsrt_asprintf (&config,
@@ -690,22 +690,22 @@ CU_Theory ((const char *pistr, const char *msmstr), ddsc_nwpart, full_stack_init
     msmstr,
     gv->interfaces[0].name);
   rc = dds_delete (eh);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   // start up a new domain with this new configuration
   eh = dds_create_domain (0, config);
   ddsrt_free (config);
-  CU_ASSERT_FATAL (eh > 0);
+  CU_ASSERT_GT_FATAL (eh, 0);
   gv = get_domaingv (eh);
-  CU_ASSERT_FATAL (gv != NULL);
+  CU_ASSERT_NEQ_FATAL (gv, NULL);
   // verify that the unicast address and port number in the network partition
   // are correct (this is slightly different from the other tests: those mock
   // most of the code, this uses the actual code)
   struct ddsi_config_networkpartition_listelem const * const np = gv->config.networkPartitions;
   struct ddsi_locator const * const nploc = &np->uc_addresses->loc;
-  CU_ASSERT (memcmp (gv->interfaces[0].loc.address, nploc->address, sizeof (nploc->address)) == 0);
-  CU_ASSERT (memcmp (gv->loc_default_uc.address, nploc->address, sizeof (nploc->address)) == 0);
-  CU_ASSERT (gv->loc_default_uc.port == nploc->port);
+  CU_ASSERT_MEMEQ (gv->interfaces[0].loc.address, sizeof (gv->interfaces[0].loc.address), nploc->address, sizeof (nploc->address));
+  CU_ASSERT_MEMEQ (gv->loc_default_uc.address, sizeof (gv->loc_default_uc.address), nploc->address, sizeof (nploc->address));
+  CU_ASSERT_EQ_FATAL (gv->loc_default_uc.port, nploc->port);
   rc = dds_delete (eh);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 #endif
 }

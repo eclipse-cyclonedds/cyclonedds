@@ -102,7 +102,7 @@ const char * g_ep_secret = "epsecret";
 static dds_qos_t *get_qos(void)
 {
   dds_qos_t * qos = dds_create_qos ();
-  CU_ASSERT_FATAL (qos != NULL);
+  CU_ASSERT_NEQ_FATAL (qos, NULL);
   dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, -1);
   dds_qset_durability (qos, DDS_DURABILITY_TRANSIENT_LOCAL);
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
@@ -115,11 +115,10 @@ static dds_entity_t create_pp (dds_domainid_t domain_id, const struct domain_sec
   dds_qos_t *qos = dds_create_qos ();
   dds_qset_userdata (qos, g_pp_secret, strlen (g_pp_secret));
   dds_entity_t pp = dds_create_participant (domain_id, qos, NULL);
-  CU_ASSERT_FATAL (pp > 0);
+  CU_ASSERT_GT_FATAL (pp, 0);
   dds_delete_qos (qos);
   struct dds_security_cryptography_impl * crypto_context = get_cryptography_context (pp);
-  CU_ASSERT_FATAL (crypto_context != NULL);
-  assert (set_crypto_params);
+  CU_ASSERT_NEQ_FATAL (crypto_context, NULL);
   set_crypto_params (crypto_context, domain_config);
   return pp;
 }
@@ -131,7 +130,7 @@ static void create_dom_pp_pubsub(dds_domainid_t domain_id_base, const char * dom
   for (size_t d = 0; d < n_dom; d++)
   {
     doms[d] = dds_create_domain (domain_id_base + (uint32_t)d, domain_conf);
-    CU_ASSERT_FATAL (doms[d] > 0);
+    CU_ASSERT_GT_FATAL (doms[d], 0);
     for (size_t p = 0; p < n_pp; p++)
     {
       size_t pp_index = d * n_pp + p;
@@ -139,7 +138,7 @@ static void create_dom_pp_pubsub(dds_domainid_t domain_id_base, const char * dom
       dds_qos_t *qos = dds_create_qos ();
       dds_qset_groupdata (qos, g_groupdata_secret, strlen (g_groupdata_secret));
       pubsubs[pp_index] = pubsub_create (pps[pp_index], qos, NULL);
-      CU_ASSERT_FATAL (pubsubs[pp_index] > 0);
+      CU_ASSERT_GT_FATAL (pubsubs[pp_index], 0);
       dds_delete_qos (qos);
     }
   }
@@ -180,12 +179,12 @@ static void test_fini(size_t n_sub_domain, size_t n_pub_domain)
   for (size_t d = 0; d < n_pub_domain; d++)
   {
     ret = dds_delete (g_pub_domains[d]);
-    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   }
   for (size_t d = 0; d < n_sub_domain; d++)
   {
     ret = dds_delete (g_sub_domains[d]);
-    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   }
   printf("Test finished\n");
 }
@@ -201,14 +200,14 @@ static void create_eps (dds_entity_t **endpoints, dds_entity_t **topics, size_t 
     {
       size_t pp_index = d * n_pp + p;
       (*topics)[pp_index] = dds_create_topic (pps[pp_index], topic_descriptor, topic_name, NULL, NULL);
-      CU_ASSERT_FATAL ((*topics)[pp_index] > 0);
+      CU_ASSERT_GT_FATAL ((*topics)[pp_index], 0);
       for (size_t e = 0; e < n_eps; e++)
       {
         size_t ep_index = pp_index * n_eps + e;
         (*endpoints)[ep_index] = ep_create (pps[pp_index], (*topics)[pp_index], qos, NULL);
-        CU_ASSERT_FATAL ((*endpoints)[ep_index] > 0);
+        CU_ASSERT_GT_FATAL ((*endpoints)[ep_index], 0);
         dds_return_t ret = dds_set_status_mask ((*endpoints)[ep_index], status_mask);
-        CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+        CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
       }
     }
   }
@@ -257,7 +256,7 @@ static void test_write_read(struct domain_sec_config *domain_config,
         sample.id = (int32_t) wr_index;
         printf("writer %"PRId32" writing sample %d\n", writers[wr_index], sample.id);
         ret = dds_write (writers[wr_index], &sample);
-        CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+        CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
       }
     }
   }
@@ -280,8 +279,8 @@ static void test_write_read(struct domain_sec_config *domain_config,
             continue;
           }
           printf("reader %"PRId32" received sample %d\n", readers[rd_index], rd_sample.id);
-          CU_ASSERT_EQUAL_FATAL (ret, 1);
-          CU_ASSERT_EQUAL_FATAL (rd_sample.value, 1);
+          CU_ASSERT_EQ_FATAL (ret, 1);
+          CU_ASSERT_EQ_FATAL (rd_sample.value, 1);
           n_samples--;
         }
       }
@@ -366,7 +365,7 @@ static void test_payload_secret(DDS_Security_ProtectionKind rtps_pk, DDS_Securit
   dds_delete_qos (qos);
   sync_writer_to_readers (g_pub_participants[0], writers[0], 1, dds_time() + DDS_SECS(2));
   ret = dds_write (writers[0], &sample);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
   while (true)
   {
@@ -375,7 +374,7 @@ static void test_payload_secret(DDS_Security_ProtectionKind rtps_pk, DDS_Securit
       reader_wait_for_data (g_sub_participants[0], readers[0], DDS_SECS(5));
       continue;
     }
-    CU_ASSERT_EQUAL_FATAL (ret, 1);
+    CU_ASSERT_EQ_FATAL (ret, 1);
     break;
   }
 

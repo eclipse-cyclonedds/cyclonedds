@@ -195,15 +195,15 @@ reset_exception(
 static void suite_set_remote_datareader_crypto_tokens_init(void)
 {
   allocate_shared_secret();
-  CU_ASSERT_FATAL ((plugins = load_plugins(
-                      NULL    /* Access Control */,
-                      NULL    /* Authentication */,
-                      &crypto /* Cryptograpy    */,
-                      NULL)) != NULL);
-  CU_ASSERT_EQUAL_FATAL (register_local_participant(), 0);
-  CU_ASSERT_EQUAL_FATAL (register_remote_participant(), 0);
-  CU_ASSERT_EQUAL_FATAL (register_local_datawriter(), 0);
-  CU_ASSERT_EQUAL_FATAL (register_remote_datareader(), 0);
+  CU_ASSERT_NEQ_FATAL ((plugins = load_plugins(
+    NULL    /* Access Control */,
+    NULL    /* Authentication */,
+    &crypto /* Cryptograpy    */,
+    NULL)), NULL);
+  CU_ASSERT_EQ_FATAL (register_local_participant(), 0);
+  CU_ASSERT_EQ_FATAL (register_remote_participant(), 0);
+  CU_ASSERT_EQ_FATAL (register_local_datawriter(), 0);
+  CU_ASSERT_EQ_FATAL (register_remote_datareader(), 0);
 }
 
 static void suite_set_remote_datareader_crypto_tokens_fini(void)
@@ -348,12 +348,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, happy_day, .init = s
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_DatawriterCryptoTokenSeq tokens;
 
-  CU_ASSERT_FATAL(crypto != NULL);
-  assert(crypto != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_exchange != NULL);
-  assert(crypto->crypto_key_exchange != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_exchange->set_remote_datareader_crypto_tokens != NULL);
-  assert(crypto->crypto_key_exchange->set_remote_datareader_crypto_tokens != 0);
+  CU_ASSERT_NEQ_FATAL (crypto, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_exchange, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_exchange->set_remote_datareader_crypto_tokens, NULL);
 
   memset(&tokens, 0, sizeof(tokens));
 
@@ -372,9 +369,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, happy_day, .init = s
 
   DDS_Security_DataHolderSeq_deinit(&tokens);
 
-  CU_ASSERT_FATAL(result);
-  CU_ASSERT(exception.code == 0);
-  CU_ASSERT(exception.message == NULL);
+  CU_ASSERT_FATAL (result);
+  CU_ASSERT_EQ (exception.code, 0);
+  CU_ASSERT_EQ (exception.message, NULL);
 
   reset_exception(&exception);
 }
@@ -385,12 +382,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, single_token, .init 
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_DatawriterCryptoTokenSeq tokens;
 
-  CU_ASSERT_FATAL(crypto != NULL);
-  assert(crypto != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_exchange != NULL);
-  assert(crypto->crypto_key_exchange != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_exchange->set_remote_datareader_crypto_tokens != NULL);
-  assert(crypto->crypto_key_exchange->set_remote_datareader_crypto_tokens != NULL);
+  CU_ASSERT_NEQ_FATAL (crypto, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_exchange, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_exchange->set_remote_datareader_crypto_tokens, NULL);
   memset(&tokens, 0, sizeof(tokens));
   create_reader_tokens(&tokens);
 
@@ -407,9 +401,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, single_token, .init 
 
   DDS_Security_DataHolderSeq_deinit(&tokens);
 
-  CU_ASSERT_FATAL(result);
-  CU_ASSERT(exception.code == 0);
-  CU_ASSERT(exception.message == NULL);
+  CU_ASSERT_FATAL (result);
+  CU_ASSERT_EQ (exception.code, 0);
+  CU_ASSERT_EQ (exception.message, NULL);
 
   reset_exception(&exception);
 }
@@ -421,12 +415,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_args, .init 
   DDS_Security_DatawriterCryptoTokenSeq tokens;
 
   /* Check if we actually have the validate_local_identity() function. */
-  CU_ASSERT_FATAL(crypto != NULL);
-  assert(crypto != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_exchange != NULL);
-  assert(crypto->crypto_key_exchange != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_exchange->set_remote_datareader_crypto_tokens != NULL);
-  assert(crypto->crypto_key_exchange->set_remote_datareader_crypto_tokens != 0);
+  CU_ASSERT_NEQ_FATAL (crypto, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_exchange, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_exchange->set_remote_datareader_crypto_tokens, NULL);
 
   memset(&tokens, 0, sizeof(tokens));
 
@@ -443,9 +434,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_args, .init 
   if (!result)
     printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
+  CU_ASSERT (!result);
+  CU_ASSERT_NEQ (exception.code, 0);
+  CU_ASSERT_NEQ (exception.message, NULL);
 
   reset_exception(&exception);
 
@@ -460,9 +451,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_args, .init 
   if (!result)
     printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
+  CU_ASSERT (!result);
+  CU_ASSERT_NEQ (exception.code, 0);
+  CU_ASSERT_NEQ (exception.message, NULL);
   reset_exception(&exception);
 
   /* invalid remote_crypto_handle = DDS_SECURITY_HANDLE_NIL */
@@ -476,9 +467,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_args, .init 
   if (!result)
     printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
+  CU_ASSERT (!result);
+  CU_ASSERT_NEQ (exception.code, 0);
+  CU_ASSERT_NEQ (exception.message, NULL);
   reset_exception(&exception);
 
   /* invalid local_crypto_handle = 1 */
@@ -492,9 +483,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_args, .init 
   if (!result)
     printf("set_remote_datawriter_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
+  CU_ASSERT (!result);
+  CU_ASSERT_NEQ (exception.code, 0);
+  CU_ASSERT_NEQ (exception.message, NULL);
   reset_exception(&exception);
 
   /* invalid remote_crypto_handle = 1 */
@@ -508,9 +499,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_args, .init 
   if (!result)
     printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-  CU_ASSERT(!result);
-  CU_ASSERT(exception.code != 0);
-  CU_ASSERT(exception.message != NULL);
+  CU_ASSERT (!result);
+  CU_ASSERT_NEQ (exception.code, 0);
+  CU_ASSERT_NEQ (exception.message, NULL);
   reset_exception(&exception);
 
   DDS_Security_DataHolderSeq_deinit(&tokens);
@@ -523,12 +514,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_tokens, .ini
   DDS_Security_DatawriterCryptoTokenSeq tokens;
   DDS_Security_DatawriterCryptoTokenSeq empty_tokens;
 
-  CU_ASSERT_FATAL(crypto != NULL);
-  assert(crypto != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_exchange != NULL);
-  assert(crypto->crypto_key_exchange != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_exchange->set_remote_datareader_crypto_tokens != NULL);
-  assert(crypto->crypto_key_exchange->set_remote_datareader_crypto_tokens != 0);
+  CU_ASSERT_NEQ_FATAL (crypto, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_exchange, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_exchange->set_remote_datareader_crypto_tokens, NULL);
 
   memset(&tokens, 0, sizeof(tokens));
   memset(&empty_tokens, 0, sizeof(empty_tokens));
@@ -546,9 +534,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_tokens, .ini
     if (!result)
       printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT (!result);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
   }
 
@@ -566,9 +554,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_tokens, .ini
     if (!result)
       printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT (!result);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
     DDS_Security_DataHolderSeq_deinit(&empty_tokens);
   }
@@ -587,9 +575,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_tokens, .ini
     if (!result)
       printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT (!result);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
     ddsrt_free(tokens._buffer[0].class_id);
     tokens._buffer[0].class_id = ddsrt_strdup(DDS_CRYPTOTOKEN_CLASS_ID);
@@ -608,9 +596,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_tokens, .ini
     if (!result)
       printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT (!result);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
     tokens._buffer[0].binary_properties._length = 1;
   }
@@ -630,9 +618,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_tokens, .ini
     if (!result)
       printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT (!result);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
     ddsrt_free(tokens._buffer[0].binary_properties._buffer);
     tokens._buffer[0].binary_properties._buffer = saved_buffer;
@@ -653,9 +641,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_tokens, .ini
     if (!result)
       printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT (!result);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
     ddsrt_free(tokens._buffer[0].binary_properties._buffer[0].name);
     tokens._buffer[0].binary_properties._buffer[0].name = ddsrt_strdup(DDS_CRYPTOTOKEN_PROP_KEYMAT);
@@ -671,12 +659,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_key_material
   DDS_Security_DatawriterCryptoTokenSeq tokens;
   DDS_Security_KeyMaterial_AES_GCM_GMAC keymat;
 
-  CU_ASSERT_FATAL(crypto != NULL);
-  assert(crypto != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_exchange != NULL);
-  assert(crypto->crypto_key_exchange != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_exchange->set_remote_datareader_crypto_tokens != NULL);
-  assert(crypto->crypto_key_exchange->set_remote_datareader_crypto_tokens != 0);
+  CU_ASSERT_NEQ_FATAL (crypto, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_exchange, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_exchange->set_remote_datareader_crypto_tokens, NULL);
 
   memset(&tokens, 0, sizeof(tokens));
 
@@ -694,9 +679,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_key_material
     if (!result)
       printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT (!result);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
   }
 
@@ -716,9 +701,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_key_material
     if (!result)
       printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT (!result);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
     DDS_Security_OctetSeq_deinit(&tokens._buffer[0].binary_properties._buffer[0].value);
     deinit_key_material(&keymat);
@@ -743,9 +728,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_key_material
     if (!result)
       printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT (!result);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
     DDS_Security_OctetSeq_deinit(&tokens._buffer[0].binary_properties._buffer[0].value);
     deinit_key_material(&keymat);
@@ -768,9 +753,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_key_material
     if (!result)
       printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT (!result);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
     DDS_Security_OctetSeq_deinit(&tokens._buffer[0].binary_properties._buffer[0].value);
     deinit_key_material(&keymat);
@@ -793,9 +778,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_key_material
     if (!result)
       printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT (!result);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
     DDS_Security_OctetSeq_deinit(&tokens._buffer[0].binary_properties._buffer[0].value);
     deinit_key_material(&keymat);
@@ -821,9 +806,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_key_material
     if (!result)
       printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT (!result);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
     DDS_Security_OctetSeq_deinit(&tokens._buffer[0].binary_properties._buffer[0].value);
     deinit_key_material(&keymat);
@@ -846,9 +831,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_key_material
     if (!result)
       printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT (!result);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
     DDS_Security_OctetSeq_deinit(&tokens._buffer[0].binary_properties._buffer[0].value);
     deinit_key_material(&keymat);
@@ -872,9 +857,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_key_material
     if (!result)
       printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT (!result);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
     DDS_Security_OctetSeq_deinit(&tokens._buffer[0].binary_properties._buffer[0].value);
     deinit_key_material(&keymat);
@@ -900,9 +885,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_key_material
     if (!result)
       printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT (!result);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
     DDS_Security_OctetSeq_deinit(&tokens._buffer[0].binary_properties._buffer[0].value);
     deinit_key_material(&keymat);
@@ -925,9 +910,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_key_material
     if (!result)
       printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT (!result);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
     DDS_Security_OctetSeq_deinit(&tokens._buffer[0].binary_properties._buffer[0].value);
     deinit_key_material(&keymat);
@@ -951,9 +936,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_key_material
     if (!result)
       printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT (!result);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
     DDS_Security_OctetSeq_deinit(&tokens._buffer[0].binary_properties._buffer[0].value);
     deinit_key_material(&keymat);
@@ -978,9 +963,9 @@ CU_Test(ddssec_builtin_set_remote_datareader_crypto_tokens, invalid_key_material
     if (!result)
       printf("set_remote_datareader_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
-    CU_ASSERT(!result);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT (!result);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
     DDS_Security_OctetSeq_deinit(&tokens._buffer[0].binary_properties._buffer[0].value);
     deinit_key_material(&keymat);

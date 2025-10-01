@@ -74,26 +74,25 @@ test_expr(
   idl_literal_t *cv;
 
   r = idl_create_pstate(0u, NULL, &pstate);
-  CU_ASSERT_EQUAL_FATAL(r, IDL_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (r, IDL_RETCODE_OK);
   r = idl_parse_string(pstate, str);
-  CU_ASSERT_EQUAL(r, ret);
+  CU_ASSERT_EQ (r, ret);
   if (r != IDL_RETCODE_OK) {
     idl_delete_pstate(pstate);
     return;
   }
-  CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
-  assert(pstate);
+  CU_ASSERT_NEQ_FATAL (pstate, NULL);
   c = (void *)pstate->root;
   do {
     if (idl_is_const(c) && strcmp(idl_identifier(c), "x") == 0)
       break;
     c = idl_next(c);
   } while (c);
-  CU_ASSERT_FATAL(idl_is_const(c));
-  assert(c);
+  CU_ASSERT_FATAL (idl_is_const(c));
+  CU_ASSERT_NEQ_FATAL (c, NULL);
   cv = c->const_expr;
-  CU_ASSERT_FATAL(idl_is_literal(cv));
-  CU_ASSERT(idl_compare(cv, exp) == IDL_EQUAL);
+  CU_ASSERT_FATAL (idl_is_literal(cv));
+  CU_ASSERT_EQ (idl_compare(cv, exp), IDL_EQUAL);
   idl_delete_pstate(pstate);
 }
 

@@ -28,7 +28,7 @@ CU_TheoryDataPoints(ddsrt_retcode, unknown) = {
 
 CU_Theory((dds_return_t ret), ddsrt_retcode, unknown)
 {
-  CU_ASSERT_STRING_EQUAL(dds_strretcode(ret), "Unknown return code");
+  CU_ASSERT_STREQ (dds_strretcode(ret), "Unknown return code");
 }
 
 CU_TheoryDataPoints(ddsrt_retcode, spotchecks) = {
@@ -54,5 +54,5 @@ CU_TheoryDataPoints(ddsrt_retcode, spotchecks) = {
 
 CU_Theory((dds_return_t ret, const char *exp), ddsrt_retcode, spotchecks)
 {
-  CU_ASSERT_STRING_EQUAL(dds_strretcode(ret), exp);
+  CU_ASSERT_STREQ (dds_strretcode(ret), exp);
 }

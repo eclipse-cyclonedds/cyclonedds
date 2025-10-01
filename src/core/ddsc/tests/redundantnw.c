@@ -60,12 +60,12 @@ static void check_destination_addresses (const char *message, bool multicast)
       as++;
     // all default addresses, so 239.* is multicast and anything else is unicast
     const bool ismc = (strncmp (astart, "udp/239.", 8) == 0);
-    CU_ASSERT_FATAL (ismc == multicast);
+    CU_ASSERT_EQ_FATAL (ismc, multicast);
     naddrs++;
     while (*as && isspace ((unsigned char) *as))
       as++;
   }
-  CU_ASSERT_FATAL (naddrs == 2);
+  CU_ASSERT_EQ_FATAL (naddrs, 2);
 }
 
 static void logger (void *ptr, const dds_log_data_t *data)
@@ -148,9 +148,9 @@ CU_Test (ddsc_redundant_networking, uc_data_on_all_intfs)
   // failures caused by running several tests in parallel (using a unique
   // domain id would help, too, but where to find a unique id?)
   dds_entity_t dom_pub = dds_create_domain (0, "<General/>");
-  CU_ASSERT_FATAL (dom_pub > 0);
+  CU_ASSERT_GT_FATAL (dom_pub, 0);
   struct ddsi_domaingv *gv_pub = get_domaingv (dom_pub);
-  CU_ASSERT_FATAL (gv_pub != NULL);
+  CU_ASSERT_NEQ_FATAL (gv_pub, NULL);
   // construct a configuration using this interface and the loopback
   // interface (we assume that the loopback interface exists and uses
   // 127.0.0.1)
@@ -158,7 +158,7 @@ CU_Test (ddsc_redundant_networking, uc_data_on_all_intfs)
   {
     CU_PASS ("need two interfaces to test redundant networking");
     rc = dds_delete (dom_pub);
-    CU_ASSERT_FATAL (rc == 0);
+    CU_ASSERT_EQ_FATAL (rc, 0);
     dds_set_log_sink (NULL, NULL);
     dds_set_trace_sink (NULL, NULL);
     ddsrt_cond_mtime_destroy (&larg.cond);
@@ -181,18 +181,18 @@ CU_Test (ddsc_redundant_networking, uc_data_on_all_intfs)
     "<Tracing><Category>trace</Category></Tracing>",
     gv_pub->interfaces[0].name);
   rc = dds_delete (dom_pub);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 
   // Start up a new domain with this new configuration, get gv pointer (if only
   // to avoid a dangling pointer)
   dom_pub = dds_create_domain (0, config);
-  CU_ASSERT_FATAL (dom_pub > 0);
+  CU_ASSERT_GT_FATAL (dom_pub, 0);
   gv_pub = get_domaingv (dom_pub);
-  CU_ASSERT_FATAL (gv_pub != NULL);
+  CU_ASSERT_NEQ_FATAL (gv_pub, NULL);
   const dds_entity_t dom_sub = dds_create_domain (1, config);
-  CU_ASSERT_FATAL (dom_sub > 0);
+  CU_ASSERT_GT_FATAL (dom_sub, 0);
   struct ddsi_domaingv * const gv_sub = get_domaingv (dom_sub);
-  CU_ASSERT_FATAL (gv_sub != NULL);
+  CU_ASSERT_NEQ_FATAL (gv_sub, NULL);
   ddsrt_free (config);
   
   // Redundant logic networking treats loopback specially because that one is
@@ -210,9 +210,9 @@ CU_Test (ddsc_redundant_networking, uc_data_on_all_intfs)
     gv_sub->interfaces[i].loopback = 0;
 
   const dds_entity_t pp_pub = dds_create_participant (0, NULL, NULL);
-  CU_ASSERT_FATAL (pp_pub > 0);
+  CU_ASSERT_GT_FATAL (pp_pub, 0);
   const dds_entity_t pp_sub = dds_create_participant (1, NULL, NULL);
-  CU_ASSERT_FATAL (pp_sub > 0);
+  CU_ASSERT_GT_FATAL (pp_sub, 0);
   char topicname[100];
   create_unique_topic_name ("redundant_networking", topicname, sizeof (topicname));
   dds_qos_t *qos = dds_create_qos ();
@@ -232,8 +232,8 @@ CU_Test (ddsc_redundant_networking, uc_data_on_all_intfs)
   // We expect exactly two unicast orelse two multicast addresses
   // (which ones we get depends on whether the network interface
   // supports multicast and on decisions in wraddrset)
-  CU_ASSERT_FATAL ((ddsi_addrset_count_uc (xwr->m_wr->as) == 2 && ddsi_addrset_count_mc (xwr->m_wr->as) == 0) ||
-                   (ddsi_addrset_count_uc (xwr->m_wr->as) == 0 && ddsi_addrset_count_mc (xwr->m_wr->as) == 2));
+  CU_ASSERT_NEQ_FATAL ((ddsi_addrset_count_uc (xwr->m_wr->as) == 2 && ddsi_addrset_count_mc (xwr->m_wr->as) == 0) ||
+                       (ddsi_addrset_count_uc (xwr->m_wr->as) == 0 && ddsi_addrset_count_mc (xwr->m_wr->as) == 2), false);
   const bool data_uses_mc = (ddsi_addrset_count_mc (xwr->m_wr->as) > 0);
   char guidstr[1 + 4 * 8 + 3 * 1 + 2];
   snprintf (guidstr, sizeof (guidstr), "*"PGUIDFMT"*", PGUID (xwr->m_entity.m_guid));
@@ -246,9 +246,9 @@ CU_Test (ddsc_redundant_networking, uc_data_on_all_intfs)
   ddsrt_mutex_unlock (&larg.lock);
 
   rc = dds_write (wr, &(Space_Type1){0,0,0});
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   rc = dds_wait_for_acks (wr, DDS_INFINITY);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 
   // The ACK can be processed before the "xpack_send" line is output by the sending tev thread
   // this gives a bit of extra time
@@ -266,7 +266,7 @@ CU_Test (ddsc_redundant_networking, uc_data_on_all_intfs)
   CU_ASSERT_FATAL (larg.data_seen && larg.acknack_seen);
 
   rc = dds_delete (dom_sub);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   rc = dds_delete (dom_pub);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 }

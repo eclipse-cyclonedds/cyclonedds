@@ -122,17 +122,17 @@ static void init_domain_pp (bool pp_secure, bool exp_pp_fail,
       { NULL, NULL, 0 }
     };
     conf = ddsrt_expand_vars_sh (config, &expand_lookup_vars_env, config_vars);
-    CU_ASSERT_EQUAL_FATAL (expand_lookup_unmatched (config_vars), 0);
+    CU_ASSERT_EQ_FATAL (expand_lookup_unmatched (config_vars), 0);
   }
   else
   {
     struct kvp config_vars[] = { { NULL, NULL, 0 } };
     conf = ddsrt_expand_vars_sh (config_non_secure, &expand_lookup_vars_env, config_vars);
-    CU_ASSERT_EQUAL_FATAL (expand_lookup_unmatched (config_vars), 0);
+    CU_ASSERT_EQ_FATAL (expand_lookup_unmatched (config_vars), 0);
   }
   *domain = dds_create_domain (domain_id, conf);
   *pp = dds_create_participant (domain_id, NULL, NULL);
-  CU_ASSERT_EQUAL_FATAL (exp_pp_fail, *pp <= 0);
+  CU_ASSERT_EQ_FATAL (exp_pp_fail, *pp <= 0);
   ddsrt_free (conf);
 }
 
@@ -148,11 +148,11 @@ static void authentication_init(
 static void authentication_fini(bool delete_pp1, bool delete_pp2, void * res[], size_t nres)
 {
   if (delete_pp1)
-    CU_ASSERT_EQUAL_FATAL (dds_delete (g_participant1), DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (dds_delete (g_participant1), DDS_RETCODE_OK);
   if (delete_pp2)
-    CU_ASSERT_EQUAL_FATAL (dds_delete (g_participant2), DDS_RETCODE_OK);
-  CU_ASSERT_EQUAL_FATAL (dds_delete (g_domain1), DDS_RETCODE_OK);
-  CU_ASSERT_EQUAL_FATAL (dds_delete (g_domain2), DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (dds_delete (g_participant2), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_delete (g_domain1), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_delete (g_domain2), DDS_RETCODE_OK);
   if (res != NULL)
   {
     for (size_t i = 0; i < nres; i++)

@@ -220,7 +220,7 @@ static void create_fake_proxy_participant (void)
   struct ddsi_proxy_participant *proxypp;
   ddsi_thread_state_awake (thrst, &gv);
   proxypp = ddsi_entidx_lookup_proxy_participant_guid (gv.entity_index, &proxypp_guid);
-  CU_ASSERT_FATAL (proxypp != NULL);
+  CU_ASSERT_NEQ_FATAL (proxypp, NULL);
   ddsi_thread_state_asleep (thrst);
 
   // No risk of a GUID collision: the fake proxy participant uses a different
@@ -233,7 +233,7 @@ static void create_fake_proxy_participant (void)
   dds_return_t ret = ddsi_new_participant (&ppguid, &gv, 0, &plist);
   ddsi_thread_state_asleep (thrst);
   ddsi_plist_fini (&plist);
-  CU_ASSERT_FATAL (ret == 0);
+  CU_ASSERT_EQ_FATAL (ret, 0);
 }
 
 static void send_pmd_message (uint32_t seqlo, uint16_t encoding, uint16_t options, uint32_t kind, uint32_t seq_length, uint32_t act_payload_size, bool msg_is_valid)
