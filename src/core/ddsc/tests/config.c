@@ -25,6 +25,11 @@
 
 #define FORCE_ENV
 
+static void ddsrt_init_noret(void)
+{
+  (void)ddsrt_init();
+}
+
 static void config__check_env (const char *env_variable, const char *expected_value)
 {
   const char *env_uri = NULL;
@@ -52,7 +57,7 @@ static void config__check_env (const char *env_variable, const char *expected_va
 #endif /* FORCE_ENV */
 }
 
-CU_Test (ddsc_config, simple_udp, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test (ddsc_config, simple_udp, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t participant;
   config__check_env ("CYCLONEDDS_URI", CONFIG_ENV_SIMPLE_UDP);
@@ -62,7 +67,7 @@ CU_Test (ddsc_config, simple_udp, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_delete (participant);
 }
 
-CU_Test (ddsc_config, user_config, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test (ddsc_config, user_config, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain;
   domain = dds_create_domain (1,
@@ -83,7 +88,7 @@ CU_Test (ddsc_config, user_config, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_delete (domain);
 }
 
-CU_Test (ddsc_config, ignoredpartition, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test (ddsc_config, ignoredpartition, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
 #ifndef DDS_HAS_NETWORK_PARTITIONS
   CU_PASS("no network partitions in build");
@@ -273,7 +278,7 @@ static void logger(void *ptr, const dds_log_data_t *data)
   }
 }
 
-CU_Test(ddsc_security_config, empty, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddsc_security_config, empty, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   /* Expected traces when creating participant with an empty security element.  We need to
      test this one here to be sure that it refuses to start when security is configured
@@ -313,7 +318,7 @@ CU_Test(ddsc_security_config, empty, .init = ddsrt_init, .fini = ddsrt_fini)
 #endif
 }
 
-CU_Test(ddsc_security_qos, empty, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddsc_security_qos, empty, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   /* Expected traces when creating participant with some (not all) security QoS
      settings.  We need to test this one here to be sure that it also refuses to
@@ -353,7 +358,7 @@ CU_Test(ddsc_security_qos, empty, .init = ddsrt_init, .fini = ddsrt_fini)
 #endif
 }
 
-CU_Test(ddsc_config, invalid_envvar, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddsc_config, invalid_envvar, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   const char *log_expected[] = {
     "*invalid expansion*",
@@ -379,7 +384,7 @@ CU_Test(ddsc_config, invalid_envvar, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_set_trace_sink (NULL, NULL);
 }
 
-CU_Test(ddsc_config, too_deep_nesting, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddsc_config, too_deep_nesting, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   const char *log_expected[] = {
     "*too deeply nested*",
@@ -399,7 +404,7 @@ CU_Test(ddsc_config, too_deep_nesting, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_set_trace_sink (NULL, NULL);
 }
 
-CU_Test(ddsc_config, multiple_domains, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddsc_config, multiple_domains, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   static const char *config = "\
 <CycloneDDS>\

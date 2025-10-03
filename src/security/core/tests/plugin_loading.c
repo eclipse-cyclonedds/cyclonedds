@@ -56,7 +56,12 @@ static void reset_logger(void)
   dds_set_trace_sink(NULL, NULL);
 }
 
-CU_Test(ddssec_security_plugin_loading, all_ok, .init = ddsrt_init, .fini = ddsrt_fini)
+static void ddsrt_init_noret(void)
+{
+  (void)ddsrt_init();
+}
+
+CU_Test(ddssec_security_plugin_loading, all_ok, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   const char *log_expected[] = {
@@ -102,7 +107,7 @@ CU_Test(ddssec_security_plugin_loading, all_ok, .init = ddsrt_init, .fini = ddsr
   CU_ASSERT_FATAL(found == 0x1);
 }
 
-CU_Test(ddssec_security_plugin_loading, missing_finalize, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_security_plugin_loading, missing_finalize, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   const char *log_expected[] = {
@@ -148,7 +153,7 @@ CU_Test(ddssec_security_plugin_loading, missing_finalize, .init = ddsrt_init, .f
   CU_ASSERT_FATAL(found == 0x3);
 }
 
-CU_Test(ddssec_security_plugin_loading, authentication_missing_function, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_security_plugin_loading, authentication_missing_function, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   const char *log_expected[] = {
@@ -194,7 +199,7 @@ CU_Test(ddssec_security_plugin_loading, authentication_missing_function, .init =
   CU_ASSERT_FATAL(found == 0x3);
 }
 
-CU_Test(ddssec_security_plugin_loading, access_control_missing_function, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_security_plugin_loading, access_control_missing_function, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   const char *log_expected[] = {
@@ -240,7 +245,7 @@ CU_Test(ddssec_security_plugin_loading, access_control_missing_function, .init =
   CU_ASSERT_FATAL(found == 0x3);
 }
 
-CU_Test(ddssec_security_plugin_loading, cryptography_missing_function, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_security_plugin_loading, cryptography_missing_function, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   const char *log_expected[] = {
@@ -286,7 +291,7 @@ CU_Test(ddssec_security_plugin_loading, cryptography_missing_function, .init = d
   CU_ASSERT_FATAL(found == 0x3);
 }
 
-CU_Test(ddssec_security_plugin_loading, no_library_in_path, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_security_plugin_loading, no_library_in_path, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   const char *log_expected[] = {
@@ -335,7 +340,7 @@ CU_Test(ddssec_security_plugin_loading, no_library_in_path, .init = ddsrt_init, 
   CU_ASSERT_FATAL(found == 0x19 || found == 0x1a || found == 0x1c);
 }
 
-CU_Test(ddssec_security_plugin_loading, init_error, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_security_plugin_loading, init_error, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   const char *log_expected[] = {
@@ -382,7 +387,7 @@ CU_Test(ddssec_security_plugin_loading, init_error, .init = ddsrt_init, .fini = 
   CU_ASSERT_FATAL(found == 0x7);
 }
 
-CU_Test(ddssec_security_plugin_loading, all_ok_with_props, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_security_plugin_loading, all_ok_with_props, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   dds_qos_t *qos;
@@ -429,7 +434,7 @@ CU_Test(ddssec_security_plugin_loading, all_ok_with_props, .init = ddsrt_init, .
   CU_ASSERT_FATAL(found == 0x1);
 }
 
-CU_Test(ddssec_security_plugin_loading, missing_plugin_property_with_props, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_security_plugin_loading, missing_plugin_property_with_props, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   dds_qos_t *qos;
@@ -476,7 +481,7 @@ CU_Test(ddssec_security_plugin_loading, missing_plugin_property_with_props, .ini
   CU_ASSERT_FATAL(found == 0x3);
 }
 
-CU_Test(ddssec_security_plugin_loading, empty_plugin_property_with_props, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_security_plugin_loading, empty_plugin_property_with_props, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   dds_qos_t *qos;
@@ -523,7 +528,7 @@ CU_Test(ddssec_security_plugin_loading, empty_plugin_property_with_props, .init 
   CU_ASSERT_FATAL(found == 0x3);
 }
 
-CU_Test(ddssec_security_plugin_loading, missing_security_property_with_props, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_security_plugin_loading, missing_security_property_with_props, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   dds_qos_t *qos;
@@ -570,7 +575,7 @@ CU_Test(ddssec_security_plugin_loading, missing_security_property_with_props, .i
   CU_ASSERT_FATAL(found == 0x3);
 }
 
-CU_Test(ddssec_security_plugin_loading, multiple_domains_different_config, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_security_plugin_loading, multiple_domains_different_config, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain1, domain2, participant1, participant2, participant3;
   dds_qos_t *qos;
