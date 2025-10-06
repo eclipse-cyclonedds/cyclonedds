@@ -324,7 +324,7 @@ static BIO *load_file_into_BIO (const char *filename, DDS_Security_SecurityExcep
   // Try reading before testing remain: that way the EOF flag will always get set
   // if indeed we do read to the end of the file
   size_t remain = (size_t) max;
-  while ((n = fread (tmp, 1, sizeof (tmp), fp)) > 0 && remain > 0)
+  while (!(feof (fp) || ferror (fp)) && (n = fread (tmp, 1, sizeof (tmp), fp)) > 0 && remain > 0)
   {
     if (!BIO_write (bio, tmp, (int) n))
     {
@@ -334,7 +334,7 @@ static BIO *load_file_into_BIO (const char *filename, DDS_Security_SecurityExcep
     // protect against truncation while reading
     remain -= (n <= remain) ? n : remain;
   }
-  if (!feof (fp))
+  if (!feof (fp) || ferror (fp))
   {
     DDS_Security_Exception_set (ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "load_X509_certificate_from_file: read from failed");
     goto err_fread;
