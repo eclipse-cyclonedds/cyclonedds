@@ -62,7 +62,7 @@ extern "C" {
 #if defined(_MSC_VER)
 # define DDSRT_WARNING_MSVC_OFF(x) \
     __pragma (warning(push)) \
-    __pragma (warning(disable: ## x))
+    __pragma (warning(disable: x))
 # define DDSRT_WARNING_MSVC_ON(x) \
     __pragma (warning(pop))
 #else
