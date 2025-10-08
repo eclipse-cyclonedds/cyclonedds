@@ -25,6 +25,7 @@ idlc_generate(TARGET CdrStreamOptimize FILES CdrStreamOptimize.idl WARNINGS no-i
 idlc_generate(TARGET CdrStreamSkipDefault FILES CdrStreamSkipDefault.idl)
 idlc_generate(TARGET CdrStreamKeySize FILES CdrStreamKeySize.idl)
 idlc_generate(TARGET CdrStreamKeyExt FILES CdrStreamKeyExt.idl)
+idlc_generate(TARGET CdrStreamKeyFlags FILES CdrStreamKeyFlags.idl)
 idlc_generate(TARGET CdrStreamChecking FILES CdrStreamChecking.idl)
 idlc_generate(TARGET CdrStreamWstring FILES CdrStreamWstring.idl)
 idlc_generate(TARGET CdrStreamParamHeader FILES CdrStreamParamHeader.idl)
@@ -194,6 +195,7 @@ target_link_libraries(cunit_ddsc PRIVATE
   Array100
   CdrStreamKeySize
   CdrStreamKeyExt
+  CdrStreamKeyFlags
   SerdataData
   ddsc
 )
