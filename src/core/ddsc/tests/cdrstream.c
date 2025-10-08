@@ -30,6 +30,7 @@
 #include "CdrStreamSkipDefault.h"
 #include "CdrStreamKeySize.h"
 #include "CdrStreamKeyExt.h"
+#include "CdrStreamKeyFlags.h"
 #include "CdrStreamDataTypeInfo.h"
 #include "CdrStreamChecking.h"
 #include "CdrStreamWstring.h"
@@ -1539,6 +1540,27 @@ CU_Test(ddsc_cdrstream, key_flags_ext)
     uint32_t key_flags = dds_stream_key_flags (&desc, NULL, NULL);
     CU_ASSERT_EQ_FATAL ((key_flags & DDS_TOPIC_KEY_APPENDABLE) != 0, tests[i].key_appendable);
     CU_ASSERT_EQ_FATAL ((key_flags & DDS_TOPIC_KEY_MUTABLE) != 0, tests[i].key_mutable);
+    dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+  }
+}
+#undef D
+
+#define D(n) (&CdrStreamKeyFlags_ ## n ## _desc)
+CU_Test(ddsc_cdrstream, key_flags_various)
+{
+  static const struct {
+    const dds_topic_descriptor_t *desc;
+    bool key_array_non_prim;
+  } tests[] = {
+    { D(t1), true },
+  };
+
+  for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++) {
+    printf ("running test for type: %s\n", tests[i].desc->m_typename);
+    struct dds_cdrstream_desc desc;
+    dds_cdrstream_desc_from_topic_desc (&desc, tests[i].desc);
+    uint32_t key_flags = dds_stream_key_flags (&desc, NULL, NULL);
+    CU_ASSERT_EQ_FATAL ((key_flags & DDS_TOPIC_KEY_ARRAY_NONPRIM) != 0, tests[i].key_array_non_prim);
     dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
   }
 }
