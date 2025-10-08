@@ -674,7 +674,7 @@ void ddsi_writer_clear_retransmitting (struct ddsi_writer *wr)
   wr->retransmitting = 0;
   wr->t_whc_high_upd = wr->t_rexmit_end = ddsrt_time_elapsed();
   wr->time_retransmit += (uint64_t) (wr->t_rexmit_end.v - wr->t_rexmit_start.v);
-  ddsrt_cond_broadcast (&wr->throttle_cond);
+  ddsrt_cond_mtime_broadcast (&wr->throttle_cond);
 }
 
 unsigned ddsi_remove_acked_messages (struct ddsi_writer *wr, struct ddsi_whc_state *whcst, struct ddsi_whc_node **deferred_free_list)
@@ -684,7 +684,7 @@ unsigned ddsi_remove_acked_messages (struct ddsi_writer *wr, struct ddsi_whc_sta
   ASSERT_MUTEX_HELD (&wr->e.lock);
   n = ddsi_whc_remove_acked_messages (wr->whc, ddsi_writer_max_drop_seq (wr), whcst, deferred_free_list);
   /* trigger anyone waiting in throttle_writer() or wait_for_acks() */
-  ddsrt_cond_broadcast (&wr->throttle_cond);
+  ddsrt_cond_mtime_broadcast (&wr->throttle_cond);
   if (wr->retransmitting && whcst->unacked_bytes == 0)
     ddsi_writer_clear_retransmitting (wr);
   if (wr->state == WRST_LINGERING && whcst->unacked_bytes == 0)
@@ -784,7 +784,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
 
-  ddsrt_cond_init (&wr->throttle_cond);
+  ddsrt_cond_mtime_init (&wr->throttle_cond);
   wr->seq = 0;
   ddsrt_atomic_st64 (&wr->seq_xmit, (uint64_t) 0);
   wr->hbcount = 1;
@@ -806,6 +806,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
   wr->rexmit_count = 0;
   wr->rexmit_lost_count = 0;
   wr->rexmit_bytes = 0;
+  wr->sent_bytes = 0;
   wr->time_throttled = 0;
   wr->time_retransmit = 0;
   wr->force_md5_keyhash = 0;
@@ -1152,7 +1153,7 @@ static void gc_delete_writer (struct ddsi_gcreq *gcreq)
   ddsi_xqos_fini (wr->xqos);
   ddsrt_free (wr->xqos);
   ddsi_local_reader_ary_fini (&wr->rdary);
-  ddsrt_cond_destroy (&wr->throttle_cond);
+  ddsrt_cond_mtime_destroy (&wr->throttle_cond);
 
   ddsi_sertype_unref ((struct ddsi_sertype *) wr->type);
   endpoint_common_fini (&wr->e, &wr->c);
@@ -1167,7 +1168,7 @@ static void gc_delete_writer_throttlewait (struct ddsi_gcreq *gcreq)
   assert (wr->state == WRST_DELETING);
   ddsrt_mutex_lock (&wr->e.lock);
   while (wr->throttling)
-    ddsrt_cond_wait (&wr->throttle_cond, &wr->e.lock);
+    ddsrt_cond_mtime_wait (&wr->throttle_cond, &wr->e.lock);
   ddsrt_mutex_unlock (&wr->e.lock);
   ddsi_gcreq_requeue (gcreq, gc_delete_writer);
 }
@@ -1193,7 +1194,7 @@ static void writer_set_state (struct ddsi_writer *wr, enum ddsi_writer_state new
        write() is a problem because it prevents the gc thread from
        cleaning up the writer.  (Note: late assignment to wr->state is
        ok, 'tis all protected by the writer lock.) */
-    ddsrt_cond_broadcast (&wr->throttle_cond);
+    ddsrt_cond_mtime_broadcast (&wr->throttle_cond);
   }
   wr->state = newstate;
 }
@@ -1214,7 +1215,7 @@ dds_return_t ddsi_unblock_throttled_writer (struct ddsi_domaingv *gv, const stru
   return 0;
 }
 
-dds_return_t ddsi_writer_wait_for_acks (struct ddsi_writer *wr, const ddsi_guid_t *rdguid, dds_time_t abstimeout)
+dds_return_t ddsi_writer_wait_for_acks (struct ddsi_writer *wr, const ddsi_guid_t *rdguid, ddsrt_mtime_t abstimeout)
 {
   dds_return_t rc;
   ddsi_seqno_t ref_seq;
@@ -1223,7 +1224,7 @@ dds_return_t ddsi_writer_wait_for_acks (struct ddsi_writer *wr, const ddsi_guid_
   if (rdguid == NULL)
   {
     while (wr->state == WRST_OPERATIONAL && ref_seq > ddsi_writer_max_drop_seq (wr))
-      if (!ddsrt_cond_waituntil (&wr->throttle_cond, &wr->e.lock, abstimeout))
+      if (!ddsrt_cond_mtime_waituntil (&wr->throttle_cond, &wr->e.lock, abstimeout))
         break;
     rc = (ref_seq <= ddsi_writer_max_drop_seq (wr)) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
   }
@@ -1232,7 +1233,7 @@ dds_return_t ddsi_writer_wait_for_acks (struct ddsi_writer *wr, const ddsi_guid_
     struct ddsi_wr_prd_match *m = ddsrt_avl_lookup (&ddsi_wr_readers_treedef, &wr->readers, rdguid);
     while (wr->state == WRST_OPERATIONAL && m && ref_seq > m->seq)
     {
-      if (!ddsrt_cond_waituntil (&wr->throttle_cond, &wr->e.lock, abstimeout))
+      if (!ddsrt_cond_mtime_waituntil (&wr->throttle_cond, &wr->e.lock, abstimeout))
         break;
       m = ddsrt_avl_lookup (&ddsi_wr_readers_treedef, &wr->readers, rdguid);
     }
@@ -1261,28 +1262,32 @@ static dds_return_t delete_writer_nolinger_locked (struct ddsi_writer *wr)
   }
 
   ELOGDISC (wr, "ddsi_delete_writer_nolinger(guid "PGUIDFMT") ...\n", PGUID (wr->e.guid));
-  ddsi_builtintopic_write_endpoint (wr->e.gv->builtin_topic_interface, &wr->e, ddsrt_time_wallclock(), false);
-  ddsi_local_reader_ary_setinvalid (&wr->rdary);
-  ddsi_entidx_remove_writer_guid (wr->e.gv->entity_index, wr);
-  writer_set_state (wr, WRST_DELETING);
-  if (wr->lease_duration != NULL) {
-    wr->lease_duration->ldur = DDS_DURATION_INVALID;
-    if (wr->xqos->liveliness.kind == DDS_LIVELINESS_AUTOMATIC)
-    {
-      ddsrt_mutex_lock (&wr->c.pp->e.lock);
-      ddsrt_fibheap_delete (&ddsi_ldur_fhdef, &wr->c.pp->ldur_auto_wr, wr->lease_duration);
-      ddsrt_mutex_unlock (&wr->c.pp->e.lock);
-      ddsi_resched_xevent_if_earlier (wr->c.pp->pmd_update_xevent, ddsrt_time_monotonic ());
+  struct ddsi_writer * const tryremove_result = ddsi_entidx_tryremove_writer_guid (wr->e.gv->entity_index, &wr->e.guid);
+  assert (tryremove_result == NULL || tryremove_result == wr);
+  if (tryremove_result != NULL)
+  {
+    ddsi_builtintopic_write_endpoint (wr->e.gv->builtin_topic_interface, &wr->e, ddsrt_time_wallclock(), false);
+    ddsi_local_reader_ary_setinvalid (&wr->rdary);
+    writer_set_state (wr, WRST_DELETING);
+    if (wr->lease_duration != NULL) {
+      wr->lease_duration->ldur = DDS_DURATION_INVALID;
+      if (wr->xqos->liveliness.kind == DDS_LIVELINESS_AUTOMATIC)
+      {
+        ddsrt_mutex_lock (&wr->c.pp->e.lock);
+        ddsrt_fibheap_delete (&ddsi_ldur_fhdef, &wr->c.pp->ldur_auto_wr, wr->lease_duration);
+        ddsrt_mutex_unlock (&wr->c.pp->e.lock);
+        ddsi_resched_xevent_if_earlier (wr->c.pp->pmd_update_xevent, ddsrt_time_monotonic ());
+      }
+      else
+      {
+        if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
+          ddsi_lease_unregister (wr->lease);
+        if (writer_set_notalive_locked (wr, false) != DDS_RETCODE_OK)
+          ELOGDISC (wr, "writer_set_notalive failed for "PGUIDFMT"\n", PGUID (wr->e.guid));
+      }
     }
-    else
-    {
-      if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
-        ddsi_lease_unregister (wr->lease);
-      if (writer_set_notalive_locked (wr, false) != DDS_RETCODE_OK)
-        ELOGDISC (wr, "writer_set_notalive failed for "PGUIDFMT"\n", PGUID (wr->e.guid));
-    }
+    gcreq_writer (wr);
   }
-  gcreq_writer (wr);
   return 0;
 }
 
@@ -1530,6 +1535,7 @@ dds_return_t ddsi_new_reader (struct ddsi_reader **rd_out, const struct ddsi_gui
   rd->status_cb = status_cb;
   rd->status_cb_entity = status_entity;
   rd->rhc = rhc;
+  ddsrt_atomic_st64 (&rd->received_bytes, (uint64_t) 0);
   /* set rhc qos for reader */
   if (rhc)
   {
@@ -1629,14 +1635,13 @@ dds_return_t ddsi_delete_reader (struct ddsi_domaingv *gv, const struct ddsi_gui
 {
   struct ddsi_reader *rd;
   assert (!ddsi_is_writer_entityid (guid->entityid));
-  if ((rd = ddsi_entidx_lookup_reader_guid (gv->entity_index, guid)) == NULL)
+  if ((rd = ddsi_entidx_tryremove_reader_guid (gv->entity_index, guid)) == NULL)
   {
     GVLOGDISC ("delete_reader_guid(guid "PGUIDFMT") - unknown guid\n", PGUID (*guid));
     return DDS_RETCODE_BAD_PARAMETER;
   }
   GVLOGDISC ("delete_reader_guid(guid "PGUIDFMT") ...\n", PGUID (*guid));
   ddsi_builtintopic_write_endpoint (rd->e.gv->builtin_topic_interface, &rd->e, ddsrt_time_wallclock(), false);
-  ddsi_entidx_remove_reader_guid (gv->entity_index, rd);
   gcreq_reader (rd);
   return 0;
 }

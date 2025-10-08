@@ -286,6 +286,7 @@ static void print_reader (struct st *st, void *varg)
   if (r->uc_as || r->mc_as)
     cpfobj (st, print_nwpart_seq, r);
 #endif
+  cpfku64 (st, "received_bytes", ddsrt_atomic_ld64(&r->received_bytes));
   cpfkseq (st, "local_writers", print_reader_wrseq, r);
   cpfkseq (st, "proxy_writers", print_reader_pwrseq, r);
   ddsrt_mutex_unlock (&r->e.lock);
@@ -375,6 +376,7 @@ static void print_writer (struct st *st, void *varg)
     cpfkobj (st, "ack", print_writer_ack, w);
   }
   cpfku64 (st, "rexmit_bytes", w->rexmit_bytes);
+  cpfku64 (st, "sent_bytes", w->sent_bytes);
   cpfku32 (st, "throttle_count", w->throttle_count);
   cpfku64 (st, "time_throttled", w->time_throttled);
   cpfku64 (st, "time_retransmit", w->time_retransmit);

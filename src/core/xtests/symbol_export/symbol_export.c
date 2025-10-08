@@ -30,6 +30,7 @@
 #include "dds/ddsrt/random.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/log.h"
+#include "dds/ddsrt/machineid.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
@@ -935,10 +936,26 @@ int main (int argc, char **argv)
   ddsrt_cond_init (ptr);
   ddsrt_cond_destroy (ptr);
   ddsrt_cond_wait (ptr,ptr);
-  ddsrt_cond_waituntil (ptr, ptr, 0);
-  ddsrt_cond_waitfor (ptr, ptr, 0);
   ddsrt_cond_signal (ptr);
   ddsrt_cond_broadcast (ptr);
+  ddsrt_cond_wctime_init (ptr);
+  ddsrt_cond_wctime_destroy (ptr);
+  ddsrt_cond_wctime_wait (ptr,ptr);
+  ddsrt_cond_wctime_waituntil (ptr, ptr, (ddsrt_wctime_t){0});
+  ddsrt_cond_wctime_signal (ptr);
+  ddsrt_cond_wctime_broadcast (ptr);
+  ddsrt_cond_mtime_init (ptr);
+  ddsrt_cond_mtime_destroy (ptr);
+  ddsrt_cond_mtime_wait (ptr,ptr);
+  ddsrt_cond_mtime_waituntil (ptr, ptr, (ddsrt_mtime_t){0});
+  ddsrt_cond_mtime_signal (ptr);
+  ddsrt_cond_mtime_broadcast (ptr);
+  ddsrt_cond_etime_init (ptr);
+  ddsrt_cond_etime_destroy (ptr);
+  ddsrt_cond_etime_wait (ptr,ptr);
+  ddsrt_cond_etime_waituntil (ptr, ptr, (ddsrt_etime_t){0});
+  ddsrt_cond_etime_signal (ptr);
+  ddsrt_cond_etime_broadcast (ptr);
   ddsrt_rwlock_init (ptr);
   ddsrt_rwlock_destroy (ptr);
   ddsrt_rwlock_read (ptr);
@@ -985,6 +1002,7 @@ int main (int argc, char **argv)
   ddsrt_time_wallclock ();
   ddsrt_time_monotonic ();
   ddsrt_time_elapsed ();
+  ddsrt_time_highres ();
   ddsrt_ctime (0, ptr, 0);
   ddsrt_time_add_duration (0, 0);
   ddsrt_mtime_add_duration (mt, 0);
@@ -1167,6 +1185,9 @@ int main (int argc, char **argv)
   ddsrt_xmlp_get_bufpos (ptr);
   ddsrt_xmlp_free (ptr);
   ddsrt_xmlp_parse (ptr);
+
+  // ddsrt/machineid.h
+  ddsrt_get_machineid (ptr);
 
 #if DDSRT_HAVE_FILESYSTEM
   // ddsrt/filesystem.h

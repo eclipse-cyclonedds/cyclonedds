@@ -63,6 +63,14 @@ static dds_return_t validate_qos (dds_qos_t *qos, const char *qos_location)
     }
     free_partitions (n_partitions, partitions);
   }
+  if (qos->present & DDSI_QP_ADLINK_ENTITY_FACTORY)
+  {
+    if (!qos->entity_factory.autoenable_created_entities)
+    {
+      SYSDEF_ERROR ("Disabling created entities using entity_factory not supported (%s)\n", qos_location);
+      goto failed;
+    }
+  }
   return DDS_RETCODE_OK;
 
 failed:

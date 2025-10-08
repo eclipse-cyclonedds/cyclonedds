@@ -34,7 +34,7 @@ void dds_writer_status_cb (void *entity, const struct ddsi_status_cb_data * data
 void dds_writer_invoke_cbs_for_pending_events(struct dds_entity *e, uint32_t status);
 
 /** @component writer */
-dds_return_t dds__ddsi_writer_wait_for_acks (struct dds_writer *wr, ddsi_guid_t *rdguid, dds_time_t abstimeout);
+dds_return_t dds__ddsi_writer_wait_for_acks (struct dds_writer *wr, ddsi_guid_t *rdguid, ddsrt_mtime_t abstimeout);
 
 /** @component writer */
 dds_return_t dds_request_writer_loan (dds_writer *wr, enum dds_writer_loan_type loan_type, uint32_t sz, void **sample)

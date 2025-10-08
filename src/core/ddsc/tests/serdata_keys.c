@@ -29,9 +29,9 @@ static dds_entity_t create_pp (dds_domainid_t domain_id)
 {
   char *conf = ddsrt_expand_envvars(DDS_CONFIG, domain_id);
   dds_entity_t domain = dds_create_domain (domain_id, conf);
-  CU_ASSERT_FATAL (domain >= 0);
+  CU_ASSERT_GEQ_FATAL (domain, 0);
   dds_entity_t participant = dds_create_participant (domain_id, NULL, NULL);
-  CU_ASSERT_FATAL (participant >= 0);
+  CU_ASSERT_GEQ_FATAL (participant, 0);
   ddsrt_free (conf);
   return participant;
 }
@@ -64,11 +64,11 @@ static void do_test_key_write_xcdrv (const dds_topic_descriptor_t *desc, size_t 
   dds_return_t ret;
 
   ret = dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
-  CU_ASSERT_FATAL (ret == 0);
+  CU_ASSERT_EQ_FATAL (ret, 0);
   dds_entity_t ws = dds_create_waitset (participant1);
-  CU_ASSERT_FATAL (ws >= 0);
+  CU_ASSERT_GEQ_FATAL (ws, 0);
   ret = dds_waitset_attach (ws, rd, 0);
-  CU_ASSERT_FATAL (ret == 0);
+  CU_ASSERT_EQ_FATAL (ret, 0);
 
   // Write data (checks key-from-sample and key-from-data)
   dds_write (wr1, sample);
@@ -78,22 +78,22 @@ static void do_test_key_write_xcdrv (const dds_topic_descriptor_t *desc, size_t 
   samples[0] = NULL;
 
   ret = dds_waitset_wait (ws, NULL, 0, DDS_INFINITY);
-  CU_ASSERT_FATAL (ret >= 0);
+  CU_ASSERT_GEQ_FATAL (ret, 0);
 
   uint32_t n_data = 0;
   dds_instance_handle_t ih = 0;
   while (n_data < 2)
   {
     dds_return_t n = dds_take (rd, samples, sample_info, 2, 2);
-    CU_ASSERT_FATAL (n >= 0);
+    CU_ASSERT_GEQ_FATAL (n, 0);
     n_data += (uint32_t) n;
     for (int32_t m = 0; m < n; m++)
     {
-      CU_ASSERT_FATAL (sample_info[m].valid_data);
+      CU_ASSERT_NEQ_FATAL (sample_info[m].valid_data, 0);
       if (ih == 0)
         ih = sample_info[m].instance_handle;
       else
-        CU_ASSERT_EQUAL_FATAL (ih, sample_info[m].instance_handle);
+        CU_ASSERT_EQ_FATAL (ih, sample_info[m].instance_handle);
     }
     dds_return_loan (rd, samples, n);
     dds_sleepfor (DDS_MSECS (10));
@@ -102,12 +102,12 @@ static void do_test_key_write_xcdrv (const dds_topic_descriptor_t *desc, size_t 
   // Dispose (checks key-from-sample and key-from-key)
   dds_dispose (wr1, sample);
   ret = dds_waitset_wait (ws, NULL, 0, DDS_INFINITY);
-  CU_ASSERT_FATAL (ret >= 0);
+  CU_ASSERT_GEQ_FATAL (ret, 0);
 
   // take the dispose and store its instance handle
   samples[0] = NULL;
   ret = dds_take (rd, samples, sample_info, 1, 1);
-  CU_ASSERT_EQUAL_FATAL (ret, 1);
+  CU_ASSERT_EQ_FATAL (ret, 1);
   ih = sample_info[0].instance_handle;
   CU_ASSERT_FATAL (!sample_info[0].valid_data);
   dds_return_loan (rd, samples, ret);
@@ -115,21 +115,21 @@ static void do_test_key_write_xcdrv (const dds_topic_descriptor_t *desc, size_t 
   // write a sample to make the instance alive again
   dds_write (wr2, sample);
   ret = dds_waitset_wait (ws, NULL, 0, DDS_INFINITY);
-  CU_ASSERT_FATAL (ret >= 0);
+  CU_ASSERT_GEQ_FATAL (ret, 0);
   samples[0] = NULL;
   ret = dds_take (rd, samples, sample_info, 1, 1);
-  CU_ASSERT_EQUAL_FATAL (ret, 1);
+  CU_ASSERT_EQ_FATAL (ret, 1);
   dds_return_loan (rd, samples, ret);
 
   // dispose from wr2 and take the dispose
   dds_dispose (wr2, sample);
   ret = dds_waitset_wait (ws, NULL, 0, DDS_INFINITY);
-  CU_ASSERT_FATAL (ret >= 0);
+  CU_ASSERT_GEQ_FATAL (ret, 0);
   samples[0] = NULL;
   ret = dds_take (rd, samples, sample_info, 1, 1);
-  CU_ASSERT_EQUAL_FATAL (ret, 1);
+  CU_ASSERT_EQ_FATAL (ret, 1);
   CU_ASSERT_FATAL (!sample_info[0].valid_data);
-  CU_ASSERT_EQUAL_FATAL (ih, sample_info[0].instance_handle);
+  CU_ASSERT_EQ_FATAL (ih, sample_info[0].instance_handle);
   dds_return_loan (rd, samples, ret);
 
   // Cleanup
@@ -163,6 +163,7 @@ CU_Test(ddsc_serdata, key_write_xcdrv)
 
 #define T_INIT_SIMPLE(t) static void *init_ ## t (void) { \
   t *sample = ddsrt_malloc (sizeof (*sample)); \
+  memset (sample, 0, sizeof (*sample)); \
   sample->a = 1; \
   sample->b = 2; \
   sample->c = 3; \
@@ -177,6 +178,7 @@ T_INIT_SIMPLE(SerdataKeyOrderMutable)
 
 #define T_INIT_NESTED(t) static void *init_ ## t (void) { \
   t *sample = ddsrt_malloc (sizeof (*sample)); \
+  memset (sample, 0, sizeof (*sample)); \
   sample->x = 10; \
   sample->y = 20; \
   sample->z.a = 1; \
@@ -186,14 +188,30 @@ T_INIT_SIMPLE(SerdataKeyOrderMutable)
 }
 
 T_INIT_NESTED(SerdataKeyOrderFinalNestedMutable)
+T_INIT_NESTED(SerdataKeyOrderFinalNestedNonKeyMutable)
 T_INIT_NESTED(SerdataKeyOrderAppendableNestedMutable)
 T_INIT_NESTED(SerdataKeyOrderMutableNestedMutable)
 T_INIT_NESTED(SerdataKeyOrderMutableNestedAppendable)
 T_INIT_NESTED(SerdataKeyOrderMutableNestedFinal)
 
+static void *init_SerdataKeyOrderFinalNestedNonKeyAppendable (void)
+{
+  SerdataKeyOrderFinalNestedNonKeyAppendable *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
+  sample->x = 10;
+  sample->y = 20;
+  sample->z = ddsrt_malloc (sizeof (*sample->z));
+  memset (sample->z, 0, sizeof (*sample->z));
+  sample->z->a = 1;
+  sample->z->b = 2;
+  sample->z->c = 3;
+  return sample;
+}
+
 static void *init_SerdataKeyString (void)
 {
   SerdataKeyString *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->a = 1;
   sample->b = ddsrt_strdup ("test");
   return sample;
@@ -202,6 +220,7 @@ static void *init_SerdataKeyString (void)
 static void *init_SerdataKeyStringBounded (void)
 {
   SerdataKeyStringBounded *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->a = 1;
   ddsrt_strlcpy (sample->b, "ts", 4);
   return sample;
@@ -210,6 +229,7 @@ static void *init_SerdataKeyStringBounded (void)
 static void *init_SerdataKeyStringAppendable (void)
 {
   SerdataKeyStringAppendable *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->a = 1;
   sample->b = ddsrt_strdup ("test");
   return sample;
@@ -218,6 +238,7 @@ static void *init_SerdataKeyStringAppendable (void)
 static void *init_SerdataKeyStringBoundedAppendable (void)
 {
   SerdataKeyStringBoundedAppendable *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->a = 1;
   ddsrt_strlcpy (sample->b, "tst", 4);
   return sample;
@@ -226,6 +247,7 @@ static void *init_SerdataKeyStringBoundedAppendable (void)
 static void *init_SerdataKeyArr (void)
 {
   SerdataKeyArr *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   for (uint32_t n = 0; n < 12; n++)
     sample->a[n] = (uint8_t) n;
   return sample;
@@ -234,6 +256,7 @@ static void *init_SerdataKeyArr (void)
 static void *init_SerdataKeyArrStrBounded (void)
 {
   SerdataKeyArrStrBounded *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   for (uint32_t n = 0; n < 2; n++)
     ddsrt_strlcpy (sample->a[n], "ts", 3);
   return sample;
@@ -242,9 +265,11 @@ static void *init_SerdataKeyArrStrBounded (void)
 static void *init_SerdataKeySequence (void)
 {
   SerdataKeySequence *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->s._length = sample->s._maximum = 2;
   sample->s._release = true;
   sample->s._buffer = ddsrt_malloc (2 * sizeof (*sample->s._buffer));
+  memset (sample->s._buffer, 0, 2 * sizeof (*sample->s._buffer));
   sample->s._buffer[0] = 5;
   sample->s._buffer[1] = 6;
   return sample;
@@ -253,9 +278,11 @@ static void *init_SerdataKeySequence (void)
 static void *init_SerdataKeySequenceStruct (void)
 {
   SerdataKeySequenceStruct *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->s._length = sample->s._maximum = 2;
   sample->s._release = true;
   sample->s._buffer = ddsrt_malloc (2 * sizeof (*sample->s._buffer));
+  memset (sample->s._buffer, 0, 2 * sizeof (*sample->s._buffer));
   sample->s._buffer[0].a = 5;
   sample->s._buffer[0].b = 6;
   sample->s._buffer[1].a = 7;
@@ -266,9 +293,11 @@ static void *init_SerdataKeySequenceStruct (void)
 static void *init_SerdataKeySequenceStructAppendable (void)
 {
   SerdataKeySequenceStructAppendable *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->s._length = sample->s._maximum = 2;
   sample->s._release = true;
   sample->s._buffer = ddsrt_malloc (2 * sizeof (*sample->s._buffer));
+  memset (sample->s._buffer, 0, 2 * sizeof (*sample->s._buffer));
   sample->s._buffer[0].a = 5;
   sample->s._buffer[0].b = 6;
   sample->s._buffer[1].a = 7;
@@ -279,14 +308,17 @@ static void *init_SerdataKeySequenceStructAppendable (void)
 static void *init_SerdataKeySequenceNested (void)
 {
   SerdataKeySequenceNested *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->s._length = sample->s._maximum = 2;
   sample->s._release = true;
   sample->s._buffer = ddsrt_malloc (2 * sizeof (*sample->s._buffer));
+  memset (sample->s._buffer, 0, 2 * sizeof (*sample->s._buffer));
 
   for (int32_t i = 0; i < (int32_t) sample->s._length; i++) {
     sample->s._buffer[i]._length = sample->s._buffer[i]._maximum = 2;
     sample->s._buffer[i]._release = true;
     sample->s._buffer[i]._buffer = ddsrt_malloc (2 * sizeof (*sample->s._buffer[i]._buffer));
+    memset (sample->s._buffer[i]._buffer, 0, 2 * sizeof (*sample->s._buffer[i]._buffer));
     sample->s._buffer[i]._buffer[0] = (enum en_seq) (2 * i);
     sample->s._buffer[i]._buffer[1] = (enum en_seq) (2 * i + 1);
   }
@@ -297,6 +329,7 @@ static void *init_SerdataKeySequenceNested (void)
 static void *init_SerdataKeyNestedFinalImplicit (void)
 {
   SerdataKeyNestedFinalImplicit *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->d = (SerdataKeyNestedFinalImplicitSubtype) { .x = 1, .y = 2, .z = { .a = 3, .b = 4, .c = 5 } };
   sample->e = (SerdataKeyNestedFinalImplicitSubtype) { .x = 11, .y = 12, .z = { .a = 13, .b = 14, .c = 15 } };
   sample->f = 20;
@@ -306,6 +339,7 @@ static void *init_SerdataKeyNestedFinalImplicit (void)
 static void *init_SerdataKeyNestedFinalImplicit2 (void)
 {
   SerdataKeyNestedFinalImplicit2 *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->a = (SerdataKeyNestedFinalImplicit2Subtype1) { .c = { .e = { .x = 1, .y = 2 }, .f = { .x = 3, .y = 4 } }, .d = { .e = { .x = 5, .y = 6 }, .f = { .x = 7, .y = 8 } } };
   sample->b = (SerdataKeyNestedFinalImplicit2Subtype1) { .c = { .e = { .x = 11, .y = 12 }, .f = { .x = 13, .y = 14 } }, .d = { .e = { .x = 15, .y = 16 }, .f = { .x = 17, .y = 18 } } };
   return sample;
@@ -314,6 +348,7 @@ static void *init_SerdataKeyNestedFinalImplicit2 (void)
 static void *init_SerdataKeyNestedMutableImplicit (void)
 {
   SerdataKeyNestedMutableImplicit *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->d = (SerdataKeyNestedMutableImplicitSubtype) { .x = 1, .y = 2, .z = { .a = 3, .b = 4, .c = 5 } };
   sample->e = (SerdataKeyNestedMutableImplicitSubtype) { .x = 11, .y = 12, .z = { .a = 13, .b = 14, .c = 15 } };
   sample->f = 20;
@@ -323,6 +358,7 @@ static void *init_SerdataKeyNestedMutableImplicit (void)
 static void *init_SerdataKeyInheritMutable (void)
 {
   SerdataKeyInheritMutable *sample = ddsrt_malloc (sizeof (*sample));
+  memset (sample, 0, sizeof (*sample));
   sample->a = (SerdataKeyInheritMutableNested) { .nx = 1, .ny = 2, .nz = 3 };
   sample->b = 4;
   sample->c = 5;
@@ -362,6 +398,7 @@ static void print_check_cdr (const struct dds_serdata_default *sd, const unsigne
       printf ("%02x%s", (uint8_t) sd->data[i], ((i % 4) == 3) ? " " : "");
     printf("\n");
   }
+  fflush (stdout);
 }
 
 static void check_key_keyhash (struct dds_serdata_default *sd,
@@ -369,11 +406,11 @@ static void check_key_keyhash (struct dds_serdata_default *sd,
   const unsigned char *expected_key_keyhash, size_t expected_key_sz_keyhash)
 {
   // key in sd must be translated into XCDRv2 key, so also check when testing data representation XCDR1
-  CU_ASSERT_EQUAL (sd->key.keysize, expected_key_sz_xcdrv2);
+  CU_ASSERT_EQ ((size_t) sd->key.keysize, expected_key_sz_xcdrv2);
   int cmp_key = memcmp (serdata_default_keybuf (sd), expected_key_xcdrv2, expected_key_sz_xcdrv2);
   if (cmp_key != 0)
-    printf("** key match failed **\n");
-  CU_ASSERT_EQUAL (cmp_key, 0);
+    tprintf("** key match failed **\n");
+  CU_ASSERT_EQ (cmp_key, 0);
 
   // get and check keyhash
   struct ddsi_keyhash kh, exp_kh;
@@ -386,8 +423,8 @@ static void check_key_keyhash (struct dds_serdata_default *sd,
 
   int cmp = memcmp (kh.value, exp_kh.value, 16);
   if (cmp != 0)
-    printf("** keyhash match failed **\n");
-  CU_ASSERT_FATAL (cmp == 0);
+    tprintf("** keyhash match failed **\n");
+  CU_ASSERT_EQ_FATAL (cmp, 0);
 }
 
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
@@ -447,8 +484,9 @@ CU_Test(ddsc_serdata, key_serialization)
           1,0,0,0,0,0,0,0,SER64(3)
         }, 16,
         (raw){
-          1,0,0,0,0,0,0,0,SER64BE(3)
-        }, 16
+          SER64BE(3),1,
+          0,0,0 // padding
+        }, 9
       }, {
         MAKE_ENCHDR(CDR2),
         (raw){
@@ -473,8 +511,9 @@ CU_Test(ddsc_serdata, key_serialization)
           1,0,0,0,0,0,0,0,SER64(3)
         }, 16,
         (raw){
-          1,0,0,0,0,0,0,0,SER64BE(3)
-        }, 16
+          SER64BE(3),1,
+          0,0,0, // padding
+        }, 9
       }, {
         MAKE_ENCHDR(CDR2),
         (raw){
@@ -499,8 +538,9 @@ CU_Test(ddsc_serdata, key_serialization)
           1,0,0,0,0,0,0,0,SER64(3)
         }, 16,
         (raw){
-          1,0,0,0,0,0,0,0,SER64BE(3)
-        }, 16,
+          SER64BE(3),1,
+          0,0,0 // padding
+        }, 9
       }, {
         MAKE_ENCHDR(D_CDR2),
         (raw){
@@ -519,7 +559,22 @@ CU_Test(ddsc_serdata, key_serialization)
     },
     { &SerdataKeyOrderMutable_desc, init_SerdataKeyOrderMutable,
       { {
-        0 // not supported
+        MAKE_ENCHDR(PL_CDR),
+        (raw){
+          SER_PHDR_EXT(0,4,3),1,0,0,0,
+          SER_PHDR_EXT(0,4,2),2,0,0,0,
+          SER_PHDR_EXT(0,8,1),SER64(3),
+          SER_PHDR_END(),
+        }, 56,
+        (raw){
+          SER_PHDR_EXT(0,4,3),1,0,0,0,
+          SER_PHDR_EXT(0,8,1),SER64(3),
+          SER_PHDR_END(),
+        }, 40,
+        (raw){
+          SER64BE(3),1,
+          0,0,0 // padding
+        }, 9
       }, {
         MAKE_ENCHDR(PL_CDR2),
         (raw){
@@ -541,7 +596,25 @@ CU_Test(ddsc_serdata, key_serialization)
     },
     { &SerdataKeyOrderFinalNestedMutable_desc, init_SerdataKeyOrderFinalNestedMutable,
       { {
-        0 // not supported
+        MAKE_ENCHDR(CDR),
+        (raw){
+          10,20,0,0,
+            SER_PHDR_EXT(0,4,3),1,0,0,0,
+            SER_PHDR_EXT(0,4,2),2,0,0,0,
+            SER_PHDR_EXT(0,8,1),SER64(3),
+            SER_PHDR_END(),
+        }, 60,
+        (raw){
+          10,0,0,0,
+            SER_PHDR_EXT(0,4,3),1,0,0,0,
+            SER_PHDR_EXT(0,8,1),SER64(3),
+            SER_PHDR_END(),
+        }, 44,
+        (raw){
+          SER64BE(3),1,
+          10,
+          0,0 // padding
+        }, 10
       }, {
         MAKE_ENCHDR(CDR2),
         (raw){
@@ -564,9 +637,104 @@ CU_Test(ddsc_serdata, key_serialization)
         }, 10
       } }
     },
+    { &SerdataKeyOrderFinalNestedNonKeyMutable_desc, init_SerdataKeyOrderFinalNestedNonKeyMutable,
+      { {
+        MAKE_ENCHDR(CDR),
+        (raw){
+          10,20,0,0,
+            SER_PHDR_EXT(0,4,3),1,0,0,0,
+            SER_PHDR_EXT(0,4,2),2,0,0,0,
+            SER_PHDR_EXT(0,8,1),SER64(3),
+            SER_PHDR_END(),
+        }, 60,
+        (raw){
+          10,
+          0,0,0 // padding
+        }, 1,
+        (raw){
+          10,
+          0,0,0 // padding
+        }, 1
+      }, {
+        MAKE_ENCHDR(CDR2),
+        (raw){
+          10,20,0,0,
+            SER_DHEADER(28),
+            SER_EMHEADER(1,0,3),1,0,0,0,
+            SER_EMHEADER(0,0,2),2,0,0,0,
+            SER_EMHEADER(1,3,1),SER64(3)
+        }, 36,
+        (raw){
+          10,
+          0,0,0, // padding
+        }, 1,
+        (raw){
+          10,
+          0,0,0 // padding
+        }, 1
+      } }
+    },
+    { &SerdataKeyOrderFinalNestedNonKeyAppendable_desc, init_SerdataKeyOrderFinalNestedNonKeyAppendable,
+      { {
+        MAKE_ENCHDR(CDR),
+        (raw){
+          10,20,0,0,
+          SER_PHDR_EXT(0,16,1),
+            1,2,
+            0,0, // padding
+            0,0,0,0, // more padding because of XCDR1 alignment rules
+            SER64(3),
+        }, 32,
+        (raw){
+          10,
+          0,0,0 // padding
+        }, 1,
+        (raw){
+          10,
+          0,0,0 // padding
+        }, 1
+      }, {
+        MAKE_ENCHDR(CDR2),
+        (raw){
+          10,20,
+          1, // optional: present
+            0, // padding
+            SER_DHEADER(12),
+            1,2,
+            0,0, // padding
+            SER64(3)
+        }, 20,
+        (raw){
+          10,
+          0,0,0, // padding
+        }, 1,
+        (raw){
+          10,
+          0,0,0 // padding
+        }, 1
+      } }
+    },
     { &SerdataKeyOrderAppendableNestedMutable_desc, init_SerdataKeyOrderAppendableNestedMutable,
       { {
-        0 // not supported
+        MAKE_ENCHDR(CDR),
+        (raw){
+          10,20,0,0,
+            SER_PHDR_EXT(0,4,3),1,0,0,0,
+            SER_PHDR_EXT(0,4,2),2,0,0,0,
+            SER_PHDR_EXT(0,8,1),SER64(3),
+            SER_PHDR_END(),
+        }, 60,
+        (raw){
+          10,0,0,0,
+            SER_PHDR_EXT(0,4,3),1,0,0,0,
+            SER_PHDR_EXT(0,8,1),SER64(3),
+            SER_PHDR_END(),
+        }, 44,
+        (raw){
+          SER64BE(3),1,
+          10,
+          0,0 // padding
+        }, 10
       }, {
         MAKE_ENCHDR(D_CDR2),
         (raw){
@@ -591,7 +759,30 @@ CU_Test(ddsc_serdata, key_serialization)
     },
     { &SerdataKeyOrderMutableNestedMutable_desc, init_SerdataKeyOrderMutableNestedMutable,
       { {
-        0 // not supported
+        MAKE_ENCHDR(PL_CDR),
+        (raw){
+          SER_PHDR_EXT(0,4,3),10,0,0,0,
+          SER_PHDR_EXT(0,4,2),20,0,0,0,
+          SER_PHDR_EXT(0,56,1),
+            SER_PHDR_EXT(0,4,3),1,0,0,0,
+            SER_PHDR_EXT(0,4,2),2,0,0,0,
+            SER_PHDR_EXT(0,8,1),SER64(3),
+            SER_PHDR_END(),
+          SER_PHDR_END(),
+        }, 104,
+        (raw){
+          SER_PHDR_EXT(0,4,3),10,0,0,0,
+          SER_PHDR_EXT(0,40,1),
+            SER_PHDR_EXT(0,4,3),1,0,0,0,
+            SER_PHDR_EXT(0,8,1),SER64(3),
+            SER_PHDR_END(),
+          SER_PHDR_END(),
+        }, 72,
+        (raw){
+          SER64BE(3),1,
+          10,
+          0,0 // padding
+        }, 10
       }, {
         MAKE_ENCHDR(PL_CDR2),
         (raw){
@@ -648,7 +839,31 @@ CU_Test(ddsc_serdata, key_serialization)
     },
     { &SerdataKeyOrderMutableNestedFinal_desc, init_SerdataKeyOrderMutableNestedFinal,
       { {
-        0 // not supported
+        MAKE_ENCHDR(PL_CDR),
+        (raw){
+          SER_PHDR_EXT(0,4,3),10,0,0,0,
+          SER_PHDR_EXT(0,4,2),20,0,0,0,
+          SER_PHDR_EXT(0,16,1),
+            1,2,0,0,
+            0,0,0,0, // padding
+            SER64(3),
+          SER_PHDR_END()
+        }, 64,
+        (raw){
+          SER_PHDR_EXT(0,4,3),10,0,0,0,
+          SER_PHDR_EXT(0,16,1),
+            1,0,0,0,
+            0,0,0,0, // padding
+            SER64(3),
+          SER_PHDR_END()
+        }, 48,
+        (raw){
+          1,0,0,0,
+          0,0,0,0, // padding
+          SER64BE(3),
+          10,
+          0,0,0 // padding
+        }, 17
       }, {
         MAKE_ENCHDR(PL_CDR2),
         (raw){
@@ -909,12 +1124,13 @@ CU_Test(ddsc_serdata, key_serialization)
           SER32(20)
         }, 20,
         (raw){
-          // d
-          1,2,
-            3,0,0,0,0,0,SER64BE(5),
-          // f
-          SER32BE(20)
-        }, 20
+          SER32BE(20),  // f
+          3,0,0,0,      // d.z.a
+          SER64BE(5),   // d.z.c
+          2,            // d.y
+          1,            // d.x
+          0,0           // padding
+        }, 18
       }, {
         MAKE_ENCHDR(CDR2),
         (raw){
@@ -989,7 +1205,47 @@ CU_Test(ddsc_serdata, key_serialization)
     },
     { &SerdataKeyNestedMutableImplicit_desc, init_SerdataKeyNestedMutableImplicit,
       { {
-        0 // not supported
+        MAKE_ENCHDR(CDR),
+        (raw){
+          // d
+          SER_PHDR_EXT(0,4,3),1,0,0,0,
+          SER_PHDR_EXT(0,4,2),2,0,0,0,
+          SER_PHDR_EXT(0,16,1),
+            3,4,0,0,
+            0,0,0,0, // padding
+            SER64(5),
+          SER_PHDR_END(),
+          // e
+          SER_PHDR_EXT(0,4,3),11,0,0,0,
+          SER_PHDR_EXT(0,4,2),12,0,0,0,
+          SER_PHDR_EXT(0,16,1),
+            13,14,0,0,
+            0,0,0,0, // padding
+            SER64(15),
+          SER_PHDR_END(),
+          // f
+          SER32(20)
+        }, 132,
+        (raw){
+          // d
+          SER_PHDR_EXT(0,4,3),1,0,0,0,
+          SER_PHDR_EXT(0,4,2),2,0,0,0,
+          SER_PHDR_EXT(0,16,1),
+            3,0,0,0,
+            0,0,0,0, // padding
+            SER64(5),
+          SER_PHDR_END(),
+          // f
+          SER32(20)
+        }, 68,
+        (raw){
+          SER32BE(20),  // f
+          3,0,0,0,      // d.z.a
+          SER64BE(5),   // d.z.c
+          2,            // d.y
+          1,            // d.x
+          0,0           // padding
+        }, 18
       }, {
         MAKE_ENCHDR(D_CDR2),
         (raw){
@@ -1187,11 +1443,11 @@ CU_Test(ddsc_serdata, key_serialization)
 
     for (uint32_t dr = 0; dr < sizeof (data_repr) / sizeof (data_repr[0]); dr++)
     {
-      printf ("\ntest type %s (XCDRv%u)\n", tests[test_index].desc->m_typename, dr + 1);
+      tprintf ("\ntest type %s (XCDRv%u)\n", tests[test_index].desc->m_typename, dr + 1);
       if (dds_stream_minimum_xcdr_version (tests[test_index].desc->m_ops) == DDSI_RTPS_CDR_ENC_VERSION_2
           && data_repr[dr] != DDS_DATA_REPRESENTATION_XCDR2)
       {
-        printf ("xcdrv not supported\n");
+        tprintf ("xcdrv not supported\n");
         continue;
       }
 
@@ -1205,25 +1461,21 @@ CU_Test(ddsc_serdata, key_serialization)
 
       const struct ddsi_sertype *sertype;
       dds_return_t ret = dds_get_entity_sertype (tp, &sertype);
-      CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+      CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
       void *sample = tests[test_index].init ();
 
       // Create SDK_DATA serdata from sample
       {
         struct dds_serdata_default *sd = (struct dds_serdata_default *) ddsi_serdata_from_sample (sertype, SDK_DATA, sample);
-        CU_ASSERT_FATAL (sd != NULL);
-        assert (sd != NULL);
+        CU_ASSERT_NEQ_FATAL (sd, NULL);
 
-        if (data_repr[dr] == DDS_DATA_REPRESENTATION_XCDR2)
-        {
-          size_t exp_sz_aligned = alignN (tests[test_index].xcdrv[dr].data_sz, 4);
-          printf ("Data: ");
-          print_check_cdr (sd, tests[test_index].xcdrv[dr].data, exp_sz_aligned);
-          CU_ASSERT_EQUAL (exp_sz_aligned, sd->pos);
-          int cmp = memcmp (sd->data, tests[test_index].xcdrv[dr].data, exp_sz_aligned);
-          CU_ASSERT_EQUAL (cmp, 0);
-        }
+        size_t exp_sz_aligned = alignN (tests[test_index].xcdrv[dr].data_sz, 4);
+        tprintf ("Data: ");
+        print_check_cdr (sd, tests[test_index].xcdrv[dr].data, exp_sz_aligned);
+        CU_ASSERT_EQ (exp_sz_aligned, sd->pos);
+        int cmp = memcmp (sd->data, tests[test_index].xcdrv[dr].data, exp_sz_aligned);
+        CU_ASSERT_EQ (cmp, 0);
 
         check_key_keyhash (sd, tests[test_index].xcdrv[1].key, tests[test_index].xcdrv[1].key_sz,
             tests[test_index].xcdrv[dr].keyhash, tests[test_index].xcdrv[dr].keyhash_sz);
@@ -1233,17 +1485,16 @@ CU_Test(ddsc_serdata, key_serialization)
       // Create SDK_KEY serdata from sample
       {
         struct dds_serdata_default *sd = (struct dds_serdata_default *) ddsi_serdata_from_sample (sertype, SDK_KEY, sample);
-        CU_ASSERT_FATAL (sd != NULL);
-        assert (sd != NULL);
+        CU_ASSERT_NEQ_FATAL (sd, NULL);
 
         size_t exp_sz = tests[test_index].xcdrv[dr].key_sz;
         const unsigned char *exp_data = tests[test_index].xcdrv[dr].key;
         size_t exp_sz_aligned = alignN (exp_sz, 4);
-        printf ("Key: ");
+        tprintf ("Key: ");
         print_check_cdr (sd, exp_data, exp_sz_aligned);
-        CU_ASSERT_EQUAL (exp_sz_aligned, sd->pos);
+        CU_ASSERT_EQ (exp_sz_aligned, sd->pos);
         int cmp = memcmp (sd->data, exp_data, exp_sz_aligned);
-        CU_ASSERT_EQUAL (cmp, 0);
+        CU_ASSERT_EQ (cmp, 0);
 
         check_key_keyhash (sd, tests[test_index].xcdrv[1].key, tests[test_index].xcdrv[1].key_sz,
             tests[test_index].xcdrv[dr].keyhash, tests[test_index].xcdrv[dr].keyhash_sz);
@@ -1259,8 +1510,7 @@ CU_Test(ddsc_serdata, key_serialization)
         memcpy (key_cdr.iov_base, &hdr, sizeof (hdr));
         memcpy ((unsigned char *) key_cdr.iov_base + sizeof (hdr), tests[test_index].xcdrv[dr].key, tests[test_index].xcdrv[dr].key_sz);
         struct dds_serdata_default *sd = (struct dds_serdata_default *) ddsi_serdata_from_ser_iov (sertype, SDK_KEY, 1, &key_cdr, key_cdr.iov_len);
-        CU_ASSERT_FATAL (sd != NULL);
-        assert (sd != NULL);
+        CU_ASSERT_NEQ_FATAL (sd, NULL);
         ddsrt_free (key_cdr.iov_base);
 
         check_key_keyhash (sd, tests[test_index].xcdrv[1].key, tests[test_index].xcdrv[1].key_sz,
@@ -1277,8 +1527,7 @@ CU_Test(ddsc_serdata, key_serialization)
         memcpy (data_cdr.iov_base, &hdr, sizeof (hdr));
         memcpy ((unsigned char *) data_cdr.iov_base + sizeof (hdr), tests[test_index].xcdrv[dr].data, tests[test_index].xcdrv[dr].data_sz);
         struct dds_serdata_default *sd = (struct dds_serdata_default *) ddsi_serdata_from_ser_iov (sertype, SDK_DATA, 1, &data_cdr, data_cdr.iov_len);
-        CU_ASSERT_FATAL (sd != NULL);
-        assert (sd != NULL);
+        CU_ASSERT_NEQ_FATAL (sd, NULL);
         ddsrt_free (data_cdr.iov_base);
 
         check_key_keyhash (sd, tests[test_index].xcdrv[1].key, tests[test_index].xcdrv[1].key_sz,

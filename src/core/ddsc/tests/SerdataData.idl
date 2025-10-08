@@ -87,6 +87,20 @@ struct SerdataKeyOrderFinalNestedMutable {
     @id(1) @key SerdataKeyOrderMutable z;
 };
 
+@final
+struct SerdataKeyOrderFinalNestedNonKeyMutable {
+    @id(3) @key uint8 x;
+    @id(2) uint8 y;
+    @id(1) SerdataKeyOrderMutable z;
+};
+
+@final
+struct SerdataKeyOrderFinalNestedNonKeyAppendable {
+    @id(3) @key uint8 x;
+    @id(2) uint8 y;
+    @optional @id(1) SerdataKeyOrderAppendable z;
+};
+
 @appendable
 struct SerdataKeyOrderAppendableNestedMutable {
     @id(3) @key uint8 x;

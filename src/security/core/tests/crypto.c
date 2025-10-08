@@ -84,10 +84,10 @@ static void init_domain_pp (dds_domainid_t domain_id, const char *id_cert, const
     { NULL, NULL, 0 }
   };
   char *conf = ddsrt_expand_vars_sh (config, &expand_lookup_vars_env, config_vars);
-  CU_ASSERT_EQUAL_FATAL (expand_lookup_unmatched (config_vars), 0);
+  CU_ASSERT_EQ_FATAL (expand_lookup_unmatched (config_vars), 0);
   *domain = dds_create_domain (domain_id, conf);
   *pp = dds_create_participant (domain_id, NULL, NULL);
-  CU_ASSERT_FATAL (*pp > 0);
+  CU_ASSERT_GT_FATAL (*pp, 0);
   ddsrt_free (conf);
 }
 
@@ -102,8 +102,8 @@ static void crypto_init (
 
 static void crypto_fini (void * res[], size_t nres)
 {
-  CU_ASSERT_EQUAL_FATAL (dds_delete (g_domain1), DDS_RETCODE_OK);
-  CU_ASSERT_EQUAL_FATAL (dds_delete (g_domain2), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_delete (g_domain1), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_delete (g_domain2), DDS_RETCODE_OK);
   if (res != NULL)
   {
     for (size_t i = 0; i < nres; i++)

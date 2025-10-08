@@ -8,15 +8,19 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-#ifndef MACHINEID_HPP
-#define MACHINEID_HPP
+#include <stdbool.h>
 
-#include <cstdint>
-#include <array>
-#include <optional>
+#if defined (__cplusplus)
+extern "C" {
+#endif
 
+#include "dds/dds.h"
+#include "dds/ddsc/dds_loaned_sample.h"
 #include "dds/ddsc/dds_psmx.h"
+#include "psmx_iox2_export.h"
 
-std::optional<dds_psmx_node_identifier_t> get_machineid ();
+DDS_PSMX_IOX2_EXPORT dds_return_t iox2_create_psmx (struct dds_psmx **psmx, dds_psmx_instance_id_t instance_id, const char *config);
 
-#endif /* MACHINEID_HPP */
+#if defined (__cplusplus)
+}
+#endif

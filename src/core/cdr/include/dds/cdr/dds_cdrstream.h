@@ -49,15 +49,21 @@ payload in order to reach the next 4-byte aligned offset. */
 #define DDS_XCDR1_PL_SHORT_PID_EXTENDED     0x3f01u        // Indicates the extended (long) PL encoding is used
 #define DDS_XCDR1_PL_SHORT_PID_LIST_END     0x3f02u        // Indicates the end of the parameter list data structure
 #define DDS_XCDR1_PL_SHORT_PID_EXT_LEN      0x8u           // Value of the param header length field in case of extended PL encoding
-#define DDS_XCDR1_PL_SHORT_FLAG_IMPL_EXT    0x4000u        // Flag for implementation specific interpretation of the parameter (not implemented)
-#define DDS_XCDR1_PL_SHORT_FLAG_MU          0x2000u        // Flag to indicate the parameter is must-understand in short PL header
-#define DDS_XCDR1_PL_SHORT_PID_MASK         0x3fffu        // Mask for the member ID in the short PL header
+#define DDS_XCDR1_PL_SHORT_FLAG_IMPL_EXT    0x8000u        // Flag for implementation specific interpretation of the parameter (not implemented)
+#define DDS_XCDR1_PL_SHORT_FLAG_MU          0x4000u        // Flag to indicate the parameter is must-understand in short PL header
+
+// Mask for the member ID in the short PL header; we don't use implementation-defined parameter ids (except
+// in discovery data, but that's handled elsewhere anyway) and including this bit in the mask means we
+// automatically treat them as unrecognised ids
+#define DDS_XCDR1_PL_SHORT_PID_MASK         (0x3fffu | DDS_XCDR1_PL_SHORT_FLAG_IMPL_EXT)
 
 #define DDS_XCDR1_PL_LONG_FLAG_IMPL_EXT     0x80000000u    // Flag used for RTPS discovery data types
 #define DDS_XCDR1_PL_LONG_FLAG_MU           0x40000000u    // Flag to indicate the parameter is must-understand in extended PL header
 #define DDS_XCDR1_PL_LONG_UNSPECIFIED1      0x20000000u    // For future extension
 #define DDS_XCDR1_PL_LONG_UNSPECIFIED2      0x10000000u    // For future extension
-#define DDS_XCDR1_PL_LONG_MID_MASK          0x0fffffffu    // Mask for the member ID in the long PL header
+
+// Mask for the member ID in the long PL header
+#define DDS_XCDR1_PL_LONG_MID_MASK          (0x0fffffffu | DDS_XCDR1_PL_LONG_FLAG_IMPL_EXT)
 
 
 #define DDS_CDR_CALCULATED_FLAGS (DDS_TOPIC_FIXED_KEY | DDS_TOPIC_FIXED_KEY_XCDR2 | DDS_TOPIC_FIXED_KEY_XCDR2_KEYHASH | DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM)

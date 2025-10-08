@@ -64,7 +64,9 @@ option(BUILD_DDSPERF "Build ddsperf tool" ${not_crosscompiling})
 
 option(WITH_ZEPHYR "Build for Zephyr RTOS" OFF)
 
-set(CMAKE_C_STANDARD 99)
+# We require C99, test code can benefit from C23
+set(CMAKE_C_STANDARD 23)
+set(CMAKE_C_STANDARD_REQUIRED FALSE)
 if(CMAKE_SYSTEM_NAME STREQUAL "VxWorks")
   add_definitions(-std=c99)
 endif()
@@ -153,6 +155,20 @@ elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
   endif()
 endif()
 
+# Since GCC 10 and llvm.org Clang 11, -fno-common is the default.  However Apple's Xcode
+# Clang still defaults to -fcommon.  With -fcommon in effect, we get a linker warning like:
+#
+#    ld: warning: reducing alignment of section __DATA,__common from 0x8000 to 0x4000
+#    because it exceeds segment maximum alignment
+#
+# with XCode 16.3
+#
+# Fortunately, we don't need -fcommon
+if("${CMAKE_C_COMPILER_ID}" STREQUAL "AppleClang")
+  add_compile_options(-fno-common)
+endif()
+
+
 # I don't know how to enable warnings properly so that they are enabled in Xcode projects as well
 if(${CMAKE_GENERATOR} STREQUAL "Xcode")
   set (CMAKE_XCODE_ATTRIBUTE_CLANG_WARN_EMPTY_BODY YES)
@@ -205,7 +221,7 @@ if(ANALYZER)
     # Clang-Tidy is an extensible tool that offers more than static analysis.
     # https://clang.llvm.org/extra/clang-tidy/checks/list.html
     message(STATUS "Enabling analyzer: clang-tidy")
-    set(CMAKE_C_CLANG_TIDY "clang-tidy;-checks=-*,clang-analyzer-*,-clang-analyzer-security.insecureAPI.strcpy")
+    set(CMAKE_C_CLANG_TIDY "clang-tidy;-checks=-*,clang-analyzer-*,-clang-analyzer-security.insecureAPI.strcpy,-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling")
     if(WERROR)
       set(CMAKE_C_CLANG_TIDY "${CMAKE_C_CLANG_TIDY};--warnings-as-errors=*")
     endif()

@@ -45,7 +45,7 @@ struct ddsi_threadmon {
   bool noprogress_log_stacktraces;
 
   ddsrt_mutex_t lock;
-  ddsrt_cond_t cond;
+  ddsrt_cond_mtime_t cond; // mtime: thread progress is absent when sleeping
   struct ddsi_thread_state *thrst;
   struct ddsrt_hh *domains;
 };
@@ -85,13 +85,13 @@ static uint32_t threadmon_thread (void *vsl)
      reason why it has to be 100ms), regardless of the lease settings.
      Note: can't trust sl->self, may have been scheduled before the
      assignment. */
-  ddsrt_mtime_t tlast = { 0 };
+  ddsrt_mtime_t tlast = { 0 }, tnext = ddsrt_mtime_add_duration (ddsrt_time_monotonic (), sl->liveliness_monitoring_interval);
   bool was_alive = true;
   ddsrt_mutex_lock (&sl->lock);
   while (sl->keepgoing)
   {
     /* Guard against spurious wakeups by checking only when cond_waitfor signals a timeout */
-    if (ddsrt_cond_waitfor (&sl->cond, &sl->lock, sl->liveliness_monitoring_interval))
+    if (ddsrt_cond_mtime_waituntil (&sl->cond, &sl->lock, tnext))
       continue;
     /* Check progress only if enough time has passed: there is no
        guarantee that os_cond_timedwait wont ever return early, and we
@@ -99,6 +99,10 @@ static uint32_t threadmon_thread (void *vsl)
     ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
     if (tnow.v < tlast.v)
       continue;
+
+    /* Based the time of the next round on tnow rather than on tnext: that way we won't start
+       spinning if we're woefully behind schedule */
+    tnext = ddsrt_mtime_add_duration (tnow, sl->liveliness_monitoring_interval);
 
     /* Scan threads to classify them as alive (sleeping or making progress) or dead (stuck in the same
        "awake" state), ignoring those used in domains that do not have a liveliness monitoring enabled
@@ -237,7 +241,7 @@ struct ddsi_threadmon *ddsi_threadmon_new (int64_t liveliness_monitoring_interva
   sl->av_ary = NULL;
 
   ddsrt_mutex_init (&sl->lock);
-  ddsrt_cond_init (&sl->cond);
+  ddsrt_cond_mtime_init (&sl->cond);
   return sl;
 }
 
@@ -295,7 +299,7 @@ void ddsi_threadmon_stop (struct ddsi_threadmon *sl)
   {
     ddsrt_mutex_lock (&sl->lock);
     sl->keepgoing = 0;
-    ddsrt_cond_signal (&sl->cond);
+    ddsrt_cond_mtime_signal (&sl->cond);
     ddsrt_mutex_unlock (&sl->lock);
     ddsi_join_thread (sl->thrst);
   }
@@ -307,7 +311,7 @@ void ddsi_threadmon_free (struct ddsi_threadmon *sl)
   struct ddsrt_hh_iter it;
   assert (ddsrt_hh_iter_first (sl->domains, &it) == NULL);
 #endif
-  ddsrt_cond_destroy (&sl->cond);
+  ddsrt_cond_mtime_destroy (&sl->cond);
   ddsrt_mutex_destroy (&sl->lock);
   ddsrt_hh_free (sl->domains);
   ddsrt_free (sl->av_ary);

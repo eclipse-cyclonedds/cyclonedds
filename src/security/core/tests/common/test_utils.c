@@ -78,6 +78,7 @@ void print_test_msg (const char *msg, ...)
   va_start (args, msg);
   vprintf (msg, args);
   va_end (args);
+  fflush (stdout);
 }
 
 static void add_local_identity (DDS_Security_IdentityHandle handle, DDS_Security_GUID_t *guid)
@@ -150,7 +151,7 @@ static int find_handshake (DDS_Security_HandshakeHandle handle)
   return -1;
 }
 
-static void handle_process_message (dds_domainid_t domain_id, DDS_Security_IdentityHandle handshake, dds_time_t abstimeout)
+static void handle_process_message (dds_domainid_t domain_id, DDS_Security_IdentityHandle handshake, ddsrt_mtime_t abstimeout)
 {
   struct message *msg;
   switch (test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_PROCESS_HANDSHAKE, 0, 0, handshake, abstimeout, &msg))
@@ -177,7 +178,7 @@ static void handle_process_message (dds_domainid_t domain_id, DDS_Security_Ident
   }
 }
 
-static void handle_begin_handshake_request (dds_domainid_t domain_id, struct Handshake *hs, DDS_Security_IdentityHandle lid, DDS_Security_IdentityHandle rid, dds_time_t abstimeout)
+static void handle_begin_handshake_request (dds_domainid_t domain_id, struct Handshake *hs, DDS_Security_IdentityHandle lid, DDS_Security_IdentityHandle rid, ddsrt_mtime_t abstimeout)
 {
   struct message *msg;
   print_test_msg ("handle begin handshake request %"PRId64"<->%"PRId64"\n", lid, rid);
@@ -204,7 +205,7 @@ static void handle_begin_handshake_request (dds_domainid_t domain_id, struct Han
   }
 }
 
-static void handle_begin_handshake_reply (dds_domainid_t domain_id, struct Handshake *hs, DDS_Security_IdentityHandle lid, DDS_Security_IdentityHandle rid, dds_time_t abstimeout)
+static void handle_begin_handshake_reply (dds_domainid_t domain_id, struct Handshake *hs, DDS_Security_IdentityHandle lid, DDS_Security_IdentityHandle rid, ddsrt_mtime_t abstimeout)
 {
   struct message *msg;
   print_test_msg ("handle begin handshake reply %"PRId64"<->%"PRId64"\n", lid, rid);
@@ -231,7 +232,7 @@ static void handle_begin_handshake_reply (dds_domainid_t domain_id, struct Hands
   }
 }
 
-static void handle_validate_remote_identity (dds_domainid_t domain_id, DDS_Security_IdentityHandle lid, int count, dds_time_t abstimeout)
+static void handle_validate_remote_identity (dds_domainid_t domain_id, DDS_Security_IdentityHandle lid, int count, ddsrt_mtime_t abstimeout)
 {
   enum take_message_result res = TAKE_MESSAGE_OK;
   struct message *msg;
@@ -270,7 +271,7 @@ static void handle_validate_remote_identity (dds_domainid_t domain_id, DDS_Secur
   }
 }
 
-static void handle_validate_local_identity (dds_domainid_t domain_id, bool exp_localid_fail, const char * exp_localid_msg, dds_time_t abstimeout)
+static void handle_validate_local_identity (dds_domainid_t domain_id, bool exp_localid_fail, const char * exp_localid_msg, ddsrt_mtime_t abstimeout)
 {
   struct message *msg;
   switch (test_authentication_plugin_take_msg (domain_id, MESSAGE_KIND_VALIDATE_LOCAL_IDENTITY, 0, 0, 0, abstimeout, &msg))
@@ -284,8 +285,7 @@ static void handle_validate_local_identity (dds_domainid_t domain_id, bool exp_l
       print_test_msg ("handle_validate_local_identity: timed out on non-empty queue\n");
       break;
   }
-  CU_ASSERT_FATAL (msg != NULL);
-  assert (msg != NULL);
+  CU_ASSERT_NEQ_FATAL (msg, NULL);
   CU_ASSERT_FATAL ((msg->result == DDS_SECURITY_VALIDATION_OK) != exp_localid_fail);
   if (exp_localid_fail && exp_localid_msg)
   {
@@ -301,7 +301,7 @@ static void handle_validate_local_identity (dds_domainid_t domain_id, bool exp_l
 
 void validate_handshake (dds_domainid_t domain_id, bool exp_localid_fail, const char * exp_localid_msg, struct Handshake *hs_list[], int *nhs, dds_duration_t timeout)
 {
-  dds_time_t abstimeout = dds_time() + timeout;
+  ddsrt_mtime_t abstimeout = ddsrt_mtime_add_duration (ddsrt_time_monotonic (), timeout);
   clear_stores ();
 
   if (nhs)
@@ -339,7 +339,7 @@ void validate_handshake_nofail (dds_domainid_t domain_id, dds_duration_t timeout
   {
     struct Handshake hs = hs_list[n];
     DDS_Security_ValidationResult_t exp_result = hs.node_type == HSN_REQUESTER ? DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE : DDS_SECURITY_VALIDATION_OK;
-    CU_ASSERT_EQUAL_FATAL (hs.finalResult, exp_result);
+    CU_ASSERT_EQ_FATAL (hs.finalResult, exp_result);
   }
   handshake_list_fini (hs_list, nhs);
 }
@@ -349,12 +349,12 @@ void validate_handshake_result(struct Handshake *hs, bool exp_fail_hs_req, const
   DDS_Security_ValidationResult_t exp_result = hs->node_type == HSN_REQUESTER ? DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE : DDS_SECURITY_VALIDATION_OK;
   if (hs->node_type == HSN_REQUESTER)
   {
-    CU_ASSERT_EQUAL_FATAL (hs->finalResult, exp_fail_hs_req ? DDS_SECURITY_VALIDATION_FAILED : exp_result);
+    CU_ASSERT_EQ_FATAL (hs->finalResult, exp_fail_hs_req ? DDS_SECURITY_VALIDATION_FAILED : exp_result);
     if (exp_fail_hs_req)
     {
       if (fail_hs_req_msg == NULL)
       {
-        CU_ASSERT_EQUAL_FATAL (hs->err_msg, NULL);
+        CU_ASSERT_EQ_FATAL (hs->err_msg, NULL);
       }
       else
       {
@@ -364,12 +364,12 @@ void validate_handshake_result(struct Handshake *hs, bool exp_fail_hs_req, const
   }
   else if (hs->node_type == HSN_REPLIER)
   {
-    CU_ASSERT_EQUAL_FATAL (hs->finalResult, exp_fail_hs_reply ? DDS_SECURITY_VALIDATION_FAILED : exp_result);
+    CU_ASSERT_EQ_FATAL (hs->finalResult, exp_fail_hs_reply ? DDS_SECURITY_VALIDATION_FAILED : exp_result);
     if (exp_fail_hs_reply)
     {
       if (fail_hs_reply_msg == NULL)
       {
-        CU_ASSERT_EQUAL_FATAL (hs->err_msg, NULL);
+        CU_ASSERT_EQ_FATAL (hs->err_msg, NULL);
       }
       else
       {
@@ -392,48 +392,48 @@ void sync_writer_to_readers (dds_entity_t pp_wr, dds_entity_t wr, uint32_t exp_c
 {
   dds_attach_t triggered;
   dds_entity_t ws = dds_create_waitset (pp_wr);
-  CU_ASSERT_FATAL (ws > 0);
+  CU_ASSERT_GT_FATAL (ws, 0);
   dds_publication_matched_status_t pub_matched;
 
   dds_return_t ret = dds_waitset_attach (ws, wr, wr);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   while (true)
   {
     ret = dds_waitset_wait_until (ws, &triggered, 1, abstimeout);
-    CU_ASSERT_EQUAL_FATAL (exp_count > 0, ret >= 1);
+    CU_ASSERT_EQ_FATAL (exp_count > 0, ret >= 1);
     if (exp_count > 0)
-      CU_ASSERT_EQUAL_FATAL (wr, (dds_entity_t)(intptr_t) triggered);
+      CU_ASSERT_EQ_FATAL (wr, (dds_entity_t)(intptr_t) triggered);
     ret = dds_get_publication_matched_status (wr, &pub_matched);
-    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     if (pub_matched.total_count >= exp_count)
       break;
   };
   dds_delete (ws);
-  CU_ASSERT_EQUAL_FATAL (pub_matched.total_count, exp_count);
+  CU_ASSERT_EQ_FATAL (pub_matched.total_count, exp_count);
 }
 
 void sync_reader_to_writers (dds_entity_t pp_rd, dds_entity_t rd, uint32_t exp_count, dds_time_t abstimeout)
 {
   dds_attach_t triggered;
   dds_entity_t ws = dds_create_waitset (pp_rd);
-  CU_ASSERT_FATAL (ws > 0);
+  CU_ASSERT_GT_FATAL (ws, 0);
   dds_subscription_matched_status_t sub_matched;
 
   dds_return_t ret = dds_waitset_attach (ws, rd, rd);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   while (true)
   {
     ret = dds_waitset_wait_until (ws, &triggered, 1, abstimeout);
-    CU_ASSERT_EQUAL_FATAL (exp_count > 0, ret >= 1);
+    CU_ASSERT_EQ_FATAL (exp_count > 0, ret >= 1);
     if (exp_count > 0)
-      CU_ASSERT_EQUAL_FATAL (rd, (dds_entity_t)(intptr_t) triggered);
+      CU_ASSERT_EQ_FATAL (rd, (dds_entity_t)(intptr_t) triggered);
     ret = dds_get_subscription_matched_status (rd, &sub_matched);
-    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     if (sub_matched.total_count >= exp_count)
       break;
   };
   dds_delete (ws);
-  CU_ASSERT_EQUAL_FATAL (sub_matched.total_count, exp_count);
+  CU_ASSERT_EQ_FATAL (sub_matched.total_count, exp_count);
 }
 
 char *create_topic_name (const char *prefix, uint32_t nr, char *name, size_t size)
@@ -448,12 +448,12 @@ bool reader_wait_for_data (dds_entity_t pp, dds_entity_t rd, dds_duration_t dur)
 {
   dds_attach_t triggered;
   dds_entity_t ws = dds_create_waitset (pp);
-  CU_ASSERT_FATAL (ws > 0);
+  CU_ASSERT_GT_FATAL (ws, 0);
   dds_return_t ret = dds_waitset_attach (ws, rd, rd);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_waitset_wait (ws, &triggered, 1, dur);
   if (ret > 0)
-    CU_ASSERT_EQUAL_FATAL (rd, (dds_entity_t)(intptr_t)triggered);
+    CU_ASSERT_EQ_FATAL (rd, (dds_entity_t)(intptr_t)triggered);
   dds_delete (ws);
   return ret > 0;
 }
@@ -461,7 +461,7 @@ bool reader_wait_for_data (dds_entity_t pp, dds_entity_t rd, dds_duration_t dur)
 dds_qos_t * get_default_test_qos (void)
 {
   dds_qos_t * qos = dds_create_qos ();
-  CU_ASSERT_FATAL (qos != NULL);
+  CU_ASSERT_NEQ_FATAL (qos, NULL);
   dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, -1);
   dds_qset_durability (qos, DDS_DURABILITY_TRANSIENT_LOCAL);
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
@@ -485,17 +485,17 @@ void rd_wr_init_w_partitions_fail(
     dds_qset_partition (qos, npart, partition_names);
   }
   *pub = dds_create_publisher (pp_wr, qos, NULL);
-  CU_ASSERT_FATAL (*pub > 0);
+  CU_ASSERT_GT_FATAL (*pub, 0);
   *sub = dds_create_subscriber (pp_rd, qos, NULL);
-  CU_ASSERT_FATAL (*sub > 0);
+  CU_ASSERT_GT_FATAL (*sub, 0);
   *pub_tp = dds_create_topic (pp_wr, &SecurityCoreTests_Type1_desc, topic_name, NULL, NULL);
-  CU_ASSERT_EQUAL_FATAL (exp_pubtp_fail, *pub_tp <= 0);
+  CU_ASSERT_EQ_FATAL (exp_pubtp_fail, *pub_tp <= 0);
   *sub_tp = dds_create_topic (pp_rd, &SecurityCoreTests_Type1_desc, topic_name, NULL, NULL);
-  CU_ASSERT_EQUAL_FATAL (exp_subtp_fail, *sub_tp <= 0);
+  CU_ASSERT_EQ_FATAL (exp_subtp_fail, *sub_tp <= 0);
   if (!exp_pubtp_fail)
   {
     *wr = dds_create_writer (*pub, *pub_tp, qos, NULL);
-    CU_ASSERT_EQUAL_FATAL (exp_wr_fail, *wr <= 0);
+    CU_ASSERT_EQ_FATAL (exp_wr_fail, *wr <= 0);
     if (exp_wr_fail)
       goto fail;
     dds_set_status_mask (*wr, DDS_PUBLICATION_MATCHED_STATUS);
@@ -503,7 +503,7 @@ void rd_wr_init_w_partitions_fail(
   if (!exp_subtp_fail)
   {
     *rd = dds_create_reader (*sub, *sub_tp, qos, NULL);
-    CU_ASSERT_EQUAL_FATAL (exp_rd_fail, *rd <= 0);
+    CU_ASSERT_EQ_FATAL (exp_rd_fail, *rd <= 0);
     if (exp_rd_fail)
       goto fail;
     dds_set_status_mask (*rd, DDS_SUBSCRIPTION_MATCHED_STATUS);
@@ -541,13 +541,16 @@ void write_read_for(dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_du
   bool write_fail = false, read_fail = false;
 
   dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
-  do
-  {
+  do {
     print_test_msg ("write\n");
     if (dds_write (wr, &sample) != DDS_RETCODE_OK)
+    {
       write_fail = true;
+      break;
+    }
 
-    while (!write_fail)
+    bool data_available = false;
+    while (true)
     {
       if ((ret = dds_take (rd, samples, info, 1, 1)) > 0)
       {
@@ -558,24 +561,40 @@ void write_read_for(dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_du
           read_fail = true;
         }
         else
-          CU_ASSERT_EQUAL_FATAL (rd_sample.value, 1);
-        CU_ASSERT_EQUAL_FATAL (ret, 1);
+          CU_ASSERT_EQ_FATAL (rd_sample.value, 1);
+        CU_ASSERT_EQ_FATAL (ret, 1);
         break;
       }
-      if (ret < 0 || !reader_wait_for_data (pp_rd, rd, DDS_MSECS (1000)))
+      else if (ret == 0 && data_available)
       {
-        print_test_msg ("take no sample\n");
+        print_test_msg ("data available, but took no samples\n");
         read_fail = true;
         break;
       }
+      else if (ret < 0)
+      {
+        print_test_msg ("take failed: %"PRId32"\n", ret);
+        read_fail = true;
+        break;
+      }
+      else if (!reader_wait_for_data (pp_rd, rd, DDS_MSECS (1000)))
+      {
+        print_test_msg ("wait timed out\n");
+        read_fail = true;
+        break;
+      }
+      else
+      {
+        print_test_msg ("wait returned successfully\n");
+        data_available = true;
+      }
     }
-    if (write_fail || read_fail)
+    if (read_fail)
       break;
     dds_sleepfor (DDS_MSECS (100));
-  }
-  while (dds_time () < tend);
-  CU_ASSERT_EQUAL_FATAL (write_fail, exp_write_fail);
-  CU_ASSERT_EQUAL_FATAL (read_fail, exp_read_fail);
+  } while (dds_time () < tend);
+  CU_ASSERT_EQ_FATAL (write_fail, exp_write_fail);
+  CU_ASSERT_EQ_FATAL (read_fail, exp_read_fail);
 }
 
 #define GET_SECURITY_PLUGIN_CONTEXT(name_) \
@@ -583,10 +602,10 @@ void write_read_for(dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_du
   { \
     struct dds_entity *pp_entity = NULL; \
     dds_return_t ret = dds_entity_lock (participant, DDS_KIND_PARTICIPANT, &pp_entity); \
-    CU_ASSERT_EQUAL_FATAL (ret, 0); \
+    CU_ASSERT_EQ_FATAL (ret, 0); \
     ddsi_thread_state_awake (ddsi_lookup_thread_state(), &pp_entity->m_domain->gv); \
     struct ddsi_participant *pp = ddsi_entidx_lookup_participant_guid (pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid); \
-    CU_ASSERT_FATAL (pp != NULL); \
+    CU_ASSERT_NEQ_FATAL (pp, NULL); \
     struct dds_security_##name_##_impl *context = (struct dds_security_##name_##_impl *) ddsi_omg_participant_get_##name_ (pp); \
     ddsi_thread_state_asleep (ddsi_lookup_thread_state ()); \
     dds_entity_unlock (pp_entity); \
@@ -629,12 +648,12 @@ DDS_Security_DatawriterCryptoHandle get_builtin_writer_crypto_handle(dds_entity_
   struct dds_entity *pp_entity;
   struct ddsi_participant *pp;
   struct ddsi_writer *wr;
-  CU_ASSERT_EQUAL_FATAL(dds_entity_pin(participant, &pp_entity), 0);
+  CU_ASSERT_EQ_FATAL (dds_entity_pin(participant, &pp_entity), 0);
   ddsi_thread_state_awake(ddsi_lookup_thread_state(), &pp_entity->m_domain->gv);
   pp = ddsi_entidx_lookup_participant_guid(pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
   dds_return_t ret = ddsi_get_builtin_writer (pp, entityid, &wr);
-  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-  CU_ASSERT_FATAL(wr != NULL);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_NEQ_FATAL (wr, NULL);
   crypto_handle = wr->sec_attr->crypto_handle;
   ddsi_thread_state_asleep(ddsi_lookup_thread_state());
   dds_entity_unpin(pp_entity);
@@ -646,10 +665,10 @@ DDS_Security_DatawriterCryptoHandle get_writer_crypto_handle(dds_entity_t writer
   DDS_Security_DatawriterCryptoHandle crypto_handle;
   struct dds_entity *wr_entity;
   struct ddsi_writer *wr;
-  CU_ASSERT_EQUAL_FATAL(dds_entity_pin(writer, &wr_entity), 0);
+  CU_ASSERT_EQ_FATAL (dds_entity_pin(writer, &wr_entity), 0);
   ddsi_thread_state_awake(ddsi_lookup_thread_state(), &wr_entity->m_domain->gv);
   wr = ddsi_entidx_lookup_writer_guid (wr_entity->m_domain->gv.entity_index, &wr_entity->m_guid);
-  CU_ASSERT_FATAL(wr != NULL);
+  CU_ASSERT_NEQ_FATAL (wr, NULL);
   crypto_handle = wr->sec_attr->crypto_handle;
   ddsi_thread_state_asleep(ddsi_lookup_thread_state());
   dds_entity_unpin(wr_entity);

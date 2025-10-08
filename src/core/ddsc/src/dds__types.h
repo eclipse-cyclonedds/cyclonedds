@@ -474,7 +474,9 @@ typedef struct dds_waitset {
      acquired while holding an ancestor's lock, but a waitset must be capable of triggering on
      events on its parent */
   ddsrt_mutex_t wait_lock;
-  ddsrt_cond_t wait_cond;
+
+  /* etime: dds_waitset_wait timeout */
+  ddsrt_cond_etime_t wait_cond;
   size_t nentities;         /* [wait_lock] */
   size_t ntriggered;        /* [wait_lock] */
   dds_attachment *entities; /* [wait_lock] 0 .. ntriggered are triggred, ntriggred .. nentities are not */

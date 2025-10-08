@@ -379,7 +379,7 @@ validate_local_identity(void)
     DDS_Security_ValidationResult_t result;
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GUID_t local_participant_guid;
     DDS_Security_GuidPrefix_t prefix = {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb};
     DDS_Security_EntityId_t entityId = {{0xb0,0xb1,0xb2},0x1};
@@ -441,7 +441,7 @@ validate_local_identity(void)
 static void
 release_local_identity(void)
 {
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_boolean success;
 
     if (g_local_identity_handle != DDS_SECURITY_HANDLE_NIL) {
@@ -530,7 +530,7 @@ validate_remote_identities (const char *remote_id_certificate)
     static DDS_Security_AuthRequestMessageToken local_auth_request_token = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_GUID_t guid1;
     DDS_Security_GUID_t guid2;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix1 = {0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0xab};
     DDS_Security_GuidPrefix_t prefix2 = {0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xc9, 0xca, 0xcb};
     DDS_Security_EntityId_t entityId = {{0xb0,0xb1,0xb2},0x1};
@@ -624,7 +624,7 @@ validate_remote_identities (const char *remote_id_certificate)
 static void
 release_remote_identities(void)
 {
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_boolean success;
 
     if (g_remote_identity_handle != DDS_SECURITY_HANDLE_NIL) {
@@ -774,7 +774,7 @@ fill_handshake_message_token(
     DDS_Security_BinaryProperty_t *challenge1;
     DDS_Security_BinaryProperty_t *challenge2;
     DDS_Security_BinaryProperty_t *signature;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     unsigned idx;
     unsigned char *serialized_local_participant_data;
     size_t serialized_local_participant_data_size;
@@ -911,7 +911,7 @@ fill_handshake_message_token(
            set_binary_property_string(c_kagree_algo, DDS_AUTHTOKEN_PROP_C_KAGREE_ALGO "x", "rubbish");
         }
 
-        CU_ASSERT(hash1_from_request != NULL);
+        CU_ASSERT_NEQ (hash1_from_request, NULL);
 
         set_binary_property_value(hash_c1, DDS_AUTHTOKEN_PROP_HASH_C1, hash1_from_request->value._buffer, hash1_from_request->value._length);
 
@@ -1016,8 +1016,8 @@ fill_handshake_message_token(
         dh2 = &tokens[idx++];
         hash_c2 = &tokens[idx++];
 
-        CU_ASSERT_FATAL(hash1_from_request != NULL);
-        CU_ASSERT_FATAL(hash2_from_reply != NULL);
+        CU_ASSERT_NEQ_FATAL (hash1_from_request, NULL);
+        CU_ASSERT_NEQ_FATAL (hash2_from_reply, NULL);
 
         set_binary_property_value(hash_c1, DDS_AUTHTOKEN_PROP_HASH_C1, hash1_from_request->value._buffer, hash1_from_request->value._length);
         set_binary_property_value(hash_c2, DDS_AUTHTOKEN_PROP_HASH_C2, hash2_from_reply->value._buffer, hash2_from_reply->value._length);
@@ -1118,7 +1118,7 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_request )
     DDS_Security_HandshakeMessageToken handshake_reply_token_in = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_HandshakeMessageToken handshake_token_out = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_AuthenticatedPeerCredentialToken credential_token = DDS_SECURITY_TOKEN_INIT;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_boolean success;
     const DDS_Security_BinaryProperty_t *hash1_sentrequest;
     const DDS_Security_BinaryProperty_t *dh1;
@@ -1127,11 +1127,11 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_request )
     const DDS_Security_Property_t *c_perm;
     struct octet_seq dh1_pub_key;
 
-    CU_ASSERT_FATAL (g_auth != NULL);
-    CU_ASSERT_FATAL (g_local_identity_handle != DDS_SECURITY_HANDLE_NIL);
-    CU_ASSERT_FATAL (g_remote_identity_handle != DDS_SECURITY_HANDLE_NIL);
-    CU_ASSERT_FATAL (g_auth->begin_handshake_request != NULL);
-    CU_ASSERT_FATAL (g_auth->process_handshake != NULL);
+    CU_ASSERT_NEQ_FATAL (g_auth, NULL);
+    CU_ASSERT_NEQ_FATAL (g_local_identity_handle, DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_NEQ_FATAL (g_remote_identity_handle, DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_NEQ_FATAL (g_auth->begin_handshake_request, NULL);
+    CU_ASSERT_NEQ_FATAL (g_auth->process_handshake, NULL);
 
     /* simulate request */
     result = g_auth->begin_handshake_request(
@@ -1143,7 +1143,7 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_request )
                     &g_serialized_participant_data,
                     &exception);
 
-    CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE);
+    CU_ASSERT_EQ_FATAL (result, DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE);
 
     /* mock reply */
     dh1 = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_DH1);
@@ -1175,7 +1175,7 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_request )
                         &handshake_reply_token_in,
                         handshake_handle,
                         &exception);
-    CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE);
+    CU_ASSERT_EQ_FATAL (result, DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE);
 
     /*
      * Actual test.
@@ -1186,37 +1186,37 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_request )
                         handshake_handle,
                         &exception);
 
-    CU_ASSERT_TRUE_FATAL (success);
+    CU_ASSERT_NEQ_FATAL (success, false);
 
-    CU_ASSERT_FATAL(credential_token.class_id != NULL);
-    CU_ASSERT(strcmp(credential_token.class_id, DDS_AUTHTOKEN_CLASS_ID) == 0);
-    CU_ASSERT(credential_token.properties._length == 2);
-    CU_ASSERT(credential_token.binary_properties._length == 0);
+    CU_ASSERT_NEQ_FATAL (credential_token.class_id, NULL);
+    CU_ASSERT_STREQ (credential_token.class_id, DDS_AUTHTOKEN_CLASS_ID);
+    CU_ASSERT_EQ (credential_token.properties._length, 2);
+    CU_ASSERT_EQ (credential_token.binary_properties._length, 0);
 
     c_id = find_property(&credential_token, DDS_AUTHTOKEN_PROP_C_ID);
-    CU_ASSERT_FATAL(c_id != NULL);
-    CU_ASSERT_FATAL(c_id->value != NULL);
+    CU_ASSERT_NEQ_FATAL (c_id, NULL);
+    CU_ASSERT_NEQ_FATAL (c_id->value, NULL);
     //printf("c_id->value: %s\n", c_id->value);
-    CU_ASSERT(strcmp(c_id->value, REMOTE_IDENTITY_CERTIFICATE) == 0);
+    CU_ASSERT_STREQ (c_id->value, REMOTE_IDENTITY_CERTIFICATE);
 
     c_perm = find_property(&credential_token, DDS_AUTHTOKEN_PROP_C_PERM);
-    CU_ASSERT_FATAL(c_perm != NULL);
-    CU_ASSERT_FATAL(c_perm->value != NULL);
+    CU_ASSERT_NEQ_FATAL (c_perm, NULL);
+    CU_ASSERT_NEQ_FATAL (c_perm->value, NULL);
     //printf("c_perm->value: %s\n", c_perm->value);
-    CU_ASSERT(strcmp(c_perm->value, PERMISSIONS_DOCUMENT) == 0);
+    CU_ASSERT_STREQ (c_perm->value, PERMISSIONS_DOCUMENT);
 
     success = g_auth->return_authenticated_peer_credential_token(g_auth, &credential_token, &exception);
-    CU_ASSERT_TRUE (success);
-    CU_ASSERT(credential_token.class_id == NULL);
-    CU_ASSERT(credential_token.properties._buffer == NULL);
-    CU_ASSERT(credential_token.properties._maximum == 0);
-    CU_ASSERT(credential_token.properties._length == 0);
-    CU_ASSERT(credential_token.binary_properties._buffer == NULL);
-    CU_ASSERT(credential_token.binary_properties._maximum == 0);
-    CU_ASSERT(credential_token.binary_properties._length == 0);
+    CU_ASSERT_NEQ (success, false);
+    CU_ASSERT_EQ (credential_token.class_id, NULL);
+    CU_ASSERT_EQ (credential_token.properties._buffer, NULL);
+    CU_ASSERT_EQ (credential_token.properties._maximum, 0);
+    CU_ASSERT_EQ (credential_token.properties._length, 0);
+    CU_ASSERT_EQ (credential_token.binary_properties._buffer, NULL);
+    CU_ASSERT_EQ (credential_token.binary_properties._maximum, 0);
+    CU_ASSERT_EQ (credential_token.binary_properties._length, 0);
 
     success = g_auth->return_handshake_handle(g_auth, handshake_handle, &exception);
-    CU_ASSERT_TRUE (success);
+    CU_ASSERT_NEQ (success, false);
 
     reset_exception(&exception);
 
@@ -1232,7 +1232,7 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_reply )
     DDS_Security_HandshakeMessageToken handshake_final_token_in = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_HandshakeMessageToken handshake_token_out = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_HandshakeMessageToken handshake_final_token_out = DDS_SECURITY_TOKEN_INIT;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_AuthenticatedPeerCredentialToken credential_token = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_boolean success;
     const DDS_Security_BinaryProperty_t *hash1_sentrequest;
@@ -1243,12 +1243,12 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_reply )
     const DDS_Security_Property_t *c_perm;
     struct octet_seq dh2_pub_key;
 
-    CU_ASSERT_FATAL (g_auth->process_handshake != NULL);
+    CU_ASSERT_NEQ_FATAL (g_auth->process_handshake, NULL);
 
-    CU_ASSERT_FATAL (g_auth != NULL);
-    CU_ASSERT_FATAL (g_local_identity_handle != DDS_SECURITY_HANDLE_NIL);
-    CU_ASSERT_FATAL (g_remote_identity_handle != DDS_SECURITY_HANDLE_NIL);
-    CU_ASSERT_FATAL (g_auth->begin_handshake_reply != NULL);
+    CU_ASSERT_NEQ_FATAL (g_auth, NULL);
+    CU_ASSERT_NEQ_FATAL (g_local_identity_handle, DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_NEQ_FATAL (g_remote_identity_handle, DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_NEQ_FATAL (g_auth->begin_handshake_reply, NULL);
 
     /* simulate reply */
     fill_handshake_message_token_default(
@@ -1267,7 +1267,7 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_reply )
                     &g_serialized_participant_data,
                     &exception);
 
-    CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE);
+    CU_ASSERT_EQ_FATAL (result, DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE);
 
     /* mock final */
     dh2 = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_DH2);
@@ -1300,7 +1300,7 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_reply )
                         handshake_handle,
                         &exception);
 
-    CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_EQ_FATAL (result, DDS_SECURITY_VALIDATION_OK);
 
     /*
      * Actual test.
@@ -1311,38 +1311,38 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_reply )
                         handshake_handle,
                         &exception);
 
-    CU_ASSERT_TRUE_FATAL (success);
+    CU_ASSERT_NEQ_FATAL (success, false);
 
-    CU_ASSERT_FATAL(credential_token.class_id != NULL);
-    CU_ASSERT(strcmp(credential_token.class_id, DDS_AUTHTOKEN_CLASS_ID) == 0);
-    CU_ASSERT(credential_token.properties._length == 2);
-    CU_ASSERT(credential_token.binary_properties._length == 0);
+    CU_ASSERT_NEQ_FATAL (credential_token.class_id, NULL);
+    CU_ASSERT_STREQ (credential_token.class_id, DDS_AUTHTOKEN_CLASS_ID);
+    CU_ASSERT_EQ (credential_token.properties._length, 2);
+    CU_ASSERT_EQ (credential_token.binary_properties._length, 0);
 
     c_id = find_property(&credential_token, DDS_AUTHTOKEN_PROP_C_ID);
-    CU_ASSERT_FATAL(c_id != NULL);
-    CU_ASSERT_FATAL(c_id->value != NULL);
+    CU_ASSERT_NEQ_FATAL (c_id, NULL);
+    CU_ASSERT_NEQ_FATAL (c_id->value, NULL);
     //printf("c_id->value: %s\n", c_id->value);
-    CU_ASSERT(strcmp(c_id->value, REMOTE_IDENTITY_CERTIFICATE) == 0);
+    CU_ASSERT_STREQ (c_id->value, REMOTE_IDENTITY_CERTIFICATE);
 
     c_perm = find_property(&credential_token, DDS_AUTHTOKEN_PROP_C_PERM);
-    CU_ASSERT_FATAL(c_perm != NULL);
-    CU_ASSERT_FATAL(c_perm->value != NULL);
+    CU_ASSERT_NEQ_FATAL (c_perm, NULL);
+    CU_ASSERT_NEQ_FATAL (c_perm->value, NULL);
     //printf("c_perm->value: %s\n", c_perm->value);
-    CU_ASSERT(strcmp(c_perm->value, PERMISSIONS_DOCUMENT) == 0);
+    CU_ASSERT_STREQ (c_perm->value, PERMISSIONS_DOCUMENT);
 
 
     success = g_auth->return_authenticated_peer_credential_token(g_auth, &credential_token, &exception);
-    CU_ASSERT_TRUE (success);
-    CU_ASSERT(credential_token.class_id == NULL);
-    CU_ASSERT(credential_token.properties._buffer == NULL);
-    CU_ASSERT(credential_token.properties._maximum == 0);
-    CU_ASSERT(credential_token.properties._length == 0);
-    CU_ASSERT(credential_token.binary_properties._buffer == NULL);
-    CU_ASSERT(credential_token.binary_properties._maximum == 0);
-    CU_ASSERT(credential_token.binary_properties._length == 0);
+    CU_ASSERT_NEQ (success, false);
+    CU_ASSERT_EQ (credential_token.class_id, NULL);
+    CU_ASSERT_EQ (credential_token.properties._buffer, NULL);
+    CU_ASSERT_EQ (credential_token.properties._maximum, 0);
+    CU_ASSERT_EQ (credential_token.properties._length, 0);
+    CU_ASSERT_EQ (credential_token.binary_properties._buffer, NULL);
+    CU_ASSERT_EQ (credential_token.binary_properties._maximum, 0);
+    CU_ASSERT_EQ (credential_token.binary_properties._length, 0);
 
     success = g_auth->return_handshake_handle(g_auth, handshake_handle, &exception);
-    CU_ASSERT_TRUE_FATAL (success);
+    CU_ASSERT_NEQ_FATAL (success, false);
 
     reset_exception(&exception);
 
@@ -1354,44 +1354,44 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_reply )
 
 CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_invalid_arguments )
 {
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_AuthenticatedPeerCredentialToken credential_token = DDS_SECURITY_TOKEN_INIT;
     DDS_Security_HandshakeHandle invalid_handle = 3;
     DDS_Security_boolean success;
 
     success = g_auth->get_authenticated_peer_credential_token(g_auth, &credential_token, invalid_handle, &exception);
-    CU_ASSERT_FALSE (success);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT_EQ (success, false);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
 
     success = g_auth->get_authenticated_peer_credential_token(NULL, &credential_token, invalid_handle, &exception);
-    CU_ASSERT_FALSE (success);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT_EQ (success, false);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
 
     success = g_auth->get_authenticated_peer_credential_token(g_auth, NULL, invalid_handle, &exception);
-    CU_ASSERT_FALSE (success);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT_EQ (success, false);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
 
     success = g_auth->get_authenticated_peer_credential_token(g_auth, &credential_token, 0, &exception);
-    CU_ASSERT_FALSE (success);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT_EQ (success, false);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
 
     success = g_auth->return_authenticated_peer_credential_token(NULL, &credential_token, &exception);
-    CU_ASSERT_FALSE (success);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT_EQ (success, false);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
 
     success = g_auth->return_authenticated_peer_credential_token(g_auth, NULL, &exception);
-    CU_ASSERT_FALSE (success);
-    CU_ASSERT(exception.code != 0);
-    CU_ASSERT(exception.message != NULL);
+    CU_ASSERT_EQ (success, false);
+    CU_ASSERT_NEQ (exception.code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
     reset_exception(&exception);
 }

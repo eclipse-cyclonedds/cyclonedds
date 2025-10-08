@@ -33,7 +33,7 @@ module CdrStreamParamHeader {
 
 };
 
-module CdrStreamAppedable {
+module CdrStreamAppendable {
   @final
   struct f1 {
     long m1;
@@ -63,4 +63,12 @@ module CdrStreamAppedable {
     @optional a3_1 m2;
   };
 
+};
+
+module CdrStreamMutable {
+  @mutable
+  struct t1 {
+    @id(1) uint32 f1;
+    @id(2) sequence<uint32> f2;
+  };
 };

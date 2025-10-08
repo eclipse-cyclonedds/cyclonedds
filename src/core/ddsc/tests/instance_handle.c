@@ -26,31 +26,31 @@ static void instance_handle_init (void)
   char topicname[100];
   dds_qos_t *qos;
   dp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
-  CU_ASSERT_FATAL (dp > 0);
+  CU_ASSERT_GT_FATAL (dp, 0);
 
   /* not strictly necessary to explicitly set KEEP_LAST (it is the default), nor to make
      it reliable (it is only used inside a process without any limits that might cause it
      to drop samples) */
   qos = dds_create_qos ();
-  CU_ASSERT_FATAL (qos != NULL);
+  CU_ASSERT_NEQ_FATAL (qos, NULL);
   dds_qset_history (qos, DDS_HISTORY_KEEP_LAST, 1);
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
   create_unique_topic_name ("instance_handle", topicname, sizeof (topicname));
   tp[0] = dds_create_topic (dp, &InstanceHandleTypes_A_desc, topicname, qos, NULL);
-  CU_ASSERT_FATAL (tp[0] > 0);
+  CU_ASSERT_GT_FATAL (tp[0], 0);
   create_unique_topic_name ("instance_handle", topicname, sizeof (topicname));
   tp[1] = dds_create_topic (dp, &InstanceHandleTypes_A_desc, topicname, qos, NULL);
-  CU_ASSERT_FATAL (tp[1] > 0);
+  CU_ASSERT_GT_FATAL (tp[1], 0);
   create_unique_topic_name ("instance_handle", topicname, sizeof (topicname));
   tp[2] = dds_create_topic (dp, &InstanceHandleTypes_C_desc, topicname, qos, NULL);
-  CU_ASSERT_FATAL (tp[2] > 0);
+  CU_ASSERT_GT_FATAL (tp[2], 0);
   dds_delete_qos (qos);
   for (size_t i = 0; i < 3; i++)
   {
     rd[i] = dds_create_reader (dp, tp[i], NULL, NULL);
-    CU_ASSERT_FATAL (rd[i] > 0);
+    CU_ASSERT_GT_FATAL (rd[i], 0);
     wr[i] = dds_create_writer (dp, tp[i], NULL, NULL);
-    CU_ASSERT_FATAL (wr[i] > 0);
+    CU_ASSERT_GT_FATAL (wr[i], 0);
   }
 }
 
@@ -58,7 +58,7 @@ static void instance_handle_fini (void)
 {
   dds_return_t rc;
   rc = dds_delete (dp);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 }
 
 CU_Test (ddsc_instance_handle, a, .init = instance_handle_init, .fini = instance_handle_fini)
@@ -88,11 +88,11 @@ CU_Test (ddsc_instance_handle, a, .init = instance_handle_init, .fini = instance
     c.k = i;
     c.v = 3 * a.k;
     rc = dds_write (wr[0], &a);
-    CU_ASSERT_FATAL (rc == 0);
+    CU_ASSERT_EQ_FATAL (rc, 0);
     rc = dds_write (wr[1], &b);
-    CU_ASSERT_FATAL (rc == 0);
+    CU_ASSERT_EQ_FATAL (rc, 0);
     rc = dds_write (wr[2], &c);
-    CU_ASSERT_FATAL (rc == 0);
+    CU_ASSERT_EQ_FATAL (rc, 0);
   }
 
   for (uint32_t i = 1; i <= 5; i++)
@@ -102,23 +102,23 @@ CU_Test (ddsc_instance_handle, a, .init = instance_handle_init, .fini = instance
 
     /* take one sample from A; no guarantee about the order in which the data is returned */
     rc = dds_take (rd[0], &rawA, &siA, 1, 1);
-    CU_ASSERT_FATAL (rc == 1);
-    CU_ASSERT_FATAL (siA.valid_data);
+    CU_ASSERT_EQ_FATAL (rc, 1);
+    CU_ASSERT_NEQ_FATAL (siA.valid_data, 0);
     CU_ASSERT_FATAL (1 <= a.k && a.k <= 5 && a.v == a.k);
 
     /* take one sample from B using the instance handle just returned */
     rc = dds_take_instance (rd[1], &rawB, &siB, 1, 1, siA.instance_handle);
-    CU_ASSERT_FATAL (rc == 1);
-    CU_ASSERT_FATAL (siB.valid_data);
-    CU_ASSERT_FATAL (siB.instance_handle == siA.instance_handle);
+    CU_ASSERT_EQ_FATAL (rc, 1);
+    CU_ASSERT_NEQ_FATAL (siB.valid_data, 0);
+    CU_ASSERT_EQ_FATAL (siB.instance_handle, siA.instance_handle);
     CU_ASSERT_FATAL (b.k == a.k && b.v == 2 * a.k);
 
     /* take one sample from C using the instance handle just returned, this should work
        for different topic that have the same key type */
     rc = dds_take_instance (rd[2], &rawC, &siC, 1, 1, siA.instance_handle);
-    CU_ASSERT_FATAL (rc == 1);
-    CU_ASSERT_FATAL (siC.valid_data);
-    CU_ASSERT_FATAL (siC.instance_handle == siA.instance_handle);
+    CU_ASSERT_EQ_FATAL (rc, 1);
+    CU_ASSERT_NEQ_FATAL (siC.valid_data, 0);
+    CU_ASSERT_EQ_FATAL (siC.instance_handle, siA.instance_handle);
     CU_ASSERT_FATAL (c.k == a.k && c.v == 3 * a.k);
   }
 
@@ -128,7 +128,7 @@ CU_Test (ddsc_instance_handle, a, .init = instance_handle_init, .fini = instance
     dds_sample_info_t si;
     void *raw = NULL;
     rc = dds_take (rd[0], &raw, &si, 1, 1);
-    CU_ASSERT_FATAL (rc == 0);
+    CU_ASSERT_EQ_FATAL (rc, 0);
   }
 }
 
@@ -169,54 +169,54 @@ CU_Test (ddsc_instance_handle, md5)
   dds_return_t rc;
 
   dp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
-  CU_ASSERT_FATAL (dp > 0);
+  CU_ASSERT_GT_FATAL (dp, 0);
 
   /* not strictly necessary to explicitly set KEEP_LAST (it is the default), nor to make
      it reliable (it is only used inside a process without any limits that might cause it
      to drop samples) */
   qos = dds_create_qos ();
-  CU_ASSERT_FATAL (qos != NULL);
+  CU_ASSERT_NEQ_FATAL (qos, NULL);
   dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, 1);
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
   create_unique_topic_name ("instance_handle", topicname, sizeof (topicname));
   tp[0] = dds_create_topic (dp, &InstanceHandleTypes_MD5_desc, topicname, NULL, NULL);
-  CU_ASSERT_FATAL (tp[0] > 0);
+  CU_ASSERT_GT_FATAL (tp[0], 0);
   dds_delete_qos (qos);
   wr[0] = dds_create_writer (dp, tp[0], NULL, NULL);
-  CU_ASSERT_FATAL (wr[0] > 0);
+  CU_ASSERT_GT_FATAL (wr[0], 0);
   rd[0] = dds_create_reader (dp, tp[0], NULL, NULL);
-  CU_ASSERT_FATAL (rd[0] > 0);
+  CU_ASSERT_GT_FATAL (rd[0], 0);
 
   for (size_t i = 0; i < N; i++)
   {
     rc = dds_write (wr[0], &md5xs[i]);
-    CU_ASSERT_FATAL (rc == 0);
+    CU_ASSERT_EQ_FATAL (rc, 0);
   }
 
   void *xs[N] = { NULL };
   dds_sample_info_t si[N];
   int32_t n = dds_read (rd[0], xs, si, N, N);
-  CU_ASSERT_FATAL (n == (int32_t) N);
+  CU_ASSERT_EQ_FATAL (n, (int32_t) N);
   for (int i = 0; i < n; i++)
-    CU_ASSERT (memcmp (xs[i], &md5xs[i], sizeof (md5xs[i])) == 0);
+    CU_ASSERT_MEMEQ (xs[i], sizeof (md5xs[i]), &md5xs[i], sizeof (md5xs[i]));
   qsort (si, (size_t) n, sizeof (*si), cmp_si_ih);
   for (int i = 1; i < n; i++)
-    CU_ASSERT (si[i].instance_handle != si[i-1].instance_handle);
+    CU_ASSERT_NEQ_FATAL (si[i].instance_handle, si[i-1].instance_handle);
   rc = dds_return_loan (rd[0], xs, n);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 
   struct ddsi_serdata *sds[N];
   n = dds_takecdr (rd[0], sds, N, si, DDS_ANY_STATE);
-  CU_ASSERT_FATAL (n == (int32_t) N);
+  CU_ASSERT_EQ_FATAL (n, (int32_t) N);
   for (int i = 0; i < n; i++)
   {
     ddsi_keyhash_t kh;
     ddsi_serdata_get_keyhash (sds[i], &kh, false);
-    CU_ASSERT (memcmp (md5, kh.value, sizeof (md5)) == 0);
+    CU_ASSERT_MEMEQ (md5, sizeof (md5), kh.value, sizeof (md5));
     ddsi_serdata_unref (sds[i]);
   }
 
   rc = dds_delete (dp);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 #undef N
 }

@@ -105,7 +105,7 @@ static void set_all (dds_listener_t *l)
   do { \
     dds_on_##fntype##_fn cb; \
     dds_lget_##fntype(listener, &cb); \
-    CU_ASSERT_EQUAL(cb, expected); \
+    CU_ASSERT_EQ (cb, (dds_on_##fntype##_fn) expected); \
   } while (0)
 
 static void check_all_const (const dds_listener_t *l, void (*c) (void))
@@ -145,7 +145,7 @@ static void check_all (const dds_listener_t *l)
 CU_Test (ddsc_listener, create_and_delete)
 {
   dds_listener_t *listener = dds_create_listener (NULL);
-  CU_ASSERT_PTR_NOT_NULL_FATAL (listener);
+  CU_ASSERT_NEQ_FATAL (listener, NULL);
   check_all_const (listener, 0);
   dds_delete_listener (listener);
 
@@ -156,7 +156,7 @@ CU_Test (ddsc_listener, create_and_delete)
 CU_Test (ddsc_listener, reset)
 {
   dds_listener_t *listener = dds_create_listener (NULL);
-  CU_ASSERT_PTR_NOT_NULL_FATAL (listener);
+  CU_ASSERT_NEQ_FATAL (listener, NULL);
 
   set_all (listener);
 
@@ -172,11 +172,11 @@ CU_Test (ddsc_listener, reset)
 CU_Test (ddsc_listener, copy)
 {
   dds_listener_t *listener1 = dds_create_listener (NULL);
-  CU_ASSERT_PTR_NOT_NULL_FATAL (listener1);
+  CU_ASSERT_NEQ_FATAL (listener1, NULL);
   set_all (listener1);
 
   dds_listener_t *listener2 = dds_create_listener (NULL);
-  CU_ASSERT_PTR_NOT_NULL_FATAL (listener2);
+  CU_ASSERT_NEQ_FATAL (listener2, NULL);
   dds_copy_listener (listener2, listener1);
   check_all (listener2);
 
@@ -192,12 +192,12 @@ CU_Test (ddsc_listener, copy)
 CU_Test (ddsc_listener, merge)
 {
   dds_listener_t *listener1 = dds_create_listener (NULL);
-  CU_ASSERT_PTR_NOT_NULL_FATAL (listener1);
+  CU_ASSERT_NEQ_FATAL (listener1, NULL);
   set_all (listener1);
 
   // Merging listener1 into empty listener2 be like a copy
   dds_listener_t *listener2 = dds_create_listener (NULL);
-  CU_ASSERT_PTR_NOT_NULL_FATAL (listener2);
+  CU_ASSERT_NEQ_FATAL (listener2, NULL);
   dds_merge_listener (listener2, listener1);
   check_all (listener2);
 
@@ -219,7 +219,7 @@ CU_Test(ddsc_listener, getters_setters)
 {
   // test all individual cb get/set methods
   dds_listener_t *listener = dds_create_listener (NULL);
-  CU_ASSERT_PTR_NOT_NULL_FATAL (listener);
+  CU_ASSERT_NEQ_FATAL (listener, NULL);
 
 #define TEST_GET_SET(listener, fntype, cb) \
   do { \
@@ -231,7 +231,7 @@ CU_Test(ddsc_listener, getters_setters)
     dds_lget_##fntype (NULL, NULL); \
     dds_lget_##fntype (listener, NULL); \
     dds_lget_##fntype (NULL, &dummy);  \
-    CU_ASSERT_EQUAL_FATAL (dummy, NULL); \
+    CU_ASSERT_EQ_FATAL (dummy, NULL); \
     /* Set to NULL, get to confirm it succeeds */ \
     dds_lset_##fntype (listener, NULL); \
     ASSERT_CALLBACK_EQUAL (fntype, listener, NULL); \
@@ -262,7 +262,7 @@ CU_Test(ddsc_listener, getters_setters)
 // Use no_shm variant because the use of shared memory may result in asynchronous delivery
 // of data published by a local reader/writer and at least some of these tests are written
 // on the assumption that it is always synchronous
-#define dotest(ops) CU_ASSERT_FATAL (test_oneliner_no_shm (ops) > 0)
+#define dotest(ops) CU_ASSERT_GT_FATAL (test_oneliner_no_shm (ops), 0)
 
 CU_Test (ddsc_listener, propagation)
 {

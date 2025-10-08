@@ -81,7 +81,7 @@ static void access_control_init(
   bool incl_perm[], const char * perm[],
   bool incl_ca[], const char * ca[])
 {
-  CU_ASSERT_FATAL (n_nodes <= MAX_DOMAINS);
+  CU_ASSERT_LEQ_FATAL (n_nodes, MAX_DOMAINS);
   for (size_t i = 0; i < n_nodes; i++)
   {
     print_test_msg ("init domain %"PRIuSIZE"\n", i);
@@ -100,18 +100,18 @@ static void access_control_init(
       { NULL, NULL, 0 }
     };
     char *conf = ddsrt_expand_vars_sh (config, &expand_lookup_vars_env, config_vars);
-    CU_ASSERT_EQUAL_FATAL (expand_lookup_unmatched (config_vars), 0);
+    CU_ASSERT_EQ_FATAL (expand_lookup_unmatched (config_vars), 0);
     g_domain[i] = dds_create_domain (DDS_DOMAINID + (dds_domainid_t)i, conf);
     dds_free (conf);
     g_participant[i] = dds_create_participant (DDS_DOMAINID + (dds_domainid_t)i, NULL, NULL);
-    CU_ASSERT_EQUAL_FATAL (exp_pp_fail[i], g_participant[i] <= 0);
+    CU_ASSERT_EQ_FATAL (exp_pp_fail[i], g_participant[i] <= 0);
   }
 }
 
 static void access_control_fini(size_t n, void * res[], size_t nres)
 {
   for (size_t i = 0; i < n; i++)
-    CU_ASSERT_EQUAL_FATAL (dds_delete (g_domain[i]), DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (dds_delete (g_domain[i]), DDS_RETCODE_OK);
   if (res != NULL)
   {
     for (size_t i = 0; i < nres; i++)
@@ -320,11 +320,11 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
   // create 1 reader
   dds_qos_t * rdqos = get_default_test_qos ();
   dds_entity_t sub = dds_create_subscriber (g_participant[0], NULL, NULL);
-  CU_ASSERT_FATAL (sub > 0);
+  CU_ASSERT_GT_FATAL (sub, 0);
   dds_entity_t sub_tp = dds_create_topic (g_participant[0], &SecurityCoreTests_Type1_desc, topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (sub_tp > 0);
+  CU_ASSERT_GT_FATAL (sub_tp, 0);
   dds_entity_t rd = dds_create_reader (sub, sub_tp, rdqos, NULL);
-  CU_ASSERT_FATAL (rd > 0);
+  CU_ASSERT_GT_FATAL (rd, 0);
   dds_set_status_mask (rd, DDS_SUBSCRIPTION_MATCHED_STATUS);
   dds_delete_qos (rdqos);
 
@@ -334,11 +334,11 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
   for (int i = 0; i < N_WR; i++)
   {
     dds_entity_t pub = dds_create_publisher (g_participant[i + 1], NULL, NULL);
-    CU_ASSERT_FATAL (pub > 0);
+    CU_ASSERT_GT_FATAL (pub, 0);
     dds_entity_t pub_tp = dds_create_topic (g_participant[i + 1], &SecurityCoreTests_Type1_desc, topic_name, NULL, NULL);
-    CU_ASSERT_FATAL (pub_tp > 0);
+    CU_ASSERT_GT_FATAL (pub_tp, 0);
     wr[i] = dds_create_writer (pub, pub_tp, wrqos, NULL);
-    CU_ASSERT_FATAL (wr[i] > 0);
+    CU_ASSERT_GT_FATAL (wr[i], 0);
     dds_set_status_mask (wr[i], DDS_PUBLICATION_MATCHED_STATUS);
   }
   dds_delete_qos (wrqos);
@@ -368,7 +368,7 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
       sample.id = w;
       ret = dds_write (wr[w], &sample);
       print_test_msg ("write %d\n", w);
-      CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+      CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     }
   }
 
@@ -388,14 +388,14 @@ CU_Test(ddssec_access_control, permissions_expiry_multiple, .timeout=20)
   {
     sample.id = w;
     dds_instance_handle_t ih = dds_lookup_instance(rd, &sample);
-    CU_ASSERT_NOT_EQUAL_FATAL(ih, DDS_HANDLE_NIL);
+    CU_ASSERT_NEQ_FATAL (ih, DDS_HANDLE_NIL);
     ret = dds_take_instance (rd, rd_samples, rd_info, N_WR, N_WR, ih);
     print_test_msg ("samples from writer %d: %d\n", w, ret);
-    CU_ASSERT_EQUAL_FATAL (ret, w + 1);
+    CU_ASSERT_EQ_FATAL (ret, w + 1);
     print_test_msg ("writer %d instance state: %d\n", w, rd_info[w].instance_state);
-    CU_ASSERT_EQUAL_FATAL (rd_info[w].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
+    CU_ASSERT_EQ_FATAL (rd_info[w].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
     print_test_msg ("writer %d valid data: %d\n", w, rd_info[w].valid_data);
-    CU_ASSERT_EQUAL_FATAL (rd_info[w].valid_data, true);
+    CU_ASSERT_EQ_FATAL (rd_info[w].valid_data, true);
   }
 
   access_control_fini (N_NODES, (void * []) { ca, rules_xml, perm_config_str, data }, 4);
@@ -634,17 +634,17 @@ static void test_discovery_liveliness_protection(enum test_discovery_liveliness 
   const char * builtin_wr_descr = dp ? "SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER" : "P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER";
   DDS_Security_DatawriterCryptoHandle secure_pub_wr_handle = get_builtin_writer_crypto_handle (g_participant[0], builtin_wr);
   print_test_msg ("crypto handle for %s: %ld\n", builtin_wr_descr, secure_pub_wr_handle);
-  CU_ASSERT_EQUAL_FATAL (exp_secure_pub_wr_handle, secure_pub_wr_handle != 0);
+  CU_ASSERT_EQ_FATAL (exp_secure_pub_wr_handle, secure_pub_wr_handle != 0);
 
   struct dds_security_cryptography_impl * crypto_context_pub = get_cryptography_context (g_participant[0]);
-  CU_ASSERT_FATAL (crypto_context_pub != NULL);
+  CU_ASSERT_NEQ_FATAL (crypto_context_pub, NULL);
 
   struct crypto_encode_decode_data *log = get_encode_decode_log (crypto_context_pub, ENCODE_DATAWRITER_SUBMESSAGE, secure_pub_wr_handle);
-  CU_ASSERT_EQUAL_FATAL (exp_secure_pub_wr_handle && exp_secure_pub_wr_encode_decode, log != NULL);
+  CU_ASSERT_EQ_FATAL (exp_secure_pub_wr_handle && exp_secure_pub_wr_encode_decode, log != NULL);
   if (log != NULL)
   {
     print_test_msg ("encode_datawriter_submessage count for %s: %u\n", builtin_wr_descr, log->count);
-    CU_ASSERT_FATAL (log->count > 0);
+    CU_ASSERT_GT_FATAL (log->count, 0);
     ddsrt_free (log);
   }
 
@@ -709,7 +709,7 @@ static void test_encoding_mismatch(
   struct Handshake *hs_list;
   int nhs;
   validate_handshake (DDS_DOMAINID, false, NULL, &hs_list, &nhs, DDS_SECS(2));
-  CU_ASSERT_EQUAL_FATAL (exp_hs_fail, nhs < 1);
+  CU_ASSERT_EQ_FATAL (exp_hs_fail, nhs < 1);
   handshake_list_fini (hs_list, nhs);
 
   if (!exp_hs_fail)
@@ -832,7 +832,7 @@ CU_Test(ddssec_access_control, readwrite_protection, .timeout=60)
                 bool exp_wr_fail = write_ac && !allow_pub && (deny_pub || default_deny);
                 bool exp_rd_fail = read_ac && !allow_sub && (deny_sub || default_deny);
                 /* if both read_ac and write_ac are enabled, and pub and sub not allowed, topic creation should fail */
-                bool exp_tp_fail = write_ac && read_ac && !allow_pub && !allow_sub && (deny_pub || deny_sub || default_deny);
+                bool exp_tp_fail = write_ac && read_ac && !allow_pub && !allow_sub && ((deny_pub && deny_sub) || default_deny);
                 /* participant creation should fail under same conditions as topic creation (as opposed to the DDS Security spec,
                   table 63, that states that participant creation fails when there is not any topic that has enable_read/write_ac
                   set to false and join_ac is enabled; it seems that the allow_rule condition is missing there) */
@@ -889,14 +889,14 @@ CU_Test(ddssec_access_control, denied_topic)
 
   /* Create a topic that is denied in the subscriber pp security config */
   dds_entity_t denied_pub_tp = dds_create_topic (g_participant[0], &SecurityCoreTests_Type1_desc, denied_topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (denied_pub_tp > 0);
+  CU_ASSERT_GT_FATAL (denied_pub_tp, 0);
   dds_qos_t * qos = get_default_test_qos ();
   dds_entity_t denied_tp_wr = dds_create_writer (pub, denied_pub_tp, qos, NULL);
-  CU_ASSERT_FATAL (denied_tp_wr > 0);
+  CU_ASSERT_GT_FATAL (denied_tp_wr, 0);
 
   /* Check that creating denied topic for subscriber fails */
   dds_entity_t denied_sub_tp = dds_create_topic (g_participant[1], &SecurityCoreTests_Type1_desc, denied_topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (denied_sub_tp == DDS_RETCODE_NOT_ALLOWED_BY_SECURITY);
+  CU_ASSERT_EQ_FATAL (denied_sub_tp, DDS_RETCODE_NOT_ALLOWED_BY_SECURITY);
 
   /* Check if communication for allowed topic is still working */
   write_read_for (wr, g_participant[1], rd, DDS_MSECS (10), false, false);

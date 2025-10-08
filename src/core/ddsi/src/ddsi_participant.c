@@ -101,13 +101,19 @@ void ddsi_prune_deleted_participant_guids (struct ddsi_deleted_participants_admi
   ddsrt_mutex_unlock (&admin->deleted_participants_lock);
 }
 
-void ddsi_remember_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid)
+bool ddsi_remember_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid)
 {
-  struct ddsi_deleted_participant *n;
+  bool inserted;
   ddsrt_avl_ipath_t path;
   ddsrt_mutex_lock (&admin->deleted_participants_lock);
-  if (ddsrt_avl_lookup_ipath (&deleted_participants_treedef, &admin->deleted_participants, guid, &path) == NULL)
+  if (ddsrt_avl_lookup_ipath (&deleted_participants_treedef, &admin->deleted_participants, guid, &path) != NULL)
+    inserted = false;
+  else
   {
+    struct ddsi_deleted_participant *n;
+    inserted = true;
+    // Out-of-memory means we can rediscover it before having cleaned it up completely, which is not good.
+    // Not deleting is also not a good option ...
     if ((n = ddsrt_malloc (sizeof (*n))) != NULL)
     {
       n->guid = *guid;
@@ -116,6 +122,7 @@ void ddsi_remember_deleted_participant_guid (struct ddsi_deleted_participants_ad
     }
   }
   ddsrt_mutex_unlock (&admin->deleted_participants_lock);
+  return inserted;
 }
 
 int ddsi_is_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid)
@@ -722,7 +729,14 @@ static void update_participant_spdp_sample_locked (struct ddsi_participant *pp, 
 
   ddsi_plist_t ps;
   struct ddsi_participant_builtin_topic_data_locators locs;
-  ddsi_get_participant_builtin_topic_data (pp, &ps, &locs);
+  if (isalive)
+    ddsi_get_participant_builtin_topic_data (pp, &ps, &locs);
+  else
+  {
+    ddsi_plist_init_empty (&ps);
+    ps.present = PP_PARTICIPANT_GUID;
+    ps.participant_guid = pp->e.guid;
+  }
   struct ddsi_serdata * const serdata = ddsi_serdata_from_sample (pp->e.gv->spdp_type, isalive ? SDK_DATA : SDK_KEY, &ps);
   ddsi_plist_fini (&ps);
   serdata->statusinfo = isalive ? 0 : (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER);
@@ -754,8 +768,6 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
   assert ((flags & ~(RTPS_PF_NO_BUILTIN_READERS | RTPS_PF_NO_BUILTIN_WRITERS)) == 0);
 
   ddsi_prune_deleted_participant_guids (gv->deleted_participants, ddsrt_time_monotonic ());
-
-  /* FIXME: FULL LOCKING AROUND NEW_XXX FUNCTIONS, JUST SO EXISTENCE TESTS ARE PRECISE */
 
   /* Participant may not exist yet, but this test is imprecise: if it
      used to exist, but is currently being deleted and we're trying to
@@ -991,22 +1003,24 @@ dds_return_t ddsi_delete_participant (struct ddsi_domaingv *gv, const struct dds
 {
   struct ddsi_participant *pp;
   GVLOGDISC ("ddsi_delete_participant ("PGUIDFMT")\n", PGUID (*ppguid));
-  ddsrt_mutex_lock (&gv->lock);
   if ((pp = ddsi_entidx_lookup_participant_guid (gv->entity_index, ppguid)) == NULL)
-  {
-    ddsrt_mutex_unlock (&gv->lock);
     return DDS_RETCODE_BAD_PARAMETER;
-  }
+
+  if (!ddsi_remember_deleted_participant_guid (gv->deleted_participants, &pp->e.guid))
+    return 0;
+
+  // we can only get here once because of remember_deleted_participant_guid
+  struct ddsi_participant *tryremove_ret = ddsi_entidx_tryremove_participant_guid (gv->entity_index, ppguid);
+  assert (tryremove_ret == pp);
+  (void) tryremove_ret;
+  
   ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &pp->e, ddsrt_time_wallclock(), false);
-  ddsi_remember_deleted_participant_guid (gv->deleted_participants, &pp->e.guid);
 #ifdef DDS_HAS_SECURITY
   disconnect_participant_secure (pp);
 #endif
   ddsrt_mutex_lock (&pp->refc_lock);
   pp->state = DDSI_PARTICIPANT_STATE_DELETE_STARTED;
   ddsrt_mutex_unlock (&pp->refc_lock);
-  ddsi_entidx_remove_participant_guid (gv->entity_index, pp);
-  ddsrt_mutex_unlock (&gv->lock);
   gcreq_participant (pp);
   return 0;
 }

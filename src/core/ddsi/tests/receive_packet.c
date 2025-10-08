@@ -97,6 +97,11 @@ static void stop_and_teardown (void)
   teardown ();
 }
 
+struct serdata {
+  struct ddsi_serdata c;
+  uint32_t size;
+};
+
 static void serdata_free (struct ddsi_serdata *sd) {
   ddsrt_free (sd);
 }
@@ -105,10 +110,11 @@ static struct ddsi_serdata *serdata_from_ser (const struct ddsi_sertype *st, enu
 {
   (void) fragchain;
   printf ("Yay! %zu bytes\n", size);
-  struct ddsi_serdata *sd = ddsrt_malloc (sizeof (*sd));
-  ddsi_serdata_init (sd, st, kind);
-  sd->hash = st->serdata_basehash;
-  return sd;
+  struct serdata *sd = ddsrt_malloc (sizeof (*sd));
+  ddsi_serdata_init (&sd->c, st, kind);
+  sd->size = (uint32_t) size;
+  sd->c.hash = st->serdata_basehash;
+  return &sd->c;
 }
 
 static struct ddsi_serdata *serdata_to_untyped (const struct ddsi_serdata *d)
@@ -123,11 +129,18 @@ static bool serdata_eqkey (const struct ddsi_serdata *a, const struct ddsi_serda
   return true;
 }
 
+static uint32_t serdata_get_size (const struct ddsi_serdata *sd0)
+{
+  struct serdata *sd = (struct serdata *) sd0;
+  return sd->size;
+};
+
 static const struct ddsi_serdata_ops serdata_ops = {
   .from_ser = serdata_from_ser,
   .free = serdata_free,
   .to_untyped = serdata_to_untyped,
-  .eqkey = serdata_eqkey
+  .eqkey = serdata_eqkey,
+  .get_size = serdata_get_size
 };
 
 static void sertype_free (struct ddsi_sertype *st)
@@ -409,5 +422,5 @@ CU_Test (ddsi_receive_packet, rti_dispose_with_key)
   ddsi_rmsg_commit (rmsg);
 
   receive_packet_fini ();
-  CU_ASSERT (rhc.stored);
+  CU_ASSERT_NEQ (rhc.stored, 0);
 }

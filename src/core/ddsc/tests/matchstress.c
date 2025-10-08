@@ -47,16 +47,16 @@ static uint32_t create_reader_thread (void *varg)
 static void do_ddsc_match_stress_single_writer_many_readers (void)
 {
   const dds_entity_t dp = dds_create_participant (0, NULL, NULL);
-  CU_ASSERT_FATAL (dp > 0);
+  CU_ASSERT_GT_FATAL (dp, 0);
   char topicname[100];
   create_unique_topic_name ("ddsc_match_stress_single_writer_many_readers", topicname, sizeof (topicname));
   const dds_entity_t tp = dds_create_topic (dp, &Space_Type1_desc, topicname, NULL, NULL);
-  CU_ASSERT_FATAL (tp > 0);
+  CU_ASSERT_GT_FATAL (tp, 0);
   dds_listener_t *listener = dds_create_listener (NULL);
   dds_lset_publication_matched (listener, on_pub_matched);
   dds_lset_subscription_matched (listener, on_sub_matched);
   const dds_entity_t wr = dds_create_writer (dp, tp, NULL, listener);
-  CU_ASSERT_FATAL (wr > 0);
+  CU_ASSERT_GT_FATAL (wr, 0);
   ddsrt_threadattr_t tattr;
   ddsrt_threadattr_init (&tattr);
   ddsrt_thread_t tids[100];
@@ -67,22 +67,22 @@ static void do_ddsc_match_stress_single_writer_many_readers (void)
     char threadname[100];
     snprintf (threadname, sizeof (threadname), "thr%zu", i);
     rc = ddsrt_thread_create (&tids[i], threadname, &tattr, create_reader_thread, &crtarg);
-    CU_ASSERT_FATAL (rc == 0);
+    CU_ASSERT_EQ_FATAL (rc, 0);
   }
   rc = dds_set_listener (wr, NULL);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   rc = dds_delete (wr);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   for (size_t i = 0; i < sizeof (tids) / sizeof (tids[0]); i++)
   {
     uint32_t res;
     rc = ddsrt_thread_join (tids[i], &res);
-    CU_ASSERT_FATAL (rc == 0);
-    CU_ASSERT_FATAL (res == 0);
+    CU_ASSERT_EQ_FATAL (rc, 0);
+    CU_ASSERT_EQ_FATAL (res, 0);
   }
   dds_delete_listener (listener);
   rc = dds_delete (dp);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 }
 
 CU_Test(ddsc_match_stress, single_writer_many_readers)

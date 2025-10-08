@@ -187,13 +187,12 @@ dds_return_t ddsi_delete_topic (struct ddsi_domaingv *gv, const struct ddsi_guid
 {
   struct ddsi_topic *tp;
   assert (ddsi_is_topic_entityid (guid->entityid));
-  if ((tp = ddsi_entidx_lookup_topic_guid (gv->entity_index, guid)) == NULL)
+  if ((tp = ddsi_entidx_tryremove_topic_guid (gv->entity_index, guid)) == NULL)
   {
     GVLOGDISC ("ddsi_delete_topic (guid "PGUIDFMT") - unknown guid\n", PGUID (*guid));
     return DDS_RETCODE_BAD_PARAMETER;
   }
   GVLOGDISC ("ddsi_delete_topic (guid "PGUIDFMT") ...\n", PGUID (*guid));
-  ddsi_entidx_remove_topic_guid (gv->entity_index, tp);
   gcreq_topic (tp);
   return 0;
 }
@@ -460,7 +459,7 @@ dds_return_t ddsi_new_proxy_topic (struct ddsi_proxy_participant *proxypp, ddsi_
     ddsi_builtintopic_write_topic (gv->builtin_topic_interface, tpd, timestamp, true);
     ddsrt_mutex_lock (&gv->new_topic_lock);
     gv->new_topic_version++;
-    ddsrt_cond_broadcast (&gv->new_topic_cond);
+    ddsrt_cond_etime_broadcast (&gv->new_topic_cond);
     ddsrt_mutex_unlock (&gv->new_topic_lock);
   }
 
@@ -514,7 +513,7 @@ void ddsi_update_proxy_topic (struct ddsi_proxy_participant *proxypp, struct dds
 
     ddsrt_mutex_lock (&gv->new_topic_lock);
     gv->new_topic_version++;
-    ddsrt_cond_broadcast (&gv->new_topic_cond);
+    ddsrt_cond_etime_broadcast (&gv->new_topic_cond);
     ddsrt_mutex_unlock (&gv->new_topic_lock);
   }
 }

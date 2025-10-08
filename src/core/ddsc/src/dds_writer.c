@@ -517,7 +517,7 @@ dds_entity_t dds_get_publisher (dds_entity_t writer)
   }
 }
 
-dds_return_t dds__ddsi_writer_wait_for_acks (struct dds_writer *wr, ddsi_guid_t *rdguid, dds_time_t abstimeout)
+dds_return_t dds__ddsi_writer_wait_for_acks (struct dds_writer *wr, ddsi_guid_t *rdguid, ddsrt_mtime_t abstimeout)
 {
   /* during lifetime of the writer m_wr is constant, it is only during deletion that it
      gets erased at some point */

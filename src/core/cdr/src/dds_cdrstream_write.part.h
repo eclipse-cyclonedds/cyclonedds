@@ -19,7 +19,7 @@ static inline bool dds_stream_write_bool_valueBO (RESTRICT_OSTREAM_T *os, const 
 static bool dds_stream_write_enum_valueBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, uint32_t insn, uint32_t val, uint32_t max)
 {
   if (val > max)
-    return false;
+    return write_error_bool ();
   switch (DDS_OP_TYPE_SZ (insn))
   {
     case 1:
@@ -43,29 +43,29 @@ static bool dds_stream_write_bitmask_valueBO (RESTRICT_OSTREAM_T *os, const stru
   {
     case 1: {
       const uint8_t *ptr = (const uint8_t *) addr;
-      if (!bitmask_value_valid (*ptr, bits_h, bits_l))
-        return false;
+      if (!bitmask_value_valid (0, *ptr, bits_h, bits_l))
+        return write_error_bool ();
       dds_os_put1BO (os, allocator, *ptr);
       break;
     }
     case 2: {
       const uint16_t *ptr = (const uint16_t *) addr;
-      if (!bitmask_value_valid (*ptr, bits_h, bits_l))
-        return false;
+      if (!bitmask_value_valid (0, *ptr, bits_h, bits_l))
+        return write_error_bool ();
       dds_os_put2BO (os, allocator, *ptr);
       break;
     }
     case 4: {
       const uint32_t *ptr = (const uint32_t *) addr;
-      if (!bitmask_value_valid (*ptr, bits_h, bits_l))
-        return false;
+      if (!bitmask_value_valid (0, *ptr, bits_h, bits_l))
+        return write_error_bool ();
       dds_os_put4BO (os, allocator, *ptr);
       break;
     }
     case 8: {
       const uint64_t *ptr = (const uint64_t *) addr;
-      if (!bitmask_value_valid (*ptr, bits_h, bits_l))
-        return false;
+      if (!bitmask_value_valid ((uint32_t) (*ptr >> 32), (uint32_t) *ptr, bits_h, bits_l))
+        return write_error_bool ();
       dds_os_put8BO (os, allocator, *ptr);
       break;
     }
@@ -120,9 +120,9 @@ static bool dds_stream_write_wcharBO (RESTRICT_OSTREAM_T *os, const struct dds_c
 {
   // surrogates are forbidden
   if ((uint32_t) val >= 0xd800 && (uint32_t) val < 0xe000)
-    return false;
+    return write_error_bool ();
   else if ((uint32_t) val > 0xffff) // out-of-range
-    return false;
+    return write_error_bool ();
   dds_os_put2BO (os, allocator, (uint16_t) val);
   return true;
 }
@@ -132,7 +132,7 @@ static bool dds_stream_write_bool_arrBO (RESTRICT_OSTREAM_T *os, const struct dd
   for (uint32_t i = 0; i < num; i++)
   {
     if (!dds_stream_write_bool_valueBO (os, allocator, addr[i]))
-      return false;
+      return write_error_bool ();
   }
   return true;
 }
@@ -145,7 +145,7 @@ static bool dds_stream_write_enum_arrBO (RESTRICT_OSTREAM_T *os, const struct dd
       for (uint32_t i = 0; i < num; i++)
       {
         if (addr[i] > max)
-          return false;
+          return write_error_bool ();
         dds_os_put1BO (os, allocator, (uint8_t) addr[i]);
       }
       break;
@@ -153,7 +153,7 @@ static bool dds_stream_write_enum_arrBO (RESTRICT_OSTREAM_T *os, const struct dd
       for (uint32_t i = 0; i < num; i++)
       {
         if (addr[i] > max)
-          return false;
+          return write_error_bool ();
         dds_os_put2BO (os, allocator, (uint16_t) addr[i]);
       }
       break;
@@ -161,7 +161,7 @@ static bool dds_stream_write_enum_arrBO (RESTRICT_OSTREAM_T *os, const struct dd
       for (uint32_t i = 0; i < num; i++)
       {
         if (addr[i] > max)
-          return false;
+          return write_error_bool ();
         dds_os_put4BO (os, allocator, addr[i]);
       }
       break;
@@ -179,8 +179,8 @@ static bool dds_stream_write_bitmask_arrBO (RESTRICT_OSTREAM_T *os, const struct
       const uint8_t *ptr = (const uint8_t *) addr;
       for (uint32_t i = 0; i < num; i++)
       {
-        if (!bitmask_value_valid (ptr[i], bits_h, bits_l))
-          return false;
+        if (!bitmask_value_valid (0, ptr[i], bits_h, bits_l))
+          return write_error_bool ();
         dds_os_put1BO (os, allocator, ptr[i]);
       }
       break;
@@ -189,8 +189,8 @@ static bool dds_stream_write_bitmask_arrBO (RESTRICT_OSTREAM_T *os, const struct
       const uint16_t *ptr = (const uint16_t *) addr;
       for (uint32_t i = 0; i < num; i++)
       {
-        if (!bitmask_value_valid (ptr[i], bits_h, bits_l))
-          return false;
+        if (!bitmask_value_valid (0, ptr[i], bits_h, bits_l))
+          return write_error_bool ();
         dds_os_put2BO (os, allocator, ptr[i]);
       }
       break;
@@ -199,8 +199,8 @@ static bool dds_stream_write_bitmask_arrBO (RESTRICT_OSTREAM_T *os, const struct
       const uint32_t *ptr = (const uint32_t *) addr;
       for (uint32_t i = 0; i < num; i++)
       {
-        if (!bitmask_value_valid (ptr[i], bits_h, bits_l))
-          return false;
+        if (!bitmask_value_valid (0, ptr[i], bits_h, bits_l))
+          return write_error_bool ();
         dds_os_put4BO (os, allocator, ptr[i]);
       }
       break;
@@ -209,8 +209,8 @@ static bool dds_stream_write_bitmask_arrBO (RESTRICT_OSTREAM_T *os, const struct
       const uint64_t *ptr = (const uint64_t *) addr;
       for (uint32_t i = 0; i < num; i++)
       {
-        if (!bitmask_value_valid (ptr[i], bits_h, bits_l))
-          return false;
+        if (!bitmask_value_valid ((uint32_t) (ptr[i] >> 32), (uint32_t) ptr[i], bits_h, bits_l))
+          return write_error_bool ();
         dds_os_put8BO (os, allocator, ptr[i]);
       }
       break;
@@ -239,9 +239,9 @@ static const uint32_t *dds_stream_write_seqBO (RESTRICT_OSTREAM_T *os, const str
 
   const uint32_t num = seq->_length;
   if (bound && num > bound)
-    return NULL;
+    return write_error_ops ();
   if (num > 0 && seq->_buffer == NULL)
-    return NULL;
+    return write_error_ops ();
 
   dds_os_put4BO (os, allocator, num);
 
@@ -498,7 +498,7 @@ static const uint32_t *dds_stream_write_uniBO (RESTRICT_OSTREAM_T *os, const str
       assert (DDS_OP (jeq_op[0]) == DDS_OP_JEQ4);
       valaddr = *(char **) valaddr;
       if (valaddr == NULL)
-        return NULL;
+        return write_error_ops ();
     }
 
     switch (valtype)
@@ -550,7 +550,7 @@ static void dds_stream_write_xcdr1_paramheaderBO (RESTRICT_OSTREAM_T *os, const 
   // Ghastly XCDR1 alignment rules for mutable encoding and the encoding of optionals in non-mutable structs
   // require us to pretend that the value starts at an offset 0 mod 8. The caller is expected to undo the
   // change to os->x.m_align_off
-  if ((os->x.m_index % 8) == 0)
+  if (((os->x.m_index - os->x.m_align_off) % 8) == 0)
     *alignment_offset_by_4 = false;
   else
   {
@@ -558,6 +558,27 @@ static void dds_stream_write_xcdr1_paramheaderBO (RESTRICT_OSTREAM_T *os, const 
     assert (os->x.m_index >= 4);
     os->x.m_align_off += 4;
     *alignment_offset_by_4 = true;
+  }
+}
+
+static void dds_stream_write_xcdr1_param_list_endBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator)
+{
+  // XTypes 1.3 table 34: must understand should be set in generated CDR
+  uint16_t phdr = DDS_XCDR1_PL_SHORT_FLAG_MU | DDS_XCDR1_PL_SHORT_PID_LIST_END;
+  uint16_t slen = 0;
+
+  dds_cdr_alignto_clear_and_resize_base (&os->x, allocator, dds_cdr_get_align (os->x.m_xcdr_version, 4), 4);
+  dds_os_put2BO (os, allocator, phdr);
+  dds_os_put2BO (os, allocator, slen);
+}
+
+static void dds_stream_write_xcdr1_paramheader_closeBO (RESTRICT_OSTREAM_T *os, uint32_t param_length_offs, uint32_t len, bool alignment_offset_by_4)
+{
+  *((uint32_t *) (os->x.m_buffer + param_length_offs - 4)) = to_BO4u (len);
+  if (alignment_offset_by_4)
+  {
+    assert (os->x.m_align_off >= 4);
+    os->x.m_align_off -= 4;
   }
 }
 
@@ -574,7 +595,7 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, RESTRICT_OSTREAM_T
   {
     addr = *(char **) addr;
     if (addr == NULL && !(op_type_optional (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR || DDS_OP_TYPE (insn) == DDS_OP_VAL_WSTR))
-      return NULL;
+      return write_error_ops ();
   }
 
   uint32_t param_length_offs = 0;
@@ -585,20 +606,15 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, RESTRICT_OSTREAM_T
     if (os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
     {
       uint32_t flags = DDS_OP_FLAGS (insn);
-      bool must_understand = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
+      // RTI can't handle "must understand" on key fields where it doesn't expect it, hence only
+      // setting must_understand if FLAG_MU, rather than if (FLAG_MU | FLAG_KEY)
+      bool must_understand = flags & DDS_OP_FLAG_MU;
       uint32_t member_id;
       if (!find_member_id (mid_table, ops, &member_id))
-        return NULL;
+        return write_error_ops ();
       dds_stream_write_xcdr1_paramheaderBO (os, allocator, must_understand, member_id, &param_length_offs, &alignment_offset_by_4);
       if (!present)
-      {
-        *((uint32_t *) (os->x.m_buffer + param_length_offs - 4)) = to_BO4u (0);
-        if (alignment_offset_by_4)
-        {
-          assert (os->x.m_align_off >= 4);
-          os->x.m_align_off -= 4;
-        }
-      }
+        dds_stream_write_xcdr1_paramheader_closeBO (os, param_length_offs, 0, alignment_offset_by_4);
     }
     else // DDSI_RTPS_CDR_ENC_VERSION_2
     {
@@ -662,14 +678,7 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, RESTRICT_OSTREAM_T
 
   // In case XCDR1, optional member of a non-mutable type: set the parameter length in the (extended) parameter header
   if (os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1 && op_type_optional (insn) && !is_mutable_member)
-  {
-    *((uint32_t *) (os->x.m_buffer + param_length_offs - 4)) = to_BO4u (os->x.m_index - param_length_offs);
-    if (alignment_offset_by_4)
-    {
-      assert (os->x.m_align_off >= 4);
-      os->x.m_align_off -= 4;
-    }
-  }
+    dds_stream_write_xcdr1_paramheader_closeBO (os, param_length_offs, os->x.m_index - param_length_offs, alignment_offset_by_4);
   return ops;
 }
 
@@ -684,13 +693,43 @@ static const uint32_t *dds_stream_write_delimitedBO (RESTRICT_OSTREAM_T *os, con
   return ops;
 }
 
-static bool dds_stream_write_xcdr2_pl_memberBO (uint32_t mid, RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const char *data, const uint32_t *ops, enum cdr_data_kind cdr_kind)
+static bool dds_stream_write_xcdr1_pl_memberBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, uint32_t mid, const struct dds_cdrstream_desc_mid_table *mid_table, const char *data, const uint32_t *ops, enum cdr_data_kind cdr_kind)
+{
+  /* get flags from first member op */
+  uint32_t flags = DDS_OP_FLAGS (ops[0]);
+  bool is_key = flags & DDS_OP_FLAG_KEY;
+  // RTI can't handle the "must understand" flag on keys that do not have it set explicit in XCDR1
+  // mode, so we have to leave it unset despite it being required and actually serving a purpose
+  // when type discovery isn't available
+  bool must_understand = flags & DDS_OP_FLAG_MU;
+
+  if (cdr_kind == CDR_KIND_KEY && !is_key)
+    return true;
+
+  uint32_t param_length_offs = 0;
+  bool alignment_offset_by_4 = false; // for XCDR1 alignment rules
+  dds_stream_write_xcdr1_paramheaderBO (os, allocator, must_understand, mid, &param_length_offs, &alignment_offset_by_4);
+
+  if (!(dds_stream_write_implBO (os, allocator, mid_table, data, ops, true, cdr_kind)))
+    return false;
+
+  // XTypes 1.3 says the parameter length in the header must be the exact length
+  // of the serialized data. However, Xtypes 1.1 said it should be a multiple of 4.
+  // RTI unfortunately sticks to XTypes 1.1 until very recently and doesn't handle
+  // well-formed XCDR1 (and neither does Wireshark).
+  dds_cdr_alignto_clear_and_resize_base (&os->x, allocator, dds_cdr_get_align (os->x.m_xcdr_version, 4), 0);
+  dds_stream_write_xcdr1_paramheader_closeBO (os, param_length_offs, os->x.m_index - param_length_offs, alignment_offset_by_4);
+
+  return true;
+}
+
+static bool dds_stream_write_xcdr2_pl_memberBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, uint32_t mid, const char *data, const uint32_t *ops, enum cdr_data_kind cdr_kind)
 {
   assert (!(mid & ~EMHEADER_MEMBERID_MASK));
 
   /* get flags from first member op */
   uint32_t flags = DDS_OP_FLAGS (ops[0]);
-  bool is_key = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
+  bool is_key = flags & DDS_OP_FLAG_KEY;
   bool must_understand = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
 
   if (cdr_kind == CDR_KIND_KEY && !is_key)
@@ -699,7 +738,7 @@ static bool dds_stream_write_xcdr2_pl_memberBO (uint32_t mid, RESTRICT_OSTREAM_T
   uint32_t lc = get_length_code (ops);
   assert (lc <= LENGTH_CODE_ALSO_NEXTINT8);
   uint32_t data_offs = (lc != LENGTH_CODE_NEXTINT) ? dds_os_reserve4BO (os, allocator) : dds_os_reserve8BO (os, allocator);
-  if (!(dds_stream_write_implBO (os, allocator, mid_table, data, ops, true, cdr_kind)))
+  if (!(dds_stream_write_implBO (os, allocator, &static_empty_mid_table, data, ops, true, cdr_kind)))
     return false;
 
   /* add emheader with data length code and flags and optionally the serialized size of the data */
@@ -716,7 +755,7 @@ static bool dds_stream_write_xcdr2_pl_memberBO (uint32_t mid, RESTRICT_OSTREAM_T
   return true;
 }
 
-static const uint32_t *dds_stream_write_xcdr2_pl_memberlistBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const char *data, const uint32_t *ops, enum cdr_data_kind cdr_kind)
+static const uint32_t *dds_stream_write_pl_memberlistBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const char *data, const uint32_t *ops, enum cdr_data_kind cdr_kind)
 {
   uint32_t insn;
   while (ops && (insn = *ops) != DDS_OP_RTS)
@@ -730,14 +769,22 @@ static const uint32_t *dds_stream_write_xcdr2_pl_memberlistBO (RESTRICT_OSTREAM_
         {
           assert (plm_ops[0] == DDS_OP_PLC);
           plm_ops++; /* skip PLC op to go to first PLM for the base type */
-          if (!dds_stream_write_xcdr2_pl_memberlistBO (os, allocator, mid_table, data, plm_ops, cdr_kind))
+          if (!dds_stream_write_pl_memberlistBO (os, allocator, mid_table, data, plm_ops, cdr_kind))
             return NULL;
         }
         else if (is_member_present (data, plm_ops))
         {
           uint32_t member_id = ops[1];
-          if (!dds_stream_write_xcdr2_pl_memberBO (member_id, os, allocator, mid_table, data, plm_ops, cdr_kind))
-            return NULL;
+          if (os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2)
+          {
+            if (!dds_stream_write_xcdr2_pl_memberBO (os, allocator, member_id, data, plm_ops, cdr_kind))
+              return NULL;
+          }
+          else
+          {
+            if (!dds_stream_write_xcdr1_pl_memberBO (os, allocator, member_id, mid_table, data, plm_ops, cdr_kind))
+              return NULL;
+          }
         }
         ops += 2;
         break;
@@ -747,6 +794,20 @@ static const uint32_t *dds_stream_write_xcdr2_pl_memberlistBO (RESTRICT_OSTREAM_
         break;
     }
   }
+  return ops;
+}
+
+static const uint32_t *dds_stream_write_xcdr1_plBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const char *data, const uint32_t *ops, enum cdr_data_kind cdr_kind)
+{
+  /* skip PLC op */
+  ops++;
+
+  /* write members, including members from base types */
+  ops = dds_stream_write_pl_memberlistBO (os, allocator, mid_table, data, ops, cdr_kind);
+
+  /* write the list-end parameter */
+  dds_stream_write_xcdr1_param_list_endBO (os, allocator);
+
   return ops;
 }
 
@@ -760,7 +821,7 @@ static const uint32_t *dds_stream_write_xcdr2_plBO (RESTRICT_OSTREAM_T *os, cons
   uint32_t data_offs = os->x.m_index;
 
   /* write members, including members from base types */
-  ops = dds_stream_write_xcdr2_pl_memberlistBO (os, allocator, mid_table, data, ops, cdr_kind);
+  ops = dds_stream_write_pl_memberlistBO (os, allocator, mid_table, data, ops, cdr_kind);
 
   /* write serialized size in dheader */
   *((uint32_t *) (os->x.m_buffer + data_offs - 4)) = to_BO4u (os->x.m_index - data_offs);
@@ -793,8 +854,10 @@ static const uint32_t *dds_stream_write_implBO (RESTRICT_OSTREAM_T *os, const st
           ops = dds_stream_write_implBO (os, allocator, mid_table, data, ops + 1, false, cdr_kind);
         break;
       case DDS_OP_PLC:
-        assert (os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
-        ops = dds_stream_write_xcdr2_plBO (os, allocator, mid_table, data, ops, cdr_kind);
+        if (os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2)
+          ops = dds_stream_write_xcdr2_plBO (os, allocator, mid_table, data, ops, cdr_kind);
+        else
+          ops = dds_stream_write_xcdr1_plBO (os, allocator, mid_table, data, ops, cdr_kind);
         break;
     }
   }

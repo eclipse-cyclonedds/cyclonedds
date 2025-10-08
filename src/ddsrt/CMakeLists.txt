@@ -44,6 +44,7 @@ set(headers
   "${source_dir}/include/dds/ddsrt/attributes.h"
   "${source_dir}/include/dds/ddsrt/endian.h"
   "${source_dir}/include/dds/ddsrt/arch.h"
+  "${source_dir}/include/dds/ddsrt/machineid.h"
   "${source_dir}/include/dds/ddsrt/misc.h"
   "${source_dir}/include/dds/ddsrt/mh3.h"
   "${source_dir}/include/dds/ddsrt/io.h"
@@ -87,6 +88,7 @@ set(sources
   "${source_dir}/src/retcode.c"
   "${source_dir}/src/strtod.c"
   "${source_dir}/src/strtol.c"
+  "${source_dir}/src/machineid.c"
   "${source_dir}/src/mh3.c"
   "${source_dir}/src/environ.c"
   "${source_dir}/src/expand_vars.c"
@@ -170,6 +172,7 @@ check_symbol_exists("inet_ntop" ${inet_header} DDSRT_HAVE_INET_NTOP)
 check_symbol_exists("inet_pton" ${inet_header} DDSRT_HAVE_INET_PTON)
 check_symbol_exists("getaddrinfo" ${netdb_header} DDSRT_HAVE_GETADDRINFO)
 check_symbol_exists("gethostbyname_r" ${netdb_header} DDSRT_HAVE_GETHOSTBYNAME_R)
+check_symbol_exists("pthread_condattr_setclock" "pthread.h" DDSRT_HAVE_CONDATTR_SETCLOCK)
 if(DDSRT_HAVE_GETADDRINFO OR DDSRT_HAVE_GETHOSTBYNAME_R)
   set(DDSRT_HAVE_DNS TRUE)
 endif()
@@ -221,12 +224,16 @@ if(DDSRT_HAVE_SSM)
 else()
   message(STATUS "Building without source-specific multicast support")
 endif()
+if(DDSRT_HAVE_CONDATTR_SETCLOCK)
+  message(STATUS "Building with support for cond_timewait using different clocks")
+else()
+  message(STATUS "Building without support for cond_timewait using different clocks")
+endif()
 
 if(WITH_FREERTOS)
   list(APPEND headers
     "${source_dir}/include/dds/ddsrt/sync/freertos.h"
-    "${source_dir}/include/dds/ddsrt/threads/freertos.h"
-    "${source_dir}/include/dds/ddsrt/time/freertos.h")
+    "${source_dir}/include/dds/ddsrt/threads/freertos.h")
   list(APPEND sources
     "${source_dir}/src/environ/posix/environ.c"
     "${source_dir}/src/heap/freertos/heap.c"

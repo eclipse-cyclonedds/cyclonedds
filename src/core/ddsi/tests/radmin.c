@@ -73,18 +73,18 @@ static void insert_gap (struct ddsi_reorder *reorder, struct ddsi_rmsg *rmsg, dd
   struct ddsi_rsample_chain sc;
   int refc_adjust = 0;
   ddsi_reorder_result_t res = ddsi_reorder_gap (&sc, reorder, gap, seq, seq + 1, &refc_adjust);
-  CU_ASSERT_FATAL (res == DDSI_REORDER_ACCEPT);
+  CU_ASSERT_EQ_FATAL (res, DDSI_REORDER_ACCEPT);
   ddsi_fragchain_adjust_refcount (gap, refc_adjust);
 }
 
 static void check_reorder (struct ddsi_reorder *reorder, uint64_t ndiscard, ddsi_seqno_t next_exp, ddsi_seqno_t end, const ddsi_seqno_t *present)
 {
   // expect to be waiting for the right sequence number
-  CU_ASSERT_FATAL (ddsi_reorder_next_seq (reorder) == next_exp);
+  CU_ASSERT_EQ_FATAL (ddsi_reorder_next_seq (reorder), next_exp);
   // expect the number of discarded bytes to match
   uint64_t discarded_bytes;
   ddsi_reorder_stats (reorder, &discarded_bytes);
-  CU_ASSERT_FATAL (discarded_bytes == ndiscard);
+  CU_ASSERT_EQ_FATAL (discarded_bytes, ndiscard);
   // expect the set of present sequence numbers to match
   int i = 0, err = 0;
   printf ("check:");
@@ -103,14 +103,13 @@ static void check_reorder (struct ddsi_reorder *reorder, uint64_t ndiscard, ddsi
     }
   }
   printf ("\n");
-  CU_ASSERT_FATAL (err == 0);
+  CU_ASSERT_EQ_FATAL (err, 0);
 }
 
 static void insert_sample (struct ddsi_defrag *defrag, struct ddsi_reorder *reorder, struct ddsi_rmsg *rmsg, struct ddsi_receiver_state *rst, ddsi_seqno_t seq)
 {
   struct ddsi_rsample_info *si = ddsi_rmsg_alloc (rmsg, sizeof (*si));
-  CU_ASSERT_FATAL (si != NULL);
-  assert (si);
+  CU_ASSERT_NEQ_FATAL (si, NULL);
   // only "seq" and "size" really matter
   memset (si, 0, sizeof (*si));
   si->rst = rst;
@@ -118,13 +117,13 @@ static void insert_sample (struct ddsi_defrag *defrag, struct ddsi_reorder *reor
   si->seq = seq;
   struct ddsi_rdata *rdata = ddsi_rdata_new (rmsg, 0, si->size, 0, 0, 0);
   struct ddsi_rsample *rsample = ddsi_defrag_rsample (defrag, rdata, si);
-  CU_ASSERT_FATAL (rsample != NULL);
+  CU_ASSERT_NEQ_FATAL (rsample, NULL);
 
   struct ddsi_rsample_chain sc;
   int refc_adjust = 0;
   struct ddsi_rdata *fragchain = ddsi_rsample_fragchain (rsample);
   ddsi_reorder_result_t res = ddsi_reorder_rsample (&sc, reorder, rsample, &refc_adjust, 0);
-  CU_ASSERT_FATAL (res == DDSI_REORDER_ACCEPT);
+  CU_ASSERT_EQ_FATAL (res, DDSI_REORDER_ACCEPT);
   ddsi_fragchain_adjust_refcount (fragchain, refc_adjust);
 }
 
@@ -133,7 +132,7 @@ CU_Test (ddsi_radmin, drop_gap_at_end, .init = setup, .fini = teardown)
   // not doing fragmented samples in this test, so defragmenter mode & size limits are irrelevant
   struct ddsi_defrag *defrag = ddsi_defrag_new (&gv.logconfig, DDSI_DEFRAG_DROP_LATEST, 1);
   struct ddsi_reorder *reorder = ddsi_reorder_new (&gv.logconfig, DDSI_REORDER_MODE_NORMAL, 3, false);
-  CU_ASSERT_FATAL (ddsi_reorder_next_seq (reorder) == 1);
+  CU_ASSERT_EQ_FATAL (ddsi_reorder_next_seq (reorder), 1);
 
   // pretending that we get all the input as a single RTPSMessage
   struct ddsi_rmsg *rmsg = ddsi_rmsg_new (rbpool);

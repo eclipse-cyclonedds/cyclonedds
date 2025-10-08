@@ -1766,13 +1766,13 @@ err:
   return ret;
 }
 
-static dds_return_t add_memberids_struct (struct typebuilder_data *tbd, struct typebuilder_ops *ops, const struct typebuilder_struct *tb_struct, struct visited_aggrtype *visited_aggrtypes)
+static dds_return_t add_memberids_struct (struct typebuilder_data *tbd, struct typebuilder_ops *ops, const struct typebuilder_struct *tb_struct, struct visited_aggrtype *visited_aggrtypes, bool is_mutable_struct)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   for (uint32_t n = 0; n < tb_struct->n_members; n++)
   {
     struct typebuilder_struct_member *member = &tb_struct->members[n];
-    if (member->is_optional)
+    if (member->is_optional && !is_mutable_struct)
     {
       PUSH_OP (DDS_OP_MID);
       PUSH_ARG (member->insn_offs);
@@ -1831,9 +1831,6 @@ static dds_return_t add_memberids_aggrtype (struct typebuilder_data *tbd, struct
 {
   dds_return_t ret = DDS_RETCODE_OK;
 
-  if (tb_aggrtype->extensibility == DDS_XTypes_IS_MUTABLE)
-    return DDS_RETCODE_OK;
-
   struct visited_aggrtype *va = visited_aggrtypes;
   while (true)
   {
@@ -1858,7 +1855,7 @@ static dds_return_t add_memberids_aggrtype (struct typebuilder_data *tbd, struct
   switch (tb_aggrtype->kind)
   {
     case DDS_XTypes_TK_STRUCTURE:
-      if ((ret = add_memberids_struct (tbd, ops, &tb_aggrtype->detail._struct, visited_aggrtypes)) != DDS_RETCODE_OK)
+      if ((ret = add_memberids_struct (tbd, ops, &tb_aggrtype->detail._struct, visited_aggrtypes, tb_aggrtype->extensibility == DDS_XTypes_IS_MUTABLE)) != DDS_RETCODE_OK)
         goto err;
       break;
     case DDS_XTypes_TK_UNION:

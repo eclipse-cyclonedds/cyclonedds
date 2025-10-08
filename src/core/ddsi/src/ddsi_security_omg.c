@@ -1223,11 +1223,9 @@ static void cleanup_participant_sec_attributes(void *arg)
   while (pm)
   {
     struct ddsi_pp_proxypp_match *next = ddsrt_avl_cfind_succ(&pp_proxypp_treedef, &attr->proxy_participants, pm);
-    ddsrt_mutex_lock(&gv->lock);
     struct ddsi_proxy_participant *proxypp = ddsi_entidx_lookup_proxy_participant_guid(gv->entity_index, &pm->proxypp_guid);
     if (proxypp)
       proxypp_pp_unrelate(sc, proxypp, &attr->pp_guid, attr->crypto_handle);
-    ddsrt_mutex_unlock(&gv->lock);
     ddsrt_avl_cdelete(&pp_proxypp_treedef, &attr->proxy_participants, pm);
     ddsrt_free(pm);
     pm = next;

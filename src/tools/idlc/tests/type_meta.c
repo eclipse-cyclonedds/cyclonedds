@@ -80,16 +80,16 @@ CU_Test(idlc_type_meta, union_max_label_value)
     printf ("running test for idl: %s\n", idl);
 
     ret = idl_create_pstate (flags, NULL, &pstate);
-    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
 
     memset (&descriptor, 0, sizeof (descriptor)); /* static analyzer */
     ret = generate_test_descriptor (pstate, idl, &descriptor);
-    CU_ASSERT_EQUAL_FATAL (ret, tests[i].result_parse);
+    CU_ASSERT_EQ_FATAL (ret, tests[i].result_parse);
 
     if (ret == IDL_RETCODE_OK && tests[i].type_info)
     {
       ret = generate_descriptor_type_meta (pstate, descriptor.topic, &dtm);
-      CU_ASSERT_EQUAL_FATAL (ret, tests[i].result_meta);
+      CU_ASSERT_EQ_FATAL (ret, tests[i].result_meta);
       descriptor_type_meta_fini (&dtm);
     }
 
@@ -121,7 +121,7 @@ static void xcdr2_deser (unsigned char *buf, uint32_t sz, void **obj, const stru
     data = malloc (sz);
     memcpy (data, buf, sz);
     const uint32_t *ret = dds_stream_normalize_xcdr2_data ((char *) data, &srcoff, sz, bswap, desc->ops.ops);
-    CU_ASSERT_NOT_EQUAL_FATAL (ret, NULL);
+    CU_ASSERT_NEQ_FATAL (ret, NULL);
   }
   else
     data = buf;
@@ -221,7 +221,7 @@ static DDS_XTypes_TypeObject *get_typeobj1 (void)
     DDS_XTypes_IS_APPENDABLE,
     (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_NONE },
     8, (smember_t[]) {
-      { 0, DDS_XTypes_IS_KEY | DDS_XTypes_IS_MUST_UNDERSTAND | DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_INT64 }, "f1" },
+      { 0, DDS_XTypes_IS_KEY | DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_INT64 }, "f1" },
       { 1, DDS_XTypes_IS_OPTIONAL | DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TI_STRING8_SMALL, ._u.string_sdefn.bound = 0 }, "f2" },
       { 4, DDS_XTypes_IS_EXTERNAL | DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_CHAR8 }, "f3" },
       { 3, DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_INT8 }, "f4" },
@@ -261,7 +261,7 @@ static void get_typeid (DDS_XTypes_TypeIdentifier *ti, DDS_XTypes_TypeObject *to
   memset (ti, 0, sizeof (*ti));
   ti->_d = DDS_XTypes_EK_COMPLETE;
   idl_retcode_t ret = get_type_hash (ti->_u.equivalence_hash, to);
-  CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
   dds_stream_free_sample (to, &dds_cdrstream_default_allocator, DDS_XTypes_TypeObject_desc.m_ops);
   free (to);
 }
@@ -829,14 +829,14 @@ CU_Test(idlc_type_meta, type_obj_serdes)
     printf ("running test for idl: %s\n", tests[i].idl);
 
     ret = idl_create_pstate (flags, NULL, &pstate);
-    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
 
     memset (&descriptor, 0, sizeof (descriptor)); /* static analyzer */
     ret = generate_test_descriptor (pstate, tests[i].idl, &descriptor);
-    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
 
     ret = generate_descriptor_type_meta (pstate, descriptor.topic, &dtm);
-    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
 
     for (struct type_meta *tm = dtm.admin; tm; tm = tm->admin_next)
     {
@@ -856,10 +856,9 @@ CU_Test(idlc_type_meta, type_obj_serdes)
         xcdr2_ser (to_test, &DDS_XTypes_TypeObject_cdrstream_desc, &os_test);
 
         // compare serialized blobs
-        CU_ASSERT_EQUAL_FATAL (os.x.m_index, os_test.x.m_index);
-        assert (os.x.m_index == os_test.x.m_index);
+        CU_ASSERT_EQ_FATAL (os.x.m_index, os_test.x.m_index);
         int cmp = memcmp (os.x.m_buffer, os_test.x.m_buffer, os.x.m_index);
-        CU_ASSERT_EQUAL_FATAL (cmp, 0);
+        CU_ASSERT_EQ_FATAL (cmp, 0);
 
         dds_stream_free_sample (to_test, &dds_cdrstream_default_allocator, DDS_XTypes_TypeObject_desc.m_ops);
         free (to_test);
@@ -907,14 +906,14 @@ static void test_annotation_meta_info(const s_a_t *test)
   struct descriptor_type_meta dtm;
 
   idl_retcode_t ret = idl_create_pstate (flags, NULL, &pstate);
-  CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
 
   memset (&descriptor, 0, sizeof (descriptor)); /* static analyzer */
   ret = generate_test_descriptor (pstate, test->idl, &descriptor);
-  CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
 
   ret = generate_descriptor_type_meta (pstate, descriptor.topic, &dtm);
-  CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
 
   assert(NULL == dtm.admin->admin_next);  /*only one struct allowed*/
   for (struct type_meta *tm = dtm.admin; tm; tm = tm->admin_next)
@@ -922,51 +921,51 @@ static void test_annotation_meta_info(const s_a_t *test)
     DDS_XTypes_CompleteStructMemberSeq mseq = tm->to_complete->_u.complete._u.struct_type.member_seq;
     for (size_t i = 0; i < mseq._length; i++)
     {
-      //CU_ASSERT_FATAL(i < sizeof(test->members)/sizeof(test->members[0]));
+      //CU_ASSERT_NEQ_FATAL (i < sizeof(test->members)/sizeof(test->members[0]), 0);
       m_a_t m = test->members[i];
-      CU_ASSERT_PTR_NOT_NULL_FATAL(mseq._buffer);
+      CU_ASSERT_NEQ_FATAL (mseq._buffer, NULL);
       if (!mseq._buffer)
         continue;
       struct DDS_XTypes_CompleteStructMember csm = mseq._buffer[i];
       DDS_XTypes_AppliedBuiltinMemberAnnotations *annptr = csm.detail.ann_builtin;
-      CU_ASSERT_PTR_NOT_NULL_FATAL(annptr);
+      CU_ASSERT_NEQ_FATAL (annptr, NULL);
       if (!annptr)
         continue;
 
       //check hashid (if any)
       if (m.hash_id) {
-        CU_ASSERT_PTR_NOT_NULL_FATAL(annptr->hash_id);
+        CU_ASSERT_NEQ_FATAL (annptr->hash_id, NULL);
         if (annptr->hash_id)
-          CU_ASSERT_STRING_EQUAL(m.hash_id, annptr->hash_id);
+          CU_ASSERT_STREQ (m.hash_id, annptr->hash_id);
       } else {
-        CU_ASSERT_PTR_NULL(annptr->hash_id);
+        CU_ASSERT_EQ (annptr->hash_id, NULL);
       }
 
       //check max (if any)
       if (m.max_present) {
-        CU_ASSERT_PTR_NOT_NULL_FATAL(annptr->max);
+        CU_ASSERT_NEQ_FATAL (annptr->max, NULL);
         if (annptr->max)
-          CU_ASSERT_EQUAL(annptr->max->_u.int32_value, m.max);
+          CU_ASSERT_EQ (annptr->max->_u.int32_value, m.max);
       } else {
-        CU_ASSERT_PTR_NULL(annptr->max);
+        CU_ASSERT_EQ (annptr->max, NULL);
       }
 
       //check min (if any)
       if (m.min_present) {
-        CU_ASSERT_PTR_NOT_NULL_FATAL(annptr->min);
+        CU_ASSERT_NEQ_FATAL (annptr->min, NULL);
         if (annptr->min)
-          CU_ASSERT_EQUAL(annptr->min->_u.int32_value, m.min);
+          CU_ASSERT_EQ (annptr->min->_u.int32_value, m.min);
       } else {
-        CU_ASSERT_PTR_NULL(annptr->min);
+        CU_ASSERT_EQ (annptr->min, NULL);
       }
 
       //check unit (if any)
       if (m.unit) {
-        CU_ASSERT_PTR_NOT_NULL_FATAL(annptr->unit);
+        CU_ASSERT_NEQ_FATAL (annptr->unit, NULL);
         if (annptr->unit)
-          CU_ASSERT_STRING_EQUAL(m.unit, annptr->unit);
+          CU_ASSERT_STREQ (m.unit, annptr->unit);
       } else {
-        CU_ASSERT_PTR_NULL(annptr->unit);
+        CU_ASSERT_EQ (annptr->unit, NULL);
       }
     }
   }

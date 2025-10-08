@@ -26,16 +26,16 @@ CU_Theory((char *src, size_t size), ddsrt_strlcpy, dest_size)
 
   srclen = strlen(src);
   len = ddsrt_strlcpy(dest, src, size);
-  CU_ASSERT_EQUAL(len, srclen);
+  CU_ASSERT_EQ (len, srclen);
   if (size > 0) {
     if ((size - 1) < len) {
       len = size - 1;
     }
-    CU_ASSERT_EQUAL(dest[len], '\0');
-    CU_ASSERT_EQUAL(dest[len+1], '.');
-    CU_ASSERT((strncmp(dest, src, len) == 0));
+    CU_ASSERT_EQ (dest[len], '\0');
+    CU_ASSERT_EQ (dest[len+1], '.');
+    CU_ASSERT_EQ (strncmp(dest, src, len), 0);
   } else {
-    CU_ASSERT_EQUAL(dest[0], '.');
+    CU_ASSERT_EQ (dest[0], '.');
   }
 }
 
@@ -55,7 +55,7 @@ CU_Theory((char *seed, char *src, size_t size), ddsrt_strlcat, dest_size)
   dest[seedlen] = '\0';
 
   len = ddsrt_strlcat(dest, src, size);
-  CU_ASSERT_EQUAL(len, (seedlen + srclen));
+  CU_ASSERT_EQ (len, (seedlen + srclen));
   if (size > 0) {
     char foobar[sizeof(dest)];
 
@@ -65,15 +65,15 @@ CU_Theory((char *seed, char *src, size_t size), ddsrt_strlcat, dest_size)
       len = size - 1;
     }
 
-    CU_ASSERT_EQUAL(dest[len], '\0');
+    CU_ASSERT_EQ (dest[len], '\0');
 
     if (seedlen < (size - 1)) {
-      CU_ASSERT_EQUAL(dest[len+1], '.');
+      CU_ASSERT_EQ (dest[len+1], '.');
     }
 
     (void)snprintf(foobar, len+1, "%s%s", seed, src);
-    CU_ASSERT((strncmp(dest, foobar, len) == 0));
+    CU_ASSERT_EQ (strncmp(dest, foobar, len), 0);
   } else {
-    CU_ASSERT((strcmp(dest, seed) == 0));
+    CU_ASSERT_STREQ (dest, seed);
   }
 }

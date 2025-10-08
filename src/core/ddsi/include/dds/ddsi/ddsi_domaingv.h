@@ -199,8 +199,6 @@ struct ddsi_domaingv {
   */
   struct spdp_admin *spdp_schedule;
 
-  ddsrt_mutex_t lock;
-
   /* Receive thread. (We can only has one for now, cos of the signal
      trigger socket.) Receive buffer pool is per receive thread,
      it is only a global variable because it needs to be freed way later
@@ -309,7 +307,7 @@ struct ddsi_domaingv {
   ddsrt_avl_tree_t typelib;
   ddsrt_avl_tree_t typedeps;
   ddsrt_avl_tree_t typedeps_reverse;
-  ddsrt_cond_t typelib_resolved_cond;
+  ddsrt_cond_etime_t typelib_resolved_cond; // etime: create_topic_descriptor timeout
 #endif
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   ddsrt_mutex_t topic_defs_lock;
@@ -317,7 +315,7 @@ struct ddsi_domaingv {
 #endif
 
   ddsrt_mutex_t new_topic_lock;
-  ddsrt_cond_t new_topic_cond;
+  ddsrt_cond_etime_t new_topic_cond; // etime: find_topic timeout
   uint32_t new_topic_version;
 
   /* security globals */

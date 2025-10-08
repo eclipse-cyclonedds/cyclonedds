@@ -865,6 +865,20 @@ bool idl_requires_xcdr2(const void *node)
   return false;
 }
 
+bool idl_xcdr2_is_default(const void *node)
+{
+  if (idl_is_struct(node)) {
+    const idl_struct_t *_struct = node;
+    assert (_struct->xcdr2_is_default == IDL_XCDR2_IS_DEFAULT_TRUE || _struct->xcdr2_is_default == IDL_XCDR2_IS_DEFAULT_FALSE);
+    return _struct->xcdr2_is_default == IDL_XCDR2_IS_DEFAULT_TRUE;
+  } else if (idl_is_union(node)) {
+    const idl_union_t *_union = node;
+    assert (_union->xcdr2_is_default == IDL_XCDR2_IS_DEFAULT_TRUE || _union->xcdr2_is_default == IDL_XCDR2_IS_DEFAULT_FALSE);
+    return _union->xcdr2_is_default == IDL_XCDR2_IS_DEFAULT_TRUE;
+  }
+  return false;
+}
+
 allowable_data_representations_t idl_allowable_data_representations(const void *node)
 {
   if (node == NULL)
@@ -1350,8 +1364,7 @@ set_node_xcdr2_required(void *node, bool in_xcdr1_delimited_scope)
       return false;
     _struct->requires_xcdr2 = IDL_REQUIRES_XCDR2_SETTING;
 
-    bool ret = idl_is_extensible(node, IDL_MUTABLE)
-        || (!in_xcdr1_delimited_scope && idl_is_extensible(node, IDL_APPENDABLE))
+    bool ret = (!in_xcdr1_delimited_scope && idl_is_extensible(node, IDL_APPENDABLE))
         || (_struct->inherit_spec && set_node_xcdr2_required(idl_type_spec(_struct->inherit_spec), in_xcdr1_delimited_scope));
 
     idl_member_t *_member;
@@ -1412,6 +1425,90 @@ idl_set_xcdr2_required(void *node)
       if (_union->requires_xcdr2 == IDL_REQUIRES_XCDR2_UNSET)
         (void) set_node_xcdr2_required(node, true);
       assert(_union->requires_xcdr2 != IDL_REQUIRES_XCDR2_SETTING);
+    }
+  }
+  return ret;
+}
+
+static bool
+set_node_xcdr2_is_default(void *node)
+{
+  if (idl_is_alias(node)) {
+    return set_node_xcdr2_is_default(idl_unalias(node));
+  } else if (idl_is_sequence(node)) {
+    return set_node_xcdr2_is_default(idl_type_spec(node));
+  } else if (idl_is_struct(node)) {
+    idl_struct_t *_struct = (idl_struct_t*)node;
+    assert (_struct->requires_xcdr2 == IDL_REQUIRES_XCDR2_FALSE || _struct->requires_xcdr2 == IDL_REQUIRES_XCDR2_TRUE);
+    if (_struct->xcdr2_is_default == IDL_XCDR2_IS_DEFAULT_SETTING)
+      return false;
+    if (_struct->requires_xcdr2 == IDL_REQUIRES_XCDR2_TRUE) {
+      _struct->xcdr2_is_default = IDL_XCDR2_IS_DEFAULT_TRUE;
+      return true;
+    }
+    _struct->xcdr2_is_default = IDL_XCDR2_IS_DEFAULT_SETTING;
+
+    bool ret = idl_is_extensible(node, IDL_MUTABLE)
+        || idl_is_extensible(node, IDL_APPENDABLE)
+        || (_struct->inherit_spec && set_node_xcdr2_is_default(idl_type_spec(_struct->inherit_spec)));
+
+    idl_member_t *_member;
+    IDL_FOREACH(_member, _struct->members) {
+      if (idl_is_optional(&_member->node))
+        ret = true;
+      if (set_node_xcdr2_is_default(idl_type_spec(_member)))
+        ret = true;
+    };
+    if (_struct->xcdr2_is_default != IDL_XCDR2_IS_DEFAULT_TRUE)
+      _struct->xcdr2_is_default = ret ? IDL_XCDR2_IS_DEFAULT_TRUE : IDL_XCDR2_IS_DEFAULT_FALSE;
+    return ret;
+  } else if (idl_is_union(node)) {
+    idl_union_t *_union = (idl_union_t*)node;
+    assert (_union->requires_xcdr2 == IDL_REQUIRES_XCDR2_FALSE || _union->requires_xcdr2 == IDL_REQUIRES_XCDR2_TRUE);
+    if (_union->xcdr2_is_default == IDL_XCDR2_IS_DEFAULT_SETTING)
+      return false;
+    if (_union->requires_xcdr2 == IDL_REQUIRES_XCDR2_TRUE) {
+      _union->xcdr2_is_default = IDL_XCDR2_IS_DEFAULT_TRUE;
+      return true;
+    }
+    _union->xcdr2_is_default = IDL_XCDR2_IS_DEFAULT_SETTING;
+
+    bool ret = idl_is_extensible(node, IDL_MUTABLE)
+        || idl_is_extensible(node, IDL_APPENDABLE)
+        || set_node_xcdr2_is_default(idl_type_spec(_union->switch_type_spec));
+
+    idl_case_t *_case;
+    IDL_FOREACH(_case, _union->cases) {
+      if (set_node_xcdr2_is_default(idl_type_spec(_case)))
+        ret = true;
+    };
+    if (_union->xcdr2_is_default != IDL_XCDR2_IS_DEFAULT_TRUE)
+      _union->xcdr2_is_default = ret ? IDL_XCDR2_IS_DEFAULT_TRUE : IDL_XCDR2_IS_DEFAULT_FALSE;
+    return ret;
+  }
+
+  return false;
+}
+
+idl_retcode_t
+idl_set_xcdr2_is_default(void *node)
+{
+  idl_retcode_t ret = IDL_RETCODE_OK;
+  assert(node);
+  for (; ret == IDL_RETCODE_OK && node; node = idl_next(node)) {
+    if (idl_mask(node) == IDL_MODULE) {
+      idl_module_t *_module = node;
+      ret = idl_set_xcdr2_is_default(_module->definitions);
+    } else if (idl_mask(node) == IDL_STRUCT) {
+      idl_struct_t *_struct = node;
+      if (_struct->xcdr2_is_default == IDL_XCDR2_IS_DEFAULT_UNSET)
+        (void) set_node_xcdr2_is_default(node);
+      assert(_struct->xcdr2_is_default != IDL_XCDR2_IS_DEFAULT_SETTING);
+    } else if (idl_mask(node) == IDL_UNION) {
+      idl_union_t *_union = node;
+      if (_union->xcdr2_is_default == IDL_XCDR2_IS_DEFAULT_UNSET)
+        (void) set_node_xcdr2_is_default(node);
+      assert(_union->xcdr2_is_default != IDL_XCDR2_IS_DEFAULT_SETTING);
     }
   }
   return ret;

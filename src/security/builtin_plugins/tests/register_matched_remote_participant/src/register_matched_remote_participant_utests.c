@@ -29,11 +29,11 @@ static dds_security_cryptography *crypto = NULL;
 
 static void suite_register_matched_remote_participant_init(void)
 {
-    CU_ASSERT_FATAL ((plugins = load_plugins(
-                        NULL      /* Access Control */,
-                        NULL      /* Authentication */,
-                        &crypto   /* Cryptograpy    */,
-                        NULL)) != NULL);
+  CU_ASSERT_NEQ_FATAL ((plugins = load_plugins(
+    NULL      /* Access Control */,
+    NULL      /* Authentication */,
+    &crypto   /* Cryptograpy    */,
+    NULL)), NULL);
 }
 
 static void suite_register_matched_remote_participant_fini(void)
@@ -68,7 +68,7 @@ CU_Test(ddssec_builtin_register_remote_participant, happy_day, .init = suite_reg
 
   /* Dummy (even un-initialized) data for now. */
   DDS_Security_IdentityHandle participant_identity = 5; //valid dummy value
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq participant_properties;
   DDS_Security_PermissionsHandle remote_participant_permissions = 5; /*valid dummy value */
   DDS_Security_SharedSecretHandle shared_secret_handle;
@@ -92,9 +92,9 @@ CU_Test(ddssec_builtin_register_remote_participant, happy_day, .init = suite_reg
   shared_secret_handle = (DDS_Security_SharedSecretHandle)shared_secret_handle_impl;
 
   /* Check if we actually have the validate_local_identity() function. */
-  CU_ASSERT_FATAL(crypto != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_factory != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_factory->register_local_participant != NULL);
+  CU_ASSERT_NEQ_FATAL (crypto, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_factory, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_factory->register_local_participant, NULL);
 
   memset(&exception, 0, sizeof(DDS_Security_SecurityException));
   memset(&participant_properties, 0, sizeof(participant_properties));
@@ -108,7 +108,7 @@ CU_Test(ddssec_builtin_register_remote_participant, happy_day, .init = suite_reg
       &participant_security_attributes,
       &exception);
 
-  CU_ASSERT_FATAL(local_crypto_handle != DDS_SECURITY_HANDLE_NIL);
+  CU_ASSERT_NEQ_FATAL (local_crypto_handle, DDS_SECURITY_HANDLE_NIL);
 
   /* Now call the function. */
   remote_crypto_handle = crypto->crypto_key_factory->register_matched_remote_participant(
@@ -123,8 +123,8 @@ CU_Test(ddssec_builtin_register_remote_participant, happy_day, .init = suite_reg
     printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
 
   /* A valid handle to be returned */
-  CU_ASSERT(remote_crypto_handle != DDS_SECURITY_HANDLE_NIL);
-  CU_ASSERT(exception.code == DDS_SECURITY_ERR_OK_CODE);
+  CU_ASSERT_NEQ (remote_crypto_handle, DDS_SECURITY_HANDLE_NIL);
+  CU_ASSERT_EQ (exception.code, DDS_SECURITY_ERR_OK_CODE);
   reset_exception(&exception);
 
   (void)crypto->crypto_key_factory->unregister_participant(
@@ -151,7 +151,7 @@ CU_Test(ddssec_builtin_register_remote_participant, empty_identity, .init = suit
   /* Dummy (even un-initialized) data for now. */
   DDS_Security_IdentityHandle participant_identity = 5;              //empty identity
   DDS_Security_IdentityHandle remote_participant_identity_empty = 0; //empty identity
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   DDS_Security_PermissionsHandle participant_permissions = 2; /*valid but dummy value */
   DDS_Security_PropertySeq participant_properties;
@@ -175,9 +175,9 @@ CU_Test(ddssec_builtin_register_remote_participant, empty_identity, .init = suit
   shared_secret_handle = (DDS_Security_SharedSecretHandle)shared_secret_handle_impl;
 
   /* Check if we actually have the validate_local_identity() function. */
-  CU_ASSERT_FATAL(crypto != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_factory != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_factory->register_local_participant != NULL);
+  CU_ASSERT_NEQ_FATAL (crypto, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_factory, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_factory->register_local_participant, NULL);
 
   memset(&exception, 0, sizeof(DDS_Security_SecurityException));
   memset(&participant_properties, 0, sizeof(participant_properties));
@@ -204,9 +204,9 @@ CU_Test(ddssec_builtin_register_remote_participant, empty_identity, .init = suit
   if (exception.code != 0)
     printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
 
-  CU_ASSERT(remote_crypto_handle == DDS_SECURITY_HANDLE_NIL);
-  CU_ASSERT(exception.code == DDS_SECURITY_ERR_IDENTITY_EMPTY_CODE);
-  CU_ASSERT(!strcmp(exception.message, DDS_SECURITY_ERR_IDENTITY_EMPTY_MESSAGE));
+  CU_ASSERT_EQ (remote_crypto_handle, DDS_SECURITY_HANDLE_NIL);
+  CU_ASSERT_EQ (exception.code, DDS_SECURITY_ERR_IDENTITY_EMPTY_CODE);
+  CU_ASSERT_STREQ (exception.message, DDS_SECURITY_ERR_IDENTITY_EMPTY_MESSAGE);
   reset_exception(&exception);
 
   (void)crypto->crypto_key_factory->unregister_participant(

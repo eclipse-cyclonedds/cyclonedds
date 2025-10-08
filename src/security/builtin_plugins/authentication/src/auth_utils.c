@@ -324,7 +324,7 @@ static BIO *load_file_into_BIO (const char *filename, DDS_Security_SecurityExcep
   // Try reading before testing remain: that way the EOF flag will always get set
   // if indeed we do read to the end of the file
   size_t remain = (size_t) max;
-  while ((n = fread (tmp, 1, sizeof (tmp), fp)) > 0 && remain > 0)
+  while (!(feof (fp) || ferror (fp)) && (n = fread (tmp, 1, sizeof (tmp), fp)) > 0 && remain > 0)
   {
     if (!BIO_write (bio, tmp, (int) n))
     {
@@ -334,7 +334,7 @@ static BIO *load_file_into_BIO (const char *filename, DDS_Security_SecurityExcep
     // protect against truncation while reading
     remain -= (n <= remain) ? n : remain;
   }
-  if (!feof (fp))
+  if (!feof (fp) || ferror (fp))
   {
     DDS_Security_Exception_set (ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "load_X509_certificate_from_file: read from failed");
     goto err_fread;
@@ -1382,10 +1382,22 @@ static DDS_Security_ValidationResult_t dh_public_key_to_oct_modp(EVP_PKEY *pkey,
         DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to convert DH key to ASN1 integer: ");
         goto fail_asn1int;
     }
-    if ((len = i2d_ASN1_INTEGER(asn1int, buffer)) < 0) {
-        DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to convert ASN1 integer to DER format: ");
+    if ((len = i2d_ASN1_INTEGER(asn1int, NULL)) < 0) {
+        DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE,   DDS_SECURITY_VALIDATION_FAILED, "Failed to convert ASN1 integer to DER format (length): ");
         goto fail_to_der;
     }
+    if ((*buffer = ddsrt_malloc ((uint32_t) len)) == NULL) {
+        DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to allocate memory for converting ASN1 integer to DER format (%d bytes): ", len);
+        goto fail_to_der;
+    }
+    // OpenSSL interfaces are scary ... if *output_buffer != NULL, then the data is written to the pre-allocated
+    // buffer (which must be large enough) and the pointer is updated to point to the first byte after the data.
+    unsigned char *tmp = *buffer;
+    if (i2d_ASN1_INTEGER(asn1int, &tmp) < 0) {
+        DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to convert ASN1 integer to DER format (contents): ");
+        goto fail_to_der;
+    }
+    assert (tmp - *buffer == len);
     *length = (uint32_t) len;
     result = DDS_SECURITY_VALIDATION_OK;
 

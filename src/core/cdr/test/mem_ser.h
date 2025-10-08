@@ -77,4 +77,7 @@
 #define SER_EMHEADER(mu,lc,mid) SER32(((mu) ? (1u << 31) : 0) + ((uint32_t) (lc) << 28) + ((uint32_t) (mid) & 0x0fffffff))
 #define SER_NEXTINT(l) SER32(l)
 
+#define SER_PHDR_EXT(mu,len,mid) SER16(DDS_XCDR1_PL_SHORT_PID_EXTENDED | DDS_XCDR1_PL_SHORT_FLAG_MU), SER16(8), SER32(((mu) ? DDS_XCDR1_PL_LONG_FLAG_MU : 0) + ((uint32_t) (mid) & DDS_XCDR1_PL_LONG_MID_MASK)), SER32(len)
+#define SER_PHDR_END() SER16(DDS_XCDR1_PL_SHORT_PID_LIST_END | DDS_XCDR1_PL_SHORT_FLAG_MU), SER16(0)
+
 #endif /* DDSI_TEST_MEM_SER_H */

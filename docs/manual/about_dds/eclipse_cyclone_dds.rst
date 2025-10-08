@@ -27,7 +27,6 @@
    waitset
    status
    performance
-   idl
    ddsi_concepts
    contributing
 

@@ -27,6 +27,7 @@
 
 #include "dds/security/dds_security_api.h"
 #include "dds/security/openssl_support.h"
+#include "dds/security/core/dds_security_utils.h"
 
 #include <dds/ddsrt/heap.h>
 #include <dds/ddsrt/string.h>
@@ -632,16 +633,14 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
     DDS_Security_boolean success;
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -668,17 +667,17 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day)
     }
 
     /* We expected the validation to have succeeded. */
-    CU_ASSERT_FATAL (result == DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_EQ_FATAL (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (local_identity_handle, DDS_SECURITY_HANDLE_NIL);
 
     print_guid("adjusted_participant_guid", &adjusted_participant_guid);
-    CU_ASSERT (memcmp(&adjusted_participant_guid.entityId, &entityId, sizeof(entityId)) == 0);
+    CU_ASSERT_MEMEQ (&adjusted_participant_guid.entityId, sizeof(entityId), &entityId, sizeof(entityId));
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
 
     success = auth->return_identity_handle(auth, local_identity_handle, &exception);
-    CU_ASSERT_TRUE (success);
+    CU_ASSERT_NEQ (success, false);
 
     if (!success) {
         printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
@@ -712,17 +711,17 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day)
     }
 
     /* We expected the validation to have succeeded. */
-    CU_ASSERT_FATAL (result == DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_EQ_FATAL (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (local_identity_handle, DDS_SECURITY_HANDLE_NIL);
 
     print_guid("adjusted_participant_guid", &adjusted_participant_guid);
-    CU_ASSERT (memcmp(&adjusted_participant_guid.entityId, &entityId, sizeof(entityId)) == 0);
+    CU_ASSERT_MEMEQ (&adjusted_participant_guid.entityId, sizeof(entityId), &entityId, sizeof(entityId));
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
 
     success = auth->return_identity_handle(auth, local_identity_handle, &exception);
-    CU_ASSERT_TRUE (success);
+    CU_ASSERT_NEQ (success, false);
 
     if (!success) {
         printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
@@ -739,15 +738,13 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_certificate)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -775,9 +772,9 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_certificate)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_NEQ (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -810,9 +807,9 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_certificate)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_NEQ (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -827,15 +824,13 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_root)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -862,9 +857,9 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_root)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_NEQ (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -895,9 +890,9 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_root)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_NEQ (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -912,15 +907,13 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_chain)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -947,9 +940,9 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_chain)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_NEQ (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -980,9 +973,9 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_chain)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_NEQ (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -998,15 +991,13 @@ CU_Test(ddssec_builtin_validate_local_identity,certificate_key_too_small)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -1034,9 +1025,9 @@ CU_Test(ddssec_builtin_validate_local_identity,certificate_key_too_small)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_NEQ (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -1051,15 +1042,13 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_private_key)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -1086,9 +1075,9 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_private_key)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_NEQ (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -1119,9 +1108,9 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_private_key)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_NEQ (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -1136,15 +1125,13 @@ CU_Test(ddssec_builtin_validate_local_identity,private_key_too_small)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -1171,9 +1158,9 @@ CU_Test(ddssec_builtin_validate_local_identity,private_key_too_small)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_NEQ (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -1188,15 +1175,13 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_certificate_property)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -1226,10 +1211,10 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_certificate_property)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT_FATAL (exception.message != NULL);
-    CU_ASSERT(strcmp(exception.message, "validate_local_identity: missing property '" DDS_SEC_PROP_AUTH_IDENTITY_CERT "'") == 0);
+    CU_ASSERT_NEQ_FATAL (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ_FATAL (exception.message, NULL);
+    CU_ASSERT_STREQ (exception.message, "validate_local_identity: missing property '" DDS_SEC_PROP_AUTH_IDENTITY_CERT "'");
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -1246,15 +1231,13 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_ca_property)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -1284,10 +1267,10 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_ca_property)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT_FATAL (exception.message != NULL);
-    CU_ASSERT(strcmp(exception.message, "validate_local_identity: missing property '" DDS_SEC_PROP_AUTH_IDENTITY_CA "'") == 0);
+    CU_ASSERT_NEQ_FATAL (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ_FATAL (exception.message, NULL);
+    CU_ASSERT_STREQ (exception.message, "validate_local_identity: missing property '" DDS_SEC_PROP_AUTH_IDENTITY_CA "'");
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -1301,15 +1284,13 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_private_key_property)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -1337,10 +1318,10 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_private_key_property)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT_FATAL (exception.message != NULL);
-    CU_ASSERT(strcmp(exception.message, "validate_local_identity: missing property '" DDS_SEC_PROP_AUTH_PRIV_KEY "'") == 0);
+    CU_ASSERT_NEQ_FATAL (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ_FATAL (exception.message, NULL);
+    CU_ASSERT_STREQ (exception.message, "validate_local_identity: missing property '" DDS_SEC_PROP_AUTH_PRIV_KEY "'");
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -1354,17 +1335,15 @@ CU_Test(ddssec_builtin_validate_local_identity,unsupported_certification_format)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
     char *cert;
     size_t len;
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     len = strlen("uri:") + strlen(&identity_certificate[6]) + 1;
     cert = ddsrt_malloc(len);
@@ -1396,9 +1375,9 @@ CU_Test(ddssec_builtin_validate_local_identity,unsupported_certification_format)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_NEQ (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -1414,15 +1393,13 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -1449,11 +1426,11 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key)
     }
 
     /* We expected the validation to have succeeded. */
-    CU_ASSERT (result == DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_EQ (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (local_identity_handle, DDS_SECURITY_HANDLE_NIL);
 
     print_guid("adjusted_participant_guid", &adjusted_participant_guid);
-    CU_ASSERT (memcmp(&adjusted_participant_guid.entityId, &entityId, sizeof(entityId)) == 0);
+    CU_ASSERT_MEMEQ (&adjusted_participant_guid.entityId, sizeof(entityId), &entityId, sizeof(entityId));
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -1484,11 +1461,11 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key)
     }
 
     /* We expected the validation to have succeeded. */
-    CU_ASSERT (result == DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_EQ (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (local_identity_handle, DDS_SECURITY_HANDLE_NIL);
 
     print_guid("adjusted_participant_guid", &adjusted_participant_guid);
-    CU_ASSERT (memcmp(&adjusted_participant_guid.entityId, &entityId, sizeof(entityId)) == 0);
+    CU_ASSERT_MEMEQ (&adjusted_participant_guid.entityId, sizeof(entityId), &entityId, sizeof(entityId));
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -1502,15 +1479,13 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key_no_password)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -1533,9 +1508,9 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key_no_password)
                             &exception);
 
     /* We expected the validation to have failed. */
-    CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_NEQ (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -1562,9 +1537,9 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key_no_password)
                             &exception);
 
     /* We expected the validation to have failed. */
-    CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_NEQ (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -1578,15 +1553,13 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key_invalid_password)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -1614,9 +1587,9 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key_invalid_password)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_NEQ (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -1649,9 +1622,9 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key_invalid_password)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_NEQ (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -1665,16 +1638,14 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day_elliptic)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
     DDS_Security_boolean success;
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -1701,17 +1672,17 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day_elliptic)
     }
 
     /* We expected the validation to have succeeded. */
-    CU_ASSERT_FATAL (result == DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_EQ_FATAL (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (local_identity_handle, DDS_SECURITY_HANDLE_NIL);
 
     print_guid("adjusted_participant_guid", &adjusted_participant_guid);
-    CU_ASSERT (memcmp(&adjusted_participant_guid.entityId, &entityId, sizeof(entityId)) == 0);
+    CU_ASSERT_MEMEQ (&adjusted_participant_guid.entityId, sizeof(entityId), &entityId, sizeof(entityId));
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
 
     success = auth->return_identity_handle(auth, local_identity_handle, &exception);
-    CU_ASSERT_TRUE (success);
+    CU_ASSERT_NEQ (success, false);
 
     if (!success) {
         printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
@@ -1744,17 +1715,17 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day_elliptic)
     }
 
     /* We expected the validation to have succeeded. */
-    CU_ASSERT_FATAL (result == DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_EQ_FATAL (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (local_identity_handle, DDS_SECURITY_HANDLE_NIL);
 
     print_guid("adjusted_participant_guid", &adjusted_participant_guid);
-    CU_ASSERT (memcmp(&adjusted_participant_guid.entityId, &entityId, sizeof(entityId)) == 0);
+    CU_ASSERT_MEMEQ (&adjusted_participant_guid.entityId, sizeof(entityId), &entityId, sizeof(entityId));
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
 
     success = auth->return_identity_handle(auth, local_identity_handle, &exception);
-    CU_ASSERT_TRUE (success);
+    CU_ASSERT_NEQ (success, false);
 
     if (!success) {
         printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
@@ -1771,15 +1742,13 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_ec_key)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -1806,11 +1775,11 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_ec_key)
     }
 
     /* We expected the validation to have succeeded. */
-    CU_ASSERT_FATAL (result == DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT_FATAL (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_EQ_FATAL (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ_FATAL (local_identity_handle, DDS_SECURITY_HANDLE_NIL);
 
     print_guid("adjusted_participant_guid", &adjusted_participant_guid);
-    CU_ASSERT_FATAL (memcmp(&adjusted_participant_guid.entityId, &entityId, sizeof(entityId)) == 0);
+    CU_ASSERT_MEMEQ_FATAL (&adjusted_participant_guid.entityId, sizeof(entityId), &entityId, sizeof(entityId));
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -1841,10 +1810,9 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_ec_key)
     }
 
     /* We expected the validation to have succeeded. */
-    CU_ASSERT (result == DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
-
-    CU_ASSERT (memcmp(&adjusted_participant_guid.entityId, &entityId, sizeof(entityId)) == 0);
+    CU_ASSERT_EQ (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (local_identity_handle, DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_MEMEQ (&adjusted_participant_guid.entityId, sizeof(entityId), &entityId, sizeof(entityId));
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -1858,15 +1826,13 @@ CU_Test(ddssec_builtin_validate_local_identity,elliptic_unsupported_certificate)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -1894,9 +1860,9 @@ CU_Test(ddssec_builtin_validate_local_identity,elliptic_unsupported_certificate)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_NEQ (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -1910,15 +1876,13 @@ CU_Test(ddssec_builtin_validate_local_identity,elliptic_unsupported_private_key)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -1946,9 +1910,9 @@ CU_Test(ddssec_builtin_validate_local_identity,elliptic_unsupported_private_key)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_NEQ (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -1962,16 +1926,14 @@ CU_Test(ddssec_builtin_validate_local_identity,return_freed_handle)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
     DDS_Security_boolean success;
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -1999,11 +1961,11 @@ CU_Test(ddssec_builtin_validate_local_identity,return_freed_handle)
     }
 
     /* We expected the validation to have succeeded. */
-    CU_ASSERT_FATAL (result == DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_EQ_FATAL (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (local_identity_handle, DDS_SECURITY_HANDLE_NIL);
 
     print_guid("adjusted_participant_guid", &adjusted_participant_guid);
-    CU_ASSERT (memcmp(&adjusted_participant_guid.entityId, &entityId, sizeof(entityId)) == 0);
+    CU_ASSERT_MEMEQ (&adjusted_participant_guid.entityId, sizeof(entityId), &entityId, sizeof(entityId));
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -2017,9 +1979,9 @@ CU_Test(ddssec_builtin_validate_local_identity,return_freed_handle)
     reset_exception(&exception);
 
     success = auth->return_identity_handle(auth, local_identity_handle, &exception);
-    CU_ASSERT_FALSE (success);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_EQ (success, false);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     if (!success) {
         printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
@@ -2036,15 +1998,13 @@ CU_Test(ddssec_builtin_validate_local_identity,no_file)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     /* validate with file */
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
@@ -2073,8 +2033,8 @@ CU_Test(ddssec_builtin_validate_local_identity,no_file)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT_FATAL (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT_FATAL (local_identity_handle == DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_NEQ_FATAL (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_EQ_FATAL (local_identity_handle, DDS_SECURITY_HANDLE_NIL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -2105,8 +2065,8 @@ CU_Test(ddssec_builtin_validate_local_identity,no_file)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT_FATAL (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT_FATAL (local_identity_handle == DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_NEQ_FATAL (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_EQ_FATAL (local_identity_handle, DDS_SECURITY_HANDLE_NIL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -2138,8 +2098,8 @@ CU_Test(ddssec_builtin_validate_local_identity,no_file)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT_FATAL (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT_FATAL (local_identity_handle == DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_NEQ_FATAL (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_EQ_FATAL (local_identity_handle, DDS_SECURITY_HANDLE_NIL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -2153,16 +2113,14 @@ CU_Test(ddssec_builtin_validate_local_identity,with_extended_certificate_check)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
     DDS_Security_boolean success;
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -2189,17 +2147,17 @@ CU_Test(ddssec_builtin_validate_local_identity,with_extended_certificate_check)
     }
 
     /* We expected the validation to have succeeded. */
-    CU_ASSERT_FATAL (result == DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (local_identity_handle != DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_EQ_FATAL (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (local_identity_handle, DDS_SECURITY_HANDLE_NIL);
 
     print_guid("adjusted_participant_guid", &adjusted_participant_guid);
-    CU_ASSERT (memcmp(&adjusted_participant_guid.entityId, &entityId, sizeof(entityId)) == 0);
+    CU_ASSERT_MEMEQ (&adjusted_participant_guid.entityId, sizeof(entityId), &entityId, sizeof(entityId));
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
 
     success = auth->return_identity_handle(auth, local_identity_handle, &exception);
-    CU_ASSERT_TRUE (success);
+    CU_ASSERT_NEQ (success, false);
 
     local_identity_handle = DDS_SECURITY_HANDLE_NIL;
     reset_exception(&exception);
@@ -2227,8 +2185,8 @@ CU_Test(ddssec_builtin_validate_local_identity,with_extended_certificate_check)
                             &exception);
 
     /* We expected the validation to have failed. */
-    CU_ASSERT_FATAL (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (local_identity_handle == DDS_SECURITY_HANDLE_NIL);
+    CU_ASSERT_NEQ_FATAL (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_EQ (local_identity_handle, DDS_SECURITY_HANDLE_NIL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -2243,15 +2201,13 @@ CU_Test(ddssec_builtin_validate_local_identity,crl)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));
@@ -2278,9 +2234,9 @@ CU_Test(ddssec_builtin_validate_local_identity,crl)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT_FATAL (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_NEQ_FATAL (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -2312,9 +2268,9 @@ CU_Test(ddssec_builtin_validate_local_identity,crl)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT_FATAL (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_NEQ_FATAL (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
@@ -2329,15 +2285,13 @@ CU_Test(ddssec_builtin_validate_local_identity,trusted_ca_dir_and_crl)
     DDS_Security_DomainId domain_id = 0;
     DDS_Security_Qos participant_qos;
     DDS_Security_GUID_t candidate_participant_guid;
-    DDS_Security_SecurityException exception = {NULL, 0, 0};
+    DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
     DDS_Security_GuidPrefix_t prefix = {0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb};
     DDS_Security_EntityId_t entityId = {{0xa0,0xa1,0xa2},0x1};
 
     /* Check if we actually have the validate_local_identity() function. */
-    CU_ASSERT_FATAL (auth != NULL);
-    assert (auth != NULL);
-    CU_ASSERT_FATAL (auth->validate_local_identity != NULL);
-    assert (auth->validate_local_identity != 0);
+    CU_ASSERT_NEQ_FATAL (auth, NULL);
+    CU_ASSERT_NEQ_FATAL (auth->validate_local_identity, NULL);
 
     /* validate with file */
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
@@ -2366,9 +2320,9 @@ CU_Test(ddssec_builtin_validate_local_identity,trusted_ca_dir_and_crl)
     }
 
     /* We expected the validation to have failed. */
-    CU_ASSERT_FATAL (result != DDS_SECURITY_VALIDATION_OK);
-    CU_ASSERT (exception.minor_code != 0);
-    CU_ASSERT (exception.message != NULL);
+    CU_ASSERT_NEQ_FATAL (result, DDS_SECURITY_VALIDATION_OK);
+    CU_ASSERT_NEQ (exception.minor_code, 0);
+    CU_ASSERT_NEQ (exception.message, NULL);
 
     dds_security_property_deinit(&participant_qos.property.value);
     reset_exception(&exception);
