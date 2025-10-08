@@ -23,13 +23,13 @@
  transformation is needed, and one where a liveliness is simply that.
 
  One approach would be to add (yet another) boolean boolean parameter "transform
- liveliness to participant lease duration" to the (de)serialisation of parameter lists,
+ liveliness to participant lease duration" to the (de)serialization of parameter lists,
  but this would not help with the readability of the code. Using an enumerated type for
  the two helps, but naming it becomes problematic and raises the question whether it will
  always be only the liveliness QoS that needs special treatment.
 
  Another approach uses a "context" argument and leaves the way these are interpreted to
- the (de)serialisation code. That way the call sites become straightforward and all
+ the (de)serialization code. That way the call sites become straightforward and all
  details on what it means to handle these parameter lists in a particular context becomes
  local to the (de)serialiser. */
 enum ddsi_plist_context_kind {

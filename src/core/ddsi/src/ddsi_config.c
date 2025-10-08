@@ -882,7 +882,7 @@ static enum update_result uf_int64_unit (struct ddsi_cfgst *cfgst, int64_t *elem
     double dmult = (double) mult;
     assert (dmult > 0);
     // avoid needing something llround(), make it positive, scale it and
-    // add 0.5 to get decent rounding behaviour
+    // add 0.5 to get decent rounding behavior
     const double v_dbl_abs_scaled = ((v_dbl >= 0) ? 1.0 : -1.0) * v_dbl * dmult + 0.5;
     // - C99, therefore 2's complement by 7.18.1.1
     // - INT64_MIN = 0x8000...0 is exactly representable
