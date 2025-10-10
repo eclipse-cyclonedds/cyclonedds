@@ -51,7 +51,7 @@ dds_return_t dds_read_collect_sample (void *varg, const dds_sample_info_t *si, c
     ddsi_sertype_zero_sample (st, arg->ptrs[arg->next_idx]);
     ok = ddsi_serdata_untyped_to_sample (st, sd, arg->ptrs[arg->next_idx], NULL, NULL);
   }
-  arg->next_idx++;
+  arg->next_idx += (uint32_t)ok; // Only increment on success.
   return ok ? DDS_RETCODE_OK : DDS_RETCODE_ERROR;
 }
 
