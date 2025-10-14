@@ -122,10 +122,15 @@ static void reset_logger(void)
   }
 }
 
+static void ddsrt_init_noret(void)
+{
+  (void)ddsrt_init();
+}
+
 /* Expected traces when creating domain with an empty security element.  We need to
    test this one here to be sure that it refuses to start when security is configured
    but the implementation doesn't include support for it. */
-CU_Test(ddssec_config, empty, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_config, empty, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain;
   const char *log_expected[] = {
@@ -155,7 +160,7 @@ CU_Test(ddssec_config, empty, .init = ddsrt_init, .fini = ddsrt_fini)
 
 /* Create domain without security element, there shouldn't
    be traces that mention security. */
-CU_Test(ddssec_config, non, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_config, non, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain;
   const char *log_expected[] = {
@@ -174,7 +179,7 @@ CU_Test(ddssec_config, non, .init = ddsrt_init, .fini = ddsrt_fini)
 }
 
 /* Expected traces when creating domain with the security elements. */
-CU_Test(ddssec_config, missing, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_config, missing, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain;
   const char *log_expected[] = {
@@ -211,7 +216,7 @@ CU_Test(ddssec_config, missing, .init = ddsrt_init, .fini = ddsrt_fini)
 }
 
 /* Expected traces when creating domain with the security elements. */
-CU_Test(ddssec_config, all, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_config, all, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   const char *log_expected[] = {
@@ -298,7 +303,7 @@ CU_Test(ddssec_config, all, .init = ddsrt_init, .fini = ddsrt_fini)
 }
 
 /* Expected traces when creating participant with the security elements. */
-CU_Test(ddssec_config, security, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_config, security, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   const char *log_expected[] = {
@@ -380,7 +385,7 @@ CU_Test(ddssec_config, security, .init = ddsrt_init, .fini = ddsrt_fini)
 }
 
 /* Expected traces when creating domain with the security elements. */
-CU_Test(ddssec_config, deprecated, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_config, deprecated, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   const char *log_expected[] = {
@@ -466,7 +471,7 @@ CU_Test(ddssec_config, deprecated, .init = ddsrt_init, .fini = ddsrt_fini)
 }
 
 /* Expected traces when creating participant with the security elements. */
-CU_Test(ddssec_config, qos, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_config, qos, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   dds_qos_t * qos;
@@ -512,7 +517,7 @@ CU_Test(ddssec_config, qos, .init = ddsrt_init, .fini = ddsrt_fini)
 }
 
 /* Expected traces when creating participant with the security elements. */
-CU_Test(ddssec_config, qos_props, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_config, qos_props, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   dds_qos_t * qos;
@@ -563,7 +568,7 @@ CU_Test(ddssec_config, qos_props, .init = ddsrt_init, .fini = ddsrt_fini)
 }
 
 /* Expect qos settings used when creating participant with config security elements and qos. */
-CU_Test(ddssec_config, config_qos, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_config, config_qos, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   dds_qos_t * qos;
@@ -631,7 +636,7 @@ CU_Test(ddssec_config, config_qos, .init = ddsrt_init, .fini = ddsrt_fini)
 
 /* Expect config used when creating participant with config security elements and
    qos containing only non-security properties. */
-CU_Test(ddssec_config, other_prop, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_config, other_prop, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   dds_qos_t * qos;
@@ -687,7 +692,7 @@ CU_Test(ddssec_config, other_prop, .init = ddsrt_init, .fini = ddsrt_fini)
 }
 
 /* Expected traces when creating participant with the security elements. */
-CU_Test(ddssec_config, qos_invalid, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_config, qos_invalid, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   dds_qos_t * qos;
@@ -751,7 +756,7 @@ CU_Test(ddssec_config, qos_invalid, .init = ddsrt_init, .fini = ddsrt_fini)
 }
 
 /* Expected traces when creating participant with the security elements. */
-CU_Test(ddssec_config, qos_invalid_proprietary, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_config, qos_invalid_proprietary, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   dds_qos_t * qos;
@@ -815,7 +820,7 @@ CU_Test(ddssec_config, qos_invalid_proprietary, .init = ddsrt_init, .fini = ddsr
 }
 
 /* Expect qos settings used when creating participant with config security elements and qos. */
-CU_Test(ddssec_config, config_qos_missing_crl, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_config, config_qos_missing_crl, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   dds_qos_t * qos;
@@ -877,7 +882,7 @@ CU_Test(ddssec_config, config_qos_missing_crl, .init = ddsrt_init, .fini = ddsrt
 }
 
 /* Expected traces when creating participant overriding security settings from QoS. */
-CU_Test(ddssec_config, config_qos_override_crl, .init = ddsrt_init, .fini = ddsrt_fini)
+CU_Test(ddssec_config, config_qos_override_crl, .init = ddsrt_init_noret, .fini = ddsrt_fini)
 {
   dds_entity_t domain, participant;
   dds_qos_t * qos;
