@@ -24,7 +24,7 @@ extern "C" {
    DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_OWNERSHIP | DDSI_QP_LIVELINESS |     \
    DDSI_QP_RELIABILITY | DDSI_QP_TRANSPORT_PRIORITY | DDSI_QP_LIFESPAN |                    \
    DDSI_QP_DESTINATION_ORDER | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS |                  \
-   DDSI_QP_DATA_REPRESENTATION | DDSI_QP_ENTITY_NAME)
+   DDSI_QP_DATA_REPRESENTATION | DDSI_QP_ENTITY_NAME | DDSI_QP_CONTENT_FILTER)
 
 #define DDS_PARTICIPANT_QOS_MASK                                                            \
   (DDSI_QP_USER_DATA | DDSI_QP_ADLINK_ENTITY_FACTORY | DDSI_QP_CYCLONE_IGNORELOCAL |        \
@@ -41,7 +41,7 @@ extern "C" {
    DDSI_QP_RESOURCE_LIMITS | DDSI_QP_ADLINK_READER_DATA_LIFECYCLE |                         \
    DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_PROPERTY_LIST |                                    \
    DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT | DDSI_QP_DATA_REPRESENTATION |                     \
-   DDSI_QP_ENTITY_NAME | DDSI_QP_PSMX)
+   DDSI_QP_ENTITY_NAME | DDSI_QP_PSMX | DDSI_QP_CONTENT_FILTER)
 
 #define DDS_SUBSCRIBER_QOS_MASK                                                             \
   (DDSI_QP_PARTITION | DDSI_QP_PRESENTATION | DDSI_QP_GROUP_DATA |                          \
@@ -54,7 +54,8 @@ extern "C" {
    DDSI_QP_LIFESPAN | DDSI_QP_DESTINATION_ORDER | DDSI_QP_HISTORY |                         \
    DDSI_QP_RESOURCE_LIMITS | DDSI_QP_ADLINK_WRITER_DATA_LIFECYCLE |                         \
    DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_PROPERTY_LIST | DDSI_QP_DATA_REPRESENTATION |      \
-   DDSI_QP_ENTITY_NAME | DDSI_QP_PSMX | DDSI_QP_CYCLONE_WRITER_BATCHING)
+   DDSI_QP_ENTITY_NAME | DDSI_QP_PSMX | DDSI_QP_CYCLONE_WRITER_BATCHING |                   \
+   DDSI_QP_CONTENT_FILTER)
 
 /** @component qos_obj */
 dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allowed_data_representations, dds_data_type_properties_t data_type_props, dds_entity_kind_t entitykind);

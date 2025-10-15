@@ -406,6 +406,7 @@ typedef struct dds_reader {
   struct ddsi_reader *m_rd;
   struct dds_loan_pool *m_loans; /* administration of outstanding loans */
   struct dds_loan_pool *m_heap_loan_cache;
+  struct dds_filter *m_filter;
 
   /* Status metrics */
   dds_sample_rejected_status_t m_sample_rejected_status;
@@ -426,6 +427,7 @@ typedef struct dds_writer {
   bool whc_batch; /* FIXME: channels + latency budget */
   struct dds_loan_pool *m_loans; /* administration of associated loans */
   ddsi_protocol_version_t protocol_version; /* copy of configured protocol version */
+  struct dds_filter *m_filter;
 
   /* Status metrics */
 
@@ -475,7 +477,6 @@ typedef struct dds_topic {
   char *m_name;
   struct ddsi_sertype *m_stype;
   struct dds_ktopic *m_ktopic; /* refc'd, constant */
-  struct dds_topic_filter m_filter;
   dds_inconsistent_topic_status_t m_inconsistent_topic_status; /* Status metrics */
 } dds_topic;
 

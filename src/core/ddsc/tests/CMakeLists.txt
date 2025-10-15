@@ -61,7 +61,7 @@ set(ddsc_test_sources
     "entity_hierarchy.c"
     "entity_status.c"
     "err.c"
-    "filter.c"
+    "topic_filter.c"
     "instance_get_key.c"
     "instance_handle.c"
     "listener.c"
@@ -116,6 +116,7 @@ set(ddsc_test_sources
     "serdata_keys.c"
     "sertype.c"
     "sql.c"
+    "filter.c"
   )
 
 if(ENABLE_LIFESPAN)

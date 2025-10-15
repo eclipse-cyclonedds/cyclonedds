@@ -19,6 +19,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertype.h"
+#include "dds__content_filter.h"
 #include "dds__qos.h"
 #include "dds__topic.h"
 #include "dds__psmx.h"
@@ -516,6 +517,52 @@ void dds_qset_psmx_instances (dds_qos_t *qos, uint32_t n, const char **values)
     qos->psmx.strs = NULL;
 
   qos->present |= DDSI_QP_PSMX;
+}
+
+void dds_qset_content_filter(dds_qos_t *qos, const struct dds_content_filter filter)
+{
+  if (qos == NULL)
+    return;
+  struct dds_content_filter *flt = NULL;
+  if (qos->present & DDSI_QP_CONTENT_FILTER && qos->filter.filter != NULL)
+  {
+    flt = qos->filter.filter;
+    switch (flt->kind)
+    {
+      case DDS_CONTENT_FILTER_EXPRESSION:
+        dds_expression_filter_fini(flt->filter.expr);
+        flt->filter.expr = NULL;
+        break;
+      case DDS_CONTENT_FILTER_FUNCTION:
+        dds_function_filter_fini(flt->filter.func);
+        flt->filter.func = NULL;
+        break;
+      default:
+        abort();
+    }
+  } else {
+    flt = (struct dds_content_filter *) ddsrt_malloc(sizeof(*flt));
+  }
+
+  (void) dds_content_filter_copy (&filter, flt);
+  qos->filter.filter = flt;
+  qos->present |= DDSI_QP_CONTENT_FILTER;
+}
+
+bool dds_qget_content_filter(const dds_qos_t *qos, struct dds_content_filter **filter)
+{
+  if (qos == NULL || !(qos->present & DDSI_QP_CONTENT_FILTER) || qos->filter.filter == NULL)
+    return false;
+
+  struct dds_content_filter *flt = ddsrt_malloc(sizeof(*flt));
+  if (!dds_content_filter_copy (qos->filter.filter, flt))
+  {
+    dds_free (flt);
+    return false;
+  }
+
+  *filter = flt;
+  return true;
 }
 
 bool dds_qget_userdata (const dds_qos_t *qos, void **value, size_t *sz)

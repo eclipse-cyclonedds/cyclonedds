@@ -25,6 +25,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_deliver_locally.h"
 #include "dds/ddsi/ddsi_addrset.h"
+#include "dds__filter.h"
 #include "dds__heap_loan.h"
 #include "dds__writer.h"
 #include "dds__write.h"
@@ -123,7 +124,7 @@ dds_return_t dds_writecdr (dds_entity_t writer, struct ddsi_serdata *serdata)
 
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
-  if (wr->m_topic->m_filter.mode != DDS_TOPIC_FILTER_NONE)
+  if (wr->m_filter != NULL)
   {
     dds_writer_unlock (wr);
     return DDS_RETCODE_ERROR;
@@ -145,7 +146,7 @@ dds_return_t dds_forwardcdr (dds_entity_t writer, struct ddsi_serdata *serdata)
 
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
-  if (wr->m_topic->m_filter.mode != DDS_TOPIC_FILTER_NONE)
+  if (wr->m_filter != NULL)
   {
     dds_writer_unlock (wr);
     return DDS_RETCODE_ERROR;
@@ -530,37 +531,6 @@ static dds_return_t dds_writecdr_impl_common (struct dds_writer *wr, struct ddsi
   return ret;
 }
 
-static bool evaluate_topic_filter (const dds_writer *wr, const void *data, enum ddsi_serdata_kind sdkind)
-{
-  // false if data rejected by filter
-  if (wr->m_topic->m_filter.mode == DDS_TOPIC_FILTER_NONE || sdkind == SDK_KEY)
-    return true;
-
-  const struct dds_topic_filter *f = &wr->m_topic->m_filter;
-  switch (f->mode)
-  {
-    case DDS_TOPIC_FILTER_NONE:
-    case DDS_TOPIC_FILTER_SAMPLEINFO_ARG:
-      break;
-    case DDS_TOPIC_FILTER_SAMPLE:
-      if (!f->f.sample (data))
-        return false;
-      break;
-    case DDS_TOPIC_FILTER_SAMPLE_ARG:
-      if (!f->f.sample_arg (data, f->arg))
-        return false;
-      break;
-    case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG: {
-      struct dds_sample_info si;
-      memset (&si, 0, sizeof (si));
-      if (!f->f.sample_sampleinfo_arg (data, &si, f->arg))
-        return false;
-      break;
-    }
-  }
-  return true;
-}
-
 ddsrt_nonnull_all
 static dds_return_t dds_write_impl_deliver_via_ddsi (struct ddsi_thread_state * const ts, dds_writer *wr, struct ddsi_serdata *d)
 {
@@ -816,7 +786,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t timest
   if (!dds_source_timestamp_is_valid_ddsi_time (timestamp, wr->protocol_version))
     return DDS_RETCODE_BAD_PARAMETER;
 
-  if (!evaluate_topic_filter (wr, data, sdkind))
+  if (!(sdkind == SDK_KEY || dds_filter_writer_accept (wr->m_filter, wr, data)))
     return DDS_RETCODE_OK;
 
   // I. psmx loan => assert (psmx && is_memcpy_safe)
