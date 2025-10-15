@@ -115,6 +115,7 @@ set(ddsc_test_sources
     "cdrstream.c"
     "serdata_keys.c"
     "sertype.c"
+    "sql.c"
   )
 
 if(ENABLE_LIFESPAN)

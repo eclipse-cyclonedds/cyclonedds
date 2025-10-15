@@ -47,6 +47,7 @@ prepend(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds_heap_loan.c
   dds_psmx.c
   dds_guid.c
+  dds_sql_expr.c
 )
 
 if(ENABLE_TYPELIB)
@@ -93,6 +94,7 @@ prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds__sysdef_validation.h
   dds__qos_provider.h
   dds__guid.h
+  dds__sql_expr.h
 )
 
 prepend(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>/dds/"
