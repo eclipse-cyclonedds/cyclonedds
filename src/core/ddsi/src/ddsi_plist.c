@@ -395,6 +395,21 @@ static bool print_reliability (char * restrict *buf, size_t * restrict bufsize, 
   return prtf (buf, bufsize, "%d:%"PRId64, (int) x->kind, x->max_blocking_time);
 }
 
+static bool equal_content_filter (const void *srcx, const void *srcy, size_t srcoff)
+{
+  dds_content_filter_qospolicy_t const * const x = deser_generic_src (srcx, &srcoff, plist_alignof (dds_content_filter_qospolicy_t));
+  dds_content_filter_qospolicy_t const * const y = deser_generic_src (srcy, &srcoff, plist_alignof (dds_content_filter_qospolicy_t));
+  /* FIXME: is it enough? */
+  return x->filter == y->filter;
+}
+
+static dds_return_t valid_content_filter (const void *src, size_t srcoff)
+{
+  (void) src; (void) srcoff;
+  /* FIXME: to be implemented. */
+  return 0;
+}
+
 static dds_return_t deser_statusinfo (void * restrict dst, struct flagset *flagset, uint64_t flag, const struct dd *dd, struct ddsi_domaingv const * const gv)
 {
   size_t srcoff = 0, dstoff = 0;
@@ -2120,7 +2135,10 @@ static const struct piddesc piddesc_eclipse[] = {
     { .desc = { Xb, XSTOP } }, 0 },
   { DDSI_PID_PAD, PDF_QOS, DDSI_QP_PSMX, "CYCLONE_PSMX",
     offsetof(struct ddsi_plist, qos.psmx), membersize(struct ddsi_plist, qos.psmx),
-    {.desc = { XQ, XS, XSTOP } }, 0 },
+    { .desc = { XQ, XS, XSTOP } }, 0 },
+  { DDSI_PID_PAD, PDF_QOS | PDF_FUNCTION, DDSI_QP_CONTENT_FILTER, "CONTENT_FILTER",
+    offsetof(struct ddsi_plist, qos.filter), membersize(struct ddsi_plist, qos.filter),
+    { .f = { .valid = valid_content_filter, .equal =  equal_content_filter } }, 0 },
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   PP  (CYCLONE_TOPIC_GUID,               topic_guid, XG),
 #endif
@@ -3597,7 +3615,7 @@ void ddsi_xqos_init_empty (dds_qos_t *dest)
 }
 
 const dds_qos_t ddsi_default_qos_reader = {
-  .present = DDSI_QP_PRESENTATION | DDSI_QP_DURABILITY | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_LIVELINESS | DDSI_QP_DESTINATION_ORDER | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS | DDSI_QP_OWNERSHIP | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_TOPIC_DATA | DDSI_QP_GROUP_DATA | DDSI_QP_USER_DATA | DDSI_QP_PARTITION | DDSI_QP_RELIABILITY | DDSI_QP_TIME_BASED_FILTER | DDSI_QP_ADLINK_READER_DATA_LIFECYCLE | DDSI_QP_ADLINK_READER_LIFESPAN | DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT | DDSI_QP_DATA_REPRESENTATION,
+  .present = DDSI_QP_PRESENTATION | DDSI_QP_DURABILITY | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_LIVELINESS | DDSI_QP_DESTINATION_ORDER | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS | DDSI_QP_OWNERSHIP | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_TOPIC_DATA | DDSI_QP_GROUP_DATA | DDSI_QP_USER_DATA | DDSI_QP_PARTITION | DDSI_QP_RELIABILITY | DDSI_QP_TIME_BASED_FILTER | DDSI_QP_ADLINK_READER_DATA_LIFECYCLE | DDSI_QP_ADLINK_READER_LIFESPAN | DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT | DDSI_QP_DATA_REPRESENTATION | DDSI_QP_CONTENT_FILTER,
   .aliased = DDSI_QP_DATA_REPRESENTATION,
   .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
   .presentation.coherent_access = 0,
@@ -3637,11 +3655,12 @@ const dds_qos_t ddsi_default_qos_reader = {
   .type_consistency.prevent_type_widening = false,
   .type_consistency.force_type_validation = false,
   .data_representation.value.n = 1,
-  .data_representation.value.ids = (dds_data_representation_id_t []) { DDS_DATA_REPRESENTATION_XCDR1 }
+  .data_representation.value.ids = (dds_data_representation_id_t []) { DDS_DATA_REPRESENTATION_XCDR1 },
+  .filter.filter = NULL
 };
 
 const dds_qos_t ddsi_default_qos_writer = {
-  .present = DDSI_QP_PRESENTATION | DDSI_QP_DURABILITY | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_LIVELINESS | DDSI_QP_DESTINATION_ORDER | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS | DDSI_QP_OWNERSHIP | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_TOPIC_DATA | DDSI_QP_GROUP_DATA | DDSI_QP_USER_DATA | DDSI_QP_PARTITION | DDSI_QP_DURABILITY_SERVICE | DDSI_QP_RELIABILITY | DDSI_QP_OWNERSHIP_STRENGTH | DDSI_QP_TRANSPORT_PRIORITY | DDSI_QP_LIFESPAN | DDSI_QP_ADLINK_WRITER_DATA_LIFECYCLE | DDSI_QP_DATA_REPRESENTATION | DDSI_QP_CYCLONE_WRITER_BATCHING,
+  .present = DDSI_QP_PRESENTATION | DDSI_QP_DURABILITY | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_LIVELINESS | DDSI_QP_DESTINATION_ORDER | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS | DDSI_QP_OWNERSHIP | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_TOPIC_DATA | DDSI_QP_GROUP_DATA | DDSI_QP_USER_DATA | DDSI_QP_PARTITION | DDSI_QP_DURABILITY_SERVICE | DDSI_QP_RELIABILITY | DDSI_QP_OWNERSHIP_STRENGTH | DDSI_QP_TRANSPORT_PRIORITY | DDSI_QP_LIFESPAN | DDSI_QP_ADLINK_WRITER_DATA_LIFECYCLE | DDSI_QP_DATA_REPRESENTATION | DDSI_QP_CYCLONE_WRITER_BATCHING | DDSI_QP_CONTENT_FILTER,
   .aliased = DDSI_QP_DATA_REPRESENTATION,
   .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
   .presentation.coherent_access = 0,
@@ -3681,7 +3700,8 @@ const dds_qos_t ddsi_default_qos_writer = {
   .writer_data_lifecycle.autodispose_unregistered_instances = 1,
   .writer_batching.batch_updates = 0,
   .data_representation.value.n = 1,
-  .data_representation.value.ids = (dds_data_representation_id_t []) { DDS_DATA_REPRESENTATION_XCDR1 }
+ .data_representation.value.ids = (dds_data_representation_id_t []) { DDS_DATA_REPRESENTATION_XCDR1 },
+  .filter.filter = NULL
 };
 
 const dds_qos_t ddsi_default_qos_topic = {

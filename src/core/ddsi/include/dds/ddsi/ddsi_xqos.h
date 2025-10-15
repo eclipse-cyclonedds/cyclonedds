@@ -198,6 +198,10 @@ typedef struct dds_data_representation_qospolicy {
 
 typedef ddsi_stringseq_t dds_pubsub_message_exchange_qospolicy_t;
 
+typedef struct dds_content_filter_qospolicy {
+  struct dds_content_filter *filter;
+} dds_content_filter_qospolicy_t;
+
 /***/
 
 /* Qos Present bit indices */
@@ -234,6 +238,7 @@ typedef ddsi_stringseq_t dds_pubsub_message_exchange_qospolicy_t;
 #define DDSI_QP_PSMX                              ((uint64_t)1 << 34)
 #define DDSI_QP_DATA_REPRESENTATION               ((uint64_t)1 << 35)
 #define DDSI_QP_ENTITY_NAME                       ((uint64_t)1 << 36)
+#define DDSI_QP_CONTENT_FILTER                    ((uint64_t)1 << 37)
 
 
 /* Partition QoS is not RxO according to the specification (DDS 1.2,
@@ -241,7 +246,7 @@ typedef ddsi_stringseq_t dds_pubsub_message_exchange_qospolicy_t;
    matches. Same for topic and type.  Relaxed qos matching is a bit of
    a weird one, but it affects matching, so ... */
 #define DDSI_QP_RXO_MASK (DDSI_QP_DURABILITY | DDSI_QP_PRESENTATION | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_OWNERSHIP | DDSI_QP_LIVELINESS | DDSI_QP_RELIABILITY | DDSI_QP_DESTINATION_ORDER | DDSI_QP_DATA_REPRESENTATION)
-#define DDSI_QP_CHANGEABLE_MASK (DDSI_QP_USER_DATA | DDSI_QP_TOPIC_DATA | DDSI_QP_GROUP_DATA | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_OWNERSHIP_STRENGTH | DDSI_QP_TIME_BASED_FILTER | DDSI_QP_PARTITION | DDSI_QP_TRANSPORT_PRIORITY | DDSI_QP_LIFESPAN | DDSI_QP_ADLINK_ENTITY_FACTORY | DDSI_QP_ADLINK_WRITER_DATA_LIFECYCLE | DDSI_QP_ADLINK_READER_DATA_LIFECYCLE)
+#define DDSI_QP_CHANGEABLE_MASK (DDSI_QP_USER_DATA | DDSI_QP_TOPIC_DATA | DDSI_QP_GROUP_DATA | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_OWNERSHIP_STRENGTH | DDSI_QP_TIME_BASED_FILTER | DDSI_QP_PARTITION | DDSI_QP_TRANSPORT_PRIORITY | DDSI_QP_LIFESPAN | DDSI_QP_ADLINK_ENTITY_FACTORY | DDSI_QP_ADLINK_WRITER_DATA_LIFECYCLE | DDSI_QP_ADLINK_READER_DATA_LIFECYCLE | DDSI_QP_CONTENT_FILTER)
 #define DDSI_QP_UNRECOGNIZED_INCOMPATIBLE_MASK ((uint64_t) 0)
 
 /* readers & writers have an extended qos, hence why it is a separate
@@ -294,6 +299,7 @@ struct dds_qos {
   /*xxxR*/dds_type_consistency_enforcement_qospolicy_t type_consistency;
   /*xxxX*/dds_pubsub_message_exchange_qospolicy_t psmx;
   /*xxx */dds_data_representation_qospolicy_t data_representation;
+  /*x  X*/dds_content_filter_qospolicy_t filter;
 };
 
 DDS_EXPORT extern const dds_qos_t ddsi_default_qos_reader;

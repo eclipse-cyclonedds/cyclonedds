@@ -28,6 +28,7 @@
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsc/dds_internal_api.h"
+#include "dds__filter.h"
 #include "dds__writer.h"
 #include "dds__listener.h"
 #include "dds__init.h"
@@ -258,6 +259,9 @@ static dds_return_t dds_writer_qos_set (dds_entity *e, const dds_qos_t *qos, boo
     if ((wr = ddsi_entidx_lookup_writer_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
       ddsi_update_writer_qos (wr, qos);
     ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+
+    if (qos->present & DDSI_QP_CONTENT_FILTER && (qos->filter.filter != NULL))
+      ret = dds_filter_init (e->m_domain->m_id, qos->filter.filter, wr->type, &((struct dds_writer *)e)->m_filter);
   }
   return DDS_RETCODE_OK;
 }
@@ -427,6 +431,11 @@ static dds_entity_t dds_create_writer_int (dds_entity_t participant_or_publisher
     wqos->present & DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT ? wqos->type_consistency : ddsi_default_qos_topic.type_consistency);
   if (!sertype)
     sertype = tp->m_stype;
+
+  if (wqos && (wqos->present & DDSI_QP_CONTENT_FILTER) && (wqos->filter.filter != NULL)) {
+    rc = dds_filter_init (wr->m_entity.m_domain->m_id, wqos->filter.filter, sertype, &wr->m_filter);
+    assert (rc == DDS_RETCODE_OK);
+  }
 
   if (guid)
     wr->m_entity.m_guid = dds_guid_to_ddsi_guid (*guid);
