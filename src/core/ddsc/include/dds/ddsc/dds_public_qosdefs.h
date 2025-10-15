@@ -67,6 +67,12 @@ typedef enum dds_qos_policy_id {
 typedef struct dds_qos dds_qos_t;
 
 /**
+ * @brief QoS content filter datatype
+ * @ingroup qos
+ */
+typedef struct dds_content_filter dds_content_filter_t;
+
+/**
  * @brief Durability QoS: Applies to Topic, DataReader, DataWriter
  * @ingroup qos
  */
@@ -175,6 +181,16 @@ dds_type_consistency_kind_t;
  * @ingroup qos
  */
 typedef int16_t dds_data_representation_id_t;
+
+/**
+ * @brief Topic Filter QoS: Applies to Topic, DataReader, DataWriter
+ * @ingroup qos
+ * */
+typedef enum dds_content_filter_kind
+{
+    DDS_CONTENT_FILTER_EXPRESSION, /**< Filter set using expression */
+    DDS_CONTENT_FILTER_FUNCTION, /**< Filter set with filter function */
+} dds_content_filter_kind_t;
 
 #if defined (__cplusplus)
 }
