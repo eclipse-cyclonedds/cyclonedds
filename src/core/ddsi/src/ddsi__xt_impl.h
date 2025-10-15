@@ -346,6 +346,13 @@ void ddsi_typeobj_fini_impl (struct DDS_XTypes_TypeObject *typeobj);
 /** @component xtypes_wrapper */
 dds_return_t ddsi_xt_type_init_impl (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeIdentifier *ti, const struct DDS_XTypes_TypeObject *to);
 
+struct ddsi_non_assignability_reason;
+struct xt_type *ddsi_xt_expand_basetype (struct ddsi_domaingv *gv, const struct xt_type *t, struct ddsi_non_assignability_reason *reason)
+  ddsrt_nonnull_all;
+
+struct xt_type *ddsi_xt_type_key_erased (struct ddsi_domaingv *gv, const struct xt_type *t)
+  ddsrt_nonnull_all;
+
 #if defined (__cplusplus)
 }
 #endif

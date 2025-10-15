@@ -1531,6 +1531,123 @@ void ddsi_type_pair_free (struct ddsi_type_pair *type_pair)
   ddsrt_free (type_pair);
 }
 
+typedef struct tpkey_field
+{
+  char *id;
+} tpkey_field_t;
+
+static struct ddsi_type * type_assign_keys(const char *prefix, const struct ddsi_type *type, const struct ddsrt_hh *keys_tb)
+{
+  struct ddsi_domaingv *gv = type->gv;
+  struct ddsi_type *t = (struct ddsi_type *) ddsrt_calloc(1, sizeof(*t));
+
+  const struct xt_type *st = &type->xt;
+
+  if (st->_d == DDS_XTypes_TK_STRUCTURE && st->_u.structure.base_type != NULL)
+  {
+    struct ddsi_non_assignability_reason reason;
+    st = ddsi_xt_expand_basetype (gv, st, &reason);
+    assert (st != NULL);
+  }
+
+  struct xt_type *dt = &t->xt;
+  dt = ddsi_xt_type_key_erased (gv, st);
+
+  switch (dt->_d)
+  {
+    case DDS_XTypes_TK_STRUCTURE:
+    {
+      for (uint32_t j = 0; j < dt->_u.structure.members.length; j++)
+      {
+        struct xt_struct_member *m = &dt->_u.structure.members.seq[j];
+        struct tpkey_field tmpl = {.id = NULL};
+        if (prefix != NULL) {
+          tmpl.id = ddsrt_calloc(1, strlen(prefix) + 2 + strlen(m->detail.name));
+          (void) sprintf(tmpl.id, "%s.%s", prefix, m->detail.name);
+        } else {
+          tmpl.id = m->detail.name;
+        }
+        struct tpkey_field *item = NULL;
+        if ((item = ddsrt_hh_lookup(keys_tb, &tmpl)) != NULL)
+        {
+          /* FIXME: we need to classify member by primitive/not primitive */
+          if (m->type != NULL && m->type->xt._d >= DDS_XTypes_TK_ALIAS)
+          {
+            struct ddsi_type *sub_type = type_assign_keys(item->id, m->type, keys_tb);
+            ddsi_type_unref (gv, m->type);
+            m->type = sub_type; /* FIXME: ref? */
+          }
+          /* FIXME:
+           * Is it possible deserialize optional field as part of keys
+           * deser., if presented? */
+          assert ((m->flags & DDS_XTypes_IS_OPTIONAL) == 0);
+          m->flags |= DDS_XTypes_IS_KEY;
+        }
+        if (prefix != NULL)
+          ddsrt_free (tmpl.id);
+      }
+      break;
+    }
+    /* FIXME: unions, arrays and all non primitive types. */
+    default:
+      abort();
+  }
+  t->xt = *dt;
+
+  return t;
+}
+
+static uint32_t tpkey_field_hash_fn (const void *a)
+{
+  struct tpkey_field *item = (struct tpkey_field *) a;
+  uint32_t x = ddsrt_mh3(item->id, strlen(item->id), 0);
+  return x;
+}
+
+static bool tpkey_field_equals_fn (const void *a, const void *b)
+{
+  struct tpkey_field *aa = (struct tpkey_field *) a;
+  struct tpkey_field *bb = (struct tpkey_field *) b;
+  return strcmp(aa->id, bb->id) == 0;
+}
+
+static void tpkey_field_free (void *vnode, void *varg)
+{
+  (void) varg;
+  struct tpkey_field *item = (struct tpkey_field *) vnode;
+  ddsrt_free (item->id);
+  ddsrt_free (item);
+}
+
+struct ddsi_type * ddsi_type_dup_with_keys (const struct ddsi_type *type, const char **fields, const size_t nfields)
+{
+  struct ddsrt_hh *keys_tb = ddsrt_hh_new(1, tpkey_field_hash_fn, tpkey_field_equals_fn);
+  for (uint32_t i = 0; i < nfields; i++)
+  {
+    const char *cursor = fields[i];
+    struct tpkey_field *fld = (struct tpkey_field *) ddsrt_calloc(1, sizeof(*fld));
+    fld->id = ddsrt_strdup(cursor);
+    (void) ddsrt_hh_add (keys_tb, fld);
+    fprintf (stderr, "\t%s\n", fld->id);
+    while ((cursor = strchr(cursor, '.')) != NULL)
+    {
+      fld = (struct tpkey_field *) ddsrt_calloc(1, sizeof(*fld));
+      fld->id = ddsrt_strndup(fields[i], (size_t)(cursor - fields[i]));
+      (void) ddsrt_hh_add(keys_tb, fld);
+      cursor++;
+    }
+  }
+  struct ddsi_type *t = type_assign_keys(NULL, type, keys_tb);
+  ddsrt_hh_enum(keys_tb, tpkey_field_free, NULL);
+  t->refc++;
+
+  struct DDS_XTypes_TypeObject to;
+  ddsi_xt_get_typeobject_kind_impl (&t->xt, &to, DDSI_TYPEID_KIND_COMPLETE);
+  ddsi_typeobj_get_hash_id (&to, &t->xt.id);
+
+  return t;
+}
+
 
 #ifdef DDS_HAS_TYPELIB
 

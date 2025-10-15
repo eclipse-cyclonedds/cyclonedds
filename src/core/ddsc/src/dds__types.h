@@ -396,6 +396,8 @@ struct dds_endpoint {
   struct dds_psmx_endpoints_set psmx_endpoints;
 };
 
+struct dds_filter;
+
 typedef struct dds_reader {
   struct dds_entity m_entity;
   struct dds_endpoint m_endpoint;
@@ -432,6 +434,41 @@ typedef struct dds_writer {
   dds_offered_incompatible_qos_status_t m_offered_incompatible_qos_status;
   dds_publication_matched_status_t m_publication_matched_status;
 } dds_writer;
+
+struct dds_filter_ops {
+  dds_return_t (*init)  (dds_domainid_t domain_id, const struct dds_content_filter *con_filter, const struct ddsi_sertype *st, struct dds_filter **filter);
+  void (*fini)  (struct dds_filter *filter);
+  dds_return_t (*apply) (const dds_entity_t entity, const struct dds_filter *filter);
+  bool(*reader_accept) (const dds_reader *rd, const struct dds_filter *filter, const struct ddsi_serdata *sample, const struct dds_sample_info *si);
+  bool (*writer_accept) (const dds_writer *wr, const struct dds_filter *filter, const void *sample);
+};
+
+enum dds_filter_type {
+  DDS_EXPR_FILTER,
+  DDS_FUNC_FILTER,
+};
+
+struct dds_filter {
+  dds_domainid_t domain_id;
+  enum dds_filter_type type;
+  struct dds_filter_ops ops;
+};
+
+struct dds_expression_filter {
+  struct dds_filter tf;
+  char *expression;
+  struct dds_sql_expr *expr;          // pre-build expression a.k.a full described.
+  struct dds_sql_expr *bin_expr;      // build/optimized expression with params.
+  struct dds_topic_descriptor *desc;  // newly constructed descriptor.
+  struct ddsi_sertype *st;            // newly constructed sertype.
+};
+
+struct dds_function_filter {
+  struct dds_filter tf;
+  dds_function_content_filter_fn_t f;
+  dds_function_content_filter_mode_t mode;
+  void *arg;
+};
 
 typedef struct dds_topic {
   struct dds_entity m_entity;
