@@ -91,6 +91,12 @@ extern "C" {
   DDSRT_WARNING_GNUC_ON(deprecated-declarations) \
   DDSRT_WARNING_MSVC_ON(4996)
 
+#ifdef __clang_analyzer__
+#define DDSRT_CLANG_ANALYZER_SUPPRESS [[clang::suppress]]
+#else
+#define DDSRT_CLANG_ANALYZER_SUPPRESS
+#endif
+
 #if defined (__cplusplus)
 }
 #endif
