@@ -115,7 +115,7 @@
  * the "INSTANCE_NAME" key in the configuration string using @ref
  * dds_psmx_get_config_option_value will return the PSMX Instance Name as its value.
  *
- * The behaviour of the constructor function is dependent on the interface version it
+ * The behavior of the constructor function is dependent on the interface version it
  * implements:
  *
  * - For version 0, it is responsible for setting:
@@ -141,7 +141,7 @@
  * "create_topic_type" nor "delete_psmx" is touched by Cyclone DDS if the interface is
  * version 0, allowing for binary backwards compatibility.
  *
- * For creation and deletion of PSMX topics and endpoints, the expected behaviour of the
+ * For creation and deletion of PSMX topics and endpoints, the expected behavior of the
  * plugin for version 0 and version 1 is described in the documentation sections of the
  * create functions:
  *
@@ -402,7 +402,7 @@ typedef struct dds_psmx_ops {
  * @ingroup psmx
  *
  * The PSMX Plugin is expected to represent a PSMX Endpoint using an extended version of the
- * `dds_psmx_endpoint` structure. The behaviour of the plugin is dependent on the interface
+ * `dds_psmx_endpoint` structure. The behavior of the plugin is dependent on the interface
  * version it implements:
  *
  * - For version 0, it is responsible for setting:

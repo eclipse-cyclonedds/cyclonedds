@@ -31,10 +31,10 @@ AckNack messages to inform the writer of samples received and not received. When
 writer indicates that it requires a response to a heartbeat, the readers sends an AckNack 
 message (even when no samples are missing).
 
-Combining these behaviours allows the writer to remove old samples from its WHC when it fills 
+Combining these behaviors allows the writer to remove old samples from its WHC when it fills 
 up the cache, enabling readers to receive all data reliably. 
 
-The default |var-project-short| behaviour is to never to consider readers unresponsive. The 
+The default |var-project-short| behavior is to never to consider readers unresponsive. The 
 DDSI specification does not define how to handle a situation where readers do not respond 
 to a heartbeat, or fail to receive samples from a writer after a re-transmission request.
 A solution to this situation is to periodically check the participant containing the reader.

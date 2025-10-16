@@ -10,7 +10,7 @@ Proprietary builtin endpoints
 *****************************
 
 The DDS standard contains some builtin endpoints. A few are added by the DDS Security
-specification (|url::omg.security|). The behaviour of all these builtin endpoints are 
+specification (|url::omg.security|). The behavior of all these builtin endpoints are 
 specified and handled by the plugins (see :ref:`Plugins_configuration`) that implement 
 the OMG DDS Security specification. That is, they do not have to be present in the 
 :ref:`governance document <governance_document>` or :ref:`permissions document 
