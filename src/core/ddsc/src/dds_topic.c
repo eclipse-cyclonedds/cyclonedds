@@ -17,6 +17,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/hopscotch.h"
+#include "dds__content_filter.h"
 #include "dds__topic.h"
 #include "dds__listener.h"
 #include "dds__participant.h"
@@ -971,11 +972,10 @@ dds_return_t dds_set_topic_filter_extended (dds_entity_t topic, const struct dds
   dds_return_t ret = DDS_RETCODE_OK;
   if (filter == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
-  if (filter->mode < DDS_TOPIC_FILTER_NONE
-      || filter->mode > DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG)
+  if (filter->mode < DDS_TOPIC_FILTER_NONE || filter->mode > DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG)
     return DDS_RETCODE_BAD_PARAMETER;
   dds_function_content_filter_t *ff = NULL;
-  if ((ret = dds_function_filter_init (filter->mode, filter->f, &ff)) != DDS_RETCODE_OK)
+  if ((ret = dds_function_filter_create (filter->mode, filter->f, &ff)) != DDS_RETCODE_OK)
     return ret;
 
   if ((ret = dds_function_filter_bind_arg (ff, filter->arg)) != DDS_RETCODE_OK)
@@ -990,13 +990,10 @@ dds_return_t dds_set_topic_filter_extended (dds_entity_t topic, const struct dds
   if ((ret = dds_set_qos (topic, tqos)) != DDS_RETCODE_OK)
     goto err_qos;
 
-  dds_delete_qos (tqos);
-  return ret;
-
 err_qos:
   dds_delete_qos (tqos);
 err_bind:
-  dds_function_filter_fini (ff);
+  dds_function_filter_free (ff);
   return ret;
 }
 
@@ -1010,25 +1007,26 @@ dds_return_t dds_set_topic_filter_and_arg (dds_entity_t topic, dds_topic_filter_
   return dds_set_topic_filter_extended (topic, &f);
 }
 
+DDSRT_STATIC_ASSERT (sizeof(dds_function_content_filter_t) == sizeof(struct dds_topic_filter));
 dds_return_t dds_get_topic_filter_extended (dds_entity_t topic, struct dds_topic_filter *filter)
 {
   dds_return_t rc;
   dds_topic *t;
   if (filter == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
-  if ((rc = dds_topic_lock (topic, &t)) != DDS_RETCODE_OK)
-    return rc;
   struct dds_content_filter *flt = NULL;
   struct dds_topic_filter res = {0};
   res.mode = DDS_TOPIC_FILTER_NONE;
+  if ((rc = dds_topic_lock (topic, &t)) != DDS_RETCODE_OK)
+    return rc;
   if (dds_qget_content_filter (t->m_ktopic->qos, &flt) && flt != NULL)
   {
-    res.mode = flt->filter.func->mode;
-    (void) memcpy (&res.f, &flt->filter.func->f, sizeof(res.f));
-    res.arg = flt->filter.func->arg;
+    assert (flt->kind == DDS_CONTENT_FILTER_FUNCTION);
+    (void) memcpy (&res, flt->filter.func, sizeof(res));
+    dds_content_filter_free (flt);
   }
-  *filter = res;
   dds_topic_unlock (t);
+  *filter = res;
   return rc;
 }
 

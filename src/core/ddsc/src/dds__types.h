@@ -438,10 +438,8 @@ typedef struct dds_writer {
 } dds_writer;
 
 struct dds_filter_ops {
-  dds_return_t (*init)  (dds_domainid_t domain_id, const struct dds_content_filter *con_filter, const struct ddsi_sertype *st, struct dds_filter **filter);
-  void (*fini)  (struct dds_filter *filter);
-  dds_return_t (*apply) (const dds_entity_t entity, const struct dds_filter *filter);
-  bool(*reader_accept) (const dds_reader *rd, const struct dds_filter *filter, const struct ddsi_serdata *sample, const struct dds_sample_info *si);
+  void (*free)  (struct dds_filter *filter);
+  bool (*reader_accept) (const dds_reader *rd, const struct dds_filter *filter, const struct ddsi_serdata *sample, const struct dds_sample_info *si);
   bool (*writer_accept) (const dds_writer *wr, const struct dds_filter *filter, const void *sample);
 };
 

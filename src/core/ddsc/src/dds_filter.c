@@ -10,6 +10,8 @@
 
 #include <string.h>
 
+#include "dds/dds.h"
+
 #include "dds/ddsi/ddsi_typebuilder.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
@@ -18,6 +20,7 @@
 
 #include "dds__domain.h"
 #include "dds__filter.h"
+#include "dds__types.h"
 #include "dds__content_filter.h"
 #include "dds__serdata_default.h"
 
@@ -71,11 +74,11 @@ static dds_return_t topic_expr_filter_vars_apply(const struct dds_expression_fil
           switch (op_type)
           {
             case DDS_OP_TYPE_4BY: {
-              DDS_EXPR_VAR_SET_REAL(filter->bin_expr, (sample + op_offs), id, float);
+              DDS_EXPR_VAR_SET_REAL(filter->bin_expr, ((char *)sample + op_offs), id, float);
               break;
             }
             case DDS_OP_TYPE_8BY: {
-              DDS_EXPR_VAR_SET_REAL(filter->bin_expr, (sample + op_offs), id, double);
+              DDS_EXPR_VAR_SET_REAL(filter->bin_expr, ((char *)sample + op_offs), id, double);
               break;
             }
             default:
@@ -87,21 +90,21 @@ static dds_return_t topic_expr_filter_vars_apply(const struct dds_expression_fil
           {
             case DDS_OP_TYPE_BLN:
             case DDS_OP_TYPE_1BY: {
-              DDS_EXPR_VAR_SET_INTEGER(op_flags, filter->bin_expr, (sample + op_offs), id, int8_t);
+              DDS_EXPR_VAR_SET_INTEGER(op_flags, filter->bin_expr, ((char *)sample + op_offs), id, int8_t);
               break;
             }
             case DDS_OP_TYPE_2BY: {
-              DDS_EXPR_VAR_SET_INTEGER(op_flags, filter->bin_expr, (sample + op_offs), id, int16_t);
+              DDS_EXPR_VAR_SET_INTEGER(op_flags, filter->bin_expr, ((char *)sample + op_offs), id, int16_t);
               break;
             }
             case DDS_OP_TYPE_4BY: {
-              DDS_EXPR_VAR_SET_INTEGER(op_flags, filter->bin_expr, (sample + op_offs), id, int32_t);
+              DDS_EXPR_VAR_SET_INTEGER(op_flags, filter->bin_expr, ((char *)sample + op_offs), id, int32_t);
               break;
             }
             case DDS_OP_TYPE_8BY: {
               if (op_flags & DDS_OP_FLAG_SGN) {
-                int64_t *i = (int64_t *)(sample + op_offs);
-                ret = dds_sql_expr_bind_integer (filter->bin_expr, id, *i);
+                int64_t *j = (int64_t *)((char *)sample + op_offs);
+                ret = dds_sql_expr_bind_integer (filter->bin_expr, id, *j);
               } else {
               /* FIXME:
                * current implementation doesn't support 64 bit unsigned, since sql
@@ -155,6 +158,9 @@ static bool topic_expr_filter_reader_accept(const dds_reader *rd, const struct d
   assert (res == true);
 
   dds_return_t ret = topic_expr_filter_vars_apply(ef, s);
+#ifdef NDEBUG
+  (void) ret;
+#endif
   assert (ret == DDS_RETCODE_OK);
 
   struct dds_sql_token *r = NULL;
@@ -176,6 +182,9 @@ static bool topic_expr_filter_writer_accept(const dds_writer *wr, const struct d
   bool res = true;
   const struct dds_expression_filter *ef = (const struct dds_expression_filter *) filter;
   dds_return_t ret = topic_expr_filter_vars_apply(ef, sample);
+#ifdef NDEBUG
+  (void) ret;
+#endif
   assert (ret == DDS_RETCODE_OK);
 
   struct dds_sql_token *r = NULL;
@@ -183,31 +192,34 @@ static bool topic_expr_filter_writer_accept(const dds_writer *wr, const struct d
   assert (ret == DDS_RETCODE_OK);
 
   ret = (r->aff >= DDS_SQL_AFFINITY_NUMERIC) && r->n.i;
+  assert (ret == DDS_RETCODE_OK);
   free (r);
   return res;
 }
 
-static void topic_expr_filter_fini(struct dds_filter *filter)
+static void topic_expr_filter_free(struct dds_filter *filter)
 {
   struct dds_expression_filter *ef = (struct dds_expression_filter *)filter;
   ddsrt_free(ef->expression);
   if (ef->bin_expr != NULL) dds_sql_expr_fini(ef->bin_expr);
   if (ef->expr != NULL) dds_sql_expr_fini(ef->expr);
-  if (ef->desc != NULL) ddsi_topic_descriptor_fini(ef->desc);
+  if (ef->desc != NULL) {ddsi_topic_descriptor_fini(ef->desc); ddsrt_free(ef->desc);}
   if (ef->st != NULL) ddsi_sertype_unref(ef->st);
   ddsrt_free(ef);
 }
 
 static dds_return_t topic_expr_filter_param_rebind (struct dds_filter *a, const struct dds_content_filter *b, const struct ddsi_sertype *st)
 {
-  assert (b->kind == DDS_CONTENT_FILTER_EXPRESSION);
+  dds_expression_content_filter_t *cflt = b->filter.expr;
+  if (b->kind != DDS_CONTENT_FILTER_EXPRESSION || cflt == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
   dds_return_t ret = DDS_RETCODE_OK;
-  struct dds_expression_filter *eflt = (struct dds_expression_filter *) a;
-  struct dds_sql_expr *expr = eflt->expr;
-  for (uint32_t i = 0; i < b->filter.expr->nparam; i++)
+  struct dds_expression_filter *ef = (struct dds_expression_filter *) a;
+  struct dds_sql_expr *expr = ef->expr;
+  for (size_t i = 0; i < cflt->nparam; i++)
   {
-    struct dds_expression_filter_param param = b->filter.expr->param[i];
-    uint32_t id = i + 1U;
+    struct dds_expression_filter_param param = cflt->param[i];
+    size_t id = i + 1U;
     switch (param.t)
     {
       case DDS_EXPR_FILTER_PARAM_INTEGER:
@@ -233,24 +245,26 @@ static dds_return_t topic_expr_filter_param_rebind (struct dds_filter *a, const 
   struct dds_sql_expr *exp = NULL;
   ret = dds_sql_expr_init(&exp, DDS_SQL_EXPR_KIND_VARIABLE);
   assert (ret == DDS_RETCODE_OK);
-  if ((ret = dds_sql_expr_build(eflt->expr, &exp)) != DDS_RETCODE_OK) {
+  if ((ret = dds_sql_expr_build(ef->expr, &exp)) != DDS_RETCODE_OK) {
     dds_sql_expr_fini(exp);
     goto err;
   }
-  if (eflt->bin_expr != NULL)
-    dds_sql_expr_fini(eflt->bin_expr);
-  eflt->bin_expr = exp;
+  if (ef->bin_expr != NULL)
+    dds_sql_expr_fini(ef->bin_expr);
+  ef->bin_expr = exp;
 
-  const ddsi_typeid_t *id = ddsi_sertype_typeid(st, DDSI_TYPEID_KIND_COMPLETE);
+  ddsi_typeid_t *id = ddsi_sertype_typeid(st, DDSI_TYPEID_KIND_COMPLETE);
   struct ddsi_domaingv *gv = ddsrt_atomic_ldvoidp (&st->gv);
   struct ddsi_type *type = ddsi_type_lookup(gv, id);
+  ddsi_typeid_fini (id);
+  ddsrt_free (id);
 
-  const char **fields = ddsrt_malloc(sizeof(eflt->bin_expr->nparams));
-  size_t nfields = eflt->bin_expr->nparams;
+  const char **fields = ddsrt_malloc(sizeof(*fields)*ef->bin_expr->nparams);
+  size_t nfields = ef->bin_expr->nparams;
 
   size_t i = 0;
   struct ddsrt_hh_iter it;
-  for (dds_sql_param_t *param = ddsrt_hh_iter_first(eflt->bin_expr->param_tokens, &it); param != NULL; param = ddsrt_hh_iter_next(&it))
+  for (dds_sql_param_t *param = ddsrt_hh_iter_first(ef->bin_expr->param_tokens, &it); param != NULL; param = ddsrt_hh_iter_next(&it))
   {
     fields[i] = param->token.s;
     i++;
@@ -258,60 +272,71 @@ static dds_return_t topic_expr_filter_param_rebind (struct dds_filter *a, const 
   assert (i == nfields);
 
   struct ddsi_type *res_type = ddsi_type_dup_with_keys(type, fields, nfields);
-  if (eflt->desc != NULL)
-    ddsi_topic_descriptor_fini(eflt->desc);
-  eflt->desc = ddsrt_malloc(sizeof(*eflt->desc));
-  ret = ddsi_topic_descriptor_from_type (gv, eflt->desc, res_type);
+  ddsrt_free (fields);
+  if (ef->desc != NULL)
+    ddsi_topic_descriptor_fini(ef->desc);
+  ef->desc = ddsrt_malloc(sizeof(*ef->desc));
+  ret = ddsi_topic_descriptor_from_type (gv, ef->desc, res_type);
   assert (ret == DDS_RETCODE_OK);
 
 
   ddsrt_mutex_lock (&dds_global.m_mutex);
-  struct dds_domain *dom = dds_domain_find_locked(eflt->tf.domain_id);
+  struct dds_domain *dom = dds_domain_find_locked(ef->tf.domain_id);
   struct dds_sertype_default *st_def = ddsrt_malloc(sizeof(*st_def));
-  uint16_t min_xcdrv = eflt->desc->m_flagset & DDS_DATA_REPRESENTATION_FLAG_XCDR1? DDSI_RTPS_CDR_ENC_VERSION_1: DDSI_RTPS_CDR_ENC_VERSION_2;
+  uint16_t min_xcdrv = ef->desc->m_flagset & DDS_DATA_REPRESENTATION_FLAG_XCDR1? DDSI_RTPS_CDR_ENC_VERSION_1: DDSI_RTPS_CDR_ENC_VERSION_2;
   dds_data_representation_id_t data_representation = ((struct dds_sertype_default *)st)->write_encoding_version == DDSI_RTPS_CDR_ENC_VERSION_1? DDS_DATA_REPRESENTATION_XCDR1: DDS_DATA_REPRESENTATION_XCDR2;
-  ret = dds_sertype_default_init (dom, st_def, eflt->desc, min_xcdrv, data_representation);
+  ret = dds_sertype_default_init (dom, st_def, ef->desc, min_xcdrv, data_representation);
   assert (ret == DDS_RETCODE_OK);
   ddsrt_mutex_unlock (&dds_global.m_mutex);
 
-  eflt->st = (struct ddsi_sertype *)st_def;
-
-  /* TODO: to be implemented */
-  /* ddsi_type_unref (gv, res_type); */
+  ef->st = (struct ddsi_sertype *)st_def;
+  ddsi_type_unref (gv, res_type);
 
 err:
   return ret;
 }
 
-static dds_return_t topic_expr_filter_init(dds_domainid_t domain_id, const struct dds_content_filter *con_filter, const struct ddsi_sertype *st, struct dds_filter **filter)
+static dds_return_t expression_filter_create (dds_domainid_t domain_id, const struct dds_content_filter *filter, const struct ddsi_sertype *st, struct dds_expression_filter **out)
 {
+  dds_expression_content_filter_t *cflt = filter->filter.expr;
+  if (filter->kind != DDS_CONTENT_FILTER_EXPRESSION || cflt == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
   dds_return_t ret = DDS_RETCODE_OK;
-  struct dds_expression_content_filter *cflt = con_filter->filter.expr;
-  struct dds_expression_filter *eflt = (struct dds_expression_filter *) ddsrt_malloc(sizeof(*eflt));
-  eflt->tf.domain_id = domain_id;
-  eflt->st = NULL;
-  eflt->desc = NULL;
-  eflt->expression = ddsrt_strdup(cflt->expression);
-  eflt->expr = NULL;
-  eflt->bin_expr = NULL;
-  (void) dds_sql_expr_init(&eflt->expr, DDS_SQL_EXPR_KIND_PARAMETER);
-  (void) dds_sql_expr_parse((const unsigned char *)eflt->expression, &eflt->expr);
-  if ((cflt->nparam != 0 && cflt->param != NULL)
-      || (cflt->nparam == 0))
-  {
-    if ((ret = topic_expr_filter_param_rebind((struct dds_filter *)eflt, con_filter, st)) != DDS_RETCODE_OK)
-    {
-      topic_expr_filter_fini((struct dds_filter *)eflt);
-      goto err;
-    }
+  struct dds_expression_filter *ef = (struct dds_expression_filter *) ddsrt_malloc(sizeof(*ef));
+  ef->st = NULL;
+  ef->desc = NULL;
+  ef->expr = NULL;
+  ef->bin_expr = NULL;
+  ef->expression = ddsrt_strdup(cflt->expression);
+  ef->tf.domain_id = domain_id;
+
+  if ((ret = dds_sql_expr_init (&ef->expr, DDS_SQL_EXPR_KIND_PARAMETER)) != DDS_RETCODE_OK)
+    goto err_expr;
+  if ((ret = dds_sql_expr_parse ((const unsigned char *)ef->expression, &ef->expr)) != DDS_RETCODE_OK)
+    goto err_parse;
+
+  if ((cflt->nparam != 0 && cflt->param != NULL) || (cflt->nparam == 0)) {
+    if ((ret = topic_expr_filter_param_rebind (&ef->tf, filter, st)) != DDS_RETCODE_OK)
+      goto err_bind;
   } else {
-   /* FIXME:
-    * potentially can be a error.
-    * */
+    /* NOTE: in current stage succes expression evaluation require parameters
+     * to be set explicitly on `dds_expression_content_filter_t`. */
+    ret = DDS_RETCODE_ERROR;
+    goto err_bind;
   }
 
-  *filter = (struct dds_filter *)eflt;
-err:
+  (*out) = ef;
+
+  return ret;
+
+err_bind:
+  topic_expr_filter_free (&ef->tf);
+err_parse:
+  dds_sql_expr_fini (ef->expr);
+err_expr:
+  ddsrt_free (ef->expression);
+  ddsrt_free (ef);
   return ret;
 }
 
@@ -330,8 +355,7 @@ static bool topic_expr_filter_compare (const struct dds_filter *a, const struct 
 }
 
 static struct dds_filter_ops dds_topic_expr_filter_ops = {
-  .init = topic_expr_filter_init,
-  .fini = topic_expr_filter_fini,
+  .free = topic_expr_filter_free,
   .reader_accept = topic_expr_filter_reader_accept,
   .writer_accept = topic_expr_filter_writer_accept,
 };
@@ -410,7 +434,7 @@ static bool topic_func_filter_writer_accept(const dds_writer *wr, const struct d
   return res;
 }
 
-static void topic_func_filter_fini(struct dds_filter *filter)
+static void topic_func_filter_free(struct dds_filter *filter)
 {
   struct dds_function_filter *ff = (struct dds_function_filter *)filter;
   ddsrt_free(ff);
@@ -424,28 +448,36 @@ static dds_return_t topic_func_filter_param_rebind(struct dds_filter *a, const s
    * which sound nice, because allows us to not deserialize whole sample if
    * user don't need one. */
   (void) st;
-  assert (b->kind == DDS_CONTENT_FILTER_FUNCTION);
-  dds_return_t ret = DDS_RETCODE_OK;
-  struct dds_function_filter *fflt = (struct dds_function_filter *) a;
-  fflt->arg = b->filter.func->arg;
-  return ret;
+  dds_function_content_filter_t *fflt = b->filter.func;
+  if (b->kind != DDS_CONTENT_FILTER_FUNCTION || fflt == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  struct dds_function_filter *ff = (struct dds_function_filter *) a;
+  ff->arg = fflt->arg;
+  return DDS_RETCODE_OK;
 }
 
-static dds_return_t topic_func_filter_init(dds_domainid_t domain_id, const struct dds_content_filter *con_filter, const struct ddsi_sertype *st, struct dds_filter **filter)
+static dds_return_t function_filter_create (dds_domainid_t domain_id, const struct dds_content_filter *filter, const struct ddsi_sertype *st, struct dds_function_filter **out)
 {
+  dds_function_content_filter_t *fflt = filter->filter.func;
+  if (filter->kind != DDS_CONTENT_FILTER_FUNCTION || fflt == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
   dds_return_t ret = DDS_RETCODE_OK;
-  dds_function_content_filter_t *cflt = con_filter->filter.func;
-  struct dds_function_filter *fflt = (struct dds_function_filter *) ddsrt_malloc(sizeof(*fflt));
-  fflt->tf.domain_id = domain_id;
-  fflt->f = cflt->f;
-  fflt->mode = cflt->mode;
-  if ((ret = topic_func_filter_param_rebind((struct dds_filter *) fflt, con_filter, st)) != DDS_RETCODE_OK)
-  {
-    topic_func_filter_fini((struct dds_filter *)fflt);
-    goto err;
-  }
-  *filter = (struct dds_filter *) fflt;
-err:
+  struct dds_function_filter *ff = (struct dds_function_filter *) ddsrt_malloc(sizeof(*ff));
+  ff->f = fflt->f;
+  ff->mode = fflt->mode;
+  ff->tf.domain_id = domain_id;
+
+  if ((ret = topic_func_filter_param_rebind (&ff->tf, filter, st)) != DDS_RETCODE_OK)
+    goto err_bind;
+
+  (*out) = ff;
+
+  return ret;
+
+err_bind:
+  ddsrt_free (ff);
   return ret;
 }
 
@@ -466,45 +498,55 @@ static bool topic_func_filter_compare(const struct dds_filter *a, const struct d
 }
 
 static struct dds_filter_ops dds_topic_func_filter_ops = {
-  .init = topic_func_filter_init,
-  .fini = topic_func_filter_fini,
+  .free = topic_func_filter_free,
   .reader_accept = topic_func_filter_reader_accept,
   .writer_accept = topic_func_filter_writer_accept,
 };
 
-dds_return_t dds_filter_init(dds_domainid_t domain_id, const struct dds_content_filter *filter, const struct ddsi_sertype *st, struct dds_filter **out)
+dds_return_t dds_filter_create (dds_domainid_t domain_id, const struct dds_content_filter *filter, const struct ddsi_sertype *st, struct dds_filter **out)
 {
-  assert (filter);
-  struct dds_filter_ops flt_ops;
-  enum dds_filter_type flt_type;
+  dds_return_t ret = DDS_RETCODE_BAD_PARAMETER;
+  if (out == NULL)
+    return ret;
+  if (filter == NULL || st == NULL)
+    return ret;
+
+  struct dds_filter *res = NULL;
   switch (filter->kind)
   {
     case DDS_CONTENT_FILTER_EXPRESSION:
     {
-      flt_type = DDS_EXPR_FILTER;
-      flt_ops = dds_topic_expr_filter_ops;
+      struct dds_expression_filter *ef = NULL;
+      if ((ret = expression_filter_create (domain_id, filter, st, &ef)) != DDS_RETCODE_OK)
+        goto err;
+      res = (struct dds_filter *) ef;
+      res->type = DDS_EXPR_FILTER;
+      res->ops = dds_topic_expr_filter_ops;
       break;
     }
     case DDS_CONTENT_FILTER_FUNCTION:
     {
-      flt_type = DDS_FUNC_FILTER;
-      flt_ops = dds_topic_func_filter_ops;
+      struct dds_function_filter *ff = NULL;
+      if ((ret = function_filter_create (domain_id, filter, st, &ff)) != DDS_RETCODE_OK)
+        goto err;
+      res = (struct dds_filter *) ff;
+      res->type = DDS_FUNC_FILTER;
+      res->ops = dds_topic_func_filter_ops;
       break;
     }
-    default:
-      abort();
   }
 
-  dds_return_t ret = flt_ops.init(domain_id, filter, st, out);
-  (*out)->type = flt_type;
-  (*out)->ops = flt_ops;
+  (*out) = res;
+
+err:
   return ret;
 }
 
-void dds_filter_fini( struct dds_filter *filter)
+void dds_filter_free ( struct dds_filter *filter)
 {
-  if (filter)
-    filter->ops.fini(filter);
+  if (filter == NULL)
+    return;
+  filter->ops.free(filter);
 }
 
 static bool dds_filter_compare(const struct dds_filter *a, const struct dds_content_filter *b)
@@ -543,28 +585,25 @@ static dds_return_t dds_filter_param_rebind(struct dds_filter *a, const struct d
   return res;
 }
 
-dds_return_t dds_filter_update(const struct dds_content_filter *con_filter, const struct ddsi_sertype *st, struct dds_filter **out)
+dds_return_t dds_filter_update (const struct dds_content_filter *con_filter, const struct ddsi_sertype *st, struct dds_filter *filter)
 {
   dds_return_t ret = DDS_RETCODE_OK;
 
-  if (out == NULL || *out == NULL)
+  if (filter == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
-
-  struct dds_filter *flt = *out;
 
   /* why waste time on potentially heavy init process, just rebind parameters
    * and go on to filter apply phase. */
-  if (dds_filter_compare(flt, con_filter)) {
-    if ((ret = dds_filter_param_rebind(flt, con_filter, st)) != DDS_RETCODE_OK)
+  if (dds_filter_compare(filter, con_filter)) {
+    if ((ret = dds_filter_param_rebind(filter, con_filter, st)) != DDS_RETCODE_OK)
       goto err;
   } else {
-    dds_domainid_t domain_id = flt->domain_id;
-    dds_filter_fini(flt);
-    if ((ret = dds_filter_init(domain_id, con_filter, st, &flt)) != DDS_RETCODE_OK)
+    dds_domainid_t domain_id = filter->domain_id;
+    dds_filter_free(filter);
+    if ((ret = dds_filter_create(domain_id, con_filter, st, &filter)) != DDS_RETCODE_OK)
       goto err;
   }
 
-  *out = flt;
 err:
   return ret;
 }

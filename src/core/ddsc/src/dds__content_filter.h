@@ -11,14 +11,13 @@
 #ifndef DDS__CONTENT_FILTER_H
 #define DDS__CONTENT_FILTER_H
 
-#include "dds/dds.h"
 #include "dds__sql_expr.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-// FIXME: #define DDS_EXPR_FILTER_PARAM_UINTEGER  DDS_SLQ_TK_UINT
+/* #define DDS_EXPR_FILTER_PARAM_UINTEGER  DDS_SLQ_TK_UINT */
 #define DDS_EXPR_FILTER_PARAM_INTEGER   DDS_SQL_TK_INTEGER
 #define DDS_EXPR_FILTER_PARAM_REAL      DDS_SQL_TK_FLOAT
 #define DDS_EXPR_FILTER_PARAM_STRING    DDS_SQL_TK_STRING
@@ -28,7 +27,7 @@ struct dds_expression_filter_param
 {
   int t;
   union {
-    int64_t i; double d;;
+    int64_t i; double d;
   } n;
   union {
     char *s;
@@ -44,14 +43,9 @@ struct dds_expression_content_filter
   struct dds_expression_filter_param *param;
 };
 
-bool dds_content_filter_copy (
-    const struct dds_content_filter *from, struct dds_content_filter *to);
-
-bool dds_content_filter_compare (
-    const struct dds_content_filter *a, const struct dds_content_filter *b);
-
-bool dds_content_filter_validate (
-    const struct dds_content_filter *filter);
+struct dds_content_filter *dds_content_filter_dup (const struct dds_content_filter *filter);
+void dds_content_filter_free (struct dds_content_filter *filter);
+bool dds_content_filter_valid (const struct dds_content_filter *filter);
 
 #if defined (__cplusplus)
 }

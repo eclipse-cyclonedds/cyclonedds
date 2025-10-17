@@ -1663,17 +1663,15 @@ struct dds_content_filter {
   } filter; /**< Provide a filter implementation container  */
 };
 
-DDS_EXPORT dds_return_t dds_expression_filter_init (const char *expression, dds_expression_content_filter_t **filter);
-DDS_EXPORT void dds_expression_filter_fini (dds_expression_content_filter_t *filter);
-
+DDS_EXPORT dds_return_t dds_expression_filter_create (const char *expression, dds_expression_content_filter_t **filter);
+DDS_EXPORT void dds_expression_filter_free (dds_expression_content_filter_t *filter);
 DDS_EXPORT dds_return_t dds_expression_filter_bind_integer (dds_expression_content_filter_t *filter, size_t id, int64_t param);
 DDS_EXPORT dds_return_t dds_expression_filter_bind_real (dds_expression_content_filter_t *filter, size_t id, double param);
 DDS_EXPORT dds_return_t dds_expression_filter_bind_string (dds_expression_content_filter_t *filter, size_t id, char *param);
 DDS_EXPORT dds_return_t dds_expression_filter_bind_blob (dds_expression_content_filter_t *filter, size_t id, unsigned char *param, size_t param_sz);
 
-DDS_EXPORT dds_return_t dds_function_filter_init (const dds_function_content_filter_mode_t mode, const dds_function_content_filter_fn_t fn, dds_function_content_filter_t **filter);
-DDS_EXPORT void dds_function_filter_fini (dds_function_content_filter_t *filter);
-
+DDS_EXPORT dds_return_t dds_function_filter_create (const dds_function_content_filter_mode_t mode, const dds_function_content_filter_fn_t fn, dds_function_content_filter_t **filter);
+DDS_EXPORT void dds_function_filter_free (dds_function_content_filter_t *filter);
 DDS_EXPORT dds_return_t dds_function_filter_bind_arg (dds_function_content_filter_t *filter, void *arg);
 
 /**

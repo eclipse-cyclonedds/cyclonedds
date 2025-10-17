@@ -11,12 +11,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "dds/dds.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 
 #include "dds__content_filter.h"
 
-dds_return_t dds_expression_filter_init(const char *expression, dds_expression_content_filter_t **filter)
+dds_return_t dds_expression_filter_create(const char *expression, dds_expression_content_filter_t **filter)
 {
   if (filter == NULL || expression == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
@@ -28,8 +29,10 @@ dds_return_t dds_expression_filter_init(const char *expression, dds_expression_c
   return DDS_RETCODE_OK;
 }
 
-void dds_expression_filter_fini(dds_expression_content_filter_t *filter)
+void dds_expression_filter_free(dds_expression_content_filter_t *filter)
 {
+  if (filter == NULL)
+    return;
   dds_expression_content_filter_t *ef = filter;
   ddsrt_free(ef->expression);
   ddsrt_free(ef->param);
@@ -48,7 +51,7 @@ static void filter_param_clean(struct dds_expression_filter_param *param)
 
 static bool filter_param_copy(struct dds_expression_filter_param *from, struct dds_expression_filter_param *to)
 {
-  if (from == NULL && to == NULL)
+  if (from == NULL || to == NULL)
     return false;
   filter_param_clean (to);
   to->t = from->t;
@@ -56,20 +59,17 @@ static bool filter_param_copy(struct dds_expression_filter_param *from, struct d
   if ((to->sz = from->sz) != 0) {
     if      (to->t == DDS_EXPR_FILTER_PARAM_STRING) to->s.s = ddsrt_strdup(from->s.s);
     else if (to->t == DDS_EXPR_FILTER_PARAM_BLOB)   to->s.u = ddsrt_memdup(from->s.u, to->sz);
-    else abort();
+    else return false;
   }
   return true;
 }
 
 static dds_return_t expression_filter_param_set (dds_expression_content_filter_t *filter, size_t id, struct dds_expression_filter_param p)
 {
-  dds_return_t ret = DDS_RETCODE_OK;
   dds_expression_content_filter_t *ef = filter;
-  if (id > ef->nparam || ef->param == NULL) return DDS_RETCODE_BAD_PARAMETER;
-
-  filter_param_copy(&p, &ef->param[id-1]);
-
-  return ret;
+  if (id > ef->nparam || ef->param == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+  return filter_param_copy(&p, &ef->param[id-1]) ? DDS_RETCODE_OK: DDS_RETCODE_BAD_PARAMETER;
 }
 
 dds_return_t dds_expression_filter_bind_integer (dds_expression_content_filter_t *filter, size_t id, int64_t param)
@@ -96,7 +96,7 @@ dds_return_t dds_expression_filter_bind_blob (dds_expression_content_filter_t *f
   return expression_filter_param_set(filter, id, p);
 }
 
-dds_return_t dds_function_filter_init(const dds_function_content_filter_mode_t mode, const dds_function_content_filter_fn_t fn, dds_function_content_filter_t **filter)
+dds_return_t dds_function_filter_create(const dds_function_content_filter_mode_t mode, const dds_function_content_filter_fn_t fn, dds_function_content_filter_t **filter)
 {
   if (filter == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
@@ -108,8 +108,10 @@ dds_return_t dds_function_filter_init(const dds_function_content_filter_mode_t m
   return DDS_RETCODE_OK;
 }
 
-void dds_function_filter_fini(dds_function_content_filter_t *filter)
+void dds_function_filter_free(dds_function_content_filter_t *filter)
 {
+  if (filter == NULL)
+    return;
   dds_function_content_filter_t *ff = filter;
   ddsrt_free(ff);
 }
@@ -136,45 +138,6 @@ static bool expression_filter_copy(const dds_expression_content_filter_t *from, 
   return true;
 }
 
-static bool expression_filter_param_cmp (const struct dds_expression_filter_param *a, const struct dds_expression_filter_param *b)
-{
-  if (a == NULL || b == NULL)
-    return false;
-  if (a->t != b->t)
-    return false;
-  else if (memcmp (&a->n, &b->n, sizeof(a->n)))
-    return false;
-  else if (a->sz != 0 || b->sz != 0)
-  {
-    if (a->sz != b->sz)
-      return false;
-    else if (a->t == DDS_EXPR_FILTER_PARAM_STRING && (strcmp(a->s.s, b->s.s)))
-      return false;
-    else if (a->t == DDS_EXPR_FILTER_PARAM_BLOB && (memcmp(a->s.u, b->s.u, (size_t)a->n.i)))
-      return false;
-  }
-
-  return true;
-}
-
-static bool expression_filter_cmp(const dds_expression_content_filter_t *a, const dds_expression_content_filter_t *b)
-{
-  if (a == NULL || b == NULL)
-    return false;
-  if (strcmp (a->expression, b->expression))
-    return false;
-  else if (a->nparam != b->nparam)
-    return false;
-  else
-  {
-    size_t i = 0;
-    for (i = 0; i < a->nparam && expression_filter_param_cmp (&a->param[i], &b->param[i]); i++) {}
-    if (i != a->nparam - 1)
-      return false;
-  }
-  return true;
-}
-
 static bool function_filter_copy(const dds_function_content_filter_t *from, dds_function_content_filter_t *to)
 {
   if (from == NULL || to == NULL)
@@ -185,50 +148,65 @@ static bool function_filter_copy(const dds_function_content_filter_t *from, dds_
   return true;
 }
 
-static bool function_filter_cmp(const dds_function_content_filter_t *a, const dds_function_content_filter_t *b)
+bool dds_content_filter_valid (const struct dds_content_filter *filter)
 {
-  if (a == NULL || b == NULL)
-    return false;
-  if (a->mode != b->mode)
-    return false;
-  else if (!memcmp(&a->f, &b->f, sizeof(a->f)))
-    return false;
-  return true;
+  if (filter == NULL)
+    return true;
+
+  return filter->kind == DDS_CONTENT_FILTER_EXPRESSION? filter->filter.expr != NULL: filter->filter.func != NULL;
 }
 
-bool dds_content_filter_copy (const struct dds_content_filter *from, struct dds_content_filter *to)
+void dds_content_filter_free (struct dds_content_filter *filter)
 {
-  bool result = false;
-  if (from == NULL || to == NULL)
-    return result;
+  if (filter == NULL)
+    return;
 
-  to->kind = from->kind;
-  switch (from->kind)
+  switch (filter->kind)
   {
     case DDS_CONTENT_FILTER_EXPRESSION:
-      to->filter.expr = (dds_expression_content_filter_t *) ddsrt_malloc(sizeof(*to->filter.expr));
-      result = expression_filter_copy (from->filter.expr, to->filter.expr);
+      dds_expression_filter_free (filter->filter.expr);
       break;
     case DDS_CONTENT_FILTER_FUNCTION:
-      to->filter.func = (dds_function_content_filter_t *) ddsrt_malloc(sizeof(*to->filter.func));
-      result = function_filter_copy (from->filter.func, to->filter.func);
+      dds_function_filter_free (filter->filter.func);
       break;
-    default:
-      abort();
   }
 
-  return result;
+  ddsrt_free (filter);
 }
 
-bool dds_content_filter_compare(const struct dds_content_filter *a, const struct dds_content_filter *b)
+struct dds_content_filter *dds_content_filter_dup (const struct dds_content_filter *filter)
 {
-  if (a == NULL || b == NULL)
-    return false;
-  else if (a->kind != b->kind)
-    return false;
-  else if (a->kind == DDS_CONTENT_FILTER_EXPRESSION && !expression_filter_cmp (a->filter.expr, b->filter.expr))
-    return false;
-  else if (a->kind == DDS_CONTENT_FILTER_FUNCTION && !function_filter_cmp (a->filter.func, b->filter.func))
-    return false;
-  return true;
+  if (filter == NULL)
+    return NULL;
+  struct dds_content_filter *res = (struct dds_content_filter *) ddsrt_malloc(sizeof(*res));
+  switch (filter->kind)
+  {
+    case DDS_CONTENT_FILTER_EXPRESSION:
+    {
+      dds_expression_content_filter_t *expr = (dds_expression_content_filter_t *) ddsrt_malloc(sizeof(*expr));
+      if (!expression_filter_copy(filter->filter.expr, expr)) {
+        ddsrt_free (expr);
+        goto err_copy;
+      }
+      res->filter.expr = expr;
+      break;
+    }
+    case DDS_CONTENT_FILTER_FUNCTION:
+    {
+      dds_function_content_filter_t *func = (dds_function_content_filter_t *) ddsrt_malloc(sizeof(*func));
+      if (!function_filter_copy (filter->filter.func, func)) {
+        ddsrt_free (func);
+        goto err_copy;
+      }
+      res->filter.func = func;
+      break;
+    }
+  }
+
+  res->kind = filter->kind;
+  return res;
+
+err_copy:
+  ddsrt_free (res);
+  return NULL;
 }
