@@ -183,6 +183,15 @@ int main (int argc, char **argv)
   dds_set_topic_filter_extended (1, ptr);
   dds_get_topic_filter_and_arg (1, ptr, ptr);
   dds_get_topic_filter_extended (1, ptr);
+  dds_expression_filter_create (ptr, ptr2);
+  dds_expression_filter_free (ptr);
+  dds_expression_filter_bind_integer (ptr, 0, 0);
+  dds_expression_filter_bind_real (ptr, 0, 0);
+  dds_expression_filter_bind_string (ptr, 0, ptr2);
+  dds_expression_filter_bind_blob (ptr, 0, ptr2, 0);
+  dds_function_filter_create (0, (dds_function_content_filter_fn_t){0}, ptr2);
+  dds_function_filter_free (ptr);
+  dds_function_filter_bind_arg (ptr, ptr2);
   dds_create_subscriber (1, ptr, ptr);
   dds_create_publisher (1, ptr, ptr);
   dds_suspend (1);
@@ -401,6 +410,7 @@ int main (int argc, char **argv)
   dds_qset_data_representation (ptr, 0, ptr2);
   dds_qset_entity_name (ptr, ptr2);
   dds_qset_psmx_instances (ptr, 0, ptr2);
+  dds_qset_content_filter (ptr, (struct dds_content_filter){0});
   dds_qget_userdata (ptr, ptr2, ptr);
   dds_qget_topicdata (ptr, ptr2, ptr);
   dds_qget_groupdata (ptr, ptr2, ptr);
@@ -432,6 +442,7 @@ int main (int argc, char **argv)
   dds_qget_data_representation (ptr, ptr, ptr);
   dds_qget_entity_name (ptr, ptr);
   dds_qget_psmx_instances (ptr, ptr2, ptr3);
+  dds_qget_content_filter (ptr, ptr2);
 
   // dds_public_status.h
   dds_get_inconsistent_topic_status (1, ptr);

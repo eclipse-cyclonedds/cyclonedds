@@ -15,8 +15,12 @@
 #include <time.h>
 
 #include "dds/dds.h"
+#include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/hopscotch.h"
 #include "dds__sql_expr.h"
+
+// Because sprintf are deprecated
+DDSRT_WARNING_DEPRECATED_OFF
 
 static bool test_get_token(const unsigned char *s, const size_t sz, int exp_tokens[], size_t exp_sz)
 {
@@ -34,7 +38,7 @@ static bool test_get_token(const unsigned char *s, const size_t sz, int exp_toke
       fprintf (stderr, "^--- error here (failed to get token)\n");
     } else if (!(passed = !(i >= exp_sz))) {
       fprintf (stderr, "[FAILED]:%s\n", s);
-      fprintf (stderr, "         ^--- error here (unexpected number of tokens %lu)\n", exp_sz);
+      fprintf (stderr, "         ^--- error here (unexpected number of tokens %zu)\n", exp_sz);
     } else if (!(passed = !(token != exp_tokens[i]))) {
       fprintf (stderr, "[FAILED]:%s\n", s);
       for (int j = 0; j < (cur - s) + 9; j++)
@@ -193,7 +197,7 @@ CU_Test(ddsc_sql, get_token)
       ; \
     } else { \
       if (t == DDS_SQL_TK_INTEGER) \
-        fprintf (stderr, "[FAILED]:%-20s -> expected: %li actual: %li\n", e, (int64_t)val, exp.n.i); \
+        fprintf (stderr, "[FAILED]:%-20s -> expected: %lli actual: %lli\n", e, (long long int)val, (long long int)exp.n.i); \
       else if (t == DDS_SQL_TK_FLOAT) \
         fprintf (stderr, "[FAILED]:%-20s -> expected: %f actual: %f\n", e, (double)val, exp.n.r); \
     } \
@@ -250,7 +254,7 @@ CU_Test (ddsc_sql, get_numeric)
       if ((passed = (!memcmp(test, exp.s, (unsigned int)size) && (t == tko) && (size == esz)))) { \
         ; \
       } else { \
-        fprintf (stderr, "[FAILED]:%-20s -> expected: %s (%ld) actual: %s (%ld)\n", e, (char *)test, (int64_t)esz, (char *)exp.s, (int64_t)size); \
+        fprintf (stderr, "[FAILED]:%-20s -> expected: %s (%lld) actual: %s (%lld)\n", e, (char *)test, (long long int)esz, (char *)exp.s, (long long int)size); \
       } \
     } else if (t == DDS_SQL_TK_BLOB) { \
       if ((passed = (!memcmp(test, exp.s, (unsigned int)size) && (t == tko) && (size == esz)))) { \
@@ -304,11 +308,11 @@ CU_Test(ddsc_sql, get_string)
     int res = 0; \
     if (token == DDS_SQL_TK_INTEGER || token == DDS_SQL_TK_FLOAT) \
     { \
-      int res = dds_sql_get_numeric(&(exp.n),&cursor,&token,token_sz); \
+      res = dds_sql_get_numeric(&(exp.n),&cursor,&token,token_sz); \
       CU_ASSERT (res == 0); \
       exp.aff = (token == DDS_SQL_TK_INTEGER)? DDS_SQL_AFFINITY_INTEGER: DDS_SQL_AFFINITY_REAL; \
     } else if (token == DDS_SQL_TK_STRING || token == DDS_SQL_TK_BLOB) { \
-      int res = dds_sql_get_string((void **)&(exp.s),&cursor,&token,token_sz); \
+      res = dds_sql_get_string((void **)&(exp.s),&cursor,&token,token_sz); \
       CU_ASSERT (res != 0); \
       exp.n.i = res; \
       exp.aff = (token == DDS_SQL_TK_BLOB)? DDS_SQL_AFFINITY_BLOB: DDS_SQL_AFFINITY_TEXT; \
@@ -327,7 +331,7 @@ CU_Test(ddsc_sql, get_string)
     } \
     if (exp.field != val) { \
       if (affinity == DDS_SQL_AFFINITY_INTEGER) \
-        fprintf (stderr, "[FAILED]:%-20s -> expected: %li actual: %li\n", e, (int64_t)val, exp.n.i); \
+        fprintf (stderr, "[FAILED]:%-20s -> expected: %lli actual: %lli\n", e, (long long int)val, (long long int)exp.n.i); \
       else if (affinity == DDS_SQL_AFFINITY_REAL) \
         fprintf (stderr, "[FAILED]:%-20s -> expected: %f actual: %f\n", e, (double)val, exp.n.r); \
       CU_ASSERT (false); \
@@ -350,11 +354,11 @@ CU_Test(ddsc_sql, get_string)
     int res = 0; \
     if (token == DDS_SQL_TK_INTEGER || token == DDS_SQL_TK_FLOAT) \
     { \
-      int res = dds_sql_get_numeric(&(exp.n),&cursor,&token,token_sz); \
+      res = dds_sql_get_numeric(&(exp.n),&cursor,&token,token_sz); \
       CU_ASSERT (res == 0); \
       exp.aff = (token == DDS_SQL_TK_INTEGER)? DDS_SQL_AFFINITY_INTEGER: DDS_SQL_AFFINITY_REAL; \
     } else if (token == DDS_SQL_TK_STRING || token == DDS_SQL_TK_BLOB) { \
-      int res = dds_sql_get_string((void **)&(exp.s),&cursor,&token,token_sz); \
+      res = dds_sql_get_string((void **)&(exp.s),&cursor,&token,token_sz); \
       CU_ASSERT (res != 0); \
       exp.n.i = res; \
       exp.aff = (token == DDS_SQL_TK_BLOB)? DDS_SQL_AFFINITY_BLOB: DDS_SQL_AFFINITY_TEXT; \
@@ -370,7 +374,7 @@ CU_Test(ddsc_sql, get_string)
     } \
     if (memcmp(exp.s, (char *)val, (unsigned int)exp.n.i)) { \
       if (affinity == DDS_SQL_AFFINITY_TEXT) { \
-        fprintf (stderr, "[FAILED]:%-20s -> expected: %s (%ld) actual: %s (%ld)\n", e, (char *)val, (int64_t)fldsz, (char *)exp.s, (int64_t)exp.n.i); \
+        fprintf (stderr, "[FAILED]:%-20s -> expected: %s (%lld) actual: %s (%lld)\n", e, (char *)val, (long long int)fldsz, (char *)exp.s, (long long int)exp.n.i); \
       } else if (affinity == DDS_SQL_AFFINITY_BLOB) { \
         fprintf (stderr, "[FAILED]:%-20s -> expected: ", e); \
         TEST_PRINT_BLOB(val,fldsz); \
@@ -438,7 +442,7 @@ static void expr_node_explore(const struct dds_sql_expr_node *node, int depth, c
     *pos += (size_t)sprintf (out + *pos, "%c", '?');
   }
   if (token == DDS_SQL_TK_INTEGER || token == DDS_SQL_TK_VARIABLE) {
-    *pos += (size_t)sprintf (out + *pos, "%li", node->token->n.i);
+    *pos += (size_t)sprintf (out + *pos, "%lli", (long long int)node->token->n.i);
   } else if (token == DDS_SQL_TK_FLOAT) {
     *pos += (size_t)sprintf (out + *pos, "%.6f", node->token->n.r);
   } else if (token == DDS_SQL_TK_STRING || token == DDS_SQL_TK_ID) {
@@ -543,7 +547,7 @@ CU_Theory((char *s, char *e), ddsc_sql, expr_parse)
 
   bool result = false;
   if (!(result = !memcmp(res, e, pos)))
-    fprintf (stderr, "[FAILED]:\t%s\nexpected:\t%s (%ld)\nactual:\t%s (%ld)\n", s, e, strlen(e), res, pos);
+    fprintf (stderr, "[FAILED]:\t%s\nexpected:\t%s (%zu)\nactual:\t%s (%zu)\n", s, e, strlen(e), res, pos);
   CU_ASSERT(result);
 }
 
@@ -589,10 +593,10 @@ CU_Test(ddsc_sql, bind_parameter)
 {
   char *s = "?1";
   struct dds_sql_expr *exp = NULL;
-  dds_return_t ret = dds_sql_expr_init(&exp, DDS_SQL_EXPR_KIND_PARAMETER);
-  CU_ASSERT(ret == DDS_RETCODE_OK);
-  ret = dds_sql_expr_parse((const unsigned char *)s, &exp);
-  CU_ASSERT(ret == DDS_RETCODE_OK);
+  dds_return_t retcode = dds_sql_expr_init(&exp, DDS_SQL_EXPR_KIND_PARAMETER);
+  CU_ASSERT(retcode == DDS_RETCODE_OK);
+  retcode = dds_sql_expr_parse((const unsigned char *)s, &exp);
+  CU_ASSERT(retcode == DDS_RETCODE_OK);
   TEST_BIND_PARAMETER_NUM(s,    exp,    1U,   integer,    12345,    DDS_RETCODE_OK);
   TEST_BIND_PARAMETER_NUM(s,    exp,    0U,   integer,    12345,    DDS_RETCODE_BAD_PARAMETER);
   TEST_BIND_PARAMETER_NUM(s,    exp,    1U,   real,       10.0,     DDS_RETCODE_OK);
@@ -725,7 +729,7 @@ CU_Theory((char *s, expr_build_param_t p, char *e), ddsc_sql, expr_build)
   CU_ASSERT(pos == strlen(e));
   bool result = false;
   if (!(result = !memcmp(res, e, pos)))
-    fprintf (stderr, "[FAILED]:\t%s\nexpected:\t%s (%ld)\nactual:\t%s (%ld)\n", s, e, strlen(e), res, pos);
+    fprintf (stderr, "[FAILED]:\t%s\nexpected:\t%s (%zu)\nactual:\t%s (%zu)\n", s, e, strlen(e), res, pos);
   CU_ASSERT(result);
 
   dds_sql_expr_fini(exo);
@@ -886,7 +890,7 @@ CU_Theory((char *s, expr_build_param_t p, expr_build_var_t v, char *e), ddsc_sql
   CU_ASSERT(pos == strlen(e));
   bool result = false;
   if (!(result = !memcmp(res, e, pos)))
-    fprintf (stderr, "[FAILED]:\t%s\nexpected:\t%s (%ld)\nactual:\t%s (%ld)\n", s, e, strlen(e), res, pos);
+    fprintf (stderr, "[FAILED]:\t%s\nexpected:\t%s (%zu)\nactual:\t%s (%zu)\n", s, e, strlen(e), res, pos);
   CU_ASSERT(result);
 
   if (r->s) free (r->s);

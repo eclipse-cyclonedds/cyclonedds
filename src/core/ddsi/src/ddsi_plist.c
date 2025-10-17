@@ -36,6 +36,7 @@
 #include "ddsi__security_omg.h"
 #include "ddsi__tran.h"
 #include "ddsi__xqos.h"
+#include "dds__content_filter.h"
 #include "dds/cdr/dds_cdrstream.h"
 
 /* I am tempted to change LENGTH_UNLIMITED to 0 in the API (with -1
@@ -395,19 +396,40 @@ static bool print_reliability (char * restrict *buf, size_t * restrict bufsize, 
   return prtf (buf, bufsize, "%d:%"PRId64, (int) x->kind, x->max_blocking_time);
 }
 
+static dds_return_t fini_content_filter (void * restrict dst, size_t * restrict dstoff, struct flagset *flagset, uint64_t flag)
+{
+  dds_content_filter_qospolicy_t * const x = deser_generic_dst (dst, dstoff, plist_alignof (dds_content_filter_qospolicy_t));
+  if (!(*flagset->aliased & flag)) {
+    dds_content_filter_free (x->filter);
+  }
+  return 0;
+}
+
+static dds_return_t unalias_content_filter (void *restrict dst, size_t * restrict dstoff, bool gen_seq_aliased)
+{
+  (void) gen_seq_aliased;
+  dds_content_filter_qospolicy_t * const x = deser_generic_dst (dst, dstoff, plist_alignof (dds_content_filter_qospolicy_t));
+  dds_content_filter_qospolicy_t newflt = { .filter = NULL };
+  newflt.filter = dds_content_filter_dup (x->filter);
+  *x = newflt;
+  *dstoff += sizeof (*x);
+  return 0;
+}
+
 static bool equal_content_filter (const void *srcx, const void *srcy, size_t srcoff)
 {
   dds_content_filter_qospolicy_t const * const x = deser_generic_src (srcx, &srcoff, plist_alignof (dds_content_filter_qospolicy_t));
   dds_content_filter_qospolicy_t const * const y = deser_generic_src (srcy, &srcoff, plist_alignof (dds_content_filter_qospolicy_t));
-  /* FIXME: is it enough? */
   return x->filter == y->filter;
 }
 
 static dds_return_t valid_content_filter (const void *src, size_t srcoff)
 {
-  (void) src; (void) srcoff;
-  /* FIXME: to be implemented. */
-  return 0;
+  dds_content_filter_qospolicy_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (dds_content_filter_qospolicy_t));
+  if (dds_content_filter_valid (x->filter))
+    return 0;
+  else
+    return DDS_RETCODE_BAD_PARAMETER;
 }
 
 static dds_return_t deser_statusinfo (void * restrict dst, struct flagset *flagset, uint64_t flag, const struct dd *dd, struct ddsi_domaingv const * const gv)
@@ -2138,7 +2160,7 @@ static const struct piddesc piddesc_eclipse[] = {
     { .desc = { XQ, XS, XSTOP } }, 0 },
   { DDSI_PID_PAD, PDF_QOS | PDF_FUNCTION, DDSI_QP_CONTENT_FILTER, "CONTENT_FILTER",
     offsetof(struct ddsi_plist, qos.filter), membersize(struct ddsi_plist, qos.filter),
-    { .f = { .valid = valid_content_filter, .equal =  equal_content_filter } }, 0 },
+    { .f = { .valid = valid_content_filter, .fini = fini_content_filter, .unalias = unalias_content_filter, .equal =  equal_content_filter } }, 0 },
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   PP  (CYCLONE_TOPIC_GUID,               topic_guid, XG),
 #endif
@@ -2244,11 +2266,11 @@ static const struct piddesc_index piddesc_vendor_index[] = {
    initialized by ddsi_plist_init_tables; will assert when
    table too small or too large */
 #ifdef DDS_HAS_TYPELIB
+static const struct piddesc *piddesc_unalias[20 + SECURITY_PROC_ARRAY_SIZE];
+static const struct piddesc *piddesc_fini[20 + SECURITY_PROC_ARRAY_SIZE];
+#else
 static const struct piddesc *piddesc_unalias[19 + SECURITY_PROC_ARRAY_SIZE];
 static const struct piddesc *piddesc_fini[19 + SECURITY_PROC_ARRAY_SIZE];
-#else
-static const struct piddesc *piddesc_unalias[18 + SECURITY_PROC_ARRAY_SIZE];
-static const struct piddesc *piddesc_fini[18 + SECURITY_PROC_ARRAY_SIZE];
 #endif
 static uint64_t plist_fini_mask, qos_fini_mask;
 static ddsrt_once_t table_init_control = DDSRT_ONCE_INIT;

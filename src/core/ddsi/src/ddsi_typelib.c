@@ -8,6 +8,7 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
+#include "dds/ddsrt/io.h"
 #include "dds/features.h"
 
 #include <string.h>
@@ -1550,8 +1551,7 @@ static struct ddsi_type * type_assign_keys(const char *prefix, const struct ddsi
     assert (st != NULL);
   }
 
-  struct xt_type *dt = &t->xt;
-  dt = ddsi_xt_type_key_erased (gv, st);
+  struct xt_type *dt = ddsi_xt_type_key_erased (gv, st);
 
   switch (dt->_d)
   {
@@ -1562,8 +1562,7 @@ static struct ddsi_type * type_assign_keys(const char *prefix, const struct ddsi
         struct xt_struct_member *m = &dt->_u.structure.members.seq[j];
         struct tpkey_field tmpl = {.id = NULL};
         if (prefix != NULL) {
-          tmpl.id = ddsrt_calloc(1, strlen(prefix) + 2 + strlen(m->detail.name));
-          (void) sprintf(tmpl.id, "%s.%s", prefix, m->detail.name);
+          (void) ddsrt_asprintf (&tmpl.id, "%s.%s", prefix, m->detail.name);
         } else {
           tmpl.id = m->detail.name;
         }
@@ -1575,7 +1574,7 @@ static struct ddsi_type * type_assign_keys(const char *prefix, const struct ddsi
           {
             struct ddsi_type *sub_type = type_assign_keys(item->id, m->type, keys_tb);
             ddsi_type_unref (gv, m->type);
-            m->type = sub_type; /* FIXME: ref? */
+            ddsi_type_ref (gv, &m->type, sub_type); /* FIXME: ref? */
           }
           /* FIXME:
            * Is it possible deserialize optional field as part of keys
@@ -1592,7 +1591,16 @@ static struct ddsi_type * type_assign_keys(const char *prefix, const struct ddsi
     default:
       abort();
   }
-  t->xt = *dt;
+
+  (void) memcpy (&t->xt, dt, sizeof(*dt));
+  ddsrt_free (dt);
+  t->gv = type->gv;
+
+  struct DDS_XTypes_TypeObject to;
+  ddsi_xt_get_typeobject_kind_impl (&t->xt, &to, DDSI_TYPEID_KIND_COMPLETE);
+  ddsi_typeobj_get_hash_id (&to, &t->xt.id);
+  ddsi_typeobj_fini_impl (&to);
+  ddsrt_avl_insert (&ddsi_typelib_treedef, &t->gv->typelib, t);
 
   return t;
 }
@@ -1639,12 +1647,8 @@ struct ddsi_type * ddsi_type_dup_with_keys (const struct ddsi_type *type, const 
   }
   struct ddsi_type *t = type_assign_keys(NULL, type, keys_tb);
   ddsrt_hh_enum(keys_tb, tpkey_field_free, NULL);
-  t->refc++;
-
-  struct DDS_XTypes_TypeObject to;
-  ddsi_xt_get_typeobject_kind_impl (&t->xt, &to, DDSI_TYPEID_KIND_COMPLETE);
-  ddsi_typeobj_get_hash_id (&to, &t->xt.id);
-
+  ddsrt_hh_free(keys_tb);
+  ddsi_type_ref(t->gv, NULL, t);
   return t;
 }
 

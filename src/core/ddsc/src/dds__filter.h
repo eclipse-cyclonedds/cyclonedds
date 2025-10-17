@@ -17,37 +17,11 @@
 extern "C" {
 #endif
 
-dds_return_t
-dds_filter_init (
-    dds_domainid_t domain_id,
-    const struct dds_content_filter *filter,
-    const struct ddsi_sertype *st,
-    struct dds_filter **out);
-
-void
-dds_filter_fini(
-    struct dds_filter *filter);
-
-dds_return_t
-dds_filter_update(
-    const struct dds_content_filter *filter,
-    const struct ddsi_sertype *st,
-    struct dds_filter **out);
-
-bool
-dds_filter_reader_accept(
-    const struct dds_filter *filter,
-    const struct dds_reader *rd,
-    const struct ddsi_serdata *sd,
-    const struct dds_sample_info *si
-  );
-
-bool
-dds_filter_writer_accept(
-    const struct dds_filter *filter,
-    const struct dds_writer *wr,
-    const void *sample
-  );
+dds_return_t dds_filter_create (dds_domainid_t domain_id, const struct dds_content_filter *filter, const struct ddsi_sertype *st, struct dds_filter **out);
+void dds_filter_free (struct dds_filter *filter);
+dds_return_t dds_filter_update (const struct dds_content_filter *filter, const struct ddsi_sertype *st, struct dds_filter *out);
+bool dds_filter_reader_accept (const struct dds_filter *filter, const struct dds_reader *rd, const struct ddsi_serdata *sd, const struct dds_sample_info *si);
+bool dds_filter_writer_accept (const struct dds_filter *filter, const struct dds_writer *wr, const void *sample);
 
 #if defined (__cplusplus)
 }

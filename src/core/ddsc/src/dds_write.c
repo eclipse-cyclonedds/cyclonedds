@@ -25,13 +25,13 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_deliver_locally.h"
 #include "dds/ddsi/ddsi_addrset.h"
-#include "dds__filter.h"
 #include "dds__heap_loan.h"
 #include "dds__writer.h"
 #include "dds__write.h"
 #include "dds__loaned_sample.h"
 #include "dds__psmx.h"
 #include "dds__guid.h"
+#include "dds__filter.h"
 
 extern inline bool dds_source_timestamp_is_valid_ddsi_time (dds_time_t timestamp, ddsi_protocol_version_t protover);
 

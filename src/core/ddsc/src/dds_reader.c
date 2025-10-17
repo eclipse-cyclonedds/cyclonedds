@@ -83,10 +83,10 @@ static dds_return_t dds_reader_delete (dds_entity *e)
 
   dds_loan_pool_free (rd->m_heap_loan_cache);
   dds_loan_pool_free (rd->m_loans);
-  dds_filter_fini(rd->m_filter);
   dds_endpoint_remove_psmx_endpoints (&rd->m_endpoint);
 
   dds_entity_drop_ref (&rd->m_topic->m_entity);
+  dds_filter_free (rd->m_filter);
   return ret;
 }
 
@@ -104,7 +104,7 @@ static dds_return_t validate_reader_qos (const dds_qos_t *rqos)
 static dds_return_t dds_reader_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled)
 {
   /* note: e->m_qos is still the old one to allow for failure here */
-  dds_return_t ret;
+  dds_return_t ret = DDS_RETCODE_OK;
   if ((ret = validate_reader_qos(qos)) != DDS_RETCODE_OK)
     return ret;
   if (enabled)
@@ -116,7 +116,13 @@ static dds_return_t dds_reader_qos_set (dds_entity *e, const dds_qos_t *qos, boo
     ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
     if (qos->present & DDSI_QP_CONTENT_FILTER && (qos->filter.filter != NULL))
-      ret = dds_filter_init (e->m_domain->m_id, qos->filter.filter, rd->type, &((struct dds_reader *)e)->m_filter);
+    {
+      struct dds_reader *drd = (struct dds_reader *) e;
+      if (drd->m_filter != NULL)
+        ret = dds_filter_update (qos->filter.filter, drd->m_topic->m_stype, drd->m_filter);
+      else
+        ret = dds_filter_create (e->m_domain->m_id, qos->filter.filter, drd->m_topic->m_stype, &drd->m_filter);
+    }
   }
   return ret;
 }
@@ -632,7 +638,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   assert (rc == DDS_RETCODE_OK); // FIXME: can be out of resources
                                  //
   if (rqos && (rqos->present & DDSI_QP_CONTENT_FILTER) && (rqos->filter.filter != NULL)) {
-    rc = dds_filter_init (rd->m_entity.m_domain->m_id, rqos->filter.filter, tp->m_stype, &rd->m_filter);
+    rc = dds_filter_create (rd->m_entity.m_domain->m_id, rqos->filter.filter, tp->m_stype, &rd->m_filter);
     assert (rc == DDS_RETCODE_OK);
   }
 

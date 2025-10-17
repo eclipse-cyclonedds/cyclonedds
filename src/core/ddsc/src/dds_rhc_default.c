@@ -1007,7 +1007,7 @@ static bool inst_accepts_sample (const struct dds_rhc_default *rhc, const struct
       return false;
     }
   }
-  if (has_data)
+  if (has_data && rhc->reader)
   {
     /* FIXME:
      * actually it's really wierd, that sample info are created even if it not
@@ -1400,7 +1400,7 @@ static rhc_store_result_t rhc_store_new_instance (struct rhc_instance **out_inst
      attribute (rather than a key), an empty instance should be
      instantiated. */
 
-  if (has_data)
+  if (has_data && rhc->reader)
   {
     /* FIXME:
      * actually it's really wierd, that sample info are created even if it not

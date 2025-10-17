@@ -64,11 +64,11 @@ CU_Test(ddsc_expr_filter, init_fini)
   dds_domainid_t domain_id = 0;
   for (size_t i = 0; i < ntest; i++)
   {
-    (void) dds_create_domain (domain_id, NULL);
-    dds_entity_t participant = dds_create_participant (0, NULL, NULL);
+    dds_entity_t domain = dds_create_domain (domain_id, NULL);
+    dds_entity_t participant = dds_create_participant (domain_id, NULL, NULL);
 
     struct dds_content_filter con_flt = { .kind = DDS_CONTENT_FILTER_EXPRESSION };
-    ret = dds_expression_filter_init(test[i].expr, &con_flt.filter.expr);
+    ret = dds_expression_filter_create(test[i].expr, &con_flt.filter.expr);
     CU_ASSERT (ret == DDS_RETCODE_OK);
 
     /* parameters bind */
@@ -103,11 +103,13 @@ CU_Test(ddsc_expr_filter, init_fini)
               ret = dds_expression_filter_bind_string(con_flt.filter.expr, id, b);
             else if (token == DDS_SQL_TK_BLOB)
               ret = dds_expression_filter_bind_blob(con_flt.filter.expr, id, (unsigned char *)b, (uint32_t)ret);
+            free (b);
             break;
           }
           default:
             CU_ASSERT(false);
         }
+        CU_ASSERT (ret == DDS_RETCODE_OK);
         id++;
       }
     } while (token > 0);
@@ -116,19 +118,20 @@ CU_Test(ddsc_expr_filter, init_fini)
     create_unique_topic_name ("ddsc_expr_filter", topic_name, sizeof(topic_name));
     dds_entity_t tp = dds_create_topic (participant, &test[i].tdesc, topic_name, NULL, NULL);
     const struct ddsi_sertype *sertype;
-    dds_return_t ret = dds_get_entity_sertype (tp, &sertype);
+    ret = dds_get_entity_sertype (tp, &sertype);
     CU_ASSERT (ret == DDS_RETCODE_OK);
 
-    struct dds_filter *flt = ddsrt_malloc(sizeof(*flt));
-    ret = dds_filter_init(domain_id, &con_flt, sertype, &flt);
+    struct dds_filter *flt = NULL;
+    ret = dds_filter_create(domain_id, &con_flt, sertype, &flt);
     CU_ASSERT (ret == DDS_RETCODE_OK);
+
+    dds_expression_filter_free(con_flt.filter.expr);
 
     /* validate that result descriptor created correctly */
     const dds_topic_descriptor_t *new_desc = ((struct dds_expression_filter *)flt)->desc;
     CU_ASSERT (((struct dds_expression_filter *)flt)->bin_expr->nparams == new_desc->m_nkeys);
 
     token = 0;
-    token_sz = 0;
     cursor = (const unsigned char *) test[i].expec.fields;
     do {
       if ((token_sz = get__token(&cursor, &token)) > 0 && token > 0) {
@@ -141,9 +144,8 @@ CU_Test(ddsc_expr_filter, init_fini)
       }
     } while (token > 0);
 
-    /* FIXME: unregister types and remove domain & topic */
-    /* ret = dds_delete(domain); */
-    /* CU_ASSERT_FATAL (ret == DDS_RETCODE_OK); */
+    dds_filter_free (flt);
+    dds_delete (domain);
   }
 }
 /* FUNC FILTER
