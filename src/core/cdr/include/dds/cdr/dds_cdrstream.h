@@ -314,13 +314,13 @@ DDS_EXPORT size_t dds_stream_print_key (dds_istream_t *is, const struct dds_cdrs
 DDS_EXPORT size_t dds_stream_print_sample (dds_istream_t *is, const struct dds_cdrstream_desc *desc, char *buf, size_t size)
   ddsrt_nonnull_all;
 
-/** @component cdr_serializer */
+/** @component cdr_serializer; returns SIZE_MAX on error */
 DDS_EXPORT size_t dds_stream_getsize_sample (const char *data, const struct dds_cdrstream_desc *desc, uint32_t xcdr_version)
-  ddsrt_nonnull_all;
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
-/** @component cdr_serializer */
+/** @component cdr_serializer; returns SIZE_MAX on error */
 DDS_EXPORT size_t dds_stream_getsize_key (const char *sample, const struct dds_cdrstream_desc *desc, uint32_t xcdr_version)
-  ddsrt_nonnull_all;
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 /** @component cdr_serializer */
 uint16_t dds_stream_minimum_xcdr_version (const uint32_t *ops)
