@@ -37,10 +37,22 @@ static bool dds_stream_write_keyBO_impl (RESTRICT_OSTREAM_T *os, const struct dd
       if (!dds_stream_write_bitmask_valueBO (os, allocator, insn, addr, ops[2], ops[3]))
         return false;
       break;
-    case DDS_OP_VAL_STR: dds_stream_write_stringBO (os, allocator, addr); break;
-    case DDS_OP_VAL_WSTR: dds_stream_write_wstringBO (os, allocator, (const wchar_t *) addr); break;
-    case DDS_OP_VAL_BST: dds_stream_write_stringBO (os, allocator, addr); break;
-    case DDS_OP_VAL_BWSTR: dds_stream_write_wstringBO (os, allocator, (const wchar_t *) addr); break;
+    case DDS_OP_VAL_STR:
+      if (!dds_stream_write_stringBO (os, allocator, addr))
+        return false;
+      break;
+    case DDS_OP_VAL_WSTR:
+      if (!dds_stream_write_wstringBO (os, allocator, (const wchar_t *) addr))
+        return false;
+      break;
+    case DDS_OP_VAL_BST:
+      if (!dds_stream_write_bstringBO (os, allocator, addr, ops[2] - 1))
+        return false;
+      break;
+    case DDS_OP_VAL_BWSTR:
+      if (!dds_stream_write_bwstringBO (os, allocator, (const wchar_t *) addr, ops[2] - 1))
+        return false;
+      break;
     case DDS_OP_VAL_WCHAR:
       if (!dds_stream_write_wcharBO (os, allocator, *(wchar_t *) addr))
         return false;

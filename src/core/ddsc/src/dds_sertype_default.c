@@ -251,6 +251,8 @@ static dds_return_t sertype_default_get_serialized_size (const struct ddsi_serty
     *size = dds_stream_getsize_key (sample, &tp->type, tp->write_encoding_version);
   else
     *size = dds_stream_getsize_sample (sample, &tp->type, tp->write_encoding_version);
+  if (*size == SIZE_MAX)
+    return DDS_RETCODE_BAD_PARAMETER;
   *enc_identifier = ddsi_sertype_get_native_enc_identifier (tp->write_encoding_version, tp->encoding_format);
   return DDS_RETCODE_OK;
 }
