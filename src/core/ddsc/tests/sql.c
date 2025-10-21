@@ -284,10 +284,10 @@ CU_Test(ddsc_sql, get_string)
 
   TEST_GET_STRING("\'abcde\'",              S, S, 7, 6, "abcde");
   TEST_GET_BLOB  ("X'414243'",              B, B, 9, 3, 'A','B','C');
-  TEST_GET_STRING("`abcde`",                I, I, 7, 5, "abcde");
-  TEST_GET_STRING("\"abcde",                I, I, 7, 5, "abcde");
-  TEST_GET_STRING("\"abcde\"",              I, I, 7, 5, "abcde");
-  TEST_GET_STRING("abcde",                  I, I, 5, 5, "abcde");
+  TEST_GET_STRING("`abcde`",                I, I, 7, 6, "abcde");
+  TEST_GET_STRING("\"abcde",                I, I, 7, 6, "abcde");
+  TEST_GET_STRING("\"abcde\"",              I, I, 7, 6, "abcde");
+  TEST_GET_STRING("abcde",                  I, I, 5, 6, "abcde");
 
 #undef I
 #undef B
@@ -751,6 +751,7 @@ CU_TheoryDataPoints(ddsc_sql, expr_eval) = {
   CU_DataPoints(char *,
     "height-1*2-3",
     "height -1 -2 -3",
+    "?1 = ?1 AND ?2 < ?1 AND a",
     "((-?1-2*?2-3+5) < (?1 +?2)) <= height",
     "NOT ((2 + (?1+8/2+7) - 5) AND (?1 + ((?2 + height - 1) * length) - 3)) OR ?1",
     "1+x\'32\'+?1*height*3*(\'1\'+1)-2*?2-1",
@@ -761,12 +762,14 @@ CU_TheoryDataPoints(ddsc_sql, expr_eval) = {
     "(height-?1) > (?1+?2*(?1-?2/?1*(1+?2)))",
     "a AND ?1 OR b",
     "length = 0 AND length * 1 OR length * ?1",
-    /* FIXME: case that really asking for some optimization on `eval` phase. */
-    "(height.c + length > ?1) AND length != 10 OR ?2 <> height.c"
+    "(height.c + length > ?1) AND length != 10 OR ?2 <> height.c",
+    "(?1 = 1 OR ?1 = \'a\') AND b",
+    "a.a OR (\'a\' = a.a OR ?1 + a.a AND b.b)"
   ),
   CU_DataPoints(expr_build_param_t,
     EXPR_BUILD_PARAMS(0,0,0,0),
     EXPR_BUILD_PARAMS(0,0,0,0),
+    EXPR_BUILD_PARAMS(DDS_SQL_TK_STRING,  "\'1\'",    DDS_SQL_TK_INTEGER, "0"),
     EXPR_BUILD_PARAMS(DDS_SQL_TK_INTEGER, "12345",    DDS_SQL_TK_BLOB,    "x'31'"),
     EXPR_BUILD_PARAMS(DDS_SQL_TK_FLOAT,   "0.0",      DDS_SQL_TK_INTEGER, "31"),
     EXPR_BUILD_PARAMS(DDS_SQL_TK_STRING,  "'ABC'",    DDS_SQL_TK_BLOB,    "x'41'"),
@@ -778,27 +781,33 @@ CU_TheoryDataPoints(ddsc_sql, expr_eval) = {
     EXPR_BUILD_PARAMS(DDS_SQL_TK_INTEGER, "0",        0,0),
     EXPR_BUILD_PARAMS(DDS_SQL_TK_INTEGER, "0",        0,0),
     EXPR_BUILD_PARAMS(DDS_SQL_TK_INTEGER, "1",        DDS_SQL_TK_INTEGER, "11"),
+    EXPR_BUILD_PARAMS(DDS_SQL_TK_STRING,  "'a'",      0,0),
+    EXPR_BUILD_PARAMS(DDS_SQL_TK_STRING,  "'a'",      0,0)
   ),
   CU_DataPoints(expr_build_var_t,
-    EXPR_BUILD_VARS("height", DDS_SQL_TK_INTEGER, "0",    0,0,0),
-    EXPR_BUILD_VARS("height", DDS_SQL_TK_FLOAT,   "0.1",  0,0,0),
-    EXPR_BUILD_VARS("height", DDS_SQL_TK_INTEGER, "0",    0,0,0),
-    EXPR_BUILD_VARS("height", DDS_SQL_TK_STRING,  "'0'",  "length", DDS_SQL_TK_BLOB,    "x'42'"),
-    EXPR_BUILD_VARS("height", DDS_SQL_TK_INTEGER, "1",    0,0,0),
-    EXPR_BUILD_VARS("height", DDS_SQL_TK_INTEGER, "0",    0,0,0),
-    EXPR_BUILD_VARS("a.b.c",  DDS_SQL_TK_INTEGER, "1",    "b.a.c",  DDS_SQL_TK_INTEGER, "1"),
-    EXPR_BUILD_VARS("height", DDS_SQL_TK_STRING,  "'A'",  0,0,0),
-    EXPR_BUILD_VARS("a",      DDS_SQL_TK_INTEGER, "1",    "b",      DDS_SQL_TK_INTEGER, "0"),
-    EXPR_BUILD_VARS("height", DDS_SQL_TK_INTEGER, "0",    0,0,0),
-    EXPR_BUILD_VARS("a",      DDS_SQL_TK_INTEGER, "1",    "b",      DDS_SQL_TK_INTEGER, "0"),
-    EXPR_BUILD_VARS("length", DDS_SQL_TK_INTEGER, "0",    0,0,0),
+    EXPR_BUILD_VARS("height",   DDS_SQL_TK_INTEGER, "0",    0,0,0),
+    EXPR_BUILD_VARS("height",   DDS_SQL_TK_FLOAT,   "0.1",  0,0,0),
+    EXPR_BUILD_VARS("a",        DDS_SQL_TK_INTEGER, "1",    0,0,0),
+    EXPR_BUILD_VARS("height",   DDS_SQL_TK_INTEGER, "0",    0,0,0),
+    EXPR_BUILD_VARS("height",   DDS_SQL_TK_STRING,  "'0'",  "length", DDS_SQL_TK_BLOB,    "x'42'"),
+    EXPR_BUILD_VARS("height",   DDS_SQL_TK_INTEGER, "1",    0,0,0),
+    EXPR_BUILD_VARS("height",   DDS_SQL_TK_INTEGER, "0",    0,0,0),
+    EXPR_BUILD_VARS("a.b.c",    DDS_SQL_TK_INTEGER, "1",    "b.a.c",  DDS_SQL_TK_INTEGER, "1"),
+    EXPR_BUILD_VARS("height",   DDS_SQL_TK_STRING,  "'A'",  0,0,0),
+    EXPR_BUILD_VARS("a",        DDS_SQL_TK_INTEGER, "1",    "b",      DDS_SQL_TK_INTEGER, "0"),
+    EXPR_BUILD_VARS("height",   DDS_SQL_TK_INTEGER, "0",    0,0,0),
+    EXPR_BUILD_VARS("a",        DDS_SQL_TK_INTEGER, "1",    "b",      DDS_SQL_TK_INTEGER, "0"),
+    EXPR_BUILD_VARS("length",   DDS_SQL_TK_INTEGER, "0",    0,0,0),
     EXPR_BUILD_VARS("height.c", DDS_SQL_TK_INTEGER, "10",   "length", DDS_SQL_TK_INTEGER, "10"),
+    EXPR_BUILD_VARS("b",        DDS_SQL_TK_INTEGER, "1",    0,0,0),
+    EXPR_BUILD_VARS("a.a",      DDS_SQL_TK_INTEGER, "0",    "b.b",    DDS_SQL_TK_INTEGER, "1"),
   ),
   CU_DataPoints(char *,
     "-5",
     "-5.900000",
+    "1",
     "0",
-    "0.000000",
+    "0",
     "2",
     "4",
     "2",
@@ -807,6 +816,8 @@ CU_TheoryDataPoints(ddsc_sql, expr_eval) = {
     "0",
     "0",
     "0",
+    "1",
+    "1",
     "1",
   )
 };
