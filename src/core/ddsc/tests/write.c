@@ -355,3 +355,45 @@ CU_Test(ddsc_write, async_one_unrel_sample)
   CU_ASSERT_GT_FATAL (result, 0);
 }
 
+CU_Test(ddsc_write, old_sample_registration)
+{
+  int result = test_oneliner
+    ("w(do=s,ad=n) x(do=s,ad=n) "
+     "r(do=s,h=all) "
+     // write/unregister with source timestamp T using writer with
+     // lowest GUID
+     "wr w 1@1 unreg w 1@1 "
+     // write sample with source timestamp T using writer with highest
+     // GUID => this gets rejected by the instance to guarantee eventual
+     // consistency with by-source destination order. The writer
+     // does get registered
+     "wr x 1@1 "
+     "read{fan(1,0,0)w@1} r "
+     // second rejected write should not cause live writer count to be
+     // incremented to 2
+     "wr x 1@1 "
+     // unregister decrements by 1
+     "unreg x 1@1 "
+     // so after this we must see a not-alive-no-writers instance; if the
+     // second rejected write incremented the live writer count to 2, we
+     // would have received an alive instance
+     "read{suo(1,0,0)w@1,fuo1x@1#u1} r");
+  CU_ASSERT_GT_FATAL (result, 0);
+}
+
+CU_Test(ddsc_write, old_sample_ownership)
+{
+  // like above test "ddsc_write, old_sample_registration"
+  // verify that the registration without accepting a sample
+  // by the higher strength writer does not claim ownership
+  int result = test_oneliner
+    ("w(do=s,ad=n,o=x:1) x(do=s,ad=n,o=x:2) "
+     "r(do=s,o=x,h=1) "
+     "wr w 1@1 unreg w 1@1 "
+     "wr x 1@1 "
+     "wr w 1@2 "
+     "take{fan(1,0,0)w@2#u1} r "
+     "wr x 1@3 "
+     "take{fao(1,0,0)x@3#u1} r");
+  CU_ASSERT_GT_FATAL (result, 0);
+}
