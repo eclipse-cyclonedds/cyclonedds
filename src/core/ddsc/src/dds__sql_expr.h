@@ -72,6 +72,7 @@ extern "C" {
 #define DDS_SQL_ASSOC_NONE          0x03
 
 struct dds_sql_token {
+  bool is_const;
   /* ------- base ------- */
   int     tok;    // DDS_SQL_TK_*
   int     aff;    // DDS_SQL_AFFINITY_*
