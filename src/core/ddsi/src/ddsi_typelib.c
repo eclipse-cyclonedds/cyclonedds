@@ -1544,6 +1544,10 @@ static struct ddsi_type * type_assign_keys(const char *prefix, const struct ddsi
 
   const struct xt_type *st = &type->xt;
 
+  assert (st->_d == DDS_XTypes_TK_STRUCTURE);
+  uint32_t n_hash = (prefix != NULL)? ddsrt_mh3 (prefix, strlen(prefix), 0): 0;
+  n_hash = ddsrt_mh3 (st->_u.structure.detail.type_name, strlen (st->_u.structure.detail.type_name), n_hash);
+
   if (st->_d == DDS_XTypes_TK_STRUCTURE && st->_u.structure.base_type != NULL)
   {
     struct ddsi_non_assignability_reason reason;
@@ -1581,6 +1585,7 @@ static struct ddsi_type * type_assign_keys(const char *prefix, const struct ddsi
            * deser., if presented? */
           assert ((m->flags & DDS_XTypes_IS_OPTIONAL) == 0);
           m->flags |= DDS_XTypes_IS_KEY;
+          n_hash = ddsrt_mh3 (tmpl.id, strlen (tmpl.id), n_hash);
         }
         if (prefix != NULL)
           ddsrt_free (tmpl.id);
@@ -1596,11 +1601,22 @@ static struct ddsi_type * type_assign_keys(const char *prefix, const struct ddsi
   ddsrt_free (dt);
   t->gv = type->gv;
 
+  char *ntype_name = NULL;
+  (void) ddsrt_asprintf(&ntype_name, "%u", n_hash);
+  ddsrt_strlcpy (t->xt._u.structure.detail.type_name, ntype_name, strlen(ntype_name));
+  ddsrt_free (ntype_name);
+
   struct DDS_XTypes_TypeObject to;
   ddsi_xt_get_typeobject_kind_impl (&t->xt, &to, DDSI_TYPEID_KIND_COMPLETE);
   ddsi_typeobj_get_hash_id (&to, &t->xt.id);
   ddsi_typeobj_fini_impl (&to);
-  ddsrt_avl_insert (&ddsi_typelib_treedef, &t->gv->typelib, t);
+
+  struct ddsi_type *ex_type = NULL;
+  if ((ex_type = ddsi_type_lookup_locked_impl (t->gv, &t->xt.id.x)) == NULL) {
+    ddsrt_avl_insert (&ddsi_typelib_treedef, &t->gv->typelib, t);
+  } else {
+    ddsi_type_ref (t->gv, &t, ex_type);
+  }
 
   return t;
 }
@@ -1636,7 +1652,6 @@ struct ddsi_type * ddsi_type_dup_with_keys (const struct ddsi_type *type, const 
     struct tpkey_field *fld = (struct tpkey_field *) ddsrt_calloc(1, sizeof(*fld));
     fld->id = ddsrt_strdup(cursor);
     (void) ddsrt_hh_add (keys_tb, fld);
-    fprintf (stderr, "\t%s\n", fld->id);
     while ((cursor = strchr(cursor, '.')) != NULL)
     {
       fld = (struct tpkey_field *) ddsrt_calloc(1, sizeof(*fld));
