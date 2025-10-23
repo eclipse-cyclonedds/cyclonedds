@@ -764,7 +764,8 @@ CU_TheoryDataPoints(ddsc_sql, expr_eval) = {
     "length = 0 AND length * 1 OR length * ?1",
     "(height.c + length > ?1) AND length != 10 OR ?2 <> height.c",
     "(?1 = 1 OR ?1 = \'a\') AND b",
-    "a.a OR (\'a\' = a.a OR ?1 + a.a AND b.b)"
+    "a.a OR (\'a\' = a.a OR ?1 + a.a AND b.b)",
+    "`long_1` * `long_1` = ?1 + 1 / 2"
   ),
   CU_DataPoints(expr_build_param_t,
     EXPR_BUILD_PARAMS(0,0,0,0),
@@ -782,7 +783,8 @@ CU_TheoryDataPoints(ddsc_sql, expr_eval) = {
     EXPR_BUILD_PARAMS(DDS_SQL_TK_INTEGER, "0",        0,0),
     EXPR_BUILD_PARAMS(DDS_SQL_TK_INTEGER, "1",        DDS_SQL_TK_INTEGER, "11"),
     EXPR_BUILD_PARAMS(DDS_SQL_TK_STRING,  "'a'",      0,0),
-    EXPR_BUILD_PARAMS(DDS_SQL_TK_STRING,  "'a'",      0,0)
+    EXPR_BUILD_PARAMS(DDS_SQL_TK_STRING,  "'a'",      0,0),
+    EXPR_BUILD_PARAMS(DDS_SQL_TK_INTEGER, "1",        0,0),
   ),
   CU_DataPoints(expr_build_var_t,
     EXPR_BUILD_VARS("height",   DDS_SQL_TK_INTEGER, "0",    0,0,0),
@@ -801,6 +803,7 @@ CU_TheoryDataPoints(ddsc_sql, expr_eval) = {
     EXPR_BUILD_VARS("height.c", DDS_SQL_TK_INTEGER, "10",   "length", DDS_SQL_TK_INTEGER, "10"),
     EXPR_BUILD_VARS("b",        DDS_SQL_TK_INTEGER, "1",    0,0,0),
     EXPR_BUILD_VARS("a.a",      DDS_SQL_TK_INTEGER, "0",    "b.b",    DDS_SQL_TK_INTEGER, "1"),
+    EXPR_BUILD_VARS("long_1",   DDS_SQL_TK_INTEGER, "1",    0,0,0)
   ),
   CU_DataPoints(char *,
     "-5",
@@ -819,6 +822,7 @@ CU_TheoryDataPoints(ddsc_sql, expr_eval) = {
     "1",
     "1",
     "1",
+    "1"
   )
 };
 
