@@ -26,6 +26,7 @@
 #include <stdlib.h>
 
 #include "dds/dds.h"
+#include "dds/ddsrt/io.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/attributes.h"
 
@@ -476,8 +477,9 @@ CU_Test (ddsc_topic_filter, getset_extended)
   dds_delete (dp);
 }
 
-/* FIXME:
- * test no longer valid, since it's main logic depends on "deprecated" behavior. */
+/*
+ * test no longer valid, since it's main logic depends on "deprecated" behavior.
+ * */
 CU_Test (ddsc_topic_filter, sampleinfo, .disabled = true)
 {
   dds_entity_t dp, tp[3], rd[2], wr[2];
@@ -661,3 +663,117 @@ CU_Test (ddsc_topic_filter, sampleinfo, .disabled = true)
   dds_delete (dp);
 }
 
+CU_Test (ddsc_content_filter, basic)
+{
+  dds_entity_t dp[2], tp[2][2], rd[2][2], wr[2][2];
+  dds_return_t ret;
+  char topicname[100];
+  create_unique_topic_name ("ddsc_content_filter", topicname, sizeof (topicname));
+  dds_qos_t *qos = dds_create_qos ();
+  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
+  dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, 0);
+  const char *field_expr[2] = {
+    "`long_1` * `long_1` = ?1 + ?1 / 2",
+    "`long_2` == ?1"
+  };
+  for (int i = 0; i < 2; i++)
+  {
+    dp[i] = dds_create_participant (0, NULL, NULL);
+    CU_ASSERT_FATAL (dp[i] > 0);
+    for (int j = 0; j < 2; j++)
+    {
+      tp[i][j] = dds_create_topic (dp[i], &Space_Type1_desc, topicname, qos, NULL);
+      CU_ASSERT_FATAL (tp[i][j] > 0);
+      if (j == 0)
+      {
+        dds_qos_t *field_qos = dds_create_qos();
+        ret = dds_copy_qos (field_qos, qos);
+        CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+        dds_expression_content_filter_t *field_flt = NULL;
+        ret = dds_expression_filter_create (field_expr[i], &field_flt);
+        CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+        ret = dds_expression_filter_bind_integer (field_flt, 1, 1);
+        CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+        dds_content_filter_t flt = {.kind = DDS_CONTENT_FILTER_EXPRESSION, .filter.expr = field_flt};
+        dds_qset_content_filter (field_qos, flt);
+        dds_expression_filter_free (field_flt);
+
+        rd[i][j] = dds_create_reader (dp[i], tp[i][j], field_qos, NULL);
+        CU_ASSERT_FATAL (rd[i][j] > 0);
+        wr[i][j] = dds_create_writer (dp[i], tp[i][j], field_qos, NULL);
+        CU_ASSERT_FATAL (wr[i][j] > 0);
+
+        dds_delete_qos (field_qos);
+      } else {
+        rd[i][j] = dds_create_reader (dp[i], tp[i][j], qos, NULL);
+        CU_ASSERT_FATAL (rd[i][j] > 0);
+        wr[i][j] = dds_create_writer (dp[i], tp[i][j], qos, NULL);
+        CU_ASSERT_FATAL (wr[i][j] > 0);
+      }
+    }
+  }
+  dds_delete_qos (qos);
+
+  for (int i = 0; i < 2; i++)
+  {
+    for (int j = 0; j < 2; j++)
+    {
+      ret = dds_write (wr[i][j], &(Space_Type1){1,i,j});
+      CU_ASSERT_FATAL (ret == 0);
+      ret = dds_write (wr[i][j], &(Space_Type1){2,i,j});
+      CU_ASSERT_FATAL (ret == 0);
+    }
+  }
+
+  // expectations for each reader:
+  // - write-like(data) using a filtered topic filters
+  // - write-like(key) using a filtered topic doesn't filter (attributes may be garbage)
+  // - RHC always filters (and is guaranteed 0's in the attributes)
+  struct exp exp[][2] = {
+    [0] = {
+      [0] = {
+        // participant 0, topic 0: reader filtered long_1 == 1
+        // writer [0][0] filtering long_1 == 1, [0][1] unfiltered
+        // writer [1][0] filtering long_2 == 1, [1][1] unfiltered
+        .n = 4, .xs = (const Space_Type1[]) {
+          {1,0,0}, {1,0,1}, {1,1,0}, {1,1,1}
+        },
+      },
+      [1] = {
+        // participant 0, topic 1: reader unfiltered
+        // writer [0][0] filtering long_1 == 1, [0][1] unfiltered
+        // writer [1][0] filtering long_2 == 1, [1][1] unfiltered
+        .n = 7, .xs = (const Space_Type1[]) {
+          {1,0,0}, {1,0,1}, {1,1,0}, {1,1,1},
+          {2,0,1}, {2,1,0}, {2,1,1}
+        }
+      }
+    },
+    [1] = {
+      [0] = {
+        // participant 1, topic 0: reader filtered long_2 == 1
+        // writer [0][0] filtering long_1 == 1, [0][1] unfiltered
+        // writer [1][0] filtering long_2 == 1, [1][1] unfiltered
+        .n = 4, .xs = (const Space_Type1[]) {
+          {1,1,0}, {1,1,1},
+          {2,1,0}, {2,1,1}
+        }
+      },
+      [1] = {
+        // participant 1, topic 1: reader unfiltered
+        // writer [0][0] filtering long_1 == 1, [0][1] unfiltered
+        // writer [1][0] filtering long_2 == 1, [1][1] unfiltered
+        .n = 7, .xs = (const Space_Type1[]) {
+          {1,0,0}, {1,0,1}, {1,1,0}, {1,1,1},
+          {2,0,1}, {2,1,0}, {2,1,1}
+        }
+      }
+    },
+  };
+
+  for (int i = 0; i < 2; i++)
+    for (int j = 0; j < 2; j++)
+      checkdata (rd[i][j], &exp[i][j], "rd[%d][%d]:", i, j);
+  for (int i = 0; i < 2; i++)
+    dds_delete (dp[i]);
+}

@@ -60,24 +60,24 @@ static dds_return_t topic_expr_filter_vars_apply(const struct dds_expression_fil
 
     switch (op_type)
     {
-      case DDS_OP_TYPE_1BY:
-      case DDS_OP_TYPE_2BY:
-      case DDS_OP_TYPE_4BY:
-      case DDS_OP_TYPE_8BY:
-      case DDS_OP_TYPE_BLN:
+      case DDS_OP_VAL_1BY:
+      case DDS_OP_VAL_2BY:
+      case DDS_OP_VAL_4BY:
+      case DDS_OP_VAL_8BY:
+      case DDS_OP_VAL_BLN:
       // TODO:
       // currently not supported by sql
-      // DDS_OP_TYPE_ENU:
-      // DDS_OP_TYPE_BMK:
+      // DDS_OP_VAL_ENU:
+      // DDS_OP_VAL_BMK:
       {
         if (op_flags & DDS_OP_FLAG_FP) {
           switch (op_type)
           {
-            case DDS_OP_TYPE_4BY: {
+            case DDS_OP_VAL_4BY: {
               DDS_EXPR_VAR_SET_REAL(filter->bin_expr, ((char *)sample + op_offs), id, float);
               break;
             }
-            case DDS_OP_TYPE_8BY: {
+            case DDS_OP_VAL_8BY: {
               DDS_EXPR_VAR_SET_REAL(filter->bin_expr, ((char *)sample + op_offs), id, double);
               break;
             }
@@ -88,20 +88,20 @@ static dds_return_t topic_expr_filter_vars_apply(const struct dds_expression_fil
         } else {
           switch (op_type)
           {
-            case DDS_OP_TYPE_BLN:
-            case DDS_OP_TYPE_1BY: {
+            case DDS_OP_VAL_BLN:
+            case DDS_OP_VAL_1BY: {
               DDS_EXPR_VAR_SET_INTEGER(op_flags, filter->bin_expr, ((char *)sample + op_offs), id, int8_t);
               break;
             }
-            case DDS_OP_TYPE_2BY: {
+            case DDS_OP_VAL_2BY: {
               DDS_EXPR_VAR_SET_INTEGER(op_flags, filter->bin_expr, ((char *)sample + op_offs), id, int16_t);
               break;
             }
-            case DDS_OP_TYPE_4BY: {
+            case DDS_OP_VAL_4BY: {
               DDS_EXPR_VAR_SET_INTEGER(op_flags, filter->bin_expr, ((char *)sample + op_offs), id, int32_t);
               break;
             }
-            case DDS_OP_TYPE_8BY: {
+            case DDS_OP_VAL_8BY: {
               if (op_flags & DDS_OP_FLAG_SGN) {
                 int64_t *j = (int64_t *)((char *)sample + op_offs);
                 ret = dds_sql_expr_bind_integer (filter->bin_expr, id, *j);
@@ -119,21 +119,21 @@ static dds_return_t topic_expr_filter_vars_apply(const struct dds_expression_fil
         }
         break;
       }
-      case DDS_OP_TYPE_STR:
-      case DDS_OP_TYPE_BST:
+      case DDS_OP_VAL_STR:
+      case DDS_OP_VAL_BST:
       /* FIXME:
        * Q: how to get size? */
 
       // TODO:
       // currently not supported by sql
-      // case DDS_OP_TYPE_WSTR:
-      // case DDS_OP_TYPE_WCHAR:
+      // case DDS_OP_VAL_WSTR:
+      // case DDS_OP_VAL_WCHAR:
         assert (false);
         break;
-      case DDS_OP_TYPE_SEQ: {
+      case DDS_OP_VAL_SEQ: {
         /* FIXME:
          * Q: can we determine octet sequence as a SQL_BLOB? */
-        /* if (op_sub & DDS_OP_SUBTYPE_1BY) */
+        /* if (op_sub & DDS_OP_SUBVAL_1BY) */
 
         assert (false);
         break;
@@ -162,6 +162,9 @@ static bool topic_expr_filter_reader_accept(const dds_reader *rd, const struct d
   (void) ret;
 #endif
   assert (ret == DDS_RETCODE_OK);
+  ddsi_serdata_unref (sd_un);
+  ddsi_serdata_unref (sd);
+  ddsrt_free (s);
 
   struct dds_sql_token *r = NULL;
   ret = dds_sql_expr_eval (ef->bin_expr, &r);
@@ -191,8 +194,7 @@ static bool topic_expr_filter_writer_accept(const dds_writer *wr, const struct d
   ret = dds_sql_expr_eval (ef->bin_expr, &r);
   assert (ret == DDS_RETCODE_OK);
 
-  ret = (r->aff >= DDS_SQL_AFFINITY_NUMERIC) && r->n.i;
-  assert (ret == DDS_RETCODE_OK);
+  res = (r->aff >= DDS_SQL_AFFINITY_NUMERIC) && r->n.i;
   free (r);
   return res;
 }
@@ -290,6 +292,12 @@ static dds_return_t topic_expr_filter_param_rebind (struct dds_filter *a, const 
   ddsrt_mutex_unlock (&dds_global.m_mutex);
 
   ef->st = (struct ddsi_sertype *)st_def;
+  /* FIXME
+   * the next unref cause to constructed type to be destroyed. which is not so
+   * bad since we already obtain sertype and descriptor, but hypothetically if
+   * we going to re-create the same filter, why not to just ref. on the same
+   * type?
+   * */
   ddsi_type_unref (gv, res_type);
 
 err:

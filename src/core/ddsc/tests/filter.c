@@ -52,7 +52,7 @@ CU_Test(ddsc_expr_filter, init_fini)
                                   // order
     dds_topic_descriptor_t tdesc; // base topic descriptor to be used
     struct {
-      char *fields;               // keyed field on a result type
+      char *fields;               // keyed field on a result type sep. by ' '
     } expec;
   } test[] = {
     { .expr = "a + b + c",        .param = "",    .tdesc = SerdataKeyOrder_desc,                    .expec = { .fields = "`a` `b` `c`" }},
