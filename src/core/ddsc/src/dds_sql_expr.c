@@ -6,20 +6,19 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
+#include <math.h>
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "dds/dds.h"
+
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/mh3.h"
-#include "dds/ddsrt/retcode.h"
-#include <assert.h>
-#include <ctype.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
 #include "dds/ddsrt/string.h"
+
 #include "dds__sql_expr.h"
 
 #define REAL_PREC     1e-7
@@ -380,17 +379,54 @@ exit:
   return i;
 }
 
+static uint32_t counter_hash_fn(const void *a)
+{
+  const int64_t *item = (const int64_t *)a;
+  uint32_t x = ddsrt_mh3(&item, sizeof(item), 0);
+  return x;
+}
+
+static bool counter_equals_fn(const void *a, const void *b)
+{
+  const int64_t *aa = (const int64_t *)a;
+  const int64_t *bb = (const int64_t *)b;
+  return *aa == *bb;
+}
+
+static void counter_count_fini_fn (void *vnode, void *varg)
+{
+  int64_t *t = (int64_t *) vnode;
+  size_t *total = (size_t *) varg;
+  (*total)++;
+  free (t);
+}
+
 size_t dds_sql_expr_count_params(const char *s)
 {
+  struct ddsrt_hh *count = ddsrt_hh_new (1, counter_hash_fn, counter_equals_fn);
   const unsigned char *cursor = (const unsigned char *)s;
   size_t total = 0;
+  int token_sz = 0;
   int token = 0;
 
   do {
-    if (get_op_token(&cursor, &token) > 0 && token > 0) {
-      total += (token == DDS_SQL_TK_VARIABLE);
+    if ((token_sz = get_op_token(&cursor, &token)) > 0 && token > 0) {
+      if (token == DDS_SQL_TK_VARIABLE) {
+        const unsigned char *precursor = cursor - token_sz + 1;
+        int64_t *i = malloc(sizeof(*i));
+        token=DDS_SQL_TK_INTEGER;
+        if (dds_sql_get_numeric(i, &precursor, &token, token_sz - 1) < 0)
+          goto err;
+        int64_t *l = ddsrt_hh_lookup (count, i);
+        if (l == NULL) ddsrt_hh_add (count, i);
+        else free (i);
+      }
     }
   } while (token > 0);
+
+err:
+  ddsrt_hh_enum (count, counter_count_fini_fn, &total);
+  ddsrt_hh_free (count);
 
   return total;
 }
@@ -645,6 +681,7 @@ int dds_sql_get_string(void **blob, const unsigned char **c, const int *tk, int 
 static int cast(const void *in, const int in_sz, const int from_tk, const int to_tk, void **out)
 {
   assert (in != NULL);
+  assert (out != NULL);
   int result_size = 0;
   assert ( to_tk == DDS_SQL_TK_STRING
         || to_tk == DDS_SQL_TK_INTEGER
@@ -670,6 +707,7 @@ static int cast(const void *in, const int in_sz, const int from_tk, const int to
 
         result_size += 1; // don't forget about '\0'!
         *out = (char *) malloc((unsigned) result_size);
+        assert (*out);
         if (from_tk == DDS_SQL_TK_INTEGER)
           (void) snprintf (*out, (unsigned) result_size, fmt, *((const int64_t *)in));
         else
@@ -678,6 +716,7 @@ static int cast(const void *in, const int in_sz, const int from_tk, const int to
       } else if (from_tk == DDS_SQL_TK_BLOB) {
         result_size = in_sz + 1;
         *out = (char *) malloc((unsigned) result_size);
+        assert (*out);
         (void) memcpy(*out, in, (unsigned) in_sz);
         ((char *)*out)[in_sz] = '\0';
       }
@@ -696,6 +735,7 @@ static int cast(const void *in, const int in_sz, const int from_tk, const int to
       }
       result_size = str_sz;
       *out = (unsigned char *) malloc((unsigned) result_size);
+      assert (*out);
       (void) memcpy(*out, str, (unsigned) result_size);
       if (str != in)
         free (str);
@@ -718,6 +758,7 @@ static int cast(const void *in, const int in_sz, const int from_tk, const int to
         }
         result_size = sizeof(int64_t);
         *out = malloc(sizeof(int64_t));
+        assert (*out);
         int token = to_tk;
         int res = dds_sql_get_numeric(*out, (const unsigned char **)&str, &token, str_sz);
         /* token may not be equal to 'requested' to_tk */
@@ -736,6 +777,7 @@ static int cast(const void *in, const int in_sz, const int from_tk, const int to
         assert (from_tk == DDS_SQL_TK_INTEGER || from_tk == DDS_SQL_TK_FLOAT);
         result_size = sizeof(int64_t);
         *out = malloc(sizeof(int64_t));
+        assert (*out);
         // we previously reject case operation in case of `to_tk == from_tk`,
         // so we know all conversion kinds
         if (to_tk == DDS_SQL_TK_INTEGER)
@@ -1056,6 +1098,7 @@ static int eq_op_callback(struct dds_sql_token **op, const struct dds_sql_token 
     else if (lhs->aff == DDS_SQL_AFFINITY_REAL)
       result = fabs(lhs->n.r - rhs->n.r) < REAL_PREC;
   } else if (lhs->aff == DDS_SQL_AFFINITY_TEXT || lhs->aff == DDS_SQL_AFFINITY_BLOB) {
+    assert (lhs->s != NULL && rhs->s != NULL);
     result = (lhs->n.i == rhs->n.i) && !memcmp (lhs->s, rhs->s, (unsigned) lhs->n.i);
   } else {
     abort();
@@ -1091,6 +1134,7 @@ static int lt_op_callback(struct dds_sql_token **op, const struct dds_sql_token 
     else if (lhs->aff == DDS_SQL_AFFINITY_REAL)
       result = lhs->n.r < rhs->n.r;
   } else if (lhs->aff == DDS_SQL_AFFINITY_TEXT || lhs->aff == DDS_SQL_AFFINITY_BLOB) {
+    assert (lhs->s != NULL && rhs->s != NULL);
     result = memcmp(lhs->s, rhs->s, (unsigned) ((lhs->n.i < rhs->n.i)? lhs->n.i: rhs->n.i)) < 0;
   } else {
     abort();
@@ -1115,6 +1159,7 @@ static int gt_op_callback(struct dds_sql_token **op, const struct dds_sql_token 
     else if (lhs->aff == DDS_SQL_AFFINITY_REAL)
       result = lhs->n.r > rhs->n.r;
   } else if (lhs->aff == DDS_SQL_AFFINITY_TEXT || lhs->aff == DDS_SQL_AFFINITY_BLOB) {
+    assert (lhs->s != NULL && rhs->s != NULL);
     result = memcmp(lhs->s, rhs->s, (unsigned) ((lhs->n.i < rhs->n.i)? lhs->n.i: rhs->n.i)) > 0;
   } else {
     abort();
@@ -1274,7 +1319,7 @@ static struct dds_sql_token *dds_sql_token_dup (struct dds_sql_token *token)
     if (token->tok == DDS_SQL_TK_STRING || token->aff == DDS_SQL_AFFINITY_TEXT) {
       res->s = ddsrt_strdup (token->s);
     } else if (token->tok == DDS_SQL_TK_BLOB || token->aff == DDS_SQL_AFFINITY_BLOB) {
-      res->s = malloc((unsigned int)token->n.i);
+      res->s = ddsrt_malloc((unsigned int)token->n.i);
       (void) memcpy (res->s, token->s, (unsigned int)token->n.i);
     }
   } else {
@@ -1288,12 +1333,14 @@ static int dds_sql_eval_op(struct dds_sql_token **op, struct dds_sql_token *lhs,
   int result = -1;
   int affinity = (*op)->aff;
 
+  assert (rhs != NULL);
   if (lhs == NULL && rhs == NULL)
     return result;
 
   /* trying to not override parameters/variables during affinity apply. */
   struct dds_sql_token *tl = (lhs && lhs->is_const) ? dds_sql_token_dup (lhs): lhs;
   struct dds_sql_token *tr = (rhs && rhs->is_const) ? dds_sql_token_dup (rhs): rhs;
+  assert (tr != NULL);
 
   /* NOTE: While most of the expression evaluation paths are similar to SQLite
    * behavior, here is exaclty the point where we start differentiating.
@@ -1877,7 +1924,8 @@ static int expr_pre_eval(const struct dds_sql_token *optoken, struct dds_sql_tok
       if (opt == DDS_SQL_TK_OR || opt == DDS_SQL_TK_AND
           || opt == DDS_SQL_TK_STAR)
       {
-        /* apply required affinity on first and if it's '0'|'1' skip
+        /*
+         * apply required affinity on first and if it's '0'|'1' skip
          * calculation of the second or just return a result, no matter what
          * inside a previous branch.
          * */
@@ -2006,7 +2054,8 @@ static dds_return_t expr_node_optimize(const struct dds_sql_expr_node *orig, str
       (*node)->l = (*node)->r = NULL;
       (*node)->height = 0;
     } else if ((ftk == DDS_SQL_TK_ID || stk == DDS_SQL_TK_ID) && (op->tok == DDS_SQL_TK_DOT)) {
-      /* NOTE: We never should fall into that case, since `DOT` operator
+      /*
+       * We never should fall into that case, since `DOT` operator
        * evaluation happend earlier during a parsing.
        * */
       assert (false);

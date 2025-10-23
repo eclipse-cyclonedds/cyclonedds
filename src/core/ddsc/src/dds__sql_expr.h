@@ -10,9 +10,9 @@
 #ifndef DDS__SQL_EXPR_H
 #define DDS__SQL_EXPR_H
 
-#include "dds/ddsrt/retcode.h"
-#include <stdint.h>
 #include <stdio.h>
+
+#include "dds/ddsrt/retcode.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -155,8 +155,6 @@ typedef struct dds_sql_expr {
    * */
 } dds_sql_expr_t;
 
-/* FIXME: to be implemented to validate expression string before parse. */
-dds_return_t dds_sql_expr_validate(const char *s);
 /*
  * calculate the amount of parameters presented in expression. which is usefull
  * to do before event start parsing process.
