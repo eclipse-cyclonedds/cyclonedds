@@ -142,8 +142,6 @@ ddsrt_cond_t *ddsrt_get_singleton_cond(void)
   return &init_cond;
 }
 
-#ifndef DDS_STATIC_DEFINE /* DDS built statically */
-
 #ifdef _WIN32
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/misc.h"
@@ -225,5 +223,3 @@ void __attribute__((destructor)) ddsrt_dtor(void)
   ddsrt_fini();
 }
 #endif /* _WIN32 */
-
-#endif /* DDS_STATIC_DEFINE */
