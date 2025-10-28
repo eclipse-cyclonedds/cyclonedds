@@ -43,6 +43,112 @@
     assert (ret == DDS_RETCODE_OK); \
   } while (0);
 
+static dds_return_t expr_var_set (const struct dds_expression_filter *filter, const void *sample, const uintptr_t id, const uint32_t *kops, const uint32_t *fops, size_t *offset, size_t *nlvl)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
+  uint32_t op_type = DDS_OP_TYPE(fops[0]);
+  uint32_t op_flags = DDS_OP_FLAGS(fops[0]);
+  assert (offset != NULL);
+  (*offset) += fops[1];
+  switch (op_type)
+  {
+    case DDS_OP_VAL_1BY:
+    case DDS_OP_VAL_2BY:
+    case DDS_OP_VAL_4BY:
+    case DDS_OP_VAL_8BY:
+    case DDS_OP_VAL_BLN:
+    {
+      const char *smpl = (const char *)sample + (*offset);
+      if (op_flags & DDS_OP_FLAG_FP) {
+        switch (op_type)
+        {
+          case DDS_OP_VAL_4BY: {
+            DDS_EXPR_VAR_SET_REAL(filter->bin_expr, smpl, id, float);
+            break;
+          }
+          case DDS_OP_VAL_8BY: {
+            DDS_EXPR_VAR_SET_REAL(filter->bin_expr, smpl, id, double);
+            break;
+          }
+          default:
+            abort();
+        }
+        assert (ret == DDS_RETCODE_OK);
+      } else {
+        switch (op_type)
+        {
+          case DDS_OP_VAL_BLN:
+          case DDS_OP_VAL_1BY: {
+            DDS_EXPR_VAR_SET_INTEGER(op_flags, filter->bin_expr, smpl, id, int8_t);
+            break;
+          }
+          case DDS_OP_VAL_2BY: {
+            DDS_EXPR_VAR_SET_INTEGER(op_flags, filter->bin_expr, smpl, id, int16_t);
+            break;
+          }
+          case DDS_OP_VAL_4BY: {
+            DDS_EXPR_VAR_SET_INTEGER(op_flags, filter->bin_expr, smpl, id, int32_t);
+            break;
+          }
+          case DDS_OP_VAL_8BY: {
+            if (op_flags & DDS_OP_FLAG_SGN) {
+              const int64_t *j = (const int64_t *)smpl;
+              ret = dds_sql_expr_bind_integer (filter->bin_expr, id, *j);
+            } else {
+            /* FIXME:
+             * current implementation doesn't support 64 bit unsigned, since sql
+             * expression evaluator have nothing to handle that type. */
+              const uint64_t *j = (const uint64_t *)smpl;
+              if ((*j) > UINT32_MAX)
+                ret = DDS_RETCODE_UNSUPPORTED;
+              else
+                ret = dds_sql_expr_bind_integer (filter->bin_expr, id, (int64_t)(*j));
+            }
+            assert (ret == DDS_RETCODE_OK);
+            break;
+          }
+          default: assert (false);
+        }
+      }
+      break;
+    }
+    case DDS_OP_VAL_BST:
+    case DDS_OP_VAL_STR:
+    {
+      const char *smpl = (const char *)sample + (*offset);
+      char *j = (op_type == DDS_OP_VAL_STR)? *(char **)smpl: (char *)smpl;
+      ret = dds_sql_expr_bind_string (filter->bin_expr, id, j);
+      break;
+    }
+    case DDS_OP_VAL_EXT: {
+      fops = fops + DDS_OP_ADR_JSR (fops[2]) + kops[++(*nlvl)];
+      ret = expr_var_set (filter, sample, id, kops, fops, offset, nlvl);
+      break;
+    }
+    case DDS_OP_VAL_SEQ:
+      /* FIXME:
+       * can we determine octet sequence as a SQL_BLOB?
+       * if (op_sub & DDS_OP_VAL_1BY) */
+    case DDS_OP_VAL_ARR:
+    case DDS_OP_VAL_UNI:
+    case DDS_OP_VAL_STU:
+    case DDS_OP_VAL_BSQ:
+    case DDS_OP_VAL_ENU:
+    case DDS_OP_VAL_BMK:
+    case DDS_OP_VAL_WSTR:
+    case DDS_OP_VAL_BWSTR:
+    case DDS_OP_VAL_WCHAR:
+    {
+      assert (false);
+      break;
+    }
+    default:
+      abort();
+  }
+
+  return ret;
+}
+
 static dds_return_t topic_expr_filter_vars_apply(const struct dds_expression_filter *filter, const void *sample)
 {
   dds_return_t ret = DDS_RETCODE_OK;
@@ -51,98 +157,14 @@ static dds_return_t topic_expr_filter_vars_apply(const struct dds_expression_fil
   for (size_t i = 0; i < desc->m_nkeys; i++)
   {
     dds_key_descriptor_t msg_field = desc->m_keys[i];
-    uintptr_t id = (uintptr_t) msg_field.m_name;
     const uint32_t *op = desc->m_ops + msg_field.m_offset;
-    const uint32_t op_type = DDS_OP_TYPE((desc->m_ops + op[1])[0]);
-    /* const uint32_t op_sub = DDS_OP_SUBTYPE((desc->m_ops + op[1])[0]); */
-    const uint32_t op_flags = DDS_OP_FLAGS((desc->m_ops + op[1])[0]);
-    const uint32_t op_offs = (desc->m_ops + op[1])[1];
-
-    switch (op_type)
-    {
-      case DDS_OP_VAL_1BY:
-      case DDS_OP_VAL_2BY:
-      case DDS_OP_VAL_4BY:
-      case DDS_OP_VAL_8BY:
-      case DDS_OP_VAL_BLN:
-      // TODO:
-      // currently not supported by sql
-      // DDS_OP_VAL_ENU:
-      // DDS_OP_VAL_BMK:
-      {
-        if (op_flags & DDS_OP_FLAG_FP) {
-          switch (op_type)
-          {
-            case DDS_OP_VAL_4BY: {
-              DDS_EXPR_VAR_SET_REAL(filter->bin_expr, ((char *)sample + op_offs), id, float);
-              break;
-            }
-            case DDS_OP_VAL_8BY: {
-              DDS_EXPR_VAR_SET_REAL(filter->bin_expr, ((char *)sample + op_offs), id, double);
-              break;
-            }
-            default:
-              abort();
-          }
-          assert (ret == DDS_RETCODE_OK);
-        } else {
-          switch (op_type)
-          {
-            case DDS_OP_VAL_BLN:
-            case DDS_OP_VAL_1BY: {
-              DDS_EXPR_VAR_SET_INTEGER(op_flags, filter->bin_expr, ((char *)sample + op_offs), id, int8_t);
-              break;
-            }
-            case DDS_OP_VAL_2BY: {
-              DDS_EXPR_VAR_SET_INTEGER(op_flags, filter->bin_expr, ((char *)sample + op_offs), id, int16_t);
-              break;
-            }
-            case DDS_OP_VAL_4BY: {
-              DDS_EXPR_VAR_SET_INTEGER(op_flags, filter->bin_expr, ((char *)sample + op_offs), id, int32_t);
-              break;
-            }
-            case DDS_OP_VAL_8BY: {
-              if (op_flags & DDS_OP_FLAG_SGN) {
-                int64_t *j = (int64_t *)((char *)sample + op_offs);
-                ret = dds_sql_expr_bind_integer (filter->bin_expr, id, *j);
-              } else {
-              /* FIXME:
-               * current implementation doesn't support 64 bit unsigned, since sql
-               * expression evaluator have nothing to handle that type. */
-                assert (false);
-              }
-              assert (ret == DDS_RETCODE_OK);
-              break;
-            }
-            default: assert (false);
-          }
-        }
-        break;
-      }
-      case DDS_OP_VAL_STR:
-      case DDS_OP_VAL_BST:
-      /* FIXME:
-       * Q: how to get size? */
-
-      // TODO:
-      // currently not supported by sql
-      // case DDS_OP_VAL_WSTR:
-      // case DDS_OP_VAL_WCHAR:
-        assert (false);
-        break;
-      case DDS_OP_VAL_SEQ: {
-        /* FIXME:
-         * Q: can we determine octet sequence as a SQL_BLOB? */
-        /* if (op_sub & DDS_OP_SUBVAL_1BY) */
-
-        assert (false);
-        break;
-      }
-      default:
-        abort();
-    }
+    size_t offset = 0U, op_id = 1;
+    const uint32_t *ops = (desc->m_ops + op[op_id]);
+    if ((ret = expr_var_set (filter, sample, (uintptr_t)msg_field.m_name, op, ops, &offset, &op_id)) != DDS_RETCODE_OK)
+      goto err;
   }
 
+err:
   return ret;
 }
 

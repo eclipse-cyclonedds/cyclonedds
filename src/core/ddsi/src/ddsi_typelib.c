@@ -1532,11 +1532,6 @@ void ddsi_type_pair_free (struct ddsi_type_pair *type_pair)
   ddsrt_free (type_pair);
 }
 
-typedef struct tpkey_field
-{
-  char *id;
-} tpkey_field_t;
-
 static struct ddsi_type * type_assign_keys(const char *prefix, const struct ddsi_type *type, const struct ddsrt_hh *keys_tb)
 {
   struct ddsi_domaingv *gv = type->gv;
@@ -1544,9 +1539,7 @@ static struct ddsi_type * type_assign_keys(const char *prefix, const struct ddsi
 
   const struct xt_type *st = &type->xt;
 
-  assert (st->_d == DDS_XTypes_TK_STRUCTURE);
   uint32_t n_hash = (prefix != NULL)? ddsrt_mh3 (prefix, strlen(prefix), 0): 0;
-  n_hash = ddsrt_mh3 (st->_u.structure.detail.type_name, strlen (st->_u.structure.detail.type_name), n_hash);
 
   if (st->_d == DDS_XTypes_TK_STRUCTURE && st->_u.structure.base_type != NULL)
   {
@@ -1561,22 +1554,23 @@ static struct ddsi_type * type_assign_keys(const char *prefix, const struct ddsi
   {
     case DDS_XTypes_TK_STRUCTURE:
     {
+      n_hash = ddsrt_mh3 (st->_u.structure.detail.type_name, strlen (st->_u.structure.detail.type_name), n_hash);
       for (uint32_t j = 0; j < dt->_u.structure.members.length; j++)
       {
         struct xt_struct_member *m = &dt->_u.structure.members.seq[j];
-        struct tpkey_field tmpl = {.id = NULL};
+        char *tmpl = NULL;
         if (prefix != NULL) {
-          (void) ddsrt_asprintf (&tmpl.id, "%s.%s", prefix, m->detail.name);
+          (void) ddsrt_asprintf (&tmpl, "%s.%s", prefix, m->detail.name);
         } else {
-          tmpl.id = m->detail.name;
+          tmpl = m->detail.name;
         }
-        struct tpkey_field *item = NULL;
-        if ((item = ddsrt_hh_lookup(keys_tb, &tmpl)) != NULL)
+        char *item = NULL;
+        if ((item = ddsrt_hh_lookup(keys_tb, tmpl)) != NULL)
         {
           /* FIXME: we need to classify member by primitive/not primitive */
           if (m->type != NULL && m->type->xt._d >= DDS_XTypes_TK_ALIAS)
           {
-            struct ddsi_type *sub_type = type_assign_keys(item->id, m->type, keys_tb);
+            struct ddsi_type *sub_type = type_assign_keys(item, m->type, keys_tb);
             ddsi_type_unref (gv, m->type);
             ddsi_type_ref (gv, &m->type, sub_type); /* FIXME: ref? */
           }
@@ -1585,10 +1579,10 @@ static struct ddsi_type * type_assign_keys(const char *prefix, const struct ddsi
            * deser., if presented? */
           assert ((m->flags & DDS_XTypes_IS_OPTIONAL) == 0);
           m->flags |= DDS_XTypes_IS_KEY;
-          n_hash = ddsrt_mh3 (tmpl.id, strlen (tmpl.id), n_hash);
+          n_hash = ddsrt_mh3 (tmpl, strlen (tmpl), n_hash);
         }
         if (prefix != NULL)
-          ddsrt_free (tmpl.id);
+          ddsrt_free (tmpl);
       }
       break;
     }
@@ -1623,23 +1617,22 @@ static struct ddsi_type * type_assign_keys(const char *prefix, const struct ddsi
 
 static uint32_t tpkey_field_hash_fn (const void *a)
 {
-  struct tpkey_field *item = (struct tpkey_field *) a;
-  uint32_t x = ddsrt_mh3(item->id, strlen(item->id), 0);
+  const char *item = (const char *) a;
+  uint32_t x = ddsrt_mh3(item, strlen(item), 0);
   return x;
 }
 
 static bool tpkey_field_equals_fn (const void *a, const void *b)
 {
-  struct tpkey_field *aa = (struct tpkey_field *) a;
-  struct tpkey_field *bb = (struct tpkey_field *) b;
-  return strcmp(aa->id, bb->id) == 0;
+  const char *aa = (const char *) a;
+  const char *bb = (const char *) b;
+  return strcmp(aa, bb) == 0;
 }
 
 static void tpkey_field_free (void *vnode, void *varg)
 {
   (void) varg;
-  struct tpkey_field *item = (struct tpkey_field *) vnode;
-  ddsrt_free (item->id);
+  char *item = (char *) vnode;
   ddsrt_free (item);
 }
 
@@ -1649,21 +1642,21 @@ struct ddsi_type * ddsi_type_dup_with_keys (const struct ddsi_type *type, const 
   for (uint32_t i = 0; i < nfields; i++)
   {
     const char *cursor = fields[i];
-    struct tpkey_field *fld = (struct tpkey_field *) ddsrt_calloc(1, sizeof(*fld));
-    fld->id = ddsrt_strdup(cursor);
+    char *fld = ddsrt_strdup(cursor);
     (void) ddsrt_hh_add (keys_tb, fld);
     while ((cursor = strchr(cursor, '.')) != NULL)
     {
-      fld = (struct tpkey_field *) ddsrt_calloc(1, sizeof(*fld));
-      fld->id = ddsrt_strndup(fields[i], (size_t)(cursor - fields[i]));
-      (void) ddsrt_hh_add(keys_tb, fld);
+      fld = ddsrt_strndup(fields[i], (size_t)(cursor - fields[i]));
+      if (!ddsrt_hh_add(keys_tb, fld))
+        tpkey_field_free ((void *)fld, NULL);
       cursor++;
     }
   }
   struct ddsi_type *t = type_assign_keys(NULL, type, keys_tb);
+  ddsi_type_ref(t->gv, NULL, t);
+
   ddsrt_hh_enum(keys_tb, tpkey_field_free, NULL);
   ddsrt_hh_free(keys_tb);
-  ddsi_type_ref(t->gv, NULL, t);
   return t;
 }
 
