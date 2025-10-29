@@ -1168,12 +1168,7 @@ static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *n
       do { \
         struct dds_sysdef_QOS_POLICY_ ## policy *qp = (struct dds_sysdef_QOS_POLICY_ ## policy *) pstate->current; \
         struct dds_sysdef_qos *sdqos = (struct dds_sysdef_qos *) pstate->current->parent; \
-        if (qp->populated == 0) \
-        { \
-          PARSER_ERROR (pstate, line, "No parameters set for " policy_desc " QoS policy"); \
-          ret = SD_PARSE_RESULT_SYNTAX_ERR; \
-        } \
-        else if ((qp->populated & QOS_POLICY_ ## policy ## _REQUIRED_PARAMS) != QOS_POLICY_ ## policy ## _REQUIRED_PARAMS) \
+        if ((qp->populated & QOS_POLICY_ ## policy ## _REQUIRED_PARAMS) != QOS_POLICY_ ## policy ## _REQUIRED_PARAMS) \
         { \
           PARSER_ERROR (pstate, line, "Not all required parameters set for " policy_desc " QoS policy"); \
           ret = SD_PARSE_RESULT_SYNTAX_ERR; \
@@ -1373,13 +1368,22 @@ static bool qget_PARTITION (dds_qos_t *qos)
 static void qset_PARTITION (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_PARTITION *qp)
 {
   uint32_t c = 0;
-  for (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *v = qp->name->elements; v != NULL; v = (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *) v->xmlnode.next)
-    c++;
-
-  const char **partitions = ddsrt_malloc (c * sizeof (*partitions));
-  uint32_t i = 0;
-  for (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *v = qp->name->elements; v != NULL; v = (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *) v->xmlnode.next)
-    partitions[i++] = v->element;
+  const char **partitions = NULL;
+  const char *empty = "";
+  if (qp->name != NULL) {
+    if (qp->name->elements != NULL) {
+      for (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *v = qp->name->elements; v != NULL; v = (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *) v->xmlnode.next)
+        c++;
+      partitions = ddsrt_malloc (c * sizeof (*partitions));
+      uint32_t i = 0;
+      for (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *v = qp->name->elements; v != NULL; v = (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *) v->xmlnode.next)
+        partitions[i++] = (v->element != NULL)? v->element: empty;
+    } else {
+      c = 1U;
+      partitions = ddsrt_malloc (c * sizeof (*partitions));
+      partitions[0] = empty;
+    }
+  }
   dds_qset_partition (qos, c, partitions);
 #if _MSC_VER
 __pragma(warning(push))

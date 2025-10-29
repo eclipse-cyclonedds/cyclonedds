@@ -324,8 +324,10 @@ CU_Theory((char *configuration, char *key, dds_qos_kind_t kind, dds_return_t cod
   "<ownership_strength><value>%d</value></ownership_strength>"
 #define QOS_PARTITION_ELEMENT \
   "<element>%s</element>"
+#define QOS_PARTITION_NAME \
+  "<name>%s</name>"
 #define QOS_POLIC_PARTITION_FMT \
-  "<partition><name>%s</name></partition>"
+  "<partition>%s</partition>"
 #define QOS_ACCESS_SCOPE_KIND(ask) \
   "<access_scope>"#ask"</access_scope>"
 #define QOS_COHERENT_ACCESS(ca) \
@@ -706,26 +708,31 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
   if ((ignore_ent || (kind == DDS_PUBLISHER_QOS || kind == DDS_SUBSCRIBER_QOS)) &&
       (ret >= 0) && qos->present & DDSI_QP_PARTITION)
   {
-    if (qos->partition.n > 0)
-    {
-      char *part_elems = ddsrt_strdup("");
-      for (uint32_t i = 0; i < qos->partition.n; i++) {
-        char *tmp = part_elems;
-        ret = ddsrt_asprintf(&part_elems, "%s"QOS_PARTITION_ELEMENT, part_elems, qos->partition.strs[i]);
-        CHECK_RET_OK(ret);
-        ddsrt_free(tmp);
-      }
+    char *part_elems = ddsrt_strdup("");
+    for (uint32_t i = 0; i < qos->partition.n; i++) {
+      char *tmp = part_elems;
+      ret = ddsrt_asprintf(&part_elems, "%s"QOS_PARTITION_ELEMENT, part_elems, qos->partition.strs[i]);
       CHECK_RET_OK(ret);
-      char *partition;
-      ret = ddsrt_asprintf(&partition, QOS_POLIC_PARTITION_FMT, part_elems);
-      ddsrt_free(part_elems);
-      CHECK_RET_OK(ret);
-      char *tmp = sysdef_qos;
-      ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, partition);
       ddsrt_free(tmp);
-      ddsrt_free(partition);
-      *validate_mask |= DDSI_QP_PARTITION;
     }
+    CHECK_RET_OK(ret);
+    char *part_names = ddsrt_strdup("");
+    if (qos->partition.n > 0) {
+      char *tmp = part_names;
+      ret = ddsrt_asprintf(&part_names, QOS_PARTITION_NAME, part_elems);
+      CHECK_RET_OK(ret);
+      ddsrt_free (tmp);
+    }
+    ddsrt_free(part_elems);
+    char *partition;
+    ret = ddsrt_asprintf(&partition, QOS_POLIC_PARTITION_FMT, part_names);
+    ddsrt_free (part_names);
+    CHECK_RET_OK(ret);
+    char *tmp = sysdef_qos;
+    ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, partition);
+    ddsrt_free(tmp);
+    ddsrt_free(partition);
+    *validate_mask |= DDSI_QP_PARTITION;
   }
   if ((ignore_ent || (kind == DDS_PUBLISHER_QOS || kind == DDS_SUBSCRIBER_QOS)) &&
       (ret >= 0) && qos->present & DDSI_QP_PRESENTATION)
