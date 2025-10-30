@@ -1549,12 +1549,16 @@ static struct ddsi_type * type_assign_keys(const char *prefix, const struct ddsi
   }
 
   struct xt_type *dt = ddsi_xt_type_key_erased (gv, st);
+  if (st != &type->xt) {
+    ddsi_xt_type_fini (gv, (struct xt_type *)st, true);
+    ddsrt_free ((struct xt_type *)st);
+  }
 
   switch (dt->_d)
   {
     case DDS_XTypes_TK_STRUCTURE:
     {
-      n_hash = ddsrt_mh3 (st->_u.structure.detail.type_name, strlen (st->_u.structure.detail.type_name), n_hash);
+      n_hash = ddsrt_mh3 (dt->_u.structure.detail.type_name, strlen (dt->_u.structure.detail.type_name), n_hash);
       for (uint32_t j = 0; j < dt->_u.structure.members.length; j++)
       {
         struct xt_struct_member *m = &dt->_u.structure.members.seq[j];
@@ -1591,7 +1595,8 @@ static struct ddsi_type * type_assign_keys(const char *prefix, const struct ddsi
       abort();
   }
 
-  (void) memcpy (&t->xt, dt, sizeof(*dt));
+  ddsi_xt_copy (gv, &t->xt, dt);
+  ddsi_xt_type_fini (gv, dt, true);
   ddsrt_free (dt);
   t->gv = type->gv;
 

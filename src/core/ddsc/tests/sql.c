@@ -154,13 +154,15 @@ CU_Test(ddsc_sql, get_token)
                                           I,S,I,S,I,S,I,S,I);
 #undef I
 
+/* supported */
   TEST_GET_TOKEN("OR",                1,  DDS_SQL_TK_OR);
   TEST_GET_TOKEN("NOT",               1,  DDS_SQL_TK_NOT);
   TEST_GET_TOKEN("AND",               1,  DDS_SQL_TK_AND);
-  TEST_GET_TOKEN("LIKE",              1,  DDS_SQL_TK_LIKE_KW);
-  TEST_GET_TOKEN("ESCAPE",            1,  DDS_SQL_TK_ESCAPE);
-  TEST_GET_TOKEN("COLLATE",           1,  DDS_SQL_TK_COLLATE);
-  TEST_GET_TOKEN("BETWEEN",           1,  DDS_SQL_TK_BETWEEN);
+/* not supported */
+  TEST_GET_TOKEN("LIKE",              1,  DDS_SQL_TK_ID);
+  TEST_GET_TOKEN("ESCAPE",            1,  DDS_SQL_TK_ID);
+  TEST_GET_TOKEN("COLLATE",           1,  DDS_SQL_TK_ID);
+  TEST_GET_TOKEN("BETWEEN",           1,  DDS_SQL_TK_ID);
   TEST_GET_TOKEN("GLOB",              1,  DDS_SQL_TK_ID);
 
   TEST_GET_TOKEN("x\'414243\'",       1,  DDS_SQL_TK_BLOB);
@@ -193,7 +195,7 @@ CU_Test(ddsc_sql, get_token)
     const char *e = ex; \
     int t = tki; \
     (void) dds_sql_get_numeric(&(exp.n),(const unsigned char **)&e, &t, sz); \
-    if ((passed = (exp.fld == val) && (t == tko))) { \
+    if ((passed = !(exp.fld-val < 0U || exp.fld-val > 0U) && (t == tko))) { \
       ; \
     } else { \
       if (t == DDS_SQL_TK_INTEGER) \
@@ -329,7 +331,7 @@ CU_Test(ddsc_sql, get_string)
       CU_ASSERT (false); \
       break; \
     } \
-    if (exp.field != val) { \
+    if ((exp.field-val < 0U || exp.field-val > 0U)) { \
       if (affinity == DDS_SQL_AFFINITY_INTEGER) \
         fprintf (stderr, "[FAILED]:%-20s -> expected: %lli actual: %lli\n", e, (long long int)val, (long long int)exp.n.i); \
       else if (affinity == DDS_SQL_AFFINITY_REAL) \
@@ -549,6 +551,39 @@ CU_Theory((char *s, char *e), ddsc_sql, expr_parse)
   if (!(result = !memcmp(res, e, pos)))
     fprintf (stderr, "[FAILED]:\t%s\nexpected:\t%s (%zu)\nactual:\t%s (%zu)\n", s, e, strlen(e), res, pos);
   CU_ASSERT(result);
+}
+
+CU_TheoryDataPoints(ddsc_sql, expr_parse_error) = {
+  CU_DataPoints(char *,
+    "?1 + ?", "?a", "?(1)",
+    "+-/", "10!=11 AND 5 !=!1", ")(", "(()", "(()())", "`g` == ",
+    "`a` == ?3 AND (`b` == 4 OR (`c` == (?5 AND (`d` == (6 OR (`e` == (7 AND (`f` == (8 OR (`g` == )))))))))",
+    "a c + b == 1?2", "c + b == 1?2"
+  ),
+  CU_DataPoints(int,
+    6, 1, 1,
+    3, 16, 1, 3, 3, 7,
+    95,
+    2, 10
+  ),
+};
+
+CU_Theory((char *s, int pos), ddsc_sql, expr_parse_error)
+{
+  struct dds_sql_expr *exp = NULL;
+  dds_return_t ret = dds_sql_expr_init(&exp, DDS_SQL_EXPR_KIND_PARAMETER);
+  CU_ASSERT_FATAL(ret == DDS_RETCODE_OK);
+
+  ret = dds_sql_expr_parse((const unsigned char *)s, &exp);
+  CU_ASSERT_FATAL(ret == DDS_RETCODE_BAD_PARAMETER);
+  int p = exp->err_pos;
+
+  dds_sql_expr_fini(exp);
+  fprintf (stderr, "%s\n", s);
+  for (int i = 0; i < p - 1; i++)
+    fprintf (stderr, " ");
+  fprintf (stderr, "^\n");
+  CU_ASSERT_EQ_FATAL(p, pos);
 }
 
 #define TEST_BIND_PARAMETER_NUM(e,ex,ix,fn,p,rx) \
