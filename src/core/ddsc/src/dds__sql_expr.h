@@ -90,6 +90,9 @@ struct dds_sql_token {
     */
   } n;
   char *s;        // DDS_SQL_TK_BLOB/DDS_SQL_TK_STRING
+  /* FIXME:
+  wchar_t w;      // still string but need to be extended to encoding.
+   * */
 };
 
 
@@ -153,11 +156,12 @@ typedef struct dds_sql_expr {
    * mistakes and ofcourse to save some resources on evolve incorrect
    * statements.
    * */
+  int err_pos;
 } dds_sql_expr_t;
 
 /*
  * calculate the amount of parameters presented in expression. which is usefull
- * to do before event start parsing process.
+ * to do before even start parsing process.
  * */
 size_t dds_sql_expr_count_params(const char *s);
 
