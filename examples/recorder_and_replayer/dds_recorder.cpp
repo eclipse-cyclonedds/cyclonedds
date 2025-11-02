@@ -23,9 +23,10 @@
 #include "dds/dds.h"
 #include "mcap/writer.hpp"
 
-// most of part is copied from dynsub.c, but ignore xtypeobj.
-// we do not have a reliable way with c api to
-// #include "dds/ddsc/dds_public_alloc.h"
+// most part is copied from dynsub.c, but ignore xtypeobj.
+// we do not have a reliable way with c api to obtain idl at runtime, so we have to
+// offer it as input.
+
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds_topic_descriptor_serde.h"
@@ -88,6 +89,126 @@ error:
   return (*descriptor != NULL) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
 }
 
+static bool prepare_mcap (const char *topic_name, const char *type_name, const char *idl_file, const dds_topic_descriptor_t *desc,
+                          mcap::McapWriter &writer, mcap::Channel &channel)
+{
+  auto opts = mcap::McapWriterOptions ("");
+  std::string outPath = std::string (topic_name) + ".mcap";
+  // default chunking is fine; keep CRCs on for safety
+  auto status = writer.open (outPath, opts);
+  if (!status.ok ())
+  {
+    std::cerr << "Failed to open MCAP: " << status.message << "\n";
+    return false;
+  }
+
+  // as it's not very easy to obtain idl text in runtime, we have to offer it manually...
+  // if it's not presented, tools such as foxglove/lichtblick won't be able to use it.
+  // but we still can replay with our dds_replayer.
+  //
+  // Note from mcap documents:
+  // the idl text must be the text of a single, self-contained OMG IDL source file.
+  // That is, all referenced type definitions must be present, and there must be no
+  // preprocessor directives, i.e. #include "another.idl".
+
+  mcap::Schema schema;
+  schema.id = 0;
+  if (idl_file != NULL && idl_file[0] != '\0' && type_name != NULL && type_name[0] != '\0')
+  {
+    std::vector<std::byte> idl_text;
+    FILE *fp = fopen (idl_file, "rb");
+    if (fp)
+    {
+      if (fseek (fp, 0, SEEK_END) == 0)
+      {
+        long len = ftell (fp);
+        if (len > 0)
+        {
+          idl_text.resize (static_cast<size_t> (len));
+          rewind (fp);
+          size_t n = fread (idl_text.data (), 1, idl_text.size (), fp);
+          idl_text.resize (n);
+        }
+      }
+      fclose (fp);
+    } else
+    {
+      std::cerr << "Warning: failed to open IDL file: " << idl_file << "\n";
+      return false;
+    }
+
+    schema.name = type_name;
+    schema.encoding = "omgidl";
+    schema.data = std::move (idl_text);
+    writer.addSchema (schema);
+  }
+
+  // fill channel(i.e. topic in mcap)
+  channel.topic = topic_name;
+  channel.messageEncoding = "cdr";
+  channel.schemaId = schema.id;
+
+  // we need to save the desc in the metadata of mcap file,
+  // so we can use it to build the topic when we replay it.
+  const size_t buffer_sz = dds_topic_descriptor_serialized_size (desc);
+  void *buffer = (void *)malloc (buffer_sz);
+  dds_topic_descriptor_serialize (desc, buffer, buffer_sz);
+  channel.metadata.emplace ("topic_descriptor", std::string (reinterpret_cast<char *> (buffer), buffer_sz));
+  free (buffer);
+  writer.addChannel (channel);
+  return true;
+}
+
+static bool write_to_mcap (const dds_entity_t reader, mcap::McapWriter *writer, mcap::Channel *channel)
+{
+  const size_t MAX_SAMPLE_SIZE = 10;
+
+  struct ddsi_serdata *sd[MAX_SAMPLE_SIZE] = {NULL};
+  dds_sample_info_t si[MAX_SAMPLE_SIZE];
+  dds_return_t n = dds_takecdr (reader, sd, MAX_SAMPLE_SIZE, si, 0);
+  if (n < 0)
+  {
+    fprintf (stderr, "dds_takecdr: %s\n", dds_strretcode (n));
+    return false;
+  }
+
+  if (n != 0)
+  {
+    // save raw CDR into mcap
+    for (int32_t i = 0; i < n; i++)
+    {
+      if (si[i].valid_data)
+      {
+        size_t size = ddsi_serdata_size (sd[i]);
+        std::vector<std::byte> payload (size);
+        ddsi_serdata_to_ser (sd[i], 0, size, payload.data ()); // Extract the data from the buffer
+        ddsi_serdata_unref (sd[i]);
+
+        // Build MCAP message
+        mcap::Message msg;
+        msg.channelId = channel->id;
+        const uint64_t ts =
+            (uint64_t)std::chrono::duration_cast<std::chrono::nanoseconds> (std::chrono::system_clock::now ().time_since_epoch ()).count ();
+        msg.logTime = ts;
+        msg.publishTime = si->source_timestamp;
+        msg.data = payload.data ();
+        msg.dataSize = payload.size ();
+
+        const auto st = writer->write (msg);
+        if (st.ok ())
+        {
+          printf ("one msg written to mcap..\n");
+        } else
+        {
+          std::cerr << "MCAP write failed: " << st.message << "\n";
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
 #if !DDSRT_WITH_FREERTOS && !__ZEPHYR__
 static void signal_handler (int sig)
 {
@@ -162,76 +283,15 @@ int main (int argc, char **argv)
   // prepare mcap writer
   mcap::McapWriter writer;
   mcap::Channel channel;
+  if (!prepare_mcap (topic_name, type_name, idl_file, desc, writer, channel))
   {
-    auto opts = mcap::McapWriterOptions ("");
-    std::string outPath = std::string (topic_name) + ".mcap";
-    // default chunking is fine; keep CRCs on for safety
-    auto status = writer.open (outPath, opts);
-    if (!status.ok ())
-    {
-      std::cerr << "Failed to open MCAP: " << status.message << "\n";
-      dds_delete (participant);
-      return 1;
-    }
-
-    // as it's not very easy to obtain idl text in runtime, we have to offer it manually...
-    // if it's not presented, tools such as foxglove/lichtblick won't be able to use it.
-    // but we still can replay with our dds_replayer.
-    //
-    // Note from mcap documents:
-    // the idl text must be the text of a single, self-contained OMG IDL source file.
-    // That is, all referenced type definitions must be present, and there must be no
-    // preprocessor directives, i.e. #include "another.idl".
-
-    mcap::Schema schema;
-    schema.id = 0;
-    if (idl_file != NULL && idl_file[0] != '\0' && type_name != NULL && type_name[0] != '\0')
-    {
-      std::vector<std::byte> idl_text;
-      FILE *fp = fopen (idl_file, "rb");
-      if (fp)
-      {
-        if (fseek (fp, 0, SEEK_END) == 0)
-        {
-          long len = ftell (fp);
-          if (len > 0)
-          {
-            idl_text.resize (static_cast<size_t> (len));
-            rewind (fp);
-            size_t n = fread (idl_text.data (), 1, idl_text.size (), fp);
-            idl_text.resize (n);
-          }
-        }
-        fclose (fp);
-      } else
-      {
-        std::cerr << "Warning: failed to open IDL file: " << idl_file << "\n";
-        return 1;
-      }
-
-      schema.name = type_name;
-      schema.encoding = "omgidl";
-      schema.data = std::move (idl_text);
-      writer.addSchema (schema);
-    }
-
-    // fill channel(i.e. topic in mcap)
-    channel.topic = topic_name;
-    channel.messageEncoding = "cdr";
-    channel.schemaId = schema.id;
-
-    // we need to save the desc in the metadata of mcap file,
-    // so we can use it to build the topic when we replay it.
-    const size_t buffer_sz = dds_topic_descriptor_serialized_size (desc);
-    void *buffer = (void *)malloc (buffer_sz);
-    dds_topic_descriptor_serialize (desc, buffer, buffer_sz);
-    channel.metadata.emplace ("topic_descriptor", std::string (reinterpret_cast<char *> (buffer), buffer_sz));
-    free (buffer);
-    writer.addChannel (channel);
-    std::cout << "mcap is ready\n";
+    fprintf (stderr, "prepare mcap failed\n");
+    dds_delete (participant);
+    return 1;
   }
-
   dds_delete_topic_descriptor (desc);
+  printf ("mcap is ready\n");
+
 
   // ... given those, we can create a reader just like we do normally ...
   const dds_entity_t reader = dds_create_reader (participant, topic, NULL, NULL);
@@ -267,57 +327,16 @@ int main (int argc, char **argv)
 #endif
 
   bool termflag = false;
-  const size_t MAX_SAMPLE_SIZE = 10;
   while (!termflag)
   {
     (void)dds_waitset_wait (waitset, NULL, 0, DDS_INFINITY);
     dds_read_guardcondition (termcond, &termflag);
 
-    bool ok = true;
-    // save samples here
-    struct ddsi_serdata *sd[MAX_SAMPLE_SIZE] = {NULL};
-    dds_sample_info_t si[MAX_SAMPLE_SIZE];
-    dds_return_t n = dds_takecdr (reader, sd, MAX_SAMPLE_SIZE, si, 0);
-    if (n < 0)
+    if (!write_to_mcap (reader, &writer, &channel))
     {
-      fprintf (stderr, "dds_takecdr: %s\n", dds_strretcode (n));
-      ok = false;
-    } else if (n != 0)
-    {
-      // ... that we then save raw CDR into mcap
-      for (int32_t i = 0; i < n; i++)
-      {
-        if (si[i].valid_data)
-        {
-          size_t size = ddsi_serdata_size (sd[i]);
-          std::vector<std::byte> payload (size);
-          ddsi_serdata_to_ser (sd[i], 0, size, payload.data ()); // Extract the data from the buffer
-          ddsi_serdata_unref (sd[i]);
-
-          // Build MCAP message
-          mcap::Message msg;
-          msg.channelId = channel.id;
-          const uint64_t ts =
-              (uint64_t)std::chrono::duration_cast<std::chrono::nanoseconds> (std::chrono::system_clock::now ().time_since_epoch ())
-                  .count ();
-          msg.logTime = ts;
-          msg.publishTime = si->source_timestamp;
-          msg.data = payload.data ();
-          msg.dataSize = payload.size ();
-
-          auto st = writer.write (msg);
-          printf ("one msg written to mcap..\n");
-          if (!st.ok ())
-          {
-            std::cerr << "MCAP write failed: " << st.message << "\n";
-            break;
-          }
-        }
-      }
-    }
-
-    if (!ok)
+      fprintf (stderr, "write_to_mcap failed, exiting..\n");
       break;
+    }
   }
 
   if (termflag)
