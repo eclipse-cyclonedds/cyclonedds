@@ -32,7 +32,7 @@ endif()
 
 add_library(dds_topic_descriptor_serde STATIC dds_topic_descriptor_serde.c)
 if(TARGET CycloneDDS::ddsc)
-  # we need dds_stream_countops()
+  # dds_topic_descriptor_serde need dds_stream_countops()
   target_include_directories(dds_topic_descriptor_serde
     PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/cdr/include")
@@ -43,8 +43,6 @@ target_link_libraries(dds_topic_descriptor_serde PRIVATE CycloneDDS::ddsc)
 
 add_executable(recorder dds_recorder.cpp)
 
-# add_executable(replayer dds_replayer.cpp)
-
 if(TARGET CycloneDDS::ddsc)
   target_include_directories(recorder
     PRIVATE
@@ -52,5 +50,19 @@ if(TARGET CycloneDDS::ddsc)
     "${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsi/include")
 endif()
 target_link_libraries(recorder CycloneDDS::ddsc dds_topic_descriptor_serde mcap)
-target_compile_definitions(recorder PUBLIC "MCAP_COMPRESSION_NO_ZSTD")
-target_compile_definitions(recorder PUBLIC "MCAP_COMPRESSION_NO_LZ4")
+
+# force to ignore many compile warnings in mcap...
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
+  set(disable_flags 
+    "-Wno-documentation"
+    "-Wno-error=documentation"
+    "-Wno-sign-conversion"
+    "-Wno-error=sign-conversion"
+    "-Wno-implicit-int-conversion"
+    "-Wno-error=implicit-int-conversion"
+  )
+  target_compile_options(mcap PRIVATE ${disable_flags})
+  target_compile_options(recorder PRIVATE ${disable_flags})
+endif()
+
+# add_executable(replayer dds_replayer.cpp)
