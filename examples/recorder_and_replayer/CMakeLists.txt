@@ -21,6 +21,7 @@ set(CMAKE_DISABLE_FIND_PACKAGE_zstd TRUE)
 set(CMAKE_DISABLE_FIND_PACKAGE_LZ4 TRUE)
 set(CMAKE_DISABLE_FIND_PACKAGE_ZSTD TRUE)
 
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
   mcap_builder
   GIT_REPOSITORY https://github.com/olympus-robotics/mcap_builder.git
