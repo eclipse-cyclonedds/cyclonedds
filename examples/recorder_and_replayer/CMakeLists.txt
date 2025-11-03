@@ -11,6 +11,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(recorder_replayer LANGUAGES C CXX)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED)
 include(FetchContent)
 
 # Prevent subprojects (like mcap_builder) from attempting to find lz4/zstd
@@ -51,6 +53,17 @@ if(TARGET CycloneDDS::ddsc)
 endif()
 target_link_libraries(recorder CycloneDDS::ddsc dds_topic_descriptor_serde mcap)
 
+
+# add_executable(replayer dds_replayer.cpp)
+
+# if(TARGET CycloneDDS::ddsc)
+#   target_include_directories(replayer
+#     PRIVATE
+#     "${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/cdr/include"
+#     "${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsi/include")
+# endif()
+# target_link_libraries(replayer CycloneDDS::ddsc dds_topic_descriptor_serde mcap)
+
 # force to ignore many compile warnings in mcap...
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
   set(disable_flags 
@@ -63,6 +76,5 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "Apple
   )
   target_compile_options(mcap PRIVATE ${disable_flags})
   target_compile_options(recorder PRIVATE ${disable_flags})
+  # target_compile_options(replayer PRIVATE ${disable_flags})
 endif()
-
-# add_executable(replayer dds_replayer.cpp)

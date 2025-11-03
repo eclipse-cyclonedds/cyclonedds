@@ -343,8 +343,8 @@ dds_topic_descriptor_t *dds_topic_descriptor_deserialize (const void *buffer, si
       goto error;
     memcpy (type_map_data, ptr, type_map_sz);
     *(const unsigned char **)&desc->type_mapping.data = type_map_data;
-    ptr += type_map_sz;
   }
+  assert (ptr == end);
 
   return desc;
 
