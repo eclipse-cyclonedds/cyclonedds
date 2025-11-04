@@ -289,10 +289,8 @@ static dds_return_t topic_expr_filter_param_rebind (struct dds_filter *a, const 
   size_t i = 0;
   struct ddsrt_hh_iter it;
   for (dds_sql_param_t *param = ddsrt_hh_iter_first(ef->bin_expr->param_tokens, &it); param != NULL; param = ddsrt_hh_iter_next(&it))
-  {
-    fields[i] = param->token.s;
-    i++;
-  }
+    fields[i++] = param->token.s;
+
   assert (i == nfields);
 
   struct ddsi_type *res_type = ddsi_type_dup_with_keys(type, fields, nfields);
@@ -474,9 +472,9 @@ static dds_return_t topic_func_filter_param_rebind(struct dds_filter *a, const s
 {
   /* FIXME:
    * unused in context of function filter, but could be. for example of
-   * filtering on keys only, or in case of interest in specific filed of data.
-   * which sound nice, because allows us to not deserialize whole sample if
-   * user don't need one. */
+   * filtering on keys only, or in case of interest in specific fields subset
+   * in data, which sound nice, because allows us to not deserialize whole
+   * sample if user don't need one. */
   (void) st;
   dds_function_content_filter_t *fflt = b->filter.func;
   if (b->kind != DDS_CONTENT_FILTER_FUNCTION || fflt == NULL)
