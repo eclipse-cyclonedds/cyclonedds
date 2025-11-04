@@ -78,4 +78,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "Apple
   target_compile_options(mcap PRIVATE ${disable_flags})
   target_compile_options(recorder PRIVATE ${disable_flags})
   # target_compile_options(replayer PRIVATE ${disable_flags})
+elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
+  target_compile_options(mcap PRIVATE -Wno-error=analyzer-malloc-leak -Wno-analyzer-malloc-leak)
+  target_compile_options(recorder PRIVATE -Wno-error=analyzer-malloc-leak -Wno-analyzer-malloc-leak)
+  target_compile_options(mcap PRIVATE "")
 endif()
