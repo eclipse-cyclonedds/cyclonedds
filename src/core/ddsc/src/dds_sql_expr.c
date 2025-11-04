@@ -1448,7 +1448,7 @@ static int eval_expr(const unsigned char **s, int prec, struct dds_sql_token **e
         ret += (int)(*s - cursor);
         goto err;
       }
-      if ((token_sz = get_op_token(&cursor, &token) <= 0 || token < 0) || (token != DDS_SQL_TK_RP)) {
+      if ((get_op_token(&cursor, &token) <= 0 || token < 0) || (token != DDS_SQL_TK_RP)) {
         ret = (int)(*s - cursor);
         goto err;
       }
@@ -1459,7 +1459,7 @@ static int eval_expr(const unsigned char **s, int prec, struct dds_sql_token **e
     case DDS_SQL_TK_FLOAT:
     {
       const unsigned char *precursor = cursor - token_sz;
-      if ((ret = dds_sql_get_numeric(&(l_for)->n, &precursor, &token, token_sz)) < 0) {
+      if (dds_sql_get_numeric(&(l_for)->n, &precursor, &token, token_sz) < 0) {
         ret = (int)(*s - cursor);
         goto err;
       }
@@ -1494,7 +1494,7 @@ static int eval_expr(const unsigned char **s, int prec, struct dds_sql_token **e
     {
       const unsigned char *precursor = cursor - token_sz + 1;
       int tok = DDS_SQL_TK_INTEGER;
-      if ((ret = dds_sql_get_numeric(&(l_for)->n, &precursor, &tok, token_sz - 1)) < 0) {
+      if (dds_sql_get_numeric(&(l_for)->n, &precursor, &tok, token_sz - 1) < 0) {
         ret = (int)(*s - cursor);
         goto err;
       }

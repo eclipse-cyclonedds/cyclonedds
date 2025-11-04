@@ -1305,11 +1305,8 @@ void ddsi_type_unref_sertype (struct ddsi_domaingv *gv, const struct ddsi_sertyp
     struct ddsi_type *type;
     ddsi_typeid_t *type_id = ddsi_sertype_typeid (sertype, kinds[n]);
     if (!ddsi_typeid_is_none (type_id) && ((type = ddsi_type_lookup_locked (gv, type_id))))
-    {
-      struct ddsi_typeid_str tistr;
-      GVTRACE ("unref ddsi_type id %s", ddsi_make_typeid_str (&tistr, &type->xt.id));
-      ddsi_type_unref_impl_locked (gv, type);
-    }
+      ddsi_type_unref_locked (gv, type);
+
     if (type_id)
     {
       ddsi_typeid_fini (type_id);
@@ -1535,17 +1532,16 @@ void ddsi_type_pair_free (struct ddsi_type_pair *type_pair)
 static struct ddsi_type * type_assign_keys(const char *prefix, const struct ddsi_type *type, const struct ddsrt_hh *keys_tb)
 {
   struct ddsi_domaingv *gv = type->gv;
-  struct ddsi_type *t = (struct ddsi_type *) ddsrt_calloc(1, sizeof(*t));
-
   const struct xt_type *st = &type->xt;
 
-  uint32_t n_hash = (prefix != NULL)? ddsrt_mh3 (prefix, strlen(prefix), 0): 0;
+  struct ddsi_type *t = NULL;
+  dds_return_t ret;
 
   if (st->_d == DDS_XTypes_TK_STRUCTURE && st->_u.structure.base_type != NULL)
   {
     struct ddsi_non_assignability_reason reason;
-    st = ddsi_xt_expand_basetype (gv, st, &reason);
-    assert (st != NULL);
+    if ((st = ddsi_xt_expand_basetype (gv, st, &reason)) == NULL)
+      goto err;
   }
 
   struct xt_type *dt = ddsi_xt_type_key_erased (gv, st);
@@ -1558,65 +1554,74 @@ static struct ddsi_type * type_assign_keys(const char *prefix, const struct ddsi
   {
     case DDS_XTypes_TK_STRUCTURE:
     {
-      n_hash = ddsrt_mh3 (dt->_u.structure.detail.type_name, strlen (dt->_u.structure.detail.type_name), n_hash);
-      for (uint32_t j = 0; j < dt->_u.structure.members.length; j++)
+      struct xt_struct *structure = &dt->_u.structure;
+      uint32_t n_hash = ddsrt_mh3 (structure->detail.type_name, strlen (structure->detail.type_name), 0U);
+      for (uint32_t j = 0; j < structure->members.length; j++)
       {
-        struct xt_struct_member *m = &dt->_u.structure.members.seq[j];
-        char *tmpl = NULL;
-        if (prefix != NULL) {
+        struct xt_struct_member *m = &structure->members.seq[j];
+        assert (m != NULL);
+        char *tmpl = (prefix == NULL)? m->detail.name: NULL;
+        if (tmpl == NULL)
           (void) ddsrt_asprintf (&tmpl, "%s.%s", prefix, m->detail.name);
-        } else {
-          tmpl = m->detail.name;
-        }
-        char *item = NULL;
-        if ((item = ddsrt_hh_lookup(keys_tb, tmpl)) != NULL)
+
+        char *item = ddsrt_hh_lookup (keys_tb, tmpl);
+        if (tmpl != m->detail.name)
+          ddsrt_free (tmpl);
+
+        if (item != NULL)
         {
           /* FIXME: we need to classify member by primitive/not primitive */
           if (m->type != NULL && m->type->xt._d >= DDS_XTypes_TK_ALIAS)
           {
             struct ddsi_type *sub_type = type_assign_keys(item, m->type, keys_tb);
-            ddsi_type_unref (gv, m->type);
-            ddsi_type_ref (gv, &m->type, sub_type); /* FIXME: ref? */
+            ddsi_type_unref_locked (gv, m->type);
+            ddsi_type_ref_locked (gv, &m->type, sub_type);
+            ret = ddsi_type_register_dep_impl (gv, &dt->id, &m->type, &m->type->xt.id.x, false);
+            ddsi_type_unref_locked (gv, m->type);
+            if (ret != DDS_RETCODE_OK)
+              goto err_key;
           }
           /* FIXME:
            * Is it possible deserialize optional field as part of keys
            * deser., if presented? */
           assert ((m->flags & DDS_XTypes_IS_OPTIONAL) == 0);
           m->flags |= DDS_XTypes_IS_KEY;
-          n_hash = ddsrt_mh3 (tmpl, strlen (tmpl), n_hash);
+          n_hash = ddsrt_mh3 (m->detail.name, strlen (m->detail.name), n_hash);
         }
-        if (prefix != NULL)
-          ddsrt_free (tmpl);
       }
+      char *ntype_name = NULL;
+      (void) ddsrt_asprintf(&ntype_name, "%u", n_hash);
+      ddsrt_strlcpy (structure->detail.type_name, ntype_name, sizeof(structure->detail.type_name));
+      ddsrt_free (ntype_name);
       break;
     }
-    /* FIXME: unions, arrays and all non primitive types. */
+    case DDS_XTypes_TK_ENUM:
+    case DDS_XTypes_TK_BITMASK:
+    case DDS_XTypes_TK_UNION:
+    case DDS_XTypes_TK_BITSET:
     default:
       abort();
   }
 
-  ddsi_xt_copy (gv, &t->xt, dt);
+  struct DDS_XTypes_TypeObject to_c;
+  struct DDS_XTypes_TypeIdentifier ti_c;
+  ddsi_typeid_t ti;
+  ddsi_xt_get_typeid_impl (dt, &ti_c, DDSI_TYPEID_KIND_COMPLETE);
+  ddsi_xt_get_typeobject_kind_impl (dt, &to_c, DDSI_TYPEID_KIND_COMPLETE);
+  if (ddsi_typeobj_get_hash_id (&to_c, &ti) != DDS_RETCODE_OK)
+    goto err_xtget;
+
+  if ((t = ddsi_type_lookup_locked_impl (gv, &ti.x)) == NULL)
+    if (ddsi_type_new (gv, &t, &ti_c, &to_c) != DDS_RETCODE_OK)
+      t = NULL;
+
+err_xtget:
+  ddsi_typeid_fini_impl (&ti_c);
+  ddsi_typeobj_fini_impl (&to_c);
+err_key:
   ddsi_xt_type_fini (gv, dt, true);
   ddsrt_free (dt);
-  t->gv = type->gv;
-
-  char *ntype_name = NULL;
-  (void) ddsrt_asprintf(&ntype_name, "%u", n_hash);
-  ddsrt_strlcpy (t->xt._u.structure.detail.type_name, ntype_name, strlen(ntype_name));
-  ddsrt_free (ntype_name);
-
-  struct DDS_XTypes_TypeObject to;
-  ddsi_xt_get_typeobject_kind_impl (&t->xt, &to, DDSI_TYPEID_KIND_COMPLETE);
-  ddsi_typeobj_get_hash_id (&to, &t->xt.id);
-  ddsi_typeobj_fini_impl (&to);
-
-  struct ddsi_type *ex_type = NULL;
-  if ((ex_type = ddsi_type_lookup_locked_impl (t->gv, &t->xt.id.x)) == NULL) {
-    ddsrt_avl_insert (&ddsi_typelib_treedef, &t->gv->typelib, t);
-  } else {
-    ddsi_type_ref (t->gv, &t, ex_type);
-  }
-
+err:
   return t;
 }
 
