@@ -78,8 +78,21 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "Apple
   target_compile_options(mcap PRIVATE ${disable_flags})
   target_compile_options(recorder PRIVATE ${disable_flags})
   # target_compile_options(replayer PRIVATE ${disable_flags})
-elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
-  target_compile_options(mcap PRIVATE -Wno-error=analyzer-malloc-leak -Wno-analyzer-malloc-leak)
-  target_compile_options(recorder PRIVATE -Wno-error=analyzer-malloc-leak -Wno-analyzer-malloc-leak)
-  target_compile_options(mcap PRIVATE "")
+endif()
+
+if(MSVC)
+  target_compile_options(mcap PRIVATE /wd4251 /WX-)
+endif()
+
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+  if(ANALYZER STREQUAL "on")
+    if(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "12")
+      set(disable_flags
+      "-Wno-error=analyzer-malloc-leak"
+      "-Wno-analyzer-malloc-leak"
+      )
+      target_compile_options(mcap PRIVATE ${disable_flags})
+      target_compile_options(recorder PRIVATE ${disable_flags})
+    endif()
+  endif()
 endif()
