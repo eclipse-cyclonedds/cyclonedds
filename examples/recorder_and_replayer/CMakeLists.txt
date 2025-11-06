@@ -82,6 +82,7 @@ endif()
 
 if(MSVC)
   target_compile_options(mcap PRIVATE /wd4251 /WX-)
+  target_compile_options(recorder PRIVATE /wd4251 /WX-)
 endif()
 
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
