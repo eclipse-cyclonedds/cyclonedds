@@ -196,7 +196,7 @@ struct parse_sysdef_state {
   char err_msg[MAX_ERRMSG_SZ];
 };
 
-static bool dds_sysdef_is_valid_identifier_syntax (const char *name);
+static bool dds_sysdef_is_valid_identifier (const char *name);
 
 
 static bool str_to_int32 (const char *str, int32_t *value)
@@ -642,7 +642,7 @@ static int init_type_external_ref (UNUSED_ARG (struct parse_sysdef_state * const
       } \
     } while (0)
 
-#define PROC_ATTR_NAME(type) PROC_ATTR_STRING(type, "name", name, dds_sysdef_is_valid_identifier_syntax)
+#define PROC_ATTR_NAME(type) PROC_ATTR_STRING(type, "name", name, dds_sysdef_is_valid_identifier)
 #define PROC_ATTR_TYPE_NAME(type,attr_name,param_field) PROC_ATTR_STRING(type, attr_name, param_field, is_valid_type_name)
 
 #define _PROC_ATTR_INTEGER(type, attr_type, attr_name, param_field, param_populated_bit) \
@@ -971,7 +971,7 @@ static bool is_valid_type_name (const char *value)
     spos = strstr (str, SD_REF_SEPARATOR);
     if (spos == NULL)
     {
-      result = dds_sysdef_is_valid_identifier_syntax (str);
+      result = dds_sysdef_is_valid_identifier (str);
       break;
     }
 
@@ -979,7 +979,7 @@ static bool is_valid_type_name (const char *value)
     /* A leading :: (empty first part) is not allowed; the type name
        syntax used in the XML must matches the type name used in the
        type object */
-    result = dds_sysdef_is_valid_identifier_syntax (part);
+    result = dds_sysdef_is_valid_identifier (part);
     ddsrt_free (part);
   }
   return result;
@@ -1018,6 +1018,36 @@ static bool dds_sysdef_is_valid_identifier_syntax (const char *name)
       return false;
   }
   return true;
+}
+
+static bool is_reserved_keyword (const char *name)
+{
+  /* List of reserved keywords in C, up to C23. Keywords
+     starting with underscore are not included, as a
+     identifier in the sysdef cannot start with an
+     underscore */
+  const char *c_keywords[] = {
+    "alignas", "alignof", "auto", "bool", "break",
+    "case", "char", "const", "constexpr", "continue",
+    "default", "do", "double", "else", "enum",
+    "extern", "false", "float", "for", "goto",
+    "if", "inline", "int", "long", "nullptr",
+    "register", "restrict", "return", "short", "signed",
+    "sizeof", "static", "static_assert", "struct", "switch",
+    "thread_local", "true", "typedef", "typeof", "typeof_unqual",
+    "union", "unsigned", "void", "volatile", "while" };
+
+  for (uint32_t i = 0; i < sizeof (c_keywords) / sizeof (c_keywords[0]); i++)
+  {
+    if (strcmp (name, c_keywords[i]) == 0)
+      return true;
+  }
+  return false;
+}
+
+static bool dds_sysdef_is_valid_identifier (const char *name)
+{
+  return dds_sysdef_is_valid_identifier_syntax (name) && !is_reserved_keyword (name);
 }
 
 static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *name, const char *value, int line)
@@ -1131,12 +1161,12 @@ static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *n
         break;
       case ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER:
         PROC_ATTR_NAME(dds_sysdef_tsn_talker_configuration);
-        PROC_ATTR_STRING(dds_sysdef_tsn_talker_configuration, "stream_name", stream_name, dds_sysdef_is_valid_identifier_syntax);
+        PROC_ATTR_STRING(dds_sysdef_tsn_talker_configuration, "stream_name", stream_name, dds_sysdef_is_valid_identifier);
         PROC_ATTR_FN(dds_sysdef_tsn_talker_configuration, "datawriter_ref", writer, proc_attr_resolve_datawriter_ref);
         break;
       case ELEMENT_KIND_DEPLOYMENT_CONF_TSN_LISTENER:
         PROC_ATTR_NAME(dds_sysdef_tsn_listener_configuration);
-        PROC_ATTR_STRING(dds_sysdef_tsn_listener_configuration, "stream_name", stream_name, dds_sysdef_is_valid_identifier_syntax);
+        PROC_ATTR_STRING(dds_sysdef_tsn_listener_configuration, "stream_name", stream_name, dds_sysdef_is_valid_identifier);
         PROC_ATTR_FN(dds_sysdef_tsn_listener_configuration, "datareader_ref", reader, proc_attr_resolve_datareader_ref);
         break;
 
@@ -2178,7 +2208,7 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
     case ELEMENT_KIND_QOS_POLICY_PARTITION_NAME_ELEMENT: {
       struct dds_sysdef_QOS_POLICY_PARTITION *qp = (struct dds_sysdef_QOS_POLICY_PARTITION *) pstate->current->parent->parent;
       struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *p = (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *) pstate->current;
-      if (dds_sysdef_is_valid_identifier_syntax (value))
+      if (dds_sysdef_is_valid_identifier (value))
       {
         p->element = ddsrt_strdup (value);
         qp->populated = true;
