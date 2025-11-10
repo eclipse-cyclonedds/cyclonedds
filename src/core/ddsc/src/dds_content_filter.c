@@ -134,7 +134,7 @@ static bool expression_filter_copy(const dds_expression_content_filter_t *from, 
   to->nparam = from->nparam;
   to->param = (struct dds_expression_filter_param *) ddsrt_malloc(sizeof(*to->param) * to->nparam);
   for (size_t i = 0; i < to->nparam; i++)
-    filter_param_copy (&from->param[i], &to->param[i]);
+    (void) filter_param_copy (&from->param[i], &to->param[i]);
   return true;
 }
 

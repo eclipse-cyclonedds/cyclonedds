@@ -1552,6 +1552,11 @@ static struct ddsi_type * type_assign_keys(const char *prefix, const struct ddsi
 
   switch (dt->_d)
   {
+    case DDS_XTypes_TK_UNION:
+    {
+      /* DDS_RETCODE_UNSUPPORTED; */
+      goto err_key;
+    }
     case DDS_XTypes_TK_STRUCTURE:
     {
       struct xt_struct *structure = &dt->_u.structure;
@@ -1570,8 +1575,7 @@ static struct ddsi_type * type_assign_keys(const char *prefix, const struct ddsi
 
         if (item != NULL)
         {
-          /* FIXME: we need to classify member by primitive/not primitive */
-          if (m->type != NULL && m->type->xt._d >= DDS_XTypes_TK_ALIAS)
+          if (m->type != NULL && m->type->xt._d >= DDS_XTypes_TK_ANNOTATION)
           {
             struct ddsi_type *sub_type = type_assign_keys(item, m->type, keys_tb);
             ddsi_type_unref_locked (gv, m->type);
@@ -1595,10 +1599,6 @@ static struct ddsi_type * type_assign_keys(const char *prefix, const struct ddsi
       ddsrt_free (ntype_name);
       break;
     }
-    case DDS_XTypes_TK_ENUM:
-    case DDS_XTypes_TK_BITMASK:
-    case DDS_XTypes_TK_UNION:
-    case DDS_XTypes_TK_BITSET:
     default:
       abort();
   }
