@@ -7,7 +7,6 @@
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 #include <float.h>
-#include <math.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -248,7 +247,7 @@ int dds_sql_get_token(const unsigned char *s, int *token)
        * A question mark that is not followed by a number creates a parameter
        * with a number one greater than the largest parameter number already
        * assigned.
-       * But we limit the usage of `?` to number followed only.
+       * But we limit the usage of `?` to follow by number only.
        * """
        */
       *token = DDS_SQL_TK_ILLEGAL;
@@ -266,22 +265,22 @@ int dds_sql_get_token(const unsigned char *s, int *token)
 
       /* NOTE: if keyword is a token then one of those, otherwise it's id,
        * otherwise it's syntax error.
-       * CAST
+       * --CAST
        * --AS
-       * COLLATE
+       * --COLLATE
        * NOT
-       * LIKE
+       * --LIKE
        * --GLOB
        * --REGEXP
        * --MATCH
-       * ESCAPE
+       * --ESCAPE
        * --ISNULL
        * --NOTNULL
        * --NULL
        * --IS
        * --DISTINCT
        * --FROM
-       * BETWEEN
+       * --BETWEEN
        * AND
        * --IN
        * OR
@@ -397,7 +396,7 @@ size_t dds_sql_expr_count_params(const char *s)
       if (token == DDS_SQL_TK_VARIABLE) {
         const unsigned char *precursor = cursor - token_sz + 1;
         int64_t *i = malloc(sizeof(*i));
-        token=DDS_SQL_TK_INTEGER;
+        token = DDS_SQL_TK_INTEGER;
         if (dds_sql_get_numeric(i, &precursor, &token, token_sz - 1) < 0)
           goto err;
         int64_t *l = ddsrt_hh_lookup (count, i);
@@ -509,7 +508,6 @@ static int get_op_precedence(const int op_token)
     case DDS_SQL_TK_DOT:
       prec = 12;
       break;
-    /* FIXME: are you sure about u-operator precedence? */
     case DDS_SQL_TK_UMINUS:
     case DDS_SQL_TK_UPLUS:
       prec = 11;
@@ -1383,11 +1381,11 @@ static int dds_sql_eval_op(struct dds_sql_token **op, struct dds_sql_token *lhs,
   }
 
 exit:
-  if (tl != lhs) {
+  if (tl != lhs && tl != NULL) {
     if (tl->s) free (tl->s);
     free (tl);
   }
-  if (tr != rhs) {
+  if (tr != rhs && tr != NULL) {
     if (tr->s) free (tr->s);
     free (tr);
   }
@@ -1581,10 +1579,22 @@ enter:
     struct dds_sql_token *rhs = NULL;
     ret = dds_sql_token_init(&rhs);
     assert (ret == DDS_RETCODE_OK);
+    const unsigned char *pre_cursor = cursor;
     if ((ret = eval_expr(&cursor, (op_prc + (op->asc == DDS_SQL_ASSOC_LEFT? 1: 0)), &rhs, &opnode->r, params)) < 0)
     {
       ret += (int)(*s - cursor);
 
+      opnode->l = NULL;
+      if (opnode->r == NULL || rhs->tok == 0) dds_sql_token_fini (rhs);
+      dds_sql_expr_node_fini(opnode);
+      goto err;
+    }
+
+    /* FIXME
+     * it would be much better to parse "full" id instead, which means get
+     * whole `id.id.id` once during token process on previous stage. */
+    if (op->tok == DDS_SQL_TK_DOT && (rhs->tok != DDS_SQL_TK_ID || (l_for != NULL && l_for->tok != DDS_SQL_TK_ID))) {
+      ret += (int)(*s - pre_cursor);
       opnode->l = NULL;
       if (opnode->r == NULL || rhs->tok == 0) dds_sql_token_fini (rhs);
       dds_sql_expr_node_fini(opnode);
@@ -2108,6 +2118,7 @@ exit:
   return ret;
 }
 
+#if 0
 static struct dds_sql_token *expr_node_token_lookup(const struct dds_sql_expr_node *node, struct dds_sql_token **token)
 {
   if (node == NULL)
@@ -2121,7 +2132,9 @@ static struct dds_sql_token *expr_node_token_lookup(const struct dds_sql_expr_no
 
   return expr_node_token_lookup(node->r, token);
 }
+#endif
 
+#if 0
 static void reduce_variables_set (void *vnode, void *varg)
 {
   struct dds_sql_param *param = (struct dds_sql_param *) vnode;
@@ -2136,6 +2149,7 @@ static void reduce_variables_set (void *vnode, void *varg)
     expr->nparams--;
   }
 }
+#endif
 
 dds_return_t dds_sql_expr_build(const struct dds_sql_expr *ex, struct dds_sql_expr **out)
 {
@@ -2155,8 +2169,13 @@ dds_return_t dds_sql_expr_build(const struct dds_sql_expr *ex, struct dds_sql_ex
    * according to optimize process, there is "ghost" parameters may be
    * presented. it can be fixed by counting parameters at the end, to be sure
    * that we don't waste space.
+   * FIXME: potentially user may try to set optimized parameters and will get a
+   * error. preserve original amount of parameters to handle that case during
+   * parameters apply will be much appreciated.
    * */
+#if 0
   ddsrt_hh_enum((*out)->param_tokens, reduce_variables_set, (*out));
+#endif
 err:
   return ret;
 }
@@ -2207,7 +2226,18 @@ static dds_return_t expr_node_evaluate(const struct dds_sql_expr_node *node, str
 
 dds_return_t dds_sql_expr_eval(const struct dds_sql_expr *ex, struct dds_sql_token **out)
 {
+  int res = 0U;
   dds_return_t ret = DDS_RETCODE_OK;
-  ret = expr_node_evaluate(ex->node, out);
+  if ((ret = expr_node_evaluate(ex->node, out)) != DDS_RETCODE_OK)
+    goto err;
+  if ((res = dds_sql_apply_affinity((*out), DDS_SQL_AFFINITY_NUMERIC)) < 0)
+  {
+    dds_sql_token_fini ((*out));
+    ret = DDS_RETCODE_ERROR;
+    goto err;
+  }
+  assert (res >= DDS_SQL_AFFINITY_NUMERIC);
+
+err:
   return ret;
 }

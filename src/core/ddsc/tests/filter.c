@@ -12,6 +12,7 @@
 
 #include "dds/dds.h"
 #include "SerdataData.h"
+#include "Space.h"
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
@@ -125,6 +126,9 @@ CU_Test(ddsc_expr_filter, accept)
     const void *sample;
     const bool result;
   } test[] = {
+{{ .expr="`e1`=0",               .param="",    .tdesc=Space_invalid_data_desc                 }, .sample=&(struct Space_invalid_data){.e1= Space_IDE0},                         .result = true },
+{{ .expr="`bm1`=(1 << 0)",       .param="",    .tdesc=Space_invalid_data_desc                 }, .sample=&(struct Space_invalid_data){.bm1=Space_IDB0},                         .result = true },
+/* {{ .expr="`um_sub1.m_int32`=0",  .param="",    .tdesc=dunion_desc                             }, .sample=&(struct dunion){._d=16,._u.um_sub1.m_int32=0},                        .result = false }, */
 {{ .expr="e.z.a = d.z.a",        .param="",    .tdesc=SerdataKeyNestedFinalImplicit_desc      }, .sample=&(struct SerdataKeyNestedFinalImplicit){.e.z.a=1U,.d.z.a=0U},          .result = false },
 {{ .expr="b = by OR by = bx.ny", .param="",    .tdesc=SerdataKeyInheritMutable_desc           }, .sample=&(struct SerdataKeyInheritMutable){.b=1U,.parent={.by=0U,.bx.ny=0U}},  .result = true  },
 {{ .expr="b == \'abc\'",         .param="",    .tdesc=SerdataKeyStringBounded_desc            }, .sample=&(struct SerdataKeyStringBounded){.a=1U,.b="abc"},                     .result = true  },
@@ -132,7 +136,7 @@ CU_Test(ddsc_expr_filter, accept)
 {{ .expr="a + b",                .param="",    .tdesc=SerdataKeyOrder_desc                    }, .sample=&(struct SerdataKeyOrder){.a=1U,.b=1U,.c=0U},                          .result = true  },
 {{ .expr="a + b OR ?1 * c",      .param="0",   .tdesc=SerdataKeyOrderId_desc                  }, .sample=&(struct SerdataKeyOrderId){.a=1U,.b=0U,.c=0U},                        .result = true  },
 {{ .expr="x AND y OR z.b",       .param="",    .tdesc=SerdataKeyOrderFinalNestedMutable_desc  }, .sample=&(struct SerdataKeyOrderFinalNestedMutable){.x=0U,.y=0U,.z.b=1U},      .result = true  },
-{{ .expr="d.x AND d.z.c OR e.x", .param="",    .tdesc=SerdataKeyNestedFinalImplicit_desc      }, .sample=&(struct SerdataKeyNestedFinalImplicit){.d.x=1U,.d.z.c=0U,.e.x=0U},    .result = false }
+{{ .expr="d.x AND d.z.c OR e.x", .param="",    .tdesc=SerdataKeyNestedFinalImplicit_desc      }, .sample=&(struct SerdataKeyNestedFinalImplicit){.d.x=1U,.d.z.c=0U,.e.x=0U},    .result = false },
   };
 
   size_t ntest = sizeof(test) / sizeof(test[0]);
@@ -167,9 +171,9 @@ CU_Test(ddsc_expr_filter, init_fini)
       char *fields;               // keyed field on a result type sep. by ' '
     } expec;
   } test[] = {
-{{ .expr="a + b + c",        .param="",    .tdesc=SerdataKeyOrder_desc                    },  .expec={"`a` `b` `c`" }   },
-{{ .expr="a + b OR ?1 * c",  .param="0",   .tdesc=SerdataKeyOrderId_desc                  },  .expec={"`a` `b`" }       },
-{{ .expr="x AND y OR z.b",   .param="",    .tdesc=SerdataKeyOrderFinalNestedMutable_desc  },  .expec={"`x` `y` `z.b`" } }
+{{ .expr="a + b + c",           .param="",    .tdesc=SerdataKeyOrder_desc                    },  .expec={"`a` `b` `c`" }   },
+{{ .expr="a + b OR ?1 * c",     .param="0",   .tdesc=SerdataKeyOrderId_desc                  },  .expec={"`a` `b`" }       },
+{{ .expr="x AND y OR z.b",      .param="",    .tdesc=SerdataKeyOrderFinalNestedMutable_desc  },  .expec={"`x` `y` `z.b`" } }
   };
 
   size_t ntest = sizeof(test) / sizeof(test[0]);

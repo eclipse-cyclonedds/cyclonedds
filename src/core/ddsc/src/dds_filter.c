@@ -125,6 +125,34 @@ static dds_return_t expr_var_set (const struct dds_expression_filter *filter, co
       ret = expr_var_set (filter, sample, id, kops, fops, offset, nlvl);
       break;
     }
+    case DDS_OP_VAL_ENU:
+    case DDS_OP_VAL_BMK:
+    {
+      uint32_t op_type_sz = DDS_OP_TYPE_SZ(fops[0]);
+      const char *smpl = (const char *)sample + (*offset);
+      switch (op_type_sz)
+      {
+        case 1: {
+          DDS_EXPR_VAR_SET_INTEGER(op_flags, filter->bin_expr, smpl, id, int8_t);
+          break;
+        }
+        case 2: {
+          DDS_EXPR_VAR_SET_INTEGER(op_flags, filter->bin_expr, smpl, id, int16_t);
+          break;
+        }
+        case 4: {
+          DDS_EXPR_VAR_SET_INTEGER(op_flags, filter->bin_expr, smpl, id, int32_t);
+          break;
+        }
+        case 8: {
+          ret = DDS_RETCODE_UNSUPPORTED;
+          break;
+        }
+        default:
+          assert(false);
+      }
+      break;
+    }
     case DDS_OP_VAL_SEQ:
       /* FIXME:
        * can we determine octet sequence as a SQL_BLOB?
@@ -133,8 +161,6 @@ static dds_return_t expr_var_set (const struct dds_expression_filter *filter, co
     case DDS_OP_VAL_UNI:
     case DDS_OP_VAL_STU:
     case DDS_OP_VAL_BSQ:
-    case DDS_OP_VAL_ENU:
-    case DDS_OP_VAL_BMK:
     case DDS_OP_VAL_WSTR:
     case DDS_OP_VAL_BWSTR:
     case DDS_OP_VAL_WCHAR:
@@ -164,6 +190,11 @@ static dds_return_t topic_expr_filter_vars_apply(const struct dds_expression_fil
       goto err;
   }
 
+  /* in case of "union" we need to iterate over all "holded" interpretations of
+   * this union and apply it's deserialized fields to evaluation tree as
+   * variables.
+   * */
+
 err:
   return ret;
 }
@@ -175,7 +206,7 @@ static bool topic_expr_filter_reader_accept(const dds_reader *rd, const struct d
   const struct dds_expression_filter *ef = (const struct dds_expression_filter *) filter;
   struct ddsi_serdata *sd = ddsi_serdata_ref_as_type (ef->st, (struct ddsi_serdata *)sample);
   struct ddsi_serdata *sd_un = ddsi_serdata_to_untyped(sd);
-  void *s = ddsrt_malloc(sd->type->sizeof_type);
+  void *s = ddsrt_malloc(ef->st->sizeof_type);
   res = ddsi_serdata_untyped_to_sample(ef->st, sd_un, s, NULL, 0);
   assert (res == true);
 
@@ -193,9 +224,7 @@ static bool topic_expr_filter_reader_accept(const dds_reader *rd, const struct d
   assert (ret == DDS_RETCODE_OK);
 
   /* actually we always expect numeric result, since we support boolean
-   * expressions only.
-   * FIXME: but there is still not validation for that! */
-
+   * expressions only. */
   res = (r->aff >= DDS_SQL_AFFINITY_NUMERIC) && r->n.i;
   free (r);
   return res;
@@ -301,6 +330,17 @@ static dds_return_t topic_expr_filter_param_rebind (struct dds_filter *a, const 
   ret = ddsi_topic_descriptor_from_type (gv, ef->desc, res_type);
   assert (ret == DDS_RETCODE_OK);
 
+  /* FIXME
+   * what about unions then? they can't be deserialized partly (by keys only),
+   * but it should be absolutelly valid to be able to work with then in filter
+   * expressions. */
+
+  /* regards to "union" type we should store all it's inner descriptors AND if
+   * there is no we store it's primitive type, simplify we store all meaningful
+   * (by meaningful we mean interpretations which mentioned in initial expression)
+   * interpretations of this "union" */
+
+  assert (ef->desc->m_nkeys == nfields);
 
   ddsrt_mutex_lock (&dds_global.m_mutex);
   struct dds_domain *dom = dds_domain_find_locked(ef->tf.domain_id);
@@ -390,6 +430,7 @@ static struct dds_filter_ops dds_topic_expr_filter_ops = {
 
 static bool topic_func_filter_reader_accept(const dds_reader *rd, const struct dds_filter *filter, const struct ddsi_serdata *sample, const struct dds_sample_info *si)
 {
+  (void) rd;
   bool res = true;
   const struct dds_function_filter *ff = (const struct dds_function_filter *)filter;
   switch (ff->mode)
@@ -401,8 +442,8 @@ static bool topic_func_filter_reader_accept(const dds_reader *rd, const struct d
     case DDS_TOPIC_FILTER_SAMPLE:
     case DDS_TOPIC_FILTER_SAMPLE_ARG:
     case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG: {
-      void *s;
-      s = ddsi_sertype_alloc_sample (rd->m_topic->m_stype);
+      void *s = ddsi_sertype_alloc_sample (sample->type);
+      assert (s != NULL);
       res = ddsi_serdata_to_sample (sample, s, NULL, NULL);
       assert (res == true);
       switch (ff->mode)
@@ -422,7 +463,7 @@ static bool topic_func_filter_reader_accept(const dds_reader *rd, const struct d
         default:
           abort();
       }
-      ddsi_sertype_free_sample (rd->m_topic->m_stype, s, DDS_FREE_ALL);
+      ddsi_sertype_free_sample (sample->type, s, DDS_FREE_ALL);
       break;
     }
     default:

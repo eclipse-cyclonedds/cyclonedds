@@ -555,16 +555,22 @@ CU_Theory((char *s, char *e), ddsc_sql, expr_parse)
 
 CU_TheoryDataPoints(ddsc_sql, expr_parse_error) = {
   CU_DataPoints(char *,
-    "?1 + ?", "?a", "?(1)",
+    "?1 + ?", "?a", "?(1)", "*1",
     "+-/", "10!=11 AND 5 !=!1", ")(", "(()", "(()())", "`g` == ",
-    "`a` == ?3 AND (`b` == 4 OR (`c` == (?5 AND (`d` == (6 OR (`e` == (7 AND (`f` == (8 OR (`g` == )))))))))",
-    "a c + b == 1?2", "c + b == 1?2"
+    "((c == (((6 OR ((7 AND ((8 OR (g == )))))))))",
+    "a c + b == 1?2", "c + b == 1?2", "\'abcd +=", "AND = 1", "0 AND bib -<> bob",
+    "NOT AND 1", "NOT(OR 2)", "NOT)(1 OR 2))", "a BETWEEN b AND c", "a LIKE \'bip\'",
+    "a.(?1)", "?1.a", "((?1)).a", "((a).(?1))", /* FIXME \a.(b)\ is still valid */
+    ".a"
   ),
   CU_DataPoints(int,
-    6, 1, 1,
+    6, 1, 1, 1,
     3, 16, 1, 3, 3, 7,
-    95,
-    2, 10
+    37,
+    2, 10, 8, 3, 13,
+    7, 6, 4, 2, 2,
+    2, 3, 7, 5,
+    1
   ),
 };
 
@@ -575,7 +581,7 @@ CU_Theory((char *s, int pos), ddsc_sql, expr_parse_error)
   CU_ASSERT_FATAL(ret == DDS_RETCODE_OK);
 
   ret = dds_sql_expr_parse((const unsigned char *)s, &exp);
-  CU_ASSERT_FATAL(ret == DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT(ret == DDS_RETCODE_BAD_PARAMETER);
   int p = exp->err_pos;
 
   dds_sql_expr_fini(exp);
@@ -669,7 +675,8 @@ CU_TheoryDataPoints(ddsc_sql, expr_build) = {
     "(height-?1) > (?1+?2*(?1-?2/?1*(1+?2)))",
     "a AND ?1 OR b",
     "length = 0 AND length * 1 AND length * ?1",
-    "length = 0 AND length * 1 OR length * ?1"
+    "length = 0 AND length * 1 OR length * ?1",
+    "?1 + ?2"
   ),
   CU_DataPoints(expr_build_param_t,
     EXPR_BUILD_PARAMS(0,0,0,0),
@@ -687,6 +694,7 @@ CU_TheoryDataPoints(ddsc_sql, expr_build) = {
     EXPR_BUILD_PARAMS(DDS_SQL_TK_INTEGER, "0",        0,0),
     EXPR_BUILD_PARAMS(DDS_SQL_TK_INTEGER, "0",        0,0),
     EXPR_BUILD_PARAMS(DDS_SQL_TK_INTEGER, "0",        0,0),
+    EXPR_BUILD_PARAMS(DDS_SQL_TK_INTEGER, "0",        DDS_SQL_TK_INTEGER, "0"),
   ),
   CU_DataPoints(char *,
     "+(?height,-5)",
@@ -704,6 +712,7 @@ CU_TheoryDataPoints(ddsc_sql, expr_build) = {
     "OR(0,?b)",
     "0",
     "OR(AND(=(?length,0),*(?length,1)),0)",
+    "0"
   )
 };
 
