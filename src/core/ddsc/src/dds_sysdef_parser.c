@@ -827,7 +827,7 @@ static int split_ref (const char *ref, char **lib, char **local_name)
 #define _RESOLVE_LIB(lib_type, lib_name, dst) \
     do { for (struct dds_sysdef_## lib_type ## _lib *l = pstate->sysdef->lib_type ## _libs ; dst == NULL && l != NULL; l = (struct dds_sysdef_ ## lib_type ## _lib *) l->xmlnode.next) \
     { \
-      if (strcmp (l->name, lib_name) == 0) { \
+      if (l->name != NULL && strcmp (l->name, lib_name) == 0) { \
         dst = l; \
       } \
     } } while (0)
