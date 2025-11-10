@@ -37,8 +37,15 @@ dds_return_t ddsrt_platform_dlopen (const char *name, bool translate, ddsrt_dynl
 
   if (*handle == NULL)
   {
-    /* Name contains a path, (auto)translate is disabled or LoadLibrary on translated name failed. */
-    *handle = (ddsrt_dynlib_t) LoadLibrary (name);
+    // Name contains a path, (auto)translate is disabled or LoadLibrary on translated name failed.
+
+    // Attempt load DLL via paths in AddDLLDirectory.
+    *handle = (ddsrt_dynlib_t) LoadLibraryEx (name, NULL, 0x1000);
+    if (handle == NULL)
+    {
+      // Try regular load.
+      *handle = (ddsrt_dynlib_t) LoadLibrary (name);
+    }
   }
 
   if (*handle == NULL)
