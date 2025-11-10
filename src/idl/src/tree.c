@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <inttypes.h>
 
 #include "idl/heap.h"
 #include "idl/string.h"
@@ -1012,11 +1013,20 @@ idl_create_string(
   if ((ret = create_node(state, size, mask, location, &methods, &node)))
     goto err_node;
   assert(!literal || idl_type(literal) == IDL_ULONG);
-  if (literal)
+  if (literal) {
+    if (literal->value.uint32 == UINT32_MAX) {
+      //this will cause an overflow, since the null character also needs to be included
+      ret = IDL_RETCODE_UNSUPPORTED;
+      idl_error(state, location, "bounded strings should have a length of less than %"PRIu32" to prevent overflow", UINT32_MAX);
+      goto err_max;
+    }
     node->maximum = literal->value.uint32;
+  }
   idl_unreference_node(literal);
   *((idl_string_t **)nodep) = node;
   return IDL_RETCODE_OK;
+err_max:
+  idl_free(node);
 err_node:
   return ret;
 }
