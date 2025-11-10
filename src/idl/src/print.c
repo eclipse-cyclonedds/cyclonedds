@@ -200,13 +200,31 @@ static int print_decl_type(
   return (int)len;
 }
 
+static size_t copy_sequence(const void *node, const char *seg, char *str, size_t slen, size_t size, bool include_sequence_bounds)
+{
+  size_t len = slen;
+  size_t cnt = strlen(seg);
+  copy(str, len, size, seg, cnt);
+  len += cnt;
+  if (include_sequence_bounds && idl_is_bounded(node))
+  {
+    char bound[32];
+    idl_snprintf(bound, sizeof(bound), "%"PRIu32, idl_bound(node));
+    size_t blen = strlen (bound);
+    copy(str, len, size, bound, blen);
+    len += blen;
+  }
+  copy(str, len, size, "_", 1);
+  len++;
+  return len - slen;
+}
+
 static int print_templ_type(
-  char *str, size_t size, const void *node, void *user_data)
+  char *str, size_t size, const void *node, void *user_data, bool include_sequence_bounds)
 {
   const idl_type_spec_t *type_spec;
   char dims[32], *name = NULL;
-  const char *seg, *type;
-  size_t cnt, len = 0, seq = 0;
+  const char *type;
 
   (void)user_data;
   if (idl_type(node) == IDL_STRING)
@@ -218,8 +236,6 @@ static int print_templ_type(
 
   dims[0] = '\0';
   type_spec = idl_type_spec(node);
-  for (; idl_is_sequence(type_spec); type_spec = idl_type_spec(type_spec))
-    seq++;
 
   if (idl_is_base_type(type_spec) || idl_is_xstring(type_spec)) {
     switch (idl_type(type_spec)) {
@@ -263,21 +279,20 @@ static int print_templ_type(
     type = name;
   }
 
-  seg = "dds_sequence_";
-  cnt = strlen(seg);
-  copy(str, len, size, seg, cnt);
-  len += cnt;
-  seg = "sequence_";
-  cnt = strlen(seg);
-  for (; seq; len += cnt, seq--)
-    copy(str, len, size, seg, cnt);
-  cnt = strlen(type);
+  size_t len = copy_sequence(node, "dds_sequence", str, 0, size, include_sequence_bounds);
+  for (; idl_is_sequence(type_spec); type_spec = idl_type_spec(type_spec))
+    len += copy_sequence(type_spec, "sequence", str, len, size, include_sequence_bounds);
+
+  size_t cnt = strlen(type);
   copy(str, len, size, type, cnt);
   len += cnt;
+
   cnt = strlen(dims);
   copy(str, len, size, dims, cnt);
   len += cnt;
+
   str[ (size > len ? len : size - 1) ] = '\0';
+
   if (name)
     idl_free(name);
   return (int)len;
@@ -288,7 +303,7 @@ int print_type(char *str, size_t size, const void *ptr, void *user_data)
   if (idl_is_base_type(ptr))
     return print_base_type(str, size, ptr, user_data);
   if (idl_is_templ_type(ptr))
-    return print_templ_type(str, size, ptr, user_data);
+    return print_templ_type(str, size, ptr, user_data, false);
   return print_decl_type(str, size, ptr, "_");
 }
 
@@ -297,6 +312,15 @@ int print_scoped_name(char *str, size_t size, const void *ptr, void *user_data)
   if (idl_is_base_type(ptr))
     return print_base_type(str, size, ptr, user_data);
   if (idl_is_templ_type(ptr))
-    return print_templ_type(str, size, ptr, user_data);
+    return print_templ_type(str, size, ptr, user_data, false);
   return print_decl_type(str, size, ptr, "::");
+}
+
+int print_type_bounds(char *str, size_t size, const void *ptr, void *user_data)
+{
+  if (idl_is_base_type(ptr))
+    return print_base_type(str, size, ptr, user_data);
+  if (idl_is_templ_type(ptr))
+    return print_templ_type(str, size, ptr, user_data, true);
+  return print_decl_type(str, size, ptr, "_");
 }
