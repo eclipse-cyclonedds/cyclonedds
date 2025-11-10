@@ -433,7 +433,7 @@ static struct dds_serdata_default *serdata_default_from_ser_iov_common (const st
 
   const bool needs_bswap = !DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier);
   d->hdr.identifier = DDSI_RTPS_CDR_ENC_TO_NATIVE (d->hdr.identifier);
-  const uint32_t pad = ddsrt_fromBE2u (d->hdr.options) & 2;
+  const uint32_t pad = ddsrt_fromBE2u (d->hdr.options) & DDS_CDR_HDR_PADDING_MASK;
   const uint32_t xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
   const uint32_t encoding_format = ddsi_sertype_enc_id_enc_format (d->hdr.identifier);
   if (ddsi_sertype_get_native_enc_identifier (xcdr_version, encoding_format) != ddsi_sertype_get_native_enc_identifier (xcdr_version, tp->encoding_format))
@@ -919,7 +919,7 @@ static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertyp
     return NULL;
 
   const uint32_t pad = ddsrt_fromBE2u (md->cdr_options) & DDS_CDR_HDR_PADDING_MASK;
-  struct dds_serdata_default *d = serdata_default_new_size (tp, kind, md->sample_size + pad, xcdr_version);
+  struct dds_serdata_default *d = serdata_default_new_size (tp, kind, md->sample_size, xcdr_version);
   d->c.statusinfo = md->statusinfo;
   d->c.timestamp.v = md->timestamp;
   if (md->cdr_identifier == DDSI_RTPS_SAMPLE_NATIVE)
@@ -948,12 +948,12 @@ static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertyp
       uint32_t actual_size;
 
       // FIXME: how much do we trust PSMX-provided data? If we *really* trust it, we can skip this
-      if (!dds_stream_normalize (loaned_sample->sample_ptr, md->sample_size, false, xcdr_version, &tp->type, just_key, &actual_size))
+      if (!dds_stream_normalize (loaned_sample->sample_ptr, md->sample_size - pad, false, xcdr_version, &tp->type, just_key, &actual_size))
       {
         ddsi_serdata_unref (&d->c);
         return NULL;
       }
-      serdata_default_append_blob (&d, actual_size, loaned_sample->sample_ptr);
+      serdata_default_append_blob (&d, md->sample_size, loaned_sample->sample_ptr);
       dds_istream_t is;
       dds_istream_init (&is, actual_size, d->data, xcdr_version);
       if (!gen_serdata_key_from_cdr (&is, &d->key, tp, just_key))
