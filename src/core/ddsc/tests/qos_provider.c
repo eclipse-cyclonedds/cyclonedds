@@ -532,17 +532,18 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
   if ((ignore_ent || (kind == DDS_PARTICIPANT_QOS || kind == DDS_PUBLISHER_QOS || kind == DDS_SUBSCRIBER_QOS)) &&
       (ret >= 0) && qos->present & DDSI_QP_ADLINK_ENTITY_FACTORY)
   {
-    char *entity_factory;
-    if (qos->entity_factory.autoenable_created_entities == 0)
-      ret = ddsrt_asprintf(&entity_factory, "%s", QOS_POLICY_ENTITYFACTORY_FMT(false));
-    else
+    // Only true allowed in XML, otherwise sysdef validation fails
+    if (qos->entity_factory.autoenable_created_entities != 0)
+    {
+      char *entity_factory;
       ret = ddsrt_asprintf(&entity_factory, "%s", QOS_POLICY_ENTITYFACTORY_FMT(true));
-    CHECK_RET_OK(ret);
-    char *tmp = sysdef_qos;
-    ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, entity_factory);
-    ddsrt_free(tmp);
-    ddsrt_free(entity_factory);
-    *validate_mask |= DDSI_QP_ADLINK_ENTITY_FACTORY;
+      CHECK_RET_OK(ret);
+      char *tmp = sysdef_qos;
+      ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, entity_factory);
+      ddsrt_free(tmp);
+      ddsrt_free(entity_factory);
+      *validate_mask |= DDSI_QP_ADLINK_ENTITY_FACTORY;
+    }
   }
   if ((ignore_ent || (kind == DDS_PUBLISHER_QOS || kind == DDS_SUBSCRIBER_QOS)) &&
       (ret >= 0) && qos->present & DDSI_QP_GROUP_DATA)
