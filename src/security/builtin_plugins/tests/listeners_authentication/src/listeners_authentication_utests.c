@@ -292,11 +292,13 @@ get_certificate_expiry(
             dds_duration_t delta = DDS_SECS(((dds_duration_t)seconds + ((dds_duration_t)days * secs_per_day)));
             expiry = dds_time() + delta;
             {
-                BIO *b;
-                b = BIO_new_fp(stdout, BIO_NOCLOSE);
+                BIO *b = BIO_new(BIO_s_mem());
                 BIO_printf(b, "[asn1time] ");
                 ASN1_TIME_print(b, ans1);
                 BIO_printf(b, "\n");
+                BUF_MEM *bptr;
+                BIO_get_mem_ptr(b, &bptr);
+                fwrite(bptr->data, 1, bptr->length, stdout);
                 BIO_free(b);
             }
         }
