@@ -20,6 +20,7 @@ function(add_wrapper libname linklibs)
     "${CMAKE_CURRENT_LIST_DIR}/common/${libname}_wrapper.c"
     "${CMAKE_CURRENT_LIST_DIR}/common/plugin_wrapper_msg_q.c")
   add_library("dds_security_${libname}_wrapper")
+  add_library(${PROJECT_NAME}::dds_security_${libname}_wrapper ALIAS dds_security_${libname}_wrapper)
   if(NOT BUILD_SHARED_LIBS)
     set_property(GLOBAL APPEND PROPERTY cdds_plugin_list dds_security_${libname}_wrapper)
     set_property(GLOBAL PROPERTY dds_security_${libname}_wrapper_symbols
@@ -79,7 +80,7 @@ function(add_wrapper libname linklibs)
   target_link_libraries("dds_security_${libname}_wrapper" PRIVATE CycloneDDS::ucunit)
   target_include_directories("dds_security_${libname}_wrapper" PRIVATE "${CUNIT_DIR}/include")
   if(BUILD_SHARED_LIBS)
-    target_link_libraries("dds_security_${libname}_wrapper" PUBLIC ddsc ${linklibs})
+    target_link_libraries("dds_security_${libname}_wrapper" PUBLIC ${PROJECT_NAME}::ddsc ${linklibs})
   endif()
 
   target_sources("dds_security_${libname}_wrapper" PRIVATE ${srcs_wrapper})
@@ -102,9 +103,9 @@ set(security_core_test_sources
 )
 
 if(ENABLE_SSL AND OPENSSL_FOUND)
-  add_wrapper(access_control dds_security_ac)
-  add_wrapper(authentication dds_security_auth)
-  add_wrapper(cryptography dds_security_crypto)
+  add_wrapper(access_control ${PROJECT_NAME}::dds_security_ac)
+  add_wrapper(authentication ${PROJECT_NAME}::dds_security_auth)
+  add_wrapper(cryptography ${PROJECT_NAME}::dds_security_crypto)
 
   FIND_PROGRAM(PKCS11_TOOL_CMD pkcs11-tool)
   FIND_PROGRAM(SOFTHSM_UTIL_CMD softhsm2-util)
@@ -164,16 +165,26 @@ set(common_etc_dir "${CMAKE_CURRENT_SOURCE_DIR}/common/etc")
 set(plugin_wrapper_lib_dir "${CMAKE_CURRENT_BINARY_DIR}")
 configure_file("common/config_env.h.in" "common/config_env.h")
 
-target_link_libraries(cunit_security_core PRIVATE ddsc security_api SecurityCoreTests)
+target_link_libraries(cunit_security_core PRIVATE
+  ${PROJECT_NAME}::ddsc
+  ${PROJECT_NAME}::security_api
+  SecurityCoreTests
+)
 if(ENABLE_SSL AND OPENSSL_FOUND)
-  target_link_libraries(cunit_security_core PRIVATE dds_security_auth dds_security_ac dds_security_crypto dds_security_access_control_wrapper dds_security_authentication_wrapper dds_security_cryptography_wrapper)
-  target_link_libraries(cunit_security_core PRIVATE OpenSSL::SSL)
-  target_link_libraries(cunit_security_core PRIVATE security_openssl)
-endif()
-target_include_directories(cunit_security_core PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+  target_link_libraries(cunit_security_core PRIVATE
+    ${PROJECT_NAME}::dds_security_auth
+    ${PROJECT_NAME}::dds_security_ac
+    ${PROJECT_NAME}::dds_security_crypto
+    ${PROJECT_NAME}::dds_security_access_control_wrapper
+    ${PROJECT_NAME}::dds_security_authentication_wrapper
+    ${PROJECT_NAME}::dds_security_cryptography_wrapper
+  )
 
-if(NOT BUILD_SHARED_LIBS)
   install(TARGETS dds_security_authentication_wrapper EXPORT "${PROJECT_NAME}")
   install(TARGETS dds_security_cryptography_wrapper EXPORT "${PROJECT_NAME}")
   install(TARGETS dds_security_access_control_wrapper EXPORT "${PROJECT_NAME}")
+
+  target_link_libraries(cunit_security_core PRIVATE OpenSSL::SSL)
+  target_link_libraries(cunit_security_core PRIVATE ${PROJECT_NAME}::security_openssl)
 endif()
+target_include_directories(cunit_security_core PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")

@@ -55,3 +55,5 @@ else()
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib)
 endif()
+
+add_library(${PROJECT_NAME}::security_openssl ALIAS security_openssl)
