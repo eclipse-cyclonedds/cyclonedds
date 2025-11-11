@@ -710,7 +710,7 @@ int main(int argc, char *argv[])
     fprintf(stderr, "%s: cannot load generator %s\n", prog, lang);
 
   config.argc = 0;
-  if (!(config.argv = idl_calloc((size_t)argc + 7, sizeof(config.argv[0]))))
+  if (!(config.argv = idl_calloc((size_t)(2 * argc + 7), sizeof(config.argv[0]))))
     goto err_argv;
 
   config.argv[config.argc++] = argv[0];
