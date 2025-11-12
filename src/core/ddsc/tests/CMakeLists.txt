@@ -29,19 +29,21 @@ idlc_generate(TARGET CdrStreamKeyFlags FILES CdrStreamKeyFlags.idl)
 idlc_generate(TARGET CdrStreamChecking FILES CdrStreamChecking.idl)
 idlc_generate(TARGET CdrStreamWstring FILES CdrStreamWstring.idl)
 idlc_generate(TARGET CdrStreamParamHeader FILES CdrStreamParamHeader.idl)
-idlc_generate(TARGET CdrStreamSerDes FILES CdrStreamSerDes.idl NO_TYPE_INFO WARNINGS no-enum-consecutive)
 idlc_generate(TARGET CdrStreamXcdr1Opt FILES CdrStreamXcdr1Opt.idl)
 idlc_generate(TARGET SerdataData FILES SerdataData.idl)
 idlc_generate(TARGET PsmxDataModels FILES PsmxDataModels.idl WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET CdrStreamDataTypeInfo FILES CdrStreamDataTypeInfo.idl WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET Array100 FILES Array100.idl WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET DynamicData FILES DynamicData.idl WARNINGS no-implicit-extensibility)
+idlc_generate(TARGET SertypeData FILES SertypeData.idl)
 if(ENABLE_TYPELIB)
-  idlc_generate(TARGET SertypeData FILES SertypeData.idl)
+  idlc_generate(TARGET CdrStreamSerDes FILES CdrStreamSerDes.idl NO_TYPE_INFO WARNINGS no-enum-consecutive)
   idlc_generate(TARGET XSpace FILES XSpace.idl XSpaceEnum.idl XSpaceMustUnderstand.idl XSpaceTypeConsistencyEnforcement.idl WARNINGS no-implicit-extensibility no-inherit-appendable)
   idlc_generate(TARGET XSpaceNoTypeInfo FILES XSpaceNoTypeInfo.idl NO_TYPE_INFO WARNINGS no-implicit-extensibility)
   idlc_generate(TARGET TypeBuilderTypes FILES TypeBuilderTypes.idl WARNINGS no-implicit-extensibility no-inherit-appendable)
   idlc_generate(TARGET DynamicTypeTypes FILES DynamicTypeTypes.idl)
+else()
+  idlc_generate(TARGET CdrStreamSerDes FILES CdrStreamSerDes.idl)
 endif()
 
 set(ddsc_test_sources
@@ -199,6 +201,7 @@ target_link_libraries(cunit_ddsc PRIVATE
   CdrStreamKeyExt
   CdrStreamKeyFlags
   SerdataData
+  SertypeData
   ddsc
 )
 
