@@ -29,6 +29,7 @@
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsc/dds_internal_api.h"
 #include "dds__filter.h"
+#include "dds__loaned_sample.h"
 #include "dds__writer.h"
 #include "dds__listener.h"
 #include "dds__init.h"
