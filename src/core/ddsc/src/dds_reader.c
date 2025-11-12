@@ -28,6 +28,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsc/dds_rhc.h"
 #include "dds/ddsc/dds_internal_api.h"
+#include "dds__loaned_sample.h"
 #include "dds__participant.h"
 #include "dds__subscriber.h"
 #include "dds__reader.h"

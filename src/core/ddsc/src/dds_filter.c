@@ -12,11 +12,13 @@
 
 #include "dds/dds.h"
 
-#include "dds/ddsi/ddsi_typebuilder.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_sertype.h"
-#include "dds/ddsi/ddsi_typelib.h"
+#include "dds/ddsi/ddsi_typebuilder.h"
+#ifdef DDS_HAS_TYPELIB
+ #include "dds/ddsi/ddsi_typelib.h"
+#endif
 
 #include "dds__domain.h"
 #include "dds__filter.h"
@@ -178,15 +180,16 @@ static dds_return_t expr_var_set (const struct dds_expression_filter *filter, co
 static dds_return_t topic_expr_filter_vars_apply(const struct dds_expression_filter *filter, const void *sample)
 {
   dds_return_t ret = DDS_RETCODE_OK;
-  const dds_topic_descriptor_t *desc = filter->desc;
+  const struct dds_sertype_default *st = (const struct dds_sertype_default *)filter->st;
+  const struct dds_cdrstream_desc desc = st->type;
 
-  for (size_t i = 0; i < desc->m_nkeys; i++)
+  for (size_t i = 0; i < desc.keys.nkeys; i++)
   {
-    dds_key_descriptor_t msg_field = desc->m_keys[i];
-    const uint32_t *op = desc->m_ops + msg_field.m_offset;
+    const struct dds_cdrstream_desc_key msg_field = desc.keys.keys[i];
+    const uint32_t *op = desc.ops.ops + msg_field.ops_offs;
     size_t offset = 0U, op_id = 1;
-    const uint32_t *ops = (desc->m_ops + op[op_id]);
-    if ((ret = expr_var_set (filter, sample, (uintptr_t)msg_field.m_name, op, ops, &offset, &op_id)) != DDS_RETCODE_OK)
+    const uint32_t *ops = (desc.ops.ops + op[op_id]);
+    if ((ret = expr_var_set (filter, sample, (uintptr_t)msg_field.name, op, ops, &offset, &op_id)) != DDS_RETCODE_OK)
       goto err;
   }
 
@@ -256,7 +259,6 @@ static void topic_expr_filter_free(struct dds_filter *filter)
   ddsrt_free(ef->expression);
   if (ef->bin_expr != NULL) dds_sql_expr_fini(ef->bin_expr);
   if (ef->expr != NULL) dds_sql_expr_fini(ef->expr);
-  if (ef->desc != NULL) {ddsi_topic_descriptor_fini(ef->desc); ddsrt_free(ef->desc);}
   if (ef->st != NULL) ddsi_sertype_unref(ef->st);
   ddsrt_free(ef);
 }
@@ -306,12 +308,6 @@ static dds_return_t topic_expr_filter_param_rebind (struct dds_filter *a, const 
     dds_sql_expr_fini(ef->bin_expr);
   ef->bin_expr = exp;
 
-  ddsi_typeid_t *id = ddsi_sertype_typeid(st, DDSI_TYPEID_KIND_COMPLETE);
-  struct ddsi_domaingv *gv = ddsrt_atomic_ldvoidp (&st->gv);
-  struct ddsi_type *type = ddsi_type_lookup(gv, id);
-  ddsi_typeid_fini (id);
-  ddsrt_free (id);
-
   const char **fields = ddsrt_malloc(sizeof(*fields)*ef->bin_expr->nparams);
   size_t nfields = ef->bin_expr->nparams;
 
@@ -320,14 +316,24 @@ static dds_return_t topic_expr_filter_param_rebind (struct dds_filter *a, const 
   for (dds_sql_param_t *param = ddsrt_hh_iter_first(ef->bin_expr->param_tokens, &it); param != NULL; param = ddsrt_hh_iter_next(&it))
     fields[i++] = param->token.s;
 
+#ifndef NDEBUG
   assert (i == nfields);
+#else
+  (void) nfields;
+#endif
+
+#ifdef DDS_HAS_TYPELIB
+  ddsi_typeid_t *id = ddsi_sertype_typeid(st, DDSI_TYPEID_KIND_COMPLETE);
+  struct ddsi_domaingv *gv = ddsrt_atomic_ldvoidp (&st->gv);
+  struct ddsi_type *type = ddsi_type_lookup(gv, id);
+  ddsi_typeid_fini (id);
+  ddsrt_free (id);
 
   struct ddsi_type *res_type = ddsi_type_dup_with_keys(type, fields, nfields);
-  ddsrt_free (fields);
-  if (ef->desc != NULL)
-    ddsi_topic_descriptor_fini(ef->desc);
-  ef->desc = ddsrt_malloc(sizeof(*ef->desc));
-  ret = ddsi_topic_descriptor_from_type (gv, ef->desc, res_type);
+  if (ef->st != NULL)
+    ddsi_sertype_unref(ef->st);
+  struct dds_topic_descriptor *desc = ddsrt_malloc(sizeof(*desc));
+  ret = ddsi_topic_descriptor_from_type (gv, desc, res_type);
   assert (ret == DDS_RETCODE_OK);
 
   /* FIXME
@@ -340,16 +346,19 @@ static dds_return_t topic_expr_filter_param_rebind (struct dds_filter *a, const 
    * (by meaningful we mean interpretations which mentioned in initial expression)
    * interpretations of this "union" */
 
-  assert (ef->desc->m_nkeys == nfields);
+  assert (desc->m_nkeys == nfields);
 
   ddsrt_mutex_lock (&dds_global.m_mutex);
   struct dds_domain *dom = dds_domain_find_locked(ef->tf.domain_id);
   struct dds_sertype_default *st_def = ddsrt_malloc(sizeof(*st_def));
-  uint16_t min_xcdrv = ef->desc->m_flagset & DDS_DATA_REPRESENTATION_FLAG_XCDR1? DDSI_RTPS_CDR_ENC_VERSION_1: DDSI_RTPS_CDR_ENC_VERSION_2;
+  uint16_t min_xcdrv = desc->m_flagset & DDS_DATA_REPRESENTATION_FLAG_XCDR1? DDSI_RTPS_CDR_ENC_VERSION_1: DDSI_RTPS_CDR_ENC_VERSION_2;
   dds_data_representation_id_t data_representation = ((struct dds_sertype_default *)st)->write_encoding_version == DDSI_RTPS_CDR_ENC_VERSION_1? DDS_DATA_REPRESENTATION_XCDR1: DDS_DATA_REPRESENTATION_XCDR2;
-  ret = dds_sertype_default_init (dom, st_def, ef->desc, min_xcdrv, data_representation);
+  ret = dds_sertype_default_init (dom, st_def, desc, min_xcdrv, data_representation);
   assert (ret == DDS_RETCODE_OK);
   ddsrt_mutex_unlock (&dds_global.m_mutex);
+
+  ret = dds_delete_topic_descriptor (desc);
+  assert (ret == DDS_RETCODE_OK);
 
   ef->st = (struct ddsi_sertype *)st_def;
   /* FIXME
@@ -359,6 +368,11 @@ static dds_return_t topic_expr_filter_param_rebind (struct dds_filter *a, const 
    * type?
    * */
   ddsi_type_unref (gv, res_type);
+#else
+  ef->st = ddsi_sertype_ref(st);
+#endif
+
+  ddsrt_free (fields);
 
 err:
   return ret;
@@ -373,7 +387,6 @@ static dds_return_t expression_filter_create (dds_domainid_t domain_id, const st
   dds_return_t ret = DDS_RETCODE_OK;
   struct dds_expression_filter *ef = (struct dds_expression_filter *) ddsrt_malloc(sizeof(*ef));
   ef->st = NULL;
-  ef->desc = NULL;
   ef->expr = NULL;
   ef->bin_expr = NULL;
   ef->expression = ddsrt_strdup(cflt->expression);

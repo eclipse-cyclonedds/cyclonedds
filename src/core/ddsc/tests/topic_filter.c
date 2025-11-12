@@ -682,7 +682,7 @@ CU_Test (ddsc_content_filter, basic)
     CU_ASSERT_FATAL (dp[i] > 0);
     for (int j = 0; j < 2; j++)
     {
-      tp[i][j] = dds_create_topic (dp[i], &Space_Type1_desc, topicname, qos, NULL);
+      tp[i][j] = dds_create_topic (dp[i], &Space_Type0_desc, topicname, qos, NULL);
       CU_ASSERT_FATAL (tp[i][j] > 0);
       if (j == 0)
       {
@@ -718,9 +718,9 @@ CU_Test (ddsc_content_filter, basic)
   {
     for (int j = 0; j < 2; j++)
     {
-      ret = dds_write (wr[i][j], &(Space_Type1){1,i,j});
+      ret = dds_write (wr[i][j], &(Space_Type0){1,i,j});
       CU_ASSERT_FATAL (ret == 0);
-      ret = dds_write (wr[i][j], &(Space_Type1){2,i,j});
+      ret = dds_write (wr[i][j], &(Space_Type0){2,i,j});
       CU_ASSERT_FATAL (ret == 0);
     }
   }

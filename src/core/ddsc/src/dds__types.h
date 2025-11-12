@@ -14,17 +14,17 @@
 /* DDS internal type definitions */
 
 #include "dds/dds.h"
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/ddsi_protocol.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#ifdef DDS_HAS_TOPIC_DISCOVERY
-#include "dds/ddsi/ddsi_typewrap.h"
-#endif
-#include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+ #include "dds/ddsi/ddsi_typewrap.h"
+#endif
 #include "dds/ddsc/dds_psmx.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "dds__handles.h"
-#include "dds__loaned_sample.h"
 
 
 #if defined (__cplusplus)
@@ -459,7 +459,6 @@ struct dds_expression_filter {
   char *expression;
   struct dds_sql_expr *expr;          // pre-build expression a.k.a full described.
   struct dds_sql_expr *bin_expr;      // build/optimized expression with params.
-  struct dds_topic_descriptor *desc;  // newly constructed descriptor.
   struct ddsi_sertype *st;            // newly constructed sertype.
 };
 

@@ -1841,6 +1841,8 @@ dds_return_t dds_sql_expr_bind_integer(const struct dds_sql_expr *ex, uintptr_t 
   if      (ex->param_kind == DDS_SQL_EXPR_KIND_PARAMETER)     tmpl.id.index = (uint64_t)i;
   else if (ex->param_kind == DDS_SQL_EXPR_KIND_VARIABLE)      tmpl.id.str   = ddsrt_strdup((char *)(void *)i);
   else goto err;
+  /* FIXME: not found? no worries it's optimized or DDS_HAS_TYPELIB missing. */
+  retcode = (ex->param_kind == DDS_SQL_EXPR_KIND_VARIABLE)? DDS_RETCODE_OK: DDS_RETCODE_BAD_PARAMETER;
   struct dds_sql_param *param = ddsrt_hh_lookup(ex->param_tokens, &tmpl);
   if (param == NULL) goto err_not_found;
   struct dds_sql_token *t = (struct dds_sql_token *)param;
@@ -1863,6 +1865,8 @@ dds_return_t dds_sql_expr_bind_real(const struct dds_sql_expr *ex, uintptr_t i, 
   if      (ex->param_kind == DDS_SQL_EXPR_KIND_PARAMETER)     tmpl.id.index = (uint64_t)i;
   else if (ex->param_kind == DDS_SQL_EXPR_KIND_VARIABLE)      tmpl.id.str   = ddsrt_strdup((char *)(void *)i);
   else goto err;
+  /* FIXME: not found? no worries it's optimized or DDS_HAS_TYPELIB missing. */
+  retcode = (ex->param_kind == DDS_SQL_EXPR_KIND_VARIABLE)? DDS_RETCODE_OK: DDS_RETCODE_BAD_PARAMETER;
   struct dds_sql_param *param = ddsrt_hh_lookup(ex->param_tokens, &tmpl);
   if (param == NULL) goto err_not_found;
   struct dds_sql_token *t = (struct dds_sql_token *)param;
@@ -1885,6 +1889,8 @@ dds_return_t dds_sql_expr_bind_string(const struct dds_sql_expr *ex, uintptr_t i
   if      (ex->param_kind == DDS_SQL_EXPR_KIND_PARAMETER)     tmpl.id.index = (uint64_t)i;
   else if (ex->param_kind == DDS_SQL_EXPR_KIND_VARIABLE)      tmpl.id.str   = ddsrt_strdup((char *)(void *)i);
   else goto err;
+  /* FIXME: not found? no worries it's optimized or DDS_HAS_TYPELIB missing. */
+  retcode = (ex->param_kind == DDS_SQL_EXPR_KIND_VARIABLE)? DDS_RETCODE_OK: DDS_RETCODE_BAD_PARAMETER;
   struct dds_sql_param *param = ddsrt_hh_lookup(ex->param_tokens, &tmpl);
   if (param == NULL) goto err_not_found;
   struct dds_sql_token *t = (struct dds_sql_token *)param;
@@ -1910,6 +1916,8 @@ dds_return_t dds_sql_expr_bind_blob(const struct dds_sql_expr *ex, uintptr_t i, 
   if      (ex->param_kind == DDS_SQL_EXPR_KIND_PARAMETER)     tmpl.id.index = (uint64_t)i;
   else if (ex->param_kind == DDS_SQL_EXPR_KIND_VARIABLE)      tmpl.id.str   = ddsrt_strdup((char *)(void *)i);
   else goto err;
+  /* FIXME: not found? no worries it's optimized or DDS_HAS_TYPELIB missing. */
+  retcode = (ex->param_kind == DDS_SQL_EXPR_KIND_VARIABLE)? DDS_RETCODE_OK: DDS_RETCODE_BAD_PARAMETER;
   struct dds_sql_param *param = ddsrt_hh_lookup(ex->param_tokens, &tmpl);
   if (param == NULL) goto err_not_found;
   struct dds_sql_token *t = (struct dds_sql_token *)param;
