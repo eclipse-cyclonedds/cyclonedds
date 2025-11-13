@@ -328,6 +328,12 @@ CU_Theory((char *configuration, char *key, dds_qos_kind_t kind, dds_return_t cod
   "<name>%s</name>"
 #define QOS_POLIC_PARTITION_FMT \
   "<partition>%s</partition>"
+#define QOS_DATA_REPRESENTATION_ELEMENT \
+  "<element>%s</element>"
+#define QOS_DATA_REPRESENTATION_ID \
+  "<id>%s</id>"
+#define QOS_POLICY_DATAREPRESENTATION_FMT \
+  "<data_representation>%s</data_representation>"
 #define QOS_ACCESS_SCOPE_KIND(ask) \
   "<access_scope>"#ask"</access_scope>"
 #define QOS_COHERENT_ACCESS(ca) \
@@ -638,6 +644,42 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
     ddsrt_free(tmp);
     ddsrt_free(lifespan);
     *validate_mask |= DDSI_QP_LIFESPAN;
+  }
+  if ((ignore_ent || (kind == DDS_TOPIC_QOS || kind == DDS_WRITER_QOS || kind == DDS_READER_QOS)) &&
+      (ret >= 0) && qos->present & DDSI_QP_DATA_REPRESENTATION)
+  {
+    char *dr_elems = ddsrt_strdup("");
+    for (uint32_t i = 0; i < qos->data_representation.value.n; i++) {
+      char *tmp = dr_elems;
+      char *id = NULL;
+      switch (qos->data_representation.value.ids[i])
+      {
+        case DDS_DATA_REPRESENTATION_XCDR1: id = QOS_DATA_REPRESENTATION_XCDR1; break;
+        case DDS_DATA_REPRESENTATION_XCDR2: id = QOS_DATA_REPRESENTATION_XCDR2; break;
+        case DDS_DATA_REPRESENTATION_XML:   id = QOS_DATA_REPRESENTATION_XML; break;
+      }
+      ret = ddsrt_asprintf(&dr_elems, "%s"QOS_DATA_REPRESENTATION_ELEMENT, dr_elems, id);
+      CHECK_RET_OK(ret);
+      ddsrt_free (tmp);
+    }
+    CHECK_RET_OK(ret);
+    char *dr_ids = ddsrt_strdup("");
+    if (qos->data_representation.value.n > 0) {
+      char *tmp = dr_ids;
+      ret = ddsrt_asprintf(&dr_ids, QOS_DATA_REPRESENTATION_ID, dr_elems);
+      CHECK_RET_OK(ret);
+      ddsrt_free (tmp);
+    }
+    ddsrt_free (dr_elems);
+    char *dr;
+    ret = ddsrt_asprintf(&dr, QOS_POLICY_DATAREPRESENTATION_FMT, dr_ids);
+    CHECK_RET_OK(ret);
+    ddsrt_free (dr_ids);
+    char *tmp = sysdef_qos;
+    ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, dr);
+    ddsrt_free(tmp);
+    ddsrt_free(dr);
+    *validate_mask |= DDSI_QP_DATA_REPRESENTATION;
   }
   if ((ignore_ent || (kind != DDS_PUBLISHER_QOS && kind != DDS_SUBSCRIBER_QOS && kind != DDS_PARTICIPANT_QOS)) &&
       (ret >= 0) && qos->present & DDSI_QP_LIVELINESS)
@@ -1123,6 +1165,7 @@ CU_Theory((dds_qos_kind_t kind, sysdef_qos_conf_t dur_conf), ddsc_qos_provider, 
 #define Q_OWNERSHIPSTRENGTH(vl) .ownership_strength={.value=vl},
 #define Q_WRITERLIFECYCLE(aui) .writer_data_lifecycle={.autodispose_unregistered_instances=aui},
 #define Q_DURABILITYSERVICE(dur,hk,hd,ms,mi,mspi) .durability_service={.service_cleanup_delay=dur,Q_HISTORY(hk,hd)Q_RESOURCELIMITS(ms,mi,mspi)},
+#define Q_DATAREPRESENTATION .data_representation={.value={.n=3,.ids=(dds_data_representation_id_t []){DDS_DATA_REPRESENTATION_XCDR1,DDS_DATA_REPRESENTATION_XCDR2,DDS_DATA_REPRESENTATION_XML}}},
 
 #define QOS_ALL_PRESENT .present = DDSI_QP_TOPIC_DATA | DDSI_QP_DURABILITY | \
       DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | \
@@ -1134,7 +1177,7 @@ CU_Theory((dds_qos_kind_t kind, sysdef_qos_conf_t dur_conf), ddsc_qos_provider, 
       DDSI_QP_PRESENTATION | DDSI_QP_GROUP_DATA | \
       DDSI_QP_TIME_BASED_FILTER | DDSI_QP_ADLINK_READER_DATA_LIFECYCLE | \
       DDSI_QP_OWNERSHIP_STRENGTH | DDSI_QP_ADLINK_WRITER_DATA_LIFECYCLE | \
-      DDSI_QP_DURABILITY_SERVICE,
+      DDSI_QP_DURABILITY_SERVICE | DDSI_QP_DATA_REPRESENTATION,
 
 #define QOS_ALL_BASE1 { \
     QOS_ALL_PRESENT \
@@ -1149,6 +1192,7 @@ CU_Theory((dds_qos_kind_t kind, sysdef_qos_conf_t dur_conf), ddsc_qos_provider, 
     Q_TIMEBASEDFILTER(DDS_SECS(1))Q_READERLIFECYCLE(DDS_SECS(1), DDS_SECS(1)) \
     Q_OWNERSHIPSTRENGTH(100)Q_WRITERLIFECYCLE(1) \
     Q_DURABILITYSERVICE(DDS_SECS(1),DDS_HISTORY_KEEP_ALL,-1,1,1,1) \
+    Q_DATAREPRESENTATION \
   }
 
 #define QOS_ALL_BASE2 { \
@@ -1164,6 +1208,7 @@ CU_Theory((dds_qos_kind_t kind, sysdef_qos_conf_t dur_conf), ddsc_qos_provider, 
     Q_TIMEBASEDFILTER(DDS_SECS(1))Q_READERLIFECYCLE(DDS_SECS(1), DDS_SECS(1)) \
     Q_OWNERSHIPSTRENGTH(100)Q_WRITERLIFECYCLE(1) \
     Q_DURABILITYSERVICE(DDS_SECS(1),DDS_HISTORY_KEEP_ALL,-1,1,1,1) \
+    Q_DATAREPRESENTATION \
   }
 
 #define Q1 QOS_ALL_BASE1

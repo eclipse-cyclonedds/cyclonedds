@@ -58,6 +58,7 @@
   QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_USERDATA, RD, WR, PP)
   QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_WRITERDATALIFECYCLE, WR)
   QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_WRITERBATCHING, WR)
+  QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION, RD, WR, TP)
 
 #undef PP
 #undef SUB
@@ -356,6 +357,20 @@ static void fini_qos_partition_name_element (struct xml_element *node)
   ddsrt_free (p->element);
 }
 
+static void fini_qos_data_representation (struct xml_element *node)
+{
+  struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION *qp = (struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION *) node;
+  assert (qp != NULL);
+  free_node (qp->id);
+}
+
+static void fini_qos_data_representation_id (struct xml_element *node)
+{
+  struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID *i = (struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID *) node;
+  assert (i != NULL);
+  free_node (i->elements);
+}
+
 static void fini_qos (struct xml_element *node)
 {
   struct dds_sysdef_qos *qos = (struct dds_sysdef_qos *) node;
@@ -618,6 +633,13 @@ static int init_type_external_ref (UNUSED_ARG (struct parse_sysdef_state * const
 {
   struct dds_sysdef_type *sdtype = (struct dds_sysdef_type *) node;
   sdtype->kind = DDS_SYSDEF_TYPE_REF_EXTERNAL;
+  return 0;
+}
+
+static int init_data_representation_id_element (UNUSED_ARG (struct parse_sysdef_state * const pstate), struct xml_element *node)
+{
+  struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT *elem= (struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT *) node;
+  elem->element = -1;
   return 0;
 }
 
@@ -1425,6 +1447,32 @@ __pragma(warning(pop))
 #endif
 }
 
+static bool qget_DATAREPRESENTATION (dds_qos_t *qos)
+{
+  return dds_qget_data_representation(qos, NULL, NULL);
+}
+
+static void qset_DATAREPRESENTATION (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION *qp)
+{
+  (void)qos; (void)qp;
+  uint32_t c = 0;
+  dds_data_representation_id_t *ids = NULL;
+  if (qp->id != NULL) {
+    if (qp->id->elements != NULL) {
+      for (struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT *v = qp->id->elements; v != NULL; v = (struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT *) v->xmlnode.next)
+        c++;
+      ids = ddsrt_malloc(c * sizeof (*ids));
+      uint32_t i = 0;
+      for (struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT *v = qp->id->elements; v != NULL; v = (struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT *) v->xmlnode.next)
+        ids[i++] = v->element;
+    } else {
+      ; /* FIXME: Don't actually care? */
+    }
+  }
+  dds_qset_data_representation (qos, c, ids);
+  ddsrt_free (ids);
+}
+
 static bool qget_PRESENTATION (dds_qos_t *qos)
 {
   return dds_qget_presentation (qos, NULL, NULL, NULL);
@@ -1618,6 +1666,9 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UNUSED_
         break;
       case ELEMENT_KIND_QOS_POLICY_PARTITION:
         ELEM_CLOSE_QOS_POLICY(PARTITION, "Partition");
+        break;
+      case ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION:
+        ELEM_CLOSE_QOS_POLICY(DATAREPRESENTATION, "Data representation");
         break;
       case ELEMENT_KIND_QOS_POLICY_PRESENTATION:
         ELEM_CLOSE_QOS_POLICY(PRESENTATION, "Presentation");
@@ -2222,6 +2273,26 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
       }
       break;
     }
+    case ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT:
+    {
+      struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION *qp = (struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION *) pstate->current->parent->parent;
+      struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT *r = (struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT *) pstate->current;
+
+      if (!strcmp (value, QOS_DATA_REPRESENTATION_XCDR1)) {
+        r->element = DDS_DATA_REPRESENTATION_XCDR1;
+      } else if (!strcmp (value, QOS_DATA_REPRESENTATION_XCDR2)) {
+        r->element = DDS_DATA_REPRESENTATION_XCDR2;
+      } else if (!strcmp (value, QOS_DATA_REPRESENTATION_XML)) {
+        r->element = DDS_DATA_REPRESENTATION_XML;
+      } else {
+        PARSER_ERROR (pstate, line, "Unknown data representation '%s'", value);
+        ret = SD_PARSE_RESULT_SYNTAX_ERR;
+        break;
+      }
+
+      qp->populated |= QOS_POLICY_DATAREPRESENTATION_PARAM_ID;
+      break;
+    }
     case ELEMENT_KIND_QOS_POLICY_RELIABILITY_KIND:
       QOS_PARAM_DATA (RELIABILITY, KIND);
       break;
@@ -2537,6 +2608,8 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_OWNERSHIPSTRENGTH, ELEMENT_KIND_QOS_POLICY_OWNERSHIPSTRENGTH, NO_INIT, NO_FINI, pstate->current);
       else if (ddsrt_strcasecmp (name, "partition") == 0)
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_PARTITION, ELEMENT_KIND_QOS_POLICY_PARTITION, NO_INIT, fini_qos_partition, pstate->current);
+      else if (ddsrt_strcasecmp (name, "data_representation") == 0)
+        CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_DATAREPRESENTATION, ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION, NO_INIT, fini_qos_data_representation, pstate->current);
       else if (ddsrt_strcasecmp (name, "presentation") == 0)
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_PRESENTATION, ELEMENT_KIND_QOS_POLICY_PRESENTATION, NO_INIT, NO_FINI, pstate->current);
       else if (ddsrt_strcasecmp (name, "reader_data_lifecycle") == 0)
@@ -2667,8 +2740,16 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
       }
       else if (ddsrt_strcasecmp (name, "name") == 0)
         CREATE_NODE_SINGLE (pstate, dds_sysdef_QOS_POLICY_PARTITION_NAME, ELEMENT_KIND_QOS_POLICY_PARTITION_NAME, NO_INIT, fini_qos_partition_name, name, dds_sysdef_QOS_POLICY_PARTITION, ELEMENT_KIND_QOS_POLICY_PARTITION, pstate->current);
-      else if (ddsrt_strcasecmp (name, "element") == 0)
-        CREATE_NODE_LIST (pstate, dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT, ELEMENT_KIND_QOS_POLICY_PARTITION_NAME_ELEMENT, NO_INIT, fini_qos_partition_name_element, elements, dds_sysdef_QOS_POLICY_PARTITION_NAME, ELEMENT_KIND_QOS_POLICY_PARTITION_NAME, pstate->current);
+      else if (ddsrt_strcasecmp (name, "id") == 0)
+        CREATE_NODE_SINGLE (pstate, dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID, ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION_ID, NO_INIT, fini_qos_data_representation_id, id, dds_sysdef_QOS_POLICY_DATAREPRESENTATION, ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION, pstate->current);
+      else if (ddsrt_strcasecmp (name, "element") == 0) {
+        if (pstate->current->kind == ELEMENT_KIND_QOS_POLICY_PARTITION_NAME)
+          CREATE_NODE_LIST (pstate, dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT, ELEMENT_KIND_QOS_POLICY_PARTITION_NAME_ELEMENT, NO_INIT, fini_qos_partition_name_element, elements, dds_sysdef_QOS_POLICY_PARTITION_NAME, ELEMENT_KIND_QOS_POLICY_PARTITION_NAME, pstate->current);
+        else if (pstate->current->kind == ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION_ID)
+          CREATE_NODE_LIST (pstate, dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT, ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT, init_data_representation_id_element, NO_FINI, elements, dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID, ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION_ID, pstate->current);
+        else
+          PARSER_ERROR_INVALID_PARENT_KIND ();
+      }
       else if (ddsrt_strcasecmp (name, "sec") == 0)
       {
         if (pstate->current->data_type == ELEMENT_DATA_TYPE_DURATION)
