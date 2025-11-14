@@ -606,6 +606,18 @@ dds_qset_psmx_instances (
   uint32_t n,
   const char **values);
 
+/**
+ * @ingroup qos_setters
+ * @component qos_obj
+ * @brief Set conent filter in a qos structure
+ *
+ * @param[in,out] qos    - Pointer to a dds_qos_t structure that will store the policy
+ * @param[in]     filter - Pointer to preiously created content filter struct
+ */
+DDS_EXPORT void
+dds_qset_content_filter (
+  dds_qos_t *qos,
+  const dds_content_filter_t filter);
 
 /**
  * @defgroup qos_getters (QoS Getters)
@@ -1116,9 +1128,9 @@ DDS_EXPORT bool dds_qget_entity_name (const dds_qos_t *qos, char **name);
  * @component qos_obj
  * @brief Gets the names of the PSMX Instances set in a qos structure
  *
- * @param qos     Pointer to a dds_qos_t structure
- * @param n_out   Number of PSMX Instance Names returned
- * @param values  Array of pointers to PSMX instance Names
+ * @param[in]     qos     - Pointer to a dds_qos_t structure
+ * @param[in,out] n_out   - Number of PSMX Instance Names returned
+ * @param[in,out] values  - Array of pointers to PSMX instance Names
  * @return bool indicating success or failure
  */
 DDS_EXPORT bool
@@ -1126,6 +1138,20 @@ dds_qget_psmx_instances (
   const dds_qos_t *qos,
   uint32_t *n_out,
   char ***values);
+
+/**
+ * @ingroup qos_getters
+ * @component qos_obj
+ * @brief Get content filter set in qos structure
+ *
+ * @param[in]     qos     - Pointer to a dds_qos_t structure
+ * @param[in,out] filter  - Pointer to content filter struct.
+ * @return bool indicating success or failure
+ */
+DDS_EXPORT bool
+dds_qget_content_filter(
+  const dds_qos_t *qos,
+  dds_content_filter_t **filter);
 
 #if defined (__cplusplus)
 }
