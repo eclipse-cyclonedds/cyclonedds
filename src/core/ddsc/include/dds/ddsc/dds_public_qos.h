@@ -1011,6 +1011,38 @@ dds_qget_prop (
   char ** value);
 
 /**
+ * @ingroup qos_setters
+ * @component qos_obj
+ * @brief Set value if the property shall be included in discovery or not.
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that contains the property
+ * @param[in] name - Pointer to name of the property
+ * @param[in] propagate - Bool value to propagate or not
+ */
+DDS_EXPORT void
+dds_qset_prop_set_propagate (
+  dds_qos_t *qos,
+  const char * name,
+  bool propagate);
+
+/**
+ * @ingroup qos_getters
+ * @component qos_obj
+ * @brief Check if property gets propagated or not.
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that contains the property
+ * @param[in] name - Pointer to name of the property
+ * @param[in,out] propagate - Pointer that will store if property gets propagated or not
+ * 
+ * @returns - false if any of the arguments is invalid, the qos is not present in the qos object or there was no property found with the provided name
+ */
+DDS_EXPORT bool
+dds_qset_prop_get_propagate (
+  const dds_qos_t *qos,
+  const char * name,
+  bool *propagate);
+
+/**
  * @ingroup qos_getters
  * @component qos_obj
  * @brief Gets the names of the binary properties from a qos structure.

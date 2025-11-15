@@ -407,6 +407,30 @@ void dds_qset_prop (dds_qos_t *qos, const char * name, const char * value)
   }
 }
 
+void dds_qset_prop_set_propagate (dds_qos_t *qos, const char * name, bool propagate)
+{
+  uint32_t i;
+  if (dds_qprop_get_index (qos, name, &i))
+  {
+    if (propagate) {
+      qos->property.value.props[i].propagate = 1;
+    } else {
+      qos->property.value.props[i].propagate = 0;
+    }
+  }
+}
+
+bool dds_qset_prop_get_propagate (const dds_qos_t *qos, const char * name, bool * propagate)
+{
+  uint32_t i;
+  if (dds_qprop_get_index (qos, name, &i))
+  {
+    *propagate = qos->property.value.props[i].propagate == 1;
+    return true;
+  }
+  return false;
+}
+
 void dds_qset_bprop (dds_qos_t *qos, const char * name, const void * value, const size_t sz)
 {
   uint32_t i;
