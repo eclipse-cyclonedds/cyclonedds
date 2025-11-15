@@ -1018,8 +1018,10 @@ dds_qget_prop (
  * @param[in,out] qos - Pointer to a dds_qos_t structure that contains the property
  * @param[in] name - Pointer to name of the property
  * @param[in] propagate - Bool value to propagate or not
+ * 
+ * @returns - false if any of the arguments is invalid, the qos is not present in the qos object or there was no property found with the provided name
  */
-DDS_EXPORT void
+DDS_EXPORT bool
 dds_qset_prop_set_propagate (
   dds_qos_t *qos,
   const char * name,

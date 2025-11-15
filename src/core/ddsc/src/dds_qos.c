@@ -407,7 +407,7 @@ void dds_qset_prop (dds_qos_t *qos, const char * name, const char * value)
   }
 }
 
-void dds_qset_prop_set_propagate (dds_qos_t *qos, const char * name, bool propagate)
+bool dds_qset_prop_set_propagate (dds_qos_t *qos, const char * name, bool propagate)
 {
   uint32_t i;
   if (dds_qprop_get_index (qos, name, &i))
@@ -417,7 +417,9 @@ void dds_qset_prop_set_propagate (dds_qos_t *qos, const char * name, bool propag
     } else {
       qos->property.value.props[i].propagate = 0;
     }
+    return true;
   }
+  return false;
 }
 
 bool dds_qset_prop_get_propagate (const dds_qos_t *qos, const char * name, bool * propagate)
