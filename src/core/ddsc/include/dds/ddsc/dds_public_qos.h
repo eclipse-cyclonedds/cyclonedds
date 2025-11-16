@@ -1022,7 +1022,7 @@ dds_qget_prop (
  * @returns - false if any of the arguments is invalid, the qos is not present in the qos object or there was no property found with the provided name
  */
 DDS_EXPORT bool
-dds_qset_prop_set_propagate (
+dds_qset_prop_propagate (
   dds_qos_t *qos,
   const char * name,
   bool propagate);
@@ -1039,7 +1039,7 @@ dds_qset_prop_set_propagate (
  * @returns - false if any of the arguments is invalid, the qos is not present in the qos object or there was no property found with the provided name
  */
 DDS_EXPORT bool
-dds_qset_prop_get_propagate (
+dds_qget_prop_propagate (
   const dds_qos_t *qos,
   const char * name,
   bool *propagate);

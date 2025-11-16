@@ -394,6 +394,7 @@ int main (int argc, char **argv)
   dds_qset_durability_service (ptr, 0, 0, 0, 0, 0, 0);
   dds_qset_ignorelocal (ptr, 0);
   dds_qset_prop (ptr, ptr2, ptr3);
+  dds_qset_prop_propagate (ptr, ptr, ptr);
   dds_qunset_prop (ptr, ptr2);
   dds_qset_bprop (ptr, ptr2, ptr3, 0);
   dds_qunset_bprop (ptr, ptr2);
@@ -426,8 +427,7 @@ int main (int argc, char **argv)
   dds_qget_ignorelocal (ptr, 0);
   dds_qget_propnames (ptr, ptr, ptr);
   dds_qget_prop (ptr, ptr, ptr);
-  dds_qset_prop_set_propagate (ptr, ptr, ptr);
-  dds_qset_prop_get_propagate (ptr, ptr, ptr);
+  dds_qget_prop_propagate (ptr, ptr, ptr);
   dds_qget_bpropnames (ptr, ptr, ptr);
   dds_qget_bprop (ptr, ptr, ptr, ptr);
   dds_qget_type_consistency (ptr, 0, ptr, ptr, ptr, ptr, ptr);

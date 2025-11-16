@@ -407,7 +407,7 @@ void dds_qset_prop (dds_qos_t *qos, const char * name, const char * value)
   }
 }
 
-bool dds_qset_prop_set_propagate (dds_qos_t *qos, const char * name, bool propagate)
+bool dds_qset_prop_propagate (dds_qos_t *qos, const char * name, bool propagate)
 {
   uint32_t i;
   if (dds_qprop_get_index (qos, name, &i))
@@ -417,17 +417,6 @@ bool dds_qset_prop_set_propagate (dds_qos_t *qos, const char * name, bool propag
     } else {
       qos->property.value.props[i].propagate = 0;
     }
-    return true;
-  }
-  return false;
-}
-
-bool dds_qset_prop_get_propagate (const dds_qos_t *qos, const char * name, bool * propagate)
-{
-  uint32_t i;
-  if (dds_qprop_get_index (qos, name, &i))
-  {
-    *propagate = qos->property.value.props[i].propagate == 1;
     return true;
   }
   return false;
@@ -821,6 +810,17 @@ bool dds_qget_prop (const dds_qos_t *qos, const char * name, char ** value)
   if (value != NULL)
     *value = found ? dds_string_dup (qos->property.value.props[i].value) : NULL;
   return found;
+}
+
+bool dds_qget_prop_propagate (const dds_qos_t *qos, const char * name, bool * propagate)
+{
+  uint32_t i;
+  if (dds_qprop_get_index (qos, name, &i))
+  {
+    *propagate = qos->property.value.props[i].propagate == 1;
+    return true;
+  }
+  return false;
 }
 
 bool dds_qget_bprop (const dds_qos_t *qos, const char * name, void ** value, size_t * sz)
