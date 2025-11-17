@@ -508,19 +508,19 @@ static int get_op_precedence(const int op_token)
     case DDS_SQL_TK_DOT:
       prec = 12;
       break;
-    case DDS_SQL_TK_UMINUS:
-    case DDS_SQL_TK_UPLUS:
+    case DDS_SQL_TK_BITNOT:
       prec = 11;
       break;
-    case DDS_SQL_TK_BITNOT:
-      prec = 10;
-      break;
     case DDS_SQL_TK_COLLATE:
-      prec = 9;
+      prec = 10;
       break;
     case DDS_SQL_TK_STAR:
     case DDS_SQL_TK_SLASH:
     case DDS_SQL_TK_REM:
+      prec = 9;
+      break;
+    case DDS_SQL_TK_UMINUS:
+    case DDS_SQL_TK_UPLUS:
       prec = 8;
       break;
     case DDS_SQL_TK_PLUS:
