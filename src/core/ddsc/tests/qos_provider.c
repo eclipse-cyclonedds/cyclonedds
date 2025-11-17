@@ -334,6 +334,20 @@ CU_Theory((char *configuration, char *key, dds_qos_kind_t kind, dds_return_t cod
   "<id>%s</id>"
 #define QOS_POLICY_DATAREPRESENTATION_FMT \
   "<data_representation>%s</data_representation>"
+#define QOS_TYPECONSISTENCY_IGNORE_SEQUENCE_BOUNDS(v) \
+  "<ignore_sequence_bounds>"#v"</ignore_sequence_bounds>"
+#define QOS_TYPECONSISTENCY_IGNORE_STRING_BOUNDS(v) \
+  "<ignore_string_bounds>"#v"</ignore_string_bounds>"
+#define QOS_TYPECONSISTENCY_IGNORE_MEMBER_NAMES(v) \
+  "<ignore_member_names>"#v"</ignore_member_names>"
+#define QOS_TYPECONSISTENCY_PREVENT_TYPE_WIDENING(v) \
+  "<prevent_type_widening>"#v"</prevent_type_widening>"
+#define QOS_TYPECONSISTENCY_FORCE_TYPE_VALIDATION(v) \
+  "<force_type_validation>"#v"</force_type_validation>"
+#define QOS_TYPECONSISTENCY_KIND(tkk) \
+  "<kind>"#tkk"</kind>"
+#define QOS_POLICY_TYPECONSISTENCY_FMT \
+  "<type_consistency>%s</type_consistency>"
 #define QOS_ACCESS_SCOPE_KIND(ask) \
   "<access_scope>"#ask"</access_scope>"
 #define QOS_COHERENT_ACCESS(ca) \
@@ -453,6 +467,68 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
     ddsrt_free(tmp);
     ddsrt_free(deadline);
     *validate_mask |= DDSI_QP_DEADLINE;
+  }
+  if ((ignore_ent || (kind == DDS_READER_QOS)) &&
+      (ret >= 0) && (qos->present & DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT))
+  {
+    char *tk_enf_kind;
+    if (qos->type_consistency.kind == DDS_TYPE_CONSISTENCY_DISALLOW_TYPE_COERCION)
+      ret = ddsrt_asprintf(&tk_enf_kind, "%s", QOS_TYPECONSISTENCY_KIND(DISALLOW_TYPE_COERCION));
+    else
+      ret = ddsrt_asprintf(&tk_enf_kind, "%s", QOS_TYPECONSISTENCY_KIND(ALLOW_TYPE_COERCION));
+    CHECK_RET_OK (ret);
+    char *tk_enf_rest = tk_enf_kind;
+    if (qos->type_consistency.ignore_sequence_bounds) {
+      char *tmp = tk_enf_rest;
+      ret = ddsrt_asprintf(&tk_enf_rest, "%s%s", tk_enf_rest, QOS_TYPECONSISTENCY_IGNORE_SEQUENCE_BOUNDS(true));
+      CHECK_RET_OK(ret);
+      ddsrt_free (tmp);
+    } else { // sysdef parser override value with reader_default if not presented
+      char *tmp = tk_enf_rest;
+      ret = ddsrt_asprintf(&tk_enf_rest, "%s%s", tk_enf_rest, QOS_TYPECONSISTENCY_IGNORE_SEQUENCE_BOUNDS(false));
+      CHECK_RET_OK(ret);
+      ddsrt_free (tmp);
+    }
+    if (qos->type_consistency.ignore_string_bounds) {
+      char *tmp = tk_enf_rest;
+      ret = ddsrt_asprintf(&tk_enf_rest, "%s%s", tk_enf_rest, QOS_TYPECONSISTENCY_IGNORE_STRING_BOUNDS(true));
+      CHECK_RET_OK(ret);
+      ddsrt_free (tmp);
+    } else { // sysdef parser override value with reader_default if not presented
+      char *tmp = tk_enf_rest;
+      ret = ddsrt_asprintf(&tk_enf_rest, "%s%s", tk_enf_rest, QOS_TYPECONSISTENCY_IGNORE_STRING_BOUNDS(false));
+      CHECK_RET_OK(ret);
+      ddsrt_free (tmp);
+    }
+    if (qos->type_consistency.ignore_member_names) {
+      char *tmp = tk_enf_rest;
+      ret = ddsrt_asprintf(&tk_enf_rest, "%s%s", tk_enf_rest, QOS_TYPECONSISTENCY_IGNORE_MEMBER_NAMES(true));
+      CHECK_RET_OK(ret);
+      ddsrt_free (tmp);
+    }
+    if (qos->type_consistency.prevent_type_widening) {
+      char *tmp = tk_enf_rest;
+      ret = ddsrt_asprintf(&tk_enf_rest, "%s%s", tk_enf_rest, QOS_TYPECONSISTENCY_PREVENT_TYPE_WIDENING(true));
+      CHECK_RET_OK(ret);
+      ddsrt_free (tmp);
+    }
+    if (qos->type_consistency.force_type_validation) {
+      char *tmp = tk_enf_rest;
+      ret = ddsrt_asprintf(&tk_enf_rest, "%s%s", tk_enf_rest, QOS_TYPECONSISTENCY_FORCE_TYPE_VALIDATION(true));
+      CHECK_RET_OK(ret);
+      ddsrt_free (tmp);
+    }
+
+    char *tk;
+    ret = ddsrt_asprintf(&tk, QOS_POLICY_TYPECONSISTENCY_FMT, tk_enf_rest);
+    CHECK_RET_OK(ret);
+    ddsrt_free (tk_enf_rest);
+    char *tmp = sysdef_qos;
+    ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, tk);
+    ddsrt_free (tmp);
+    ddsrt_free (tk);
+    CHECK_RET_OK(ret);
+    *validate_mask |= DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT;
   }
   if ((ignore_ent || (kind == DDS_TOPIC_QOS || kind == DDS_READER_QOS || kind == DDS_WRITER_QOS)) &&
       (ret >= 0) && (qos->present & DDSI_QP_DESTINATION_ORDER))
@@ -1166,6 +1242,8 @@ CU_Theory((dds_qos_kind_t kind, sysdef_qos_conf_t dur_conf), ddsc_qos_provider, 
 #define Q_WRITERLIFECYCLE(aui) .writer_data_lifecycle={.autodispose_unregistered_instances=aui},
 #define Q_DURABILITYSERVICE(dur,hk,hd,ms,mi,mspi) .durability_service={.service_cleanup_delay=dur,Q_HISTORY(hk,hd)Q_RESOURCELIMITS(ms,mi,mspi)},
 #define Q_DATAREPRESENTATION .data_representation={.value={.n=3,.ids=(dds_data_representation_id_t []){DDS_DATA_REPRESENTATION_XCDR1,DDS_DATA_REPRESENTATION_XCDR2,DDS_DATA_REPRESENTATION_XML}}},
+#define Q_TYPECONSISTENCY1 .type_consistency={.kind=DDS_TYPE_CONSISTENCY_DISALLOW_TYPE_COERCION}
+#define Q_TYPECONSISTENCY2 .type_consistency={.kind=DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION,.ignore_sequence_bounds=true,.ignore_string_bounds=false,.ignore_member_names=true,.prevent_type_widening=false,.force_type_validation=true}
 
 #define QOS_ALL_PRESENT .present = DDSI_QP_TOPIC_DATA | DDSI_QP_DURABILITY | \
       DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | \
@@ -1177,7 +1255,8 @@ CU_Theory((dds_qos_kind_t kind, sysdef_qos_conf_t dur_conf), ddsc_qos_provider, 
       DDSI_QP_PRESENTATION | DDSI_QP_GROUP_DATA | \
       DDSI_QP_TIME_BASED_FILTER | DDSI_QP_ADLINK_READER_DATA_LIFECYCLE | \
       DDSI_QP_OWNERSHIP_STRENGTH | DDSI_QP_ADLINK_WRITER_DATA_LIFECYCLE | \
-      DDSI_QP_DURABILITY_SERVICE | DDSI_QP_DATA_REPRESENTATION,
+      DDSI_QP_DURABILITY_SERVICE | DDSI_QP_DATA_REPRESENTATION | \
+      DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT,
 
 #define QOS_ALL_BASE1 { \
     QOS_ALL_PRESENT \
@@ -1192,7 +1271,7 @@ CU_Theory((dds_qos_kind_t kind, sysdef_qos_conf_t dur_conf), ddsc_qos_provider, 
     Q_TIMEBASEDFILTER(DDS_SECS(1))Q_READERLIFECYCLE(DDS_SECS(1), DDS_SECS(1)) \
     Q_OWNERSHIPSTRENGTH(100)Q_WRITERLIFECYCLE(1) \
     Q_DURABILITYSERVICE(DDS_SECS(1),DDS_HISTORY_KEEP_ALL,-1,1,1,1) \
-    Q_DATAREPRESENTATION \
+    Q_DATAREPRESENTATION Q_TYPECONSISTENCY1 \
   }
 
 #define QOS_ALL_BASE2 { \
@@ -1208,7 +1287,7 @@ CU_Theory((dds_qos_kind_t kind, sysdef_qos_conf_t dur_conf), ddsc_qos_provider, 
     Q_TIMEBASEDFILTER(DDS_SECS(1))Q_READERLIFECYCLE(DDS_SECS(1), DDS_SECS(1)) \
     Q_OWNERSHIPSTRENGTH(100)Q_WRITERLIFECYCLE(1) \
     Q_DURABILITYSERVICE(DDS_SECS(1),DDS_HISTORY_KEEP_ALL,-1,1,1,1) \
-    Q_DATAREPRESENTATION \
+    Q_DATAREPRESENTATION Q_TYPECONSISTENCY2 \
   }
 
 #define Q1 QOS_ALL_BASE1
