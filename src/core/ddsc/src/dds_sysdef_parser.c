@@ -59,6 +59,7 @@
   QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_WRITERDATALIFECYCLE, WR)
   QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_WRITERBATCHING, WR)
   QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION, RD, WR, TP)
+  QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT, RD)
 
 #undef PP
 #undef SUB
@@ -1555,6 +1556,37 @@ static bool qget_WRITERBATCHING (dds_qos_t *qos)
   return dds_qget_writer_batching (qos, NULL);
 }
 
+static void qset_WRITERBATCHING (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_WRITERBATCHING *qp)
+{
+  dds_qset_writer_batching (qos, qp->values.batch_updates);
+}
+
+static bool qget_TYPECONSISTENCYENFORCEMENT (dds_qos_t *qos)
+{
+  return dds_qget_type_consistency (qos, NULL, NULL, NULL, NULL, NULL, NULL);
+}
+
+static void qset_TYPECONSISTENCYENFORCEMENT (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_TYPECONSISTENCYENFORCEMENT *qp)
+{
+  dds_type_consistency_kind_t kind = qp->values.kind;
+  bool ignore_sequence_bounds, ignore_string_bounds, ignore_member_names, prevent_type_widening, force_type_validation;
+  if (kind == ddsi_default_qos_reader.type_consistency.kind) {
+    ignore_sequence_bounds = (qp->populated & QOS_POLICY_TYPECONSISTENCYENFORCEMENT_PARAM_IGNORE_SEQUENCE_BOUNDS)? qp->values.ignore_sequence_bounds:ddsi_default_qos_reader.type_consistency.ignore_sequence_bounds;
+    ignore_string_bounds = (qp->populated & QOS_POLICY_TYPECONSISTENCYENFORCEMENT_PARAM_IGNORE_STRING_BOUNDS)? qp->values.ignore_string_bounds: ddsi_default_qos_reader.type_consistency.ignore_string_bounds;
+    ignore_member_names = (qp->populated & QOS_POLICY_TYPECONSISTENCYENFORCEMENT_PARAM_IGNORE_MEMBER_NAMES)? qp->values.ignore_member_names: ddsi_default_qos_reader.type_consistency.ignore_member_names;
+    prevent_type_widening = (qp->populated & QOS_POLICY_TYPECONSISTENCYENFORCEMENT_PARAM_PREVENT_TYPE_WIDENING)? qp->values.prevent_type_widening: ddsi_default_qos_reader.type_consistency.prevent_type_widening;
+    force_type_validation = (qp->populated & QOS_POLICY_TYPECONSISTENCYENFORCEMENT_PARAM_FORCE_TYPE_VALIDATION)? qp->values.force_type_validation: ddsi_default_qos_reader.type_consistency.force_type_validation;
+  } else {
+    ignore_sequence_bounds = qp->values.ignore_sequence_bounds;
+    ignore_string_bounds = qp->values.ignore_string_bounds;
+    ignore_member_names = qp->values.ignore_member_names;
+    prevent_type_widening = qp->values.prevent_type_widening;
+    force_type_validation = qp->values.force_type_validation;
+  }
+
+  dds_qset_type_consistency (qos, kind, ignore_sequence_bounds, ignore_string_bounds, ignore_member_names, prevent_type_widening, force_type_validation);
+}
+
 static bool qget_ENTITYFACTORY (dds_qos_t *qos)
 {
   return qos->present & DDSI_QP_ADLINK_ENTITY_FACTORY;
@@ -1564,11 +1596,6 @@ static void qset_ENTITYFACTORY (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_ENT
 {
   qos->present |= DDSI_QP_ADLINK_ENTITY_FACTORY;
   qos->entity_factory.autoenable_created_entities = qp->values.autoenable_created_entities;
-}
-
-static void qset_WRITERBATCHING (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_WRITERBATCHING *qp)
-{
-  dds_qset_writer_batching (qos, qp->values.batch_updates);
 }
 
 #define _ELEM_CLOSE_REQUIRE_ATTR(type,attr_name,current,element_name) \
@@ -1666,6 +1693,9 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UNUSED_
         break;
       case ELEMENT_KIND_QOS_POLICY_PARTITION:
         ELEM_CLOSE_QOS_POLICY(PARTITION, "Partition");
+        break;
+      case ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT:
+        ELEM_CLOSE_QOS_POLICY(TYPECONSISTENCYENFORCEMENT, "Type consistency");
         break;
       case ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION:
         ELEM_CLOSE_QOS_POLICY(DATAREPRESENTATION, "Data representation");
@@ -2030,6 +2060,20 @@ static int set_RELIABILITY_KIND (struct parse_sysdef_state * const pstate, struc
   return ret;
 }
 
+static int set_TYPECONSISTENCYENFORCEMENT_KIND (struct parse_sysdef_state * const pstate, struct dds_sysdef_QOS_POLICY_TYPECONSISTENCYENFORCEMENT *qp, const char *value, int line)
+{
+  int ret = SD_PARSE_RESULT_OK;
+  if (strcmp (value, QOS_TYPECONSISTENCY_DISALLOW_TYPE_COERCION) == 0) {
+    qp->values.kind = DDS_TYPE_CONSISTENCY_DISALLOW_TYPE_COERCION;
+  } else if (strcmp (value, QOS_TYPECONSISTENCY_ALLOW_TYPE_COERCION) == 0) {
+    qp->values.kind = DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION;
+  } else {
+    PARSER_ERROR (pstate, line, "Invalid value '%s'", value);
+    ret = SD_PARSE_RESULT_SYNTAX_ERR;
+  }
+  return ret;
+}
+
 QOS_PARAM_SET_NUMERIC(DURABILITYSERVICE, HISTORY_DEPTH, history.depth, int32)
 QOS_PARAM_SET_NUMERIC_UNLIMITED(DURABILITYSERVICE, RESOURCE_LIMIT_MAX_SAMPLES, resource_limits.max_samples, int32)
 QOS_PARAM_SET_NUMERIC_UNLIMITED(DURABILITYSERVICE, RESOURCE_LIMIT_MAX_INSTANCES, resource_limits.max_instances, int32)
@@ -2045,6 +2089,11 @@ QOS_PARAM_SET_NUMERIC_UNLIMITED(RESOURCELIMITS, MAX_SAMPLES_PER_INSTANCE, max_sa
 QOS_PARAM_SET_NUMERIC(TRANSPORTPRIORITY, VALUE, value, int32)
 QOS_PARAM_SET_BOOLEAN(WRITERDATALIFECYCLE, AUTODISPOSE_UNREGISTERED_INSTANCES, autodispose_unregistered_instances)
 QOS_PARAM_SET_BOOLEAN(WRITERBATCHING, BATCH_UPDATES, batch_updates)
+QOS_PARAM_SET_BOOLEAN(TYPECONSISTENCYENFORCEMENT, IGNORE_SEQUENCE_BOUNDS, ignore_sequence_bounds)
+QOS_PARAM_SET_BOOLEAN(TYPECONSISTENCYENFORCEMENT, IGNORE_STRING_BOUNDS, ignore_string_bounds)
+QOS_PARAM_SET_BOOLEAN(TYPECONSISTENCYENFORCEMENT, IGNORE_MEMBER_NAMES, ignore_member_names)
+QOS_PARAM_SET_BOOLEAN(TYPECONSISTENCYENFORCEMENT, PREVENT_TYPE_WIDENING, prevent_type_widening)
+QOS_PARAM_SET_BOOLEAN(TYPECONSISTENCYENFORCEMENT, FORCE_TYPE_VALIDATION, force_type_validation)
 QOS_PARAM_SET_BASE64(GROUPDATA, VALUE, value, length)
 QOS_PARAM_SET_BASE64(TOPICDATA, VALUE, value, length)
 QOS_PARAM_SET_BASE64(USERDATA, VALUE, value, length)
@@ -2249,6 +2298,24 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
     }
     case ELEMENT_KIND_QOS_POLICY_LIVELINESS_KIND:
       QOS_PARAM_DATA (LIVELINESS, KIND);
+      break;
+    case ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_KIND:
+      QOS_PARAM_DATA (TYPECONSISTENCYENFORCEMENT, KIND);
+      break;
+    case ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_IGNORE_SEQUENCE_BOUNDS:
+      QOS_PARAM_DATA (TYPECONSISTENCYENFORCEMENT, IGNORE_SEQUENCE_BOUNDS);
+      break;
+    case ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_IGNORE_STRING_BOUNDS:
+      QOS_PARAM_DATA (TYPECONSISTENCYENFORCEMENT, IGNORE_STRING_BOUNDS);
+      break;
+    case ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_IGNORE_MEMBER_NAMES:
+      QOS_PARAM_DATA (TYPECONSISTENCYENFORCEMENT, IGNORE_MEMBER_NAMES);
+      break;
+    case ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_PREVENT_TYPE_WIDENING:
+      QOS_PARAM_DATA (TYPECONSISTENCYENFORCEMENT, PREVENT_TYPE_WIDENING);
+      break;
+    case ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_FORCE_TYPE_VALIDATION:
+      QOS_PARAM_DATA (TYPECONSISTENCYENFORCEMENT, FORCE_TYPE_VALIDATION);
       break;
     case ELEMENT_KIND_QOS_POLICY_OWNERSHIP_KIND:
       QOS_PARAM_DATA (OWNERSHIP, KIND);
@@ -2596,6 +2663,8 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_GROUPDATA, ELEMENT_KIND_QOS_POLICY_GROUPDATA, init_qos_GROUPDATA, fini_qos_groupdata, pstate->current);
       else if (ddsrt_strcasecmp (name, "history") == 0)
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_HISTORY, ELEMENT_KIND_QOS_POLICY_HISTORY, NO_INIT, NO_FINI, pstate->current);
+      else if (ddsrt_strcasecmp (name, "type_consistency") == 0)
+        CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_TYPECONSISTENCYENFORCEMENT, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT, NO_INIT, NO_FINI, pstate->current);
       else if (ddsrt_strcasecmp (name, "latency_budget") == 0)
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_LATENCYBUDGET, ELEMENT_KIND_QOS_POLICY_LATENCYBUDGET, NO_INIT, NO_FINI, pstate->current);
       else if (ddsrt_strcasecmp (name, "lifespan") == 0)
@@ -2706,6 +2775,16 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
         CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_WRITERBATCHING_BATCH_UPDATES, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_WRITERBATCHING, pstate->current);
       else if (ddsrt_strcasecmp (name, "autoenable_created_entities") == 0)
         CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_ENTITYFACTORY_AUTOENABLE_CREATED_ENTITIES, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_ENTITYFACTORY, pstate->current);
+      else if (ddsrt_strcasecmp (name, "ignore_sequence_bounds") == 0)
+        CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_IGNORE_SEQUENCE_BOUNDS, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT, pstate->current);
+      else if (ddsrt_strcasecmp (name, "ignore_string_bounds") == 0)
+        CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_IGNORE_STRING_BOUNDS, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT, pstate->current);
+      else if (ddsrt_strcasecmp (name, "ignore_member_names") == 0)
+        CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_IGNORE_MEMBER_NAMES, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT, pstate->current);
+      else if (ddsrt_strcasecmp (name, "prevent_type_widening") == 0)
+        CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_PREVENT_TYPE_WIDENING, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT, pstate->current);
+      else if (ddsrt_strcasecmp (name, "force_type_validation") == 0)
+        CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_FORCE_TYPE_VALIDATION, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT, pstate->current);
       else if (ddsrt_strcasecmp (name, "kind") == 0)
       {
         if (pstate->current->kind == ELEMENT_KIND_QOS_POLICY_DESTINATIONORDER)
@@ -2720,6 +2799,8 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
           CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_OWNERSHIP_KIND, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_OWNERSHIP, pstate->current);
         else if (pstate->current->kind == ELEMENT_KIND_QOS_POLICY_RELIABILITY)
           CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_RELIABILITY_KIND, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_RELIABILITY, pstate->current);
+        else if (pstate->current->kind == ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT)
+          CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_KIND, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT, pstate->current);
         else
           PARSER_ERROR_INVALID_PARENT_KIND ();
       }
