@@ -540,6 +540,25 @@ dds_qset_bprop (
 /**
  * @ingroup qos_setters
  * @component qos_obj
+ * @brief Stores the provided binary data and propagate as a property in a qos structure
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the property
+ * @param[in] name - Pointer to name of the property
+ * @param[in] value - Pointer to data to be stored in the property
+ * @param[in] sz - Size of the data
+ * @param[in] propagate - Whether to propagate the property over discovery or not
+ */
+DDS_EXPORT void
+dds_qset_bprop_propagate (
+  dds_qos_t *qos,
+  const char * name,
+  const void * value,
+  const size_t sz,
+  bool propagate);
+
+/**
+ * @ingroup qos_setters
+ * @component qos_obj
  * @brief Removes the binary property with the provided name from a qos structure.
  *
  * In case more than one binary property exists with this name, only the first binary
@@ -1084,6 +1103,27 @@ dds_qget_bprop (
   const char * name,
   void ** value,
   size_t * sz);
+
+/**
+ * @ingroup qos_getters
+ * @component qos_obj
+ * @brief Get the value of the binary property with the provided name and propagate from a qos structure.
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that contains the property
+ * @param[in] name - Pointer to name of the binary property
+ * @param[in,out] value - Pointer to a buffer that will store the value of the property. If sz = 0 then a NULL pointer. The memory for storing the value will be allocated by this function and the caller gets ownership of the allocated memory
+ * @param[in,out] sz - Pointer that will store the size of the returned buffer.
+ * @param[in,out] propagate - Pointer that will store if property gets propagated or not
+ *
+ * @returns - false iff any of the arguments is invalid, the qos is not present in the qos object or there was no binary property found with the provided name
+ */
+DDS_EXPORT bool
+dds_qget_bprop_propagate (
+  const dds_qos_t *qos,
+  const char * name,
+  void ** value,
+  size_t * sz,
+  bool * propagate);
 
 /**
  * @ingroup qos_getters

@@ -414,6 +414,11 @@ void dds_qset_prop_propagate (dds_qos_t *qos, const char * name, const char * va
 
 void dds_qset_bprop (dds_qos_t *qos, const char * name, const void * value, const size_t sz)
 {
+  dds_qset_bprop_propagate (qos, name, value, sz, false);
+}
+
+void dds_qset_bprop_propagate (dds_qos_t *qos, const char * name, const void * value, const size_t sz, bool propagate)
+{
   uint32_t i;
   if (qos == NULL || name == NULL || (value == NULL && sz > 0))
     return;
@@ -428,7 +433,7 @@ void dds_qset_bprop (dds_qos_t *qos, const char * name, const void * value, cons
   {
     qos->property.binary_value.props = dds_realloc (qos->property.binary_value.props,
       (qos->property.binary_value.n + 1) * sizeof (*qos->property.binary_value.props));
-    qos->property.binary_value.props[qos->property.binary_value.n].propagate = 0;
+    qos->property.binary_value.props[qos->property.binary_value.n].propagate = propagate ? 1 : 0;
     qos->property.binary_value.props[qos->property.binary_value.n].name = dds_string_dup (name);
     dds_qos_data_copy_in (&qos->property.binary_value.props[qos->property.binary_value.n].value, value, sz, false);
     qos->property.binary_value.n++;
@@ -813,6 +818,11 @@ bool dds_qget_prop_propagate (const dds_qos_t *qos, const char * name, char ** v
 
 bool dds_qget_bprop (const dds_qos_t *qos, const char * name, void ** value, size_t * sz)
 {
+  return dds_qget_bprop_propagate (qos, name, value, sz, NULL);
+}
+
+bool dds_qget_bprop_propagate (const dds_qos_t *qos, const char * name, void ** value, size_t * sz, bool * propagate)
+{
   uint32_t i;
   bool found;
 
@@ -824,6 +834,9 @@ bool dds_qget_bprop (const dds_qos_t *qos, const char * name, void ** value, siz
   {
     if (value != NULL || sz != NULL)
       dds_qos_data_copy_out (&qos->property.binary_value.props[i].value, value, sz);
+
+    if (propagate != NULL)
+      *propagate = qos->property.binary_value.props[i].propagate == 1;
   }
   else
   {
@@ -831,6 +844,8 @@ bool dds_qget_bprop (const dds_qos_t *qos, const char * name, void ** value, siz
       *value = NULL;
     if (sz != NULL)
       *sz = 0;
+    if (propagate != NULL)
+      *propagate = false;
   }
   return found;
 }

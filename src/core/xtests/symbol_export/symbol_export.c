@@ -397,6 +397,7 @@ int main (int argc, char **argv)
   dds_qset_prop_propagate (ptr, ptr, ptr, ptr);
   dds_qunset_prop (ptr, ptr2);
   dds_qset_bprop (ptr, ptr2, ptr3, 0);
+  dds_qset_bprop_propagate (ptr, ptr2, ptr3, 0, ptr);
   dds_qunset_bprop (ptr, ptr2);
   dds_qset_type_consistency (ptr, 0, 0, 0, 0, 0, 0);
   dds_qset_data_representation (ptr, 0, ptr2);
@@ -430,6 +431,7 @@ int main (int argc, char **argv)
   dds_qget_prop_propagate (ptr, ptr, ptr, ptr);
   dds_qget_bpropnames (ptr, ptr, ptr);
   dds_qget_bprop (ptr, ptr, ptr, ptr);
+  dds_qget_bprop_propagate (ptr, ptr, ptr, ptr, ptr);
   dds_qget_type_consistency (ptr, 0, ptr, ptr, ptr, ptr, ptr);
   dds_qget_data_representation (ptr, ptr, ptr);
   dds_qget_entity_name (ptr, ptr);
