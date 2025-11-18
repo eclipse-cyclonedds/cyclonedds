@@ -485,18 +485,18 @@ dds_qset_prop (
 /**
  * @ingroup qos_setters
  * @component qos_obj
- * @brief Set value if the property shall be included in discovery or not.
- *
- * @param[in,out] qos - Pointer to a dds_qos_t structure that contains the property
- * @param[in] name - Pointer to name of the property
- * @param[in] propagate - Bool value to propagate or not
+ * @brief Stores a property with the provided name and string value and propagate in a qos structure.
  * 
- * @returns - false if any of the arguments is invalid, the qos is not present in the qos object or there was no property found with the provided name
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the property
+ * @param[in] name - Pointer to name of the property
+ * @param[in] value - Pointer to a (null-terminated) string that will be stored
+ * @param[in] propagate - Whether to propagate the property over discovery or not
  */
-DDS_EXPORT bool
+DDS_EXPORT void
 dds_qset_prop_propagate (
   dds_qos_t *qos,
   const char * name,
+  const char * value,
   bool propagate);
 
 /**
@@ -1030,10 +1030,11 @@ dds_qget_prop (
 /**
  * @ingroup qos_getters
  * @component qos_obj
- * @brief Check if property gets propagated or not.
+ * @brief Get the value of the property with the provided name and propagate from a qos structure.
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that contains the property
  * @param[in] name - Pointer to name of the property
+ * @param[in,out] value - Pointer to a string that will store the value of the property. The memory for storing the string value will be allocated by this function and the caller gets ownership of the allocated memory
  * @param[in,out] propagate - Pointer that will store if property gets propagated or not
  * 
  * @returns - false if any of the arguments is invalid, the qos is not present in the qos object or there was no property found with the provided name
@@ -1042,7 +1043,8 @@ DDS_EXPORT bool
 dds_qget_prop_propagate (
   const dds_qos_t *qos,
   const char * name,
-  bool *propagate);
+  char ** value,
+  bool * propagate);
 
 /**
  * @ingroup qos_getters

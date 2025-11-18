@@ -385,6 +385,11 @@ DDS_QUNSET_PROP (bprop, binary_value, value.value)
 
 void dds_qset_prop (dds_qos_t *qos, const char * name, const char * value)
 {
+  dds_qset_prop_propagate (qos, name, value, false);
+}
+
+void dds_qset_prop_propagate (dds_qos_t *qos, const char * name, const char * value, bool propagate)
+{
   uint32_t i;
   if (qos == NULL || name == NULL || value == NULL)
     return;
@@ -400,26 +405,11 @@ void dds_qset_prop (dds_qos_t *qos, const char * name, const char * value)
   {
     qos->property.value.props = dds_realloc (qos->property.value.props,
       (qos->property.value.n + 1) * sizeof (*qos->property.value.props));
-    qos->property.value.props[qos->property.value.n].propagate = 0;
+    qos->property.value.props[qos->property.value.n].propagate = propagate ? 1 : 0;
     qos->property.value.props[qos->property.value.n].name = dds_string_dup (name);
     qos->property.value.props[qos->property.value.n].value = dds_string_dup (value);
     qos->property.value.n++;
   }
-}
-
-bool dds_qset_prop_propagate (dds_qos_t *qos, const char * name, bool propagate)
-{
-  uint32_t i;
-  if (dds_qprop_get_index (qos, name, &i))
-  {
-    if (propagate) {
-      qos->property.value.props[i].propagate = 1;
-    } else {
-      qos->property.value.props[i].propagate = 0;
-    }
-    return true;
-  }
-  return false;
 }
 
 void dds_qset_bprop (dds_qos_t *qos, const char * name, const void * value, const size_t sz)
@@ -800,6 +790,11 @@ DDS_QGET_PROPNAMES (bprop, binary_value)
 
 bool dds_qget_prop (const dds_qos_t *qos, const char * name, char ** value)
 {
+  return dds_qget_prop_propagate (qos, name, value, NULL);
+}
+
+bool dds_qget_prop_propagate (const dds_qos_t *qos, const char * name, char ** value, bool * propagate)
+{
   uint32_t i;
   bool found;
 
@@ -809,18 +804,11 @@ bool dds_qget_prop (const dds_qos_t *qos, const char * name, char ** value)
   found = dds_qprop_get_index (qos, name, &i);
   if (value != NULL)
     *value = found ? dds_string_dup (qos->property.value.props[i].value) : NULL;
-  return found;
-}
 
-bool dds_qget_prop_propagate (const dds_qos_t *qos, const char * name, bool * propagate)
-{
-  uint32_t i;
-  if (dds_qprop_get_index (qos, name, &i))
-  {
-    *propagate = qos->property.value.props[i].propagate == 1;
-    return true;
-  }
-  return false;
+  if (propagate != NULL)
+    *propagate = found ? qos->property.value.props[i].propagate == 1 : false;
+
+  return found;
 }
 
 bool dds_qget_bprop (const dds_qos_t *qos, const char * name, void ** value, size_t * sz)
