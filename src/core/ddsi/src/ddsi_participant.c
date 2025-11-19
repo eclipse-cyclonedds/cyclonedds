@@ -829,6 +829,18 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
   pp->plist = ddsrt_malloc (sizeof (*pp->plist));
   ddsi_plist_copy (pp->plist, plist);
   ddsi_xqos_mergein_missing(&pp->plist->qos, &gv->default_local_xqos_pp, ~(uint64_t)0);
+
+  if (gv->default_local_xqos_pp.present & DDSI_QP_PROPERTY_LIST)
+  {
+    // property list gets special treatment: we want to inherit the default properties
+    // because that's where process id, hostname, etc. live
+    for (uint32_t i = 0; i < gv->default_local_xqos_pp.property.value.n; i++)
+    {
+      struct dds_property const * const p = &gv->default_local_xqos_pp.property.value.props[i];
+      ddsi_xqos_add_property_if_unset (&pp->plist->qos, p->propagate, p->name, p->value);
+    }
+  }
+
   pp->spdp_seqno = 0;
   pp->spdp_serdata = NULL;
 

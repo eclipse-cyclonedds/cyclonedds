@@ -385,6 +385,11 @@ DDS_QUNSET_PROP (bprop, binary_value, value.value)
 
 void dds_qset_prop (dds_qos_t *qos, const char * name, const char * value)
 {
+  dds_qset_prop_propagate (qos, name, value, false);
+}
+
+void dds_qset_prop_propagate (dds_qos_t *qos, const char * name, const char * value, bool propagate)
+{
   uint32_t i;
   if (qos == NULL || name == NULL || value == NULL)
     return;
@@ -400,7 +405,7 @@ void dds_qset_prop (dds_qos_t *qos, const char * name, const char * value)
   {
     qos->property.value.props = dds_realloc (qos->property.value.props,
       (qos->property.value.n + 1) * sizeof (*qos->property.value.props));
-    qos->property.value.props[qos->property.value.n].propagate = 0;
+    qos->property.value.props[qos->property.value.n].propagate = propagate ? 1 : 0;
     qos->property.value.props[qos->property.value.n].name = dds_string_dup (name);
     qos->property.value.props[qos->property.value.n].value = dds_string_dup (value);
     qos->property.value.n++;
@@ -408,6 +413,11 @@ void dds_qset_prop (dds_qos_t *qos, const char * name, const char * value)
 }
 
 void dds_qset_bprop (dds_qos_t *qos, const char * name, const void * value, const size_t sz)
+{
+  dds_qset_bprop_propagate (qos, name, value, sz, false);
+}
+
+void dds_qset_bprop_propagate (dds_qos_t *qos, const char * name, const void * value, const size_t sz, bool propagate)
 {
   uint32_t i;
   if (qos == NULL || name == NULL || (value == NULL && sz > 0))
@@ -423,7 +433,7 @@ void dds_qset_bprop (dds_qos_t *qos, const char * name, const void * value, cons
   {
     qos->property.binary_value.props = dds_realloc (qos->property.binary_value.props,
       (qos->property.binary_value.n + 1) * sizeof (*qos->property.binary_value.props));
-    qos->property.binary_value.props[qos->property.binary_value.n].propagate = 0;
+    qos->property.binary_value.props[qos->property.binary_value.n].propagate = propagate ? 1 : 0;
     qos->property.binary_value.props[qos->property.binary_value.n].name = dds_string_dup (name);
     dds_qos_data_copy_in (&qos->property.binary_value.props[qos->property.binary_value.n].value, value, sz, false);
     qos->property.binary_value.n++;
@@ -785,6 +795,11 @@ DDS_QGET_PROPNAMES (bprop, binary_value)
 
 bool dds_qget_prop (const dds_qos_t *qos, const char * name, char ** value)
 {
+  return dds_qget_prop_propagate (qos, name, value, NULL);
+}
+
+bool dds_qget_prop_propagate (const dds_qos_t *qos, const char * name, char ** value, bool * propagate)
+{
   uint32_t i;
   bool found;
 
@@ -794,10 +809,19 @@ bool dds_qget_prop (const dds_qos_t *qos, const char * name, char ** value)
   found = dds_qprop_get_index (qos, name, &i);
   if (value != NULL)
     *value = found ? dds_string_dup (qos->property.value.props[i].value) : NULL;
+
+  if (propagate != NULL)
+    *propagate = found ? qos->property.value.props[i].propagate == 1 : false;
+
   return found;
 }
 
 bool dds_qget_bprop (const dds_qos_t *qos, const char * name, void ** value, size_t * sz)
+{
+  return dds_qget_bprop_propagate (qos, name, value, sz, NULL);
+}
+
+bool dds_qget_bprop_propagate (const dds_qos_t *qos, const char * name, void ** value, size_t * sz, bool * propagate)
 {
   uint32_t i;
   bool found;
@@ -810,6 +834,9 @@ bool dds_qget_bprop (const dds_qos_t *qos, const char * name, void ** value, siz
   {
     if (value != NULL || sz != NULL)
       dds_qos_data_copy_out (&qos->property.binary_value.props[i].value, value, sz);
+
+    if (propagate != NULL)
+      *propagate = qos->property.binary_value.props[i].propagate == 1;
   }
   else
   {
@@ -817,6 +844,8 @@ bool dds_qget_bprop (const dds_qos_t *qos, const char * name, void ** value, siz
       *value = NULL;
     if (sz != NULL)
       *sz = 0;
+    if (propagate != NULL)
+      *propagate = false;
   }
   return found;
 }
