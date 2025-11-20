@@ -9,7 +9,7 @@ Publishers
 A Publisher is a producer of data on a Domain. It uses the :ref:`domainparticipants_bm` to gain
 access to the Domain and is created using it. That is, the Publisher passes down the 
 Domain from its parent class DomainParticipant. A Publisher allows the :ref:`datawriters_bm` 
-associated with it to share the same behaviour, for example:
+associated with it to share the same behavior, for example:
 
 - Liveliness notifications
 - :ref:`qos_bm`

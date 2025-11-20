@@ -626,7 +626,7 @@ static int accept_ack_or_hb_w_timeout (ddsi_count_t new_count, ddsi_count_t *pre
      The type is defined in the spec as signed but without limiting
      them to, e.g., positive numbers.  Instead of implementing them as
      spec'd, we implement it as unsigned to avoid integer overflow (and
-     the consequence undefined behaviour).  Serial number arithmetic
+     the consequence undefined behavior).  Serial number arithmetic
      deals with the wrap-around after 2**31-1.
 
      Cyclone pre-emptive heartbeats have "count" bitmap_base = 1, NACK
@@ -929,7 +929,7 @@ static int handle_AckNack (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, 
 
   /* Second, the NACK bits (literally, that is). To do so, attempt to
      classify the AckNack for reverse-engineered compatibility with
-     RTI's invalid acks and sometimes slightly odd behaviour. */
+     RTI's invalid acks and sometimes slightly odd behavior. */
   numbits = msg->readerSNState.numbits;
   msgs_sent = 0;
   msgs_lost = 0;

@@ -1136,7 +1136,7 @@ static void dds_rhc_register (struct dds_rhc_default *rhc, struct rhc_instance *
        (or re-registered) writer, but we don't want inst_accepts_sample
        to be affected (it was "too old" in the ordering).  wr_iid_islive
        determines whether wr_iid is meaningful, so setting wr_iid while
-       leaving wr_iid_islive false gets us the desired behaviour. */
+       leaving wr_iid_islive false gets us the desired behavior. */
     inst->wr_iid = wr_iid;
     if (sample_accepted)
       inst->wr_iid_islive = 1;

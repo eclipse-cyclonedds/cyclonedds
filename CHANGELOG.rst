@@ -59,7 +59,7 @@ Some of the highlights:
 
 * Support for ROS2 Dashing and Eloquent (via an adaption layer).
 * Support for an arbitrary number of concurrent DDS domains (fully independent instantiations of DDS) in a single process.
-* Abstracting the notion of samples, types and reader history caches, allowing overriding the default implementations of these to get behaviours more suited to the applications.
+* Abstracting the notion of samples, types and reader history caches, allowing overriding the default implementations of these to get behaviors more suited to the applications.
   This is particularly relevant to language bindings and embedding Cyclone DDS in other frameworks, such as ROS2.
 * Platform support is extended beyond the usual Linux/Windows/macOS: FreeRTOS is now known to work, as is Solaris 2.6 on sun4m machines.
 * Acceptance of some malformed messages from certain implementations improved interoperability on the wire.

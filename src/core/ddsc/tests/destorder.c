@@ -70,7 +70,7 @@ CU_Test (ddsc_destorder, by_source_history)
   // cosequences thereof and the DCPS spec is essentially silent on the topic anyway.  The
   // DDSI says it concerns the full history, but then only considers a single writer and
   // so almost by definition only makes some subtly wrong suggestions about the system
-  // behaviour.
+  // behavior.
   //
   // In my humble view of things, the only sane approach is to consider DDS as a data
   // space that writers update and where the writer history cache settings affect which

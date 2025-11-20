@@ -1,11 +1,11 @@
 .. include:: ../external-links.part.rst
   
-.. index:: Discovery behaviour
+.. index:: Discovery behavior
 
-.. _discovery_behaviour:
+.. _discovery_behavior:
 
 ###################
-Discovery behaviour
+Discovery behavior
 ###################
 
 .. _proxy_participants_endpoints:
@@ -106,8 +106,8 @@ published by a writer:
 - The **key value** index is used for retaining the current state of each instance in the WHC.
   
 When a new sample overwrites the state of an instance, the key value index allows dropping 
-samples from the sequence number index. For transient-local behaviour (see 
-:ref:`DDSI-specific transient-local behaviour`), the key value index also allows retaining 
+samples from the sequence number index. For transient-local behavior (see 
+:ref:`DDSI-specific transient-local behavior`), the key value index also allows retaining 
 the current state of each instance even when all readers have acknowledged a sample.
 
 Transient-local data always requires the key values index, and by default is also 
@@ -149,7 +149,7 @@ The adaptive behavior can be disabled by setting
 :ref:`Internal/Watermarks/WhcAdaptive <//CycloneDDS/Domain/Internal/Watermarks/WhcAdaptive>` 
 to ``false``.
 
-While the adaptive behaviour generally handles a variety of fast and slow writers and
+While the adaptive behavior generally handles a variety of fast and slow writers and
 readers quite well, the introduction of a very slow reader with small buffers in an
 existing network that is transmitting data at high rates can cause a sudden stop while
 the new reader tries to recover the large amount of data stored in the writer, before

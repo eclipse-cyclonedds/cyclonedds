@@ -922,8 +922,8 @@ dds_get_listener(dds_entity_t entity, dds_listener_t * listener);
  * In case a related callback within the Listener is not set, the Listener of
  * the Parent entity is called recursively, until a Listener with the appropriate
  * callback set has been found and called. This allows the application to set
- * (for instance) a default behaviour in the Listener of the containing Publisher
- * and a DataWriter specific behaviour when needed. In case the callback is not
+ * (for instance) a default behavior in the Listener of the containing Publisher
+ * and a DataWriter specific behavior when needed. In case the callback is not
  * set in the Publishers' Listener either, the communication status will be
  * propagated to the Listener of the DomainParticipant of the containing
  * DomainParticipant. In case the callback is not set in the DomainParticipants'
@@ -987,7 +987,7 @@ dds_set_listener(dds_entity_t entity, const dds_listener_t * listener);
  * domain entity is created using a configuration taken from the CYCLONEDDS_URI
  * environment variable.
  *
- * The domain id may be specified as DDS_DOMAIN_DEFAULT, in which case the behaviour
+ * The domain id may be specified as DDS_DOMAIN_DEFAULT, in which case the behavior
  * depends on whether some domain entity already exists or not.  If there is at least one,
  * the one with the lowest id will be used.  If there are none, one is created with the
  * domain id taken from the first domain id specified in the configuration file (i.e.,
@@ -1553,7 +1553,7 @@ dds_get_type_name(dds_entity_t topic, char *name, size_t size);
  *    - instance_state       set to instance state if sample being filtered
  *                           matches an existing instance, NEW if not
  *    - generation counts    set to instance's generation counts if the sample
- *                           matches an existing instance instance, 0 if not
+ *                           matches an existing instance, 0 if not
  */
 
 /**
@@ -2919,7 +2919,7 @@ dds_waitset_set_trigger(
   bool trigger);
 
 /**
- * @brief This operation allows an application thread to wait for the a status
+ * @brief This operation allows an application thread to wait for a status
  *        change or other trigger on (one of) the entities that are attached to
  *        the WaitSet.
  * @ingroup waitset
@@ -2993,7 +2993,7 @@ dds_waitset_wait(
   dds_duration_t reltimeout);
 
 /**
- * @brief This operation allows an application thread to wait for the a status
+ * @brief This operation allows an application thread to wait for a status
  *        change or other trigger on (one of) the entities that are attached to
  *        the WaitSet.
  * @ingroup waitset
@@ -4128,7 +4128,7 @@ dds_take_next_wl(
  *           the sample was successfully handled and reading can continue
  * @retval otherwise
  *           an error, this will propagated to the caller if it occurs on the first call
- *           otherwise the return valu eof read/take will be the number of samples
+ *           otherwise the return value of read/take will be the number of samples
  *           successfully collected
  */
 typedef dds_return_t (*dds_read_with_collector_fn_t) (

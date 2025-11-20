@@ -67,7 +67,7 @@ One of: lax, strict, pedantic
 This element sets the level of standards conformance of this instance of the Cyclone DDS Service. Stricter conformance typically means less interoperability with other implementations. Currently, three modes are defined:
  * pedantic: very strictly conform to the specification, ultimately for compliance testing, but currently of little value because it adheres even to what will most likely turn out to be editing errors in the DDSI standard. Arguably, as long as no errata have been published, the current text is in effect, and that is what pedantic currently does.
 
- * strict: a relatively less strict view of the standard than does pedantic: it follows the established behaviour where the standard is obviously in error.
+ * strict: a relatively less strict view of the standard than does pedantic: it follows the established behavior where the standard is obviously in error.
 
  * lax: attempt to provide the smoothest possible interoperability, anticipating future revisions of elements in the standard in areas that other implementations do not adhere to, even though there is no good reason not to.
 
@@ -847,7 +847,7 @@ The default value is: `2147483647 B`
 #### //CycloneDDS/Domain/Internal/MeasureHbToAckLatency
 Boolean
 
-This element enables heartbeat-to-ack latency among Cyclone DDS services by prepending timestamps to Heartbeat and AckNack messages and calculating round trip times. This is non-standard behaviour. The measured latencies are quite noisy and are currently not used anywhere.
+This element enables heartbeat-to-ack latency among Cyclone DDS services by prepending timestamps to Heartbeat and AckNack messages and calculating round trip times. This is non-standard behavior. The measured latencies are quite noisy and are currently not used anywhere.
 
 The default value is: `false`
 
@@ -1941,8 +1941,8 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 
 The default value is: `none`
 <!--- generated from ddsi_config.h[d7db98ce697e409412ec7fb0b900e10261a66c44] -->
-<!--- generated from ddsi_config.c[184d7299baad5acc9b96884de77770aac009a11a] -->
-<!--- generated from ddsi__cfgelems.h[741151ccf40cab43638e8c32cac3a4b9c3e73566] -->
+<!--- generated from ddsi_config.c[2307247d4f7ee49c30fe95465ff55c8f9c692a64] -->
+<!--- generated from ddsi__cfgelems.h[256ead267e23bf4c3079a5aaa51425875b96ff24] -->
 <!--- generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] -->
 <!--- generated from _confgen.h[fd29634526c05c3237dbc3f785030fe022eb7875] -->
 <!--- generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] -->

@@ -890,7 +890,7 @@ static bool print_type_information (char * restrict *buf, size_t * restrict bufs
 // gcc with the -fshort-enums option enabled, it is a char.  That happens quite a
 // bit on embedded platforms, judging by a few tickets.
 //
-// This enum definition is used only in the serialisation/deserialisation code to
+// This enum definition is used only in the serialization/deserialization code to
 // stand in for the actual type.
 enum xe3_prototype { XE3_PROTO_0, XE3_PROTO_1, XE3_PROTO_2, XE3_PROTO_3 };
 
@@ -1270,7 +1270,7 @@ void ddsi_plist_ser_generic_size_embeddable (size_t * restrict dstoff, const voi
       case XbCOND: SIMPLE1 (XbCOND, unsigned char); break;
       case XG: SIMPLE1 (XG, ddsi_guid_t); break;
       case XK: SIMPLE1 (XK, ddsi_keyhash_t); break;
-      case XbPROP: /* "propagate" boolean: when 'false'; no serialisation; no size; force early out */
+      case XbPROP: /* "propagate" boolean: when 'false'; no serialization; no size; force early out */
                COMPLEX (XbPROP, unsigned char, if (! *x) return); break;
       case XQ: COMPLEX (XQ, ddsi_octetseq_t, {
         const size_t elem_size = ser_generic_srcsize (desc + 1);
