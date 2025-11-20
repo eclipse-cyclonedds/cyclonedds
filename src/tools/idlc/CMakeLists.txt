@@ -27,7 +27,28 @@ if(MSVC)
   # and 5286 and 5287 about enum type conversion
   target_compile_options(idlc PRIVATE /wd6255 /wd6263 /wd5286 /wd5287)
 endif()
-target_link_libraries(idlc PRIVATE compat idl idlpp ddsc ${CMAKE_DL_LIBS})
+target_link_libraries(idlc
+    PRIVATE
+    ${PROJECT_NAME}::compat
+    ${PROJECT_NAME}::idl
+    ${PROJECT_NAME}::idlpp
+    ${CMAKE_DL_LIBS}
+)
+
+# TODO # Remove OpenSSL IDLC dependency when ENABLE_TCP_TLS
+# TODO # Check if FindOpenSSL found the static libraries when BUILD_SHARED_LIBS=OFF
+# Copy the OpenSSL shared libraries in the same path of IDLC executable to allow DDSPERF building and avoiding the
+# missing Library error when IDLC is called by idlc_generate function
+if(ENABLE_TCP_TLS AND WIN32 AND BUILD_SHARED_LIBS) # When ENABLE_TCP_TLS=ON the DDSC depends on SSL and thus IDLC
+  set(SHARED_LIB_EXTENSION "dll")
+
+  add_custom_command(
+    TARGET idlc 
+    PRE_LINK 
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENSSL_INCLUDE_DIR}/../bin/libssl-3.${SHARED_LIB_EXTENSION} $<TARGET_FILE_DIR:idlc>
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENSSL_INCLUDE_DIR}/../bin/libcrypto-3.${SHARED_LIB_EXTENSION} $<TARGET_FILE_DIR:idlc>
+  )
+endif()
 
 target_include_directories(
   idlc PRIVATE
@@ -40,10 +61,10 @@ target_include_directories(
 
 add_executable(${PROJECT_NAME}::idlc ALIAS idlc)
 
-set(
-  libidlc_hdrs
-  include/libidlc/libidlc_generator.h
-  ${CMAKE_CURRENT_BINARY_DIR}/config.h)
+set(libidlc_hdrs
+    include/libidlc/libidlc_generator.h
+    ${CMAKE_CURRENT_BINARY_DIR}/config.h
+)
 
 set(
   libidlc_srcs
@@ -54,8 +75,7 @@ set(
   src/libidlc/libidlc__generator.c
   src/libidlc/libidlc__types.c)
 
-add_library(
-  libidlc SHARED ${libidlc_srcs} ${libidlc_hdrs})
+add_library(libidlc SHARED ${libidlc_srcs} ${libidlc_hdrs})
 
 if(MSVC)
   # ignore warning 5286 and 5287 about enum type conversion
@@ -78,21 +98,20 @@ endif()
 
 target_include_directories(
   libidlc
-  PRIVATE
-    include
   PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include/libidlc>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/libidlc>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../core/ddsi/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../core/cdr/include>")
 
-target_link_libraries(libidlc PRIVATE idl ddsc)
+target_link_libraries(libidlc PUBLIC ${PROJECT_NAME}::idl)
 
 add_library(${PROJECT_NAME}::libidlc ALIAS libidlc)
 
 install(
   TARGETS libidlc
-  EXPORT "${CMAKE_PROJECT_NAME}"
+  EXPORT "${PROJECT_NAME}"
   RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT lib
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib)
@@ -108,7 +127,7 @@ install(
 
 install(
   TARGETS idlc
-  EXPORT "${CMAKE_PROJECT_NAME}"
+  EXPORT "${PROJECT_NAME}"
   DESTINATION "${CMAKE_INSTALL_BINDIR}"
   COMPONENT dev)
 
