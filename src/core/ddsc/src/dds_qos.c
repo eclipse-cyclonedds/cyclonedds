@@ -19,6 +19,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertype.h"
+#include "dds__content_filter.h"
 #include "dds__qos.h"
 #include "dds__topic.h"
 #include "dds__psmx.h"
@@ -526,6 +527,26 @@ void dds_qset_psmx_instances (dds_qos_t *qos, uint32_t n, const char **values)
     qos->psmx.strs = NULL;
 
   qos->present |= DDSI_QP_PSMX;
+}
+
+void dds_qset_content_filter(dds_qos_t *qos, const struct dds_content_filter filter)
+{
+  if (qos == NULL)
+    return;
+  if (qos->present & DDSI_QP_CONTENT_FILTER && qos->filter.filter != NULL)
+    dds_content_filter_free (qos->filter.filter);
+
+  qos->filter.filter = dds_content_filter_dup (&filter);
+  qos->present |= DDSI_QP_CONTENT_FILTER;
+}
+
+bool dds_qget_content_filter(const dds_qos_t *qos, struct dds_content_filter **filter)
+{
+  if (qos == NULL || !(qos->present & DDSI_QP_CONTENT_FILTER) || qos->filter.filter == NULL)
+    return false;
+
+  *filter = dds_content_filter_dup (qos->filter.filter);
+  return *filter != NULL;
 }
 
 bool dds_qget_userdata (const dds_qos_t *qos, void **value, size_t *sz)

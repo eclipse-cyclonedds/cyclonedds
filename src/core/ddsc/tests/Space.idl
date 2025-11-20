@@ -9,6 +9,14 @@
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 module Space {
+  struct Type0 {
+    @key
+    long	long_1;
+    @key
+    long	long_2;
+    long	long_3;
+  };
+
   struct Type1 {
     @key
     long	long_1;
