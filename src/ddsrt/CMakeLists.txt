@@ -386,11 +386,11 @@ foreach(feature TCP_TLS SECURITY LIFESPAN DEADLINE_MISSED NETWORK_PARTITIONS
 endforeach()
 
 if(BUILD_TESTING)
-  set(DDS_ALLOW_NESTED_DOMAIN 1)
+  set(DDS_ALLOW_NESTED_DOMAIN TRUE)
 endif()
 
 if (NOT BUILD_SHARED_LIBS)
-  set(DDS_IS_STATIC_LIBRARY 1)
+  set(DDS_IS_STATIC_LIBRARY TRUE)
 endif()
 
 configure_file(include/dds/config.h.in include/dds/config.h)

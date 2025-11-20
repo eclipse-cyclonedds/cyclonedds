@@ -40,10 +40,10 @@ idl_retcode_t generate_test_descriptor (idl_pstate_t *pstate, const char *idl, s
     return ret;
 
   idl_node_t *topic = get_topic_node (pstate, pstate->root);
-  CU_ASSERT_FATAL (topic != NULL);
+  CU_ASSERT_NEQ_FATAL (topic, NULL);
 
   if ((ret = generate_descriptor_impl(pstate, topic, descriptor)) != IDL_RETCODE_OK)
     return ret;
-  CU_ASSERT_PTR_NOT_NULL_FATAL (descriptor);
+  CU_ASSERT_NEQ_FATAL (descriptor, NULL);
   return ret;
 }

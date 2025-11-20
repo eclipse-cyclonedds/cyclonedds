@@ -73,11 +73,11 @@ CU_Test (ddsi_locator_from_string, bogusproto)
   ddsi_locator_t loc;
   enum ddsi_locator_from_string_result res;
   res = ddsi_locator_from_string (&gv, &loc, "bogusproto/xyz", fact);
-  CU_ASSERT_FATAL (res == AFSR_UNKNOWN);
+  CU_ASSERT_EQ_FATAL (res, AFSR_UNKNOWN);
   res = ddsi_locator_from_string (&gv, &loc, "bogusproto/xyz:1234", fact);
-  CU_ASSERT_FATAL (res == AFSR_UNKNOWN);
+  CU_ASSERT_EQ_FATAL (res, AFSR_UNKNOWN);
   res = ddsi_locator_from_string (&gv, &loc, "bogusproto/192.0.2.0:1234", fact);
-  CU_ASSERT_FATAL (res == AFSR_UNKNOWN);
+  CU_ASSERT_EQ_FATAL (res, AFSR_UNKNOWN);
   fini (&gv);
 }
 
@@ -95,16 +95,16 @@ CU_Theory ((enum ddsi_transport_selector tr), ddsi_locator_from_string, ipv4_inv
   assert(fact);
   snprintf (astr, sizeof (astr), "%s/", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
-  CU_ASSERT_FATAL (res == AFSR_INVALID);
+  CU_ASSERT_EQ_FATAL (res, AFSR_INVALID);
   snprintf (astr, sizeof (astr), "%s/:", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
-  CU_ASSERT_FATAL (res == AFSR_INVALID);
+  CU_ASSERT_EQ_FATAL (res, AFSR_INVALID);
   snprintf (astr, sizeof (astr), "%s/1.2:", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
-  CU_ASSERT_FATAL (res == AFSR_INVALID);
+  CU_ASSERT_EQ_FATAL (res, AFSR_INVALID);
   snprintf (astr, sizeof (astr), "%s/1.2:99999", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
-  CU_ASSERT_FATAL (res == AFSR_INVALID);
+  CU_ASSERT_EQ_FATAL (res, AFSR_INVALID);
   // if DNS is supported, a hostname lookup is tried whenever parsing as a numerical address fails
   // which means we may get UNKNOWN
   snprintf (astr, sizeof (astr), "%s/:1234", fact->m_typename);
@@ -137,7 +137,7 @@ CU_Theory ((enum ddsi_transport_selector tr, int32_t loc_kind), ddsi_locator_fro
   // calls
   memset (&loc, 0xee, sizeof (loc));
 
-  CU_ASSERT_FATAL (ddsi_factory_supports (fact, loc_kind));
+  CU_ASSERT_NEQ_FATAL (ddsi_factory_supports (fact, loc_kind), 0);
 
 #if DDSRT_HAVE_DNS
   {
@@ -149,48 +149,50 @@ CU_Theory ((enum ddsi_transport_selector tr, int32_t loc_kind), ddsi_locator_fro
       exp = AFSR_UNKNOWN;
     else
     {
-      CU_ASSERT_FATAL (hent->addrs[0].ss_family == AF_INET);
+      CU_ASSERT_EQ_FATAL (hent->addrs[0].ss_family, AF_INET);
       memcpy (&localhost, &hent->addrs[0], sizeof (localhost));
       ddsrt_free (hent);
       exp = AFSR_OK;
     }
     res = ddsi_locator_from_string (&gv, &loc, "localhost", fact);
-    CU_ASSERT_FATAL (res == exp);
+    CU_ASSERT_EQ_FATAL (res, exp);
     if (res == AFSR_OK)
     {
-      CU_ASSERT_FATAL (loc.kind == loc_kind);
-      CU_ASSERT_FATAL (loc.port == DDSI_LOCATOR_PORT_INVALID);
-      CU_ASSERT_FATAL (prefix_zero (&loc, 12) && memcmp (loc.address + 12, &localhost.sin_addr.s_addr, 4) == 0);
+      CU_ASSERT_EQ_FATAL (loc.kind, loc_kind);
+      CU_ASSERT_EQ_FATAL (loc.port, DDSI_LOCATOR_PORT_INVALID);
+      CU_ASSERT_FATAL (prefix_zero (&loc, 12));
+      CU_ASSERT_MEMEQ_FATAL (loc.address + 12, 4, &localhost.sin_addr.s_addr, 4);
     }
     res = ddsi_locator_from_string (&gv, &loc, "localhost:1234", fact);
-    CU_ASSERT_FATAL (res == exp);
+    CU_ASSERT_EQ_FATAL (res, exp);
     if (res == AFSR_OK)
     {
-      CU_ASSERT_FATAL (loc.kind == loc_kind);
-      CU_ASSERT_FATAL (loc.port == 1234);
-      CU_ASSERT_FATAL (prefix_zero (&loc, 12) && memcmp (loc.address + 12, &localhost.sin_addr.s_addr, 4) == 0);
+      CU_ASSERT_EQ_FATAL (loc.kind, loc_kind);
+      CU_ASSERT_EQ_FATAL (loc.port, 1234);
+      CU_ASSERT_FATAL (prefix_zero (&loc, 12));
+      CU_ASSERT_MEMEQ_FATAL (loc.address + 12, 4, &localhost.sin_addr.s_addr, 4);
     }
   }
 #endif
 
   res = ddsi_locator_from_string (&gv, &loc, "192.0.2.0", fact);
-  CU_ASSERT_FATAL (res == AFSR_OK);
-  CU_ASSERT_FATAL (loc.kind == loc_kind);
-  CU_ASSERT_FATAL (loc.port == DDSI_LOCATOR_PORT_INVALID);
+  CU_ASSERT_EQ_FATAL (res, AFSR_OK);
+  CU_ASSERT_EQ_FATAL (loc.kind, loc_kind);
+  CU_ASSERT_EQ_FATAL (loc.port, DDSI_LOCATOR_PORT_INVALID);
   CU_ASSERT_FATAL (check_ipv4_address (&loc, (uint8_t[]){192,0,2,0}));
 
   snprintf (astr, sizeof (astr), "%s/192.0.2.0", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
-  CU_ASSERT_FATAL (res == AFSR_OK);
-  CU_ASSERT_FATAL (loc.kind == loc_kind);
-  CU_ASSERT_FATAL (loc.port == DDSI_LOCATOR_PORT_INVALID);
+  CU_ASSERT_EQ_FATAL (res, AFSR_OK);
+  CU_ASSERT_EQ_FATAL (loc.kind, loc_kind);
+  CU_ASSERT_EQ_FATAL (loc.port, DDSI_LOCATOR_PORT_INVALID);
   CU_ASSERT_FATAL (check_ipv4_address (&loc, (uint8_t[]){192,0,2,0}));
 
   snprintf (astr, sizeof (astr), "%s/192.0.2.0:1234", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
-  CU_ASSERT_FATAL (res == AFSR_OK);
-  CU_ASSERT_FATAL (loc.kind == loc_kind);
-  CU_ASSERT_FATAL (loc.port == 1234);
+  CU_ASSERT_EQ_FATAL (res, AFSR_OK);
+  CU_ASSERT_EQ_FATAL (loc.kind, loc_kind);
+  CU_ASSERT_EQ_FATAL (loc.port, 1234);
   CU_ASSERT_FATAL (check_ipv4_address (&loc, (uint8_t[]){192,0,2,0}));
   fini (&gv);
 }
@@ -202,9 +204,9 @@ CU_Test (ddsi_locator_from_string, ipv4_cross1)
   ddsi_locator_t loc;
   enum ddsi_locator_from_string_result res;
   res = ddsi_locator_from_string (&gv, &loc, "tcp/192.0.2.0:1234", fact);
-  CU_ASSERT_FATAL (res == AFSR_OK);
-  CU_ASSERT_FATAL (loc.kind == DDSI_LOCATOR_KIND_TCPv4);
-  CU_ASSERT_FATAL (loc.port == 1234);
+  CU_ASSERT_EQ_FATAL (res, AFSR_OK);
+  CU_ASSERT_EQ_FATAL (loc.kind, DDSI_LOCATOR_KIND_TCPv4);
+  CU_ASSERT_EQ_FATAL (loc.port, 1234);
   CU_ASSERT_FATAL (check_ipv4_address (&loc, (uint8_t[]){192,0,2,0}));
   fini (&gv);
 }
@@ -216,9 +218,9 @@ CU_Test (ddsi_locator_from_string, ipv4_cross2)
   ddsi_locator_t loc;
   enum ddsi_locator_from_string_result res;
   res = ddsi_locator_from_string (&gv, &loc, "udp/192.0.2.0:1234", fact);
-  CU_ASSERT_FATAL (res == AFSR_OK);
-  CU_ASSERT_FATAL (loc.kind == DDSI_LOCATOR_KIND_UDPv4);
-  CU_ASSERT_FATAL (loc.port == 1234);
+  CU_ASSERT_EQ_FATAL (res, AFSR_OK);
+  CU_ASSERT_EQ_FATAL (loc.kind, DDSI_LOCATOR_KIND_UDPv4);
+  CU_ASSERT_EQ_FATAL (loc.port, 1234);
   CU_ASSERT_FATAL (check_ipv4_address (&loc, (uint8_t[]){192,0,2,0}));
   fini (&gv);
 }
@@ -230,9 +232,9 @@ CU_Test (ddsi_locator_from_string, udpv4mcgen)
   ddsi_locator_t loc;
   enum ddsi_locator_from_string_result res;
   res = ddsi_locator_from_string (&gv, &loc, "239.255.0.1;4;8;1:1234", fact);
-  CU_ASSERT_FATAL (res == AFSR_OK);
-  CU_ASSERT_FATAL (loc.kind == DDSI_LOCATOR_KIND_UDPv4MCGEN);
-  CU_ASSERT_FATAL (loc.port == 1234);
+  CU_ASSERT_EQ_FATAL (res, AFSR_OK);
+  CU_ASSERT_EQ_FATAL (loc.kind, DDSI_LOCATOR_KIND_UDPv4MCGEN);
+  CU_ASSERT_EQ_FATAL (loc.port, 1234);
   CU_ASSERT_FATAL (loc.address[0] == 239 && loc.address[1] == 255 && loc.address[2] == 0 && loc.address[3] == 1);
   CU_ASSERT_FATAL (loc.address[4] == 4 && loc.address[5] == 8 && loc.address[6] == 1);
   CU_ASSERT_FATAL (loc.address[7] == 0 && loc.address[8] == 0 && loc.address[9] == 0);
@@ -267,7 +269,7 @@ CU_Theory ((enum ddsi_transport_selector tr), ddsi_locator_from_string, ipv6_inv
   assert(fact);
   snprintf (astr, sizeof (astr), "%s/", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
-  CU_ASSERT_FATAL (res == AFSR_INVALID);
+  CU_ASSERT_EQ_FATAL (res, AFSR_INVALID);
   // if DNS is supported, a hostname lookup is tried whenever parsing as a numerical address fails
   // which means we may get UNKNOWN
   snprintf (astr, sizeof (astr), "%s/::1:31415", fact->m_typename);
@@ -317,7 +319,7 @@ CU_Theory ((enum ddsi_transport_selector tr, int32_t loc_kind), ddsi_locator_fro
   // calls
   memset (&loc, 0xee, sizeof (loc));
 
-  CU_ASSERT_FATAL (ddsi_factory_supports (fact, loc_kind));
+  CU_ASSERT_NEQ_FATAL (ddsi_factory_supports (fact, loc_kind), 0);
 
 #if DDSRT_HAVE_DNS
   {
@@ -329,42 +331,42 @@ CU_Theory ((enum ddsi_transport_selector tr, int32_t loc_kind), ddsi_locator_fro
       exp = AFSR_UNKNOWN;
     else
     {
-      CU_ASSERT_FATAL (hent->addrs[0].ss_family == AF_INET6);
+      CU_ASSERT_EQ_FATAL (hent->addrs[0].ss_family, AF_INET6);
       memcpy (&localhost, &hent->addrs[0], sizeof (localhost));
       ddsrt_free (hent);
       exp = AFSR_OK;
     }
     res = ddsi_locator_from_string (&gv, &loc, "localhost", fact);
-    CU_ASSERT_FATAL (res == exp);
+    CU_ASSERT_EQ_FATAL (res, exp);
     if (res == AFSR_OK)
     {
-      CU_ASSERT_FATAL (loc.kind == loc_kind);
-      CU_ASSERT_FATAL (loc.port == DDSI_LOCATOR_PORT_INVALID);
-      CU_ASSERT_FATAL (memcmp (loc.address, &localhost.sin6_addr.s6_addr, 16) == 0);
+      CU_ASSERT_EQ_FATAL (loc.kind, loc_kind);
+      CU_ASSERT_EQ_FATAL (loc.port, DDSI_LOCATOR_PORT_INVALID);
+      CU_ASSERT_MEMEQ_FATAL (loc.address, sizeof (loc.address), &localhost.sin6_addr.s6_addr, 16);
     }
     res = ddsi_locator_from_string (&gv, &loc, "[localhost]", fact);
-    CU_ASSERT_FATAL (res == exp);
+    CU_ASSERT_EQ_FATAL (res, exp);
     if (res == AFSR_OK)
     {
-      CU_ASSERT_FATAL (loc.kind == loc_kind);
-      CU_ASSERT_FATAL (loc.port == DDSI_LOCATOR_PORT_INVALID);
-      CU_ASSERT_FATAL (memcmp (loc.address, &localhost.sin6_addr.s6_addr, 16) == 0);
+      CU_ASSERT_EQ_FATAL (loc.kind, loc_kind);
+      CU_ASSERT_EQ_FATAL (loc.port, DDSI_LOCATOR_PORT_INVALID);
+      CU_ASSERT_MEMEQ_FATAL (loc.address, sizeof (loc.address), &localhost.sin6_addr.s6_addr, 16);
     }
     res = ddsi_locator_from_string (&gv, &loc, "localhost:1234", fact);
-    CU_ASSERT_FATAL (res == exp);
+    CU_ASSERT_EQ_FATAL (res, exp);
     if (res == AFSR_OK)
     {
-      CU_ASSERT_FATAL (loc.kind == loc_kind);
-      CU_ASSERT_FATAL (loc.port == 1234);
-      CU_ASSERT_FATAL (memcmp (loc.address, &localhost.sin6_addr.s6_addr, 16) == 0);
+      CU_ASSERT_EQ_FATAL (loc.kind, loc_kind);
+      CU_ASSERT_EQ_FATAL (loc.port, 1234);
+      CU_ASSERT_MEMEQ_FATAL (loc.address, sizeof (loc.address), &localhost.sin6_addr.s6_addr, 16);
     }
     res = ddsi_locator_from_string (&gv, &loc, "[localhost]:4567", fact);
-    CU_ASSERT_FATAL (res == exp);
+    CU_ASSERT_EQ_FATAL (res, exp);
     if (res == AFSR_OK)
     {
-      CU_ASSERT_FATAL (loc.kind == loc_kind);
-      CU_ASSERT_FATAL (loc.port == 4567);
-      CU_ASSERT_FATAL (memcmp (loc.address, &localhost.sin6_addr.s6_addr, 16) == 0);
+      CU_ASSERT_EQ_FATAL (loc.kind, loc_kind);
+      CU_ASSERT_EQ_FATAL (loc.port, 4567);
+      CU_ASSERT_MEMEQ_FATAL (loc.address, sizeof (loc.address), &localhost.sin6_addr.s6_addr, 16);
     }
   }
 #endif
@@ -373,8 +375,8 @@ CU_Theory ((enum ddsi_transport_selector tr, int32_t loc_kind), ddsi_locator_fro
   CU_ASSERT_FATAL (res == AFSR_OK || res == AFSR_UNKNOWN);
   if (res == AFSR_OK)
   {
-    CU_ASSERT_FATAL (loc.kind == loc_kind);
-    CU_ASSERT_FATAL (loc.port == DDSI_LOCATOR_PORT_INVALID);
+    CU_ASSERT_EQ_FATAL (loc.kind, loc_kind);
+    CU_ASSERT_EQ_FATAL (loc.port, DDSI_LOCATOR_PORT_INVALID);
     CU_ASSERT_FATAL (check_ipv64_address (&loc, (uint8_t[]){192,0,2,0}));
   }
 
@@ -382,8 +384,8 @@ CU_Theory ((enum ddsi_transport_selector tr, int32_t loc_kind), ddsi_locator_fro
   CU_ASSERT_FATAL (res == AFSR_OK || res == AFSR_UNKNOWN);
   if (res == AFSR_OK)
   {
-    CU_ASSERT_FATAL (loc.kind == loc_kind);
-    CU_ASSERT_FATAL (loc.port == DDSI_LOCATOR_PORT_INVALID);
+    CU_ASSERT_EQ_FATAL (loc.kind, loc_kind);
+    CU_ASSERT_EQ_FATAL (loc.port, DDSI_LOCATOR_PORT_INVALID);
     CU_ASSERT_FATAL (check_ipv64_address (&loc, (uint8_t[]){192,0,2,0}));
   }
 
@@ -391,8 +393,8 @@ CU_Theory ((enum ddsi_transport_selector tr, int32_t loc_kind), ddsi_locator_fro
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_OK || res == AFSR_UNKNOWN);  if (res == AFSR_OK)
   {
-    CU_ASSERT_FATAL (loc.kind == loc_kind);
-    CU_ASSERT_FATAL (loc.port == DDSI_LOCATOR_PORT_INVALID);
+    CU_ASSERT_EQ_FATAL (loc.kind, loc_kind);
+    CU_ASSERT_EQ_FATAL (loc.port, DDSI_LOCATOR_PORT_INVALID);
     CU_ASSERT_FATAL (check_ipv64_address (&loc, (uint8_t[]){192,0,2,0}));
   }
 
@@ -401,8 +403,8 @@ CU_Theory ((enum ddsi_transport_selector tr, int32_t loc_kind), ddsi_locator_fro
   CU_ASSERT_FATAL (res == AFSR_OK || res == AFSR_UNKNOWN);
   if (res == AFSR_OK)
   {
-    CU_ASSERT_FATAL (loc.kind == loc_kind);
-    CU_ASSERT_FATAL (loc.port == 6789);
+    CU_ASSERT_EQ_FATAL (loc.kind, loc_kind);
+    CU_ASSERT_EQ_FATAL (loc.port, 6789);
     CU_ASSERT_FATAL (check_ipv64_address (&loc, (uint8_t[]){192,0,2,0}));
   }
 
@@ -411,16 +413,16 @@ CU_Theory ((enum ddsi_transport_selector tr, int32_t loc_kind), ddsi_locator_fro
   if (res == AFSR_OK)
   {
     CU_ASSERT_FATAL (res == AFSR_OK || res == AFSR_UNKNOWN);
-    CU_ASSERT_FATAL (loc.kind == loc_kind);
-    CU_ASSERT_FATAL (loc.port == 7890);
+    CU_ASSERT_EQ_FATAL (loc.kind, loc_kind);
+    CU_ASSERT_EQ_FATAL (loc.port, 7890);
     CU_ASSERT_FATAL (check_ipv64_address (&loc, (uint8_t[]){192,0,2,0}));
   }
 
   snprintf (astr, sizeof (astr), "%s/[::1]:8901", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
-  CU_ASSERT_FATAL (res == AFSR_OK);
-  CU_ASSERT_FATAL (loc.kind == loc_kind);
-  CU_ASSERT_FATAL (loc.port == 8901);
+  CU_ASSERT_EQ_FATAL (res, AFSR_OK);
+  CU_ASSERT_EQ_FATAL (loc.kind, loc_kind);
+  CU_ASSERT_EQ_FATAL (loc.port, 8901);
   CU_ASSERT_FATAL (prefix_zero (&loc, 15) && loc.address[15] == 1);
 
   fini (&gv);

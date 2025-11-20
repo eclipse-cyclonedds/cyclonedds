@@ -264,26 +264,26 @@ CU_Test (ddsc_waitset, torture)
 
   /* This keeps the library initialised -- it shouldn't be necessary */
   ppant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
-  CU_ASSERT_FATAL (ppant > 0);
+  CU_ASSERT_GT_FATAL (ppant, 0);
   topic = dds_create_topic (ppant, &RoundTripModule_DataType_desc, "waitset_torture_topic", NULL, NULL);
-  CU_ASSERT_FATAL (topic > 0);
+  CU_ASSERT_GT_FATAL (topic, 0);
 
   rc = ddsrt_thread_create (&tids[0], "gc_cd", &tattr, guardcond_create_delete_thread, 0);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   rc = ddsrt_thread_create (&tids[1], "gc_cd", &tattr, guardcond_create_delete_thread, 0);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   rc = ddsrt_thread_create (&tids[2], "ws_cd", &tattr, waitset_create_delete_thread, 0);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   rc = ddsrt_thread_create (&tids[3], "ws_cd", &tattr, waitset_create_delete_thread, 0);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   rc = ddsrt_thread_create (&tids[4], "gc_t", &tattr, guardcond_trigger_thread, 0);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   rc = ddsrt_thread_create (&tids[5], "gc_t", &tattr, guardcond_trigger_thread, 0);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   rc = ddsrt_thread_create (&tids[6], "ws_ad", &tattr, waitset_attach_detach_thread, 0);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   rc = ddsrt_thread_create (&tids[7], "ws_ad", &tattr, waitset_attach_detach_thread, 0);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 
   uint32_t wait_err = 0, wait_ok[N_ENTITIES + 1] = { 0 };
   dds_time_t tstop = dds_time () + DDS_SECS (5);
@@ -320,14 +320,14 @@ CU_Test (ddsc_waitset, torture)
     }
   }
   ddsrt_atomic_st32 (&terminate, 1);
-  CU_ASSERT (rc != DDS_RETCODE_ERROR);
+  CU_ASSERT_NEQ (rc, DDS_RETCODE_ERROR);
 
   for (size_t i = 0; i < sizeof (tids) / sizeof (tids[0]); i++)
   {
     uint32_t retval;
     rc = ddsrt_thread_join (tids[i], &retval);
-    CU_ASSERT_FATAL (rc == 0);
-    CU_ASSERT (retval == 0);
+    CU_ASSERT_EQ_FATAL (rc, 0);
+    CU_ASSERT_EQ (retval, 0);
   }
 
   /* The threads don't bother to clean up, so delete whatever guard conditions and
@@ -346,11 +346,11 @@ CU_Test (ddsc_waitset, torture)
 
   /* All we should be left within the participant is the topic */
   rc = dds_delete (topic);
-  CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
   rc = dds_get_children (ppant, NULL, 0);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   rc = dds_delete (ppant);
-  CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
 
   tprintf ("attach %"PRIu32" detach %"PRIu32" settrig %"PRIu32"\n", ddsrt_atomic_ld32 (&attach_ok), ddsrt_atomic_ld32 (&detach_ok), ddsrt_atomic_ld32 (&settrig_ok));
   tprintf ("create/delete ent");
@@ -368,9 +368,9 @@ CU_Test (ddsc_waitset, torture)
     uint32_t rd_cr_ppant = ddsrt_atomic_ld32 (&create_ent_ok[3]);
     uint32_t rd_del = ddsrt_atomic_ld32 (&delete_ent_ok[2]);
     uint32_t sub_del = ddsrt_atomic_ld32 (&delete_ent_ok[1]);
-    CU_ASSERT (rd_del <= rd_cr_sub + rd_cr_ppant); /* can't have deleted more readers than were created */
-    CU_ASSERT (rd_del >= rd_cr_ppant); /* readers created with ppant as owner must have been deleted explicitly */
-    CU_ASSERT (rd_del - rd_cr_ppant <= sub_del); /* other readers may have been deleted by deleting a sub */
+    CU_ASSERT_LEQ (rd_del, rd_cr_sub + rd_cr_ppant); /* can't have deleted more readers than were created */
+    CU_ASSERT_GEQ (rd_del, rd_cr_ppant); /* readers created with ppant as owner must have been deleted explicitly */
+    CU_ASSERT_LEQ (rd_del - rd_cr_ppant, sub_del); /* other readers may have been deleted by deleting a sub */
   }
 
   tprintf ("create/delete ws %"PRIu32"/%"PRIu32"\n", ddsrt_atomic_ld32 (&create_ws_ok), ddsrt_atomic_ld32 (&delete_ws_ok));
@@ -388,11 +388,11 @@ CU_Test (ddsc_waitset, torture)
      and macOS seem ok.  The thresholds here appear to be sufficiently low to not give
      many spurious failures, while still being sanity check that at least something
      happened. */
-  CU_ASSERT (ddsrt_atomic_ld32 (&attach_ok) +
-             ddsrt_atomic_ld32 (&settrig_ok) +
-             ddsrt_atomic_ld32 (&create_ws_ok) +
-             create_ent_ok_sum +
-             wait_ok_sum > 1000);
+  CU_ASSERT_GT (ddsrt_atomic_ld32 (&attach_ok) +
+                ddsrt_atomic_ld32 (&settrig_ok) +
+                ddsrt_atomic_ld32 (&create_ws_ok) +
+                create_ent_ok_sum +
+                wait_ok_sum, 1000);
 
   /* Library should be de-initialized at this point.  That ordinarily means the handle
      table is gone and PRECONDITION_NOT_MET is returned.  For some reason, on Windows x64

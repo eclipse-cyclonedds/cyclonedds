@@ -30,10 +30,25 @@ endif()
 target_link_libraries(idlc
     PRIVATE
     ${PROJECT_NAME}::compat
-    ${PROJECT_NAME}::idl # It already links to ddsc
+    ${PROJECT_NAME}::idl
     ${PROJECT_NAME}::idlpp
     ${CMAKE_DL_LIBS}
 )
+
+# TODO # Remove OpenSSL IDLC dependency when ENABLE_TCP_TLS
+# TODO # Check if FindOpenSSL found the static libraries when BUILD_SHARED_LIBS=OFF
+# Copy the OpenSSL shared libraries in the same path of IDLC executable to allow DDSPERF building and avoiding the
+# missing Library error when IDLC is called by idlc_generate function
+if(ENABLE_TCP_TLS AND WIN32 AND BUILD_SHARED_LIBS) # When ENABLE_TCP_TLS=ON the DDSC depends on SSL and thus IDLC
+  set(SHARED_LIB_EXTENSION "dll")
+
+  add_custom_command(
+    TARGET idlc 
+    PRE_LINK 
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENSSL_INCLUDE_DIR}/../bin/libssl-3.${SHARED_LIB_EXTENSION} $<TARGET_FILE_DIR:idlc>
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OPENSSL_INCLUDE_DIR}/../bin/libcrypto-3.${SHARED_LIB_EXTENSION} $<TARGET_FILE_DIR:idlc>
+  )
+endif()
 
 target_include_directories(
   idlc PRIVATE
@@ -90,7 +105,7 @@ target_include_directories(
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../core/ddsi/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../core/cdr/include>")
 
-target_link_libraries(libidlc PUBLIC ${PROJECT_NAME}::idl PRIVATE ${PROJECT_NAME}::ddsc)
+target_link_libraries(libidlc PUBLIC ${PROJECT_NAME}::idl)
 
 add_library(${PROJECT_NAME}::libidlc ALIAS libidlc)
 

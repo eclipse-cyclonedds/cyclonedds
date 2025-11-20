@@ -152,7 +152,7 @@ foreach(source ${templates})
   endif()
 endforeach()
 
-add_library(idl SHARED ${headers} ${sources})
+add_library(idl ${headers} ${sources})
 add_library(${PROJECT_NAME}::idl ALIAS idl)
 target_compile_definitions(idl PRIVATE $<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:DDS_STATIC_DEFINE>)
 
@@ -173,7 +173,6 @@ generate_export_header(idl EXPORT_FILE_NAME include/idl/export.h)
 target_link_libraries(idl
   PUBLIC
   ${PROJECT_NAME}::ddsc
-  $<$<NOT:$<STREQUAL:"${CMAKE_PROJECT_NAME}","CycloneDDS">>:${PROJECT_NAME}::cdr>
 )
 
 target_include_directories(

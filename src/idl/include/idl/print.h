@@ -84,4 +84,7 @@ print_type(char *str, size_t size, const void *ptr, void *user_data);
 IDL_EXPORT int
 print_scoped_name(char *str, size_t size, const void *ptr, void *user_data);
 
+IDL_EXPORT int
+print_type_bounds(char *str, size_t size, const void *ptr, void *user_data);
+
 #endif /* IDL_PRINT_H */

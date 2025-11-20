@@ -34,16 +34,16 @@ static Space_Type1 msg = { 123, 0, 0};
 static void setup(dds_duration_t sep, dds_destination_order_kind_t dok)
 {
     pp = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-    CU_ASSERT_FATAL(pp > 0);
+    CU_ASSERT_GT_FATAL (pp, 0);
 
     char name[100];
     create_unique_topic_name("ddsc_time_based_filter", name, sizeof name);
     tp = dds_create_topic(pp, &Space_Type1_desc, name, NULL, NULL);
-    CU_ASSERT_FATAL(tp > 0);
+    CU_ASSERT_GT_FATAL (tp, 0);
 
     //qos
     dds_qos_t *qos = dds_create_qos();
-    CU_ASSERT_PTR_NOT_NULL_FATAL(qos);
+    CU_ASSERT_NEQ_FATAL (qos, NULL);
 
     dds_qset_history(qos, DDS_HISTORY_KEEP_LAST, 1);
     dds_qset_destination_order(qos, dok);
@@ -55,17 +55,17 @@ static void setup(dds_duration_t sep, dds_destination_order_kind_t dok)
 
     dds_delete_qos(qos);
 
-    CU_ASSERT_FATAL(rd > 0);
-    CU_ASSERT_FATAL(wr > 0);
+    CU_ASSERT_GT_FATAL (rd, 0);
+    CU_ASSERT_GT_FATAL (wr, 0);
 
     dds_return_t rc = dds_set_status_mask(wr, DDS_PUBLICATION_MATCHED_STATUS);
-    CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
 
     uint32_t status = 0;
     while(!(status & DDS_PUBLICATION_MATCHED_STATUS))
     {
         rc = dds_get_status_changes (wr, &status);
-        CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+        CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
 
         /* Polling sleep. */
         dds_sleepfor (DDS_MSECS (20));
@@ -75,7 +75,7 @@ static void setup(dds_duration_t sep, dds_destination_order_kind_t dok)
 static void teardown(void)
 {
     dds_return_t ret = dds_delete(pp);
-    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 }
 
 static void test_write(dds_duration_t source_time, uint32_t total_count, int32_t total_count_change)
@@ -83,13 +83,13 @@ static void test_write(dds_duration_t source_time, uint32_t total_count, int32_t
     msg.long_2++;
 
     dds_return_t ret = dds_write_ts(wr, &msg, source_time);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     dds_sample_lost_status_t sl_status;
     ret = dds_get_sample_lost_status (rd, &sl_status);
-    CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
-    CU_ASSERT_EQUAL(sl_status.total_count, total_count);
-    CU_ASSERT_EQUAL(sl_status.total_count_change, total_count_change);
+    CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ (sl_status.total_count, total_count);
+    CU_ASSERT_EQ (sl_status.total_count_change, total_count_change);
 }
 
 static struct ddsi_domaingv *get_gv (dds_entity_t e)
@@ -111,8 +111,8 @@ static void test_insert(void)
     struct ddsi_serdata *sd = NULL;
 
     dds_return_t ret = dds_entity_pin(rd, &e_ptr);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-    CU_ASSERT_PTR_NOT_NULL_FATAL(e_ptr);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+    CU_ASSERT_NEQ_FATAL (e_ptr, NULL);
     if (!e_ptr)
       goto fail;
 
@@ -120,19 +120,19 @@ static void test_insert(void)
     ddsi_thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
 
     ret = dds_topic_pin (tp, &x);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-    CU_ASSERT_PTR_NOT_NULL_FATAL(x);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+    CU_ASSERT_NEQ_FATAL (x, NULL);
     if (!x)
       goto fail;
 
     st = ddsi_sertype_ref (x->m_stype);
-    CU_ASSERT_PTR_NOT_NULL_FATAL(st);
+    CU_ASSERT_NEQ_FATAL (st, NULL);
     if (!st)
       goto fail;
 
     msg.long_2++;
     sd = ddsi_serdata_from_sample (st, SDK_DATA, &msg);
-    CU_ASSERT_PTR_NOT_NULL_FATAL(sd);
+    CU_ASSERT_NEQ_FATAL (sd, NULL);
     if (!sd)
       goto fail;
 
@@ -148,17 +148,17 @@ static void test_insert(void)
 #endif
     };
     const struct ddsi_domaingv *gv = get_gv (pp);
-    CU_ASSERT_PTR_NOT_NULL_FATAL(gv);
+    CU_ASSERT_NEQ_FATAL (gv, NULL);
     if (!gv)
       goto fail;
 
     struct ddsi_tkmap_instance *ti = ddsi_tkmap_lookup_instance_ref(gv->m_tkmap, sd);
-    CU_ASSERT_PTR_NOT_NULL_FATAL(ti);
+    CU_ASSERT_NEQ_FATAL (ti, NULL);
     if (!ti)
       goto fail;
 
     bool store_result = dds_rhc_store(((struct dds_reader*)e_ptr)->m_rhc, &wi, sd, ti);
-    CU_ASSERT(store_result);
+    CU_ASSERT (store_result);
 
 fail:
     if (sd)

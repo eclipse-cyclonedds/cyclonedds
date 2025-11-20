@@ -14,7 +14,6 @@ add_executable(symbol_export_test symbol_export.c)
 
 target_link_libraries(symbol_export_test PRIVATE
     ${PROJECT_NAME}::ddsc
-    $<$<NOT:$<STREQUAL:"${CMAKE_PROJECT_NAME}","CycloneDDS">>:${PROJECT_NAME}::cdr>
 )
 target_include_directories(symbol_export_test PRIVATE
     "$<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>"
@@ -25,7 +24,7 @@ target_include_directories(symbol_export_test PRIVATE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../cdr/include>")
 
 if (ENABLE_SECURITY)
-    target_link_libraries(symbol_export_test PRIVATE security_api)
+    target_link_libraries(symbol_export_test PRIVATE ${PROJECT_NAME}::security_api)
     target_include_directories(symbol_export_test PRIVATE
         "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>"
         "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_core,INTERFACE_INCLUDE_DIRECTORIES>>")

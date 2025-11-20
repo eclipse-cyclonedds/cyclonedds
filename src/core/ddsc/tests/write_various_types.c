@@ -45,14 +45,14 @@ static void writetypes_init(void)
   dds_free (conf_sub);
 
   g_pub_participant = dds_create_participant (DDS_DOMAINID_PUB, NULL, NULL);
-  CU_ASSERT_FATAL (g_pub_participant > 0);
+  CU_ASSERT_GT_FATAL (g_pub_participant, 0);
   g_sub_participant = dds_create_participant (DDS_DOMAINID_SUB, NULL, NULL);
-  CU_ASSERT_FATAL (g_sub_participant > 0);
+  CU_ASSERT_GT_FATAL (g_sub_participant, 0);
 
   g_pub_publisher = dds_create_publisher (g_pub_participant, NULL, NULL);
-  CU_ASSERT_FATAL (g_pub_publisher > 0);
+  CU_ASSERT_GT_FATAL (g_pub_publisher, 0);
   g_sub_subscriber = dds_create_subscriber (g_sub_participant, NULL, NULL);
-  CU_ASSERT_FATAL (g_sub_subscriber > 0);
+  CU_ASSERT_GT_FATAL (g_sub_subscriber, 0);
 }
 
 static void writetypes_fini (void)
@@ -135,30 +135,30 @@ CU_Theory((const dds_topic_descriptor_t *desc, compare_fn_t cmp, size_t nsamples
   char name[100];
 
   /* nsamples < MAX_SAMPLES so there is room for an invalid sample if we need it */
-  CU_ASSERT_FATAL (nsamples < MAX_SAMPLES);
+  CU_ASSERT_LT_FATAL (nsamples, MAX_SAMPLES);
 
   qos = dds_create_qos ();
-  CU_ASSERT_FATAL (qos != NULL);
+  CU_ASSERT_NEQ_FATAL (qos, NULL);
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS (1));
   dds_qset_writer_data_lifecycle (qos, false);
   create_unique_topic_name ("ddsc_writetypes_various", name, sizeof name);
   pub_topic = dds_create_topic (g_pub_participant, desc, name, qos, NULL);
-  CU_ASSERT_FATAL (pub_topic > 0);
+  CU_ASSERT_GT_FATAL (pub_topic, 0);
   sub_topic = dds_create_topic (g_sub_participant, desc, name, qos, NULL);
-  CU_ASSERT_FATAL (sub_topic > 0);
+  CU_ASSERT_GT_FATAL (sub_topic, 0);
   dds_delete_qos (qos);
 
   reader = dds_create_reader (g_sub_participant, sub_topic, NULL, NULL);
-  CU_ASSERT_FATAL (reader > 0);
+  CU_ASSERT_GT_FATAL (reader, 0);
   writer = dds_create_writer (g_pub_participant, pub_topic, NULL, NULL);
-  CU_ASSERT_FATAL (writer > 0);
+  CU_ASSERT_GT_FATAL (writer, 0);
 
   /* simple-minded polling until reader/writer have matched each other */
   while (1)
   {
     dds_publication_matched_status_t st;
     rc = dds_get_publication_matched_status (writer, &st);
-    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
     if (st.current_count > 0)
       break;
     dds_sleepfor (DDS_MSECS (1));
@@ -167,7 +167,7 @@ CU_Theory((const dds_topic_descriptor_t *desc, compare_fn_t cmp, size_t nsamples
   {
     dds_subscription_matched_status_t st;
     rc = dds_get_subscription_matched_status (reader, &st);
-    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
     if (st.current_count > 0)
       break;
     dds_sleepfor (DDS_MSECS (1));
@@ -176,18 +176,18 @@ CU_Theory((const dds_topic_descriptor_t *desc, compare_fn_t cmp, size_t nsamples
   /* write samples */
   for (size_t i = 0; i < nsamples; i++) {
     rc = dds_write (writer, samples[i].data);
-    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
   }
 
   /* delete writer, wait until no matching writer: writer lingering should ensure the data
      has been delivered at that point */
   rc = dds_delete (writer);
-  CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
   while (1)
   {
     dds_subscription_matched_status_t st;
     rc = dds_get_subscription_matched_status (reader, &st);
-    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
     if (st.current_count == 0)
       break;
     dds_sleepfor (DDS_MSECS (1));
@@ -200,7 +200,7 @@ CU_Theory((const dds_topic_descriptor_t *desc, compare_fn_t cmp, size_t nsamples
   xs[0] = NULL;
   int32_t n;
   n = dds_read (reader, xs, si, MAX_SAMPLES, MAX_SAMPLES);
-  CU_ASSERT_FATAL (n > 0);
+  CU_ASSERT_GT_FATAL (n, 0);
 
   size_t nvalid = 0;
   for (int32_t j = 0; j < n; j++)
@@ -217,22 +217,22 @@ CU_Theory((const dds_topic_descriptor_t *desc, compare_fn_t cmp, size_t nsamples
       for (j = 0; j < n; j++)
         if (si[j].valid_data && cmp (samples[i].data, xs[j]))
           break;
-      CU_ASSERT (j < n);
+      CU_ASSERT_LT (j, n);
       si[j].valid_data = 0;
       nvalid--;
     }
   }
   /* all valid samples must be accounted for */
-  CU_ASSERT_FATAL (nvalid == 0);
+  CU_ASSERT_EQ_FATAL (nvalid, 0);
 
   rc = dds_return_loan (reader, xs, n);
-  CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
 
   /* cleanup */
   rc = dds_delete (reader);
-  CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
   rc = dds_delete (sub_topic);
-  CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
   rc = dds_delete (pub_topic);
-  CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
 }

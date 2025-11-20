@@ -101,9 +101,9 @@ static void *samples_d[] = {
 
 static void *samples_e[] = {
   &(E){ 0, {{0},{0}}, 456 },
-  &(E){ 0, {{0},{._length=1, ._maximum=1, ._buffer=&(U){34,"aap","noot",56}}}, 456},
-  &(E){ 0, {{0},{._length=1, ._maximum=1, ._buffer=&(U){78,"aap","zus",56}}}, 456},
-  &(E){ 0, {{0},{._length=1, ._maximum=1, ._buffer=&(U){78,"wim","zus",90}}}, 456},
+  &(E){ 0, {{0},{._length=1, ._maximum=1, ._buffer=&(U){34,"aap","noot",56}, ._release = false}}, 456},
+  &(E){ 0, {{0},{._length=1, ._maximum=1, ._buffer=&(U){78,"aap","zus",56}, ._release = false}}, 456},
+  &(E){ 0, {{0},{._length=1, ._maximum=1, ._buffer=&(U){78,"wim","zus",90}, ._release = false}}, 456},
   NULL
 };
 

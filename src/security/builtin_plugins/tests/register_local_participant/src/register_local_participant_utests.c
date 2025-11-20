@@ -29,11 +29,11 @@ static dds_security_cryptography *crypto = NULL;
 
 static void suite_register_local_participant_init(void)
 {
-  CU_ASSERT_FATAL ((plugins = load_plugins(
-                      NULL    /* Access Control */,
-                      NULL    /* Authentication */,
-                      &crypto /* Cryptograpy    */,
-                      NULL)) != NULL);
+  CU_ASSERT_NEQ_FATAL ((plugins = load_plugins(
+    NULL    /* Access Control */,
+    NULL    /* Authentication */,
+    &crypto /* Cryptograpy    */,
+    NULL)), NULL);
 }
 
 static void suite_register_local_participant_fini(void)
@@ -73,12 +73,9 @@ CU_Test(ddssec_builtin_register_local_participant, happy_day, .init = suite_regi
   DDS_Security_ParticipantSecurityAttributes participant_security_attributes;
 
   /* Check if we actually have the validate_local_identity() function. */
-  CU_ASSERT_FATAL(crypto != NULL);
-  assert(crypto != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_factory != NULL);
-  assert(crypto->crypto_key_factory != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_factory->register_local_participant != NULL);
-  assert(crypto->crypto_key_factory->register_local_participant != 0);
+  CU_ASSERT_NEQ_FATAL (crypto, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_factory, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_factory->register_local_participant, NULL);
 
   memset(&exception, 0, sizeof(DDS_Security_SecurityException));
   memset(&participant_properties, 0, sizeof(participant_properties));
@@ -98,8 +95,8 @@ CU_Test(ddssec_builtin_register_local_participant, happy_day, .init = suite_regi
     printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
 
   /* A valid handle to be returned */
-  CU_ASSERT(hdl != DDS_SECURITY_HANDLE_NIL);
-  CU_ASSERT(exception.code == DDS_SECURITY_ERR_OK_CODE);
+  CU_ASSERT_NEQ (hdl, DDS_SECURITY_HANDLE_NIL);
+  CU_ASSERT_EQ (exception.code, DDS_SECURITY_ERR_OK_CODE);
 
   reset_exception(&exception);
 
@@ -123,12 +120,9 @@ CU_Test(ddssec_builtin_register_local_participant, empty_identity, .init = suite
   DDS_Security_ParticipantSecurityAttributes participant_security_attributes;
 
   /* Check if we actually have the validate_local_identity() function. */
-  CU_ASSERT_FATAL(crypto != NULL);
-  assert(crypto != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_factory != NULL);
-  assert(crypto->crypto_key_factory != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_factory->register_local_participant != NULL);
-  assert(crypto->crypto_key_factory->register_local_participant != 0);
+  CU_ASSERT_NEQ_FATAL (crypto, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_factory, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_factory->register_local_participant, NULL);
 
   memset(&exception, 0, sizeof(DDS_Security_SecurityException));
   memset(&participant_properties, 0, sizeof(participant_properties));
@@ -145,10 +139,10 @@ CU_Test(ddssec_builtin_register_local_participant, empty_identity, .init = suite
   if (exception.code != 0)
     printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
 
-  CU_ASSERT(exception.code == DDS_SECURITY_ERR_IDENTITY_EMPTY_CODE);
-  CU_ASSERT_FATAL(exception.message != NULL);
-  CU_ASSERT(!strcmp(exception.message, DDS_SECURITY_ERR_IDENTITY_EMPTY_MESSAGE));
-  CU_ASSERT(result == 0);
+  CU_ASSERT_EQ (exception.code, DDS_SECURITY_ERR_IDENTITY_EMPTY_CODE);
+  CU_ASSERT_NEQ_FATAL (exception.message, NULL);
+  CU_ASSERT_STREQ (exception.message, DDS_SECURITY_ERR_IDENTITY_EMPTY_MESSAGE);
+  CU_ASSERT_EQ (result, 0);
 
   reset_exception(&exception);
 }

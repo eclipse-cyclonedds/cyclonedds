@@ -99,6 +99,8 @@ typedef struct restrict_ostreamLE {
 #define dds_os_reserve4BO                                   NAME_BYTE_ORDER(dds_os_reserve4)
 #define dds_os_reserve8BO                                   NAME_BYTE_ORDER(dds_os_reserve8)
 #define dds_ostreamBO_fini                                  NAME2_BYTE_ORDER(dds_ostream, _fini)
+#define dds_stream_write_bstringBO                          NAME_BYTE_ORDER(dds_stream_write_bstring)
+#define dds_stream_write_bwstringBO                         NAME_BYTE_ORDER(dds_stream_write_bwstring)
 #define dds_stream_write_stringBO                           NAME_BYTE_ORDER(dds_stream_write_string)
 #define dds_stream_write_wstringBO                          NAME_BYTE_ORDER(dds_stream_write_wstring)
 #define dds_stream_write_wcharBO                            NAME_BYTE_ORDER(dds_stream_write_wchar)
@@ -1166,14 +1168,14 @@ static char *dds_stream_reuse_string_empty (char * restrict str, const struct dd
 }
 
 ddsrt_nonnull_all
-static size_t wstring_utf16_len (const wchar_t *str)
+static size_t wstring_utf16_nlen (const wchar_t *str, size_t maxlen)
 {
   // assume sizeof(wchar_t) = uint16_t or uint32_t
   // assume uint16_t implies UTF-16 and uint32_t implies UTF-32
   // I think that should work for Unix and Windows
   DDSRT_STATIC_ASSERT (sizeof (wchar_t) == 2 || sizeof (wchar_t) == 4);
   size_t n = 0;
-  for (; *str != L'\0'; n++, str++)
+  for (; n < maxlen && *str != L'\0'; n++, str++)
     if ((uint32_t) *str >= 0x10000) // necessarily false if wchar_t is 16 bits
       n++;
   return n;
@@ -1855,20 +1857,59 @@ static inline void getsize_reserve_many (struct getsize_state *st, uint32_t elem
   st->pos += (n - 1) * elemsz;
 }
 
-ddsrt_nonnull ((1))
-static void dds_stream_getsize_string (struct getsize_state *st, const char *val)
+ddsrt_nonnull_all ddsrt_attribute_warn_unused_result
+static bool dds_stream_getsize_bstring (struct getsize_state *st, const char *val, uint32_t bound)
 {
-  uint32_t size = val ? (uint32_t) strlen (val) + 1 : 1; // string includes '\0'
+  // if for some reason the bound was 0 in the instruction (which it shouldn't be because it
+  // includes the terminating 0), it wraps around on subtracting 1 to account for the terminator
+  // end we end up here with UINT32_MAX.
+  assert (bound < UINT32_MAX);
+  const size_t length = strnlen (val, bound + 1);
+  if (length > bound)
+    return false;
+  const uint32_t size = (uint32_t) length + 1; // string includes '\0'
   getsize_reserve (st, 4);
   getsize_reserve_many (st, 1, size);
+  return true;
 }
 
-ddsrt_nonnull ((1))
-static void dds_stream_getsize_wstring (struct getsize_state *st, const wchar_t *val)
+ddsrt_nonnull_all ddsrt_attribute_warn_unused_result
+static bool dds_stream_getsize_bwstring (struct getsize_state *st, const wchar_t *val, uint32_t bound)
 {
-  uint32_t size = val ? (uint32_t) wstring_utf16_len (val) : 0; // wstring does not include a terminator
+  // if for some reason the bound was 0 in the instruction (which it shouldn't be because it
+  // includes the terminating 0), it wraps around on subtracting 1 to account for the terminator
+  // end we end up here with UINT32_MAX.
+  assert (bound < UINT32_MAX);
+  const size_t length = wstring_utf16_nlen (val, bound + 1);
+  if (length > bound)
+    return false;
+  uint32_t size = (uint32_t) length; // wstring does not include a terminator
   getsize_reserve (st, 4);
   getsize_reserve_many (st, 2, size);
+  return true;
+}
+
+ddsrt_nonnull ((1)) ddsrt_attribute_warn_unused_result
+static bool dds_stream_getsize_string (struct getsize_state *st, const char *val)
+{
+  if (val) {
+    return dds_stream_getsize_bstring (st, val, UINT32_MAX - 1);
+  } else {
+    getsize_reserve (st, 4);
+    getsize_reserve_many (st, 1, 1);
+    return true;
+  }
+}
+
+ddsrt_nonnull ((1)) ddsrt_attribute_warn_unused_result
+static bool dds_stream_getsize_wstring (struct getsize_state *st, const wchar_t *val)
+{
+  if (val) {
+    return dds_stream_getsize_bwstring (st, val, UINT32_MAX - 1);
+  } else {
+    getsize_reserve (st, 4);
+    return true;
+  }
 }
 
 ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
@@ -1922,14 +1963,16 @@ static const uint32_t *dds_stream_getsize_seq (struct getsize_state *st, const c
       case DDS_OP_VAL_STR: {
         const char **ptr = (const char **) seq->_buffer;
         for (uint32_t i = 0; i < num; i++)
-          dds_stream_getsize_string (st, ptr[i]);
+          if (!dds_stream_getsize_string (st, ptr[i]))
+            return NULL;
         ops += 2 + bound_op;
         break;
       }
       case DDS_OP_VAL_WSTR: {
         const wchar_t **ptr = (const wchar_t **) seq->_buffer;
         for (uint32_t i = 0; i < num; i++)
-          dds_stream_getsize_wstring (st, ptr[i]);
+          if (!dds_stream_getsize_wstring (st, ptr[i]))
+            return NULL;
         ops += 2 + bound_op;
         break;
       }
@@ -1937,7 +1980,8 @@ static const uint32_t *dds_stream_getsize_seq (struct getsize_state *st, const c
         const char *ptr = (const char *) seq->_buffer;
         const uint32_t elem_size = ops[2 + bound_op];
         for (uint32_t i = 0; i < num; i++)
-          dds_stream_getsize_string (st, ptr + i * elem_size);
+          if (!dds_stream_getsize_bstring (st, ptr + i * elem_size, elem_size - 1))
+            return NULL;
         ops += 3 + bound_op;
         break;
       }
@@ -1945,7 +1989,8 @@ static const uint32_t *dds_stream_getsize_seq (struct getsize_state *st, const c
         const wchar_t *ptr = (const wchar_t *) seq->_buffer;
         const uint32_t elem_size = ops[2 + bound_op];
         for (uint32_t i = 0; i < num; i++)
-          dds_stream_getsize_wstring (st, ptr + i * elem_size);
+          if (!dds_stream_getsize_bwstring (st, ptr + i * elem_size, elem_size - 1))
+            return NULL;
         ops += 3 + bound_op;
         break;
       }
@@ -2000,14 +2045,16 @@ static const uint32_t *dds_stream_getsize_arr (struct getsize_state *st, const c
     case DDS_OP_VAL_STR: {
       const char **ptr = (const char **) addr;
       for (uint32_t i = 0; i < num; i++)
-        dds_stream_getsize_string (st, ptr[i]);
+        if (!dds_stream_getsize_string (st, ptr[i]))
+          return NULL;
       ops += 3;
       break;
     }
     case DDS_OP_VAL_WSTR: {
       const wchar_t **ptr = (const wchar_t **) addr;
       for (uint32_t i = 0; i < num; i++)
-        dds_stream_getsize_wstring (st, ptr[i]);
+        if (!dds_stream_getsize_wstring (st, ptr[i]))
+          return NULL;
       ops += 3;
       break;
     }
@@ -2015,7 +2062,8 @@ static const uint32_t *dds_stream_getsize_arr (struct getsize_state *st, const c
       const char *ptr = (const char *) addr;
       const uint32_t elem_size = ops[4];
       for (uint32_t i = 0; i < num; i++)
-        dds_stream_getsize_string (st, ptr + i * elem_size);
+        if (!dds_stream_getsize_bstring (st, ptr + i * elem_size, elem_size - 1))
+          return NULL;
       ops += 5;
       break;
     }
@@ -2023,7 +2071,8 @@ static const uint32_t *dds_stream_getsize_arr (struct getsize_state *st, const c
       const wchar_t *ptr = (const wchar_t *) addr;
       const uint32_t elem_size = ops[4];
       for (uint32_t i = 0; i < num; i++)
-        dds_stream_getsize_wstring (st, ptr + i * elem_size);
+        if (!dds_stream_getsize_bwstring (st, ptr + i * elem_size, elem_size - 1))
+          return NULL;
       ops += 5;
       break;
     }
@@ -2110,11 +2159,16 @@ static const uint32_t *dds_stream_getsize_uni (struct getsize_state *st, const c
       case DDS_OP_VAL_4BY: getsize_reserve (st, 4); break;
       case DDS_OP_VAL_8BY: getsize_reserve (st, 8); break;
       case DDS_OP_VAL_ENU: getsize_reserve (st, DDS_OP_TYPE_SZ (jeq_op[0])); break;
-      case DDS_OP_VAL_STR: dds_stream_getsize_string (st, *(const char **) valaddr); break;
-      case DDS_OP_VAL_WSTR: dds_stream_getsize_wstring (st, *(const wchar_t **) valaddr); break;
-      case DDS_OP_VAL_BST: dds_stream_getsize_string (st, (const char *) valaddr); break;
-      case DDS_OP_VAL_BWSTR: dds_stream_getsize_wstring (st, (const wchar_t *) valaddr); break;
+      case DDS_OP_VAL_STR:
+        if (!dds_stream_getsize_string (st, *(const char **) valaddr))
+          return NULL;
+        break;
+      case DDS_OP_VAL_WSTR:
+        if (!dds_stream_getsize_wstring (st, *(const wchar_t **) valaddr))
+          return NULL;
+        break;
       case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: case DDS_OP_VAL_BMK:
+      case DDS_OP_VAL_BST: case DDS_OP_VAL_BWSTR:
         if (!dds_stream_getsize_impl (st, valaddr, jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), false))
           return NULL;
         break;
@@ -2174,10 +2228,26 @@ static const uint32_t *dds_stream_getsize_adr (uint32_t insn, struct getsize_sta
     case DDS_OP_VAL_8BY: getsize_reserve (st, 8); ops += 2; break;
     case DDS_OP_VAL_ENU: getsize_reserve (st, DDS_OP_TYPE_SZ (insn)); ops += 3; break;
     case DDS_OP_VAL_BMK: getsize_reserve (st, DDS_OP_TYPE_SZ (insn)); ops += 4; break;
-    case DDS_OP_VAL_STR: dds_stream_getsize_string (st, (const char *) addr); ops += 2; break;
-    case DDS_OP_VAL_WSTR: dds_stream_getsize_wstring (st, (const wchar_t *) addr); ops += 2; break;
-    case DDS_OP_VAL_BST: dds_stream_getsize_string (st, (const char *) addr); ops += 3; break;
-    case DDS_OP_VAL_BWSTR: dds_stream_getsize_wstring (st, (const wchar_t *) addr); ops += 3; break;
+    case DDS_OP_VAL_STR:
+      if (!dds_stream_getsize_string (st, (const char *) addr))
+        return NULL;
+      ops += 2;
+      break;
+    case DDS_OP_VAL_WSTR:
+      if (!dds_stream_getsize_wstring (st, (const wchar_t *) addr))
+        return NULL;
+      ops += 2;
+      break;
+    case DDS_OP_VAL_BST:
+      if (!dds_stream_getsize_bstring (st, (const char *) addr, ops[2] - 1))
+        return NULL;
+      ops += 3;
+      break;
+    case DDS_OP_VAL_BWSTR:
+      if (!dds_stream_getsize_bwstring (st, (const wchar_t *) addr, ops[2] - 1))
+        return NULL;
+      ops += 3;
+      break;
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: ops = dds_stream_getsize_seq (st, addr, ops, insn); break;
     case DDS_OP_VAL_ARR: ops = dds_stream_getsize_arr (st, addr, ops, insn); break;
     case DDS_OP_VAL_UNI: ops = dds_stream_getsize_uni (st, addr, data, ops, insn); break;
@@ -2321,6 +2391,7 @@ static const uint32_t *dds_stream_getsize_xcdr2_pl (struct getsize_state *st, co
   return dds_stream_getsize_pl_memberlist (st, data, ops);
 }
 
+ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
 static const uint32_t *dds_stream_getsize_impl (struct getsize_state *st, const char *data, const uint32_t *ops0, bool is_mutable_member)
 {
   const uint32_t *ops = ops0;
@@ -2367,19 +2438,19 @@ static size_t dds_stream_getsize_sample_impl (const char *data, const uint32_t *
     .cdr_kind = CDR_KIND_DATA,
     .xcdr_version = xcdr_version
   };
-  (void) dds_stream_getsize_impl (&st, data, ops, false);
+  if (dds_stream_getsize_impl (&st, data, ops, false) == NULL)
+    return SIZE_MAX;
   assert (st.align_off == 0);
   return st.pos;
 }
 
-ddsrt_nonnull_all
 size_t dds_stream_getsize_sample (const char *data, const struct dds_cdrstream_desc *desc, uint32_t xcdr_version)
 {
   return dds_stream_getsize_sample_impl (data, desc->ops.ops, xcdr_version);
 }
 
-ddsrt_nonnull ((1, 2, 3))
-static void dds_stream_getsize_key_impl (struct getsize_state *st, const uint32_t *ops, const void *src, uint16_t key_offset_count, const uint32_t * key_offset_insn)
+ddsrt_nonnull ((1, 2, 3)) ddsrt_attribute_warn_unused_result
+static bool dds_stream_getsize_key_impl (struct getsize_state *st, const uint32_t *ops, const void *src, uint16_t key_offset_count, const uint32_t * key_offset_insn)
 {
   uint32_t insn = *ops;
   assert (DDS_OP (insn) == DDS_OP_ADR);
@@ -2390,7 +2461,7 @@ static void dds_stream_getsize_key_impl (struct getsize_state *st, const uint32_
   {
     addr = *(char **) addr;
     if (addr == NULL && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR && DDS_OP_TYPE (insn) != DDS_OP_VAL_WSTR)
-      return;
+      return false;
   }
 
   switch (DDS_OP_TYPE (insn))
@@ -2403,10 +2474,22 @@ static void dds_stream_getsize_key_impl (struct getsize_state *st, const uint32_
     case DDS_OP_VAL_8BY: getsize_reserve (st, 8); break;
     case DDS_OP_VAL_ENU:
     case DDS_OP_VAL_BMK: getsize_reserve (st, DDS_OP_TYPE_SZ (insn)); break;
-    case DDS_OP_VAL_STR: dds_stream_getsize_string (st, addr); break;
-    case DDS_OP_VAL_WSTR: dds_stream_getsize_wstring (st, addr); break;
-    case DDS_OP_VAL_BST: dds_stream_getsize_string (st, addr); break;
-    case DDS_OP_VAL_BWSTR: dds_stream_getsize_wstring (st, addr); break;
+    case DDS_OP_VAL_STR:
+      if (!dds_stream_getsize_string (st, addr))
+        return false;
+      break;
+    case DDS_OP_VAL_WSTR:
+      if (!dds_stream_getsize_wstring (st, addr))
+        return false;
+      break;
+    case DDS_OP_VAL_BST:
+      if (!dds_stream_getsize_bstring (st, addr, ops[2] - 1))
+        return false;
+      break;
+    case DDS_OP_VAL_BWSTR:
+      if (!dds_stream_getsize_bwstring (st, addr, ops[2] - 1))
+        return false;
+      break;
     case DDS_OP_VAL_ARR: {
       const uint32_t num = ops[2];
       switch (DDS_OP_SUBTYPE (insn))
@@ -2430,7 +2513,8 @@ static void dds_stream_getsize_key_impl (struct getsize_state *st, const uint32_
     case DDS_OP_VAL_EXT: {
       assert (key_offset_count > 0);
       const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]) + *key_offset_insn;
-      dds_stream_getsize_key_impl (st, jsr_ops, addr, --key_offset_count, ++key_offset_insn);
+      if (!dds_stream_getsize_key_impl (st, jsr_ops, addr, --key_offset_count, ++key_offset_insn))
+        return false;
       break;
     }
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: {
@@ -2444,9 +2528,9 @@ static void dds_stream_getsize_key_impl (struct getsize_state *st, const uint32_
       break;
     }
   }
+  return true;
 }
 
-ddsrt_nonnull_all
 size_t dds_stream_getsize_key (const char *sample, const struct dds_cdrstream_desc *desc, uint32_t xcdr_version)
 {
   struct getsize_state st = {
@@ -2460,7 +2544,8 @@ size_t dds_stream_getsize_key (const char *sample, const struct dds_cdrstream_de
   {
     /* For types with key fields in aggregated types with appendable or mutable
        extensibility, determine the key CDR size using the regular function */
-    (void) dds_stream_getsize_impl (&st, sample, desc->ops.ops, false);
+    if (dds_stream_getsize_impl (&st, sample, desc->ops.ops, false) == NULL)
+      return false;
   }
   else
   {
@@ -2474,11 +2559,13 @@ size_t dds_stream_getsize_key (const char *sample, const struct dds_cdrstream_de
         case DDS_OP_KOF: {
           uint16_t n_offs = DDS_OP_LENGTH (*insnp);
           assert (n_offs > 0);
-          dds_stream_getsize_key_impl (&st, desc->ops.ops + insnp[1], sample, --n_offs, insnp + 2);
+          if (!dds_stream_getsize_key_impl (&st, desc->ops.ops + insnp[1], sample, --n_offs, insnp + 2))
+            return SIZE_MAX;
           break;
         }
         case DDS_OP_ADR: {
-          dds_stream_getsize_key_impl (&st, insnp, sample, 0, NULL);
+          if (!dds_stream_getsize_key_impl (&st, insnp, sample, 0, NULL))
+            return SIZE_MAX;
           break;
         }
         default:
@@ -6634,7 +6721,8 @@ static const uint32_t *dds_stream_key_size_adr (const uint32_t *ops, uint32_t in
       break;
     case DDS_OP_VAL_ARR: {
       const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
-      k->is_array_nonprim = !(is_primitive_or_enum_type (subtype) || subtype == DDS_OP_VAL_BMK);
+      if (!(is_primitive_or_enum_type (subtype) || subtype == DDS_OP_VAL_BMK))
+        k->is_array_nonprim = true;
       ops = dds_stream_key_size_arr_bseq (ops, insn, k);
       break;
     }

@@ -22,6 +22,11 @@
 #include "common/config_env.h"
 #include "common/test_identity.h"
 
+#define BUILTIN_PROPS \
+  "1:\"__ProcessName\":\"*\"," \
+  "1:\"__Pid\":\"*\"," \
+  "1:\"__Hostname\":\"*\"" \
+
 #define PROPLIST(init_auth, fin_auth, init_crypto, fin_crypto, init_ac, fin_ac, perm_ca, gov, perm, pre_str, post_str, binprops)         \
   "property_list={" pre_str                                             \
   "0:\"" DDS_SEC_PROP_AUTH_LIBRARY_PATH "\":\""WRAPPERLIB_PATH("dds_security_authentication_wrapper")"\","                         \
@@ -65,7 +70,10 @@
   "0:\"" DDS_SEC_PROP_AUTH_IDENTITY_CERT "\":\"" TEST_IDENTITY_CERTIFICATE_DUMMY "\"",\
   "0:\"" DDS_SEC_PROP_ACCESS_PERMISSIONS_CA "\":\"file:Permissions_CA.pem\"",\
   "0:\"" DDS_SEC_PROP_ACCESS_GOVERNANCE "\":\"file:Governance.p7s\"",\
-  "0:\"" DDS_SEC_PROP_ACCESS_PERMISSIONS "\":\"file:Permissions.p7s\""
+  "0:\"" DDS_SEC_PROP_ACCESS_PERMISSIONS "\":\"file:Permissions.p7s\"",\
+  "1:\"__ProcessName\":\"", \
+  "1:\"__Pid\":\"", \
+  "1:\"__Hostname\":\""
 
 static const char *default_config =
     "<Domain id=\"any\">"
@@ -146,11 +154,11 @@ CU_Test(ddssec_config, empty, .init = ddsrt_init, .fini = ddsrt_fini)
 
   set_logger_exp(log_expected, NULL);
   domain = dds_create_domain(0, sec_config);
-  CU_ASSERT_EQUAL_FATAL(domain, DDS_RETCODE_ERROR);
+  CU_ASSERT_EQ_FATAL (domain, DDS_RETCODE_ERROR);
   reset_logger();
 
   /* All traces should have been provided. */
-  CU_ASSERT_FATAL(found == 0x7);
+  CU_ASSERT_EQ_FATAL (found, 0x7);
 }
 
 /* Create domain without security element, there shouldn't
@@ -165,12 +173,12 @@ CU_Test(ddssec_config, non, .init = ddsrt_init, .fini = ddsrt_fini)
 
   set_logger_exp(log_expected, NULL);
   domain = dds_create_domain(0, default_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   dds_delete(domain);
   reset_logger();
 
   /* No security traces should have been provided. */
-  CU_ASSERT_FATAL(found == 0x0);
+  CU_ASSERT_EQ_FATAL (found, 0x0);
 }
 
 /* Expected traces when creating domain with the security elements. */
@@ -203,11 +211,11 @@ CU_Test(ddssec_config, missing, .init = ddsrt_init, .fini = ddsrt_fini)
 
   set_logger_exp(log_expected, NULL);
   domain = dds_create_domain(0, sec_config);
-  CU_ASSERT_EQUAL_FATAL(domain, DDS_RETCODE_ERROR);
+  CU_ASSERT_EQ_FATAL (domain, DDS_RETCODE_ERROR);
   reset_logger();
 
   /* All traces should have been provided. */
-  CU_ASSERT_FATAL(found == 0x7);
+  CU_ASSERT_EQ_FATAL (found, 0x7);
 }
 
 /* Expected traces when creating domain with the security elements. */
@@ -277,22 +285,22 @@ CU_Test(ddssec_config, all, .init = ddsrt_init, .fini = ddsrt_fini)
 
   set_logger_exp(log_expected, PARTICIPANT_PROPERTY_LINE);
   domain = dds_create_domain(0, sec_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, NULL, NULL);
-  CU_ASSERT_FATAL(participant > 0);
+  CU_ASSERT_GT_FATAL (participant, 0);
   dds_delete(participant);
   dds_delete(domain);
 
-  CU_ASSERT_FATAL(extracted_line != NULL);
+  CU_ASSERT_NEQ_FATAL (extracted_line, NULL);
 
   /* The config should have been parsed into the participant QoS. */
   for (uint32_t i = 0; props_expected[i] != NULL && extracted_line; i++) {
-    CU_ASSERT_FATAL(strstr(extracted_line, props_expected[i]) != NULL);
+    CU_ASSERT_NEQ_FATAL (strstr(extracted_line, props_expected[i]), NULL);
   }
 
   /* All traces should have been provided. */
   printf("found: %x\n", found);
-  CU_ASSERT_FATAL(found == 0x1fffff);
+  CU_ASSERT_EQ_FATAL (found, 0x1fffff);
 
   reset_logger();
 }
@@ -361,21 +369,21 @@ CU_Test(ddssec_config, security, .init = ddsrt_init, .fini = ddsrt_fini)
 
   set_logger_exp(log_expected, PARTICIPANT_PROPERTY_LINE);
   domain = dds_create_domain(0, sec_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, NULL, NULL);
-  CU_ASSERT_FATAL(participant > 0);
+  CU_ASSERT_GT_FATAL (participant, 0);
   dds_delete(participant);
   dds_delete(domain);
 
-  CU_ASSERT_FATAL(extracted_line != NULL);
+  CU_ASSERT_NEQ_FATAL (extracted_line, NULL);
 
   /* The config should have been parsed into the participant QoS. */
   for (uint32_t i = 0; props_expected[i] != NULL && extracted_line; i++) {
-    CU_ASSERT_FATAL(strstr(extracted_line, props_expected[i]) != NULL);
+    CU_ASSERT_NEQ_FATAL (strstr(extracted_line, props_expected[i]), NULL);
   }
 
   /* All traces should have been provided. */
-  CU_ASSERT_FATAL(found == 0x1fffff);
+  CU_ASSERT_EQ_FATAL (found, 0x1fffff);
   reset_logger();
 }
 
@@ -446,21 +454,21 @@ CU_Test(ddssec_config, deprecated, .init = ddsrt_init, .fini = ddsrt_fini)
 
   set_logger_exp(log_expected, PARTICIPANT_PROPERTY_LINE);
   domain = dds_create_domain(0, sec_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, NULL, NULL);
-  CU_ASSERT_FATAL(participant > 0);
+  CU_ASSERT_GT_FATAL (participant, 0);
   dds_delete(participant);
   dds_delete(domain);
 
-  CU_ASSERT_FATAL(extracted_line != NULL);
+  CU_ASSERT_NEQ_FATAL (extracted_line, NULL);
 
   /* The config should have been parsed into the participant QoS. */
   for (uint32_t i = 0; props_expected[i] != NULL && extracted_line; i++) {
-    CU_ASSERT_FATAL(strstr(extracted_line, props_expected[i]) != NULL);
+    CU_ASSERT_NEQ_FATAL (strstr(extracted_line, props_expected[i]), NULL);
   }
 
   /* All traces should have been provided. */
-  CU_ASSERT_FATAL(found == 0x1fffff);
+  CU_ASSERT_EQ_FATAL (found, 0x1fffff);
   reset_logger();
 
 }
@@ -472,12 +480,18 @@ CU_Test(ddssec_config, qos, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qos_t * qos;
   const char *log_expected[] = {
     /* The config should have been parsed into the participant QoS. */
-    PARTICIPANT_QOS_ALL_OK ("", ",0:\"" DDS_SEC_PROP_AUTH_PASSWORD "\":\"testtext_Password_testtext\",0:\"" DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR "\":\"file:/test/dir\",0:\"" ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL "\":\"file:/test/crl\"", ""),
+    PARTICIPANT_QOS_ALL_OK (
+      "",
+      ",0:\"" DDS_SEC_PROP_AUTH_PASSWORD "\":\"testtext_Password_testtext\""
+        ",0:\"" DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR "\":\"file:/test/dir\""
+        ",0:\"" ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL "\":\"file:/test/crl\""
+        "," BUILTIN_PROPS,
+      ""),
     NULL
   };
 
   /* Create the qos */
-  CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
+  CU_ASSERT_NEQ_FATAL (qos = dds_create_qos(), NULL);
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_PATH, WRAPPERLIB_PATH("dds_security_authentication_wrapper")"");
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_INIT, "init_test_authentication_all_ok");
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE, "finalize_test_authentication_all_ok");
@@ -499,16 +513,16 @@ CU_Test(ddssec_config, qos, .init = ddsrt_init, .fini = ddsrt_fini)
 
   set_logger_exp(log_expected, NULL);
   domain = dds_create_domain(0, default_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, qos, NULL);
-  CU_ASSERT_FATAL(participant > 0);
+  CU_ASSERT_GT_FATAL (participant, 0);
   dds_delete(participant);
   dds_delete_qos(qos);
   dds_delete(domain);
   reset_logger();
 
   /* All traces should have been provided. */
-  CU_ASSERT_FATAL(found == 0x1);
+  CU_ASSERT_EQ_FATAL (found, 0x1);
 }
 
 /* Expected traces when creating participant with the security elements. */
@@ -518,14 +532,21 @@ CU_Test(ddssec_config, qos_props, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qos_t * qos;
   const char *log_expected[] = {
     /* The config should have been parsed into the participant QoS. */
-    PARTICIPANT_QOS_ALL_OK ("", ",0:\"" DDS_SEC_PROP_AUTH_PASSWORD "\":\"testtext_Password_testtext\",0:\"" DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR "\":\"file:/test/dir\",0:\"" ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL "\":\"file:/test/crl\",0:\"test.prop1\":\"testtext_value1_testtext\",0:\"test.prop2\":\"testtext_value2_testtext\"",
-                            "0:\"test.bprop1\":3<1,2,3>"),
+    PARTICIPANT_QOS_ALL_OK (
+      "",
+      ",0:\"" DDS_SEC_PROP_AUTH_PASSWORD "\":\"testtext_Password_testtext\""
+        ",0:\"" DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR "\":\"file:/test/dir\""
+        ",0:\"" ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL "\":\"file:/test/crl\""
+        ",0:\"test.prop1\":\"testtext_value1_testtext\""
+        ",0:\"test.prop2\":\"testtext_value2_testtext\""
+        "," BUILTIN_PROPS,
+      "0:\"test.bprop1\":3<1,2,3>"),
     NULL
   };
 
   /* Create the qos */
   unsigned char bvalue[3] = { 0x01, 0x02, 0x03 };
-  CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
+  CU_ASSERT_NEQ_FATAL (qos = dds_create_qos(), NULL);
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_PATH, WRAPPERLIB_PATH("dds_security_authentication_wrapper")"");
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_INIT, "init_test_authentication_all_ok");
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE, "finalize_test_authentication_all_ok");
@@ -550,16 +571,16 @@ CU_Test(ddssec_config, qos_props, .init = ddsrt_init, .fini = ddsrt_fini)
 
   set_logger_exp(log_expected, NULL);
   domain = dds_create_domain(0, default_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, qos, NULL);
-  CU_ASSERT_FATAL(participant > 0);
+  CU_ASSERT_GT_FATAL (participant, 0);
   dds_delete(participant);
   dds_delete_qos(qos);
   dds_delete(domain);
   reset_logger();
 
   /* All traces should have been provided. */
-  CU_ASSERT_FATAL(found == 0x1);
+  CU_ASSERT_EQ_FATAL (found, 0x1);
 }
 
 /* Expect qos settings used when creating participant with config security elements and qos. */
@@ -570,11 +591,11 @@ CU_Test(ddssec_config, config_qos, .init = ddsrt_init, .fini = ddsrt_fini)
   const char *log_expected[] = {
     /* The security settings from qos properties should have been parsed into the participant QoS. */
     "ddsi_new_participant(*): using security settings from QoS*",
-    PARTICIPANT_QOS ("init_test_authentication_all_ok", "finalize_test_authentication_all_ok", \
-                   "init_test_cryptography_all_ok", "finalize_test_cryptography_all_ok", \
-                   "init_test_access_control_all_ok", "finalize_test_access_control_all_ok", \
-                   "file:QOS_Permissions_CA.pem", "file:QOS_Governance.p7s", "file:QOS_Permissions.p7s", \
-                   "", "", ""),
+    PARTICIPANT_QOS ("init_test_authentication_all_ok", "finalize_test_authentication_all_ok",
+                     "init_test_cryptography_all_ok", "finalize_test_cryptography_all_ok",
+                     "init_test_access_control_all_ok", "finalize_test_access_control_all_ok",
+                     "file:QOS_Permissions_CA.pem", "file:QOS_Governance.p7s", "file:QOS_Permissions.p7s",
+                     "", "," BUILTIN_PROPS, ""),
     NULL
   };
 
@@ -598,7 +619,7 @@ CU_Test(ddssec_config, config_qos, .init = ddsrt_init, .fini = ddsrt_fini)
     "  </Security>"
     "</Domain>";
 
-  CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
+  CU_ASSERT_NEQ_FATAL (qos = dds_create_qos(), NULL);
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_PATH, WRAPPERLIB_PATH("dds_security_authentication_wrapper"));
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_INIT, "init_test_authentication_all_ok");
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE, "finalize_test_authentication_all_ok");
@@ -617,16 +638,16 @@ CU_Test(ddssec_config, config_qos, .init = ddsrt_init, .fini = ddsrt_fini)
 
   set_logger_exp(log_expected, NULL);
   domain = dds_create_domain(0, sec_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, qos, NULL);
-  CU_ASSERT_FATAL (participant > 0);
+  CU_ASSERT_GT_FATAL (participant, 0);
   dds_delete(participant);
   dds_delete_qos(qos);
   dds_delete(domain);
   reset_logger();
 
   /* All traces should have been provided. */
-  CU_ASSERT_FATAL(found == 0x3);
+  CU_ASSERT_EQ_FATAL (found, 0x3);
 }
 
 /* Expect config used when creating participant with config security elements and
@@ -637,7 +658,13 @@ CU_Test(ddssec_config, other_prop, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qos_t * qos;
   const char *log_expected[] = {
     /* The security settings from config should have been parsed into the participant QoS. */
-    PARTICIPANT_QOS_ALL_OK ("0:\"test.dds.sec.prop1\":\"testtext_value1_testtext\",", ",0:\"" DDS_SEC_PROP_AUTH_PASSWORD "\":\"testtext_Password_testtext\",0:\"" DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR "\":\"testtext_Dir_testtext\",0:\"" ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL "\":\"testtext_Crl_testtext\"", ""),
+    PARTICIPANT_QOS_ALL_OK (
+      "0:\"test.dds.sec.prop1\":\"testtext_value1_testtext\""
+        "," BUILTIN_PROPS ",",
+      ",0:\"" DDS_SEC_PROP_AUTH_PASSWORD "\":\"testtext_Password_testtext\""
+        ",0:\"" DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR "\":\"testtext_Dir_testtext\""
+        ",0:\"" ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL "\":\"testtext_Crl_testtext\"",
+      ""),
     NULL
   };
 
@@ -669,21 +696,21 @@ CU_Test(ddssec_config, other_prop, .init = ddsrt_init, .fini = ddsrt_fini)
     "  </Security>"
     "</Domain>";
 
-  CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
+  CU_ASSERT_NEQ_FATAL (qos = dds_create_qos(), NULL);
   dds_qset_prop(qos, "test.dds.sec.prop1", "testtext_value1_testtext");
 
   set_logger_exp(log_expected, NULL);
   domain = dds_create_domain(0, sec_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, qos, NULL);
-  CU_ASSERT_FATAL (participant > 0);
+  CU_ASSERT_GT_FATAL (participant, 0);
   dds_delete(participant);
   dds_delete_qos(qos);
   dds_delete(domain);
   reset_logger();
 
   /* All traces should have been provided. */
-  CU_ASSERT_FATAL(found == 0x1);
+  CU_ASSERT_EQ_FATAL (found, 0x1);
 }
 
 /* Expected traces when creating participant with the security elements. */
@@ -734,20 +761,20 @@ CU_Test(ddssec_config, qos_invalid, .init = ddsrt_init, .fini = ddsrt_fini)
 
   set_logger_exp(log_expected, NULL);
 
-  CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
+  CU_ASSERT_NEQ_FATAL (qos = dds_create_qos(), NULL);
   dds_qset_prop(qos, DDS_SEC_PROP_PREFIX "dummy", "testtext_dummy_testtext");
 
   /* Create participant with security config in qos. */
   domain = dds_create_domain(0, sec_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, qos, NULL);
-  CU_ASSERT_EQUAL_FATAL(participant, DDS_RETCODE_ERROR);
+  CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
   dds_delete_qos(qos);
   dds_delete(domain);
   reset_logger();
 
   /* All traces should have been provided. */
-  CU_ASSERT_FATAL(found == 0xffff);
+  CU_ASSERT_EQ_FATAL (found, 0xffff);
 }
 
 /* Expected traces when creating participant with the security elements. */
@@ -798,20 +825,20 @@ CU_Test(ddssec_config, qos_invalid_proprietary, .init = ddsrt_init, .fini = ddsr
 
   set_logger_exp(log_expected, NULL);
 
-  CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
+  CU_ASSERT_NEQ_FATAL (qos = dds_create_qos(), NULL);
   dds_qset_prop(qos, "org.eclipse.cyclonedds.sec.dummy", "testtext_dummy_testtext");
 
   /* Create participant with security config in qos. */
   domain = dds_create_domain(0, sec_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, qos, NULL);
-  CU_ASSERT_EQUAL_FATAL(participant, DDS_RETCODE_ERROR);
+  CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
   dds_delete_qos(qos);
   dds_delete(domain);
   reset_logger();
 
   /* All traces should have been provided. */
-  CU_ASSERT_FATAL(found == 0xffff);
+  CU_ASSERT_EQ_FATAL (found, 0xffff);
 }
 
 /* Expect qos settings used when creating participant with config security elements and qos. */
@@ -846,7 +873,7 @@ CU_Test(ddssec_config, config_qos_missing_crl, .init = ddsrt_init, .fini = ddsrt
     "  </Security>"
     "</Domain>";
 
-  CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
+  CU_ASSERT_NEQ_FATAL (qos = dds_create_qos(), NULL);
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_PATH, WRAPPERLIB_PATH("dds_security_authentication_wrapper"));
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_INIT, "init_test_authentication_all_ok");
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE, "finalize_test_authentication_all_ok");
@@ -865,15 +892,15 @@ CU_Test(ddssec_config, config_qos_missing_crl, .init = ddsrt_init, .fini = ddsrt
 
   set_logger_exp(log_expected, NULL);
   domain = dds_create_domain(0, sec_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, qos, NULL);
-  CU_ASSERT_FATAL (participant < 0);
+  CU_ASSERT_LT_FATAL (participant, 0);
   dds_delete_qos(qos);
   dds_delete(domain);
   reset_logger();
 
   /* All traces should have been provided. */
-  CU_ASSERT_FATAL(found == 0x1);
+  CU_ASSERT_EQ_FATAL (found, 0x1);
 }
 
 /* Expected traces when creating participant overriding security settings from QoS. */
@@ -904,11 +931,11 @@ CU_Test(ddssec_config, config_qos_override_crl, .init = ddsrt_init, .fini = ddsr
     "config: Domain/Security/Cryptographic/Library[@initFunction]: init_test_cryptography_all_ok*",
     "config: Domain/Security/Cryptographic/Library[@finalizeFunction]: finalize_test_cryptography_all_ok*",
     /* The config should have been parsed into the participant QoS. */
-    PARTICIPANT_QOS ("init_test_authentication_all_ok", "finalize_test_authentication_all_ok", \
-                   "init_test_cryptography_all_ok", "finalize_test_cryptography_all_ok", \
-                   "init_test_access_control_all_ok", "finalize_test_access_control_all_ok", \
-                   "file:QOS_Permissions_CA.pem", "file:QOS_Governance.p7s", "file:QOS_Permissions.p7s", \
-                   "", ",0:\"" ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL "\":\"\"", ""),
+    PARTICIPANT_QOS ("init_test_authentication_all_ok", "finalize_test_authentication_all_ok",
+                     "init_test_cryptography_all_ok", "finalize_test_cryptography_all_ok",
+                     "init_test_access_control_all_ok", "finalize_test_access_control_all_ok",
+                     "file:QOS_Permissions_CA.pem", "file:QOS_Governance.p7s", "file:QOS_Permissions.p7s",
+                     "", ",0:\"" ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL "\":\"\"," BUILTIN_PROPS, ""),
     NULL
   };
 
@@ -938,7 +965,7 @@ CU_Test(ddssec_config, config_qos_override_crl, .init = ddsrt_init, .fini = ddsr
     "  </Security>"
     "</Domain>";
 
-  CU_ASSERT_FATAL((qos = dds_create_qos()) != NULL);
+  CU_ASSERT_NEQ_FATAL (qos = dds_create_qos(), NULL);
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_PATH, WRAPPERLIB_PATH("dds_security_authentication_wrapper"));
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_INIT, "init_test_authentication_all_ok");
   dds_qset_prop(qos, DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE, "finalize_test_authentication_all_ok");
@@ -958,14 +985,14 @@ CU_Test(ddssec_config, config_qos_override_crl, .init = ddsrt_init, .fini = ddsr
 
   set_logger_exp(log_expected, NULL);
   domain = dds_create_domain(0, sec_config);
-  CU_ASSERT_FATAL(domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, qos, NULL);
-  CU_ASSERT_FATAL(participant > 0);
+  CU_ASSERT_GT_FATAL (participant, 0);
   dds_delete(participant);
   dds_delete_qos(qos);
   dds_delete(domain);
   reset_logger();
 
   /* All traces should have been provided. */
-  CU_ASSERT_FATAL(found == 0x3fffff);
+  CU_ASSERT_EQ_FATAL (found, 0x3fffff);
 }

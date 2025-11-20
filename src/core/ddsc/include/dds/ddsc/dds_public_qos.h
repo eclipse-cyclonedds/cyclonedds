@@ -485,6 +485,23 @@ dds_qset_prop (
 /**
  * @ingroup qos_setters
  * @component qos_obj
+ * @brief Stores a property with the provided name and string value and propagate in a qos structure.
+ * 
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the property
+ * @param[in] name - Pointer to name of the property
+ * @param[in] value - Pointer to a (null-terminated) string that will be stored
+ * @param[in] propagate - Whether to propagate the property over discovery or not
+ */
+DDS_EXPORT void
+dds_qset_prop_propagate (
+  dds_qos_t *qos,
+  const char * name,
+  const char * value,
+  bool propagate);
+
+/**
+ * @ingroup qos_setters
+ * @component qos_obj
  * @brief Removes the property with the provided name from a qos structure.
  *
  * In case more than one property exists with this name, only the first property
@@ -519,6 +536,25 @@ dds_qset_bprop (
   const char * name,
   const void * value,
   const size_t sz);
+
+/**
+ * @ingroup qos_setters
+ * @component qos_obj
+ * @brief Stores the provided binary data and propagate as a property in a qos structure
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the property
+ * @param[in] name - Pointer to name of the property
+ * @param[in] value - Pointer to data to be stored in the property
+ * @param[in] sz - Size of the data
+ * @param[in] propagate - Whether to propagate the property over discovery or not
+ */
+DDS_EXPORT void
+dds_qset_bprop_propagate (
+  dds_qos_t *qos,
+  const char * name,
+  const void * value,
+  const size_t sz,
+  bool propagate);
 
 /**
  * @ingroup qos_setters
@@ -1013,6 +1049,25 @@ dds_qget_prop (
 /**
  * @ingroup qos_getters
  * @component qos_obj
+ * @brief Get the value of the property with the provided name and propagate from a qos structure.
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that contains the property
+ * @param[in] name - Pointer to name of the property
+ * @param[in,out] value - Pointer to a string that will store the value of the property. The memory for storing the string value will be allocated by this function and the caller gets ownership of the allocated memory
+ * @param[in,out] propagate - Pointer that will store if property gets propagated or not
+ * 
+ * @returns - false if any of the arguments is invalid, the qos is not present in the qos object or there was no property found with the provided name
+ */
+DDS_EXPORT bool
+dds_qget_prop_propagate (
+  const dds_qos_t *qos,
+  const char * name,
+  char ** value,
+  bool * propagate);
+
+/**
+ * @ingroup qos_getters
+ * @component qos_obj
  * @brief Gets the names of the binary properties from a qos structure.
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that contains binary properties
@@ -1048,6 +1103,27 @@ dds_qget_bprop (
   const char * name,
   void ** value,
   size_t * sz);
+
+/**
+ * @ingroup qos_getters
+ * @component qos_obj
+ * @brief Get the value of the binary property with the provided name and propagate from a qos structure.
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that contains the property
+ * @param[in] name - Pointer to name of the binary property
+ * @param[in,out] value - Pointer to a buffer that will store the value of the property. If sz = 0 then a NULL pointer. The memory for storing the value will be allocated by this function and the caller gets ownership of the allocated memory
+ * @param[in,out] sz - Pointer that will store the size of the returned buffer.
+ * @param[in,out] propagate - Pointer that will store if property gets propagated or not
+ *
+ * @returns - false iff any of the arguments is invalid, the qos is not present in the qos object or there was no binary property found with the provided name
+ */
+DDS_EXPORT bool
+dds_qget_bprop_propagate (
+  const dds_qos_t *qos,
+  const char * name,
+  void ** value,
+  size_t * sz,
+  bool * propagate);
 
 /**
  * @ingroup qos_getters

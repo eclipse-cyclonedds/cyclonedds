@@ -11,15 +11,13 @@
 #
 include (GenerateExportHeader)
 
-add_library(ucunit)
-add_library(${PROJECT_NAME}::ucunit ALIAS ucunit)
-
 set(srcs_ucunit
   "${CMAKE_CURRENT_LIST_DIR}/src/ucunit.c")
 set(hdrs_ucunit
   "${CMAKE_CURRENT_LIST_DIR}/include/ucunit/ucunit.h")
 
-target_sources(ucunit PRIVATE ${srcs_ucunit} ${hdrs_ucunit})
+add_library(ucunit STATIC ${srcs_ucunit} ${hdrs_ucunit})
+add_library(${PROJECT_NAME}::ucunit ALIAS ucunit)
 
 target_include_directories(ucunit
   PUBLIC
@@ -31,18 +29,9 @@ target_include_directories(ucunit
   INTERFACE
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
-generate_export_header(
-  ucunit BASE_NAME UCUNIT EXPORT_FILE_NAME include/ucunit/export.h)
-
-add_executable(test_ucunit)
-target_sources(test_ucunit PRIVATE tests/test_ucunit.c)
+add_executable(test_ucunit ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ucunit.c)
 target_link_libraries(test_ucunit CycloneDDS::ucunit)
 
 add_test(NAME ucunit COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR} $<TARGET_FILE_DIR:test_ucunit>/test_ucunit)
 
-install(
-  TARGETS ucunit
-  EXPORT "${PROJECT_NAME}"
-  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT lib
-  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
-  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib)
+install(TARGETS ucunit EXPORT "${PROJECT_NAME}")

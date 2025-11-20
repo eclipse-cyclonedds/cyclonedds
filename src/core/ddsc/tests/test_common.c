@@ -20,42 +20,42 @@ static void sync_reader_writer_impl (dds_entity_t participant_rd, dds_entity_t r
   dds_attach_t triggered;
   dds_return_t ret;
   dds_entity_t waitset_rd = dds_create_waitset (participant_rd);
-  CU_ASSERT_FATAL (waitset_rd > 0);
+  CU_ASSERT_GT_FATAL (waitset_rd, 0);
   dds_entity_t waitset_wr = dds_create_waitset (participant_wr);
-  CU_ASSERT_FATAL (waitset_wr > 0);
+  CU_ASSERT_GT_FATAL (waitset_wr, 0);
 
   /* Sync reader to writer. */
   ret = dds_set_status_mask (reader, DDS_SUBSCRIPTION_MATCHED_STATUS);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_waitset_attach (waitset_rd, reader, reader);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_waitset_wait (waitset_rd, &triggered, 1, timeout);
   if (expect_sync)
   {
-    CU_ASSERT_EQUAL_FATAL (ret, 1);
-    CU_ASSERT_EQUAL_FATAL (reader, (dds_entity_t)(intptr_t) triggered);
+    CU_ASSERT_EQ_FATAL (ret, 1);
+    CU_ASSERT_EQ_FATAL (reader, (dds_entity_t)(intptr_t) triggered);
   }
   else
-    CU_ASSERT_EQUAL_FATAL (ret, 0);
+    CU_ASSERT_EQ_FATAL (ret, 0);
   ret = dds_waitset_detach (waitset_rd, reader);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   dds_delete (waitset_rd);
 
   /* Sync writer to reader. */
   ret = dds_set_status_mask (writer, DDS_PUBLICATION_MATCHED_STATUS);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_waitset_attach (waitset_wr, writer, writer);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_waitset_wait (waitset_wr, &triggered, 1, timeout);
   if (expect_sync)
   {
-    CU_ASSERT_EQUAL_FATAL (ret, 1);
-    CU_ASSERT_EQUAL_FATAL (writer, (dds_entity_t)(intptr_t) triggered);
+    CU_ASSERT_EQ_FATAL (ret, 1);
+    CU_ASSERT_EQ_FATAL (writer, (dds_entity_t)(intptr_t) triggered);
   }
   else
-    CU_ASSERT_EQUAL_FATAL (ret, 0);
+    CU_ASSERT_EQ_FATAL (ret, 0);
   ret = dds_waitset_detach (waitset_wr, writer);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   dds_delete (waitset_wr);
 }
 
@@ -106,7 +106,7 @@ void xcdr2_deser (const unsigned char *buf, uint32_t sz, void **obj, const dds_t
     data = ddsrt_malloc (sz);
     memcpy (data, buf, sz);
     const uint32_t *ret = dds_stream_normalize_xcdr2_data ((char *) data, &srcoff, sz, bswap, desc->m_ops);
-    CU_ASSERT_NOT_EQUAL_FATAL (ret, NULL);
+    CU_ASSERT_NEQ_FATAL (ret, NULL);
   }
   else
     data = (void *) buf;

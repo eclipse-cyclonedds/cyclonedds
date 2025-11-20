@@ -25,8 +25,9 @@ idlc_generate(TARGET CdrStreamOptimize FILES CdrStreamOptimize.idl WARNINGS no-i
 idlc_generate(TARGET CdrStreamSkipDefault FILES CdrStreamSkipDefault.idl)
 idlc_generate(TARGET CdrStreamKeySize FILES CdrStreamKeySize.idl)
 idlc_generate(TARGET CdrStreamKeyExt FILES CdrStreamKeyExt.idl)
+idlc_generate(TARGET CdrStreamKeyFlags FILES CdrStreamKeyFlags.idl)
 idlc_generate(TARGET CdrStreamChecking FILES CdrStreamChecking.idl)
-idlc_generate(TARGET CdrStreamWstring FILES CdrStreamWstring.idl)
+idlc_generate(TARGET CdrStreamString FILES CdrStreamString.idl)
 idlc_generate(TARGET CdrStreamParamHeader FILES CdrStreamParamHeader.idl)
 idlc_generate(TARGET CdrStreamSerDes FILES CdrStreamSerDes.idl NO_TYPE_INFO WARNINGS no-enum-consecutive)
 idlc_generate(TARGET CdrStreamXcdr1Opt FILES CdrStreamXcdr1Opt.idl)
@@ -183,7 +184,7 @@ target_link_libraries(cunit_ddsc PRIVATE
   CdrStreamSkipDefault
   CdrStreamDataTypeInfo
   CdrStreamChecking
-  CdrStreamWstring
+  CdrStreamString
   CdrStreamParamHeader
   CdrStreamSerDes
   CdrStreamXcdr1Opt
@@ -194,8 +195,9 @@ target_link_libraries(cunit_ddsc PRIVATE
   Array100
   CdrStreamKeySize
   CdrStreamKeyExt
+  CdrStreamKeyFlags
   SerdataData
-  ddsc
+  ${PROJECT_NAME}::ddsc
 )
 
 if(ENABLE_TYPELIB)
@@ -265,7 +267,7 @@ target_include_directories(
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../cdr/include>")
-target_link_libraries(oneliner PRIVATE RoundTrip Space ddsc)
+target_link_libraries(oneliner PRIVATE RoundTrip Space ${PROJECT_NAME}::ddsc)
 
 ##############################################################
 # PSMX implementation with Cyclone as transport, for testing #
@@ -295,17 +297,19 @@ if(BUILD_SHARED_LIBS)
   add_library(psmx_dummy_v0 SHARED ${psmx_dummy_v0_sources})
 else()
   list(APPEND psmx_includes
-    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/ddsrt/include>"
-    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src/ddsrt/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src/core/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../../ddsc/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../../../ddsrt/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../ddsrt/include>")
-  add_library(psmx_cdds OBJECT ${psmx_cdds_sources} psmx_cdds_data.c)
+  add_library(psmx_cdds ${psmx_cdds_sources} psmx_cdds_data.c) # psmx_cdds_data.c causes the cyclic dependency
   set_property(GLOBAL APPEND PROPERTY cdds_plugin_list psmx_cdds)
   set_property(GLOBAL PROPERTY psmx_cdds_symbols cdds_create_psmx)
-  add_library(psmx_dummy OBJECT ${psmx_dummy_sources})
+  add_library(psmx_dummy ${psmx_dummy_sources})
   set_property(GLOBAL APPEND PROPERTY cdds_plugin_list psmx_dummy)
   set_property(GLOBAL PROPERTY psmx_dummy_symbols dummy_create_psmx)
-  add_library(psmx_dummy_v0 OBJECT ${psmx_dummy_v0_sources})
+  add_library(psmx_dummy_v0 ${psmx_dummy_v0_sources})
   set_property(GLOBAL APPEND PROPERTY cdds_plugin_list psmx_dummy_v0)
   set_property(GLOBAL PROPERTY psmx_dummy_v0_symbols dummy_v0_create_psmx)
 endif()
@@ -316,9 +320,9 @@ foreach(plugin psmx_cdds psmx_dummy psmx_dummy_v0)
   target_include_directories(${plugin} PRIVATE ${psmx_includes})
 endforeach()
 if(BUILD_SHARED_LIBS)
-  target_link_libraries(psmx_cdds PRIVATE ddsc psmx_cdds_data)
-  target_link_libraries(psmx_dummy PRIVATE ddsc)
-  target_link_libraries(psmx_dummy_v0 PRIVATE ddsc)
+  target_link_libraries(psmx_cdds PRIVATE ${PROJECT_NAME}::ddsc psmx_cdds_data)
+  target_link_libraries(psmx_dummy PRIVATE ${PROJECT_NAME}::ddsc)
+  target_link_libraries(psmx_dummy_v0 PRIVATE ${PROJECT_NAME}::ddsc)
 else()
   install(
     TARGETS psmx_cdds psmx_dummy psmx_dummy_v0

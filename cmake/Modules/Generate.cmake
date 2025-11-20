@@ -11,9 +11,9 @@
 #
 
 function(IDLC_GENERATE)
-  set(options NO_TYPE_INFO WERROR)
+  set(options NO_TYPE_INFO WERROR DEFAULT_NON_NESTED)
   set(one_value_keywords TARGET DEFAULT_EXTENSIBILITY BASE_DIR OUTPUT_DIR)
-  set(multi_value_keywords FILES FEATURES INCLUDES WARNINGS)
+  set(multi_value_keywords FILES FEATURES INCLUDES WARNINGS DEFINES)
   cmake_parse_arguments(
     IDLC "${options}" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
 
@@ -23,7 +23,7 @@ function(IDLC_GENERATE)
       message(STATUS "Building internal IDLC backend")
       set(_idlc_generate_skipreport 1 CACHE INTERNAL "")
     endif()
-    set(_idlc_depends CycloneDDS::libidlc)
+    # set(_idlc_depends CycloneDDS::libidlc)
   else()
     if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux" AND NOT ".so" IN_LIST CMAKE_FIND_LIBRARY_SUFFIXES)
       # When cross-compiling, find_library looks for libraries using naming conventions of the target,
@@ -53,6 +53,7 @@ function(IDLC_GENERATE)
     WARNINGS ${IDLC_WARNINGS}
     OUTPUT_DIR ${IDLC_OUTPUT_DIR}
     DEFAULT_EXTENSIBILITY ${IDLC_DEFAULT_EXTENSIBILITY}
+    DEFINES ${IDLC_DEFINES}
     DEPENDS ${_idlc_depends})
 
   if(${IDLC_NO_TYPE_INFO})
@@ -63,13 +64,17 @@ function(IDLC_GENERATE)
     list(APPEND gen_args WERROR)
   endif()
 
+  if(${IDLC_DEFAULT_NON_NESTED})
+    list(APPEND gen_args DEFAULT_NON_NESTED)
+  endif()
+
   idlc_generate_generic(${gen_args})
 endfunction()
 
 function(IDLC_GENERATE_GENERIC)
-  set(options NO_TYPE_INFO WERROR)
+  set(options NO_TYPE_INFO WERROR DEFAULT_NON_NESTED)
   set(one_value_keywords TARGET BACKEND DEFAULT_EXTENSIBILITY BASE_DIR OUTPUT_DIR)
-  set(multi_value_keywords FILES FEATURES INCLUDES WARNINGS SUFFIXES DEPENDS)
+  set(multi_value_keywords FILES FEATURES INCLUDES WARNINGS SUFFIXES DEFINES DEPENDS)
   cmake_parse_arguments(
     IDLC "${options}" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
 
@@ -79,10 +84,10 @@ function(IDLC_GENERATE_GENERIC)
       # By using the internal target when building CycloneDDS itself, prevent using an external idlc
       # This prevents a problem when an installed cyclone is on your prefix path when building cyclone again
       set(_idlc_executable idlc)
-      set(_idlc_depends idlc)
+      # set(_idlc_depends idlc)
     else()
       set(_idlc_executable CycloneDDS::idlc)
-      set(_idlc_depends CycloneDDS::idlc)
+      # set(_idlc_depends CycloneDDS::idlc)
     endif()
   else()
     find_program(_idlc_executable "idlc" NO_CMAKE_FIND_ROOT_PATH REQUIRED)
@@ -113,6 +118,11 @@ function(IDLC_GENERATE_GENERIC)
   endif()
   foreach(_feature ${IDLC_FEATURES})
     list(APPEND IDLC_ARGS "-f" ${_feature})
+  endforeach()
+
+  # add macro definitions (-Dname or -Dname=value)
+  foreach(def ${IDLC_DEFINES})
+    list(APPEND IDLC_ARGS "-D${def}")
   endforeach()
 
   # add directories to include search list
@@ -151,6 +161,10 @@ function(IDLC_GENERATE_GENERIC)
 
   if(IDLC_WERROR)
     list(APPEND IDLC_ARGS "-Werror")
+  endif()
+
+  if(IDLC_DEFAULT_NON_NESTED)
+    list(APPEND IDLC_ARGS "-nfalse")
   endif()
 
   if(IDLC_BASE_DIR)

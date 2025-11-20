@@ -58,6 +58,8 @@
   QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_USERDATA, RD, WR, PP)
   QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_WRITERDATALIFECYCLE, WR)
   QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_WRITERBATCHING, WR)
+  QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION, RD, WR, TP)
+  QOS_POLICY_MAPPING (ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT, RD)
 
 #undef PP
 #undef SUB
@@ -196,7 +198,7 @@ struct parse_sysdef_state {
   char err_msg[MAX_ERRMSG_SZ];
 };
 
-static bool dds_sysdef_is_valid_identifier_syntax (const char *name);
+static bool dds_sysdef_is_valid_identifier (const char *name);
 
 
 static bool str_to_int32 (const char *str, int32_t *value)
@@ -354,6 +356,20 @@ static void fini_qos_partition_name_element (struct xml_element *node)
   struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *p = (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *) node;
   assert (p != NULL);
   ddsrt_free (p->element);
+}
+
+static void fini_qos_data_representation (struct xml_element *node)
+{
+  struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION *qp = (struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION *) node;
+  assert (qp != NULL);
+  free_node (qp->id);
+}
+
+static void fini_qos_data_representation_id (struct xml_element *node)
+{
+  struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID *i = (struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID *) node;
+  assert (i != NULL);
+  free_node (i->elements);
 }
 
 static void fini_qos (struct xml_element *node)
@@ -621,6 +637,13 @@ static int init_type_external_ref (UNUSED_ARG (struct parse_sysdef_state * const
   return 0;
 }
 
+static int init_data_representation_id_element (UNUSED_ARG (struct parse_sysdef_state * const pstate), struct xml_element *node)
+{
+  struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT *elem= (struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT *) node;
+  elem->element = -1;
+  return 0;
+}
+
 #define PROC_ATTR_STRING(type,attr_name,param_field,validator_fn) \
     do { \
       if (ddsrt_strcasecmp (name, attr_name) == 0) \
@@ -642,7 +665,7 @@ static int init_type_external_ref (UNUSED_ARG (struct parse_sysdef_state * const
       } \
     } while (0)
 
-#define PROC_ATTR_NAME(type) PROC_ATTR_STRING(type, "name", name, dds_sysdef_is_valid_identifier_syntax)
+#define PROC_ATTR_NAME(type) PROC_ATTR_STRING(type, "name", name, dds_sysdef_is_valid_identifier)
 #define PROC_ATTR_TYPE_NAME(type,attr_name,param_field) PROC_ATTR_STRING(type, attr_name, param_field, is_valid_type_name)
 
 #define _PROC_ATTR_INTEGER(type, attr_type, attr_name, param_field, param_populated_bit) \
@@ -827,7 +850,7 @@ static int split_ref (const char *ref, char **lib, char **local_name)
 #define _RESOLVE_LIB(lib_type, lib_name, dst) \
     do { for (struct dds_sysdef_## lib_type ## _lib *l = pstate->sysdef->lib_type ## _libs ; dst == NULL && l != NULL; l = (struct dds_sysdef_ ## lib_type ## _lib *) l->xmlnode.next) \
     { \
-      if (strcmp (l->name, lib_name) == 0) { \
+      if (l->name != NULL && strcmp (l->name, lib_name) == 0) { \
         dst = l; \
       } \
     } } while (0)
@@ -971,7 +994,7 @@ static bool is_valid_type_name (const char *value)
     spos = strstr (str, SD_REF_SEPARATOR);
     if (spos == NULL)
     {
-      result = dds_sysdef_is_valid_identifier_syntax (str);
+      result = dds_sysdef_is_valid_identifier (str);
       break;
     }
 
@@ -979,7 +1002,7 @@ static bool is_valid_type_name (const char *value)
     /* A leading :: (empty first part) is not allowed; the type name
        syntax used in the XML must matches the type name used in the
        type object */
-    result = dds_sysdef_is_valid_identifier_syntax (part);
+    result = dds_sysdef_is_valid_identifier (part);
     ddsrt_free (part);
   }
   return result;
@@ -1018,6 +1041,36 @@ static bool dds_sysdef_is_valid_identifier_syntax (const char *name)
       return false;
   }
   return true;
+}
+
+static bool is_reserved_keyword (const char *name)
+{
+  /* List of reserved keywords in C, up to C23. Keywords
+     starting with underscore are not included, as a
+     identifier in the sysdef cannot start with an
+     underscore */
+  const char *c_keywords[] = {
+    "alignas", "alignof", "auto", "bool", "break",
+    "case", "char", "const", "constexpr", "continue",
+    "default", "do", "double", "else", "enum",
+    "extern", "false", "float", "for", "goto",
+    "if", "inline", "int", "long", "nullptr",
+    "register", "restrict", "return", "short", "signed",
+    "sizeof", "static", "static_assert", "struct", "switch",
+    "thread_local", "true", "typedef", "typeof", "typeof_unqual",
+    "union", "unsigned", "void", "volatile", "while" };
+
+  for (uint32_t i = 0; i < sizeof (c_keywords) / sizeof (c_keywords[0]); i++)
+  {
+    if (strcmp (name, c_keywords[i]) == 0)
+      return true;
+  }
+  return false;
+}
+
+static bool dds_sysdef_is_valid_identifier (const char *name)
+{
+  return dds_sysdef_is_valid_identifier_syntax (name) && !is_reserved_keyword (name);
 }
 
 static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *name, const char *value, int line)
@@ -1131,12 +1184,12 @@ static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *n
         break;
       case ELEMENT_KIND_DEPLOYMENT_CONF_TSN_TALKER:
         PROC_ATTR_NAME(dds_sysdef_tsn_talker_configuration);
-        PROC_ATTR_STRING(dds_sysdef_tsn_talker_configuration, "stream_name", stream_name, dds_sysdef_is_valid_identifier_syntax);
+        PROC_ATTR_STRING(dds_sysdef_tsn_talker_configuration, "stream_name", stream_name, dds_sysdef_is_valid_identifier);
         PROC_ATTR_FN(dds_sysdef_tsn_talker_configuration, "datawriter_ref", writer, proc_attr_resolve_datawriter_ref);
         break;
       case ELEMENT_KIND_DEPLOYMENT_CONF_TSN_LISTENER:
         PROC_ATTR_NAME(dds_sysdef_tsn_listener_configuration);
-        PROC_ATTR_STRING(dds_sysdef_tsn_listener_configuration, "stream_name", stream_name, dds_sysdef_is_valid_identifier_syntax);
+        PROC_ATTR_STRING(dds_sysdef_tsn_listener_configuration, "stream_name", stream_name, dds_sysdef_is_valid_identifier);
         PROC_ATTR_FN(dds_sysdef_tsn_listener_configuration, "datareader_ref", reader, proc_attr_resolve_datareader_ref);
         break;
 
@@ -1168,12 +1221,7 @@ static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *n
       do { \
         struct dds_sysdef_QOS_POLICY_ ## policy *qp = (struct dds_sysdef_QOS_POLICY_ ## policy *) pstate->current; \
         struct dds_sysdef_qos *sdqos = (struct dds_sysdef_qos *) pstate->current->parent; \
-        if (qp->populated == 0) \
-        { \
-          PARSER_ERROR (pstate, line, "No parameters set for " policy_desc " QoS policy"); \
-          ret = SD_PARSE_RESULT_SYNTAX_ERR; \
-        } \
-        else if ((qp->populated & QOS_POLICY_ ## policy ## _REQUIRED_PARAMS) != QOS_POLICY_ ## policy ## _REQUIRED_PARAMS) \
+        if ((qp->populated & QOS_POLICY_ ## policy ## _REQUIRED_PARAMS) != QOS_POLICY_ ## policy ## _REQUIRED_PARAMS) \
         { \
           PARSER_ERROR (pstate, line, "Not all required parameters set for " policy_desc " QoS policy"); \
           ret = SD_PARSE_RESULT_SYNTAX_ERR; \
@@ -1373,13 +1421,22 @@ static bool qget_PARTITION (dds_qos_t *qos)
 static void qset_PARTITION (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_PARTITION *qp)
 {
   uint32_t c = 0;
-  for (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *v = qp->name->elements; v != NULL; v = (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *) v->xmlnode.next)
-    c++;
-
-  const char **partitions = ddsrt_malloc (c * sizeof (*partitions));
-  uint32_t i = 0;
-  for (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *v = qp->name->elements; v != NULL; v = (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *) v->xmlnode.next)
-    partitions[i++] = v->element;
+  const char **partitions = NULL;
+  const char *empty = "";
+  if (qp->name != NULL) {
+    if (qp->name->elements != NULL) {
+      for (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *v = qp->name->elements; v != NULL; v = (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *) v->xmlnode.next)
+        c++;
+      partitions = ddsrt_malloc (c * sizeof (*partitions));
+      uint32_t i = 0;
+      for (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *v = qp->name->elements; v != NULL; v = (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *) v->xmlnode.next)
+        partitions[i++] = (v->element != NULL)? v->element: empty;
+    } else {
+      c = 1U;
+      partitions = ddsrt_malloc (c * sizeof (*partitions));
+      partitions[0] = empty;
+    }
+  }
   dds_qset_partition (qos, c, partitions);
 #if _MSC_VER
 __pragma(warning(push))
@@ -1389,6 +1446,32 @@ __pragma(warning(disable: 4090))
 #if _MSC_VER
 __pragma(warning(pop))
 #endif
+}
+
+static bool qget_DATAREPRESENTATION (dds_qos_t *qos)
+{
+  return dds_qget_data_representation(qos, NULL, NULL);
+}
+
+static void qset_DATAREPRESENTATION (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION *qp)
+{
+  (void)qos; (void)qp;
+  uint32_t c = 0;
+  dds_data_representation_id_t *ids = NULL;
+  if (qp->id != NULL) {
+    if (qp->id->elements != NULL) {
+      for (struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT *v = qp->id->elements; v != NULL; v = (struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT *) v->xmlnode.next)
+        c++;
+      ids = ddsrt_malloc(c * sizeof (*ids));
+      uint32_t i = 0;
+      for (struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT *v = qp->id->elements; v != NULL; v = (struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT *) v->xmlnode.next)
+        ids[i++] = v->element;
+    } else {
+      ; /* FIXME: Don't actually care? */
+    }
+  }
+  dds_qset_data_representation (qos, c, ids);
+  ddsrt_free (ids);
 }
 
 static bool qget_PRESENTATION (dds_qos_t *qos)
@@ -1473,6 +1556,37 @@ static bool qget_WRITERBATCHING (dds_qos_t *qos)
   return dds_qget_writer_batching (qos, NULL);
 }
 
+static void qset_WRITERBATCHING (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_WRITERBATCHING *qp)
+{
+  dds_qset_writer_batching (qos, qp->values.batch_updates);
+}
+
+static bool qget_TYPECONSISTENCYENFORCEMENT (dds_qos_t *qos)
+{
+  return dds_qget_type_consistency (qos, NULL, NULL, NULL, NULL, NULL, NULL);
+}
+
+static void qset_TYPECONSISTENCYENFORCEMENT (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_TYPECONSISTENCYENFORCEMENT *qp)
+{
+  dds_type_consistency_kind_t kind = qp->values.kind;
+  bool ignore_sequence_bounds, ignore_string_bounds, ignore_member_names, prevent_type_widening, force_type_validation;
+  if (kind == ddsi_default_qos_reader.type_consistency.kind) {
+    ignore_sequence_bounds = (qp->populated & QOS_POLICY_TYPECONSISTENCYENFORCEMENT_PARAM_IGNORE_SEQUENCE_BOUNDS)? qp->values.ignore_sequence_bounds:ddsi_default_qos_reader.type_consistency.ignore_sequence_bounds;
+    ignore_string_bounds = (qp->populated & QOS_POLICY_TYPECONSISTENCYENFORCEMENT_PARAM_IGNORE_STRING_BOUNDS)? qp->values.ignore_string_bounds: ddsi_default_qos_reader.type_consistency.ignore_string_bounds;
+    ignore_member_names = (qp->populated & QOS_POLICY_TYPECONSISTENCYENFORCEMENT_PARAM_IGNORE_MEMBER_NAMES)? qp->values.ignore_member_names: ddsi_default_qos_reader.type_consistency.ignore_member_names;
+    prevent_type_widening = (qp->populated & QOS_POLICY_TYPECONSISTENCYENFORCEMENT_PARAM_PREVENT_TYPE_WIDENING)? qp->values.prevent_type_widening: ddsi_default_qos_reader.type_consistency.prevent_type_widening;
+    force_type_validation = (qp->populated & QOS_POLICY_TYPECONSISTENCYENFORCEMENT_PARAM_FORCE_TYPE_VALIDATION)? qp->values.force_type_validation: ddsi_default_qos_reader.type_consistency.force_type_validation;
+  } else {
+    ignore_sequence_bounds = qp->values.ignore_sequence_bounds;
+    ignore_string_bounds = qp->values.ignore_string_bounds;
+    ignore_member_names = qp->values.ignore_member_names;
+    prevent_type_widening = qp->values.prevent_type_widening;
+    force_type_validation = qp->values.force_type_validation;
+  }
+
+  dds_qset_type_consistency (qos, kind, ignore_sequence_bounds, ignore_string_bounds, ignore_member_names, prevent_type_widening, force_type_validation);
+}
+
 static bool qget_ENTITYFACTORY (dds_qos_t *qos)
 {
   return qos->present & DDSI_QP_ADLINK_ENTITY_FACTORY;
@@ -1482,11 +1596,6 @@ static void qset_ENTITYFACTORY (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_ENT
 {
   qos->present |= DDSI_QP_ADLINK_ENTITY_FACTORY;
   qos->entity_factory.autoenable_created_entities = qp->values.autoenable_created_entities;
-}
-
-static void qset_WRITERBATCHING (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_WRITERBATCHING *qp)
-{
-  dds_qset_writer_batching (qos, qp->values.batch_updates);
 }
 
 #define _ELEM_CLOSE_REQUIRE_ATTR(type,attr_name,current,element_name) \
@@ -1584,6 +1693,12 @@ static int proc_elem_close (void *varg, UNUSED_ARG (uintptr_t eleminfo), UNUSED_
         break;
       case ELEMENT_KIND_QOS_POLICY_PARTITION:
         ELEM_CLOSE_QOS_POLICY(PARTITION, "Partition");
+        break;
+      case ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT:
+        ELEM_CLOSE_QOS_POLICY(TYPECONSISTENCYENFORCEMENT, "Type consistency");
+        break;
+      case ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION:
+        ELEM_CLOSE_QOS_POLICY(DATAREPRESENTATION, "Data representation");
         break;
       case ELEMENT_KIND_QOS_POLICY_PRESENTATION:
         ELEM_CLOSE_QOS_POLICY(PRESENTATION, "Presentation");
@@ -1945,6 +2060,20 @@ static int set_RELIABILITY_KIND (struct parse_sysdef_state * const pstate, struc
   return ret;
 }
 
+static int set_TYPECONSISTENCYENFORCEMENT_KIND (struct parse_sysdef_state * const pstate, struct dds_sysdef_QOS_POLICY_TYPECONSISTENCYENFORCEMENT *qp, const char *value, int line)
+{
+  int ret = SD_PARSE_RESULT_OK;
+  if (strcmp (value, QOS_TYPECONSISTENCY_DISALLOW_TYPE_COERCION) == 0) {
+    qp->values.kind = DDS_TYPE_CONSISTENCY_DISALLOW_TYPE_COERCION;
+  } else if (strcmp (value, QOS_TYPECONSISTENCY_ALLOW_TYPE_COERCION) == 0) {
+    qp->values.kind = DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION;
+  } else {
+    PARSER_ERROR (pstate, line, "Invalid value '%s'", value);
+    ret = SD_PARSE_RESULT_SYNTAX_ERR;
+  }
+  return ret;
+}
+
 QOS_PARAM_SET_NUMERIC(DURABILITYSERVICE, HISTORY_DEPTH, history.depth, int32)
 QOS_PARAM_SET_NUMERIC_UNLIMITED(DURABILITYSERVICE, RESOURCE_LIMIT_MAX_SAMPLES, resource_limits.max_samples, int32)
 QOS_PARAM_SET_NUMERIC_UNLIMITED(DURABILITYSERVICE, RESOURCE_LIMIT_MAX_INSTANCES, resource_limits.max_instances, int32)
@@ -1960,6 +2089,11 @@ QOS_PARAM_SET_NUMERIC_UNLIMITED(RESOURCELIMITS, MAX_SAMPLES_PER_INSTANCE, max_sa
 QOS_PARAM_SET_NUMERIC(TRANSPORTPRIORITY, VALUE, value, int32)
 QOS_PARAM_SET_BOOLEAN(WRITERDATALIFECYCLE, AUTODISPOSE_UNREGISTERED_INSTANCES, autodispose_unregistered_instances)
 QOS_PARAM_SET_BOOLEAN(WRITERBATCHING, BATCH_UPDATES, batch_updates)
+QOS_PARAM_SET_BOOLEAN(TYPECONSISTENCYENFORCEMENT, IGNORE_SEQUENCE_BOUNDS, ignore_sequence_bounds)
+QOS_PARAM_SET_BOOLEAN(TYPECONSISTENCYENFORCEMENT, IGNORE_STRING_BOUNDS, ignore_string_bounds)
+QOS_PARAM_SET_BOOLEAN(TYPECONSISTENCYENFORCEMENT, IGNORE_MEMBER_NAMES, ignore_member_names)
+QOS_PARAM_SET_BOOLEAN(TYPECONSISTENCYENFORCEMENT, PREVENT_TYPE_WIDENING, prevent_type_widening)
+QOS_PARAM_SET_BOOLEAN(TYPECONSISTENCYENFORCEMENT, FORCE_TYPE_VALIDATION, force_type_validation)
 QOS_PARAM_SET_BASE64(GROUPDATA, VALUE, value, length)
 QOS_PARAM_SET_BASE64(TOPICDATA, VALUE, value, length)
 QOS_PARAM_SET_BASE64(USERDATA, VALUE, value, length)
@@ -2165,6 +2299,24 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
     case ELEMENT_KIND_QOS_POLICY_LIVELINESS_KIND:
       QOS_PARAM_DATA (LIVELINESS, KIND);
       break;
+    case ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_KIND:
+      QOS_PARAM_DATA (TYPECONSISTENCYENFORCEMENT, KIND);
+      break;
+    case ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_IGNORE_SEQUENCE_BOUNDS:
+      QOS_PARAM_DATA (TYPECONSISTENCYENFORCEMENT, IGNORE_SEQUENCE_BOUNDS);
+      break;
+    case ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_IGNORE_STRING_BOUNDS:
+      QOS_PARAM_DATA (TYPECONSISTENCYENFORCEMENT, IGNORE_STRING_BOUNDS);
+      break;
+    case ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_IGNORE_MEMBER_NAMES:
+      QOS_PARAM_DATA (TYPECONSISTENCYENFORCEMENT, IGNORE_MEMBER_NAMES);
+      break;
+    case ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_PREVENT_TYPE_WIDENING:
+      QOS_PARAM_DATA (TYPECONSISTENCYENFORCEMENT, PREVENT_TYPE_WIDENING);
+      break;
+    case ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_FORCE_TYPE_VALIDATION:
+      QOS_PARAM_DATA (TYPECONSISTENCYENFORCEMENT, FORCE_TYPE_VALIDATION);
+      break;
     case ELEMENT_KIND_QOS_POLICY_OWNERSHIP_KIND:
       QOS_PARAM_DATA (OWNERSHIP, KIND);
       break;
@@ -2174,7 +2326,7 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
     case ELEMENT_KIND_QOS_POLICY_PARTITION_NAME_ELEMENT: {
       struct dds_sysdef_QOS_POLICY_PARTITION *qp = (struct dds_sysdef_QOS_POLICY_PARTITION *) pstate->current->parent->parent;
       struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *p = (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *) pstate->current;
-      if (dds_sysdef_is_valid_identifier_syntax (value))
+      if (dds_sysdef_is_valid_identifier (value))
       {
         p->element = ddsrt_strdup (value);
         qp->populated = true;
@@ -2186,6 +2338,26 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
         PARSER_ERROR (pstate, line, "Invalid partition name '%s'", value);
         ret = SD_PARSE_RESULT_SYNTAX_ERR;
       }
+      break;
+    }
+    case ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT:
+    {
+      struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION *qp = (struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION *) pstate->current->parent->parent;
+      struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT *r = (struct dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT *) pstate->current;
+
+      if (!strcmp (value, QOS_DATA_REPRESENTATION_XCDR1)) {
+        r->element = DDS_DATA_REPRESENTATION_XCDR1;
+      } else if (!strcmp (value, QOS_DATA_REPRESENTATION_XCDR2)) {
+        r->element = DDS_DATA_REPRESENTATION_XCDR2;
+      } else if (!strcmp (value, QOS_DATA_REPRESENTATION_XML)) {
+        r->element = DDS_DATA_REPRESENTATION_XML;
+      } else {
+        PARSER_ERROR (pstate, line, "Unknown data representation '%s'", value);
+        ret = SD_PARSE_RESULT_SYNTAX_ERR;
+        break;
+      }
+
+      qp->populated |= QOS_POLICY_DATAREPRESENTATION_PARAM_ID;
       break;
     }
     case ELEMENT_KIND_QOS_POLICY_RELIABILITY_KIND:
@@ -2491,6 +2663,8 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_GROUPDATA, ELEMENT_KIND_QOS_POLICY_GROUPDATA, init_qos_GROUPDATA, fini_qos_groupdata, pstate->current);
       else if (ddsrt_strcasecmp (name, "history") == 0)
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_HISTORY, ELEMENT_KIND_QOS_POLICY_HISTORY, NO_INIT, NO_FINI, pstate->current);
+      else if (ddsrt_strcasecmp (name, "type_consistency") == 0)
+        CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_TYPECONSISTENCYENFORCEMENT, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT, NO_INIT, NO_FINI, pstate->current);
       else if (ddsrt_strcasecmp (name, "latency_budget") == 0)
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_LATENCYBUDGET, ELEMENT_KIND_QOS_POLICY_LATENCYBUDGET, NO_INIT, NO_FINI, pstate->current);
       else if (ddsrt_strcasecmp (name, "lifespan") == 0)
@@ -2503,6 +2677,8 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_OWNERSHIPSTRENGTH, ELEMENT_KIND_QOS_POLICY_OWNERSHIPSTRENGTH, NO_INIT, NO_FINI, pstate->current);
       else if (ddsrt_strcasecmp (name, "partition") == 0)
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_PARTITION, ELEMENT_KIND_QOS_POLICY_PARTITION, NO_INIT, fini_qos_partition, pstate->current);
+      else if (ddsrt_strcasecmp (name, "data_representation") == 0)
+        CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_DATAREPRESENTATION, ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION, NO_INIT, fini_qos_data_representation, pstate->current);
       else if (ddsrt_strcasecmp (name, "presentation") == 0)
         CREATE_NODE_QOS (pstate, dds_sysdef_QOS_POLICY_PRESENTATION, ELEMENT_KIND_QOS_POLICY_PRESENTATION, NO_INIT, NO_FINI, pstate->current);
       else if (ddsrt_strcasecmp (name, "reader_data_lifecycle") == 0)
@@ -2599,6 +2775,16 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
         CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_WRITERBATCHING_BATCH_UPDATES, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_WRITERBATCHING, pstate->current);
       else if (ddsrt_strcasecmp (name, "autoenable_created_entities") == 0)
         CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_ENTITYFACTORY_AUTOENABLE_CREATED_ENTITIES, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_ENTITYFACTORY, pstate->current);
+      else if (ddsrt_strcasecmp (name, "ignore_sequence_bounds") == 0)
+        CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_IGNORE_SEQUENCE_BOUNDS, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT, pstate->current);
+      else if (ddsrt_strcasecmp (name, "ignore_string_bounds") == 0)
+        CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_IGNORE_STRING_BOUNDS, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT, pstate->current);
+      else if (ddsrt_strcasecmp (name, "ignore_member_names") == 0)
+        CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_IGNORE_MEMBER_NAMES, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT, pstate->current);
+      else if (ddsrt_strcasecmp (name, "prevent_type_widening") == 0)
+        CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_PREVENT_TYPE_WIDENING, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT, pstate->current);
+      else if (ddsrt_strcasecmp (name, "force_type_validation") == 0)
+        CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_FORCE_TYPE_VALIDATION, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT, pstate->current);
       else if (ddsrt_strcasecmp (name, "kind") == 0)
       {
         if (pstate->current->kind == ELEMENT_KIND_QOS_POLICY_DESTINATIONORDER)
@@ -2613,6 +2799,8 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
           CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_OWNERSHIP_KIND, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_OWNERSHIP, pstate->current);
         else if (pstate->current->kind == ELEMENT_KIND_QOS_POLICY_RELIABILITY)
           CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_RELIABILITY_KIND, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_RELIABILITY, pstate->current);
+        else if (pstate->current->kind == ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT)
+          CREATE_NODE_CUSTOM (pstate, dds_sysdef_qos_generic_property, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT_KIND, NO_INIT, NO_FINI, ELEMENT_KIND_QOS_POLICY_TYPECONSISTENCYENFORCEMENT, pstate->current);
         else
           PARSER_ERROR_INVALID_PARENT_KIND ();
       }
@@ -2633,8 +2821,16 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
       }
       else if (ddsrt_strcasecmp (name, "name") == 0)
         CREATE_NODE_SINGLE (pstate, dds_sysdef_QOS_POLICY_PARTITION_NAME, ELEMENT_KIND_QOS_POLICY_PARTITION_NAME, NO_INIT, fini_qos_partition_name, name, dds_sysdef_QOS_POLICY_PARTITION, ELEMENT_KIND_QOS_POLICY_PARTITION, pstate->current);
-      else if (ddsrt_strcasecmp (name, "element") == 0)
-        CREATE_NODE_LIST (pstate, dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT, ELEMENT_KIND_QOS_POLICY_PARTITION_NAME_ELEMENT, NO_INIT, fini_qos_partition_name_element, elements, dds_sysdef_QOS_POLICY_PARTITION_NAME, ELEMENT_KIND_QOS_POLICY_PARTITION_NAME, pstate->current);
+      else if (ddsrt_strcasecmp (name, "id") == 0)
+        CREATE_NODE_SINGLE (pstate, dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID, ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION_ID, NO_INIT, fini_qos_data_representation_id, id, dds_sysdef_QOS_POLICY_DATAREPRESENTATION, ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION, pstate->current);
+      else if (ddsrt_strcasecmp (name, "element") == 0) {
+        if (pstate->current->kind == ELEMENT_KIND_QOS_POLICY_PARTITION_NAME)
+          CREATE_NODE_LIST (pstate, dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT, ELEMENT_KIND_QOS_POLICY_PARTITION_NAME_ELEMENT, NO_INIT, fini_qos_partition_name_element, elements, dds_sysdef_QOS_POLICY_PARTITION_NAME, ELEMENT_KIND_QOS_POLICY_PARTITION_NAME, pstate->current);
+        else if (pstate->current->kind == ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION_ID)
+          CREATE_NODE_LIST (pstate, dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT, ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT, init_data_representation_id_element, NO_FINI, elements, dds_sysdef_QOS_POLICY_DATAREPRESENTATION_ID, ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION_ID, pstate->current);
+        else
+          PARSER_ERROR_INVALID_PARENT_KIND ();
+      }
       else if (ddsrt_strcasecmp (name, "sec") == 0)
       {
         if (pstate->current->data_type == ELEMENT_DATA_TYPE_DURATION)

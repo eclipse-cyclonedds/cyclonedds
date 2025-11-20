@@ -30,7 +30,7 @@ static dds_entity_t g_participant = 0;
 static void typebuilder_init (void)
 {
   g_participant = dds_create_participant (0, NULL, NULL);
-  CU_ASSERT_FATAL (g_participant > 0);
+  CU_ASSERT_GT_FATAL (g_participant, 0);
 }
 
 static void typebuilder_fini (void)
@@ -42,12 +42,12 @@ static void topic_type_ref (dds_entity_t topic, struct ddsi_type **type)
 {
   dds_topic *t;
   dds_return_t ret = dds_topic_pin (topic, &t);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   struct ddsi_sertype *sertype = t->m_stype;
   ret = ddsi_type_ref_local (&t->m_entity.m_domain->gv, type, sertype, DDSI_TYPEID_KIND_COMPLETE);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-  CU_ASSERT_FATAL (type != NULL);
-  CU_ASSERT_FATAL (*type != NULL);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_NEQ_FATAL (type, NULL);
+  CU_ASSERT_NEQ_FATAL (*type, NULL);
   dds_topic_unpin (t);
 }
 
@@ -55,7 +55,7 @@ static void topic_type_unref (dds_entity_t topic, struct ddsi_type *type)
 {
   dds_topic *t;
   dds_return_t ret = dds_topic_pin (topic, &t);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   ddsi_type_unref (&t->m_entity.m_domain->gv, type);
   dds_topic_unpin (t);
 }
@@ -64,7 +64,7 @@ static struct ddsi_domaingv *gv_from_topic (dds_entity_t topic)
 {
   dds_topic *t;
   dds_return_t ret = dds_topic_pin (topic, &t);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   struct ddsi_domaingv *gv = &t->m_entity.m_domain->gv;
   dds_topic_unpin (t);
   return gv;
@@ -155,41 +155,41 @@ CU_Theory((const dds_topic_descriptor_t *desc), ddsc_typebuilder, topic_desc, .i
 
   create_unique_topic_name ("ddsc_typebuilder", topic_name, sizeof (topic_name));
   topic = dds_create_topic (g_participant, desc, topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (topic > 0);
+  CU_ASSERT_GT_FATAL (topic, 0);
 
   // generate a topic descriptor
   topic_type_ref (topic, &type);
   generated_desc = dds_alloc (sizeof (*generated_desc));
   ret = ddsi_topic_descriptor_from_type (gv_from_topic (topic), generated_desc, type);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
   // check
   tprintf ("size: %u (%u)\n", generated_desc->m_size, desc->m_size);
-  CU_ASSERT_EQUAL_FATAL (desc->m_size, generated_desc->m_size);
+  CU_ASSERT_EQ_FATAL (desc->m_size, generated_desc->m_size);
   tprintf ("align: %u (%u)\n", generated_desc->m_align, desc->m_align);
-  CU_ASSERT_EQUAL_FATAL (desc->m_align, generated_desc->m_align);
+  CU_ASSERT_EQ_FATAL (desc->m_align, generated_desc->m_align);
   tprintf ("flagset: %x (%x)\n", generated_desc->m_flagset, desc->m_flagset);
-  CU_ASSERT_EQUAL_FATAL (desc->m_flagset, generated_desc->m_flagset);
+  CU_ASSERT_EQ_FATAL (desc->m_flagset, generated_desc->m_flagset);
   tprintf ("nkeys: %u (%u)\n", generated_desc->m_nkeys, desc->m_nkeys);
-  CU_ASSERT_EQUAL_FATAL (desc->m_nkeys, generated_desc->m_nkeys);
+  CU_ASSERT_EQ_FATAL (desc->m_nkeys, generated_desc->m_nkeys);
   for (uint32_t n = 0; n < desc->m_nkeys; n++)
   {
     tprintf("key[%u] name: %s (%s)\n", n, generated_desc->m_keys[n].m_name, desc->m_keys[n].m_name);
-    CU_ASSERT_EQUAL_FATAL (strcmp (desc->m_keys[n].m_name, generated_desc->m_keys[n].m_name), 0);
+    CU_ASSERT_STREQ_FATAL (desc->m_keys[n].m_name, generated_desc->m_keys[n].m_name);
     tprintf("  offset: %u (%u)\n", generated_desc->m_keys[n].m_offset, desc->m_keys[n].m_offset);
-    CU_ASSERT_EQUAL_FATAL (desc->m_keys[n].m_offset, generated_desc->m_keys[n].m_offset);
+    CU_ASSERT_EQ_FATAL (desc->m_keys[n].m_offset, generated_desc->m_keys[n].m_offset);
     tprintf("  index: %u (%u)\n", generated_desc->m_keys[n].m_idx, desc->m_keys[n].m_idx);
-    CU_ASSERT_EQUAL_FATAL (desc->m_keys[n].m_idx, generated_desc->m_keys[n].m_idx);
+    CU_ASSERT_EQ_FATAL (desc->m_keys[n].m_idx, generated_desc->m_keys[n].m_idx);
   }
   tprintf ("typename: %s (%s)\n", generated_desc->m_typename, desc->m_typename);
-  CU_ASSERT_EQUAL_FATAL (strcmp (desc->m_typename, generated_desc->m_typename), 0);
+  CU_ASSERT_STREQ_FATAL (desc->m_typename, generated_desc->m_typename);
   tprintf ("nops: %u (%u)\n", generated_desc->m_nops, desc->m_nops);
-  CU_ASSERT_EQUAL_FATAL (desc->m_nops, generated_desc->m_nops);
+  CU_ASSERT_EQ_FATAL (desc->m_nops, generated_desc->m_nops);
 
   uint32_t ops_cnt_gen = dds_stream_countops (generated_desc->m_ops, generated_desc->m_nkeys, generated_desc->m_keys);
   uint32_t ops_cnt = dds_stream_countops (desc->m_ops, desc->m_nkeys, desc->m_keys);
   tprintf ("ops count: %u (%u)\n", ops_cnt_gen, ops_cnt);
-  CU_ASSERT_EQUAL_FATAL (ops_cnt_gen, ops_cnt);
+  CU_ASSERT_EQ_FATAL (ops_cnt_gen, ops_cnt);
   for (uint32_t n = 0; n < ops_cnt; n++)
   {
     if (desc->m_ops[n] != generated_desc->m_ops[n])
@@ -202,7 +202,7 @@ CU_Theory((const dds_topic_descriptor_t *desc), ddsc_typebuilder, topic_desc, .i
   tprintf ("typeinfo: %u (%u)\n", generated_desc->type_information.sz, desc->type_information.sz);
   ddsi_typeinfo_t *tinfo = ddsi_typeinfo_deser (desc->type_information.data, desc->type_information.sz);
   ddsi_typeinfo_t *gen_tinfo = ddsi_typeinfo_deser (generated_desc->type_information.data, generated_desc->type_information.sz);
-  CU_ASSERT_FATAL (ddsi_typeinfo_equal (tinfo, gen_tinfo, DDSI_TYPE_INCLUDE_DEPS));
+  CU_ASSERT_NEQ_FATAL (ddsi_typeinfo_equal (tinfo, gen_tinfo, DDSI_TYPE_INCLUDE_DEPS), 0);
   ddsi_typeinfo_fini (tinfo);
   ddsrt_free (tinfo);
   ddsi_typeinfo_fini (gen_tinfo);
@@ -236,7 +236,7 @@ CU_Test(ddsc_typebuilder, invalid_toplevel, .init = typebuilder_init, .fini = ty
 
   create_unique_topic_name ("ddsc_typebuilder", topic_name, sizeof (topic_name));
   topic = dds_create_topic (g_participant, &TypeBuilderTypes_t2_desc, topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (topic > 0);
+  CU_ASSERT_GT_FATAL (topic, 0);
 
   // generate a topic descriptor
   topic_type_ref (topic, &type);
@@ -245,7 +245,7 @@ CU_Test(ddsc_typebuilder, invalid_toplevel, .init = typebuilder_init, .fini = ty
   for (uint32_t n = 0; n < type->xt._u.structure.members.length; n++)
   {
     ret = ddsi_topic_descriptor_from_type (gv_from_topic (topic), generated_desc, type->xt._u.structure.members.seq[n].type);
-    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
   }
 
   // cleanup
@@ -263,7 +263,7 @@ CU_Test(ddsc_typebuilder, alias_toplevel, .init = typebuilder_init, .fini = type
 
   create_unique_topic_name ("ddsc_typebuilder", topic_name, sizeof (topic_name));
   topic = dds_create_topic (g_participant, &TypeBuilderTypes_t48_desc, topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (topic > 0);
+  CU_ASSERT_GT_FATAL (topic, 0);
 
   // generate a topic descriptor
   topic_type_ref (topic, &type);
@@ -272,23 +272,23 @@ CU_Test(ddsc_typebuilder, alias_toplevel, .init = typebuilder_init, .fini = type
   assert (type->xt._u.structure.members.length == 1);
   assert (type->xt._u.structure.members.seq[0].type->xt._d == DDS_XTypes_TK_ALIAS);
   ret = ddsi_topic_descriptor_from_type (gv_from_topic (topic), generated_desc, type->xt._u.structure.members.seq[0].type);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
   // should be able to create a topic
   char topic_name2[100];
   create_unique_topic_name ("ddsc_typebuilder", topic_name2, sizeof (topic_name2));
   const dds_entity_t topic2 = dds_create_topic (g_participant, generated_desc, topic_name2, NULL, NULL);
-  CU_ASSERT_FATAL (topic2 > 0);
+  CU_ASSERT_GT_FATAL (topic2, 0);
 
   // verify its type really is the alias
   struct ddsi_type *type2;
   topic_type_ref (topic2, &type2);
-  CU_ASSERT_EQUAL (type2->xt._d, DDS_XTypes_TK_ALIAS);
+  CU_ASSERT_EQ (type2->xt._d, DDS_XTypes_TK_ALIAS);
   topic_type_unref (topic2, type2);
 
 #if 0
   const dds_entity_t wr = dds_create_writer (g_participant, topic2, NULL, NULL);
-  CU_ASSERT_FATAL (wr > 0);
+  CU_ASSERT_GT_FATAL (wr, 0);
   while (true)
   {
     dds_write (wr, &(TypeBuilderTypes_t48){ .t1 = { .n1 = 33 } });

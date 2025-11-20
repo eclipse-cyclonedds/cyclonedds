@@ -64,51 +64,51 @@ CU_Test (ddsi_plist, unalias_copy_merge)
                                               p0.identity_token.properties.n * sizeof (*p0.identity_token.properties.props));
 #endif
   ddsi_plist_fini (&p0alias);
-  CU_ASSERT (memcmp (&p0, &p0memcpy, sizeof (p0)) == 0);
-  CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[0], p0strs[0]);
-  CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[1], p0strs[1]);
-  CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[2], p0strs[2]);
+  CU_ASSERT_MEMEQ (&p0, sizeof (p0), &p0memcpy, sizeof (p0memcpy));
+  CU_ASSERT_STREQ (p0.qos.partition.strs[0], p0strs[0]);
+  CU_ASSERT_STREQ (p0.qos.partition.strs[1], p0strs[1]);
+  CU_ASSERT_STREQ (p0.qos.partition.strs[2], p0strs[2]);
 #ifdef DDS_HAS_SECURITY
-  CU_ASSERT_STRING_EQUAL (p0.identity_token.properties.props[0].name,  p0strs[3]);
-  CU_ASSERT_STRING_EQUAL (p0.identity_token.properties.props[0].value, p0strs[4]);
-  CU_ASSERT_STRING_EQUAL (p0.identity_token.properties.props[1].name,  p0strs[5]);
-  CU_ASSERT_STRING_EQUAL (p0.identity_token.properties.props[1].value, p0strs[6]);
+  CU_ASSERT_STREQ (p0.identity_token.properties.props[0].name,  p0strs[3]);
+  CU_ASSERT_STREQ (p0.identity_token.properties.props[0].value, p0strs[4]);
+  CU_ASSERT_STREQ (p0.identity_token.properties.props[1].name,  p0strs[5]);
+  CU_ASSERT_STREQ (p0.identity_token.properties.props[1].value, p0strs[6]);
 #endif
 
   /* copy an aliased one; the original must be unchanged, the copy unaliased */
   ddsi_plist_t p1;
   ddsi_plist_init_empty (&p1);
   ddsi_plist_copy (&p1, &p0);
-  CU_ASSERT (memcmp (&p0, &p0memcpy, sizeof (p0)) == 0);
-  CU_ASSERT (p1.present == p0.present);
-  CU_ASSERT (p1.aliased == 0);
-  CU_ASSERT (p1.qos.present == p0.qos.present);
-  CU_ASSERT (p1.qos.aliased == 0);
-  CU_ASSERT (p1.qos.partition.n == p0.qos.partition.n);
-  CU_ASSERT (p1.qos.partition.strs != p0.qos.partition.strs);
-  CU_ASSERT (p1.qos.partition.strs[0] != p0.qos.partition.strs[0]);
-  CU_ASSERT (p1.qos.partition.strs[1] != p0.qos.partition.strs[1]);
-  CU_ASSERT (p1.qos.partition.strs[2] != p0.qos.partition.strs[2]);
-  CU_ASSERT_STRING_EQUAL (p1.qos.partition.strs[0], p0.qos.partition.strs[0]);
-  CU_ASSERT_STRING_EQUAL (p1.qos.partition.strs[1], p0.qos.partition.strs[1]);
-  CU_ASSERT_STRING_EQUAL (p1.qos.partition.strs[2], p0.qos.partition.strs[2]);
+  CU_ASSERT_MEMEQ (&p0, sizeof (p0), &p0memcpy, sizeof (p0memcpy));
+  CU_ASSERT_EQ (p1.present, p0.present);
+  CU_ASSERT_EQ (p1.aliased, 0);
+  CU_ASSERT_EQ (p1.qos.present, p0.qos.present);
+  CU_ASSERT_EQ (p1.qos.aliased, 0);
+  CU_ASSERT_EQ (p1.qos.partition.n, p0.qos.partition.n);
+  CU_ASSERT_NEQ (p1.qos.partition.strs, p0.qos.partition.strs);
+  CU_ASSERT_NEQ (p1.qos.partition.strs[0], p0.qos.partition.strs[0]);
+  CU_ASSERT_NEQ (p1.qos.partition.strs[1], p0.qos.partition.strs[1]);
+  CU_ASSERT_NEQ (p1.qos.partition.strs[2], p0.qos.partition.strs[2]);
+  CU_ASSERT_STREQ (p1.qos.partition.strs[0], p0.qos.partition.strs[0]);
+  CU_ASSERT_STREQ (p1.qos.partition.strs[1], p0.qos.partition.strs[1]);
+  CU_ASSERT_STREQ (p1.qos.partition.strs[2], p0.qos.partition.strs[2]);
 #ifdef DDS_HAS_SECURITY
-  CU_ASSERT (p1.identity_token.class_id != p0.identity_token.class_id);
-  CU_ASSERT_STRING_EQUAL (p1.identity_token.class_id, p0.identity_token.class_id);
-  CU_ASSERT (p1.identity_token.properties.n == p0.identity_token.properties.n);
-  CU_ASSERT (p1.identity_token.properties.props != p0.identity_token.properties.props);
-  CU_ASSERT (p1.identity_token.properties.props[0].name != p0.identity_token.properties.props[0].name);
-  CU_ASSERT (p1.identity_token.properties.props[0].value != p0.identity_token.properties.props[0].value);
-  CU_ASSERT (p1.identity_token.properties.props[0].propagate == p0.identity_token.properties.props[0].propagate);
-  CU_ASSERT (p1.identity_token.properties.props[1].name != p0.identity_token.properties.props[1].name);
-  CU_ASSERT (p1.identity_token.properties.props[1].value != p0.identity_token.properties.props[1].value);
-  CU_ASSERT (p1.identity_token.properties.props[1].propagate == p0.identity_token.properties.props[1].propagate);
-  CU_ASSERT_STRING_EQUAL (p1.identity_token.properties.props[0].name, p0.identity_token.properties.props[0].name);
-  CU_ASSERT_STRING_EQUAL (p1.identity_token.properties.props[0].value, p0.identity_token.properties.props[0].value);
-  CU_ASSERT_STRING_EQUAL (p1.identity_token.properties.props[1].name, p0.identity_token.properties.props[1].name);
-  CU_ASSERT_STRING_EQUAL (p1.identity_token.properties.props[1].value, p0.identity_token.properties.props[1].value);
-  CU_ASSERT (p1.identity_token.binary_properties.n == 0);
-  CU_ASSERT (p1.identity_token.binary_properties.props == NULL);
+  CU_ASSERT_NEQ (p1.identity_token.class_id, p0.identity_token.class_id);
+  CU_ASSERT_STREQ (p1.identity_token.class_id, p0.identity_token.class_id);
+  CU_ASSERT_EQ (p1.identity_token.properties.n, p0.identity_token.properties.n);
+  CU_ASSERT_NEQ (p1.identity_token.properties.props, p0.identity_token.properties.props);
+  CU_ASSERT_NEQ (p1.identity_token.properties.props[0].name, p0.identity_token.properties.props[0].name);
+  CU_ASSERT_NEQ (p1.identity_token.properties.props[0].value, p0.identity_token.properties.props[0].value);
+  CU_ASSERT_EQ (p1.identity_token.properties.props[0].propagate, p0.identity_token.properties.props[0].propagate);
+  CU_ASSERT_NEQ (p1.identity_token.properties.props[1].name, p0.identity_token.properties.props[1].name);
+  CU_ASSERT_NEQ (p1.identity_token.properties.props[1].value, p0.identity_token.properties.props[1].value);
+  CU_ASSERT_EQ (p1.identity_token.properties.props[1].propagate, p0.identity_token.properties.props[1].propagate);
+  CU_ASSERT_STREQ (p1.identity_token.properties.props[0].name, p0.identity_token.properties.props[0].name);
+  CU_ASSERT_STREQ (p1.identity_token.properties.props[0].value, p0.identity_token.properties.props[0].value);
+  CU_ASSERT_STREQ (p1.identity_token.properties.props[1].name, p0.identity_token.properties.props[1].name);
+  CU_ASSERT_STREQ (p1.identity_token.properties.props[1].value, p0.identity_token.properties.props[1].value);
+  CU_ASSERT_EQ (p1.identity_token.binary_properties.n, 0);
+  CU_ASSERT_EQ (p1.identity_token.binary_properties.props, NULL);
 #endif
 
   /* merge-in missing ones from an aliased copy: original must remain unchanged;
@@ -118,61 +118,61 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   ddsi_plist_init_empty (&p2);
   memcpy (&p2memcpy, &p2, sizeof (p2));
   ddsi_plist_mergein_missing (&p2, &p0, p0.present, p0.qos.present);
-  CU_ASSERT (memcmp (&p0, &p0memcpy, sizeof (p0)) == 0);
-  CU_ASSERT (p2.present == p0.present);
-  CU_ASSERT (p2.aliased == p2memcpy.aliased);
-  CU_ASSERT (p2.qos.present == p0.qos.present);
-  CU_ASSERT (p2.qos.aliased == p2memcpy.qos.aliased);
-  CU_ASSERT (p2.qos.partition.n == p0.qos.partition.n);
-  CU_ASSERT (p2.qos.partition.strs != p0.qos.partition.strs);
-  CU_ASSERT (p2.qos.partition.strs[0] != p0.qos.partition.strs[0]);
-  CU_ASSERT (p2.qos.partition.strs[1] != p0.qos.partition.strs[1]);
-  CU_ASSERT (p2.qos.partition.strs[2] != p0.qos.partition.strs[2]);
-  CU_ASSERT_STRING_EQUAL (p2.qos.partition.strs[0], p0.qos.partition.strs[0]);
-  CU_ASSERT_STRING_EQUAL (p2.qos.partition.strs[1], p0.qos.partition.strs[1]);
-  CU_ASSERT_STRING_EQUAL (p2.qos.partition.strs[2], p0.qos.partition.strs[2]);
+  CU_ASSERT_MEMEQ (&p0, sizeof (p0), &p0memcpy, sizeof (p0memcpy));
+  CU_ASSERT_EQ (p2.present, p0.present);
+  CU_ASSERT_EQ (p2.aliased, p2memcpy.aliased);
+  CU_ASSERT_EQ (p2.qos.present, p0.qos.present);
+  CU_ASSERT_EQ (p2.qos.aliased, p2memcpy.qos.aliased);
+  CU_ASSERT_EQ (p2.qos.partition.n, p0.qos.partition.n);
+  CU_ASSERT_NEQ (p2.qos.partition.strs, p0.qos.partition.strs);
+  CU_ASSERT_NEQ (p2.qos.partition.strs[0], p0.qos.partition.strs[0]);
+  CU_ASSERT_NEQ (p2.qos.partition.strs[1], p0.qos.partition.strs[1]);
+  CU_ASSERT_NEQ (p2.qos.partition.strs[2], p0.qos.partition.strs[2]);
+  CU_ASSERT_STREQ (p2.qos.partition.strs[0], p0.qos.partition.strs[0]);
+  CU_ASSERT_STREQ (p2.qos.partition.strs[1], p0.qos.partition.strs[1]);
+  CU_ASSERT_STREQ (p2.qos.partition.strs[2], p0.qos.partition.strs[2]);
 #ifdef DDS_HAS_SECURITY
-  CU_ASSERT (p2.identity_token.class_id != p0.identity_token.class_id);
-  CU_ASSERT_STRING_EQUAL (p2.identity_token.class_id, p0.identity_token.class_id);
-  CU_ASSERT (p2.identity_token.properties.n == p0.identity_token.properties.n);
-  CU_ASSERT (p2.identity_token.properties.props != p0.identity_token.properties.props);
-  CU_ASSERT (p2.identity_token.properties.props[0].name != p0.identity_token.properties.props[0].name);
-  CU_ASSERT (p2.identity_token.properties.props[0].value != p0.identity_token.properties.props[0].value);
-  CU_ASSERT (p2.identity_token.properties.props[0].propagate == p0.identity_token.properties.props[0].propagate);
-  CU_ASSERT (p2.identity_token.properties.props[1].name != p0.identity_token.properties.props[1].name);
-  CU_ASSERT (p2.identity_token.properties.props[1].value != p0.identity_token.properties.props[1].value);
-  CU_ASSERT (p2.identity_token.properties.props[1].propagate == p0.identity_token.properties.props[1].propagate);
-  CU_ASSERT_STRING_EQUAL (p2.identity_token.properties.props[0].name, p0.identity_token.properties.props[0].name);
-  CU_ASSERT_STRING_EQUAL (p2.identity_token.properties.props[0].value, p0.identity_token.properties.props[0].value);
-  CU_ASSERT_STRING_EQUAL (p2.identity_token.properties.props[1].name, p0.identity_token.properties.props[1].name);
-  CU_ASSERT_STRING_EQUAL (p2.identity_token.properties.props[1].value, p0.identity_token.properties.props[1].value);
-  CU_ASSERT (p2.identity_token.binary_properties.n == 0);
-  CU_ASSERT (p2.identity_token.binary_properties.props == NULL);
+  CU_ASSERT_NEQ (p2.identity_token.class_id, p0.identity_token.class_id);
+  CU_ASSERT_STREQ (p2.identity_token.class_id, p0.identity_token.class_id);
+  CU_ASSERT_EQ (p2.identity_token.properties.n, p0.identity_token.properties.n);
+  CU_ASSERT_NEQ (p2.identity_token.properties.props, p0.identity_token.properties.props);
+  CU_ASSERT_NEQ (p2.identity_token.properties.props[0].name, p0.identity_token.properties.props[0].name);
+  CU_ASSERT_NEQ (p2.identity_token.properties.props[0].value, p0.identity_token.properties.props[0].value);
+  CU_ASSERT_EQ (p2.identity_token.properties.props[0].propagate, p0.identity_token.properties.props[0].propagate);
+  CU_ASSERT_NEQ (p2.identity_token.properties.props[1].name, p0.identity_token.properties.props[1].name);
+  CU_ASSERT_NEQ (p2.identity_token.properties.props[1].value, p0.identity_token.properties.props[1].value);
+  CU_ASSERT_EQ (p2.identity_token.properties.props[1].propagate, p0.identity_token.properties.props[1].propagate);
+  CU_ASSERT_STREQ (p2.identity_token.properties.props[0].name, p0.identity_token.properties.props[0].name);
+  CU_ASSERT_STREQ (p2.identity_token.properties.props[0].value, p0.identity_token.properties.props[0].value);
+  CU_ASSERT_STREQ (p2.identity_token.properties.props[1].name, p0.identity_token.properties.props[1].name);
+  CU_ASSERT_STREQ (p2.identity_token.properties.props[1].value, p0.identity_token.properties.props[1].value);
+  CU_ASSERT_EQ (p2.identity_token.binary_properties.n, 0);
+  CU_ASSERT_EQ (p2.identity_token.binary_properties.props, NULL);
 #endif
 
   /* unalias of p0, partition.strs mustn't change, because it, unlike its elements, wasn't aliased */
   ddsi_plist_unalias (&p0);
-  CU_ASSERT (p0.present == p0memcpy.present);
-  CU_ASSERT (p0.aliased == 0);
-  CU_ASSERT (p0.qos.present == p0memcpy.qos.present);
-  CU_ASSERT (p0.qos.aliased == 0);
-  CU_ASSERT (p0.qos.partition.n == p0memcpy.qos.partition.n);
-  CU_ASSERT (p0.qos.partition.strs == p0memcpy.qos.partition.strs);
-  CU_ASSERT (p0.qos.partition.strs[0] != p0strs[0]);
-  CU_ASSERT (p0.qos.partition.strs[1] != p0strs[1]);
-  CU_ASSERT (p0.qos.partition.strs[2] != p0strs[2]);
-  CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[0], p0strs[0]);
-  CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[1], p0strs[1]);
-  CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[2], p0strs[2]);
+  CU_ASSERT_EQ (p0.present, p0memcpy.present);
+  CU_ASSERT_EQ (p0.aliased, 0);
+  CU_ASSERT_EQ (p0.qos.present, p0memcpy.qos.present);
+  CU_ASSERT_EQ (p0.qos.aliased, 0);
+  CU_ASSERT_EQ (p0.qos.partition.n, p0memcpy.qos.partition.n);
+  CU_ASSERT_EQ (p0.qos.partition.strs, p0memcpy.qos.partition.strs);
+  CU_ASSERT_NEQ (p0.qos.partition.strs[0], p0strs[0]);
+  CU_ASSERT_NEQ (p0.qos.partition.strs[1], p0strs[1]);
+  CU_ASSERT_NEQ (p0.qos.partition.strs[2], p0strs[2]);
+  CU_ASSERT_STREQ (p0.qos.partition.strs[0], p0strs[0]);
+  CU_ASSERT_STREQ (p0.qos.partition.strs[1], p0strs[1]);
+  CU_ASSERT_STREQ (p0.qos.partition.strs[2], p0strs[2]);
 #ifdef DDS_HAS_SECURITY
-  CU_ASSERT (p0.identity_token.properties.props[0].name  != p0strs[3]);
-  CU_ASSERT (p0.identity_token.properties.props[0].value != p0strs[4]);
-  CU_ASSERT (p0.identity_token.properties.props[1].name  != p0strs[5]);
-  CU_ASSERT (p0.identity_token.properties.props[1].value != p0strs[6]);
-  CU_ASSERT_STRING_EQUAL (p0.identity_token.properties.props[0].name,  p0strs[3]);
-  CU_ASSERT_STRING_EQUAL (p0.identity_token.properties.props[0].value, p0strs[4]);
-  CU_ASSERT_STRING_EQUAL (p0.identity_token.properties.props[1].name,  p0strs[5]);
-  CU_ASSERT_STRING_EQUAL (p0.identity_token.properties.props[1].value, p0strs[6]);
+  CU_ASSERT_NEQ (p0.identity_token.properties.props[0].name, p0strs[3]);
+  CU_ASSERT_NEQ (p0.identity_token.properties.props[0].value, p0strs[4]);
+  CU_ASSERT_NEQ (p0.identity_token.properties.props[1].name, p0strs[5]);
+  CU_ASSERT_NEQ (p0.identity_token.properties.props[1].value, p0strs[6]);
+  CU_ASSERT_STREQ (p0.identity_token.properties.props[0].name,  p0strs[3]);
+  CU_ASSERT_STREQ (p0.identity_token.properties.props[0].value, p0strs[4]);
+  CU_ASSERT_STREQ (p0.identity_token.properties.props[1].name,  p0strs[5]);
+  CU_ASSERT_STREQ (p0.identity_token.properties.props[1].value, p0strs[6]);
 #endif
 
   memcpy (&p0memcpy, &p0, sizeof (p0));
@@ -181,36 +181,36 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   ddsi_plist_t p3;
   ddsi_plist_init_empty (&p3);
   ddsi_plist_copy (&p3, &p0);
-  CU_ASSERT (memcmp (&p0, &p0memcpy, sizeof (p0)) == 0);
-  CU_ASSERT (p3.present == p0.present);
-  CU_ASSERT (p3.aliased == 0);
-  CU_ASSERT (p3.qos.present == p0.qos.present);
-  CU_ASSERT (p3.qos.aliased == 0);
-  CU_ASSERT (p3.qos.partition.n == p0.qos.partition.n);
-  CU_ASSERT (p3.qos.partition.strs != p0.qos.partition.strs);
-  CU_ASSERT (p3.qos.partition.strs[0] != p0.qos.partition.strs[0]);
-  CU_ASSERT (p3.qos.partition.strs[1] != p0.qos.partition.strs[1]);
-  CU_ASSERT (p3.qos.partition.strs[2] != p0.qos.partition.strs[2]);
-  CU_ASSERT_STRING_EQUAL (p3.qos.partition.strs[0], p0.qos.partition.strs[0]);
-  CU_ASSERT_STRING_EQUAL (p3.qos.partition.strs[1], p0.qos.partition.strs[1]);
-  CU_ASSERT_STRING_EQUAL (p3.qos.partition.strs[2], p0.qos.partition.strs[2]);
+  CU_ASSERT_MEMEQ (&p0, sizeof (p0), &p0memcpy, sizeof (p0memcpy));
+  CU_ASSERT_EQ (p3.present, p0.present);
+  CU_ASSERT_EQ (p3.aliased, 0);
+  CU_ASSERT_EQ (p3.qos.present, p0.qos.present);
+  CU_ASSERT_EQ (p3.qos.aliased, 0);
+  CU_ASSERT_EQ (p3.qos.partition.n, p0.qos.partition.n);
+  CU_ASSERT_NEQ (p3.qos.partition.strs, p0.qos.partition.strs);
+  CU_ASSERT_NEQ (p3.qos.partition.strs[0], p0.qos.partition.strs[0]);
+  CU_ASSERT_NEQ (p3.qos.partition.strs[1], p0.qos.partition.strs[1]);
+  CU_ASSERT_NEQ (p3.qos.partition.strs[2], p0.qos.partition.strs[2]);
+  CU_ASSERT_STREQ (p3.qos.partition.strs[0], p0.qos.partition.strs[0]);
+  CU_ASSERT_STREQ (p3.qos.partition.strs[1], p0.qos.partition.strs[1]);
+  CU_ASSERT_STREQ (p3.qos.partition.strs[2], p0.qos.partition.strs[2]);
 #ifdef DDS_HAS_SECURITY
-  CU_ASSERT (p3.identity_token.class_id != p0.identity_token.class_id);
-  CU_ASSERT_STRING_EQUAL (p3.identity_token.class_id, p0.identity_token.class_id);
-  CU_ASSERT (p3.identity_token.properties.n == p0.identity_token.properties.n);
-  CU_ASSERT (p3.identity_token.properties.props != p0.identity_token.properties.props);
-  CU_ASSERT (p3.identity_token.properties.props[0].name != p0.identity_token.properties.props[0].name);
-  CU_ASSERT (p3.identity_token.properties.props[0].value != p0.identity_token.properties.props[0].value);
-  CU_ASSERT (p3.identity_token.properties.props[0].propagate == p0.identity_token.properties.props[0].propagate);
-  CU_ASSERT (p3.identity_token.properties.props[1].name != p0.identity_token.properties.props[1].name);
-  CU_ASSERT (p3.identity_token.properties.props[1].value != p0.identity_token.properties.props[1].value);
-  CU_ASSERT (p3.identity_token.properties.props[1].propagate == p0.identity_token.properties.props[1].propagate);
-  CU_ASSERT_STRING_EQUAL (p3.identity_token.properties.props[0].name, p0.identity_token.properties.props[0].name);
-  CU_ASSERT_STRING_EQUAL (p3.identity_token.properties.props[0].value, p0.identity_token.properties.props[0].value);
-  CU_ASSERT_STRING_EQUAL (p3.identity_token.properties.props[1].name, p0.identity_token.properties.props[1].name);
-  CU_ASSERT_STRING_EQUAL (p3.identity_token.properties.props[1].value, p0.identity_token.properties.props[1].value);
-  CU_ASSERT (p3.identity_token.binary_properties.n == 0);
-  CU_ASSERT (p3.identity_token.binary_properties.props == NULL);
+  CU_ASSERT_NEQ (p3.identity_token.class_id, p0.identity_token.class_id);
+  CU_ASSERT_STREQ (p3.identity_token.class_id, p0.identity_token.class_id);
+  CU_ASSERT_EQ (p3.identity_token.properties.n, p0.identity_token.properties.n);
+  CU_ASSERT_NEQ (p3.identity_token.properties.props, p0.identity_token.properties.props);
+  CU_ASSERT_NEQ (p3.identity_token.properties.props[0].name, p0.identity_token.properties.props[0].name);
+  CU_ASSERT_NEQ (p3.identity_token.properties.props[0].value, p0.identity_token.properties.props[0].value);
+  CU_ASSERT_EQ (p3.identity_token.properties.props[0].propagate, p0.identity_token.properties.props[0].propagate);
+  CU_ASSERT_NEQ (p3.identity_token.properties.props[1].name, p0.identity_token.properties.props[1].name);
+  CU_ASSERT_NEQ (p3.identity_token.properties.props[1].value, p0.identity_token.properties.props[1].value);
+  CU_ASSERT_EQ (p3.identity_token.properties.props[1].propagate, p0.identity_token.properties.props[1].propagate);
+  CU_ASSERT_STREQ (p3.identity_token.properties.props[0].name, p0.identity_token.properties.props[0].name);
+  CU_ASSERT_STREQ (p3.identity_token.properties.props[0].value, p0.identity_token.properties.props[0].value);
+  CU_ASSERT_STREQ (p3.identity_token.properties.props[1].name, p0.identity_token.properties.props[1].name);
+  CU_ASSERT_STREQ (p3.identity_token.properties.props[1].value, p0.identity_token.properties.props[1].value);
+  CU_ASSERT_EQ (p3.identity_token.binary_properties.n, 0);
+  CU_ASSERT_EQ (p3.identity_token.binary_properties.props, NULL);
 #endif
 
   /* merge-in missing ones from an aliased copy: original must remain unchanged;
@@ -220,36 +220,36 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   ddsi_plist_init_empty (&p4);
   memcpy (&p4memcpy, &p4, sizeof (p4));
   ddsi_plist_mergein_missing (&p4, &p0, p0.present, p0.qos.present);
-  CU_ASSERT (memcmp (&p0, &p0memcpy, sizeof (p0)) == 0);
-  CU_ASSERT (p4.present == p0.present);
-  CU_ASSERT (p4.aliased == p4memcpy.aliased);
-  CU_ASSERT (p4.qos.present == p0.qos.present);
-  CU_ASSERT (p4.qos.aliased == p4memcpy.qos.aliased);
-  CU_ASSERT (p4.qos.partition.n == p0.qos.partition.n);
-  CU_ASSERT (p4.qos.partition.strs != p0.qos.partition.strs);
-  CU_ASSERT (p4.qos.partition.strs[0] != p0.qos.partition.strs[0]);
-  CU_ASSERT (p4.qos.partition.strs[1] != p0.qos.partition.strs[1]);
-  CU_ASSERT (p4.qos.partition.strs[2] != p0.qos.partition.strs[2]);
-  CU_ASSERT_STRING_EQUAL (p4.qos.partition.strs[0], p0.qos.partition.strs[0]);
-  CU_ASSERT_STRING_EQUAL (p4.qos.partition.strs[1], p0.qos.partition.strs[1]);
-  CU_ASSERT_STRING_EQUAL (p4.qos.partition.strs[2], p0.qos.partition.strs[2]);
+  CU_ASSERT_MEMEQ (&p0, sizeof (p0), &p0memcpy, sizeof (p0memcpy));
+  CU_ASSERT_EQ (p4.present, p0.present);
+  CU_ASSERT_EQ (p4.aliased, p4memcpy.aliased);
+  CU_ASSERT_EQ (p4.qos.present, p0.qos.present);
+  CU_ASSERT_EQ (p4.qos.aliased, p4memcpy.qos.aliased);
+  CU_ASSERT_EQ (p4.qos.partition.n, p0.qos.partition.n);
+  CU_ASSERT_NEQ (p4.qos.partition.strs, p0.qos.partition.strs);
+  CU_ASSERT_NEQ (p4.qos.partition.strs[0], p0.qos.partition.strs[0]);
+  CU_ASSERT_NEQ (p4.qos.partition.strs[1], p0.qos.partition.strs[1]);
+  CU_ASSERT_NEQ (p4.qos.partition.strs[2], p0.qos.partition.strs[2]);
+  CU_ASSERT_STREQ (p4.qos.partition.strs[0], p0.qos.partition.strs[0]);
+  CU_ASSERT_STREQ (p4.qos.partition.strs[1], p0.qos.partition.strs[1]);
+  CU_ASSERT_STREQ (p4.qos.partition.strs[2], p0.qos.partition.strs[2]);
 #ifdef DDS_HAS_SECURITY
-  CU_ASSERT (p4.identity_token.class_id != p0.identity_token.class_id);
-  CU_ASSERT_STRING_EQUAL (p4.identity_token.class_id, p0.identity_token.class_id);
-  CU_ASSERT (p4.identity_token.properties.n == p0.identity_token.properties.n);
-  CU_ASSERT (p4.identity_token.properties.props != p0.identity_token.properties.props);
-  CU_ASSERT (p4.identity_token.properties.props[0].name != p0.identity_token.properties.props[0].name);
-  CU_ASSERT (p4.identity_token.properties.props[0].value != p0.identity_token.properties.props[0].value);
-  CU_ASSERT (p4.identity_token.properties.props[0].propagate == p0.identity_token.properties.props[0].propagate);
-  CU_ASSERT (p4.identity_token.properties.props[1].name != p0.identity_token.properties.props[1].name);
-  CU_ASSERT (p4.identity_token.properties.props[1].value != p0.identity_token.properties.props[1].value);
-  CU_ASSERT (p4.identity_token.properties.props[1].propagate == p0.identity_token.properties.props[1].propagate);
-  CU_ASSERT_STRING_EQUAL (p4.identity_token.properties.props[0].name, p0.identity_token.properties.props[0].name);
-  CU_ASSERT_STRING_EQUAL (p4.identity_token.properties.props[0].value, p0.identity_token.properties.props[0].value);
-  CU_ASSERT_STRING_EQUAL (p4.identity_token.properties.props[1].name, p0.identity_token.properties.props[1].name);
-  CU_ASSERT_STRING_EQUAL (p4.identity_token.properties.props[1].value, p0.identity_token.properties.props[1].value);
-  CU_ASSERT (p4.identity_token.binary_properties.n == 0);
-  CU_ASSERT (p4.identity_token.binary_properties.props == NULL);
+  CU_ASSERT_NEQ (p4.identity_token.class_id, p0.identity_token.class_id);
+  CU_ASSERT_STREQ (p4.identity_token.class_id, p0.identity_token.class_id);
+  CU_ASSERT_EQ (p4.identity_token.properties.n, p0.identity_token.properties.n);
+  CU_ASSERT_NEQ (p4.identity_token.properties.props, p0.identity_token.properties.props);
+  CU_ASSERT_NEQ (p4.identity_token.properties.props[0].name, p0.identity_token.properties.props[0].name);
+  CU_ASSERT_NEQ (p4.identity_token.properties.props[0].value, p0.identity_token.properties.props[0].value);
+  CU_ASSERT_EQ (p4.identity_token.properties.props[0].propagate, p0.identity_token.properties.props[0].propagate);
+  CU_ASSERT_NEQ (p4.identity_token.properties.props[1].name, p0.identity_token.properties.props[1].name);
+  CU_ASSERT_NEQ (p4.identity_token.properties.props[1].value, p0.identity_token.properties.props[1].value);
+  CU_ASSERT_EQ (p4.identity_token.properties.props[1].propagate, p0.identity_token.properties.props[1].propagate);
+  CU_ASSERT_STREQ (p4.identity_token.properties.props[0].name, p0.identity_token.properties.props[0].name);
+  CU_ASSERT_STREQ (p4.identity_token.properties.props[0].value, p0.identity_token.properties.props[0].value);
+  CU_ASSERT_STREQ (p4.identity_token.properties.props[1].name, p0.identity_token.properties.props[1].name);
+  CU_ASSERT_STREQ (p4.identity_token.properties.props[1].value, p0.identity_token.properties.props[1].value);
+  CU_ASSERT_EQ (p4.identity_token.binary_properties.n, 0);
+  CU_ASSERT_EQ (p4.identity_token.binary_properties.props, NULL);
 #endif
 
   ddsi_plist_fini (&p0);
@@ -281,14 +281,14 @@ static void setup (struct ddsi_domaingv *gv, uint32_t factories)
   {
     (void) ddsi_udp_init (gv);
     struct ddsi_tran_factory * const udp = ddsi_factory_find (gv, "udp");
-    CU_ASSERT_FATAL (udp != NULL);
+    CU_ASSERT_NEQ_FATAL (udp, NULL);
     udp->m_enable = true;
   }
   if (factories & DDSI_LOCATOR_KIND_TCPv4)
   {
     (void) ddsi_tcp_init (gv);
     struct ddsi_tran_factory * const tcp = ddsi_factory_find (gv, "tcp");
-    CU_ASSERT_FATAL (tcp != NULL);
+    CU_ASSERT_NEQ_FATAL (tcp, NULL);
     tcp->m_enable = true;
   }
 }
@@ -358,16 +358,16 @@ CU_Test (ddsi_plist, locator_lists_reject)
         dds_return_t rc = ddsi_plist_init_frommsg (&plist, &nextafter, ~(uint64_t)0, ~(uint64_t)0, &src, &gv, DDSI_PLIST_CONTEXT_PARTICIPANT);
         if (reject_case <= REJ_SHORT_23) {
           // short/invalid lengths => always reject entire plist
-          CU_ASSERT (rc == DDS_RETCODE_BAD_PARAMETER);
+          CU_ASSERT_EQ (rc, DDS_RETCODE_BAD_PARAMETER);
         } else if (kind != UNKNOWN_KIND && (factories & kind)) {
           // invalid content: only reject for known & enabled transports
-          CU_ASSERT (rc == DDS_RETCODE_BAD_PARAMETER);
+          CU_ASSERT_EQ (rc, DDS_RETCODE_BAD_PARAMETER);
         } else {
           // ignored: locator kind unknown/not enabled, so plist should be accepted but the
           // result should be empty
-          CU_ASSERT (rc == 0);
-          CU_ASSERT ((unsigned char *) nextafter == plist_rej + sizeof (plist_rej));
-          CU_ASSERT (plist.present == 0);
+          CU_ASSERT_EQ (rc, 0);
+          CU_ASSERT_EQ ((unsigned char *) nextafter, plist_rej + sizeof (plist_rej));
+          CU_ASSERT_EQ (plist.present, 0);
           ddsi_plist_fini (&plist);
         }
       } while (++reject_case <= REJ_GARBAGE);
@@ -446,18 +446,18 @@ CU_Test (ddsi_plist, locator_lists_accept)
       char *nextafter = NULL;
       ddsi_plist_t plist;
       dds_return_t rc = ddsi_plist_init_frommsg (&plist, &nextafter, ~(uint64_t)0, ~(uint64_t)0, &src, &gv, DDSI_PLIST_CONTEXT_PARTICIPANT);
-      CU_ASSERT (rc == 0);
-      CU_ASSERT ((unsigned char *) nextafter == plist_ok + sizeof (plist_ok));
+      CU_ASSERT_EQ (rc, 0);
+      CU_ASSERT_EQ ((const unsigned char *) nextafter, plist_ok + sizeof (plist_ok));
       if (factories == 0)
       {
         // nothing enabled, nothing present
-        CU_ASSERT (plist.present == 0);
+        CU_ASSERT_EQ (plist.present, 0);
       }
       else
       {
         // should have both lists present
-        CU_ASSERT (plist.present & pids[pididx].pp_flag);
-        CU_ASSERT (plist.present & pids[pid1idx].pp_flag);
+        CU_ASSERT_NEQ (plist.present & pids[pididx].pp_flag, 0);
+        CU_ASSERT_NEQ (plist.present & pids[pid1idx].pp_flag, 0);
         const struct ddsi_locators *lpid = (const struct ddsi_locators *) ((const char *) &plist + pids[pididx].pp_offset);
         const struct ddsi_locators *lpid1 = (const struct ddsi_locators *) ((const char *) &plist + pids[pid1idx].pp_offset);
         const struct ddsi_locators_one *l = lpid->first;
@@ -483,14 +483,14 @@ CU_Test (ddsi_plist, locator_lists_accept)
             } else {
               lcmp = l1; l1 = l1->next;
             }
-            CU_ASSERT_FATAL (lcmp != NULL);
-            CU_ASSERT ((uint32_t) lcmp->loc.kind == pi_kind);
-            CU_ASSERT (lcmp->loc.port == pi_port);
-            CU_ASSERT (memcmp (lcmp->loc.address, plist_ok + pi + 12, sizeof (lcmp->loc.address)) == 0);
+            CU_ASSERT_NEQ_FATAL (lcmp, NULL);
+            CU_ASSERT_EQ ((uint32_t) lcmp->loc.kind, pi_kind);
+            CU_ASSERT_EQ (lcmp->loc.port, pi_port);
+            CU_ASSERT_MEMEQ (lcmp->loc.address, sizeof (lcmp->loc.address), plist_ok + pi + 12, sizeof (lcmp->loc.address));
           }
         }
-        CU_ASSERT (l == NULL);
-        CU_ASSERT (l1 == NULL);
+        CU_ASSERT_EQ (l, NULL);
+        CU_ASSERT_EQ (l1, NULL);
       }
       ddsi_plist_fini (&plist);
     }
