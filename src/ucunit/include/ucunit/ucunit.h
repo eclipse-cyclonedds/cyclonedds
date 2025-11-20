@@ -247,6 +247,8 @@ void CU_cleanup_registry (void);
 void CU_assertImplementation (bool value, int line, const char *expr, const char *file, const char *something, bool isfatal);
 
 void CU_fatal (void);
+  
+void CU_hexdump (FILE *fp, const unsigned char *msg, const size_t len);
 
 void CU_set_error_action (CU_ErrorAction action);
 
