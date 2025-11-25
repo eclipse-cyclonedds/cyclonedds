@@ -72,6 +72,12 @@ static dds_return_t expression_filter_param_set (dds_expression_content_filter_t
   return filter_param_copy(&p, &ef->param[id-1]) ? DDS_RETCODE_OK: DDS_RETCODE_BAD_PARAMETER;
 }
 
+dds_return_t dds_expression_filter_bind_unsigned (dds_expression_content_filter_t *filter, size_t id, uint64_t param)
+{
+  struct dds_expression_filter_param p = {.t = DDS_EXPR_FILTER_PARAM_UNSIGNED, .n.u = param};
+  return expression_filter_param_set(filter, id, p);
+}
+
 dds_return_t dds_expression_filter_bind_integer (dds_expression_content_filter_t *filter, size_t id, int64_t param)
 {
   struct dds_expression_filter_param p = {.t = DDS_EXPR_FILTER_PARAM_INTEGER, .n.i = param};

@@ -40,7 +40,7 @@
       ret = dds_sql_expr_bind_integer (e, i ,*v); \
     } else { \
       u##t *v = (u##t *) (so); \
-      ret = dds_sql_expr_bind_integer (e, i, *v); \
+      ret = dds_sql_expr_bind_unsigned (e, i, *v); \
     } \
     assert (ret == DDS_RETCODE_OK); \
   } while (0);
@@ -93,20 +93,7 @@ static dds_return_t expr_var_set (const struct dds_expression_filter *filter, co
             break;
           }
           case DDS_OP_VAL_8BY: {
-            if (op_flags & DDS_OP_FLAG_SGN) {
-              const int64_t *j = (const int64_t *)smpl;
-              ret = dds_sql_expr_bind_integer (filter->bin_expr, id, *j);
-            } else {
-            /* FIXME:
-             * current implementation doesn't support 64 bit unsigned, since sql
-             * expression evaluator have nothing to handle that type. */
-              const uint64_t *j = (const uint64_t *)smpl;
-              if ((*j) > UINT32_MAX)
-                ret = DDS_RETCODE_UNSUPPORTED;
-              else
-                ret = dds_sql_expr_bind_integer (filter->bin_expr, id, (int64_t)(*j));
-            }
-            assert (ret == DDS_RETCODE_OK);
+            DDS_EXPR_VAR_SET_INTEGER(op_flags, filter->bin_expr, smpl, id, int64_t);
             break;
           }
           default: assert (false);
@@ -279,6 +266,9 @@ static dds_return_t topic_expr_filter_param_rebind (struct dds_filter *a, const 
     {
       case DDS_EXPR_FILTER_PARAM_INTEGER:
         ret = dds_sql_expr_bind_integer(expr, id, param.n.i);
+        break;
+      case DDS_EXPR_FILTER_PARAM_UNSIGNED:
+        ret = dds_sql_expr_bind_unsigned(expr, id, param.n.u);
         break;
       case DDS_EXPR_FILTER_PARAM_REAL:
         ret = dds_sql_expr_bind_real(expr, id, param.n.d);

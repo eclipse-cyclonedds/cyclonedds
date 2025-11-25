@@ -595,9 +595,19 @@ int dds_sql_get_numeric(void *blob, const unsigned char **c, int *tk, int tk_sz)
     s = tmp_buff;
   }
 
+  /* 's' in current implementation will always point to "unsigned" type which
+   * allow us to try store result "uint64_t" buf. with legall justification
+   * */
   assert (s);
-  if (*tk == DDS_SQL_TK_INTEGER)
-    *(int64_t*)blob = strtoll(s, NULL, 0);
+  if (*tk == DDS_SQL_TK_INTEGER || *tk == DDS_SQL_TK_UNSIGNED) {
+    *(uint64_t*)blob = strtoull(s, NULL, 0);
+    if (*(uint64_t*)blob <= INT64_MAX) {
+      *(int64_t*)blob = strtoll(s, NULL, 0);
+      *tk = DDS_SQL_TK_INTEGER;
+    } else {
+      *tk = DDS_SQL_TK_UNSIGNED;
+    }
+  }
   else if (*tk == DDS_SQL_TK_FLOAT)
     *(double *)blob = strtod(s, NULL);
   else
@@ -668,6 +678,7 @@ static int cast(const void *in, const int in_sz, const int from_tk, const int to
         || to_tk == DDS_SQL_TK_INTEGER
         || to_tk == DDS_SQL_TK_FLOAT
         || to_tk == DDS_SQL_TK_BLOB
+        || to_tk == DDS_SQL_TK_UNSIGNED
          );
 
   if (from_tk == to_tk) {
@@ -679,10 +690,14 @@ static int cast(const void *in, const int in_sz, const int from_tk, const int to
   {
     case DDS_SQL_TK_STRING:
     {
-      if (from_tk == DDS_SQL_TK_INTEGER || from_tk == DDS_SQL_TK_FLOAT) {
-        char *fmt = (from_tk == DDS_SQL_TK_INTEGER)? "%li": "%e";
+      if (   from_tk == DDS_SQL_TK_INTEGER
+          || from_tk == DDS_SQL_TK_FLOAT
+          || from_tk == DDS_SQL_TK_UNSIGNED) {
+        char *fmt = (from_tk == DDS_SQL_TK_INTEGER)? "%li": (from_tk == DDS_SQL_TK_UNSIGNED)? "%zu": "%e";
         if (from_tk == DDS_SQL_TK_INTEGER)
           result_size = snprintf(NULL, 0, fmt, *((const int64_t *)in));
+        else if (from_tk == DDS_SQL_TK_UNSIGNED)
+          result_size = snprintf(NULL, 0, fmt, *((const uint64_t *)in));
         else
           result_size = snprintf(NULL, 0, fmt, *((const double *)in));
 
@@ -691,6 +706,8 @@ static int cast(const void *in, const int in_sz, const int from_tk, const int to
         assert (*out);
         if (from_tk == DDS_SQL_TK_INTEGER)
           (void) snprintf (*out, (unsigned) result_size, fmt, *((const int64_t *)in));
+        else if (from_tk == DDS_SQL_TK_UNSIGNED)
+          (void) snprintf (*out, (unsigned) result_size, fmt, *((const uint64_t *)in));
         else
           (void) snprintf (*out, (unsigned) result_size, fmt, *((const double *)in));
 
@@ -707,7 +724,9 @@ static int cast(const void *in, const int in_sz, const int from_tk, const int to
     {
       char *str = NULL;
       int str_sz = 0;
-      if (from_tk == DDS_SQL_TK_INTEGER || from_tk == DDS_SQL_TK_FLOAT) {
+      if (   from_tk == DDS_SQL_TK_INTEGER
+          || from_tk == DDS_SQL_TK_FLOAT
+          || from_tk == DDS_SQL_TK_UNSIGNED) {
         str_sz = cast(in, in_sz, from_tk, DDS_SQL_TK_STRING, (void **)&str);
         assert (str_sz != 0);
       } else {
@@ -722,6 +741,7 @@ static int cast(const void *in, const int in_sz, const int from_tk, const int to
         free (str);
       break;
     }
+    case DDS_SQL_TK_UNSIGNED:
     case DDS_SQL_TK_INTEGER:
     case DDS_SQL_TK_FLOAT:
     {
@@ -751,20 +771,34 @@ static int cast(const void *in, const int in_sz, const int from_tk, const int to
           (void) memcpy (out, tmp, (unsigned) res);
           free (tmp);
         }
-        assert (res == 0);
         if (from_tk == DDS_SQL_TK_BLOB)
           free (str);
-      } else {
-        assert (from_tk == DDS_SQL_TK_INTEGER || from_tk == DDS_SQL_TK_FLOAT);
+      } else if (from_tk == DDS_SQL_TK_INTEGER) {
         result_size = sizeof(int64_t);
         *out = malloc(sizeof(int64_t));
         assert (*out);
         // we previously reject case operation in case of `to_tk == from_tk`,
         // so we know all conversion kinds
-        if (to_tk == DDS_SQL_TK_INTEGER)
-          *(*(int64_t **)out) = (int64_t)*(double *)in;
-        else if (to_tk == DDS_SQL_TK_FLOAT)
+        if (to_tk == DDS_SQL_TK_FLOAT)
           *(*(double **)out)  = (double)*(int64_t *)in;
+        else if (to_tk == DDS_SQL_TK_UNSIGNED)
+          *(*(uint64_t **)out) = (uint64_t)*(int64_t*)in;
+        else
+          assert (false);
+      } else if (from_tk == DDS_SQL_TK_UNSIGNED) {
+        result_size = sizeof(uint64_t);
+        *out = malloc(sizeof(uint64_t));
+        assert (*out);
+
+        if (to_tk == DDS_SQL_TK_FLOAT)
+          *(*(double **)out)  = (double)*(uint64_t *)in;
+        else if (to_tk == DDS_SQL_TK_INTEGER)
+          *(*(int64_t **)out) = (int64_t)*(uint64_t*)in;
+        else
+          assert (false);
+      } else /* from_tk == DDS_SQL_TK_FLOAT */ {
+        result_size = -1;
+        goto exit;
       }
       break;
     }
@@ -792,9 +826,17 @@ int dds_sql_apply_affinity(struct dds_sql_token *st, const int aff)
     if (st->aff >= DDS_SQL_AFFINITY_NUMERIC)
     {
       assert ( st->tok == DDS_SQL_TK_FLOAT
-            || st->tok == DDS_SQL_TK_INTEGER);
+            || st->tok == DDS_SQL_TK_INTEGER
+            || st->tok == DDS_SQL_TK_UNSIGNED);
+
+      if (aff == DDS_SQL_AFFINITY_INTEGER && st->tok == DDS_SQL_TK_FLOAT)
+      {
+        result_aff = -1;
+        goto exit;
+      }
 
       int token = 0;
+      /* FIXME: what about UNSIGNED here? */
       if (aff == DDS_SQL_AFFINITY_INTEGER)
         token = DDS_SQL_TK_INTEGER;
       else if (aff == DDS_SQL_AFFINITY_REAL)
@@ -826,7 +868,7 @@ int dds_sql_apply_affinity(struct dds_sql_token *st, const int aff)
       }
 
       if (aff == DDS_SQL_AFFINITY_NUMERIC)
-      { /* determine result token DDS_SQL_TK_INTEGER/TK_FLOAT*/
+      { /* determine result token DDS_SQL_TK_INTEGER/DDS_SQL_TK_FLOAT/DDS_SQL_TK_UNSIGNED */
         int token = 0;
         const unsigned char *cursor = (const unsigned char *)st->s;
 
@@ -837,8 +879,12 @@ int dds_sql_apply_affinity(struct dds_sql_token *st, const int aff)
         for (unsigned i = 0; i < sizeof(tokens)/sizeof(tokens[0]) && !res; i++)
           res = dds_sql_get_numeric(nums[i], &cursor, &tokens[i], 0);
 
-        token = (*((double*)nums[1]) <= (double)*((int64_t*)nums[0])) ? DDS_SQL_TK_INTEGER: DDS_SQL_TK_FLOAT;
-        result_aff = (token == DDS_SQL_TK_INTEGER)? DDS_SQL_AFFINITY_INTEGER: DDS_SQL_AFFINITY_REAL;
+        if (tokens[0] == DDS_SQL_TK_INTEGER)
+          token = (*((double*)nums[1]) <= (double)*((int64_t*)nums[0])) ? DDS_SQL_TK_INTEGER: DDS_SQL_TK_FLOAT;
+        else if (tokens[0] == DDS_SQL_TK_UNSIGNED)
+          token = (*((double*)nums[1]) <= (double)*((uint64_t*)nums[0])) ? DDS_SQL_TK_UNSIGNED: DDS_SQL_TK_FLOAT;
+
+        result_aff = (token == DDS_SQL_TK_INTEGER || token == DDS_SQL_TK_UNSIGNED)? DDS_SQL_AFFINITY_INTEGER: DDS_SQL_AFFINITY_REAL;
       }
 
       int token = 0;
@@ -862,8 +908,9 @@ int dds_sql_apply_affinity(struct dds_sql_token *st, const int aff)
   else if (st->aff > aff)
   {
     if (aff > DDS_SQL_AFFINITY_NUMERIC)
-    { /* REAL to INTEGER forbidden, even if it's possible to do without data
-       * lose. */
+    {
+      /* REAL/UNSIGNED to INTEGER/UNSIGNED forbidden, even if it's possible
+       * to do without data lose. */
       result_aff = -1;
       goto exit;
     }
@@ -905,8 +952,9 @@ static int bitnot_op_callback(struct dds_sql_token **op, const struct dds_sql_to
 #endif
   assert (lhs == NULL);
   assert (rhs != NULL && rhs->aff == DDS_SQL_AFFINITY_INTEGER);
-  (*op)->n.i = ~(rhs->n.i);
-  (*op)->tok = DDS_SQL_TK_INTEGER;
+
+  (*op)->n.u = ~(rhs->n.u);
+  (*op)->tok = DDS_SQL_TK_UNSIGNED;
   (*op)->aff = DDS_SQL_AFFINITY_INTEGER;
   return  0;
 }
@@ -915,8 +963,9 @@ static int bitand_op_callback(struct dds_sql_token **op, const struct dds_sql_to
 {
   assert (lhs != NULL && lhs->aff == DDS_SQL_AFFINITY_INTEGER);
   assert (rhs != NULL && rhs->aff == DDS_SQL_AFFINITY_INTEGER);
-  (*op)->n.i = (lhs->n.i) & (rhs->n.i);
-  (*op)->tok = DDS_SQL_TK_INTEGER;
+
+  (*op)->n.u = (lhs->n.u) & (rhs->n.u);
+  (*op)->tok = DDS_SQL_TK_UNSIGNED;
   (*op)->aff = DDS_SQL_AFFINITY_INTEGER;
   return 0;
 }
@@ -925,8 +974,9 @@ static int bitor_op_callback(struct dds_sql_token **op, const struct dds_sql_tok
 {
   assert (lhs != NULL && lhs->aff == DDS_SQL_AFFINITY_INTEGER);
   assert (rhs != NULL && rhs->aff == DDS_SQL_AFFINITY_INTEGER);
-  (*op)->n.i = (lhs->n.i) | (rhs->n.i);
-  (*op)->tok = DDS_SQL_TK_INTEGER;
+
+  (*op)->n.u = (lhs->n.u) | (rhs->n.u);
+  (*op)->tok = DDS_SQL_TK_UNSIGNED;
   (*op)->aff = DDS_SQL_AFFINITY_INTEGER;
   return 0;
 }
@@ -935,9 +985,9 @@ static int lshift_op_callback(struct dds_sql_token **op, const struct dds_sql_to
 {
   assert (lhs != NULL && lhs->aff == DDS_SQL_AFFINITY_INTEGER);
   assert (rhs != NULL && rhs->aff == DDS_SQL_AFFINITY_INTEGER);
-  assert (lhs->n.i >= 0 && rhs->n.i >= 0);
-  (*op)->n.i = (lhs->n.i) << (rhs->n.i);
-  (*op)->tok = DDS_SQL_TK_INTEGER;
+
+  (*op)->n.u = (lhs->n.u) << (rhs->n.u);
+  (*op)->tok = DDS_SQL_TK_UNSIGNED;
   (*op)->aff = DDS_SQL_AFFINITY_INTEGER;
   return 0;
 }
@@ -946,9 +996,9 @@ static int rshift_op_callback(struct dds_sql_token **op, const struct dds_sql_to
 {
   assert (lhs != NULL && lhs->aff == DDS_SQL_AFFINITY_INTEGER);
   assert (rhs != NULL && rhs->aff == DDS_SQL_AFFINITY_INTEGER);
-  assert (lhs->n.i >= 0 && rhs->n.i >= 0);
-  (*op)->n.i = (lhs->n.i) >> (rhs->n.i);
-  (*op)->tok = DDS_SQL_TK_INTEGER;
+
+  (*op)->n.u = (lhs->n.u) >> (rhs->n.u);
+  (*op)->tok = DDS_SQL_TK_UNSIGNED;
   (*op)->aff = DDS_SQL_AFFINITY_INTEGER;
   return 0;
 }
@@ -960,7 +1010,7 @@ static int not_op_callback(struct dds_sql_token **op, const struct dds_sql_token
 #endif
   assert (lhs == NULL);
   assert (rhs != NULL && rhs->aff > DDS_SQL_AFFINITY_NUMERIC);
-  (*op)->n.i = !(rhs->aff == DDS_SQL_AFFINITY_INTEGER? rhs->n.i: (rhs->n.r > .0 || rhs->n.r < .0));
+  (*op)->n.i = !(rhs->aff == DDS_SQL_AFFINITY_INTEGER? rhs->n.u: (rhs->n.r > .0 || rhs->n.r < .0));
   (*op)->tok = DDS_SQL_TK_INTEGER;
   (*op)->aff = DDS_SQL_AFFINITY_INTEGER;
   return 0;
@@ -970,8 +1020,8 @@ static int and_op_callback(struct dds_sql_token **op, const struct dds_sql_token
 {
   assert (lhs != NULL && lhs->aff > DDS_SQL_AFFINITY_NUMERIC);
   assert (rhs != NULL && rhs->aff > DDS_SQL_AFFINITY_NUMERIC);
-  (*op)->n.i = (lhs->aff == DDS_SQL_AFFINITY_INTEGER? lhs->n.i: (lhs->n.r > .0 || lhs->n.r < .0))
-            && (rhs->aff == DDS_SQL_AFFINITY_INTEGER? rhs->n.i: (rhs->n.r > .0 || rhs->n.r < .0));
+  (*op)->n.i = (lhs->aff == DDS_SQL_AFFINITY_INTEGER? lhs->n.u: (lhs->n.r > .0 || lhs->n.r < .0))
+            && (rhs->aff == DDS_SQL_AFFINITY_INTEGER? rhs->n.u: (rhs->n.r > .0 || rhs->n.r < .0));
   (*op)->tok = DDS_SQL_TK_INTEGER;
   (*op)->aff = DDS_SQL_AFFINITY_INTEGER;
   return 0;
@@ -981,8 +1031,8 @@ static int or_op_callback(struct dds_sql_token **op, const struct dds_sql_token 
 {
   assert (lhs != NULL && lhs->aff > DDS_SQL_AFFINITY_NUMERIC);
   assert (rhs != NULL && rhs->aff > DDS_SQL_AFFINITY_NUMERIC);
-  (*op)->n.i = (lhs->aff == DDS_SQL_AFFINITY_INTEGER? lhs->n.i: (lhs->n.r > .0 || lhs->n.r < .0))
-            || (rhs->aff == DDS_SQL_AFFINITY_INTEGER? rhs->n.i: (rhs->n.r > .0 || rhs->n.r < .0));
+  (*op)->n.i = (lhs->aff == DDS_SQL_AFFINITY_INTEGER? lhs->n.u: (lhs->n.r > .0 || lhs->n.r < .0))
+            || (rhs->aff == DDS_SQL_AFFINITY_INTEGER? rhs->n.u: (rhs->n.r > .0 || rhs->n.r < .0));
   (*op)->tok = DDS_SQL_TK_INTEGER;
   (*op)->aff = DDS_SQL_AFFINITY_INTEGER;
   return 0;
@@ -991,12 +1041,14 @@ static int or_op_callback(struct dds_sql_token **op, const struct dds_sql_token 
 static int minus_op_callback(struct dds_sql_token **op, const struct dds_sql_token *lhs, const struct dds_sql_token *rhs)
 {
   assert (rhs != NULL && rhs->aff > DDS_SQL_AFFINITY_NUMERIC);
+  int res_tok = rhs->tok;
+  int res_aff = rhs->aff;
   if (lhs != NULL)
   {
     assert (lhs->aff > DDS_SQL_AFFINITY_NUMERIC);
     if (rhs->aff == DDS_SQL_AFFINITY_INTEGER) {
-      assert ((lhs->n.i - rhs->n.i) >= INT64_MIN && (lhs->n.i - rhs->n.i) <= INT64_MAX);
-      (*op)->n.i = (lhs->n.i) - (rhs->n.i);
+      (*op)->n.u = (lhs->n.u - rhs->n.u);
+      res_tok = (lhs->tok == DDS_SQL_TK_UNSIGNED)? lhs->tok: rhs->tok;
     } else if (rhs->aff == DDS_SQL_AFFINITY_REAL) {
       assert ((lhs->n.r - rhs->n.r) >= -DBL_MAX && (lhs->n.r - rhs->n.r) <= DBL_MAX);
       (*op)->n.r = (lhs->n.r) - (rhs->n.r);
@@ -1007,20 +1059,24 @@ static int minus_op_callback(struct dds_sql_token **op, const struct dds_sql_tok
     else if (rhs->aff == DDS_SQL_AFFINITY_REAL)
       (*op)->n.r = (-1) * (rhs->n.r);
   }
-  (*op)->tok = rhs->tok;
-  (*op)->aff = rhs->aff;
+  (*op)->tok = res_tok;
+  (*op)->aff = res_aff;
   return 0;
 }
 
 static int plus_op_callback(struct dds_sql_token **op, const struct dds_sql_token *lhs, const struct dds_sql_token *rhs)
 {
   assert (rhs != NULL && rhs->aff > DDS_SQL_AFFINITY_NUMERIC);
+  int res_tok = rhs->tok;
+  int res_aff = rhs->aff;
   if (lhs != NULL)
   {
+    res_tok = lhs->tok;
+    res_aff = lhs->aff;
     assert (lhs->aff > DDS_SQL_AFFINITY_NUMERIC);
     if (rhs->aff == DDS_SQL_AFFINITY_INTEGER) {
-      assert ((lhs->n.i + rhs->n.i) >= INT64_MIN && (lhs->n.i + rhs->n.i) <= INT64_MAX);
-      (*op)->n.i = (lhs->n.i) + (rhs->n.i);
+      (*op)->n.u = (lhs->n.u + rhs->n.u);
+      res_tok = (lhs->tok == DDS_SQL_TK_UNSIGNED)? lhs->tok: rhs->tok;
     } else if (rhs->aff == DDS_SQL_AFFINITY_REAL) {
       assert ((lhs->n.r + rhs->n.r) >= -DBL_MAX && (lhs->n.r + rhs->n.r) <= DBL_MAX);
       (*op)->n.r = (lhs->n.r) + (rhs->n.r);
@@ -1028,8 +1084,8 @@ static int plus_op_callback(struct dds_sql_token **op, const struct dds_sql_toke
   } else {
     (*op)->n = (rhs->n);
   }
-  (*op)->tok = rhs->tok;
-  (*op)->aff = rhs->aff;
+  (*op)->tok = res_tok;
+  (*op)->aff = res_aff;
   return 0;
 }
 
@@ -1037,15 +1093,17 @@ static int star_op_callback(struct dds_sql_token **op, const struct dds_sql_toke
 {
   assert (lhs != NULL && lhs->aff > DDS_SQL_AFFINITY_NUMERIC);
   assert (rhs != NULL && rhs->aff > DDS_SQL_AFFINITY_NUMERIC);
+  int res_tok = lhs->tok;
+  int res_aff = lhs->aff;
   if (lhs->aff == DDS_SQL_AFFINITY_INTEGER) {
-    assert ((lhs->n.i * rhs->n.i) >= INT64_MIN && (lhs->n.i * rhs->n.i) <= INT64_MAX);
-    (*op)->n.i = (lhs->n.i) * (rhs->n.i);
+    (*op)->n.u = (lhs->n.u) * (rhs->n.u);
+    res_tok = (lhs->tok == DDS_SQL_TK_UNSIGNED)? lhs->tok: rhs->tok;
   } else if (lhs->aff == DDS_SQL_AFFINITY_REAL) {
     assert ((lhs->n.r * rhs->n.r) >= -DBL_MAX && (lhs->n.r * rhs->n.r) <= DBL_MAX);
     (*op)->n.r = (lhs->n.r) * (rhs->n.r);
   }
-  (*op)->tok = lhs->tok;
-  (*op)->aff = lhs->aff;
+  (*op)->tok = res_tok;
+  (*op)->aff = res_aff;
   return 0;
 }
 
@@ -1053,15 +1111,17 @@ static int slash_op_callback(struct dds_sql_token **op, const struct dds_sql_tok
 {
   assert (lhs != NULL && lhs->aff > DDS_SQL_AFFINITY_NUMERIC);
   assert (rhs != NULL && rhs->aff > DDS_SQL_AFFINITY_NUMERIC);
+  int res_tok = lhs->tok;
+  int res_aff = lhs->aff;
   if (lhs->aff == DDS_SQL_AFFINITY_INTEGER) {
-    assert ((rhs->n.i != 0U) && (lhs->n.i / rhs->n.i) >= INT64_MIN && (lhs->n.i / rhs->n.i) <= INT64_MAX);
-    (*op)->n.i = (lhs->n.i) / (rhs->n.i);
+    (*op)->n.u = (lhs->n.u) / (rhs->n.u);
+    res_tok = (lhs->tok == DDS_SQL_TK_UNSIGNED)? lhs->tok: rhs->tok;
   } else if (lhs->aff == DDS_SQL_AFFINITY_REAL) {
     assert ((rhs->n.r > 0U || rhs->n.r < 0U) && (lhs->n.r / rhs->n.r) >= -DBL_MAX && (lhs->n.r / rhs->n.r) <= DBL_MAX);
     (*op)->n.r = (lhs->n.r) / (rhs->n.r);
   }
-  (*op)->tok = lhs->tok;
-  (*op)->aff = lhs->aff;
+  (*op)->tok = res_tok;
+  (*op)->aff = res_aff;
   return 0;
 }
 
@@ -1069,16 +1129,18 @@ static int rem_op_callback(struct dds_sql_token **op, const struct dds_sql_token
 {
   assert (lhs != NULL && lhs->aff > DDS_SQL_AFFINITY_NUMERIC);
   assert (rhs != NULL && rhs->aff > DDS_SQL_AFFINITY_NUMERIC);
+  int res_tok = lhs->tok;
+  int res_aff = lhs->aff;
   if (lhs->aff == DDS_SQL_AFFINITY_INTEGER) {
-    assert ((rhs->n.i != 0U) && (lhs->n.i % rhs->n.i) >= INT64_MIN && (lhs->n.i % rhs->n.i) <= INT64_MAX);
-    (*op)->n.i = (lhs->n.i) % (rhs->n.i);
+    (*op)->n.u = (lhs->n.u) % (rhs->n.u);
+    res_tok = (lhs->tok == DDS_SQL_TK_UNSIGNED)? lhs->tok: rhs->tok;
   } else if (lhs->aff == DDS_SQL_AFFINITY_REAL) {
     assert ((rhs->n.r > 0U || rhs->n.r < 0U) && (lhs->n.r / rhs->n.r) >= INT32_MIN && (lhs->n.r / rhs->n.r) <= INT32_MAX);
     assert (lhs->n.r - (int32_t)(lhs->n.r / rhs->n.r)*(rhs->n.r) >= -DBL_MAX && lhs->n.r - (int32_t)(lhs->n.r / rhs->n.r)*(rhs->n.r) <= DBL_MAX);
     (*op)->n.r = lhs->n.r - ((int32_t)((lhs->n.r) / (rhs->n.r))*(rhs->n.r));
   }
-  (*op)->tok = lhs->tok;
-  (*op)->aff = lhs->aff;
+  (*op)->tok = res_tok;
+  (*op)->aff = res_aff;
   return 0;
 }
 
@@ -1090,10 +1152,12 @@ static int eq_op_callback(struct dds_sql_token **op, const struct dds_sql_token 
   bool result = 0;
   if (lhs->aff > DDS_SQL_AFFINITY_NUMERIC)
   {
-    if (lhs->aff == DDS_SQL_AFFINITY_INTEGER)
-      result = lhs->n.i == rhs->n.i;
-    else if (lhs->aff == DDS_SQL_AFFINITY_REAL)
+    if (lhs->aff == DDS_SQL_AFFINITY_INTEGER) {
+      if      (lhs->tok == DDS_SQL_TK_INTEGER)  result = lhs->n.i == rhs->n.i;
+      else if (lhs->tok == DDS_SQL_TK_UNSIGNED) result = lhs->n.u == rhs->n.u;
+    } else if (lhs->aff == DDS_SQL_AFFINITY_REAL) {
       result = !(lhs->n.r < rhs->n.r || lhs->n.r > rhs->n.r);
+    }
   } else if (lhs->aff == DDS_SQL_AFFINITY_TEXT || lhs->aff == DDS_SQL_AFFINITY_BLOB) {
     assert (lhs->s != NULL && rhs->s != NULL);
     result = (lhs->n.i == rhs->n.i) && !memcmp (lhs->s, rhs->s, (unsigned) lhs->n.i);
@@ -1126,10 +1190,12 @@ static int lt_op_callback(struct dds_sql_token **op, const struct dds_sql_token 
   bool result = 0;
   if (lhs->aff > DDS_SQL_AFFINITY_NUMERIC)
   {
-    if (lhs->aff == DDS_SQL_AFFINITY_INTEGER)
-      result = lhs->n.i < rhs->n.i;
-    else if (lhs->aff == DDS_SQL_AFFINITY_REAL)
+    if (lhs->aff == DDS_SQL_AFFINITY_INTEGER) {
+      if      (lhs->tok == DDS_SQL_TK_INTEGER)  result = lhs->n.i < rhs->n.i;
+      else if (lhs->tok == DDS_SQL_TK_UNSIGNED) result = lhs->n.u < rhs->n.u;
+    } else if (lhs->aff == DDS_SQL_AFFINITY_REAL) {
       result = lhs->n.r < rhs->n.r;
+    }
   } else if (lhs->aff == DDS_SQL_AFFINITY_TEXT || lhs->aff == DDS_SQL_AFFINITY_BLOB) {
     assert (lhs->s != NULL && rhs->s != NULL);
     result = memcmp(lhs->s, rhs->s, (unsigned) ((lhs->n.i < rhs->n.i)? lhs->n.i: rhs->n.i)) < 0;
@@ -1151,10 +1217,12 @@ static int gt_op_callback(struct dds_sql_token **op, const struct dds_sql_token 
   bool result = 0;
   if (lhs->aff > DDS_SQL_AFFINITY_NUMERIC)
   {
-    if (lhs->aff == DDS_SQL_AFFINITY_INTEGER)
-      result = lhs->n.i > rhs->n.i;
-    else if (lhs->aff == DDS_SQL_AFFINITY_REAL)
+    if (lhs->aff == DDS_SQL_AFFINITY_INTEGER) {
+      if      (lhs->tok == DDS_SQL_TK_INTEGER)  result = lhs->n.i > rhs->n.i;
+      else if (lhs->tok == DDS_SQL_TK_UNSIGNED) result = lhs->n.u > rhs->n.u;
+    } else if (lhs->aff == DDS_SQL_AFFINITY_REAL) {
       result = lhs->n.r > rhs->n.r;
+    }
   } else if (lhs->aff == DDS_SQL_AFFINITY_TEXT || lhs->aff == DDS_SQL_AFFINITY_BLOB) {
     assert (lhs->s != NULL && rhs->s != NULL);
     result = memcmp(lhs->s, rhs->s, (unsigned) ((lhs->n.i < rhs->n.i)? lhs->n.i: rhs->n.i)) > 0;
@@ -1454,6 +1522,7 @@ static int eval_expr(const unsigned char **s, int prec, struct dds_sql_token **e
     }
     case DDS_SQL_TK_QNUMBER:
     case DDS_SQL_TK_INTEGER:
+    case DDS_SQL_TK_UNSIGNED:
     case DDS_SQL_TK_FLOAT:
     {
       const unsigned char *precursor = cursor - token_sz;
@@ -1462,7 +1531,7 @@ static int eval_expr(const unsigned char **s, int prec, struct dds_sql_token **e
         goto err;
       }
       (l_for)->tok = token;
-      (l_for)->aff = (token == DDS_SQL_TK_INTEGER)? DDS_SQL_AFFINITY_INTEGER: DDS_SQL_AFFINITY_REAL;
+      (l_for)->aff = (token == DDS_SQL_TK_INTEGER || token == DDS_SQL_TK_UNSIGNED)? DDS_SQL_AFFINITY_INTEGER: DDS_SQL_AFFINITY_REAL;
       break;
     }
     case DDS_SQL_TK_STRING:
@@ -1834,6 +1903,31 @@ err:
   return ret;
 }
 
+dds_return_t dds_sql_expr_bind_unsigned (const struct dds_sql_expr *ex, uintptr_t i, uint64_t p)
+{
+  struct dds_sql_param tmpl = {0};
+  dds_return_t retcode = DDS_RETCODE_BAD_PARAMETER;
+  if      (ex->param_kind == DDS_SQL_EXPR_KIND_PARAMETER)     tmpl.id.index = (uint64_t)i;
+  else if (ex->param_kind == DDS_SQL_EXPR_KIND_VARIABLE)      tmpl.id.str   = ddsrt_strdup((char *)(void *)i);
+  else goto err;
+  /* not found? no worries it's optimized or DDS_HAS_TYPELIB missing.
+   * */
+  retcode = (ex->param_kind == DDS_SQL_EXPR_KIND_VARIABLE)? DDS_RETCODE_OK: DDS_RETCODE_BAD_PARAMETER;
+  struct dds_sql_param *param = ddsrt_hh_lookup(ex->param_tokens, &tmpl);
+  if (param == NULL) goto err_not_found;
+  struct dds_sql_token *t = (struct dds_sql_token *)param;
+  if (t->s != NULL) { free (t->s); t->s = NULL; }
+  t->tok = DDS_SQL_TK_UNSIGNED;
+  t->aff = DDS_SQL_AFFINITY_INTEGER;
+  t->n.u = p;
+  retcode = DDS_RETCODE_OK;
+
+err_not_found:
+  if (ex->param_kind == DDS_SQL_EXPR_KIND_VARIABLE) ddsrt_free (tmpl.id.str);
+err:
+  return retcode;
+}
+
 dds_return_t dds_sql_expr_bind_integer(const struct dds_sql_expr *ex, uintptr_t i, int64_t p)
 {
   struct dds_sql_param tmpl = {0};
@@ -1841,7 +1935,8 @@ dds_return_t dds_sql_expr_bind_integer(const struct dds_sql_expr *ex, uintptr_t 
   if      (ex->param_kind == DDS_SQL_EXPR_KIND_PARAMETER)     tmpl.id.index = (uint64_t)i;
   else if (ex->param_kind == DDS_SQL_EXPR_KIND_VARIABLE)      tmpl.id.str   = ddsrt_strdup((char *)(void *)i);
   else goto err;
-  /* FIXME: not found? no worries it's optimized or DDS_HAS_TYPELIB missing. */
+  /* not found? no worries it's optimized or DDS_HAS_TYPELIB missing.
+   * */
   retcode = (ex->param_kind == DDS_SQL_EXPR_KIND_VARIABLE)? DDS_RETCODE_OK: DDS_RETCODE_BAD_PARAMETER;
   struct dds_sql_param *param = ddsrt_hh_lookup(ex->param_tokens, &tmpl);
   if (param == NULL) goto err_not_found;
@@ -1865,7 +1960,8 @@ dds_return_t dds_sql_expr_bind_real(const struct dds_sql_expr *ex, uintptr_t i, 
   if      (ex->param_kind == DDS_SQL_EXPR_KIND_PARAMETER)     tmpl.id.index = (uint64_t)i;
   else if (ex->param_kind == DDS_SQL_EXPR_KIND_VARIABLE)      tmpl.id.str   = ddsrt_strdup((char *)(void *)i);
   else goto err;
-  /* FIXME: not found? no worries it's optimized or DDS_HAS_TYPELIB missing. */
+  /* not found? no worries it's optimized or DDS_HAS_TYPELIB missing.
+   * */
   retcode = (ex->param_kind == DDS_SQL_EXPR_KIND_VARIABLE)? DDS_RETCODE_OK: DDS_RETCODE_BAD_PARAMETER;
   struct dds_sql_param *param = ddsrt_hh_lookup(ex->param_tokens, &tmpl);
   if (param == NULL) goto err_not_found;
@@ -1889,7 +1985,8 @@ dds_return_t dds_sql_expr_bind_string(const struct dds_sql_expr *ex, uintptr_t i
   if      (ex->param_kind == DDS_SQL_EXPR_KIND_PARAMETER)     tmpl.id.index = (uint64_t)i;
   else if (ex->param_kind == DDS_SQL_EXPR_KIND_VARIABLE)      tmpl.id.str   = ddsrt_strdup((char *)(void *)i);
   else goto err;
-  /* FIXME: not found? no worries it's optimized or DDS_HAS_TYPELIB missing. */
+  /* not found? no worries it's optimized or DDS_HAS_TYPELIB missing.
+   * */
   retcode = (ex->param_kind == DDS_SQL_EXPR_KIND_VARIABLE)? DDS_RETCODE_OK: DDS_RETCODE_BAD_PARAMETER;
   struct dds_sql_param *param = ddsrt_hh_lookup(ex->param_tokens, &tmpl);
   if (param == NULL) goto err_not_found;
@@ -1916,7 +2013,8 @@ dds_return_t dds_sql_expr_bind_blob(const struct dds_sql_expr *ex, uintptr_t i, 
   if      (ex->param_kind == DDS_SQL_EXPR_KIND_PARAMETER)     tmpl.id.index = (uint64_t)i;
   else if (ex->param_kind == DDS_SQL_EXPR_KIND_VARIABLE)      tmpl.id.str   = ddsrt_strdup((char *)(void *)i);
   else goto err;
-  /* FIXME: not found? no worries it's optimized or DDS_HAS_TYPELIB missing. */
+  /* not found? no worries it's optimized or DDS_HAS_TYPELIB missing.
+   * */
   retcode = (ex->param_kind == DDS_SQL_EXPR_KIND_VARIABLE)? DDS_RETCODE_OK: DDS_RETCODE_BAD_PARAMETER;
   struct dds_sql_param *param = ddsrt_hh_lookup(ex->param_tokens, &tmpl);
   if (param == NULL) goto err_not_found;
@@ -1962,7 +2060,7 @@ static int expr_pre_eval(const struct dds_sql_token *optoken, struct dds_sql_tok
   if (tk == DDS_SQL_TK_ID || tk == DDS_SQL_TK_VARIABLE)
     return result;
 
-  if (tk == DDS_SQL_TK_INTEGER || tk == DDS_SQL_TK_FLOAT
+  if (tk == DDS_SQL_TK_INTEGER || tk == DDS_SQL_TK_FLOAT || tk == DDS_SQL_TK_UNSIGNED
       || tk == DDS_SQL_TK_STRING || tk == DDS_SQL_TK_BLOB)
   {
     if (optoken->aff >= DDS_SQL_AFFINITY_NUMERIC)
@@ -2017,6 +2115,7 @@ static int expr_pre_eval(const struct dds_sql_token *optoken, struct dds_sql_tok
           {
             if ((result = is_zero)) {
               if ((*token)->s) free ((*token)->s);
+              /* set '0' as a result doesn't require bother UNSIGNED */
               op_p->n.i = !result;
               op_p->aff = DDS_SQL_AFFINITY_INTEGER;
               (void) memcpy(*token, op_p, sizeof(*op_p));
@@ -2068,9 +2167,9 @@ static dds_return_t expr_node_optimize(const struct dds_sql_expr_node *orig, str
     int ftk = (fres != NULL)? fres->token->tok: DDS_SQL_TK_INTEGER, stk = (sres != NULL)? sres->token->tok: DDS_SQL_TK_INTEGER;
     struct dds_sql_expr_node *l = (olh <= orh)? fres: sres;
     struct dds_sql_expr_node *r = (olh <= orh)? sres: fres;
-    assert (r != NULL); /* FIXME: !?!?!? */
-    if ((ftk == DDS_SQL_TK_INTEGER || ftk == DDS_SQL_TK_FLOAT || ftk == DDS_SQL_TK_STRING || ftk == DDS_SQL_TK_BLOB)
-        && (stk == DDS_SQL_TK_INTEGER || stk == DDS_SQL_TK_FLOAT || stk == DDS_SQL_TK_STRING || stk == DDS_SQL_TK_BLOB))
+    assert (r != NULL);
+    if (   (ftk == DDS_SQL_TK_INTEGER || ftk == DDS_SQL_TK_FLOAT || ftk == DDS_SQL_TK_UNSIGNED || ftk == DDS_SQL_TK_STRING || ftk == DDS_SQL_TK_BLOB)
+        && (stk == DDS_SQL_TK_INTEGER || stk == DDS_SQL_TK_FLOAT || ftk == DDS_SQL_TK_UNSIGNED || stk == DDS_SQL_TK_STRING || stk == DDS_SQL_TK_BLOB))
     {
       ret = dds_sql_eval_op(&op, (l!=NULL)? l->token: NULL, r->token);
       assert (ret == 0);

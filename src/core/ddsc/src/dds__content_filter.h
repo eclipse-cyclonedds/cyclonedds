@@ -17,8 +17,8 @@
 extern "C" {
 #endif
 
-/* #define DDS_EXPR_FILTER_PARAM_UINTEGER  DDS_SLQ_TK_UINT */
 #define DDS_EXPR_FILTER_PARAM_INTEGER   DDS_SQL_TK_INTEGER
+#define DDS_EXPR_FILTER_PARAM_UNSIGNED  DDS_SQL_TK_UNSIGNED
 #define DDS_EXPR_FILTER_PARAM_REAL      DDS_SQL_TK_FLOAT
 #define DDS_EXPR_FILTER_PARAM_STRING    DDS_SQL_TK_STRING
 #define DDS_EXPR_FILTER_PARAM_BLOB      DDS_SQL_TK_BLOB
@@ -27,7 +27,7 @@ struct dds_expression_filter_param
 {
   int t;
   union {
-    int64_t i; double d;
+    int64_t i; double d; uint64_t u;
   } n;
   union {
     char *s;

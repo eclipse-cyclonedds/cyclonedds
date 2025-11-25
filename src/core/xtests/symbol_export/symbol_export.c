@@ -185,6 +185,7 @@ int main (int argc, char **argv)
   dds_get_topic_filter_extended (1, ptr);
   dds_expression_filter_create (ptr, ptr2);
   dds_expression_filter_free (ptr);
+  dds_expression_filter_bind_unsigned (ptr, 0, 0U);
   dds_expression_filter_bind_integer (ptr, 0, 0);
   dds_expression_filter_bind_real (ptr, 0, 0);
   dds_expression_filter_bind_string (ptr, 0, ptr2);

@@ -1665,6 +1665,7 @@ struct dds_content_filter {
 
 DDS_EXPORT dds_return_t dds_expression_filter_create (const char *expression, dds_expression_content_filter_t **filter);
 DDS_EXPORT void dds_expression_filter_free (dds_expression_content_filter_t *filter);
+DDS_EXPORT dds_return_t dds_expression_filter_bind_unsigned (dds_expression_content_filter_t *filter, size_t id, uint64_t param);
 DDS_EXPORT dds_return_t dds_expression_filter_bind_integer (dds_expression_content_filter_t *filter, size_t id, int64_t param);
 DDS_EXPORT dds_return_t dds_expression_filter_bind_real (dds_expression_content_filter_t *filter, size_t id, double param);
 DDS_EXPORT dds_return_t dds_expression_filter_bind_string (dds_expression_content_filter_t *filter, size_t id, char *param);
