@@ -29,6 +29,7 @@ jobs:
         build_type: Release
         sanitizer: undefined
         cc: gcc
+        cxx: g++
       'Ubuntu 24.04 (Debug, x86_64, Iceoryx)':
         image: ubuntu-24.04
         # No address sanitizer because of this in test run:
@@ -39,6 +40,7 @@ jobs:
         sanitizer: undefined
         iceoryx: on
         cc: gcc
+        cxx: g++
         coverage: on
       'Ubuntu 24.04 (Debug, x86_64, Iceoryx2)':
         image: ubuntu-24.04
@@ -50,6 +52,7 @@ jobs:
         sanitizer: undefined
         iceoryx2: on
         cc: gcc
+        cxx: g++
         coverage: on
       'Ubuntu 24.04 (Release, x86_64)':
         image: ubuntu-24.04
@@ -67,9 +70,11 @@ jobs:
         topic_discovery: off
         idlc_xtests: off # temporary disabled because of passing -t option to idlc in this test for recursive types
         cc: gcc-12
+        cxx: g++-12
       'Ubuntu 24.04 with GCC 12 (Debug, x86_64, no tests)':
         image: ubuntu-24.04
         cc: gcc-12
+        cxx: g++-12
         testing: off
         idlc_xtests: off
       'Ubuntu 24.04 with Clang (Debug, x86_64)':
@@ -77,11 +82,13 @@ jobs:
         analyzer: on
         sanitizer: address,undefined
         cc: clang
+        cxx: clang++
       'Ubuntu 24.04 with Clang (Debug, x86_64, no security)':
         image: ubuntu-24.04
         sanitizer: address,undefined
         security: off
         cc: clang
+        cxx: clang++
       'Ubuntu 24.04 with Clang (Release, x86_64, no topic discovery)':
         image: ubuntu-24.04
         build_type: Release
@@ -89,20 +96,24 @@ jobs:
         topic_discovery: off
         idlc_xtests: off # temporary disabled because of passing -t option to idlc in this test for recursive types
         cc: clang
+        cxx: clang++
       'macOS 14 with Clang (Debug, x86_64)':
         image: macos-14
         sanitizer: address,undefined
         deadline_update_skip: on
         cc: clang
+        cxx: clang++
         coverage: on
       'macOS 14 with Clang (Release, x86_64)':
         image: macos-14
         build_type: Release
         sanitizer: undefined
         cc: clang
+        cxx: clang++
       'macOS 14 with GCC 14 (Debug, analyzer, x86_64)':
         image: macos-14
         cc: gcc-14
+        cxx: g++-14
         analyzer: on
       # 32-bit Windows: without SSL/security because Chocolateley only provides 64-bit OpenSSL
       'Windows 2025 with Visual Studio 2022 (Debug, x86, no security)':

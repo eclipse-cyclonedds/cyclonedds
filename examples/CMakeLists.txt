@@ -76,6 +76,7 @@ if (ENABLE_TOPIC_DISCOVERY)
 endif ()
 
 add_subdirectory(helloworld)
+add_subdirectory(recorder_and_replayer)
 add_subdirectory(roundtrip)
 add_subdirectory(throughput)
 if (ENABLE_TOPIC_DISCOVERY)
