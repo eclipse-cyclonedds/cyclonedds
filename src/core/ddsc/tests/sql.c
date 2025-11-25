@@ -210,12 +210,26 @@ CU_Test (ddsc_sql, get_numeric)
 {
 #define Q DDS_SQL_TK_QNUMBER
 #define I DDS_SQL_TK_INTEGER
+#define U DDS_SQL_TK_UNSIGNED
 #define F DDS_SQL_TK_FLOAT
 
   TEST_GET_NUMERIC("1______0____00_00__0",  Q, I,   20,   n.i,  1000000);
   TEST_GET_NUMERIC("1",                     I, I,   1,    n.i,  1);
   TEST_GET_NUMERIC("0x12345",               I, I,   7,    n.i,  74565);
   TEST_GET_NUMERIC("0x1_2_3_4_5",           Q, I,   11,   n.i,  74565);
+  TEST_GET_NUMERIC("9223372036854775807",   I, I,   19,   n.i,  9223372036854775807);
+
+  /* to avoid macro re-write, let diagnostic to accept
+   * "(unsigned)a - (unsigned)b < 0" comparison. */
+#if (defined(__GNUC__) && (__GNUC__ >= 10)) || defined(__clang__)
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic ignored \"-Wtype-limits\"")
+#endif
+  TEST_GET_NUMERIC("10_000_000_000_000_000_000",   Q, U,   26,   n.u,  10000000000000000000U);
+  TEST_GET_NUMERIC("10_000_000_000_000_000",       Q, I,   22,   n.i,  10000000000000000);
+#if (defined(__GNUC__) && (__GNUC__ >= 10)) || defined(__clang__)
+_Pragma("GCC diagnostic pop")
+#endif
 
   TEST_GET_NUMERIC(".0",                    F, F,   2,    n.r,  0.0);
   TEST_GET_NUMERIC("1.0abcd",               F, F,   3,    n.r,  1.0);
@@ -224,6 +238,7 @@ CU_Test (ddsc_sql, get_numeric)
   TEST_GET_NUMERIC("1.000000e+01",          F, F,   12,   n.r,  10.0);
 
 #undef F
+#undef U
 #undef I
 #undef Q
 
@@ -308,11 +323,11 @@ CU_Test(ddsc_sql, get_string)
     CU_ASSERT (token > 0); \
     exp.tok = token; \
     int res = 0; \
-    if (token == DDS_SQL_TK_INTEGER || token == DDS_SQL_TK_FLOAT) \
+    if (token == DDS_SQL_TK_INTEGER || token == DDS_SQL_TK_FLOAT || token == DDS_SQL_TK_UNSIGNED) \
     { \
       res = dds_sql_get_numeric(&(exp.n),&cursor,&token,token_sz); \
       CU_ASSERT (res == 0); \
-      exp.aff = (token == DDS_SQL_TK_INTEGER)? DDS_SQL_AFFINITY_INTEGER: DDS_SQL_AFFINITY_REAL; \
+      exp.aff = (token == DDS_SQL_TK_INTEGER || token == DDS_SQL_TK_UNSIGNED)? DDS_SQL_AFFINITY_INTEGER: DDS_SQL_AFFINITY_REAL; \
     } else if (token == DDS_SQL_TK_STRING || token == DDS_SQL_TK_BLOB) { \
       res = dds_sql_get_string((void **)&(exp.s),&cursor,&token,token_sz); \
       CU_ASSERT (res != 0); \
@@ -332,16 +347,16 @@ CU_Test(ddsc_sql, get_string)
       break; \
     } \
     if ((exp.field-val < 0U || exp.field-val > 0U)) { \
-      if (affinity == DDS_SQL_AFFINITY_INTEGER) \
+      if (exp.tok == DDS_SQL_TK_INTEGER) \
         fprintf (stderr, "[FAILED]:%-20s -> expected: %lli actual: %lli\n", e, (long long int)val, (long long int)exp.n.i); \
-      else if (affinity == DDS_SQL_AFFINITY_REAL) \
+      else if (exp.tok == DDS_SQL_TK_UNSIGNED) \
+        fprintf (stderr, "[FAILED]:%-20s -> expected: %llu actual: %llu\n", e, (long long unsigned)val, (long long unsigned)exp.n.u); \
+      else if (exp.tok == DDS_SQL_TK_FLOAT) \
         fprintf (stderr, "[FAILED]:%-20s -> expected: %f actual: %f\n", e, (double)val, exp.n.r); \
       CU_ASSERT (false); \
       break; \
     } \
   } while (0)
-
-
 
 #define TEST_APPLY_AFFINITY_STR(ex,af,val,field,fldsz) \
   do { \
@@ -411,7 +426,26 @@ CU_Test(ddsc_sql, apply_affinity)
   TEST_APPLY_AFFINITY_STR("1.0",                B,       (char *)u,    s,    12);}
   TEST_APPLY_AFFINITY_NUM("1.0",                I,               0,    n.i,  0);
   /*                           (no way, `real` to `integer`!) ---^            */
-  TEST_APPLY_AFFINITY_NUM("1",                  I,               1,    n.i,  0);
+
+  TEST_APPLY_AFFINITY_NUM("1",                  I,                  1, n.i,  0);
+  TEST_APPLY_AFFINITY_NUM("9223372036854775807",I,9223372036854775807, n.i,  0);
+
+  /* to avoid macro re-write, let diagnostic to accept
+   * "(unsigned)a - (unsigned)b < 0" comparison. */
+#if (defined(__GNUC__) && (__GNUC__ >= 10)) || defined(__clang__)
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic ignored \"-Wtype-limits\"")
+#endif 
+  TEST_APPLY_AFFINITY_NUM("\'9223372036854775808.0\'",I,9223372036854775808U,n.u,  0);
+  TEST_APPLY_AFFINITY_NUM("\'9223372036854775000.0\'",I,9223372036854775000, n.i,  0);
+  TEST_APPLY_AFFINITY_NUM("1",                  I,                   1, n.u,  0);
+  TEST_APPLY_AFFINITY_NUM("x'414243'",          I,                   0, n.u,  0);
+  TEST_APPLY_AFFINITY_NUM("9223372036854775808",I,9223372036854775808U, n.u,  0);
+#if (defined(__GNUC__) && (__GNUC__ >= 10)) || defined(__clang__)
+_Pragma("GCC diagnostic pop")
+#endif
+
+  TEST_APPLY_AFFINITY_NUM("9223372036854775808.0",I,             0,    n.r,  0);
   TEST_APPLY_AFFINITY_NUM("1",                  R,               1,    n.r,  0);
   TEST_APPLY_AFFINITY_NUM("x'312E30652B3030'",  R,               1,    n.r,  0);
   TEST_APPLY_AFFINITY_NUM("5",                  N,               5,    n.i,  0);
@@ -763,6 +797,10 @@ CU_Theory((char *s, expr_build_param_t p, char *e), ddsc_sql, expr_build)
 
   for (uint32_t i = 0; i < 2; i++) { PARAM_APPLY(exp, p.params[i]); }
 
+  char res0[EXPBUF_MAX_LEN] = {'\0'};
+  size_t pos0 = 0;
+  expr_node_explore(exp->node, 0, (char *)res0, &pos0);
+
   struct dds_sql_expr *exo = NULL;
   ret = dds_sql_expr_init(&exo, DDS_SQL_EXPR_KIND_VARIABLE);
   CU_ASSERT(ret == DDS_RETCODE_OK);
@@ -775,7 +813,7 @@ CU_Theory((char *s, expr_build_param_t p, char *e), ddsc_sql, expr_build)
   CU_ASSERT(pos == strlen(e));
   bool result = false;
   if (!(result = !memcmp(res, e, pos)))
-    fprintf (stderr, "[FAILED]:\t%s\nexpected:\t%s (%zu)\nactual:\t%s (%zu)\n", s, e, strlen(e), res, pos);
+    fprintf (stderr, "[FAILED]:\t%s\nexpected:\t%s (%zu)\nactual:\t%s (%zu)\t(%s, %zu)\n", s, e, strlen(e), res, pos, res0, pos0);
   CU_ASSERT(result);
 
   dds_sql_expr_fini(exo);
@@ -811,7 +849,8 @@ CU_TheoryDataPoints(ddsc_sql, expr_eval) = {
     "(height.c + length > ?1) AND length != 10 OR ?2 <> height.c",
     "(?1 = 1 OR ?1 = \'a\') AND b",
     "a.a OR (\'a\' = a.a OR ?1 + a.a AND b.b)",
-    "`long_1` * `long_1` = ?1 + 1 / 2"
+    "`long_1` * `long_1` = (?1 + 1) / 2",
+    "(9223372036854775807 * ?1) / a"
   ),
   CU_DataPoints(expr_build_param_t,
     EXPR_BUILD_PARAMS(0,0,0,0),
@@ -831,6 +870,7 @@ CU_TheoryDataPoints(ddsc_sql, expr_eval) = {
     EXPR_BUILD_PARAMS(DDS_SQL_TK_STRING,  "'a'",      0,0),
     EXPR_BUILD_PARAMS(DDS_SQL_TK_STRING,  "'a'",      0,0),
     EXPR_BUILD_PARAMS(DDS_SQL_TK_INTEGER, "1",        0,0),
+    EXPR_BUILD_PARAMS(DDS_SQL_TK_INTEGER, "2",        0,0),
   ),
   CU_DataPoints(expr_build_var_t,
     EXPR_BUILD_VARS("height",   DDS_SQL_TK_INTEGER, "0",    0,0,0),
@@ -849,7 +889,8 @@ CU_TheoryDataPoints(ddsc_sql, expr_eval) = {
     EXPR_BUILD_VARS("height.c", DDS_SQL_TK_INTEGER, "10",   "length", DDS_SQL_TK_INTEGER, "10"),
     EXPR_BUILD_VARS("b",        DDS_SQL_TK_INTEGER, "1",    0,0,0),
     EXPR_BUILD_VARS("a.a",      DDS_SQL_TK_INTEGER, "0",    "b.b",    DDS_SQL_TK_INTEGER, "1"),
-    EXPR_BUILD_VARS("long_1",   DDS_SQL_TK_INTEGER, "1",    0,0,0)
+    EXPR_BUILD_VARS("long_1",   DDS_SQL_TK_INTEGER, "1",    0,0,0),
+    EXPR_BUILD_VARS("a",        DDS_SQL_TK_INTEGER, "2",    0,0,0),
   ),
   CU_DataPoints(char *,
     "-5",
@@ -868,7 +909,8 @@ CU_TheoryDataPoints(ddsc_sql, expr_eval) = {
     "1",
     "1",
     "1",
-    "1"
+    "1",
+    "9223372036854775807"
   )
 };
 

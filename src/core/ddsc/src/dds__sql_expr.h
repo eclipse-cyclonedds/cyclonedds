@@ -59,6 +59,7 @@ extern "C" {
 #define DDS_SQL_TK_SPACE                          184
 #define DDS_SQL_TK_COMMENT                        185
 #define DDS_SQL_TK_ILLEGAL                        186
+#define DDS_SQL_TK_UNSIGNED                       189
 
 #define DDS_SQL_AFFINITY_NONE       0x40    /* '@' */
 #define DDS_SQL_AFFINITY_BLOB       0x41    /* 'A' */
@@ -85,9 +86,7 @@ struct dds_sql_token {
   union {
     double  r;    // DDS_SQL_TK_FLOAT
     int64_t i;    // DDS_SQL_TK_INTEGER
-    /* FIXME:
     uint64_t u;   // DDS_SQL_TK_UNSIGNED
-    */
   } n;
   char *s;        // DDS_SQL_TK_BLOB/DDS_SQL_TK_STRING
   /* FIXME:
@@ -170,10 +169,11 @@ void dds_sql_expr_fini(struct dds_sql_expr *expr);
 
 dds_return_t dds_sql_expr_parse(const unsigned char *s, struct dds_sql_expr **ex);
 
-dds_return_t dds_sql_expr_bind_integer(const struct dds_sql_expr *ex, uintptr_t i, int64_t p);
-dds_return_t dds_sql_expr_bind_real   (const struct dds_sql_expr *ex, uintptr_t i, double p);
-dds_return_t dds_sql_expr_bind_string (const struct dds_sql_expr *ex, uintptr_t i, char s[]);
-dds_return_t dds_sql_expr_bind_blob   (const struct dds_sql_expr *ex, uintptr_t i, unsigned char b[], size_t s);
+dds_return_t dds_sql_expr_bind_unsigned (const struct dds_sql_expr *ex, uintptr_t i, uint64_t p);
+dds_return_t dds_sql_expr_bind_integer  (const struct dds_sql_expr *ex, uintptr_t i, int64_t p);
+dds_return_t dds_sql_expr_bind_real     (const struct dds_sql_expr *ex, uintptr_t i, double p);
+dds_return_t dds_sql_expr_bind_string   (const struct dds_sql_expr *ex, uintptr_t i, char s[]);
+dds_return_t dds_sql_expr_bind_blob     (const struct dds_sql_expr *ex, uintptr_t i, unsigned char b[], size_t s);
 
 dds_return_t dds_sql_expr_build(const struct dds_sql_expr *ex, struct dds_sql_expr **out);
 dds_return_t dds_sql_expr_eval(const struct dds_sql_expr *ex, struct dds_sql_token **out);
