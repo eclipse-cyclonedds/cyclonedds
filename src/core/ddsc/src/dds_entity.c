@@ -902,7 +902,7 @@ static void pushdown_topic_qos (dds_entity *e, struct dds_ktopic *ktp)
       struct dds_participant * const pp = dds_entity_participant (e);
       ddsrt_mutex_lock (&e->m_mutex);
       ddsrt_mutex_lock (&pp->m_entity.m_mutex);
-      dds_set_qos_locked_impl (e, ktp->qos, DDSI_QP_TOPIC_DATA);
+      dds_set_qos_locked_impl (e, ktp->qos, DDSI_QP_TOPIC_DATA | DDSI_QP_CONTENT_FILTER);
       ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
       ddsrt_mutex_unlock (&e->m_mutex);
       break;
