@@ -25,4 +25,4 @@ add_cunit_executable(cunit_idl
   module.c
   forward.c)
 
-target_link_libraries(cunit_idl PRIVATE idl)
+target_link_libraries(cunit_idl PRIVATE ${PROJECT_NAME}::idl)

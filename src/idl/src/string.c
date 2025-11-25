@@ -422,6 +422,8 @@ err_alloc:
 _Pragma("GCC diagnostic pop")
 #endif
 
+#ifndef DDS_STATIC_DEFINE /* DDS built static */
+
 #if defined __MINGW32__
   PIMAGE_TLS_CALLBACK __crt_xl_tls_callback__ __attribute__ ((section(".CRT$XLZ"))) = idl_cdtor;
 #elif defined _WIN64
@@ -437,6 +439,8 @@ _Pragma("GCC diagnostic pop")
   EXTERN_C PIMAGE_TLS_CALLBACK tls_callback_func = idl_cdtor;
   #pragma data_seg()
 #endif /* _WIN32 */
+
+#endif /* DDS_STATIC_DEFINE */
 
 static locale_t posix_locale(void)
 {

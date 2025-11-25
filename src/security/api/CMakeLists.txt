@@ -21,6 +21,7 @@ set(headers
 prepend(headers "${CMAKE_CURRENT_LIST_DIR}/include/dds/security" ${headers})
 
 add_library(security_api INTERFACE)
+add_library(${PROJECT_NAME}::security_api ALIAS security_api)
 target_sources(security_api INTERFACE ${headers})
 
 target_include_directories(
