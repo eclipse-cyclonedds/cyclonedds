@@ -80,9 +80,10 @@ static bool cyclonedds_entity_ready (uint32_t s)
 
 dds_return_t dds_init (void)
 {
-  dds_return_t ret;
-
-  ddsrt_init ();
+  dds_return_t ret = ddsrt_init();
+  if( ret != DDS_RETCODE_OK ){
+    return ret;
+  }
   ddsrt_mutex_t * const init_mutex = ddsrt_get_singleton_mutex ();
   ddsrt_cond_t * const init_cond = ddsrt_get_singleton_cond ();
 

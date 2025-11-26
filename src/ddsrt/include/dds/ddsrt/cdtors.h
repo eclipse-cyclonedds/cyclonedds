@@ -31,15 +31,20 @@ extern "C" {
  * 
  * This doesn't need to be done more than once per process. It keeps track of the number of invocations,
  * and if the current call isn't the first one, it just waits for initializing (by the first one) to finish.
- * Note calling @ref ddsrt_init in parallel to the last invocation of @ref ddsrt_fini results in undefined behavior.
+ * It is safe to call @ref ddsrt_init() concurrently with itself and @ref ddsrt_fini().
+ * 
+ * @return DDS_RETCODE_OUT_OF_RESOURCES on failure (refcount saturated), otherwise DDS_RETCODE_OK
  */
-void ddsrt_init(void);
+dds_return_t ddsrt_init(void);
 
 /**
  * @brief Finalize ddsrt units
  * 
  * Since @ref ddsrt_init increments the reference count, it is decremented here. Only the last invocation
  * (when the reference count is 1) actually finalizes it.
+ * It is safe to call @ref ddsrt_fini() concurrently with itself and @ref ddsrt_init().
+ * If one or more threads call @ref ddsrt_init() whilst the last call to @ref ddsrt_fini()
+ * had already decided to actually finalize it, it will detect this condition and simply re-initialize.
  */
 void ddsrt_fini(void);
 
