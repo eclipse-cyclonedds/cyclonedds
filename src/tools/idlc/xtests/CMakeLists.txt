@@ -122,9 +122,18 @@ foreach(_source ${_sources})
         "SANITIZER=${SANITIZER}"
         "HAS_TYPE_META=${_type_meta}")
   if(APPLE)
-    set_property(
+    if("${CMAKE_OSX_SYSROOT}" STREQUAL "")
+      execute_process(COMMAND xcrun --show-sdk-path OUTPUT_VARIABLE _osx_sysroot)
+      string(STRIP ${_osx_sysroot} _osx_sysroot)
+      set_property(
         TEST "idlc_${_base}"
         APPEND PROPERTY ENVIRONMENT
-          "OSX_SYSROOT=${CMAKE_OSX_SYSROOT}")
+        "OSX_SYSROOT=${_osx_sysroot}")
+    else()
+      set_property(
+        TEST "idlc_${_base}"
+        APPEND PROPERTY ENVIRONMENT
+        "OSX_SYSROOT=${CMAKE_OSX_SYSROOT}")
+    endif()
   endif()
 endforeach()

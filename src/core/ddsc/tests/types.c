@@ -22,14 +22,14 @@
         for( unsigned i = 0; i < (sizeof data.key / sizeof *data.key); i++) data.key[i] = (init); \
         \
         par = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL); \
-        CU_ASSERT_FATAL(par > 0); \
+        CU_ASSERT_GT_FATAL (par, 0); \
         top = dds_create_topic(par, &TypesArrayKey_##type##_arraytypekey_desc, strfy(type), NULL, NULL); \
-        CU_ASSERT_FATAL(top > 0); \
+        CU_ASSERT_GT_FATAL (top, 0); \
         wri = dds_create_writer(par, top, NULL, NULL); \
-        CU_ASSERT_FATAL(wri > 0); \
+        CU_ASSERT_GT_FATAL (wri, 0); \
         \
         status = dds_write(wri, &data); \
-        CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK); \
+        CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_OK); \
         \
         dds_delete(wri); \
         dds_delete(top); \
@@ -106,14 +106,14 @@ CU_Test(ddsc_types, alltypeskey)
     };
 
     par = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-    CU_ASSERT_FATAL(par > 0);
+    CU_ASSERT_GT_FATAL (par, 0);
     top = dds_create_topic(par, &TypesArrayKey_alltypeskey_desc, "AllTypesKey", NULL, NULL);
-    CU_ASSERT_FATAL(top > 0);
+    CU_ASSERT_GT_FATAL (top, 0);
     wri = dds_create_writer(par, top, NULL, NULL);
-    CU_ASSERT_FATAL(wri > 0);
+    CU_ASSERT_GT_FATAL (wri, 0);
 
     status = dds_write(wri, &atk_data);
-    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_OK);
 
     dds_delete(wri);
     dds_delete(top);

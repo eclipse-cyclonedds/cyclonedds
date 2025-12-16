@@ -445,6 +445,11 @@ check_create_topic(dds_security_access_control *instance,
   /* Find a topic with the specified topic name in the Governance */
   result = is_topic_allowed_by_permissions(local_rights->permissions_tree, domain_id, topic_name, local_rights->identity_subject_name, ex);
 
+  /* ex may have been set because of encountering a deny rule even though topic creation is allowed,
+     leaving the exception set causes a memory leak */
+  if (result)
+    DDS_Security_Exception_reset(ex);
+
 exit:
   ACCESS_CONTROL_OBJECT_RELEASE(local_rights);
   return result;
@@ -1952,8 +1957,7 @@ static bool is_allowed_by_default_rule (const struct grant *permissions_grant, c
   }
 }
 
-static bool is_allowed_by_rule (const struct allow_deny_rule *current_rule, const char *topic_name, DDS_Security_SecurityException *ex) ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
-
+ddsrt_nonnull_all ddsrt_attribute_warn_unused_result
 static bool is_allowed_by_rule (const struct allow_deny_rule *current_rule, const char *topic_name, DDS_Security_SecurityException *ex)
 {
   switch (current_rule->rule_type)
@@ -2014,13 +2018,39 @@ static bool is_topic_allowed_by_permissions (const struct permissions_parser *pe
   const struct allow_deny_rule *rule;
   if (!rule_iter_init (&it, permissions, domain_id, identity_subject_name, ex))
     return false;
+
+  bool subscribe_rule_found = false;
+  bool publish_rule_found = false;
+
+  bool subscribe_allowed = true;
+  bool publish_allowed = true;
+
   while ((rule = rule_iter_next (&it)) != NULL)
   {
     for (const struct criteria *crit = rule->criteria; crit; crit = (const struct criteria *) crit->node.next)
+    {
       if (is_topic_in_criteria (crit, topic_name))
-        return is_allowed_by_rule (rule, topic_name, ex);
+      {
+        if (!subscribe_rule_found && crit->criteria_type == SUBSCRIBE_CRITERIA)
+        {
+          subscribe_rule_found = true;
+          subscribe_allowed = is_allowed_by_rule (rule, topic_name, ex);
+        }
+        else if (!publish_rule_found && crit->criteria_type == PUBLISH_CRITERIA)
+        {
+          publish_rule_found = true;
+          publish_allowed = is_allowed_by_rule (rule, topic_name, ex);
+        }
+      }
+    }
   }
-  return is_allowed_by_default_rule (it.grant, topic_name, ex);
+
+  if (!subscribe_rule_found)
+    subscribe_allowed = is_allowed_by_default_rule (it.grant, topic_name, ex);
+  if (!publish_rule_found)
+    publish_allowed = is_allowed_by_default_rule (it.grant, topic_name, ex);
+
+  return publish_allowed || subscribe_allowed;
 }
 
 static bool is_readwrite_allowed_by_permissions (struct permissions_parser *permissions, int domain_id, const char *topic_name, const DDS_Security_PartitionQosPolicy *partitions, const char *identity_subject_name, permission_criteria_type criteria_type, DDS_Security_SecurityException *ex)

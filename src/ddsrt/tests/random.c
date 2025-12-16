@@ -30,7 +30,7 @@ CU_Test(ddsrt_random, mt19937)
   for (size_t i = 0; i < N_DATA; i++)
   {
     uint32_t x = ddsrt_prng_random (&prng);
-    CU_ASSERT_EQUAL_FATAL(x, refdata[i]);
+    CU_ASSERT_EQ_FATAL (x, refdata[i]);
   }
 }
 
@@ -43,7 +43,7 @@ CU_Test(ddsrt_random, makeseed)
   for (size_t i = 0; i < N_PRNG; i++)
   {
     bool ok = ddsrt_prng_makeseed (&seeds[i]);
-    CU_ASSERT_FATAL(ok);
+    CU_ASSERT_FATAL (ok);
   }
 
   /* Any pair the same is possible, but the likelihood should be so small that it is worth accepting
@@ -51,7 +51,7 @@ CU_Test(ddsrt_random, makeseed)
   for (size_t i = 0; i < N_PRNG; i++)
   {
     for (size_t j = i + 1; j < N_PRNG; j++)
-      CU_ASSERT_FATAL (memcmp (&seeds[i], &seeds[j], sizeof (seeds[i])) != 0);
+      CU_ASSERT_NEQ_FATAL (memcmp (&seeds[i], &seeds[j], sizeof (seeds[i])), 0);
   }
 
   /* A short random sequence generated from each of the different seeds should be unique -- again,
@@ -68,7 +68,7 @@ CU_Test(ddsrt_random, makeseed)
   for (size_t i = 0; i < N_PRNG; i++)
   {
     for (size_t j = i + 1; j < N_PRNG; j++)
-      CU_ASSERT_FATAL (memcmp (&data[i], &data[j], sizeof (data[i])) != 0);
+      CU_ASSERT_NEQ_FATAL (memcmp (&data[i], &data[j], sizeof (data[i])), 0);
   }
 }
 
@@ -87,5 +87,5 @@ CU_Test(ddsrt_random, default_random)
   for (size_t i = 0; i < N_BINS; i++)
     chisq += ((bins[i] - N_PER_BIN) * (bins[i] - N_PER_BIN)) / (double) N_PER_BIN;
   /* Solve[CDF[ChiSquareDistribution[127], x] == 999/1000] */
-  CU_ASSERT (chisq < 181.993);
+  CU_ASSERT_LT (chisq, 181.993);
 }

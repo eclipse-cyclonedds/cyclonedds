@@ -30,6 +30,7 @@
 #include "dds/ddsrt/random.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/log.h"
+#include "dds/ddsrt/machineid.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
@@ -393,8 +394,10 @@ int main (int argc, char **argv)
   dds_qset_durability_service (ptr, 0, 0, 0, 0, 0, 0);
   dds_qset_ignorelocal (ptr, 0);
   dds_qset_prop (ptr, ptr2, ptr3);
+  dds_qset_prop_propagate (ptr, ptr, ptr, ptr);
   dds_qunset_prop (ptr, ptr2);
   dds_qset_bprop (ptr, ptr2, ptr3, 0);
+  dds_qset_bprop_propagate (ptr, ptr2, ptr3, 0, ptr);
   dds_qunset_bprop (ptr, ptr2);
   dds_qset_type_consistency (ptr, 0, 0, 0, 0, 0, 0);
   dds_qset_data_representation (ptr, 0, ptr2);
@@ -425,8 +428,10 @@ int main (int argc, char **argv)
   dds_qget_ignorelocal (ptr, 0);
   dds_qget_propnames (ptr, ptr, ptr);
   dds_qget_prop (ptr, ptr, ptr);
+  dds_qget_prop_propagate (ptr, ptr, ptr, ptr);
   dds_qget_bpropnames (ptr, ptr, ptr);
   dds_qget_bprop (ptr, ptr, ptr, ptr);
+  dds_qget_bprop_propagate (ptr, ptr, ptr, ptr, ptr);
   dds_qget_type_consistency (ptr, 0, ptr, ptr, ptr, ptr, ptr);
   dds_qget_data_representation (ptr, ptr, ptr);
   dds_qget_entity_name (ptr, ptr);
@@ -499,13 +504,16 @@ int main (int argc, char **argv)
 
   ret_cdrs = dds_stream_normalize (ptr, 0, 0, 0, ptr2, 0, ptr3);
   (void) ret_cdrs;
-  ret_cdrs = dds_stream_normalize_data (ptr, ptr2, 0, 0, 0, ptr3);
+  ret_cdrs = dds_stream_normalize_xcdr2_data (ptr, ptr2, 0, 0, ptr3);
   (void) ret_cdrs;
 
   dds_stream_write (ptr, ptr2, ptr3, ptr4);
   dds_stream_writeLE (ptr, ptr2, ptr3, ptr4);
   dds_stream_writeBE (ptr, ptr2, ptr3, ptr4);
-  dds_stream_write_with_byte_order (ptr, ptr2, ptr3, ptr4, 0);
+  dds_stream_write_with_mid (ptr, ptr2, ptr3, ptr4, ptr5);
+  dds_stream_write_with_midLE (ptr, ptr2, ptr3, ptr4, ptr5);
+  dds_stream_write_with_midBE (ptr, ptr2, ptr3, ptr4, ptr5);
+  dds_stream_write_with_byte_order (ptr, ptr2, ptr3, ptr4, ptr5, 0);
   dds_stream_write_sample (ptr, ptr2, ptr3, ptr4);
   dds_stream_write_sampleLE (ptr, ptr2, ptr3, ptr4);
   dds_stream_write_sampleBE (ptr, ptr2, ptr3, ptr4);
@@ -527,12 +535,15 @@ int main (int argc, char **argv)
   dds_stream_extract_keyBE_from_data (ptr, ptr2, ptr3, ptr4);
   dds_stream_extract_keyBE_from_key (ptr, ptr2, 0, ptr3, ptr4);
   dds_cdrstream_desc_from_topic_desc (ptr, ptr2);
+  dds_cdrstream_desc_init_with_nops (ptr, ptr2, 0, 0, 0, ptr3, 0, ptr4, 0);
   dds_cdrstream_desc_init (ptr, ptr2, 0, 0, 0, ptr3, ptr4, 0);
   dds_cdrstream_desc_fini (ptr, ptr2);
 
   // dds_psmx.h
   dds_add_psmx_endpoint_to_list (ptr, ptr2);
   dds_add_psmx_topic_to_list (ptr, ptr2);
+  dds_remove_psmx_endpoint_from_list (ptr, ptr2);
+  dds_remove_psmx_topic_from_list (ptr, ptr2);
   dds_psmx_init_generic (ptr);
   dds_psmx_cleanup_generic (ptr);
   dds_psmx_topic_init_generic (ptr, ptr2, ptr3, ptr4, ptr, 0);
@@ -929,10 +940,26 @@ int main (int argc, char **argv)
   ddsrt_cond_init (ptr);
   ddsrt_cond_destroy (ptr);
   ddsrt_cond_wait (ptr,ptr);
-  ddsrt_cond_waituntil (ptr, ptr, 0);
-  ddsrt_cond_waitfor (ptr, ptr, 0);
   ddsrt_cond_signal (ptr);
   ddsrt_cond_broadcast (ptr);
+  ddsrt_cond_wctime_init (ptr);
+  ddsrt_cond_wctime_destroy (ptr);
+  ddsrt_cond_wctime_wait (ptr,ptr);
+  ddsrt_cond_wctime_waituntil (ptr, ptr, (ddsrt_wctime_t){0});
+  ddsrt_cond_wctime_signal (ptr);
+  ddsrt_cond_wctime_broadcast (ptr);
+  ddsrt_cond_mtime_init (ptr);
+  ddsrt_cond_mtime_destroy (ptr);
+  ddsrt_cond_mtime_wait (ptr,ptr);
+  ddsrt_cond_mtime_waituntil (ptr, ptr, (ddsrt_mtime_t){0});
+  ddsrt_cond_mtime_signal (ptr);
+  ddsrt_cond_mtime_broadcast (ptr);
+  ddsrt_cond_etime_init (ptr);
+  ddsrt_cond_etime_destroy (ptr);
+  ddsrt_cond_etime_wait (ptr,ptr);
+  ddsrt_cond_etime_waituntil (ptr, ptr, (ddsrt_etime_t){0});
+  ddsrt_cond_etime_signal (ptr);
+  ddsrt_cond_etime_broadcast (ptr);
   ddsrt_rwlock_init (ptr);
   ddsrt_rwlock_destroy (ptr);
   ddsrt_rwlock_read (ptr);
@@ -979,6 +1006,7 @@ int main (int argc, char **argv)
   ddsrt_time_wallclock ();
   ddsrt_time_monotonic ();
   ddsrt_time_elapsed ();
+  ddsrt_time_highres ();
   ddsrt_ctime (0, ptr, 0);
   ddsrt_time_add_duration (0, 0);
   ddsrt_mtime_add_duration (mt, 0);
@@ -1161,6 +1189,9 @@ int main (int argc, char **argv)
   ddsrt_xmlp_get_bufpos (ptr);
   ddsrt_xmlp_free (ptr);
   ddsrt_xmlp_parse (ptr);
+
+  // ddsrt/machineid.h
+  ddsrt_get_machineid (ptr);
 
 #if DDSRT_HAVE_FILESYSTEM
   // ddsrt/filesystem.h

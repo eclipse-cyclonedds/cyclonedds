@@ -1140,6 +1140,8 @@ static void dds_rhc_register (struct dds_rhc_default *rhc, struct rhc_instance *
     inst->wr_iid = wr_iid;
     if (sample_accepted)
       inst->wr_iid_islive = 1;
+    else
+      lwregs_add (&rhc->registrations, inst->iid, wr_iid);
     inst->wrcount++;
     inst->no_writers_gen++;
     inst->autodispose = autodispose;
@@ -1173,7 +1175,7 @@ static void dds_rhc_register (struct dds_rhc_default *rhc, struct rhc_instance *
         inst->autodispose = 1;
       TRACE ("new2iidnull");
     }
-    else
+    else if (sample_accepted)
     {
       bool x = lwregs_delete (&rhc->registrations, inst->iid, wr_iid);
       assert (x);

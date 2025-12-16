@@ -429,7 +429,7 @@ validate_local_identity_and_permissions(int32_t permission_expiry)
   DDS_Security_DomainId domain_id = 0;
   DDS_Security_Qos participant_qos;
   DDS_Security_GUID_t candidate_participant_guid;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_GuidPrefix_t prefix = {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb};
   DDS_Security_EntityId_t entityId = {{0xb0, 0xb1, 0xb2}, 0x1};
 
@@ -486,7 +486,7 @@ validate_local_identity_and_permissions(int32_t permission_expiry)
 
 static void clear_local_identity_and_permissions(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_boolean success;
 
   if (local_permissions_handle != DDS_SECURITY_HANDLE_NIL)
@@ -554,7 +554,7 @@ CU_Test(ddssec_builtin_listeners_access_control, local_2secs)
   DDS_Security_PermissionsHandle result;
   DDS_Security_PermissionsToken permissions_token;
   DDS_Security_AuthenticatedPeerCredentialToken credential_token;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_long valid;
   int r;
   dds_duration_t time_left = DDS_MSECS(10000);
@@ -573,20 +573,17 @@ CU_Test(ddssec_builtin_listeners_access_control, local_2secs)
          * Just take our losses and quit, simulating a success. */
     return;
   }
-  CU_ASSERT_FATAL(valid == DDS_SECURITY_ERR_OK_CODE);
+  CU_ASSERT_EQ_FATAL (valid, DDS_SECURITY_ERR_OK_CODE);
 
   /* Check if we actually have validate_remote_permissions function. */
-  CU_ASSERT_FATAL(local_identity_handle != DDS_SECURITY_HANDLE_NIL);
-  CU_ASSERT_FATAL(access_control != NULL);
-  assert(access_control != NULL);
-  CU_ASSERT_FATAL(access_control->validate_remote_permissions != NULL);
-  assert(access_control->validate_remote_permissions != 0);
-  CU_ASSERT_FATAL(access_control->return_permissions_handle != NULL);
-  assert(access_control->return_permissions_handle != 0);
+  CU_ASSERT_NEQ_FATAL (local_identity_handle, DDS_SECURITY_HANDLE_NIL);
+  CU_ASSERT_NEQ_FATAL (access_control, NULL);
+  CU_ASSERT_NEQ_FATAL (access_control->validate_remote_permissions, NULL);
+  CU_ASSERT_NEQ_FATAL (access_control->return_permissions_handle, NULL);
 
   fill_permissions_token(&permissions_token);
   r = fill_peer_credential_token(&credential_token, 1);
-  CU_ASSERT_FATAL(r);
+  CU_ASSERT_NEQ_FATAL (r, 0);
 
   remote_identity_handle++;
 
@@ -606,7 +603,7 @@ CU_Test(ddssec_builtin_listeners_access_control, local_2secs)
     printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
     /* Expiry can happen on very slow platforms or when doing a valgrind run.
          * Just take our losses and quit, simulating a success. */
-    CU_ASSERT(exception.code == DDS_SECURITY_ERR_VALIDITY_PERIOD_EXPIRED_CODE);
+    CU_ASSERT_EQ (exception.code, DDS_SECURITY_ERR_VALIDITY_PERIOD_EXPIRED_CODE);
     goto end;
   }
 
@@ -645,8 +642,8 @@ CU_Test(ddssec_builtin_listeners_access_control, local_2secs)
     time_left -= DDS_MSECS(100);
   }
 
-  CU_ASSERT(local_expired);
-  CU_ASSERT(remote_expired);
+  CU_ASSERT (local_expired);
+  CU_ASSERT (remote_expired);
 
   access_control->return_permissions_handle(access_control, result, &exception);
 

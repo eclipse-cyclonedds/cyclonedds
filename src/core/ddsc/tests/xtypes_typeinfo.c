@@ -74,14 +74,14 @@ static void xtypes_typeinfo_init (void)
   dds_free (conf2);
 
   g_participant1 = dds_create_participant (DDS_DOMAINID_PUB, NULL, NULL);
-  CU_ASSERT_FATAL (g_participant1 > 0);
+  CU_ASSERT_GT_FATAL (g_participant1, 0);
   g_participant2 = dds_create_participant (DDS_DOMAINID_SUB, NULL, NULL);
-  CU_ASSERT_FATAL (g_participant2 > 0);
+  CU_ASSERT_GT_FATAL (g_participant2, 0);
 
   g_publisher1 = dds_create_publisher (g_participant1, NULL, NULL);
-  CU_ASSERT_FATAL (g_publisher1 > 0);
+  CU_ASSERT_GT_FATAL (g_publisher1, 0);
   g_subscriber2 = dds_create_subscriber (g_participant2, NULL, NULL);
-  CU_ASSERT_FATAL (g_subscriber2 > 0);
+  CU_ASSERT_GT_FATAL (g_subscriber2, 0);
 }
 
 static void xtypes_typeinfo_fini (void)
@@ -116,7 +116,7 @@ CU_Test (ddsc_xtypes_typeinfo, invalid_top_level_local_hash, .init = xtypes_type
 
     create_unique_topic_name ("ddsc_xtypes_typeinfo", topic_name, sizeof (topic_name));
     dds_entity_t topic = dds_create_topic (g_participant1, &desc, topic_name, NULL, NULL);
-    CU_ASSERT_FATAL (topic < 0);
+    CU_ASSERT_LT_FATAL (topic, 0);
 
     ddsi_typeinfo_fini ((ddsi_typeinfo_t *) ti);
     ddsrt_free (ti);
@@ -142,7 +142,7 @@ CU_Test (ddsc_xtypes_typeinfo, invalid_top_level_local_non_hash, .init = xtypes_
 
   create_unique_topic_name ("ddsc_xtypes_typeinfo", topic_name, sizeof (topic_name));
   dds_entity_t topic = dds_create_topic (g_participant1, &desc, topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (topic < 0);
+  CU_ASSERT_LT_FATAL (topic, 0);
 
   ddsi_typeinfo_fini ((ddsi_typeinfo_t *) ti);
   ddsrt_free (ti);
@@ -211,7 +211,7 @@ CU_TheoryDataPoints (ddsc_xtypes_typeinfo, invalid_type_object_local) = {
 CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, typeobj_modify mod, bool matching_typeinfo), ddsc_xtypes_typeinfo, invalid_type_object_local, .init = xtypes_typeinfo_init, .fini = xtypes_typeinfo_fini)
 {
   char topic_name[100];
-  printf("Test invalid_type_object_local: %s\n", test_descr);
+  tprintf("Test invalid_type_object_local: %s\n", test_descr);
 
   dds_topic_descriptor_t desc;
   xtypes_util_modify_type_meta (&desc, topic_desc, mod, matching_typeinfo, DDS_XTypes_EK_MINIMAL);
@@ -219,7 +219,7 @@ CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, ty
   // test that topic creation fails
   create_unique_topic_name ("ddsc_xtypes_typeinfo", topic_name, sizeof (topic_name));
   dds_entity_t topic = dds_create_topic (g_participant1, &desc, topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (topic < 0);
+  CU_ASSERT_LT_FATAL (topic, 0);
 
   if (matching_typeinfo)
     ddsrt_free ((void *) desc.type_information.data);
@@ -237,7 +237,7 @@ CU_Test (ddsc_xtypes_typeinfo, invalid_top_level_remote_hash, .init = xtypes_typ
 
   // create local topic so that types are in type lib and resolved
   dds_entity_t topic = dds_create_topic (g_participant1, &XSpace_to_toplevel_desc, topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (topic > 0);
+  CU_ASSERT_GT_FATAL (topic, 0);
 
   // create type id with invalid top-level
   // coverity[store_writes_const_field]
@@ -275,9 +275,9 @@ static void test_proxy_rd_matches (dds_entity_t wr, bool exp_match)
 {
   struct dds_entity *x;
   dds_return_t rc = dds_entity_pin (wr, &x);
-  CU_ASSERT_EQUAL_FATAL (rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
   struct dds_writer *dds_wr = (struct dds_writer *) x;
-  CU_ASSERT_EQUAL_FATAL (dds_wr->m_wr->num_readers, exp_match ? 1 : 0);
+  CU_ASSERT_EQ_FATAL (dds_wr->m_wr->num_readers, exp_match ? 1 : 0);
   dds_entity_unpin (x);
 }
 #endif
@@ -286,16 +286,16 @@ CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, ty
 {
 #ifdef DDS_HAS_TYPE_DISCOVERY
   struct ddsi_domaingv *gv = get_domaingv (g_participant1);
-  printf("Test invalid_type_object_remote: %s\n", test_descr);
+  tprintf("Test invalid_type_object_remote: %s\n", test_descr);
 
   char topic_name[100];
   create_unique_topic_name ("ddsc_typelookup", topic_name, sizeof (topic_name));
 
   // local writer
   dds_entity_t topic = dds_create_topic (g_participant1, topic_desc, topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (topic > 0);
+  CU_ASSERT_GT_FATAL (topic, 0);
   dds_entity_t wr = dds_create_writer (g_participant1, topic, NULL, NULL);
-  CU_ASSERT_FATAL (wr > 0);
+  CU_ASSERT_GT_FATAL (wr, 0);
 
   dds_topic_descriptor_t desc;
   xtypes_util_modify_type_meta (&desc, topic_desc, mod, true, DDS_XTypes_EK_MINIMAL);
@@ -321,12 +321,12 @@ CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, ty
   ddsi_tl_add_types (gv, &reply, &gpe_match_upd, &n_match_upd);
 
   // expect no match because of invalid types
-  CU_ASSERT_EQUAL_FATAL (n_match_upd, 0);
+  CU_ASSERT_EQ_FATAL (n_match_upd, 0);
   ddsrt_free (gpe_match_upd);
 
   struct ddsi_type *type = ddsi_type_lookup (gv, (ddsi_typeid_t *) &tmap->identifier_object_pair_minimal._buffer[0].type_identifier);
-  CU_ASSERT_PTR_NOT_NULL_FATAL (type);
-  CU_ASSERT_EQUAL_FATAL (type->state, DDSI_TYPE_INVALID);
+  CU_ASSERT_NEQ_FATAL (type, NULL);
+  CU_ASSERT_EQ_FATAL (type->state, DDSI_TYPE_INVALID);
 
   // clean up
   test_proxy_rd_fini (gv, &pp_guid, &rd_guid);
@@ -349,22 +349,22 @@ CU_Test (ddsc_xtypes_typeinfo, get_type_info, .init = xtypes_typeinfo_init, .fin
   create_unique_topic_name ("ddsc_xtypes_typeinfo", topic_name, sizeof (topic_name));
 
   dds_entity_t topic = dds_create_topic (g_participant1, &XSpace_XType1_desc, topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (topic > 0);
+  CU_ASSERT_GT_FATAL (topic, 0);
   dds_entity_t wr = dds_create_writer (g_participant1, topic, NULL, NULL);
-  CU_ASSERT_FATAL (wr > 0);
+  CU_ASSERT_GT_FATAL (wr, 0);
   dds_entity_t rd = dds_create_reader (g_participant1, topic, NULL, NULL);
-  CU_ASSERT_FATAL (rd > 0);
+  CU_ASSERT_GT_FATAL (rd, 0);
 
   dds_typeinfo_t *type_info_tp, *type_info_wr, *type_info_rd;
   dds_return_t ret;
   ret = dds_get_typeinfo (topic, &type_info_tp);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_get_typeinfo (wr, &type_info_wr);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_get_typeinfo (rd, &type_info_rd);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-  CU_ASSERT_FATAL (ddsi_typeinfo_equal (type_info_tp, type_info_wr, DDSI_TYPE_INCLUDE_DEPS));
-  CU_ASSERT_FATAL (ddsi_typeinfo_equal (type_info_tp, type_info_rd, DDSI_TYPE_INCLUDE_DEPS));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_NEQ_FATAL (ddsi_typeinfo_equal (type_info_tp, type_info_wr, DDSI_TYPE_INCLUDE_DEPS), 0);
+  CU_ASSERT_NEQ_FATAL (ddsi_typeinfo_equal (type_info_tp, type_info_rd, DDSI_TYPE_INCLUDE_DEPS), 0);
 
   dds_free_typeinfo (type_info_tp);
   dds_free_typeinfo (type_info_wr);

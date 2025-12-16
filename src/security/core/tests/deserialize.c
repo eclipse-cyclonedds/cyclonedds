@@ -45,10 +45,10 @@ CU_Test(dds_security_serialize, deserialize_octet_seq)
     DDS_Security_KeyMaterial_AES_GCM_GMAC data;
     int r = DDS_Security_Deserialize_KeyMaterial_AES_GCM_GMAC(dser, &data);
     // This should fail, because 9 bytes is not enough to deserialize the key material
-    CU_ASSERT_EQUAL(r, 0);
+    CU_ASSERT_EQ (r, 0);
     // Specifically, master_receiver_specific_key._buffer should be NULL, because
     // the octet sequence itself is longer than the serialized data according to dser->remain
-    CU_ASSERT_EQUAL(data.master_receiver_specific_key._buffer, NULL);
+    CU_ASSERT_EQ (data.master_receiver_specific_key._buffer, NULL);
 
     ddsrt_free(data.master_salt._buffer);
     ddsrt_free(data.master_sender_key._buffer);

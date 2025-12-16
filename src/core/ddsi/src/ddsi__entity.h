@@ -66,7 +66,7 @@ int ddsi_is_builtin_entityid (ddsi_entityid_t id, ddsi_vendorid_t vendorid);
 bool ddsi_update_qos_locked (struct ddsi_entity_common *e, dds_qos_t *ent_qos, const dds_qos_t *xqos, ddsrt_wctime_t timestamp);
 
 /** @component ddsi_generic_entity */
-int ddsi_set_topic_type_name (dds_qos_t *xqos, const char * topic_name, const char * type_name);
+int ddsi_set_xqos_topic_and_type (dds_qos_t *xqos, const char * topic_name, const struct ddsi_sertype * type);
 
 /** @component ddsi_generic_entity */
 int ddsi_compare_entityid (const void *a, const void *b);

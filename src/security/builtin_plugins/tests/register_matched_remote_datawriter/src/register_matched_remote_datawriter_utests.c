@@ -57,7 +57,7 @@ static void prepare_endpoint_security_attributes(DDS_Security_EndpointSecurityAt
 
 static void register_local_regular(void)
 {
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq datareader_properties;
   DDS_Security_EndpointSecurityAttributes datareader_security_attributes;
 
@@ -78,18 +78,18 @@ static void register_local_regular(void)
 static void suite_register_matched_remote_datawriter_init(void)
 {
   DDS_Security_IdentityHandle participant_identity = 5; //valid dummy value
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PropertySeq participant_properties;
   DDS_Security_PermissionsHandle remote_participant_permissions = 5; //valid dummy value
   DDS_Security_SharedSecretHandleImpl *shared_secret_handle_impl;
   DDS_Security_PermissionsHandle participant_permissions = 3; //valid dummy value
   DDS_Security_ParticipantSecurityAttributes participant_security_attributes;
 
-  CU_ASSERT_FATAL ((plugins = load_plugins(
-                      NULL    /* Access Control */,
-                      NULL    /* Authentication */,
-                      &crypto /* Cryptograpy    */,
-                      NULL)) != NULL);
+  CU_ASSERT_NEQ_FATAL ((plugins = load_plugins(
+    NULL    /* Access Control */,
+    NULL    /* Authentication */,
+    &crypto /* Cryptograpy    */,
+    NULL)), NULL);
 
   /* prepare test shared secret handle */
   shared_secret_handle_impl = ddsrt_malloc(sizeof(DDS_Security_SharedSecretHandleImpl));
@@ -120,7 +120,7 @@ static void suite_register_matched_remote_datawriter_init(void)
       &participant_security_attributes,
       &exception);
 
-  CU_ASSERT_FATAL (local_participant_crypto_handle != DDS_SECURITY_HANDLE_NIL);
+  CU_ASSERT_NEQ_FATAL (local_participant_crypto_handle, DDS_SECURITY_HANDLE_NIL);
 
   /* Now call the function. */
   remote_participant_crypto_handle = crypto->crypto_key_factory->register_matched_remote_participant(
@@ -131,20 +131,20 @@ static void suite_register_matched_remote_datawriter_init(void)
       shared_secret_handle,
       &exception);
 
-  CU_ASSERT_FATAL (remote_participant_crypto_handle != DDS_SECURITY_HANDLE_NIL);
+  CU_ASSERT_NEQ_FATAL (remote_participant_crypto_handle, DDS_SECURITY_HANDLE_NIL);
 }
 
 static void suite_register_matched_remote_datawriter_fini(void)
 {
   DDS_Security_SharedSecretHandleImpl *shared_secret_handle_impl = (DDS_Security_SharedSecretHandleImpl *)shared_secret_handle;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
-  CU_ASSERT_EQUAL_FATAL (crypto->crypto_key_factory->unregister_participant(
+  CU_ASSERT_EQ_FATAL (crypto->crypto_key_factory->unregister_participant(
       crypto->crypto_key_factory,
       remote_participant_crypto_handle,
       &exception), true);
 
-  CU_ASSERT_EQUAL_FATAL (crypto->crypto_key_factory->unregister_participant(
+  CU_ASSERT_EQ_FATAL (crypto->crypto_key_factory->unregister_participant(
       crypto->crypto_key_factory,
       local_participant_crypto_handle,
       &exception), true);
@@ -173,13 +173,13 @@ CU_Test(ddssec_builtin_register_remote_datawriter, happy_day, .init = suite_regi
   bool unregister_result = false;
 
   /* Dummy (even un-initialized) data for now. */
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   remote_datawriter_crypto *writer_crypto;
 
   /* Check if we actually have the function. */
-  CU_ASSERT_FATAL(crypto != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_factory != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_factory->register_matched_remote_datawriter != NULL);
+  CU_ASSERT_NEQ_FATAL (crypto, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_factory, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_factory->register_matched_remote_datawriter, NULL);
   register_local_regular();
 
   /* Now call the function. */
@@ -191,19 +191,19 @@ CU_Test(ddssec_builtin_register_remote_datawriter, happy_day, .init = suite_regi
       &exception);
 
   /* A valid handle to be returned */
-  CU_ASSERT_FATAL(result != 0);
-  CU_ASSERT_FATAL(exception.code == DDS_SECURITY_ERR_OK_CODE);
+  CU_ASSERT_NEQ_FATAL (result, 0);
+  CU_ASSERT_EQ_FATAL (exception.code, DDS_SECURITY_ERR_OK_CODE);
 
   /* NOTE: It would be better to check if the keys have been generated but there is no interface to get them from handle */
   writer_crypto = (remote_datawriter_crypto *)result;
-  CU_ASSERT_FATAL(writer_crypto->reader2writer_key_material != NULL);
-  CU_ASSERT(master_salt_not_empty(writer_crypto->reader2writer_key_material));
-  CU_ASSERT(master_key_not_empty(writer_crypto->reader2writer_key_material));
-  CU_ASSERT_FATAL(writer_crypto->reader2writer_key_material->receiver_specific_key_id == 0);
+  CU_ASSERT_NEQ_FATAL (writer_crypto->reader2writer_key_material, NULL);
+  CU_ASSERT_NEQ_FATAL (master_salt_not_empty(writer_crypto->reader2writer_key_material), 0);
+  CU_ASSERT_NEQ (master_key_not_empty(writer_crypto->reader2writer_key_material), 0);
+  CU_ASSERT_EQ_FATAL (writer_crypto->reader2writer_key_material->receiver_specific_key_id, 0);
   reset_exception(&exception);
 
   unregister_result = crypto->crypto_key_factory->unregister_datawriter(crypto->crypto_key_factory, result, &exception);
-  CU_ASSERT_FATAL(unregister_result);
+  CU_ASSERT_FATAL (unregister_result);
 }
 
 /* test if function returns volatile secure writer crypto if the reader is volatile secure*/
@@ -213,12 +213,12 @@ CU_Test(ddssec_builtin_register_remote_datawriter, volatile_secure, .init = suit
   DDS_Security_DatareaderCryptoHandle local_volatile_secure_reader;
   DDS_Security_PropertySeq datareader_properties;
   DDS_Security_EndpointSecurityAttributes datareader_security_attributes;
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   /* Check if we actually have the function. */
-  CU_ASSERT_FATAL(crypto != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_factory != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_factory->register_matched_remote_datawriter != NULL);
+  CU_ASSERT_NEQ_FATAL (crypto, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_factory, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_factory->register_matched_remote_datawriter, NULL);
 
   datareader_properties._length = datareader_properties._maximum = 1;
   datareader_properties._buffer = DDS_Security_PropertySeq_allocbuf(1);
@@ -247,9 +247,9 @@ CU_Test(ddssec_builtin_register_remote_datawriter, volatile_secure, .init = suit
       &exception);
 
   /* A valid handle to be returned */
-  CU_ASSERT_FATAL(result != 0);
-  CU_ASSERT_FATAL(((remote_datawriter_crypto *)result)->is_builtin_participant_volatile_message_secure_writer);
-  CU_ASSERT_FATAL(exception.code == DDS_SECURITY_ERR_OK_CODE);
+  CU_ASSERT_NEQ_FATAL (result, 0);
+  CU_ASSERT_NEQ_FATAL (((remote_datawriter_crypto *)result)->is_builtin_participant_volatile_message_secure_writer, 0);
+  CU_ASSERT_EQ_FATAL (exception.code, DDS_SECURITY_ERR_OK_CODE);
   reset_exception(&exception);
 
   crypto->crypto_key_factory->unregister_datawriter(crypto->crypto_key_factory, result, &exception);
@@ -264,16 +264,13 @@ CU_Test(ddssec_builtin_register_remote_datawriter, with_origin_authentication, .
   local_datareader_crypto *reader_crypto;
 
   /* Dummy (even un-initialized) data for now. */
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   remote_datawriter_crypto *writer_crypto;
 
   /* Check if we actually have the function. */
-  CU_ASSERT_FATAL(crypto != NULL);
-  assert(crypto != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_factory != NULL);
-  assert(crypto->crypto_key_factory != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_factory->register_matched_remote_datawriter != NULL);
-  assert(crypto->crypto_key_factory->register_matched_remote_datawriter != 0);
+  CU_ASSERT_NEQ_FATAL (crypto, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_factory, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_factory->register_matched_remote_datawriter, NULL);
   register_local_regular();
 
   /*set reader protection kind */
@@ -292,25 +289,25 @@ CU_Test(ddssec_builtin_register_remote_datawriter, with_origin_authentication, .
     printf("register_remote_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
 
   /* A valid handle to be returned */
-  CU_ASSERT_FATAL(result != 0);
-  CU_ASSERT_FATAL(exception.code == DDS_SECURITY_ERR_OK_CODE);
+  CU_ASSERT_NEQ_FATAL (result, 0);
+  CU_ASSERT_EQ_FATAL (exception.code, DDS_SECURITY_ERR_OK_CODE);
 
   /* NOTE: It would be better to check if the keys have been generated but there is no interface to get them from handle */
   writer_crypto = (remote_datawriter_crypto *)result;
-  CU_ASSERT_FATAL(writer_crypto->reader2writer_key_material != NULL);
-  CU_ASSERT(master_salt_not_empty(writer_crypto->reader2writer_key_material));
-  CU_ASSERT(master_key_not_empty(writer_crypto->reader2writer_key_material));
-  CU_ASSERT_FATAL(writer_crypto->reader2writer_key_material->receiver_specific_key_id != 0);
-  CU_ASSERT(master_receiver_specific_key_not_empty(writer_crypto->reader2writer_key_material));
+  CU_ASSERT_NEQ_FATAL (writer_crypto->reader2writer_key_material, NULL);
+  CU_ASSERT_NEQ_FATAL (master_salt_not_empty(writer_crypto->reader2writer_key_material), 0);
+  CU_ASSERT_NEQ (master_key_not_empty(writer_crypto->reader2writer_key_material), 0);
+  CU_ASSERT_NEQ_FATAL (writer_crypto->reader2writer_key_material->receiver_specific_key_id, 0);
+  CU_ASSERT_NEQ (master_receiver_specific_key_not_empty(writer_crypto->reader2writer_key_material), 0);
   reset_exception(&exception);
 
   /*test unregister the local pair*/
   unregister_result = crypto->crypto_key_factory->unregister_datareader(crypto->crypto_key_factory, local_reader_handle, &exception);
-  CU_ASSERT_FATAL(unregister_result);
+  CU_ASSERT_FATAL (unregister_result);
 
   /* unregister remote should give error*/
   unregister_result = crypto->crypto_key_factory->unregister_datareader(crypto->crypto_key_factory, result, &exception);
-  CU_ASSERT_FATAL(!unregister_result);
+  CU_ASSERT_FATAL (!unregister_result);
   reset_exception(&exception);
 }
 
@@ -320,15 +317,12 @@ CU_Test(ddssec_builtin_register_remote_datawriter, invalid_participant, .init = 
   DDS_Security_DatareaderCryptoHandle result;
 
   /* Dummy (even un-initialized) data for now. */
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   /* Check if we actually have the function. */
-  CU_ASSERT_FATAL(crypto != NULL);
-  assert(crypto != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_factory != NULL);
-  assert(crypto->crypto_key_factory != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_factory->register_matched_remote_datawriter != NULL);
-  assert(crypto->crypto_key_factory->register_matched_remote_datawriter != 0);
+  CU_ASSERT_NEQ_FATAL (crypto, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_factory, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_factory->register_matched_remote_datawriter, NULL);
   register_local_regular();
 
   /* Now call the function. */
@@ -340,8 +334,8 @@ CU_Test(ddssec_builtin_register_remote_datawriter, invalid_participant, .init = 
       &exception);
 
   /* A valid handle to be returned */
-  CU_ASSERT_FATAL(result == 0);
-  CU_ASSERT_FATAL(exception.code == DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_CODE);
+  CU_ASSERT_EQ_FATAL (result, 0);
+  CU_ASSERT_EQ_FATAL (exception.code, DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_CODE);
   reset_exception(&exception);
 }
 
@@ -351,15 +345,12 @@ CU_Test(ddssec_builtin_register_remote_datawriter, invalid_writer_properties, .i
   DDS_Security_DatareaderCryptoHandle result;
 
   /* Dummy (even un-initialized) data for now. */
-  DDS_Security_SecurityException exception = {NULL, 0, 0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   /* Check if we actually have the function. */
-  CU_ASSERT_FATAL(crypto != NULL);
-  assert(crypto != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_factory != NULL);
-  assert(crypto->crypto_key_factory != NULL);
-  CU_ASSERT_FATAL(crypto->crypto_key_factory->register_matched_remote_datawriter != NULL);
-  assert(crypto->crypto_key_factory->register_matched_remote_datawriter != 0);
+  CU_ASSERT_NEQ_FATAL (crypto, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_factory, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_factory->register_matched_remote_datawriter, NULL);
   register_local_regular();
 
   /* Now call the function. */
@@ -371,8 +362,8 @@ CU_Test(ddssec_builtin_register_remote_datawriter, invalid_writer_properties, .i
       &exception);
 
   /* A valid handle to be returned */
-  CU_ASSERT_FATAL(result == 0);
-  CU_ASSERT_FATAL(exception.code == DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_CODE);
+  CU_ASSERT_EQ_FATAL (result, 0);
+  CU_ASSERT_EQ_FATAL (exception.code, DDS_SECURITY_ERR_INVALID_CRYPTO_HANDLE_CODE);
   reset_exception(&exception);
 }
 

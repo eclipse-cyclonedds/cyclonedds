@@ -39,3 +39,8 @@ ddsrt_etime_t ddsrt_time_elapsed(void)
 {
   return (ddsrt_etime_t) { gethrtime () };
 }
+
+ddsrt_hrtime_t ddsrt_time_highres(void)
+{
+  return (ddsrt_hrtime_t) { gethrtime () };
+}

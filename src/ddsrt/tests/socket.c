@@ -50,7 +50,7 @@ CU_Test(ddsrt_sockaddrfromstr, bad_family)
   dds_return_t rc;
   struct sockaddr_storage sa;
   rc = ddsrt_sockaddrfromstr(AF_UNSPEC, "127.0.0.1", &sa);
-  CU_ASSERT_EQUAL(rc, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_BAD_PARAMETER);
 }
 
 static void sockaddrfromstr_test(char *str, int af, dds_return_t exp)
@@ -58,9 +58,10 @@ static void sockaddrfromstr_test(char *str, int af, dds_return_t exp)
   dds_return_t rc;
   struct sockaddr_storage ss;
   rc = ddsrt_sockaddrfromstr(af, str, &ss);
-  CU_ASSERT_EQUAL(rc, exp);
+  CU_ASSERT_EQ (rc, exp);
   if (rc == DDS_RETCODE_OK) {
-    CU_ASSERT_EQUAL(ss.ss_family, af);
+    CU_ASSERT_LEQ (af, 255);
+    CU_ASSERT_EQ (ss.ss_family, (uint8_t) af);
   }
 }
 
@@ -112,7 +113,7 @@ CU_Test(ddsrt_sockaddrtostr, bad_sockaddr, .init=setup, .fini=teardown)
   memcpy(&sa, &ipv4_loopback, sizeof(ipv4_loopback));
   sa.sin_family = AF_UNSPEC;
   rc = ddsrt_sockaddrtostr(&sa, buf, sizeof(buf));
-  CU_ASSERT_EQUAL(rc, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsrt_sockaddrtostr, no_space, .init=setup, .fini=teardown)
@@ -120,7 +121,7 @@ CU_Test(ddsrt_sockaddrtostr, no_space, .init=setup, .fini=teardown)
   dds_return_t rc;
   char buf[1] = { 0 };
   rc = ddsrt_sockaddrtostr(&ipv4_loopback, buf, sizeof(buf));
-  CU_ASSERT_EQUAL(rc, DDS_RETCODE_NOT_ENOUGH_SPACE);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_NOT_ENOUGH_SPACE);
 }
 
 CU_Test(ddsrt_sockaddrtostr, ipv4)
@@ -128,8 +129,8 @@ CU_Test(ddsrt_sockaddrtostr, ipv4)
   dds_return_t rc;
   char buf[128] = { 0 };
   rc = ddsrt_sockaddrtostr(&ipv4_loopback, buf, sizeof(buf));
-  CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
-  CU_ASSERT_STRING_EQUAL(buf, "127.0.0.1");
+  CU_ASSERT_EQ (rc, DDS_RETCODE_OK);
+  CU_ASSERT_STREQ (buf, "127.0.0.1");
 }
 
 CU_Test(ddsrt_sockaddrtostr, ipv6)
@@ -138,8 +139,8 @@ CU_Test(ddsrt_sockaddrtostr, ipv6)
   dds_return_t rc;
   char buf[128] = { 0 };
   rc = ddsrt_sockaddrtostr(&ipv6_loopback, buf, sizeof(buf));
-  CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
-  CU_ASSERT_STRING_EQUAL(buf, "::1");
+  CU_ASSERT_EQ (rc, DDS_RETCODE_OK);
+  CU_ASSERT_STREQ (buf, "::1");
 #else
   CU_PASS("IPv6 is not supported");
 #endif
@@ -152,19 +153,19 @@ CU_Test(ddsrt_sockets, gethostname)
 
   buf[0] = '\0';
   rc = ddsrt_gethostname(buf, sizeof(buf));
-  CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_OK);
 
   sysbuf[0] = '\0';
 #if LWIP_SOCKET
   (void) ddsrt_strlcpy(sysbuf, "localhost", sizeof(sysbuf));
 #else
   int ret = gethostname(sysbuf, sizeof(sysbuf));
-  CU_ASSERT_EQUAL(ret, 0);
+  CU_ASSERT_EQ (ret, 0);
 #endif
-  CU_ASSERT(strcmp(buf, sysbuf) == 0);
+  CU_ASSERT_STREQ (buf, sysbuf);
 
   rc = ddsrt_gethostname(buf, strlen(buf) - 1);
-  CU_ASSERT_EQUAL(rc, DDS_RETCODE_NOT_ENOUGH_SPACE);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_NOT_ENOUGH_SPACE);
 }
 
 #if DDSRT_HAVE_DNS
@@ -173,11 +174,12 @@ static void gethostbyname_test(char *name, int af, dds_return_t exp)
   dds_return_t rc;
   ddsrt_hostent_t *hent = NULL;
   rc = ddsrt_gethostbyname(name, af, &hent);
-  CU_ASSERT_EQUAL(rc, exp);
+  CU_ASSERT_EQ (rc, exp);
   if (rc == DDS_RETCODE_OK) {
-    CU_ASSERT_FATAL(hent->naddrs > 0);
+    CU_ASSERT_GT_FATAL (hent->naddrs, 0);
     if (af != AF_UNSPEC) {
-      CU_ASSERT_EQUAL(hent->addrs[0].ss_family, af);
+      CU_ASSERT_LEQ (af, 255);
+      CU_ASSERT_EQ (hent->addrs[0].ss_family, (uint8_t) af);
     }
   }
   ddsrt_free(hent);

@@ -36,19 +36,19 @@ static void
 setup(void)
 {
     e[PAR] = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-    CU_ASSERT_FATAL(e[PAR] > 0);
+    CU_ASSERT_GT_FATAL (e[PAR], 0);
     e[TOP] = dds_create_topic(e[PAR], &RoundTripModule_DataType_desc, "RoundTrip", NULL, NULL);
-    CU_ASSERT_FATAL(e[TOP] > 0);
+    CU_ASSERT_GT_FATAL (e[TOP], 0);
     e[PUB] = dds_create_publisher(e[PAR], NULL, NULL);
-    CU_ASSERT_FATAL(e[PUB] > 0);
+    CU_ASSERT_GT_FATAL (e[PUB], 0);
     e[WRI] = dds_create_writer(e[PUB], e[TOP], NULL, NULL);
-    CU_ASSERT_FATAL(e[WRI] > 0);
+    CU_ASSERT_GT_FATAL (e[WRI], 0);
     e[SUB] = dds_create_subscriber(e[PAR], NULL, NULL);
-    CU_ASSERT_FATAL(e[SUB] > 0);
+    CU_ASSERT_GT_FATAL (e[SUB], 0);
     e[REA] = dds_create_reader(e[SUB], e[TOP], NULL, NULL);
-    CU_ASSERT_FATAL(e[REA] > 0);
+    CU_ASSERT_GT_FATAL (e[REA], 0);
     e[RCD] = dds_create_readcondition(e[REA], DDS_ANY_STATE);
-    CU_ASSERT_FATAL(e[RCD] > 0);
+    CU_ASSERT_GT_FATAL (e[RCD], 0);
     e[BAD] = 314159265;
 }
 
@@ -77,9 +77,9 @@ CU_Test(ddsc_unsupported, dds_begin_end_coherent, .init = setup, .fini = teardow
 
     for (size_t i=0; i < sizeof (pars) / sizeof (pars[0]);i++) {
         result = dds_begin_coherent(e[pars[i].index]);
-        CU_ASSERT_EQUAL(result, pars[i].exp_res);
+        CU_ASSERT_EQ (result, pars[i].exp_res);
         result = dds_end_coherent(e[pars[i].index]);
-        CU_ASSERT_EQUAL(result, pars[i].exp_res);
+        CU_ASSERT_EQ (result, pars[i].exp_res);
     }
 }
 
@@ -94,9 +94,9 @@ CU_Test(ddsc_unsupported, dds_suspend_resume, .init = setup, .fini = teardown)
 
     for (size_t i=0; i < sizeof (pars) / sizeof (pars[0]);i++) {
         result = dds_suspend(e[pars[i].index]);
-        CU_ASSERT_EQUAL(result, pars[i].exp_res);
+        CU_ASSERT_EQ (result, pars[i].exp_res);
         result = dds_resume(e[pars[i].index]);
-        CU_ASSERT_EQUAL(result, pars[i].exp_res);
+        CU_ASSERT_EQ (result, pars[i].exp_res);
     }
 }
 
@@ -114,9 +114,9 @@ CU_Test(ddsc_unsupported, dds_get_instance_handle, .init = setup, .fini = teardo
 
     for (size_t i=0; i < sizeof (pars) / sizeof (pars[0]);i++) {
         result = dds_get_instance_handle(e[pars[i].index], &ih);
-        CU_ASSERT_EQUAL(result, pars[i].exp_res);
+        CU_ASSERT_EQ (result, pars[i].exp_res);
         if (pars[i].exp_res == DDS_RETCODE_OK) {
-          CU_ASSERT(ih > 0);
+          CU_ASSERT_GT (ih, 0);
         }
     }
 }
@@ -133,7 +133,7 @@ CU_Test(ddsc_unsupported, dds_set_qos, .init = setup, .fini = teardown)
     qos = dds_create_qos();
     for (size_t i=0; i < sizeof (pars) / sizeof (pars[0]);i++) {
         result = dds_set_qos(e[pars[i].index], qos);
-        CU_ASSERT_EQUAL(result, pars[i].exp_res);
+        CU_ASSERT_EQ (result, pars[i].exp_res);
     }
     dds_delete_qos(qos);
 }

@@ -103,6 +103,7 @@ int main (int argc, char ** argv)
   dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_INT32, "member_int32"));
   dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER_ID_PRIM(DDS_DYNAMIC_FLOAT64, "member_float64", 10 /* has specific member id */));
   dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_BOOLEAN, "member_bool"));
+  dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_CHAR8, "member_char8"));
   dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER(dds_dynamic_type_ref (&dsubstruct) /* increase ref because type is re-used */, "member_struct"));
   dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER(dsubstruct, "member_struct2"));
   dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER_ID(dsubunion, "member_union", 20 /* has specific member id */));

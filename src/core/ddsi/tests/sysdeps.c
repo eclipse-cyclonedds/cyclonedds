@@ -194,7 +194,7 @@ CU_Test (ddsi_sysdeps, log_stacktrace_other, .init = setup, .fini = teardown)
   dds_return_t rc;
   ddsrt_threadattr_init (&tattr);
   rc = ddsrt_thread_create (&tid, "log_stacktrace_thread", &tattr, log_stacktrace_thread, &arg);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 
   ddsrt_mutex_lock (&arg.lock);
   /* coverity[loop_top: FALSE] */
@@ -212,6 +212,6 @@ CU_Test (ddsi_sysdeps, log_stacktrace_other, .init = setup, .fini = teardown)
   ddsrt_cond_signal (&arg.cond);
   ddsrt_mutex_unlock (&arg.lock);
   rc = ddsrt_thread_join (tid, NULL);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   CU_ASSERT_FATAL (loggerstate == STL_TEST_PASSED || loggerstate == STL_INIT);
 }

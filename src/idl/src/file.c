@@ -24,6 +24,7 @@
 #endif
 
 #include "file.h"
+#include "idl/misc.h"
 #include "idl/heap.h"
 #include "idl/string.h"
 
@@ -68,6 +69,7 @@ idl_current_path(char **abspathp)
 #if _WIN32
   cwd = _getcwd(NULL, 0);
 #else
+  IDL_CLANG_ANALYZER_SUPPRESS
   cwd = getcwd(NULL, 0);
 #endif
   if (!cwd)

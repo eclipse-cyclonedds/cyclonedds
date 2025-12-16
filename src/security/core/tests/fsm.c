@@ -60,7 +60,7 @@ static struct ddsi_domaingv *get_entity_gv (dds_entity_t handle)
 {
   struct dds_entity *e;
   dds_return_t rc = dds_entity_pin (handle, &e);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   struct ddsi_domaingv * const gv = &e->m_domain->gv;
   dds_entity_unpin (e);
   return gv;
@@ -69,13 +69,13 @@ static struct ddsi_domaingv *get_entity_gv (dds_entity_t handle)
 static void fsm_control_init(void)
 {
   g_participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
-  CU_ASSERT_FATAL (g_participant > 0);
+  CU_ASSERT_GT_FATAL (g_participant, 0);
   ddsrt_mutex_init (&g_lock);
   ddsrt_cond_init (&g_cond);
 
   g_fsm_control = dds_security_fsm_control_create (get_entity_gv (g_participant));
   dds_return_t rc = dds_security_fsm_control_start (g_fsm_control, NULL);
-  CU_ASSERT_EQUAL_FATAL (rc, 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 
   validate_remote_identity_first = 1;
   begin_handshake_reply_first = 1;
@@ -403,7 +403,7 @@ CU_Test(ddssec_fsm, create, .init = fsm_control_init, .fini = fsm_control_fini)
 {
   /* Test single running state machine. Check creation of a single State Machine */
   fsm_auth = dds_security_fsm_create (g_fsm_control, HandshakeTransistions, HandshakeTransistionsSize, &fsm_arg);
-  CU_ASSERT_FATAL (fsm_auth != NULL);
+  CU_ASSERT_NEQ_FATAL (fsm_auth, NULL);
 
   /* set a delay that doesn't expire. Should be terminate when fsm is freed. */
   dds_security_fsm_set_timeout (fsm_auth, timeout_cb, DDS_SECS(30));
@@ -421,7 +421,7 @@ CU_Test(ddssec_fsm, create, .init = fsm_control_init, .fini = fsm_control_fini)
     dds_sleepfor (DDS_MSECS (10));
   ddsrt_mutex_lock (&g_lock);
   printf ("visited_auth == 0x%x\n", visited_auth);
-  CU_ASSERT (visited_auth == 0xff);
+  CU_ASSERT_EQ (visited_auth, 0xff);
   ddsrt_mutex_unlock (&g_lock);
 
   dds_security_fsm_free (fsm_auth);
@@ -430,7 +430,7 @@ CU_Test(ddssec_fsm, create, .init = fsm_control_init, .fini = fsm_control_fini)
   /* Check correct callback parameter passing (from fsm to user defined methods) */
   ddsrt_mutex_lock (&g_lock);
   CU_ASSERT (correct_arg && correct_fsm);
-  CU_ASSERT (visited_timeout == 0);
+  CU_ASSERT_EQ (visited_timeout, 0);
   ddsrt_mutex_unlock (&g_lock);
 }
 
@@ -441,10 +441,10 @@ CU_Test(ddssec_fsm, multiple, .init = fsm_control_init, .fini = fsm_control_fini
   begin_handshake_reply_first = 0;
 
   fsm_auth = dds_security_fsm_create (g_fsm_control, HandshakeTransistions, HandshakeTransistionsSize, NULL);
-  CU_ASSERT_FATAL (fsm_auth != NULL);
+  CU_ASSERT_NEQ_FATAL (fsm_auth, NULL);
 
   fsm_test = dds_security_fsm_create (g_fsm_control, Transitions, TransitionsSize, NULL);
-  CU_ASSERT_FATAL (fsm_test != NULL);
+  CU_ASSERT_NEQ_FATAL (fsm_test, NULL);
 
   dds_security_fsm_start (fsm_auth);
   dds_security_fsm_start (fsm_test);
@@ -462,7 +462,7 @@ CU_Test(ddssec_fsm, multiple, .init = fsm_control_init, .fini = fsm_control_fini
     dds_sleepfor (DDS_MSECS (10));
   ddsrt_mutex_lock (&g_lock);
   printf ("visited_auth == 0x%x\n", visited_auth);
-  CU_ASSERT (visited_auth == 0x55);
+  CU_ASSERT_EQ (visited_auth, 0x55);
   ddsrt_mutex_unlock (&g_lock);
 
   /* Wait for the last state to occur */
@@ -470,7 +470,7 @@ CU_Test(ddssec_fsm, multiple, .init = fsm_control_init, .fini = fsm_control_fini
     dds_sleepfor (DDS_MSECS (10));
   ddsrt_mutex_lock (&g_lock);
   printf ("visited_test == 0x%x\n", visited_test);
-  CU_ASSERT (visited_test == 0x1f);
+  CU_ASSERT_EQ (visited_test, 0x1f);
   ddsrt_mutex_unlock (&g_lock);
 
   dds_security_fsm_free (fsm_auth);
@@ -484,7 +484,7 @@ CU_Test(ddssec_fsm, timeout, .init = fsm_control_init, .fini = fsm_control_fini)
 {
   /* Test timeout monitoring of state machines */
   fsm_timeout = dds_security_fsm_create (g_fsm_control, timeout_transitions, timeout_transitionsSize, &fsm_arg);
-  CU_ASSERT_FATAL (fsm_timeout != NULL);
+  CU_ASSERT_NEQ_FATAL (fsm_timeout, NULL);
   dds_security_fsm_set_timeout (fsm_timeout, timeout_cb, DDS_SECS(1));
   dds_security_fsm_start (fsm_timeout);
   ddsrt_mutex_lock (&g_lock);
@@ -499,9 +499,9 @@ CU_Test(ddssec_fsm, timeout, .init = fsm_control_init, .fini = fsm_control_fini)
 CU_Test(ddssec_fsm, double_timeout, .init = fsm_control_init, .fini = fsm_control_fini)
 {
   fsm_timeout = dds_security_fsm_create (g_fsm_control, timeout_transitions, timeout_transitionsSize, &fsm_arg);
-  CU_ASSERT_FATAL (fsm_timeout != NULL);
+  CU_ASSERT_NEQ_FATAL (fsm_timeout, NULL);
   fsm_timeout2 = dds_security_fsm_create (g_fsm_control, timeout_transitions, timeout_transitionsSize, &fsm_arg);
-  CU_ASSERT_FATAL (fsm_timeout2 != NULL);
+  CU_ASSERT_NEQ_FATAL (fsm_timeout2, NULL);
 
   dds_security_fsm_set_timeout (fsm_timeout, timeout_cb, DDS_SECS (1));
   dds_security_fsm_set_timeout (fsm_timeout2, timeout_cb2, DDS_SECS (2));
@@ -520,11 +520,11 @@ CU_Test(ddssec_fsm, double_timeout, .init = fsm_control_init, .fini = fsm_contro
 CU_Test(ddssec_fsm, parallel_timeout, .init = fsm_control_init, .fini = fsm_control_fini)
 {
   fsm_timeout1 = dds_security_fsm_create (g_fsm_control, parallel_timeout_transitions_1, parallel_timeout_transitionsSize_1, &fsm_arg);
-  CU_ASSERT_FATAL (fsm_timeout1 != NULL);
+  CU_ASSERT_NEQ_FATAL (fsm_timeout1, NULL);
   fsm_timeout2 = dds_security_fsm_create (g_fsm_control, parallel_timeout_transitions_2, parallel_timeout_transitionsSize_2, &fsm_arg);
-  CU_ASSERT_FATAL (fsm_timeout2 != NULL);
+  CU_ASSERT_NEQ_FATAL (fsm_timeout2, NULL);
   fsm_timeout3 = dds_security_fsm_create (g_fsm_control, parallel_timeout_transitions_3, parallel_timeout_transitionsSize_3, &fsm_arg);
-  CU_ASSERT_FATAL (fsm_timeout3 != NULL);
+  CU_ASSERT_NEQ_FATAL (fsm_timeout3, NULL);
 
   time0 = dds_time ();
   dds_security_fsm_start (fsm_timeout1);
@@ -543,12 +543,12 @@ CU_Test(ddssec_fsm, parallel_timeout, .init = fsm_control_init, .fini = fsm_cont
   printf ("time1 %"PRId64", delta1 %"PRId64"\n", time1, delta1);
   printf ("time2 %"PRId64", delta2 %"PRId64"\n", time2, delta2);
   printf ("time3 %"PRId64", delta3 %"PRId64"\n", time3, delta3);
-  CU_ASSERT (delta1 > DDS_MSECS (750));
-  CU_ASSERT (delta1 < DDS_MSECS (1250));
-  CU_ASSERT (delta2 > DDS_MSECS (1750));
-  CU_ASSERT (delta2 < DDS_MSECS (2250));
-  CU_ASSERT (delta3 > DDS_MSECS (750));
-  CU_ASSERT (delta3 < DDS_MSECS (1250));
+  CU_ASSERT_GT (delta1, DDS_MSECS (750));
+  CU_ASSERT_LT (delta1, DDS_MSECS (1250));
+  CU_ASSERT_GT (delta2, DDS_MSECS (1750));
+  CU_ASSERT_LT (delta2, DDS_MSECS (2250));
+  CU_ASSERT_GT (delta3, DDS_MSECS (750));
+  CU_ASSERT_LT (delta3, DDS_MSECS (1250));
 
   dds_security_fsm_free (fsm_timeout1);
   dds_security_fsm_free (fsm_timeout2);
@@ -559,7 +559,7 @@ CU_Test(ddssec_fsm, parallel_timeout, .init = fsm_control_init, .fini = fsm_cont
 CU_Test(ddssec_fsm, delete_with_timeout, .init = fsm_control_init, .fini = fsm_control_fini)
 {
   fsm_timeout = dds_security_fsm_create (g_fsm_control, timeout_transitions, timeout_transitionsSize, &fsm_arg);
-  CU_ASSERT_FATAL (fsm_timeout != NULL);
+  CU_ASSERT_NEQ_FATAL (fsm_timeout, NULL);
   dds_security_fsm_start (fsm_timeout);
   ddsrt_mutex_lock (&g_lock);
   while (visited_timeout == 0)

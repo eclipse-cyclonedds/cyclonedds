@@ -62,7 +62,7 @@ extern "C" {
 #if defined(_MSC_VER)
 # define DDSRT_WARNING_MSVC_OFF(x) \
     __pragma (warning(push)) \
-    __pragma (warning(disable: ## x))
+    __pragma (warning(disable: x))
 # define DDSRT_WARNING_MSVC_ON(x) \
     __pragma (warning(pop))
 #else
@@ -90,6 +90,12 @@ extern "C" {
   DDSRT_WARNING_CLANG_ON(deprecated-declarations) \
   DDSRT_WARNING_GNUC_ON(deprecated-declarations) \
   DDSRT_WARNING_MSVC_ON(4996)
+
+#ifdef __clang_analyzer__
+#define DDSRT_CLANG_ANALYZER_SUPPRESS [[clang::suppress]]
+#else
+#define DDSRT_CLANG_ANALYZER_SUPPRESS
+#endif
 
 #if defined (__cplusplus)
 }

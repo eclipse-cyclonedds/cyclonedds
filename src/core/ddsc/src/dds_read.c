@@ -51,7 +51,7 @@ dds_return_t dds_read_collect_sample (void *varg, const dds_sample_info_t *si, c
     ddsi_sertype_zero_sample (st, arg->ptrs[arg->next_idx]);
     ok = ddsi_serdata_untyped_to_sample (st, sd, arg->ptrs[arg->next_idx], NULL, NULL);
   }
-  arg->next_idx++;
+  arg->next_idx += (uint32_t)ok; // Only increment on success.
   return ok ? DDS_RETCODE_OK : DDS_RETCODE_ERROR;
 }
 
@@ -258,7 +258,7 @@ static dds_return_t dds_read_impl (enum dds_read_impl_common_oper oper, dds_enti
   // If use_loan, make sure the `buf` is either fully initialized or ends on a null pointer
   // so the various paths returning loans know when to stop.  (If no data returned and using
   // loans, buf[0] is a null pointer, no point in updating it again.)
-  if (use_loan && ret > 0 && (size_t) ret < bufsz - 1)
+  if (use_loan && ret > 0 && (size_t) ret < bufsz)
     buf[ret] = NULL;
 
   // Drop any remaining cached samples.  We have to be prepared to drop *some* because of the

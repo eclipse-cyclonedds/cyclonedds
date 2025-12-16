@@ -503,8 +503,6 @@ static int to_basic_protection_kind(const char *kindStr, DDS_Security_BasicProte
 static int governance_element_open_cb(void *varg, uintptr_t parentinfo, uintptr_t *eleminfo, const char *name, int line)
 {
   governance_parser *parser = (governance_parser *)varg;
-  DDS_Security_SecurityException ex;
-  memset(&ex, 0, sizeof(DDS_Security_SecurityException));
   DDSRT_UNUSED_ARG(parentinfo);
   DDSRT_UNUSED_ARG(eleminfo);
   DDSRT_UNUSED_ARG(line);
@@ -855,8 +853,6 @@ void ac_return_governance_tree(struct governance_parser *parser)
 static int permissions_element_open_cb(void *varg, uintptr_t parentinfo, uintptr_t *eleminfo, const char *name, int line)
 {
   permissions_parser *parser = (permissions_parser *)varg;
-  DDS_Security_SecurityException ex;
-  memset(&ex, 0, sizeof(DDS_Security_SecurityException));
   DDSRT_UNUSED_ARG(parentinfo);
   DDSRT_UNUSED_ARG(eleminfo);
   DDSRT_UNUSED_ARG(line);
@@ -995,8 +991,6 @@ static int permissions_element_attr_cb(void *varg, uintptr_t eleminfo, const cha
 static int permissions_element_data_cb(void *varg, uintptr_t eleminfo, const char *data, int line)
 {
   struct permissions_parser *parser = (struct permissions_parser *)varg;
-  DDS_Security_SecurityException ex;
-  memset(&ex, 0, sizeof(DDS_Security_SecurityException));
   DDSRT_UNUSED_ARG(eleminfo);
   DDSRT_UNUSED_ARG(line);
   if (!parser || !parser->current)

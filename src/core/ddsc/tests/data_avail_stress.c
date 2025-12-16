@@ -36,7 +36,7 @@ static uint32_t writethread (void *varg)
     ret = dds_write (arg->wr, &data);
   }
   ddsrt_atomic_or32 (&arg->stop, (ret != 0) ? 2 : 0);
-  printf ("nwrites: %d\n", (int) data.long_3);
+  tprintf ("nwrites: %d\n", (int) data.long_3);
   return 0;
 }
 
@@ -70,7 +70,7 @@ static void data_avail (dds_entity_t rd, void *varg)
       ddsrt_atomic_inc32 (&arg->status->badparam);
     else
     {
-      printf ("data_avail: take failed rc %d\n", (int) rc);
+      tprintf ("data_avail: take failed rc %d\n", (int) rc);
       ddsrt_atomic_inc32 (&arg->status->error);
     }
   }
@@ -99,39 +99,39 @@ static void setup (bool remote, struct writethread_arg *wrarg)
   char *conf_pub = ddsrt_expand_envvars (config, 0);
   char *conf_sub = ddsrt_expand_envvars (config, 1);
   pub_dom = dds_create_domain (0, conf_pub);
-  CU_ASSERT_FATAL (pub_dom > 0);
+  CU_ASSERT_GT_FATAL (pub_dom, 0);
   sub_dom = remote ? dds_create_domain (1, conf_sub) : 0;
   CU_ASSERT_FATAL (!remote || sub_dom > 0);
   ddsrt_free (conf_pub);
   ddsrt_free (conf_sub);
 
   pub_pp = dds_create_participant (0, NULL, NULL);
-  CU_ASSERT_FATAL (pub_pp > 0);
+  CU_ASSERT_GT_FATAL (pub_pp, 0);
   sub_pp = dds_create_participant (remote ? 1 : 0, NULL, NULL);
-  CU_ASSERT_FATAL (sub_pp > 0);
+  CU_ASSERT_GT_FATAL (sub_pp, 0);
 
   char tpname[100];
   create_unique_topic_name ("ddsc_data_avail_stress_delete_reader", tpname, sizeof (tpname));
 
   dds_qos_t * const qos = dds_create_qos ();
-  CU_ASSERT_FATAL (qos != NULL);
+  CU_ASSERT_NEQ_FATAL (qos, NULL);
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS (1));
   dds_qset_writer_data_lifecycle (qos, false);
   pub_tp = dds_create_topic (pub_pp, &Space_Type1_desc, tpname, qos, NULL);
-  CU_ASSERT_FATAL (pub_tp > 0);
+  CU_ASSERT_GT_FATAL (pub_tp, 0);
   sub_tp = dds_create_topic (sub_pp, &Space_Type1_desc, tpname, qos, NULL);
-  CU_ASSERT_FATAL (sub_tp > 0);
+  CU_ASSERT_GT_FATAL (sub_tp, 0);
   dds_delete_qos (qos);
 
   wr = dds_create_writer (pub_pp, pub_tp, NULL, NULL);
-  CU_ASSERT_FATAL (wr > 0);
+  CU_ASSERT_GT_FATAL (wr, 0);
 
   wrarg->wr = wr;
   ddsrt_atomic_st32 (&wrarg->stop, 0);
   ddsrt_threadattr_t tattr;
   ddsrt_threadattr_init (&tattr);
   dds_return_t rc = ddsrt_thread_create (&wrtid, "writer", &tattr, writethread, wrarg);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 }
 
 static void stress_data_avail_delete_reader (bool remote, int duration)
@@ -153,7 +153,7 @@ static void stress_data_avail_delete_reader (bool remote, int duration)
   {
     larg[i] = (struct listener_arg) { .mask = 1u << i, .status = &lstatus };
     list[i] = dds_create_listener (&larg[i]);
-    CU_ASSERT_FATAL (list[i] != NULL);
+    CU_ASSERT_NEQ_FATAL (list[i], NULL);
     dds_lset_data_available (list[i], data_avail);
   }
   const dds_time_t tend = dds_time () + DDS_SECS (duration);
@@ -165,7 +165,7 @@ static void stress_data_avail_delete_reader (bool remote, int duration)
     if (rds[rdidx])
     {
       rc = dds_delete (rds[rdidx]);
-      CU_ASSERT_FATAL (rc == 0);
+      CU_ASSERT_EQ_FATAL (rc, 0);
       rds[rdidx] = 0;
       ddsrt_atomic_and32 (&lstatus.triggered, ~larg[rdidx].mask);
     }
@@ -182,7 +182,7 @@ static void stress_data_avail_delete_reader (bool remote, int duration)
         if (rds[i] != 0)
         {
           rc = dds_delete (rds[i]);
-          CU_ASSERT_FATAL (rc == 0);
+          CU_ASSERT_EQ_FATAL (rc, 0);
           rds[i] = 0;
           ddsrt_atomic_and32 (&lstatus.triggered, ~larg[rdidx].mask);
         }
@@ -191,7 +191,7 @@ static void stress_data_avail_delete_reader (bool remote, int duration)
     }
 
     rds[rdidx] = dds_create_reader (sub_pp, sub_tp, NULL, list[rdidx]);
-    CU_ASSERT_FATAL (rds[rdidx] > 0);
+    CU_ASSERT_GT_FATAL (rds[rdidx], 0);
     while (!ddsrt_atomic_ld32 (&wrarg.stop) && !ddsrt_atomic_ld32 (&lstatus.error) && dds_time () < tend &&
            !(ddsrt_atomic_ld32 (&lstatus.triggered) & larg[rdidx].mask))
     {
@@ -203,16 +203,16 @@ static void stress_data_avail_delete_reader (bool remote, int duration)
   ddsrt_atomic_or32 (&wrarg.stop, 1);
   ddsrt_thread_join (wrtid, NULL);
 
-  printf ("nreaders %"PRIu32"\n", nreaders);
-  printf ("triggered %"PRIx32"\n", ddsrt_atomic_ld32 (&lstatus.triggered));
-  printf ("error %"PRIu32"\n", ddsrt_atomic_ld32 (&lstatus.error));
-  printf ("taken %"PRIu32"\n", ddsrt_atomic_ld32 (&lstatus.taken));
-  printf ("badparam %"PRIu32"\n", ddsrt_atomic_ld32 (&lstatus.badparam));
-  printf ("stop %"PRIu32"\n", ddsrt_atomic_ld32 (&wrarg.stop));
+  tprintf ("nreaders %"PRIu32"\n", nreaders);
+  tprintf ("triggered %"PRIx32"\n", ddsrt_atomic_ld32 (&lstatus.triggered));
+  tprintf ("error %"PRIu32"\n", ddsrt_atomic_ld32 (&lstatus.error));
+  tprintf ("taken %"PRIu32"\n", ddsrt_atomic_ld32 (&lstatus.taken));
+  tprintf ("badparam %"PRIu32"\n", ddsrt_atomic_ld32 (&lstatus.badparam));
+  tprintf ("stop %"PRIu32"\n", ddsrt_atomic_ld32 (&wrarg.stop));
 
-  CU_ASSERT_FATAL (nreaders > 10); // sanity check
+  CU_ASSERT_GT_FATAL (nreaders, 10); // sanity check
   CU_ASSERT_FATAL (!ddsrt_atomic_ld32 (&lstatus.error));
-  CU_ASSERT_FATAL (ddsrt_atomic_ld32 (&lstatus.taken) > 100);
+  CU_ASSERT_GT_FATAL (ddsrt_atomic_ld32 (&lstatus.taken), 100);
   CU_ASSERT_FATAL (!(ddsrt_atomic_ld32 (&wrarg.stop) & 2));
 
   for (uint32_t i = 0; i < NRDS; i++)

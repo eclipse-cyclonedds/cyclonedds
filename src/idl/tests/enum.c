@@ -23,12 +23,11 @@ CU_Test(idl_enum, no_enumerator)
 
   const char str[] = "enum foo { };";
   ret = idl_create_pstate(0u, NULL, &pstate);
-  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-  CU_ASSERT_PTR_NOT_NULL(pstate);
-  assert(pstate);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+  CU_ASSERT_NEQ_FATAL (pstate, NULL);
   ret = idl_parse_string(pstate, str);
-  CU_ASSERT_EQUAL(ret, IDL_RETCODE_SYNTAX_ERROR);
-  CU_ASSERT_PTR_NULL(pstate->root);
+  CU_ASSERT_EQ (ret, IDL_RETCODE_SYNTAX_ERROR);
+  CU_ASSERT_EQ (pstate->root, NULL);
   idl_delete_pstate(pstate);
 }
 
@@ -39,12 +38,11 @@ CU_Test(idl_enum, duplicate_enumerators)
 
   const char str[] = "enum foo { bar, bar };";
   ret = idl_create_pstate(0u, NULL, &pstate);
-  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-  CU_ASSERT_PTR_NOT_NULL(pstate);
-  assert(pstate);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+  CU_ASSERT_NEQ_FATAL (pstate, NULL);
   ret = idl_parse_string(pstate, str);
-  CU_ASSERT_EQUAL(ret, IDL_RETCODE_SEMANTIC_ERROR);
-  CU_ASSERT_PTR_NULL(pstate->root);
+  CU_ASSERT_EQ (ret, IDL_RETCODE_SEMANTIC_ERROR);
+  CU_ASSERT_EQ (pstate->root, NULL);
   idl_delete_pstate(pstate);
 }
 
@@ -55,12 +53,11 @@ CU_Test(idl_enum, enumerator_matches_enum)
 
   const char str[] = "enum foo { foo };";
   ret = idl_create_pstate(0u, NULL, &pstate);
-  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-  CU_ASSERT_PTR_NOT_NULL(pstate);
-  assert(pstate);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+  CU_ASSERT_NEQ_FATAL (pstate, NULL);
   ret = idl_parse_string(pstate, str);
-  CU_ASSERT_EQUAL(ret, IDL_RETCODE_SEMANTIC_ERROR);
-  CU_ASSERT_PTR_NULL(pstate->root);
+  CU_ASSERT_EQ (ret, IDL_RETCODE_SEMANTIC_ERROR);
+  CU_ASSERT_EQ (pstate->root, NULL);
   idl_delete_pstate(pstate);
 }
 
@@ -72,8 +69,8 @@ CU _ Test(idl_enum, enumerator_used_name)
 
   const char str[] = "struct s { char c; }; enum e { e1 };";
   ret = idl_parse_string(str, 0u, &tree);
-  CU_ASSERT_EQUAL(ret, IDL_RETCODE_SEMANTIC_ERROR);
-  CU_ASSERT_PTR_NULL(tree);
+  CU_ASSERT_EQ (ret, IDL_RETCODE_SEMANTIC_ERROR);
+  CU_ASSERT_EQ (tree, NULL);
   idl_delete_tree(tree);
 }
 #endif
@@ -87,18 +84,17 @@ CU_Test(idl_enum, single_enumerator)
 
   const char str[] = "enum foo { bar };";
   ret = idl_create_pstate(0u, NULL, &pstate);
-  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-  CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
-  assert(pstate);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+  CU_ASSERT_NEQ_FATAL (pstate, NULL);
   ret = idl_parse_string(pstate, str);
-  CU_ASSERT_EQUAL(ret, IDL_RETCODE_OK);
+  CU_ASSERT_EQ (ret, IDL_RETCODE_OK);
   e = (idl_enum_t *)pstate->root;
-  CU_ASSERT_FATAL(idl_is_enum(e));
+  CU_ASSERT_FATAL (idl_is_enum(e));
   er = (idl_enumerator_t *)e->enumerators;
-  CU_ASSERT_FATAL(idl_is_enumerator(er));
-  CU_ASSERT_PTR_NOT_NULL_FATAL(idl_identifier(er));
-  CU_ASSERT_STRING_EQUAL(idl_identifier(er), "bar");
-  CU_ASSERT_PTR_EQUAL(idl_parent(er), e);
+  CU_ASSERT_FATAL (idl_is_enumerator(er));
+  CU_ASSERT_NEQ_FATAL (idl_identifier(er), NULL);
+  CU_ASSERT_STREQ (idl_identifier(er), "bar");
+  CU_ASSERT_EQ (idl_parent(er), e);
   idl_delete_pstate(pstate);
 }
 
@@ -111,22 +107,21 @@ CU_Test(idl_enum, multiple_enumerators)
 
   const char str[] = "enum foo { bar, baz };";
   ret = idl_create_pstate(0u, NULL, &pstate);
-  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-  CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
-  assert(pstate);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+  CU_ASSERT_NEQ_FATAL (pstate, NULL);
   ret = idl_parse_string(pstate, str);
-  CU_ASSERT_EQUAL(ret, IDL_RETCODE_OK);
+  CU_ASSERT_EQ (ret, IDL_RETCODE_OK);
   e = (idl_enum_t *)pstate->root;
-  CU_ASSERT_FATAL(idl_is_enum(e));
+  CU_ASSERT_FATAL (idl_is_enum(e));
   er = (idl_enumerator_t *)e->enumerators;
-  CU_ASSERT_FATAL(idl_is_enumerator(er));
-  CU_ASSERT_PTR_NOT_NULL_FATAL(idl_identifier(er));
-  CU_ASSERT_STRING_EQUAL(idl_identifier(er), "bar");
-  CU_ASSERT_PTR_EQUAL(idl_parent(er), e);
+  CU_ASSERT_FATAL (idl_is_enumerator(er));
+  CU_ASSERT_NEQ_FATAL (idl_identifier(er), NULL);
+  CU_ASSERT_STREQ (idl_identifier(er), "bar");
+  CU_ASSERT_EQ (idl_parent(er), e);
   er = idl_next(er);
-  CU_ASSERT_FATAL(idl_is_enumerator(er));
-  CU_ASSERT_PTR_NOT_NULL_FATAL(idl_identifier(er));
-  CU_ASSERT_STRING_EQUAL(idl_identifier(er), "baz");
-  CU_ASSERT_PTR_EQUAL(idl_parent(er), e);
+  CU_ASSERT_FATAL (idl_is_enumerator(er));
+  CU_ASSERT_NEQ_FATAL (idl_identifier(er), NULL);
+  CU_ASSERT_STREQ (idl_identifier(er), "baz");
+  CU_ASSERT_EQ (idl_parent(er), e);
   idl_delete_pstate(pstate);
 }

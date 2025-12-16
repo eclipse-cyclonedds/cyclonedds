@@ -90,14 +90,14 @@ ddsi_typeinfo_t *ddsi_typeinfo_deser (const unsigned char *data, uint32_t sz)
   uint32_t srcoff = 0;
 
   if (sz == 0 || data == NULL)
-    return false;
+    return NULL;
 
   /* Type objects are stored as a LE serialized CDR blob in the topic descriptor */
   DDSRT_WARNING_MSVC_OFF(6326)
   bool bswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
   DDSRT_WARNING_MSVC_ON(6326)
   data_norm = ddsrt_memdup (data, sz);
-  if (!dds_stream_normalize_data ((char *) data_norm, &srcoff, sz, bswap, DDSI_RTPS_CDR_ENC_VERSION_2, DDS_XTypes_TypeInformation_desc.m_ops))
+  if (!dds_stream_normalize_xcdr2_data ((char *) data_norm, &srcoff, sz, bswap, DDS_XTypes_TypeInformation_desc.m_ops))
   {
     ddsrt_free (data_norm);
     return NULL;
@@ -233,7 +233,7 @@ ddsi_typemap_t *ddsi_typemap_deser (const unsigned char *data, uint32_t sz)
   bool bswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
   DDSRT_WARNING_MSVC_ON(6326)
   data_norm = ddsrt_memdup (data, sz);
-  if (!dds_stream_normalize_data ((char *) data_norm, &srcoff, sz, bswap, DDSI_RTPS_CDR_ENC_VERSION_2, DDS_XTypes_TypeMapping_desc.m_ops))
+  if (!dds_stream_normalize_xcdr2_data ((char *) data_norm, &srcoff, sz, bswap, DDS_XTypes_TypeMapping_desc.m_ops))
   {
     ddsrt_free (data_norm);
     return NULL;
@@ -658,9 +658,9 @@ static bool valid_top_level_type (const struct ddsi_type *type)
     return false;
   if (type->xt.kind != DDSI_TYPEID_KIND_COMPLETE && type->xt.kind != DDSI_TYPEID_KIND_MINIMAL)
     return false;
-  if (ddsi_xt_is_resolved (&type->xt) && type->xt._d != DDS_XTypes_TK_STRUCTURE && type->xt._d != DDS_XTypes_TK_UNION)
-    return false;
-  return true;
+  while (ddsi_xt_is_resolved (&type->xt) && type->xt._d == DDS_XTypes_TK_ALIAS)
+    type = type->xt._u.alias.related_type;
+  return (ddsi_xt_is_unresolved (&type->xt) || type->xt._d == DDS_XTypes_TK_STRUCTURE || type->xt._d == DDS_XTypes_TK_UNION);
 }
 
 static dds_return_t type_add_ref_impl (struct ddsi_domaingv *gv, struct ddsi_type **type, const ddsi_typeinfo_t *type_info, const ddsi_typemap_t *type_map, ddsi_typeid_kind_t kind)
@@ -710,7 +710,7 @@ static dds_return_t type_add_ref_impl (struct ddsi_domaingv *gv, struct ddsi_typ
   if (resolved)
   {
     GVTRACE ("type %s resolved\n", ddsi_make_typeid_str_impl (&tistr, type_id));
-    ddsrt_cond_broadcast (&gv->typelib_resolved_cond);
+    ddsrt_cond_etime_broadcast (&gv->typelib_resolved_cond);
   }
 #else
   (void) resolved;
@@ -1558,11 +1558,11 @@ static dds_return_t check_type_resolved_impl_locked (struct ddsi_domaingv *gv, c
 
 static dds_return_t wait_for_type_resolved_impl_locked (struct ddsi_domaingv *gv, dds_duration_t timeout, const struct ddsi_type *type, enum ddsi_type_include_deps resolved_kind)
 {
-  const dds_time_t tnow = dds_time ();
-  const dds_time_t abstimeout = (DDS_INFINITY - timeout <= tnow) ? DDS_NEVER : (tnow + timeout);
+  const ddsrt_etime_t tnow = ddsrt_time_elapsed ();
+  const ddsrt_etime_t abstimeout = {(DDS_INFINITY - timeout <= tnow.v) ? DDS_NEVER : (tnow.v + timeout)};
   while (!ddsi_type_resolved_locked (gv, type, resolved_kind))
   {
-    if (!ddsrt_cond_waituntil (&gv->typelib_resolved_cond, &gv->typelib_lock, abstimeout))
+    if (!ddsrt_cond_etime_waituntil (&gv->typelib_resolved_cond, &gv->typelib_lock, abstimeout))
       return DDS_RETCODE_TIMEOUT;
   }
   ddsi_type_ref_locked (gv, NULL, type);

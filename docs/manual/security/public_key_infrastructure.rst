@@ -1,4 +1,4 @@
-.. index:: 
+.. index::
    single: DDS security; Public-key infrastructure
    single: Security; Public-key infrastructure
    single: Public-key infrastructure
@@ -18,15 +18,15 @@ maintains a trustworthy networking environment.
 
 **Public key cryptography**
 
-Each user has a key pair, generated during the initial certificate deployment process. 
+Each user has a key pair, generated during the initial certificate deployment process.
 It consists of:
 
 - A public key, which is shared.
-- A private key, which is not shared. 
+- A private key, which is not shared.
 
 Data is encrypted with the user's public key and decrypted with their private key.
 
-Digital signatures are also generated using public key cryptography (used for non-repudiation, 
+Digital signatures are also generated using public key cryptography (used for non-repudiation,
 authentication and data integrity).
 
 .. _identity_certificate:
@@ -38,9 +38,9 @@ includes:
 
 - Information about the key.
 - Information about the identity of its owner (called the subject).
-- The digital signature of an entity that has verified the certificate's contents (called the issuer). 
+- The digital signature of an entity that has verified the certificate's contents (called the issuer).
 
-If the signature is valid, and the software examining the certificate trusts the issuer, 
+If the signature is valid, and the software examining the certificate trusts the issuer,
 then it can use that key to communicate securely with the certificate's subject.
 
 .. _certificate_authority:
@@ -63,10 +63,10 @@ organization (OU), state (ST) and country (C).
 
 **Subject name**
 
-This is also knows as the distinguished name. It is the string representation of the certificate 
+This is also knows as the distinguished name. It is the string representation of the certificate
 subject. For example:
 
- emailAddress=alice\@zettascale.ist,CN=Alice,OU=IST,O=ADLink,ST=OV,C=NL
+ emailAddress=alice\@example.com,CN=Alice,OU=IST,O=ADLink,ST=OV,C=NL
 
 .. index:: Access control
 
@@ -85,8 +85,8 @@ be verified if it is really issued by ID CA.
 
 Access Control is configured with governance and permissions documents:
 
-- A governance document defines the security behavior of domains and topics. 
-- A permissions document contains the permissions of the domain participant (topics, readers and 
+- A governance document defines the security behavior of domains and topics.
+- A permissions document contains the permissions of the domain participant (topics, readers and
   writers), and binds them to an identity certificate by subject name (distinguished name).
 
 Governance documents and Permissions documents are signed by **Permission CA**. Signed documents also
@@ -98,16 +98,16 @@ Diffie-Hellman key exchange. This shared key is used for encrypting/decrypting d
 
 During the handshake:
 
-- Alice checks Bob's certificate and Bob's Permissions document to see whether they are really 
+- Alice checks Bob's certificate and Bob's Permissions document to see whether they are really
   issued by the ID CA certificate and Permissions CA Certificate that **she** has.
 
-- Bob checks Alice's certificate and Alice's Permissions document to see whether they are really 
+- Bob checks Alice's certificate and Alice's Permissions document to see whether they are really
   issued by the ID CA certificate and Permissions CA that **he** has.
 
 .. needs a better description:
 
-Permissions documents can contain permissions for several identities. To establish a binding between an 
-identity and its permissions, the subject name of an identity certificate can appear multiple times in 
+Permissions documents can contain permissions for several identities. To establish a binding between an
+identity and its permissions, the subject name of an identity certificate can appear multiple times in
 a permissions document.
 
 There are several ways to set up the certificates and signed configuration files to be used with

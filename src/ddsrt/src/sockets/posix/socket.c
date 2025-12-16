@@ -595,3 +595,27 @@ ddsrt_select(
 
   return DDS_RETCODE_ERROR;
 }
+
+dds_return_t
+ddsrt_shutdown(
+  ddsrt_socket_t sock,
+  enum ddsrt_shutdown_how how)
+{
+  int how1 = -1;
+  switch (how)
+  {
+    case DDSRT_SHUTDOWN_READ:
+      how1 = SHUT_RD;
+      break;
+    case DDSRT_SHUTDOWN_WRITE:
+      how1 = SHUT_WR;
+      break;
+    case DDSRT_SHUTDOWN_READ_WRITE:
+      how1 = SHUT_RDWR;
+  }
+  int ret = shutdown (sock, how1);
+  if (ret == 0)
+    return DDS_RETCODE_OK;
+  else
+    return DDS_RETCODE_BAD_PARAMETER;
+}

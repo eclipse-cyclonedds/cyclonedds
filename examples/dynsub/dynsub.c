@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <locale.h>
+#include <signal.h>
 
 #include "dds/dds.h"
 #include "dynsub.h"
@@ -31,11 +32,17 @@
 // corresponding XTypes objects: DDS_XTypes_TypeObject and DDS_XTypes_TypeInformation.  Rather than casting
 // pointers like we do here, they should be defined in a slightly different way so that they are not really
 // opaque.  For now, this'll have to do.
+#include "dds/ddsc/dds_public_alloc.h"
+#include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
+
+#include "dds/ddsrt/threads.h"
+#include "dds/ddsi/ddsi_serdata.h"
 
 // For convenience, the DDS participant is global
 static dds_entity_t participant;
 
+static dds_entity_t termcond;
 
 // Helper function to wait for a DCPSPublication/DCPSSubscription to show up with the desired topic name,
 // then calls dds_find_topic to create a topic for that data writer's/reader's type up the retrieves the
@@ -89,6 +96,7 @@ static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_
           dds_return_loan (triggered_reader, &epraw, 1);
           goto error;
         }
+        dds_qset_data_representation (ep->qos, 0, NULL);
         if ((*topic = dds_create_topic (participant, descriptor, ep->topic_name, ep->qos, NULL)) < 0)
         {
           fprintf (stderr, "dds_create_topic_descriptor: %s (be sure to enable topic discovery in the configuration)\n", dds_strretcode (*topic));
@@ -142,17 +150,164 @@ error:
   return (*xtypeobj != NULL) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
 }
 
+static bool print_sample_normal (dds_entity_t reader, const DDS_XTypes_TypeObject *xtypeobj)
+{
+  void *raw = NULL;
+  dds_sample_info_t si;
+  dds_return_t ret;
+  if ((ret = dds_take (reader, &raw, &si, 1, 1)) < 0)
+    return false;
+  else if (ret != 0)
+  {
+    // ... that we then print
+    print_sample (si.valid_data, raw, &xtypeobj->_u.complete);
+    if (dds_return_loan (reader, &raw, 1) < 0)
+      return false;
+  }
+  return true;
+}
+
+static void hexdump (const unsigned char *msg, const size_t len)
+{
+  for (size_t off16 = 0; off16 < len; off16 += 16)
+  {
+    printf ("%04" PRIxSIZE " ", off16);
+    size_t off1;
+    for (off1 = 0; off1 < 16 && off16 + off1 < len; off1++)
+      printf ("%s %02x", (off1 == 8) ? " " : "", msg[off16 + off1]);
+    for (; off1 < 16; off1++)
+      printf ("%s   ", (off1 == 8) ? " " : "");
+    printf ("  |");
+    for (off1 = 0; off1 < 16 && off16 + off1 < len; off1++)
+    {
+      unsigned char c = msg[off16 + off1];
+      printf ("%c", (c >= 32 && c < 127) ? c : '.');
+    }
+    printf ("|\n");
+  }
+  fflush (stdout);
+}
+
+static const char *encodingstr (const struct ddsi_serdata *sd)
+{
+  uint16_t encoding;
+  ddsi_serdata_to_ser (sd, 0, 2, &encoding);
+  switch (encoding)
+  {
+    case DDSI_RTPS_CDR_BE:
+    case DDSI_RTPS_CDR_LE:
+      return "CDR";
+    case DDSI_RTPS_PL_CDR_BE:
+    case DDSI_RTPS_PL_CDR_LE:
+      return "PL_CDR";
+    case DDSI_RTPS_CDR2_BE:
+    case DDSI_RTPS_CDR2_LE:
+      return "CDR2";
+    case DDSI_RTPS_D_CDR2_BE:
+    case DDSI_RTPS_D_CDR2_LE:
+      return "D_CDR2";
+    case DDSI_RTPS_PL_CDR2_BE:
+    case DDSI_RTPS_PL_CDR2_LE:
+      return "PL_CDR2";
+    default:
+      return "unknown";
+  }
+}
+
+static bool print_sample_cdr (dds_entity_t reader, const DDS_XTypes_TypeObject *xtypeobj)
+{
+  // Note: doesn't print the exact CDR received, but the "normalised" one where byteswapping
+  // has been performed, booleans have been mapped to 0 or 1, and perhaps some other similar
+  // changes have been made.
+  struct ddsi_serdata *sd = NULL;
+  dds_sample_info_t si;
+  dds_return_t ret;
+  if ((ret = dds_takecdr (reader, &sd, 1, &si, 0)) < 0)
+    return false;
+  else if (ret != 0)
+  {
+    printf ("encoding: %s", encodingstr (sd));
+    if (!si.valid_data)
+      printf (" (expect XCDR2 because it is an invalid sample)");
+    printf ("\n");
+    if (ddsi_serdata_size (sd) == 4)
+      printf ("(no payload)\n");
+    else
+    {
+      ddsrt_iovec_t iov;
+      struct ddsi_serdata *refsd;
+      refsd = ddsi_serdata_to_ser_ref (sd, 4, ddsi_serdata_size (sd) - 4, &iov);
+      hexdump (iov.iov_base, iov.iov_len);
+      ddsi_serdata_to_ser_unref (refsd, &iov);
+    }
+
+    void *raw = calloc (1, sd->type->sizeof_type);
+    if (raw == NULL)
+      abort ();
+
+    bool ok;
+    if (si.valid_data)
+      ok = ddsi_serdata_to_sample (sd, raw, NULL, NULL);
+    else
+    {
+      const struct ddsi_sertype *st;
+      dds_get_entity_sertype (reader, &st);
+      ok = ddsi_serdata_untyped_to_sample (st, sd, raw, NULL, NULL);
+    }
+    if (ok)
+      print_sample (si.valid_data, raw, &xtypeobj->_u.complete);
+    else
+      printf ("(conversion to sample failed)\n");
+    ddsi_sertype_free_sample (sd->type, raw, DDS_FREE_CONTENTS);
+    free (raw);
+
+    ddsi_serdata_unref (sd);
+  }
+  return true;
+}
+
+#if !DDSRT_WITH_FREERTOS && !__ZEPHYR__
+static void signal_handler (int sig)
+{
+  (void) sig;
+  dds_set_guardcondition (termcond, true);
+}
+#endif
+
+#if !_WIN32 && !DDSRT_WITH_FREERTOS && !__ZEPHYR__
+static uint32_t sigthread (void *varg)
+{
+  sigset_t *set = varg;
+  int sig;
+  if (sigwait (set, &sig) == 0)
+    signal_handler (sig);
+  return 0;
+}
+#endif
+
 int main (int argc, char **argv)
 {
   dds_return_t ret = 0;
   dds_entity_t topic = 0;
+  bool raw_mode;
+  const char *topic_name;
 
   // for printf("%ls")
   setlocale (LC_CTYPE, "");
 
-  if (argc != 2)
+  if (argc == 2)
   {
-    fprintf (stderr, "usage: %s topicname\n", argv[0]);
+    raw_mode = false;
+    topic_name = argv[1];
+  }
+  else if (argc == 3 && strcmp (argv[1], "-r") == 0)
+  {
+    raw_mode = true;
+    topic_name = argv[2];
+  }
+  else
+  {
+    fprintf (stderr, "usage: %s [-r] topicname\n", argv[0]);
     return 2;
   }
 
@@ -166,7 +321,7 @@ int main (int argc, char **argv)
   // The one magic step: get a topic and type object ...
   DDS_XTypes_TypeObject *xtypeobj;
   type_cache_init ();
-  if ((ret = get_topic_and_typeobj (argv[1], DDS_SECS (10), &topic, &xtypeobj)) < 0)
+  if ((ret = get_topic_and_typeobj (topic_name, DDS_SECS (10), &topic, &xtypeobj)) < 0)
   {
     fprintf (stderr, "get_topic_and_typeobj: %s\n", dds_strretcode (ret));
     goto error;
@@ -177,23 +332,62 @@ int main (int argc, char **argv)
   const dds_entity_t waitset = dds_create_waitset (participant);
   const dds_entity_t readcond = dds_create_readcondition (reader, DDS_ANY_STATE);
   (void) dds_waitset_attach (waitset, readcond, 0);
-  while (1)
+
+  termcond = dds_create_guardcondition (participant);
+  (void) dds_waitset_attach (waitset, termcond, 0);
+
+#ifdef _WIN32
+  signal (SIGINT, signal_handler);
+#elif !DDSRT_WITH_FREERTOS && !__ZEPHYR__
+  ddsrt_thread_t sigtid;
+  sigset_t sigset, osigset;
+  sigemptyset (&sigset);
+#ifdef __APPLE__
+  DDSRT_WARNING_GNUC_OFF(sign-conversion)
+#endif
+  sigaddset (&sigset, SIGHUP);
+  sigaddset (&sigset, SIGINT);
+  sigaddset (&sigset, SIGTERM);
+#ifdef __APPLE__
+  DDSRT_WARNING_GNUC_ON(sign-conversion)
+#endif
+  sigprocmask (SIG_BLOCK, &sigset, &osigset);
+  {
+    ddsrt_threadattr_t tattr;
+    ddsrt_threadattr_init (&tattr);
+    ddsrt_thread_create (&sigtid, "sigthread", &tattr, sigthread, &sigset);
+  }
+#endif
+
+  bool termflag = false;
+  while (!termflag)
   {
     (void) dds_waitset_wait (waitset, NULL, 0, DDS_INFINITY);
-    void *raw = NULL;
-    dds_sample_info_t si;
-    if ((ret = dds_take (reader, &raw, &si, 1, 1)) < 0)
-      goto error;
-    else if (ret != 0)
-    {
-      // ... that we then print
-      print_sample (si.valid_data, raw, &xtypeobj->_u.complete);
-      if ((ret = dds_return_loan (reader, &raw, 1)) < 0)
-        goto error;
-    }
+    dds_read_guardcondition (termcond, &termflag);
+
+    bool ok = raw_mode ? print_sample_cdr (reader, xtypeobj) : print_sample_normal (reader, xtypeobj);
+    if (!ok)
+      break;
   }
 
- error:
+#if _WIN32
+  signal_handler (SIGINT);
+#elif !DDSRT_WITH_FREERTOS && !__ZEPHYR__
+  {
+    /* get the attention of the signal handler thread */
+    void (*osigint) (int);
+    void (*osigterm) (int);
+    kill (getpid (), SIGTERM);
+    ddsrt_thread_join (sigtid, NULL);
+    osigint = signal (SIGINT, SIG_IGN);
+    osigterm = signal (SIGTERM, SIG_IGN);
+    sigprocmask (SIG_SETMASK, &osigset, NULL);
+    signal (SIGINT, osigint);
+    signal (SIGINT, osigterm);
+  }
+#endif
+
+error:
   type_cache_free ();
   dds_delete (participant);
   return ret < 0;

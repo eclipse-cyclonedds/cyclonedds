@@ -359,7 +359,7 @@ register_matched_remote_participant(
   dds_security_crypto_key_factory_impl *implementation = (dds_security_crypto_key_factory_impl *)instance;
   remote_participant_crypto *rmt_pp_crypto;
   local_participant_crypto *loc_pp_crypto;
-  DDS_Security_SecurityException exception;
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   participant_key_material *key_material;
 
   if (local_participant_crypto_handle == DDS_SECURITY_HANDLE_NIL)

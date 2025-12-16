@@ -54,6 +54,37 @@ static bool sertype_default_equal (const struct ddsi_sertype *acmn, const struct
     return false;
   assert (a->type.opt_size_xcdr1 == b->type.opt_size_xcdr1);
   assert (a->type.opt_size_xcdr2 == b->type.opt_size_xcdr2);
+
+#ifdef DDS_HAS_TYPELIB
+  if (a->type.flagset & DDS_TOPIC_XTYPES_METADATA)
+  {
+    bool ti_eq;
+    // Expectation is that in the overwhelming majority of cases the serialized typeinfo will be the same
+    // so leave the (relatively expensive) deserialization until we need it.
+    if (a->typeinfo_ser.sz == b->typeinfo_ser.sz && memcmp (a->typeinfo_ser.data, b->typeinfo_ser.data, a->typeinfo_ser.sz) == 0)
+      ti_eq = true;
+    else
+    {
+      ddsi_typeinfo_t *ti_a, *ti_b;
+      ti_a = ddsi_typeinfo_deser (a->typeinfo_ser.data, a->typeinfo_ser.sz);
+      ti_b = ddsi_typeinfo_deser (b->typeinfo_ser.data, b->typeinfo_ser.sz);
+      ti_eq = ti_a != NULL && ti_b != NULL && ddsi_typeinfo_equal (ti_a, ti_b, DDSI_TYPE_IGNORE_DEPS);
+      if (ti_a != NULL)
+      {
+        ddsi_typeinfo_fini (ti_a);
+        ddsrt_free (ti_a);
+      }
+      if (ti_b != NULL)
+      {
+        ddsi_typeinfo_fini (ti_b);
+        ddsrt_free (ti_b);
+      }
+    }
+    if (!ti_eq)
+      return false;
+  }
+#endif
+
   return true;
 }
 
@@ -103,6 +134,10 @@ static uint32_t sertype_default_hash (const struct ddsi_sertype *tpcmn)
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &tp->type.flagset, sizeof (tp->type.flagset));
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) tp->type.keys.keys, (uint32_t) (tp->type.keys.nkeys * sizeof (*tp->type.keys.keys)));
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) tp->type.ops.ops, (uint32_t) (tp->type.ops.nops * sizeof (*tp->type.ops.ops)));
+#ifdef DDS_HAS_TYPELIB
+  if (tp->type.flagset & DDS_TOPIC_XTYPES_METADATA)
+    ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) tp->typeinfo_ser.data, (uint32_t) tp->typeinfo_ser.sz);
+#endif
   ddsrt_md5_finish (&md5st, (ddsrt_md5_byte_t *) buf);
   return *(uint32_t *) buf;
 }
@@ -110,12 +145,7 @@ static uint32_t sertype_default_hash (const struct ddsi_sertype *tpcmn)
 static void sertype_default_free (struct ddsi_sertype *tpcmn)
 {
   struct dds_sertype_default *tp = (struct dds_sertype_default *) tpcmn;
-  if (tp->type.keys.nkeys > 0)
-  {
-    dds_free (tp->type.keys.keys);
-    dds_free (tp->type.keys.keys_definition_order);
-  }
-  dds_free (tp->type.ops.ops);
+  dds_cdrstream_desc_fini (&tp->type, &dds_cdrstream_default_allocator);
   if (tp->typeinfo_ser.data != NULL)
     dds_free (tp->typeinfo_ser.data);
   if (tp->typemap_ser.data != NULL)
@@ -221,6 +251,8 @@ static dds_return_t sertype_default_get_serialized_size (const struct ddsi_serty
     *size = dds_stream_getsize_key (sample, &tp->type, tp->write_encoding_version);
   else
     *size = dds_stream_getsize_sample (sample, &tp->type, tp->write_encoding_version);
+  if (*size == SIZE_MAX)
+    return DDS_RETCODE_BAD_PARAMETER;
   *enc_identifier = ddsi_sertype_get_native_enc_identifier (tp->write_encoding_version, tp->encoding_format);
   return DDS_RETCODE_OK;
 }
@@ -300,7 +332,7 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
   st->write_encoding_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? DDSI_RTPS_CDR_ENC_VERSION_1 : DDSI_RTPS_CDR_ENC_VERSION_2;
   st->serpool = domain->serpool;
 
-  dds_cdrstream_desc_init (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_keys, desc->m_nkeys);
+  dds_cdrstream_desc_init_with_nops (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_nops, desc->m_keys, desc->m_nkeys);
 
   if (min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2 && dds_stream_type_nesting_depth (desc->m_ops) > DDS_CDRSTREAM_MAX_NESTING_DEPTH)
   {

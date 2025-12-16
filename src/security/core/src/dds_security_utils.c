@@ -785,6 +785,8 @@ void DDS_Security_Exception_vset (DDS_Security_SecurityException *ex, const char
 
   va_end(args2);
 
+  if (ex->message)
+    ddsrt_free (ex->message);
   ex->message = str;
   ex->code = code;
   ex->minor_code = minor_code;

@@ -90,23 +90,22 @@ CU_Test(idlc_descriptor, keys_nested)
     printf ("running test for idl: %s\n", tests[i].idl);
 
     ret = idl_create_pstate (flags | (tests[i].keylist ? IDL_FLAG_KEYLIST : 0), NULL, &pstate);
-    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
 
     memset (&descriptor, 0, sizeof (descriptor)); /* static analyzer */
     ret = generate_test_descriptor (pstate, tests[i].idl, &descriptor);
-    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
 
-    CU_ASSERT_EQUAL_FATAL (descriptor.n_keys, tests[i].n_keys);
-    CU_ASSERT_EQUAL_FATAL (descriptor.key_offsets.count, tests[i].n_key_offs);
-    CU_ASSERT_EQUAL_FATAL (pstate->keylists, tests[i].keylist);
+    CU_ASSERT_EQ_FATAL (descriptor.n_keys, tests[i].n_keys);
+    CU_ASSERT_EQ_FATAL (descriptor.key_offsets.count, tests[i].n_key_offs);
+    CU_ASSERT_EQ_FATAL (pstate->keylists, tests[i].keylist);
 
     for (uint32_t k = 0; k < descriptor.n_keys; k++) {
       for (uint32_t j = 0; j < descriptor.keys[k].n_order; j++)
-        CU_ASSERT_EQUAL_FATAL (descriptor.keys[k].order[j], tests[i].key_order[k][j]);
-      CU_ASSERT_PTR_NOT_NULL_FATAL (descriptor.keys[k].name);
-      assert (descriptor.keys[k].name && tests[i].key_name[k]);
-      CU_ASSERT_STRING_EQUAL_FATAL (descriptor.keys[k].name, tests[i].key_name[k]);
-      CU_ASSERT_EQUAL_FATAL (descriptor.keys[k].key_idx, tests[i].key_index[k]);
+        CU_ASSERT_EQ_FATAL (descriptor.keys[k].order[j], tests[i].key_order[k][j]);
+      CU_ASSERT_NEQ_FATAL (descriptor.keys[k].name, NULL);
+      CU_ASSERT_STREQ_FATAL (descriptor.keys[k].name, tests[i].key_name[k]);
+      CU_ASSERT_EQ_FATAL (descriptor.keys[k].key_idx, tests[i].key_index[k]);
     }
 
     descriptor_fini (&descriptor);
@@ -148,13 +147,13 @@ CU_Test(idlc_descriptor, default_extensibility)
     printf ("running test for idl: %s\n", tests[i].idl);
     ret = idl_create_pstate (flags, NULL, &pstate);
     pstate->config.default_extensibility = (int) tests[i].default_ext;
-    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
     memset (&descriptor, 0, sizeof (descriptor)); /* static analyzer */
     ret = idl_parse_string(pstate, tests[i].idl);
-    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
-    CU_ASSERT_PTR_NOT_NULL_FATAL (pstate->root);
+    CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+    CU_ASSERT_NEQ_FATAL (pstate->root, NULL);
     ret = generate_descriptor_impl(pstate, pstate->root, &descriptor);
-    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
 
     uint32_t instr1 = 0;
     assert (descriptor.constructed_types);
@@ -163,17 +162,17 @@ CU_Test(idlc_descriptor, default_extensibility)
       instr1 = descriptor.constructed_types->instructions.table[0].data.opcode.code;
     switch (tests[i].exp_ext) {
       case IDL_FINAL:
-        CU_ASSERT_FATAL(instr1 != DDS_OP_DLC && instr1 != DDS_OP_PLC);
+        CU_ASSERT_FATAL (instr1 != DDS_OP_DLC && instr1 != DDS_OP_PLC);
         break;
       case IDL_APPENDABLE:
-        CU_ASSERT_FATAL(instr1 == DDS_OP_DLC);
+        CU_ASSERT_EQ_FATAL (instr1, DDS_OP_DLC);
         break;
       case IDL_MUTABLE:
-        CU_ASSERT_FATAL(instr1 == DDS_OP_PLC);
+        CU_ASSERT_EQ_FATAL (instr1, DDS_OP_PLC);
         break;
     }
     descriptor_fini (&descriptor);
-    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
     idl_delete_pstate (pstate);
   }
 }
@@ -221,10 +220,10 @@ CU_Test(idlc_descriptor, key_valid_types)
 
     printf ("running test for idl: %s\n", tests[i].idl);
     ret = idl_create_pstate (flags, NULL, &pstate);
-    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
     memset (&descriptor, 0, sizeof (descriptor)); /* static analyzer */
     ret = generate_test_descriptor (pstate, tests[i].idl, &descriptor);
-    CU_ASSERT_EQUAL_FATAL (ret, tests[i].valid ? IDL_RETCODE_OK : IDL_RETCODE_UNSUPPORTED);
+    CU_ASSERT_EQ_FATAL (ret, tests[i].valid ? IDL_RETCODE_OK : IDL_RETCODE_UNSUPPORTED);
     if (tests[i].valid)
       descriptor_fini (&descriptor);
     idl_delete_pstate (pstate);
@@ -282,17 +281,16 @@ CU_Test(idlc_descriptor, keys_inheritance)
     printf ("running test for idl: %s\n", tests[i].idl);
 
     ret = idl_create_pstate (flags, NULL, &pstate);
-    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
 
     memset (&descriptor, 0, sizeof (descriptor)); /* static analyzer */
     ret = generate_test_descriptor (pstate, tests[i].idl, &descriptor);
-    CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
-    CU_ASSERT_EQUAL_FATAL (descriptor.n_keys, tests[i].n_keys);
+    CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (descriptor.n_keys, tests[i].n_keys);
 
     for (uint32_t k = 0; k < descriptor.n_keys; k++) {
-      CU_ASSERT_PTR_NOT_NULL_FATAL (descriptor.keys[k].name);
-      assert (descriptor.keys[k].name && tests[i].key_name[k]);
-      CU_ASSERT_STRING_EQUAL_FATAL (descriptor.keys[k].name, tests[i].key_name[k]);
+      CU_ASSERT_NEQ_FATAL (descriptor.keys[k].name, NULL);
+      CU_ASSERT_STREQ_FATAL (descriptor.keys[k].name, tests[i].key_name[k]);
     }
 
     descriptor_fini (&descriptor);

@@ -51,19 +51,18 @@ CU_Test(idl_forward, struct_union_maybe_enum)
     idl_pstate_t *pstate = NULL;
     printf("test idl: %s\n", tests[i].idl);
     ret = parse_string(tests[i].idl, &pstate);
-    CU_ASSERT_EQUAL_FATAL(ret, tests[i].retcode);
+    CU_ASSERT_EQ_FATAL (ret, tests[i].retcode);
     if (ret == IDL_RETCODE_OK) {
       const idl_forward_t *forward = NULL;
       const idl_type_spec_t *node;
-      CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
-      CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-      assert(pstate);
+      CU_ASSERT_NEQ_FATAL (pstate, NULL);
+      CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
       for (node = pstate->root; idl_is_forward(node); node = idl_next(node))
         forward = node;
-      CU_ASSERT_FATAL(idl_is_forward(forward));
-      assert(forward);
-      CU_ASSERT_EQUAL(idl_type(node), tests[i].type);
-      CU_ASSERT_PTR_EQUAL(forward->type_spec, node);
+      CU_ASSERT_NEQ_FATAL (forward, NULL);
+      CU_ASSERT_FATAL (idl_is_forward(forward));
+      CU_ASSERT_EQ (idl_type(node), tests[i].type);
+      CU_ASSERT_EQ (forward->type_spec, (void *) node);
     }
     idl_delete_pstate(pstate);
   }
@@ -88,7 +87,7 @@ CU_Test(idl_forward, aliases)
     idl_pstate_t *pstate = NULL;
     printf("test idl: %s\n", tests[i].idl);
     ret = parse_string(tests[i].idl, &pstate);
-    CU_ASSERT_EQUAL(ret, tests[i].retcode);
+    CU_ASSERT_EQ (ret, tests[i].retcode);
     if (ret == IDL_RETCODE_OK) {
       idl_forward_t *forward[2];
       idl_typedef_t *alias;
@@ -96,14 +95,14 @@ CU_Test(idl_forward, aliases)
       size_t n = tests[i].forwards - 1;
       for (size_t j = 0; j < tests[i].forwards; j++) {
         forward[j] = j ? idl_next(forward[j - 1]) : (idl_forward_t *)pstate->root;
-        CU_ASSERT_FATAL(idl_is_forward(forward[j]));
+        CU_ASSERT_FATAL (idl_is_forward(forward[j]));
       }
       alias = idl_next(forward[n]);
-      CU_ASSERT_FATAL(idl_is_typedef(alias));
+      CU_ASSERT_FATAL (idl_is_typedef(alias));
       type_spec = idl_next(alias);
-      CU_ASSERT_EQUAL_FATAL(idl_type(type_spec), tests[i].type);
-      CU_ASSERT_PTR_EQUAL(forward[n]->type_spec, type_spec);
-      CU_ASSERT_PTR_EQUAL(alias->type_spec, forward[n]);
+      CU_ASSERT_EQ_FATAL (idl_type(type_spec), tests[i].type);
+      CU_ASSERT_EQ (forward[n]->type_spec, type_spec);
+      CU_ASSERT_EQ (alias->type_spec, forward[n]);
     }
     idl_delete_pstate(pstate);
   }
@@ -128,22 +127,22 @@ CU_Test(idl_forward, backwards_aliases)
     idl_pstate_t *pstate = NULL;
     printf("test idl: %s\n", tests[i].idl);
     ret = parse_string(tests[i].idl, &pstate);
-    CU_ASSERT_EQUAL(ret, tests[i].retcode);
+    CU_ASSERT_EQ (ret, tests[i].retcode);
     if (ret == IDL_RETCODE_OK) {
       idl_forward_t *forward[2];
       idl_typedef_t *alias;
       idl_type_spec_t *type_spec;
       size_t n = tests[i].forwards - 1;
       type_spec = (idl_type_spec_t *)pstate->root;
-      CU_ASSERT_EQUAL_FATAL(idl_type(type_spec), tests[i].type);
+      CU_ASSERT_EQ_FATAL (idl_type(type_spec), tests[i].type);
       for (size_t j = 0; j < tests[i].forwards; j++) {
         forward[j] = j ? idl_next(forward[j - 1]) : idl_next(type_spec);
-        CU_ASSERT_FATAL(idl_is_forward(forward[j]));
+        CU_ASSERT_FATAL (idl_is_forward(forward[j]));
       }
       alias = idl_next(forward[n]);
-      CU_ASSERT_FATAL(idl_is_typedef(alias));
-      CU_ASSERT_PTR_EQUAL(forward[n]->type_spec, type_spec);
-      CU_ASSERT_PTR_EQUAL(alias->type_spec, type_spec);
+      CU_ASSERT_FATAL (idl_is_typedef(alias));
+      CU_ASSERT_EQ (forward[n]->type_spec, type_spec);
+      CU_ASSERT_EQ (alias->type_spec, type_spec);
     }
     idl_delete_pstate(pstate);
   }
@@ -171,13 +170,13 @@ CU_Test(idl_forward, incomplete_type)
   for (size_t i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
     idl_pstate_t *pstate = NULL;
     idl_retcode_t ret = idl_create_pstate(IDL_FLAG_ANNOTATIONS, NULL, &pstate);
-    CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
-    CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+    CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+    CU_ASSERT_NEQ_FATAL (pstate, NULL);
     if (!pstate)
       return;
     pstate->config.default_extensibility = IDL_FINAL;
     ret = idl_parse_string(pstate, tests[i].idl);
-    CU_ASSERT_EQUAL(ret, tests[i].retcode);
+    CU_ASSERT_EQ (ret, tests[i].retcode);
     printf("test idl: %s - %s\n", tests[i].idl, ret == tests[i].retcode ? "OK" : "FAIL");
     idl_delete_pstate(pstate);
   }

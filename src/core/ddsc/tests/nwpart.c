@@ -41,7 +41,7 @@ static int errcount;
 static void null_log_sink (void *vcount, const dds_log_data_t *msg)
 {
   int *count = vcount;
-  printf ("%s", msg->message);
+  tprintf ("%s", msg->message);
   (*count)++;
 }
 
@@ -185,19 +185,19 @@ static bool check_address_list (const char *expected, struct ddsi_networkpartiti
   while ((tok = ddsrt_strsep (&cursor, ",")) != NULL)
   {
     if (as == NULL) {
-      printf ("check_address_list: too few addresses\n");
+      tprintf ("check_address_list: too few addresses\n");
       goto err;
     }
     char buf[DDSI_LOCSTRLEN];
     ddsi_locator_to_string (buf, sizeof (buf), &as->loc);
     if (strcmp (tok, buf) != 0) {
-      printf ("check_address_list: expected %s, got %s\n", tok, buf);
+      tprintf ("check_address_list: expected %s, got %s\n", tok, buf);
       goto err;
     }
     as = as->next;
   }
   if (as != NULL) {
-    printf ("check_address_list: too many addresses\n");
+    tprintf ("check_address_list: too many addresses\n");
     goto err;
   }
   ddsrt_free (copy);
@@ -257,7 +257,7 @@ CU_Theory ((struct ddsi_config_networkpartition_listelem ps, bool allow_mc, cons
   // Low-level trickery so we can control the addresses/network interfaces without
   // having any system dependency
   assert ((uc == NULL) == (mc == NULL));
-  printf ("test: %s\n", ps.name);
+  tprintf ("test: %s\n", ps.name);
   struct ddsi_domaingv gv;
   struct ddsi_config config;
   ddsi_config_init_default (&config);
@@ -266,11 +266,11 @@ CU_Theory ((struct ddsi_config_networkpartition_listelem ps, bool allow_mc, cons
   setup (&gv, &config, allow_mc, true);
   int rc = ddsi_convert_nwpart_config (&gv, 31415);
   if (uc == NULL) {
-    CU_ASSERT_FATAL (rc < 0);
-    CU_ASSERT_FATAL (errcount > 0);
+    CU_ASSERT_LT_FATAL (rc, 0);
+    CU_ASSERT_GT_FATAL (errcount, 0);
   } else {
-    CU_ASSERT_FATAL (rc == 0);
-    CU_ASSERT_FATAL (errcount == 0);
+    CU_ASSERT_EQ_FATAL (rc, 0);
+    CU_ASSERT_EQ_FATAL (errcount, 0);
     CU_ASSERT_FATAL (check_address_list (uc, ps.uc_addresses));
     CU_ASSERT_FATAL (check_address_list (mc, ps.asm_addresses));
   }
@@ -295,7 +295,7 @@ CU_Test (ddsc_nwpart, duplicate)
     "  </NetworkPartitions>"
     "</Partitioning>";
   dds_entity_t eh = dds_create_domain (0, config);
-  CU_ASSERT_FATAL (eh < 0);
+  CU_ASSERT_LT_FATAL (eh, 0);
 #endif
 }
 
@@ -323,7 +323,7 @@ CU_Test (ddsc_nwpart, mapping_undefined)
   char *config1 = ddsrt_expand_envvars (config, 0);
   dds_entity_t eh = dds_create_domain (0, config1);
   ddsrt_free (config1);
-  CU_ASSERT_FATAL (eh < 0);
+  CU_ASSERT_LT_FATAL (eh, 0);
 #endif
 }
 
@@ -352,26 +352,26 @@ CU_Test (ddsc_nwpart, mapping_multiple)
   char *config1 = ddsrt_expand_envvars (config, 0);
   dds_entity_t eh = dds_create_domain (0, config1);
   ddsrt_free (config1);
-  CU_ASSERT_FATAL (eh > 0);
+  CU_ASSERT_GT_FATAL (eh, 0);
   struct ddsi_domaingv * const gv = get_domaingv (eh);
   // all of this is order preserving; check that the entries meet that expectation
   struct ddsi_config_partitionmapping_listelem *m0, *m1;
   m0 = gv->config.partitionMappings;
   m1 = m0->next;
-  CU_ASSERT_FATAL (strcmp (m0->networkPartition, "P0") == 0);
-  CU_ASSERT_FATAL (strcmp (m1->networkPartition, "p2") == 0);
-  CU_ASSERT_FATAL (m1->next == NULL);
+  CU_ASSERT_STREQ_FATAL (m0->networkPartition, "P0");
+  CU_ASSERT_STREQ_FATAL (m1->networkPartition, "p2");
+  CU_ASSERT_EQ_FATAL (m1->next, NULL);
   struct ddsi_config_networkpartition_listelem *p0, *p1, *p2;
   p2 = gv->config.networkPartitions; // this order matches the names
   p1 = p2->next;
   p0 = p1->next;
-  CU_ASSERT_FATAL (strcmp (p2->name, "p2") == 0);
-  CU_ASSERT_FATAL (strcmp (p1->name, "p1") == 0);
-  CU_ASSERT_FATAL (strcmp (p0->name, "p0") == 0);
-  CU_ASSERT_FATAL (p0->next == NULL);
+  CU_ASSERT_STREQ_FATAL (p2->name, "p2");
+  CU_ASSERT_STREQ_FATAL (p1->name, "p1");
+  CU_ASSERT_STREQ_FATAL (p0->name, "p0");
+  CU_ASSERT_EQ_FATAL (p0->next, NULL);
   // given that:
-  CU_ASSERT_FATAL (m0->partition == p0);
-  CU_ASSERT_FATAL (m1->partition == p2);
+  CU_ASSERT_EQ_FATAL (m0->partition, p0);
+  CU_ASSERT_EQ_FATAL (m1->partition, p2);
   dds_delete (eh);
 #endif
 }
@@ -387,6 +387,7 @@ static void check_address_present (const ddsi_xlocator_t *loc, void *varg)
   char buf[DDSI_LOCSTRLEN];
   ddsi_xlocator_to_string (buf, sizeof (buf), loc);
   printf (" %s", buf);
+  fflush (stdout);
   int i = 0;
   while (arg->expected[i] && strcmp (arg->expected[i], buf) != 0)
     i++;
@@ -503,8 +504,8 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   // network partitions and in interpreting the lists of discovery addresses.
   //
   // So as long as this is the only test for this, it might as well be here.
-  printf ("---------------\n");
-  printf ("same_machine %d proxypp_has_defmc %d n_ep_uc %d n_ep_mc %d\n", same_machine, proxypp_has_defmc, n_ep_uc, n_ep_mc);
+  tprintf ("---------------\n");
+  tprintf ("same_machine %d proxypp_has_defmc %d n_ep_uc %d n_ep_mc %d\n", same_machine, proxypp_has_defmc, n_ep_uc, n_ep_mc);
   struct ddsi_domaingv gv;
   struct ddsi_config config;
   ddsi_config_init_default (&config);
@@ -513,17 +514,18 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   errcount = 0;
   memset (&gv, 0, sizeof (gv)); // solves a spurious gcc-12 "uninitialized" warning
   setup (&gv, &config, true, false);
-  printf ("interfaces =\n");
+  tprintf ("interfaces =\n");
   for (int i = 0; i < gv.n_interfaces; i++)
   {
     char buf[DDSI_LOCSTRLEN];
-    printf ("  %s", ddsi_locator_to_string_no_port (buf, sizeof (buf), &gv.interfaces[i].loc));
+    tprintf ("  %s", ddsi_locator_to_string_no_port (buf, sizeof (buf), &gv.interfaces[i].loc));
     printf (" extern: %s", ddsi_locator_to_string_no_port (buf, sizeof (buf), &gv.interfaces[i].extloc));
     printf (" (%smc)\n", gv.interfaces[i].mc_capable ? "" : "no-");
+    fflush (stdout);
   }
 
   // pretend the remote one is on another machine but on the same networks
-  printf ("as_default =\n");
+  tprintf ("as_default =\n");
   struct ddsi_addrset *as_default = ddsi_new_addrset ();
   for (int i = (same_machine ? 0 : 1); i < gv.n_interfaces; i++)
   {
@@ -535,7 +537,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
     if (!same_machine && i > 0) // i = 0 => loopback => no change
       xloc.c.address[15]++;
     char buf[DDSI_LOCSTRLEN];
-    printf ("  %s\n", ddsi_xlocator_to_string (buf, sizeof (buf), &xloc));
+    tprintf ("  %s\n", ddsi_xlocator_to_string (buf, sizeof (buf), &xloc));
     ddsi_add_xlocator_to_addrset (&gv, as_default, &xloc);
   }
 
@@ -552,7 +554,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
       {
         ddsi_xlocator_t xloc = { .conn = gv.xmit_conns[i], .c = defmcloc };
         char buf[DDSI_LOCSTRLEN];
-        printf ("  %s\n", ddsi_xlocator_to_string (buf, sizeof (buf), &xloc));
+        tprintf ("  %s\n", ddsi_xlocator_to_string (buf, sizeof (buf), &xloc));
         ddsi_add_xlocator_to_addrset (&gv, as_default, &xloc);
       }
     }
@@ -606,7 +608,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   {
     char buf[1024];
     ddsi_plist_print (buf, sizeof (buf), &plist);
-    printf ("advertised plist: %s\n", buf);
+    tprintf ("advertised plist: %s\n", buf);
   }
 
   struct ddsi_network_packet_info pktinfo;
@@ -622,18 +624,20 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
     .expected = expected,
     .ok = (ddsi_addrset_count (as) == (size_t) n)
   };
-  printf ("addrset =");
+  tprintf ("addrset =");
   ddsi_addrset_forall (as, check_address_present, &arg);
+  printf ("\n");
   if (arg.ok)
-    printf ("\nOK\n");
+    tprintf ("OK\n");
   else
   {
-    printf ("\nexpected =");
+    tprintf ("expected =");
     for (int i = 0; expected[i]; i++)
       printf (" %s", expected[i]);
-    printf ("\n(in any order)\n");
+    printf ("\n");
+    tprintf ("(in any order)\n");
   }
-  CU_ASSERT (arg.ok);
+  CU_ASSERT_NEQ (arg.ok, 0);
   ddsi_unref_addrset (as);
   // not calling plist_fini: we didn't allocate anything
   ddsi_unref_addrset (as_default);
@@ -658,9 +662,9 @@ CU_Theory ((const char *pistr, const char *msmstr), ddsc_nwpart, full_stack_init
   // failures caused by running several tests in parallel (using a unique
   // domain id would help, too, but where to find a unique id?)
   dds_entity_t eh = dds_create_domain (0, NULL);
-  CU_ASSERT_FATAL (eh > 0);
+  CU_ASSERT_GT_FATAL (eh, 0);
   const struct ddsi_domaingv *gv = get_domaingv (eh);
-  CU_ASSERT_FATAL (gv != NULL);
+  CU_ASSERT_NEQ_FATAL (gv, NULL);
   // construct a configuration using this interface
   char *config = NULL;
   (void) ddsrt_asprintf (&config,
@@ -686,22 +690,22 @@ CU_Theory ((const char *pistr, const char *msmstr), ddsc_nwpart, full_stack_init
     msmstr,
     gv->interfaces[0].name);
   rc = dds_delete (eh);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   // start up a new domain with this new configuration
   eh = dds_create_domain (0, config);
   ddsrt_free (config);
-  CU_ASSERT_FATAL (eh > 0);
+  CU_ASSERT_GT_FATAL (eh, 0);
   gv = get_domaingv (eh);
-  CU_ASSERT_FATAL (gv != NULL);
+  CU_ASSERT_NEQ_FATAL (gv, NULL);
   // verify that the unicast address and port number in the network partition
   // are correct (this is slightly different from the other tests: those mock
   // most of the code, this uses the actual code)
   struct ddsi_config_networkpartition_listelem const * const np = gv->config.networkPartitions;
   struct ddsi_locator const * const nploc = &np->uc_addresses->loc;
-  CU_ASSERT (memcmp (gv->interfaces[0].loc.address, nploc->address, sizeof (nploc->address)) == 0);
-  CU_ASSERT (memcmp (gv->loc_default_uc.address, nploc->address, sizeof (nploc->address)) == 0);
-  CU_ASSERT (gv->loc_default_uc.port == nploc->port);
+  CU_ASSERT_MEMEQ (gv->interfaces[0].loc.address, sizeof (gv->interfaces[0].loc.address), nploc->address, sizeof (nploc->address));
+  CU_ASSERT_MEMEQ (gv->loc_default_uc.address, sizeof (gv->loc_default_uc.address), nploc->address, sizeof (nploc->address));
+  CU_ASSERT_EQ_FATAL (gv->loc_default_uc.port, nploc->port);
   rc = dds_delete (eh);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 #endif
 }

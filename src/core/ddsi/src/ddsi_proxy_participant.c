@@ -447,7 +447,7 @@ int ddsi_update_proxy_participant_plist_locked (struct ddsi_proxy_participant *p
   return 0;
 }
 
-int ddsi_ref_proxy_participant (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_endpoint_common *c)
+dds_return_t ddsi_ref_proxy_participant_begin (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_endpoint_common *c)
 {
   ddsrt_mutex_lock (&proxypp->e.lock);
   if (proxypp->deleting)
@@ -457,18 +457,28 @@ int ddsi_ref_proxy_participant (struct ddsi_proxy_participant *proxypp, struct d
   }
 
   proxypp->refc++;
-  if (c != NULL)
-  {
-    c->proxypp = proxypp;
-    c->next_ep = proxypp->endpoints;
-    c->prev_ep = NULL;
-    if (c->next_ep)
-      c->next_ep->prev_ep = c;
-    proxypp->endpoints = c;
-  }
+  c->proxypp = proxypp;
+  c->next_ep = proxypp->endpoints;
+  c->prev_ep = NULL;
+  if (c->next_ep)
+    c->next_ep->prev_ep = c;
+  proxypp->endpoints = c;
   ddsrt_mutex_unlock (&proxypp->e.lock);
-
   return DDS_RETCODE_OK;
+}
+
+dds_return_t ddsi_ref_proxy_participant_complete (struct ddsi_proxy_participant *proxypp)
+{
+  dds_return_t ret;
+  ddsrt_mutex_lock (&proxypp->e.lock);
+  if (!proxypp->deleting)
+    ret = DDS_RETCODE_OK;
+  else if (proxypp->lease_expired)
+    ret = DDS_RETCODE_TIMEOUT;
+  else
+    ret = DDS_RETCODE_ALREADY_DELETED;
+  ddsrt_mutex_unlock (&proxypp->e.lock);
+  return ret;
 }
 
 void ddsi_unref_proxy_participant (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_endpoint_common *c)
@@ -560,7 +570,7 @@ static void delete_proxy_participant (struct ddsi_proxy_participant *proxypp, dd
   }
   ddsrt_mutex_unlock (&proxypp->e.lock);
 
-  ELOGDISC (proxypp, "delete_ppt("PGUIDFMT") - deleting endpoints\n", PGUID (proxypp->e.guid));
+  ELOGDISC (proxypp, "delete_proxy_participant("PGUIDFMT") - deleting endpoints\n", PGUID (proxypp->e.guid));
   ddsi_guid_t ep_guid = { .prefix = proxypp->e.guid.prefix, .entityid = { 0 } };
   for (uint32_t n = 0; n < n_child_entities; n++)
   {
@@ -603,23 +613,53 @@ void ddsi_purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocato
 
 int ddsi_delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, bool lease_expired)
 {
-  struct ddsi_proxy_participant *ppt;
+  // We get here in one of several ways (and on several threads):
+  //
+  // - dq.builtin: SPDP (or PMD) that disposes the participant
+  // - gc: lease expiry
+  // - some application thread: on stopping the stack
+  // - test_oneliner: when performing the "deaf!" command
+  // - potentially other test code, all similar to test_oneliner
+  //
+  // Stopping the stack is not really a relevant case: then it stops reading from the network
+  // and lets dq.builtin drain the queue.
+  //
+  // We need to "remember" the GUID before removing it from the hash table, otherwise
+  // dq.builtin will happily try to recreate the proxy participant on receiving an SPDP
+  // message, start creating SEDP endpoints and race the gc thread deleting those SEDP
+  // endpoints.
+  //
+  // This ultimately only schedules the removal of the proxy participant, it takes multiple
+  // steps from the gc thread to complete the removal and to drop the GUID from deleted
+  // participants, and those steps involve (among other things) this thread calling "asleep"
+  // again. Therefore there is no risk of the GUID being added *and* removed from the deleted
+  // participants between the lookup and the call to "remember".
+  struct ddsi_proxy_participant *proxypp;
 
   GVLOGDISC ("ddsi_delete_proxy_participant_by_guid("PGUIDFMT") ", PGUID (*guid));
-  ddsrt_mutex_lock (&gv->lock);
-  ppt = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, guid);
-  if (ppt == NULL)
+  if ((proxypp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, guid)) == NULL)
   {
-    ddsrt_mutex_unlock (&gv->lock);
     GVLOGDISC ("- unknown\n");
     return DDS_RETCODE_BAD_PARAMETER;
   }
-  GVLOGDISC ("- deleting\n");
-  ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &ppt->e, timestamp, false);
-  ddsi_remember_deleted_participant_guid (gv->deleted_participants, &ppt->e.guid);
-  ddsi_entidx_remove_proxy_participant_guid (gv->entity_index, ppt);
-  ddsrt_mutex_unlock (&gv->lock);
-  delete_proxy_participant (ppt, timestamp, lease_expired);
 
+  // If we "remember" returns false, it has already been inserted. That means another
+  // thread is racing us, and only one of the two is to do the "delete_proxy_participant"
+  // call. If we bail out, the other one definitely wins ...
+  if (!ddsi_remember_deleted_participant_guid (gv->deleted_participants, &proxypp->e.guid))
+  {
+    GVLOGDISC ("- already being deleted\n");
+    return 0;
+  }
+
+  GVLOGDISC ("- deleting\n");
+  // And so the thread that gets here must also be the one that actually removes it from
+  // the entity index.
+  struct ddsi_proxy_participant *tryremove_ret = ddsi_entidx_tryremove_proxy_participant_guid (gv->entity_index, guid);
+  assert (tryremove_ret == proxypp);
+  (void) tryremove_ret;
+
+  ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &proxypp->e, timestamp, false);
+  delete_proxy_participant (proxypp, timestamp, lease_expired);
   return 0;
 }

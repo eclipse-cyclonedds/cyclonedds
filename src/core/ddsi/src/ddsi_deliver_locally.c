@@ -146,6 +146,7 @@ dds_return_t ddsi_deliver_locally_one (struct ddsi_domaingv *gv, struct ddsi_ent
     /* FIXME: why look up rd,pwr again? Their states remains valid while the thread stays
        "awake" (although a delete can be initiated), and blocking like this is a stopgap
        anyway -- quite possibly to abort once either is deleted */
+    ddsrt_atomic_add64(&rd->received_bytes, ddsi_serdata_size (payload));
     while (!ddsi_rhc_store (rd->rhc, wrinfo, payload, tk))
     {
       if (source_entity_locked)
@@ -199,6 +200,7 @@ static dds_return_t deliver_locally_slowpath (struct ddsi_domaingv *gv, struct d
     {
       EETRACE (source_entity, "%s "PGUIDFMT, trace_is_first ? " =>" : "", PGUID (rd->e.guid));
       trace_is_first = false;
+      ddsrt_atomic_add64(&rd->received_bytes, ddsi_serdata_size (payload));
       (void) ddsi_rhc_store (rd->rhc, wrinfo, payload, tk);
     }
   }
@@ -228,6 +230,7 @@ static dds_return_t deliver_locally_fastpath (struct ddsi_domaingv *gv, struct d
     {
       do {
         dds_return_t rc;
+        ddsrt_atomic_add64(&rdary[i]->received_bytes, ddsi_serdata_size (payload));
         while (!ddsi_rhc_store (rdary[i]->rhc, wrinfo, payload, tk))
         {
           if ((rc = ops->on_failure_fastpath (source_entity, source_entity_locked, fastpath_rdary, vsourceinfo)) != DDS_RETCODE_OK)

@@ -52,21 +52,21 @@ static void whc_init(void)
   dds_free(conf_sub);
 
   g_qos = dds_create_qos();
-  CU_ASSERT_PTR_NOT_NULL_FATAL(g_qos);
+  CU_ASSERT_NEQ_FATAL (g_qos, NULL);
 
   g_participant = dds_create_participant(DDS_DOMAINID_PUB, NULL, NULL);
-  CU_ASSERT_FATAL(g_participant > 0);
+  CU_ASSERT_GT_FATAL (g_participant, 0);
   g_remote_participant = dds_create_participant(DDS_DOMAINID_SUB, NULL, NULL);
-  CU_ASSERT_FATAL(g_remote_participant > 0);
+  CU_ASSERT_GT_FATAL (g_remote_participant, 0);
 
   g_subscriber = dds_create_subscriber(g_participant, NULL, NULL);
-  CU_ASSERT_FATAL(g_subscriber > 0);
+  CU_ASSERT_GT_FATAL (g_subscriber, 0);
 
   g_remote_subscriber = dds_create_subscriber(g_remote_participant, NULL, NULL);
-  CU_ASSERT_FATAL(g_remote_subscriber > 0);
+  CU_ASSERT_GT_FATAL (g_remote_subscriber, 0);
 
   g_publisher = dds_create_publisher(g_participant, NULL, NULL);
-  CU_ASSERT_FATAL(g_publisher > 0);
+  CU_ASSERT_GT_FATAL (g_publisher, 0);
 }
 
 static void whc_fini (void)
@@ -85,12 +85,12 @@ static dds_entity_t create_and_sync_reader(dds_entity_t subscriber, dds_entity_t
 {
   dds_return_t ret;
   dds_entity_t reader = dds_create_reader(subscriber, topic, qos, NULL);
-  CU_ASSERT_FATAL(reader > 0);
+  CU_ASSERT_GT_FATAL (reader, 0);
   while (1)
   {
     dds_publication_matched_status_t st;
     ret = dds_get_publication_matched_status (writer, &st);
-    CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     if (st.current_count_change == 1)
       break;
     dds_sleepfor (DDS_MSECS (1));
@@ -102,10 +102,10 @@ static void get_writer_whc_state (dds_entity_t writer, struct ddsi_whc_state *wh
 {
   struct dds_entity *wr_entity;
   struct ddsi_writer *wr;
-  CU_ASSERT_EQUAL_FATAL(dds_entity_pin(writer, &wr_entity), 0);
+  CU_ASSERT_EQ_FATAL (dds_entity_pin(writer, &wr_entity), 0);
   ddsi_thread_state_awake(ddsi_lookup_thread_state(), &wr_entity->m_domain->gv);
   wr = ddsi_entidx_lookup_writer_guid (wr_entity->m_domain->gv.entity_index, &wr_entity->m_guid);
-  CU_ASSERT_FATAL(wr != NULL);
+  CU_ASSERT_NEQ_FATAL (wr, NULL);
   ddsi_whc_get_state(wr->whc, whcst);
   ddsi_thread_state_asleep(ddsi_lookup_thread_state());
   dds_entity_unpin(wr_entity);
@@ -117,7 +117,7 @@ static void check_intermediate_whc_state(dds_entity_t writer, ddsi_seqno_t exp_m
   get_writer_whc_state (writer, &whcst);
   /* WHC must not contain any samples < exp_min and must contain at least exp_max if it
      contains at least one sample.  (We never know for certain when ACKs arrive.) */
-  printf(" -- intermediate state: unacked: %zu; min %"PRIu64" (exp %"PRIu64"); max %"PRIu64" (exp %"PRIu64")\n", whcst.unacked_bytes, whcst.min_seq, exp_min, whcst.max_seq, exp_max);
+  tprintf(" -- intermediate state: unacked: %zu; min %"PRIu64" (exp %"PRIu64"); max %"PRIu64" (exp %"PRIu64")\n", whcst.unacked_bytes, whcst.min_seq, exp_min, whcst.max_seq, exp_max);
   CU_ASSERT_FATAL (whcst.min_seq >= exp_min || (whcst.min_seq == 0 && whcst.max_seq == 0));
   CU_ASSERT_FATAL (whcst.max_seq == exp_max || (whcst.min_seq == 0 && whcst.max_seq == 0));
 }
@@ -126,10 +126,10 @@ static void check_whc_state(dds_entity_t writer, ddsi_seqno_t exp_min, ddsi_seqn
 {
   struct ddsi_whc_state whcst;
   get_writer_whc_state (writer, &whcst);
-  printf(" -- final state: unacked: %zu; min %"PRIu64" (exp %"PRIu64"); max %"PRIu64" (exp %"PRIu64")\n", whcst.unacked_bytes, whcst.min_seq, exp_min, whcst.max_seq, exp_max);
-  CU_ASSERT_EQUAL_FATAL (whcst.unacked_bytes, 0);
-  CU_ASSERT_EQUAL_FATAL (whcst.min_seq, exp_min);
-  CU_ASSERT_EQUAL_FATAL (whcst.max_seq, exp_max);
+  tprintf(" -- final state: unacked: %zu; min %"PRIu64" (exp %"PRIu64"); max %"PRIu64" (exp %"PRIu64")\n", whcst.unacked_bytes, whcst.min_seq, exp_min, whcst.max_seq, exp_max);
+  CU_ASSERT_EQ_FATAL (whcst.unacked_bytes, 0);
+  CU_ASSERT_EQ_FATAL (whcst.min_seq, exp_min);
+  CU_ASSERT_EQ_FATAL (whcst.max_seq, exp_max);
 }
 
 #define V DDS_DURABILITY_VOLATILE
@@ -150,7 +150,7 @@ static void test_whc_end_state(dds_durability_kind_t d, dds_reliability_kind_t r
   dds_return_t ret;
   int32_t s, i;
 
-  printf ("test_whc_end_state: %s, %s, %s(%d), durability %s(%d), readers: %u local, %u remote, instances: %"PRId32", key %u, deadline %"PRId64"\n",
+  tprintf ("test_whc_end_state: %s, %s, %s(%d), durability %s(%d), readers: %u local, %u remote, instances: %"PRId32", key %u, deadline %"PRId64"\n",
       d == V ? "volatile" : "TL",
       r == BE ? "best-effort" : "reliable",
       h == KA ? "keep-all" : "keep-last", h == KA ? 0 : hd,
@@ -166,14 +166,14 @@ static void test_whc_end_state(dds_durability_kind_t d, dds_reliability_kind_t r
 
   create_unique_topic_name ("ddsc_whc_end_state_test", name, sizeof name);
   topic = dds_create_topic (g_participant, k ? &Space_Type1_desc : &Space_Type3_desc, name, NULL, NULL);
-  CU_ASSERT_FATAL(topic > 0);
+  CU_ASSERT_GT_FATAL (topic, 0);
   remote_topic = dds_create_topic (g_remote_participant, k ? &Space_Type1_desc : &Space_Type3_desc, name, NULL, NULL);
-  CU_ASSERT_FATAL(remote_topic > 0);
+  CU_ASSERT_GT_FATAL (remote_topic, 0);
 
   writer = dds_create_writer (g_publisher, topic, g_qos, NULL);
-  CU_ASSERT_FATAL(writer > 0);
+  CU_ASSERT_GT_FATAL (writer, 0);
   ret = dds_set_status_mask(writer, DDS_PUBLICATION_MATCHED_STATUS);
-  CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
   reader = lrd ? create_and_sync_reader (g_subscriber, topic, g_qos, writer) : 0;
   reader_remote = rrd ? create_and_sync_reader (g_remote_subscriber, remote_topic, g_qos, writer) : 0;
@@ -185,12 +185,12 @@ static void test_whc_end_state(dds_durability_kind_t d, dds_reliability_kind_t r
       {
         sample.long_1 = (int32_t)i;
         ret = dds_write (writer, &sample);
-        CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+        CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
       }
     else
     {
       ret = dds_write (writer, &sample_keyless);
-      CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+      CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     }
 
     /* if history is truly keep last, there may never be more data present than the max of the
@@ -220,18 +220,18 @@ static void test_whc_end_state(dds_durability_kind_t d, dds_reliability_kind_t r
   if (rrd)
   {
     ret = dds_delete (reader_remote);
-    CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   }
   if (lrd)
   {
     ret = dds_delete (reader);
-    CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   }
   while (1)
   {
     dds_publication_matched_status_t st;
     ret = dds_get_publication_matched_status (writer, &st);
-    CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     if (st.current_count == 0)
       break;
     dds_sleepfor (DDS_MSECS (1));

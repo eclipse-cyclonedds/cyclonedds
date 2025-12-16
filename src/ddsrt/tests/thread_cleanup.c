@@ -130,12 +130,12 @@ setup(
 
   ddsrt_threadattr_init(&attr);
   rc = ddsrt_thread_create(&thr, "", &attr, &thread_main, (void *)arg);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
 
   arg->thread = thr;
   if (!arg->block) {
     rc = ddsrt_thread_join(thr, &tres);
-    CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
   }
 }
 
@@ -146,10 +146,10 @@ CU_Test(ddsrt_thread_cleanup, push_one)
   struct thread_argument *targ = make_thread_argument(flags, 0, 1, 2);
   setup(targ);
 
-  CU_ASSERT_EQUAL(targ->one, 0);
-  CU_ASSERT_EQUAL(targ->two, 2);
-  CU_ASSERT_EQUAL(targ->executed, 1);
-  CU_ASSERT_EQUAL(targ->cancelled, 0);
+  CU_ASSERT_EQ (targ->one, 0);
+  CU_ASSERT_EQ (targ->two, 2);
+  CU_ASSERT_EQ (targ->executed, 1);
+  CU_ASSERT_EQ (targ->cancelled, 0);
 
   ddsrt_free(targ);
 }
@@ -161,10 +161,10 @@ CU_Test(ddsrt_thread_cleanup, push_two)
   struct thread_argument *targ = make_thread_argument(flags, 0, 1, 2);
   setup(targ);
 
-  CU_ASSERT_EQUAL(targ->one, 0);
-  CU_ASSERT_EQUAL(targ->two, 0);
-  CU_ASSERT_EQUAL(targ->executed, 2);
-  CU_ASSERT_EQUAL(targ->cancelled, 0);
+  CU_ASSERT_EQ (targ->one, 0);
+  CU_ASSERT_EQ (targ->two, 0);
+  CU_ASSERT_EQ (targ->executed, 2);
+  CU_ASSERT_EQ (targ->cancelled, 0);
 
   ddsrt_free(targ);
 }
@@ -176,10 +176,10 @@ CU_Test(ddsrt_thread_cleanup, push_two_pop_one_no_exec)
   struct thread_argument *targ = make_thread_argument(flags, 1, 1, 2);
   setup(targ);
 
-  CU_ASSERT_EQUAL(targ->one, 0);
-  CU_ASSERT_EQUAL(targ->two, 2);
-  CU_ASSERT_EQUAL(targ->executed, 1);
-  CU_ASSERT_EQUAL(targ->cancelled, 1);
+  CU_ASSERT_EQ (targ->one, 0);
+  CU_ASSERT_EQ (targ->two, 2);
+  CU_ASSERT_EQ (targ->executed, 1);
+  CU_ASSERT_EQ (targ->cancelled, 1);
 
   ddsrt_free(targ);
 }
@@ -190,10 +190,10 @@ CU_Test(ddsrt_thread_cleanup, push_two_pop_one_exec)
   struct thread_argument *targ = make_thread_argument(flags, 1, 1, 2);
   setup(targ);
 
-  CU_ASSERT_EQUAL(targ->one, 0);
-  CU_ASSERT_EQUAL(targ->two, 0);
-  CU_ASSERT_EQUAL(targ->executed, 2);
-  CU_ASSERT_EQUAL(targ->cancelled, 1);
+  CU_ASSERT_EQ (targ->one, 0);
+  CU_ASSERT_EQ (targ->two, 0);
+  CU_ASSERT_EQ (targ->executed, 2);
+  CU_ASSERT_EQ (targ->cancelled, 1);
 
   ddsrt_free(targ);
 }
@@ -205,10 +205,10 @@ CU_Test(ddsrt_thread_cleanup, push_two_pop_two_no_exec)
   struct thread_argument *targ = make_thread_argument(flags, 2, 1, 2);
   setup(targ);
 
-  CU_ASSERT_EQUAL(targ->one, 1);
-  CU_ASSERT_EQUAL(targ->two, 2);
-  CU_ASSERT_EQUAL(targ->executed, 0);
-  CU_ASSERT_EQUAL(targ->cancelled, 2);
+  CU_ASSERT_EQ (targ->one, 1);
+  CU_ASSERT_EQ (targ->two, 2);
+  CU_ASSERT_EQ (targ->executed, 0);
+  CU_ASSERT_EQ (targ->cancelled, 2);
 
   ddsrt_free(targ);
 }
@@ -219,10 +219,10 @@ CU_Test(ddsrt_thread_cleanup, push_two_pop_two_exec_one)
   struct thread_argument *targ = make_thread_argument(flags, 2, 1, 2);
   setup(targ);
 
-  CU_ASSERT_EQUAL(targ->one, 0);
-  CU_ASSERT_EQUAL(targ->two, 2);
-  CU_ASSERT_EQUAL(targ->executed, 1);
-  CU_ASSERT_EQUAL(targ->cancelled, 2);
+  CU_ASSERT_EQ (targ->one, 0);
+  CU_ASSERT_EQ (targ->two, 2);
+  CU_ASSERT_EQ (targ->executed, 1);
+  CU_ASSERT_EQ (targ->cancelled, 2);
 
   ddsrt_free(targ);
 }
@@ -233,10 +233,10 @@ CU_Test(ddsrt_thread_cleanup, push_two_pop_two_exec_both)
   struct thread_argument *targ = make_thread_argument(flags, 2, 1, 2);
   setup(targ);
 
-  CU_ASSERT_EQUAL(targ->one, 0);
-  CU_ASSERT_EQUAL(targ->two, 0);
-  CU_ASSERT_EQUAL(targ->executed, 2);
-  CU_ASSERT_EQUAL(targ->cancelled, 2);
+  CU_ASSERT_EQ (targ->one, 0);
+  CU_ASSERT_EQ (targ->two, 0);
+  CU_ASSERT_EQ (targ->executed, 2);
+  CU_ASSERT_EQ (targ->cancelled, 2);
 
   ddsrt_free(targ);
 }
@@ -265,19 +265,19 @@ CU_Test(ddsrt_thread_cleanup, no_interference)
   ddsrt_mutex_unlock(&mutex2);
   ddsrt_thread_join(targ2->thread, NULL);
 
-  CU_ASSERT_EQUAL(targ2->one, 1);
-  CU_ASSERT_EQUAL(targ2->two, 2);
-  CU_ASSERT_EQUAL(targ2->executed, 0);
-  CU_ASSERT_EQUAL(targ2->cancelled, 2);
+  CU_ASSERT_EQ (targ2->one, 1);
+  CU_ASSERT_EQ (targ2->two, 2);
+  CU_ASSERT_EQ (targ2->executed, 0);
+  CU_ASSERT_EQ (targ2->cancelled, 2);
 
   /* instruct thread 1 to continue */
   ddsrt_mutex_unlock(&mutex1);
   ddsrt_thread_join(targ1->thread, NULL);
 
-  CU_ASSERT_EQUAL(targ1->one, 0);
-  CU_ASSERT_EQUAL(targ1->two, 0);
-  CU_ASSERT_EQUAL(targ1->executed, 2);
-  CU_ASSERT_EQUAL(targ1->cancelled, 0);
+  CU_ASSERT_EQ (targ1->one, 0);
+  CU_ASSERT_EQ (targ1->two, 0);
+  CU_ASSERT_EQ (targ1->executed, 2);
+  CU_ASSERT_EQ (targ1->cancelled, 0);
 
   ddsrt_mutex_destroy(&mutex1);
   ddsrt_mutex_destroy(&mutex2);

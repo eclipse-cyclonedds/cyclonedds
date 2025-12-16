@@ -43,7 +43,7 @@ CU_Test (ddsi_ipaddr, is_nearby_address)
       printf ("off %d i %zu res %d", ifs_offset, i, (int) res);
       if (res != locs[i].res)
         ok = false;
-      CU_ASSERT (res == locs[i].res);
+      CU_ASSERT_EQ (res, locs[i].res);
       if (res == DNAR_SELF || res == DNAR_LOCAL)
       {
         printf (" index %zu", interf_index);
@@ -51,7 +51,7 @@ CU_Test (ddsi_ipaddr, is_nearby_address)
           locs[i].interf_index = 1 - locs[i].interf_index;
         if (interf_index != locs[i].interf_index)
           ok = false;
-        CU_ASSERT (interf_index == locs[i].interf_index);
+        CU_ASSERT_EQ (interf_index, locs[i].interf_index);
       }
       printf (" (%s)\n", ok ? "ok" : "nok");
     }

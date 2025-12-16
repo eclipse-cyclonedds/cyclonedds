@@ -70,7 +70,8 @@ void ddsi_prune_deleted_participant_guids (struct ddsi_deleted_participants_admi
 void ddsi_remove_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid);
 
 /** @component ddsi_participant */
-void ddsi_remember_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid);
+bool ddsi_remember_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid)
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 /** @component ddsi_participant */
 struct ddsi_participant *ddsi_ref_participant (struct ddsi_participant *pp, const struct ddsi_guid *guid_of_refing_entity);

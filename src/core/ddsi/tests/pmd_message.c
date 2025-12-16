@@ -159,7 +159,8 @@ static void wait_for_dqueue (void)
 static void create_fake_proxy_participant (void)
 {
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
-  const uint32_t port = gv.loc_meta_uc.port;
+  const uint32_t rport = gv.loc_meta_uc.port;
+  const uint32_t xport = 1 + (gv.intf_xlocators[0].c.port % 65535);
 
   // not static nor const: we need to patch in the port number
   unsigned char spdp_pkt[] = {
@@ -185,13 +186,14 @@ static void create_fake_proxy_participant (void)
     SER32BE (DDSI_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER | DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER),
     HDR (DDSI_PID_PROTOCOL_VERSION, 4),             gv.config.protocol_version.major, gv.config.protocol_version.minor, 0,0,
     HDR (DDSI_PID_VENDORID, 4),                     1, DDSI_VENDORID_MINOR_ECLIPSE, 0,0,
-    HDR (DDSI_PID_DEFAULT_UNICAST_LOCATOR, 24),     UDPLOCATOR (127,0,0,1, port),
-    HDR (DDSI_PID_METATRAFFIC_UNICAST_LOCATOR, 24), UDPLOCATOR (127,0,0,1, port),
+    HDR (DDSI_PID_DEFAULT_UNICAST_LOCATOR, 24),     UDPLOCATOR (127,0,0,1, rport),
+    HDR (DDSI_PID_METATRAFFIC_UNICAST_LOCATOR, 24), UDPLOCATOR (127,0,0,1, rport),
     HDR (DDSI_PID_PARTICIPANT_LEASE_DURATION, 8),   SER32BE (100), SER32BE (0),
     SENTINEL
   };
   struct ddsi_network_packet_info pktinfo;
   ddsi_conn_locator (gv.xmit_conns[0], &pktinfo.src);
+  pktinfo.src.port = xport;
   pktinfo.dst.kind = DDSI_LOCATOR_KIND_INVALID;
   pktinfo.if_index = 0;
   const ddsi_guid_t proxypp_guid = {
@@ -218,7 +220,7 @@ static void create_fake_proxy_participant (void)
   struct ddsi_proxy_participant *proxypp;
   ddsi_thread_state_awake (thrst, &gv);
   proxypp = ddsi_entidx_lookup_proxy_participant_guid (gv.entity_index, &proxypp_guid);
-  CU_ASSERT_FATAL (proxypp != NULL);
+  CU_ASSERT_NEQ_FATAL (proxypp, NULL);
   ddsi_thread_state_asleep (thrst);
 
   // No risk of a GUID collision: the fake proxy participant uses a different
@@ -231,7 +233,7 @@ static void create_fake_proxy_participant (void)
   dds_return_t ret = ddsi_new_participant (&ppguid, &gv, 0, &plist);
   ddsi_thread_state_asleep (thrst);
   ddsi_plist_fini (&plist);
-  CU_ASSERT_FATAL (ret == 0);
+  CU_ASSERT_EQ_FATAL (ret, 0);
 }
 
 static void send_pmd_message (uint32_t seqlo, uint16_t encoding, uint16_t options, uint32_t kind, uint32_t seq_length, uint32_t act_payload_size, bool msg_is_valid)

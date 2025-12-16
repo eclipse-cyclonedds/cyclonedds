@@ -47,9 +47,9 @@ static const void *align (const unsigned char *base, struct context *c, size_t a
   return base + o;
 }
 
-static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_CompleteTypeObject *typeobj, struct context *c, const char *label, bool is_base_type);
+static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_CompleteTypeObject *typeobj, struct context *c, const char *label, bool is_base_type, bool is_opt);
 
-static bool print_sample1_simple (const unsigned char *sample, const uint8_t disc, struct context *c, const char *label, int32_t *union_disc_value)
+static bool print_sample1_simple (const unsigned char *sample, const uint8_t disc, struct context *c, const char *label, int32_t *union_disc_value, bool is_opt)
 {
   switch (disc)
   {
@@ -77,14 +77,14 @@ static bool print_sample1_simple (const unsigned char *sample, const uint8_t dis
     case CASEI(UINT64, uint64_t, printf ("%"PRIu64, *p));
     case CASE(FLOAT32, float, printf ("%f", *p));
     case CASE(FLOAT64, double, printf ("%f", *p));
-    case CASE(STRING8, char *, printf ("\"%s\"", *p));
-    case CASE(STRING16, wchar_t *, printf ("\"%ls\"", *p));
+    case CASE(STRING8, char *, printf ("\"%s\"", is_opt ? (char *)p : *p));
+    case CASE(STRING16, wchar_t *, printf ("\"%ls\"", is_opt ? (wchar_t *)p : *p));
 #undef CASE
   }
   return false;
 }
 
-static const char *get_string_pointer (const unsigned char *sample, const DDS_XTypes_TypeIdentifier *typeid, struct context *c)
+static const char *get_string_pointer (const unsigned char *sample, const DDS_XTypes_TypeIdentifier *typeid, struct context *c, bool is_opt)
 {
   uint32_t bound;
   if (typeid->_d == DDS_XTypes_TI_STRING8_SMALL)
@@ -96,14 +96,18 @@ static const char *get_string_pointer (const unsigned char *sample, const DDS_XT
   {
     return align (sample, c, _Alignof (char), bound + 1);
   }
-  else
+  else if (!is_opt)
   {
     // if not "valid_data" and not a key field, this'll be a null pointer
     return *((const char **) align (sample, c, _Alignof (char *), sizeof (char *)));
   }
+  else
+  {
+    return (const char *) sample;
+  }
 }
 
-static const wchar_t *get_wstring_pointer (const unsigned char *sample, const DDS_XTypes_TypeIdentifier *typeid, struct context *c)
+static const wchar_t *get_wstring_pointer (const unsigned char *sample, const DDS_XTypes_TypeIdentifier *typeid, struct context *c, bool is_opt)
 {
   uint32_t bound;
   if (typeid->_d == DDS_XTypes_TI_STRING16_SMALL)
@@ -115,22 +119,26 @@ static const wchar_t *get_wstring_pointer (const unsigned char *sample, const DD
   {
     return align (sample, c, _Alignof (wchar_t), (bound + 1) * sizeof (wchar_t));
   }
-  else
+  else if (!is_opt)
   {
     // if not "valid_data" and not a key field, this'll be a null pointer
     return *((const wchar_t **) align (sample, c, _Alignof (wchar_t *), sizeof (wchar_t *)));
   }
+  else
+  {
+    return (const wchar_t *) sample;
+  }
 }
 
-static void print_sample1_ti (const unsigned char *sample, const DDS_XTypes_TypeIdentifier *typeid, uint32_t rank, struct context *c, const char *label, bool is_base_type)
+static void print_sample1_ti (const unsigned char *sample, const DDS_XTypes_TypeIdentifier *typeid, uint32_t rank, struct context *c, const char *label, bool is_base_type, bool is_opt)
 {
-  if (print_sample1_simple (sample, typeid->_d, c, label, NULL))
+  if (print_sample1_simple (sample, typeid->_d, c, label, NULL, is_opt))
     return;
   switch (typeid->_d)
   {
     case DDS_XTypes_TI_STRING8_SMALL:
     case DDS_XTypes_TI_STRING8_LARGE: {
-      const char *p = get_string_pointer (sample, typeid, c);
+      const char *p = get_string_pointer (sample, typeid, c, is_opt);
       if (c->key || c->valid_data)
       {
         if (c->needs_comma) fputc (',', stdout);
@@ -142,7 +150,7 @@ static void print_sample1_ti (const unsigned char *sample, const DDS_XTypes_Type
     }
     case DDS_XTypes_TI_STRING16_SMALL:
     case DDS_XTypes_TI_STRING16_LARGE: {
-      const wchar_t *p = get_wstring_pointer (sample, typeid, c);
+      const wchar_t *p = get_wstring_pointer (sample, typeid, c, is_opt);
       if (c->key || c->valid_data)
       {
         if (c->needs_comma) fputc (',', stdout);
@@ -163,7 +171,7 @@ static void print_sample1_ti (const unsigned char *sample, const DDS_XTypes_Type
         if (label) printf ("\"%s\":", label);
         printf ("[");
         for (uint32_t i = 0; i < p->_length; i++)
-          print_sample1_ti (p->_buffer, et, 0, &c1, NULL, false);
+          print_sample1_ti (p->_buffer, et, 0, &c1, NULL, false, false);
         printf ("]");
         c->needs_comma = true;
       }
@@ -191,9 +199,9 @@ static void print_sample1_ti (const unsigned char *sample, const DDS_XTypes_Type
       for (uint32_t i = 0; i < n; i++)
       {
         if (rank + 1 < m)
-          print_sample1_ti (sample, typeid, rank + 1, c, NULL, is_base_type);
+          print_sample1_ti (sample, typeid, rank + 1, c, NULL, is_base_type, false);
         else
-          print_sample1_ti (sample, et, 0, c, NULL, is_base_type);
+          print_sample1_ti (sample, et, 0, c, NULL, is_base_type, false);
       }
       if (c->key || c->valid_data) {
         printf ("]");
@@ -203,20 +211,20 @@ static void print_sample1_ti (const unsigned char *sample, const DDS_XTypes_Type
     }
     case DDS_XTypes_EK_COMPLETE: {
       struct typeinfo templ = { .key = { .key = (uintptr_t) typeid } }, *info = type_cache_lookup (&templ);
-      print_sample1_to (sample, info->typeobj, c, label, is_base_type);
+      print_sample1_to (sample, info->typeobj, c, label, is_base_type, is_opt);
       break;
     }
   }
 }
 
-static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_CompleteTypeObject *typeobj, struct context *c, const char *label, bool is_base_type)
+static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_CompleteTypeObject *typeobj, struct context *c, const char *label, bool is_base_type, bool is_opt)
 {
-  if (print_sample1_simple (sample, typeobj->_d, c, label, NULL))
+  if (print_sample1_simple (sample, typeobj->_d, c, label, NULL, is_opt))
     return;
   switch (typeobj->_d)
   {
     case DDS_XTypes_TK_ALIAS: {
-      print_sample1_ti (sample, &typeobj->_u.alias_type.body.common.related_type, 0, c, label, false);
+      print_sample1_ti (sample, &typeobj->_u.alias_type.body.common.related_type, 0, c, label, false, is_opt);
       break;
     }
     case DDS_XTypes_TK_SEQUENCE: {
@@ -228,7 +236,7 @@ static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_Comp
       printf ("[");
       for (uint32_t i = 0; i < p->_length; i++)
       {
-        print_sample1_ti ((const unsigned char *) p->_buffer, et, 0, &c1, NULL, false);
+        print_sample1_ti ((const unsigned char *) p->_buffer, et, 0, &c1, NULL, false, false);
         if (c1.offset % c1.maxalign)
           c1.offset += c1.maxalign - (c1.offset % c1.maxalign);
       }
@@ -245,19 +253,19 @@ static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_Comp
       if (!is_base_type) { printf ("{"); c->needs_comma = false; }
       struct context c1 = { .key = c->key, .valid_data = c->valid_data, .offset = 0, .maxalign = 1, .needs_comma = c->needs_comma };
       if (t->header.base_type._d != DDS_XTypes_TK_NONE)
-        print_sample1_ti (p, &t->header.base_type, 0, &c1, NULL, true);
+        print_sample1_ti (p, &t->header.base_type, 0, &c1, NULL, true, false);
       for (uint32_t i = 0; i < t->member_seq._length; i++)
       {
         const DDS_XTypes_CompleteStructMember *m = &t->member_seq._buffer[i];
         if (!(m->common.member_flags & DDS_XTypes_IS_OPTIONAL)) {
           c1.key = c->key && m->common.member_flags & DDS_XTypes_IS_KEY;
-          print_sample1_ti (p, &m->common.member_type_id, 0, &c1, *m->detail.name ? m->detail.name : NULL, false);
+          print_sample1_ti (p, &m->common.member_type_id, 0, &c1, *m->detail.name ? m->detail.name : NULL, false, false);
         } else {
           void const * const *p1 = (const void *) align (p, &c1, _Alignof (void *), sizeof (void *));
           if (c->valid_data) { // optional is never a key
             if (*p1 != NULL) { // missing optional values are not visible at all in the output
               struct context c2 = { .key = false, .valid_data = c1.valid_data, .offset = 0, .maxalign = 1, .needs_comma = c1.needs_comma };
-              print_sample1_ti (*p1, &m->common.member_type_id, 0, &c2, *m->detail.name ? m->detail.name : NULL, false);
+              print_sample1_ti (*p1, &m->common.member_type_id, 0, &c2, *m->detail.name ? m->detail.name : NULL, false, true);
               c1.needs_comma = c2.needs_comma;
             }
           }
@@ -302,9 +310,9 @@ static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_Comp
           abort ();
         }
         disc_value = * (int32_t *) p;
-        print_sample1_to (p, info_disc->typeobj, &c1, "_d", false);
+        print_sample1_to (p, info_disc->typeobj, &c1, "_d", false, false);
       }
-      else if (!print_sample1_simple (p, t->discriminator.common.type_id._d, &c1, "_d", &disc_value))
+      else if (!print_sample1_simple (p, t->discriminator.common.type_id._d, &c1, "_d", &disc_value, false))
       {
         abort ();
       }
@@ -314,7 +322,7 @@ static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_Comp
         for (uint32_t l = 0; l < m->common.label_seq._length; l++)
         {
           if (m->common.label_seq._buffer[l] == disc_value)
-            print_sample1_ti (p, &m->common.type_id, 0, &c1, *m->detail.name ? m->detail.name : NULL, false);
+            print_sample1_ti (p, &m->common.type_id, 0, &c1, *m->detail.name ? m->detail.name : NULL, false, false);
         }
       }
       printf ("}");
@@ -326,6 +334,6 @@ static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_Comp
 void print_sample (bool valid_data, const void *sample, const DDS_XTypes_CompleteTypeObject *typeobj)
 {
   struct context c1 = { .valid_data = valid_data, .key = true, .offset = 0, .maxalign = 1, .needs_comma = false };
-  print_sample1_to (sample, typeobj, &c1, NULL, false);
+  print_sample1_to (sample, typeobj, &c1, NULL, false, false);
   printf ("\n");
 }

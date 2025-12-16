@@ -33,6 +33,7 @@ struct ddsi_addrset;
 extern const ddsrt_avl_treedef_t ddsi_pwr_readers_treedef;
 extern const ddsrt_avl_treedef_t ddsi_prd_writers_treedef;
 
+
 /** @component ddsi_proxy_endpoint */
 void ddsi_proxy_writer_set_alive_may_unlock (struct ddsi_proxy_writer *pwr, bool notify);
 

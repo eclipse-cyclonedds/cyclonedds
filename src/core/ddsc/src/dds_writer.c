@@ -362,7 +362,7 @@ static dds_entity_t dds_create_writer_int (dds_entity_t participant_or_publisher
   ddsi_xqos_mergein_missing (wqos, &ddsi_default_qos_writer, ~DDSI_QP_DATA_REPRESENTATION);
   dds_apply_entity_naming(wqos, pub->m_entity.m_qos, gv);
 
-  if ((rc = dds_ensure_valid_data_representation (wqos, tp->m_stype->allowed_data_representation, false)) != DDS_RETCODE_OK)
+  if ((rc = dds_ensure_valid_data_representation (wqos, tp->m_stype->allowed_data_representation, tp->m_stype->data_type_props, DDS_KIND_WRITER)) != DDS_RETCODE_OK)
     goto err_data_repr;
   if ((rc = dds_ensure_valid_psmx_instances (wqos, DDS_PSMX_ENDPOINT_TYPE_WRITER, tp->m_stype, &pub->m_entity.m_domain->psmx_instances)) != DDS_RETCODE_OK)
     goto err_psmx;
@@ -517,7 +517,7 @@ dds_entity_t dds_get_publisher (dds_entity_t writer)
   }
 }
 
-dds_return_t dds__ddsi_writer_wait_for_acks (struct dds_writer *wr, ddsi_guid_t *rdguid, dds_time_t abstimeout)
+dds_return_t dds__ddsi_writer_wait_for_acks (struct dds_writer *wr, ddsi_guid_t *rdguid, ddsrt_mtime_t abstimeout)
 {
   /* during lifetime of the writer m_wr is constant, it is only during deletion that it
      gets erased at some point */

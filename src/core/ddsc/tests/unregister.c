@@ -51,46 +51,46 @@ unregistering_init(void)
     dds_qset_destination_order(qos, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
 
     g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-    CU_ASSERT_FATAL(g_participant > 0);
+    CU_ASSERT_GT_FATAL (g_participant, 0);
 
     g_waitset = dds_create_waitset(g_participant);
-    CU_ASSERT_FATAL(g_waitset > 0);
+    CU_ASSERT_GT_FATAL (g_waitset, 0);
 
     g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_unique_topic_name("ddsc_unregistering_test", name, 100), qos, NULL);
-    CU_ASSERT_FATAL(g_topic > 0);
+    CU_ASSERT_GT_FATAL (g_topic, 0);
 
     /* Create a reader that keeps one sample on three instances. */
     dds_qset_reliability(qos, DDS_RELIABILITY_RELIABLE, DDS_MSECS(100));
     dds_qset_resource_limits(qos, DDS_LENGTH_UNLIMITED, 3, 1);
     g_reader = dds_create_reader(g_participant, g_topic, qos, NULL);
-    CU_ASSERT_FATAL(g_reader > 0);
+    CU_ASSERT_GT_FATAL (g_reader, 0);
 
     /* Create a writer that will not automatically dispose unregistered samples. */
     dds_qset_writer_data_lifecycle(qos, false);
     g_writer = dds_create_writer(g_participant, g_topic, qos, NULL);
-    CU_ASSERT_FATAL(g_writer > 0);
+    CU_ASSERT_GT_FATAL (g_writer, 0);
 
     /* Sync g_writer to g_reader. */
     ret = dds_set_status_mask(g_writer, DDS_PUBLICATION_MATCHED_STATUS);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_writer, g_writer);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     ret = dds_waitset_wait(g_waitset, &triggered, 1, DDS_SECS(1));
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL_FATAL(g_writer, (dds_entity_t)(intptr_t)triggered);
+    CU_ASSERT_EQ_FATAL (ret, 1);
+    CU_ASSERT_EQ_FATAL (g_writer, (dds_entity_t)(intptr_t)triggered);
     ret = dds_waitset_detach(g_waitset, g_writer);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* Sync g_reader to g_writer. */
     ret = dds_set_status_mask(g_reader, DDS_SUBSCRIPTION_MATCHED_STATUS);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_reader, g_reader);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     ret = dds_waitset_wait(g_waitset, &triggered, 1, DDS_SECS(1));
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL_FATAL(g_reader, (dds_entity_t)(intptr_t)triggered);
+    CU_ASSERT_EQ_FATAL (ret, 1);
+    CU_ASSERT_EQ_FATAL (g_reader, (dds_entity_t)(intptr_t)triggered);
     ret = dds_waitset_detach(g_waitset, g_reader);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* Write initial samples. */
     for (int i = 0; i < INITIAL_SAMPLES; i++) {
@@ -98,7 +98,7 @@ unregistering_init(void)
         sample.long_2 = i*2;
         sample.long_3 = i*3;
         ret = dds_write(g_writer, &sample);
-        CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+        CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     }
 
     /* Initialize reading buffers. */
@@ -139,7 +139,7 @@ CU_Test(ddsc_unregister_instance, deleted, .init=unregistering_init, .fini=unreg
     dds_delete(g_writer);
 
     ret = dds_unregister_instance(g_writer, g_data);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -148,7 +148,7 @@ CU_Test(ddsc_unregister_instance, null, .init=unregistering_init, .fini=unregist
 {
     dds_return_t ret;
     ret = dds_unregister_instance(g_writer, NULL);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -161,7 +161,7 @@ CU_Theory((dds_entity_t writer), ddsc_unregister_instance, invalid_writers, .ini
     dds_return_t ret;
 
     ret = dds_unregister_instance(writer, g_data);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -173,7 +173,7 @@ CU_Theory((dds_entity_t *writer), ddsc_unregister_instance, non_writers, .init=u
 {
     dds_return_t ret;
     ret = dds_unregister_instance(*writer, g_data);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_ILLEGAL_OPERATION);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
@@ -184,33 +184,33 @@ CU_Test(ddsc_unregister_instance, unregistering_old_instance, .init=unregisterin
     dds_return_t ret;
 
     ret = dds_unregister_instance(g_writer, &oldInstance);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* Read all available samples. */
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    CU_ASSERT_EQ_FATAL (ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
         if (sample->long_1 == 0) {
             /* Check data. */
-            CU_ASSERT_EQUAL_FATAL(sample->long_2, 0);
-            CU_ASSERT_EQUAL_FATAL(sample->long_3, 0);
+            CU_ASSERT_EQ_FATAL (sample->long_2, 0);
+            CU_ASSERT_EQ_FATAL (sample->long_3, 0);
 
             /* Check states. */
-            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+            CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].instance_state, DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE);
         } else if (sample->long_1 == 1) {
             /* Check data. */
-            CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
-            CU_ASSERT_EQUAL_FATAL(sample->long_3, sample->long_1 * 3);
+            CU_ASSERT_EQ_FATAL (sample->long_2, sample->long_1 * 2);
+            CU_ASSERT_EQ_FATAL (sample->long_3, sample->long_1 * 3);
 
             /* Check states. */
-            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+            CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else {
             CU_FAIL_FATAL("Unknown sample read");
         }
@@ -232,7 +232,7 @@ CU_Test(ddsc_unregister_instance_ts, deleted, .init=unregistering_init, .fini=un
     dds_return_t ret;
     dds_delete(g_writer);
     ret = dds_unregister_instance_ts(g_writer, g_data, g_present);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -241,7 +241,7 @@ CU_Test(ddsc_unregister_instance_ts, null, .init=unregistering_init, .fini=unreg
 {
     dds_return_t ret;
     ret = dds_unregister_instance_ts(g_writer, NULL, g_present);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -254,7 +254,7 @@ CU_Theory((dds_entity_t writer), ddsc_unregister_instance_ts, invalid_writers, .
     dds_return_t ret;
 
     ret = dds_unregister_instance_ts(writer, g_data, g_present);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -266,7 +266,7 @@ CU_Theory((dds_entity_t *writer), ddsc_unregister_instance_ts, non_writers, .ini
 {
     dds_return_t ret;
     ret = dds_unregister_instance_ts(*writer, g_data, g_present);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_ILLEGAL_OPERATION);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
@@ -277,33 +277,33 @@ CU_Test(ddsc_unregister_instance_ts, unregistering_old_instance, .init=unregiste
     dds_return_t ret;
 
     ret = dds_unregister_instance_ts(g_writer, &oldInstance, g_present);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* Read all available samples. */
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    CU_ASSERT_EQ_FATAL (ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
         if (sample->long_1 == 0) {
             /* Check data (data part of unregister is not used, only the key part). */
-            CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
-            CU_ASSERT_EQUAL_FATAL(sample->long_3, sample->long_1 * 3);
+            CU_ASSERT_EQ_FATAL (sample->long_2, sample->long_1 * 2);
+            CU_ASSERT_EQ_FATAL (sample->long_3, sample->long_1 * 3);
 
             /* Check states. */
-            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+            CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].instance_state, DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE);
         } else if (sample->long_1 == 1) {
             /* Check data. */
-            CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
-            CU_ASSERT_EQUAL_FATAL(sample->long_3, sample->long_1 * 3);
+            CU_ASSERT_EQ_FATAL (sample->long_2, sample->long_1 * 2);
+            CU_ASSERT_EQ_FATAL (sample->long_3, sample->long_1 * 3);
 
             /* Check states. */
-            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+            CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else {
             CU_FAIL_FATAL( "Unknown sample read");
         }
@@ -320,32 +320,32 @@ CU_Test(ddsc_unregister_instance_ts, unregistering_past_sample, .init=unregister
 
     /* Unregistering a sample in the past should trigger a lost sample. */
     ret = dds_set_status_mask(g_reader, DDS_SAMPLE_LOST_STATUS);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_reader, g_reader);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* Now, unregister a sample in the past. */
     ret = dds_unregister_instance_ts(g_writer, &oldInstance, g_past);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* Wait for 'sample lost'. */
     ret = dds_waitset_wait(g_waitset, &triggered, 1, DDS_SECS(1));
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQ_FATAL (ret, 1);
 
     /* Read all available samples. */
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    CU_ASSERT_EQ_FATAL (ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
         if ((sample->long_1 == 0) || (sample->long_1 == 1)) {
             /* Check data. */
-            CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
-            CU_ASSERT_EQUAL_FATAL(sample->long_3, sample->long_1 * 3);
+            CU_ASSERT_EQ_FATAL (sample->long_2, sample->long_1 * 2);
+            CU_ASSERT_EQ_FATAL (sample->long_3, sample->long_1 * 3);
 
             /* Check states. */
-            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+            CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].view_state,     DDS_NEW_VIEW_STATE);
         } else {
             CU_FAIL_FATAL("Unknown sample read");
         }
@@ -368,7 +368,7 @@ CU_Test(ddsc_unregister_instance_ih, deleted, .init=unregistering_init, .fini=un
     dds_return_t ret;
     dds_delete(g_writer);
     ret = dds_unregister_instance_ih(g_writer, DDS_HANDLE_NIL);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -380,7 +380,7 @@ CU_Theory((dds_instance_handle_t handle), ddsc_unregister_instance_ih, invalid_h
 {
     dds_return_t ret;
     ret = dds_unregister_instance_ih(g_writer, handle);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_PRECONDITION_NOT_MET);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_PRECONDITION_NOT_MET);
 }
 /*************************************************************************************************/
 
@@ -393,7 +393,7 @@ CU_Theory((dds_entity_t writer), ddsc_unregister_instance_ih, invalid_writers, .
     dds_return_t ret;
 
     ret = dds_unregister_instance_ih(writer, DDS_HANDLE_NIL);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -405,7 +405,7 @@ CU_Theory((dds_entity_t *writer), ddsc_unregister_instance_ih, non_writers, .ini
 {
     dds_return_t ret;
     ret = dds_unregister_instance_ih(*writer, DDS_HANDLE_NIL);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_ILLEGAL_OPERATION);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
@@ -417,33 +417,33 @@ CU_Test(ddsc_unregister_instance_ih, unregistering_old_instance, .init=unregiste
     dds_return_t ret;
 
     ret = dds_unregister_instance_ih(g_writer, hdl);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* Read all available samples. */
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    CU_ASSERT_EQ_FATAL (ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
         if (sample->long_1 == 0) {
             /* Check data. */
-            CU_ASSERT_EQUAL_FATAL(sample->long_2, 0);
-            CU_ASSERT_EQUAL_FATAL(sample->long_3, 0);
+            CU_ASSERT_EQ_FATAL (sample->long_2, 0);
+            CU_ASSERT_EQ_FATAL (sample->long_3, 0);
 
             /* Check states. */
-            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+            CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].instance_state, DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE);
         } else if (sample->long_1 == 1) {
             /* Check data. */
-            CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
-            CU_ASSERT_EQUAL_FATAL(sample->long_3, sample->long_1 * 3);
+            CU_ASSERT_EQ_FATAL (sample->long_2, sample->long_1 * 2);
+            CU_ASSERT_EQ_FATAL (sample->long_3, sample->long_1 * 3);
 
             /* Check states. */
-            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+            CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else {
             CU_FAIL_FATAL("Unknown sample read");
         }
@@ -465,7 +465,7 @@ CU_Test(ddsc_unregister_instance_ih_ts, deleted, .init=unregistering_init, .fini
     dds_return_t ret;
     dds_delete(g_writer);
     ret = dds_unregister_instance_ih_ts(g_writer, DDS_HANDLE_NIL, g_present);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -477,7 +477,7 @@ CU_Theory((dds_instance_handle_t handle), ddsc_unregister_instance_ih_ts, invali
 {
     dds_return_t ret;
     ret = dds_unregister_instance_ih_ts(g_writer, handle, g_present);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_PRECONDITION_NOT_MET);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_PRECONDITION_NOT_MET);
 }
 /*************************************************************************************************/
 
@@ -490,7 +490,7 @@ CU_Theory((dds_entity_t writer), ddsc_unregister_instance_ih_ts, invalid_writers
     dds_return_t ret;
 
     ret = dds_unregister_instance_ih_ts(writer, DDS_HANDLE_NIL, g_present);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -502,7 +502,7 @@ CU_Theory((dds_entity_t *writer), ddsc_unregister_instance_ih_ts, non_writers, .
 {
     dds_return_t ret;
     ret = dds_unregister_instance_ih_ts(*writer, DDS_HANDLE_NIL, g_present);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_ILLEGAL_OPERATION);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
@@ -514,33 +514,33 @@ CU_Test(ddsc_unregister_instance_ih_ts, unregistering_old_instance, .init=unregi
     dds_return_t ret;
 
     ret = dds_unregister_instance_ih_ts(g_writer, hdl, g_present);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* Read all available samples. */
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    CU_ASSERT_EQ_FATAL (ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
         if (sample->long_1 == 0) {
             /* Check data (data part of unregister is not used, only the key part). */
-            CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
-            CU_ASSERT_EQUAL_FATAL(sample->long_3, sample->long_1 * 3);
+            CU_ASSERT_EQ_FATAL (sample->long_2, sample->long_1 * 2);
+            CU_ASSERT_EQ_FATAL (sample->long_3, sample->long_1 * 3);
 
             /* Check states. */
-            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+            CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].instance_state, DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE);
         } else if (sample->long_1 == 1) {
             /* Check data. */
-            CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
-            CU_ASSERT_EQUAL_FATAL(sample->long_3, sample->long_1 * 3);
+            CU_ASSERT_EQ_FATAL (sample->long_2, sample->long_1 * 2);
+            CU_ASSERT_EQ_FATAL (sample->long_3, sample->long_1 * 3);
 
             /* Check states. */
-            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+            CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else {
             CU_FAIL_FATAL("Unknown sample read");
         }
@@ -558,32 +558,32 @@ CU_Test(ddsc_unregister_instance_ih_ts, unregistering_past_sample, .init=unregis
 
     /* Unregistering a sample in the past should trigger a lost sample. */
     ret = dds_set_status_mask(g_reader, DDS_SAMPLE_LOST_STATUS);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_reader, g_reader);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* Now, unregister a sample in the past. */
     ret = dds_unregister_instance_ih_ts(g_writer, hdl, g_past);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* Wait for 'sample lost'. */
     ret = dds_waitset_wait(g_waitset, &triggered, 1, DDS_SECS(1));
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQ_FATAL (ret, 1);
 
     /* Read all available samples. */
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    CU_ASSERT_EQ_FATAL (ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
         if ((sample->long_1 == 0) || (sample->long_1 == 1)) {
             /* Check data. */
-            CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
-            CU_ASSERT_EQUAL_FATAL(sample->long_3, sample->long_1 * 3);
+            CU_ASSERT_EQ_FATAL (sample->long_2, sample->long_1 * 2);
+            CU_ASSERT_EQ_FATAL (sample->long_3, sample->long_1 * 3);
 
             /* Check states. */
-            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+            CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].view_state,     DDS_NEW_VIEW_STATE);
         } else {
             CU_FAIL_FATAL("Unknown sample read");
         }
@@ -602,20 +602,20 @@ CU_Test(ddsc_unregister_instance_ih_ts, unregistering_instance)
 
     /* Create a writer that WILL automatically dispose unregistered samples. */
     g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-    CU_ASSERT_FATAL(g_participant > 0);
+    CU_ASSERT_GT_FATAL (g_participant, 0);
     g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_unique_topic_name("ddsc_unregistering_instance_test", name, 100), NULL, NULL);
-    CU_ASSERT_FATAL(g_topic > 0);
+    CU_ASSERT_GT_FATAL (g_topic, 0);
     g_writer = dds_create_writer(g_participant, g_topic, NULL, NULL);
-    CU_ASSERT_FATAL(g_writer > 0);
+    CU_ASSERT_GT_FATAL (g_writer, 0);
 
     /* Register the instance. */
     ret = dds_register_instance(g_writer, &ih, &testData);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-    CU_ASSERT_NOT_EQUAL_FATAL(ih, DDS_HANDLE_NIL);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+    CU_ASSERT_NEQ_FATAL (ih, DDS_HANDLE_NIL);
 
     /* Unregister the instance. */
     ret = dds_unregister_instance_ih_ts(g_writer, ih, dds_time());
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     dds_delete(g_writer);
     dds_delete(g_topic);
@@ -628,42 +628,42 @@ CU_Test(ddsc_unregister_instance, dispose_unregistered_sample, .init=unregisteri
 {
     dds_entity_t writer;
     writer = dds_create_writer(g_participant, g_topic, NULL, NULL);
-    CU_ASSERT_FATAL(g_writer > 0);
+    CU_ASSERT_GT_FATAL (g_writer, 0);
 
     Space_Type1 newInstance = { INITIAL_SAMPLES, 0, 0 };
     dds_return_t ret;
 
     ret = dds_write(writer, &newInstance);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     ret = dds_unregister_instance(writer, &newInstance);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* Read all available samples. */
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 3);
+    CU_ASSERT_EQ_FATAL (ret, 3);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
         if (sample->long_1 <= 1) {
             /* Check data. */
-            CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
-            CU_ASSERT_EQUAL_FATAL(sample->long_3, sample->long_1 * 3);
+            CU_ASSERT_EQ_FATAL (sample->long_2, sample->long_1 * 2);
+            CU_ASSERT_EQ_FATAL (sample->long_3, sample->long_1 * 3);
 
             /* Check states. */
-            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+            CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else if (sample->long_1 == 2) {
             /* Check data. */
-            CU_ASSERT_EQUAL_FATAL(sample->long_2, 0);
-            CU_ASSERT_EQUAL_FATAL(sample->long_3, 0);
+            CU_ASSERT_EQ_FATAL (sample->long_2, 0);
+            CU_ASSERT_EQ_FATAL (sample->long_3, 0);
 
             /* Check states. */
-            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+            CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
         } else {
             CU_FAIL_FATAL("Unknown sample read");
         }
@@ -677,42 +677,42 @@ CU_Test(ddsc_unregister_instance_ts, dispose_unregistered_sample, .init=unregist
 {
     dds_entity_t writer;
     writer = dds_create_writer(g_participant, g_topic, NULL, NULL);
-    CU_ASSERT_FATAL(g_writer > 0);
+    CU_ASSERT_GT_FATAL (g_writer, 0);
 
     Space_Type1 newInstance = { INITIAL_SAMPLES, 0, 0 };
     dds_return_t ret;
 
     ret = dds_write(writer, &newInstance);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     ret = dds_unregister_instance(writer, &newInstance);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* Read all available samples. */
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 3);
+    CU_ASSERT_EQ_FATAL (ret, 3);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
         if (sample->long_1 <= 1) {
             /* Check data. */
-            CU_ASSERT_EQUAL_FATAL(sample->long_2, sample->long_1 * 2);
-            CU_ASSERT_EQUAL_FATAL(sample->long_3, sample->long_1 * 3);
+            CU_ASSERT_EQ_FATAL (sample->long_2, sample->long_1 * 2);
+            CU_ASSERT_EQ_FATAL (sample->long_3, sample->long_1 * 3);
 
             /* Check states. */
-            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+            CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].instance_state, DDS_ALIVE_INSTANCE_STATE);
         } else if (sample->long_1 == 2) {
             /* Check data. */
-            CU_ASSERT_EQUAL_FATAL(sample->long_2, 0);
-            CU_ASSERT_EQUAL_FATAL(sample->long_3, 0);
+            CU_ASSERT_EQ_FATAL (sample->long_2, 0);
+            CU_ASSERT_EQ_FATAL (sample->long_3, 0);
 
             /* Check states. */
-            CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     DDS_NEW_VIEW_STATE);
-            CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+            CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   DDS_NOT_READ_SAMPLE_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].view_state,     DDS_NEW_VIEW_STATE);
+            CU_ASSERT_EQ_FATAL (g_info[i].instance_state, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
         } else {
             CU_FAIL_FATAL("Unknown sample read");
         }

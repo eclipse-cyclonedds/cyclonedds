@@ -104,8 +104,7 @@ dds_loaned_sample_t *dds_loan_pool_find_and_remove_loan (dds_loan_pool_t *pool, 
     {
       dds_loaned_sample_t * const ls = pool->samples[i];
       assert (pool->n_samples > 0);
-      if (i < --pool->n_samples)
-        pool->samples[i] = pool->samples[pool->n_samples];
+      pool->samples[i] = pool->samples[--pool->n_samples];
       pool->samples[pool->n_samples] = NULL;
       return ls;
     }

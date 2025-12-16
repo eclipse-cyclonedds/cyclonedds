@@ -113,7 +113,7 @@ typedef void (*ddsi_sertype_free_samples_t) (const struct ddsi_sertype *d, void 
 /* Gets the type identifier of the requested kind (minimal or complete) for this sertype */
 typedef ddsi_typeid_t * (*ddsi_sertype_typeid_t) (const struct ddsi_sertype *tp, ddsi_typeid_kind_t kind);
 
-/* Compute the (unpadded) size of the CDR based on the sertype information and the sample (plus used encoding) */
+/* Compute the (unpadded) size of the CDR based on the sertype information and the sample (plus used encoding); returns SIZE_MAX on invalid input */
 typedef dds_return_t (*ddsi_sertype_get_serialized_size_t) (const struct ddsi_sertype *tp, enum ddsi_serdata_kind sdkind, const void *sample, size_t *size, uint16_t *enc_identifier);
 
 /* Serialize into a destination buffer */

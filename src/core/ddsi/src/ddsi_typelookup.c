@@ -377,7 +377,7 @@ void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_R
     }
   }
   if (resolved)
-    ddsrt_cond_broadcast (&gv->typelib_resolved_cond);
+    ddsrt_cond_etime_broadcast (&gv->typelib_resolved_cond);
   ddsrt_mutex_unlock (&gv->typelib_lock);
 }
 

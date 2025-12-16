@@ -2767,7 +2767,7 @@ The default value is: ``none``
 
 ..
    generated from ddsi_config.h[d7db98ce697e409412ec7fb0b900e10261a66c44] 
-   generated from ddsi_config.c[184d7299baad5acc9b96884de77770aac009a11a] 
+   generated from ddsi_config.c[45ed16f4e3201ec8b634ae28b5f9f9b5bedba49d] 
    generated from ddsi__cfgelems.h[741151ccf40cab43638e8c32cac3a4b9c3e73566] 
    generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] 
    generated from _confgen.h[fd29634526c05c3237dbc3f785030fe022eb7875] 
@@ -2775,5 +2775,5 @@ The default value is: ``none``
    generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] 
    generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] 
    generated from generate_rst.c[3c4b523fbb57c8e4a7e247379d06a8021ccc21c4] 
-   generated from generate_xsd.c[6b6818d7f17a35d56c376c04ec1410427f34c0f0] 
+   generated from generate_xsd.c[9bb91084fff7495aee9c025db3108549a0141957] 
    generated from generate_defconfig.c[ba599ccf70b6f1929c08a597a6c555ff2375e458] 

@@ -2004,28 +2004,43 @@ static const struct cfgelem *lookup_element (const char *target, bool *isattr)
   return cfgelem;
 }
 
+static void get_primary_name_slice (const char *csename, const char **slice, int *slicelen)
+{
+  // skip move marker if present
+  const char *name = (csename[0] == '>') ? csename + 1 : csename;
+  const char *end;
+  if ((end = strchr (name, '|')) == NULL)
+    end = name + strlen (name);
+  *slice = name;
+  *slicelen = (int) (end - name);
+}
+
 static const struct cfgelem *find_cfgelem_by_name (struct ddsi_cfgst * const cfgst, const char *class, struct cfgelem const * const elems, const char *name)
 {
   const struct cfgelem *cfg_subelem;
   int ambiguous = 0;
   size_t partial = 0;
   const struct cfgelem *partial_match = NULL;
+  char candidates[128], *cand_cursor = candidates;
+  *cand_cursor = 0;
 
   for (cfg_subelem = elems; cfg_subelem && cfg_subelem->name && strcmp (cfg_subelem->name, "*") != 0; cfg_subelem++)
   {
     const char *csename = cfg_subelem->name;
+    const char *primname;
+    int primnamelen;
+    get_primary_name_slice (csename, &primname, &primnamelen);
     size_t partial1;
     int idx;
     idx = matching_name_index (csename, name, &partial1);
     if (idx > 0)
     {
-      if (csename[0] == '|')
+      if (primname[0] == '|')
         cfg_warning (cfgst, "'%s': deprecated %s", name, class);
       else
       {
-        int n = (int) (strchr (csename, '|') - csename);
-        if (csename[n + 1] != '|') {
-          cfg_warning (cfgst, "'%s': deprecated alias for '%*.*s'", name, n, n, csename);
+        if (primname[primnamelen] == '|' && primname[primnamelen + 1] != '|') {
+          cfg_warning (cfgst, "'%s': deprecated alias for '%*.*s'", name, primnamelen, primnamelen, primname);
         }
       }
     }
@@ -2039,12 +2054,18 @@ static const struct cfgelem *find_cfgelem_by_name (struct ddsi_cfgst * const cfg
       /* a longer prefix match is a candidate ... */
       partial = partial1;
       partial_match = cfg_subelem;
+      cand_cursor = candidates;
     }
     else if (partial1 > 0 && partial1 == partial)
     {
       /* ... but an ambiguous prefix match won't do */
       ambiguous = 1;
       partial_match = NULL;
+    }
+    if (partial1 > 0 && (size_t) (cand_cursor - candidates) < sizeof (candidates))
+    {
+      int n = snprintf (cand_cursor, sizeof (candidates) - (size_t) (cand_cursor - candidates), "%s%*.*s", (cand_cursor == candidates) ? "" : ", ", primnamelen, primnamelen, primname);
+      cand_cursor += (n > 0) ? n : 0;
     }
   }
   if (cfg_subelem && cfg_subelem->name == NULL)
@@ -2054,7 +2075,7 @@ static const struct cfgelem *find_cfgelem_by_name (struct ddsi_cfgst * const cfg
     if (partial_match != NULL && cfgst->partial_match_allowed)
       cfg_subelem = partial_match;
     else if (ambiguous)
-      (void) cfg_error (cfgst, "%s: ambiguous %s prefix", name, class);
+      (void) cfg_error (cfgst, "%s: ambiguous %s prefix (%s)", name, class, candidates);
     else
       (void) cfg_error (cfgst, "%s: unknown %s", name, class);
   }

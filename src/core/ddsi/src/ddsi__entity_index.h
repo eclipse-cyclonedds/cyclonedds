@@ -76,22 +76,28 @@ void ddsi_entidx_insert_proxy_reader_guid (struct ddsi_entity_index *ei, struct 
 
 
 /** @component entity_index */
-void ddsi_entidx_remove_participant_guid (struct ddsi_entity_index *ei, struct ddsi_participant *pp) ddsrt_nonnull_all;
+struct ddsi_participant *ddsi_entidx_tryremove_participant_guid (struct ddsi_entity_index *ei, const struct ddsi_guid *guid)
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 /** @component entity_index */
-void ddsi_entidx_remove_proxy_participant_guid (struct ddsi_entity_index *ei, struct ddsi_proxy_participant *proxypp) ddsrt_nonnull_all;
+struct ddsi_proxy_participant *ddsi_entidx_tryremove_proxy_participant_guid (struct ddsi_entity_index *ei, const struct ddsi_guid *guid)
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 /** @component entity_index */
-void ddsi_entidx_remove_writer_guid (struct ddsi_entity_index *ei, struct ddsi_writer *wr) ddsrt_nonnull_all;
+struct ddsi_writer *ddsi_entidx_tryremove_writer_guid (struct ddsi_entity_index *ei, const struct ddsi_guid *guid)
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 /** @component entity_index */
-void ddsi_entidx_remove_reader_guid (struct ddsi_entity_index *ei, struct ddsi_reader *rd) ddsrt_nonnull_all;
+struct ddsi_reader *ddsi_entidx_tryremove_reader_guid (struct ddsi_entity_index *ei, const struct ddsi_guid *guid)
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 /** @component entity_index */
-void ddsi_entidx_remove_proxy_writer_guid (struct ddsi_entity_index *ei, struct ddsi_proxy_writer *pwr) ddsrt_nonnull_all;
+struct ddsi_proxy_writer *ddsi_entidx_tryremove_proxy_writer_guid (struct ddsi_entity_index *ei, const struct ddsi_guid *guid)
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 /** @component entity_index */
-void ddsi_entidx_remove_proxy_reader_guid (struct ddsi_entity_index *ei, struct ddsi_proxy_reader *prd) ddsrt_nonnull_all;
+struct ddsi_proxy_reader *ddsi_entidx_tryremove_proxy_reader_guid (struct ddsi_entity_index *ei, const struct ddsi_guid *guid)
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 
 /** @component entity_index */
@@ -166,7 +172,8 @@ void ddsi_entidx_enum_proxy_participant_fini (struct ddsi_entity_enum_proxy_part
 void ddsi_entidx_insert_topic_guid (struct ddsi_entity_index *ei, struct ddsi_topic *tp) ddsrt_nonnull_all;
 
 /** @component entity_index */
-void ddsi_entidx_remove_topic_guid (struct ddsi_entity_index *ei, struct ddsi_topic *tp) ddsrt_nonnull_all;
+struct ddsi_topic *ddsi_entidx_tryremove_topic_guid (struct ddsi_entity_index *ei, const struct ddsi_guid *guid)
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 struct ddsi_entity_enum_topic { struct ddsi_entity_enum st; };
 

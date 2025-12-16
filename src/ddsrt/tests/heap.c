@@ -35,7 +35,7 @@ CU_Test(ddsrt_heap, malloc)
     for(size_t j = 0; j < nof_allocsizes; j++) {
       size_t s = allocsizes[i] * allocsizes[j]; /* Allocates up to 1MB */
       void *ptr = ddsrt_malloc(s);
-      CU_ASSERT_PTR_NOT_NULL_FATAL(ptr); /* ddsrt_malloc is supposed to abort on failure */
+      CU_ASSERT_NEQ_FATAL (ptr, NULL); /* ddsrt_malloc is supposed to abort on failure */
       memset(ptr, 0, s); /* This potentially segfaults if the actual allocated block is too small */
       ddsrt_free(ptr);
     }
@@ -48,7 +48,7 @@ CU_Test(ddsrt_heap, calloc)
   for(size_t i = 0; i < nof_allocsizes; i++) {
     for(size_t j = 0; j < nof_allocsizes; j++) {
       char *ptr = ddsrt_calloc(allocsizes[i], allocsizes[j]);
-      CU_ASSERT_PTR_NOT_EQUAL(ptr, NULL); /* ddsrt_calloc is supposed to abort on failure */
+      CU_ASSERT_NEQ (ptr, NULL); /* ddsrt_calloc is supposed to abort on failure */
       if(allocsizes[i] * allocsizes[j] > 0) {
         CU_ASSERT (ptr[0] == 0 && !memcmp(ptr, ptr + 1, (allocsizes[i] * allocsizes[j]) - 1)); /* ddsrt_calloc should memset properly */
       }
@@ -68,7 +68,7 @@ CU_Test(ddsrt_heap, realloc)
       s = allocsizes[i] * allocsizes[j]; /* Allocates up to 1MB */
       printf("ddsrt_realloc(%p) %zu -> %zu\n", ptr, prevs, s);
       ptr = ddsrt_realloc(ptr, s);
-      CU_ASSERT_PTR_NOT_NULL_FATAL(ptr); /* ddsrt_realloc is supposed to abort on failure */
+      CU_ASSERT_NEQ_FATAL (ptr, NULL); /* ddsrt_realloc is supposed to abort on failure */
       unchanged = (prevs < s) ? prevs : s;
       if(unchanged) {
         CU_ASSERT (ptr && ptr[0] == 1 && !memcmp(ptr, ptr + 1, unchanged - 1)); /* ddsrt_realloc shouldn't change memory */
@@ -137,7 +137,7 @@ CU_Test(ddsrt_heap, ddsrt_realloc_s)
       if (s <= 16) {
         /* Failure to allocate can't be considered a test fault really,
          * except that a ddsrt_realloc_s(0 < s <=16) would fail is unlikely. */
-        CU_ASSERT_PTR_NOT_EQUAL(newptr, NULL);
+        CU_ASSERT_NEQ (newptr, NULL);
       }
       if(newptr){
         unchanged = (prevs < s) ? prevs : s;

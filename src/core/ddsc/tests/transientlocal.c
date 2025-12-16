@@ -42,54 +42,54 @@ CU_Test(ddsc_transient_local, late_joiner)
 
     /* Create participant and topic. */
     par = dds_create_participant(DDS_DOMAIN_DEFAULT, qos, NULL);
-    CU_ASSERT_FATAL(par > 0);
+    CU_ASSERT_GT_FATAL (par, 0);
     top = dds_create_topic(par, &Space_Type1_desc, "ddsc_transient_local_happy_days", qos, NULL);
-    CU_ASSERT_FATAL(par > 0);
+    CU_ASSERT_GT_FATAL (par, 0);
 
     /* Create publishing entities. */
     pub = dds_create_publisher(par, qos, NULL);
-    CU_ASSERT_FATAL(pub > 0);
+    CU_ASSERT_GT_FATAL (pub, 0);
     wrt = dds_create_writer(pub, top, qos, NULL);
-    CU_ASSERT_FATAL(wrt > 0);
+    CU_ASSERT_GT_FATAL (wrt, 0);
 
     /* Write first set of samples. */
     sample.long_1 = 1;
     sample.long_2 = 5;
     sample.long_3 = 9;
     ret = dds_write(wrt, &sample);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     sample.long_1 = 2;
     sample.long_2 = 6;
     sample.long_3 = 10;
     ret = dds_write(wrt, &sample);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* Create subscribing entities. */
     sub = dds_create_subscriber(par, qos, NULL);
-    CU_ASSERT_FATAL(sub > 0);
+    CU_ASSERT_GT_FATAL (sub, 0);
     rdr = dds_create_reader(sub, top, qos, NULL);
-    CU_ASSERT_FATAL(rdr > 0);
+    CU_ASSERT_GT_FATAL (rdr, 0);
 
     /* Write second set of samples. */
     sample.long_1 = 3;
     sample.long_2 = 7;
     sample.long_3 = 11;
     ret = dds_write(wrt, &sample);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     sample.long_1 = 4;
     sample.long_2 = 8;
     sample.long_3 = 12;
     ret = dds_write(wrt, &sample);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* Read samples, which should be all four. */
     ret = dds_read(rdr, samples, info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 4);
+    CU_ASSERT_EQ_FATAL (ret, 4);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *s = (Space_Type1*)samples[i];
-        CU_ASSERT_EQUAL(i+1,s->long_1);
-        CU_ASSERT_EQUAL(i+ret+1,s->long_2);
-        CU_ASSERT_EQUAL(i+2*ret+1,s->long_3);
+        CU_ASSERT_EQ (i+1,s->long_1);
+        CU_ASSERT_EQ (i+ret+1,s->long_2);
+        CU_ASSERT_EQ (i+2*ret+1,s->long_3);
     }
 
     dds_delete(par);

@@ -40,7 +40,7 @@ struct message {
 
 struct message_queue {
     ddsrt_mutex_t lock;
-    ddsrt_cond_t cond;
+    ddsrt_cond_mtime_t cond;
     struct message *head;
     struct message *tail;
 };
@@ -61,7 +61,7 @@ void delete_message(struct message *msg);
 void init_message_queue(struct message_queue *queue);
 void deinit_message_queue(struct message_queue *queue);
 int message_matched(struct message *msg, message_kind_t kind, DDS_Security_IdentityHandle lidHandle, DDS_Security_IdentityHandle ridHandle, DDS_Security_IdentityHandle hsHandle);
-enum take_message_result take_message(struct message_queue *queue, message_kind_t kind, DDS_Security_IdentityHandle lidHandle, DDS_Security_IdentityHandle ridHandle, DDS_Security_IdentityHandle hsHandle, dds_time_t abstimeout, struct message **msg);
+enum take_message_result take_message(struct message_queue *queue, message_kind_t kind, DDS_Security_IdentityHandle lidHandle, DDS_Security_IdentityHandle ridHandle, DDS_Security_IdentityHandle hsHandle, ddsrt_mtime_t abstimeout, struct message **msg);
 
 
 #endif /* SECURITY_CORE_PLUGIN_WRAPPER_MSG_Q_H_ */

@@ -72,7 +72,7 @@ struct ddsi_writer
   struct ddsi_endpoint_common c;
   ddsi_status_cb_t status_cb;
   void * status_cb_entity;
-  ddsrt_cond_t throttle_cond; /* used to trigger a transmit thread blocked in throttle_writer() or wait_for_acks() */
+  ddsrt_cond_mtime_t throttle_cond; /* FIXME: mtime is historical, etime should be better because of max_blocking_time; used to trigger a transmit thread blocked in throttle_writer() or wait_for_acks() */
   ddsi_seqno_t seq; /* last sequence number (transmitted seqs are 1 ... seq, 0 when nothing published yet) */
   seq_xmit_t seq_xmit; /* last sequence number actually transmitted */
   ddsi_seqno_t min_local_readers_reject_seq; /* mimum of local_readers->last_deliv_seq */
@@ -123,6 +123,7 @@ struct ddsi_writer
   uint32_t rexmit_count; /* cum samples retransmitted (counting events; 1 sample can be counted many times) */
   uint32_t rexmit_lost_count; /* cum samples lost but retransmit requested (also counting events) */
   uint64_t rexmit_bytes; /* cum bytes queued for retransmit */
+  uint64_t sent_bytes; /* cum bytes sent (excluding retransmits) */
   uint64_t time_throttled; /* cum time in throttled state */
   uint64_t time_retransmit; /* cum time in retransmitting state */
   struct ddsi_xeventq *evq; /* timed event queue to be used by this writer */
@@ -163,6 +164,7 @@ struct ddsi_reader
 #ifdef DDS_HAS_SECURITY
   struct ddsi_reader_sec_attributes *sec_attr;
 #endif
+  ddsrt_atomic_uint64_t received_bytes; /* cum bytes received (excluding retransmits) */
 };
 
 struct ddsi_generic_endpoint
@@ -205,7 +207,7 @@ void ddsi_make_writer_info (struct ddsi_writer_info *wrinfo, const struct ddsi_e
 void ddsi_make_writer_info_params (struct ddsi_writer_info *wrinfo, const ddsi_guid_t *wr_guid, int32_t ownership_strength, bool autodispose_unregistered_instances, uint64_t iid, uint32_t statusinfo, dds_duration_t lifespan_duration);
 
 /** @component ddsi_endpoint */
-dds_return_t ddsi_writer_wait_for_acks (struct ddsi_writer *wr, const ddsi_guid_t *rdguid, dds_time_t abstimeout);
+dds_return_t ddsi_writer_wait_for_acks (struct ddsi_writer *wr, const ddsi_guid_t *rdguid, ddsrt_mtime_t abstimeout);
 
 /** @component ddsi_endpoint */
 dds_return_t ddsi_unblock_throttled_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);

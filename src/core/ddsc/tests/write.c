@@ -36,15 +36,15 @@ static void
 setup(void)
 {
     participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-    CU_ASSERT_FATAL(participant > 0);
+    CU_ASSERT_GT_FATAL (participant, 0);
     char topicname[100];
     create_unique_topic_name ("RoundTrip", topicname, sizeof (topicname));
     topic = dds_create_topic(participant, &RoundTripModule_DataType_desc, topicname, NULL, NULL);
-    CU_ASSERT_FATAL(topic > 0);
+    CU_ASSERT_GT_FATAL (topic, 0);
     publisher = dds_create_publisher(participant, NULL, NULL);
-    CU_ASSERT_FATAL(publisher > 0);
+    CU_ASSERT_GT_FATAL (publisher, 0);
     writer = dds_create_writer(participant, topic, NULL, NULL);
-    CU_ASSERT_FATAL(writer > 0);
+    CU_ASSERT_GT_FATAL (writer, 0);
 
     memset(&data, 0, sizeof(data));
     data.payload._length = payloadSize;
@@ -71,7 +71,7 @@ CU_Test(ddsc_write, basic, .init = setup, .fini = teardown)
     dds_return_t status;
 
     status = dds_write(writer, &data);
-    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_OK);
 }
 
 CU_Test(ddsc_write, null_writer, .init = setup, .fini = teardown)
@@ -82,7 +82,7 @@ CU_Test(ddsc_write, null_writer, .init = setup, .fini = teardown)
     DDSRT_WARNING_MSVC_OFF(28020);
     status = dds_write(0, &data);
     DDSRT_WARNING_MSVC_ON(28020);
-    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsc_write, bad_writer, .init = setup, .fini = teardown)
@@ -90,7 +90,7 @@ CU_Test(ddsc_write, bad_writer, .init = setup, .fini = teardown)
     dds_return_t status;
 
     status = dds_write(publisher, &data);
-    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_ILLEGAL_OPERATION);
+    CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_ILLEGAL_OPERATION);
 }
 
 CU_Test(ddsc_write, closed_writer, .init = setup, .fini = teardown)
@@ -98,10 +98,10 @@ CU_Test(ddsc_write, closed_writer, .init = setup, .fini = teardown)
     dds_return_t status;
 
     status = dds_delete(writer);
-    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_OK);
     status = dds_write(writer, &data);
     writer = 0;
-    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsc_write, null_sample, .init = setup, .fini = teardown)
@@ -113,7 +113,7 @@ CU_Test(ddsc_write, null_sample, .init = setup, .fini = teardown)
     status = dds_write(writer, NULL);
     DDSRT_WARNING_MSVC_ON(6387);
 
-    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsc_write_ts, basic, .init = setup, .fini = teardown)
@@ -121,7 +121,7 @@ CU_Test(ddsc_write_ts, basic, .init = setup, .fini = teardown)
     dds_return_t status;
 
     status = dds_write_ts(writer, &data, dds_time());
-    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_OK);
 }
 
 CU_Test(ddsc_write_ts, bad_timestamp, .init = setup, .fini = teardown)
@@ -129,7 +129,7 @@ CU_Test(ddsc_write_ts, bad_timestamp, .init = setup, .fini = teardown)
     dds_return_t status;
 
     status = dds_write_ts(writer, &data, -1);
-    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsc_write, simpletypes)
@@ -151,16 +151,16 @@ CU_Test(ddsc_write, simpletypes)
     };
 
     par = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-    CU_ASSERT_FATAL(par > 0);
+    CU_ASSERT_GT_FATAL (par, 0);
     char topicname[100];
     create_unique_topic_name ("RoundTrip", topicname, sizeof (topicname));
     top = dds_create_topic(par, &Space_simpletypes_desc, topicname, NULL, NULL);
-    CU_ASSERT_FATAL(top > 0);
+    CU_ASSERT_GT_FATAL (top, 0);
     wri = dds_create_writer(par, top, NULL, NULL);
-    CU_ASSERT_FATAL(wri > 0);
+    CU_ASSERT_GT_FATAL (wri, 0);
 
     status = dds_write(wri, &st_data);
-    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_OK);
 
     dds_delete(wri);
     dds_delete(top);
@@ -201,23 +201,23 @@ CU_Test(ddsc_write, invalid_data)
     dds_entity_t par, top, wri;
 
     par = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-    CU_ASSERT_FATAL(par > 0);
+    CU_ASSERT_GT_FATAL (par, 0);
     char topicname[100];
     create_unique_topic_name ("RoundTrip", topicname, sizeof (topicname));
     top = dds_create_topic(par, &Space_invalid_data_desc, topicname, NULL, NULL);
-    CU_ASSERT_FATAL(top > 0);
+    CU_ASSERT_GT_FATAL (top, 0);
     wri = dds_create_writer(par, top, NULL, NULL);
-    CU_ASSERT_FATAL(wri > 0);
+    CU_ASSERT_GT_FATAL (wri, 0);
 
     for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
     {
         status = dds_write(wri, &tests[i].x);
-        CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
+        CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_BAD_PARAMETER);
 
         if (tests[i].invalidkey)
         {
             status = dds_dispose(wri, &tests[i].x);
-            CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
+            CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_BAD_PARAMETER);
         }
     }
 
@@ -260,7 +260,7 @@ CU_Test(ddsc_write, relwr_unrelrd_network)
   }
 
   // It really should have succeeded after several attempts
-  CU_ASSERT_FATAL (result > 0);
+  CU_ASSERT_GT_FATAL (result, 0);
 }
 
 CU_Test(ddsc_write, batch_flush)
@@ -319,7 +319,7 @@ CU_Test(ddsc_write, batch_flush)
       x[i].flush, x[i].exp);
     int result = test_oneliner_no_shm (prog);
     ddsrt_free (prog);
-    CU_ASSERT_FATAL (result > 0);
+    CU_ASSERT_GT_FATAL (result, 0);
   }
 }
 
@@ -352,6 +352,48 @@ CU_Test(ddsc_write, async_one_unrel_sample)
   }
 
   // It really should have succeeded after several attempts
-  CU_ASSERT_FATAL (result > 0);
+  CU_ASSERT_GT_FATAL (result, 0);
 }
 
+CU_Test(ddsc_write, old_sample_registration)
+{
+  int result = test_oneliner
+    ("w(do=s,ad=n) x(do=s,ad=n) "
+     "r(do=s,h=all) "
+     // write/unregister with source timestamp T using writer with
+     // lowest GUID
+     "wr w 1@1 unreg w 1@1 "
+     // write sample with source timestamp T using writer with highest
+     // GUID => this gets rejected by the instance to guarantee eventual
+     // consistency with by-source destination order. The writer
+     // does get registered
+     "wr x 1@1 "
+     "read{fan(1,0,0)w@1} r "
+     // second rejected write should not cause live writer count to be
+     // incremented to 2
+     "wr x 1@1 "
+     // unregister decrements by 1
+     "unreg x 1@1 "
+     // so after this we must see a not-alive-no-writers instance; if the
+     // second rejected write incremented the live writer count to 2, we
+     // would have received an alive instance
+     "read{suo(1,0,0)w@1,fuo1x@1#u1} r");
+  CU_ASSERT_GT_FATAL (result, 0);
+}
+
+CU_Test(ddsc_write, old_sample_ownership)
+{
+  // like above test "ddsc_write, old_sample_registration"
+  // verify that the registration without accepting a sample
+  // by the higher strength writer does not claim ownership
+  int result = test_oneliner
+    ("w(do=s,ad=n,o=x:1) x(do=s,ad=n,o=x:2) "
+     "r(do=s,o=x,h=1) "
+     "wr w 1@1 unreg w 1@1 "
+     "wr x 1@1 "
+     "wr w 1@2 "
+     "take{fan(1,0,0)w@2#u1} r "
+     "wr x 1@3 "
+     "take{fao(1,0,0)x@3#u1} r");
+  CU_ASSERT_GT_FATAL (result, 0);
+}

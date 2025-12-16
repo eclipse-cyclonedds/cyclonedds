@@ -551,6 +551,23 @@ static enum handle_spdp_result handle_spdp_alive (const struct ddsi_receiver_sta
 {
   struct ddsi_domaingv * const gv = rst->gv;
 
+  // Discard SPDP we sent ourselves (if we happen know the source socket). This closes a
+  // small window in which a local participant can be discovered as a remote participant
+  // immediately after deleting the participant. It doesn't really do any harm, but is a
+  // bit sloppy.
+  if (rst->pktinfo.src.kind != DDSI_LOCATOR_KIND_INVALID)
+  {
+    DDSRT_STATIC_ASSERT (sizeof (rst->pktinfo.src) == sizeof (gv->intf_xlocators[0].c));
+    for (int i = 0; i < gv->n_interfaces; i++)
+    {
+      if (memcmp (&rst->pktinfo.src, &gv->intf_xlocators[i].c, sizeof (rst->pktinfo.src)) == 0)
+      {
+        RSTTRACE ("SPDP ST0 "PGUIDFMT" (loopback)", PGUID (datap->participant_guid));
+        return HSR_NOT_INTERESTING;
+      }
+    }
+  }
+
   // Don't just process any SPDP packet but look at the network interface and uni/multicast
   // One could refine this even further by also looking at the locators advertised in the
   // packet, but this should suffice to drop unwanted multicast packets, which is the only

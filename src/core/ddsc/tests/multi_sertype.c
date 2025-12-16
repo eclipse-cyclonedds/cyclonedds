@@ -189,14 +189,14 @@ static void multi_sertype_init (void)
   dds_free (conf_sub);
 
   g_pub_participant = dds_create_participant(DDS_DOMAINID_PUB, NULL, NULL);
-  CU_ASSERT_FATAL (g_pub_participant > 0);
+  CU_ASSERT_GT_FATAL (g_pub_participant, 0);
   g_sub_participant = dds_create_participant(DDS_DOMAINID_SUB, NULL, NULL);
-  CU_ASSERT_FATAL (g_sub_participant > 0);
+  CU_ASSERT_GT_FATAL (g_sub_participant, 0);
 
   g_pub_publisher = dds_create_publisher(g_pub_participant, NULL, NULL);
-  CU_ASSERT_FATAL (g_pub_publisher > 0);
+  CU_ASSERT_GT_FATAL (g_pub_publisher, 0);
   g_sub_subscriber = dds_create_subscriber(g_sub_participant, NULL, NULL);
-  CU_ASSERT_FATAL (g_sub_subscriber > 0);
+  CU_ASSERT_GT_FATAL (g_sub_subscriber, 0);
 }
 
 static void multi_sertype_fini (void)
@@ -216,7 +216,7 @@ static bool get_and_check_writer_status (size_t nwr, const dds_entity_t *wrs, si
   for (size_t i = 0; i < nwr; i++)
   {
     rc = dds_get_publication_matched_status (wrs[i], &x);
-    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
     if (x.current_count != nrd)
       return false;
   }
@@ -230,7 +230,7 @@ static bool get_and_check_reader_status (size_t nrd, const dds_entity_t *rds, si
   for (size_t i = 0; i < nrd; i++)
   {
     rc = dds_get_subscription_matched_status (rds[i], &x);
-    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
     if (x.current_count != nwr)
       return false;
   }
@@ -243,8 +243,8 @@ static void waitfor_or_reset_fastpath (dds_entity_t rdhandle, bool fastpath, siz
   struct dds_entity *x;
 
   rc = dds_entity_pin (rdhandle, &x);
-  CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
-  CU_ASSERT_FATAL (dds_entity_kind (x) == DDS_KIND_READER);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_entity_kind (x), DDS_KIND_READER);
 
   struct ddsi_reader * const rd = ((struct dds_reader *) x)->m_rd;
   struct ddsi_rd_pwr_match *m;
@@ -302,7 +302,7 @@ static void waitfor_or_reset_fastpath (dds_entity_t rdhandle, bool fastpath, siz
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   dds_entity_unpin (x);
 
-  CU_ASSERT_FATAL (wrcount == nwr);
+  CU_ASSERT_EQ_FATAL (wrcount, nwr);
 }
 
 static const struct ddsi_sertype *get_sertype_from_reader (dds_entity_t reader)
@@ -313,8 +313,8 @@ static const struct ddsi_sertype *get_sertype_from_reader (dds_entity_t reader)
   struct dds_reader *rd;
   const struct ddsi_sertype *sertype;
   rc = dds_entity_pin (reader, &x);
-  CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
-  CU_ASSERT_FATAL (dds_entity_kind (x) == DDS_KIND_READER);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_entity_kind (x), DDS_KIND_READER);
   rd = (struct dds_reader *) x;
   sertype = rd->m_topic->m_stype;
   dds_entity_unpin (x);
@@ -352,21 +352,21 @@ static void create_readers (dds_entity_t pp_sub, size_t nrds, dds_entity_t *rds,
   for (size_t i = 0; i < ntps; i++)
   {
     rds[i] = dds_create_reader (pp_sub, tps[i], qos, NULL);
-    CU_ASSERT_FATAL (rds[i] > 0);
+    CU_ASSERT_GT_FATAL (rds[i], 0);
   }
   for (size_t i = ntps; i < nrds; i++)
   {
     rds[i] = dds_create_reader (pp_sub, tps[(i - ntps) / (nrds / ntps - 1)], qos, NULL);
-    CU_ASSERT_FATAL (rds[i] > 0);
+    CU_ASSERT_GT_FATAL (rds[i], 0);
   }
 
   for (size_t i = 0; i < nrds; i++)
   {
     dds_return_t rc;
     rc = dds_set_status_mask (rds[i], DDS_SUBSCRIPTION_MATCHED_STATUS | DDS_DATA_AVAILABLE_STATUS);
-    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
     rc = dds_waitset_attach (waitset, rds[i], (dds_attach_t)i);
-    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
   }
 }
 
@@ -387,7 +387,7 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
   dds_qos_t *qos;
   dds_return_t rc;
 
-  printf ("multi_sertype: %s %s\n", (pp_pub == pp_sub) ? "local" : "remote", multi_sertype_modestr (mode));
+  tprintf ("multi_sertype: %s %s\n", (pp_pub == pp_sub) ? "local" : "remote", multi_sertype_modestr (mode));
 
   /* Transient-local mode is for checking the local historical data delivery path (for remote, there
      is nothing special about it), and knowing it is local means we don't have to wait for historical
@@ -395,10 +395,10 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
   assert (pp_pub == pp_sub || mode != MSM_TRANSLOCAL);
 
   waitset = dds_create_waitset (DDS_CYCLONEDDS_HANDLE);
-  CU_ASSERT_FATAL (waitset > 0);
+  CU_ASSERT_GT_FATAL (waitset, 0);
 
   qos = dds_create_qos ();
-  CU_ASSERT_FATAL (qos != NULL);
+  CU_ASSERT_NEQ_FATAL (qos, NULL);
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
   dds_qset_destination_order (qos, DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP);
   dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, 0);
@@ -414,17 +414,17 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
   for (size_t i = 0; i < sizeof (pub_topics) / sizeof (pub_topics[0]); i++)
   {
     pub_topics[i] = dds_create_topic (pp_pub, descs[i], name, qos, NULL);
-    CU_ASSERT_FATAL (pub_topics[i] > 0);
+    CU_ASSERT_GT_FATAL (pub_topics[i], 0);
   }
   for (size_t i = 0; i < sizeof (writers) / sizeof (writers[0]); i++)
   {
     writers[i] = dds_create_writer (pp_pub, pub_topics[i], qos, NULL);
-    CU_ASSERT_FATAL (writers[i] > 0);
+    CU_ASSERT_GT_FATAL (writers[i], 0);
   }
   for (size_t i = 0; i < sizeof (sub_topics) / sizeof (sub_topics[0]); i++)
   {
     sub_topics[i] = dds_create_topic (pp_sub, descs[i], name, qos, NULL);
-    CU_ASSERT_FATAL (sub_topics[i] > 0);
+    CU_ASSERT_GT_FATAL (sub_topics[i], 0);
   }
 
   if (mode != MSM_TRANSLOCAL)
@@ -434,17 +434,17 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
     for (size_t i = 0; i < sizeof (writers) / sizeof (writers[0]); i++)
     {
       rc = dds_set_status_mask (writers[i], DDS_PUBLICATION_MATCHED_STATUS);
-      CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+      CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
       rc = dds_waitset_attach (waitset, writers[i], -(dds_attach_t)i - 1);
-      CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+      CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
     }
 
-    printf ("wait for discovery, fastpath_ok; delete & recreate readers\n");
+    tprintf ("wait for discovery, fastpath_ok; delete & recreate readers\n");
     while (!(get_and_check_writer_status (sizeof (writers) / sizeof (writers[0]), writers, sizeof (readers) / sizeof (readers[0])) &&
              get_and_check_reader_status (sizeof (readers) / sizeof (readers[0]), readers, sizeof (writers) / sizeof (writers[0]))))
     {
       rc = dds_waitset_wait (waitset, NULL, 0, DDS_SECS(5));
-      CU_ASSERT_FATAL (rc >= 1);
+      CU_ASSERT_GEQ_FATAL (rc, 1);
     }
 
     /* we want to check both the fast path and the slow path ... so first wait
@@ -453,7 +453,7 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
       waitfor_or_reset_fastpath (readers[i], true, sizeof (writers) / sizeof (writers[0]));
     if (mode == MSM_SLOWPATH)
     {
-      printf ("clear fastpath_ok\n");
+      tprintf ("clear fastpath_ok\n");
       for (size_t i = 0; i < sizeof (readers) / sizeof (readers[0]); i++)
         waitfor_or_reset_fastpath (readers[i], false, sizeof (writers) / sizeof (writers[0]));
     }
@@ -481,13 +481,13 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
         ._length = 1, ._maximum = 1, ._release = false, ._buffer = (struct two_uint32[]) { { { 4, 2 } } }
       } }
     };
-    printf ("writing ...\n");
+    tprintf ("writing ...\n");
     rc = dds_write_ts (writers[SEQ_IDX], &s, 1);
-    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
     rc = dds_write_ts (writers[ARY_IDX], &a, 2);
-    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
     rc = dds_write_ts (writers[UNI_IDX], &u, 3);
-    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
 
     /* Also write a sample that can't be deserialised by the other types */
     struct type_seq s1 = {
@@ -496,7 +496,7 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
       }
     };
     rc = dds_write_ts (writers[SEQ_IDX], &s1, 4);
-    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
   }
 
   if (mode == MSM_TRANSLOCAL)
@@ -507,8 +507,8 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
   /* All readers should have received three samples, and those that are of type seq
      should have received one extra (whereas the others should cause deserialization
      failure warnings) */
-  printf ("reading\n");
-  const size_t nexp = ((sizeof (writers) / sizeof (writers[0])) *
+  tprintf ("reading\n");
+  const uint32_t nexp = ((sizeof (writers) / sizeof (writers[0])) *
                          (sizeof (readers) / sizeof (readers[0])) +
                          ((sizeof (readers) / sizeof (readers[0])) / (sizeof (sub_topics) / sizeof (sub_topics[0]))));
   /* For the volatile case, expecting exactly as many deserialization failures as there
@@ -516,7 +516,7 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
      even if there are multiple readers.  For transient-local data, the data set is
      converted for each new reader (of a different topic) and there will therefore be more
      conversion failures. */
-  const size_t nexp_fail =
+  const uint32_t nexp_fail =
     (sizeof (sub_topics) / sizeof (sub_topics[0]) - 1) *
     (mode != MSM_TRANSLOCAL ? 1 : (sizeof (readers) / sizeof (readers[0])) / (sizeof (sub_topics) / sizeof (sub_topics[0])));
   uint32_t nseen = 0;
@@ -525,7 +525,7 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
     dds_sample_info_t si;
 
     rc = dds_waitset_wait (waitset, NULL, 0, DDS_SECS (5));
-    CU_ASSERT_FATAL (rc >= 1);
+    CU_ASSERT_GEQ_FATAL (rc, 1);
 
     {
       struct type_seq s = { .x = { 0 } };
@@ -534,19 +534,19 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
       {
         if (!si.valid_data)
           continue;
-        printf ("recv: seq %"PRId64"\n", si.source_timestamp);
+        tprintf ("recv: seq %"PRId64"\n", si.source_timestamp);
         if (si.source_timestamp == 4)
         {
-          CU_ASSERT_FATAL (s.x._length == 1);
-          CU_ASSERT_FATAL (s.x._buffer[0] == 1);
+          CU_ASSERT_EQ_FATAL (s.x._length, 1);
+          CU_ASSERT_EQ_FATAL (s.x._buffer[0], 1);
         }
         else
         {
           CU_ASSERT_FATAL (si.source_timestamp >= 1 && si.source_timestamp <= 3);
-          CU_ASSERT_FATAL (s.x._length == 3);
-          CU_ASSERT_FATAL (s.x._buffer[0] == 1);
-          CU_ASSERT_FATAL (s.x._buffer[1] == 4);
-          CU_ASSERT_FATAL (s.x._buffer[2] == 2);
+          CU_ASSERT_EQ_FATAL (s.x._length, 3);
+          CU_ASSERT_EQ_FATAL (s.x._buffer[0], 1);
+          CU_ASSERT_EQ_FATAL (s.x._buffer[1], 4);
+          CU_ASSERT_EQ_FATAL (s.x._buffer[2], 2);
         }
         nseen++;
       }
@@ -560,12 +560,12 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
       {
         if (!si.valid_data)
           continue;
-        printf ("recv: ary %"PRId64"\n", si.source_timestamp);
+        tprintf ("recv: ary %"PRId64"\n", si.source_timestamp);
         CU_ASSERT_FATAL (si.source_timestamp >= 1 && si.source_timestamp <= 3);
-        CU_ASSERT_FATAL (a.x[0] == 3);
-        CU_ASSERT_FATAL (a.x[1] == 1);
-        CU_ASSERT_FATAL (a.x[2] == 4);
-        CU_ASSERT_FATAL (a.x[3] == 2);
+        CU_ASSERT_EQ_FATAL (a.x[0], 3);
+        CU_ASSERT_EQ_FATAL (a.x[1], 1);
+        CU_ASSERT_EQ_FATAL (a.x[2], 4);
+        CU_ASSERT_EQ_FATAL (a.x[3], 2);
         nseen++;
       }
     }
@@ -577,13 +577,13 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
       {
         if (!si.valid_data)
           continue;
-        printf ("recv: uni %"PRId64"\n", si.source_timestamp);
+        tprintf ("recv: uni %"PRId64"\n", si.source_timestamp);
         CU_ASSERT_FATAL (si.source_timestamp >= 1 && si.source_timestamp <= 3);
-        CU_ASSERT_FATAL (u._d == 3);
-        CU_ASSERT_FATAL (u._u.a._length == 1);
-        CU_ASSERT_FATAL (u._u.a._buffer != NULL);
-        CU_ASSERT_FATAL (u._u.a._buffer[0].v[0] == 4);
-        CU_ASSERT_FATAL (u._u.a._buffer[0].v[1] == 2);
+        CU_ASSERT_EQ_FATAL (u._d, 3);
+        CU_ASSERT_EQ_FATAL (u._u.a._length, 1);
+        CU_ASSERT_NEQ_FATAL (u._u.a._buffer, NULL);
+        CU_ASSERT_EQ_FATAL (u._u.a._buffer[0].v[0], 4);
+        CU_ASSERT_EQ_FATAL (u._u.a._buffer[0].v[1], 2);
         dds_free (u._u.a._buffer);
         u._u.a._buffer = NULL;
         nseen++;
@@ -598,28 +598,28 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
       {
         if (!si.valid_data)
           continue;
-        printf ("recv: reader %zu %"PRId64"\n", i, si.source_timestamp);
-        CU_ASSERT_FATAL (sample->type == get_sertype_from_reader (readers[i]));
+        tprintf ("recv: reader %zu %"PRId64"\n", i, si.source_timestamp);
+        CU_ASSERT_EQ_FATAL (sample->type, get_sertype_from_reader (readers[i]));
         ddsi_serdata_unref (sample);
         nseen++;
       }
     }
   }
-  CU_ASSERT_FATAL (nseen == nexp);
+  CU_ASSERT_EQ_FATAL (nseen, nexp);
 
   /* data from remote writers can cause a deserialization failure after all
      expected samples have been seen (becasue it is written last); so wait
      for them */
   while (ddsrt_atomic_ld32 (&deser_fail) < nexp_fail)
     dds_sleepfor (DDS_MSECS (10));
-  CU_ASSERT_FATAL (ddsrt_atomic_ld32 (&deser_fail) == nexp_fail);
+  CU_ASSERT_EQ_FATAL (ddsrt_atomic_ld32 (&deser_fail), nexp_fail);
 
   /* deleting the waitset is important: it is bound to the library rather than to
      a domain and consequently won't be deleted simply because all domains are */
   rc = dds_delete (waitset);
   dds_delete_qos (qos);
 
-  CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
   dds_set_log_sink (0, NULL);
 }
 

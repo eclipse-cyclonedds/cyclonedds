@@ -254,7 +254,7 @@ static void connect_writer_with_proxy_reader (struct ddsi_writer *wr, struct dds
   const int isb0 = (ddsi_is_builtin_entityid (wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE) != 0);
   const int isb1 = (ddsi_is_builtin_entityid (prd->e.guid.entityid, prd->c.vendor) != 0);
   dds_qos_policy_id_t reason;
-  int64_t crypto_handle;
+  int64_t crypto_handle = 0;
   bool relay_only;
 
   DDSRT_UNUSED_ARG(tnow);
@@ -298,7 +298,7 @@ static void connect_proxy_writer_with_reader (struct ddsi_proxy_writer *pwr, str
   dds_qos_policy_id_t reason;
   ddsi_count_t init_count;
   struct ddsi_alive_state alive_state;
-  int64_t crypto_handle;
+  int64_t crypto_handle = 0;
 
   if (isb0 != isb1)
     return;
@@ -1421,6 +1421,15 @@ void ddsi_local_reader_ary_fini (struct ddsi_local_reader_ary *x)
 void ddsi_local_reader_ary_insert (struct ddsi_local_reader_ary *x, struct ddsi_reader *rd)
 {
   ddsrt_mutex_lock (&x->rdary_lock);
+  if (!x->valid)
+  {
+    // "valid" is cleared when the (proxy-)writer is removed from the hash table just
+    // prior to deleting it. This makes it impossible to remove a reader that is being
+    // deleted, thus risking a dangling reader pointer and a use-after-free on checking
+    // the types in this function
+    ddsrt_mutex_unlock (&x->rdary_lock);
+    return;
+  }
   x->rdary = ddsrt_realloc (x->rdary, (x->n_readers + 2) * sizeof (*x->rdary));
   if (x->n_readers <= 1 || rd->type == x->rdary[x->n_readers - 1]->type)
   {

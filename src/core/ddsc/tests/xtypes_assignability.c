@@ -44,6 +44,7 @@
 #include "XSpaceMustUnderstand.h"
 #include "XSpaceTypeConsistencyEnforcement.h"
 #include "XSpaceNoTypeInfo.h"
+#include "TypeBuilderTypes.h"
 
 #define DDS_DOMAINID_PUB 0
 #define DDS_DOMAINID_SUB 1
@@ -73,14 +74,14 @@ static void xtypes_assignability_init (void)
   dds_free (conf2);
 
   g_participant1 = dds_create_participant (DDS_DOMAINID_PUB, NULL, NULL);
-  CU_ASSERT_FATAL (g_participant1 > 0);
+  CU_ASSERT_GT_FATAL (g_participant1, 0);
   g_participant2 = dds_create_participant (DDS_DOMAINID_SUB, NULL, NULL);
-  CU_ASSERT_FATAL (g_participant2 > 0);
+  CU_ASSERT_GT_FATAL (g_participant2, 0);
 
   g_publisher1 = dds_create_publisher (g_participant1, NULL, NULL);
-  CU_ASSERT_FATAL (g_publisher1 > 0);
+  CU_ASSERT_GT_FATAL (g_publisher1, 0);
   g_subscriber2 = dds_create_subscriber (g_participant2, NULL, NULL);
-  CU_ASSERT_FATAL (g_subscriber2 > 0);
+  CU_ASSERT_GT_FATAL (g_subscriber2, 0);
 }
 
 static void xtypes_assignability_fini (void)
@@ -93,12 +94,12 @@ static bool reader_wait_for_data (dds_entity_t pp, dds_entity_t rd, dds_duration
 {
   dds_attach_t triggered;
   dds_entity_t ws = dds_create_waitset (pp);
-  CU_ASSERT_FATAL (ws > 0);
+  CU_ASSERT_GT_FATAL (ws, 0);
   dds_return_t ret = dds_waitset_attach (ws, rd, rd);
-  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_waitset_wait (ws, &triggered, 1, dur);
   if (ret > 0)
-    CU_ASSERT_EQUAL_FATAL (rd, (dds_entity_t)(intptr_t) triggered);
+    CU_ASSERT_EQ_FATAL (rd, (dds_entity_t)(intptr_t) triggered);
   dds_delete (ws);
   return ret > 0;
 }
@@ -109,12 +110,12 @@ static void do_test (const dds_topic_descriptor_t *rd_desc, const dds_qos_t *add
   char topic_name[100];
   create_unique_topic_name ("ddsc_xtypes_assignability", topic_name, sizeof (topic_name));
   dds_entity_t topic_wr = dds_create_topic (g_participant1, wr_desc, topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (topic_wr > 0);
+  CU_ASSERT_GT_FATAL (topic_wr, 0);
   dds_entity_t topic_rd = dds_create_topic (g_participant2, rd_desc, topic_name, NULL, NULL);
-  CU_ASSERT_FATAL (topic_rd > 0);
+  CU_ASSERT_GT_FATAL (topic_rd, 0);
 
   dds_qos_t *qos = dds_create_qos (), *wrqos = dds_create_qos (), *rdqos = dds_create_qos ();
-  CU_ASSERT_FATAL (qos != NULL);
+  CU_ASSERT_NEQ_FATAL (qos, NULL);
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS (10));
   dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, 0);
   dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR2 });
@@ -124,12 +125,12 @@ static void do_test (const dds_topic_descriptor_t *rd_desc, const dds_qos_t *add
   if (add_wr_qos)
     dds_merge_qos (wrqos, add_wr_qos);
   dds_entity_t writer = dds_create_writer (g_participant1, topic_wr, wrqos, NULL);
-  CU_ASSERT_FATAL (writer > 0);
+  CU_ASSERT_GT_FATAL (writer, 0);
 
   if (add_rd_qos)
     dds_merge_qos (rdqos, add_rd_qos);
   dds_entity_t reader = dds_create_reader (g_participant2, topic_rd, rdqos, NULL);
-  CU_ASSERT_FATAL (reader > 0);
+  CU_ASSERT_GT_FATAL (reader, 0);
 
   dds_delete_qos (qos);
   dds_delete_qos (wrqos);
@@ -139,25 +140,25 @@ static void do_test (const dds_topic_descriptor_t *rd_desc, const dds_qos_t *add
   {
     sync_reader_writer (g_participant2, reader, g_participant1, writer);
     ret = dds_set_status_mask (reader, DDS_DATA_AVAILABLE_STATUS);
-    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     if (fn_init)
     {
       void * wr_sample = dds_alloc (wr_desc->m_size);
       fn_init (wr_sample);
       ret = dds_write (writer, wr_sample);
-      CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+      CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
       void * rd_sample = dds_alloc (rd_desc->m_size);
       void * rd_samples[1];
       rd_samples[0] = rd_sample;
       dds_sample_info_t info;
       bool data = reader_wait_for_data (g_participant2, reader, DDS_MSECS (500));
-      CU_ASSERT_FATAL (data == read_sample);
+      CU_ASSERT_EQ_FATAL (data, read_sample);
       if (data)
       {
         ret = dds_take (reader, rd_samples, &info, 1, 1);
-        CU_ASSERT_EQUAL_FATAL (ret, 1);
+        CU_ASSERT_EQ_FATAL (ret, 1);
         if (fn_check)
           fn_check (wr_sample, rd_sample);
       }
@@ -190,17 +191,17 @@ static void sample_check_XType1_1a (void *ptr1, void *ptr2)
 {
   XSpace_XType1 *s_wr = (XSpace_XType1 *) ptr1;
   XSpace_XType1a *s_rd = (XSpace_XType1a *) ptr2;
-  CU_ASSERT_EQUAL_FATAL (s_rd->long_1, s_wr->long_1);
-  CU_ASSERT_EQUAL_FATAL (s_rd->long_2, s_wr->long_2);
-  CU_ASSERT_EQUAL_FATAL (s_rd->bm_3, s_wr->bm_3);
+  CU_ASSERT_EQ_FATAL (s_rd->long_1, s_wr->long_1);
+  CU_ASSERT_EQ_FATAL (s_rd->long_2, s_wr->long_2);
+  CU_ASSERT_EQ_FATAL (s_rd->bm_3, s_wr->bm_3);
 }
 static void sample_check_XType1a_1 (void *ptr1, void *ptr2)
 {
   XSpace_XType1a *s_wr = (XSpace_XType1a *) ptr1;
   XSpace_XType1 *s_rd = (XSpace_XType1 *) ptr2;
-  CU_ASSERT_EQUAL_FATAL (s_rd->long_1, s_wr->long_1);
-  CU_ASSERT_EQUAL_FATAL (s_rd->long_2, s_wr->long_2);
-  CU_ASSERT_EQUAL_FATAL (s_rd->bm_3, s_wr->bm_3);
+  CU_ASSERT_EQ_FATAL (s_rd->long_1, s_wr->long_1);
+  CU_ASSERT_EQ_FATAL (s_rd->long_2, s_wr->long_2);
+  CU_ASSERT_EQ_FATAL (s_rd->bm_3, s_wr->bm_3);
 }
 
 static void sample_init_XType2 (void *ptr)
@@ -220,16 +221,16 @@ static void sample_check_XType2_2a (void *ptr1, void *ptr2)
 {
   XSpace_XType2 *s_wr = (XSpace_XType2 *) ptr1;
   XSpace_XType2a *s_rd = (XSpace_XType2a *) ptr2;
-  CU_ASSERT_EQUAL_FATAL (s_rd->long_1, s_wr->long_1);
-  CU_ASSERT_EQUAL_FATAL (s_rd->long_2, s_wr->long_2);
-  CU_ASSERT_EQUAL_FATAL (s_rd->long_3, 0);
+  CU_ASSERT_EQ_FATAL (s_rd->long_1, s_wr->long_1);
+  CU_ASSERT_EQ_FATAL (s_rd->long_2, s_wr->long_2);
+  CU_ASSERT_EQ_FATAL (s_rd->long_3, 0);
 }
 static void sample_check_XType2a_2 (void *ptr1, void *ptr2)
 {
   XSpace_XType2a *s_wr = (XSpace_XType2a *) ptr1;
   XSpace_XType2 *s_rd = (XSpace_XType2 *) ptr2;
-  CU_ASSERT_EQUAL_FATAL (s_rd->long_1, s_wr->long_1);
-  CU_ASSERT_EQUAL_FATAL (s_rd->long_2, s_wr->long_2);
+  CU_ASSERT_EQ_FATAL (s_rd->long_1, s_wr->long_1);
+  CU_ASSERT_EQ_FATAL (s_rd->long_2, s_wr->long_2);
 }
 
 static void sample_init_XType3 (void *ptr)
@@ -250,17 +251,17 @@ static void sample_check_XType3_3a (void *ptr1, void *ptr2)
 {
   XSpace_XType3 *s_wr = (XSpace_XType3 *) ptr1;
   XSpace_XType3a *s_rd = (XSpace_XType3a *) ptr2;
-  CU_ASSERT_EQUAL_FATAL (s_rd->long_1, 0);
-  CU_ASSERT_EQUAL_FATAL (s_rd->long_2, s_wr->long_2);
-  CU_ASSERT_EQUAL_FATAL (s_rd->struct_3.long_4, s_wr->struct_3.long_4);
+  CU_ASSERT_EQ_FATAL (s_rd->long_1, 0);
+  CU_ASSERT_EQ_FATAL (s_rd->long_2, s_wr->long_2);
+  CU_ASSERT_EQ_FATAL (s_rd->struct_3.long_4, s_wr->struct_3.long_4);
 }
 static void sample_check_XType3a_3 (void *ptr1, void *ptr2)
 {
   XSpace_XType3a *s_wr = (XSpace_XType3a *) ptr1;
   XSpace_XType3 *s_rd = (XSpace_XType3 *) ptr2;
-  CU_ASSERT_EQUAL_FATAL (s_rd->long_2, s_wr->long_2);
-  CU_ASSERT_EQUAL_FATAL (s_rd->struct_3.long_4, s_wr->struct_3.long_4);
-  CU_ASSERT_EQUAL_FATAL (s_rd->struct_3.long_5, 0);
+  CU_ASSERT_EQ_FATAL (s_rd->long_2, s_wr->long_2);
+  CU_ASSERT_EQ_FATAL (s_rd->struct_3.long_4, s_wr->struct_3.long_4);
+  CU_ASSERT_EQ_FATAL (s_rd->struct_3.long_5, 0);
 }
 
 static void sample_init_XType4 (void *ptr)
@@ -307,10 +308,12 @@ static void sample_check_XType5a_5 (void *ptr1, void *ptr2)
 {
   XSpace_XType5a *s_wr = (XSpace_XType5a *) ptr1;
   XSpace_XType5 *s_rd = (XSpace_XType5 *) ptr2;
-  CU_ASSERT_FATAL (strlen (s_rd->str_1) == strlen (s_wr->str_1) && strlen (s_rd->str_1) == 999);
-  CU_ASSERT_FATAL (strlen (s_rd->str_2) == strlen (s_wr->str_2) && strlen (s_rd->str_2) == 5);
-  CU_ASSERT_FATAL (!strcmp (s_rd->str_1, s_wr->str_1));
-  CU_ASSERT_FATAL (!strcmp (s_rd->str_2, s_wr->str_2));
+  CU_ASSERT_EQ_FATAL (strlen (s_rd->str_1), strlen (s_wr->str_1));
+  CU_ASSERT_EQ (strlen (s_rd->str_1), 999);
+  CU_ASSERT_EQ_FATAL (strlen (s_rd->str_2), strlen (s_wr->str_2));
+  CU_ASSERT_EQ_FATAL (strlen (s_rd->str_2), 5);
+  CU_ASSERT_STREQ_FATAL (s_rd->str_1, s_wr->str_1);
+  CU_ASSERT_STREQ_FATAL (s_rd->str_2, s_wr->str_2);
 }
 
 #define D(n) XSpace_ ## n ## _desc
@@ -335,11 +338,70 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
 {
   for (int t = 0; t <= 1; t++)
   {
-    printf ("Running test xtypes_basic: %s (run %d/2)\n", descr, t + 1);
+    tprintf ("Running test xtypes_basic: %s (run %d/2)\n", descr, t + 1);
     sample_init i = t ? fn_init2 : fn_init1;
     sample_check c = t ? fn_check2 : fn_check1;
     do_test (t ? desc1 : desc2, NULL, t ? desc2 : desc1, NULL, i != NULL, i, c != NULL, c);
   }
+}
+#undef D
+#undef I
+#undef C
+
+static void sample_init_TBT (void *ptr)
+{
+  TypeBuilderTypes_t45 *sample = ptr;
+  sample->parent.parent.n2_1 = 1;
+  sample->parent.parent.n2_1 = 2;
+  sample->parent.n1_1 = 3;
+  sample->t1 = 4;
+}
+static void sample_check_TBT_n2 (void *ptr1, void *ptr2)
+{
+  TypeBuilderTypes_t45 *s_wr = ptr1;
+  TypeBuilderTypes_t45_n2 *s_rd = ptr2;
+  CU_ASSERT_EQ_FATAL (s_wr->parent.parent.n2_1, s_rd->n2_1);
+  CU_ASSERT_EQ_FATAL (s_wr->parent.parent.n2_2, s_rd->n2_2);
+}
+static void sample_check_TBT_n1 (void *ptr1, void *ptr2)
+{
+  TypeBuilderTypes_t45 *s_wr = ptr1;
+  TypeBuilderTypes_t45_n1 *s_rd = ptr2;
+  sample_check_TBT_n2 (ptr1, ptr2);
+  CU_ASSERT_EQ_FATAL (s_wr->parent.n1_1, s_rd->n1_1);
+}
+
+#define D(n) TypeBuilderTypes_ ## n ## _desc
+#define I(n) sample_init_ ## n
+#define C(n) sample_check_ ## n
+CU_TheoryDataPoints (ddsc_xtypes_assignability, inheritance) = {
+  CU_DataPoints (const char *,                   "final/1",
+  /*                                             |         */"final/2",
+  /*                                             |           |         */"append/1",
+  /*                                             |           |           |          */"append/2",
+  /*                                             |           |           |            |          */"mutable/1",
+  /*                                             |           |           |            |            |           */"mutable/2"),
+  CU_DataPoints (const dds_topic_descriptor_t *, &D(t45),    &D(t45),    &D(t46),     &D(t46),     &D(t47),      &D(t47)    ),
+  CU_DataPoints (const dds_topic_descriptor_t *, &D(t45_n1), &D(t45_n2), &D(t46_n1),  &D(t46_n2),  &D(t47_n1),   &D(t47_n2) ),
+  CU_DataPoints (sample_init,                    I(TBT),     I(TBT),     I(TBT),      I(TBT),      I(TBT),       I(TBT)     ),
+  CU_DataPoints (sample_check,                   C(TBT_n1),  C(TBT_n2),  C(TBT_n1),   C(TBT_n2),   C(TBT_n1),    C(TBT_n2)  ),
+  CU_DataPoints (bool,                           false,      false,      true,        true,        true,         true       )
+};
+
+CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_topic_descriptor_t *desc2, sample_init fn_init, sample_check fn_check, bool assignable),
+    ddsc_xtypes_assignability, inheritance, .init = xtypes_assignability_init, .fini = xtypes_assignability_fini)
+{
+  // final types are not assignable even if the reader is subscribing to the base type of the writer
+  // see XTypes 1.3 Table 19:
+  //
+  // > For the purposes of the above conditions, members belonging to base types of T1 or T2 shall be considered
+  // > “expanded” inside T1 or T2 respectively, as if they had been directly defined as part of the sub-type.
+  //
+  // most impractical, especially considering that inheriting from appendable base types is somewhat unsafe because
+  // of id collisions ...
+  tprintf ("Running test xtypes_inheritance: %s\n", descr);
+  fflush (stdout);
+  do_test (desc2, NULL, desc1, NULL, assignable, fn_init, true, fn_check);
 }
 #undef D
 #undef I
@@ -404,7 +466,7 @@ CU_TheoryDataPoints (ddsc_xtypes_assignability, must_understand) = {
 CU_Theory ((const dds_topic_descriptor_t *rd_desc, const dds_topic_descriptor_t *wr_desc, bool assignable, sample_init fn_init, bool read_sample),
     ddsc_xtypes_assignability, must_understand, .init = xtypes_assignability_init, .fini = xtypes_assignability_fini)
 {
-  printf ("Running test xtypes_must_understand: %s %s\n", wr_desc->m_typename, rd_desc->m_typename);
+  tprintf ("Running test xtypes_must_understand: %s %s\n", wr_desc->m_typename, rd_desc->m_typename);
   do_test (rd_desc, NULL, wr_desc, NULL, assignable, fn_init, read_sample, 0);
 }
 #undef D
@@ -462,7 +524,7 @@ CU_Theory ((const char *test, const dds_topic_descriptor_t *rd_desc, const dds_t
     bool prevent_type_widening, bool ignore_seq_bounds, bool ignore_str_bounds, bool ignore_member_names, bool force_type_validation, bool assignable),
   ddsc_xtypes_assignability, type_consistency_enforcement, .init = xtypes_assignability_init, .fini = xtypes_assignability_fini)
 {
-  printf ("Running test xtypes_type_consistency_enforcement: %s wr %s rd %s\n", test, wr_desc->m_typename, rd_desc->m_typename);
+  tprintf ("Running test xtypes_type_consistency_enforcement: %s wr %s rd %s\n", test, wr_desc->m_typename, rd_desc->m_typename);
   dds_qos_t *rd_qos = dds_create_qos ();
   dds_qset_type_consistency (rd_qos, kind, ignore_seq_bounds, ignore_str_bounds, ignore_member_names, prevent_type_widening, force_type_validation);
   do_test (rd_desc, rd_qos, wr_desc, NULL, assignable, 0, false, 0);
@@ -484,7 +546,7 @@ CU_Test (ddsc_xtypes_assignability, type_consistency_enforcement_force_validatio
   for (uint32_t n = 0; n <= 1; n++)
   {
     bool force_type_validation = (n == 1);
-    printf ("Running test type_consistency_enforcement_force_validation: force_type_validation = %s\n", force_type_validation ? "true" : "false");
+    tprintf ("Running test type_consistency_enforcement_force_validation: force_type_validation = %s\n", force_type_validation ? "true" : "false");
     dds_qos_t *rd_qos = dds_create_qos ();
     dds_qset_type_consistency (rd_qos, DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION, true, true, false, false, force_type_validation);
     do_test (&XSpaceNoTypeInfo_t1_desc, rd_qos, &XSpaceNoTypeInfo_t1_desc, NULL, !force_type_validation, 0, false, 0);
@@ -531,7 +593,7 @@ CU_TheoryDataPoints (ddsc_xtypes_assignability, enum_extensibility) = {
 CU_Theory ((const dds_topic_descriptor_t *rd_desc, const dds_topic_descriptor_t *wr_desc, bool assignable, sample_init fn_init, bool read_sample),
     ddsc_xtypes_assignability, enum_extensibility, .init = xtypes_assignability_init, .fini = xtypes_assignability_fini)
 {
-  printf ("Running test xtypes_enum: %s %s\n", wr_desc->m_typename, rd_desc->m_typename);
+  tprintf ("Running test xtypes_enum: %s %s\n", wr_desc->m_typename, rd_desc->m_typename);
   do_test (rd_desc, NULL, wr_desc, NULL, assignable, fn_init, read_sample, 0);
 }
 

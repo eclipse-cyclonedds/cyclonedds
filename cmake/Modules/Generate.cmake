@@ -11,9 +11,9 @@
 #
 
 function(IDLC_GENERATE)
-  set(options NO_TYPE_INFO WERROR)
+  set(options NO_TYPE_INFO WERROR DEFAULT_NON_NESTED)
   set(one_value_keywords TARGET DEFAULT_EXTENSIBILITY BASE_DIR OUTPUT_DIR)
-  set(multi_value_keywords FILES FEATURES INCLUDES WARNINGS)
+  set(multi_value_keywords FILES FEATURES INCLUDES WARNINGS DEFINES)
   cmake_parse_arguments(
     IDLC "${options}" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
 
@@ -53,6 +53,7 @@ function(IDLC_GENERATE)
     WARNINGS ${IDLC_WARNINGS}
     OUTPUT_DIR ${IDLC_OUTPUT_DIR}
     DEFAULT_EXTENSIBILITY ${IDLC_DEFAULT_EXTENSIBILITY}
+    DEFINES ${IDLC_DEFINES}
     DEPENDS ${_idlc_depends})
 
   if(${IDLC_NO_TYPE_INFO})
@@ -63,13 +64,17 @@ function(IDLC_GENERATE)
     list(APPEND gen_args WERROR)
   endif()
 
+  if(${IDLC_DEFAULT_NON_NESTED})
+    list(APPEND gen_args DEFAULT_NON_NESTED)
+  endif()
+
   idlc_generate_generic(${gen_args})
 endfunction()
 
 function(IDLC_GENERATE_GENERIC)
-  set(options NO_TYPE_INFO WERROR)
+  set(options NO_TYPE_INFO WERROR DEFAULT_NON_NESTED)
   set(one_value_keywords TARGET BACKEND DEFAULT_EXTENSIBILITY BASE_DIR OUTPUT_DIR)
-  set(multi_value_keywords FILES FEATURES INCLUDES WARNINGS SUFFIXES DEPENDS)
+  set(multi_value_keywords FILES FEATURES INCLUDES WARNINGS SUFFIXES DEFINES DEPENDS)
   cmake_parse_arguments(
     IDLC "${options}" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
 
@@ -115,6 +120,11 @@ function(IDLC_GENERATE_GENERIC)
     list(APPEND IDLC_ARGS "-f" ${_feature})
   endforeach()
 
+  # add macro definitions (-Dname or -Dname=value)
+  foreach(def ${IDLC_DEFINES})
+    list(APPEND IDLC_ARGS "-D${def}")
+  endforeach()
+
   # add directories to include search list
   if(IDLC_INCLUDES)
     foreach(_dir ${IDLC_INCLUDES})
@@ -151,6 +161,10 @@ function(IDLC_GENERATE_GENERIC)
 
   if(IDLC_WERROR)
     list(APPEND IDLC_ARGS "-Werror")
+  endif()
+
+  if(IDLC_DEFAULT_NON_NESTED)
+    list(APPEND IDLC_ARGS "-nfalse")
   endif()
 
   if(IDLC_BASE_DIR)

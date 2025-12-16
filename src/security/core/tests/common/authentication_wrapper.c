@@ -449,7 +449,7 @@ static struct dds_security_authentication_impl * get_impl_for_domain(dds_domaini
   return NULL;
 }
 
-enum take_message_result test_authentication_plugin_take_msg(dds_domainid_t domain_id, message_kind_t kind, DDS_Security_IdentityHandle lidHandle, DDS_Security_IdentityHandle ridHandle, DDS_Security_IdentityHandle hsHandle, dds_time_t abstimeout, struct message **msg)
+enum take_message_result test_authentication_plugin_take_msg(dds_domainid_t domain_id, message_kind_t kind, DDS_Security_IdentityHandle lidHandle, DDS_Security_IdentityHandle ridHandle, DDS_Security_IdentityHandle hsHandle, ddsrt_mtime_t abstimeout, struct message **msg)
 {
   struct dds_security_authentication_impl *impl = get_impl_for_domain(domain_id);
   assert(impl);

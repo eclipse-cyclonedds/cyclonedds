@@ -73,7 +73,7 @@ void test_proxy_rd_create (struct ddsi_domaingv *gv, const char *topic_name, DDS
   ddsi_ref_addrset (as); // increase refc to 2, new_proxy_participant does not add a ref
   struct ddsi_proxy_participant *proxy_participant;
   int rc = ddsi_new_proxy_participant (&proxy_participant, gv, pp_guid, 0, as, as, plist, DDS_INFINITY, DDSI_VENDORID_ECLIPSE, ddsrt_time_wallclock (), 1);
-  CU_ASSERT_FATAL (rc);
+  CU_ASSERT_NEQ_FATAL (rc, 0);
 
   ddsi_xqos_mergein_missing (&plist->qos, &ddsi_default_qos_reader, ~(uint64_t)0);
   struct ddsi_proxy_reader *proxy_reader;
@@ -82,7 +82,7 @@ void test_proxy_rd_create (struct ddsi_domaingv *gv, const char *topic_name, DDS
 #else
   rc = ddsi_new_proxy_reader (&proxy_reader, gv, pp_guid, rd_guid, as, plist, ddsrt_time_wallclock (), 1);
 #endif
-  CU_ASSERT_EQUAL_FATAL (rc, exp_ret);
+  CU_ASSERT_EQ_FATAL (rc, exp_ret);
   ddsi_plist_fini (plist);
   ddsrt_free (plist);
   ddsi_thread_state_asleep (thrst);

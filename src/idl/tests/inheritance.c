@@ -43,24 +43,24 @@ static void
 test_inheritance(inherit_spec_test_t test) {
   idl_pstate_t *pstate = NULL;
   idl_retcode_t ret = parse_string(IDL_FLAG_ANNOTATIONS, test.str, &pstate);
-  CU_ASSERT_EQUAL(test.parse_ret, ret);
+  CU_ASSERT_EQ (test.parse_ret, ret);
   if (test.parse_ret != IDL_RETCODE_OK) {
-    CU_ASSERT_PTR_NULL(pstate);
+    CU_ASSERT_EQ (pstate, NULL);
   } else if (ret == IDL_RETCODE_OK) {
-    CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+    CU_ASSERT_NEQ_FATAL (pstate, NULL);
 
     idl_struct_t *base = (idl_struct_t*)pstate->root;
     idl_struct_t *derived = (idl_struct_t*)idl_next(base);
 
-    CU_ASSERT_FATAL(idl_is_struct(base) && idl_is_struct(derived));
+    CU_ASSERT_FATAL (idl_is_struct(base) && idl_is_struct(derived));
 
-    CU_ASSERT_STRING_EQUAL(idl_identifier(base), "base");
-    CU_ASSERT_EQUAL(base->extensibility.value, test.base_ext);
+    CU_ASSERT_STREQ (idl_identifier(base), "base");
+    CU_ASSERT_EQ (base->extensibility.value, test.base_ext);
 
-    CU_ASSERT_STRING_EQUAL(idl_identifier(derived), "derived");
-    CU_ASSERT_EQUAL(derived->extensibility.value, test.inh_ext);
+    CU_ASSERT_STREQ (idl_identifier(derived), "derived");
+    CU_ASSERT_EQ (derived->extensibility.value, test.inh_ext);
 
-    CU_ASSERT(derived->inherit_spec && derived->inherit_spec->base == base);
+    CU_ASSERT (derived->inherit_spec && derived->inherit_spec->base == base);
 
     idl_delete_pstate(pstate);
   }
@@ -121,33 +121,31 @@ CU_Test(idl_inheritance, empty_structs)
     idl_retcode_t ret;
     idl_pstate_t *pstate = NULL;
     ret = idl_create_pstate(0, NULL, &pstate);
-    CU_ASSERT_EQUAL(ret, IDL_RETCODE_OK);
-    CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
-    assert(pstate);
+    CU_ASSERT_EQ (ret, IDL_RETCODE_OK);
+    CU_ASSERT_NEQ_FATAL (pstate, NULL);
     ret = idl_parse_string(pstate, tests[i].str);
-    CU_ASSERT_EQUAL(ret, IDL_RETCODE_OK);
-    CU_ASSERT_PTR_NOT_NULL_FATAL(pstate->root);
-    assert(pstate->root);
+    CU_ASSERT_EQ (ret, IDL_RETCODE_OK);
+    CU_ASSERT_NEQ_FATAL (pstate->root, NULL);
     const idl_struct_t *s = (idl_struct_t *)pstate->root;
     // search for struct by name
     while (s && !(idl_is_struct(s) && strcmp(idl_identifier(s), "sx") == 0))
       s = idl_next(s);
     // recurse down
-    CU_ASSERT_PTR_NOT_NULL(s);
+    CU_ASSERT_NEQ (s, NULL);
     while (s) {
       for (const idl_member_t *m = s->members; m; m = idl_next(m)) {
         for (const idl_declarator_t *d = m->declarators; d; d = idl_next(d)) {
           if (ids) {
             ids--;
-            CU_ASSERT_EQUAL(d->id.value, ids);
+            CU_ASSERT_EQ (d->id.value, ids);
           }
           fields++;
         }
       }
       s = s->inherit_spec ? s->inherit_spec->base : NULL;
     }
-    CU_ASSERT_EQUAL(ids, 0);
-    CU_ASSERT_EQUAL(fields, tests[i].ids);
+    CU_ASSERT_EQ (ids, 0);
+    CU_ASSERT_EQ (fields, tests[i].ids);
     idl_delete_pstate(pstate);
   }
 }

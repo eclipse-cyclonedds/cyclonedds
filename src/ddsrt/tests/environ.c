@@ -24,17 +24,17 @@ CU_Theory((const char *name), ddsrt_environ, bad_name)
 {
   dds_return_t rc;
   static const char value[] = "bar";
-  static char dummy[] = "foobar";
+  static char *dummy = "foobar";
   const char *ptr;
 
   rc = ddsrt_setenv(name, value);
-  CU_ASSERT_EQUAL(rc, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_BAD_PARAMETER);
   rc = ddsrt_unsetenv(name);
-  CU_ASSERT_EQUAL(rc, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_BAD_PARAMETER);
   ptr = dummy;
   rc = ddsrt_getenv(name, &ptr);
-  CU_ASSERT_EQUAL(rc, DDS_RETCODE_BAD_PARAMETER);
-  CU_ASSERT_PTR_EQUAL(ptr, dummy);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ (ptr, dummy);
 }
 
 DDSRT_WARNING_MSVC_OFF(4996)
@@ -46,19 +46,19 @@ CU_Test(ddsrt_environ, setenv)
   char *ptr;
 
   rc = ddsrt_setenv(name, value);
-  CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_OK);
   ptr = getenv(name);
-  CU_ASSERT_PTR_NOT_NULL_FATAL(ptr);
-  CU_ASSERT_STRING_EQUAL(ptr, "bar");
+  CU_ASSERT_NEQ_FATAL (ptr, NULL);
+  CU_ASSERT_STREQ (ptr, "bar");
   /* Ensure value is copied into the environment. */
   value[2] = 'z';
   ptr = getenv(name);
-  CU_ASSERT_PTR_NOT_NULL_FATAL(ptr);
-  CU_ASSERT_STRING_EQUAL(ptr, "bar");
+  CU_ASSERT_NEQ_FATAL (ptr, NULL);
+  CU_ASSERT_STREQ (ptr, "bar");
   rc = ddsrt_setenv(name, "");
-  CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_OK);
   ptr = getenv(name);
-  CU_ASSERT_PTR_NULL(ptr);
+  CU_ASSERT_EQ (ptr, NULL);
 }
 DDSRT_WARNING_MSVC_ON(4996)
 
@@ -67,34 +67,34 @@ CU_Test(ddsrt_environ, getenv)
   dds_return_t rc;
   static const char name[] = "foo";
   static const char value[] = "bar";
-  static char dummy[] = "foobar";
+  static char *dummy = "foobar";
   const char *ptr;
 
   /* Ensure "not found" is returned. */
   rc = ddsrt_unsetenv(name);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
 
   ptr = dummy;
   rc = ddsrt_getenv(name, &ptr);
-  CU_ASSERT_EQUAL(rc, DDS_RETCODE_NOT_FOUND);
-  CU_ASSERT_PTR_EQUAL(ptr, dummy);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_NOT_FOUND);
+  CU_ASSERT_EQ (ptr, dummy);
 
   /* Ensure "ok" is returned and value is what it should be. */
   rc = ddsrt_setenv(name, value);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
 
   ptr = dummy;
   rc = ddsrt_getenv(name, &ptr);
-  CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
-  CU_ASSERT_PTR_NOT_EQUAL(ptr, dummy);
-  CU_ASSERT_PTR_NOT_EQUAL(ptr, NULL);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_OK);
+  CU_ASSERT_NEQ (ptr, dummy);
+  CU_ASSERT_NEQ (ptr, NULL);
   if (ptr != NULL) {
-    CU_ASSERT_STRING_EQUAL(ptr, "bar");
+    CU_ASSERT_STREQ (ptr, "bar");
   }
 
   /* Ensure environment is as it was. */
   rc = ddsrt_unsetenv(name);
-  CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_OK);
 }
 
 CU_TheoryDataPoints(ddsrt_environ, expand) = {
@@ -120,32 +120,32 @@ CU_Theory((const char *var, const char *expect), ddsrt_environ, expand)
 
   /* Ensure that the vars are not used yet. */
   rc = ddsrt_unsetenv(x_name);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
   rc = ddsrt_unsetenv(y_name);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
 
   /* Set the env vars to check expansion. */
   rc = ddsrt_setenv(x_name, x_value);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
   rc = ddsrt_setenv(y_name, y_value);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
 
   /* Expand a string with available environment variables. */
   ptr = ddsrt_expand_envvars(var,UINT32_MAX);
   if (ptr) {
     /* printf("==== %10s: expand(%s), expect(%s))\n", var, ptr, expect); */
-    CU_ASSERT_STRING_EQUAL(ptr, expect);
+    CU_ASSERT_STREQ (ptr, expect);
     ddsrt_free(ptr);
   } else {
     /* printf("==== %10s: expand(<null>), expect(<null>))\n", var ? var : "<null>"); */
-    CU_ASSERT_PTR_NULL(expect);
+    CU_ASSERT_EQ (expect, NULL);
   }
 
   /* Ensure to reset the environment is as it was. */
   rc = ddsrt_unsetenv(y_name);
-  CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_OK);
   rc = ddsrt_unsetenv(x_name);
-  CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_OK);
 }
 
 
@@ -172,30 +172,30 @@ CU_Theory((const char *var, const char *expect), ddsrt_environ, expand_sh)
 
   /* Ensure that the vars are not used yet. */
   rc = ddsrt_unsetenv(x_name);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
   rc = ddsrt_unsetenv(y_name);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
 
   /* Set the env vars to check expansion. */
   rc = ddsrt_setenv(x_name, x_value);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
   rc = ddsrt_setenv(y_name, y_value);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
 
   /* Expand a string with available environment variables. */
   ptr = ddsrt_expand_envvars_sh(var,UINT32_MAX);
   if (ptr) {
     /* printf("==== %10s: expand(%s), expect(%s))\n", var, ptr, expect); */
-    CU_ASSERT_STRING_EQUAL(ptr, expect);
+    CU_ASSERT_STREQ (ptr, expect);
     ddsrt_free(ptr);
   } else {
     /* printf("==== %10s: expand(<null>), expect(<null>))\n", var ? var : "<null>"); */
-    CU_ASSERT_PTR_NULL(expect);
+    CU_ASSERT_EQ (expect, NULL);
   }
 
   /* Ensure to reset the environment is as it was. */
   rc = ddsrt_unsetenv(y_name);
-  CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_OK);
   rc = ddsrt_unsetenv(x_name);
-  CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_OK);
 }

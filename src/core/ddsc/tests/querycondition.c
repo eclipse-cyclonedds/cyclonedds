@@ -76,45 +76,45 @@ querycondition_init_hdepth(int hdepth)
     char name[100];
 
     g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-    CU_ASSERT_FATAL(g_participant > 0);
+    CU_ASSERT_GT_FATAL (g_participant, 0);
 
     g_waitset = dds_create_waitset(g_participant);
-    CU_ASSERT_FATAL(g_waitset > 0);
+    CU_ASSERT_GT_FATAL (g_waitset, 0);
 
     g_topic = dds_create_topic(g_participant, &Space_Type1_desc, create_unique_topic_name("ddsc_querycondition_test", name, sizeof name), NULL, NULL);
-    CU_ASSERT_FATAL(g_topic > 0);
+    CU_ASSERT_GT_FATAL (g_topic, 0);
 
     /* Create a reader that keeps last sample of all instances. */
     dds_qset_history(qos, DDS_HISTORY_KEEP_LAST, hdepth);
     g_reader = dds_create_reader(g_participant, g_topic, qos, NULL);
-    CU_ASSERT_FATAL(g_reader > 0);
+    CU_ASSERT_GT_FATAL (g_reader, 0);
 
     /* Create a reader that will not automatically dispose unregistered samples. */
     dds_qset_writer_data_lifecycle(qos, false);
     g_writer = dds_create_writer(g_participant, g_topic, qos, NULL);
-    CU_ASSERT_FATAL(g_writer > 0);
+    CU_ASSERT_GT_FATAL (g_writer, 0);
 
     /* Sync g_reader to g_writer. */
     ret = dds_set_status_mask(g_reader, DDS_SUBSCRIPTION_MATCHED_STATUS);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_reader, g_reader);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     ret = dds_waitset_wait(g_waitset, &triggered, 1, DDS_SECS(1));
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL_FATAL(g_reader, (dds_entity_t)(intptr_t)triggered);
+    CU_ASSERT_EQ_FATAL (ret, 1);
+    CU_ASSERT_EQ_FATAL (g_reader, (dds_entity_t)(intptr_t)triggered);
     ret = dds_waitset_detach(g_waitset, g_reader);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* Sync g_writer to g_reader. */
     ret = dds_set_status_mask(g_writer, DDS_PUBLICATION_MATCHED_STATUS);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_writer, g_writer);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     ret = dds_waitset_wait(g_waitset, &triggered, 1, DDS_SECS(1));
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL_FATAL(g_writer, (dds_entity_t)(intptr_t)triggered);
+    CU_ASSERT_EQ_FATAL (ret, 1);
+    CU_ASSERT_EQ_FATAL (g_writer, (dds_entity_t)(intptr_t)triggered);
     ret = dds_waitset_detach(g_waitset, g_writer);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* Initialize reading buffers. */
     memset (g_data, 0, sizeof (g_data));
@@ -130,21 +130,21 @@ querycondition_init_hdepth(int hdepth)
         sample.long_3 = i/3;
 
         ret = dds_write(g_writer, &sample);
-        CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+        CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
         if (ist == DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE) {
             ret = dds_dispose(g_writer, &sample);
-            CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+            CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
         }
         if (ist == DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE) {
             ret = dds_unregister_instance(g_writer, &sample);
-            CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+            CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
         }
     }
 
     /* Read samples to get read&old_view states. */
     ret = dds_read(g_reader, g_samples, g_info, MAX_SAMPLES, SAMPLE_LAST_OLD_VST + 1);
-    CU_ASSERT_EQUAL_FATAL(ret, SAMPLE_LAST_OLD_VST + 1);
+    CU_ASSERT_EQ_FATAL (ret, SAMPLE_LAST_OLD_VST + 1);
 #ifdef VERBOSE_INIT
     for(int i = 0; i < ret; i++) {
         Space_Type1 *s = (Space_Type1*)g_samples[i];
@@ -159,15 +159,15 @@ querycondition_init_hdepth(int hdepth)
         sample.long_3 = i/3;
 
         ret = dds_write(g_writer, &sample);
-        CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+        CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
         if ((ist == DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE) && (i != 4)) {
             ret = dds_dispose(g_writer, &sample);
-            CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+            CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
         }
         if (ist == DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE) {
             ret = dds_unregister_instance(g_writer, &sample);
-            CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+            CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
         }
     }
 
@@ -211,18 +211,18 @@ CU_Test(ddsc_querycondition_create, second, .init=querycondition_init, .fini=que
     dds_return_t ret;
 
     cond1 = dds_create_querycondition(g_reader, mask, filter_mod2);
-    CU_ASSERT_FATAL(cond1 > 0);
+    CU_ASSERT_GT_FATAL (cond1, 0);
 
     cond2 = dds_create_querycondition(g_reader, mask, filter_mod2);
-    CU_ASSERT_FATAL(cond2 > 0);
+    CU_ASSERT_GT_FATAL (cond2, 0);
 
     /* Also, we should be able to delete both. */
     ret = dds_delete(cond1);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* And, of course, be able to delete the first one (return code isn't checked in the test fixtures). */
     ret = dds_delete(cond2);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 }
 /*************************************************************************************************/
 
@@ -233,7 +233,7 @@ CU_Test(ddsc_querycondition_create, deleted_reader, .init=querycondition_init, .
     dds_entity_t cond;
     dds_delete(g_reader);
     cond = dds_create_querycondition(g_reader, mask, filter_mod2);
-    CU_ASSERT_EQUAL_FATAL(cond, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (cond, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -247,7 +247,7 @@ CU_Theory((dds_entity_t rdr), ddsc_querycondition_create, invalid_readers, .init
     dds_entity_t cond;
 
     cond = dds_create_querycondition(rdr, mask, filter_mod2);
-    CU_ASSERT_EQUAL_FATAL(cond, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (cond, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -260,7 +260,7 @@ CU_Theory((dds_entity_t *rdr), ddsc_querycondition_create, non_readers, .init=qu
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_entity_t cond;
     cond = dds_create_querycondition(*rdr, mask, filter_mod2);
-    CU_ASSERT_EQUAL_FATAL(cond, DDS_RETCODE_ILLEGAL_OPERATION);
+    CU_ASSERT_EQ_FATAL (cond, DDS_RETCODE_ILLEGAL_OPERATION);
 }
 
 CU_Test(ddsc_querycondition_create, many, .init=querycondition_init, .fini=querycondition_fini)
@@ -274,16 +274,16 @@ CU_Test(ddsc_querycondition_create, many, .init=querycondition_init, .fini=query
     for (int i = 0; i < 32; i++)
     {
       conds[i] = dds_create_querycondition(g_reader, 0, filter_mod2);
-      CU_ASSERT_FATAL(conds[i] > 0);
+      CU_ASSERT_GT_FATAL (conds[i], 0);
     }
     conds[32] = dds_create_querycondition(g_reader, 0, filter_mod2);
-    CU_ASSERT_FATAL(conds[32] < 0);
+    CU_ASSERT_LT_FATAL (conds[32], 0);
 
     // If we delete one, we should be able to create another one
     ret = dds_delete (conds[0]);
-    CU_ASSERT_FATAL (ret == 0);
+    CU_ASSERT_EQ_FATAL (ret, 0);
     conds[32] = dds_create_querycondition(g_reader, 0, filter_mod2);
-    CU_ASSERT_FATAL(conds[32] > 0);
+    CU_ASSERT_GT_FATAL (conds[32], 0);
 }
 
 
@@ -299,11 +299,11 @@ CU_Test(ddsc_querycondition_get_mask, deleted, .init=querycondition_init, .fini=
     dds_entity_t condition;
     dds_return_t ret;
     condition = dds_create_querycondition(g_reader, mask, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
     dds_delete(condition);
     mask = 0;
     ret = dds_get_mask(condition, &mask);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -314,11 +314,11 @@ CU_Test(ddsc_querycondition_get_mask, null, .init=querycondition_init, .fini=que
     dds_entity_t condition;
     dds_return_t ret;
     condition = dds_create_querycondition(g_reader, mask, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
     DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_get_mask(condition, NULL);
     DDSRT_WARNING_MSVC_ON(6387);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
     dds_delete(condition);
 }
 /*************************************************************************************************/
@@ -333,7 +333,7 @@ CU_Theory((dds_entity_t cond), ddsc_querycondition_get_mask, invalid_conditions,
     uint32_t mask;
 
     ret = dds_get_mask(cond, &mask);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -346,7 +346,7 @@ CU_Theory((dds_entity_t *cond), ddsc_querycondition_get_mask, non_conditions, .i
     dds_return_t ret;
     uint32_t mask;
     ret = dds_get_mask(*cond, &mask);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_ILLEGAL_OPERATION);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
@@ -364,11 +364,11 @@ CU_Theory((uint32_t ss, uint32_t vs, uint32_t is), ddsc_querycondition_get_mask,
     dds_return_t ret;
 
     condition = dds_create_querycondition(g_reader, maskIn, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     ret = dds_get_mask(condition, &maskOut);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-    CU_ASSERT_EQUAL_FATAL(maskIn, maskOut);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (maskIn, maskOut);
 
     dds_delete(condition);
 }
@@ -390,11 +390,11 @@ CU_Test(ddsc_querycondition_read, any, .init=querycondition_init, .fini=querycon
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Read all samples that matches filter. */
     ret = dds_read(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 4);
+    CU_ASSERT_EQ_FATAL (ret, 4);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -417,15 +417,15 @@ CU_Test(ddsc_querycondition_read, any, .init=querycondition_init, .fini=querycon
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
-        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
-        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQ_FATAL (sample->long_1, expected_long_1  );
+        CU_ASSERT_EQ_FATAL (sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQ_FATAL (sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+        CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQ_FATAL (g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQ_FATAL (g_info[i].instance_state, expected_ist);
     }
 
     dds_delete(condition);
@@ -440,11 +440,11 @@ CU_Test(ddsc_querycondition_read, not_read_sample_state, .init=querycondition_in
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Read all non-read samples and matches filter. */
     ret = dds_read(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    CU_ASSERT_EQ_FATAL (ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -467,15 +467,15 @@ CU_Test(ddsc_querycondition_read, not_read_sample_state, .init=querycondition_in
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
-        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
-        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQ_FATAL (sample->long_1, expected_long_1  );
+        CU_ASSERT_EQ_FATAL (sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQ_FATAL (sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+        CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQ_FATAL (g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQ_FATAL (g_info[i].instance_state, expected_ist);
     }
 
     dds_delete(condition);
@@ -490,11 +490,11 @@ CU_Test(ddsc_querycondition_read, read_sample_state, .init=querycondition_init, 
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Read all already read samples and matches filter. */
     ret = dds_read(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    CU_ASSERT_EQ_FATAL (ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -517,15 +517,15 @@ CU_Test(ddsc_querycondition_read, read_sample_state, .init=querycondition_init, 
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
-        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
-        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQ_FATAL (sample->long_1, expected_long_1  );
+        CU_ASSERT_EQ_FATAL (sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQ_FATAL (sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+        CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQ_FATAL (g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQ_FATAL (g_info[i].instance_state, expected_ist);
     }
 
     dds_delete(condition);
@@ -540,11 +540,11 @@ CU_Test(ddsc_querycondition_read, new_view_state, .init=querycondition_init, .fi
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_ANY_SAMPLE_STATE | DDS_NEW_VIEW_STATE | DDS_ANY_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Read all new-view samples and matches filter. */
     ret = dds_read(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    CU_ASSERT_EQ_FATAL (ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -567,15 +567,15 @@ CU_Test(ddsc_querycondition_read, new_view_state, .init=querycondition_init, .fi
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
-        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
-        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQ_FATAL (sample->long_1, expected_long_1  );
+        CU_ASSERT_EQ_FATAL (sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQ_FATAL (sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+        CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQ_FATAL (g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQ_FATAL (g_info[i].instance_state, expected_ist);
     }
 
     dds_delete(condition);
@@ -590,11 +590,11 @@ CU_Test(ddsc_querycondition_read, not_new_view_state, .init=querycondition_init,
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_ANY_SAMPLE_STATE | DDS_NOT_NEW_VIEW_STATE | DDS_ANY_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Read all old-view samples and matches filter. */
     ret = dds_read(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    CU_ASSERT_EQ_FATAL (ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -617,15 +617,15 @@ CU_Test(ddsc_querycondition_read, not_new_view_state, .init=querycondition_init,
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
-        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
-        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQ_FATAL (sample->long_1, expected_long_1  );
+        CU_ASSERT_EQ_FATAL (sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQ_FATAL (sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+        CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQ_FATAL (g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQ_FATAL (g_info[i].instance_state, expected_ist);
     }
 
     dds_delete(condition);
@@ -640,11 +640,11 @@ CU_Test(ddsc_querycondition_read, alive_instance_state, .init=querycondition_ini
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ALIVE_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Read all alive samples and matches filter. */
     ret = dds_read(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    CU_ASSERT_EQ_FATAL (ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -667,15 +667,15 @@ CU_Test(ddsc_querycondition_read, alive_instance_state, .init=querycondition_ini
         dds_instance_state_t expected_ist    = DDS_ALIVE_INSTANCE_STATE;
 
         /* Check data. */
-        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
-        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
-        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQ_FATAL (sample->long_1, expected_long_1  );
+        CU_ASSERT_EQ_FATAL (sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQ_FATAL (sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+        CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQ_FATAL (g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQ_FATAL (g_info[i].instance_state, expected_ist);
     }
 
     dds_delete(condition);
@@ -690,11 +690,11 @@ CU_Test(ddsc_querycondition_read, disposed_instance_state, .init=querycondition_
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Read all disposed samples and matches filter. */
     ret = dds_read(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQ_FATAL (ret, 1);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -717,15 +717,15 @@ CU_Test(ddsc_querycondition_read, disposed_instance_state, .init=querycondition_
         dds_instance_state_t expected_ist    = DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE;
 
         /* Check data. */
-        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
-        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
-        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQ_FATAL (sample->long_1, expected_long_1  );
+        CU_ASSERT_EQ_FATAL (sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQ_FATAL (sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+        CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQ_FATAL (g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQ_FATAL (g_info[i].instance_state, expected_ist);
     }
 
     dds_delete(condition);
@@ -740,11 +740,11 @@ CU_Test(ddsc_querycondition_read, no_writers_instance_state, .init=queryconditio
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Read all samples without a writer and matches filter. */
     ret = dds_read(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQ_FATAL (ret, 1);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -767,15 +767,15 @@ CU_Test(ddsc_querycondition_read, no_writers_instance_state, .init=queryconditio
         dds_instance_state_t expected_ist    = DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE;
 
         /* Check data. */
-        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
-        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
-        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQ_FATAL (sample->long_1, expected_long_1  );
+        CU_ASSERT_EQ_FATAL (sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQ_FATAL (sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+        CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQ_FATAL (g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQ_FATAL (g_info[i].instance_state, expected_ist);
     }
 
     dds_delete(condition);
@@ -790,11 +790,11 @@ CU_Test(ddsc_querycondition_read, combination_of_states, .init=querycondition_in
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_NOT_READ_SAMPLE_STATE | DDS_NEW_VIEW_STATE | DDS_ALIVE_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Read all samples that match the mask and filter (should be only one). */
     ret = dds_read(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQ_FATAL (ret, 1);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -817,15 +817,15 @@ CU_Test(ddsc_querycondition_read, combination_of_states, .init=querycondition_in
         dds_instance_state_t expected_ist    = DDS_ALIVE_INSTANCE_STATE;
 
         /* Check data. */
-        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
-        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
-        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQ_FATAL (sample->long_1, expected_long_1  );
+        CU_ASSERT_EQ_FATAL (sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQ_FATAL (sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+        CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQ_FATAL (g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQ_FATAL (g_info[i].instance_state, expected_ist);
     }
 
     dds_delete(condition);
@@ -840,11 +840,11 @@ CU_Test(ddsc_querycondition_read, none, .init=querycondition_init, .fini=queryco
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_NOT_READ_SAMPLE_STATE | DDS_NOT_NEW_VIEW_STATE | DDS_ALIVE_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Read all samples that match the mask AND filter (should be none). */
     ret = dds_read(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQ_FATAL (ret, 0);
 
     /*
      * | long_1 | long_2 | long_3 |    sst   | vst |    ist     |
@@ -870,12 +870,12 @@ CU_Test(ddsc_querycondition_read, with_mask, .init=querycondition_init, .fini=qu
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_NOT_READ_SAMPLE_STATE | DDS_NEW_VIEW_STATE | DDS_ALIVE_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Read all samples that match the or'd masks. */
     ret = dds_read_mask(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES,
                         DDS_NOT_READ_SAMPLE_STATE | DDS_NOT_NEW_VIEW_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    CU_ASSERT_EQ_FATAL (ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -898,15 +898,15 @@ CU_Test(ddsc_querycondition_read, with_mask, .init=querycondition_init, .fini=qu
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
-        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
-        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQ_FATAL (sample->long_1, expected_long_1  );
+        CU_ASSERT_EQ_FATAL (sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQ_FATAL (sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+        CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQ_FATAL (g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQ_FATAL (g_info[i].instance_state, expected_ist);
     }
 
     dds_delete(condition);
@@ -921,15 +921,15 @@ CU_Test(ddsc_querycondition_read, already_deleted, .init=querycondition_init, .f
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Delete condition. */
     ret = dds_delete(condition);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* Try to read with a deleted condition. */
     ret = dds_read(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -953,11 +953,11 @@ CU_Test(ddsc_querycondition_take, any, .init=querycondition_init, .fini=querycon
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Take all samples that match the filter. */
     ret = dds_take(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 4);
+    CU_ASSERT_EQ_FATAL (ret, 4);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -980,15 +980,15 @@ CU_Test(ddsc_querycondition_take, any, .init=querycondition_init, .fini=querycon
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
-        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
-        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQ_FATAL (sample->long_1, expected_long_1  );
+        CU_ASSERT_EQ_FATAL (sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQ_FATAL (sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+        CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQ_FATAL (g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQ_FATAL (g_info[i].instance_state, expected_ist);
     }
 
     dds_delete(condition);
@@ -1003,11 +1003,11 @@ CU_Test(ddsc_querycondition_take, not_read_sample_state, .init=querycondition_in
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Take all non-read samples that match the filter. */
     ret = dds_take(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    CU_ASSERT_EQ_FATAL (ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -1030,15 +1030,15 @@ CU_Test(ddsc_querycondition_take, not_read_sample_state, .init=querycondition_in
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
-        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
-        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQ_FATAL (sample->long_1, expected_long_1  );
+        CU_ASSERT_EQ_FATAL (sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQ_FATAL (sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+        CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQ_FATAL (g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQ_FATAL (g_info[i].instance_state, expected_ist);
     }
 
     dds_delete(condition);
@@ -1053,11 +1053,11 @@ CU_Test(ddsc_querycondition_take, read_sample_state, .init=querycondition_init, 
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Take all already read samples that match the filter. */
     ret = dds_take(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    CU_ASSERT_EQ_FATAL (ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -1080,15 +1080,15 @@ CU_Test(ddsc_querycondition_take, read_sample_state, .init=querycondition_init, 
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
-        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
-        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQ_FATAL (sample->long_1, expected_long_1  );
+        CU_ASSERT_EQ_FATAL (sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQ_FATAL (sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+        CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQ_FATAL (g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQ_FATAL (g_info[i].instance_state, expected_ist);
     }
 
     dds_delete(condition);
@@ -1103,11 +1103,11 @@ CU_Test(ddsc_querycondition_take, new_view_state, .init=querycondition_init, .fi
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_ANY_SAMPLE_STATE | DDS_NEW_VIEW_STATE | DDS_ANY_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Take all new-view samples that match the filter. */
     ret = dds_take(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    CU_ASSERT_EQ_FATAL (ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -1130,15 +1130,15 @@ CU_Test(ddsc_querycondition_take, new_view_state, .init=querycondition_init, .fi
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
-        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
-        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQ_FATAL (sample->long_1, expected_long_1  );
+        CU_ASSERT_EQ_FATAL (sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQ_FATAL (sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+        CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQ_FATAL (g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQ_FATAL (g_info[i].instance_state, expected_ist);
     }
 
     dds_delete(condition);
@@ -1153,11 +1153,11 @@ CU_Test(ddsc_querycondition_take, not_new_view_state, .init=querycondition_init,
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_ANY_SAMPLE_STATE | DDS_NOT_NEW_VIEW_STATE | DDS_ANY_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Take all old-view samples that match the filter. */
     ret = dds_take(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    CU_ASSERT_EQ_FATAL (ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -1180,15 +1180,15 @@ CU_Test(ddsc_querycondition_take, not_new_view_state, .init=querycondition_init,
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
-        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
-        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQ_FATAL (sample->long_1, expected_long_1  );
+        CU_ASSERT_EQ_FATAL (sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQ_FATAL (sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+        CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQ_FATAL (g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQ_FATAL (g_info[i].instance_state, expected_ist);
     }
 
     dds_delete(condition);
@@ -1203,11 +1203,11 @@ CU_Test(ddsc_querycondition_take, alive_instance_state, .init=querycondition_ini
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ALIVE_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Take all alive samples that match the filter. */
     ret = dds_take(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 2);
+    CU_ASSERT_EQ_FATAL (ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -1230,15 +1230,15 @@ CU_Test(ddsc_querycondition_take, alive_instance_state, .init=querycondition_ini
         dds_instance_state_t expected_ist    = DDS_ALIVE_INSTANCE_STATE;
 
         /* Check data. */
-        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
-        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
-        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQ_FATAL (sample->long_1, expected_long_1  );
+        CU_ASSERT_EQ_FATAL (sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQ_FATAL (sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+        CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQ_FATAL (g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQ_FATAL (g_info[i].instance_state, expected_ist);
     }
 
     dds_delete(condition);
@@ -1253,11 +1253,11 @@ CU_Test(ddsc_querycondition_take, disposed_instance_state, .init=querycondition_
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Take all disposed samples that match the filter. */
     ret = dds_take(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQ_FATAL (ret, 1);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -1280,15 +1280,15 @@ CU_Test(ddsc_querycondition_take, disposed_instance_state, .init=querycondition_
         dds_instance_state_t expected_ist    = DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE;
 
         /* Check data. */
-        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
-        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
-        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQ_FATAL (sample->long_1, expected_long_1  );
+        CU_ASSERT_EQ_FATAL (sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQ_FATAL (sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+        CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQ_FATAL (g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQ_FATAL (g_info[i].instance_state, expected_ist);
     }
 
     dds_delete(condition);
@@ -1303,11 +1303,11 @@ CU_Test(ddsc_querycondition_take, no_writers_instance_state, .init=queryconditio
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Take all samples without a writer that match the filter. */
     ret = dds_take(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQ_FATAL (ret, 1);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -1330,15 +1330,15 @@ CU_Test(ddsc_querycondition_take, no_writers_instance_state, .init=queryconditio
         dds_instance_state_t expected_ist    = DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE;
 
         /* Check data. */
-        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
-        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
-        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQ_FATAL (sample->long_1, expected_long_1  );
+        CU_ASSERT_EQ_FATAL (sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQ_FATAL (sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+        CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQ_FATAL (g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQ_FATAL (g_info[i].instance_state, expected_ist);
     }
 
     dds_delete(condition);
@@ -1353,11 +1353,11 @@ CU_Test(ddsc_querycondition_take, combination_of_states, .init=querycondition_in
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_NOT_READ_SAMPLE_STATE | DDS_NEW_VIEW_STATE | DDS_ALIVE_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Take all samples that match the mask and the filter. */
     ret = dds_take(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
+    CU_ASSERT_EQ_FATAL (ret, 1);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -1380,15 +1380,15 @@ CU_Test(ddsc_querycondition_take, combination_of_states, .init=querycondition_in
         dds_instance_state_t expected_ist    = DDS_ALIVE_INSTANCE_STATE;
 
         /* Check data. */
-        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
-        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
-        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQ_FATAL (sample->long_1, expected_long_1  );
+        CU_ASSERT_EQ_FATAL (sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQ_FATAL (sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+        CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQ_FATAL (g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQ_FATAL (g_info[i].instance_state, expected_ist);
     }
 
     dds_delete(condition);
@@ -1403,11 +1403,11 @@ CU_Test(ddsc_querycondition_take, none, .init=querycondition_init, .fini=queryco
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_NOT_READ_SAMPLE_STATE | DDS_NOT_NEW_VIEW_STATE | DDS_ALIVE_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Take all samples that match the mask AND filter (should be none). */
     ret = dds_take(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(ret, 0);
+    CU_ASSERT_EQ_FATAL (ret, 0);
 
     /*
      * | long_1 | long_2 | long_3 |    sst   | vst |    ist     |
@@ -1433,12 +1433,12 @@ CU_Test(ddsc_querycondition_take, with_mask, .init=querycondition_init, .fini=qu
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_NOT_READ_SAMPLE_STATE | DDS_NEW_VIEW_STATE | DDS_ALIVE_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Take all samples that match the or'd masks and match the filter. */
     ret = dds_take_mask(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES,
                         DDS_NOT_READ_SAMPLE_STATE | DDS_NOT_NEW_VIEW_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE);
-    CU_ASSERT_EQUAL(ret, 2);
+    CU_ASSERT_EQ (ret, 2);
     for(int i = 0; i < ret; i++) {
         Space_Type1 *sample = (Space_Type1*)g_samples[i];
 
@@ -1461,15 +1461,15 @@ CU_Test(ddsc_querycondition_take, with_mask, .init=querycondition_init, .fini=qu
         dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
         /* Check data. */
-        CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1  );
-        CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_1/2);
-        CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_1/3);
+        CU_ASSERT_EQ_FATAL (sample->long_1, expected_long_1  );
+        CU_ASSERT_EQ_FATAL (sample->long_2, expected_long_1/2);
+        CU_ASSERT_EQ_FATAL (sample->long_3, expected_long_1/3);
 
         /* Check states. */
-        CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-        CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+        CU_ASSERT_EQ_FATAL (g_info[i].valid_data,     true);
+        CU_ASSERT_EQ_FATAL (g_info[i].sample_state,   expected_sst);
+        CU_ASSERT_EQ_FATAL (g_info[i].view_state,     expected_vst);
+        CU_ASSERT_EQ_FATAL (g_info[i].instance_state, expected_ist);
     }
 
     dds_delete(condition);
@@ -1484,15 +1484,15 @@ CU_Test(ddsc_querycondition_take, already_deleted, .init=querycondition_init, .f
 
     /* Create condition. */
     condition = dds_create_querycondition(g_reader, DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE, filter_mod2);
-    CU_ASSERT_FATAL(condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     /* Delete condition. */
     ret = dds_delete(condition);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
     /* Try to take with a deleted condition. */
     ret = dds_take(condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    CU_ASSERT_EQUAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ (ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -1513,28 +1513,28 @@ CU_Test(ddsc_querycondition_take, some_from_instance, .init=querycondition_init_
     int idx, run;
 
     condition = dds_create_querycondition (g_reader, DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE, filter_k333_s1);
-    CU_ASSERT_FATAL (condition > 0);
+    CU_ASSERT_GT_FATAL (condition, 0);
 
     for (int i = 0; i < nsched; i++) {
         const Space_Type1 sample = { 333, sched[i], i };
         ret = dds_write (g_writer, &sample);
-        CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+        CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     }
 
     /* Try taking consecutive runs of ones, so that we take first, intermediate and final ones */
     idx = 0;
     while (idx < nsched) {
-        CU_ASSERT_FATAL (sched[idx] == 1);
+        CU_ASSERT_EQ_FATAL (sched[idx], 1);
         run = 1;
         while (idx + run < nsched && sched[idx + run] == 1) {
             run++;
         }
         ret = dds_take (condition, g_samples, g_info, (size_t)run, (uint32_t)run);
-        CU_ASSERT_EQUAL (ret, run);
+        CU_ASSERT_EQ (ret, run);
         for (int i = 0; i < ret; i++) {
-            CU_ASSERT_EQUAL (g_data[i].long_1, 333);
-            CU_ASSERT_EQUAL (g_data[i].long_2, 1);
-            CU_ASSERT_EQUAL (g_data[i].long_3, idx + i);
+            CU_ASSERT_EQ (g_data[i].long_1, 333);
+            CU_ASSERT_EQ (g_data[i].long_2, 1);
+            CU_ASSERT_EQ (g_data[i].long_3, idx + i);
         }
         idx += run;
         while (idx < nsched && sched[idx] != 1) {
@@ -1546,17 +1546,17 @@ CU_Test(ddsc_querycondition_take, some_from_instance, .init=querycondition_init_
     for (idx = 0, run = 0; idx < nsched; idx++) {
         run += (sched[idx] != 1);
     }
-    CU_ASSERT_FATAL (run > 0);
+    CU_ASSERT_GT_FATAL (run, 0);
     ret = dds_take_instance (g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, g_info[0].instance_handle);
-    CU_ASSERT_EQUAL (ret, run);
+    CU_ASSERT_EQ (ret, run);
     idx = 0;
     while (sched[idx] != 0) {
         idx++;
     }
     for (int i = 0; i < ret; i++) {
-        CU_ASSERT_EQUAL (g_data[i].long_1, 333);
-        CU_ASSERT_NOT_EQUAL (g_data[i].long_2, 1);
-        CU_ASSERT_EQUAL (g_data[i].long_3, idx);
+        CU_ASSERT_EQ (g_data[i].long_1, 333);
+        CU_ASSERT_NEQ (g_data[i].long_2, 1);
+        CU_ASSERT_EQ (g_data[i].long_3, idx);
         idx++;
         while (idx < nsched && sched[idx] == 1) {
             idx++;
@@ -1564,6 +1564,6 @@ CU_Test(ddsc_querycondition_take, some_from_instance, .init=querycondition_init_
     }
 
     ret = dds_delete(condition);
-    CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 }
 /*************************************************************************************************/

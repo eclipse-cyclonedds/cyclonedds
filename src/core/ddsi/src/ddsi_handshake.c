@@ -538,7 +538,7 @@ static DDS_Security_ValidationResult_t validate_remote_identity_impl(struct ddsi
   DDS_Security_IdentityToken remote_identity_token;
   int64_t remote_identity_handle;
   ddsi_guid_t remote_guid;
-  DDS_Security_SecurityException exception = {0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   if (!(proxypp->plist->present & PP_IDENTITY_TOKEN))
   {
@@ -626,7 +626,7 @@ static DDS_Security_ValidationResult_t begin_handshake_reply_impl(struct ddsi_ha
     struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp)
 {
   DDS_Security_ValidationResult_t ret;
-  DDS_Security_SecurityException exception = {0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   ddsrt_mutex_lock(&handshake->lock);
 
@@ -732,7 +732,7 @@ static void func_validate_remote_and_begin_reply(struct dds_security_fsm *fsm, v
 static void func_begin_handshake_request(struct dds_security_fsm *fsm, void *arg)
 {
   DDS_Security_ValidationResult_t ret;
-  DDS_Security_SecurityException exception = {0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   struct ddsi_handshake *handshake = arg;
   dds_security_authentication *auth = handshake->auth;
   struct ddsi_participant *pp;
@@ -808,7 +808,7 @@ handshake_failed:
 static void func_process_handshake(struct dds_security_fsm *fsm, void *arg)
 {
   DDS_Security_ValidationResult_t ret;
-  DDS_Security_SecurityException exception = {0};
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   struct ddsi_handshake *handshake = arg;
   dds_security_authentication *auth = handshake->auth;
   struct ddsi_participant *pp;

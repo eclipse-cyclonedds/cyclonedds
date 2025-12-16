@@ -41,6 +41,27 @@ void CU_fatal (void)
     abort ();
 }
 
+void CU_hexdump (FILE *fp, const unsigned char *msg, const size_t len)
+{
+  for (size_t off16 = 0; off16 < len; off16 += 16)
+  {
+    fprintf (fp, "%04x ", (unsigned) off16);
+    size_t off1;
+    for (off1 = 0; off1 < 16 && off16 + off1 < len; off1++)
+      fprintf (fp, "%s %02x", (off1 == 8) ? " " : "", msg[off16 + off1]);
+    for (; off1 < 16; off1++)
+      fprintf (fp, "%s   ", (off1 == 8) ? " " : "");
+    fprintf (fp, "  |");
+    for (off1 = 0; off1 < 16 && off16 + off1 < len; off1++)
+    {
+      unsigned char c = msg[off16 + off1];
+      fprintf (fp, "%c", (c >= 32 && c < 127) ? c : '.');
+    }
+    fprintf (fp, "|\n");
+  }
+  fflush (fp);
+}
+
 void CU_assertImplementation (bool value, int line, const char *expr, const char *file, const char *something, bool isfatal)
 {
   (void)something;

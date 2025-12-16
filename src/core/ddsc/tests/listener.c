@@ -105,7 +105,7 @@ static void set_all (dds_listener_t *l)
   do { \
     dds_on_##fntype##_fn cb; \
     dds_lget_##fntype(listener, &cb); \
-    CU_ASSERT_EQUAL(cb, expected); \
+    CU_ASSERT_EQ (cb, (dds_on_##fntype##_fn) expected); \
   } while (0)
 
 static void check_all_const (const dds_listener_t *l, void (*c) (void))
@@ -145,7 +145,7 @@ static void check_all (const dds_listener_t *l)
 CU_Test (ddsc_listener, create_and_delete)
 {
   dds_listener_t *listener = dds_create_listener (NULL);
-  CU_ASSERT_PTR_NOT_NULL_FATAL (listener);
+  CU_ASSERT_NEQ_FATAL (listener, NULL);
   check_all_const (listener, 0);
   dds_delete_listener (listener);
 
@@ -156,7 +156,7 @@ CU_Test (ddsc_listener, create_and_delete)
 CU_Test (ddsc_listener, reset)
 {
   dds_listener_t *listener = dds_create_listener (NULL);
-  CU_ASSERT_PTR_NOT_NULL_FATAL (listener);
+  CU_ASSERT_NEQ_FATAL (listener, NULL);
 
   set_all (listener);
 
@@ -172,11 +172,11 @@ CU_Test (ddsc_listener, reset)
 CU_Test (ddsc_listener, copy)
 {
   dds_listener_t *listener1 = dds_create_listener (NULL);
-  CU_ASSERT_PTR_NOT_NULL_FATAL (listener1);
+  CU_ASSERT_NEQ_FATAL (listener1, NULL);
   set_all (listener1);
 
   dds_listener_t *listener2 = dds_create_listener (NULL);
-  CU_ASSERT_PTR_NOT_NULL_FATAL (listener2);
+  CU_ASSERT_NEQ_FATAL (listener2, NULL);
   dds_copy_listener (listener2, listener1);
   check_all (listener2);
 
@@ -192,12 +192,12 @@ CU_Test (ddsc_listener, copy)
 CU_Test (ddsc_listener, merge)
 {
   dds_listener_t *listener1 = dds_create_listener (NULL);
-  CU_ASSERT_PTR_NOT_NULL_FATAL (listener1);
+  CU_ASSERT_NEQ_FATAL (listener1, NULL);
   set_all (listener1);
 
   // Merging listener1 into empty listener2 be like a copy
   dds_listener_t *listener2 = dds_create_listener (NULL);
-  CU_ASSERT_PTR_NOT_NULL_FATAL (listener2);
+  CU_ASSERT_NEQ_FATAL (listener2, NULL);
   dds_merge_listener (listener2, listener1);
   check_all (listener2);
 
@@ -219,7 +219,7 @@ CU_Test(ddsc_listener, getters_setters)
 {
   // test all individual cb get/set methods
   dds_listener_t *listener = dds_create_listener (NULL);
-  CU_ASSERT_PTR_NOT_NULL_FATAL (listener);
+  CU_ASSERT_NEQ_FATAL (listener, NULL);
 
 #define TEST_GET_SET(listener, fntype, cb) \
   do { \
@@ -231,7 +231,7 @@ CU_Test(ddsc_listener, getters_setters)
     dds_lget_##fntype (NULL, NULL); \
     dds_lget_##fntype (listener, NULL); \
     dds_lget_##fntype (NULL, &dummy);  \
-    CU_ASSERT_EQUAL_FATAL (dummy, NULL); \
+    CU_ASSERT_EQ_FATAL (dummy, NULL); \
     /* Set to NULL, get to confirm it succeeds */ \
     dds_lset_##fntype (listener, NULL); \
     ASSERT_CALLBACK_EQUAL (fntype, listener, NULL); \
@@ -262,7 +262,7 @@ CU_Test(ddsc_listener, getters_setters)
 // Use no_shm variant because the use of shared memory may result in asynchronous delivery
 // of data published by a local reader/writer and at least some of these tests are written
 // on the assumption that it is always synchronous
-#define dotest(ops) CU_ASSERT_FATAL (test_oneliner_no_shm (ops) > 0)
+#define dotest(ops) CU_ASSERT_GT_FATAL (test_oneliner_no_shm (ops), 0)
 
 CU_Test (ddsc_listener, propagation)
 {
@@ -309,22 +309,22 @@ CU_Test (ddsc_listener, matched)
   dotest ("sm da r pm w' ?sm r ?pm w' ;" // matched reader/writer pair
           " wr w' 1   ; ?da r take{(1,0,0)} r ?ack w' ;" // wait-for-acks => writer drops data
           " deaf! P   ; ?sm(1,0,0,-1,w') r ?da r take{d1} r ; wr w' 2 ;" // write lost on "wire"
-          " hearing! P; ?sm(2,1,1,1,w') r  ?da r sleep 0.3 take{(2,0,0)} r ; ?!pm");
+          " normal! P; ?sm(2,1,1,1,w') r  ?da r sleep 0.3 take{(2,0,0)} r ; ?!pm");
   dotest ("sm da r pm w' ; ?sm r ?pm w' ;"
           " r'' ?pm w' deaf! P'' ;" // with second reader: reader is deaf so won't ACK
           " wr w' 1   ; ?da r take{(1,0,0)} r ?ack(r) w' ;" // wait for ack from r' (not r'')
           " deaf! P   ; ?sm(1,0,0,-1,w') r ?da r take{d1} r ; wr w' 2 ;" // write lost on "wire"
-          " hearing! P; ?sm(2,1,1,1,w') r  ?da r sleep 0.3 take{(2,0,0)} r ; ?!pm");
+          " normal! P; ?sm(2,1,1,1,w') r  ?da r sleep 0.3 take{(2,0,0)} r ; ?!pm");
   // same without taking the "dispose" after disconnect
   // sample 1 will be delivered anew
   dotest ("sm da r pm w' ; ?sm r ?pm w' ; wr w' 1 ; ?da r take{(1,0,0)} r ;"
           " deaf! P ; ?sm(1,0,0,-1,w') r ?da r ; wr w' 2 ;"
-          " hearing! P ; ?sm(2,1,1,1,w') r ?da r sleep 0.3 take{d1,(2,0,0)} r ; ?!pm");
+          " normal! P ; ?sm(2,1,1,1,w') r ?da r sleep 0.3 take{d1,(2,0,0)} r ; ?!pm");
 
   // if a volatile writer loses the reader temporarily, the data won't show up
   dotest ("sm da r pm w' ; ?sm r ?pm w' ; wr w' 1 ; ?da r read{(1,0,0)} r ;"
           " deaf! P' ; ?!sm ?!da ?pm(1,0,0,-1,r) w' ; wr w' 2 ;"
-          " hearing! P' ; ?!sm ?pm(2,1,1,1,r) w' ?!da ; wr w' 3 ;"
+          " normal! P' ; ?!sm ?pm(2,1,1,1,r) w' ?!da ; wr w' 3 ;"
           " ?da r sleep 0.3 read{s(1,0,0),f(3,0,0)} r");
   // if a transient-local writer loses the reader temporarily, what data
   // has been published during the disconnect must still show up; delete
@@ -335,13 +335,13 @@ CU_Test (ddsc_listener, matched)
   dotest ("sm da r(d=tl) pm w'(d=tl,h=1,ds=0/1) ; ?sm r ?pm w' ;"
           " wr w' 1 ; ?da r read{(1,0,0)} r ;"
           " deaf! P' ; ?pm(1,0,0,-1,r) w' ; wr w' 2 wr w' 2 ;"
-          " hearing! P' ; ?pm(2,1,1,1,r) w' ; wr w' 3 ;"
+          " normal! P' ; ?pm(2,1,1,1,r) w' ; wr w' 3 ;"
           " ?da(2) r read{s(1,0,0),f(2,0,0),f(3,0,0)} r ;"
           " -w' ?sm r ?da r read(3,3) r");
   dotest ("sm da r(d=tl) pm w'(d=tl,h=1,ds=0/all) ; ?sm r ?pm w' ;"
           " wr w' 1 ; ?da r read{(1,0,0)} r ;"
           " deaf! P' ; ?pm(1,0,0,-1,r) w' ; wr w' 2 wr w' 2 ;"
-          " hearing! P' ; ?pm(2,1,1,1,r) w' ; wr w' 3 ;"
+          " normal! P' ; ?pm(2,1,1,1,r) w' ; wr w' 3 ;"
           " ?da(3) r read{s(1,0,0),f(2,0,0),f(2,0,0),f(3,0,0)} r ;"
           " -w' ?sm r ?da r read(4,3) r");
 }
@@ -410,7 +410,7 @@ CU_Test (ddsc_listener, data_available)
   // the invalid sample has the source time stamp of the latest update -- one wonders whether that is wise?
   dotest ("da r(d=tl) ?pm w'(d=tl,ad=n) ; wr w' (1,2,3)@1.1 ?da r read{fan(1,2,3)w'} r ;"
           " deaf! P ; ?da r read{suo(1,2,3)w'@1.1,fuo1w'@1.1} r ;"
-          " hearing! P ; ?da r read{sao(1,2,3)w'@1.1,fao1w'@1.1} r");
+          " normal! P ; ?da r read{sao(1,2,3)w'@1.1,fao1w'@1.1} r");
 }
 
 CU_Test (ddsc_listener, data_available_delete_writer)

@@ -66,20 +66,20 @@ CU_Test(ddssec_builtintopic, participant_iid)
   static struct kvp config_vars[] = { { NULL, NULL, 0 } };
   char *conf;
   conf = ddsrt_expand_vars_sh (config, &expand_lookup_vars_env, config_vars);
-  CU_ASSERT_EQUAL_FATAL (expand_lookup_unmatched (config_vars), 0);
+  CU_ASSERT_EQ_FATAL (expand_lookup_unmatched (config_vars), 0);
   dds_entity_t domain = dds_create_domain (0, conf);
-  CU_ASSERT_FATAL (domain > 0);
+  CU_ASSERT_GT_FATAL (domain, 0);
   dds_entity_t pp = dds_create_participant (0, NULL, NULL);
-  CU_ASSERT_FATAL (pp > 0);
+  CU_ASSERT_GT_FATAL (pp, 0);
   ddsrt_free (conf);
 
   dds_return_t rc;
   dds_guid_t guid;
   dds_instance_handle_t iid;
   rc = dds_get_guid (pp, &guid);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
   rc = dds_get_instance_handle (pp, &iid);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 
   dds_entity_t rd = dds_create_reader (pp, DDS_BUILTIN_TOPIC_DCPSPARTICIPANT, NULL, NULL);
 
@@ -87,7 +87,7 @@ CU_Test(ddssec_builtintopic, participant_iid)
   {
     dds_instance_handle_t iid1;
     iid1 = dds_lookup_instance (rd, &guid);
-    CU_ASSERT_FATAL (iid1 == iid);
+    CU_ASSERT_EQ_FATAL (iid1, iid);
   }
 
   // Should be able to find it by instance; GUID must match
@@ -95,10 +95,10 @@ CU_Test(ddssec_builtintopic, participant_iid)
     dds_sample_info_t si;
     void *raw = NULL;
     int32_t n = dds_take_instance (rd, &raw, &si, 1, 1, iid);
-    CU_ASSERT_FATAL (n == 1);
-    CU_ASSERT_FATAL (si.valid_data);
+    CU_ASSERT_EQ_FATAL (n, 1);
+    CU_ASSERT_NEQ_FATAL (si.valid_data, 0);
     const dds_builtintopic_participant_t *s = raw;
-    CU_ASSERT_FATAL (memcmp (&s->key, &guid, sizeof (guid)) == 0);
+    CU_ASSERT_MEMEQ_FATAL (&s->key, sizeof (s->key), &guid, sizeof (guid));
     dds_return_loan (rd, &raw, 1);
   }
 
@@ -107,7 +107,7 @@ CU_Test(ddssec_builtintopic, participant_iid)
     dds_sample_info_t si;
     void *raw = NULL;
     int32_t n = dds_take_instance (rd, &raw, &si, 1, 1, iid);
-    CU_ASSERT_FATAL (n == 0);
+    CU_ASSERT_EQ_FATAL (n, 0);
   }
 
   dds_delete (domain);

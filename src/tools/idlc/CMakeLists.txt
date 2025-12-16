@@ -24,7 +24,8 @@ add_executable(idlc ${sources} ${headers})
 
 if(MSVC)
   # ignore warnings C6255 and 6263 about _alloca
-  target_compile_options(idlc PRIVATE /wd6255 /wd6263)
+  # and 5286 and 5287 about enum type conversion
+  target_compile_options(idlc PRIVATE /wd6255 /wd6263 /wd5286 /wd5287)
 endif()
 target_link_libraries(idlc PRIVATE compat idl idlpp ddsc ${CMAKE_DL_LIBS})
 
@@ -55,6 +56,11 @@ set(
 
 add_library(
   libidlc SHARED ${libidlc_srcs} ${libidlc_hdrs})
+
+if(MSVC)
+  # ignore warning 5286 and 5287 about enum type conversion
+  target_compile_options(libidlc PRIVATE /wd5286 /wd5287)
+endif()
 
 generate_export_header(libidlc BASE_NAME LIBIDLC EXPORT_FILE_NAME include/libidlc/libidlc_export.h)
 

@@ -150,7 +150,7 @@ void dds_subscriber_adjust_materialize_data_on_readers (dds_subscriber *sub, boo
   else
   {
     assert ((sub->materialize_data_on_readers & DDS_SUB_MATERIALIZE_DATA_ON_READERS_MASK) > 0);
-    if (--sub->materialize_data_on_readers == 0)
+    if ((--sub->materialize_data_on_readers & DDS_SUB_MATERIALIZE_DATA_ON_READERS_MASK) == 0)
     {
       sub->materialize_data_on_readers &= ~DDS_SUB_MATERIALIZE_DATA_ON_READERS_FLAG;
       propagate = true;

@@ -30,23 +30,23 @@ CU_Clean(ddsrt_bits)
 CU_Test(ddsrt_bits, ffs32u)
 {
   // trivial cases: 0 and just 1 bit set in each possible position
-  CU_ASSERT (ddsrt_ffs32u (0) == 0);
+  CU_ASSERT_EQ (ddsrt_ffs32u (0), 0);
   int onebit_ok = 0;
   for (uint32_t i = 0; i < 32; i++)
     onebit_ok += ddsrt_ffs32u ((uint32_t)1 << i) == i + 1;
-  CU_ASSERT (onebit_ok == 32);
+  CU_ASSERT_EQ (onebit_ok, 32);
 
   // all combinations of two bits
   int twobit_ok = 0;
   for (uint32_t i = 0; i < 31; i++)
     for (uint32_t j = i+1; j < 32; j++)
       twobit_ok += ddsrt_ffs32u (((uint32_t)1 << i) | ((uint32_t)1 << j)) == i + 1;
-  CU_ASSERT (twobit_ok == 32*31/2);
+  CU_ASSERT_EQ (twobit_ok, 32*31/2);
 
   // random junk above the least significant bit set
   int junk_ok = 0;
   for (uint32_t i = 0; i < 31; i++)
     for (uint32_t j = 0; j < 1000; j++)
       junk_ok += ddsrt_ffs32u (((uint32_t)1 << i) | (ddsrt_random () << (i+1))) == i + 1;
-  CU_ASSERT (junk_ok == 31 * 1000);
+  CU_ASSERT_EQ (junk_ok, 31 * 1000);
 }

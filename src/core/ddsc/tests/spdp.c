@@ -31,12 +31,12 @@ static void get_localhost_address (locstr_t *str)
   const char *cyclonedds_uri = "";
   (void) ddsrt_getenv ("CYCLONEDDS_URI", &cyclonedds_uri);
   dds_entity_t eh = dds_create_domain (0, cyclonedds_uri);
-  CU_ASSERT_FATAL (eh > 0);
+  CU_ASSERT_GT_FATAL (eh, 0);
   const struct ddsi_domaingv *gv = get_domaingv (eh);
-  CU_ASSERT_FATAL (gv != NULL);
+  CU_ASSERT_NEQ_FATAL (gv, NULL);
   ddsi_locator_to_string_no_port (str->str, sizeof (str->str), &gv->interfaces[0].loc);
   dds_return_t rc = dds_delete (eh);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 }
 
 static void get_nonexist_address (locstr_t *str)
@@ -44,9 +44,9 @@ static void get_nonexist_address (locstr_t *str)
   const char *cyclonedds_uri = "";
   (void) ddsrt_getenv ("CYCLONEDDS_URI", &cyclonedds_uri);
   dds_entity_t eh = dds_create_domain (0, cyclonedds_uri);
-  CU_ASSERT_FATAL (eh > 0);
+  CU_ASSERT_GT_FATAL (eh, 0);
   const struct ddsi_domaingv *gv = get_domaingv (eh);
-  CU_ASSERT_FATAL (gv != NULL);
+  CU_ASSERT_NEQ_FATAL (gv, NULL);
   // No guarantee that this really yields a locator that doesn't point to an existing machine
   // running DDSI at the port number we use, but in combination with a random domain tag,
   // it hopefully probably works out ok
@@ -58,7 +58,7 @@ static void get_nonexist_address (locstr_t *str)
     loc.address[15]++;
   ddsi_locator_to_string_no_port (str->str, sizeof (str->str), &loc);
   dds_return_t rc = dds_delete (eh);
-  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_EQ_FATAL (rc, 0);
 }
 
 // returns domain handle
@@ -121,13 +121,13 @@ static dds_entity_t make_domain_and_participant (uint32_t domainid, int base_por
                   participant_index,
                   peers);
   ddsrt_free (peers);
-  //printf ("%s\n", config);
+  //tprintf ("%s\n", config);
 
   const dds_entity_t dom = dds_create_domain (domainid, config);
-  CU_ASSERT_FATAL (dom > 0);
+  CU_ASSERT_GT_FATAL (dom, 0);
   ddsrt_free (config);
   const dds_entity_t pp = dds_create_participant (domainid, NULL, NULL);
-  CU_ASSERT_FATAL (pp > 0);
+  CU_ASSERT_GT_FATAL (pp, 0);
   return dom;
 }
 
@@ -238,7 +238,7 @@ static void run_one (int base_port, const struct cfg *cfg, const struct logger_a
     {
       if (((larg.found[d] & (1u << i)) != 0) != larg.expected[d][i].present)
       {
-        printf ("dom %"PRIu32" pattern %s: %s\n",
+        tprintf ("dom %"PRIu32" pattern %s: %s\n",
                 d, larg.expected[d][i].pat,
                 larg.expected[d][i].present ? "missing" : "present unexpectedly");
         all_ok = false;
@@ -579,7 +579,7 @@ CU_Test(ddsc_spdp, II6_pruning_lease_exp)
   run_one (baseport, &cfg, &larg, 3, (enum oper[]){ SLEEP_3, KILL_0, SLEEP_3 });
 }
 
-CU_Test(ddsc_spdp, II7_pruning_lease_exp)
+CU_Test(ddsc_spdp, II7_pruning_lease_exp, .timeout = 15)
 {
   const int baseport = 7150;
   // 2s until lease expiry

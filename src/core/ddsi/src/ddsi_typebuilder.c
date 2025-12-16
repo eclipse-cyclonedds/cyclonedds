@@ -797,7 +797,7 @@ static dds_return_t typebuilder_add_aggrtype (struct typebuilder_data *tbd, stru
   return ret;
 }
 
-static dds_return_t push_op_impl (struct typebuilder_ops *ops, uint32_t op, uint32_t index, bool inc_nops)
+static dds_return_t push_op_impl (struct typebuilder_ops *ops, uint32_t op, uint32_t index)
 {
   assert (ops);
   while (index >= ops->maximum)
@@ -813,24 +813,23 @@ static dds_return_t push_op_impl (struct typebuilder_ops *ops, uint32_t op, uint
     ops->ops = tmp;
   }
   ops->ops[index] = op;
-  if (inc_nops)
-    ops->n_ops++;
+  ops->n_ops++;
   return DDS_RETCODE_OK;
 }
 
 static dds_return_t set_op (struct typebuilder_ops *ops, uint32_t index, uint32_t op)
 {
-  return push_op_impl (ops, op, index, true);
+  return push_op_impl (ops, op, index);
 }
 
 static dds_return_t push_op (struct typebuilder_ops *ops, uint32_t op)
 {
-  return push_op_impl (ops, op, ops->index++, true);
+  return push_op_impl (ops, op, ops->index++);
 }
 
 static dds_return_t push_op_arg (struct typebuilder_ops *ops, uint32_t op)
 {
-  return push_op_impl (ops, op, ops->index++, false);
+  return push_op_impl (ops, op, ops->index++);
 }
 
 static void or_op (struct typebuilder_ops *ops, uint32_t index, uint32_t value)
@@ -874,49 +873,49 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
     case DDS_OP_VAL_4BY:
     case DDS_OP_VAL_8BY:
       flags |= get_type_flags (tb_type);
-      PUSH_OP (DDS_OP_ADR | ((DDS_OP_VAL_1BY + (tb_type->type_code - DDS_OP_VAL_1BY)) << 16) | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) ((DDS_OP_VAL_1BY + (tb_type->type_code - DDS_OP_VAL_1BY)) << 16) | flags);
       PUSH_ARG (member_offset);
       break;
     case DDS_OP_VAL_BLN:
-      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_BLN | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_BLN | flags);
       PUSH_ARG (member_offset);
       break;
     case DDS_OP_VAL_ENU:
       flags |= get_type_flags (tb_type);
-      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_ENU | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_ENU | flags);
       PUSH_ARG (member_offset);
       PUSH_ARG (tb_type->args.enum_args.max);
       break;
     case DDS_OP_VAL_BMK:
       flags |= get_type_flags (tb_type);
-      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_BMK | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_BMK | flags);
       PUSH_ARG (member_offset);
       PUSH_ARG (tb_type->args.bitmask_args.bits_h);
       PUSH_ARG (tb_type->args.bitmask_args.bits_l);
       break;
     case DDS_OP_VAL_STR:
       flags &= ~DDS_OP_FLAG_EXT;
-      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_STR | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_STR | flags);
       PUSH_ARG (member_offset);
       break;
     case DDS_OP_VAL_WSTR:
       flags &= ~DDS_OP_FLAG_EXT;
-      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_WSTR | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_WSTR | flags);
       PUSH_ARG (member_offset);
       break;
     case DDS_OP_VAL_BST:
-      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_BST | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_BST | flags);
       PUSH_ARG (member_offset);
       PUSH_ARG (tb_type->args.string_args.max_size);
       break;
     case DDS_OP_VAL_BWSTR:
-      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_BWSTR | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_BWSTR | flags);
       PUSH_ARG (member_offset);
       PUSH_ARG (tb_type->args.string_args.max_size);
       break;
     case DDS_OP_VAL_WCHAR:
       flags |= get_type_flags (tb_type);
-      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_WCHAR | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_WCHAR | flags);
       PUSH_ARG (member_offset);
       break;
     case DDS_OP_VAL_BSQ:
@@ -926,7 +925,7 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
       assert (element_type);
       flags |= get_type_flags (element_type);
       uint32_t adr_index = ops->index;
-      PUSH_OP (DDS_OP_ADR | (uint32_t) (bounded ? DDS_OP_TYPE_BSQ : DDS_OP_TYPE_SEQ) | (element_type->type_code << 8u) | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) (bounded ? DDS_OP_TYPE_BSQ : DDS_OP_TYPE_SEQ) | (element_type->type_code << 8u) | flags);
       PUSH_ARG (member_offset);
       if (bounded)
         PUSH_ARG (tb_type->args.collection_args.bound);
@@ -971,7 +970,7 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
     case DDS_OP_VAL_EXT: {
       bool ext = flags & DDS_OP_FLAG_EXT;
       tb_type->args.external_type_args.external_type.ref_base = ops->index;
-      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_EXT | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_EXT | flags);
       PUSH_ARG (member_offset);
       tb_type->args.external_type_args.external_type.ref_insn = ops->index;
       PUSH_ARG ((3 + (ext ? 1u : 0u)) << 16u);  // set next_insn, elem_insn is set after emitting external type
@@ -984,7 +983,7 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
       assert (element_type);
       flags |= get_type_flags (element_type);
       uint32_t adr_index = ops->index;
-      PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_ARR | (element_type->type_code << 8u) | flags);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_ARR | (element_type->type_code << 8u) | flags);
       PUSH_ARG (member_offset);
       PUSH_ARG (tb_type->args.collection_args.bound);
       switch (element_type->type_code)
@@ -1102,40 +1101,40 @@ static dds_return_t get_ops_union_case (struct typebuilder_type *tb_type, uint32
     case DDS_OP_VAL_2BY:
     case DDS_OP_VAL_4BY:
     case DDS_OP_VAL_8BY:
-      PUSH_OP (DDS_OP_JEQ4 | ((DDS_OP_VAL_1BY + (tb_type->type_code - DDS_OP_VAL_1BY)) << 16) | flags);
+      PUSH_OP ((uint32_t) DDS_OP_JEQ4 | (uint32_t) ((DDS_OP_VAL_1BY + (tb_type->type_code - DDS_OP_VAL_1BY)) << 16) | flags);
       PUSH_ARG (disc_value);
       PUSH_ARG (offset);
       PUSH_ARG (0);
       break;
     case DDS_OP_VAL_BLN:
-      PUSH_OP (DDS_OP_JEQ4 | DDS_OP_TYPE_BLN | flags);
+      PUSH_OP ((uint32_t) DDS_OP_JEQ4 | (uint32_t) DDS_OP_TYPE_BLN | flags);
       PUSH_ARG (disc_value);
       PUSH_ARG (offset);
       PUSH_ARG (0);
       break;
     case DDS_OP_VAL_ENU:
       flags |= get_type_flags (tb_type);
-      PUSH_OP (DDS_OP_JEQ4 | DDS_OP_TYPE_ENU | flags);
+      PUSH_OP ((uint32_t) DDS_OP_JEQ4 | (uint32_t) DDS_OP_TYPE_ENU | flags);
       PUSH_ARG (disc_value);
       PUSH_ARG (offset);
       PUSH_ARG (tb_type->args.enum_args.max);
       break;
     case DDS_OP_VAL_STR:
       flags &= ~DDS_OP_FLAG_EXT;
-      PUSH_OP (DDS_OP_JEQ4 | DDS_OP_TYPE_STR | flags);
+      PUSH_OP ((uint32_t) DDS_OP_JEQ4 | (uint32_t) DDS_OP_TYPE_STR | flags);
       PUSH_ARG (disc_value);
       PUSH_ARG (offset);
       PUSH_ARG (0);
       break;
     case DDS_OP_VAL_WSTR:
       flags &= ~DDS_OP_FLAG_EXT;
-      PUSH_OP (DDS_OP_JEQ4 | DDS_OP_TYPE_WSTR | flags);
+      PUSH_OP ((uint32_t) DDS_OP_JEQ4 | (uint32_t) DDS_OP_TYPE_WSTR | flags);
       PUSH_ARG (disc_value);
       PUSH_ARG (offset);
       PUSH_ARG (0);
       break;
     case DDS_OP_VAL_WCHAR:
-      PUSH_OP (DDS_OP_JEQ4 | DDS_OP_TYPE_WCHAR | flags);
+      PUSH_OP ((uint32_t) DDS_OP_JEQ4 | (uint32_t) DDS_OP_TYPE_WCHAR | flags);
       PUSH_ARG (disc_value);
       PUSH_ARG (offset);
       PUSH_ARG (0);
@@ -1145,7 +1144,7 @@ static dds_return_t get_ops_union_case (struct typebuilder_type *tb_type, uint32
       flags |= get_type_flags (tb_type);
       tb_type->args.external_type_args.external_type.ref_base = ops->index;
       tb_type->args.external_type_args.external_type.ref_insn = ops->index;
-      PUSH_OP (DDS_OP_JEQ4 | (tb_type->type_code << 16u) | flags);
+      PUSH_OP ((uint32_t) DDS_OP_JEQ4 | ((uint32_t) tb_type->type_code << 16u) | flags);
       PUSH_ARG (disc_value);
       PUSH_ARG (offset);
       PUSH_ARG (flags & DDS_OP_FLAG_EXT ? tb_type->args.external_type_args.external_type.type->size : 0);
@@ -1222,7 +1221,7 @@ static dds_return_t get_ops_union (const struct typebuilder_union *tb_union, uin
     flags |= tb_union->cases[c].is_default ? DDS_OP_FLAG_DEF : 0u;
 
   uint32_t next_insn_offs = ops->index;
-  PUSH_OP (DDS_OP_ADR | DDS_OP_TYPE_UNI | (tb_union->disc_type.type_code << 8) | flags);
+  PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_UNI | (uint32_t) (tb_union->disc_type.type_code << 8) | flags);
   PUSH_ARG (0u);
   PUSH_ARG (tb_union->n_cases);
   uint32_t next_insn_idx = ops->index;
@@ -1579,7 +1578,8 @@ static dds_return_t typebuilder_get_keys_push_ops (struct typebuilder_data *tbd,
           n_key_offs++;
           break;
         case KEY_PATH_PART_INHERIT:
-          if ((ret = push_op_arg (ops, 0u)) != DDS_RETCODE_OK)
+          // we get for @final and @appendable types, for appendable we need to skip the DLC instruction
+          if ((ret = push_op_arg (ops, (tbd->toplevel_type.extensibility == DDS_XTypes_IS_FINAL) ? 0u : 1u)) != DDS_RETCODE_OK)
             goto err;
           inherit_mutable = false;
           n_key_offs++;
@@ -1732,38 +1732,191 @@ static uint32_t get_descriptor_flagset (const struct typebuilder_data *tbd)
   return flags;
 }
 
+
+struct visited_aggrtype {
+  const struct typebuilder_aggregated_type *aggrtype;
+  struct visited_aggrtype *next;
+};
+
+static dds_return_t add_memberids_aggrtype (struct typebuilder_data *tbd, struct typebuilder_ops *ops, const struct typebuilder_aggregated_type *tb_aggrtype, struct visited_aggrtype *visited_aggrtypes);
+static dds_return_t add_memberids_collection (struct typebuilder_data *tbd, struct typebuilder_ops *ops, const struct typebuilder_type *tb_collection, struct visited_aggrtype *visited_aggrtypes);
+
+static dds_return_t add_memberids_collection (struct typebuilder_data *tbd, struct typebuilder_ops *ops, const struct typebuilder_type *tb_collection, struct visited_aggrtype *visited_aggrtypes)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
+  struct typebuilder_type *elem_type = tb_collection->args.collection_args.element_type.type;
+  switch (elem_type->type_code)
+  {
+    case DDS_OP_VAL_STU: case DDS_OP_VAL_UNI:
+      if ((ret = add_memberids_aggrtype (tbd, ops, elem_type->args.external_type_args.external_type.type, visited_aggrtypes)) != DDS_RETCODE_OK)
+        goto err;
+      break;
+    case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_BSQ:
+      if ((ret = add_memberids_collection (tbd, ops, elem_type, visited_aggrtypes)) != DDS_RETCODE_OK)
+        goto err;
+      break;
+    case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+    case DDS_OP_VAL_BLN: case DDS_OP_VAL_BMK: case DDS_OP_VAL_BST: case DDS_OP_VAL_STR:
+    case DDS_OP_VAL_WSTR: case DDS_OP_VAL_WCHAR: case DDS_OP_VAL_ENU: case DDS_OP_VAL_BWSTR:
+      break;
+    case DDS_OP_VAL_EXT:
+      abort ();
+  }
+err:
+  return ret;
+}
+
+static dds_return_t add_memberids_struct (struct typebuilder_data *tbd, struct typebuilder_ops *ops, const struct typebuilder_struct *tb_struct, struct visited_aggrtype *visited_aggrtypes, bool is_mutable_struct)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
+  for (uint32_t n = 0; n < tb_struct->n_members; n++)
+  {
+    struct typebuilder_struct_member *member = &tb_struct->members[n];
+    if (member->is_optional && !is_mutable_struct)
+    {
+      PUSH_OP (DDS_OP_MID);
+      PUSH_ARG (member->insn_offs);
+    }
+    switch (member->type.type_code)
+    {
+      case  DDS_OP_VAL_EXT:
+        if ((ret = add_memberids_aggrtype (tbd, ops, member->type.args.external_type_args.external_type.type, visited_aggrtypes)) != DDS_RETCODE_OK)
+          goto err;
+        break;
+      case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_BSQ:
+        if ((ret = add_memberids_collection (tbd, ops, &member->type, visited_aggrtypes)) != DDS_RETCODE_OK)
+          goto err;
+        break;
+      case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+      case DDS_OP_VAL_BLN: case DDS_OP_VAL_BMK: case DDS_OP_VAL_BST: case DDS_OP_VAL_STR:
+      case DDS_OP_VAL_WSTR: case DDS_OP_VAL_WCHAR: case DDS_OP_VAL_ENU: case DDS_OP_VAL_BWSTR:
+        break;
+      case DDS_OP_VAL_STU: case DDS_OP_VAL_UNI:
+        abort ();
+    }
+  }
+err:
+  return ret;
+}
+
+static dds_return_t add_memberids_union (struct typebuilder_data *tbd, struct typebuilder_ops *ops, const struct typebuilder_union *tb_union, struct visited_aggrtype *visited_aggrtypes)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
+  for (uint32_t n = 0; n < tb_union->n_cases; n++)
+  {
+    struct typebuilder_union_member *_case = &tb_union->cases[n];
+    switch (_case->type.type_code)
+    {
+      case DDS_OP_VAL_STU: case DDS_OP_VAL_UNI:
+        if ((ret = add_memberids_aggrtype (tbd, ops, _case->type.args.external_type_args.external_type.type, visited_aggrtypes)) != DDS_RETCODE_OK)
+          goto err;
+        break;
+      case DDS_OP_VAL_SEQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_BSQ:
+        if ((ret = add_memberids_collection (tbd, ops, &_case->type, visited_aggrtypes)) != DDS_RETCODE_OK)
+          goto err;
+        break;
+      case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+      case DDS_OP_VAL_BLN: case DDS_OP_VAL_BMK: case DDS_OP_VAL_BST: case DDS_OP_VAL_STR:
+      case DDS_OP_VAL_WSTR: case DDS_OP_VAL_WCHAR: case DDS_OP_VAL_ENU: case DDS_OP_VAL_BWSTR:
+        break;
+      case DDS_OP_VAL_EXT:
+        abort ();
+    }
+  }
+err:
+  return ret;
+}
+
+static dds_return_t add_memberids_aggrtype (struct typebuilder_data *tbd, struct typebuilder_ops *ops, const struct typebuilder_aggregated_type *tb_aggrtype, struct visited_aggrtype *visited_aggrtypes)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
+
+  struct visited_aggrtype *va = visited_aggrtypes;
+  while (true)
+  {
+    if (va->aggrtype == tb_aggrtype)
+      return DDS_RETCODE_OK;
+    else if (va->next != NULL)
+      va = va->next;
+    else
+    {
+      va->next = ddsrt_calloc (1, sizeof (*va->next));
+      va->next->aggrtype = tb_aggrtype;
+      break;
+    }
+  }
+
+  if (tb_aggrtype->base_type)
+  {
+    if ((ret = add_memberids_aggrtype (tbd, ops, tb_aggrtype->base_type->args.external_type_args.external_type.type, visited_aggrtypes)) != DDS_RETCODE_OK)
+      goto err;
+  }
+
+  switch (tb_aggrtype->kind)
+  {
+    case DDS_XTypes_TK_STRUCTURE:
+      if ((ret = add_memberids_struct (tbd, ops, &tb_aggrtype->detail._struct, visited_aggrtypes, tb_aggrtype->extensibility == DDS_XTypes_IS_MUTABLE)) != DDS_RETCODE_OK)
+        goto err;
+      break;
+    case DDS_XTypes_TK_UNION:
+      if ((ret = add_memberids_union (tbd, ops, &tb_aggrtype->detail._union, visited_aggrtypes)) != DDS_RETCODE_OK)
+        goto err;
+      break;
+    default:
+      abort ();
+  }
+
+err:
+  return ret;
+}
+
+static dds_return_t typebuilder_add_mid_table (struct typebuilder_data *tbd, struct typebuilder_ops *ops)
+{
+  dds_return_t ret;
+  uint32_t old_idx = ops->index;
+  struct visited_aggrtype visited_aggrtypes = { NULL, NULL };
+
+  if ((ret = add_memberids_aggrtype (tbd, ops, &tbd->toplevel_type, &visited_aggrtypes)) != DDS_RETCODE_OK)
+    return ret;
+
+  if (ops->index > old_idx)
+    PUSH_OP (DDS_OP_RTS);
+
+  struct visited_aggrtype *va = visited_aggrtypes.next;
+  while (va != NULL)
+  {
+    struct visited_aggrtype *van = va->next;
+    ddsrt_free (va);
+    va = van;
+  }
+
+  return ret;
+}
+
+
 static dds_return_t get_topic_descriptor (dds_topic_descriptor_t *desc, struct typebuilder_data *tbd)
 {
   dds_return_t ret;
-  unsigned char *typeinfo_data , *typemap_data;
+  unsigned char *typeinfo_data = NULL, *typemap_data = NULL;
   uint32_t typeinfo_sz, typemap_sz;
+  struct typebuilder_ops ops = { NULL, 0, 0, 0 };
 
   if ((ret = ddsi_type_get_typeinfo_ser (tbd->gv, tbd->type, &typeinfo_data, &typeinfo_sz)) != DDS_RETCODE_OK)
-    return ret;
-  if ((ret = ddsi_type_get_typemap_ser (tbd->gv, tbd->type, &typemap_data, &typemap_sz)) != DDS_RETCODE_OK)
-  {
-    ddsrt_free (typeinfo_data);
     goto err;
-  }
 
-  struct typebuilder_ops ops = { NULL, 0, 0, 0 };
-  if ((ret = typebuilder_get_ops (tbd, &ops)) != DDS_RETCODE_OK
-    || (ret = typebuilder_resolve_ops_offsets (tbd, &ops)) != DDS_RETCODE_OK)
-  {
-    typebuilder_ops_fini (&ops);
-    ddsrt_free (typeinfo_data);
-    ddsrt_free (typemap_data);
+  if ((ret = ddsi_type_get_typemap_ser (tbd->gv, tbd->type, &typemap_data, &typemap_sz)) != DDS_RETCODE_OK)
     goto err;
-  }
+
+  if ((ret = typebuilder_get_ops (tbd, &ops)) != DDS_RETCODE_OK
+      || (ret = typebuilder_resolve_ops_offsets (tbd, &ops)) != DDS_RETCODE_OK)
+    goto err;
 
   struct dds_key_descriptor *key_desc = NULL;
   if ((ret = typebuilder_get_keys (tbd, &ops, &key_desc)) != DDS_RETCODE_OK)
-  {
-    typebuilder_ops_fini (&ops);
-    ddsrt_free (typeinfo_data);
-    ddsrt_free (typemap_data);
     goto err;
-  }
+
+  if ((ret = typebuilder_add_mid_table (tbd, &ops)) != DDS_RETCODE_OK)
+    goto err;
 
   const dds_topic_descriptor_t d =
   {
@@ -1792,9 +1945,12 @@ static dds_return_t get_topic_descriptor (dds_topic_descriptor_t *desc, struct t
   }
   // coverity[store_writes_const_field]
   memcpy (desc, &d, sizeof (*desc));
-  ret = DDS_RETCODE_OK;
+  return DDS_RETCODE_OK;
 
 err:
+  typebuilder_ops_fini (&ops);
+  ddsrt_free (typeinfo_data);
+  ddsrt_free (typemap_data);
   return ret;
 }
 
@@ -1819,7 +1975,8 @@ dds_return_t ddsi_topic_descriptor_from_type (struct ddsi_domaingv *gv, dds_topi
     goto err;
   }
 
-  if ((ret = typebuilder_add_aggrtype (tbd, &tbd->toplevel_type, type)) != DDS_RETCODE_OK)
+  const struct ddsi_type * unaliased_type = type_unalias (type);
+  if ((ret = typebuilder_add_aggrtype (tbd, &tbd->toplevel_type, unaliased_type)) != DDS_RETCODE_OK)
     goto err;
   set_implicit_keys_aggrtype (&tbd->toplevel_type, true, false);
   if ((ret = get_topic_descriptor (desc, tbd)) != DDS_RETCODE_OK)

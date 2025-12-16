@@ -274,20 +274,20 @@ static void remove_from_all_entities (struct ddsi_entity_index *ei, struct ddsi_
 
 static void entity_index_insert (struct ddsi_entity_index *ei, struct ddsi_entity_common *e)
 {
+  add_to_all_entities (ei, e);
   bool x;
   x = ddsrt_chh_add (ei->guid_hash, e);
   (void)x;
   assert (x);
-  add_to_all_entities (ei, e);
 }
 
-static void entity_index_remove (struct ddsi_entity_index *ei, struct ddsi_entity_common *e)
+ddsrt_attribute_warn_unused_result
+static bool entity_index_tryremove (struct ddsi_entity_index *ei, struct ddsi_entity_common *e)
 {
-  bool x;
+  if (!ddsrt_chh_remove (ei->guid_hash, e))
+    return false;
   remove_from_all_entities (ei, e);
-  x = ddsrt_chh_remove (ei->guid_hash, e);
-  (void)x;
-  assert (x);
+  return true;
 }
 
 void *ddsi_entidx_lookup_guid_untyped (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid)
@@ -343,34 +343,52 @@ void ddsi_entidx_insert_proxy_reader_guid (struct ddsi_entity_index *ei, struct 
   entity_index_insert (ei, &prd->e);
 }
 
-void ddsi_entidx_remove_participant_guid (struct ddsi_entity_index *ei, struct ddsi_participant *pp)
+struct ddsi_participant *ddsi_entidx_tryremove_participant_guid (struct ddsi_entity_index *ei, const struct ddsi_guid *guid)
 {
-  entity_index_remove (ei, &pp->e);
+  struct ddsi_participant *pp = ddsi_entidx_lookup_participant_guid (ei, guid);
+  if (pp == NULL || !entity_index_tryremove (ei, &pp->e))
+    return NULL;
+  return pp;
 }
 
-void ddsi_entidx_remove_proxy_participant_guid (struct ddsi_entity_index *ei, struct ddsi_proxy_participant *proxypp)
+struct ddsi_proxy_participant *ddsi_entidx_tryremove_proxy_participant_guid (struct ddsi_entity_index *ei, const struct ddsi_guid *guid)
 {
-  entity_index_remove (ei, &proxypp->e);
+  struct ddsi_proxy_participant *proxypp = ddsi_entidx_lookup_proxy_participant_guid (ei, guid);
+  if (proxypp == NULL || !entity_index_tryremove (ei, &proxypp->e))
+    return NULL;
+  return proxypp;
 }
 
-void ddsi_entidx_remove_writer_guid (struct ddsi_entity_index *ei, struct ddsi_writer *wr)
+struct ddsi_writer *ddsi_entidx_tryremove_writer_guid (struct ddsi_entity_index *ei, const struct ddsi_guid *guid)
 {
-  entity_index_remove (ei, &wr->e);
+  struct ddsi_writer *wr = ddsi_entidx_lookup_writer_guid (ei, guid);
+  if (wr == NULL || !entity_index_tryremove (ei, &wr->e))
+    return NULL;
+  return wr;
 }
 
-void ddsi_entidx_remove_reader_guid (struct ddsi_entity_index *ei, struct ddsi_reader *rd)
+struct ddsi_reader *ddsi_entidx_tryremove_reader_guid (struct ddsi_entity_index *ei, const struct ddsi_guid *guid)
 {
-  entity_index_remove (ei, &rd->e);
+  struct ddsi_reader *rd = ddsi_entidx_lookup_reader_guid (ei, guid);
+  if (rd == NULL || !entity_index_tryremove (ei, &rd->e))
+    return NULL;
+  return rd;
 }
 
-void ddsi_entidx_remove_proxy_writer_guid (struct ddsi_entity_index *ei, struct ddsi_proxy_writer *pwr)
+struct ddsi_proxy_writer *ddsi_entidx_tryremove_proxy_writer_guid (struct ddsi_entity_index *ei, const struct ddsi_guid *guid)
 {
-  entity_index_remove (ei, &pwr->e);
+  struct ddsi_proxy_writer *pwr = ddsi_entidx_lookup_proxy_writer_guid (ei, guid);
+  if (pwr == NULL || !entity_index_tryremove (ei, &pwr->e))
+    return NULL;
+  return pwr;
 }
 
-void ddsi_entidx_remove_proxy_reader_guid (struct ddsi_entity_index *ei, struct ddsi_proxy_reader *prd)
+struct ddsi_proxy_reader *ddsi_entidx_tryremove_proxy_reader_guid (struct ddsi_entity_index *ei, const struct ddsi_guid *guid)
 {
-  entity_index_remove (ei, &prd->e);
+  struct ddsi_proxy_reader *prd = ddsi_entidx_lookup_proxy_reader_guid (ei, guid);
+  if (prd == NULL || !entity_index_tryremove (ei, &prd->e))
+    return NULL;
+  return prd;
 }
 
 struct ddsi_participant *ddsi_entidx_lookup_participant_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid)
@@ -602,9 +620,12 @@ void ddsi_entidx_insert_topic_guid (struct ddsi_entity_index *ei, struct ddsi_to
   entity_index_insert (ei, &tp->e);
 }
 
-void ddsi_entidx_remove_topic_guid (struct ddsi_entity_index *ei, struct ddsi_topic *tp)
+struct ddsi_topic *ddsi_entidx_tryremove_topic_guid (struct ddsi_entity_index *ei, const struct ddsi_guid *guid)
 {
-  entity_index_remove (ei, &tp->e);
+  struct ddsi_topic *tp = ddsi_entidx_lookup_topic_guid (ei, guid);
+  if (tp == NULL || !entity_index_tryremove (ei, &tp->e))
+    return NULL;
+  return tp;
 }
 
 struct ddsi_topic *ddsi_entidx_lookup_topic_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid)

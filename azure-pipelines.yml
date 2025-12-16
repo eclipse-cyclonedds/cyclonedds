@@ -40,6 +40,17 @@ jobs:
         iceoryx: on
         cc: gcc
         coverage: on
+      'Ubuntu 24.04 (Debug, x86_64, Iceoryx2)':
+        image: ubuntu-24.04
+        # No address sanitizer because of this in test run:
+        #  Shadow memory range interleaves with an existing memory mapping.
+        #  ASan cannot proceed correctly. ABORTING.
+        #  ASan shadow was supposed to be located in the [0x00007fff7000-0x10007fff7fff]
+        #  range.
+        sanitizer: undefined
+        iceoryx2: on
+        cc: gcc
+        coverage: on
       'Ubuntu 24.04 (Release, x86_64)':
         image: ubuntu-24.04
         build_type: Release
@@ -94,28 +105,28 @@ jobs:
         cc: gcc-14
         analyzer: on
       # 32-bit Windows: without SSL/security because Chocolateley only provides 64-bit OpenSSL
-      'Windows 2022 with Visual Studio 2022 (Debug, x86, no security)':
+      'Windows 2025 with Visual Studio 2022 (Debug, x86, no security)':
         arch: x86
-        image: windows-2022
+        image: windows-2025
         ssl: off
         security: off
         idlc_xtests: off
         generator: 'Visual Studio 17 2022'
-      'Windows 2022 with Visual Studio 2022 (Debug, x86_64)':
-        image: windows-2022
+      'Windows 2025 with Visual Studio 2022 (Debug, x86_64)':
+        image: windows-2025
         idlc_xtests: off
         generator: 'Visual Studio 17 2022'
-      'Windows 2022 with Visual Studio 2022 (Release, x86_64, no tests)':
-        image: windows-2022
+      'Windows 2025 with Visual Studio 2022 (Release, x86_64, no tests)':
+        image: windows-2025
         build_type: Release
         testing: off
         idlc_xtests: off
         generator: 'Visual Studio 17 2022'
-      'Windows 2019 with Visual Studio 2019 (RelWithDebInfo, x86_64)':
-        image: windows-2019
+      'Windows 2022 with Visual Studio 2022 (RelWithDebInfo, x86_64)':
+        image: windows-2022
         build_type: RelWithDebInfo
         idlc_xtests: off
-        generator: 'Visual Studio 16 2019'
+        generator: 'Visual Studio 17 2022'
       #'Windows 2019 with GCC 10 (Debug, x86_64)':
       #  image: windows-2019
       #  build_type: Debug

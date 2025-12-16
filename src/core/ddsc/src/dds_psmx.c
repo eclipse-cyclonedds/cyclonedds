@@ -83,7 +83,21 @@ dds_return_t dds_add_psmx_topic_to_list (struct dds_psmx_topic *psmx_topic, void
   return DDS_RETCODE_OK;
 }
 
+dds_return_t dds_remove_psmx_topic_from_list (struct dds_psmx_topic *psmx_topic, void **list)
+{
+  // deprecated, kept for compatibility with older PSMX Plugin sources
+  (void) psmx_topic; (void) list;
+  return DDS_RETCODE_OK;
+}
+
 dds_return_t dds_add_psmx_endpoint_to_list (struct dds_psmx_endpoint *psmx_endpoint, void **list)
+{
+  // deprecated, kept for compatibility with older PSMX Plugin sources
+  (void) psmx_endpoint; (void) list;
+  return DDS_RETCODE_OK;
+}
+
+dds_return_t dds_remove_psmx_endpoint_from_list (struct dds_psmx_endpoint *psmx_endpoint, void **list)
 {
   // deprecated, kept for compatibility with older PSMX Plugin sources
   (void) psmx_endpoint; (void) list;
@@ -869,7 +883,8 @@ void dds_pubsub_message_exchange_fini (struct dds_domain *domain)
 static dds_return_t dds_psmx_endpoint_write_wrapper (const struct dds_psmx_endpoint_int *psmx_endpoint, dds_loaned_sample_t *data, size_t keysz, const void *key)
 {
   (void) keysz; (void) key;
-  return psmx_endpoint->ext->ops.write (psmx_endpoint->ext, data);
+  // FreeRTOS #defines "write" ...
+  return (psmx_endpoint->ext->ops.write) (psmx_endpoint->ext, data);
 }
 
 static dds_return_t dds_psmx_endpoint_write_with_key_wrapper (const struct dds_psmx_endpoint_int *psmx_endpoint, dds_loaned_sample_t *data, size_t keysz, const void *key)

@@ -595,6 +595,8 @@ scan(idl_pstate_t *pstate, idl_lexeme_t *lex)
     } else if ((cnt = have_newline(pstate, cur)) > 0) {
       lim = cur + cnt;
       code = '\n';
+    } else if (cnt < 0) {
+      return IDL_RETCODE_NEED_REFILL;
     } else if ((cnt = have_space(pstate, cur)) > 0) {
       /* skip space characters, except newline */
       lim = cur + cnt;

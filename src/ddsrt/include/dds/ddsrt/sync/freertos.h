@@ -45,6 +45,18 @@ typedef struct {
   ddsrt_tasklist_t tasks;
 } ddsrt_cond_t;
 
+typedef struct {
+  ddsrt_cond_t cond;
+} ddsrt_cond_wctime_t;
+
+typedef struct {
+  ddsrt_cond_t cond;
+} ddsrt_cond_mtime_t;
+
+typedef struct {
+  ddsrt_cond_t cond;
+} ddsrt_cond_etime_t;
+
 /* This readers-writer lock implementation does not prefer writers over readers
    or vice versa. Multiple readers are allowed to hold the lock simultaneously
    and can acquire it directly if no writers are queued. However, if a writer

@@ -166,22 +166,16 @@ CU_Test (ddsi_plist_generic, ser_and_deser)
     size_t sersize;
     dds_return_t ret;
     ret = ddsi_plist_ser_generic (&ser, &sersize, descs[i].data, descs[i].desc);
-    CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     if (sersize != descs[i].exp_sersize)
-      CU_ASSERT (sersize == descs[i].exp_sersize);
+      CU_ASSERT_EQ (sersize, descs[i].exp_sersize);
     /* if sizes don't match, still check prefix */
     size_t cmpsize = (sersize < descs[i].exp_sersize) ? sersize : descs[i].exp_sersize;
-    if (memcmp (ser, descs[i].exp_ser, cmpsize) != 0)
-    {
-      printf ("memcmp i = %zu\n", i);
-      for (size_t k = 0; k < cmpsize; k++)
-        printf ("  %3zu  %02x  %02x\n", k, ((unsigned char *)ser)[k], descs[i].exp_ser[k]);
-      CU_ASSERT (!(bool)"memcmp");
-    }
+    CU_ASSERT_MEMEQ (ser, cmpsize, descs[i].exp_ser, cmpsize);
     /* check */
     memsize = ddsi_plist_memsize_generic (descs[i].desc);
     if (memsize > sizeof (mem))
-      CU_ASSERT_FATAL (memsize <= sizeof (mem));
+      CU_ASSERT_LEQ_FATAL (memsize, sizeof (mem));
     /* memset to zero for used part so padding is identical to compiler inserted padding,
        but to something unlikely for the remainder */
     memset (mem.buf, 0, memsize);
@@ -194,7 +188,7 @@ CU_Test (ddsi_plist_generic, ser_and_deser)
       memmove ((char *) ser + shift, ser, sersize);
       ret = ddsi_plist_deser_generic (&mem, (char *) ser + shift, sersize, false, descs[i].desc);
       if (ret != DDS_RETCODE_OK)
-        CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+        CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
       /* the compare function should be happy with it */
       if (!ddsi_plist_equal_generic (descs[i].exp_data ? descs[i].exp_data : descs[i].data, &mem, descs[i].desc))
         CU_ASSERT (!(bool)"plist_equal_generic");
@@ -204,8 +198,8 @@ CU_Test (ddsi_plist_generic, ser_and_deser)
       for (const enum ddsi_pserop *op = descs[i].desc; *op != XSTOP && can_memcmp; op++)
         if (*op == XS || *op == XO || *op == XQ)
           can_memcmp = false;
-      if (can_memcmp && memcmp (descs[i].exp_data ? descs[i].exp_data : descs[i].data, &mem, memsize) != 0)
-        CU_ASSERT (!(bool)"memcmp");
+      if (can_memcmp)
+        CU_ASSERT_MEMEQ (descs[i].exp_data ? descs[i].exp_data : descs[i].data, memsize, &mem, memsize);
       /* rely on mem checkers to find memory leaks, incorrect free, etc. */
       ddsi_plist_fini_generic (&mem, descs[i].desc, true);
     }
@@ -230,7 +224,7 @@ CU_Test (ddsi_plist_generic, unalias)
     (void) ddsi_plist_deser_generic (&mem, ser, sersize, false, descs[i].desc);
     /* after unaliasing, the data should be valid even when the serialised form has been overwritten or freed */
     ret = ddsi_plist_unalias_generic (&mem, descs[i].desc);
-    CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     memset (ser, 0xee, sersize);
     ddsrt_free (ser);
     if (!ddsi_plist_equal_generic (descs[i].exp_data ? descs[i].exp_data : descs[i].data, &mem, descs[i].desc))
@@ -291,7 +285,7 @@ CU_Test (ddsi_plist_generic, invalid_input)
       char * const ser = serbuf + ((8 - ((uintptr_t)serbuf % 8)) % 8) + 4;
       memcpy (ser, descs_invalid[i].ser, descs_invalid[i].sersize);
       dds_return_t ret = ddsi_plist_deser_generic (&mem, ser, descs_invalid[i].sersize, false, descs_invalid[i].desc);
-      CU_ASSERT_FATAL (ret != DDS_RETCODE_OK);
+      CU_ASSERT_NEQ_FATAL (ret, DDS_RETCODE_OK);
     }
     ddsrt_free (serbuf);
   }
@@ -327,25 +321,19 @@ CU_Test (ddsi_plist_generic, optional)
   size_t sersize;
   dds_return_t ret;
   ret = ddsi_plist_ser_generic (&ser, &sersize, data, ser_desc);
-  CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
-  CU_ASSERT (sersize == exp_sersize);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (sersize, exp_sersize);
   /* if sizes don't match, still check prefix */
   size_t cmpsize = (sersize < exp_sersize) ? sersize : exp_sersize;
-  if (memcmp (ser, exp_ser, cmpsize) != 0)
-  {
-    printf ("ddsi_plist_generic_optional: memcmp\n");
-    for (size_t k = 0; k < cmpsize; k++)
-      printf ("  %3zu  %02x  %02x\n", k, ((unsigned char *)ser)[k], exp_ser[k]);
-    CU_ASSERT (!(bool)"memcmp");
-  }
+  CU_ASSERT_MEMEQ (ser, cmpsize, exp_ser, cmpsize);
   /* check */
   memsize = ddsi_plist_memsize_generic (deser_desc);
-  CU_ASSERT_FATAL (memsize <= sizeof (mem));
+  CU_ASSERT_LEQ_FATAL (memsize, sizeof (mem));
   memset (&mem, 0xee, sizeof (mem));
   ret = ddsi_plist_deser_generic (&mem, ser, sersize, false, deser_desc);
-  CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   /* the compare function should be happy with it */
-  CU_ASSERT (ddsi_plist_equal_generic (exp_data, &mem, deser_desc));
+  CU_ASSERT_NEQ (ddsi_plist_equal_generic (exp_data, &mem, deser_desc), 0);
   ddsi_plist_fini_generic (&mem, deser_desc, true);
   ddsrt_free (ser);
 }

@@ -28,13 +28,13 @@ static void f_pass (void)
 static void f_fail (void)
 {
   testflag++;
-  CU_ASSERT (0);
+  CU_FAIL ("this fails");
 }
 
 static void f_fatal (void)
 {
   testflag++;
-  CU_ASSERT_FATAL (0);
+  CU_FAIL_FATAL ("this fails and terminates");
   testflag++; // should not get here
 }
 

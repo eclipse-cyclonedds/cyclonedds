@@ -385,6 +385,11 @@ DDS_QUNSET_PROP (bprop, binary_value, value.value)
 
 void dds_qset_prop (dds_qos_t *qos, const char * name, const char * value)
 {
+  dds_qset_prop_propagate (qos, name, value, false);
+}
+
+void dds_qset_prop_propagate (dds_qos_t *qos, const char * name, const char * value, bool propagate)
+{
   uint32_t i;
   if (qos == NULL || name == NULL || value == NULL)
     return;
@@ -400,7 +405,7 @@ void dds_qset_prop (dds_qos_t *qos, const char * name, const char * value)
   {
     qos->property.value.props = dds_realloc (qos->property.value.props,
       (qos->property.value.n + 1) * sizeof (*qos->property.value.props));
-    qos->property.value.props[qos->property.value.n].propagate = 0;
+    qos->property.value.props[qos->property.value.n].propagate = propagate ? 1 : 0;
     qos->property.value.props[qos->property.value.n].name = dds_string_dup (name);
     qos->property.value.props[qos->property.value.n].value = dds_string_dup (value);
     qos->property.value.n++;
@@ -408,6 +413,11 @@ void dds_qset_prop (dds_qos_t *qos, const char * name, const char * value)
 }
 
 void dds_qset_bprop (dds_qos_t *qos, const char * name, const void * value, const size_t sz)
+{
+  dds_qset_bprop_propagate (qos, name, value, sz, false);
+}
+
+void dds_qset_bprop_propagate (dds_qos_t *qos, const char * name, const void * value, const size_t sz, bool propagate)
 {
   uint32_t i;
   if (qos == NULL || name == NULL || (value == NULL && sz > 0))
@@ -423,7 +433,7 @@ void dds_qset_bprop (dds_qos_t *qos, const char * name, const void * value, cons
   {
     qos->property.binary_value.props = dds_realloc (qos->property.binary_value.props,
       (qos->property.binary_value.n + 1) * sizeof (*qos->property.binary_value.props));
-    qos->property.binary_value.props[qos->property.binary_value.n].propagate = 0;
+    qos->property.binary_value.props[qos->property.binary_value.n].propagate = propagate ? 1 : 0;
     qos->property.binary_value.props[qos->property.binary_value.n].name = dds_string_dup (name);
     dds_qos_data_copy_in (&qos->property.binary_value.props[qos->property.binary_value.n].value, value, sz, false);
     qos->property.binary_value.n++;
@@ -785,6 +795,11 @@ DDS_QGET_PROPNAMES (bprop, binary_value)
 
 bool dds_qget_prop (const dds_qos_t *qos, const char * name, char ** value)
 {
+  return dds_qget_prop_propagate (qos, name, value, NULL);
+}
+
+bool dds_qget_prop_propagate (const dds_qos_t *qos, const char * name, char ** value, bool * propagate)
+{
   uint32_t i;
   bool found;
 
@@ -794,10 +809,19 @@ bool dds_qget_prop (const dds_qos_t *qos, const char * name, char ** value)
   found = dds_qprop_get_index (qos, name, &i);
   if (value != NULL)
     *value = found ? dds_string_dup (qos->property.value.props[i].value) : NULL;
+
+  if (propagate != NULL)
+    *propagate = found ? qos->property.value.props[i].propagate == 1 : false;
+
   return found;
 }
 
 bool dds_qget_bprop (const dds_qos_t *qos, const char * name, void ** value, size_t * sz)
+{
+  return dds_qget_bprop_propagate (qos, name, value, sz, NULL);
+}
+
+bool dds_qget_bprop_propagate (const dds_qos_t *qos, const char * name, void ** value, size_t * sz, bool * propagate)
 {
   uint32_t i;
   bool found;
@@ -810,6 +834,9 @@ bool dds_qget_bprop (const dds_qos_t *qos, const char * name, void ** value, siz
   {
     if (value != NULL || sz != NULL)
       dds_qos_data_copy_out (&qos->property.binary_value.props[i].value, value, sz);
+
+    if (propagate != NULL)
+      *propagate = qos->property.binary_value.props[i].propagate == 1;
   }
   else
   {
@@ -817,6 +844,8 @@ bool dds_qget_bprop (const dds_qos_t *qos, const char * name, void ** value, siz
       *value = NULL;
     if (sz != NULL)
       *sz = 0;
+    if (propagate != NULL)
+      *propagate = false;
   }
   return found;
 }
@@ -866,10 +895,12 @@ bool dds_qget_data_representation (const dds_qos_t *qos, uint32_t *n, dds_data_r
   return true;
 }
 
-dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allowed_data_representations, bool topicqos)
+dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allowed_data_representations, dds_data_type_properties_t data_type_props, dds_entity_kind_t entitykind)
 {
-  const bool allow1 = allowed_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR1,
-    allow2 = allowed_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR2;
+  assert (entitykind == DDS_KIND_TOPIC || entitykind == DDS_KIND_READER || entitykind == DDS_KIND_WRITER);
+  const bool allow1 = allowed_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR1;
+  const bool allow2 = allowed_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR2;
+  const bool prefer2 = data_type_props & DDS_DATA_TYPE_DEFAULTS_TO_XCDR2_MASK;
 
   if ((qos->present & DDSI_QP_DATA_REPRESENTATION) && qos->data_representation.value.n > 0)
   {
@@ -892,17 +923,31 @@ dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allo
           return DDS_RETCODE_BAD_PARAMETER;
       }
     }
+    if (entitykind == DDS_KIND_WRITER)
+    {
+      dds_data_representation_id_t xs[1] = { qos->data_representation.value.ids[0] };
+      dds_qset_data_representation (qos, 1, xs);
+    }
   }
   else
   {
     if (!allow1 && !allow2)
       return DDS_RETCODE_BAD_PARAMETER;
-    if (!allow1)
-      dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR2 });
-    else if (!topicqos || !allow2)
-      dds_qset_data_representation (qos, 1, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR1 });
+
+    dds_data_representation_id_t xs[2];
+    uint32_t nxs = 0;
+    if (prefer2)
+    {
+      if (allow2) xs[nxs++] = DDS_DATA_REPRESENTATION_XCDR2;
+      if (allow1) xs[nxs++] = DDS_DATA_REPRESENTATION_XCDR1;
+    }
     else
-      dds_qset_data_representation (qos, 2, (dds_data_representation_id_t[]) { DDS_DATA_REPRESENTATION_XCDR1, DDS_DATA_REPRESENTATION_XCDR2 });
+    {
+      if (allow1) xs[nxs++] = DDS_DATA_REPRESENTATION_XCDR1;
+      if (allow2) xs[nxs++] = DDS_DATA_REPRESENTATION_XCDR2;
+    }
+    assert (nxs >= 1);
+    dds_qset_data_representation (qos, (entitykind == DDS_KIND_TOPIC || entitykind == DDS_KIND_READER) ? nxs : 1, xs);
   }
   return DDS_RETCODE_OK;
 }

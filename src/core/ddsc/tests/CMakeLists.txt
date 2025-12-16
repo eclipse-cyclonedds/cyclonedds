@@ -25,17 +25,22 @@ idlc_generate(TARGET CdrStreamOptimize FILES CdrStreamOptimize.idl WARNINGS no-i
 idlc_generate(TARGET CdrStreamSkipDefault FILES CdrStreamSkipDefault.idl)
 idlc_generate(TARGET CdrStreamKeySize FILES CdrStreamKeySize.idl)
 idlc_generate(TARGET CdrStreamKeyExt FILES CdrStreamKeyExt.idl)
+idlc_generate(TARGET CdrStreamKeyFlags FILES CdrStreamKeyFlags.idl)
 idlc_generate(TARGET CdrStreamChecking FILES CdrStreamChecking.idl)
-idlc_generate(TARGET CdrStreamWstring FILES CdrStreamWstring.idl)
+idlc_generate(TARGET CdrStreamString FILES CdrStreamString.idl)
+idlc_generate(TARGET CdrStreamParamHeader FILES CdrStreamParamHeader.idl)
+idlc_generate(TARGET CdrStreamSerDes FILES CdrStreamSerDes.idl NO_TYPE_INFO WARNINGS no-enum-consecutive)
+idlc_generate(TARGET CdrStreamXcdr1Opt FILES CdrStreamXcdr1Opt.idl)
 idlc_generate(TARGET SerdataData FILES SerdataData.idl)
 idlc_generate(TARGET PsmxDataModels FILES PsmxDataModels.idl WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET CdrStreamDataTypeInfo FILES CdrStreamDataTypeInfo.idl WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET Array100 FILES Array100.idl WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET DynamicData FILES DynamicData.idl WARNINGS no-implicit-extensibility)
 if(ENABLE_TYPELIB)
+  idlc_generate(TARGET SertypeData FILES SertypeData.idl)
   idlc_generate(TARGET XSpace FILES XSpace.idl XSpaceEnum.idl XSpaceMustUnderstand.idl XSpaceTypeConsistencyEnforcement.idl WARNINGS no-implicit-extensibility no-inherit-appendable)
   idlc_generate(TARGET XSpaceNoTypeInfo FILES XSpaceNoTypeInfo.idl NO_TYPE_INFO WARNINGS no-implicit-extensibility)
-  idlc_generate(TARGET TypeBuilderTypes FILES TypeBuilderTypes.idl WARNINGS no-implicit-extensibility)
+  idlc_generate(TARGET TypeBuilderTypes FILES TypeBuilderTypes.idl WARNINGS no-implicit-extensibility no-inherit-appendable)
   idlc_generate(TARGET DynamicTypeTypes FILES DynamicTypeTypes.idl)
 endif()
 
@@ -46,6 +51,7 @@ set(ddsc_test_sources
     "cdr.c"
     "config.c"
     "data_avail_stress.c"
+    "data_on_readers.c"
     "destorder.c"
     "discstress.c"
     "dispose.c"
@@ -73,6 +79,7 @@ set(ddsc_test_sources
     "qos_set_match.c"
     "querycondition.c"
     "guardcondition.c"
+    "matchstress.c"
     "readcollect.c"
     "readcondition.c"
     "reader.c"
@@ -108,6 +115,7 @@ set(ddsc_test_sources
     "test_oneliner.h"
     "cdrstream.c"
     "serdata_keys.c"
+    "sertype.c"
   )
 
 if(ENABLE_LIFESPAN)
@@ -147,6 +155,12 @@ if(ENABLE_QOS_PROVIDER)
 endif()
 
 add_cunit_executable(cunit_ddsc ${ddsc_test_sources})
+
+if(MSVC)
+  # ignore warning 5286 and 5287 about enum type conversion
+  target_compile_options(cunit_ddsc PRIVATE /wd5286 /wd5287)
+endif()
+
 target_include_directories(
   cunit_ddsc PRIVATE
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
@@ -171,7 +185,10 @@ target_link_libraries(cunit_ddsc PRIVATE
   CdrStreamSkipDefault
   CdrStreamDataTypeInfo
   CdrStreamChecking
-  CdrStreamWstring
+  CdrStreamString
+  CdrStreamParamHeader
+  CdrStreamSerDes
+  CdrStreamXcdr1Opt
   PsmxDataModels
   psmx_dummy
   psmx_dummy_v0
@@ -179,13 +196,14 @@ target_link_libraries(cunit_ddsc PRIVATE
   Array100
   CdrStreamKeySize
   CdrStreamKeyExt
+  CdrStreamKeyFlags
   SerdataData
   ddsc
 )
 
 if(ENABLE_TYPELIB)
   target_link_libraries(cunit_ddsc PRIVATE
-  XSpace XSpaceNoTypeInfo TypeBuilderTypes DynamicTypeTypes)
+  SertypeData XSpace XSpaceNoTypeInfo TypeBuilderTypes DynamicTypeTypes)
 endif()
 
 # Setup environment for config-tests
@@ -199,6 +217,17 @@ set_tests_properties(
 	PROPERTIES
 		REQUIRED_FILES ${CUnit_ddsc_config_simple_udp_file}
 		ENVIRONMENT "${CUnit_ddsc_config_simple_udp_env}")
+
+# Setup environment for sysdef-test
+get_test_property(CUnit_ddsc_qos_provider_read_sysdef ENVIRONMENT CUnit_ddsc_qos_provider_read_sysdef_env)
+set(CUnit_ddsc_qos_provider_read_sysdef_file "${CMAKE_CURRENT_LIST_DIR}/sysdef_qos_library.xml")
+set(CUnit_ddsc_qos_provider_read_sysdef_uri "file://${CUnit_ddsc_qos_provider_read_sysdef_file}")
+set(CUnit_ddsc_qos_provider_read_sysdef_env "CYCLONEDDS_SYSDEF_URI=${CUnit_ddsc_qos_provider_read_sysdef_uri};${CUnit_ddsc_qos_provider_read_sysdef_env}")
+set_tests_properties(
+  CUnit_ddsc_qos_provider_read_sysdef
+  PROPERTIES
+    REQUIRED_FILES ${CUnit_ddsc_qos_provider_read_sysdef_file}
+    ENVIRONMENT "${CUnit_ddsc_qos_provider_read_sysdef_env}")
 
 configure_file("deadline_update.h.in" "deadline_update.h")
 configure_file("build_options.h.in" "build_options.h")
@@ -270,7 +299,7 @@ if(BUILD_SHARED_LIBS)
 else()
   list(APPEND psmx_includes
     "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/ddsrt/include>"
-    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core/include>" 
+    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../ddsrt/include>")
   add_library(psmx_cdds OBJECT ${psmx_cdds_sources} psmx_cdds_data.c)
@@ -301,11 +330,32 @@ else()
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 endif()
 
-########################################################################
-# If Iceoryx is available, then also run all PSMX tests using Iceoryx. #
-# Colcon complicates things too much and it doesn't affect Cyclone's   #
-# CI run anyway.                                                       #
-########################################################################
+################################################################################
+# If Iceoryx / Iceoryx2 is available, then also run all PSMX tests using them. #
+# Colcon complicates things too much and it doesn't affect Cyclone's           #
+# CI run anyway.                                                               #
+################################################################################
+
+get_property(test_names DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY TESTS)
+list(FILTER test_names INCLUDE REGEX "^CUnit_ddsc_psmx_[A-Za-z_0-9]+$")
+
+# Iceoryx2
+if(ENABLE_ICEORYX2 AND NOT DEFINED ENV{COLCON})
+  if(BUILD_SHARED_LIBS)
+    foreach(fullname ${test_names})
+      string(REGEX REPLACE "^CUnit_ddsc_psmx_(.*)" "\\1" shortname "${fullname}")
+      add_test(NAME ${fullname}_iox2 COMMAND cunit_ddsc -s ddsc_psmx -t ${shortname})
+      set_tests_properties(${fullname}_iox2 PROPERTIES ENVIRONMENT "CDDS_PSMX_NAME=iox2;LD_LIBRARY_PATH=$<TARGET_FILE_DIR:psmx_iox2>:$ENV{LD_LIBRARY_PATH}")
+    endforeach()
+  else()
+    # Rewire the default set of tests to use Iceoryx2 instead of adding Iceoryx2 variants
+    foreach(fullname ${test_names})
+      set_tests_properties(${fullname} PROPERTIES ENVIRONMENT "CDDS_PSMX_NAME=iox2")
+    endforeach()
+  endif()
+endif()
+
+# Iceoryx
 if(ENABLE_ICEORYX AND NOT DEFINED ENV{COLCON})
   # We need to start RouDi, so we need to find it
   find_program(ICEORYX_ROUDI iox-roudi REQUIRED)
@@ -350,8 +400,6 @@ kill -0 `cat ctest_fixture_iox_roudi.pid`")
 
   # Construct Iceoryx-variants of all PSMX tests if building shared libraries, map them to
   # Iceoryx in a static build (because I don't know how to delete tests!)
-  get_property(test_names DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY TESTS)
-  list(FILTER test_names INCLUDE REGEX "^CUnit_ddsc_psmx_[A-Za-z_0-9]+$")
   if(BUILD_SHARED_LIBS)
     foreach(fullname ${test_names})
       string(REGEX REPLACE "^CUnit_ddsc_psmx_(.*)" "\\1" shortname "${fullname}")
