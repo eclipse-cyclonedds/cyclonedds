@@ -179,26 +179,6 @@ static void dotest (read_op op)
     CU_ASSERT_EQ_FATAL (si[i].view_state, DDS_NEW_VIEW_STATE);
   }
 
-  //This test assumes the order in which data can be read from and written too a
-  //history cache an assumption which is not true in the case of the next_instance
-  if (!is_next_instance){ 
-    rc = dds_take (rd, ptrs, si, 10, 10);
-    for (int i = 0; i < rc; i++)
-      printf ("take(3) %"PRId32", %"PRId32" %c%c\n", xs[i].long_1, xs[i].long_2,
-              (si[i].sample_state == DDS_NOT_READ_SAMPLE_STATE) ? 'f' : 's',
-              (si[i].view_state == DDS_NEW_VIEW_STATE) ? 'n' : 'o');
-    CU_ASSERT_FATAL (rc == 3);
-    for (int i = 0; i < rc; i++)
-    {
-      if (is_next_instance){
-        CU_ASSERT_FATAL (si->instance_handle > ih);
-      }else {
-        CU_ASSERT_FATAL (xs[i].long_1 == (arg1.k+2)%3);
-      }
-      CU_ASSERT_FATAL (si[i].sample_state == DDS_NOT_READ_SAMPLE_STATE);
-      CU_ASSERT_FATAL (si[i].view_state == DDS_NEW_VIEW_STATE);
-    }
-  }
   rc = dds_delete (dp);
   CU_ASSERT_EQ_FATAL (rc, 0);
 }

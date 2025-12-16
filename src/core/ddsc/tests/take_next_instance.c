@@ -118,7 +118,7 @@ take_next_instance_init(void)
     dds_qos_t *qos;
 
     qos = dds_create_qos();
-    CU_ASSERT_PTR_NOT_NULL_FATAL(qos);
+    CU_ASSERT_NEQ_FATAL(qos,NULL);
 
     g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(g_participant > 0);
@@ -155,25 +155,25 @@ take_next_instance_init(void)
 
     /* Sync g_reader to g_writer. */
     ret = dds_set_status_mask(g_reader, DDS_SUBSCRIPTION_MATCHED_STATUS);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_reader, g_reader);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_wait(g_waitset, &triggered, 1, DDS_SECS(1));
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL_FATAL(g_reader, (dds_entity_t)(intptr_t)triggered);
+    CU_ASSERT_EQ_FATAL(ret, 1);
+    CU_ASSERT_EQ_FATAL(g_reader, (dds_entity_t)(intptr_t)triggered);
     ret = dds_waitset_detach(g_waitset, g_reader);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_OK);
 
     /* Sync g_writer to g_reader. */
     ret = dds_set_status_mask(g_writer, DDS_PUBLICATION_MATCHED_STATUS);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_attach(g_waitset, g_writer, g_writer);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_waitset_wait(g_waitset, &triggered, 1, DDS_SECS(1));
-    CU_ASSERT_EQUAL_FATAL(ret, 1);
-    CU_ASSERT_EQUAL_FATAL(g_writer, (dds_entity_t)(intptr_t)triggered);
+    CU_ASSERT_EQ_FATAL(ret, 1);
+    CU_ASSERT_EQ_FATAL(g_writer, (dds_entity_t)(intptr_t)triggered);
     ret = dds_waitset_detach(g_waitset, g_writer);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_OK);
 
     /* Initialize reading buffers. */
     memset (g_data, 0, sizeof (g_data));
@@ -191,7 +191,7 @@ take_next_instance_init(void)
         sample.long_2 = i;
         sample.long_3 = i*2;
         ret = dds_write(g_writer, &sample);
-        CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+        CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_OK);
     }
     /*    | long_1 | long_2 | long_3 |    sst   | vst | ist   |
      *    -----------------------------------------------------
@@ -238,12 +238,12 @@ take_next_instance_init(void)
     sample.long_2 = 15;
     sample.long_3 = 30;
     ret = dds_dispose(g_writer, &sample);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_OK);
     sample.long_1 = 6;
     sample.long_2 = 16;
     sample.long_3 = 32;
     ret = dds_unregister_instance(g_writer, &sample);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_OK);
     /*    | long_1 | long_2 | long_3 |    sst   | vst |    ist     |
      *    ----------------------------------------------------------
      *    |    0   |    0   |    0   | not_read | new | alive      |
@@ -327,7 +327,7 @@ CU_Theory((dds_entity_t *ent, void **buf, dds_sample_info_t *si, size_t bufsz, u
      * However, that's not the case yet. So don't test it. */
     if (buf != g_loans) {
         ret = dds_take_next_instance(*ent, buf, si, bufsz, maxs, g_hdl_valid);
-        CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+        CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
     } else {
         CU_PASS("Skipped");
     }
@@ -348,7 +348,7 @@ CU_Theory((dds_entity_t *ent, void **buf, dds_sample_info_t *si, uint32_t maxs),
      * invalid and neither is the handle. So, don't test that. */
     CU_ASSERT_FATAL((buf != g_loans) || (si != g_info) || (maxs == 0));
     ret = dds_take_next_instance_wl(*ent, buf, si, maxs, g_hdl_valid);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -375,7 +375,7 @@ CU_Theory((dds_entity_t *ent, void **buf, dds_sample_info_t *si, size_t bufsz, u
      * However, that's not the case yet. So don't test it. */
     if (buf != g_loans) {
         ret = dds_take_next_instance_mask(*ent, buf, si, bufsz, maxs, g_hdl_valid, mask);
-        CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+        CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
     } else {
         CU_PASS("Skipped");
     }
@@ -397,7 +397,7 @@ CU_Theory((dds_entity_t *ent, void **buf, dds_sample_info_t *si, uint32_t maxs),
      * invalid and neither is the handle. So, don't test that. */
     CU_ASSERT_FATAL((buf != g_loans) || (si != g_info) || (maxs == 0));
     ret = dds_take_next_instance_mask_wl(*ent, buf, si, maxs, g_hdl_valid, mask);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -419,7 +419,7 @@ CU_Theory((dds_entity_t *rdr, dds_instance_handle_t hdl), ddsc_take_next_instanc
 {
     dds_return_t ret;
     ret = dds_take_next_instance(*rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, hdl);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
 }
 /*************************************************************************************************/
 
@@ -432,7 +432,7 @@ CU_Theory((dds_entity_t *rdr, dds_instance_handle_t hdl), ddsc_take_next_instanc
 {
     dds_return_t ret;
     ret = dds_take_next_instance_wl(*rdr, g_loans, g_info, MAX_SAMPLES, hdl);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
 }
 /*************************************************************************************************/
 
@@ -446,7 +446,7 @@ CU_Theory((dds_entity_t *rdr, dds_instance_handle_t hdl), ddsc_take_next_instanc
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     ret = dds_take_next_instance_mask(*rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, hdl, mask);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
 }
 /*************************************************************************************************/
 
@@ -460,7 +460,7 @@ CU_Theory((dds_entity_t *rdr, dds_instance_handle_t hdl), ddsc_take_next_instanc
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     ret = dds_take_next_instance_mask_wl(*rdr, g_loans, g_info, MAX_SAMPLES, hdl, mask);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
 }
 /*************************************************************************************************/
 
@@ -482,7 +482,7 @@ CU_Theory((dds_entity_t rdr), ddsc_take_next_instance, invalid_readers, .init=ta
     dds_return_t ret;
 
     ret = dds_take_next_instance(rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, g_hdl_valid);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -495,7 +495,7 @@ CU_Theory((dds_entity_t rdr), ddsc_take_next_instance_wl, invalid_readers, .init
     dds_return_t ret;
 
     ret = dds_take_next_instance_wl(rdr, g_loans, g_info, MAX_SAMPLES, g_hdl_valid);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -509,7 +509,7 @@ CU_Theory((dds_entity_t rdr), ddsc_take_next_instance_mask, invalid_readers, .in
     dds_return_t ret;
 
     ret = dds_take_next_instance_mask(rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, g_hdl_valid, mask);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -523,7 +523,7 @@ CU_Theory((dds_entity_t rdr), ddsc_take_next_instance_mask_wl, invalid_readers, 
     dds_return_t ret;
 
     ret = dds_take_next_instance_mask_wl(rdr, g_loans, g_info, MAX_SAMPLES, g_hdl_valid, mask);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -545,7 +545,7 @@ CU_Theory((dds_entity_t *rdr), ddsc_take_next_instance, non_readers, .init=take_
 {
     dds_return_t ret;
     ret = dds_take_next_instance(*rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, g_hdl_valid);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_ILLEGAL_OPERATION);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
@@ -557,7 +557,7 @@ CU_Theory((dds_entity_t *rdr), ddsc_take_next_instance_wl, non_readers, .init=ta
 {
     dds_return_t ret;
     ret = dds_take_next_instance_wl(*rdr, g_loans, g_info, MAX_SAMPLES, g_hdl_valid);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_ILLEGAL_OPERATION);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
@@ -570,7 +570,7 @@ CU_Theory((dds_entity_t *rdr), ddsc_take_next_instance_mask, non_readers, .init=
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     ret = dds_take_next_instance_mask(*rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, g_hdl_valid, mask);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_ILLEGAL_OPERATION);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
@@ -583,7 +583,7 @@ CU_Theory((dds_entity_t *rdr), ddsc_take_next_instance_mask_wl, non_readers, .in
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     ret = dds_take_next_instance_mask_wl(*rdr, g_loans, g_info, MAX_SAMPLES, g_hdl_valid, mask);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_ILLEGAL_OPERATION);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_ILLEGAL_OPERATION);
 }
 /*************************************************************************************************/
 
@@ -605,9 +605,9 @@ CU_Theory((dds_entity_t *rdr), ddsc_take_next_instance, already_deleted, .init=t
 {
     dds_return_t ret;
     ret = dds_delete(*rdr);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_take_next_instance(*rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, g_hdl_valid);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -619,9 +619,9 @@ CU_Theory((dds_entity_t *rdr), ddsc_take_next_instance_wl, already_deleted, .ini
 {
     dds_return_t ret;
     ret = dds_delete(*rdr);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_take_next_instance_wl(*rdr, g_loans, g_info, MAX_SAMPLES, g_hdl_valid);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -635,9 +635,9 @@ CU_Theory((dds_entity_t *rdr), ddsc_take_next_instance_mask, already_deleted, .i
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     ret = dds_delete(*rdr);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_take_next_instance_mask(*rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, g_hdl_valid, mask);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -650,9 +650,9 @@ CU_Theory((dds_entity_t *rdr), ddsc_take_next_instance_mask_wl, already_deleted,
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     ret = dds_delete(*rdr);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_OK);
     ret = dds_take_next_instance_mask_wl(*rdr, g_loans, g_info, MAX_SAMPLES, g_hdl_valid, mask);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
 
@@ -690,31 +690,31 @@ CU_Test(ddsc_take_next_instance, reader, .init=take_next_instance_init, .fini=ta
                 dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
                 /* Check data. */
-                CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1);
-                CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_2);
-                CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_3);
+                CU_ASSERT_EQ_FATAL(sample->long_1, expected_long_1);
+                CU_ASSERT_EQ_FATAL(sample->long_2, expected_long_2);
+                CU_ASSERT_EQ_FATAL(sample->long_3, expected_long_3);
 
                 /* Check states. */
-                CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+                CU_ASSERT_EQ_FATAL(g_info[i].valid_data,     true);
+                CU_ASSERT_EQ_FATAL(g_info[i].sample_state,   expected_sst);
+                CU_ASSERT_EQ_FATAL(g_info[i].view_state,     expected_vst);
+                CU_ASSERT_EQ_FATAL(g_info[i].instance_state, expected_ist);
                 cnt ++;
             } else {
                 cntinv ++;
             }
         }
-        CU_ASSERT_NOT_EQUAL_FATAL(previous_handle, g_info[0].instance_handle);
+        CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_NO_DATA);
-    CU_ASSERT_EQUAL_FATAL(cnt, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(cntinv, RDR_INV_READ_CNT);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(cnt, MAX_SAMPLES);
+    CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
+    CU_ASSERT_EQ_FATAL(ret, MAX_SAMPLES);
 
 }
 
@@ -745,31 +745,31 @@ CU_Test(ddsc_take_next_instance_wl, reader, .init=take_next_instance_init, .fini
                 dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
                 /* Check data. */
-                CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1);
-                CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_2);
-                CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_3);
+                CU_ASSERT_EQ_FATAL(sample->long_1, expected_long_1);
+                CU_ASSERT_EQ_FATAL(sample->long_2, expected_long_2);
+                CU_ASSERT_EQ_FATAL(sample->long_3, expected_long_3);
 
                 /* Check states. */
-                CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+                CU_ASSERT_EQ_FATAL(g_info[i].valid_data,     true);
+                CU_ASSERT_EQ_FATAL(g_info[i].sample_state,   expected_sst);
+                CU_ASSERT_EQ_FATAL(g_info[i].view_state,     expected_vst);
+                CU_ASSERT_EQ_FATAL(g_info[i].instance_state, expected_ist);
                 cnt ++;
             } else {
                 cntinv ++;
             }
         }
-        CU_ASSERT_NOT_EQUAL_FATAL(previous_handle, g_info[0].instance_handle);
+        CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_NO_DATA);
-    CU_ASSERT_EQUAL_FATAL(cnt, MAX_SAMPLES);
-    CU_ASSERT_EQUAL_FATAL(cntinv, RDR_INV_READ_CNT);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(cnt, MAX_SAMPLES);
+    CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
+    CU_ASSERT_EQ_FATAL(ret, MAX_SAMPLES);
 
 }
 
@@ -830,15 +830,15 @@ CU_Test(ddsc_take_next_instance_mask, reader, .init=take_next_instance_init, .fi
                 dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
                 /* Check data. */
-                CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1);
-                CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_2);
-                CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_3);
+                CU_ASSERT_EQ_FATAL(sample->long_1, expected_long_1);
+                CU_ASSERT_EQ_FATAL(sample->long_2, expected_long_2);
+                CU_ASSERT_EQ_FATAL(sample->long_3, expected_long_3);
 
                 /* Check states. */
-                CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+                CU_ASSERT_EQ_FATAL(g_info[i].valid_data,     true);
+                CU_ASSERT_EQ_FATAL(g_info[i].sample_state,   expected_sst);
+                CU_ASSERT_EQ_FATAL(g_info[i].view_state,     expected_vst);
+                CU_ASSERT_EQ_FATAL(g_info[i].instance_state, expected_ist);
                 cnt ++;
             } else {
                 cntinv ++;
@@ -851,18 +851,18 @@ CU_Test(ddsc_take_next_instance_mask, reader, .init=take_next_instance_init, .fi
             printf("sample = {%d,%d,%d}\n", sample->long_1, sample->long_2, sample->long_3);
         }
 
-        CU_ASSERT_NOT_EQUAL_FATAL(previous_handle, g_info[0].instance_handle);
+        CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
         previous_handle = g_info[0].instance_handle;
     }
 
     printf("\n%d\n", ret);
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_NO_DATA);
-    CU_ASSERT_EQUAL_FATAL(cnt, expected_cnt);
-    CU_ASSERT_EQUAL_FATAL(cntinv, RDR_INV_READ_CNT);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
+    CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
+    CU_ASSERT_EQ_FATAL(ret, MAX_SAMPLES);
 
 }
 /*************************************************************************************************/
@@ -917,31 +917,31 @@ CU_Test(ddsc_take_next_instance_mask_wl, reader, .init=take_next_instance_init, 
                 dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
                 /* Check data. */
-                CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1);
-                CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_2);
-                CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_3);
+                CU_ASSERT_EQ_FATAL(sample->long_1, expected_long_1);
+                CU_ASSERT_EQ_FATAL(sample->long_2, expected_long_2);
+                CU_ASSERT_EQ_FATAL(sample->long_3, expected_long_3);
 
                 /* Check states. */
-                CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+                CU_ASSERT_EQ_FATAL(g_info[i].valid_data,     true);
+                CU_ASSERT_EQ_FATAL(g_info[i].sample_state,   expected_sst);
+                CU_ASSERT_EQ_FATAL(g_info[i].view_state,     expected_vst);
+                CU_ASSERT_EQ_FATAL(g_info[i].instance_state, expected_ist);
                 cnt ++;
             } else {
                 cntinv ++;
             }
         }
-        CU_ASSERT_NOT_EQUAL_FATAL(previous_handle, g_info[0].instance_handle);
+        CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_NO_DATA);
-    CU_ASSERT_EQUAL_FATAL(cnt, RDR_NOT_READ_CNT);
-    CU_ASSERT_EQUAL_FATAL(cntinv, RDR_INV_READ_CNT);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(cnt, RDR_NOT_READ_CNT);
+    CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
+    CU_ASSERT_EQ_FATAL(ret, MAX_SAMPLES);
 
 }
 /*************************************************************************************************/
@@ -1006,31 +1006,31 @@ CU_Test(ddsc_take_next_instance, readcondition, .init=take_next_instance_init, .
                 dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
                 /* Check data. */
-                CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1);
-                CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_2);
-                CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_3);
+                CU_ASSERT_EQ_FATAL(sample->long_1, expected_long_1);
+                CU_ASSERT_EQ_FATAL(sample->long_2, expected_long_2);
+                CU_ASSERT_EQ_FATAL(sample->long_3, expected_long_3);
 
                 /* Check states. */
-                CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+                CU_ASSERT_EQ_FATAL(g_info[i].valid_data,     true);
+                CU_ASSERT_EQ_FATAL(g_info[i].sample_state,   expected_sst);
+                CU_ASSERT_EQ_FATAL(g_info[i].view_state,     expected_vst);
+                CU_ASSERT_EQ_FATAL(g_info[i].instance_state, expected_ist);
                 cnt ++;
             } else {
                 cntinv ++;
             }
         }
-        CU_ASSERT_NOT_EQUAL_FATAL(previous_handle, g_info[0].instance_handle);
+        CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_NO_DATA);
-    CU_ASSERT_EQUAL_FATAL(cnt, expected_cnt);
-    CU_ASSERT_EQUAL_FATAL(cntinv, RDR_INV_READ_CNT);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
+    CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
+    CU_ASSERT_EQ_FATAL(ret, MAX_SAMPLES);
 
 }
 /*************************************************************************************************/
@@ -1085,31 +1085,31 @@ CU_Test(ddsc_take_next_instance_wl, readcondition, .init=take_next_instance_init
                 dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
                 /* Check data. */
-                CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1);
-                CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_2);
-                CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_3);
+                CU_ASSERT_EQ_FATAL(sample->long_1, expected_long_1);
+                CU_ASSERT_EQ_FATAL(sample->long_2, expected_long_2);
+                CU_ASSERT_EQ_FATAL(sample->long_3, expected_long_3);
 
                 /* Check states. */
-                CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+                CU_ASSERT_EQ_FATAL(g_info[i].valid_data,     true);
+                CU_ASSERT_EQ_FATAL(g_info[i].sample_state,   expected_sst);
+                CU_ASSERT_EQ_FATAL(g_info[i].view_state,     expected_vst);
+                CU_ASSERT_EQ_FATAL(g_info[i].instance_state, expected_ist);
                 cnt ++;
             } else {
                 cntinv ++;
             }
         }
-        CU_ASSERT_NOT_EQUAL_FATAL(previous_handle, g_info[0].instance_handle);
+        CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_NO_DATA);
-    CU_ASSERT_EQUAL_FATAL(cnt, expected_cnt);
-    CU_ASSERT_EQUAL_FATAL(cntinv, RDR_INV_READ_CNT);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
+    CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
+    CU_ASSERT_EQ_FATAL(ret, MAX_SAMPLES);
 
 }
 /*************************************************************************************************/
@@ -1165,32 +1165,32 @@ CU_Test(ddsc_take_next_instance_mask, readcondition, .init=take_next_instance_in
                 dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
                 /* Check data. */
-                CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1);
-                CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_2);
-                CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_3);
+                CU_ASSERT_EQ_FATAL(sample->long_1, expected_long_1);
+                CU_ASSERT_EQ_FATAL(sample->long_2, expected_long_2);
+                CU_ASSERT_EQ_FATAL(sample->long_3, expected_long_3);
 
                 /* Check states. */
-                CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+                CU_ASSERT_EQ_FATAL(g_info[i].valid_data,     true);
+                CU_ASSERT_EQ_FATAL(g_info[i].sample_state,   expected_sst);
+                CU_ASSERT_EQ_FATAL(g_info[i].view_state,     expected_vst);
+                CU_ASSERT_EQ_FATAL(g_info[i].instance_state, expected_ist);
                 cnt ++;
             } else {
                 cntinv ++;
             }
         }
-        CU_ASSERT_NOT_EQUAL_FATAL(previous_handle, g_info[0].instance_handle);
+        CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
     printf("count: %d\n", cnt);
-    CU_ASSERT_EQUAL_FATAL(cnt, expected_cnt);
-    CU_ASSERT_EQUAL_FATAL(cntinv, RDR_INV_READ_CNT);
+    CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
+    CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
+    CU_ASSERT_EQ_FATAL(ret, MAX_SAMPLES);
 
 }
 
@@ -1247,31 +1247,31 @@ CU_Test(ddsc_take_next_instance_mask_wl, readcondition, .init=take_next_instance
                 dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
                 /* Check data. */
-                CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1);
-                CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_2);
-                CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_3);
+                CU_ASSERT_EQ_FATAL(sample->long_1, expected_long_1);
+                CU_ASSERT_EQ_FATAL(sample->long_2, expected_long_2);
+                CU_ASSERT_EQ_FATAL(sample->long_3, expected_long_3);
 
                 /* Check states. */
-                CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+                CU_ASSERT_EQ_FATAL(g_info[i].valid_data,     true);
+                CU_ASSERT_EQ_FATAL(g_info[i].sample_state,   expected_sst);
+                CU_ASSERT_EQ_FATAL(g_info[i].view_state,     expected_vst);
+                CU_ASSERT_EQ_FATAL(g_info[i].instance_state, expected_ist);
                 cnt ++;
             } else {
                 cntinv ++;
             }
         }
-        CU_ASSERT_NOT_EQUAL_FATAL(previous_handle, g_info[0].instance_handle);
+        CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_NO_DATA);
-    CU_ASSERT_EQUAL_FATAL(cnt, expected_cnt);
-    CU_ASSERT_EQUAL_FATAL(cntinv, RDR_INV_READ_CNT);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
+    CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
+    CU_ASSERT_EQ_FATAL(ret, MAX_SAMPLES);
 
 }
 
@@ -1337,31 +1337,31 @@ CU_Test(ddsc_take_next_instance, querycondition, .init=take_next_instance_init, 
                 dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
                 /* Check data. */
-                CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1);
-                CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_2);
-                CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_3);
+                CU_ASSERT_EQ_FATAL(sample->long_1, expected_long_1);
+                CU_ASSERT_EQ_FATAL(sample->long_2, expected_long_2);
+                CU_ASSERT_EQ_FATAL(sample->long_3, expected_long_3);
 
                 /* Check states. */
-                CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+                CU_ASSERT_EQ_FATAL(g_info[i].valid_data,     true);
+                CU_ASSERT_EQ_FATAL(g_info[i].sample_state,   expected_sst);
+                CU_ASSERT_EQ_FATAL(g_info[i].view_state,     expected_vst);
+                CU_ASSERT_EQ_FATAL(g_info[i].instance_state, expected_ist);
                 cnt ++;
             } else {
                 cntinv ++;
             }
         }
-        CU_ASSERT_NOT_EQUAL_FATAL(previous_handle, g_info[0].instance_handle);
+        CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_NO_DATA);
-    CU_ASSERT_EQUAL_FATAL(cnt, expected_cnt);
-    CU_ASSERT_EQUAL_FATAL(cntinv, 1);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
+    CU_ASSERT_EQ_FATAL(cntinv, 1);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
+    CU_ASSERT_EQ_FATAL(ret, MAX_SAMPLES);
 
 }
 
@@ -1417,31 +1417,31 @@ CU_Test(ddsc_take_next_instance_wl, querycondition, .init=take_next_instance_ini
                 dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
                 /* Check data. */
-                CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1);
-                CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_2);
-                CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_3);
+                CU_ASSERT_EQ_FATAL(sample->long_1, expected_long_1);
+                CU_ASSERT_EQ_FATAL(sample->long_2, expected_long_2);
+                CU_ASSERT_EQ_FATAL(sample->long_3, expected_long_3);
 
                 /* Check states. */
-                CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+                CU_ASSERT_EQ_FATAL(g_info[i].valid_data,     true);
+                CU_ASSERT_EQ_FATAL(g_info[i].sample_state,   expected_sst);
+                CU_ASSERT_EQ_FATAL(g_info[i].view_state,     expected_vst);
+                CU_ASSERT_EQ_FATAL(g_info[i].instance_state, expected_ist);
                 cnt ++;
             } else {
                 cntinv ++;
             }
         }
-        CU_ASSERT_NOT_EQUAL_FATAL(previous_handle, g_info[0].instance_handle);
+        CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_NO_DATA);
-    CU_ASSERT_EQUAL_FATAL(cnt, expected_cnt);
-    CU_ASSERT_EQUAL_FATAL(cntinv, 1);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
+    CU_ASSERT_EQ_FATAL(cntinv, 1);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
+    CU_ASSERT_EQ_FATAL(ret, MAX_SAMPLES);
 
 }
 
@@ -1498,31 +1498,31 @@ CU_Test(ddsc_take_next_instance_mask, querycondition, .init=take_next_instance_i
                 dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
                 /* Check data. */
-                CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1);
-                CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_2);
-                CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_3);
+                CU_ASSERT_EQ_FATAL(sample->long_1, expected_long_1);
+                CU_ASSERT_EQ_FATAL(sample->long_2, expected_long_2);
+                CU_ASSERT_EQ_FATAL(sample->long_3, expected_long_3);
 
                 /* Check states. */
-                CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+                CU_ASSERT_EQ_FATAL(g_info[i].valid_data,     true);
+                CU_ASSERT_EQ_FATAL(g_info[i].sample_state,   expected_sst);
+                CU_ASSERT_EQ_FATAL(g_info[i].view_state,     expected_vst);
+                CU_ASSERT_EQ_FATAL(g_info[i].instance_state, expected_ist);
                 cnt ++;
             } else {
                 cntinv ++;
             }
         }
-        CU_ASSERT_NOT_EQUAL_FATAL(previous_handle, g_info[0].instance_handle);
+        CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_NO_DATA);
-    CU_ASSERT_EQUAL_FATAL(cnt, expected_cnt);
-    CU_ASSERT_EQUAL_FATAL(cntinv, RDR_INV_READ_CNT);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
+    CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
+    CU_ASSERT_EQ_FATAL(ret, MAX_SAMPLES);
 
 }
 
@@ -1579,31 +1579,31 @@ CU_Test(ddsc_take_next_instance_mask_wl, querycondition, .init=take_next_instanc
                 dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
 
                 /* Check data. */
-                CU_ASSERT_EQUAL_FATAL(sample->long_1, expected_long_1);
-                CU_ASSERT_EQUAL_FATAL(sample->long_2, expected_long_2);
-                CU_ASSERT_EQUAL_FATAL(sample->long_3, expected_long_3);
+                CU_ASSERT_EQ_FATAL(sample->long_1, expected_long_1);
+                CU_ASSERT_EQ_FATAL(sample->long_2, expected_long_2);
+                CU_ASSERT_EQ_FATAL(sample->long_3, expected_long_3);
 
                 /* Check states. */
-                CU_ASSERT_EQUAL_FATAL(g_info[i].valid_data,     true);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].sample_state,   expected_sst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].view_state,     expected_vst);
-                CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
+                CU_ASSERT_EQ_FATAL(g_info[i].valid_data,     true);
+                CU_ASSERT_EQ_FATAL(g_info[i].sample_state,   expected_sst);
+                CU_ASSERT_EQ_FATAL(g_info[i].view_state,     expected_vst);
+                CU_ASSERT_EQ_FATAL(g_info[i].instance_state, expected_ist);
                 cnt ++;
             } else {
                 cntinv ++;
             }
         }
-        CU_ASSERT_NOT_EQUAL_FATAL(previous_handle, g_info[0].instance_handle);
+        CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_NO_DATA);
-    CU_ASSERT_EQUAL_FATAL(cnt, expected_cnt);
-    CU_ASSERT_EQUAL_FATAL(cntinv, RDR_INV_READ_CNT);
+    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
+    CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
 
     /* All samples should still be available. */
     ret = samples_cnt();
-    CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES);
+    CU_ASSERT_EQ_FATAL(ret, MAX_SAMPLES);
 
 }
 
