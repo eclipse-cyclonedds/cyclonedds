@@ -264,6 +264,10 @@ void ddsi_xmsg_submsg_setnext (struct ddsi_xmsg *msg, struct ddsi_xmsg_marker ma
   ddsrt_nonnull_all;
 
 /** @component rtps_submsg */
+void ddsi_xmsg_submsg_setlast (struct ddsi_xmsg *msg, struct ddsi_xmsg_marker marker)
+  ddsrt_nonnull_all;
+
+/** @component rtps_submsg */
 void ddsi_xmsg_submsg_init (struct ddsi_xmsg *msg, struct ddsi_xmsg_marker marker, ddsi_rtps_submessage_kind_t smkind)
   ddsrt_nonnull_all;
 

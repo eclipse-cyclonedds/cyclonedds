@@ -142,7 +142,10 @@ static struct ddsi_serdata_cdr *serdata_cdr_from_ser_common (const struct ddsi_s
      serdata */
   if (size > UINT32_MAX - offsetof (struct ddsi_serdata_cdr, hdr))
     return NULL;
-  struct ddsi_serdata_cdr *d = serdata_cdr_new_size (tp, kind, (uint32_t) size);
+  struct dds_cdr_header hdr;
+  (void) memcpy (&hdr, DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF (fragchain)), sizeof (hdr));
+  const uint16_t pad = ddsrt_fromBE2u (hdr.options) & DDS_CDR_HDR_PADDING_MASK;
+  struct ddsi_serdata_cdr *d = serdata_cdr_new_size (tp, kind, (uint32_t) size - pad);
   if (d == NULL)
     return NULL;
 
@@ -151,7 +154,8 @@ static struct ddsi_serdata_cdr *serdata_cdr_from_ser_common (const struct ddsi_s
   assert (fragchain->min == 0);
   assert (fragchain->maxp1 >= off); /* CDR header must be in first fragment */
 
-  memcpy (&d->hdr, DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF (fragchain)), sizeof (d->hdr));
+  d->hdr = hdr;
+  d->hdr.options = 0;
   if (!is_valid_xcdr_id (d->hdr.identifier))
     goto err;
 
@@ -170,14 +174,13 @@ static struct ddsi_serdata_cdr *serdata_cdr_from_ser_common (const struct ddsi_s
 
   const bool needs_bswap = !DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier);
   d->hdr.identifier = DDSI_RTPS_CDR_ENC_TO_NATIVE (d->hdr.identifier);
-  const uint32_t pad = ddsrt_fromBE2u (d->hdr.options) & DDS_CDR_HDR_PADDING_MASK;
   const uint32_t xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
   const uint32_t encoding_format = ddsi_sertype_enc_id_enc_format (d->hdr.identifier);
   if (xcdr_version != DDSI_RTPS_CDR_ENC_VERSION_2 || encoding_format != tp->encoding_format)
     goto err;
 
   uint32_t actual_size;
-  if (d->pos < pad || !dds_stream_normalize (d->data, d->pos - pad, needs_bswap, DDSI_RTPS_CDR_ENC_VERSION_2, &tp->type, false, &actual_size))
+  if (!dds_stream_normalize (d->data, d->pos, needs_bswap, DDSI_RTPS_CDR_ENC_VERSION_2, &tp->type, false, &actual_size))
     goto err;
 
   dds_istream_t is;
@@ -225,15 +228,10 @@ static void ostream_from_serdata_cdr (dds_ostream_t *s, const struct ddsi_serdat
 
 static void ostream_add_to_serdata_cdr (dds_ostream_t *s, struct ddsi_serdata_cdr **d)
 {
-  /* DDSI requires 4 byte alignment */
-  const uint32_t pad = dds_cdr_alignto4_clear_and_resize (s, &dds_cdrstream_default_allocator, s->m_xcdr_version);
-  assert (pad <= 3);
-
   /* Reset data pointer as stream may have reallocated */
   (*d) = (void *) s->m_buffer;
   (*d)->pos = (s->m_index - (uint32_t) offsetof (struct ddsi_serdata_cdr, data));
   (*d)->size = (s->m_size - (uint32_t) offsetof (struct ddsi_serdata_cdr, data));
-  (*d)->hdr.options = ddsrt_toBE2u ((uint16_t) pad);
 }
 
 

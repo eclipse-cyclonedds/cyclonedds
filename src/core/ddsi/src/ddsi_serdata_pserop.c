@@ -221,8 +221,7 @@ static struct ddsi_serdata *serdata_pserop_from_sample (const struct ddsi_sertyp
     size_t size;
     if (ddsi_plist_ser_generic (&data, &size, sample, (kind == SDK_DATA) ? tp->ops : tp->ops_key) < 0)
       return NULL;
-    const size_t size4 = (size + 3) & ~(size_t)3;
-    if ((d = serdata_pserop_new (tp, kind, size4, &header)) == NULL)
+    if ((d = serdata_pserop_new (tp, kind, size, &header)) == NULL)
     {
       ddsrt_free (data);
       return NULL;
@@ -230,7 +229,6 @@ static struct ddsi_serdata *serdata_pserop_from_sample (const struct ddsi_sertyp
     assert (tp->ops_key == NULL || (size >= 16 && tp->memsize >= 16));
     assert (d->data != NULL); // clang static analyzer
     memcpy (d->data, data, size);
-    memset (d->data + size, 0, size4 - size);
     d->pos = (uint32_t) size;
     ddsrt_free (data); // FIXME: shouldn't allocate twice & copy
     // FIXME: and then this silly thing deserialises it immediately again -- perhaps it should be a bit lazier

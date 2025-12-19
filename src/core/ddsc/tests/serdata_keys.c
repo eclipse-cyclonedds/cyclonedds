@@ -378,10 +378,12 @@ static const unsigned char *serdata_default_keybuf (const struct dds_serdata_def
   return (d->key.buftype == KEYBUFTYPE_STATIC) ? d->key.u.stbuf : d->key.u.dynbuf;
 }
 
+#if 0
 static size_t alignN(const size_t off, const size_t align)
 {
   return (off + align - 1) & ~(align - 1);
 }
+#endif
 
 static void print_check_cdr (const struct dds_serdata_default *sd, const unsigned char *exp_cdr, size_t exp_cdr_sz)
 {
@@ -1470,7 +1472,7 @@ CU_Test(ddsc_serdata, key_serialization)
         struct dds_serdata_default *sd = (struct dds_serdata_default *) ddsi_serdata_from_sample (sertype, SDK_DATA, sample);
         CU_ASSERT_NEQ_FATAL (sd, NULL);
 
-        size_t exp_sz_aligned = alignN (tests[test_index].xcdrv[dr].data_sz, 4);
+        size_t exp_sz_aligned = tests[test_index].xcdrv[dr].data_sz;
         tprintf ("Data: ");
         print_check_cdr (sd, tests[test_index].xcdrv[dr].data, exp_sz_aligned);
         CU_ASSERT_EQ (exp_sz_aligned, sd->pos);
@@ -1489,7 +1491,7 @@ CU_Test(ddsc_serdata, key_serialization)
 
         size_t exp_sz = tests[test_index].xcdrv[dr].key_sz;
         const unsigned char *exp_data = tests[test_index].xcdrv[dr].key;
-        size_t exp_sz_aligned = alignN (exp_sz, 4);
+        size_t exp_sz_aligned = exp_sz;
         tprintf ("Key: ");
         print_check_cdr (sd, exp_data, exp_sz_aligned);
         CU_ASSERT_EQ (exp_sz_aligned, sd->pos);
