@@ -208,6 +208,14 @@ void gendef_pf_uint32_array (FILE *out, void *parent, struct cfgelem const * con
     abort ();
   }
 }
+void gendef_pf_vendorid_list (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
+  (void) out;
+  uint32_t const * const p = cfg_address (parent, cfgelem);
+  if (*p != 0) {
+    fprintf (stderr, "generate_defconfig internal error: non-empty vendor id list not handled\n");
+    abort ();
+  }
+}
 
 static void gen_defaults (FILE *out, void *parent, struct cfgelem const * const cfgelem)
 {

@@ -418,6 +418,7 @@ struct ddsi_config
   int assume_rti_has_pmd_endpoints;
   ddsi_protocol_version_t protocol_version;
   int allow_invalid_try_construct;
+  uint32_t ignore_type_information; // bitmask, vendor id 1.N maps to 1<<(N-1)
 
   struct ddsi_portmapping ports;
 
