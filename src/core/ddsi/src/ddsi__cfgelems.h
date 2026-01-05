@@ -990,6 +990,20 @@ static struct cfgelem compatibility_cfgelems[] = {
       "the two \"try construct\" bits both set to 0, which is explicitly noted "
       "as an invalid setting in the spec.</p>"
     )),
+  BOOL("IgnoreTypeInformation", NULL, 1, "",
+    MEMBER(ignore_type_information),
+    FUNCTIONS(0, uf_vendorid_list, 0, pf_vendorid_list),
+    DESCRIPTION(
+      "<p>Setting option causes type information included in discovery messages "
+      "from the listed vendor ids to be ignored. This reduces the type assignability "
+      "check to a check of the type names. This may cause readers/writers to match "
+      "when they shouldn't or not to match when they should. Use with care.</p>"
+      "<p>The vendor ids are specified using a comma-separated list of two decimal "
+      "integers separated by a dot. E.g., to ignore them from Cyclone and RTI Connext "
+      "set it to \"1.1,1.16\". Order doesn't matter.</p>"
+      "<p>The current implementation restricts them to the form 1.N, where 1<N<=32. "
+      "This covers all vendor ids currently allocated by the OMG.</p>"
+    )),
   END_MARKER
 };
 
