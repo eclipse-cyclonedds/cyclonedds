@@ -2983,6 +2983,16 @@ static struct ddsi_receiver_state *rst_cow_if_needed (int *rst_live, struct ddsi
   }
 }
 
+static bool smhdr_bswap_needed (ddsi_rtps_submessage_header_t const * const smhdr)
+{
+  DDSRT_WARNING_MSVC_OFF(6326);
+  if (smhdr->flags & DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS)
+    return !(DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
+  else
+    return (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
+  DDSRT_WARNING_MSVC_ON(6326);
+}
+
 static int handle_submsg_sequence
 (
   struct ddsi_thread_state * const thrst,
@@ -3045,14 +3055,7 @@ static int handle_submsg_sequence
   while (vr != VR_MALFORMED && submsg <= (end - sizeof (ddsi_rtps_submessage_header_t)))
   {
     ddsi_rtps_submessage_t * const sm = (ddsi_rtps_submessage_t *) submsg;
-    bool byteswap;
-
-    DDSRT_WARNING_MSVC_OFF(6326)
-    if (sm->smhdr.flags & DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS)
-      byteswap = !(DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
-    else
-      byteswap =  (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
-    DDSRT_WARNING_MSVC_ON(6326)
+    const bool byteswap = smhdr_bswap_needed (&sm->smhdr);
     if (byteswap)
       sm->smhdr.octetsToNextHeader = ddsrt_bswap2u (sm->smhdr.octetsToNextHeader);
 
@@ -3258,8 +3261,9 @@ static int handle_submsg_sequence
   }
 }
 
-static void handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const struct ddsi_network_packet_info *pktinfo)
+static void handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, const struct ddsi_network_packet_info *pktinfo)
 {
+  unsigned char *msg = DDSI_RMSG_PAYLOAD (rmsg);
   ddsi_rtps_header_t *hdr = (ddsi_rtps_header_t *) msg;
   assert (gv->config.protocol_version.major == DDSI_RTPS_MAJOR);
   assert (ddsi_thread_is_asleep ());
@@ -3298,100 +3302,80 @@ static void handle_rtps_message (struct ddsi_thread_state * const thrst, struct 
   }
 }
 
-void ddsi_handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const struct ddsi_network_packet_info *pktinfo)
+void ddsi_handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, const struct ddsi_network_packet_info *pktinfo)
 {
-  handle_rtps_message (thrst, gv, conn, guidprefix, rbpool, rmsg, sz, msg, pktinfo);
+  handle_rtps_message (thrst, gv, conn, guidprefix, rbpool, rmsg, sz, pktinfo);
+}
+
+ddsrt_nonnull_all ddsrt_attribute_warn_unused_result
+static ssize_t read_packet_from_stream (struct ddsi_domaingv *gv, struct ddsi_tran_conn *conn, struct ddsi_rmsg *rmsg, size_t maxsz, struct ddsi_network_packet_info *pktinfo)
+{
+  // Streams are sequences of RTPS messages, where the first submessage of each message
+  // must be a ADLINK_MSG_LEN with the "length" field the total RTPS message size.
+  //
+  // FIXME: We ought to keep enough state for reading messages in multiple rounds
+  //
+  // Note that we can't fix that until we stop using a ddsi_rmsg to buffer incoming data.
+
+  assert (conn->m_stream);
+
+  const size_t ddsi_msg_len_size = 8;
+  const size_t stream_hdr_size = DDSI_RTPS_MESSAGE_HEADER_SIZE + ddsi_msg_len_size;
+  unsigned char * const buff = (unsigned char *) DDSI_RMSG_PAYLOAD (rmsg);
+  ssize_t sz;
+
+  sz = ddsi_conn_read (conn, buff, stream_hdr_size, true, pktinfo);
+  if (sz == 0) // Spurious read can happen with SSL, at this point we're still good
+    return 0;
+
+  // Errors or incorrect size: signal failure so connection will be dropped
+  // don't report: this is typically the path taken if the connection was dropped
+  if (sz < 0 || (size_t) sz != stream_hdr_size)
+    return -1;
+
+  // First submessage following header should be ADLINK_MSG_LEN. The RTPS message
+  // header and this submessage's octets-to-next-header will checked by handle_rtps_message()
+  ddsi_rtps_header_t * const hdr = (ddsi_rtps_header_t *) buff;
+  ddsi_rtps_msg_len_t * const ml = (ddsi_rtps_msg_len_t *) (hdr + 1);
+  if (ml->smhdr.submessageId != DDSI_RTPS_SMID_ADLINK_MSG_LEN)
+    goto framing_error;
+
+  if (smhdr_bswap_needed (&ml->smhdr))
+    ml->length = ddsrt_bswap4u (ml->length);
+  if (ml->length < stream_hdr_size || ml->length > maxsz)
+    goto framing_error;
+
+  sz = ddsi_conn_read (conn, buff + stream_hdr_size, ml->length - stream_hdr_size, false, NULL);
+  if (sz != (ssize_t) (ml->length - stream_hdr_size))
+    return -1;
+
+  return (ssize_t) ml->length;
+
+framing_error:
+  GVTRACE ("framing error, dropping connection\n");
+  return -1;
 }
 
 static bool do_packet (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool)
 {
-  /* UDP max packet size is 64kB */
-
+  /* UDP max packet size is 64kB, we always limit RTPS messages always to 64kB */
   const size_t maxsz = gv->config.rmsg_chunk_size < 65536 ? gv->config.rmsg_chunk_size : 65536;
-  const size_t ddsi_msg_len_size = 8;
-  const size_t stream_hdr_size = DDSI_RTPS_MESSAGE_HEADER_SIZE + ddsi_msg_len_size;
-  ssize_t sz;
-  struct ddsi_rmsg * rmsg = ddsi_rmsg_new (rbpool);
-  unsigned char * buff;
-  size_t buff_len = maxsz;
-  ddsi_rtps_header_t * hdr;
   struct ddsi_network_packet_info pktinfo;
+  ssize_t sz;
 
+  struct ddsi_rmsg * const rmsg = ddsi_rmsg_new (rbpool);
   if (rmsg == NULL)
-  {
     return false;
-  }
 
-  DDSRT_STATIC_ASSERT (sizeof (struct ddsi_rmsg) == offsetof (struct ddsi_rmsg, chunk) + sizeof (struct ddsi_rmsg_chunk));
-  buff = (unsigned char *) DDSI_RMSG_PAYLOAD (rmsg);
-  hdr = (ddsi_rtps_header_t*) buff;
-
-  if (conn->m_stream)
-  {
-    ddsi_rtps_msg_len_t * ml = (ddsi_rtps_msg_len_t*) (hdr + 1);
-
-    /*
-      Read in packet header to get size of packet in ddsi_rtps_msg_len_t, then read in
-      remainder of packet.
-    */
-
-    /* Read in DDSI header plus MSG_LEN sub message that follows it */
-
-    sz = ddsi_conn_read (conn, buff, stream_hdr_size, true, &pktinfo);
-    if (sz == 0)
-    {
-      /* Spurious read -- which at this point is still ok */
-      ddsi_rmsg_commit (rmsg);
-      return true;
-    }
-
-    /* Read in remainder of packet */
-
-    if (sz > 0)
-    {
-      int swap;
-
-      DDSRT_WARNING_MSVC_OFF(6326)
-      if (ml->smhdr.flags & DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS)
-      {
-        swap = !(DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
-      }
-      else
-      {
-        swap =  (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
-      }
-      DDSRT_WARNING_MSVC_ON(6326)
-      if (swap)
-      {
-        ml->length = ddsrt_bswap4u (ml->length);
-      }
-
-      if (ml->smhdr.submessageId != DDSI_RTPS_SMID_ADLINK_MSG_LEN)
-      {
-        malformed_packet_received (gv, buff, NULL, (size_t) sz, hdr->vendorid);
-        sz = -1;
-      }
-      else
-      {
-        sz = ddsi_conn_read (conn, buff + stream_hdr_size, ml->length - stream_hdr_size, false, NULL);
-        if (sz > 0)
-        {
-          sz = (ssize_t) ml->length;
-        }
-      }
-    }
-  }
+  if (!conn->m_stream)
+    sz = ddsi_conn_read (conn, DDSI_RMSG_PAYLOAD (rmsg), maxsz, true, &pktinfo);
   else
-  {
-    /* Get next packet */
-
-    sz = ddsi_conn_read (conn, buff, buff_len, true, &pktinfo);
-  }
+    sz = read_packet_from_stream (gv, conn, rmsg, maxsz, &pktinfo);
 
   if (sz > 0 && !gv->deaf)
   {
     ddsi_rmsg_setsize (rmsg, (uint32_t) sz);
-    handle_rtps_message(thrst, gv, conn, guidprefix, rbpool, rmsg, (size_t) sz, buff, &pktinfo);
+    handle_rtps_message (thrst, gv, conn, guidprefix, rbpool, rmsg, (size_t) sz, &pktinfo);
   }
   ddsi_rmsg_commit (rmsg);
   return (sz > 0);

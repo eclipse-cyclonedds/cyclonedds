@@ -345,7 +345,7 @@ static void ddsi_plist_leasedur_new_proxypp_impl (bool include_lease_duration, b
   memcpy (buf + size, pkt_trailer, sizeof (pkt_trailer));
   size += sizeof (pkt_trailer);
   ddsi_rmsg_setsize (rmsg, (uint32_t) size);
-  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, size, buf, &pktinfo);
+  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, size, &pktinfo);
   ddsi_rmsg_commit (rmsg);
 
   // Discovery data processing is done by the dq.builtin thread, so we can't be
@@ -494,7 +494,7 @@ static void ddsi_plist_leasedur_new_proxyrd_impl (bool include_lease_duration, b
   memcpy (buf + size, pkt_p4, sizeof (pkt_p4));
   size += sizeof (pkt_p4);
   ddsi_rmsg_setsize (rmsg, (uint32_t) size);
-  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, size, buf, &pktinfo);
+  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, size, &pktinfo);
   ddsi_rmsg_commit (rmsg);
 
   // Discovery data processing is done by the dq.builtin thread, so we can't be
