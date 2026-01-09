@@ -418,7 +418,7 @@ CU_Test (ddsi_receive_packet, rti_dispose_with_key)
   ddsi_rmsg_setsize (rmsg, (uint32_t) sizeof (rtps_message));
   
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
-  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, (uint32_t) sizeof (rtps_message), buf, &pktinfo);
+  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, (uint32_t) sizeof (rtps_message), &pktinfo);
   ddsi_rmsg_commit (rmsg);
 
   receive_packet_fini ();
