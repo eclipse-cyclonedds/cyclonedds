@@ -226,11 +226,33 @@ CU_Test (ddsi_plist_leasedur, ser_others, .init = setup, .fini = teardown)
   SER32BE(0),SER32BE(0),SER32BE(0), \
   (a),(b),(c),(d)
 
-#define TEST_GUIDPREFIX_BYTES 7,7,3,4, 5,6,7,8, 9,10,11,12
+#define TEST_GUIDPREFIX_BYTES(use_correct_prefix) (use_correct_prefix ? 7 : 8),7,3,4, 5,6,7,8, 9,10,11,12
+
+struct logger_arg {
+  ddsrt_atomic_uint32_t match;
+};
+
+static struct logger_arg logger_arg = {
+  DDSRT_ATOMIC_UINT32_INIT (0)
+};
+
+static void logger (void *ptr, const dds_log_data_t *data)
+{
+  struct logger_arg *arg = ptr;
+  printf ("%s", data->message);
+  fflush (stdout);
+  if (strstr (data->message, "mismatch with RTPS source"))
+    ddsrt_atomic_or32 (&arg->match, 1);
+}
 
 static void setup_and_start (void)
 {
   setup ();
+  dds_set_log_sink (&logger, &logger_arg);
+  dds_set_trace_sink (&logger, &logger_arg);
+  // not very proper to do this here
+  dds_log_cfg_init (&gv.logconfig, gv.config.domainId, DDS_LC_TRACE, stderr, NULL);
+
   ddsi_set_deafmute (&gv, true, true, DDS_INFINITY);
   ddsi_start (&gv);
   // Register the main thread, then claim it as spawned by Cyclone because the
@@ -240,10 +262,14 @@ static void setup_and_start (void)
   assert (thrst->state == DDSI_THREAD_STATE_LAZILY_CREATED);
   thrst->state = DDSI_THREAD_STATE_ALIVE;
   ddsrt_atomic_stvoidp (&thrst->gv, &gv);
+  ddsrt_atomic_st32 (&logger_arg.match, 0);
 }
 
 static void stop_and_teardown (void)
 {
+  dds_set_log_sink (0, 0);
+  dds_set_trace_sink (0, 0);
+
   // Shutdown currently relies on sending packets to shutdown receiver threads
   // handling individual sockets (this sometime causes issues with firewalls, too)
   ddsi_set_deafmute (&gv, false, false, DDS_INFINITY);
@@ -255,7 +281,7 @@ static void stop_and_teardown (void)
   teardown ();
 }
 
-static void ddsi_plist_leasedur_new_proxypp_impl (bool include_lease_duration)
+static void ddsi_plist_leasedur_new_proxypp_impl (bool include_lease_duration, bool use_correct_prefix)
 {
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   const uint32_t rport = gv.loc_meta_uc.port;
@@ -268,7 +294,7 @@ static void ddsi_plist_leasedur_new_proxypp_impl (bool include_lease_duration)
     1, DDSI_VENDORID_MINOR_ECLIPSE,
     // GUID prefix: first two bytes ordinarily have vendor id, so 7,7 is
     // guaranteed to not be used locally
-    TEST_GUIDPREFIX_BYTES,
+    TEST_GUIDPREFIX_BYTES (true),
     // DATA: flags (4 = dataflag + big-endian); octets-to-next-header = 0
     // means it continues until the end
     DDSI_RTPS_SMID_DATA, 4, 0,0,
@@ -280,7 +306,7 @@ static void ddsi_plist_leasedur_new_proxypp_impl (bool include_lease_duration)
     0,2, // PL_CDR_BE
     0,0, // options = 0
     HDR (DDSI_PID_PARTICIPANT_GUID, 16),
-      TEST_GUIDPREFIX_BYTES, SER32BE (DDSI_ENTITYID_PARTICIPANT),
+      TEST_GUIDPREFIX_BYTES (use_correct_prefix), SER32BE (DDSI_ENTITYID_PARTICIPANT),
     HDR (DDSI_PID_BUILTIN_ENDPOINT_SET, 4),         SER32BE (DDSI_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER),
     HDR (DDSI_PID_PROTOCOL_VERSION, 4),             gv.config.protocol_version.major, gv.config.protocol_version.minor, 0,0,
     HDR (DDSI_PID_VENDORID, 4),                     1, DDSI_VENDORID_MINOR_ECLIPSE, 0,0,
@@ -299,7 +325,7 @@ static void ddsi_plist_leasedur_new_proxypp_impl (bool include_lease_duration)
   pktinfo.dst.kind = DDSI_LOCATOR_KIND_INVALID;
   pktinfo.if_index = 0;
   const ddsi_guid_t proxypp_guid = {
-    .prefix = ddsi_ntoh_guid_prefix ((ddsi_guid_prefix_t){ .s = { TEST_GUIDPREFIX_BYTES } }),
+    .prefix = ddsi_ntoh_guid_prefix ((ddsi_guid_prefix_t){ .s = { TEST_GUIDPREFIX_BYTES (use_correct_prefix) } }),
     .entityid = { .u = DDSI_ENTITYID_PARTICIPANT }
   };
 
@@ -327,7 +353,7 @@ static void ddsi_plist_leasedur_new_proxypp_impl (bool include_lease_duration)
   const dds_time_t tend = dds_time () + DDS_SECS (10);
   struct ddsi_proxy_participant *proxypp = NULL;
   ddsi_thread_state_awake (thrst, &gv);
-  while (proxypp == NULL && dds_time () < tend)
+  while ((proxypp == NULL && ddsrt_atomic_ld32 (&logger_arg.match) == 0) && dds_time () < tend)
   {
     ddsi_thread_state_asleep (thrst);
     dds_sleepfor (DDS_MSECS (10));
@@ -336,30 +362,45 @@ static void ddsi_plist_leasedur_new_proxypp_impl (bool include_lease_duration)
   }
 
   // After waiting for a reasonable amount of time, the (fake) proxy participant
-  // should exist and have picked up the lease duration from the message
-  CU_ASSERT_NEQ_FATAL (proxypp, NULL);
-  CU_ASSERT_NEQ_FATAL (proxypp->plist->qos.present & DDSI_QP_LIVELINESS, 0);
-  CU_ASSERT_EQ_FATAL (proxypp->plist->qos.liveliness.kind, DDS_LIVELINESS_AUTOMATIC);
-  if (include_lease_duration) {
-    CU_ASSERT_EQ_FATAL (proxypp->plist->qos.liveliness.lease_duration, 3071111111);
-  } else {
-    CU_ASSERT_EQ_FATAL (proxypp->plist->qos.liveliness.lease_duration, DDS_SECS (100));
+  // should exist and have picked up the lease duration from the message, unless
+  // we introduced a mismatch between the source prefix and the GUID in the
+  // discovery data
+  if (!use_correct_prefix)
+  {
+    CU_ASSERT_EQ_FATAL (proxypp, NULL);
+    CU_ASSERT_NEQ_FATAL (ddsrt_atomic_ld32 (&logger_arg.match), 0);
   }
-  CU_ASSERT_EQ_FATAL (proxypp->lease->tdur, proxypp->plist->qos.liveliness.lease_duration);
+  else
+  {
+    CU_ASSERT_NEQ_FATAL (proxypp, NULL);
+    CU_ASSERT_NEQ_FATAL (proxypp->plist->qos.present & DDSI_QP_LIVELINESS, 0);
+    CU_ASSERT_EQ_FATAL (proxypp->plist->qos.liveliness.kind, DDS_LIVELINESS_AUTOMATIC);
+    if (include_lease_duration) {
+      CU_ASSERT_EQ_FATAL (proxypp->plist->qos.liveliness.lease_duration, 3071111111);
+    } else {
+      CU_ASSERT_EQ_FATAL (proxypp->plist->qos.liveliness.lease_duration, DDS_SECS (100));
+    }
+    CU_ASSERT_EQ_FATAL (proxypp->lease->tdur, proxypp->plist->qos.liveliness.lease_duration);
+  }
   ddsi_thread_state_asleep (thrst);
 }
 
 CU_Test (ddsi_plist_leasedur, new_proxypp, .init = setup_and_start, .fini = stop_and_teardown)
 {
-  ddsi_plist_leasedur_new_proxypp_impl (true);
+  ddsi_plist_leasedur_new_proxypp_impl (true, true);
+}
+
+CU_Test (ddsi_plist_leasedur, new_proxypp_wrong_prefix, .init = setup_and_start, .fini = stop_and_teardown)
+{
+  ddsi_plist_leasedur_new_proxypp_impl (true, false);
 }
 
 CU_Test (ddsi_plist_leasedur, new_proxypp_def, .init = setup_and_start, .fini = stop_and_teardown)
 {
-  ddsi_plist_leasedur_new_proxypp_impl (false);
+  ddsi_plist_leasedur_new_proxypp_impl (false, true);
 }
 
-static void ddsi_plist_leasedur_new_proxyrd_impl (bool include_lease_duration)
+static void ddsi_plist_leasedur_new_proxyrd_impl (bool include_lease_duration, bool use_correct_prefix)
 {
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
 
@@ -383,7 +424,7 @@ static void ddsi_plist_leasedur_new_proxyrd_impl (bool include_lease_duration)
     1, DDSI_VENDORID_MINOR_ECLIPSE,
     // GUID prefix: first two bytes ordinarily have vendor id, so 7,7 is
     // guaranteed to not be used locally
-    TEST_GUIDPREFIX_BYTES,
+    TEST_GUIDPREFIX_BYTES (true),
     // INFO_DST: flags (0 = big-endian); octets-to-next-header = 12
     DDSI_RTPS_SMID_INFO_DST, 0, 0,12
     // guid prefix of local node (= ppguidprefix_base) comes here
@@ -409,7 +450,7 @@ static void ddsi_plist_leasedur_new_proxyrd_impl (bool include_lease_duration)
     0,2, // PL_CDR_BE
     0,0, // options = 0
     HDR (DDSI_PID_ENDPOINT_GUID, 16),
-      TEST_GUIDPREFIX_BYTES, SER32BE (0x107), // reader-with-key
+      TEST_GUIDPREFIX_BYTES (use_correct_prefix), SER32BE (0x107), // reader-with-key
     HDR (DDSI_PID_TOPIC_NAME, 12), SER32BE (6), 't','o','p','i','c',0, 0,0,
     HDR (DDSI_PID_TYPE_NAME, 12),  SER32BE (5), 't','y','p','e',0,   0,0,0,
   };
@@ -426,7 +467,7 @@ static void ddsi_plist_leasedur_new_proxyrd_impl (bool include_lease_duration)
   pktinfo.dst.kind = DDSI_LOCATOR_KIND_INVALID;
   pktinfo.if_index = 0;
   const ddsi_guid_t prd_guid = {
-    .prefix = ddsi_ntoh_guid_prefix ((ddsi_guid_prefix_t){ .s = { TEST_GUIDPREFIX_BYTES } }),
+    .prefix = ddsi_ntoh_guid_prefix ((ddsi_guid_prefix_t){ .s = { TEST_GUIDPREFIX_BYTES (use_correct_prefix) } }),
     .entityid = { .u = 0x107 }
   };
 
@@ -461,7 +502,7 @@ static void ddsi_plist_leasedur_new_proxyrd_impl (bool include_lease_duration)
   const dds_time_t tend = dds_time () + DDS_SECS (10);
   struct ddsi_proxy_reader *prd = NULL;
   ddsi_thread_state_awake (thrst, &gv);
-  while (prd == NULL && dds_time () < tend)
+  while ((prd == NULL && ddsrt_atomic_ld32 (&logger_arg.match) == 0) && dds_time () < tend)
   {
     ddsi_thread_state_asleep (thrst);
     dds_sleepfor (DDS_MSECS (10));
@@ -470,27 +511,44 @@ static void ddsi_plist_leasedur_new_proxyrd_impl (bool include_lease_duration)
   }
 
   // After waiting for a reasonable amount of time, the (fake) proxy participant
-  // should exist and have picked up the lease duration from the message
-  CU_ASSERT_NEQ_FATAL (prd, NULL);
-  CU_ASSERT_NEQ_FATAL (prd->c.xqos->present & DDSI_QP_LIVELINESS, 0);
-  if (include_lease_duration) {
-    CU_ASSERT_EQ (prd->c.xqos->liveliness.kind, DDS_LIVELINESS_MANUAL_BY_PARTICIPANT);
-    CU_ASSERT_EQ (prd->c.xqos->liveliness.lease_duration, 2041944443);
-  } else {
-    CU_ASSERT_EQ (prd->c.xqos->liveliness.kind, DDS_LIVELINESS_AUTOMATIC);
-    CU_ASSERT_EQ (prd->c.xqos->liveliness.lease_duration, DDS_INFINITY);
+  // should exist and have picked up the lease duration from the message, unless
+  // we introduced a mismatch between the source prefix and the GUID in the
+  // discovery data
+  if (!use_correct_prefix)
+  {
+    CU_ASSERT_EQ_FATAL (prd, NULL);
+    CU_ASSERT_NEQ_FATAL (ddsrt_atomic_ld32 (&logger_arg.match), 0);
+  }
+  else
+  {
+    CU_ASSERT_NEQ_FATAL (prd, NULL);
+    CU_ASSERT_NEQ_FATAL (prd->c.xqos->present & DDSI_QP_LIVELINESS, 0);
+    if (include_lease_duration) {
+      CU_ASSERT_EQ (prd->c.xqos->liveliness.kind, DDS_LIVELINESS_MANUAL_BY_PARTICIPANT);
+      CU_ASSERT_EQ (prd->c.xqos->liveliness.lease_duration, 2041944443);
+    } else {
+      CU_ASSERT_EQ (prd->c.xqos->liveliness.kind, DDS_LIVELINESS_AUTOMATIC);
+      CU_ASSERT_EQ (prd->c.xqos->liveliness.lease_duration, DDS_INFINITY);
+    }
   }
   ddsi_thread_state_asleep (thrst);
 }
 
 CU_Test (ddsi_plist_leasedur, new_proxyrd, .init = setup_and_start, .fini = stop_and_teardown)
 {
-  ddsi_plist_leasedur_new_proxypp_impl (false);
-  ddsi_plist_leasedur_new_proxyrd_impl (true);
+  ddsi_plist_leasedur_new_proxypp_impl (false, true);
+  ddsi_plist_leasedur_new_proxyrd_impl (true, true);
+}
+
+CU_Test (ddsi_plist_leasedur, new_proxyrd_wrong_prefix, .init = setup_and_start, .fini = stop_and_teardown)
+{
+  ddsi_plist_leasedur_new_proxypp_impl (false, true);
+  assert (ddsrt_atomic_ld32 (&logger_arg.match) == 0);
+  ddsi_plist_leasedur_new_proxyrd_impl (true, false);
 }
 
 CU_Test (ddsi_plist_leasedur, new_proxyrd_def, .init = setup_and_start, .fini = stop_and_teardown)
 {
-  ddsi_plist_leasedur_new_proxypp_impl (false);
-  ddsi_plist_leasedur_new_proxyrd_impl (false);
+  ddsi_plist_leasedur_new_proxypp_impl (false, true);
+  ddsi_plist_leasedur_new_proxyrd_impl (false, true);
 }
