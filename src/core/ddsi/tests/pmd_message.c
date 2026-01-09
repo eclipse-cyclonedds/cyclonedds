@@ -210,7 +210,7 @@ static void create_fake_proxy_participant (void)
   memcpy (buf, spdp_pkt, sizeof (spdp_pkt));
   size += sizeof (spdp_pkt);
   ddsi_rmsg_setsize (rmsg, (uint32_t) size);
-  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, size, buf, &pktinfo);
+  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, size, &pktinfo);
   ddsi_rmsg_commit (rmsg);
   // wait until SPDP message has been processed
   wait_for_dqueue ();
@@ -294,7 +294,7 @@ static void send_pmd_message (uint32_t seqlo, uint16_t encoding, uint16_t option
   memcpy (buf, pmd_pkt, sizeof (pmd_pkt));
   size += sizeof (pmd_pkt) - 24 + act_payload_size;
   ddsi_rmsg_setsize (rmsg, (uint32_t) size);
-  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, size, buf, &pktinfo);
+  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, size, &pktinfo);
   ddsi_rmsg_commit (rmsg);
   // wait until PMD message has been processed
   wait_for_dqueue ();
