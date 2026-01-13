@@ -1515,11 +1515,10 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
   {
     if (gv->config.tcp_port < 0)
       ; /* no TCP listener */
-    else if (gv->config.tcp_port == DDSI_TRAN_RANDOM_PORT_NUMBER)
-      ; /* kernel-allocated random port */
-    else if (!ddsi_is_valid_port (gv->m_factory, (uint32_t) gv->config.tcp_port))
+    else if (gv->config.tcp_port != DDSI_TRAN_RANDOM_PORT_NUMBER && !ddsi_is_valid_port (gv->m_factory, (uint32_t) gv->config.tcp_port))
     {
       GVERROR ("Listener port %d is out of range for transport %s\n", gv->config.tcp_port, gv->m_factory->m_typename);
+      goto err_mc_conn;
     }
     else
     {
