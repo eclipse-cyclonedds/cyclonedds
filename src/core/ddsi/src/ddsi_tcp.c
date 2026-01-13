@@ -251,9 +251,8 @@ fail:
   return rc;
 }
 
-static void ddsi_tcp_node_free (void * ptr)
+static void ddsi_tcp_node_free (ddsi_tcp_node_t node)
 {
-  ddsi_tcp_node_t node = (ddsi_tcp_node_t) ptr;
   ddsi_conn_free ((struct ddsi_tran_conn *) node->m_conn);
   ddsrt_free (node);
 }
@@ -345,7 +344,7 @@ static void ddsi_tcp_cache_add (struct ddsi_tran_factory_tcp *fact, ddsi_tcp_con
   }
 
   sockaddr_to_string_with_port(buff, sizeof(buff), &conn->m_peer_addr.a);
-  GVLOG (DDS_LC_TCP, "tcp cache %s %s socket %"PRIdSOCK" to %s\n", action, conn->m_base.m_server ? "server" : "client", conn->m_sock, buff);
+  GVLOG (DDS_LC_TCP, "tcp cache %s %s socket %"PRIdSOCK" to %s (%p)\n", action, conn->m_base.m_server ? "server" : "client", conn->m_sock, buff, (void *) conn);
 }
 
 static void ddsi_tcp_cache_remove (ddsi_tcp_conn_t conn)
@@ -361,7 +360,7 @@ static void ddsi_tcp_cache_remove (ddsi_tcp_conn_t conn)
   if (node)
   {
     sockaddr_to_string_with_port(buff, sizeof(buff), &conn->m_peer_addr.a);
-    GVLOG (DDS_LC_TCP, "tcp cache removed socket %"PRIdSOCK" to %s\n", conn->m_sock, buff);
+    GVLOG (DDS_LC_TCP, "tcp cache removed socket %"PRIdSOCK" to %s (%p)\n", conn->m_sock, buff, (void *) conn);
     ddsrt_avl_delete_dpath (&ddsi_tcp_treedef, &fact->ddsi_tcp_cache_g, node, &path);
     ddsi_tcp_node_free (node);
   }
@@ -388,25 +387,23 @@ static ddsi_tcp_conn_t ddsi_tcp_cache_find (struct ddsi_tran_factory_tcp *fact, 
 
   ddsrt_mutex_lock (&fact->ddsi_tcp_cache_lock_g);
   node = ddsrt_avl_lookup_ipath (&ddsi_tcp_treedef, &fact->ddsi_tcp_cache_g, &key, &path);
-  if (node)
+  if (node && !node->m_conn->m_base.m_closed)
+    ret = node->m_conn;
+  else
   {
-    if (node->m_conn->m_base.m_closed)
+    if (node)
     {
+      struct ddsi_domaingv * const gv = node->m_conn->m_base.m_factory->gv;
+      GVLOG (DDS_LC_TCP, "tcp drop in cache find (%p)\n", (void *) node->m_conn);
       ddsrt_avl_delete (&ddsi_tcp_treedef, &fact->ddsi_tcp_cache_g, node);
       ddsi_tcp_node_free (node);
+      // path is no longer valid because we deleted the node, so compute it anew
+      (void) ddsrt_avl_lookup_ipath (&ddsi_tcp_treedef, &fact->ddsi_tcp_cache_g, &key, &path);
     }
-    else
-    {
-      ret = node->m_conn;
-    }
-  }
-  if (ret == NULL)
-  {
     ret = ddsi_tcp_new_conn (fact, NULL, DDSRT_INVALID_SOCKET, false, &key.m_peer_addr.a);
     ddsi_tcp_cache_add (fact, ret, &path);
   }
   ddsrt_mutex_unlock (&fact->ddsi_tcp_cache_lock_g);
-
   return ret;
 }
 
@@ -965,6 +962,10 @@ static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, co
   conn->m_base.m_base.m_port = INVALID_PORT;
   ddsi_tcp_conn_set_socket (conn, sock);
 
+  char buff[DDSI_LOCSTRLEN];
+  struct ddsi_domaingv * const gv = fact->fact.gv;
+  sockaddr_to_string_with_port(buff, sizeof(buff), &conn->m_peer_addr.a);
+  GVLOG (DDS_LC_TCP, "tcp new %s connection on socket %"PRIdSOCK" to %s (%p)\n", conn->m_base.m_server ? "server" : "client", conn->m_sock, buff, (void *) conn);
   return conn;
 }
 
@@ -1015,7 +1016,7 @@ static void ddsi_tcp_conn_delete (ddsi_tcp_conn_t conn)
   struct ddsi_domaingv const * const gv = fact->fact.gv;
   char buff[DDSI_LOCSTRLEN];
   sockaddr_to_string_with_port(buff, sizeof(buff), &conn->m_peer_addr.a);
-  GVLOG (DDS_LC_TCP, "tcp free %s connection on socket %"PRIdSOCK" to %s\n", conn->m_base.m_server ? "server" : "client", conn->m_sock, buff);
+  GVLOG (DDS_LC_TCP, "tcp free %s connection on socket %"PRIdSOCK" to %s (%p)\n", conn->m_base.m_server ? "server" : "client", conn->m_sock, buff, (void *) conn);
 
 #ifdef DDS_HAS_TCP_TLS
   if (fact->ddsi_tcp_ssl_plugin.ssl_free)
@@ -1123,11 +1124,23 @@ static void ddsi_tcp_release_listener (struct ddsi_tran_listener * listener)
   ddsrt_free (tl);
 }
 
+static void ddsi_tcp_release_factory_free_cache_node (void *vnode)
+{
+  ddsi_tcp_node_t node = vnode;
+  struct ddsi_domaingv * const gv = node->m_conn->m_base.m_factory->gv;
+  GVLOG (DDS_LC_TCP, "tcp cache free on shutdown (%p)\n", (void *) node->m_conn);
+  // TCP support code really is broken ... it doesn't ordinarily leak connections,
+  // but it does sometimes when a connection is created by a message sent to a
+  // peer that was removed just before. The TCP code should be rewritten entirely.
+  ddsrt_atomic_st32 (&node->m_conn->m_base.m_count, 1);
+  ddsi_tcp_node_free (node);
+}
+
 static void ddsi_tcp_release_factory (struct ddsi_tran_factory *fact_cmn)
 {
   struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) fact_cmn;
   struct ddsi_domaingv const * const gv = fact->fact.gv;
-  ddsrt_avl_free (&ddsi_tcp_treedef, &fact->ddsi_tcp_cache_g, ddsi_tcp_node_free);
+  ddsrt_avl_free (&ddsi_tcp_treedef, &fact->ddsi_tcp_cache_g, ddsi_tcp_release_factory_free_cache_node);
   ddsrt_mutex_destroy (&fact->ddsi_tcp_cache_lock_g);
 #ifdef DDS_HAS_TCP_TLS
   if (fact->ddsi_tcp_ssl_plugin.fini)
