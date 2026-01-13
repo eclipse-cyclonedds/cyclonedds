@@ -1086,7 +1086,8 @@ static void decide_participant_index_and_add_localhost_to_peers (struct ddsi_dom
     {
       GVTRACE ("all interfaces allow spdp multicast, no peers defined: defaulting participant index to \"none\"\n");
       gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_NONE;
-    } else if (all_allow_spdp_mc)
+    }
+    else if (all_allow_spdp_mc)
     {
       GVTRACE ("all interfaces allow spdp multicast, but peers defined: defaulting participant index to \"auto\"\n");
       gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_AUTO;
@@ -1098,7 +1099,7 @@ static void decide_participant_index_and_add_localhost_to_peers (struct ddsi_dom
     }
   }
   if (gv->config.add_localhost_to_peers == DDSI_BOOLDEF_TRUE ||
-      (none_allow_spdp_mc && gv->config.add_localhost_to_peers != DDSI_BOOLDEF_FALSE))
+      (none_allow_spdp_mc && gv->m_factory->m_connless && gv->config.add_localhost_to_peers != DDSI_BOOLDEF_FALSE))
   {
     // add self to as_disc, but only once we have everything set up to actually do that
     if (gv->config.add_localhost_to_peers == DDSI_BOOLDEF_DEFAULT)
