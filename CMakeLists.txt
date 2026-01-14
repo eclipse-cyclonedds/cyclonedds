@@ -264,9 +264,40 @@ set(MEMORYCHECK_COMMAND_OPTIONS "--track-origins=yes --leak-check=full --trace-c
 # library so we can actually build the tests.
 option(BUILD_TESTING "Build the testing tree." OFF)
 
+# ROS2 build use BUILD_TESTING but it makes (1) little sense to include the Cyclone tests
+# in a ROS2 test run, and (2) some variant of the Windows CI platform ran into:
+#
+#    Auto build dll exports
+#
+#    $P: error MSB3073: The command "setlocal [C:\ci\ws\build\cyclonedds\src\core\ddsc.vcxproj]
+#    $P: error MSB3073: cd C:\ci\ws\build\cyclonedds\src\core [C:\ci\ws\build\cyclonedds\src\core\ddsc.vcxproj]
+#    $P: error MSB3073: if %errorlevel% neq 0 goto :cmEnd [C:\ci\ws\build\cyclonedds\src\core\ddsc.vcxproj]
+#    ...
+#
+# where P = C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\
+#    ...Microsoft\VC\v160\Microsoft.CppCommon.targets(150,5)
+set(CYCLONEDDS_BUILD_TESTING "AUTO" CACHE STRING "Override regular BUILD_TESTING")
+set_property(CACHE CYCLONEDDS_BUILD_TESTING PROPERTY STRINGS ON OFF AUTO)
+if(NOT CYCLONEDDS_BUILD_TESTING STREQUAL "AUTO")
+  if(CYCLONEDDS_BUILD_TESTING)
+    if(NOT BUILD_TESTING)
+      message(WARNING "Enabling test code: CYCLONEDDS_BUILD_TESTING and not BUILD_TESTING")
+      set(BUILD_TESTING TRUE)
+    endif()
+  else()
+    if(BUILD_TESTING)
+      message(WARNING "Disabling test code: not CYCLONEDDS_BUILD_TESTING and BUILD_TESTING")
+      set(BUILD_TESTING FALSE)
+    endif()
+  endif()
+endif()
+
 # For special-purpose builds it can be useful to export all symbols from the library,
 # like we do when building the tests.
 option(EXPORT_ALL_SYMBOLS "Export all symbols from the library." OFF)
+if(BUILD_TESTING OR EXPORT_ALL_SYMBOLS)
+  message(STATUS "Exporting all symbols from library")
+endif()
 
 # Include the xtests for idlc. These tests use the idl compiler (C back-end) to
 # compile an idl file at (test) runtime, and use the C compiler to build a test
