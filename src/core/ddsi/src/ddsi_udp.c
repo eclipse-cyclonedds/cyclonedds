@@ -151,7 +151,8 @@ static void translate_pktinfo (struct ddsi_network_packet_info *pktinfo, ddsrt_m
   pktinfo->if_index = 0;
 }
 
-static ssize_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned char * buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo)
+ddsrt_nonnull((1, 2, 6)) ddsrt_attribute_warn_unused_result
+static dds_return_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned char * buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo, size_t *bytes_read)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   struct ddsi_domaingv * const gv = conn->m_base.m_base.gv;
@@ -187,7 +188,7 @@ static ssize_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned ch
   (void) allow_spurious;
 
   dds_return_t rc;
-  ssize_t nrecv;
+  size_t nrecv;
   do {
     rc = ddsrt_recvmsg (&conn->m_sockext, &msghdr, 0, &nrecv);
   } while (rc == DDS_RETCODE_INTERRUPTED);
@@ -195,11 +196,10 @@ static ssize_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned ch
   if (rc != DDS_RETCODE_OK)
   {
     if (rc != DDS_RETCODE_BAD_PARAMETER && rc != DDS_RETCODE_NO_CONNECTION)
-      GVERROR ("UDP recvmsg sock %d: ret %d retcode %"PRId32"\n", (int) conn->m_sockext.sock, (int) nrecv, rc);
-    return -1;
+      GVERROR ("UDP recvmsg sock %d: retcode %"PRId32"\n", (int) conn->m_sockext.sock, rc);
+    return rc;
   }
 
-  assert (rc == DDS_RETCODE_OK && nrecv >= 0);
   if (pktinfo)
   {
     addr_to_loc (conn->m_base.m_factory, &pktinfo->src, &src);
@@ -212,7 +212,7 @@ static ssize_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned ch
     socklen_t dest_len = sizeof (dest);
     if (ddsrt_getsockname (conn->m_sockext.sock, &dest.a, &dest_len) != DDS_RETCODE_OK)
       memset (&dest, 0, sizeof (dest));
-    ddsi_write_pcap_received (gv, ddsrt_time_wallclock (), &src.x, &dest.x, buf, (size_t) nrecv);
+    ddsi_write_pcap_received (gv, ddsrt_time_wallclock (), &src.x, &dest.x, buf, nrecv);
   }
 
   /* Check for udp packet truncation */
@@ -223,23 +223,26 @@ static ssize_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned ch
 #else
   const bool trunc_flag = (msghdr.msg_flags & MSG_TRUNC) != 0;
 #endif
-  if ((size_t) nrecv > len || trunc_flag)
+  if (nrecv > len || trunc_flag)
   {
     char addrbuf[DDSI_LOCSTRLEN];
     ddsi_locator_t tmp;
     addr_to_loc (conn->m_base.m_factory, &tmp, &src);
     ddsi_locator_to_string (addrbuf, sizeof (addrbuf), &tmp);
-    GVWARNING ("%s => %d truncated to %d\n", addrbuf, (int) nrecv, (int) len);
+    GVWARNING ("%s => %"PRIuSIZE" truncated to %"PRIuSIZE"\n", addrbuf, nrecv, len);
   }
-  return nrecv;
+
+  *bytes_read = (size_t) nrecv;
+  return DDS_RETCODE_OK;
 }
 
-static ssize_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags)
+ddsrt_nonnull((1, 2))
+static dds_return_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags, size_t *bytes_written)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   struct ddsi_domaingv * const gv = conn->m_base.m_base.gv;
   dds_return_t rc;
-  ssize_t nsent = -1;
+  size_t nsent;
   unsigned retry = 2;
   int sendflags = 0;
 #if defined _WIN32 && !defined WINCE
@@ -311,7 +314,16 @@ static ssize_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const ddsi
     char locbuf[DDSI_LOCSTRLEN];
     GVERROR ("ddsi_udp_conn_write to %s failed with retcode %"PRId32"\n", ddsi_locator_to_string (locbuf, sizeof (locbuf), dst), rc);
   }
-  return (rc == DDS_RETCODE_OK) ? nsent : -1;
+  if (rc == DDS_RETCODE_OK)
+  {
+    if (bytes_written)
+      *bytes_written = (size_t) nsent;
+    return rc;
+  }
+  else
+  {
+    return (rc != DDS_RETCODE_OK) ? rc : DDS_RETCODE_ERROR;
+  }
 }
 
 static void ddsi_udp_disable_multiplexing (struct ddsi_tran_conn * conn_cmn)

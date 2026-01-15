@@ -436,16 +436,17 @@ ddsrt_recv(
   void *buf,
   size_t len,
   int flags,
-  ssize_t *rcvd)
+  size_t *rcvd)
 {
   ssize_t n;
 
   if ((n = recv(sock, buf, len, flags)) != -1) {
     assert(n >= 0);
-    *rcvd = n;
+    *rcvd = (size_t) n;
     return DDS_RETCODE_OK;
   }
 
+  *rcvd = 0;
   return recv_error_to_retcode(errno);
 }
 
@@ -472,16 +473,17 @@ ddsrt_recvmsg(
   const ddsrt_socket_ext_t *sockext,
   ddsrt_msghdr_t *msg,
   int flags,
-  ssize_t *rcvd)
+  size_t *rcvd)
 {
   ssize_t n;
 
   if ((n = recvmsg(sockext->sock, msg, flags)) != -1) {
     assert(n >= 0);
-    *rcvd = n;
+    *rcvd = (size_t) n;
     return DDS_RETCODE_OK;
   }
 
+  *rcvd = 0;
   return recv_error_to_retcode(errno);
 }
 
@@ -535,13 +537,14 @@ ddsrt_send(
   const void *buf,
   size_t len,
   int flags,
-  ssize_t *sent)
+  size_t *bytes_written)
 {
   ssize_t n;
 
   if ((n = send(sock, buf, len, flags)) != -1) {
     assert(n >= 0);
-    *sent = n;
+    if (bytes_written)
+      *bytes_written = (size_t) n;
     return DDS_RETCODE_OK;
   }
 
@@ -553,13 +556,14 @@ ddsrt_sendmsg(
   ddsrt_socket_t sock,
   const ddsrt_msghdr_t *msg,
   int flags,
-  ssize_t *sent)
+  size_t *bytes_written)
 {
   ssize_t n;
 
   if ((n = sendmsg(sock, msg, flags)) != -1) {
     assert(n >= 0);
-    *sent = n;
+    if (bytes_written)
+      *bytes_written = (size_t) n;
     return DDS_RETCODE_OK;
   }
 

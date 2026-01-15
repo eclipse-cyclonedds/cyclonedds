@@ -83,7 +83,7 @@ static int isdelimiter(char chr)
   return chr == '\0' || isseparator(chr);
 }
 
-ssize_t idl_untaint_path(char *path)
+idl_retcode_t idl_untaint_path(char *path, size_t *len_out)
 {
   size_t abs, len;
 
@@ -98,7 +98,7 @@ ssize_t idl_untaint_path(char *path)
       n = i - j;
       if (n == 2 && strncmp(path + j, "..", n) == 0) {
         if (len == abs && abs)
-          return -1; /* invalid path */
+          return IDL_RETCODE_BAD_PARAMETER; /* invalid path */
         /* drop segment, unless segment is ".." */
         for (k=(len ? len - 1 : 0); k > abs && !isseparator(path[k]); k--) ;
         if (strncmp(path + (k + (k != abs)), "..", len - (k + (k != abs))) == 0)
@@ -132,7 +132,9 @@ mark:
   }
 
   path[len] = '\0';
-  return (ssize_t)len;
+  if (len_out)
+    *len_out = len;
+  return IDL_RETCODE_OK;
 }
 
 static char *absolute_path(const char *path)
@@ -164,7 +166,7 @@ err_cwd:
 }
 
 #if _WIN32
-static ssize_t normalize_segment(const char *path, char *segment)
+static idl_retcode_t normalize_segment(const char *path, char *segment)
 {
   WIN32_FIND_DATA find_data;
   HANDLE find;
@@ -172,21 +174,27 @@ static ssize_t normalize_segment(const char *path, char *segment)
 
   find = FindFirstFile(path, &find_data);
   if (find == INVALID_HANDLE_VALUE)
-    return -1;
+    return IDL_RETCODE_BAD_PARAMETER;
+
+  idl_retcode_t rc = IDL_RETCODE_BAD_PARAMETER;
   if (strlen(find_data.cFileName) == seglen)
+  {
     memcpy(segment, find_data.cFileName, seglen);
-  else
-    seglen = (size_t)-1;
+    rc = IDL_RETCODE_OK;
+  }
   FindClose(find);
-  return (ssize_t)seglen;
+  return rc;
 }
 #else
-static ssize_t normalize_segment(const char *path, char *segment)
+static idl_retcode_t normalize_segment(const char *path, char *segment)
 {
   /* FIXME: implement support for case correction on *NIX platforms */
   struct stat buf;
   (void)segment;
-  return stat(path, &buf);
+  if (stat(path, &buf) < 0)
+    return IDL_RETCODE_BAD_PARAMETER;
+  else
+    return IDL_RETCODE_OK;
 }
 #endif
 
@@ -194,13 +202,13 @@ idl_retcode_t idl_normalize_path(const char *path, char **normpathp)
 {
   idl_retcode_t ret;
   size_t abs;
-  ssize_t len;
+  size_t len;
   char *abspath = NULL, *normpath = NULL;
 
   if (!(abspath = absolute_path(path)))
     { ret = IDL_RETCODE_NO_MEMORY; goto err_abs; }
-  if ((len = idl_untaint_path(abspath)) < 0)
-    { ret = IDL_RETCODE_BAD_PARAMETER; goto err_norm; }
+  if ((ret = idl_untaint_path(abspath, &len)) != IDL_RETCODE_OK)
+    { goto err_norm; }
   if (!(normpath = idl_malloc((size_t)len + 1)))
     { ret = IDL_RETCODE_NO_MEMORY; goto err_norm; }
 
@@ -232,7 +240,7 @@ idl_retcode_t idl_normalize_path(const char *path, char **normpathp)
         normpath[pos++] = sep;
       memmove(normpath + pos, seg, seglen);
       normpath[pos + seglen] = '\0';
-      if (normalize_segment(normpath, normpath + pos) == -1)
+      if (normalize_segment(normpath, normpath + pos) != IDL_RETCODE_OK)
         { ret = IDL_RETCODE_NO_ENTRY; goto err_seg; }
       pos += seglen;
     }
@@ -361,7 +369,7 @@ idl_retcode_t idl_relative_path(const char *base, const char *path, char **relpa
     idl_free(rev);
   if (!rel)
     return IDL_RETCODE_NO_MEMORY;
-  idl_untaint_path(rel);
+  (void) idl_untaint_path(rel, NULL);
   *relpathp = rel;
   return IDL_RETCODE_OK;
 }
@@ -386,7 +394,7 @@ idl_retcode_t idl_mkpath(const char *path)
   if (!(full_path = absolute_path(path)))
     goto err_full_path;
 
-  if(idl_untaint_path(full_path) < 0)
+  if((ret = idl_untaint_path(full_path, NULL)) != IDL_RETCODE_OK)
     goto err_untaint;
 
   {

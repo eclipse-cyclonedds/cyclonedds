@@ -14,6 +14,9 @@
 #include <assert.h>
 #include <locale.h>
 #include <signal.h>
+#if !defined _WIN32 && !DDSRT_WITH_FREERTOS && !__ZEPHYR__
+#include <unistd.h>
+#endif
 
 #include "dds/dds.h"
 #include "dynsub.h"

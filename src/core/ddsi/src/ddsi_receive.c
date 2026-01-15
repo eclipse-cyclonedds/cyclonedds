@@ -3308,7 +3308,7 @@ void ddsi_handle_rtps_message (struct ddsi_thread_state * const thrst, struct dd
 }
 
 ddsrt_nonnull_all ddsrt_attribute_warn_unused_result
-static ssize_t read_packet_from_stream (struct ddsi_domaingv *gv, struct ddsi_tran_conn *conn, struct ddsi_rmsg *rmsg, size_t maxsz, struct ddsi_network_packet_info *pktinfo)
+static dds_return_t read_packet_from_stream (struct ddsi_domaingv *gv, struct ddsi_tran_conn *conn, struct ddsi_rmsg *rmsg, size_t maxsz, struct ddsi_network_packet_info *pktinfo, size_t *bytes_read)
 {
   // Streams are sequences of RTPS messages, where the first submessage of each message
   // must be a ADLINK_MSG_LEN with the "length" field the total RTPS message size.
@@ -3322,16 +3322,17 @@ static ssize_t read_packet_from_stream (struct ddsi_domaingv *gv, struct ddsi_tr
   const size_t ddsi_msg_len_size = 8;
   const size_t stream_hdr_size = DDSI_RTPS_MESSAGE_HEADER_SIZE + ddsi_msg_len_size;
   unsigned char * const buff = (unsigned char *) DDSI_RMSG_PAYLOAD (rmsg);
-  ssize_t sz;
+  size_t sz;
+  dds_return_t rc;
 
-  sz = ddsi_conn_read (conn, buff, stream_hdr_size, true, pktinfo);
-  if (sz == 0) // Spurious read can happen with SSL, at this point we're still good
-    return 0;
+  rc = ddsi_conn_read (conn, buff, stream_hdr_size, true, pktinfo, &sz);
+  if (rc != DDS_RETCODE_OK) // spurious reads if rc=TRY_AGAIN & sz=0
+    return rc;
 
   // Errors or incorrect size: signal failure so connection will be dropped
   // don't report: this is typically the path taken if the connection was dropped
-  if (sz < 0 || (size_t) sz != stream_hdr_size)
-    return -1;
+  if ((size_t) sz != stream_hdr_size)
+    return DDS_RETCODE_ERROR;
 
   // First submessage following header should be ADLINK_MSG_LEN. The RTPS message
   // header and this submessage's octets-to-next-header will checked by handle_rtps_message()
@@ -3345,15 +3346,16 @@ static ssize_t read_packet_from_stream (struct ddsi_domaingv *gv, struct ddsi_tr
   if (ml->length < stream_hdr_size || ml->length > maxsz)
     goto framing_error;
 
-  sz = ddsi_conn_read (conn, buff + stream_hdr_size, ml->length - stream_hdr_size, false, NULL);
-  if (sz != (ssize_t) (ml->length - stream_hdr_size))
-    return -1;
+  rc = ddsi_conn_read (conn, buff + stream_hdr_size, ml->length - stream_hdr_size, false, NULL, &sz);
+  if (rc != DDS_RETCODE_OK || sz != ml->length - stream_hdr_size)
+    return DDS_RETCODE_ERROR;
 
-  return (ssize_t) ml->length;
+  *bytes_read = ml->length;
+  return DDS_RETCODE_OK;
 
 framing_error:
   GVTRACE ("framing error, dropping connection\n");
-  return -1;
+  return DDS_RETCODE_ERROR;
 }
 
 static bool do_packet (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool)
@@ -3361,24 +3363,29 @@ static bool do_packet (struct ddsi_thread_state * const thrst, struct ddsi_domai
   /* UDP max packet size is 64kB, we always limit RTPS messages always to 64kB */
   const size_t maxsz = gv->config.rmsg_chunk_size < 65536 ? gv->config.rmsg_chunk_size : 65536;
   struct ddsi_network_packet_info pktinfo;
-  ssize_t sz;
+  size_t sz;
+  dds_return_t rc;
 
   struct ddsi_rmsg * const rmsg = ddsi_rmsg_new (rbpool);
   if (rmsg == NULL)
     return false;
 
   if (!conn->m_stream)
-    sz = ddsi_conn_read (conn, DDSI_RMSG_PAYLOAD (rmsg), maxsz, true, &pktinfo);
+    rc = ddsi_conn_read (conn, DDSI_RMSG_PAYLOAD (rmsg), maxsz, true, &pktinfo, &sz);
   else
-    sz = read_packet_from_stream (gv, conn, rmsg, maxsz, &pktinfo);
-
-  if (sz > 0 && !gv->deaf)
+    rc = read_packet_from_stream (gv, conn, rmsg, maxsz, &pktinfo, &sz);
+  if (rc == DDS_RETCODE_TRY_AGAIN)
+  {
+    rc = DDS_RETCODE_OK;
+    sz = 0;
+  }
+  if (rc == DDS_RETCODE_OK && sz > 0 && !gv->deaf)
   {
     ddsi_rmsg_setsize (rmsg, (uint32_t) sz);
-    handle_rtps_message (thrst, gv, conn, guidprefix, rbpool, rmsg, (size_t) sz, &pktinfo);
+    handle_rtps_message (thrst, gv, conn, guidprefix, rbpool, rmsg, sz, &pktinfo);
   }
   ddsi_rmsg_commit (rmsg);
-  return (sz > 0);
+  return (rc == DDS_RETCODE_OK && sz > 0);
 }
 
 struct local_participant_desc
@@ -3554,7 +3561,7 @@ void ddsi_trigger_recv_threads (const struct ddsi_domaingv *gv)
         DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR(msgfrags, ((ddsrt_iovec_t){ .iov_base = &dummy, .iov_len = 1 }));
         GVTRACE ("ddsi_trigger_recv_threads: %"PRIu32" single %s\n", i, ddsi_locator_to_string (buf, sizeof (buf), dst));
         // all sockets listen on at least the interfaces used for transmitting (at least for now)
-        ddsi_conn_write (gv->xmit_conns[0], dst, msgfrags, 0);
+        ddsi_conn_write (gv->xmit_conns[0], dst, msgfrags, 0, NULL);
         break;
       }
       case DDSI_RTM_MANY: {

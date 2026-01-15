@@ -179,7 +179,7 @@ static void do_inject (dds_entity_t rd, dds_entity_t wr, void *varg)
   DDSI_DECL_TRAN_WRITE_MSGFRAGS_PTR(mf, 1);
   mf->niov = 1;
   mf->iov[0] = arg->data;
-  ddsi_conn_write (xloc.conn, &xloc.c, mf, 0);
+  ddsi_conn_write (xloc.conn, &xloc.c, mf, 0, NULL);
 
   // logger should
   dds_domainid_t rd_domain_id;

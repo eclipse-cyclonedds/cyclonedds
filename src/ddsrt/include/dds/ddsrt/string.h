@@ -11,9 +11,9 @@
 #ifndef DDSRT_STRING_H
 #define DDSRT_STRING_H
 
+#include <stddef.h>
 #include "dds/export.h"
 #include "dds/ddsrt/attributes.h"
-#include "dds/ddsrt/retcode.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -195,7 +195,7 @@ ddsrt_nonnull_all;
  *
  * @param[in] str  pointer to string.
  *
- * @returns Pointer to original trimed string 
+ * @returns Pointer to original trimed string
  *          without leading and trailing ordinary space character
  */
 DDS_EXPORT char *

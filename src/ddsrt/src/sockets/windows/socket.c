@@ -522,13 +522,14 @@ ddsrt_recv(
   void *buf,
   size_t len,
   int flags,
-  ssize_t *rcvd)
+  size_t *rcvd)
 {
-  ssize_t n;
+  size_t n;
 
   assert(len < INT_MAX);
 
   if ((n = recv(sock, (char *)buf, (int)len, flags)) != SOCKET_ERROR) {
+    assert (n >= 0);
     *rcvd = n;
     return DDS_RETCODE_OK;
   }
@@ -550,7 +551,7 @@ ddsrt_recvmsg_wsarecvmsg(
   const ddsrt_socket_ext_t *sockext,
   ddsrt_msghdr_t *msg,
   int flags,
-  ssize_t *rcvd)
+  size_t *rcvd)
 {
   WSAMSG wsamsg = {
     .name = (LPSOCKADDR) msg->msg_name,
@@ -570,7 +571,7 @@ ddsrt_recvmsg_wsarecvmsg(
     // WSAEMSGSIZE is not an error for us: we look at (msg_flags & MSG_TRUNC)
     msg->msg_flags = wsamsg.dwFlags;
     msg->msg_controllen = wsamsg.Control.len;
-    *rcvd = (ssize_t) n;
+    *rcvd = n;
     return DDS_RETCODE_OK;
   }
   else
@@ -584,7 +585,7 @@ ddsrt_recvmsg_recvfrom(
   const ddsrt_socket_ext_t *sockext,
   ddsrt_msghdr_t *msg,
   int flags,
-  ssize_t *rcvd)
+  size_t *rcvd)
 {
   assert(msg->msg_iovlen == 1);
   assert(msg->msg_iov[0].iov_len < INT_MAX);
@@ -616,7 +617,7 @@ ddsrt_recvmsg(
   const ddsrt_socket_ext_t *sockext,
   ddsrt_msghdr_t *msg,
   int flags,
-  ssize_t *rcvd)
+  size_t *rcvd)
 {
   assert(msg != NULL);
   if (sockext->wsarecvmsg)
@@ -677,7 +678,7 @@ ddsrt_send(
   const void *buf,
   size_t len,
   int flags,
-  ssize_t *sent)
+  size_t *sent)
 {
   int n;
 
@@ -686,7 +687,9 @@ ddsrt_send(
   assert(sent != NULL);
 
   if ((n = send(sock, buf, (int)len, flags)) != SOCKET_ERROR) {
-    *sent = n;
+    assert (n >= 0);
+    if (sent)
+      *sent = n;
     return DDS_RETCODE_OK;
   }
 
@@ -698,7 +701,7 @@ ddsrt_sendmsg(
   ddsrt_socket_t sock,
   const ddsrt_msghdr_t *msg,
   int flags,
-  ssize_t *sent)
+  size_t *sent)
 {
   int ret;
   DWORD n;
@@ -719,7 +722,7 @@ ddsrt_sendmsg(
         NULL,
         NULL);
   if (ret != SOCKET_ERROR) {
-    *sent = (ssize_t)n;
+    *sent = n;
     return DDS_RETCODE_OK;
   }
 

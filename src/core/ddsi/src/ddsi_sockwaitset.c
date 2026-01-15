@@ -522,8 +522,7 @@ int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, struct dds
     {
       /* trigger pipe, read & try again */
       char dummy;
-      ssize_t ret = read (entry->fd, &dummy, 1);
-      if (ret < 0)
+      if (read (entry->fd, &dummy, 1) < 0)
         abort ();
     }
   }
