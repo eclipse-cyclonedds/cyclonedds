@@ -19,17 +19,17 @@ variables:
 
 jobs:
 - job: build_and_test
-  displayName: Build and test Cyclone
+  displayName: 'B&T'
   pool:
     vmImage: $(image)
   strategy:
     matrix:
-      'Ubuntu 22.04 (Release, x86_64)':
+      'Ub 22.04 (Rel, x86_64)':
         image: ubuntu-22.04
         build_type: Release
         sanitizer: undefined
         cc: gcc
-      'Ubuntu 24.04 (Debug, x86_64, Iceoryx)':
+      'Ub 24.04 (Deb, x86_64, Iceoryx)':
         image: ubuntu-24.04
         # No address sanitizer because of this in test run:
         #  Shadow memory range interleaves with an existing memory mapping.
@@ -40,7 +40,7 @@ jobs:
         iceoryx: on
         cc: gcc
         coverage: on
-      'Ubuntu 24.04 (Debug, x86_64, Iceoryx2)':
+      'Ub 24.04 (Deb, x86_64, Iceoryx2)':
         image: ubuntu-24.04
         # No address sanitizer because of this in test run:
         #  Shadow memory range interleaves with an existing memory mapping.
@@ -51,13 +51,13 @@ jobs:
         iceoryx2: on
         cc: gcc
         coverage: on
-      'Ubuntu 24.04 (Release, x86_64)':
+      'Ub 24.04 (Rel, x86_64)':
         image: ubuntu-24.04
         build_type: Release
         sanitizer: undefined
         cc: gcc-14
         cxx: g++-14
-      'Ubuntu 24.04 with GCC 12 (Debug, x86_64, security only)':
+      'Ub 24.04 + GCC 12 (Deb, x86_64, security only)':
         image: ubuntu-24.04
         sanitizer: address,undefined
         ssl: off
@@ -67,62 +67,62 @@ jobs:
         topic_discovery: off
         idlc_xtests: off # temporary disabled because of passing -t option to idlc in this test for recursive types
         cc: gcc-12
-      'Ubuntu 24.04 with GCC 12 (Debug, x86_64, no tests)':
+      'Ub 24.04 + GCC 12 (Deb, x86_64, no tests)':
         image: ubuntu-24.04
         cc: gcc-12
         testing: off
         idlc_xtests: off
-      'Ubuntu 24.04 with Clang (Debug, x86_64)':
+      'Ub 24.04 + Clang (Deb, x86_64)':
         image: ubuntu-24.04
         analyzer: on
         sanitizer: address,undefined
         cc: clang
-      'Ubuntu 24.04 with Clang (Debug, x86_64, no security)':
+      'Ub 24.04 + Clang (Deb, x86_64, no security)':
         image: ubuntu-24.04
         sanitizer: address,undefined
         security: off
         cc: clang
-      'Ubuntu 24.04 with Clang (Release, x86_64, no topic discovery)':
+      'Ub 24.04 + Clang (Rel, x86_64, no topic discovery)':
         image: ubuntu-24.04
         build_type: Release
         sanitizer: undefined
         topic_discovery: off
         idlc_xtests: off # temporary disabled because of passing -t option to idlc in this test for recursive types
         cc: clang
-      'macOS 14 with Clang (Debug, x86_64)':
+      'macOS 14 + Clang (Deb, x86_64)':
         image: macos-14
         sanitizer: address,undefined
         deadline_update_skip: on
         cc: clang
         coverage: on
-      'macOS 14 with Clang (Release, x86_64)':
+      'macOS 14 + Clang (Rel, x86_64)':
         image: macos-14
         build_type: Release
         sanitizer: undefined
         cc: clang
-      'macOS 14 with GCC 14 (Debug, analyzer, x86_64)':
+      'macOS 14 + GCC 14 (Deb, analyzer, x86_64)':
         image: macos-14
         cc: gcc-14
         analyzer: on
       # 32-bit Windows: without SSL/security because Chocolateley only provides 64-bit OpenSSL
-      'Windows 2025 with Visual Studio 2022 (Debug, x86, no security)':
+      'Win 2025 + VS 2022 (Deb, x86, no security)':
         arch: x86
         image: windows-2025
         ssl: off
         security: off
         idlc_xtests: off
         generator: 'Visual Studio 17 2022'
-      'Windows 2025 with Visual Studio 2022 (Debug, x86_64)':
+      'Win 2025 + VS 2022 (Deb, x86_64)':
         image: windows-2025
         idlc_xtests: off
         generator: 'Visual Studio 17 2022'
-      'Windows 2025 with Visual Studio 2022 (Release, x86_64, no tests)':
+      'Win 2025 + VS 2022 (Rel, x86_64, no tests)':
         image: windows-2025
         build_type: Release
         testing: off
         idlc_xtests: off
         generator: 'Visual Studio 17 2022'
-      'Windows 2022 with Visual Studio 2022 (RelWithDebInfo, x86_64)':
+      'Win 2022 + VS 2022 (RelWithDebInfo, x86_64)':
         image: windows-2022
         build_type: RelWithDebInfo
         idlc_xtests: off
@@ -134,7 +134,7 @@ jobs:
       #  generator: 'MinGW Makefiles'
       #  cc: 'C:/msys64/mingw64/bin/gcc.exe'
       #  cxx: 'C:/msys64/mingw64/bin/g++.exe'
-      'Ubuntu 24.04 with default GCC (Release, Iceoryx, Static, x86_64)':
+      'Ub 24.04 Static (Rel, Iceoryx, x86_64)':
         image: ubuntu-24.04
         idlc_xtests: off
         build_type: Release
