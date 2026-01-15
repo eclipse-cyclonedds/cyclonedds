@@ -2135,7 +2135,7 @@ CU_Test (ddsc_cdrstream, check_string_invalid)
     { D(t2, true, {'a','b'}, "cd", 3), 0,NULL, CDR(32,3) },
     { D(t3, true, { "a", {'c','d'} }, 5), 0,NULL, CDR(32,5) },
     { D(t4, true, CSEQ0, STRSB({'c','d'}), 7), 0,NULL, CDR(32,7) },
-    { D(t5, true, { 2, { .ws1 = "ab" } }, 11), 0,NULL, CDR(32,11) },
+    { D(t5, true, { 2, { .ws1 = {'a','b'} } }, 11), 0,NULL, CDR(32,11) },
     { D(t5, true, { 4, { .ws1bs = STRSB({'c','d'}) } }, 13), 0,NULL, CDR(32,13) },
     { D(t5, true, { 5, { .ws1a = { "a", {'c','d'} } } }, 17), 0,NULL, CDR(32,17) },
     { D(t5, true, { 6, { .ws1abs = { CSEQ0, STRSB({'c','d'}) } } }, 19), 0,NULL, CDR(32,19) },
