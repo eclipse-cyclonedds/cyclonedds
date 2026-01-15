@@ -782,12 +782,12 @@ int main(int argc, char *argv[])
       if(config.output_dir) {
         if(!(generator_config.output_dir = idl_strdup(config.output_dir)))
           goto err_generate;
-        if(idl_untaint_path(generator_config.output_dir) < 0)
+        if(idl_untaint_path(generator_config.output_dir, NULL) != IDL_RETCODE_OK)
           goto err_generate;
       }
       // Root dir must be normalized because relativity comparison will be done
       if(config.base_dir) {
-        if(idl_normalize_path(config.base_dir, &generator_config.base_dir) < 0)
+        if(idl_normalize_path(config.base_dir, &generator_config.base_dir) != IDL_RETCODE_OK)
           goto err_generate;
       }
 #ifdef DDS_HAS_TYPELIB

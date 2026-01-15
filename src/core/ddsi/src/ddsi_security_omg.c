@@ -3780,7 +3780,7 @@ ddsi_security_decode_rtps_message (
   return ret;
 }
 
-ssize_t
+dds_return_t
 ddsi_security_secure_conn_write(
     const struct ddsi_domaingv *gv,
     struct ddsi_tran_conn * conn,
@@ -3790,7 +3790,8 @@ ddsi_security_secure_conn_write(
     ddsi_rtps_msg_len_t *msg_len,
     bool dst_one,
     ddsi_msg_sec_info_t *sec_info,
-    ddsi_tran_write_fn_t conn_write_cb)
+    ddsi_tran_write_fn_t conn_write_cb,
+    size_t *bytes_written)
 {
   ddsi_rtps_header_t *hdr;
   ddsi_guid_t guid;
@@ -3845,10 +3846,8 @@ ddsi_security_secure_conn_write(
     }
   }
 
-  ssize_t ret = -1;
-  if (!ddsi_omg_security_encode_rtps_message (gv, sec_info->src_pp_handle, &guid, srcbuf, srclen, &dstbuf, &dstlen, dst_handle))
-    ret = -1;
-  else
+  dds_return_t ret = DDS_RETCODE_ERROR;
+  if (ddsi_omg_security_encode_rtps_message (gv, sec_info->src_pp_handle, &guid, srcbuf, srclen, &dstbuf, &dstlen, dst_handle))
   {
     if (conn->m_stream)
     {
@@ -3860,7 +3859,7 @@ ddsi_security_secure_conn_write(
         ((ddsrt_iovec_t){ .iov_base = (void *) msg_len, .iov_len = sizeof (*msg_len) }),
         ((ddsrt_iovec_t){ .iov_base = dstbuf + DDSI_RTPS_MESSAGE_HEADER_SIZE,
           .iov_len = (ddsrt_iov_len_t) (dstlen - DDSI_RTPS_MESSAGE_HEADER_SIZE) }));
-      ret = conn_write_cb (conn, dst, msgfrags, flags);
+      ret = conn_write_cb (conn, dst, msgfrags, flags, bytes_written);
     }
     else
     {
@@ -3868,7 +3867,7 @@ ddsi_security_secure_conn_write(
       msg_len->length = (uint32_t) dstlen;
       DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR(msgfrags,
         ((ddsrt_iovec_t){ .iov_base = dstbuf, .iov_len = (ddsrt_iov_len_t) dstlen }));
-      ret = conn_write_cb (conn, dst, msgfrags, flags);
+      ret = conn_write_cb (conn, dst, msgfrags, flags, bytes_written);
     }
     ddsrt_free (dstbuf);
   }

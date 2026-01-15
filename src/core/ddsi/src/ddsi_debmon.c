@@ -74,7 +74,7 @@ static void cpemitchunk(struct st *st, ddsi_locator_t loc)
 
   DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR (msgfrags,
     ((ddsrt_iovec_t){ .iov_base = st->chunkbuf, .iov_len = (ddsrt_iov_len_t) ((st->pos > 8) ? st->pos : 10) }));
-  if (ddsi_conn_write (st->conn, &loc, msgfrags, 0) < 0)
+  if (ddsi_conn_write (st->conn, &loc, msgfrags, 0, NULL) != DDS_RETCODE_OK)
     st->error = true;
   st->pos = 8;
 }
@@ -642,7 +642,7 @@ static void debmon_handle_connection (struct ddsi_debug_monitor *dm, struct ddsi
     .iov_base = (void *) http_header,
     .iov_len = (ddsrt_iov_len_t) strlen (http_header)
   }));
-  if (ddsi_conn_write (st.conn, &loc, msgfrags, 0) < 0) {
+  if (ddsi_conn_write (st.conn, &loc, msgfrags, 0, NULL) != DDS_RETCODE_OK) {
     // If we cant even send headers dont bother with encoding the rest
     return;
   }
@@ -695,7 +695,7 @@ static uint32_t debmon_main (void *vdm)
       ddsrt_shutdown (sock, DDSRT_SHUTDOWN_WRITE);
       char buffer[100];
       dds_return_t ret;
-      ssize_t bytes_read;
+      size_t bytes_read;
       do {
         fd_set fds;
         FD_ZERO (&fds);

@@ -210,7 +210,7 @@ CU_Test(ddsrt_select, timeout)
   dds_sleepfor(arg.delay * 2);
   /* Send data to the read socket to avoid blocking indefinitely. */
   fprintf (stderr, "write data\n");
-  ssize_t sent = 0;
+  size_t sent = 0;
   rc = ddsrt_send(socks[1], mesg, sizeof(mesg), 0, &sent);
   CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
   fprintf (stderr, "join thread\n");
@@ -228,7 +228,7 @@ static uint32_t recv_routine(void *ptr)
   thread_arg_t *arg = (thread_arg_t*)ptr;
 
   fd_set rdset;
-  ssize_t rcvd = -1;
+  size_t rcvd;
   char buf[sizeof(mesg)];
 
   FD_ZERO(&rdset);
@@ -268,7 +268,7 @@ CU_Test(ddsrt_select, send_recv)
   rc = ddsrt_thread_create(&thr, "recv", &attr, &recv_routine, &arg);
   CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
 
-  ssize_t sent = 0;
+  size_t sent = 0;
   rc = ddsrt_send(socks[1], mesg, sizeof(mesg), 0, &sent);
   CU_ASSERT_EQ (rc, DDS_RETCODE_OK);
   CU_ASSERT_EQ (sent, sizeof(mesg));
@@ -287,7 +287,7 @@ static uint32_t recvmsg_routine(void *ptr)
   thread_arg_t *arg = (thread_arg_t*)ptr;
 
   fd_set rdset;
-  ssize_t rcvd = -1;
+  size_t rcvd;
   char buf[sizeof(mesg)];
   ddsrt_msghdr_t msg;
   ddsrt_iovec_t iov;
@@ -334,7 +334,7 @@ CU_Test(ddsrt_select, sendmsg_recvmsg)
   rc = ddsrt_thread_create(&thr, "recvmsg", &attr, &recvmsg_routine, &arg);
   CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
 
-  ssize_t sent = 0;
+  size_t sent = 0;
   ddsrt_msghdr_t msg;
   ddsrt_iovec_t iov;
   memset(&msg, 0, sizeof(msg));

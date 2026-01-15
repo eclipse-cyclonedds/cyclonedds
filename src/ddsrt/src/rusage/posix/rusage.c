@@ -20,6 +20,7 @@
 #if defined __linux
 #include <stdio.h>
 #include <dirent.h>
+#include <unistd.h>
 
 dds_return_t
 ddsrt_getrusage_anythread (
@@ -268,7 +269,7 @@ ddsrt_getrusage (enum ddsrt_getrusage_who who, ddsrt_rusage_t *usage)
     }
     memset(&info, 0, sizeof(info));
     if (devctl(fd, DCMD_PROC_INFO, &info, sizeof(info), 0) != EOK) {
-      DDS_ERROR("devctl() failed for DCMD_PROC_INFO on pid %d: %s\n", 
+      DDS_ERROR("devctl() failed for DCMD_PROC_INFO on pid %d: %s\n",
         getpid(), strerror(errno));
       close(fd);
       return DDS_RETCODE_ERROR;

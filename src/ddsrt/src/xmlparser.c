@@ -18,6 +18,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/xmlparser.h"
 
 #define TOK_EOF -1

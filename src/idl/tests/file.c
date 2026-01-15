@@ -129,18 +129,19 @@ CU_Test(idl_file, untaint)
 
   for (size_t i=0; i < n; i++) {
     char *str;
-    ssize_t len;
+    size_t len;
+    idl_retcode_t rc;
 
     str = idl_strdup(tests[i].input);
     CU_ASSERT_NEQ_FATAL (str, NULL);
     fprintf(stderr, "input: '%s'\n", str);
-    len = idl_untaint_path(str);
+    rc = idl_untaint_path(str, &len);
     if (tests[i].length == -1) {
-      CU_ASSERT_EQ (len, -1);
+      CU_ASSERT_EQ (rc, IDL_RETCODE_BAD_PARAMETER);
     } else {
-      CU_ASSERT_EQ (len, (ssize_t)strlen(tests[i].output));
+      CU_ASSERT_EQ (len, strlen(tests[i].output));
     }
-    if (len >= 0) {
+    if (rc == IDL_RETCODE_OK) {
       fprintf(stderr, "output: '%s'\n", str);
       CU_ASSERT_STREQ (str, tests[i].output);
     }

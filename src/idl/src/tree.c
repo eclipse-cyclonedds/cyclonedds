@@ -19,7 +19,6 @@
 #include "idl/string.h"
 
 #include "expression.h"
-#include "file.h" /* for ssize_t on Windows */
 #include "tree.h"
 #include "scope.h"
 #include "symbol.h"
@@ -3476,14 +3475,14 @@ idl_finalize_annotation(
     const idl_name_t *name;
     const idl_declaration_t *decl;
     idl_definition_t *d;
-    ssize_t n;
+    int32_t n;
 
     decl = idl_find(pstate, NULL, node->name, IDL_FIND_ANNOTATION);
     /* earlier declaration must exist given the current state */
     assert(decl);
     assert(decl->node && decl->node != (void *)node);
     assert(decl->scope && decl->scope == scope);
-    n = (ssize_t)idl_degree(((const idl_annotation_t *)decl->node)->definitions);
+    n = (int32_t) idl_degree(((const idl_annotation_t *)decl->node)->definitions);
     for (d = definitions; n >= 0 && d; d = idl_next(d), n--) {
       if (idl_is_typedef(d))
         name = idl_name(((idl_typedef_t *)d)->declarators);
