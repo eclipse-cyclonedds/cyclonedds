@@ -384,25 +384,24 @@ enum dds_stream_typecode {
 /**
  * @ingroup serialization
  * @brief primary type code for DDS_OP_ADR, DDS_OP_JEQ
- * Convinience pre-bitshifted values.
+ * Convenience pre-bitshifted values, defined as macros to allow
+ * bitwise OR with dds_stream_opcode without enum type mixing warnings.
  */
-enum dds_stream_typecode_primary {
-  DDS_OP_TYPE_1BY = DDS_OP_VAL_1BY << 16, /**< one byte simple type (char, octet) */
-  DDS_OP_TYPE_2BY = DDS_OP_VAL_2BY << 16, /**< two byte simple type ((unsigned) short) */
-  DDS_OP_TYPE_4BY = DDS_OP_VAL_4BY << 16, /**< four byte simple type ((unsigned) long, float) */
-  DDS_OP_TYPE_8BY = DDS_OP_VAL_8BY << 16, /**< eight byte simple type ((unsigned) long long, double) */
-  DDS_OP_TYPE_STR = DDS_OP_VAL_STR << 16, /**< string */
-  DDS_OP_TYPE_BST = DDS_OP_VAL_BST << 16, /**< bounded string */
-  DDS_OP_TYPE_SEQ = DDS_OP_VAL_SEQ << 16, /**< sequence */
-  DDS_OP_TYPE_ARR = DDS_OP_VAL_ARR << 16, /**< array */
-  DDS_OP_TYPE_UNI = DDS_OP_VAL_UNI << 16, /**< union */
-  DDS_OP_TYPE_STU = DDS_OP_VAL_STU << 16, /**< struct */
-  DDS_OP_TYPE_BSQ = DDS_OP_VAL_BSQ << 16, /**< bounded sequence */
-  DDS_OP_TYPE_ENU = DDS_OP_VAL_ENU << 16, /**< enumerated value (long) */
-  DDS_OP_TYPE_EXT = DDS_OP_VAL_EXT << 16, /**< field with external definition */
-  DDS_OP_TYPE_BLN = DDS_OP_VAL_BLN << 16, /**< boolean */
-  DDS_OP_TYPE_BMK = DDS_OP_VAL_BMK << 16  /**< bitmask */
-};
+#define DDS_OP_TYPE_1BY (DDS_OP_VAL_1BY << 16) /**< one byte simple type (char, octet) */
+#define DDS_OP_TYPE_2BY (DDS_OP_VAL_2BY << 16) /**< two byte simple type ((unsigned) short) */
+#define DDS_OP_TYPE_4BY (DDS_OP_VAL_4BY << 16) /**< four byte simple type ((unsigned) long, float) */
+#define DDS_OP_TYPE_8BY (DDS_OP_VAL_8BY << 16) /**< eight byte simple type ((unsigned) long long, double) */
+#define DDS_OP_TYPE_STR (DDS_OP_VAL_STR << 16) /**< string */
+#define DDS_OP_TYPE_BST (DDS_OP_VAL_BST << 16) /**< bounded string */
+#define DDS_OP_TYPE_SEQ (DDS_OP_VAL_SEQ << 16) /**< sequence */
+#define DDS_OP_TYPE_ARR (DDS_OP_VAL_ARR << 16) /**< array */
+#define DDS_OP_TYPE_UNI (DDS_OP_VAL_UNI << 16) /**< union */
+#define DDS_OP_TYPE_STU (DDS_OP_VAL_STU << 16) /**< struct */
+#define DDS_OP_TYPE_BSQ (DDS_OP_VAL_BSQ << 16) /**< bounded sequence */
+#define DDS_OP_TYPE_ENU (DDS_OP_VAL_ENU << 16) /**< enumerated value (long) */
+#define DDS_OP_TYPE_EXT (DDS_OP_VAL_EXT << 16) /**< field with external definition */
+#define DDS_OP_TYPE_BLN (DDS_OP_VAL_BLN << 16) /**< boolean */
+#define DDS_OP_TYPE_BMK (DDS_OP_VAL_BMK << 16) /**< bitmask */
 
 /**
  * @anchor DDS_OP_FLAG_EXT
@@ -422,24 +421,23 @@ enum dds_stream_typecode_primary {
  * @brief sub-type code
  *  - encodes element type for DDS_OP_TYPE_{SEQ,ARR},
  *  - discriminant type for DDS_OP_TYPE_UNI
- * Convinience pre-bitshifted values.
+ * Convenience pre-bitshifted values, defined as macros to allow
+ * bitwise OR with dds_stream_opcode without enum type mixing warnings.
  */
-enum dds_stream_typecode_subtype {
-  DDS_OP_SUBTYPE_1BY = DDS_OP_VAL_1BY << 8, /**< one byte simple type (char, octet) */
-  DDS_OP_SUBTYPE_2BY = DDS_OP_VAL_2BY << 8, /**< two byte simple type ((unsigned) short) */
-  DDS_OP_SUBTYPE_4BY = DDS_OP_VAL_4BY << 8, /**< four byte simple type ((unsigned) long, float) */
-  DDS_OP_SUBTYPE_8BY = DDS_OP_VAL_8BY << 8, /**< eight byte simple type ((unsigned) long long, double) */
-  DDS_OP_SUBTYPE_STR = DDS_OP_VAL_STR << 8, /**< string */
-  DDS_OP_SUBTYPE_BST = DDS_OP_VAL_BST << 8, /**< bounded string */
-  DDS_OP_SUBTYPE_SEQ = DDS_OP_VAL_SEQ << 8, /**< sequence */
-  DDS_OP_SUBTYPE_ARR = DDS_OP_VAL_ARR << 8, /**< array */
-  DDS_OP_SUBTYPE_UNI = DDS_OP_VAL_UNI << 8, /**< union */
-  DDS_OP_SUBTYPE_STU = DDS_OP_VAL_STU << 8, /**< struct */
-  DDS_OP_SUBTYPE_BSQ = DDS_OP_VAL_BSQ << 8, /**< bounded sequence */
-  DDS_OP_SUBTYPE_ENU = DDS_OP_VAL_ENU << 8, /**< enumerated value (long) */
-  DDS_OP_SUBTYPE_BLN = DDS_OP_VAL_BLN << 8, /**< boolean */
-  DDS_OP_SUBTYPE_BMK = DDS_OP_VAL_BMK << 8  /**< bitmask */
-};
+#define DDS_OP_SUBTYPE_1BY (DDS_OP_VAL_1BY << 8) /**< one byte simple type (char, octet) */
+#define DDS_OP_SUBTYPE_2BY (DDS_OP_VAL_2BY << 8) /**< two byte simple type ((unsigned) short) */
+#define DDS_OP_SUBTYPE_4BY (DDS_OP_VAL_4BY << 8) /**< four byte simple type ((unsigned) long, float) */
+#define DDS_OP_SUBTYPE_8BY (DDS_OP_VAL_8BY << 8) /**< eight byte simple type ((unsigned) long long, double) */
+#define DDS_OP_SUBTYPE_STR (DDS_OP_VAL_STR << 8) /**< string */
+#define DDS_OP_SUBTYPE_BST (DDS_OP_VAL_BST << 8) /**< bounded string */
+#define DDS_OP_SUBTYPE_SEQ (DDS_OP_VAL_SEQ << 8) /**< sequence */
+#define DDS_OP_SUBTYPE_ARR (DDS_OP_VAL_ARR << 8) /**< array */
+#define DDS_OP_SUBTYPE_UNI (DDS_OP_VAL_UNI << 8) /**< union */
+#define DDS_OP_SUBTYPE_STU (DDS_OP_VAL_STU << 8) /**< struct */
+#define DDS_OP_SUBTYPE_BSQ (DDS_OP_VAL_BSQ << 8) /**< bounded sequence */
+#define DDS_OP_SUBTYPE_ENU (DDS_OP_VAL_ENU << 8) /**< enumerated value (long) */
+#define DDS_OP_SUBTYPE_BLN (DDS_OP_VAL_BLN << 8) /**< boolean */
+#define DDS_OP_SUBTYPE_BMK (DDS_OP_VAL_BMK << 8) /**< bitmask */
 
 /**
  * @anchor DDS_OP_FLAG_KEY

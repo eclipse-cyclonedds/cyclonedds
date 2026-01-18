@@ -65,30 +65,25 @@ typedef idl_retcode_t(*idl_visitor_callback_t)(
    instruct the visitor to recurse, iterate and/or revisit by signalling the
    inverse */
 
-typedef enum idl_visit_recurse idl_visit_recurse_t;
-enum idl_visit_recurse {
-  IDL_VISIT_RECURSE_BY_DEFAULT = 0,
-  IDL_VISIT_RECURSE = (1<<0), /**< Recurse into subtree(s) */
-  IDL_VISIT_DONT_RECURSE = (1<<1) /**< Do not recurse into subtree(s) */
-};
+/* Visit flags defined as macros to allow bitwise OR without enum type mixing warnings */
+typedef int idl_visit_recurse_t;
+#define IDL_VISIT_RECURSE_BY_DEFAULT (0)
+#define IDL_VISIT_RECURSE (1<<0) /**< Recurse into subtree(s) */
+#define IDL_VISIT_DONT_RECURSE (1<<1) /**< Do not recurse into subtree(s) */
 
 /* FIXME: it now applies to the next level. instead, it should apply to the
         current level. in which case IDL_VISIT_ITERATE instructs the
         visitor to continue, IDL_VISIT_DONT_ITERATE does the inverse!
 */
-typedef enum idl_visit_iterate idl_visit_iterate_t;
-enum idl_visit_iterate {
-  IDL_VISIT_ITERATE_BY_DEFAULT = 0,
-  IDL_VISIT_ITERATE = (1<<2), /**< Iterate over subtree(s) */
-  IDL_VISIT_DONT_ITERATE = (1<<3) /**< Do not iterate over subtree(s) */
-};
+typedef int idl_visit_iterate_t;
+#define IDL_VISIT_ITERATE_BY_DEFAULT (0)
+#define IDL_VISIT_ITERATE (1<<2) /**< Iterate over subtree(s) */
+#define IDL_VISIT_DONT_ITERATE (1<<3) /**< Do not iterate over subtree(s) */
 
-typedef enum idl_visit_revisit idl_visit_revisit_t;
-enum idl_visit_revisit {
-  IDL_VISIT_DONT_REVISIT_BY_DEFAULT = 0,
-  IDL_VISIT_REVISIT = (1<<4), /**< Revisit node(s) on exit */
-  IDL_VISIT_DONT_REVISIT = (1<<5) /**< Do not revisit node(s) on exit */
-};
+typedef int idl_visit_revisit_t;
+#define IDL_VISIT_DONT_REVISIT_BY_DEFAULT (0)
+#define IDL_VISIT_REVISIT (1<<4) /**< Revisit node(s) on exit */
+#define IDL_VISIT_DONT_REVISIT (1<<5) /**< Do not revisit node(s) on exit */
 
 /** Visit associated type specifier (callback signal) */
 #define IDL_VISIT_TYPE_SPEC (1<<6)
