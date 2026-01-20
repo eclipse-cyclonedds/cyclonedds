@@ -67,6 +67,7 @@ static void do_tcp (void (*action) (dds_entity_t rd, dds_entity_t wr, void *arg)
   const dds_entity_t doms = dds_create_domain (0, configs);
   ddsrt_free (configs);
 
+#ifdef DDS_HAS_TCP
   CU_ASSERT_GT_FATAL (doms, 0);
   struct ddsi_domaingv * const gvs = get_domaingv (doms);
   CU_ASSERT_NEQ_FATAL (gvs, NULL);
@@ -106,6 +107,11 @@ static void do_tcp (void (*action) (dds_entity_t rd, dds_entity_t wr, void *arg)
   CU_ASSERT_EQ_FATAL (rc, 0);
   rc = dds_delete (doms);
   CU_ASSERT_EQ_FATAL (rc, 0);
+#else // DDS_HAS_TCP
+  (void) action;
+  (void) arg;
+  CU_ASSERT_LT_FATAL (doms, 0);
+#endif // DDS_HAS_TCP
 
   dds_set_log_sink (scan_for_framing_error, NULL);
   dds_set_trace_sink (scan_for_framing_error, NULL);
