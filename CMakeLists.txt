@@ -171,6 +171,7 @@ endif()
 
 # I don't know how to enable warnings properly so that they are enabled in Xcode projects as well
 if(${CMAKE_GENERATOR} STREQUAL "Xcode")
+  set (CMAKE_XCODE_GENERATE_SCHEME YES)
   set (CMAKE_XCODE_ATTRIBUTE_CLANG_WARN_EMPTY_BODY YES)
   set (CMAKE_XCODE_ATTRIBUTE_GCC_WARN_SHADOW YES)
   set (CMAKE_XCODE_ATTRIBUTE_CLANG_WARN_BOOL_CONVERSION YES)
