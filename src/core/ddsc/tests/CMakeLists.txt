@@ -90,7 +90,6 @@ set(ddsc_test_sources
     "spdp.c"
     "subscriber.c"
     "take_instance.c"
-    "tcp.c"
     "time.c"
     "time_based_filter.c"
     "topic.c"
@@ -152,6 +151,11 @@ endif()
 if(ENABLE_QOS_PROVIDER)
   list(APPEND ddsc_test_sources
     "qos_provider.c")
+endif()
+
+if(ENABLE_TCP)
+  list(APPEND ddsc_test_sources
+    "tcp.c")
 endif()
 
 add_cunit_executable(cunit_ddsc ${ddsc_test_sources})
