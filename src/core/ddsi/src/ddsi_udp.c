@@ -151,7 +151,7 @@ static void translate_pktinfo (struct ddsi_network_packet_info *pktinfo, ddsrt_m
   pktinfo->if_index = 0;
 }
 
-static ssize_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned char * buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo)
+static ddsrt_ssize_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned char * buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   struct ddsi_domaingv * const gv = conn->m_base.m_base.gv;
@@ -187,7 +187,7 @@ static ssize_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned ch
   (void) allow_spurious;
 
   dds_return_t rc;
-  ssize_t nrecv;
+  ddsrt_ssize_t nrecv;
   do {
     rc = ddsrt_recvmsg (&conn->m_sockext, &msghdr, 0, &nrecv);
   } while (rc == DDS_RETCODE_INTERRUPTED);
@@ -234,12 +234,12 @@ static ssize_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned ch
   return nrecv;
 }
 
-static ssize_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags)
+static ddsrt_ssize_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   struct ddsi_domaingv * const gv = conn->m_base.m_base.gv;
   dds_return_t rc;
-  ssize_t nsent = -1;
+  ddsrt_ssize_t nsent = -1;
   unsigned retry = 2;
   int sendflags = 0;
 #if defined _WIN32 && !defined WINCE

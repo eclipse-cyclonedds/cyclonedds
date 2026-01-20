@@ -78,7 +78,7 @@ typedef struct ddsi_raweth_conn {
   ddsrt_mutex_t lock;
   char *buffer;
   uint32_t buflen;
-  ssize_t avail;
+  ddsrt_ssize_t avail;
   char *bptr;
 #endif
 } *ddsi_raweth_conn_t;
@@ -146,10 +146,10 @@ static size_t set_ethernet_header(struct ddsi_vlan_header *hdr, uint16_t proto, 
 }
 
 #if defined(__linux)
-static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned char * buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo)
+static ddsrt_ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned char * buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo)
 {
   dds_return_t rc;
-  ssize_t ret = 0;
+  ddsrt_ssize_t ret = 0;
   struct msghdr msghdr;
   struct sockaddr_ll src;
   struct ddsi_ethernet_header ehdr;
@@ -179,9 +179,9 @@ static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned cha
     rc = ddsrt_recvmsg(&((ddsi_raweth_conn_t) conn)->m_sockext, &msghdr, 0, &ret);
   } while (rc == DDS_RETCODE_INTERRUPTED);
 
-  if (ret > (ssize_t) sizeof (ehdr))
+  if (ret > (ddsrt_ssize_t) sizeof (ehdr))
   {
-    ret -= (ssize_t) sizeof (ehdr);
+    ret -= (ddsrt_ssize_t) sizeof (ehdr);
 
     for (cptr = CMSG_FIRSTHDR(&msghdr); cptr; cptr = CMSG_NXTHDR( &msghdr, cptr))
     {
@@ -218,11 +218,11 @@ static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned cha
   return ret;
 }
 
-static ssize_t ddsi_raweth_conn_write (struct ddsi_tran_conn * conn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags)
+static ddsrt_ssize_t ddsi_raweth_conn_write (struct ddsi_tran_conn * conn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags)
 {
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) conn;
   dds_return_t rc;
-  ssize_t ret = -1;
+  ddsrt_ssize_t ret = -1;
   unsigned retry = 2;
   int sendflags = 0;
   struct msghdr msg;
@@ -433,9 +433,9 @@ struct ddsi_vlan_tag {
  * the manipulations using the field to obtain the next packet in the buffer can be safely done.
  */
 
-static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned char * buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo)
+static ddsrt_ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned char * buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo)
 {
-  ssize_t ret  = 0;
+  ddsrt_ssize_t ret  = 0;
   dds_return_t rc = DDS_RETCODE_OK;
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) conn;
   struct bpf_hdr *bpf_hdr;
@@ -469,12 +469,12 @@ static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned cha
 
     if (bpf_hdr->bh_datalen == bpf_hdr->bh_caplen)
     {
-      ret = (ssize_t)(bpf_hdr->bh_datalen - sizeof(struct ddsi_ethernet_header));
+      ret = (ddsrt_ssize_t)(bpf_hdr->bh_datalen - sizeof(struct ddsi_ethernet_header));
       if (ntohs(eth_hdr->proto) == ETHERTYPE_VLAN)
       {
         vtag = (struct ddsi_vlan_tag *)ptr;
         ptr += sizeof(*vtag);
-        ret -= (ssize_t)sizeof(*vtag);
+        ret -= (ddsrt_ssize_t)sizeof(*vtag);
       }
       if ((size_t)ret <= len)
       {
@@ -507,11 +507,11 @@ error:
   return (rc == DDS_RETCODE_OK ? ret : -1);;
 }
 
-static ssize_t ddsi_raweth_conn_write (struct ddsi_tran_conn * conn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags)
+static ddsrt_ssize_t ddsi_raweth_conn_write (struct ddsi_tran_conn * conn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags)
 {
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) conn;
   dds_return_t rc = DDS_RETCODE_OK;
-  ssize_t ret = -1;
+  ddsrt_ssize_t ret = -1;
   struct ddsi_vlan_header vhdr;
   size_t hdrlen;
   (void) flags;

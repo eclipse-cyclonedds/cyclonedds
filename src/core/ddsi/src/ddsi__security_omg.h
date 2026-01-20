@@ -1056,11 +1056,11 @@ ddsi_rtps_msg_state_t ddsi_security_decode_rtps_message (struct ddsi_thread_stat
  * @param[in]     sec_info      Security information for handles.
  * @param[in]     conn_write_cb Function to call to do the actual writing.
  *
- * @returns ssize_t
+ * @returns ddsrt_ssize_t
  * @retval negative/zero    Something went wrong.
  * @retval positive         Secure writing succeeded.
  */
-ssize_t
+ddsrt_ssize_t
 ddsi_security_secure_conn_write(
     const struct ddsi_domaingv *gv,
     struct ddsi_tran_conn * conn,

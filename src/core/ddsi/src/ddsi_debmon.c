@@ -695,7 +695,7 @@ static uint32_t debmon_main (void *vdm)
       ddsrt_shutdown (sock, DDSRT_SHUTDOWN_WRITE);
       char buffer[100];
       dds_return_t ret;
-      ssize_t bytes_read;
+      ddsrt_ssize_t bytes_read;
       do {
         fd_set fds;
         FD_ZERO (&fds);

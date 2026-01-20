@@ -219,7 +219,7 @@ ddsrt_send(
   const void *buf,
   size_t len,
   int flags,
-  ssize_t *sent);
+  ddsrt_ssize_t *sent);
 
 /**
  * @brief Send a message
@@ -240,7 +240,7 @@ ddsrt_sendmsg(
   ddsrt_socket_t sock,
   const ddsrt_msghdr_t *msg,
   int flags,
-  ssize_t *sent);
+  ddsrt_ssize_t *sent);
 
 /**
  * @brief Receive data into a buffer
@@ -266,7 +266,7 @@ ddsrt_recv(
   void *buf,
   size_t len,
   int flags,
-  ssize_t *rcvd);
+  ddsrt_ssize_t *rcvd);
 
 /**
  * @brief Receive a message
@@ -290,7 +290,7 @@ ddsrt_recvmsg(
   const ddsrt_socket_ext_t *sockext,
   ddsrt_msghdr_t *msg,
   int flags,
-  ssize_t *rcvd);
+  ddsrt_ssize_t *rcvd);
 
 /**
  * @brief Get options from the socket.

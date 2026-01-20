@@ -3308,7 +3308,7 @@ void ddsi_handle_rtps_message (struct ddsi_thread_state * const thrst, struct dd
 }
 
 ddsrt_nonnull_all ddsrt_attribute_warn_unused_result
-static ssize_t read_packet_from_stream (struct ddsi_domaingv *gv, struct ddsi_tran_conn *conn, struct ddsi_rmsg *rmsg, size_t maxsz, struct ddsi_network_packet_info *pktinfo)
+static ddsrt_ssize_t read_packet_from_stream (struct ddsi_domaingv *gv, struct ddsi_tran_conn *conn, struct ddsi_rmsg *rmsg, size_t maxsz, struct ddsi_network_packet_info *pktinfo)
 {
   // Streams are sequences of RTPS messages, where the first submessage of each message
   // must be a ADLINK_MSG_LEN with the "length" field the total RTPS message size.
@@ -3322,7 +3322,7 @@ static ssize_t read_packet_from_stream (struct ddsi_domaingv *gv, struct ddsi_tr
   const size_t ddsi_msg_len_size = 8;
   const size_t stream_hdr_size = DDSI_RTPS_MESSAGE_HEADER_SIZE + ddsi_msg_len_size;
   unsigned char * const buff = (unsigned char *) DDSI_RMSG_PAYLOAD (rmsg);
-  ssize_t sz;
+  ddsrt_ssize_t sz;
 
   sz = ddsi_conn_read (conn, buff, stream_hdr_size, true, pktinfo);
   if (sz == 0) // Spurious read can happen with SSL, at this point we're still good
@@ -3346,10 +3346,10 @@ static ssize_t read_packet_from_stream (struct ddsi_domaingv *gv, struct ddsi_tr
     goto framing_error;
 
   sz = ddsi_conn_read (conn, buff + stream_hdr_size, ml->length - stream_hdr_size, false, NULL);
-  if (sz != (ssize_t) (ml->length - stream_hdr_size))
+  if (sz != (ddsrt_ssize_t) (ml->length - stream_hdr_size))
     return -1;
 
-  return (ssize_t) ml->length;
+  return (ddsrt_ssize_t) ml->length;
 
 framing_error:
   GVTRACE ("framing error, dropping connection\n");
@@ -3361,7 +3361,7 @@ static bool do_packet (struct ddsi_thread_state * const thrst, struct ddsi_domai
   /* UDP max packet size is 64kB, we always limit RTPS messages always to 64kB */
   const size_t maxsz = gv->config.rmsg_chunk_size < 65536 ? gv->config.rmsg_chunk_size : 65536;
   struct ddsi_network_packet_info pktinfo;
-  ssize_t sz;
+  ddsrt_ssize_t sz;
 
   struct ddsi_rmsg * const rmsg = ddsi_rmsg_new (rbpool);
   if (rmsg == NULL)

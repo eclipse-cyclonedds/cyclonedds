@@ -436,9 +436,9 @@ ddsrt_recv(
   void *buf,
   size_t len,
   int flags,
-  ssize_t *rcvd)
+  ddsrt_ssize_t *rcvd)
 {
-  ssize_t n;
+  ddsrt_ssize_t n;
 
   if ((n = recv(sock, buf, len, flags)) != -1) {
     assert(n >= 0);
@@ -450,7 +450,7 @@ ddsrt_recv(
 }
 
 #if (LWIP_SOCKET && !defined(recvmsg)) || defined(__ZEPHYR__)
-static ssize_t recvmsg(int sockfd, struct msghdr *msg, int flags)
+static ddsrt_ssize_t recvmsg(int sockfd, struct msghdr *msg, int flags)
 {
   assert(msg->msg_iovlen == 1);
   assert(msg->msg_controllen == 0);
@@ -472,9 +472,9 @@ ddsrt_recvmsg(
   const ddsrt_socket_ext_t *sockext,
   ddsrt_msghdr_t *msg,
   int flags,
-  ssize_t *rcvd)
+  ddsrt_ssize_t *rcvd)
 {
-  ssize_t n;
+  ddsrt_ssize_t n;
 
   if ((n = recvmsg(sockext->sock, msg, flags)) != -1) {
     assert(n >= 0);
@@ -535,9 +535,9 @@ ddsrt_send(
   const void *buf,
   size_t len,
   int flags,
-  ssize_t *sent)
+  ddsrt_ssize_t *sent)
 {
-  ssize_t n;
+  ddsrt_ssize_t n;
 
   if ((n = send(sock, buf, len, flags)) != -1) {
     assert(n >= 0);
@@ -553,9 +553,9 @@ ddsrt_sendmsg(
   ddsrt_socket_t sock,
   const ddsrt_msghdr_t *msg,
   int flags,
-  ssize_t *sent)
+  ddsrt_ssize_t *sent)
 {
-  ssize_t n;
+  ddsrt_ssize_t n;
 
   if ((n = sendmsg(sock, msg, flags)) != -1) {
     assert(n >= 0);

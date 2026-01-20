@@ -280,7 +280,7 @@ int ddsrt_tasklist_grow(ddsrt_tasklist_t *list)
   return 0;
 }
 
-ssize_t ddsrt_tasklist_find(ddsrt_tasklist_t *list, TaskHandle_t task)
+int ddsrt_tasklist_find(ddsrt_tasklist_t *list, TaskHandle_t task)
 {
   size_t i, n;
 
@@ -292,14 +292,14 @@ ssize_t ddsrt_tasklist_find(ddsrt_tasklist_t *list, TaskHandle_t task)
     n = list->off <= list->end ? list->end : list->len - 1;
     for (i = list->off; i <= n; i++) {
       if (list->tasks[i] == task)
-        return (ssize_t)i;
+        return (int)i;
     }
 
     if (list->off > list->end) {
       n = list->end;
       for (i = 0; i <= n; i++) {
         if (list->tasks[i] == task)
-          return (ssize_t)i;
+          return (int)i;
       }
     }
   }
@@ -322,14 +322,14 @@ TaskHandle_t ddsrt_tasklist_peek(ddsrt_tasklist_t *list, TaskHandle_t task)
 
 TaskHandle_t ddsrt_tasklist_pop(ddsrt_tasklist_t *list, TaskHandle_t task)
 {
-  ssize_t i;
+  int i;
 
   tasklist_assert(list);
 
   if (list->cnt == 0) {
     return NULL;
   } else if (task == NULL) {
-    i = (ssize_t)list->off;
+    i = (int)list->off;
   } else if ((i = ddsrt_tasklist_find(list, task)) == -1) {
     return NULL;
   }
@@ -342,10 +342,10 @@ TaskHandle_t ddsrt_tasklist_pop(ddsrt_tasklist_t *list, TaskHandle_t task)
 
     if (list->cnt == 0) {
       list->off = list->end = 0;
-    } else if (i == (ssize_t)list->end) {
+    } else if (i == (int)list->end) {
       /* Trim invalidated buckets from tail of window. */
       ddsrt_tasklist_rtrim(list);
-    } else if (i == (ssize_t)list->off) {
+    } else if (i == (int)list->off) {
       /* Trim invalidated buckets from head of window. */
       ddsrt_tasklist_ltrim(list);
     } else {

@@ -92,7 +92,7 @@ void ddsrt_tasklist_rtrim(ddsrt_tasklist_t *list);
 void ddsrt_tasklist_pack(ddsrt_tasklist_t *list);
 int ddsrt_tasklist_shrink(ddsrt_tasklist_t *list);
 int ddsrt_tasklist_grow(ddsrt_tasklist_t *list);
-ssize_t ddsrt_tasklist_find(ddsrt_tasklist_t *list, TaskHandle_t task);
+int ddsrt_tasklist_find(ddsrt_tasklist_t *list, TaskHandle_t task);
 TaskHandle_t ddsrt_tasklist_peek(ddsrt_tasklist_t *list, TaskHandle_t task);
 TaskHandle_t ddsrt_tasklist_pop(ddsrt_tasklist_t *list, TaskHandle_t task);
 int ddsrt_tasklist_push(ddsrt_tasklist_t *list, TaskHandle_t task);

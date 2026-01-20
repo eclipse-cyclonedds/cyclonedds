@@ -407,9 +407,9 @@ static ddsi_tcp_conn_t ddsi_tcp_cache_find (struct ddsi_tran_factory_tcp *fact, 
   return ret;
 }
 
-static ssize_t ddsi_tcp_conn_read_plain (ddsi_tcp_conn_t tcp, void * buf, size_t len, dds_return_t *rc)
+static ddsrt_ssize_t ddsi_tcp_conn_read_plain (ddsi_tcp_conn_t tcp, void * buf, size_t len, dds_return_t *rc)
 {
-  ssize_t rcvd = -1;
+  ddsrt_ssize_t rcvd = -1;
 
   assert(rc != NULL);
   *rc = ddsrt_recv(tcp->m_sock, buf, len, 0, &rcvd);
@@ -418,7 +418,7 @@ static ssize_t ddsi_tcp_conn_read_plain (ddsi_tcp_conn_t tcp, void * buf, size_t
 }
 
 #ifdef DDS_HAS_TCP_TLS
-static ssize_t ddsi_tcp_conn_read_ssl (ddsi_tcp_conn_t tcp, void * buf, size_t len, dds_return_t *rc)
+static ddsrt_ssize_t ddsi_tcp_conn_read_ssl (ddsi_tcp_conn_t tcp, void * buf, size_t len, dds_return_t *rc)
 {
   struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) tcp->m_base.m_factory;
   return (fact->ddsi_tcp_ssl_plugin.read) (tcp->m_ssl, buf, len, rc);
@@ -461,15 +461,15 @@ static int32_t addrfam_to_locator_kind (int af)
   return (af == AF_INET) ? DDSI_LOCATOR_KIND_TCPv4 : DDSI_LOCATOR_KIND_TCPv6;
 }
 
-static ssize_t ddsi_tcp_conn_read (struct ddsi_tran_conn * conn, unsigned char *buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo)
+static ddsrt_ssize_t ddsi_tcp_conn_read (struct ddsi_tran_conn * conn, unsigned char *buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo)
 {
   struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) conn->m_factory;
   struct ddsi_domaingv const * const gv = fact->fact.gv;
   dds_return_t rc;
   ddsi_tcp_conn_t tcp = (ddsi_tcp_conn_t) conn;
-  ssize_t (*rd) (ddsi_tcp_conn_t, void *, size_t, dds_return_t * err) = ddsi_tcp_conn_read_plain;
+  ddsrt_ssize_t (*rd) (ddsi_tcp_conn_t, void *, size_t, dds_return_t * err) = ddsi_tcp_conn_read_plain;
   size_t pos = 0;
-  ssize_t n;
+  ddsrt_ssize_t n;
 
 #ifdef DDS_HAS_TCP_TLS
   if (fact->ddsi_tcp_ssl_plugin.read)
@@ -493,7 +493,7 @@ static ssize_t ddsi_tcp_conn_read (struct ddsi_tran_conn * conn, unsigned char *
           pktinfo->if_index = 0;
           pktinfo->dst.kind = DDSI_LOCATOR_KIND_INVALID;
         }
-        return (ssize_t) pos;
+        return (ddsrt_ssize_t) pos;
       }
     }
     else if (n == 0)
@@ -526,9 +526,9 @@ static ssize_t ddsi_tcp_conn_read (struct ddsi_tran_conn * conn, unsigned char *
   return -1;
 }
 
-static ssize_t ddsi_tcp_conn_write_plain (ddsi_tcp_conn_t conn, const void * buf, size_t len, dds_return_t *rc)
+static ddsrt_ssize_t ddsi_tcp_conn_write_plain (ddsi_tcp_conn_t conn, const void * buf, size_t len, dds_return_t *rc)
 {
-  ssize_t sent = -1;
+  ddsrt_ssize_t sent = -1;
   int sendflags = 0;
 
 #ifdef MSG_NOSIGNAL
@@ -540,21 +540,21 @@ static ssize_t ddsi_tcp_conn_write_plain (ddsi_tcp_conn_t conn, const void * buf
 }
 
 #ifdef DDS_HAS_TCP_TLS
-static ssize_t ddsi_tcp_conn_write_ssl (ddsi_tcp_conn_t conn, const void * buf, size_t len, dds_return_t *rc)
+static ddsrt_ssize_t ddsi_tcp_conn_write_ssl (ddsi_tcp_conn_t conn, const void * buf, size_t len, dds_return_t *rc)
 {
   struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) conn->m_base.m_factory;
   return (fact->ddsi_tcp_ssl_plugin.write) (conn->m_ssl, buf, len, rc);
 }
 #endif
 
-static ssize_t ddsi_tcp_block_write (ssize_t (*wr) (ddsi_tcp_conn_t, const void *, size_t, dds_return_t *), ddsi_tcp_conn_t conn, const void * buf, size_t sz)
+static ddsrt_ssize_t ddsi_tcp_block_write (ddsrt_ssize_t (*wr) (ddsi_tcp_conn_t, const void *, size_t, dds_return_t *), ddsi_tcp_conn_t conn, const void * buf, size_t sz)
 {
   /* Write all bytes of buf even in the presence of signals,
      partial writes and blocking (typically write buffer full) */
   struct ddsi_domaingv const * const gv = conn->m_base.m_base.gv;
   dds_return_t rc;
   size_t pos = 0;
-  ssize_t n = -1;
+  ddsrt_ssize_t n = -1;
 
   while (pos != sz)
   {
@@ -584,7 +584,7 @@ static ssize_t ddsi_tcp_block_write (ssize_t (*wr) (ddsi_tcp_conn_t, const void 
     }
   }
 
-  return (pos == sz) ? (ssize_t) pos : -1;
+  return (pos == sz) ? (ddsrt_ssize_t) pos : -1;
 }
 
 static size_t iovlen_sum (size_t niov, const ddsrt_iovec_t *iov)
@@ -601,7 +601,7 @@ static void set_msghdr_iov (ddsrt_msghdr_t *mhdr, ddsrt_iovec_t *iov, size_t iov
   mhdr->msg_iovlen = (ddsrt_msg_iovlen_t)iovlen;
 }
 
-static ssize_t ddsi_tcp_conn_write (struct ddsi_tran_conn * base, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags)
+static ddsrt_ssize_t ddsi_tcp_conn_write (struct ddsi_tran_conn * base, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags)
 {
   struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) base->m_factory;
   struct ddsi_domaingv const * const gv = fact->fact.gv;
@@ -609,7 +609,7 @@ static ssize_t ddsi_tcp_conn_write (struct ddsi_tran_conn * base, const ddsi_loc
   char msgbuf[4096]; /* stack buffer for merging smallish writes without requiring allocations */
   ddsrt_iovec_t iovec; /* iovec used for msgbuf */
 #endif
-  ssize_t ret = -1;
+  ddsrt_ssize_t ret = -1;
   size_t len;
   ddsi_tcp_conn_t conn;
   int piecewise;
@@ -659,7 +659,7 @@ static ssize_t ddsi_tcp_conn_write (struct ddsi_tran_conn * base, const ddsi_loc
   {
     GVLOG (DDS_LC_TCP, "tcp write: sock %"PRIdSOCK" message filtered\n", conn->m_sock);
     ddsrt_mutex_unlock (&conn->m_mutex);
-    return (ssize_t) len;
+    return (ddsrt_ssize_t) len;
   }
 
 #ifdef DDS_HAS_TCP_TLS
@@ -737,7 +737,7 @@ static ssize_t ddsi_tcp_conn_write (struct ddsi_tran_conn * base, const ddsi_loc
 
   if (piecewise)
   {
-    ssize_t (*wr) (ddsi_tcp_conn_t, const void *, size_t, dds_return_t *) = ddsi_tcp_conn_write_plain;
+    ddsrt_ssize_t (*wr) (ddsi_tcp_conn_t, const void *, size_t, dds_return_t *) = ddsi_tcp_conn_write_plain;
     int i = 0;
 #ifdef DDS_HAS_TCP_TLS
     if (fact->ddsi_tcp_ssl_plugin.write)
@@ -747,9 +747,9 @@ static ssize_t ddsi_tcp_conn_write (struct ddsi_tran_conn * base, const ddsi_loc
 #endif
 
     assert (msg.msg_iov[i].iov_len > 0);
-    while (ret >= (ssize_t) msg.msg_iov[i].iov_len)
+    while (ret >= (ddsrt_ssize_t) msg.msg_iov[i].iov_len)
     {
-      ret -= (ssize_t) msg.msg_iov[i++].iov_len;
+      ret -= (ddsrt_ssize_t) msg.msg_iov[i++].iov_len;
     }
     assert (i < (int) msg.msg_iovlen);
     ret = ddsi_tcp_block_write (wr, conn, (const char *) msg.msg_iov[i].iov_base + ret, msg.msg_iov[i].iov_len - (size_t) ret);

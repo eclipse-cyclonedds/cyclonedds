@@ -64,7 +64,7 @@ static int ddsi_ssl_verify (int ok, X509_STORE_CTX *store)
   return ok;
 }
 
-static ssize_t ddsi_ssl_read (SSL *ssl, void *buf, size_t len, dds_return_t *rc)
+static ddsrt_ssize_t ddsi_ssl_read (SSL *ssl, void *buf, size_t len, dds_return_t *rc)
 {
   assert (len <= INT32_MAX);
   if (SSL_get_shutdown (ssl) != 0)
@@ -96,7 +96,7 @@ static ssize_t ddsi_ssl_read (SSL *ssl, void *buf, size_t len, dds_return_t *rc)
   return rcvd;
 }
 
-static ssize_t ddsi_ssl_write (SSL *ssl, const void *buf, size_t len, dds_return_t *rc)
+static ddsrt_ssize_t ddsi_ssl_write (SSL *ssl, const void *buf, size_t len, dds_return_t *rc)
 {
   assert(len <= INT32_MAX);
 

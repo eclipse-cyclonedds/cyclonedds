@@ -226,7 +226,7 @@ static bool is_the_kernel_likely_lying_about_multicast (const ddsrt_ifaddrs_t *i
     .msg_controllen = 0,
     .msg_flags = 0
   };
-  if (sendmsg (sock, &msg, 0) != (ssize_t) sizeof (contents))
+  if (sendmsg (sock, &msg, 0) != (ddsrt_ssize_t) sizeof (contents))
     goto out;
 #ifndef __APPLE__ // because we do a short timeout instead
   if (fcntl (sock, F_SETFL, O_NONBLOCK) == -1)
@@ -234,7 +234,7 @@ static bool is_the_kernel_likely_lying_about_multicast (const ddsrt_ifaddrs_t *i
 #endif
   unsigned char recvbuf[sizeof (contents)];
   msg.msg_iov = &(struct iovec) { .iov_len = sizeof (recvbuf), .iov_base = recvbuf };
-  ssize_t nrecv;
+  ddsrt_ssize_t nrecv;
   while ((nrecv = recvmsg (sock, &msg, 0)) > 0)
   {
     if (nrecv == sizeof (recvbuf) &&

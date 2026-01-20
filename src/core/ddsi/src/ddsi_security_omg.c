@@ -3780,7 +3780,7 @@ ddsi_security_decode_rtps_message (
   return ret;
 }
 
-ssize_t
+ddsrt_ssize_t
 ddsi_security_secure_conn_write(
     const struct ddsi_domaingv *gv,
     struct ddsi_tran_conn * conn,
@@ -3845,7 +3845,7 @@ ddsi_security_secure_conn_write(
     }
   }
 
-  ssize_t ret = -1;
+  ddsrt_ssize_t ret = -1;
   if (!ddsi_omg_security_encode_rtps_message (gv, sec_info->src_pp_handle, &guid, srcbuf, srclen, &dstbuf, &dstlen, dst_handle))
     ret = -1;
   else

@@ -1117,9 +1117,9 @@ void ddsi_xpack_free (struct ddsi_xpack *xp)
   ddsrt_free (xp);
 }
 
-static ssize_t ddsi_xpack_send_rtps(struct ddsi_xpack * xp, const ddsi_xlocator_t *loc)
+static ddsrt_ssize_t ddsi_xpack_send_rtps(struct ddsi_xpack * xp, const ddsi_xlocator_t *loc)
 {
-  ssize_t ret = -1;
+  ddsrt_ssize_t ret = -1;
 
 #ifdef DDS_HAS_SECURITY
   /* Only encode when needed. */
@@ -1145,11 +1145,11 @@ static ssize_t ddsi_xpack_send_rtps(struct ddsi_xpack * xp, const ddsi_xlocator_
   return ret;
 }
 
-static ssize_t ddsi_xpack_send1 (const ddsi_xlocator_t *loc, void * varg)
+static ddsrt_ssize_t ddsi_xpack_send1 (const ddsi_xlocator_t *loc, void * varg)
 {
   struct ddsi_xpack *xp = varg;
   struct ddsi_domaingv const * const gv = xp->gv;
-  ssize_t nbytes = 0;
+  ddsrt_ssize_t nbytes = 0;
 
   if (gv->logconfig.c.mask & DDS_LC_TRACE)
   {
@@ -1189,7 +1189,7 @@ static ssize_t ddsi_xpack_send1 (const ddsi_xlocator_t *loc, void * varg)
   else
   {
     GVTRACE ("(dropped)");
-    nbytes = (ssize_t) xp->msg_len.length;
+    nbytes = (ddsrt_ssize_t) xp->msg_len.length;
   }
 
   /* Clear call flags, as used on a per call basis */

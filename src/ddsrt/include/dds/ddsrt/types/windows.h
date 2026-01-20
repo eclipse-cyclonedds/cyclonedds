@@ -26,7 +26,9 @@
 #include <wchar.h>
 
 #ifdef _MSC_VER
-typedef SSIZE_T ssize_t;
+typedef SSIZE_T ddsrt_ssize_t;
+#else
+typedef ssize_t ddsrt_ssize_t;
 #endif
 
 #endif /* DDSRT_TYPES_WINDOWS_H */
