@@ -44,5 +44,8 @@
 /* Whether or not support for qos provider is included */
 #cmakedefine DDS_HAS_QOS_PROVIDER 1
 
+/* Whether or not support for DDS-over-TCP is included */
+#cmakedefine DDS_HAS_TCP 1
+
 
 #endif
