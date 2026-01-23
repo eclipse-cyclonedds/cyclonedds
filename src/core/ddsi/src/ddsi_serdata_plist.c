@@ -196,15 +196,15 @@ static bool serdata_plist_untyped_to_sample (const struct ddsi_sertype *tpcmn, c
     .vendorid = d->vendorid
   };
   const enum ddsi_plist_context_kind context_kind = get_plist_context_kind (tp->keyparam);
-  uint64_t pwanted = ~(uint64_t)0;
+  uint64_t pwanted = ~(uint64_t)0, qwanted = ~(uint64_t)0;
   if (gv->config.ignore_type_information)
   {
     if (d->vendorid.id[0] == 1 && 1 < d->vendorid.id[1] && d->vendorid.id[1] <= 32 &&
         gv->config.ignore_type_information & (1u << (d->vendorid.id[1] - 1))) {
-      pwanted &= ~DDSI_PID_TYPE_INFORMATION;
+      qwanted &= ~DDSI_QP_TYPE_INFORMATION;
     }
   }
-  const dds_return_t rc = ddsi_plist_init_frommsg (sample, NULL, pwanted, ~(uint64_t)0, &src, gv, context_kind);
+  const dds_return_t rc = ddsi_plist_init_frommsg (sample, NULL, pwanted, qwanted, &src, gv, context_kind);
   // FIXME: need a more informative return type
   if (rc != DDS_RETCODE_OK && rc != DDS_RETCODE_UNSUPPORTED)
     GVWARNING ("Invalid %s (vendor %u.%u): invalid qos/parameters\n", tpcmn->type_name, src.vendorid.id[0], src.vendorid.id[1]);
