@@ -148,6 +148,7 @@ DU(ipv4);
 DUPF(allow_multicast);
 DUPF(boolean);
 DUPF(protocol_version);
+DUPF(vendorid_list);
 DU(boolean_default);
 PF(boolean_default);
 DUPF(string);
@@ -1130,6 +1131,51 @@ static void pf_protocol_version (struct ddsi_cfgst *cfgst, void *parent, struct 
   cfg_logelem (cfgst, sources, "%d.%d", p->major, p->minor);
 }
 
+static enum update_result uf_vendorid_list (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  DDSRT_WARNING_MSVC_OFF(4996);
+  uint32_t * const elem = cfg_address (cfgst, parent, cfgelem);
+  char *valuecopy = ddsrt_strdup (value), *cursor = valuecopy, *tok;
+  *elem = 0;
+  while ((tok = ddsrt_strsep (&cursor, ",")) != NULL)
+  {
+    int pos;
+    unsigned min;
+    if (sscanf (tok, "1.%u%n", &min, &pos) != 1 || tok[pos] != 0 || min < 1 || min > 32)
+    {
+      cfg_error(cfgst, "'%s': invalid or out-of-range vendor id", tok);
+      ddsrt_free (valuecopy);
+      return URES_ERROR;
+    }
+    *elem |= 1u << (min - 1);
+  }
+  ddsrt_free (valuecopy);
+  return URES_SUCCESS;
+  DDSRT_WARNING_MSVC_ON(4996);
+}
+
+static void pf_vendorid_list (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
+{
+  uint32_t * const p = cfg_address (cfgst, parent, cfgelem);
+  // 1..9 : 4 chars each including comma => 36
+  // 10..32 : 5 chars each including comma => 115
+  // terminating 0 but no leading comma, so max = 151
+  char buf[151] = "", *bufp = buf;
+  const char *sep = "";
+  for (int min = 1; min <= 32; min++)
+  {
+    if (*p & (1u << (min-1)))
+    {
+      assert ((size_t) (bufp - buf) < sizeof (buf));
+      const int n = snprintf (bufp, sizeof (buf) - (size_t) (bufp - buf), "%s1.%d", sep, min);
+      if (n > 0)
+        bufp += n;
+      sep = ",";
+    }
+  }
+  cfg_logelem (cfgst, sources, "%s", buf);
+}
+
 static enum update_result uf_string (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
   char ** const elem = cfg_address (cfgst, parent, cfgelem);
@@ -2004,28 +2050,43 @@ static const struct cfgelem *lookup_element (const char *target, bool *isattr)
   return cfgelem;
 }
 
+static void get_primary_name_slice (const char *csename, const char **slice, int *slicelen)
+{
+  // skip move marker if present
+  const char *name = (csename[0] == '>') ? csename + 1 : csename;
+  const char *end;
+  if ((end = strchr (name, '|')) == NULL)
+    end = name + strlen (name);
+  *slice = name;
+  *slicelen = (int) (end - name);
+}
+
 static const struct cfgelem *find_cfgelem_by_name (struct ddsi_cfgst * const cfgst, const char *class, struct cfgelem const * const elems, const char *name)
 {
   const struct cfgelem *cfg_subelem;
   int ambiguous = 0;
   size_t partial = 0;
   const struct cfgelem *partial_match = NULL;
+  char candidates[128], *cand_cursor = candidates;
+  *cand_cursor = 0;
 
   for (cfg_subelem = elems; cfg_subelem && cfg_subelem->name && strcmp (cfg_subelem->name, "*") != 0; cfg_subelem++)
   {
     const char *csename = cfg_subelem->name;
+    const char *primname;
+    int primnamelen;
+    get_primary_name_slice (csename, &primname, &primnamelen);
     size_t partial1;
     int idx;
     idx = matching_name_index (csename, name, &partial1);
     if (idx > 0)
     {
-      if (csename[0] == '|')
+      if (primname[0] == '|')
         cfg_warning (cfgst, "'%s': deprecated %s", name, class);
       else
       {
-        int n = (int) (strchr (csename, '|') - csename);
-        if (csename[n + 1] != '|') {
-          cfg_warning (cfgst, "'%s': deprecated alias for '%*.*s'", name, n, n, csename);
+        if (primname[primnamelen] == '|' && primname[primnamelen + 1] != '|') {
+          cfg_warning (cfgst, "'%s': deprecated alias for '%*.*s'", name, primnamelen, primnamelen, primname);
         }
       }
     }
@@ -2039,12 +2100,18 @@ static const struct cfgelem *find_cfgelem_by_name (struct ddsi_cfgst * const cfg
       /* a longer prefix match is a candidate ... */
       partial = partial1;
       partial_match = cfg_subelem;
+      cand_cursor = candidates;
     }
     else if (partial1 > 0 && partial1 == partial)
     {
       /* ... but an ambiguous prefix match won't do */
       ambiguous = 1;
       partial_match = NULL;
+    }
+    if (partial1 > 0 && (size_t) (cand_cursor - candidates) < sizeof (candidates))
+    {
+      int n = snprintf (cand_cursor, sizeof (candidates) - (size_t) (cand_cursor - candidates), "%s%*.*s", (cand_cursor == candidates) ? "" : ", ", primnamelen, primnamelen, primname);
+      cand_cursor += (n > 0) ? n : 0;
     }
   }
   if (cfg_subelem && cfg_subelem->name == NULL)
@@ -2054,7 +2121,7 @@ static const struct cfgelem *find_cfgelem_by_name (struct ddsi_cfgst * const cfg
     if (partial_match != NULL && cfgst->partial_match_allowed)
       cfg_subelem = partial_match;
     else if (ambiguous)
-      (void) cfg_error (cfgst, "%s: ambiguous %s prefix", name, class);
+      (void) cfg_error (cfgst, "%s: ambiguous %s prefix (%s)", name, class, candidates);
     else
       (void) cfg_error (cfgst, "%s: unknown %s", name, class);
   }

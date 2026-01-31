@@ -664,18 +664,25 @@ void ddsi_handle_spdp (const struct ddsi_receiver_state *rst, ddsi_entityid_t pw
   if (ddsi_serdata_to_sample (serdata, &decoded_data, NULL, NULL))
   {
     enum handle_spdp_result interesting = HSR_NOT_INTERESTING;
-    switch (serdata->statusinfo & (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER))
+    if (memcmp (&decoded_data.participant_guid.prefix, &rst->src_guid_prefix, sizeof (rst->src_guid_prefix)) != 0)
     {
-      case 0:
-        interesting = handle_spdp_alive (rst, seq, serdata->timestamp, &decoded_data);
-        break;
+      GVTRACE ("SPDP ST%x "PGUIDFMT": mismatch with RTPS source "PGUIDPREFIXFMT, serdata->statusinfo, PGUID (decoded_data.participant_guid), PGUIDPREFIX(rst->src_guid_prefix));
+    }
+    else
+    {
+      switch (serdata->statusinfo & (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER))
+      {
+        case 0:
+          interesting = handle_spdp_alive (rst, seq, serdata->timestamp, &decoded_data);
+          break;
 
-      case DDSI_STATUSINFO_DISPOSE:
-      case DDSI_STATUSINFO_UNREGISTER:
-      case (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER):
-        handle_spdp_dead (rst, pwr_entityid, serdata->timestamp, &decoded_data, serdata->statusinfo);
-        interesting = HSR_INTERESTING;
-        break;
+        case DDSI_STATUSINFO_DISPOSE:
+        case DDSI_STATUSINFO_UNREGISTER:
+        case (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER):
+          handle_spdp_dead (rst, pwr_entityid, serdata->timestamp, &decoded_data, serdata->statusinfo);
+          interesting = HSR_INTERESTING;
+          break;
+      }
     }
 
     ddsi_plist_fini (&decoded_data);

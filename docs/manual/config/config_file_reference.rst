@@ -44,9 +44,21 @@ The default value is: ``any``
 //CycloneDDS/Domain/Compatibility
 =================================
 
-Children: :ref:`AssumeRtiHasPmdEndpoints<//CycloneDDS/Domain/Compatibility/AssumeRtiHasPmdEndpoints>`, :ref:`ExplicitlyPublishQosSetToDefault<//CycloneDDS/Domain/Compatibility/ExplicitlyPublishQosSetToDefault>`, :ref:`ManySocketsMode<//CycloneDDS/Domain/Compatibility/ManySocketsMode>`, :ref:`ProtocolVersion<//CycloneDDS/Domain/Compatibility/ProtocolVersion>`, :ref:`StandardsConformance<//CycloneDDS/Domain/Compatibility/StandardsConformance>`
+Children: :ref:`AllowInvalidTryConstruct<//CycloneDDS/Domain/Compatibility/AllowInvalidTryConstruct>`, :ref:`AssumeRtiHasPmdEndpoints<//CycloneDDS/Domain/Compatibility/AssumeRtiHasPmdEndpoints>`, :ref:`ExplicitlyPublishQosSetToDefault<//CycloneDDS/Domain/Compatibility/ExplicitlyPublishQosSetToDefault>`, :ref:`IgnoreTypeInformation<//CycloneDDS/Domain/Compatibility/IgnoreTypeInformation>`, :ref:`ManySocketsMode<//CycloneDDS/Domain/Compatibility/ManySocketsMode>`, :ref:`ProtocolVersion<//CycloneDDS/Domain/Compatibility/ProtocolVersion>`, :ref:`StandardsConformance<//CycloneDDS/Domain/Compatibility/StandardsConformance>`
 
 The Compatibility element allows you to specify various settings related to compatibility with standards and with other DDSI implementations.
+
+
+.. _`//CycloneDDS/Domain/Compatibility/AllowInvalidTryConstruct`:
+
+//CycloneDDS/Domain/Compatibility/AllowInvalidTryConstruct
+----------------------------------------------------------
+
+Boolean
+
+Setting option makes the TypeObject validation code accept types with the two "try construct" bits both set to 0, which is explicitly noted as an invalid setting in the spec.
+
+The default value is: ``false``
 
 
 .. _`//CycloneDDS/Domain/Compatibility/AssumeRtiHasPmdEndpoints`:
@@ -73,6 +85,22 @@ This element specifies whether QoS settings set to default values are explicitly
 When interoperability is required with an implementation that does not follow the specifications in this regard, setting this option to true will help.
 
 The default value is: ``false``
+
+
+.. _`//CycloneDDS/Domain/Compatibility/IgnoreTypeInformation`:
+
+//CycloneDDS/Domain/Compatibility/IgnoreTypeInformation
+-------------------------------------------------------
+
+Boolean
+
+Setting option causes type information included in discovery messages from the listed vendor ids to be ignored. This reduces the type assignability check to a check of the type names. This may cause readers/writers to match when they shouldn't or not to match when they should. Use with care.
+
+The vendor ids are specified using a comma-separated list of two decimal integers separated by a dot. E.g., to ignore them from Cyclone and RTI Connext set it to "1.1,1.16". Order doesn't matter.
+
+The current implementation restricts them to the form 1.N, where 1<N<=32. This covers all vendor ids currently allocated by the OMG.
+
+The default value is: ``<empty>``
 
 
 .. _`//CycloneDDS/Domain/Compatibility/ManySocketsMode`:
@@ -2766,14 +2794,14 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 The default value is: ``none``
 
 ..
-   generated from ddsi_config.h[d7db98ce697e409412ec7fb0b900e10261a66c44] 
-   generated from ddsi_config.c[184d7299baad5acc9b96884de77770aac009a11a] 
-   generated from ddsi__cfgelems.h[741151ccf40cab43638e8c32cac3a4b9c3e73566] 
+   generated from ddsi_config.h[6b6cd6f2af797765bc3753758bdd5f166f64b418] 
+   generated from ddsi_config.c[a48ec3d818f2ad852949a7832951709c3488dc10] 
+   generated from ddsi__cfgelems.h[32ba43b085108475f0fc5041d4593a9926c0f6f9] 
    generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] 
-   generated from _confgen.h[fd29634526c05c3237dbc3f785030fe022eb7875] 
+   generated from _confgen.h[bb9a0fc6ef1f7f7c46790ee00132e340e5fff36d] 
    generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] 
    generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] 
    generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] 
    generated from generate_rst.c[3c4b523fbb57c8e4a7e247379d06a8021ccc21c4] 
    generated from generate_xsd.c[9bb91084fff7495aee9c025db3108549a0141957] 
-   generated from generate_defconfig.c[ba599ccf70b6f1929c08a597a6c555ff2375e458] 
+   generated from generate_defconfig.c[02afff6935d72b7f04dc64c8a649b09f9f6143ac] 

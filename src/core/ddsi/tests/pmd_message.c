@@ -39,7 +39,7 @@
   SER32BE(0),SER32BE(0),SER32BE(0), \
   (a),(b),(c),(d)
 
-#define TEST_GUIDPREFIX_BYTES 7,7,3,4, 5,6,7,8, 9,10,11,12
+#define TEST_GUIDPREFIX_BYTES(correct_source_prefix) (correct_source_prefix ? 7 : 8),7,3,4, 5,6,7,8, 9,10,11,12
 
 static struct ddsi_cfgst *cfgst;
 static struct ddsi_domaingv gv;
@@ -88,7 +88,9 @@ static void logger (void *ptr, const dds_log_data_t *data)
   // two bytes are vendor code and not Cyclone DDS, this
   // suffices
   if (strstr (data->message, "PMD ST0 pp 707"))
-    ddsrt_atomic_inc32 (&arg->match);
+    ddsrt_atomic_or32 (&arg->match, 1);
+  if (strstr (data->message, "mismatch with RTPS source"))
+    ddsrt_atomic_or32 (&arg->match, 2);
 }
 
 static void setup_and_start (void)
@@ -169,7 +171,7 @@ static void create_fake_proxy_participant (void)
     1, DDSI_VENDORID_MINOR_ECLIPSE,
     // GUID prefix: first two bytes ordinarily have vendor id, so 7,7 is
     // guaranteed to not be used locally
-    TEST_GUIDPREFIX_BYTES,
+    TEST_GUIDPREFIX_BYTES (true),
     // DATA: flags (4 = dataflag + big-endian); octets-to-next-header = 0
     // means it continues until the end
     DDSI_RTPS_SMID_DATA, 4, 0,0,
@@ -181,7 +183,7 @@ static void create_fake_proxy_participant (void)
     0,2, // PL_CDR_BE
     0,0, // options = 0
     HDR (DDSI_PID_PARTICIPANT_GUID, 16),
-      TEST_GUIDPREFIX_BYTES, SER32BE (DDSI_ENTITYID_PARTICIPANT),
+      TEST_GUIDPREFIX_BYTES (true), SER32BE (DDSI_ENTITYID_PARTICIPANT),
     HDR (DDSI_PID_BUILTIN_ENDPOINT_SET, 4),
     SER32BE (DDSI_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER | DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER),
     HDR (DDSI_PID_PROTOCOL_VERSION, 4),             gv.config.protocol_version.major, gv.config.protocol_version.minor, 0,0,
@@ -197,7 +199,7 @@ static void create_fake_proxy_participant (void)
   pktinfo.dst.kind = DDSI_LOCATOR_KIND_INVALID;
   pktinfo.if_index = 0;
   const ddsi_guid_t proxypp_guid = {
-    .prefix = ddsi_ntoh_guid_prefix ((ddsi_guid_prefix_t){ .s = { TEST_GUIDPREFIX_BYTES } }),
+    .prefix = ddsi_ntoh_guid_prefix ((ddsi_guid_prefix_t){ .s = { TEST_GUIDPREFIX_BYTES (true) } }),
     .entityid = { .u = DDSI_ENTITYID_PARTICIPANT }
   };
 
@@ -236,7 +238,13 @@ static void create_fake_proxy_participant (void)
   CU_ASSERT_EQ_FATAL (ret, 0);
 }
 
-static void send_pmd_message (uint32_t seqlo, uint16_t encoding, uint16_t options, uint32_t kind, uint32_t seq_length, uint32_t act_payload_size, bool msg_is_valid)
+enum message_variant {
+  MV_VALID,
+  MV_WRONG_PREFIX,
+  MV_MALFORMED
+};
+
+static void send_pmd_message (uint32_t seqlo, uint16_t encoding, uint16_t options, uint32_t kind, uint32_t seq_length, uint32_t act_payload_size, enum message_variant variant)
 {
   // actual sequence length must be in range of our message bytes following the
   // CDR encoding+options, we don't want an out-of-bounds read
@@ -251,7 +259,7 @@ static void send_pmd_message (uint32_t seqlo, uint16_t encoding, uint16_t option
     1, DDSI_VENDORID_MINOR_ECLIPSE,
     // GUID prefix: first two bytes ordinarily have vendor id, so 7,7 is
     // guaranteed to not be used locally
-    TEST_GUIDPREFIX_BYTES,
+    TEST_GUIDPREFIX_BYTES (true),
     // INFO_DST or it won't accept the heartbeat as a handshake one
     DDSI_RTPS_SMID_INFO_DST, 0, 0,12, // flags, octets-to-next-header
     SER32BE (ppguid.prefix.u[0]), SER32BE (ppguid.prefix.u[1]), SER32BE (ppguid.prefix.u[2]),
@@ -273,7 +281,7 @@ static void send_pmd_message (uint32_t seqlo, uint16_t encoding, uint16_t option
     (unsigned char) (encoding >> 8), (unsigned char) (encoding & 0xff),
     (unsigned char) (options >> 8), (unsigned char) (options & 0xff),
     // PMD message payload:
-    TEST_GUIDPREFIX_BYTES,
+    TEST_GUIDPREFIX_BYTES (variant != MV_WRONG_PREFIX),
     SER32BE (kind),
     SER32BE (seq_length),
     SER32BE (0)
@@ -299,31 +307,49 @@ static void send_pmd_message (uint32_t seqlo, uint16_t encoding, uint16_t option
   // wait until PMD message has been processed
   wait_for_dqueue ();
 
-  CU_ASSERT_FATAL (msg_is_valid == (ddsrt_atomic_ld32 (&logger_arg.match) == 1));
+  const uint32_t matches = ddsrt_atomic_ld32 (&logger_arg.match);
+  switch (variant)
+  {
+    case MV_VALID:
+      CU_ASSERT_EQ_FATAL (matches, 1);
+      break;
+    case MV_WRONG_PREFIX:
+      CU_ASSERT_EQ_FATAL (matches, 2);
+      break;
+    case MV_MALFORMED:
+      CU_ASSERT_EQ_FATAL (matches, 0);
+      break;
+  }
 }
 
 CU_Test (ddsi_pmd_message, valid, .init = setup_and_start, .fini = stop_and_teardown)
 {
   create_fake_proxy_participant ();
-  send_pmd_message (1, DDSI_RTPS_CDR_BE, 0, 0, 0, 20, true); // auto
-  send_pmd_message (2, DDSI_RTPS_CDR_BE, 0, 1, 0, 20, true); // manual
-  send_pmd_message (3, DDSI_RTPS_CDR_BE, 0, 2, 0, 20, true); // meaningless, ignored (log line is still output)
-  send_pmd_message (4, DDSI_RTPS_CDR_BE, 3, 0, 1, 24, true); // 3 padding bytes
-  send_pmd_message (5, DDSI_RTPS_CDR_BE, 0, 0, 4, 24, true);
+  send_pmd_message (1, DDSI_RTPS_CDR_BE, 0, 0, 0, 20, MV_VALID); // auto
+  send_pmd_message (2, DDSI_RTPS_CDR_BE, 0, 1, 0, 20, MV_VALID); // manual
+  send_pmd_message (3, DDSI_RTPS_CDR_BE, 0, 2, 0, 20, MV_VALID); // meaningless, ignored (log line is still output)
+  send_pmd_message (4, DDSI_RTPS_CDR_BE, 3, 0, 1, 24, MV_VALID); // 3 padding bytes
+  send_pmd_message (5, DDSI_RTPS_CDR_BE, 0, 0, 4, 24, MV_VALID);
 }
 
 CU_Test (ddsi_pmd_message, invalid_sequence, .init = setup_and_start, .fini = stop_and_teardown)
 {
   create_fake_proxy_participant ();
-  send_pmd_message (1, DDSI_RTPS_CDR_BE, 0, 0, 8, 24, false); // only have up to 4 bytes for octet sequence
-  send_pmd_message (2, DDSI_RTPS_CDR_BE, 3, 0, 4, 24, true); // not valid but XTypes' padding-at-end field currently ignored
+  send_pmd_message (1, DDSI_RTPS_CDR_BE, 0, 0, 8, 24, MV_MALFORMED); // only have up to 4 bytes for octet sequence
+  send_pmd_message (2, DDSI_RTPS_CDR_BE, 3, 0, 4, 24, MV_VALID); // not valid but XTypes' padding-at-end field currently ignored
 }
 
 CU_Test (ddsi_pmd_message, bogus_header, .init = setup_and_start, .fini = stop_and_teardown)
 {
   create_fake_proxy_participant ();
-  send_pmd_message (1, DDSI_RTPS_CDR_BE, 0xa481, 0, 0, 20, true); // options may be anything, XTypes' padding-at-end field currently ignored
-  send_pmd_message (2, DDSI_RTPS_CDR_BE, 0xa481, 0, 0, 16, false); // short
-  send_pmd_message (3, DDSI_RTPS_CDR_BE, 0xa481, 0, 0, 0, false); // nothing at all -> used to trigger an assert
-  send_pmd_message (4, 0xa481, 0, 0, 0, 0, false);
+  send_pmd_message (1, DDSI_RTPS_CDR_BE, 0xa481, 0, 0, 20, MV_VALID); // options may be anything, XTypes' padding-at-end field currently ignored
+  send_pmd_message (2, DDSI_RTPS_CDR_BE, 0xa481, 0, 0, 16, MV_MALFORMED); // short
+  send_pmd_message (3, DDSI_RTPS_CDR_BE, 0xa481, 0, 0, 0, MV_MALFORMED); // nothing at all -> used to trigger an assert
+  send_pmd_message (4, 0xa481, 0, 0, 0, 0, MV_MALFORMED);
+}
+
+CU_Test (ddsi_pmd_message, wrong_prefix, .init = setup_and_start, .fini = stop_and_teardown)
+{
+  create_fake_proxy_participant ();
+  send_pmd_message (1, DDSI_RTPS_CDR_BE, 0, 1, 0, 20, MV_WRONG_PREFIX);
 }

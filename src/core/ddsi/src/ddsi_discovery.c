@@ -113,49 +113,69 @@ bool ddsi_handle_sedp_checks (struct ddsi_domaingv * const gv, ddsi_sedp_kind_t 
 #undef E
 }
 
-static void ddsi_handle_sedp (const struct ddsi_receiver_state *rst, ddsi_seqno_t seq, struct ddsi_serdata *serdata, ddsi_sedp_kind_t sedp_kind)
+static void ddsi_handle_sedp_endpoint (const struct ddsi_receiver_state *rst, ddsi_seqno_t seq, struct ddsi_serdata *serdata, ddsi_sedp_kind_t sedp_kind)
 {
   ddsi_plist_t decoded_data;
   if (ddsi_serdata_to_sample (serdata, &decoded_data, NULL, NULL))
   {
     struct ddsi_domaingv * const gv = rst->gv;
     GVLOGDISC ("SEDP ST%"PRIx32, serdata->statusinfo);
-    switch (serdata->statusinfo & (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER))
+
+    // GUID prefixes should match
+    if (memcmp (&decoded_data.endpoint_guid.prefix, &rst->src_guid_prefix, sizeof (rst->src_guid_prefix)) != 0)
     {
-      case 0:
-        switch (sedp_kind)
-        {
-          case SEDP_KIND_TOPIC:
-#ifdef DDS_HAS_TOPIC_DISCOVERY
-            ddsi_handle_sedp_alive_topic (rst, seq, &decoded_data, rst->vendor, serdata->timestamp);
-#endif
-            break;
-          case SEDP_KIND_READER:
-          case SEDP_KIND_WRITER:
-            ddsi_handle_sedp_alive_endpoint (rst, seq, &decoded_data, sedp_kind, rst->vendor, serdata->timestamp);
-            break;
-        }
-        break;
-      case DDSI_STATUSINFO_DISPOSE:
-      case DDSI_STATUSINFO_UNREGISTER:
-      case (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER):
-        switch (sedp_kind)
-        {
-          case SEDP_KIND_TOPIC:
-#ifdef DDS_HAS_TOPIC_DISCOVERY
-            ddsi_handle_sedp_dead_topic (rst, &decoded_data, serdata->timestamp);
-#endif
-            break;
-          case SEDP_KIND_READER:
-          case SEDP_KIND_WRITER:
-            ddsi_handle_sedp_dead_endpoint (rst, &decoded_data, sedp_kind, serdata->timestamp);
-            break;
-        }
-        break;
+      GVTRACE (" "PGUIDFMT": mismatch with RTPS source "PGUIDPREFIXFMT"\n", PGUID (decoded_data.endpoint_guid), PGUIDPREFIX(rst->src_guid_prefix));
+    }
+    else
+    {
+      switch (serdata->statusinfo & (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER))
+      {
+        case 0:
+          ddsi_handle_sedp_alive_endpoint (rst, seq, &decoded_data, sedp_kind, rst->vendor, serdata->timestamp);
+          break;
+        case DDSI_STATUSINFO_DISPOSE:
+        case DDSI_STATUSINFO_UNREGISTER:
+        case (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER):
+          ddsi_handle_sedp_dead_endpoint (rst, &decoded_data, sedp_kind, serdata->timestamp);
+          break;
+      }
     }
     ddsi_plist_fini (&decoded_data);
   }
 }
+
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+static void ddsi_handle_sedp_topic (const struct ddsi_receiver_state *rst, ddsi_seqno_t seq, struct ddsi_serdata *serdata)
+{
+  ddsi_plist_t decoded_data;
+  if (ddsi_serdata_to_sample (serdata, &decoded_data, NULL, NULL))
+  {
+    struct ddsi_domaingv * const gv = rst->gv;
+    GVLOGDISC ("SEDP ST%"PRIx32, serdata->statusinfo);
+
+    // GUID prefixes should match
+    if (memcmp (&decoded_data.topic_guid.prefix, &rst->src_guid_prefix, sizeof (rst->src_guid_prefix)) != 0)
+    {
+      GVTRACE (" "PGUIDFMT": mismatch with RTPS source "PGUIDPREFIXFMT"\n", PGUID (decoded_data.topic_guid), PGUIDPREFIX(rst->src_guid_prefix));
+    }
+    else
+    {
+      switch (serdata->statusinfo & (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER))
+      {
+        case 0:
+          ddsi_handle_sedp_alive_topic (rst, seq, &decoded_data, rst->vendor, serdata->timestamp);
+          break;
+        case DDSI_STATUSINFO_DISPOSE:
+        case DDSI_STATUSINFO_UNREGISTER:
+        case (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER):
+          ddsi_handle_sedp_dead_topic (rst, &decoded_data, serdata->timestamp);
+          break;
+      }
+    }
+    ddsi_plist_fini (&decoded_data);
+  }
+}
+#endif
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
 static void handle_typelookup (const struct ddsi_receiver_state *rst, ddsi_entityid_t wr_entity_id, struct ddsi_serdata *serdata)
@@ -371,15 +391,15 @@ int ddsi_builtins_dqueue_handler (const struct ddsi_rsample_info *sampleinfo, co
       break;
     case DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER:
     case DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER:
-      ddsi_handle_sedp (sampleinfo->rst, sampleinfo->seq, d, SEDP_KIND_WRITER);
+      ddsi_handle_sedp_endpoint (sampleinfo->rst, sampleinfo->seq, d, SEDP_KIND_WRITER);
       break;
     case DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER:
     case DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER:
-      ddsi_handle_sedp (sampleinfo->rst, sampleinfo->seq, d, SEDP_KIND_READER);
+      ddsi_handle_sedp_endpoint (sampleinfo->rst, sampleinfo->seq, d, SEDP_KIND_READER);
       break;
 #ifdef DDS_HAS_TOPIC_DISCOVERY
     case DDSI_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER:
-      ddsi_handle_sedp (sampleinfo->rst, sampleinfo->seq, d, SEDP_KIND_TOPIC);
+      ddsi_handle_sedp_topic (sampleinfo->rst, sampleinfo->seq, d);
       break;
 #endif
     case DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
