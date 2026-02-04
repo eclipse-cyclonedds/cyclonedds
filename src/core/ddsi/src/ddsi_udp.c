@@ -210,7 +210,9 @@ static dds_return_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsign
   {
     union addr dest;
     socklen_t dest_len = sizeof (dest);
-    if (ddsrt_getsockname (conn->m_sockext.sock, &dest.a, &dest_len) != DDS_RETCODE_OK)
+    if (pktinfo && pktinfo->dst.kind != DDSI_LOCATOR_KIND_INVALID)
+      ddsi_ipaddr_from_loc (&dest.x, &pktinfo->dst);
+    else if (ddsrt_getsockname (conn->m_sockext.sock, &dest.a, &dest_len) != DDS_RETCODE_OK)
       memset (&dest, 0, sizeof (dest));
     ddsi_write_pcap_received (gv, ddsrt_time_wallclock (), &src.x, &dest.x, buf, nrecv);
   }
