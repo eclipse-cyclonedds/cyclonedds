@@ -158,8 +158,8 @@ DUPF(tracemask);
 DUPF(xcheck);
 DUPF(int);
 DUPF(uint);
-#if 0
 DUPF(int32);
+#if 0
 DUPF(uint32);
 #endif
 DU(natint);
@@ -1470,6 +1470,16 @@ static enum update_result uf_int (struct ddsi_cfgst *cfgst, void *parent, struct
   return URES_SUCCESS;
 }
 
+static enum update_result uf_int32 (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  int32_t * const elem = cfg_address (cfgst, parent, cfgelem);
+  int64_t x;
+  if (uf_int64_unit (cfgst, &x, value, NULL, 1, INT32_MIN, INT32_MAX) != URES_SUCCESS)
+    return URES_ERROR;
+  *elem = (int32_t) x;
+  return URES_SUCCESS;
+}
+
 static enum update_result uf_int_min_max (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value, int min, int max)
 {
   int *elem = cfg_address (cfgst, parent, cfgelem);
@@ -1484,6 +1494,12 @@ static void pf_int (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const
 {
   int const * const p = cfg_address (cfgst, parent, cfgelem);
   cfg_logelem (cfgst, sources, "%d", *p);
+}
+
+static void pf_int32 (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
+{
+  int32_t const * const p = cfg_address (cfgst, parent, cfgelem);
+  cfg_logelem (cfgst, sources, "%"PRId32, *p);
 }
 
 #ifdef DDS_HAS_TCP

@@ -122,6 +122,15 @@ static cover_info_t cover_get (const struct cover *c, int rdidx, int lidx)
 typedef int32_t cost_t;
 typedef int32_t delta_cost_t;
 
+static cost_t sat_cost_add (cost_t x, int32_t a)
+{
+  DDSRT_STATIC_ASSERT (sizeof (cost_t) == sizeof (int32_t) && (cost_t) ((uint32_t)1 << 31) < 0);
+  if (a >= 0)
+    return (x > INT32_MAX - a) ? INT32_MAX : x + a;
+  else
+    return (x < INT32_MIN - a) ? INT32_MIN : x + a;
+}
+
 typedef struct ddsi_readercount_cost {
   uint32_t nrds;
   cost_t cost;
@@ -164,7 +173,7 @@ static void costmap_adjust (struct costmap *wm, int lidx, delta_cost_t v)
   if (--wm->m[lidx].nrds == 0)
     wm->m[lidx].cost = INT32_MAX;
   else
-    wm->m[lidx].cost += v;
+    wm->m[lidx].cost = sat_cost_add (wm->m[lidx].cost, v);
 }
 
 static readercount_cost_t costmap_get (const struct costmap *wm, int lidx)
@@ -318,35 +327,14 @@ static struct locset *wras_calc_locators (const struct ddsrt_log_cfg *logcfg, st
 // Make sure that DDSI_LOCATOR_UDPv4MCGEN_INDEX_MASK_SZ fits into the available bits of cover_info_t
 DDSRT_STATIC_ASSERT (DDSI_LOCATOR_UDPv4MCGEN_INDEX_MASK_BITS + CI_MULTICAST_MCGEN_OFFSET < (1 << ((sizeof(cover_info_t) << 3) - CI_MULTICAST_SHIFT)));
 
-// Cost associated with delivering another time to a reader that has
-// already been covered by previously selected locators
-static const int32_t cost_discarded = 1;
-
-// Cost associated with delivering another time to a reader that has
-// already been covered by a (selected) PSMX locator.
-static const int32_t cost_redundant_psmx = 0;
-
-// Cost associated with delivering data for the first time (slightly
-// negative cost makes it possible to give a slightly higher initial
-// cost to multicasts and switch over from unicast to multicast once
-// several readers can be addressed simultaneously)
-static const int32_t cost_delivered = -1;
-
-static cost_t sat_cost_add (cost_t x, int32_t a)
-{
-  DDSRT_STATIC_ASSERT (sizeof (cost_t) == sizeof (int32_t) && (cost_t) ((uint32_t)1 << 31) < 0);
-  if (a >= 0)
-    return (x > INT32_MAX - a) ? INT32_MAX : x + a;
-  else
-    return (x < INT32_MIN - a) ? INT32_MIN : x + a;
-}
-
 static readercount_cost_t calc_locator_cost (const struct locset *locs, const struct cover *c, int lidx, dds_locator_mask_t ignore)
 {
-  const int32_t cost_uc  = locs->locs[lidx].conn->m_interf->prefer_multicast ? 1000000 : 2;
-  const int32_t cost_mc  = locs->locs[lidx].conn->m_interf->prefer_multicast ? 1 : 3;
-  const int32_t cost_ssm = locs->locs[lidx].conn->m_interf->prefer_multicast ? 0 : 2;
-  readercount_cost_t x = { .nrds = 0, .cost = - locs->locs[lidx].conn->m_interf->priority };
+  struct ddsi_network_interface const * const intf = locs->locs[lidx].conn->m_interf;
+  struct ddsi_addrset_costs const * const costs = &intf->addrset_costs;
+  const int32_t cost_uc  = costs->uc;
+  const int32_t cost_mc  = costs->mc;
+  const int32_t cost_ssm = costs->ssm;
+  readercount_cost_t x = { .nrds = 0, .cost = -intf->priority };
 
   // Find first reader that this locator addresses so we actually know something
   // about the locator.  There should be at least one, but if none were to be there
@@ -370,11 +358,11 @@ static readercount_cost_t calc_locator_cost (const struct locset *locs, const st
       goto no_readers;
   }
   else if ((ci & CI_MULTICAST_MASK) == 0)
-    x.cost += cost_uc;
+    x.cost = sat_cost_add (x.cost, cost_uc);
   else if (((ci & CI_MULTICAST_MASK) >> CI_MULTICAST_SHIFT) == CI_MULTICAST_SSM)
-    x.cost += cost_ssm;
+    x.cost = sat_cost_add (x.cost, cost_ssm);
   else
-    x.cost += cost_mc;
+    x.cost = sat_cost_add (x.cost, cost_mc);
 
   for (; rdidx < c->nreaders; rdidx++)
   {
@@ -383,7 +371,7 @@ static readercount_cost_t calc_locator_cost (const struct locset *locs, const st
       continue;
 
     assert ((ci & CI_STATUS_MASK) == CI_REACHABLE);
-    x.cost = sat_cost_add (x.cost, cost_delivered);
+    x.cost = sat_cost_add (x.cost, costs->delivered);
     x.nrds++;
   }
   if (x.cost == INT32_MAX)
@@ -711,7 +699,7 @@ static void wras_add_locator (const struct ddsi_domaingv *gv, struct ddsi_addrse
   }
 }
 
-static void wras_drop_covered_readers (int locidx, struct costmap *wm, struct cover *covered)
+static void wras_drop_covered_readers (int locidx, struct costmap *wm, struct locset const * const locs, struct cover *covered)
 {
   /* readers covered by this locator no longer matter */
   const int nreaders = cover_get_nreaders (covered);
@@ -728,8 +716,9 @@ static void wras_drop_covered_readers (int locidx, struct costmap *wm, struct co
       {
         cover_set (covered, i, j, (cover_info_t) ((ci & ~CI_STATUS_MASK) | CI_INCLUDED));
         // from reachable to included -> cost goes from "delivered" to "discarded"
-        const int32_t cost = ((ci_rd_loc & ~CI_STATUS_MASK) == CI_PSMX) ? cost_redundant_psmx : cost_discarded;
-        costmap_adjust (wm, j, cost - cost_delivered);
+        struct ddsi_addrset_costs const * const costs = &locs->locs[j].conn->m_interf->addrset_costs;
+        const int32_t cost = ((ci_rd_loc & ~CI_STATUS_MASK) == CI_PSMX) ? costs->redundant_psmx : costs->discarded;
+        costmap_adjust (wm, j, cost - costs->delivered);
       }
     }
   }
@@ -743,7 +732,6 @@ static bool is_psmx_locator (const struct ddsi_endpoint_common *local_endpoint, 
     if (memcmp (&local_endpoint->psmx_locators.locators[i], &remote_locator.c, sizeof (ddsi_locator_t)) == 0)
       return true;
   }
-
   return false;
 }
 
@@ -797,7 +785,7 @@ struct ddsi_addrset *ddsi_compute_writer_addrset (const struct ddsi_writer *wr)
       if (!is_psmx_locator (&wr->c, locs->locs[best]))
         wras_add_locator (gv, newas, best, locs, covered);
 
-      wras_drop_covered_readers (best, wm, covered);
+      wras_drop_covered_readers (best, wm, locs, covered);
     }
     costmap_free (wm);
     cover_free (covered);

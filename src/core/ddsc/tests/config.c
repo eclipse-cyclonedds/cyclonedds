@@ -22,6 +22,7 @@
 #include "dds/ddsi/ddsi_xqos.h"
 
 #include "test_common.h"
+#include "test_oneliner.h"
 
 #define FORCE_ENV
 

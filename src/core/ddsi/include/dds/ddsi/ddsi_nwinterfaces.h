@@ -16,6 +16,7 @@
 #include "dds/ddsrt/ifaddrs.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsi/ddsi_locator.h"
+#include "dds/ddsi/ddsi_addrset_costs.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -36,6 +37,7 @@ struct ddsi_network_interface {
   uint32_t allow_multicast;
   int32_t priority;
   char *name;
+  struct ddsi_addrset_costs addrset_costs;
 };
 
 #if defined (__cplusplus)

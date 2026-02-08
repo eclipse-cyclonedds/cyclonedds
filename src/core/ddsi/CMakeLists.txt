@@ -111,6 +111,7 @@ set(hdrs_ddsi
   ddsi_xqos.h
   ddsi_nwinterfaces.h
   ddsi_config.h
+  ddsi_addrset_costs.h
   ddsi_entity.h
   ddsi_endpoint_match.h
   ddsi_participant.h
