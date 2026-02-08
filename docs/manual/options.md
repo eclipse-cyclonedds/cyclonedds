@@ -317,9 +317,63 @@ The default value is: `<empty>`
 
 
 ### //CycloneDDS/Domain/General
-Children: [AllowMulticast](#cycloneddsdomaingeneralallowmulticast), [DontRoute](#cycloneddsdomaingeneraldontroute), [EnableMulticastLoopback](#cycloneddsdomaingeneralenablemulticastloopback), [EntityAutoNaming](#cycloneddsdomaingeneralentityautonaming), [ExternalNetworkAddress](#cycloneddsdomaingeneralexternalnetworkaddress), [ExternalNetworkMask](#cycloneddsdomaingeneralexternalnetworkmask), [FragmentSize](#cycloneddsdomaingeneralfragmentsize), [Interfaces](#cycloneddsdomaingeneralinterfaces), [MaxMessageSize](#cycloneddsdomaingeneralmaxmessagesize), [MaxRexmitMessageSize](#cycloneddsdomaingeneralmaxrexmitmessagesize), [MulticastRecvNetworkInterfaceAddresses](#cycloneddsdomaingeneralmulticastrecvnetworkinterfaceaddresses), [MulticastTimeToLive](#cycloneddsdomaingeneralmulticasttimetolive), [RedundantNetworking](#cycloneddsdomaingeneralredundantnetworking), [Transport](#cycloneddsdomaingeneraltransport), [UseIPv6](#cycloneddsdomaingeneraluseipv)
+Children: [AddrsetCosts](#cycloneddsdomaingeneraladdrsetcosts), [AllowMulticast](#cycloneddsdomaingeneralallowmulticast), [DontRoute](#cycloneddsdomaingeneraldontroute), [EnableMulticastLoopback](#cycloneddsdomaingeneralenablemulticastloopback), [EntityAutoNaming](#cycloneddsdomaingeneralentityautonaming), [ExternalNetworkAddress](#cycloneddsdomaingeneralexternalnetworkaddress), [ExternalNetworkMask](#cycloneddsdomaingeneralexternalnetworkmask), [FragmentSize](#cycloneddsdomaingeneralfragmentsize), [Interfaces](#cycloneddsdomaingeneralinterfaces), [MaxMessageSize](#cycloneddsdomaingeneralmaxmessagesize), [MaxRexmitMessageSize](#cycloneddsdomaingeneralmaxrexmitmessagesize), [MulticastRecvNetworkInterfaceAddresses](#cycloneddsdomaingeneralmulticastrecvnetworkinterfaceaddresses), [MulticastTimeToLive](#cycloneddsdomaingeneralmulticasttimetolive), [RedundantNetworking](#cycloneddsdomaingeneralredundantnetworking), [Transport](#cycloneddsdomaingeneraltransport), [UseIPv6](#cycloneddsdomaingeneraluseipv)
 
 The General element specifies overall Cyclone DDS service settings.
+
+
+#### //CycloneDDS/Domain/General/AddrsetCosts
+Children: [delivered](#cycloneddsdomaingeneraladdrsetcostsdelivered), [discarded](#cycloneddsdomaingeneraladdrsetcostsdiscarded), [mc](#cycloneddsdomaingeneraladdrsetcostsmc), [redundant_psmx](#cycloneddsdomaingeneraladdrsetcostsredundantpsmx), [ssm](#cycloneddsdomaingeneraladdrsetcostsssm), [uc](#cycloneddsdomaingeneraladdrsetcostsuc)
+
+This element specifies the "costs" used in deciding which set of addresses to use when sending data to readers. It is based on repeatedly selecting the lowest-cost locator from the available locators, where the cost is defined as -priority + {uc|mc|ssm} + delivered |READERS| + SUM(X) where "priority" is the network interface priority, and X is 0 for readers not yet reached, and (discarded-delivered) for readers already reached via a previously selected locator.
+
+
+##### //CycloneDDS/Domain/General/AddrsetCosts/delivered
+Integer
+
+The "cost" associated with delivering to a reader. Typically negative to make delivering to more readers with a single message advantageous.
+
+The default value is: `-1`
+
+
+##### //CycloneDDS/Domain/General/AddrsetCosts/discarded
+Integer
+
+The "cost" of delivering another copy to a reader via a network interface. Typically positive to make delivering to the same reader twice more costly.
+
+The default value is: `1`
+
+
+##### //CycloneDDS/Domain/General/AddrsetCosts/mc
+Integer
+
+The base "cost" of an (any-source) multicast.
+
+The default value is: `3`
+
+
+##### //CycloneDDS/Domain/General/AddrsetCosts/redundant_psmx
+Integer
+
+The "cost" of delivering another copy to a reader via a PSMX interface. The code still mostly assumes that delivering via PSMX is free (a remnant of its origins as a shared-memory bypass).
+
+The default value is: `0`
+
+
+##### //CycloneDDS/Domain/General/AddrsetCosts/ssm
+Integer
+
+The base "cost" of a source-specific multicast.
+
+The default value is: `2`
+
+
+##### //CycloneDDS/Domain/General/AddrsetCosts/uc
+Integer
+
+The base "cost" of a unicast.
+
+The default value is: `2`
 
 
 #### //CycloneDDS/Domain/General/AllowMulticast
@@ -412,6 +466,7 @@ This element specifies the network interfaces for use by Cyclone DDS. Multiple i
 
 ##### //CycloneDDS/Domain/General/Interfaces/NetworkInterface
 Attributes: [address](#cycloneddsdomaingeneralinterfacesnetworkinterfaceaddress), [allow_multicast](#cycloneddsdomaingeneralinterfacesnetworkinterfaceallowmulticast), [autodetermine](#cycloneddsdomaingeneralinterfacesnetworkinterfaceautodetermine), [multicast](#cycloneddsdomaingeneralinterfacesnetworkinterfacemulticast), [name](#cycloneddsdomaingeneralinterfacesnetworkinterfacename), [prefer_multicast](#cycloneddsdomaingeneralinterfacesnetworkinterfaceprefermulticast), [presence_required](#cycloneddsdomaingeneralinterfacesnetworkinterfacepresencerequired), [priority](#cycloneddsdomaingeneralinterfacesnetworkinterfacepriority)
+Children: [AddrsetCosts](#cycloneddsdomaingeneralinterfacesnetworkinterfaceaddrsetcosts)
 
 This element defines a network interface. You can set autodetermine="true" to autoselect the interface CycloneDDS considers the highest quality. If autodetermine="false" (the default), you must specify the name and/or address attribute. If you specify both, they must match the same interface.
 
@@ -490,6 +545,60 @@ The default value is: `true`
 Text
 
 This attribute specifies the interface priority (decimal integer or default). The default value for loopback interfaces is 2, for all other interfaces it is 0.
+
+The default value is: `default`
+
+
+###### //CycloneDDS/Domain/General/Interfaces/NetworkInterface/AddrsetCosts
+Children: [delivered](#cycloneddsdomaingeneralinterfacesnetworkinterfaceaddrsetcostsdelivered), [discarded](#cycloneddsdomaingeneralinterfacesnetworkinterfaceaddrsetcostsdiscarded), [mc](#cycloneddsdomaingeneralinterfacesnetworkinterfaceaddrsetcostsmc), [redundant_psmx](#cycloneddsdomaingeneralinterfacesnetworkinterfaceaddrsetcostsredundantpsmx), [ssm](#cycloneddsdomaingeneralinterfacesnetworkinterfaceaddrsetcostsssm), [uc](#cycloneddsdomaingeneralinterfacesnetworkinterfaceaddrsetcostsuc)
+
+This element allows overriding the constants used in computing the address sets for a network interface. See General/AddrsetCosts for more information.
+
+
+####### //CycloneDDS/Domain/General/Interfaces/NetworkInterface/AddrsetCosts/delivered
+Integer
+
+The "cost" associated with delivering to a reader. Typically negative to make delivering to more readers with a single message advantageous. If set to "default", taken from General/AddrsetCosts/delivered.
+
+The default value is: `default`
+
+
+####### //CycloneDDS/Domain/General/Interfaces/NetworkInterface/AddrsetCosts/discarded
+Integer
+
+The "cost" of delivering another copy to a reader via a network interface. Typically positive to make delivering to the same reader twice more costly. If set to "default", taken from General/AddrsetCosts/discarded.
+
+The default value is: `default`
+
+
+####### //CycloneDDS/Domain/General/Interfaces/NetworkInterface/AddrsetCosts/mc
+Integer
+
+The base "cost" of an (any-source) multicast. If set to "default", taken from General/AddrsetCosts/mc unless "prefer\_multicast" is true, in which case it defaults to 2.
+
+The default value is: `default`
+
+
+####### //CycloneDDS/Domain/General/Interfaces/NetworkInterface/AddrsetCosts/redundant_psmx
+Integer
+
+The "cost" of delivering another copy to a reader via a PSMX interface. The code still mostly assumes that delivering via PSMX is free (a remnant of its origins as a shared-memory bypass).If set to "default", taken from General/AddrsetCosts/redundant\_psmx.
+
+The default value is: `default`
+
+
+####### //CycloneDDS/Domain/General/Interfaces/NetworkInterface/AddrsetCosts/ssm
+Integer
+
+The base "cost" of a source-specific multicast. If set to "default", taken from General/AddrsetCosts/ssm unless "prefer\_multicast" is true, in which case it defaults to 1.
+
+The default value is: `default`
+
+
+####### //CycloneDDS/Domain/General/Interfaces/NetworkInterface/AddrsetCosts/uc
+Integer
+
+The base "cost" of a unicast. If set to "default", taken from General/AddrsetCosts/uc unless "prefer\_multicast" is true, in which case it defaults to 1000000.
 
 The default value is: `default`
 
@@ -1960,9 +2069,9 @@ While none prevents any message from being written to a DDSI2 log file.
 The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful verbosity levels are config, fine and finest.
 
 The default value is: `none`
-<!--- generated from ddsi_config.h[6b6cd6f2af797765bc3753758bdd5f166f64b418] -->
-<!--- generated from ddsi_config.c[98a66b82efe4476934c17d3df879e70add3b65a2] -->
-<!--- generated from ddsi__cfgelems.h[7fe8f980955d7eab1f9515a474d5a51042698343] -->
+<!--- generated from ddsi_config.h[a96f2afb055d694037710e101e4431ceee2c7c94] -->
+<!--- generated from ddsi_config.c[9fb9ace4394a1b7d50f4e0fa3905bbba2a183e36] -->
+<!--- generated from ddsi__cfgelems.h[5137766e3f48f57c05c3745cc2a2380bf7af82cc] -->
 <!--- generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] -->
 <!--- generated from _confgen.h[bb9a0fc6ef1f7f7c46790ee00132e340e5fff36d] -->
 <!--- generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] -->

@@ -20,6 +20,7 @@
 #include "dds/ddsi/ddsi_portmapping.h"
 #include "dds/ddsi/ddsi_protocol_version.h"
 #include "dds/ddsi/ddsi_locator.h"
+#include "dds/ddsi/ddsi_addrset_costs.h"
 #include "dds/ddsi/ddsi_xqos.h"
 
 #if defined (__cplusplus)
@@ -223,6 +224,15 @@ struct ddsi_config_socket_buf_size {
   struct ddsi_config_maybe_uint32 min, max;
 };
 
+struct ddsi_config_addrset_costs {
+  struct ddsi_config_maybe_int32 uc;
+  struct ddsi_config_maybe_int32 mc;
+  struct ddsi_config_maybe_int32 ssm;
+  struct ddsi_config_maybe_int32 delivered;
+  struct ddsi_config_maybe_int32 discarded;
+  struct ddsi_config_maybe_int32 redundant_psmx;
+};
+
 struct ddsi_config_network_interface {
   int automatic;
   char *name;
@@ -232,6 +242,7 @@ struct ddsi_config_network_interface {
   enum ddsi_boolean_default multicast;
   struct ddsi_config_maybe_int32 priority;
   uint32_t allow_multicast; // no need for a "maybe" type: DDSI_AMC_DEFAULT takes care of that
+  struct ddsi_config_addrset_costs addrset_costs;
 };
 
 struct ddsi_config_network_interface_listelem {
@@ -432,6 +443,7 @@ struct ddsi_config
   int use_multicast_if_mreqn;
   struct ddsi_config_prune_deleted_ppant prune_deleted_ppant;
   int redundant_networking;
+  struct ddsi_addrset_costs addrset_costs;
 
 #ifdef DDS_HAS_SECURITY
   struct ddsi_config_omg_security_listelem *omg_security_configuration;

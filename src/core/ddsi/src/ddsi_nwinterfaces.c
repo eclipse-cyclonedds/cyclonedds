@@ -114,6 +114,33 @@ static int compare_interface_priority (const void *va, const void *vb)
   return (a->priority == b->priority) ? 0 : (a->priority < b->priority) ? 1 : -1;
 }
 
+ddsrt_nonnull ((1, 2))
+static void set_addrset_costs (struct ddsi_domaingv *gv, struct ddsi_network_interface *act_iface, const struct ddsi_config_network_interface_listelem *cfg_iface)
+{
+#define SACDEF(x_, def_) do { \
+    act_iface->addrset_costs.x_ = cfg_iface && !cfg_iface->cfg.addrset_costs.x_.isdefault ? \
+      cfg_iface->cfg.addrset_costs.x_.value : def_; \
+  } while (0)
+#define SAC(x_) SACDEF (x_, gv->config.addrset_costs.x_)
+  if (act_iface->prefer_multicast)
+  {
+    SACDEF (uc, 1000000);
+    SACDEF (mc, 2);
+    SACDEF (ssm, 1);
+  }
+  else
+  {
+    SAC (uc);
+    SAC (mc);
+    SAC (ssm);
+  }
+  SAC (delivered);
+  SAC (discarded);
+  SAC (redundant_psmx);
+#undef SAC
+#undef SACDEF
+}
+
 enum maybe_add_interface_result {
   MAI_IGNORED,
   MAI_ADDED,
@@ -226,6 +253,7 @@ static enum maybe_add_interface_result maybe_add_interface (struct ddsi_domaingv
   dst->priority = loopback ? 2 : 0;
   dst->allow_multicast = DDSI_AMC_DEFAULT;
   dst->prefer_multicast = 0;
+  set_addrset_costs (gv, dst, NULL);
   *qout = q;
   return MAI_ADDED;
 }
@@ -369,7 +397,7 @@ static bool add_matching_interface (struct ddsi_domaingv *gv, struct interface_p
     }
   }
 
-  act_iface->prefer_multicast = ((unsigned) cfg_iface->cfg.prefer_multicast) & 1;
+  act_iface->prefer_multicast = cfg_iface->cfg.prefer_multicast ? 1u : 0u;
   act_iface->allow_multicast = cfg_iface->cfg.allow_multicast;
 
   if (!cfg_iface->cfg.priority.isdefault)
@@ -385,6 +413,9 @@ static bool add_matching_interface (struct ddsi_domaingv *gv, struct interface_p
       act_iface->mc_capable = 1;
     }
   }
+
+  // possibly override act_iface addrset costs from cfg_iface
+  set_addrset_costs (gv, act_iface, cfg_iface);
 
   if (*num_matches == MAX_XMIT_CONNS)
   {
@@ -583,5 +614,12 @@ int ddsi_gather_network_interfaces (struct ddsi_domaingv *gv)
            flagstr);
   }
   GVLOG (DDS_LC_CONFIG, "\n");
+  GVLOG (DDS_LC_CONFIG, "addrset costs:\n");
+  for (int i = 0; i < gv->n_interfaces; i++)
+  {
+    struct ddsi_network_interface const * const intf = &gv->interfaces[i];
+    struct ddsi_addrset_costs const * const costs = &intf->addrset_costs;
+    GVLOG (DDS_LC_CONFIG, "  %s: uc %"PRId32" mc %"PRId32" ssm %"PRId32" delivered %"PRId32" discarded %"PRId32" redundant_psmx %"PRId32"\n", intf->name, costs->uc, costs->mc, costs->ssm, costs->delivered, costs->discarded, costs->redundant_psmx);
+  }
   return 1;
 }

@@ -13,7 +13,6 @@
 
 #include "dds/features.h"
 
-
 static struct cfgelem network_interface_attributes[] = {
   STRING("autodetermine", NULL, 1, "false",
     MEMBEROF(ddsi_config_network_interface_listelem, cfg.automatic),
@@ -137,8 +136,74 @@ static struct cfgelem psmx_attributes[] = {
   END_MARKER
 };
 
+static struct cfgelem network_interface_wraddrset_cfgelems[] = {
+  INT("uc", NULL, 1, "default",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.addrset_costs.uc),
+    FUNCTIONS(0, uf_maybe_int32, 0, pf_maybe_int32),
+    DESCRIPTION(
+      "<p>The base \"cost\" of a unicast. If set to \"default\", taken "
+      "from General/AddrsetCosts/uc unless \"prefer_multicast\" is true, "
+      "in which case it defaults to 1000000.</p>"
+    )),
+  INT("mc", NULL, 1, "default",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.addrset_costs.mc),
+    FUNCTIONS(0, uf_maybe_int32, 0, pf_maybe_int32),
+    DESCRIPTION(
+      "<p>The base \"cost\" of an (any-source) multicast. If set to "
+      "\"default\", taken from General/AddrsetCosts/mc unless "
+      "\"prefer_multicast\" is true, in which case it defaults to 2.</p>"
+    )),
+  INT("ssm", NULL, 1, "default",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.addrset_costs.ssm),
+    FUNCTIONS(0, uf_maybe_int32, 0, pf_maybe_int32),
+    DESCRIPTION(
+      "<p>The base \"cost\" of a source-specific multicast. If set to "
+      "\"default\", taken from General/AddrsetCosts/ssm unless "
+      "\"prefer_multicast\" is true, in which case it defaults to 1.</p>"
+    )),
+  INT("delivered", NULL, 1, "default",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.addrset_costs.delivered),
+    FUNCTIONS(0, uf_maybe_int32, 0, pf_maybe_int32),
+    DESCRIPTION(
+      "<p>The \"cost\" associated with delivering to a reader. Typically "
+      "negative to make delivering to more readers with a single message "
+      "advantageous. If set to \"default\", taken from "
+      "General/AddrsetCosts/delivered.</p>"
+    )),
+  INT("discarded", NULL, 1, "default",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.addrset_costs.discarded),
+    FUNCTIONS(0, uf_maybe_int32, 0, pf_maybe_int32),
+    DESCRIPTION(
+      "<p>The \"cost\" of delivering another copy to a reader via a network "
+      "interface. Typically positive to make delivering to the same reader "
+      "twice more costly. If set to \"default\", taken from "
+      "General/AddrsetCosts/discarded.</p>"
+    )),
+  INT("redundant_psmx", NULL, 1, "default",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.addrset_costs.redundant_psmx),
+    FUNCTIONS(0, uf_maybe_int32, 0, pf_maybe_int32),
+    DESCRIPTION(
+      "<p>The \"cost\" of delivering another copy to a reader via a PSMX "
+      "interface. The code still mostly assumes that delivering via PSMX "
+      "is free (a remnant of its origins as a shared-memory bypass)."
+      "If set to \"default\", taken from General/AddrsetCosts/redundant_psmx.</p>"
+    )),
+  END_MARKER
+};
+
+static struct cfgelem network_interface_cfgelems[] = {
+  GROUP("AddrsetCosts", network_interface_wraddrset_cfgelems, NULL, 1,
+    NOMEMBER,
+    NOFUNCTIONS,
+    DESCRIPTION(
+      "<p>This element allows overriding the constants used in computing the "
+      "address sets for a network interface. See General/AddrsetCosts for more "
+      "information.</p>")),
+  END_MARKER
+};
+
 static struct cfgelem interfaces_cfgelems[] = {
-  GROUP("NetworkInterface", NULL, network_interface_attributes, INT_MAX,
+  GROUP("NetworkInterface", network_interface_cfgelems, network_interface_attributes, INT_MAX,
     MEMBER(network_interfaces),
     FUNCTIONS(if_network_interfaces, 0, 0, 0),
     DESCRIPTION(
@@ -169,6 +234,51 @@ static struct cfgelem entity_autonaming_attributes[] = {
   END_MARKER
 };
 
+static struct cfgelem general_wraddrset_cfgelems[] = {
+  INT("uc", NULL, 1, "2",
+    MEMBER(addrset_costs.uc),
+    FUNCTIONS(0, uf_int32, 0, pf_int32),
+    DESCRIPTION(
+      "<p>The base \"cost\" of a unicast.</p>"
+    )),
+  INT("mc", NULL, 1, "3",
+    MEMBER(addrset_costs.mc),
+    FUNCTIONS(0, uf_int32, 0, pf_int32),
+    DESCRIPTION(
+      "<p>The base \"cost\" of an (any-source) multicast.</p>"
+    )),
+  INT("ssm", NULL, 1, "2",
+    MEMBER(addrset_costs.ssm),
+    FUNCTIONS(0, uf_int32, 0, pf_int32),
+    DESCRIPTION(
+      "<p>The base \"cost\" of a source-specific multicast.</p>"
+    )),
+  INT("delivered", NULL, 1, "-1",
+    MEMBER(addrset_costs.delivered),
+    FUNCTIONS(0, uf_int32, 0, pf_int32),
+    DESCRIPTION(
+      "<p>The \"cost\" associated with delivering to a reader. Typically "
+      "negative to make delivering to more readers with a single message "
+      "advantageous.</p>"
+    )),
+  INT("discarded", NULL, 1, "1",
+    MEMBER(addrset_costs.discarded),
+    FUNCTIONS(0, uf_int32, 0, pf_int32),
+    DESCRIPTION(
+      "<p>The \"cost\" of delivering another copy to a reader via a network "
+      "interface. Typically positive to make delivering to the same reader "
+      "twice more costly.</p>"
+    )),
+  INT("redundant_psmx", NULL, 1, "0",
+    MEMBER(addrset_costs.redundant_psmx),
+    FUNCTIONS(0, uf_int32, 0, pf_int32),
+    DESCRIPTION(
+      "<p>The \"cost\" of delivering another copy to a reader via a PSMX "
+      "interface. The code still mostly assumes that delivering via PSMX "
+      "is free (a remnant of its origins as a shared-memory bypass).</p>"
+    )),
+  END_MARKER
+};
 
 static struct cfgelem general_cfgelems[] = {
   STRING("MulticastRecvNetworkInterfaceAddresses", NULL, 1, "preferred",
@@ -208,6 +318,18 @@ static struct cfgelem general_cfgelems[] = {
       "DDS. Multiple interfaces can be specified with an assigned priority. "
       "The list in use will be sorted by priority. If interfaces have an "
       "equal priority, the specification order will be preserved.</p>"
+    )),
+  GROUP("AddrsetCosts", general_wraddrset_cfgelems, NULL, 1,
+    NOMEMBER,
+    NOFUNCTIONS,
+    DESCRIPTION(
+      "<p>This element specifies the \"costs\" used in deciding which set of "
+      "addresses to use when sending data to readers. It is based on repeatedly "
+      "selecting the lowest-cost locator from the available locators, where the "
+      "cost is defined as -priority + {uc|mc|ssm} + delivered |READERS| + SUM(X) "
+      "where \"priority\" is the network interface priority, and X is 0 "
+      "for readers not yet reached, and (discarded-delivered) for readers "
+      "already reached via a previously selected locator.</p>"
     )),
   STRING(DEPRECATED("NetworkInterfaceAddress"), NULL, 1, "auto",
     MEMBER(depr_networkAddressString),

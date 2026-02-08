@@ -11,6 +11,11 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
     NULL
   };
   cfg->networkRecvAddressStrings = networkRecvAddressStrings_init_;
+  cfg->addrset_costs.uc = INT32_C (2);
+  cfg->addrset_costs.mc = INT32_C (3);
+  cfg->addrset_costs.ssm = INT32_C (2);
+  cfg->addrset_costs.delivered = INT32_C (-1);
+  cfg->addrset_costs.discarded = INT32_C (1);
   cfg->externalMaskString = "0.0.0.0";
   cfg->allowMulticast = UINT32_C (2147483648);
   cfg->multicast_ttl = INT32_C (32);
@@ -103,9 +108,9 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->ssl_min_version.minor = 3;
 #endif /* DDS_HAS_TCP_TLS */
 }
-/* generated from ddsi_config.h[6b6cd6f2af797765bc3753758bdd5f166f64b418] */
-/* generated from ddsi_config.c[98a66b82efe4476934c17d3df879e70add3b65a2] */
-/* generated from ddsi__cfgelems.h[7fe8f980955d7eab1f9515a474d5a51042698343] */
+/* generated from ddsi_config.h[a96f2afb055d694037710e101e4431ceee2c7c94] */
+/* generated from ddsi_config.c[9fb9ace4394a1b7d50f4e0fa3905bbba2a183e36] */
+/* generated from ddsi__cfgelems.h[5137766e3f48f57c05c3745cc2a2380bf7af82cc] */
 /* generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] */
 /* generated from _confgen.h[bb9a0fc6ef1f7f7c46790ee00132e340e5fff36d] */
 /* generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] */
