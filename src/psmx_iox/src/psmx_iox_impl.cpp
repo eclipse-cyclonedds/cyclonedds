@@ -16,11 +16,8 @@
 
 #include "dds/ddsrt/align.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/random.h"
-#include "dds/ddsrt/strtol.h"
-#include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/machineid.h"
 #include "dds/ddsc/dds_loaned_sample.h"
 #include "dds/ddsc/dds_psmx.h"
@@ -671,6 +668,18 @@ static std::optional<iox::log::LogLevel> to_loglevel(const std::string& str)
   return std::nullopt;
 }
 
+static int todigit (char c)
+{
+  if (c >= '0' && c <= '9')
+    return c - '0';
+  else if (c >= 'A' && c <= 'F')
+    return c - 'A' + 10;
+  else if (c >= 'a' && c <= 'f')
+    return c - 'a' + 10;
+  else
+    return -1;
+}
+
 static std::optional<dds_psmx_node_identifier_t> to_node_identifier(const std::string& str)
 {
   dds_psmx_node_identifier_t id;
@@ -679,7 +688,7 @@ static std::optional<dds_psmx_node_identifier_t> to_node_identifier(const std::s
   for (uint32_t n = 0; n < 2 * sizeof (id.x); n++)
   {
     int32_t num;
-    if ((num = ddsrt_todigit(str[n])) < 0 || num >= 16)
+    if ((num = todigit(str[n])) < 0)
       return std::nullopt;
     if ((n % 2) == 0)
       id.x[n / 2] = (uint8_t) (num << 4);

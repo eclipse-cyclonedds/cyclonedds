@@ -306,6 +306,7 @@ static struct cfgelem general_cfgelems[] = {
     FUNCTIONS(0, uf_boolean_default, 0, pf_nop),
     DESCRIPTION("<p>Deprecated (use Transport instead)</p>"),
     VALUES("false","true","default")),
+#ifdef DDS_HAS_TCP
   ENUM("Transport", NULL, 1, "default",
     MEMBER(transport_selector),
     FUNCTIONS(0, uf_transport_selector, 0, pf_transport_selector),
@@ -313,6 +314,15 @@ static struct cfgelem general_cfgelems[] = {
       "<p>This element allows selecting the transport to be used (udp, udp6, "
       "tcp, tcp6, raweth)</p>"),
     VALUES("default","udp","udp6","tcp","tcp6","raweth")),
+#else
+  ENUM("Transport", NULL, 1, "default",
+    MEMBER(transport_selector),
+    FUNCTIONS(0, uf_transport_selector, 0, pf_transport_selector),
+    DESCRIPTION(
+      "<p>This element allows selecting the transport to be used (udp, udp6, "
+      "raweth)</p>"),
+    VALUES("default","udp","udp6","raweth")),
+#endif
   BOOL("EnableMulticastLoopback", NULL, 1, "true",
     MEMBER(enableMulticastLoopback),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
@@ -1712,6 +1722,7 @@ static struct cfgelem discovery_ports_cfgelems[] = {
   END_MARKER
 };
 
+#ifdef DDS_HAS_TCP
 static struct cfgelem tcp_cfgelems[] = {
   ENUM("Enable", NULL, 1, "default",
     MEMBER(compat_tcp_enable),
@@ -1764,6 +1775,7 @@ static struct cfgelem tcp_cfgelems[] = {
     )),
   END_MARKER
 };
+#endif
 
 #ifdef DDS_HAS_TCP_TLS
 static struct cfgelem ssl_cfgelems[] = {
@@ -2249,6 +2261,7 @@ static struct cfgelem domain_cfgelems[] = {
       "functionality is reserved. This includes renaming or moving "
       "options.</p>"
     )),
+#ifdef DDS_HAS_TCP
   GROUP("TCP", tcp_cfgelems, NULL, 1,
     NOMEMBER,
     NOFUNCTIONS,
@@ -2256,6 +2269,7 @@ static struct cfgelem domain_cfgelems[] = {
       "<p>The TCP element allows you to specify various parameters related to "
       "running DDSI over TCP.</p>"
     )),
+#endif
 #ifdef DDS_HAS_TCP_TLS
   GROUP("SSL", ssl_cfgelems, NULL, 1,
     NOMEMBER,
@@ -2294,7 +2308,9 @@ static struct cfgelem root_cfgelems[] = {
   MOVED("Discovery", "CycloneDDS/Domain/Discovery"),
   MOVED("Tracing", "CycloneDDS/Domain/Tracing"),
   MOVED("Internal|Unsupported", "CycloneDDS/Domain/Internal"),
+#if DDS_HAS_TCP
   MOVED("TCP", "CycloneDDS/Domain/TCP"),
+#endif
 #if DDS_HAS_SECURITY
   MOVED("DDSSecurity", "CycloneDDS/Domain/Security"),
 #endif

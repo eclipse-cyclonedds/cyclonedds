@@ -166,7 +166,9 @@ DU(natint);
 DU(natint_255);
 DU(pos_uint);
 DUPF(participantIndex);
+#ifdef DDS_HAS_TCP
 DU(dyn_port);
+#endif
 DUPF(memsize);
 DUPF(memsize16);
 DU(duration_inf);
@@ -992,8 +994,20 @@ static const char *en_sched_class_vs[] = { "realtime", "timeshare", "default", N
 static const ddsrt_sched_t en_sched_class_ms[] = { DDSRT_SCHED_REALTIME, DDSRT_SCHED_TIMESHARE, DDSRT_SCHED_DEFAULT, 0 };
 GENERIC_ENUM_CTYPE (sched_class, ddsrt_sched_t)
 
-static const char *en_transport_selector_vs[] = { "default", "udp", "udp6", "tcp", "tcp6", "raweth", "none", NULL };
-static const enum ddsi_transport_selector en_transport_selector_ms[] = { DDSI_TRANS_DEFAULT, DDSI_TRANS_UDP, DDSI_TRANS_UDP6, DDSI_TRANS_TCP, DDSI_TRANS_TCP6, DDSI_TRANS_RAWETH, DDSI_TRANS_NONE, 0 };
+static const char *en_transport_selector_vs[] = {
+  "default", "udp", "udp6",
+#ifdef DDS_HAS_TCP
+  "tcp", "tcp6",
+#endif
+  "raweth", "none", NULL
+};
+static const enum ddsi_transport_selector en_transport_selector_ms[] = {
+  DDSI_TRANS_DEFAULT, DDSI_TRANS_UDP, DDSI_TRANS_UDP6,
+#ifdef DDS_HAS_TCP
+  DDSI_TRANS_TCP, DDSI_TRANS_TCP6,
+#endif
+  DDSI_TRANS_RAWETH, DDSI_TRANS_NONE, 0
+};
 GENERIC_ENUM_CTYPE (transport_selector, enum ddsi_transport_selector)
 
 /* by putting the  "true" and "false" aliases at the end, they won't come out of the
@@ -1472,10 +1486,12 @@ static void pf_int (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const
   cfg_logelem (cfgst, sources, "%d", *p);
 }
 
+#ifdef DDS_HAS_TCP
 static enum update_result uf_dyn_port(struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
 {
   return uf_int_min_max(cfgst, parent, cfgelem, first, value, -1, 65535);
 }
+#endif
 
 static enum update_result uf_natint(struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
 {

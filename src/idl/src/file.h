@@ -18,15 +18,10 @@
 #include "idl/retcode.h"
 #include "idl/file.h"
 
-#if _MSC_VER
-# include <basetsd.h>
-typedef SSIZE_T ssize_t;
-#endif
-
 /**
  * @internal
  * @brief Resolve "." and ".." segments and remove consecutive slashes
  */
-IDL_EXPORT ssize_t idl_untaint_path(char *path);
+IDL_EXPORT idl_retcode_t idl_untaint_path(char *path, size_t *len_out);
 
 #endif /* FILE_H */

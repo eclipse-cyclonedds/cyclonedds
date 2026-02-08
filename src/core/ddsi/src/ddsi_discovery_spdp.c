@@ -100,17 +100,15 @@ void ddsi_get_participant_builtin_topic_data (const struct ddsi_participant *pp,
   }
 
   // Construct unicast locator parameters
+  if (gv->config.publish_uc_locators)
   {
     struct locators_builder def_uni = locators_builder_init (&dst->default_unicast_locators, locs->def_uni, MAX_XMIT_CONNS);
     struct locators_builder meta_uni = locators_builder_init (&dst->metatraffic_unicast_locators, locs->meta_uni, MAX_XMIT_CONNS);
     for (int i = 0; i < gv->n_interfaces; i++)
     {
       if (!gv->xmit_conns[i]->m_factory->m_enable_spdp)
-      {
-        // skip any interfaces where the address kind doesn't match the selected transport
-        // as a reasonablish way of not advertising PSMX locators here
         continue;
-      }
+
 #ifndef NDEBUG
       int32_t kind;
 #endif
@@ -135,9 +133,6 @@ void ddsi_get_participant_builtin_topic_data (const struct ddsi_participant *pp,
       assert (kind == gv->interfaces[i].extloc.kind);
       locators_add_one (&def_uni, &gv->interfaces[i].extloc, data_port);
       locators_add_one (&meta_uni, &gv->interfaces[i].extloc, meta_port);
-    }
-    if (gv->config.publish_uc_locators)
-    {
       dst->present |= PP_DEFAULT_UNICAST_LOCATOR | PP_METATRAFFIC_UNICAST_LOCATOR;
       dst->aliased |= PP_DEFAULT_UNICAST_LOCATOR | PP_METATRAFFIC_UNICAST_LOCATOR;
     }

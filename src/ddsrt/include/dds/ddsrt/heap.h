@@ -37,6 +37,9 @@ typedef struct ddsrt_allocation_ops {
 ///
 /// Set the functions to malloc, calloc, realloc, and free memory. By default
 /// the functions of `stdlib` will be used.
+///
+/// Setting any of the function pointers in the `custom_ops` to NULL will reset
+/// that corresponding allocation function to the default.
 DDS_EXPORT void
 ddsrt_set_allocator(
   ddsrt_allocation_ops_t custom_ops);

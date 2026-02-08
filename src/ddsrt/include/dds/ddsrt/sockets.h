@@ -208,7 +208,7 @@ ddsrt_getsockname(
  * @param[in] buf buffer containing the data to send
  * @param[in] len size (in bytes) of 'buf'
  * @param[in] flags flags for special options
- * @param[out] sent the number of bytes sent
+ * @param[out] bytes_written the number of bytes sent
  * @return a DDS_RETCODE (OK, ERROR, and more)
  *
  * See @ref ddsrt_recv
@@ -219,7 +219,8 @@ ddsrt_send(
   const void *buf,
   size_t len,
   int flags,
-  ssize_t *sent);
+  size_t *bytes_written)
+ddsrt_nonnull ((2));
 
 /**
  * @brief Send a message
@@ -240,7 +241,8 @@ ddsrt_sendmsg(
   ddsrt_socket_t sock,
   const ddsrt_msghdr_t *msg,
   int flags,
-  ssize_t *sent);
+  size_t *sent)
+ddsrt_nonnull ((2));
 
 /**
  * @brief Receive data into a buffer
@@ -266,7 +268,8 @@ ddsrt_recv(
   void *buf,
   size_t len,
   int flags,
-  ssize_t *rcvd);
+  size_t *rcvd)
+ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 /**
  * @brief Receive a message
@@ -290,7 +293,8 @@ ddsrt_recvmsg(
   const ddsrt_socket_ext_t *sockext,
   ddsrt_msghdr_t *msg,
   int flags,
-  ssize_t *rcvd);
+  size_t *rcvd)
+ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 /**
  * @brief Get options from the socket.

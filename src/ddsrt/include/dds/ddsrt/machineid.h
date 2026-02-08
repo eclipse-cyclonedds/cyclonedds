@@ -14,7 +14,6 @@
 #include <stdbool.h>
 
 #include "dds/export.h"
-#include "dds/config.h"
 
 #if defined(__cplusplus)
 extern "C" {

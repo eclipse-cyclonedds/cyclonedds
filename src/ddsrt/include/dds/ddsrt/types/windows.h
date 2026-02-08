@@ -20,13 +20,8 @@
 #endif
 
 #include <windows.h>
-#include <versionhelpers.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include <wchar.h>
-
-#ifdef _MSC_VER
-typedef SSIZE_T ssize_t;
-#endif
 
 #endif /* DDSRT_TYPES_WINDOWS_H */

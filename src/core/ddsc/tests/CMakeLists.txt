@@ -90,6 +90,7 @@ set(ddsc_test_sources
     "spdp.c"
     "subscriber.c"
     "take_instance.c"
+    "tcp.c"
     "time.c"
     "time_based_filter.c"
     "topic.c"

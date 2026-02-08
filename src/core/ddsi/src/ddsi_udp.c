@@ -24,6 +24,8 @@
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsrt/mh3.h"
+#include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -75,6 +77,7 @@ typedef struct ddsi_udp_conn {
   WSAEVENT m_sockEvent;
 #endif
   int m_diffserv;
+  union addr m_addr;
 } *ddsi_udp_conn_t;
 
 typedef struct ddsi_udp_tran_factory {
@@ -84,6 +87,9 @@ typedef struct ddsi_udp_tran_factory {
   // actual minimum receive buffer size in use
   // atomically loaded/stored so we don't have to lie about constness
   ddsrt_atomic_uint32_t receive_buf_size;
+
+  struct ddsrt_hh *ownaddrs;
+  ddsrt_mutex_t ownaddrs_lock;
 } *ddsi_udp_tran_factory_t;
 
 static void addr_to_loc (const struct ddsi_tran_factory *tran, ddsi_locator_t *dst, const union addr *src)
@@ -151,7 +157,8 @@ static void translate_pktinfo (struct ddsi_network_packet_info *pktinfo, ddsrt_m
   pktinfo->if_index = 0;
 }
 
-static ssize_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned char * buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo)
+ddsrt_nonnull((1, 2, 6)) ddsrt_attribute_warn_unused_result
+static dds_return_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned char * buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo, size_t *bytes_read)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   struct ddsi_domaingv * const gv = conn->m_base.m_base.gv;
@@ -187,7 +194,7 @@ static ssize_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned ch
   (void) allow_spurious;
 
   dds_return_t rc;
-  ssize_t nrecv;
+  size_t nrecv;
   do {
     rc = ddsrt_recvmsg (&conn->m_sockext, &msghdr, 0, &nrecv);
   } while (rc == DDS_RETCODE_INTERRUPTED);
@@ -195,11 +202,10 @@ static ssize_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned ch
   if (rc != DDS_RETCODE_OK)
   {
     if (rc != DDS_RETCODE_BAD_PARAMETER && rc != DDS_RETCODE_NO_CONNECTION)
-      GVERROR ("UDP recvmsg sock %d: ret %d retcode %"PRId32"\n", (int) conn->m_sockext.sock, (int) nrecv, rc);
-    return -1;
+      GVERROR ("UDP recvmsg sock %d: retcode %"PRId32"\n", (int) conn->m_sockext.sock, rc);
+    return rc;
   }
 
-  assert (rc == DDS_RETCODE_OK && nrecv >= 0);
   if (pktinfo)
   {
     addr_to_loc (conn->m_base.m_factory, &pktinfo->src, &src);
@@ -208,11 +214,20 @@ static ssize_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned ch
 
   if (gv->pcap_fp)
   {
-    union addr dest;
-    socklen_t dest_len = sizeof (dest);
-    if (ddsrt_getsockname (conn->m_sockext.sock, &dest.a, &dest_len) != DDS_RETCODE_OK)
-      memset (&dest, 0, sizeof (dest));
-    ddsi_write_pcap_received (gv, ddsrt_time_wallclock (), &src.x, &dest.x, buf, (size_t) nrecv);
+    struct ddsi_udp_tran_factory * const fact = (struct ddsi_udp_tran_factory *) conn->m_base.m_factory;
+    ddsrt_mutex_lock (&fact->ownaddrs_lock);
+    const bool drop = ddsrt_hh_lookup (fact->ownaddrs, &src);
+    ddsrt_mutex_unlock (&fact->ownaddrs_lock);
+    if (!drop)
+    {
+      union addr dest;
+      socklen_t dest_len = sizeof (dest);
+      if (pktinfo && pktinfo->dst.kind != DDSI_LOCATOR_KIND_INVALID)
+        ddsi_ipaddr_from_loc (&dest.x, &pktinfo->dst);
+      else if (ddsrt_getsockname (conn->m_sockext.sock, &dest.a, &dest_len) != DDS_RETCODE_OK)
+        memset (&dest, 0, sizeof (dest));
+      ddsi_write_pcap_received (gv, ddsrt_time_wallclock (), &src.x, &dest.x, buf, nrecv);
+    }
   }
 
   /* Check for udp packet truncation */
@@ -223,23 +238,26 @@ static ssize_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned ch
 #else
   const bool trunc_flag = (msghdr.msg_flags & MSG_TRUNC) != 0;
 #endif
-  if ((size_t) nrecv > len || trunc_flag)
+  if (nrecv > len || trunc_flag)
   {
     char addrbuf[DDSI_LOCSTRLEN];
     ddsi_locator_t tmp;
     addr_to_loc (conn->m_base.m_factory, &tmp, &src);
     ddsi_locator_to_string (addrbuf, sizeof (addrbuf), &tmp);
-    GVWARNING ("%s => %d truncated to %d\n", addrbuf, (int) nrecv, (int) len);
+    GVWARNING ("%s => %"PRIuSIZE" truncated to %"PRIuSIZE"\n", addrbuf, nrecv, len);
   }
-  return nrecv;
+
+  *bytes_read = (size_t) nrecv;
+  return DDS_RETCODE_OK;
 }
 
-static ssize_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags)
+ddsrt_nonnull((1, 2))
+static dds_return_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags, size_t *bytes_written)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   struct ddsi_domaingv * const gv = conn->m_base.m_base.gv;
   dds_return_t rc;
-  ssize_t nsent = -1;
+  size_t nsent;
   unsigned retry = 2;
   int sendflags = 0;
 #if defined _WIN32 && !defined WINCE
@@ -311,7 +329,16 @@ static ssize_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const ddsi
     char locbuf[DDSI_LOCSTRLEN];
     GVERROR ("ddsi_udp_conn_write to %s failed with retcode %"PRId32"\n", ddsi_locator_to_string (locbuf, sizeof (locbuf), dst), rc);
   }
-  return (rc == DDS_RETCODE_OK) ? nsent : -1;
+  if (rc == DDS_RETCODE_OK)
+  {
+    if (bytes_written)
+      *bytes_written = (size_t) nsent;
+    return rc;
+  }
+  else
+  {
+    return (rc != DDS_RETCODE_OK) ? rc : DDS_RETCODE_ERROR;
+  }
 }
 
 static void ddsi_udp_disable_multiplexing (struct ddsi_tran_conn * conn_cmn)
@@ -705,8 +732,8 @@ static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, stru
 
   ddsi_udp_conn_t conn = ddsrt_malloc (sizeof (*conn));
   memset (conn, 0, sizeof (*conn));
-
   ddsrt_socket_ext_init (&conn->m_sockext, sock);
+  conn->m_addr = socketname;
   conn->m_diffserv = qos->m_diffserv;
 #if defined _WIN32 && !defined WINCE
   conn->m_sockEvent = WSACreateEvent ();
@@ -725,6 +752,14 @@ static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, stru
   conn->m_base.m_locator_fn = ddsi_udp_conn_locator;
 
   GVTRACE ("ddsi_udp_create_conn %s socket %"PRIdSOCK" port %"PRIu32"\n", purpose_str, conn->m_sockext.sock, conn->m_base.m_base.m_port);
+
+  if (fact->ownaddrs)
+  {
+    ddsrt_mutex_lock (&fact->ownaddrs_lock);
+    ddsrt_hh_add_absent (fact->ownaddrs, &conn->m_addr);
+    ddsrt_mutex_unlock (&fact->ownaddrs_lock);
+  }
+
   *conn_out = &conn->m_base;
   return DDS_RETCODE_OK;
 
@@ -841,10 +876,17 @@ static int ddsi_udp_leave_mc (struct ddsi_tran_conn * conn_cmn, const ddsi_locat
 static void ddsi_udp_release_conn (struct ddsi_tran_conn * conn_cmn)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
+  struct ddsi_udp_tran_factory * const fact = (struct ddsi_udp_tran_factory *) conn->m_base.m_factory;
   struct ddsi_domaingv const * const gv = conn->m_base.m_base.gv;
   GVTRACE ("ddsi_udp_release_conn %s socket %"PRIdSOCK" port %"PRIu32"\n",
            conn_cmn->m_base.m_multicast ? "multicast" : "unicast",
            conn->m_sockext.sock, conn->m_base.m_base.m_port);
+  if (fact->ownaddrs)
+  {
+    ddsrt_mutex_lock (&fact->ownaddrs_lock);
+    ddsrt_hh_remove_present (fact->ownaddrs, &conn->m_addr);
+    ddsrt_mutex_unlock (&fact->ownaddrs_lock);
+  }
   ddsrt_socket_ext_fini (&conn->m_sockext);
   ddsrt_close (conn->m_sockext.sock);
 #if defined _WIN32 && !defined WINCE
@@ -1019,6 +1061,13 @@ static void ddsi_udp_fini (struct ddsi_tran_factory * fact_cmn)
 {
   struct ddsi_udp_tran_factory *fact = (struct ddsi_udp_tran_factory *) fact_cmn;
   struct ddsi_domaingv const * const gv = fact->fact.gv;
+
+  if (fact->ownaddrs)
+  {
+    ddsrt_mutex_destroy (&fact->ownaddrs_lock);
+    ddsrt_hh_free (fact->ownaddrs);
+  }
+
   GVLOG (DDS_LC_CONFIG, "udp finalized\n");
   ddsrt_free (fact);
 }
@@ -1051,6 +1100,36 @@ static int ddsi_udp_locator_from_sockaddr (const struct ddsi_tran_factory *tran_
   }
   ddsi_ipaddr_to_loc (loc, sockaddr, tran->m_kind);
   return 0;
+}
+
+static uint32_t ownaddrs_hash4 (const void *va)
+{
+  union addr const * const a = va;
+  assert (a->a.sa_family == AF_INET);
+  return ddsrt_mh3 (&a->a4.sin_port, sizeof (a->a4.sin_port), ddsrt_mh3 (&a->a4.sin_addr, sizeof (a->a4.sin_addr), 0));
+}
+
+static uint32_t ownaddrs_hash6 (const void *va)
+{
+  union addr const * const a = va;
+  assert (a->a.sa_family == AF_INET6);
+  return ddsrt_mh3 (&a->a6.sin6_port, sizeof (a->a6.sin6_port), ddsrt_mh3 (&a->a6.sin6_addr, sizeof (a->a6.sin6_addr), 0));
+}
+
+static bool ownaddrs_eq4 (const void *va, const void *vb)
+{
+  union addr const * const a = va;
+  union addr const * const b = vb;
+  assert (a->a.sa_family == AF_INET && b->a.sa_family == AF_INET);
+  return a->a4.sin_port == b->a4.sin_port && a->a4.sin_addr.s_addr == b->a4.sin_addr.s_addr;
+}
+
+static bool ownaddrs_eq6 (const void *va, const void *vb)
+{
+  union addr const * const a = va;
+  union addr const * const b = vb;
+  assert (a->a.sa_family == AF_INET6 && b->a.sa_family == AF_INET6);
+  return a->a6.sin6_port == b->a6.sin6_port && memcmp (&a->a6.sin6_addr, &b->a6.sin6_addr, sizeof (a->a6.sin6_addr)) == 0;
 }
 
 int ddsi_udp_init (struct ddsi_domaingv*gv)
@@ -1089,6 +1168,14 @@ int ddsi_udp_init (struct ddsi_domaingv*gv)
     fact->fact.m_default_spdp_address = "udp6/ff02::ffff:239.255.0.1";
   }
 #endif
+
+  ddsrt_mutex_init (&fact->ownaddrs_lock);
+  assert (fact->m_kind == DDSI_LOCATOR_KIND_UDPv4 || fact->m_kind == DDSI_LOCATOR_KIND_UDPv6);
+  if (fact->m_kind == DDSI_LOCATOR_KIND_UDPv4)
+    fact->ownaddrs = ddsrt_hh_new (32, ownaddrs_hash4, ownaddrs_eq4);
+  else
+    fact->ownaddrs = ddsrt_hh_new (32, ownaddrs_hash6, ownaddrs_eq6);
+
   ddsrt_atomic_st32 (&fact->receive_buf_size, UINT32_MAX);
 
   ddsi_factory_add (gv, &fact->fact);

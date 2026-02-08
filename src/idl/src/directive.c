@@ -162,7 +162,7 @@ static idl_retcode_t push_line(idl_pstate_t *pstate, struct line *dir)
         return IDL_RETCODE_NO_MEMORY;
     } else {
       /* use original filename by default */
-      (void)idl_untaint_path(dir->file);
+      (void)idl_untaint_path(dir->file, NULL);
     }
 
     if ((ret = push_source(pstate, dir->file, dir->path, dir->flags)))

@@ -64,69 +64,64 @@ static int ddsi_ssl_verify (int ok, X509_STORE_CTX *store)
   return ok;
 }
 
-static ssize_t ddsi_ssl_read (SSL *ssl, void *buf, size_t len, dds_return_t *rc)
+ddsrt_nonnull ((1, 2, 4)) ddsrt_attribute_warn_unused_result
+static dds_return_t ddsi_ssl_read (SSL *ssl, void *buf, size_t len, size_t *bytes_read)
 {
   assert (len <= INT32_MAX);
   if (SSL_get_shutdown (ssl) != 0)
   {
-    *rc = DDS_RETCODE_ERROR;
-    return -1;
+    *bytes_read = 0;
+    return DDS_RETCODE_ERROR;
   }
 
-  /* Returns -1 on error or 0 on shutdown */
   int rcvd = SSL_read (ssl, buf, (int) len);
   switch (SSL_get_error (ssl, rcvd))
   {
     case SSL_ERROR_NONE:
-      *rc = DDS_RETCODE_OK;
-      break;
+      assert (rcvd > 0);
+      *bytes_read = (size_t) rcvd;
+      return DDS_RETCODE_OK;
     case SSL_ERROR_WANT_READ:
     case SSL_ERROR_WANT_WRITE:
-      *rc = DDS_RETCODE_TRY_AGAIN;
-      rcvd = -1;
-      break;
+      *bytes_read = 0;
+      return DDS_RETCODE_TRY_AGAIN;
     case SSL_ERROR_ZERO_RETURN:
+      // connection closed
+      *bytes_read = 0;
+      return DDS_RETCODE_OK;
     default:
-      /* Connection closed or error */
-      *rc = DDS_RETCODE_ERROR;
-      rcvd = -1;
-      break;
+      *bytes_read = 0;
+      return DDS_RETCODE_ERROR;
   }
-
-  return rcvd;
 }
 
-static ssize_t ddsi_ssl_write (SSL *ssl, const void *buf, size_t len, dds_return_t *rc)
+ddsrt_nonnull ((1, 2))
+static dds_return_t ddsi_ssl_write (SSL *ssl, const void *buf, size_t len, size_t *bytes_written)
 {
   assert(len <= INT32_MAX);
 
   if (SSL_get_shutdown (ssl) != 0)
-  {
-    *rc = DDS_RETCODE_ERROR;
-    return -1;
-  }
+    return DDS_RETCODE_ERROR;
 
-  /* Returns -1 on error or 0 on shutdown */
   int sent = SSL_write (ssl, buf, (int) len);
   switch (SSL_get_error (ssl, sent))
   {
     case SSL_ERROR_NONE:
-      *rc = DDS_RETCODE_OK;
-      break;
+      assert (sent > 0);
+      if (bytes_written)
+        *bytes_written = (size_t) len;
+      return DDS_RETCODE_OK;
     case SSL_ERROR_WANT_READ:
     case SSL_ERROR_WANT_WRITE:
-      *rc = DDS_RETCODE_TRY_AGAIN;
-      sent = -1;
-      break;
+      return DDS_RETCODE_TRY_AGAIN;
     case SSL_ERROR_ZERO_RETURN:
+      // connection closed
+      if (bytes_written)
+        *bytes_written = 0;
+      return DDS_RETCODE_OK;
     default:
-      /* Connection closed or error */
-      *rc = DDS_RETCODE_ERROR;
-      sent = -1;
-      break;
+      return DDS_RETCODE_ERROR;
   }
-
-  return sent;
 }
 
 static int ddsi_ssl_password (char *buf, int num, int rwflag, void *udata)

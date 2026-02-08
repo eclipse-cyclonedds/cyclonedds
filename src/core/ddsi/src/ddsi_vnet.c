@@ -64,13 +64,15 @@ static int ddsi_vnet_conn_locator (struct ddsi_tran_factory * vfact, struct ddsi
   return 0;
 }
 
-static ssize_t ddsi_vnet_conn_write (struct ddsi_tran_conn * conn_cmn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags)
+ddsrt_nonnull ((1, 2))
+static dds_return_t ddsi_vnet_conn_write (struct ddsi_tran_conn * conn_cmn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags, size_t *bytes_written)
 {
   (void) conn_cmn; (void) dst; (void) flags;
   ddsrt_iov_len_t n = 0;
   for (size_t i = 0; i < msgfrags->niov; i++)
     n += msgfrags->iov[i].iov_len;
-  return (ssize_t) n;
+  *bytes_written = n;
+  return DDS_RETCODE_OK;
 }
 
 static dds_return_t ddsi_vnet_create_conn (struct ddsi_tran_conn **conn_out, struct ddsi_tran_factory * fact_cmn, uint32_t port, const struct ddsi_tran_qos *qos)
