@@ -2326,18 +2326,8 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
     case ELEMENT_KIND_QOS_POLICY_PARTITION_NAME_ELEMENT: {
       struct dds_sysdef_QOS_POLICY_PARTITION *qp = (struct dds_sysdef_QOS_POLICY_PARTITION *) pstate->current->parent->parent;
       struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *p = (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *) pstate->current;
-      if (dds_sysdef_is_valid_identifier (value))
-      {
-        p->element = ddsrt_strdup (value);
-        qp->populated = true;
-      }
-      else
-      {
-        // free_node (qp);
-        // pstate->current = NULL;
-        PARSER_ERROR (pstate, line, "Invalid partition name '%s'", value);
-        ret = SD_PARSE_RESULT_SYNTAX_ERR;
-      }
+      p->element = ddsrt_strdup (value);
+      qp->populated = true;
       break;
     }
     case ELEMENT_KIND_QOS_POLICY_DATAREPRESENTATION_ID_ELEMENT:
