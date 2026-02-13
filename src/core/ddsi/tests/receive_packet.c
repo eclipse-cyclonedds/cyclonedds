@@ -205,18 +205,12 @@ static void rhc_relinquish_ownership (struct ddsi_rhc *rhc, const uint64_t wr_ii
   (void) rhc; (void) wr_iid;
 }
 
-static void rhc_set_qos (struct ddsi_rhc *rhc, const struct dds_qos *qos)
-{
-  (void) rhc; (void) qos;
-}
-
 static struct rhc rhc = {
   .c = {
     .ops = &(struct ddsi_rhc_ops){
       .store = rhc_store,
       .unregister_wr = rhc_unregister_wr,
       .relinquish_ownership = rhc_relinquish_ownership,
-      .set_qos = rhc_set_qos,
       .free = rhc_free
     }
   },

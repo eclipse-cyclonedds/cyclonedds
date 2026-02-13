@@ -1536,11 +1536,6 @@ dds_return_t ddsi_new_reader (struct ddsi_reader **rd_out, const struct ddsi_gui
   rd->status_cb_entity = status_entity;
   rd->rhc = rhc;
   ddsrt_atomic_st64 (&rd->received_bytes, (uint64_t) 0);
-  /* set rhc qos for reader */
-  if (rhc)
-  {
-    ddsi_rhc_set_qos (rd->rhc, rd->xqos);
-  }
   assert (rd->xqos->present & DDSI_QP_LIVELINESS);
 
 #ifdef DDS_HAS_SECURITY
