@@ -472,11 +472,10 @@ int main (int argc, char **argv)
 #endif
 
   // dds_rhs.h
-  dds_rhc_associate (ptr, NULL, NULL, NULL);
+  dds_rhc_associate (ptr, NULL);
   dds_rhc_store (ptr, NULL, NULL, NULL);
   dds_rhc_unregister_wr (ptr, NULL);
   dds_rhc_relinquish_ownership (ptr, 1);
-  dds_rhc_set_qos (ptr, ptr);
   dds_rhc_free (ptr);
   dds_rhc_peek (ptr, 0, 0, 1, ptr, 0, 0);
   dds_rhc_read (ptr, 0, 0, 1, ptr, 0, 0);

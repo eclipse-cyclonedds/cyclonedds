@@ -26,7 +26,7 @@ struct dds_readcond;
 struct dds_reader;
 struct ddsi_tkmap;
 
-typedef dds_return_t (*dds_rhc_associate_t) (struct dds_rhc *rhc, struct dds_reader *reader, const struct ddsi_sertype *type, struct ddsi_tkmap *tkmap);
+typedef dds_return_t (*dds_rhc_associate_t) (struct dds_rhc *rhc, struct dds_reader *reader);
 typedef int32_t (*dds_rhc_read_take_t) (struct dds_rhc *rhc, int32_t max_samples, uint32_t mask, dds_instance_handle_t handle, struct dds_readcond *cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg);
 
 typedef bool (*dds_rhc_add_readcondition_t) (struct dds_rhc *rhc, struct dds_readcond *cond);
@@ -54,8 +54,8 @@ struct dds_rhc {
 DDSRT_STATIC_ASSERT (offsetof (struct dds_rhc, common.ops) == offsetof (struct ddsi_rhc, ops));
 
 /** @component rhc */
-DDS_INLINE_EXPORT inline dds_return_t dds_rhc_associate (struct dds_rhc *rhc, struct dds_reader *reader, const struct ddsi_sertype *type, struct ddsi_tkmap *tkmap) {
-  return rhc->common.ops->associate (rhc, reader, type, tkmap);
+DDS_INLINE_EXPORT inline dds_return_t dds_rhc_associate (struct dds_rhc *rhc, struct dds_reader *reader) {
+  return rhc->common.ops->associate (rhc, reader);
 }
 
 /** @component rhc */
@@ -71,11 +71,6 @@ DDS_INLINE_EXPORT inline void dds_rhc_unregister_wr (struct dds_rhc *rhc, const 
 /** @component rhc */
 DDS_INLINE_EXPORT inline void dds_rhc_relinquish_ownership (struct dds_rhc *rhc, const uint64_t wr_iid) {
   rhc->common.ops->rhc_ops.relinquish_ownership (&rhc->common.rhc, wr_iid);
-}
-
-/** @component rhc */
-DDS_INLINE_EXPORT inline void dds_rhc_set_qos (struct dds_rhc *rhc, const struct dds_qos *qos) {
-  rhc->common.ops->rhc_ops.set_qos (&rhc->common.rhc, qos);
 }
 
 /** @component rhc */

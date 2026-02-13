@@ -561,46 +561,6 @@ ddsrt_mtime_t dds_rhc_default_deadline_missed_cb(void *hc, ddsrt_mtime_t tnow)
 }
 #endif /* DDS_HAS_DEADLINE_MISSED */
 
-struct dds_rhc *dds_rhc_default_new_xchecks (dds_reader *reader, struct ddsi_domaingv *gv, const struct ddsi_sertype *type, bool xchecks)
-{
-  struct dds_rhc_default *rhc = ddsrt_malloc (sizeof (*rhc));
-  memset (rhc, 0, sizeof (*rhc));
-  rhc->common.common.ops = &dds_rhc_default_ops;
-
-  lwregs_init (&rhc->registrations);
-  ddsrt_mutex_init (&rhc->lock);
-  rhc->instances = ddsrt_hh_new (1, instance_iid_hash, instance_iid_eq);
-  ddsrt_circlist_init (&rhc->nonempty_instances);
-  rhc->type = type;
-  rhc->reader = reader;
-  rhc->tkmap = gv->m_tkmap;
-  rhc->gv = gv;
-  rhc->xchecks = xchecks;
-
-#ifdef DDS_HAS_LIFESPAN
-  ddsi_lifespan_init (gv, &rhc->lifespan, offsetof(struct dds_rhc_default, lifespan), offsetof(struct rhc_sample, lifespan), dds_rhc_default_sample_expired_cb);
-#endif
-
-#ifdef DDS_HAS_DEADLINE_MISSED
-  rhc->deadline.dur = (reader != NULL) ? reader->m_entity.m_qos->deadline.deadline : DDS_INFINITY;
-  ddsi_deadline_init (gv, &rhc->deadline, offsetof(struct dds_rhc_default, deadline), offsetof(struct rhc_instance, deadline), dds_rhc_default_deadline_missed_cb);
-#endif
-
-  return &rhc->common;
-}
-
-struct dds_rhc *dds_rhc_default_new (struct dds_reader *reader, const struct ddsi_sertype *type)
-{
-  return dds_rhc_default_new_xchecks (reader, &reader->m_entity.m_domain->gv, type, (reader->m_entity.m_domain->gv.config.enabled_xchecks & DDSI_XCHECK_RHC) != 0);
-}
-
-static dds_return_t dds_rhc_default_associate (struct dds_rhc *rhc, dds_reader *reader, const struct ddsi_sertype *type, struct ddsi_tkmap *tkmap)
-{
-  /* ignored out of laziness */
-  (void) rhc; (void) reader; (void) type; (void) tkmap;
-  return DDS_RETCODE_OK;
-}
-
 static void dds_rhc_default_set_qos (struct ddsi_rhc *rhc_common, const dds_qos_t * qos)
 {
   struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
@@ -617,6 +577,49 @@ static void dds_rhc_default_set_qos (struct ddsi_rhc *rhc_common, const dds_qos_
   rhc->history_depth = (qos->history.kind == DDS_HISTORY_KEEP_LAST) ? (uint32_t)qos->history.depth : ~0u;
   /* FIXME: updating deadline duration not yet supported
   rhc->deadline.dur = qos->deadline.deadline; */
+}
+
+struct dds_rhc *dds_rhc_default_new_xchecks (struct ddsi_domaingv *gv, const struct ddsi_sertype *type, const dds_qos_t *qos, bool xchecks)
+{
+  struct dds_rhc_default *rhc = ddsrt_malloc (sizeof (*rhc));
+  memset (rhc, 0, sizeof (*rhc));
+  rhc->common.common.ops = &dds_rhc_default_ops;
+
+  lwregs_init (&rhc->registrations);
+  ddsrt_mutex_init (&rhc->lock);
+  rhc->instances = ddsrt_hh_new (1, instance_iid_hash, instance_iid_eq);
+  ddsrt_circlist_init (&rhc->nonempty_instances);
+  rhc->type = type;
+  rhc->reader = NULL; // set by "associate"
+  rhc->tkmap = gv->m_tkmap;
+  rhc->gv = gv;
+  rhc->xchecks = xchecks;
+
+#ifdef DDS_HAS_LIFESPAN
+  ddsi_lifespan_init (gv, &rhc->lifespan, offsetof(struct dds_rhc_default, lifespan), offsetof(struct rhc_sample, lifespan), dds_rhc_default_sample_expired_cb);
+#endif
+
+#ifdef DDS_HAS_DEADLINE_MISSED
+  rhc->deadline.dur = (qos->present & DDSI_QP_DEADLINE) ? qos->deadline.deadline : DDS_INFINITY;
+  ddsi_deadline_init (gv, &rhc->deadline, offsetof(struct dds_rhc_default, deadline), offsetof(struct rhc_instance, deadline), dds_rhc_default_deadline_missed_cb);
+#endif
+
+  dds_rhc_default_set_qos (&rhc->common.common.rhc, qos);
+  return &rhc->common;
+}
+
+struct dds_rhc *dds_rhc_default_new (struct ddsi_domaingv *gv, const struct ddsi_sertype *type, const dds_qos_t *qos)
+{
+  return dds_rhc_default_new_xchecks (gv, type, qos, (gv->config.enabled_xchecks & DDSI_XCHECK_RHC) != 0);
+}
+
+static dds_return_t dds_rhc_default_associate (struct dds_rhc *rhc_common, dds_reader *reader)
+{
+  struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
+  ddsrt_mutex_lock (&rhc->lock);
+  rhc->reader = reader;
+  ddsrt_mutex_unlock (&rhc->lock);
+  return DDS_RETCODE_OK;
 }
 
 static bool eval_predicate_sample (const struct dds_rhc_default *rhc, const struct ddsi_serdata *sample, bool (*pred) (const void *sample))
@@ -3008,7 +3011,6 @@ static const struct dds_rhc_ops dds_rhc_default_ops = {
     .store = dds_rhc_default_store,
     .unregister_wr = dds_rhc_default_unregister_wr,
     .relinquish_ownership = dds_rhc_default_relinquish_ownership,
-    .set_qos = dds_rhc_default_set_qos,
     .free = dds_rhc_default_free
   },
   .peek = dds_rhc_default_peek,
