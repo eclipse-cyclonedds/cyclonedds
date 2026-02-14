@@ -33,9 +33,12 @@ if(BUILD_SHARED_LIBS)
   add_library(dds_security_crypto SHARED ${sources} ${private_headers})
 else()
   add_library(dds_security_crypto OBJECT ${sources} ${private_headers})
+  set_target_properties(dds_security_crypto PROPERTIES POSITION_INDEPENDENT_CODE ON)
   set_property(GLOBAL APPEND PROPERTY cdds_plugin_list dds_security_crypto)
   set_property(GLOBAL PROPERTY dds_security_crypto_symbols init_crypto finalize_crypto)
 endif()
+
+add_library(${PROJECT_NAME}::dds_security_crypto ALIAS dds_security_crypto)
 
 generate_export_header(
     dds_security_crypto
