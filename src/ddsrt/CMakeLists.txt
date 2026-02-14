@@ -230,7 +230,20 @@ else()
   message(STATUS "Building without support for cond_timewait using different clocks")
 endif()
 
+# Posix Systems have threads by default except for some
+# Used for symbol Export tests
+set(DDSRT_HAVE_THREAD_SETNAME ON)
+set(DDSRT_HAVE_THREAD_LIST ON)
+
+if(NOT LINUX AND NOT APPLE AND NOT QNX)
+  set(DDSRT_HAVE_THREAD_LIST OFF)
+endif()
+
 if(WITH_FREERTOS)
+  # FREERTOS have threads disabled by default
+  set(DDSRT_HAVE_THREAD_SETNAME OFF)
+  set(DDSRT_HAVE_THREAD_LIST OFF)
+
   list(APPEND headers
     "${source_dir}/include/dds/ddsrt/sync/freertos.h"
     "${source_dir}/include/dds/ddsrt/threads/freertos.h")

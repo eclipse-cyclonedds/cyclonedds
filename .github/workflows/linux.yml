@@ -199,9 +199,8 @@ jobs:
       - if: ${{ matrix.config.check_symbol_export}}
         run: |
           set -e -x
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/../lib # Make DDSC library known to environment
           cd build
           test -e ./bin/symbol_export_test
-          [[ "${{ matrix.config.build_type }}" == 'Release' ]] || [[ "$RUNNER_OS" == 'Windows' ]] || \
-          ../scripts/check_symbol_export.bash ./bin/symbol_export_test
         shell: bash
         name: Sanity check export symbols
