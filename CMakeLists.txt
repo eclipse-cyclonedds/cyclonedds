@@ -148,7 +148,7 @@ elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
   endif()
 elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
   #message(STATUS msvc)
-  add_compile_options(/W3)
+  add_compile_options(/W3 /wd5105) # /wd5105 Disables warning of #defines operator
   if(${WERROR})
     add_compile_options(/WX)
     add_link_options(/WX)
