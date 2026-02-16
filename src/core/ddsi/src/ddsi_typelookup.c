@@ -129,7 +129,14 @@ static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_
   if (resolve_deps == DDSI_TYPE_INCLUDE_DEPS)
   {
     deps = ddsrt_hh_new (1, deps_typeid_hash, deps_typeid_equal);
-    cnt += tl_request_get_deps (gv, deps, 0, type);
+    const int32_t subcnt = tl_request_get_deps (gv, deps, 0, type);
+    if (subcnt <= INT32_MAX - cnt)
+      cnt += subcnt;
+    else
+    {
+      cnt = INT32_MAX;
+      goto err;
+    }
   }
   request->data._u.getTypes.type_ids._length = (uint32_t) cnt;
   if (cnt > 0)
@@ -157,7 +164,7 @@ static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_
 err:
   if (resolve_deps == DDSI_TYPE_INCLUDE_DEPS)
     ddsrt_hh_free (deps);
-  return (dds_return_t) cnt;
+  return (cnt == INT32_MAX) ? DDS_RETCODE_ERROR : cnt;
 }
 
 bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t *type_id, const ddsi_guid_t *proxypp_guid, enum ddsi_type_include_deps deps)
