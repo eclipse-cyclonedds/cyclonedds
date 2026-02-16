@@ -7006,6 +7006,7 @@ static void copy_desc_keys (dds_cdrstream_desc_key_t **dst, const struct dds_cdr
     *dst = allocator->malloc (nkeys  * sizeof (**dst));
     for (uint32_t i = 0; i < nkeys; i++)
     {
+      (*dst)[i].name = ddsrt_strdup(keys[i].m_name);
       (*dst)[i].ops_offs = keys[i].m_offset;
       (*dst)[i].idx = keys[i].m_idx;
     }
@@ -7123,6 +7124,12 @@ void dds_cdrstream_desc_fini (struct dds_cdrstream_desc *desc, const struct dds_
 {
   if (desc->keys.nkeys > 0)
   {
+    for (size_t i = 0; i < desc->keys.nkeys; i++) {
+      if (desc->keys.keys != NULL)
+        allocator->free (desc->keys.keys[i].name);
+      if (desc->keys.keys_definition_order != NULL)
+        allocator->free (desc->keys.keys_definition_order[i].name);
+    }
     if (desc->keys.keys != NULL)
       allocator->free (desc->keys.keys);
     if (desc->keys.keys_definition_order != NULL)

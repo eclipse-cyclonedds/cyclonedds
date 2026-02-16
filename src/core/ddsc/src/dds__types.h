@@ -14,17 +14,17 @@
 /* DDS internal type definitions */
 
 #include "dds/dds.h"
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/ddsi_protocol.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#ifdef DDS_HAS_TOPIC_DISCOVERY
-#include "dds/ddsi/ddsi_typewrap.h"
-#endif
-#include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+ #include "dds/ddsi/ddsi_typewrap.h"
+#endif
 #include "dds/ddsc/dds_psmx.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "dds__handles.h"
-#include "dds__loaned_sample.h"
 
 
 #if defined (__cplusplus)
@@ -396,6 +396,8 @@ struct dds_endpoint {
   struct dds_psmx_endpoints_set psmx_endpoints;
 };
 
+struct dds_filter;
+
 typedef struct dds_reader {
   struct dds_entity m_entity;
   struct dds_endpoint m_endpoint;
@@ -404,6 +406,7 @@ typedef struct dds_reader {
   struct ddsi_reader *m_rd;
   struct dds_loan_pool *m_loans; /* administration of outstanding loans */
   struct dds_loan_pool *m_heap_loan_cache;
+  struct dds_filter *m_filter;
 
   /* Status metrics */
   dds_sample_rejected_status_t m_sample_rejected_status;
@@ -424,6 +427,7 @@ typedef struct dds_writer {
   bool whc_batch; /* FIXME: channels + latency budget */
   struct dds_loan_pool *m_loans; /* administration of associated loans */
   ddsi_protocol_version_t protocol_version; /* copy of configured protocol version */
+  struct dds_filter *m_filter;
 
   /* Status metrics */
 
@@ -433,12 +437,43 @@ typedef struct dds_writer {
   dds_publication_matched_status_t m_publication_matched_status;
 } dds_writer;
 
+struct dds_filter_ops {
+  void (*free)  (struct dds_filter *filter);
+  bool (*reader_accept) (const dds_reader *rd, const struct dds_filter *filter, const struct ddsi_serdata *sample, const struct dds_sample_info *si);
+  bool (*writer_accept) (const dds_writer *wr, const struct dds_filter *filter, const void *sample);
+};
+
+enum dds_filter_type {
+  DDS_EXPR_FILTER,
+  DDS_FUNC_FILTER,
+};
+
+struct dds_filter {
+  dds_domainid_t domain_id;
+  enum dds_filter_type type;
+  struct dds_filter_ops ops;
+};
+
+struct dds_expression_filter {
+  struct dds_filter tf;
+  char *expression;
+  struct dds_sql_expr *expr;          // pre-build expression a.k.a full described.
+  struct dds_sql_expr *bin_expr;      // build/optimized expression with params.
+  struct ddsi_sertype *st;            // newly constructed sertype.
+};
+
+struct dds_function_filter {
+  struct dds_filter tf;
+  dds_function_content_filter_fn_t f;
+  dds_function_content_filter_mode_t mode;
+  void *arg;
+};
+
 typedef struct dds_topic {
   struct dds_entity m_entity;
   char *m_name;
   struct ddsi_sertype *m_stype;
   struct dds_ktopic *m_ktopic; /* refc'd, constant */
-  struct dds_topic_filter m_filter;
   dds_inconsistent_topic_status_t m_inconsistent_topic_status; /* Status metrics */
 } dds_topic;
 

@@ -28,6 +28,8 @@
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsc/dds_internal_api.h"
+#include "dds__filter.h"
+#include "dds__loaned_sample.h"
 #include "dds__writer.h"
 #include "dds__listener.h"
 #include "dds__init.h"
@@ -226,6 +228,7 @@ static dds_return_t dds_writer_delete (dds_entity *e)
   ddsi_xpack_free (wr->m_xp);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   dds_entity_drop_ref (&wr->m_topic->m_entity);
+  dds_filter_free (wr->m_filter);
   return ret;
 }
 
@@ -248,7 +251,7 @@ static dds_return_t validate_writer_qos (const dds_qos_t *wqos)
 static dds_return_t dds_writer_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled)
 {
   /* note: e->m_qos is still the old one to allow for failure here */
-  dds_return_t ret;
+  dds_return_t ret = DDS_RETCODE_OK;
   if ((ret = validate_writer_qos(qos)) != DDS_RETCODE_OK)
     return ret;
   if (enabled)
@@ -258,8 +261,17 @@ static dds_return_t dds_writer_qos_set (dds_entity *e, const dds_qos_t *qos, boo
     if ((wr = ddsi_entidx_lookup_writer_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
       ddsi_update_writer_qos (wr, qos);
     ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+
+    if (qos->present & DDSI_QP_CONTENT_FILTER && (qos->filter.filter != NULL))
+    {
+      struct dds_writer *dwr = (struct dds_writer *)e;
+      if (dwr->m_filter != NULL)
+        ret = dds_filter_update (qos->filter.filter, dwr->m_topic->m_stype, dwr->m_filter);
+      else
+        ret = dds_filter_create (e->m_domain->m_id, qos->filter.filter, dwr->m_topic->m_stype, &dwr->m_filter);
+    }
   }
-  return DDS_RETCODE_OK;
+  return ret;
 }
 
 static const struct dds_stat_keyvalue_descriptor dds_writer_statistics_kv[] = {
@@ -427,6 +439,11 @@ static dds_entity_t dds_create_writer_int (dds_entity_t participant_or_publisher
     wqos->present & DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT ? wqos->type_consistency : ddsi_default_qos_topic.type_consistency);
   if (!sertype)
     sertype = tp->m_stype;
+
+  if (wqos && (wqos->present & DDSI_QP_CONTENT_FILTER) && (wqos->filter.filter != NULL)) {
+    rc = dds_filter_create (wr->m_entity.m_domain->m_id, wqos->filter.filter, sertype, &wr->m_filter);
+    assert (rc == DDS_RETCODE_OK);
+  }
 
   if (guid)
     wr->m_entity.m_guid = dds_guid_to_ddsi_guid (*guid);

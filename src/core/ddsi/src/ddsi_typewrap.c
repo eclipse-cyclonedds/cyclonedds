@@ -10,12 +10,10 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include "dds/features.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_xt_typemap.h"
 #include "ddsi__typewrap.h"
 #include "ddsi__xt_impl.h"
 #include "ddsi__typelookup.h"
@@ -2166,8 +2164,7 @@ static bool xt_is_assignable_check_resolved (const struct xt_type *t, struct dds
     return xt_non_assignable (reason, DDSI_NONASSIGN_TYPE_UNRESOLVED, t, NULL, id);
 }
 
-ddsrt_nonnull_all
-static struct xt_type *xt_expand_basetype (struct ddsi_domaingv *gv, const struct xt_type *t, struct ddsi_non_assignability_reason *reason)
+struct xt_type *ddsi_xt_expand_basetype (struct ddsi_domaingv *gv, const struct xt_type *t, struct ddsi_non_assignability_reason *reason)
 {
   assert (t->_d == DDS_XTypes_TK_STRUCTURE);
   if (!xt_has_basetype (t))
@@ -2177,7 +2174,7 @@ static struct xt_type *xt_expand_basetype (struct ddsi_domaingv *gv, const struc
     const struct xt_type * const b = ddsi_xt_unalias (&t->_u.structure.base_type->xt);
     if (!xt_is_assignable_check_resolved (b, reason, t, 0))
       return NULL;
-    struct xt_type * const te = xt_expand_basetype (gv, b, reason);
+    struct xt_type * const te = ddsi_xt_expand_basetype (gv, b, reason);
     if (!te)
       return NULL;
 
@@ -2190,7 +2187,7 @@ static struct xt_type *xt_expand_basetype (struct ddsi_domaingv *gv, const struc
   }
 }
 
-static struct xt_type *xt_type_key_erased (struct ddsi_domaingv *gv, const struct xt_type *t)
+struct xt_type *ddsi_xt_type_key_erased (struct ddsi_domaingv *gv, const struct xt_type *t)
 {
   switch (t->_d)
   {
@@ -2622,10 +2619,10 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
     goto struct_failed;
   }
   if (xt_has_basetype (t1))
-    if ((te1 = xt_expand_basetype (gv, t1, reason)) == NULL)
+    if ((te1 = ddsi_xt_expand_basetype (gv, t1, reason)) == NULL)
       goto struct_failed;
   if (xt_has_basetype (t2))
-    if ((te2 = xt_expand_basetype (gv, t2, reason)) == NULL)
+    if ((te2 = ddsi_xt_expand_basetype (gv, t2, reason)) == NULL)
       goto struct_failed;
   /* Note that struct members are ordered by their member index (=ordering in idl) and not by their member ID (although the
       TypeObject idl states that its ordered by member_id...) */
@@ -2664,8 +2661,8 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
 
         /* Rule: "For any member m2 in T2, if there is a member m1 in T1 with the same member ID, then the type
             KeyErased(m1.type) is-assignable from the type KeyErased(m2.type) */
-        struct xt_type *m1_ke = xt_type_key_erased (gv, m1t),
-          *m2_ke = xt_type_key_erased (gv, m2t);
+        struct xt_type *m1_ke = ddsi_xt_type_key_erased (gv, m1t),
+          *m2_ke = ddsi_xt_type_key_erased (gv, m2t);
         bool ke_assignable = xt_is_assignable_from_impl (gv, m1_ke, m2_ke, tce, reason);
         ddsi_xt_type_fini (gv, m1_ke, true);
         ddsrt_free (m1_ke);

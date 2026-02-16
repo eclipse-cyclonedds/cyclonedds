@@ -1624,6 +1624,10 @@ enum dds_topic_filter_mode {
  * @warning Unstable API
 */
 union dds_topic_filter_function_union {
+  /* FIXME:
+   * instead of deserialize whole sample, let user to deser. only specific
+   * field. (`key` only for the begining?)
+   * */
   dds_topic_filter_sample_fn sample; /**< Use with mode dds_topic_filter_mode::DDS_TOPIC_FILTER_SAMPLE */
   dds_topic_filter_sample_arg_fn sample_arg; /**< Use with mode dds_topic_filter_mode::DDS_TOPIC_FILTER_SAMPLE_ARG */
   dds_topic_filter_sampleinfo_arg_fn sampleinfo_arg; /**< Use with mode dds_topic_filter_mode::DDS_TOPIC_FILTER_SAMPLEINFO_ARG */
@@ -1640,6 +1644,36 @@ struct dds_topic_filter {
   union dds_topic_filter_function_union f; /**< Provide a filter function */
   void *arg;                               /**< Provide an argument, can be NULL */
 };
+
+typedef enum dds_topic_filter_mode            dds_function_content_filter_mode_t;
+typedef union dds_topic_filter_function_union dds_function_content_filter_fn_t;
+
+typedef struct dds_expression_content_filter dds_expression_content_filter_t;
+typedef struct dds_topic_filter              dds_function_content_filter_t;
+
+/**
+ * @brief Content filter container;
+ * @ingroup content_filter
+ */
+struct dds_content_filter {
+  dds_content_filter_kind_t kind;   /**< Provide a content filter kind */
+  union {
+    dds_expression_content_filter_t *expr;
+    dds_function_content_filter_t   *func;
+  } filter; /**< Provide a filter implementation container  */
+};
+
+DDS_EXPORT dds_return_t dds_expression_filter_create (const char *expression, dds_expression_content_filter_t **filter);
+DDS_EXPORT void dds_expression_filter_free (dds_expression_content_filter_t *filter);
+DDS_EXPORT dds_return_t dds_expression_filter_bind_unsigned (dds_expression_content_filter_t *filter, size_t id, uint64_t param);
+DDS_EXPORT dds_return_t dds_expression_filter_bind_integer (dds_expression_content_filter_t *filter, size_t id, int64_t param);
+DDS_EXPORT dds_return_t dds_expression_filter_bind_real (dds_expression_content_filter_t *filter, size_t id, double param);
+DDS_EXPORT dds_return_t dds_expression_filter_bind_string (dds_expression_content_filter_t *filter, size_t id, char *param);
+DDS_EXPORT dds_return_t dds_expression_filter_bind_blob (dds_expression_content_filter_t *filter, size_t id, unsigned char *param, size_t param_sz);
+
+DDS_EXPORT dds_return_t dds_function_filter_create (const dds_function_content_filter_mode_t mode, const dds_function_content_filter_fn_t fn, dds_function_content_filter_t **filter);
+DDS_EXPORT void dds_function_filter_free (dds_function_content_filter_t *filter);
+DDS_EXPORT dds_return_t dds_function_filter_bind_arg (dds_function_content_filter_t *filter, void *arg);
 
 /**
  * @anchor dds_set_topic_filter_and_arg

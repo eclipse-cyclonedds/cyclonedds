@@ -36,6 +36,7 @@
 #include "ddsi__security_omg.h"
 #include "ddsi__tran.h"
 #include "ddsi__xqos.h"
+#include "dds__content_filter.h"
 #include "dds/cdr/dds_cdrstream.h"
 
 /* I am tempted to change LENGTH_UNLIMITED to 0 in the API (with -1
@@ -393,6 +394,42 @@ static bool print_reliability (char * restrict *buf, size_t * restrict bufsize, 
 {
   dds_reliability_qospolicy_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (dds_reliability_qospolicy_t));
   return prtf (buf, bufsize, "%d:%"PRId64, (int) x->kind, x->max_blocking_time);
+}
+
+static dds_return_t fini_content_filter (void * restrict dst, size_t * restrict dstoff, struct flagset *flagset, uint64_t flag)
+{
+  dds_content_filter_qospolicy_t * const x = deser_generic_dst (dst, dstoff, plist_alignof (dds_content_filter_qospolicy_t));
+  if (!(*flagset->aliased & flag)) {
+    dds_content_filter_free (x->filter);
+  }
+  return 0;
+}
+
+static dds_return_t unalias_content_filter (void *restrict dst, size_t * restrict dstoff, bool gen_seq_aliased)
+{
+  (void) gen_seq_aliased;
+  dds_content_filter_qospolicy_t * const x = deser_generic_dst (dst, dstoff, plist_alignof (dds_content_filter_qospolicy_t));
+  dds_content_filter_qospolicy_t newflt = { .filter = NULL };
+  newflt.filter = dds_content_filter_dup (x->filter);
+  *x = newflt;
+  *dstoff += sizeof (*x);
+  return 0;
+}
+
+static bool equal_content_filter (const void *srcx, const void *srcy, size_t srcoff)
+{
+  dds_content_filter_qospolicy_t const * const x = deser_generic_src (srcx, &srcoff, plist_alignof (dds_content_filter_qospolicy_t));
+  dds_content_filter_qospolicy_t const * const y = deser_generic_src (srcy, &srcoff, plist_alignof (dds_content_filter_qospolicy_t));
+  return x->filter == y->filter;
+}
+
+static dds_return_t valid_content_filter (const void *src, size_t srcoff)
+{
+  dds_content_filter_qospolicy_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (dds_content_filter_qospolicy_t));
+  if (dds_content_filter_valid (x->filter))
+    return 0;
+  else
+    return DDS_RETCODE_BAD_PARAMETER;
 }
 
 static dds_return_t deser_statusinfo (void * restrict dst, struct flagset *flagset, uint64_t flag, const struct dd *dd, struct ddsi_domaingv const * const gv)
@@ -2120,7 +2157,10 @@ static const struct piddesc piddesc_eclipse[] = {
     { .desc = { Xb, XSTOP } }, 0 },
   { DDSI_PID_PAD, PDF_QOS, DDSI_QP_PSMX, "CYCLONE_PSMX",
     offsetof(struct ddsi_plist, qos.psmx), membersize(struct ddsi_plist, qos.psmx),
-    {.desc = { XQ, XS, XSTOP } }, 0 },
+    { .desc = { XQ, XS, XSTOP } }, 0 },
+  { DDSI_PID_PAD, PDF_QOS | PDF_FUNCTION, DDSI_QP_CONTENT_FILTER, "CONTENT_FILTER",
+    offsetof(struct ddsi_plist, qos.filter), membersize(struct ddsi_plist, qos.filter),
+    { .f = { .valid = valid_content_filter, .fini = fini_content_filter, .unalias = unalias_content_filter, .equal =  equal_content_filter } }, 0 },
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   PP  (CYCLONE_TOPIC_GUID,               topic_guid, XG),
 #endif
@@ -2226,11 +2266,11 @@ static const struct piddesc_index piddesc_vendor_index[] = {
    initialized by ddsi_plist_init_tables; will assert when
    table too small or too large */
 #ifdef DDS_HAS_TYPELIB
+static const struct piddesc *piddesc_unalias[20 + SECURITY_PROC_ARRAY_SIZE];
+static const struct piddesc *piddesc_fini[20 + SECURITY_PROC_ARRAY_SIZE];
+#else
 static const struct piddesc *piddesc_unalias[19 + SECURITY_PROC_ARRAY_SIZE];
 static const struct piddesc *piddesc_fini[19 + SECURITY_PROC_ARRAY_SIZE];
-#else
-static const struct piddesc *piddesc_unalias[18 + SECURITY_PROC_ARRAY_SIZE];
-static const struct piddesc *piddesc_fini[18 + SECURITY_PROC_ARRAY_SIZE];
 #endif
 static uint64_t plist_fini_mask, qos_fini_mask;
 static ddsrt_once_t table_init_control = DDSRT_ONCE_INIT;
@@ -3597,7 +3637,7 @@ void ddsi_xqos_init_empty (dds_qos_t *dest)
 }
 
 const dds_qos_t ddsi_default_qos_reader = {
-  .present = DDSI_QP_PRESENTATION | DDSI_QP_DURABILITY | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_LIVELINESS | DDSI_QP_DESTINATION_ORDER | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS | DDSI_QP_OWNERSHIP | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_TOPIC_DATA | DDSI_QP_GROUP_DATA | DDSI_QP_USER_DATA | DDSI_QP_PARTITION | DDSI_QP_RELIABILITY | DDSI_QP_TIME_BASED_FILTER | DDSI_QP_ADLINK_READER_DATA_LIFECYCLE | DDSI_QP_ADLINK_READER_LIFESPAN | DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT | DDSI_QP_DATA_REPRESENTATION,
+  .present = DDSI_QP_PRESENTATION | DDSI_QP_DURABILITY | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_LIVELINESS | DDSI_QP_DESTINATION_ORDER | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS | DDSI_QP_OWNERSHIP | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_TOPIC_DATA | DDSI_QP_GROUP_DATA | DDSI_QP_USER_DATA | DDSI_QP_PARTITION | DDSI_QP_RELIABILITY | DDSI_QP_TIME_BASED_FILTER | DDSI_QP_ADLINK_READER_DATA_LIFECYCLE | DDSI_QP_ADLINK_READER_LIFESPAN | DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT | DDSI_QP_DATA_REPRESENTATION | DDSI_QP_CONTENT_FILTER,
   .aliased = DDSI_QP_DATA_REPRESENTATION,
   .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
   .presentation.coherent_access = 0,
@@ -3637,11 +3677,12 @@ const dds_qos_t ddsi_default_qos_reader = {
   .type_consistency.prevent_type_widening = false,
   .type_consistency.force_type_validation = false,
   .data_representation.value.n = 1,
-  .data_representation.value.ids = (dds_data_representation_id_t []) { DDS_DATA_REPRESENTATION_XCDR1 }
+  .data_representation.value.ids = (dds_data_representation_id_t []) { DDS_DATA_REPRESENTATION_XCDR1 },
+  .filter.filter = NULL
 };
 
 const dds_qos_t ddsi_default_qos_writer = {
-  .present = DDSI_QP_PRESENTATION | DDSI_QP_DURABILITY | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_LIVELINESS | DDSI_QP_DESTINATION_ORDER | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS | DDSI_QP_OWNERSHIP | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_TOPIC_DATA | DDSI_QP_GROUP_DATA | DDSI_QP_USER_DATA | DDSI_QP_PARTITION | DDSI_QP_DURABILITY_SERVICE | DDSI_QP_RELIABILITY | DDSI_QP_OWNERSHIP_STRENGTH | DDSI_QP_TRANSPORT_PRIORITY | DDSI_QP_LIFESPAN | DDSI_QP_ADLINK_WRITER_DATA_LIFECYCLE | DDSI_QP_DATA_REPRESENTATION | DDSI_QP_CYCLONE_WRITER_BATCHING,
+  .present = DDSI_QP_PRESENTATION | DDSI_QP_DURABILITY | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_LIVELINESS | DDSI_QP_DESTINATION_ORDER | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS | DDSI_QP_OWNERSHIP | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_TOPIC_DATA | DDSI_QP_GROUP_DATA | DDSI_QP_USER_DATA | DDSI_QP_PARTITION | DDSI_QP_DURABILITY_SERVICE | DDSI_QP_RELIABILITY | DDSI_QP_OWNERSHIP_STRENGTH | DDSI_QP_TRANSPORT_PRIORITY | DDSI_QP_LIFESPAN | DDSI_QP_ADLINK_WRITER_DATA_LIFECYCLE | DDSI_QP_DATA_REPRESENTATION | DDSI_QP_CYCLONE_WRITER_BATCHING | DDSI_QP_CONTENT_FILTER,
   .aliased = DDSI_QP_DATA_REPRESENTATION,
   .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
   .presentation.coherent_access = 0,
@@ -3681,7 +3722,8 @@ const dds_qos_t ddsi_default_qos_writer = {
   .writer_data_lifecycle.autodispose_unregistered_instances = 1,
   .writer_batching.batch_updates = 0,
   .data_representation.value.n = 1,
-  .data_representation.value.ids = (dds_data_representation_id_t []) { DDS_DATA_REPRESENTATION_XCDR1 }
+ .data_representation.value.ids = (dds_data_representation_id_t []) { DDS_DATA_REPRESENTATION_XCDR1 },
+  .filter.filter = NULL
 };
 
 const dds_qos_t ddsi_default_qos_topic = {

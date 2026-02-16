@@ -28,6 +28,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsc/dds_rhc.h"
 #include "dds/ddsc/dds_internal_api.h"
+#include "dds__loaned_sample.h"
 #include "dds__participant.h"
 #include "dds__subscriber.h"
 #include "dds__reader.h"
@@ -41,6 +42,7 @@
 #include "dds__statistics.h"
 #include "dds__psmx.h"
 #include "dds__guid.h"
+#include "dds__filter.h"
 
 DECL_ENTITY_LOCK_UNLOCK (dds_reader)
 
@@ -85,6 +87,7 @@ static dds_return_t dds_reader_delete (dds_entity *e)
   dds_endpoint_remove_psmx_endpoints (&rd->m_endpoint);
 
   dds_entity_drop_ref (&rd->m_topic->m_entity);
+  dds_filter_free (rd->m_filter);
   return ret;
 }
 
@@ -102,7 +105,7 @@ static dds_return_t validate_reader_qos (const dds_qos_t *rqos)
 static dds_return_t dds_reader_qos_set (dds_entity *e, const dds_qos_t *qos, bool enabled)
 {
   /* note: e->m_qos is still the old one to allow for failure here */
-  dds_return_t ret;
+  dds_return_t ret = DDS_RETCODE_OK;
   if ((ret = validate_reader_qos(qos)) != DDS_RETCODE_OK)
     return ret;
   if (enabled)
@@ -112,8 +115,17 @@ static dds_return_t dds_reader_qos_set (dds_entity *e, const dds_qos_t *qos, boo
     if ((rd = ddsi_entidx_lookup_reader_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
       ddsi_update_reader_qos (rd, qos);
     ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+
+    if (qos->present & DDSI_QP_CONTENT_FILTER && (qos->filter.filter != NULL))
+    {
+      struct dds_reader *drd = (struct dds_reader *) e;
+      if (drd->m_filter != NULL)
+        ret = dds_filter_update (qos->filter.filter, drd->m_topic->m_stype, drd->m_filter);
+      else
+        ret = dds_filter_create (e->m_domain->m_id, qos->filter.filter, drd->m_topic->m_stype, &drd->m_filter);
+    }
   }
-  return DDS_RETCODE_OK;
+  return ret;
 }
 
 static dds_return_t dds_reader_status_validate (uint32_t mask)
@@ -569,6 +581,8 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   if ((rc = dds_ensure_valid_psmx_instances (rqos, DDS_PSMX_ENDPOINT_TYPE_READER, tp->m_stype, &sub->m_entity.m_domain->psmx_instances)) != DDS_RETCODE_OK)
     goto err_psmx;
 
+  /* FIXME: ensure valid filter if presented. */
+
   if ((rc = ddsi_xqos_valid (&gv->logconfig, rqos)) < 0 || (rc = validate_reader_qos(rqos)) != DDS_RETCODE_OK)
     goto err_bad_qos;
 
@@ -623,6 +637,12 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   assert (rc == DDS_RETCODE_OK); // FIXME: can be out of resources
   rc = dds_loan_pool_create (&rd->m_heap_loan_cache, 0);
   assert (rc == DDS_RETCODE_OK); // FIXME: can be out of resources
+                                 //
+  if (rqos && (rqos->present & DDSI_QP_CONTENT_FILTER) && (rqos->filter.filter != NULL)) {
+    rc = dds_filter_create (rd->m_entity.m_domain->m_id, rqos->filter.filter, tp->m_stype, &rd->m_filter);
+    assert (rc == DDS_RETCODE_OK);
+  }
+
   if (dds_rhc_associate (rd->m_rhc, rd, tp->m_stype, rd->m_entity.m_domain->gv.m_tkmap) < 0)
   {
     /* FIXME: see also create_querycond, need to be able to undo entity_init */

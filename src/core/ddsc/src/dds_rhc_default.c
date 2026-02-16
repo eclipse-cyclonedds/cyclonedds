@@ -25,6 +25,7 @@
 
 #include "dds__entity.h"
 #include "dds__reader.h"
+#include "dds__filter.h"
 #include "dds__loaned_sample.h"
 #include "dds/ddsc/dds_rhc.h"
 #include "dds__rhc_default.h"
@@ -961,62 +962,6 @@ static void content_filter_make_sampleinfo (struct dds_sample_info *si, const st
   }
 }
 
-static bool content_filter_accepts (const dds_reader *reader, const struct ddsi_serdata *sample, const struct rhc_instance *inst, uint64_t wr_iid, uint64_t iid)
-{
-  bool ret = true;
-  if (reader)
-  {
-    const struct dds_topic *tp = reader->m_topic;
-    switch (tp->m_filter.mode)
-    {
-      case DDS_TOPIC_FILTER_NONE:
-        ret = true;
-        break;
-      case DDS_TOPIC_FILTER_SAMPLEINFO_ARG: {
-        struct dds_sample_info si;
-        content_filter_make_sampleinfo (&si, sample, inst, wr_iid, iid);
-        ret = tp->m_filter.f.sampleinfo_arg (&si, tp->m_filter.arg);
-        break;
-      }
-      case DDS_TOPIC_FILTER_SAMPLE:
-      case DDS_TOPIC_FILTER_SAMPLE_ARG:
-      case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG: {
-        char *tmp;
-        tmp = ddsi_sertype_alloc_sample (tp->m_stype);
-        if (!ddsi_serdata_to_sample (sample, tmp, NULL, NULL))
-        {
-          // Samples we can't deserialize are (presumably) best never inserted
-          ret = false;
-        }
-        else
-        {
-          switch (tp->m_filter.mode)
-          {
-            case DDS_TOPIC_FILTER_NONE:
-            case DDS_TOPIC_FILTER_SAMPLEINFO_ARG:
-              assert (0);
-            case DDS_TOPIC_FILTER_SAMPLE:
-              ret = (tp->m_filter.f.sample) (tmp);
-              break;
-            case DDS_TOPIC_FILTER_SAMPLE_ARG:
-              ret = (tp->m_filter.f.sample_arg) (tmp, tp->m_filter.arg);
-              break;
-            case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG: {
-              struct dds_sample_info si;
-              content_filter_make_sampleinfo (&si, sample, inst, wr_iid, iid);
-              ret = tp->m_filter.f.sample_sampleinfo_arg (tmp, &si, tp->m_filter.arg);
-              break;
-            }
-          }
-        }
-        ddsi_sertype_free_sample (tp->m_stype, tmp, DDS_FREE_ALL);
-        break;
-      }
-    }
-  }
-  return ret;
-}
-
 static bool inst_accepts_sample_by_writer_guid (const struct rhc_instance *inst, const struct ddsi_writer_info *wrinfo)
 {
   return (inst->wr_iid_islive && inst->wr_iid == wrinfo->iid) || memcmp (&wrinfo->guid, &inst->wr_guid, sizeof (inst->wr_guid)) < 0;
@@ -1062,9 +1007,16 @@ static bool inst_accepts_sample (const struct dds_rhc_default *rhc, const struct
       return false;
     }
   }
-  if (has_data && !content_filter_accepts (rhc->reader, sample, inst, wrinfo->iid, inst->iid))
+  if (has_data && rhc->reader)
   {
-    return false;
+    /* FIXME:
+     * actually it's really wierd, that sample info are created even if it not
+     * needed, but it is as it is for now*/
+    struct dds_sample_info si;
+    content_filter_make_sampleinfo(&si, sample, inst, wrinfo->iid, inst->iid);
+
+    struct dds_reader *rd = rhc->reader;
+    return dds_filter_reader_accept (rd->m_filter, rd, sample, &si);
   }
   return true;
 }
@@ -1450,9 +1402,17 @@ static rhc_store_result_t rhc_store_new_instance (struct rhc_instance **out_inst
      attribute (rather than a key), an empty instance should be
      instantiated. */
 
-  if (has_data && !content_filter_accepts (rhc->reader, sample, NULL, wrinfo->iid, tk->m_iid))
+  if (has_data && rhc->reader)
   {
-    return RHC_FILTERED;
+    /* FIXME:
+     * actually it's really wierd, that sample info are created even if it not
+     * needed, but it is as it is for now*/
+    struct dds_sample_info si;
+    content_filter_make_sampleinfo(&si, sample, NULL, wrinfo->iid, tk->m_iid);
+
+    struct dds_reader *rd = rhc->reader;
+    if (!dds_filter_reader_accept (rd->m_filter, rd, sample, &si))
+      return RHC_FILTERED;
   }
   /* Check if resource max_instances QoS exceeded */
 
