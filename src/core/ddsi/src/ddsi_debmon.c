@@ -619,7 +619,7 @@ static void print_domain (struct st *st, void *varg)
   print_proxy_participants (st);
 }
 
-static void debmon_handle_connection (struct ddsi_debug_monitor *dm, struct ddsi_tran_conn * conn)
+static void debmon_write_response (struct ddsi_debug_monitor *dm, struct ddsi_tran_conn * conn)
 {
   ddsi_locator_t loc;
   const char *http_header = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n";
@@ -658,6 +658,51 @@ static void debmon_handle_connection (struct ddsi_debug_monitor *dm, struct ddsi
   cpemitchunk(&st, loc);
 }
 
+static void debmon_handle_connection (struct ddsi_debug_monitor *dm, struct ddsi_tran_conn * conn)
+{
+  if (dm->stop)
+    return;
+
+  ddsrt_mutex_unlock (&dm->lock);
+
+  ddsrt_socket_t const sock = ddsi_tran_handle (&conn->m_base);
+  const struct linger lingeropt = { .l_onoff = 1, .l_linger = 2 };
+  const dds_return_t lingerret = ddsrt_setsockopt (sock, SOL_SOCKET, SO_LINGER, &lingeropt, sizeof (lingeropt));
+  if (lingerret != DDS_RETCODE_OK)
+    DDS_CLOG (DDS_LC_ERROR, &dm->gv->logconfig, "failed to set SO_LINGER {on_off=1,linger=2}\n");
+
+  debmon_write_response (dm, conn);
+
+  // shutdown on write side (we've sent all data) so peer gets EOF
+  // then read until EOF before closing the socket altogether
+  //
+  // section 4.2.2.13 of RFC 1122 tells us that a close() with any
+  // pending readable data could lead to an immediate reset being sent.
+  //
+  //   “A host MAY implement a ‘half-duplex’ TCP close sequence, so that
+  //   an application that has called CLOSE cannot continue to read data
+  //   from the connection. If such a host issues a CLOSE call while
+  //   received data is still pending in TCP, or if new data is received
+  //   after CLOSE is called, its TCP SHOULD send a RST to show that data
+  //   was lost.”
+  //
+  // not sure if "shutdown(read & write)" is the same as "close" in this,
+  // but only setting LINGER is not sufficient, but this seems to work.
+  ddsrt_shutdown (sock, DDSRT_SHUTDOWN_WRITE);
+  char buffer[100];
+  dds_return_t ret;
+  size_t bytes_read;
+  do {
+    fd_set fds;
+    FD_ZERO (&fds);
+    FD_SET (sock, &fds);
+    (void) ddsrt_select (sock + 1, &fds, NULL, NULL, DDS_SECS (1));
+    ret = ddsrt_recv (sock, buffer, sizeof (buffer), 0, &bytes_read);
+  } while ((ret == DDS_RETCODE_OK && bytes_read > 0) || ret == DDS_RETCODE_TRY_AGAIN);
+
+  ddsrt_mutex_lock (&dm->lock);
+}
+
 static uint32_t debmon_main (void *vdm)
 {
   struct ddsi_debug_monitor *dm = vdm;
@@ -666,48 +711,10 @@ static uint32_t debmon_main (void *vdm)
   {
     ddsrt_mutex_unlock (&dm->lock);
     struct ddsi_tran_conn * conn = ddsi_listener_accept (dm->servsock);
-    ddsrt_socket_t const sock = ddsi_tran_handle (&conn->m_base);
-    const struct linger lingeropt = { .l_onoff = 1, .l_linger = 2 };
-    const dds_return_t lingerret = ddsrt_setsockopt (sock, SOL_SOCKET, SO_LINGER, &lingeropt, sizeof (lingeropt));
-    if (lingerret != DDS_RETCODE_OK)
-      DDS_CLOG (DDS_LC_ERROR, &dm->gv->logconfig, "failed to set SO_LINGER {on_off=1,linger=2}\n");
     ddsrt_mutex_lock (&dm->lock);
-    if (conn != NULL && !dm->stop)
-    {
-      ddsrt_mutex_unlock (&dm->lock);
-      debmon_handle_connection (dm, conn);
-
-      // shutdown on write side (we've sent all data) so peer gets EOF
-      // then read until EOF before closing the socket altogether
-      //
-      // section 4.2.2.13 of RFC 1122 tells us that a close() with any
-      // pending readable data could lead to an immediate reset being sent.
-      //
-      //   “A host MAY implement a ‘half-duplex’ TCP close sequence, so that
-      //   an application that has called CLOSE cannot continue to read data
-      //   from the connection. If such a host issues a CLOSE call while
-      //   received data is still pending in TCP, or if new data is received
-      //   after CLOSE is called, its TCP SHOULD send a RST to show that data
-      //   was lost.”
-      //
-      // not sure if "shutdown(read & write)" is the same as "close" in this,
-      // but only setting LINGER is not sufficient, but this seems to work.
-      ddsrt_shutdown (sock, DDSRT_SHUTDOWN_WRITE);
-      char buffer[100];
-      dds_return_t ret;
-      size_t bytes_read;
-      do {
-        fd_set fds;
-        FD_ZERO (&fds);
-        FD_SET (sock, &fds);
-        (void) ddsrt_select (sock + 1, &fds, NULL, NULL, DDS_SECS (1));
-        ret = ddsrt_recv (sock, buffer, sizeof (buffer), 0, &bytes_read);
-      } while ((ret == DDS_RETCODE_OK && bytes_read > 0) || ret == DDS_RETCODE_TRY_AGAIN);
-
-      ddsrt_mutex_lock (&dm->lock);
-    }
     if (conn != NULL)
     {
+      debmon_handle_connection (dm, conn);
       ddsi_conn_free (conn);
     }
   }
