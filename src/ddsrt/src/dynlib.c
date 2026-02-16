@@ -80,7 +80,7 @@ dds_return_t ddsrt_dlclose (ddsrt_dynlib_t handle)
 #if DDSRT_HAVE_DYNLIB
   return ddsrt_platform_dlclose (handle);
 #else
-  return DDS_RETCODE_UNSUPPORTED
+  return DDS_RETCODE_UNSUPPORTED;
 #endif
 }
 
@@ -104,7 +104,7 @@ dds_return_t ddsrt_dlsym (ddsrt_dynlib_t handle, const char *symbol, void **addr
 #if DDSRT_HAVE_DYNLIB
   return ddsrt_platform_dlsym (handle, symbol, address);
 #else
-  return DDS_RETCODE_UNSUPPORTED
+  return DDS_RETCODE_UNSUPPORTED;
 #endif
 }
 
@@ -113,7 +113,7 @@ dds_return_t ddsrt_dlerror (char *buf, size_t buflen)
 #if DDSRT_HAVE_DYNLIB
   return ddsrt_platform_dlerror (buf, buflen);
 #else
-  return DDS_RETCODE_UNSUPPORTED
+  return DDS_RETCODE_UNSUPPORTED;
 #endif
 }
 

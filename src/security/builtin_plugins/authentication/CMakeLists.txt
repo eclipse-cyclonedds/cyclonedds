@@ -24,7 +24,8 @@ set(private_headers
 if(BUILD_SHARED_LIBS)
   add_library(dds_security_auth SHARED ${sources} ${private_headers})
 else()
-  add_library(dds_security_auth OBJECT ${sources} ${private_headers})
+  add_library(dds_security_auth ${sources} ${private_headers})
+  set_target_properties(dds_security_auth PROPERTIES POSITION_INDEPENDENT_CODE ON)
   set_property(GLOBAL APPEND PROPERTY cdds_plugin_list dds_security_auth)
   set_property(GLOBAL PROPERTY dds_security_auth_symbols init_authentication finalize_authentication)
   if(DEFINED ENV{LIB_FUZZING_ENGINE})
@@ -35,17 +36,18 @@ else()
   endif()
 endif()
 
+add_library(${PROJECT_NAME}::dds_security_auth ALIAS dds_security_auth)
+
 generate_export_header(
         dds_security_auth
         BASE_NAME SECURITY
         EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/security/export.h"
 )
 
-target_link_libraries(dds_security_auth PRIVATE security_openssl)
+target_link_libraries(dds_security_auth PRIVATE ${PROJECT_NAME}::security_openssl)
 if(BUILD_SHARED_LIBS)
-  target_link_libraries(dds_security_auth PUBLIC ddsc)
+  target_link_libraries(dds_security_auth PUBLIC ${PROJECT_NAME}::ddsc)
 endif()
-target_link_libraries(dds_security_auth PUBLIC OpenSSL::SSL)
 if(CMAKE_GENERATOR MATCHES "Visual Studio")
   set_target_properties(dds_security_auth PROPERTIES LINK_FLAGS "/ignore:4099")
 endif()

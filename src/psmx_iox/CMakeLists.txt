@@ -40,7 +40,7 @@ if(ENABLE_ICEORYX2)
 
   target_link_libraries(psmx_iox2 PRIVATE iceoryx2-c::static-lib)
   if(BUILD_SHARED_LIBS)
-    target_link_libraries(psmx_iox2 PRIVATE ddsc)
+    target_link_libraries(psmx_iox2 PRIVATE ${PROJECT_NAME}::ddsc)
   endif()
 
   if(MSVC)
@@ -83,7 +83,7 @@ if(ENABLE_ICEORYX)
 
   target_link_libraries(psmx_iox PRIVATE iceoryx_hoofs::iceoryx_hoofs iceoryx_posh::iceoryx_posh)
   if(BUILD_SHARED_LIBS)
-    target_link_libraries(psmx_iox PRIVATE ddsc)
+    target_link_libraries(psmx_iox PRIVATE ${PROJECT_NAME}::ddsc)
   endif()
 
   if(MSVC)

@@ -223,4 +223,3 @@ void __attribute__((destructor)) ddsrt_dtor(void)
   ddsrt_fini();
 }
 #endif /* _WIN32 */
-

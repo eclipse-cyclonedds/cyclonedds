@@ -69,28 +69,46 @@ endif()
 # currently relying on it.
 set(ENABLE_SSL "AUTO" CACHE STRING "Enable OpenSSL support")
 set_property(CACHE ENABLE_SSL PROPERTY STRINGS ON OFF AUTO)
-if(ENABLE_SSL)
-  if(NOT ENABLE_SSL STREQUAL "AUTO")
-    find_package(OpenSSL REQUIRED)
+if(ENABLE_SSL AND NOT TARGET OpenSSL::SSL) # Search for OpenSSL only if is not already a target
+
+  if(TARGET CONAN_PKG::openssl)
+    add_library(OpenSSL::SSL INTERFACE IMPORTED)
+    target_link_libraries(OpenSSL::SSL INTERFACE CONAN_PKG::openssl)
+    set(OPENSSL_FOUND ON) # Manually set it
   else()
-    find_package(OpenSSL QUIET)
-    if(OPENSSL_FOUND)
-      message(STATUS "Building with OpenSSL support")
-      set(ENABLE_SSL "ON")
+    if(NOT BUILD_SHARED_LIBS)
+      set(OPENSSL_USE_STATIC_LIBS ON) # Require OpenSSL static if is installed on the system
+    endif()
+
+    include(FindOpenSSL) # Use CMake official module
+    if(NOT ENABLE_SSL STREQUAL "AUTO")
+      find_package(OpenSSL REQUIRED)
     else()
-      message(STATUS "Building without OpenSSL support")
-      set(ENABLE_SSL "OFF")
+      find_package(OpenSSL QUIET)
     endif()
   endif()
+
+  if(OPENSSL_FOUND)
+    # OpenSSL DLL on Windows: use of BIO_s_fd and BIO_s_file (directly or indirectly) requires
+    # the executable to incorporate OpenSSL applink.c.  CMake 18 adds support for handling
+    # this as part of the OpenSSL package, but we can't require such a new CMake version.
+    if(EXISTS "${OPENSSL_INCLUDE_DIR}/openssl/applink.c")
+      set(CYCLONEDDS_OPENSSL_APPLINK "${OPENSSL_INCLUDE_DIR}/openssl/applink.c")
+    endif()
+    message(STATUS "Building with OpenSSL support")
+  else()
+    message(STATUS "Building without OpenSSL support")
+  endif()
+  set(ENABLE_SSL "${OPENSSL_FOUND}")
 endif()
 
 set(ENABLE_TCP_TLS "AUTO" CACHE STRING "Enable TCP+TLS support (depends on ENABLE_SSL)")
 set_property(CACHE ENABLE_TCP_TLS PROPERTY STRINGS ON OFF AUTO)
-if(ENABLE_TCP_TLS)
+if(ENABLE_TCP_TLS) # ENABLE_TCP_TLS = AUTO | ON
   if(ENABLE_TCP_TLS STREQUAL "AUTO")
     set(ENABLE_TCP_TLS "${ENABLE_SSL}")
-  elseif(ENABLE_TCP_TLS AND NOT ENABLE_SSL)
-    message(FATAL "ENABLE_TCP_TLS requires ENABLE_SSL")
+  elseif(NOT ENABLE_SSL) # ENABLE_TCP_TLS=ON and ENABLE_SSL=OFF
+    message(FATAL_ERROR "ENABLE_TCP_TLS requires ENABLE_SSL")
   endif()
 endif()
 

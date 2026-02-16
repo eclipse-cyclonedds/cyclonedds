@@ -18,8 +18,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "ucunit/export.h"
-
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -224,35 +222,35 @@ typedef enum CU_ErrorAction {
   CUEA_ABORT // A failed CU_ASSERT_FATAL cause CU_fatal to abort()
 } CU_ErrorAction;
 
-UCUNIT_EXPORT CU_ErrorCode CU_initialize_registry (void);
+CU_ErrorCode CU_initialize_registry (void);
 
-UCUNIT_EXPORT CU_pSuite CU_add_suite(const char *strName, CU_InitializeFunc pInit, CU_CleanupFunc pClean);
+CU_pSuite CU_add_suite(const char *strName, CU_InitializeFunc pInit, CU_CleanupFunc pClean);
 
-UCUNIT_EXPORT CU_pSuite CU_get_suite (const char *strName);
+CU_pSuite CU_get_suite (const char *strName);
 
-UCUNIT_EXPORT CU_ErrorCode CU_set_suite_active (CU_pSuite pSuite, bool fNewActive);
+CU_ErrorCode CU_set_suite_active (CU_pSuite pSuite, bool fNewActive);
 
-UCUNIT_EXPORT CU_pTest CU_add_test(CU_pSuite pSuite, const char *strName, CU_TestFunc pTestFunc);
+CU_pTest CU_add_test(CU_pSuite pSuite, const char *strName, CU_TestFunc pTestFunc);
 
-UCUNIT_EXPORT void CU_set_test_active(CU_pTest pTest, bool fNewActive);
+void CU_set_test_active(CU_pTest pTest, bool fNewActive);
 
-UCUNIT_EXPORT CU_ErrorCode CU_get_error (void);
+CU_ErrorCode CU_get_error (void);
 
-UCUNIT_EXPORT const char *CU_get_error_msg (void);
+const char *CU_get_error_msg (void);
 
-UCUNIT_EXPORT CU_ErrorCode CU_basic_run_tests (void);
+CU_ErrorCode CU_basic_run_tests (void);
 
-UCUNIT_EXPORT uint32_t CU_get_number_of_failures (void);
+uint32_t CU_get_number_of_failures (void);
 
-UCUNIT_EXPORT void CU_cleanup_registry (void);
+void CU_cleanup_registry (void);
 
-UCUNIT_EXPORT void CU_assertImplementation (bool value, int line, const char *expr, const char *file, const char *something, bool isfatal);
+void CU_assertImplementation (bool value, int line, const char *expr, const char *file, const char *something, bool isfatal);
 
-UCUNIT_EXPORT void CU_hexdump (FILE *fp, const unsigned char *msg, const size_t len);
+void CU_fatal (void);
+  
+void CU_hexdump (FILE *fp, const unsigned char *msg, const size_t len);
 
-UCUNIT_EXPORT void CU_fatal (void);
-
-UCUNIT_EXPORT void CU_set_error_action (CU_ErrorAction action);
+void CU_set_error_action (CU_ErrorAction action);
 
 #if defined (__cplusplus)
 }
