@@ -329,16 +329,9 @@ static dds_return_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const
     char locbuf[DDSI_LOCSTRLEN];
     GVERROR ("ddsi_udp_conn_write to %s failed with retcode %"PRId32"\n", ddsi_locator_to_string (locbuf, sizeof (locbuf), dst), rc);
   }
-  if (rc == DDS_RETCODE_OK)
-  {
-    if (bytes_written)
-      *bytes_written = (size_t) nsent;
-    return rc;
-  }
-  else
-  {
-    return (rc != DDS_RETCODE_OK) ? rc : DDS_RETCODE_ERROR;
-  }
+  if (bytes_written)
+    *bytes_written = (size_t) nsent;
+  return rc;
 }
 
 static void ddsi_udp_disable_multiplexing (struct ddsi_tran_conn * conn_cmn)
