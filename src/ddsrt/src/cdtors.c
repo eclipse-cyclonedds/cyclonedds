@@ -45,38 +45,38 @@ static void ddsrt_init_impl (void)
 
 static void ddsrt_fini_impl (void)
 {
+  ddsrt_atomics_fini ();
+  ddsrt_random_fini ();
+#if _WIN32
+  ddsrt_time_fini ();
+  ddsrt_winsock_fini ();
+#endif
   ddsrt_cond_destroy (&init_cond);
   ddsrt_mutex_destroy (&init_mutex);
-  ddsrt_random_fini ();
-  ddsrt_atomics_fini ();
-#if _WIN32
-  ddsrt_winsock_fini ();
-  ddsrt_time_fini ();
-#endif
 }
 
-void ddsrt_init (void)
+dds_return_t ddsrt_init (void)
 {
 #if defined __GNUC__ && __GNUC__ >= 14
   DDSRT_WARNING_GNUC_OFF(analyzer-infinite-loop)
 #endif
   uint32_t v, v1;
-retry_init:
   do {
     v = ddsrt_atomic_ld32 (&init_status);
     // We get here for each application thread that needs at some point
     // to play with ddsi_thread states, and the corresponding call to
     // ddsrt_fini is dependent on the platform actually doing thread
-    // cleanup.  It is not safe to assume it will always work, so best
-    // to saturate the counter.
+    // cleanup. If the counter is saturated, we can't guarantee correctness,
+    // so it is best to return with an error.
     if ((v & INIT_COUNT_MASK) == INIT_COUNT_MASK)
-      v1 = v;
+      return DDS_RETCODE_OUT_OF_RESOURCES;
     else
       v1 = v + 1;
   } while (!ddsrt_atomic_cas32 (&init_status, v, v1));
 
-  if (v & INIT_STATUS_OK)
-    return;
+  if (v & INIT_STATUS_OK) {
+    ; // Proceed
+  }
   else if (v == 0)
   {
     ddsrt_init_impl ();
@@ -84,7 +84,7 @@ retry_init:
   }
   else
   {
-    while (v != 0 && !(v & INIT_STATUS_OK))
+    while ((ddsrt_atomic_ld32(&init_status) & INIT_STATUS_OK) == 0)
     {
 #ifndef __COVERITY__
       /* This sleep makes Coverity warn about possibly sleeping while holding in a lock
@@ -93,13 +93,12 @@ retry_init:
          skip the sleep when being analyzed. */
       dds_sleepfor (10000000);
 #endif
-      v = ddsrt_atomic_ld32 (&init_status);
     }
-    goto retry_init;
   }
 #if defined __GNUC__ && __GNUC__ >= 14
   DDSRT_WARNING_GNUC_ON(analyzer-infinite-loop)
 #endif
+  return DDS_RETCODE_OK;
 }
 
 void ddsrt_fini (void)
@@ -108,12 +107,7 @@ void ddsrt_fini (void)
   do {
     v = ddsrt_atomic_ld32 (&init_status);
     assert ((v & INIT_STATUS_OK) && (v & INIT_COUNT_MASK) > 0);
-    if ((v & INIT_COUNT_MASK) == INIT_COUNT_MASK)
-    {
-      // saturated counter, don't try to do this little bit of cleanup
-      v1 = v;
-    }
-    else if ((v & INIT_COUNT_MASK) > 1)
+    if ((v & INIT_COUNT_MASK) > 1)
     {
       // "init once" or other "counted" ones remain
       v1 = v - 1;
@@ -128,7 +122,17 @@ void ddsrt_fini (void)
   if (v1 == 1)
   {
     ddsrt_fini_impl ();
-    ddsrt_atomic_dec32 (&init_status);
+    if( ddsrt_atomic_dec32_ov(&init_status) > 1 ){
+      /*
+      We're in a subtle edgecase where one or more threads incremented the refcount from ddsrt_init(),
+      at a time after the point where I came out of the while loop, but before my final decrement.
+      Any such threads will now be waiting for the init to happen,
+      but none of them will actually do it since none of them got (v == 0).
+      Undo the damage by re-initializing and then unblocking them so they can proceed.
+      */
+      ddsrt_init_impl();
+      ddsrt_atomic_or32(&init_status, INIT_STATUS_OK);
+    }
   }
 }
 
