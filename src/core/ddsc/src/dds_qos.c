@@ -670,8 +670,20 @@ bool dds_qget_partition (const dds_qos_t *qos, uint32_t *n, char ***ps)
     *n = qos->partition.n;
   if (ps)
   {
-    if (qos->partition.n == 0)
-      *ps = NULL;
+    if (qos->partition.n == 0) {
+      /* This is the default partition.
+       * Only when the argument n is non-null, we'll
+       * actually return the default partition (i.e.,
+       * the empty string "").
+       *  */
+      if (n) {
+        *n = 1;
+        *ps = dds_alloc (sizeof (char*));
+        (*ps)[0] = dds_string_dup ("");
+      } else {
+        *ps = NULL;
+      }
+    }
     else
     {
       *ps = dds_alloc (sizeof (char*) * qos->partition.n);
