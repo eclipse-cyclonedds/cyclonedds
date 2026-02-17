@@ -2211,8 +2211,6 @@ static const uint32_t *dds_stream_getsize_adr (uint32_t insn, struct getsize_sta
     }
     if (!present)
     {
-      if (alignment_offset_by_4)
-        st->align_off -= 4;
       return dds_stream_skip_adr (insn, ops);
     }
   }
