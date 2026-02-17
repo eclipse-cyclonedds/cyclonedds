@@ -30,20 +30,20 @@ int32_t ddsrt_todigit(const int chr)
 }
 
 static dds_return_t
-ullfstr(
+uint64str(
   const char *str,
   char **endptr,
   int32_t base,
-  unsigned long long *ullng,
-  unsigned long long max)
+  uint64_t *value,
+  uint64_t max)
 {
   dds_return_t rc = DDS_RETCODE_OK;
   int num;
   size_t cnt = 0;
-  unsigned long long tot = 0;
+  uint64_t tot = 0;
 
   assert(str != NULL);
-  assert(ullng != NULL);
+  assert(value != NULL);
 
   if (base == 0) {
     if (str[0] == '0') {
@@ -81,63 +81,63 @@ ullfstr(
     *endptr = (char *)str + cnt;
   }
 
-  *ullng = tot;
-
+  *value = tot;
   return rc;
 }
 
 dds_return_t
-ddsrt_strtoll(
+ddsrt_strtoint64(
   const char *str,
   char **endptr,
   int32_t base,
-  long long *llng)
+  int64_t *value)
 {
   dds_return_t rc = DDS_RETCODE_OK;
   size_t cnt = 0;
-  int sign = 1;
-  unsigned long long ullng = 0, max = INT64_MAX;
+  bool negate = false;
+  uint64_t u64 = 0;
 
   assert(str != NULL);
-  assert(llng != NULL);
+  assert(value != NULL);
 
   for (; isspace((unsigned char)str[cnt]); cnt++) {
     /* Ignore leading whitespace. */
   }
 
   if (str[cnt] == '-') {
-    sign = -1;
-    max++;
+    negate = true;
     cnt++;
   } else if (str[cnt] == '+') {
     cnt++;
   }
 
-  rc = ullfstr(str + cnt, endptr, base, &ullng, max);
+  rc = uint64str(str + cnt, endptr, base, &u64, (uint64_t) INT64_MAX + (negate ? 1 : 0));
   if (endptr && *endptr == (str + cnt))
     *endptr = (char *)str;
   if (rc != DDS_RETCODE_BAD_PARAMETER) {
-    *llng = (long long)ullng;
-    if (sign == -1 && *llng != INT64_MIN)
-      *llng = - *llng;
+    if (!negate)
+      *value = (int64_t) u64;
+    else if (u64 == 1 + (uint64_t) INT64_MAX)
+      *value = INT64_MIN;
+    else
+      *value = - (int64_t) u64;
   }
   return rc;
 }
 
 dds_return_t
-ddsrt_strtoull(
+ddsrt_strtouint64(
   const char *str,
   char **endptr,
   int32_t base,
-  unsigned long long *ullng)
+  uint64_t *value)
 {
   dds_return_t rc = DDS_RETCODE_OK;
   size_t cnt = 0;
   bool negate = false;
-  unsigned long long max = UINT64_MAX;
 
   assert(str != NULL);
-  assert(ullng != NULL);
+  assert(value != NULL);
 
   for (; isspace((unsigned char)str[cnt]); cnt++) {
     /* ignore leading whitespace */
@@ -150,37 +150,21 @@ ddsrt_strtoull(
     cnt++;
   }
 
-  rc = ullfstr(str + cnt, endptr, base, ullng, max);
+  rc = uint64str(str + cnt, endptr, base, value, UINT64_MAX);
   if (endptr && *endptr == (str + cnt))
     *endptr = (char *)str;
   if (rc != DDS_RETCODE_BAD_PARAMETER && negate) {
     // Microsoft thinks unary minus on an unsigned type is worthy of a warning,
     // so write out two's complement negation by hand
-    *ullng = (~ *ullng) + 1;
+    *value = (~ *value) + 1;
   }
 
   return rc;
 }
 
-dds_return_t
-ddsrt_atoll(
-  const char *str,
-  long long *llng)
-{
-  return ddsrt_strtoll(str, NULL, 10, llng);
-}
-
-dds_return_t
-ddsrt_atoull(
-  const char *str,
-  unsigned long long *ullng)
-{
-  return ddsrt_strtoull(str, NULL, 10, ullng);
-}
-
 char *
-ddsrt_ulltostr(
-  unsigned long long num,
+ddsrt_uint64tostr(
+  uint64_t num,
   char *str,
   size_t len,
   char **endptr)
@@ -239,8 +223,8 @@ ddsrt_ulltostr(
 }
 
 char *
-ddsrt_lltostr(
-  long long num,
+ddsrt_int64tostr(
+  int64_t num,
   char *str,
   size_t len,
   char **endptr)
@@ -260,17 +244,17 @@ ddsrt_lltostr(
   } else {
     if (num < 0LL) {
       if (num == INT64_MIN) {
-        pos = (unsigned long long)INT64_MAX + 1;
+        pos = (uint64_t) INT64_MAX + 1;
       } else {
-        pos = (unsigned long long) -num;
+        pos = (uint64_t) -num;
       }
 
       str[cnt++] = '-';
     } else {
-      pos = (unsigned long long) num;
+      pos = (uint64_t) num;
     }
 
-    (void)ddsrt_ulltostr(pos, str + cnt, len - cnt, &ptr);
+    (void)ddsrt_uint64tostr(pos, str + cnt, len - cnt, &ptr);
   }
 
   if (endptr != NULL) {

@@ -1174,12 +1174,10 @@ int main (int argc, char **argv)
 
   // ddsrt/strtol.h
   ddsrt_todigit (0);
-  ddsrt_strtoll (ptr, ptr, 0, ptr);
-  ddsrt_strtoull (ptr, ptr, 0, ptr);
-  ddsrt_atoll (ptr, ptr);
-  ddsrt_atoull (ptr, ptr);
-  ddsrt_lltostr (0, ptr, 0, ptr);
-  ddsrt_ulltostr (0, ptr, 0, ptr);
+  ddsrt_strtoint64 (ptr, ptr, 0, ptr);
+  ddsrt_strtouint64 (ptr, ptr, 0, ptr);
+  ddsrt_int64tostr (0, ptr, 0, ptr);
+  ddsrt_uint64tostr (0, ptr, 0, ptr);
 
   // ddsrt/xmlparser.h
   ddsrt_xmlp_new_file (ptr, ptr, ptr);

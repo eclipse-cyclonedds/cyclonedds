@@ -204,8 +204,8 @@ static bool dds_sysdef_is_valid_identifier (const char *name);
 static bool str_to_int32 (const char *str, int32_t *value)
 {
   char *endptr;
-  long long l;
-  if (ddsrt_strtoll (str, &endptr, 0, &l) != DDS_RETCODE_OK || l < INT32_MIN || l > INT32_MAX) {
+  int64_t l;
+  if (ddsrt_strtoint64 (str, &endptr, 0, &l) != DDS_RETCODE_OK || l < INT32_MIN || l > INT32_MAX) {
     return false;
   }
   *value = (int32_t) l;
@@ -215,8 +215,8 @@ static bool str_to_int32 (const char *str, int32_t *value)
 static bool str_to_uint8 (const char *str, uint8_t *value)
 {
   char *endptr;
-  long long l;
-  if (ddsrt_strtoll (str, &endptr, 0, &l) != DDS_RETCODE_OK || l < 0 || l > UINT8_MAX) {
+  uint64_t l;
+  if (ddsrt_strtouint64 (str, &endptr, 0, &l) != DDS_RETCODE_OK || l > UINT8_MAX) {
     return false;
   }
   *value = (uint8_t) l;
@@ -226,8 +226,8 @@ static bool str_to_uint8 (const char *str, uint8_t *value)
 static bool str_to_uint16 (const char *str, uint16_t *value)
 {
   char *endptr;
-  long long l;
-  if (ddsrt_strtoll (str, &endptr, 0, &l) != DDS_RETCODE_OK || l < 0 || l > UINT16_MAX) {
+  uint64_t l;
+  if (ddsrt_strtouint64 (str, &endptr, 0, &l) != DDS_RETCODE_OK || l > UINT16_MAX) {
     return false;
   }
   *value = (uint16_t) l;
@@ -237,8 +237,8 @@ static bool str_to_uint16 (const char *str, uint16_t *value)
 static bool str_to_uint32 (const char *str, uint32_t *value)
 {
   char *endptr;
-  long long l;
-  if (ddsrt_strtoll (str, &endptr, 0, &l) != DDS_RETCODE_OK || l < 0 || l > UINT32_MAX) {
+  uint64_t l;
+  if (ddsrt_strtouint64 (str, &endptr, 0, &l) != DDS_RETCODE_OK || l > UINT32_MAX) {
     return false;
   }
   *value = (uint32_t) l;
@@ -248,11 +248,9 @@ static bool str_to_uint32 (const char *str, uint32_t *value)
 static bool str_to_int64 (const char *str, int64_t *value)
 {
   char *endptr;
-  long long l;
-  if (ddsrt_strtoll (str, &endptr, 0, &l) != DDS_RETCODE_OK || l < INT64_MIN || l > INT64_MAX) {
+  if (ddsrt_strtoint64 (str, &endptr, 0, value) != DDS_RETCODE_OK) {
     return false;
   }
-  *value = (int64_t) l;
   return (*endptr == '\0');
 }
 
