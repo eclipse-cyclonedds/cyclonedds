@@ -163,7 +163,8 @@ static bool ddsrt_cond_waituntil_impl (pthread_cond_t *cond, pthread_mutex_t *mu
 {
   struct timespec ts = { .tv_sec = 0, .tv_nsec = 0 };
   if (abstime == DDS_NEVER) {
-    pthread_cond_wait(cond, mutex);
+    if (pthread_cond_wait(cond, mutex) != 0)
+      abort();
     return true;
   }
   if (abstime > 0) {
