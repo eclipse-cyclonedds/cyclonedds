@@ -12,6 +12,7 @@
 #include <ctype.h>
 #include <limits.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "dds/ddsrt/strtol.h"
 
@@ -132,7 +133,7 @@ ddsrt_strtoull(
 {
   dds_return_t rc = DDS_RETCODE_OK;
   size_t cnt = 0;
-  unsigned long long tot = 1;
+  bool negate = false;
   unsigned long long max = UINT64_MAX;
 
   assert(str != NULL);
@@ -143,7 +144,7 @@ ddsrt_strtoull(
   }
 
   if (str[cnt] == '-') {
-    tot = (unsigned long long) -1;
+    negate = true;
     cnt++;
   } else if (str[cnt] == '+') {
     cnt++;
@@ -152,8 +153,11 @@ ddsrt_strtoull(
   rc = ullfstr(str + cnt, endptr, base, ullng, max);
   if (endptr && *endptr == (str + cnt))
     *endptr = (char *)str;
-  if (rc != DDS_RETCODE_BAD_PARAMETER)
-    *ullng *= tot;
+  if (rc != DDS_RETCODE_BAD_PARAMETER && negate) {
+    // Microsoft thinks unary minus on an unsigned type is worthy of a warning,
+    // so write out two's complement negation by hand
+    *ullng = (~ *ullng) + 1;
+  }
 
   return rc;
 }
