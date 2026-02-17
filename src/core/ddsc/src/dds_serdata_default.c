@@ -358,16 +358,21 @@ static struct dds_serdata_default *serdata_default_from_ser_common (const struct
      serdata */
   if (size > UINT32_MAX - offsetof (struct dds_serdata_default, hdr))
     return NULL;
-  struct dds_serdata_default *d = serdata_default_new_size (tp, kind, (uint32_t) size, DDSI_RTPS_CDR_ENC_VERSION_UNDEF);
+
+  struct dds_cdr_header hdr;
+  (void) memcpy (&hdr, DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF (fragchain)), sizeof (hdr));
+  const uint16_t pad = ddsrt_fromBE2u (hdr.options) & DDS_CDR_HDR_PADDING_MASK;
+  struct dds_serdata_default *d = serdata_default_new_size (tp, kind, (uint32_t) size - pad, DDSI_RTPS_CDR_ENC_VERSION_UNDEF);
   if (d == NULL)
     return NULL;
 
-  uint32_t off = 4; /* must skip the CDR header */
+  uint32_t off = sizeof(hdr); /* must skip the CDR header */
 
   assert (fragchain->min == 0);
   assert (fragchain->maxp1 >= off); /* CDR header must be in first fragment */
 
-  memcpy (&d->hdr, DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF (fragchain)), sizeof (d->hdr));
+  d->hdr = hdr;
+  d->hdr.options = 0;
   if (!is_valid_xcdr_id (d->hdr.identifier))
     goto err;
 
@@ -386,20 +391,20 @@ static struct dds_serdata_default *serdata_default_from_ser_common (const struct
 
   const bool needs_bswap = !DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier);
   d->hdr.identifier = DDSI_RTPS_CDR_ENC_TO_NATIVE (d->hdr.identifier);
-  const uint32_t pad = ddsrt_fromBE2u (d->hdr.options) & DDS_CDR_HDR_PADDING_MASK;
   const uint32_t xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
   const uint32_t encoding_format = ddsi_sertype_enc_id_enc_format (d->hdr.identifier);
   if (ddsi_sertype_get_native_enc_identifier (xcdr_version, encoding_format) != ddsi_sertype_get_native_enc_identifier (xcdr_version, tp->encoding_format))
     goto err;
 
   uint32_t actual_size;
-  if (d->pos < pad || !dds_stream_normalize (d->data, d->pos - pad, needs_bswap, xcdr_version, &tp->type, kind == SDK_KEY, &actual_size))
+  if (!dds_stream_normalize (d->data, d->pos, needs_bswap, xcdr_version, &tp->type, kind == SDK_KEY, &actual_size))
     goto err;
 
   dds_istream_t is;
   dds_istream_init (&is, actual_size, d->data, xcdr_version);
   if (!gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY))
     goto err;
+
   return d;
 
 err:
@@ -417,36 +422,42 @@ static struct dds_serdata_default *serdata_default_from_ser_iov_common (const st
      serdata */
   if (size > UINT32_MAX - offsetof (struct dds_serdata_default, hdr))
     return NULL;
+
+  struct dds_cdr_header hdr;
   assert (niov >= 1);
-  if (iov[0].iov_len < 4) /* CDR header */
+  if (iov[0].iov_len < sizeof(hdr)) /* CDR header */
     return NULL;
-  struct dds_serdata_default *d = serdata_default_new_size (tp, kind, (uint32_t) size, DDSI_RTPS_CDR_ENC_VERSION_UNDEF);
+
+  (void) memcpy (&hdr, iov[0].iov_base, sizeof (hdr));
+  const uint16_t pad = ddsrt_fromBE2u (hdr.options) & DDS_CDR_HDR_PADDING_MASK;
+  struct dds_serdata_default *d = serdata_default_new_size (tp, kind, (uint32_t) size - pad, DDSI_RTPS_CDR_ENC_VERSION_UNDEF);
   if (d == NULL)
     return NULL;
 
-  memcpy (&d->hdr, iov[0].iov_base, sizeof (d->hdr));
+  d->hdr = hdr;
+  d->hdr.options = 0;
   if (!is_valid_xcdr_id (d->hdr.identifier))
     goto err;
-  serdata_default_append_blob (&d, iov[0].iov_len - 4, (const char *) iov[0].iov_base + 4);
+  serdata_default_append_blob (&d, iov[0].iov_len - sizeof(hdr), (const char *) iov[0].iov_base + sizeof(hdr));
   for (ddsrt_msg_iovlen_t i = 1; i < niov; i++)
     serdata_default_append_blob (&d, iov[i].iov_len, iov[i].iov_base);
 
   const bool needs_bswap = !DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier);
   d->hdr.identifier = DDSI_RTPS_CDR_ENC_TO_NATIVE (d->hdr.identifier);
-  const uint32_t pad = ddsrt_fromBE2u (d->hdr.options) & DDS_CDR_HDR_PADDING_MASK;
   const uint32_t xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
   const uint32_t encoding_format = ddsi_sertype_enc_id_enc_format (d->hdr.identifier);
   if (ddsi_sertype_get_native_enc_identifier (xcdr_version, encoding_format) != ddsi_sertype_get_native_enc_identifier (xcdr_version, tp->encoding_format))
     goto err;
 
   uint32_t actual_size;
-  if (d->pos < pad || !dds_stream_normalize (d->data, d->pos - pad, needs_bswap, xcdr_version, &tp->type, kind == SDK_KEY, &actual_size))
+  if (!dds_stream_normalize (d->data, d->pos, needs_bswap, xcdr_version, &tp->type, kind == SDK_KEY, &actual_size))
     goto err;
 
   dds_istream_t is;
   dds_istream_init (&is, actual_size, d->data, xcdr_version);
   if (!gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY))
     goto err;
+
   return d;
 
 err:
@@ -554,15 +565,10 @@ static void ostream_from_serdata_default (dds_ostream_t *s, const struct dds_ser
 
 static void ostream_add_to_serdata_default (dds_ostream_t *s, struct dds_serdata_default **d)
 {
-  /* DDSI requires 4 byte alignment */
-  const uint32_t pad = dds_cdr_alignto4_clear_and_resize (s, &dds_cdrstream_default_allocator, s->m_xcdr_version);
-  assert (pad <= 3);
-
   /* Reset data pointer as stream may have reallocated */
   (*d) = (void *) s->m_buffer;
   (*d)->pos = (s->m_index - (uint32_t) offsetof (struct dds_serdata_default, data));
   (*d)->size = (s->m_size - (uint32_t) offsetof (struct dds_serdata_default, data));
-  (*d)->hdr.options = ddsrt_toBE2u ((uint16_t) pad);
 }
 
 
@@ -600,7 +606,7 @@ static struct dds_serdata_default *serdata_default_from_sample_cdr_common (const
         //
         // Those padding bytes are not part of the key!
         assert (ddsrt_fromBE2u (d->hdr.options) < 4);
-        d->key.keysize = (d->pos - ddsrt_fromBE2u (d->hdr.options)) & SERDATA_DEFAULT_KEYSIZE_MASK;
+        d->key.keysize = (d->pos) & SERDATA_DEFAULT_KEYSIZE_MASK;
         d->key.u.dynbuf = (unsigned char *) d->data;
       }
       else
@@ -919,12 +925,11 @@ static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertyp
     return NULL;
 
   const uint32_t pad = ddsrt_fromBE2u (md->cdr_options) & DDS_CDR_HDR_PADDING_MASK;
-  struct dds_serdata_default *d = serdata_default_new_size (tp, kind, md->sample_size, xcdr_version);
+  struct dds_serdata_default *d = serdata_default_new_size (tp, kind, md->sample_size - pad, xcdr_version);
   d->c.statusinfo = md->statusinfo;
   d->c.timestamp.v = md->timestamp;
   if (md->cdr_identifier == DDSI_RTPS_SAMPLE_NATIVE)
     d->hdr.identifier = DDSI_RTPS_SAMPLE_NATIVE;
-  d->hdr.options = md->cdr_options;
 
   switch (md->sample_state)
   {

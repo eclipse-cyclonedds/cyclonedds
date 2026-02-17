@@ -508,7 +508,7 @@ static bool split_encoded_serialized_payload (tainted_input_buffer_t *payload, s
     payload->ptr += sizeof (uint32_t);
   }
   estate->body.data.base = payload->ptr;
-  payload->ptr += estate->body.data.length;
+  payload->ptr += ALIGN4(estate->body.data.length);
 
   estate->postfix.common_mac = *(crypto_hmac_t *)payload->ptr;
   payload->ptr += sizeof (estate->postfix.common_mac);
@@ -614,7 +614,6 @@ encode_serialized_payload(
   assert(plain_buffer);
   assert(plain_buffer->_length);
   assert(writer_id != 0);
-  assert((plain_buffer->_length % 4) == 0);
 
   if (plain_buffer->_length > INT_MAX)
   {
@@ -664,7 +663,7 @@ encode_serialized_payload(
      * See spec: 9.5.3.3.4.4 Result from encode_serialized_payload
      * Make sure to allocate enough memory for both options.
      */
-  size = sizeof (*prefix) + sizeof (*content) + sizeof (*postfix) + plain_buffer->_length + session->block_size + 1;
+  size = sizeof (*prefix) + sizeof (*content) + sizeof (*postfix) + ALIGN4(plain_buffer->_length) + session->block_size + 1;
 
   trusted_crypto_buffer_init(&buffer, size);
   /* create CryptoHeader */
@@ -675,7 +674,7 @@ encode_serialized_payload(
   {
     trusted_crypto_data_t encrypted_data;
 
-    content = add_crypto_content(&buffer, plain_buffer->_length);
+    content = add_crypto_content(&buffer, ALIGN4(plain_buffer->_length));
 
     encrypted_data.x.base = content->data;
     encrypted_data.x.length = plain_buffer->_length;
@@ -689,7 +688,7 @@ encode_serialized_payload(
     /* the transformation_kind indicates only indicates authentication the determine HMAC */
     if (!crypto_cipher_encrypt_data(&session->key, session->key_size, &prefix->iv, 1, &plain_data, NULL, &hmac, ex))
       goto fail_encrypt;
-    unsigned char *ptr = trusted_crypto_buffer_append(&buffer,  plain_buffer->_length);
+    unsigned char *ptr = trusted_crypto_buffer_append(&buffer, ALIGN4(plain_buffer->_length));
     memcpy(ptr, plain_buffer->_buffer, plain_buffer->_length);
   }
   else
@@ -947,7 +946,7 @@ encode_submmessage_encrypt(
 
   if (is_encryption_required(transform_kind))
   {
-    struct trusted_crypto_body *body = add_crypto_body(&buffer, plain_submsg->_length);
+    struct trusted_crypto_body *body = add_crypto_body(&buffer, ALIGN4(plain_submsg->_length));
     trusted_crypto_data_t encrypted_data = {{ .base = body->content.data, .length = plain_submsg->_length }};
 
     /* encrypt submessage */
@@ -956,16 +955,16 @@ encode_submmessage_encrypt(
 
     /* adjust the length of the body submessage when needed */
     body->content.length = ddsrt_toBE4u((uint32_t)encrypted_data.x.length);
-    if (encrypted_data.x.length > plain_submsg->_length)
+    if (encrypted_data.x.length > ALIGN4(plain_submsg->_length))
     {
-      size_t inc = encrypted_data.x.length - plain_submsg->_length;
+      size_t inc = encrypted_data.x.length - ALIGN4(plain_submsg->_length);
       body->header.octetsToNextHeader = (uint16_t)(body->header.octetsToNextHeader + inc);
       (void)trusted_crypto_buffer_expand(&buffer, inc);
     }
   }
   else if (is_authentication_required(transform_kind))
   {
-    unsigned char *ptr = trusted_crypto_buffer_append(&buffer, plain_submsg->_length);
+    unsigned char *ptr = trusted_crypto_buffer_append(&buffer, ALIGN4(plain_submsg->_length));
     /* the transformation_kind indicates only indicates authentication the determine HMAC */
     if (!crypto_cipher_encrypt_data(&session->key, session->key_size, &header->prefix.iv, 1, &plain_data, NULL, &hmac, ex))
       goto enc_submsg_fail;
@@ -1289,7 +1288,7 @@ static DDS_Security_boolean encode_rtps_message_encrypt (
 
   if (is_encryption_required(transform_kind))
   {
-    struct trusted_crypto_body *body = add_crypto_body(&buffer, secure_body_plain_size);
+    struct trusted_crypto_body *body = add_crypto_body(&buffer, ALIGN4(secure_body_plain_size));
 
     encrypted_data.x.base = body->content.data;
     encrypted_data.x.length = secure_body_plain_size;
