@@ -20,6 +20,7 @@
 
 #include "dds/export.h"
 #include "dds/ddsrt/log.h"
+#include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/retcode.h"
 
 #if defined (__cplusplus)
@@ -29,22 +30,24 @@ extern "C" {
 /* ** DEPRECATED ** */
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
-/* Error masks for returned status values */
-
 #define DDS_ERR_NR_MASK       0x000000ff
 #define DDS_ERR_LINE_MASK     0x003fff00
 #define DDS_ERR_FILE_ID_MASK  0x7fc00000
 
-/* Error code handling functions */
-
-/** Macro to extract error number */
 #define dds_err_nr(e) (e)
-
-/** Macro to extract line number */
 #define dds_err_line(e) (0)
-
-/** Macro to extract file identifier */
 #define dds_err_file_id(e) (0)
+#define DDS_CHECK_REPORT 0x01
+#define DDS_CHECK_FAIL 0x02
+#define DDS_CHECK_EXIT 0x04
+
+typedef void (*dds_fail_fn) (const char *, const char *);
+DDS_DEPRECATED_EXPORT void dds_fail_set (dds_fail_fn fn);
+DDS_DEPRECATED_EXPORT dds_fail_fn dds_fail_get (void);
+DDS_DEPRECATED_EXPORT const char * dds_err_str (dds_return_t err);
+DDS_DEPRECATED_EXPORT void dds_fail (const char * msg, const char * where);
+DDS_DEPRECATED_EXPORT bool dds_err_check (dds_return_t err, unsigned flags, const char * where);
+#define DDS_ERR_CHECK(e, f) (dds_err_check ((e), (f), __FILE__ ":" DDSRT_STRINGIFY (__LINE__)))
 
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 

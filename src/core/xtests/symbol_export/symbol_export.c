@@ -1233,6 +1233,13 @@ int main (int argc, char **argv)
   dds_sysdef_init_data_types_str (ptr, ptr2);
   dds_sysdef_fini_data_types (ptr);
 
+  // deprecated functions from v0.1
+  dds_fail_set (0);
+  dds_fail_get ();
+  dds_err_str (0);
+  dds_fail (ptr, ptr2);
+  dds_err_check (0, 0, ptr);
+
   return 0;
 }
 
