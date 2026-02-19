@@ -579,14 +579,14 @@ CU_Test(ddsc_serdata, key_serialization)
         MAKE_ENCHDR(PL_CDR2),
         (raw){
           SER_DHEADER(28),
-          SER_EMHEADER(1,0,3),1,0,0,0,
+          SER_EMHEADER(0,0,3),1,0,0,0,
           SER_EMHEADER(0,0,2),2,0,0,0,
-          SER_EMHEADER(1,3,1),SER64(3)
+          SER_EMHEADER(0,3,1),SER64(3)
         }, 32,
         (raw){
           SER_DHEADER(20),
-          SER_EMHEADER(1,0,3),1,0,0,0,
-          SER_EMHEADER(1,3,1),SER64(3)
+          SER_EMHEADER(0,0,3),1,0,0,0,
+          SER_EMHEADER(0,3,1),SER64(3)
         }, 24,
         (raw){
           SER64BE(3),1,
@@ -620,15 +620,15 @@ CU_Test(ddsc_serdata, key_serialization)
         (raw){
           10,20,0,0,
             SER_DHEADER(28),
-            SER_EMHEADER(1,0,3),1,0,0,0,
+            SER_EMHEADER(0,0,3),1,0,0,0,
             SER_EMHEADER(0,0,2),2,0,0,0,
-            SER_EMHEADER(1,3,1),SER64(3)
+            SER_EMHEADER(0,3,1),SER64(3)
         }, 36,
         (raw){
           10,0,0,0,
             SER_DHEADER(20),
-            SER_EMHEADER(1,0,3),1,0,0,0,
-            SER_EMHEADER(1,3,1),SER64(3)
+            SER_EMHEADER(0,0,3),1,0,0,0,
+            SER_EMHEADER(0,3,1),SER64(3)
         }, 28,
         (raw){
           SER64BE(3),1,
@@ -660,9 +660,9 @@ CU_Test(ddsc_serdata, key_serialization)
         (raw){
           10,20,0,0,
             SER_DHEADER(28),
-            SER_EMHEADER(1,0,3),1,0,0,0,
+            SER_EMHEADER(0,0,3),1,0,0,0,
             SER_EMHEADER(0,0,2),2,0,0,0,
-            SER_EMHEADER(1,3,1),SER64(3)
+            SER_EMHEADER(0,3,1),SER64(3)
         }, 36,
         (raw){
           10,
@@ -740,15 +740,15 @@ CU_Test(ddsc_serdata, key_serialization)
         (raw){
           SER_DHEADER(36),10,20,0,0,
             SER_DHEADER(28),
-            SER_EMHEADER(1,0,3),1,0,0,0,
+            SER_EMHEADER(0,0,3),1,0,0,0,
             SER_EMHEADER(0,0,2),2,0,0,0,
-            SER_EMHEADER(1,3,1),SER64(3)
+            SER_EMHEADER(0,3,1),SER64(3)
         }, 40,
         (raw){
           SER_DHEADER(28),10,0,0,0,
             SER_DHEADER(20),
-            SER_EMHEADER(1,0,3),1,0,0,0,
-            SER_EMHEADER(1,3,1),SER64(3)
+            SER_EMHEADER(0,0,3),1,0,0,0,
+            SER_EMHEADER(0,3,1),SER64(3)
         }, 32,
         (raw){
           SER64BE(3),1,
@@ -787,21 +787,21 @@ CU_Test(ddsc_serdata, key_serialization)
         MAKE_ENCHDR(PL_CDR2),
         (raw){
           SER_DHEADER(56),
-          SER_EMHEADER(1,0,3),10,0,0,0,
+          SER_EMHEADER(0,0,3),10,0,0,0,
           SER_EMHEADER(0,0,2),20,0,0,0,
-          SER_EMHEADER(1,4,1),SER_NEXTINT(32),
+          SER_EMHEADER(0,4,1),SER_NEXTINT(32),
             SER_DHEADER(28),
-            SER_EMHEADER(1,0,3),1,0,0,0,
+            SER_EMHEADER(0,0,3),1,0,0,0,
             SER_EMHEADER(0,0,2),2,0,0,0,
-            SER_EMHEADER(1,3,1),SER64(3)
+            SER_EMHEADER(0,3,1),SER64(3)
         }, 60,
         (raw){
           SER_DHEADER(40),
-          SER_EMHEADER(1,0,3),10,0,0,0,
-          SER_EMHEADER(1,4,1),SER_NEXTINT(24),
+          SER_EMHEADER(0,0,3),10,0,0,0,
+          SER_EMHEADER(0,4,1),SER_NEXTINT(24),
             SER_DHEADER(20),
-            SER_EMHEADER(1,0,3),1,0,0,0,
-            SER_EMHEADER(1,3,1),SER64(3)
+            SER_EMHEADER(0,0,3),1,0,0,0,
+            SER_EMHEADER(0,3,1),SER64(3)
         }, 44,
         (raw){
           SER64BE(3),1,
@@ -817,16 +817,16 @@ CU_Test(ddsc_serdata, key_serialization)
         MAKE_ENCHDR(PL_CDR2),
         (raw){
           SER_DHEADER(40),
-          SER_EMHEADER(1,0,3),10,0,0,0,
+          SER_EMHEADER(0,0,3),10,0,0,0,
           SER_EMHEADER(0,0,2),20,0,0,0,
-          SER_EMHEADER(1,4,1),SER_NEXTINT(16),
+          SER_EMHEADER(0,4,1),SER_NEXTINT(16),
             SER_DHEADER(12),1,2,0,0,
             SER64(3)
         }, 44,
         (raw){
           SER_DHEADER(32),
-          SER_EMHEADER(1,0,3),10,0,0,0,
-          SER_EMHEADER(1,4,1),SER_NEXTINT(16),
+          SER_EMHEADER(0,0,3),10,0,0,0,
+          SER_EMHEADER(0,4,1),SER_NEXTINT(16),
             SER_DHEADER(12),1,0,0,0,
             SER64(3)
         }, 36,
@@ -868,16 +868,16 @@ CU_Test(ddsc_serdata, key_serialization)
         MAKE_ENCHDR(PL_CDR2),
         (raw){
           SER_DHEADER(36),
-          SER_EMHEADER(1,0,3),10,0,0,0,
+          SER_EMHEADER(0,0,3),10,0,0,0,
           SER_EMHEADER(0,0,2),20,0,0,0,
-          SER_EMHEADER(1,4,1),SER_NEXTINT(12),
+          SER_EMHEADER(0,4,1),SER_NEXTINT(12),
             1,2,0,0,
             SER64(3)
         }, 40,
         (raw){
           SER_DHEADER(28),
-          SER_EMHEADER(1,0,3),10,0,0,0,
-          SER_EMHEADER(1,4,1),SER_NEXTINT(12),
+          SER_EMHEADER(0,0,3),10,0,0,0,
+          SER_EMHEADER(0,4,1),SER_NEXTINT(12),
             1,0,0,0,
             SER64(3)
         }, 32,
@@ -1252,19 +1252,16 @@ CU_Test(ddsc_serdata, key_serialization)
           SER_DHEADER(84),
           // d
           SER_DHEADER(36),
-          SER_EMHEADER(1,0,3),1,0,0,0,
-          SER_EMHEADER(1,0,2),2,0,0,0,
-          SER_EMHEADER(1,4,1),SER_NEXTINT(12),
+          SER_EMHEADER(0,0,3),1,0,0,0,
+          SER_EMHEADER(0,0,2),2,0,0,0,
+          SER_EMHEADER(0,4,1),SER_NEXTINT(12),
             3,4,0,0,
             SER64(5),
           // e
           SER_DHEADER(36),
-          /* FIXME: for these 3 members the must-understand bit is set because the
-              type is also used as key. Is this correct, or shouldn't the bit be set
-              in when used as non-key? */
-          SER_EMHEADER(1,0,3),11,0,0,0,
-          SER_EMHEADER(1,0,2),12,0,0,0,
-          SER_EMHEADER(1,4,1),SER_NEXTINT(12),
+          SER_EMHEADER(0,0,3),11,0,0,0,
+          SER_EMHEADER(0,0,2),12,0,0,0,
+          SER_EMHEADER(0,4,1),SER_NEXTINT(12),
             13,14,0,0,
             SER64(15),
           // f
@@ -1274,9 +1271,9 @@ CU_Test(ddsc_serdata, key_serialization)
           SER_DHEADER(44),
           // d
           SER_DHEADER(36),
-          SER_EMHEADER(1,0,3),1,0,0,0,
-          SER_EMHEADER(1,0,2),2,0,0,0,
-          SER_EMHEADER(1,4,1),SER_NEXTINT(12),
+          SER_EMHEADER(0,0,3),1,0,0,0,
+          SER_EMHEADER(0,0,2),2,0,0,0,
+          SER_EMHEADER(0,4,1),SER_NEXTINT(12),
             3,0,0,0,
             SER64(5),
           SER32(20)
@@ -1299,7 +1296,7 @@ CU_Test(ddsc_serdata, key_serialization)
         (raw){
           SER_DHEADER(70),
           // bx, by, bz
-          SER_EMHEADER(1,4,6),
+          SER_EMHEADER(0,4,6),
           SER_NEXTINT(10),
             // nx, ny, nz
             SER_DHEADER(6),
@@ -1308,7 +1305,7 @@ CU_Test(ddsc_serdata, key_serialization)
           0,0, // padding
           SER_EMHEADER(0,1,5),SER16(9),
           0,0, // padding
-          SER_EMHEADER(1,1,4),SER16(10),
+          SER_EMHEADER(0,1,4),SER16(10),
           0,0, // padding
           // a, b, c
           SER_EMHEADER(0,4,3),
@@ -1326,12 +1323,12 @@ CU_Test(ddsc_serdata, key_serialization)
         (raw){
           SER_DHEADER(22),
           // bx, bz
-          SER_EMHEADER(1,4,6),
+          SER_EMHEADER(0,4,6),
           SER_NEXTINT(8),
             // nx, nz
             SER_DHEADER(4),
             SER16(6),SER16(8),
-          SER_EMHEADER(1,1,4),SER16(10),
+          SER_EMHEADER(0,1,4),SER16(10),
           0,0 // padding
         }, 26,
         (raw){
