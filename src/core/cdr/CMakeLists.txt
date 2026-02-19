@@ -12,7 +12,7 @@
 
 if(NOT ${CMAKE_PROJECT_NAME} STREQUAL "CycloneDDS")
   cmake_minimum_required(VERSION 3.16)
-  project(cdr VERSION 0.11.0 LANGUAGES C)
+  project(cdr VERSION 11.0.0 LANGUAGES C)
 endif()
 
 set(srcs_cdr
