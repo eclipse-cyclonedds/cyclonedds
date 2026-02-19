@@ -47,6 +47,7 @@ prepend(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds_heap_loan.c
   dds_psmx.c
   dds_guid.c
+  dds_err_check.c
 )
 
 if(ENABLE_TYPELIB)
