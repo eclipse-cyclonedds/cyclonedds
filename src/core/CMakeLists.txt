@@ -23,7 +23,7 @@ if("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
   target_link_libraries(ddsc PRIVATE dbghelp)
 endif()
 
-if(ENABLE_TCP_TLS AND OPENSSL_FOUND)
+if(ENABLE_TCP_TLS AND ENABLE_SSL)
   target_link_libraries(ddsc PRIVATE OpenSSL::SSL)
   if(CMAKE_GENERATOR MATCHES "Visual Studio")
     set_target_properties(ddsc PROPERTIES LINK_FLAGS "/ignore:4099")
@@ -58,13 +58,16 @@ if(ENABLE_SECURITY)
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>)
 endif()
 
-include(cdr/CMakeLists.txt)
-include(ddsi/CMakeLists.txt)
-include(ddsc/CMakeLists.txt)
+add_subdirectory(cdr)
+add_subdirectory(ddsi)
+add_subdirectory(ddsc)
 
 # The not-so-elegant inclusion of all configured plug-ins for static builds.  At least it
 # keeps most of the dirty things in one place.
 if(NOT BUILD_SHARED_LIBS)
+  # Full list should be: dds_security_access_control_wrapper; dds_security_authentication_wrapper;
+  #                      dds_security_cryptography_wrapper;   dds_security_ac;  dds_security_auth;
+  #                      dds_security_crypto; psmx_cdds; psmx_dummy; psmx_dummy_v0
   get_property(plugin_list GLOBAL PROPERTY cdds_plugin_list)
   if(plugin_list)
     list(JOIN plugin_list "," plugin_commasep)
@@ -77,15 +80,15 @@ if(NOT BUILD_SHARED_LIBS)
       target_compile_options(ddsc PRIVATE "-DPLUGIN_SYMBOLS_${plugin}=${plugin_symbols_commasep}")
     endforeach()
   endif()
-  if(ENABLE_SSL)
-    target_link_libraries(ddsc PUBLIC security_openssl)
-  endif()
+    if(ENABLE_SSL)
+      target_link_libraries(ddsc PUBLIC ${PROJECT_NAME}::security_openssl)
+    endif()
 endif()
 
 add_coverage(ddsc)
-target_link_libraries(ddsc PRIVATE
-  $<BUILD_INTERFACE:${PROJECT_NAME}::ddsrt>
-  $<$<NOT:$<STREQUAL:"${CMAKE_PROJECT_NAME}","CycloneDDS">>:${PROJECT_NAME}::cdr>
+target_link_libraries(ddsc 
+  PUBLIC $<$<NOT:$<STREQUAL:"${CMAKE_PROJECT_NAME}","CycloneDDS">>:${PROJECT_NAME}::cdr>
+  PRIVATE $<BUILD_INTERFACE:${PROJECT_NAME}::ddsrt>
 )
 target_compile_definitions(
   ddsc PUBLIC

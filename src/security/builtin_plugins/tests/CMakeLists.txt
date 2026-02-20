@@ -84,9 +84,11 @@ target_include_directories(
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
 )
-target_link_libraries(cunit_security_plugins PRIVATE ddsc security_api dds_security_ac dds_security_crypto)
-target_link_libraries(cunit_security_plugins PRIVATE security_openssl)
-target_link_libraries(cunit_security_plugins PRIVATE OpenSSL::SSL)
+target_link_libraries(cunit_security_plugins PRIVATE ${PROJECT_NAME}::ddsc
+                                                     ${PROJECT_NAME}::security_api
+                                                     ${PROJECT_NAME}::dds_security_ac 
+                                                     ${PROJECT_NAME}::dds_security_crypto
+                                                     ${PROJECT_NAME}::security_openssl)
 if(CMAKE_GENERATOR MATCHES "Visual Studio")
   set_target_properties(cunit_security_plugins PROPERTIES LINK_FLAGS "/ignore:4099")
 endif()

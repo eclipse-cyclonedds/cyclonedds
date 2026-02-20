@@ -31,8 +31,9 @@ if(BUILD_SHARED_LIBS)
   target_include_directories(
     security_openssl INTERFACE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>")
+target_link_libraries(security_openssl INTERFACE OpenSSL::SSL)
 else()
-  add_library(security_openssl OBJECT)
+  add_library(security_openssl)
   target_sources(security_openssl PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/openssl_support.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/dds/security/openssl_support.h")
@@ -46,7 +47,7 @@ else()
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../core/ddsc/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../core/ddsi/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../../ddsrt/include>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../../core/include>")
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../../core/ddsc/include>")
   target_link_libraries(security_openssl PUBLIC OpenSSL::SSL)
   install(
     TARGETS security_openssl
@@ -55,3 +56,5 @@ else()
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib)
 endif()
+
+add_library(${PROJECT_NAME}::security_openssl ALIAS security_openssl)

@@ -48,6 +48,9 @@ endif()
 #
 # It appears that on macOS, all code is position independent and it'll work regardless.
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
+if(BUILD_SHARED_LIBS)
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
 if(NOT BUILD_SHARED_LIBS AND NOT CMAKE_CROSSCOMPILING)
   message(WARNING "It is probably best to build a static library as-if cross compiling (e.g., use -DCMAKE_CROSSCOMPILING=1 -DCMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME} -DCMAKE_PREFIX_PATH=<path to shared-library build>)")
 endif()
@@ -57,7 +60,8 @@ endif()
 # small mistake would run into errors.  CI builds can be configured differently.
 option(WERROR "Treat compiler warnings as errors" OFF)
 
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
+# Update CMake module path variable with our own for this project
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
 option(BUILD_IDLC "Build IDL preprocessor" ${not_crosscompiling})
 option(BUILD_DDSPERF "Build ddsperf tool" ${not_crosscompiling})
