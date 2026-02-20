@@ -12,24 +12,26 @@
 include (GenerateExportHeader)
 
 set(srcs_ucunit
-  "${CMAKE_CURRENT_LIST_DIR}/src/ucunit.c")
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/ucunit.c")
 set(hdrs_ucunit
-  "${CMAKE_CURRENT_LIST_DIR}/include/ucunit/ucunit.h")
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/ucunit/ucunit.h"
+)
 
 add_library(ucunit STATIC ${srcs_ucunit} ${hdrs_ucunit})
 add_library(${PROJECT_NAME}::ucunit ALIAS ucunit)
+
+generate_export_header(
+  ucunit BASE_NAME UCUNIT EXPORT_FILE_NAME include/ucunit/export.h)
 
 target_include_directories(ucunit
   PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>"
-  PRIVATE
-    "${CMAKE_CURRENT_LIST_DIR}/src"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
   INTERFACE
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
-add_executable(test_ucunit ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ucunit.c)
+add_executable(test_ucunit  ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ucunit.c)
 target_link_libraries(test_ucunit CycloneDDS::ucunit)
 
 add_test(NAME ucunit COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR} $<TARGET_FILE_DIR:test_ucunit>/test_ucunit)
