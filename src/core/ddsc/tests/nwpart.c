@@ -95,6 +95,12 @@ static void intf_init (struct ddsi_network_interface *intf, int index, bool allo
   intf->loopback = (index == 0) ? 1 : 0;
   intf->prefer_multicast = 0;
   intf->priority = 0;
+  intf->addrset_costs.uc = 2;
+  intf->addrset_costs.mc = 3;
+  intf->addrset_costs.ssm = 2;
+  intf->addrset_costs.delivered = -1;
+  intf->addrset_costs.discarded = 1;
+  intf->addrset_costs.redundant_psmx = 0;
   // naming them as lo, nomc, eth0, eth1, ... in an attempt at reducing headaches
   // in remembering what's what when writing test definitions
   switch (index)

@@ -747,7 +747,7 @@ static dds_return_t ddsi_tcp_conn_write_msg (ddsi_tcp_conn_t conn, ddsrt_msghdr_
       break;
     }
     default:
-      if (! conn->m_base.m_closed && (conn->m_sock != DDSRT_INVALID_SOCKET)) {
+      if (!conn->m_base.m_closed) {
         struct ddsi_domaingv * const gv = conn->m_base.m_factory->gv;
         GVWARNING ("tcp write failed on socket %"PRIdSOCK" with errno %"PRId32"\n", conn->m_sock, rc);
       }

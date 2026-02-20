@@ -472,7 +472,6 @@ int main() {
   CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "dds_rhc_unregister_wr");
   CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle,
                       "dds_rhc_relinquish_ownership");
-  CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "dds_rhc_set_qos");
   CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "dds_rhc_free");
   CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "dds_rhc_peek");
   CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "dds_rhc_read");
@@ -1328,12 +1327,10 @@ int main() {
 
   // ddsrt/strtol.h
   CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "ddsrt_todigit");
-  CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "ddsrt_strtoll");
-  CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "ddsrt_strtoull");
-  CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "ddsrt_atoll");
-  CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "ddsrt_atoull");
-  CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "ddsrt_lltostr");
-  CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "ddsrt_ulltostr");
+  CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "ddsrt_strtoint64");
+  CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "ddsrt_strtouint64");
+  CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "ddsrt_int64tostr");
+  CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "ddsrt_uint64tostr");
 
   // ddsrt/xmlparser.h
   CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "ddsrt_xmlp_new_file");
@@ -1393,6 +1390,13 @@ int main() {
                       "dds_sysdef_init_data_types_str");
   CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle,
                       "dds_sysdef_fini_data_types");
+
+  // deprecated functions from v0.1
+  CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "dds_fail_set");
+  CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "dds_fail_get");
+  CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "dds_err_str");
+  CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "dds_fail");
+  CHECK_SYMBOL_EXPORT(&result, ddsc_library_handle, "dds_err_check");
 
   printf("Symbol Export result: %s\n",
          result == EXIT_SUCCESS ? "OK" : "FAILED");

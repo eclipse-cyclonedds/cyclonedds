@@ -613,8 +613,8 @@ static int governance_element_attr_cb(void *varg, uintptr_t eleminfo, const char
 static bool str_to_intvalue(const char *image, int32_t *value)
 {
   char *endptr;
-  long long l;
-  if (ddsrt_strtoll(image, &endptr, 0, &l) != DDS_RETCODE_OK)
+  int64_t l;
+  if (ddsrt_strtoint64(image, &endptr, 0, &l) != DDS_RETCODE_OK)
     return false;
   *value = (int32_t)l;
   if (*endptr != '\0')

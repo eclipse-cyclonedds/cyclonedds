@@ -18,11 +18,23 @@
 extern "C" {
 #endif
 
-typedef struct dynamic_array_s{
+typedef struct dummy_loan_array_s{
   size_t _maximum;
   size_t _length;
-  void* _buffer;
-}dynamic_array_t;
+  void** _buffer;
+}dummy_loan_array_t;
+
+typedef struct dummy_topic_array_s{
+  size_t _maximum;
+  size_t _length;
+  dds_psmx_topic_t * _buffer;
+}dummy_topic_array_t;
+
+typedef struct dummy_endpoint_array_s{
+  size_t _maximum;
+  size_t _length;
+  dds_psmx_endpoint_t* _buffer;
+}dummy_endpoint_array_t;
 
 typedef struct dummy_mockstats_s{
   int cnt_create_psmx;
@@ -49,9 +61,9 @@ typedef struct dummy_mockstats_s{
   bool supports_shared_memory;
   bool fail_create_topic;
   char* config;
-  dynamic_array_t topics;
-  dynamic_array_t endpoints;
-  dynamic_array_t loans;
+  dummy_topic_array_t topics;
+  dummy_endpoint_array_t endpoints;
+  dummy_loan_array_t loans;
   dds_loaned_sample_t loan;
   dds_psmx_metadata_t loan_metadata;
 

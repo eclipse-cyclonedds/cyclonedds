@@ -618,12 +618,12 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   ddsrt_atomic_or32 (&rd->m_entity.m_status.m_status_and_mask, DDS_DATA_ON_READERS_STATUS << SAM_ENABLED_SHIFT);
   rd->m_sample_rejected_status.last_reason = DDS_NOT_REJECTED;
   rd->m_topic = tp;
-  rd->m_rhc = rhc ? rhc : dds_rhc_default_new (rd, tp->m_stype);
+  rd->m_rhc = rhc ? rhc : dds_rhc_default_new (gv, tp->m_stype, rd->m_entity.m_qos);
   rc = dds_loan_pool_create (&rd->m_loans, 0);
   assert (rc == DDS_RETCODE_OK); // FIXME: can be out of resources
   rc = dds_loan_pool_create (&rd->m_heap_loan_cache, 0);
   assert (rc == DDS_RETCODE_OK); // FIXME: can be out of resources
-  if (dds_rhc_associate (rd->m_rhc, rd, tp->m_stype, rd->m_entity.m_domain->gv.m_tkmap) < 0)
+  if (dds_rhc_associate (rd->m_rhc, rd) < 0)
   {
     /* FIXME: see also create_querycond, need to be able to undo entity_init */
     abort ();
