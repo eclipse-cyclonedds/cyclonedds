@@ -35,8 +35,8 @@ void *(*resolve_library_symbol)(void *, const char *) = &dlsym;
  * @param library_handle Handle to library which symbols have to be checked
  * @param symbol String representing the symbol name to be checked
  */
-void check_symbol_export(int *result, void *library_handle,
-                         const char *symbol) {
+static void check_symbol_export(int *result, void *library_handle,
+                                const char *symbol) {
   void *symbol_address = resolve_library_symbol(library_handle, symbol);
   if (symbol_address == NULL) {
     printf("Symbol '%s' does not exist in '%s'\n", symbol, DDSC_LIBRARY_NAME);
