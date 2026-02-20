@@ -393,16 +393,24 @@ CU_Test(dds_log, synchronous_sink_changes, .fini=reset)
   arg.mutex = &mutex;
   arg.cond = &cond;
 
-  ddsrt_mutex_lock(&mutex);
   dds_set_log_sink(&block, &arg);
+
+  ddsrt_mutex_lock(&mutex);
   ddsrt_threadattr_init(&tattr);
   ret = ddsrt_thread_create(&tid, "foobar", &tattr, &run, &arg);
   CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
-  ddsrt_cond_wait(&cond, &mutex);
+  while (arg.before == 0)
+    ddsrt_cond_wait(&cond, &mutex);
+  ddsrt_mutex_unlock(&mutex);
+  ddsrt_thread_join(tid, NULL);
+
   dds_set_log_sink(dummy, NULL);
 
   CU_ASSERT_LT (arg.before, arg.after);
   CU_ASSERT_LT (arg.after, dds_time());
+
+  ddsrt_cond_destroy(&cond);
+  ddsrt_mutex_destroy(&mutex);
 #endif
 }
 

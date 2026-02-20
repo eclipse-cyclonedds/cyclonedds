@@ -472,11 +472,10 @@ int main (int argc, char **argv)
 #endif
 
   // dds_rhs.h
-  dds_rhc_associate (ptr, NULL, NULL, NULL);
+  dds_rhc_associate (ptr, NULL);
   dds_rhc_store (ptr, NULL, NULL, NULL);
   dds_rhc_unregister_wr (ptr, NULL);
   dds_rhc_relinquish_ownership (ptr, 1);
-  dds_rhc_set_qos (ptr, ptr);
   dds_rhc_free (ptr);
   dds_rhc_peek (ptr, 0, 0, 1, ptr, 0, 0);
   dds_rhc_read (ptr, 0, 0, 1, ptr, 0, 0);
@@ -1175,12 +1174,10 @@ int main (int argc, char **argv)
 
   // ddsrt/strtol.h
   ddsrt_todigit (0);
-  ddsrt_strtoll (ptr, ptr, 0, ptr);
-  ddsrt_strtoull (ptr, ptr, 0, ptr);
-  ddsrt_atoll (ptr, ptr);
-  ddsrt_atoull (ptr, ptr);
-  ddsrt_lltostr (0, ptr, 0, ptr);
-  ddsrt_ulltostr (0, ptr, 0, ptr);
+  ddsrt_strtoint64 (ptr, ptr, 0, ptr);
+  ddsrt_strtouint64 (ptr, ptr, 0, ptr);
+  ddsrt_int64tostr (0, ptr, 0, ptr);
+  ddsrt_uint64tostr (0, ptr, 0, ptr);
 
   // ddsrt/xmlparser.h
   ddsrt_xmlp_new_file (ptr, ptr, ptr);
@@ -1235,6 +1232,13 @@ int main (int argc, char **argv)
   dds_sysdef_init_data_types (ptr, ptr2);
   dds_sysdef_init_data_types_str (ptr, ptr2);
   dds_sysdef_fini_data_types (ptr);
+
+  // deprecated functions from v0.1
+  dds_fail_set (0);
+  dds_fail_get ();
+  dds_err_str (0);
+  dds_fail (ptr, ptr2);
+  dds_err_check (0, 0, ptr);
 
   return 0;
 }

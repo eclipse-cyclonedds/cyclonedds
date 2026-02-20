@@ -18,17 +18,14 @@ extern "C" {
 #endif
 
 struct dds_rhc;
-struct dds_reader;
 struct ddsi_sertype;
 struct ddsi_domaingv;
-struct dds_rhc_default;
-struct rhc_sample;
 
 /** @component rhc */
-struct dds_rhc *dds_rhc_default_new_xchecks (dds_reader *reader, struct ddsi_domaingv *gv, const struct ddsi_sertype *type, bool xchecks);
+struct dds_rhc *dds_rhc_default_new_xchecks (struct ddsi_domaingv *gv, const struct ddsi_sertype *type, const dds_qos_t *qos, bool xchecks);
 
 /** @component rhc */
-struct dds_rhc *dds_rhc_default_new (struct dds_reader *reader, const struct ddsi_sertype *type);
+struct dds_rhc *dds_rhc_default_new (struct ddsi_domaingv *gv, const struct ddsi_sertype *type, const dds_qos_t *qos);
 
 #ifdef DDS_HAS_LIFESPAN
 /** @component rhc */
