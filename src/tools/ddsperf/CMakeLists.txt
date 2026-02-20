@@ -19,7 +19,7 @@ if (BUILD_DDSPERF)
     cputime.c cputime.h
     netload.c netload.h
     async_listener.c async_listener.h)
-  target_link_libraries(ddsperf ddsperf_types ddsc compat)
+  target_link_libraries(ddsperf ddsperf_types ${PROJECT_NAME}::ddsc ${PROJECT_NAME}::compat)
 
   if(WIN32)
     target_compile_definitions(ddsperf PRIVATE _CRT_SECURE_NO_WARNINGS)

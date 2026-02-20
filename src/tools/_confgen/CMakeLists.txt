@@ -50,7 +50,7 @@ if (NOT ${_confgen_hash_correct})
     endif()
   endforeach()
 
-  target_link_libraries(_confgen-exe PRIVATE ddsrt-internal compat)
+  target_link_libraries(_confgen-exe PRIVATE ddsrt-internal ${PROJECT_NAME}::compat)
   target_include_directories(_confgen-exe
     PRIVATE
     "${CMAKE_CURRENT_BINARY_DIR}/include"

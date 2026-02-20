@@ -10,10 +10,6 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 
-if (NOT BUILD_IDLC)
-  return()
-endif()
-
 include(CheckIncludeFile)
 include(CheckSymbolExists)
 include(CheckTypeSize)
@@ -68,7 +64,7 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "GNU")
     set(idlpp_gcc_major_version_define "#define GCC_MAJOR_VERSION \"${CMAKE_MATCH_1}\"")
     set(idlpp_gcc_minor_version_define "#define GCC_MINOR_VERSION \"${CMAKE_MATCH_2}\"")
   else()
-    message(FATAL "Cannot parse GCC version number")
+    message(FATAL_ERROR "Cannot parse GCC version number")
   endif()
 elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
   set(idlpp_host_compiler "GNUC")
@@ -77,7 +73,7 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
     set(idlpp_gcc_major_version_define "#define GCC_MAJOR_VERSION \"${CMAKE_MATCH_1}\"")
     set(idlpp_gcc_minor_version_define "#define GCC_MINOR_VERSION \"${CMAKE_MATCH_2}\"")
   else()
-    message(FATAL "Cannot parse Clang version number")
+    message(FATAL_ERROR "Cannot parse Clang version number")
   endif()
 endif()
 

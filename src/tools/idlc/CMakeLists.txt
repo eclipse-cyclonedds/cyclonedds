@@ -30,7 +30,7 @@ endif()
 target_link_libraries(idlc
     PRIVATE
     ${PROJECT_NAME}::compat
-    ${PROJECT_NAME}::idl # It already links to ddsc
+    ${PROJECT_NAME}::idl
     ${PROJECT_NAME}::idlpp
     ${CMAKE_DL_LIBS}
 )
@@ -90,7 +90,7 @@ target_include_directories(
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../core/ddsi/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../core/cdr/include>")
 
-target_link_libraries(libidlc PUBLIC ${PROJECT_NAME}::idl PRIVATE ${PROJECT_NAME}::ddsc)
+target_link_libraries(libidlc PUBLIC ${PROJECT_NAME}::idl)
 
 add_library(${PROJECT_NAME}::libidlc ALIAS libidlc)
 
