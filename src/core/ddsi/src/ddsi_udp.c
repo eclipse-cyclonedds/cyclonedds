@@ -1102,12 +1102,14 @@ static uint32_t ownaddrs_hash4 (const void *va)
   return ddsrt_mh3 (&a->a4.sin_port, sizeof (a->a4.sin_port), ddsrt_mh3 (&a->a4.sin_addr, sizeof (a->a4.sin_addr), 0));
 }
 
+#if DDSRT_HAVE_IPV6
 static uint32_t ownaddrs_hash6 (const void *va)
 {
   union addr const * const a = va;
   assert (a->a.sa_family == AF_INET6);
   return ddsrt_mh3 (&a->a6.sin6_port, sizeof (a->a6.sin6_port), ddsrt_mh3 (&a->a6.sin6_addr, sizeof (a->a6.sin6_addr), 0));
 }
+#endif
 
 static bool ownaddrs_eq4 (const void *va, const void *vb)
 {
@@ -1117,6 +1119,7 @@ static bool ownaddrs_eq4 (const void *va, const void *vb)
   return a->a4.sin_port == b->a4.sin_port && a->a4.sin_addr.s_addr == b->a4.sin_addr.s_addr;
 }
 
+#if DDSRT_HAVE_IPV6
 static bool ownaddrs_eq6 (const void *va, const void *vb)
 {
   union addr const * const a = va;
@@ -1124,6 +1127,7 @@ static bool ownaddrs_eq6 (const void *va, const void *vb)
   assert (a->a.sa_family == AF_INET6 && b->a.sa_family == AF_INET6);
   return a->a6.sin6_port == b->a6.sin6_port && memcmp (&a->a6.sin6_addr, &b->a6.sin6_addr, sizeof (a->a6.sin6_addr)) == 0;
 }
+#endif
 
 int ddsi_udp_init (struct ddsi_domaingv*gv)
 {
@@ -1163,11 +1167,16 @@ int ddsi_udp_init (struct ddsi_domaingv*gv)
 #endif
 
   ddsrt_mutex_init (&fact->ownaddrs_lock);
+#if DDSRT_HAVE_IPV6
   assert (fact->m_kind == DDSI_LOCATOR_KIND_UDPv4 || fact->m_kind == DDSI_LOCATOR_KIND_UDPv6);
   if (fact->m_kind == DDSI_LOCATOR_KIND_UDPv4)
     fact->ownaddrs = ddsrt_hh_new (32, ownaddrs_hash4, ownaddrs_eq4);
   else
     fact->ownaddrs = ddsrt_hh_new (32, ownaddrs_hash6, ownaddrs_eq6);
+#else
+  assert (fact->m_kind == DDSI_LOCATOR_KIND_UDPv4);
+  fact->ownaddrs = ddsrt_hh_new (32, ownaddrs_hash4, ownaddrs_eq4);
+#endif
 
   ddsrt_atomic_st32 (&fact->receive_buf_size, UINT32_MAX);
 
