@@ -1646,7 +1646,7 @@ The default value is: `<empty>`
 ##### //CycloneDDS/Domain/Security/Authentication/IdentityCertificate
 Text
 
-An identity certificate will identify all participants in the OSPL instance.<br>The content is URI to an X509 certificate signed by the IdentityCA in PEM format containing the signed public key.
+An identity certificate will identify all participants in the CycloneDDS instance.<br>The content is URI to an X509 certificate signed by the IdentityCA in PEM format containing the signed public key.
 
 Supported URI schemes: file, data
 
@@ -1722,7 +1722,7 @@ The default value is: `<empty>`
 ##### //CycloneDDS/Domain/Security/Authentication/PrivateKey
 Text
 
-URI to access the private Private Key for all of the participants in the OSPL federation.
+URI to access the private Private Key for all of the participants in the CycloneDDS Instance.
 
 Supported URI schemes: file, data
 
