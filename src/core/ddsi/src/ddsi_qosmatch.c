@@ -233,7 +233,10 @@ bool ddsi_qos_match_mask_p (
     // If either the reader or writer does not provide a type id, the type names are consulted
     // (XTypes spec 7.6.3.4.2)
     if ((mask & DDSI_QP_TYPE_NAME) && strcmp (rd_qos->type_name, wr_qos->type_name) != 0)
+    {
+      *reason = DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID;
       return false;
+    }
   }
   else
   {
@@ -271,7 +274,11 @@ bool ddsi_qos_match_mask_p (
   }
 #else
   if ((mask & DDSI_QP_TYPE_NAME) && strcmp (rd_qos->type_name, wr_qos->type_name) != 0)
+  {
+    // No requested/offered incompatible QoS notification if no type library. Not sure if this
+    // is the best choice, but it fits with the pre-XTypes behaviour.
     return false;
+  }
 #endif
 
   return true;

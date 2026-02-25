@@ -175,7 +175,24 @@ static bool topickind_qos_match_p_lock (struct ddsi_domaingv *gv, struct ddsi_en
   assert (ddsi_is_writer_entityid (wr->guid.entityid));
   if (ddsi_is_keyed_endpoint_entityid (rd->guid.entityid) != ddsi_is_keyed_endpoint_entityid (wr->guid.entityid))
   {
+    // XTypes apparently sees keyed/non-keyed as an assignability problem. DDSI 2.1
+    // section 8.4.4 stated:
+    //
+    //   Both RTPS Writer and Reader must have the same value of the topicKind attribute
+    //
+    // DDSI 2.2 and 2.3 changed this quite significantly. It might even be that they're
+    // now supposed to match in the absence of type assignability checking. That is
+    // certainly a breaking change.
+    //
+    // The notion of WITH_KEY / WITHOUT_KEY was wrong to begin with in my view, because
+    // the DCPS spec doesn't have that, and so mapping keyless topics to WITHOUT_KEY was
+    // wrong. We changed it early on because of interoperability, and we can't change it
+    // to unconditionally use WITH_KEY now because of backwards compatibility.
+#ifdef DDS_HAS_TYPELIB
+    *reason = DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID;
+#else
     *reason = DDS_INVALID_QOS_POLICY_ID;
+#endif
     return false;
   }
   ddsrt_mutex_t * const locks[] = { &rd->qos_lock, &wr->qos_lock, &rd->qos_lock };
