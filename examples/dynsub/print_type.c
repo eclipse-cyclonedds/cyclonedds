@@ -13,10 +13,8 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "dds/dds.h"
-#include "dds/ddsi/ddsi_xt_typeinfo.h"
-
-#include "dynsub.h"
+#include "type_cache.h"
+#include "print_type.h"
 
 void ppc_init (struct ppc *ppc)
 {
@@ -247,7 +245,7 @@ static bool ppc_print_simple (struct ppc *ppc, const uint8_t disc)
   return false;
 }
 
-void ppc_print_ti (struct ppc *ppc, const DDS_XTypes_TypeIdentifier *typeid)
+void ppc_print_ti (struct type_cache *tc, struct ppc *ppc, const DDS_XTypes_TypeIdentifier *typeid)
 {
   if (ppc_print_simple (ppc, typeid->_d))
     return;
@@ -291,7 +289,7 @@ void ppc_print_ti (struct ppc *ppc, const DDS_XTypes_TypeIdentifier *typeid)
       ppc_print_memberflags (ppc, header->element_flags);
       ppc_print (ppc, "\n");
       ppc_indent (ppc);
-      ppc_print_ti (ppc, et);
+      ppc_print_ti (tc, ppc, et);
       ppc_outdent (ppc);
       break;
     }
@@ -323,7 +321,7 @@ void ppc_print_ti (struct ppc *ppc, const DDS_XTypes_TypeIdentifier *typeid)
       ppc_print_memberflags (ppc, header->element_flags);
       ppc_print (ppc, "\n");
       ppc_indent (ppc);
-      ppc_print_ti (ppc, et);
+      ppc_print_ti (tc, ppc, et);
       ppc_outdent (ppc);
       break;
     }
@@ -331,14 +329,14 @@ void ppc_print_ti (struct ppc *ppc, const DDS_XTypes_TypeIdentifier *typeid)
       ppc_print (ppc, "COMPLETE id=");
       ppc_print_equivhash (ppc, typeid->_u.equivalence_hash);
       ppc_indent (ppc);
-      struct type_hashid_map *info = lookup_hashid (typeid->_u.equivalence_hash);
+      struct type_hashid_map *info = lookup_hashid (tc, typeid->_u.equivalence_hash);
       if (info->lineno)
         ppc_print (ppc, ": See line %d\n", info->lineno);
       else
       {
         ppc_print (ppc, "\n");
         info->lineno = ppc_lineno (ppc);
-        ppc_print_to (ppc, get_complete_typeobj_for_hashid (typeid->_u.equivalence_hash));
+        ppc_print_to (tc, ppc, get_complete_typeobj_for_hashid (tc, typeid->_u.equivalence_hash));
       }
       ppc_outdent (ppc);
       break;
@@ -347,14 +345,14 @@ void ppc_print_ti (struct ppc *ppc, const DDS_XTypes_TypeIdentifier *typeid)
       ppc_print (ppc, "MINIMAL id=");
       ppc_print_equivhash (ppc, typeid->_u.equivalence_hash);
       ppc_indent (ppc);
-      struct type_hashid_map *info = lookup_hashid (typeid->_u.equivalence_hash);
+      struct type_hashid_map *info = lookup_hashid (tc, typeid->_u.equivalence_hash);
       if (info->lineno)
         ppc_print (ppc, ": See line %d\n", info->lineno);
       else
       {
         ppc_print (ppc, "\n");
         info->lineno = ppc_lineno (ppc);
-        ppc_print_to_min (ppc, get_minimal_typeobj_for_hashid (typeid->_u.equivalence_hash));
+        ppc_print_to_min (tc, ppc, get_minimal_typeobj_for_hashid (tc, typeid->_u.equivalence_hash));
       }
       ppc_outdent (ppc);
       break;
@@ -366,7 +364,7 @@ void ppc_print_ti (struct ppc *ppc, const DDS_XTypes_TypeIdentifier *typeid)
   }
 }
 
-void ppc_print_to (struct ppc *ppc, const DDS_XTypes_CompleteTypeObject *typeobj)
+void ppc_print_to (struct type_cache *tc, struct ppc *ppc, const DDS_XTypes_CompleteTypeObject *typeobj)
 {
   if (ppc_print_simple (ppc, typeobj->_d))
     return;
@@ -383,7 +381,7 @@ void ppc_print_to (struct ppc *ppc, const DDS_XTypes_CompleteTypeObject *typeobj
       ppc_print_annots (ppc, x->body.ann_custom);
       ppc_print_memberflags (ppc, x->body.common.related_flags);
       ppc_print (ppc, "\n");
-      ppc_print_ti (ppc, &x->body.common.related_type);
+      ppc_print_ti (tc, ppc, &x->body.common.related_type);
       ppc_outdent (ppc);
       break;
     }
@@ -432,7 +430,7 @@ void ppc_print_to (struct ppc *ppc, const DDS_XTypes_CompleteTypeObject *typeobj
       ppc_print (ppc, "\n");
       ppc_indent (ppc);
       ppc_print_elementdetail (ppc, &x->element.detail);
-      ppc_print_ti (ppc, &x->element.common.type);
+      ppc_print_ti (tc, ppc, &x->element.common.type);
       ppc_outdent (ppc);
       break;
     }
@@ -447,7 +445,7 @@ void ppc_print_to (struct ppc *ppc, const DDS_XTypes_CompleteTypeObject *typeobj
       {
         ppc_print (ppc, "basetype=\n");
         ppc_indent (ppc);
-        ppc_print_ti (ppc, &t->header.base_type);
+        ppc_print_ti (tc, ppc, &t->header.base_type);
         ppc_outdent (ppc);
       }
       for (uint32_t i = 0; i < t->member_seq._length; i++)
@@ -459,7 +457,7 @@ void ppc_print_to (struct ppc *ppc, const DDS_XTypes_CompleteTypeObject *typeobj
         ppc_print (ppc, "\n");
         ppc_indent (ppc);
         ppc_print_memberdetail_sans_name (ppc, &m->detail);
-        ppc_print_ti (ppc, &m->common.member_type_id);
+        ppc_print_ti (tc, ppc, &m->common.member_type_id);
         ppc_outdent (ppc);
       }
       ppc_outdent (ppc);
@@ -478,7 +476,7 @@ void ppc_print_to (struct ppc *ppc, const DDS_XTypes_CompleteTypeObject *typeobj
       const DDS_XTypes_CompleteDiscriminatorMember *disc = &t->discriminator;
       ppc_print_memberflags (ppc, disc->common.member_flags);
       ppc_print (ppc, " ");
-      ppc_print_ti (ppc, &disc->common.type_id);
+      ppc_print_ti (tc, ppc, &disc->common.type_id);
       ppc_print_builtin_type_annots (ppc, disc->ann_builtin);
       ppc_print_annots (ppc, disc->ann_custom);
       ppc_outdent (ppc);
@@ -496,7 +494,7 @@ void ppc_print_to (struct ppc *ppc, const DDS_XTypes_CompleteTypeObject *typeobj
         ppc_print (ppc, "\n");
         ppc_indent (ppc);
         ppc_print_memberdetail_sans_name (ppc, &m->detail);
-        ppc_print_ti (ppc, &m->common.type_id);
+        ppc_print_ti (tc, ppc, &m->common.type_id);
         ppc_outdent (ppc);
         ppc_outdent (ppc);
       }
@@ -510,7 +508,7 @@ void ppc_print_to (struct ppc *ppc, const DDS_XTypes_CompleteTypeObject *typeobj
   }
 }
 
-void ppc_print_to_min (struct ppc *ppc, const DDS_XTypes_MinimalTypeObject *typeobj)
+void ppc_print_to_min (struct type_cache *tc, struct ppc *ppc, const DDS_XTypes_MinimalTypeObject *typeobj)
 {
   if (ppc_print_simple (ppc, typeobj->_d))
     return;
@@ -524,7 +522,7 @@ void ppc_print_to_min (struct ppc *ppc, const DDS_XTypes_MinimalTypeObject *type
       ppc_indent (ppc);
       ppc_print_memberflags (ppc, x->body.common.related_flags);
       ppc_print (ppc, "\n");
-      ppc_print_ti (ppc, &x->body.common.related_type);
+      ppc_print_ti (tc, ppc, &x->body.common.related_type);
       ppc_outdent (ppc);
       break;
     }
@@ -567,7 +565,7 @@ void ppc_print_to_min (struct ppc *ppc, const DDS_XTypes_MinimalTypeObject *type
       ppc_print_memberflags (ppc, x->element.common.element_flags);
       ppc_print (ppc, "\n");
       ppc_indent (ppc);
-      ppc_print_ti (ppc, &x->element.common.type);
+      ppc_print_ti (tc, ppc, &x->element.common.type);
       ppc_outdent (ppc);
       break;
     }
@@ -581,7 +579,7 @@ void ppc_print_to_min (struct ppc *ppc, const DDS_XTypes_MinimalTypeObject *type
       {
         ppc_print (ppc, "basetype=\n");
         ppc_indent (ppc);
-        ppc_print_ti (ppc, &t->header.base_type);
+        ppc_print_ti (tc, ppc, &t->header.base_type);
         ppc_outdent (ppc);
       }
       for (uint32_t i = 0; i < t->member_seq._length; i++)
@@ -592,7 +590,7 @@ void ppc_print_to_min (struct ppc *ppc, const DDS_XTypes_MinimalTypeObject *type
         ppc_print_memberflags (ppc, m->common.member_flags);
         ppc_print (ppc, "\n");
         ppc_indent (ppc);
-        ppc_print_ti (ppc, &m->common.member_type_id);
+        ppc_print_ti (tc, ppc, &m->common.member_type_id);
         ppc_outdent (ppc);
       }
       ppc_outdent (ppc);
@@ -609,7 +607,7 @@ void ppc_print_to_min (struct ppc *ppc, const DDS_XTypes_MinimalTypeObject *type
       const DDS_XTypes_MinimalDiscriminatorMember *disc = &t->discriminator;
       ppc_print_memberflags (ppc, disc->common.member_flags);
       ppc_print (ppc, " ");
-      ppc_print_ti (ppc, &disc->common.type_id);
+      ppc_print_ti (tc, ppc, &disc->common.type_id);
       ppc_outdent (ppc);
       for (uint32_t i = 0; i < t->member_seq._length; i++)
       {
@@ -624,7 +622,7 @@ void ppc_print_to_min (struct ppc *ppc, const DDS_XTypes_MinimalTypeObject *type
         ppc_print_memberflags (ppc, m->common.member_flags);
         ppc_print (ppc, "\n");
         ppc_indent (ppc);
-        ppc_print_ti (ppc, &m->common.type_id);
+        ppc_print_ti (tc, ppc, &m->common.type_id);
         ppc_outdent (ppc);
         ppc_outdent (ppc);
       }
