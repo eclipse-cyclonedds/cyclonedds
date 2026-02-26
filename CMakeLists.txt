@@ -9,7 +9,7 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.16)
 # C++ is only for Iceoryx plugin
 project(CycloneDDS VERSION 11.0.0 LANGUAGES C CXX)
 
@@ -64,9 +64,7 @@ option(BUILD_DDSPERF "Build ddsperf tool" ${not_crosscompiling})
 
 option(WITH_ZEPHYR "Build for Zephyr RTOS" OFF)
 
-# We require C99, test code can benefit from C23
-set(CMAKE_C_STANDARD 23)
-set(CMAKE_C_STANDARD_REQUIRED FALSE)
+set(CMAKE_C_STANDARD 99)
 if(CMAKE_SYSTEM_NAME STREQUAL "VxWorks")
   add_definitions(-std=c99)
 endif()
