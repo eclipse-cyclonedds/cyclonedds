@@ -1249,9 +1249,9 @@ The default value is: ``<empty>``
 
 Boolean
 
-Whether to enable the IP\_PKTINFO on UDP sockets to get hold of the packet destination address and interface on which it was received. This allows for better filtering on discovery packets, but comes at a small performance penalty.
+Whether to enable the IP\_PKTINFO on UDP sockets to get hold of the packet destination address and interface on which it was received. This allows for better filtering on discovery packets, but comes at a small performance penalty. Enabled by default if supported.
 
-The default value is: ``true``
+The default value is: ``default``
 
 
 .. _`//CycloneDDS/Domain/Internal/GenerateKeyhash`:
@@ -2959,9 +2959,9 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 The default value is: ``none``
 
 ..
-   generated from ddsi_config.h[a96f2afb055d694037710e101e4431ceee2c7c94] 
+   generated from ddsi_config.h[94ad20bdb44ea1f393ba906865b1da591bbe1b57] 
    generated from ddsi_config.c[9fb9ace4394a1b7d50f4e0fa3905bbba2a183e36] 
-   generated from ddsi__cfgelems.h[5137766e3f48f57c05c3745cc2a2380bf7af82cc] 
+   generated from ddsi__cfgelems.h[6e57a9213340839aeac89e7417646451cc5bb706] 
    generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] 
    generated from _confgen.h[bb9a0fc6ef1f7f7c46790ee00132e340e5fff36d] 
    generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] 
