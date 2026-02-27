@@ -118,7 +118,7 @@ static bool union_disc_valid (dds_dynamic_type_spec_t type_spec)
       if (type_spec.type.type.ret != DDS_RETCODE_OK || get_dtype_complete (&type_spec.type.type) == NULL)
         return false;
       DDS_XTypes_TypeKind xtkind = ddsi_type_get_kind (get_dtype_complete (&type_spec.type.type));
-      return xtkind == DDS_XTypes_TK_ENUM || xtkind == DDS_XTypes_TK_ALIAS;
+      return xtkind == DDS_XTypes_TK_ENUM || xtkind == DDS_XTypes_TK_BITMASK || xtkind == DDS_XTypes_TK_ALIAS;
     }
   }
   return false;
