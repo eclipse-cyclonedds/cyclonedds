@@ -45,6 +45,12 @@ static dds_return_t dynamic_type_ref_deps (struct ddsi_type *type)
       ddsi_type_unref_locked (type->gv, type->xt._u.map.key_type);
       break;
     case DDS_XTypes_TK_STRUCTURE:
+      if (type->xt._u.structure.base_type)
+      {
+        if ((ret = ddsi_type_register_dep (type->gv, &type->xt.id, &type->xt._u.structure.base_type, &type->xt._u.structure.base_type->xt.id.x)) != DDS_RETCODE_OK)
+          goto err;
+        ddsi_type_unref_locked (type->gv, type->xt._u.structure.base_type);
+      }
       for (uint32_t m = 0; m < type->xt._u.structure.members.length; m++)
       {
         if ((ret = ddsi_type_register_dep (type->gv, &type->xt.id, &type->xt._u.structure.members.seq[m].type, &type->xt._u.structure.members.seq[m].type->xt.id.x)) != DDS_RETCODE_OK)
