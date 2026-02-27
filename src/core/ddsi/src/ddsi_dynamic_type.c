@@ -53,6 +53,9 @@ static dds_return_t dynamic_type_ref_deps (struct ddsi_type *type)
       }
       break;
     case DDS_XTypes_TK_UNION:
+      if ((ret = ddsi_type_register_dep (type->gv, &type->xt.id, &type->xt._u.union_type.disc_type, &type->xt._u.union_type.disc_type->xt.id.x)) != DDS_RETCODE_OK)
+        goto err;
+      ddsi_type_unref_locked (type->gv, type->xt._u.union_type.disc_type);
       for (uint32_t m = 0; m < type->xt._u.union_type.members.length; m++)
       {
         if ((ret = ddsi_type_register_dep (type->gv, &type->xt.id, &type->xt._u.union_type.members.seq[m].type, &type->xt._u.union_type.members.seq[m].type->xt.id.x)) != DDS_RETCODE_OK)
