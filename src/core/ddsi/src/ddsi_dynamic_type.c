@@ -715,28 +715,48 @@ dds_return_t ddsi_dynamic_type_add_bitmask_field (struct ddsi_type *type, struct
 
 static dds_return_t find_struct_member (struct ddsi_type *type, uint32_t member_id, uint32_t *member_index)
 {
-  for (uint32_t n = 0; n < type->xt._u.structure.members.length; n++)
+  if (member_id == DDS_DYNAMIC_MEMBER_ID_AUTO)
   {
-    if (type->xt._u.structure.members.seq[n].id == member_id)
-    {
-      *member_index = n;
-      return DDS_RETCODE_OK;
-    }
+    if (type->xt._u.structure.members.length == 0)
+      return DDS_RETCODE_BAD_PARAMETER;
+    *member_index = type->xt._u.structure.members.length - 1;
+    return DDS_RETCODE_OK;
   }
-  return DDS_RETCODE_BAD_PARAMETER;
+  else
+  {
+    for (uint32_t n = 0; n < type->xt._u.structure.members.length; n++)
+    {
+      if (type->xt._u.structure.members.seq[n].id == member_id)
+      {
+        *member_index = n;
+        return DDS_RETCODE_OK;
+      }
+    }
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
 }
 
 static dds_return_t find_union_member (struct ddsi_type *type, uint32_t member_id, uint32_t *member_index)
 {
-  for (uint32_t n = 0; n < type->xt._u.union_type.members.length; n++)
+  if (member_id == DDS_DYNAMIC_MEMBER_ID_AUTO)
   {
-    if (type->xt._u.union_type.members.seq[n].id == member_id)
-    {
-      *member_index = n;
-      return DDS_RETCODE_OK;
-    }
+    if (type->xt._u.union_type.members.length == 0)
+      return DDS_RETCODE_BAD_PARAMETER;
+    *member_index = type->xt._u.union_type.members.length - 1;
+    return DDS_RETCODE_OK;
   }
-  return DDS_RETCODE_BAD_PARAMETER;
+  else
+  {
+    for (uint32_t n = 0; n < type->xt._u.union_type.members.length; n++)
+    {
+      if (type->xt._u.union_type.members.seq[n].id == member_id)
+      {
+        *member_index = n;
+        return DDS_RETCODE_OK;
+      }
+    }
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
 }
 
 static dds_return_t set_struct_member_flag (struct ddsi_type *type, uint32_t member_id, bool set, uint16_t flag)
