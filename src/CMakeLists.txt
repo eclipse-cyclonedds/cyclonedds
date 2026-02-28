@@ -92,7 +92,7 @@ if(ENABLE_SSL AND NOT TARGET OpenSSL::SSL) # Search for OpenSSL only if is not a
     # OpenSSL DLL on Windows: use of BIO_s_fd and BIO_s_file (directly or indirectly) requires
     # the executable to incorporate OpenSSL applink.c.  CMake 18 adds support for handling
     # this as part of the OpenSSL package, but we can't require such a new CMake version.
-    if(EXISTS "${OPENSSL_INCLUDE_DIR}/openssl/applink.c")
+    if(${CMAKE_VERSION} VERSION_LESS "3.18.0" AND EXISTS "${OPENSSL_INCLUDE_DIR}/openssl/applink.c")
       set(CYCLONEDDS_OPENSSL_APPLINK "${OPENSSL_INCLUDE_DIR}/openssl/applink.c")
     endif()
     message(STATUS "Building with OpenSSL support")
