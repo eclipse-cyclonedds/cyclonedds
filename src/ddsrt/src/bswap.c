@@ -14,6 +14,8 @@
 DDS_EXPORT extern inline uint16_t ddsrt_bswap2u (uint16_t x);
 DDS_EXPORT extern inline uint32_t ddsrt_bswap4u (uint32_t x);
 DDS_EXPORT extern inline uint64_t ddsrt_bswap8u (uint64_t x);
+DDS_EXPORT extern inline ddsrt_uint128_t ddsrt_bswap16u (ddsrt_uint128_t x);
 DDS_EXPORT extern inline int16_t ddsrt_bswap2 (int16_t x);
 DDS_EXPORT extern inline int32_t ddsrt_bswap4 (int32_t x);
 DDS_EXPORT extern inline int64_t ddsrt_bswap8 (int64_t x);
+DDS_EXPORT extern inline ddsrt_int128_t ddsrt_bswap16 (ddsrt_int128_t x);

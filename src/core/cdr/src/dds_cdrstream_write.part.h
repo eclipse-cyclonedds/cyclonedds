@@ -289,7 +289,7 @@ static const uint32_t *dds_stream_write_seqBO (RESTRICT_OSTREAM_T *os, const str
           return NULL;
         ops += 2 + bound_op;
         break;
-      case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
+      case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_16BY: {
         const uint32_t elem_size = get_primitive_size (subtype);
         const align_t cdr_align = dds_cdr_get_align (xcdrv, elem_size);
         void * dst;
@@ -397,7 +397,7 @@ static const uint32_t *dds_stream_write_arrBO (RESTRICT_OSTREAM_T *os, const str
         return NULL;
       ops += 3;
       break;
-    case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
+    case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_16BY: {
       const uint32_t elem_size = get_primitive_size (subtype);
       const align_t cdr_align = dds_cdr_get_align (xcdrv, elem_size);
       void * dst;
@@ -549,6 +549,7 @@ static const uint32_t *dds_stream_write_uniBO (RESTRICT_OSTREAM_T *os, const str
       case DDS_OP_VAL_2BY: dds_os_put2BO (os, allocator, *(const uint16_t *) valaddr); break;
       case DDS_OP_VAL_4BY: dds_os_put4BO (os, allocator, *(const uint32_t *) valaddr); break;
       case DDS_OP_VAL_8BY: dds_os_put8BO (os, allocator, *(const uint64_t *) valaddr); break;
+      case DDS_OP_VAL_16BY: dds_os_put16BO (os, allocator, *(const ddsrt_uint128_t *) valaddr); break;
       case DDS_OP_VAL_ENU:
         if (!dds_stream_write_enum_valueBO (os, allocator, jeq_op[0], *((const uint32_t *) valaddr), jeq_op[3]))
           return NULL;
@@ -679,6 +680,7 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, RESTRICT_OSTREAM_T
     case DDS_OP_VAL_2BY: dds_os_put2BO (os, allocator, *((const uint16_t *) addr)); ops += 2; break;
     case DDS_OP_VAL_4BY: dds_os_put4BO (os, allocator, *((const uint32_t *) addr)); ops += 2; break;
     case DDS_OP_VAL_8BY: dds_os_put8BO (os, allocator, *((const uint64_t *) addr)); ops += 2; break;
+    case DDS_OP_VAL_16BY: dds_os_put16BO (os, allocator, *((const ddsrt_uint128_t *) addr)); ops += 2; break;
     case DDS_OP_VAL_ENU:
       if (!dds_stream_write_enum_valueBO (os, allocator, insn, *((const uint32_t *) addr), ops[2]))
         return NULL;

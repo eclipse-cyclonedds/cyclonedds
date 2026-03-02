@@ -408,7 +408,8 @@ enum dds_stream_typecode {
   DDS_OP_VAL_BMK = 0x0f, /**< bitmask */
   DDS_OP_VAL_WSTR = 0x10,  /**< wstring (UTF-16) */
   DDS_OP_VAL_BWSTR = 0x11, /**< bounded wstring (UTF-16) */
-  DDS_OP_VAL_WCHAR = 0x12  /**< wchar: UTF-16, no surrogates allowed */
+  DDS_OP_VAL_WCHAR = 0x12, /**< wchar: UTF-16, no surrogates allowed */
+  DDS_OP_VAL_16BY = 0x13  /**< uint128/int128/float128 */
 };
 
 /**
@@ -434,7 +435,8 @@ enum dds_stream_typecode_primary {
   DDS_OP_TYPE_BMK = DDS_OP_VAL_BMK << 16, /**< bitmask */
   DDS_OP_TYPE_WSTR = DDS_OP_VAL_WSTR << 16,   /**< wstring (UTF-16) */
   DDS_OP_TYPE_BWSTR = DDS_OP_VAL_BWSTR << 16, /**< bounded wstring (UTF-16) */
-  DDS_OP_TYPE_WCHAR = DDS_OP_VAL_WCHAR << 16  /**< wchar: UTF-16, no surrogates allowed */
+  DDS_OP_TYPE_WCHAR = DDS_OP_VAL_WCHAR << 16, /**< wchar: UTF-16, no surrogates allowed */
+  DDS_OP_TYPE_16BY = DDS_OP_VAL_16BY << 16  /**< uint128/int128/float128 */
 };
 
 /**
@@ -474,7 +476,8 @@ enum dds_stream_typecode_subtype {
   DDS_OP_SUBTYPE_BMK = DDS_OP_VAL_BMK << 8, /**< bitmask */
   DDS_OP_SUBTYPE_WSTR = DDS_OP_VAL_WSTR << 8,   /**< wstring */
   DDS_OP_SUBTYPE_BWSTR = DDS_OP_VAL_BWSTR << 8, /**< bounded wstring */
-  DDS_OP_SUBTYPE_WCHAR = DDS_OP_VAL_WCHAR << 8  /**< wchar: UTF-16, no surrogates allowed */
+  DDS_OP_SUBTYPE_WCHAR = DDS_OP_VAL_WCHAR << 8, /**< wchar: UTF-16, no surrogates allowed */
+  DDS_OP_SUBTYPE_16BY = DDS_OP_VAL_16BY << 8  /**< uint128/int128/float128 */
 };
 
 /**
