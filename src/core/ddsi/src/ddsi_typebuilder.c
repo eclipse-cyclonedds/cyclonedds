@@ -412,6 +412,13 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
       *align = type->xt._d == DDS_XTypes_TK_FLOAT64 ? ALGN (double, is_ext) : ALGN (uint64_t, is_ext);
       *size = SZ (uint64_t, is_ext);
       break;
+    case DDS_XTypes_TK_FLOAT128:
+      tb_type->type_code = DDS_OP_VAL_16BY;
+      tb_type->args.prim_args.is_signed = false;
+      tb_type->args.prim_args.is_fp = true;
+      *align = 8; // FIXME: is this right? it is for XCDR1, perhaps not for C
+      *size = 16;
+      break;
     case DDS_XTypes_TK_STRING8: {
       bool bounded = (type->xt._u.str8.bound > 0);
       tb_type->type_code = bounded ? DDS_OP_VAL_BST : DDS_OP_VAL_STR;
@@ -560,7 +567,6 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
       *size = is_ext ? sizeof (void *) : aggrtype->size;
       break;
     }
-    case DDS_XTypes_TK_FLOAT128:
     case DDS_XTypes_TK_ANNOTATION:
     case DDS_XTypes_TK_MAP:
     case DDS_XTypes_TK_BITSET:
@@ -848,6 +854,7 @@ static uint32_t get_type_flags (const struct typebuilder_type *tb_type)
     case DDS_OP_VAL_2BY:
     case DDS_OP_VAL_4BY:
     case DDS_OP_VAL_8BY:
+    case DDS_OP_VAL_16BY:
       flags |= tb_type->args.prim_args.is_fp ? DDS_OP_FLAG_FP : 0u;
       flags |= tb_type->args.prim_args.is_signed ? DDS_OP_FLAG_SGN : 0u;
       break;
@@ -918,6 +925,11 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
       PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_WCHAR | flags);
       PUSH_ARG (member_offset);
       break;
+    case DDS_OP_VAL_16BY:
+      flags |= get_type_flags (tb_type);
+      PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_16BY | flags);
+      PUSH_ARG (member_offset);
+      break;
     case DDS_OP_VAL_BSQ:
     case DDS_OP_VAL_SEQ: {
       bool bounded = tb_type->type_code == DDS_OP_VAL_BSQ;
@@ -933,6 +945,7 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
       {
         case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
         case DDS_OP_VAL_BLN: case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR: case DDS_OP_VAL_WCHAR:
+        case DDS_OP_VAL_16BY:
           break;
         case DDS_OP_VAL_ENU:
           PUSH_ARG (element_type->args.enum_args.max);
@@ -990,6 +1003,7 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
       {
         case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
         case DDS_OP_VAL_BLN: case DDS_OP_VAL_STR: case DDS_OP_VAL_WSTR: case DDS_OP_VAL_WCHAR:
+        case DDS_OP_VAL_16BY:
           break;
         case DDS_OP_VAL_ENU:
           PUSH_ARG (element_type->args.enum_args.max);
@@ -1134,6 +1148,7 @@ static dds_return_t get_ops_union_case (struct typebuilder_type *tb_type, uint32
       PUSH_ARG (0);
       break;
     case DDS_OP_VAL_WCHAR:
+    case DDS_OP_VAL_16BY:
       PUSH_OP ((uint32_t) DDS_OP_JEQ4 | (uint32_t) DDS_OP_TYPE_WCHAR | flags);
       PUSH_ARG (disc_value);
       PUSH_ARG (offset);
@@ -1752,6 +1767,7 @@ static dds_return_t add_memberids_collection (struct typebuilder_data *tbd, stru
     case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
     case DDS_OP_VAL_BLN: case DDS_OP_VAL_BMK: case DDS_OP_VAL_BST: case DDS_OP_VAL_STR:
     case DDS_OP_VAL_WSTR: case DDS_OP_VAL_WCHAR: case DDS_OP_VAL_ENU: case DDS_OP_VAL_BWSTR:
+    case DDS_OP_VAL_16BY:
       break;
     case DDS_OP_VAL_EXT:
       abort ();
@@ -1784,6 +1800,7 @@ static dds_return_t add_memberids_struct (struct typebuilder_data *tbd, struct t
       case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
       case DDS_OP_VAL_BLN: case DDS_OP_VAL_BMK: case DDS_OP_VAL_BST: case DDS_OP_VAL_STR:
       case DDS_OP_VAL_WSTR: case DDS_OP_VAL_WCHAR: case DDS_OP_VAL_ENU: case DDS_OP_VAL_BWSTR:
+      case DDS_OP_VAL_16BY:
         break;
       case DDS_OP_VAL_STU: case DDS_OP_VAL_UNI:
         abort ();
@@ -1812,6 +1829,7 @@ static dds_return_t add_memberids_union (struct typebuilder_data *tbd, struct ty
       case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
       case DDS_OP_VAL_BLN: case DDS_OP_VAL_BMK: case DDS_OP_VAL_BST: case DDS_OP_VAL_STR:
       case DDS_OP_VAL_WSTR: case DDS_OP_VAL_WCHAR: case DDS_OP_VAL_ENU: case DDS_OP_VAL_BWSTR:
+      case DDS_OP_VAL_16BY:
         break;
       case DDS_OP_VAL_EXT:
         abort ();

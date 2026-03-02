@@ -1031,6 +1031,8 @@ int main (int argc, char **argv)
   ddsrt_bswap4 (0);
   ddsrt_bswap8u (0);
   ddsrt_bswap8 (0);
+  ddsrt_bswap16u ((ddsrt_uint128_t){0,0});
+  ddsrt_bswap16 ((ddsrt_int128_t){0,0});
 
   // ddsrt/random.h
   ddsrt_random ();

@@ -29,6 +29,7 @@ static bool dds_stream_write_keyBO_impl (RESTRICT_OSTREAM_T *os, const struct dd
     case DDS_OP_VAL_2BY: dds_os_put2BO (os, allocator, *((uint16_t *) addr)); break;
     case DDS_OP_VAL_4BY: dds_os_put4BO (os, allocator, *((uint32_t *) addr)); break;
     case DDS_OP_VAL_8BY: dds_os_put8BO (os, allocator, *((uint64_t *) addr)); break;
+    case DDS_OP_VAL_16BY: dds_os_put16BO (os, allocator, *((ddsrt_uint128_t *) addr)); break;
     case DDS_OP_VAL_ENU:
       if (!dds_stream_write_enum_valueBO (os, allocator, insn, *((uint32_t *) addr), ops[2]))
         return false;
