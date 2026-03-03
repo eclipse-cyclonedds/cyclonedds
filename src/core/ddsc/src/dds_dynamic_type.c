@@ -82,8 +82,18 @@ static dds_dynamic_type_t dyntype_from_typespec (struct ddsi_domaingv *gv, dds_d
       type.ret = ddsi_dynamic_type_create_primitive (gv, get_dtype_complete_addr (&type), type_spec.type.primitive);
       return type;
     }
-    case DDS_DYNAMIC_TYPE_KIND_DEFINITION:
-      return type_spec.type.type;
+    case DDS_DYNAMIC_TYPE_KIND_DEFINITION: {
+      // Drop reference to minimal type: add_member and create consume a
+      // reference of the complete type but ignore the minimal one
+      dds_dynamic_type_t no_min = type_spec.type.type;
+      struct ddsi_type **mta = get_dtype_minimal_addr (&no_min);
+      if (*mta)
+      {
+        ddsi_type_unref (ddsi_type_get_gv (*mta), *mta);
+        *mta = NULL;
+      }
+      return no_min;
+    }
   }
 
   return (dds_dynamic_type_t) { .ret = DDS_RETCODE_BAD_PARAMETER };
