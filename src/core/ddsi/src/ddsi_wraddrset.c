@@ -854,7 +854,6 @@ struct ddsi_addrset *ddsi_compute_writer_addrset (const struct ddsi_writer *wr)
     if (nchosen >= 2)
       wras_drop_redundant_locators (gv, nchosen, chosen, locs, covered);
     costmap_free (wm);
-    cover_free (covered);
 
     newas = ddsi_new_addrset ();
     for (int i = 0; i < nchosen; i++)
@@ -863,6 +862,7 @@ struct ddsi_addrset *ddsi_compute_writer_addrset (const struct ddsi_writer *wr)
         wras_add_locator (gv, newas, chosen[i], locs, covered);
     }
     ddsrt_free (chosen);
+    cover_free (covered);
   }
   locset_free (locs);
   return newas;
