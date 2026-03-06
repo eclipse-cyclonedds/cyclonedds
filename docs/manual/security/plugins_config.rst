@@ -46,9 +46,15 @@ or a 256-bit Elliptic Curve key for the prime256v1 curve. The identity CA certif
 a self-signed certificate.
 
 The identity certificate, private key and the identity CA should be a X509 document in PEM
-format. It may either be specified directly in the configuration file (as CDATA, prefixed
-with ``data:,``), or the configuration file should contain a reference to a corresponding
-file (prefixed with ``file:``).
+format. These values can be specified using one of the following URI schemes:
+
+- ``file:``: Reference to a PEM file on the filesystem (e.g., ``file:identity_cert.pem``)
+- ``data:,``: Inline PEM data embedded directly in the configuration
+- ``pkcs11:``: Reference to an object on a PKCS#11 token or HSM (e.g., ``pkcs11:token=MyHSM;object=identity_cert``)
+
+For deployments requiring hardware-based key protection, the ``pkcs11:`` scheme enables
+storing private keys and certificates on Hardware Security Modules (HSMs). See :ref:`pkcs11_hsm`
+for configuration details.
 
 Optionally, the private key can be protected by a
 :ref:`password <//CycloneDDS/Domain/Security/Authentication/Password>`.
@@ -58,7 +64,7 @@ contains additional identity CA's that verify the identity certificates received
 instances
 (:ref:`TrustedCADirectory <//CycloneDDS/Domain/Security/Authentication/TrustedCADirectory>`).
 
-.. index:: 
+.. index::
   single: Plugin; Access control
   single: Access control; Properties
   single: Governance document
@@ -74,10 +80,15 @@ Access control properties
 The following are are required for the access control plugin:
 
 - A governance document (:ref:`//CycloneDDS/Domain/Security/AccessControl/Governance`).
-- a permissions document (:ref:`//CycloneDDS/Domain/Security/AccessControl/Permissions`). 
+- A permissions document (:ref:`//CycloneDDS/Domain/Security/AccessControl/Permissions`).
 - The permissions CA certificate (:ref:`//CycloneDDS/Domain/Security/AccessControl/PermissionsCA`).
 
-These values can be provided as CDATA or by using a path to a file (Similar to the authentication plugin properties).
+The **permissions CA certificate** supports the same URI schemes as the authentication properties,
+including ``pkcs11:`` for HSM-based storage.
+
+The **governance and permissions documents** are signed XML policy files. These must be provided
+using ``file:`` or ``data:,`` URIs; PKCS#11 is not supported for retrieving these documents. Their
+integrity is protected by PKCS#7 signatures, which are verified using the permissions CA certificate.
 
 .. index:: Cryptography
 

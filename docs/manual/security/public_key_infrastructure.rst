@@ -29,6 +29,25 @@ Data is encrypted with the user's public key and decrypted with their private ke
 Digital signatures are also generated using public key cryptography (used for non-repudiation,
 authentication and data integrity).
 
+.. index:: HSM
+   single: Hardware Security Module
+   single: Private key; Protection
+
+**Hardware-based key protection**
+
+Private keys are the most sensitive component of a PKI deployment. If compromised, an attacker
+can impersonate the key owner. For high-security deployments, private keys can be stored on
+Hardware Security Modules (HSMs).
+
+These devices:
+
+- Generate and store private keys in tamper-resistant hardware.
+- Perform cryptographic operations internally, so the private key never leaves the device.
+- Provide physical protection against key extraction.
+
+|var-project-short| supports loading credentials from PKCS#11-compatible devices. See
+:ref:`pkcs11_hsm` for configuration details.
+
 .. _identity_certificate:
 
 **Identity certificate**
@@ -112,3 +131,6 @@ a permissions document.
 
 There are several ways to set up the certificates and signed configuration files to be used with
 |var-project-short| Security, see :ref:`Example_security_configuration`.
+
+For deployments requiring hardware-based key protection, see :ref:`pkcs11_hsm` and
+:ref:`hsm_security_configuration`.
