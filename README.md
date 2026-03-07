@@ -1,3 +1,77 @@
+# Cyclone DDS Fork
+
+These are my experiments with what exists in this repo, I added a `flake.nix` file which provides a `devShell` for building
+and running the `HelloworldPublisher/Subsriber` examples and got those working.
+
+Build this thing manually...
+
+For the DCMAKE_INSTALL_PREFIX, just create an install directory somewhere in the project, or under /tmp
+
+```
+mkdir -p build install  && cd build
+cmake -DCMAKE_INSTALL_PREFIX=../install -DBUILD_EXAMPLES=ON ..
+cmake --build . --parallel
+```
+
+After a successful build, you can specify the "install" location:
+
+```
+cmake --build . --target install
+```
+
+That'll kick out all the build artifacts:
+
+```
+17:24:40 (install) $ ll
+total 16K
+drwxr-xr-x 2 trey users 4.0K Dec 16 17:24 bin
+drwxr-xr-x 7 trey users 4.0K Dec 16 17:24 include
+drwxr-xr-x 3 trey users 4.0K Dec 16 17:24 share
+drwxr-xr-x 4 trey users 4.0K Dec 16 17:24 lib64
+```
+
+Note that the build/bin/ dir will have a bunch of extra executables, including the HelloWorld example:
+
+```
+17:28:07 (bin) $ pwd
+/home/trey/sources/cyclonedds/build/bin
+
+17:28:14 (bin) $ ll
+total 1.6M
+-rwxr-xr-x 1 trey users  38K Dec 16 17:22 dyntype
+-rwxr-xr-x 1 trey users  29K Dec 16 17:22 listtopics
+-rwxr-xr-x 1 trey users 290K Dec 16 17:22 symbol_export_test
+-rwxr-xr-x 1 trey users 194K Dec 16 17:22 dynsub
+-rwxr-xr-x 1 trey users 538K Dec 16 17:22 idlc
+-rwxr-xr-x 1 trey users  27K Dec 16 17:22 HelloworldPublisher
+-rwxr-xr-x 1 trey users  43K Dec 16 17:22 variouspub
+-rwxr-xr-x 1 trey users  37K Dec 16 17:22 RoundtripPong
+-rwxr-xr-x 1 trey users  38K Dec 16 17:22 ThroughputPublisher
+-rwxr-xr-x 1 trey users  28K Dec 16 17:22 HelloworldSubscriber
+-rwxr-xr-x 1 trey users  46K Dec 16 17:22 ThroughputSubscriber
+-rwxr-xr-x 1 trey users  57K Dec 16 17:22 RoundtripPing
+-rwxr-xr-x 1 trey users 246K Dec 16 17:22 ddsperf
+```
+
+On first go at the HelloworldPublisher and HelloworldSubscriber nothing worked,
+both executables just hung waiting with no extra logs.
+
+Providing this XML string as a configuration through the CYCLONEDDS_URI environment variable solved the problem,
+so the default behavior of auto-detecting the local network must just not be working. We got some log output
+claiming that NetworkInterfaceAddress is a deprecated element, but it seemed to accept this config, note this is done automatically in the `devShell` shipped in the flake.
+
+```
+export CYCLONEDDS_URI="<CycloneDDS><Domain><General><NetworkInterfaceAddress>127.0.0.1</NetworkInterfaceAddress></General></Domain></CycloneDDS>"
+```
+
+To provide a 
+
+```
+export CYCLONEDDS_URI="file://$HOME/CycloneDDS/my-config.xml"
+```
+
+---
+
 ![GitHub release](https://img.shields.io/github/v/release/eclipse-cyclonedds/cyclonedds?include_prereleases)
 [![Build Status](https://dev.azure.com/eclipse-cyclonedds/cyclonedds/_apis/build/status/Pull%20requests?branchName=master)](https://dev.azure.com/eclipse-cyclonedds/cyclonedds/_build/latest?definitionId=4&branchName=master)
 [![Coverity Status](https://scan.coverity.com/projects/19078/badge.svg)](https://scan.coverity.com/projects/eclipse-cyclonedds-cyclonedds)
