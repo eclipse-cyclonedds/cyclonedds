@@ -162,10 +162,10 @@ struct ddsi_sertype_ops {
 };
 
 /** @component typesupport_if */
-struct ddsi_sertype *ddsi_sertype_lookup_locked (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype_template);
+DDS_EXPORT struct ddsi_sertype *ddsi_sertype_lookup_locked (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype_template);
 
 /** @component typesupport_if */
-void ddsi_sertype_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertype *sertype);
+DDS_EXPORT void ddsi_sertype_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertype *sertype);
 
 #define DDSI_SERTYPE_FLAG_TOPICKIND_NO_KEY (1u)
 #define DDSI_SERTYPE_FLAG_REQUEST_KEYHASH  (2u)

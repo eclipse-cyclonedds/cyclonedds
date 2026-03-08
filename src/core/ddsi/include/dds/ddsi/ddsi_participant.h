@@ -76,7 +76,7 @@ struct ddsi_participant
  * @param[out] ppguid  The generated participant GUID
  * @param[in] gv  Domain globals
  */
-void ddsi_generate_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv);
+DDS_EXPORT void ddsi_generate_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv);
 
 /**
  * @brief Create a new participant with a specified GUID
@@ -97,7 +97,7 @@ void ddsi_generate_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *
  * @retval DDS_RETCODE_OUT_OF_RESOURCES
  *               The configured maximum number of participants has been reached.
 */
-dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const struct ddsi_plist *plist);
+DDS_EXPORT dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const struct ddsi_plist *plist);
 
 /**
  * @component ddsi_participant

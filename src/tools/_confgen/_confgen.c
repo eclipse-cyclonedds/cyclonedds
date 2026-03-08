@@ -540,7 +540,7 @@ int makedescription(
     const struct cfgunit *unit = NULL;
 
     if (isgroup(elem)) {
-      src = strdup(elem->description);
+      src = _strdup(elem->description);
     } else {
       if (elem->value)
       {

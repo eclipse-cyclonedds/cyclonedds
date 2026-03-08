@@ -39,7 +39,7 @@ typedef const char * (*expand_lookup_fn)(const char *name, void *data);
  * @retval Pointer
  *             Copy of the string argument with the variables expanded.
  */
-char*
+DDS_EXPORT  char*
 ddsrt_expand_vars(
   const char *string,
   expand_lookup_fn lookup,
@@ -64,7 +64,7 @@ ddsrt_expand_vars(
  * @retval Pointer
  *             Copy of the string argument with the variables expanded.
  */
-char*
+DDS_EXPORT char*
 ddsrt_expand_vars_sh(
   const char *string,
   expand_lookup_fn lookup,

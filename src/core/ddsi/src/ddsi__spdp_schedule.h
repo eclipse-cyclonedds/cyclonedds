@@ -44,7 +44,7 @@ void ddsi_spdp_unref_locator (struct spdp_admin *adm, const ddsi_xlocator_t *xlo
 
 // Locks `pp->e.lock`
 // returns false iff there is no SPDP sample yet
-bool ddsi_spdp_force_republish (struct spdp_admin *adm, const struct ddsi_participant *pp, const struct ddsi_proxy_reader *prd)
+DDS_EXPORT bool ddsi_spdp_force_republish (struct spdp_admin *adm, const struct ddsi_participant *pp, const struct ddsi_proxy_reader *prd)
   ddsrt_nonnull ((1, 2));
 
 #if defined (__cplusplus)

@@ -30,7 +30,7 @@ bool ddsi_addrset_empty (const struct ddsi_addrset *as)
   ddsrt_nonnull_all;
 
 /** @component locators */
-void ddsi_addrset_forall (struct ddsi_addrset *as, ddsi_addrset_forall_fun_t f, void *arg)
+DDS_EXPORT void ddsi_addrset_forall (struct ddsi_addrset *as, ddsi_addrset_forall_fun_t f, void *arg)
   ddsrt_nonnull ((1,2));
 
 /** @component locators */

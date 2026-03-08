@@ -19,6 +19,7 @@
 #include "dds/ddsi/ddsi_addrset.h"
 #include "dds/ddsi/ddsi_locator.h"
 #include "ddsi__thread.h"
+#include "dds/export.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -33,7 +34,7 @@ struct ddsi_addrset {
 };
 
 /** @component locators */
-void ddsi_add_xlocator_to_addrset (const struct ddsi_domaingv *gv, struct ddsi_addrset *as, const ddsi_xlocator_t *loc)
+DDS_EXPORT void ddsi_add_xlocator_to_addrset (const struct ddsi_domaingv *gv, struct ddsi_addrset *as, const ddsi_xlocator_t *loc)
   ddsrt_nonnull_all;
 
 /** @component locators */
@@ -65,13 +66,13 @@ void ddsi_copy_addrset_into_addrset (const struct ddsi_domaingv *gv, struct ddsi
   ddsrt_nonnull_all;
 
 /** @component locators */
-size_t ddsi_addrset_count (const struct ddsi_addrset *as);
+DDS_EXPORT size_t ddsi_addrset_count (const struct ddsi_addrset *as);
 
 /** @component locators */
-size_t ddsi_addrset_count_uc (const struct ddsi_addrset *as);
+DDS_EXPORT size_t ddsi_addrset_count_uc (const struct ddsi_addrset *as);
 
 /** @component locators */
-size_t ddsi_addrset_count_mc (const struct ddsi_addrset *as);
+DDS_EXPORT size_t ddsi_addrset_count_mc (const struct ddsi_addrset *as);
 
 /** @component locators */
 bool ddsi_addrset_empty_uc (const struct ddsi_addrset *as)
@@ -82,7 +83,7 @@ bool ddsi_addrset_empty_mc (const struct ddsi_addrset *as)
   ddsrt_nonnull_all;
 
 /** @component locators */
-void ddsi_addrset_any_uc (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
+DDS_EXPORT void ddsi_addrset_any_uc (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
   ddsrt_nonnull_all;
 
 /** @component locators */
@@ -105,7 +106,7 @@ size_t ddsi_addrset_forall_uc_count (struct ddsi_addrset *as, ddsi_addrset_foral
   ddsrt_nonnull ((1, 2));
 
 /** @component locators */
-void ddsi_log_addrset (struct ddsi_domaingv *gv, uint32_t tf, const char *prefix, const struct ddsi_addrset *as)
+DDS_EXPORT void ddsi_log_addrset (struct ddsi_domaingv *gv, uint32_t tf, const char *prefix, const struct ddsi_addrset *as)
   ddsrt_nonnull_all;
 
 
@@ -128,7 +129,7 @@ bool ddsi_is_unspec_xlocator (const ddsi_xlocator_t *loc)
   ddsrt_nonnull_all;
 
 /** @component locators */
-void ddsi_set_unspec_locator (ddsi_locator_t *loc)
+DDS_EXPORT void ddsi_set_unspec_locator (ddsi_locator_t *loc)
   ddsrt_nonnull_all;
 
 /** @component locators */

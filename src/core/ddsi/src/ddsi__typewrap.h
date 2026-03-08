@@ -42,7 +42,7 @@ void ddsi_xt_get_typeid_impl (const struct xt_type *xt, struct DDS_XTypes_TypeId
 
 
 /** @component xtypes_wrapper */
-dds_return_t ddsi_typeobj_get_hash_id (const struct DDS_XTypes_TypeObject *type_obj, ddsi_typeid_t *type_id);
+DDS_EXPORT dds_return_t ddsi_typeobj_get_hash_id (const struct DDS_XTypes_TypeObject *type_obj, ddsi_typeid_t *type_id);
 
 /** @component xtypes_wrapper */
 void ddsi_typeobj_get_hash_id_impl (const struct DDS_XTypes_TypeObject *type_obj, struct DDS_XTypes_TypeIdentifier *type_id);

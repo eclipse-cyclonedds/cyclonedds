@@ -156,15 +156,15 @@ static void trace_lease_renew (const struct ddsi_lease *l, const char *tag, ddsr
   }
 }
 
-void ddsi_lease_renew (struct ddsi_lease *l, ddsrt_etime_t tnowE)
+void ddsi_lease_renew (struct ddsi_lease *l, ddsrt_etime_t tnow)
 {
-  ddsrt_etime_t tend_new = ddsrt_etime_add_duration (tnowE, l->tdur);
+  ddsrt_etime_t tend_new = ddsrt_etime_add_duration (tnow, l->tdur);
 
   /* do not touch tend if moving forward or if already expired */
   int64_t tend;
   do {
     tend = (int64_t) ddsrt_atomic_ld64 (&l->tend);
-    if (tend_new.v <= tend || tnowE.v >= tend)
+    if (tend_new.v <= tend || tnow.v >= tend)
       return;
   } while (!ddsrt_atomic_cas64 (&l->tend, (uint64_t) tend, (uint64_t) tend_new.v));
 

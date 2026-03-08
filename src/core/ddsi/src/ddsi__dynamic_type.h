@@ -28,10 +28,10 @@ extern "C" {
  *
  * @component dynamic_type_support
  *
- * @param[in] member_hash_name Name of the member (or name provided in the hashid annotation).
+ * @param[in] name Name of the member (or name provided in the hashid annotation).
  *
  */
-uint32_t ddsi_dynamic_type_member_hashid (const char *member_hash_name);
+DDS_EXPORT uint32_t ddsi_dynamic_type_member_hashid (const char *name);
 
 #if defined (__cplusplus)
 }

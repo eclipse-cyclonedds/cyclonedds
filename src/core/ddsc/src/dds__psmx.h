@@ -303,7 +303,7 @@ typedef dds_return_t (*dds_psmx_create_fn) (
   dds_psmx_instance_id_t identifier,
   const char *config);
 
-char *dds_pubsub_message_exchange_configstr (const char *config, const char *config_name);
+DDS_EXPORT char *dds_pubsub_message_exchange_configstr (const char *config, const char *config_name);
 
 dds_return_t dds_pubsub_message_exchange_init (const struct ddsi_domaingv *gv, struct dds_domain *domain);
 

@@ -135,10 +135,10 @@ DDS_EXPORT extern ddsrt_atomic_uint32_t ddsi_thread_nested_gv_allowed;
 #endif
 
 /** @component thread_support */
-void ddsi_thread_states_init (void);
+DDS_EXPORT void ddsi_thread_states_init (void);
 
 /** @component thread_support */
-bool ddsi_thread_states_fini (void);
+DDS_EXPORT bool ddsi_thread_states_fini (void);
 
 /** @component thread_support */
 dds_return_t ddsi_create_thread (struct ddsi_thread_state **thrst, const struct ddsi_domaingv *gv, const char *name, uint32_t (*f) (void *arg), void *arg);

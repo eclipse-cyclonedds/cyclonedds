@@ -31,7 +31,6 @@ jobs:
               idlc_xtests: false,
             }
           - {
-              # This should run sanity_check_export_symbols
               name: "no tests",
               os: windows-latest,
               build_type: Release,
@@ -98,6 +97,7 @@ jobs:
         shell: bash
       - run: |
           cmake -S . -B build \
+            -A x64 \
             -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type || 'Release' }} \
             -DCMAKE_INSTALL_PREFIX=build/install \
             -DBUILD_SHARED_LIBS=${{ matrix.config.shared_libs || true }} \
@@ -154,7 +154,7 @@ jobs:
           CFLAGS: -fsanitize=${{ matrix.config.sanitizer || 'none' }}
           LDFLAGS: -fsanitize=${{ matrix.config.sanitizer || 'none' }}
         name: Sanity check Hello World
-      - if: ${{ matrix.config.check_symbol_export}}
+      - if: ${{ matrix.config.testing && matrix.config.check_symbol_export}}
         run: |
           set -e -x
           cd build

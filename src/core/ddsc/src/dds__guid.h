@@ -11,10 +11,11 @@
 #ifndef DDS__GUID_H
 #define DDS__GUID_H
 
+#include "dds/export.h"
 #include "dds/ddsc/dds_basic_types.h"
 #include "dds/ddsi/ddsi_guid.h"
 
-ddsi_guid_t dds_guid_to_ddsi_guid (dds_guid_t g);
-dds_guid_t dds_guid_from_ddsi_guid (ddsi_guid_t gi);
+DDS_EXPORT ddsi_guid_t dds_guid_to_ddsi_guid (dds_guid_t g);
+DDS_EXPORT dds_guid_t dds_guid_from_ddsi_guid (ddsi_guid_t gi);
 
 #endif

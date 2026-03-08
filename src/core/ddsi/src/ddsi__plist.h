@@ -17,6 +17,7 @@
 #include "dds/ddsi/ddsi_keyhash.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/export.h"
 #include "ddsi__protocol.h"
 #include "ddsi__plist_context_kind.h"
 
@@ -161,7 +162,7 @@ void ddsi_plist_init_tables (void);
  * @param[in]     pmask   subset of non-QoS part of b (if PP_X is set, include X)
  * @param[in]     qmask   subset of QoS part of b (if DDSI_QP_X is set, include X)
  */
-void ddsi_plist_mergein_missing (ddsi_plist_t *a, const ddsi_plist_t *b, uint64_t pmask, uint64_t qmask);
+DDS_EXPORT void ddsi_plist_mergein_missing (ddsi_plist_t *a, const ddsi_plist_t *b, uint64_t pmask, uint64_t qmask);
 
 /**
  * @brief Copy "src" to "dst"
@@ -170,7 +171,7 @@ void ddsi_plist_mergein_missing (ddsi_plist_t *a, const ddsi_plist_t *b, uint64_
  * @param[out]    dst     destination, any contents are overwritten
  * @param[in]     src     source ddsi_plist_t
  */
-void ddsi_plist_copy (ddsi_plist_t *dst, const ddsi_plist_t *src);
+DDS_EXPORT void ddsi_plist_copy (ddsi_plist_t *dst, const ddsi_plist_t *src);
 
 /**
  * @brief Duplicate "src"
@@ -233,7 +234,7 @@ ddsi_plist_t *ddsi_plist_dup (const ddsi_plist_t *src);
  *               Input contained an unrecognized parameter with the "incompatible-if-unknown"
  *               flag set; dest is cleared, *nextafterplist is NULL.
  */
-dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const ddsi_plist_src_t *src, struct ddsi_domaingv const * const gv, enum ddsi_plist_context_kind context_kind);
+DDS_EXPORT dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const ddsi_plist_src_t *src, struct ddsi_domaingv const * const gv, enum ddsi_plist_context_kind context_kind);
 
 /**
  * @brief Free memory owned by "plist" for a subset of the entries
@@ -261,7 +262,7 @@ void ddsi_plist_fini_mask (ddsi_plist_t *plist, uint64_t pmask, uint64_t qmask);
  * @param[in,out] plist  ddsi_plist_t for which to replace all aliased memory by owned
  *                       copies
  */
-void ddsi_plist_unalias (ddsi_plist_t *plist);
+DDS_EXPORT void ddsi_plist_unalias (ddsi_plist_t *plist);
 
 /**
  * @brief Add selected entries in "ps" to a message in native endianness.
@@ -326,7 +327,7 @@ void ddsi_plist_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds
  * @param[in]     bo       byte order
  * @param[in]     context_kind  context in which theserialization is taking place
  */
-void ddsi_plist_addtomsg_bo (struct ddsi_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted, enum ddsrt_byte_order_selector bo, enum ddsi_plist_context_kind context_kind);
+DDS_EXPORT void ddsi_plist_addtomsg_bo (struct ddsi_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted, enum ddsrt_byte_order_selector bo, enum ddsi_plist_context_kind context_kind);
 
 /**
  * @brief Formats plist into a buffer
@@ -343,7 +344,7 @@ void ddsi_plist_addtomsg_bo (struct ddsi_xmsg *m, const ddsi_plist_t *ps, uint64
  *
  * @returns number of bytes written to buf, excluding a terminating 0.
  */
-size_t ddsi_plist_print (char *buf, size_t bufsize, const ddsi_plist_t *plist);
+DDS_EXPORT size_t ddsi_plist_print (char *buf, size_t bufsize, const ddsi_plist_t *plist);
 
 struct ddsi_rsample_info;
 

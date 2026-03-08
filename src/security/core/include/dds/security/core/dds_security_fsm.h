@@ -11,6 +11,7 @@
 #ifndef DDS_SECURITY_FSM_H
 #define DDS_SECURITY_FSM_H
 
+#include "dds/export.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 
@@ -86,7 +87,7 @@ typedef struct dds_security_fsm_transition {
  *
  * @return              Returns the new created state machine on success. Null on failure.
  */
-struct dds_security_fsm *
+DDS_EXPORT struct dds_security_fsm *
 dds_security_fsm_create(struct dds_security_fsm_control *control, const dds_security_fsm_transition *transitions, uint32_t size, void *arg);
 
 
@@ -96,7 +97,7 @@ dds_security_fsm_create(struct dds_security_fsm_control *control, const dds_secu
  *
  * @param fsm fsm to start.
  */
-void
+DDS_EXPORT void
 dds_security_fsm_start(struct dds_security_fsm *fsm);
 
 /**
@@ -110,7 +111,7 @@ dds_security_fsm_start(struct dds_security_fsm *fsm);
  *                  overall timeout expires.
  * @param timeout   indicates the overall timeout
  */
-void
+DDS_EXPORT void
 dds_security_fsm_set_timeout(struct dds_security_fsm *fsm, dds_security_fsm_action func, dds_time_t timeout);
 
 /**
@@ -121,7 +122,7 @@ dds_security_fsm_set_timeout(struct dds_security_fsm *fsm, dds_security_fsm_acti
  *                  event, whether being dispatched or actually
  *                  handled.
  */
-void
+DDS_EXPORT void
 dds_security_fsm_set_debug(struct dds_security_fsm *fsm, dds_security_fsm_debug func);
 
 /**
@@ -132,7 +133,7 @@ dds_security_fsm_set_debug(struct dds_security_fsm *fsm, dds_security_fsm_debug 
  * @param event_id  Indicate where to transisition to (outcome of current state)
  * @param prio      Indicates if the event has to be scheduled with priority.
  */
-void
+DDS_EXPORT void
 dds_security_fsm_dispatch(struct dds_security_fsm *fsm, int32_t event_id, bool prio);
 
 /**
@@ -142,7 +143,7 @@ dds_security_fsm_dispatch(struct dds_security_fsm *fsm, int32_t event_id, bool p
  *
  * @return          true iff fsm not in initial or final state
  */
-bool
+DDS_EXPORT bool
 dds_security_fsm_running(struct dds_security_fsm *fsm);
 
 /**
@@ -160,7 +161,7 @@ dds_security_fsm_running(struct dds_security_fsm *fsm);
  *
  * @param fsm   The state machine to b stopped
  */
-void
+DDS_EXPORT void
 dds_security_fsm_stop(struct dds_security_fsm *fsm);
 
 /**
@@ -178,7 +179,7 @@ dds_security_fsm_stop(struct dds_security_fsm *fsm);
  *
  * @param fsm   The state machine to be removed
  */
-void
+DDS_EXPORT void
 dds_security_fsm_free(struct dds_security_fsm *fsm);
 
 /**
@@ -191,7 +192,7 @@ dds_security_fsm_free(struct dds_security_fsm *fsm);
  *
  * @return Returns the new fsm control on success. Null on failure.
  */
-struct dds_security_fsm_control *
+DDS_EXPORT struct dds_security_fsm_control *
 dds_security_fsm_control_create (struct ddsi_domaingv *gv);
 
 /**
@@ -200,7 +201,7 @@ dds_security_fsm_control_create (struct ddsi_domaingv *gv);
  *
  * @param control The fsm control to be freed.
  */
-void
+DDS_EXPORT void
 dds_security_fsm_control_free(struct dds_security_fsm_control *control);
 
 /**
@@ -209,7 +210,7 @@ dds_security_fsm_control_free(struct dds_security_fsm_control *control);
  *
  * @param control The fsm control to be started.
  */
-dds_return_t
+DDS_EXPORT dds_return_t
 dds_security_fsm_control_start (struct dds_security_fsm_control *control, const char *name);
 
 /**
@@ -217,7 +218,7 @@ dds_security_fsm_control_start (struct dds_security_fsm_control *control, const 
  *
  * @param control The fsm control to be started.
  */
-void
+DDS_EXPORT void
 dds_security_fsm_control_stop(struct dds_security_fsm_control *control);
 
 

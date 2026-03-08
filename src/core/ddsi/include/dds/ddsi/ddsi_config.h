@@ -467,7 +467,7 @@ public:
 };
 
 /** @component config */
-struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg, uint32_t domid) ddsrt_nonnull((1,2));
+DDS_EXPORT struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg, uint32_t domid) ddsrt_nonnull((1,2));
 
 /** @component config */
 DDS_EXPORT void ddsi_config_fini (struct ddsi_cfgst *cfgst);

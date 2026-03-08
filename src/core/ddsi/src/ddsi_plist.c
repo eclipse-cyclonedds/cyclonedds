@@ -3588,12 +3588,12 @@ unsigned char *ddsi_plist_quickscan (struct ddsi_rsample_info *dest, const ddsi_
   return NULL;
 }
 
-void ddsi_xqos_init_empty (dds_qos_t *dest)
+void ddsi_xqos_init_empty (dds_qos_t *xqos)
 {
 #ifndef NDEBUG
-  memset (dest, 0x55, sizeof (*dest));
+  memset (xqos, 0x55, sizeof (*xqos));
 #endif
-  dest->present = dest->aliased = 0;
+  xqos->present = xqos->aliased = 0;
 }
 
 const dds_qos_t ddsi_default_qos_reader = {

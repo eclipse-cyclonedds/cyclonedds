@@ -19,7 +19,7 @@ extern "C" {
 #endif
 
 /** @component ip_address */
-enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const ddsi_locator_t *loc, size_t ninterf, const struct ddsi_network_interface *interf, size_t *interf_idx);
+DDS_EXPORT enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const ddsi_locator_t *loc, size_t ninterf, const struct ddsi_network_interface *interf, size_t *interf_idx);
 
 /** @component ip_address */
 enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_locator_t *loc, const char *str, int32_t kind);

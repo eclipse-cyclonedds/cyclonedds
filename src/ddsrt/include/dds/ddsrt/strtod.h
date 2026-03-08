@@ -44,7 +44,7 @@ extern "C" {
  *
  * @returns A dds_return_t indicating success or failure.
  */
-dds_return_t
+DDS_EXPORT dds_return_t
 ddsrt_strtod(const char *nptr, char **endptr, double *dblptr);
 
 /**

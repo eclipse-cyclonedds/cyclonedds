@@ -756,7 +756,7 @@ static void update_participant_spdp_sample (struct ddsi_participant *pp, bool is
   ddsrt_mutex_unlock (&pp->e.lock);
 }
 
-dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const ddsi_plist_t *plist)
+dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const struct ddsi_plist *plist)
 {
   struct ddsi_participant *pp;
   ddsi_guid_t subguid, group_guid;

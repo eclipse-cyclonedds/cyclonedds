@@ -2959,12 +2959,12 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 The default value is: ``none``
 
 ..
-   generated from ddsi_config.h[a96f2afb055d694037710e101e4431ceee2c7c94] 
+   generated from ddsi_config.h[74b5ed784ba4399406cbc4313e079b4837b02d4b] 
    generated from ddsi_config.c[9fb9ace4394a1b7d50f4e0fa3905bbba2a183e36] 
    generated from ddsi__cfgelems.h[5137766e3f48f57c05c3745cc2a2380bf7af82cc] 
    generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] 
    generated from _confgen.h[bb9a0fc6ef1f7f7c46790ee00132e340e5fff36d] 
-   generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] 
+   generated from _confgen.c[f8dbded873e1990a91d29d9cd9eee9a3c96a572d] 
    generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] 
    generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] 
    generated from generate_rst.c[3c4b523fbb57c8e4a7e247379d06a8021ccc21c4] 

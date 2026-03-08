@@ -203,7 +203,7 @@ dds_set_trace_file(
  * @param[in]  userdata  User specified data passed along with each invocation
  *                       of callback.
  */
-void
+DDS_EXPORT void
 dds_set_log_sink(
     dds_log_write_fn_t callback,
     void *userdata);
@@ -224,7 +224,7 @@ dds_set_log_sink(
  * @param[in]  userdata  User specified data passed along with each invocation
  *                       of callback.
  */
-void
+DDS_EXPORT void
 dds_set_trace_sink(
     dds_log_write_fn_t callback,
     void *userdata);
@@ -253,7 +253,7 @@ dds_set_trace_sink(
  * @param[in]  log_fp         File for default sink.
  * @param[in]  trace_fp       File for default sink.
  */
-void
+DDS_EXPORT void
 dds_log_cfg_init(
     struct ddsrt_log_cfg *cfg,
     uint32_t domid,
@@ -268,7 +268,7 @@ dds_log_cfg_init(
  * Direct use of #dds_log is discouraged. Use #DDS_CINFO, #DDS_CWARNING,
  * #DDS_CERROR, #DDS_CTRACE or #DDS_CLOG instead.
  */
-void
+DDS_EXPORT void
 dds_log_cfg(
     const struct ddsrt_log_cfg *cfg,
     uint32_t cat,

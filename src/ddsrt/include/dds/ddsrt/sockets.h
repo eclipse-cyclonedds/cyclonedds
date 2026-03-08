@@ -568,7 +568,7 @@ DDSRT_WARNING_MSVC_ON(4200)
  * @retval DDS_RETCODE_TRY_AGAIN
  *             Nonauthoratitative host not found.
  */
-dds_return_t
+DDS_EXPORT dds_return_t
 ddsrt_gethostbyname(
   const char *name,
   int af,

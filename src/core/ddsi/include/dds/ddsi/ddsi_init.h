@@ -23,22 +23,22 @@ struct ddsi_cfgst;
 struct ddsi_domaingv;
 
 /** @component ddsi_init */
-int ddsi_config_prep (struct ddsi_domaingv *gv, struct ddsi_cfgst *cfgst);
+DDS_EXPORT int ddsi_config_prep (struct ddsi_domaingv *gv, struct ddsi_cfgst *cfgst);
 
 /** @component ddsi_init */
-int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psmx_locators);
+DDS_EXPORT int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psmx_locators);
 
 /** @component ddsi_init */
-int ddsi_start (struct ddsi_domaingv *gv);
+DDS_EXPORT int ddsi_start (struct ddsi_domaingv *gv);
 
 /** @component ddsi_init */
-void ddsi_stop (struct ddsi_domaingv *gv);
+DDS_EXPORT void ddsi_stop (struct ddsi_domaingv *gv);
 
 /** @component ddsi_init */
-void ddsi_fini (struct ddsi_domaingv *gv);
+DDS_EXPORT void ddsi_fini (struct ddsi_domaingv *gv);
 
 /** @component ddsi_generic_entity */
-void ddsi_set_deafmute (struct ddsi_domaingv *gv, bool deaf, bool mute, int64_t reset_after);
+DDS_EXPORT void ddsi_set_deafmute (struct ddsi_domaingv *gv, bool deaf, bool mute, int64_t reset_after);
 
 #if defined (__cplusplus)
 }

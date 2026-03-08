@@ -311,7 +311,7 @@ DDS_EXPORT extern const dds_qos_t ddsi_default_qos_participant;
  *
  * @param[out] xqos  qos object to be initialized.
  */
-void ddsi_xqos_init_empty (dds_qos_t *xqos);
+DDS_EXPORT void ddsi_xqos_init_empty (dds_qos_t *xqos);
 
 /**
  * @brief Copy "src" to "dst"
@@ -333,7 +333,7 @@ void ddsi_xqos_copy (dds_qos_t *dst, const dds_qos_t *src);
  *
  * @param[in] xqos   dds_qos_t for which to free memory
  */
-void ddsi_xqos_fini (dds_qos_t *xqos);
+DDS_EXPORT void ddsi_xqos_fini (dds_qos_t *xqos);
 
 /**
  * @brief Check whether xqos is valid according to the validation rules in the spec
@@ -367,7 +367,7 @@ dds_return_t ddsi_xqos_valid (const struct ddsrt_log_cfg *logcfg, const dds_qos_
  * @param[in]     b       dds_qos_t from which to copy entries
  * @param[in]     mask    which to include (if DDSI_QP_X is set, include X)
  */
-void ddsi_xqos_mergein_missing (dds_qos_t *a, const dds_qos_t *b, uint64_t mask);
+DDS_EXPORT void ddsi_xqos_mergein_missing (dds_qos_t *a, const dds_qos_t *b, uint64_t mask);
 
 /**
  * @brief Determine the set of entries in which "x" differs from "y"

@@ -51,7 +51,7 @@ void ddsi_lease_unregister (struct ddsi_lease *l);
 void ddsi_lease_free (struct ddsi_lease *l);
 
 /** @component lease_handling */
-void ddsi_lease_renew (struct ddsi_lease *l, ddsrt_etime_t tnow);
+DDS_EXPORT void ddsi_lease_renew (struct ddsi_lease *l, ddsrt_etime_t tnow);
 
 /** @component lease_handling */
 void ddsi_lease_set_expiry (struct ddsi_lease *l, ddsrt_etime_t when);

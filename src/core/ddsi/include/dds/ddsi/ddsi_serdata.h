@@ -197,7 +197,7 @@ DDS_EXPORT void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_ser
  * @param[in] fragchain the fragchain argument passed to @ref ddsi_serdata_from_ser (the first one, not any subsequent ones)
  * @returns A pointer to the keyhash in the message if it was present, NULL if not. The lifetime is at least that of the fragchain itself.
  */
-const ddsi_keyhash_t *ddsi_serdata_keyhash_from_fragchain (const struct ddsi_rdata *fragchain)
+DDS_EXPORT const ddsi_keyhash_t *ddsi_serdata_keyhash_from_fragchain (const struct ddsi_rdata *fragchain)
   ddsrt_nonnull_all;
 
 /**

@@ -80,7 +80,7 @@ typedef struct ddsi_participant_generic_message {
  * @param mdata     messate data
  * @param rmid      resulting message identity
  */
-void ddsi_participant_generic_message_init(
+DDS_EXPORT void ddsi_participant_generic_message_init(
    ddsi_participant_generic_message_t *msg,
    const ddsi_guid_t *wrguid,
    ddsi_seqno_t wrseq,
@@ -97,7 +97,7 @@ void ddsi_participant_generic_message_init(
  *
  * @param msg participant generic message
  */
-void ddsi_participant_generic_message_deinit(ddsi_participant_generic_message_t *msg);
+DDS_EXPORT void ddsi_participant_generic_message_deinit(ddsi_participant_generic_message_t *msg);
 
 /**
  * @component security_msg_exchange
@@ -111,11 +111,11 @@ void ddsi_participant_generic_message_deinit(ddsi_participant_generic_message_t 
  * @param bswap byte-swapping required
  * @return dds_return_t
  */
-dds_return_t ddsi_participant_generic_message_deseralize(ddsi_participant_generic_message_t *msg, const unsigned char *data, size_t len,
+DDS_EXPORT dds_return_t ddsi_participant_generic_message_deseralize(ddsi_participant_generic_message_t *msg, const unsigned char *data, size_t len,
    bool bswap);
 
 /** @component security_msg_exchange */
-dds_return_t ddsi_participant_generic_message_serialize(const ddsi_participant_generic_message_t *msg, unsigned char **data, size_t *len);
+DDS_EXPORT dds_return_t ddsi_participant_generic_message_serialize(const ddsi_participant_generic_message_t *msg, unsigned char **data, size_t *len);
 
 DDS_EXPORT extern const enum ddsi_pserop ddsi_pserop_participant_generic_message[];
 DDS_EXPORT extern const size_t ddsi_pserop_participant_generic_message_nops;
