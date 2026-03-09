@@ -27,14 +27,14 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/ddsc_loader.h.in
 
 add_executable(symbol_export_test symbol_export.c 
     ${CMAKE_CURRENT_BINARY_DIR}/include/symbol_export/ddsc_loader.h
-    ${CMAKE_BINARY_DIR}/src/ddsrt/include/dds/config.h # Defines enabled options
-    ${CMAKE_BINARY_DIR}/src/ddsrt/include/dds/features.h 
+    ${CMAKE_CURRENT_BINARY_DIR}/../../../ddsrt/include/dds/config.h # Defines enabled options
+    ${CMAKE_CURRENT_BINARY_DIR}/../../../ddsrt/include/dds/features.h 
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../ddsrt/include/dds/ddsrt/arch.h # Defines DDSRT_64BIT
 )
 
 target_include_directories(symbol_export_test PRIVATE 
-    ${CMAKE_CURRENT_BINARY_DIR}/include
-    ${CMAKE_BINARY_DIR}/src/ddsrt/include
+    ${CMAKE_CURRENT_BINARY_DIR}/include                     # ddsc_loader.h
+    ${CMAKE_CURRENT_BINARY_DIR}/../../../ddsrt/include      # config.h, features.h, version.h
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../ddsrt/include
 )
 
