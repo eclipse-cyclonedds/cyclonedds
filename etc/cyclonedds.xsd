@@ -1,5 +1,10 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" targetNamespace="https://cdds.io/config" xmlns:config="https://cdds.io/config">
+<?xml version="1.0" encoding="UTF-8" ?>
+<xs:schema
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    elementFormDefault="qualified"
+    targetNamespace="https://cdds.io/config"
+    xmlns:config="https://cdds.io/config"
+>
   <xs:element name="CycloneDDS">
     <xs:annotation>
       <xs:documentation>
@@ -7,7 +12,7 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:sequence>
-        <xs:element minOccurs="0" ref="config:Domain"/>
+        <xs:element minOccurs="0" ref="config:Domain" />
       </xs:sequence>
     </xs:complexType>
   </xs:element>
@@ -18,18 +23,18 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="config:Compatibility"/>
-        <xs:element minOccurs="0" ref="config:Discovery"/>
-        <xs:element minOccurs="0" ref="config:General"/>
-        <xs:element minOccurs="0" ref="config:Internal"/>
-        <xs:element minOccurs="0" ref="config:Partitioning"/>
-        <xs:element minOccurs="0" ref="config:SSL"/>
-        <xs:element minOccurs="0" ref="config:Security"/>
-        <xs:element minOccurs="0" ref="config:SharedMemory"/>
-        <xs:element minOccurs="0" ref="config:Sizing"/>
-        <xs:element minOccurs="0" ref="config:TCP"/>
-        <xs:element minOccurs="0" ref="config:Threads"/>
-        <xs:element minOccurs="0" ref="config:Tracing"/>
+        <xs:element minOccurs="0" ref="config:Compatibility" />
+        <xs:element minOccurs="0" ref="config:Discovery" />
+        <xs:element minOccurs="0" ref="config:General" />
+        <xs:element minOccurs="0" ref="config:Internal" />
+        <xs:element minOccurs="0" ref="config:Partitioning" />
+        <xs:element minOccurs="0" ref="config:SSL" />
+        <xs:element minOccurs="0" ref="config:Security" />
+        <xs:element minOccurs="0" ref="config:SharedMemory" />
+        <xs:element minOccurs="0" ref="config:Sizing" />
+        <xs:element minOccurs="0" ref="config:TCP" />
+        <xs:element minOccurs="0" ref="config:Threads" />
+        <xs:element minOccurs="0" ref="config:Tracing" />
       </xs:all>
       <xs:attribute name="Id">
         <xs:annotation>
@@ -47,13 +52,16 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="config:AllowInvalidTryConstruct"/>
-        <xs:element minOccurs="0" ref="config:AssumeRtiHasPmdEndpoints"/>
-        <xs:element minOccurs="0" ref="config:ExplicitlyPublishQosSetToDefault"/>
-        <xs:element minOccurs="0" ref="config:IgnoreTypeInformation"/>
-        <xs:element minOccurs="0" ref="config:ManySocketsMode"/>
-        <xs:element minOccurs="0" ref="config:ProtocolVersion"/>
-        <xs:element minOccurs="0" ref="config:StandardsConformance"/>
+        <xs:element minOccurs="0" ref="config:AllowInvalidTryConstruct" />
+        <xs:element minOccurs="0" ref="config:AssumeRtiHasPmdEndpoints" />
+        <xs:element
+                    minOccurs="0"
+                    ref="config:ExplicitlyPublishQosSetToDefault"
+                />
+        <xs:element minOccurs="0" ref="config:IgnoreTypeInformation" />
+        <xs:element minOccurs="0" ref="config:ManySocketsMode" />
+        <xs:element minOccurs="0" ref="config:ProtocolVersion" />
+        <xs:element minOccurs="0" ref="config:StandardsConformance" />
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -95,11 +103,11 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:simpleType>
       <xs:restriction base="xs:token">
-        <xs:enumeration value="false"/>
-        <xs:enumeration value="true"/>
-        <xs:enumeration value="single"/>
-        <xs:enumeration value="none"/>
-        <xs:enumeration value="many"/>
+        <xs:enumeration value="false" />
+        <xs:enumeration value="true" />
+        <xs:enumeration value="single" />
+        <xs:enumeration value="none" />
+        <xs:enumeration value="many" />
       </xs:restriction>
     </xs:simpleType>
   </xs:element>
@@ -115,15 +123,15 @@ CycloneDDS configuration</xs:documentation>
       <xs:documentation>
 &lt;p&gt;This element sets the level of standards conformance of this instance of the Cyclone DDS Service. Stricter conformance typically means less interoperability with other implementations. Currently, three modes are defined:&lt;/p&gt;
 &lt;ul&gt;&lt;li&gt;&lt;i&gt;pedantic&lt;/i&gt;: very strictly conform to the specification, ultimately for compliance testing, but currently of little value because it adheres even to what will most likely turn out to be editing errors in the DDSI standard. Arguably, as long as no errata have been published, the current text is in effect, and that is what pedantic currently does.&lt;/li&gt;
-&lt;li&gt;&lt;i&gt;strict&lt;/i&gt;: a relatively less strict view of the standard than does pedantic: it follows the established behaviour where the standard is obviously in error.&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;strict&lt;/i&gt;: a relatively less strict view of the standard than does pedantic: it follows the established behavior where the standard is obviously in error.&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;lax&lt;/i&gt;: attempt to provide the smoothest possible interoperability, anticipating future revisions of elements in the standard in areas that other implementations do not adhere to, even though there is no good reason not to.&lt;/li&gt;&lt;/ul&gt;
 &lt;p&gt;The default value is: &lt;code&gt;lax&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:simpleType>
       <xs:restriction base="xs:token">
-        <xs:enumeration value="lax"/>
-        <xs:enumeration value="strict"/>
-        <xs:enumeration value="pedantic"/>
+        <xs:enumeration value="lax" />
+        <xs:enumeration value="strict" />
+        <xs:enumeration value="pedantic" />
       </xs:restriction>
     </xs:simpleType>
   </xs:element>
@@ -134,20 +142,20 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="config:DSGracePeriod"/>
-        <xs:element minOccurs="0" ref="config:DefaultMulticastAddress"/>
-        <xs:element minOccurs="0" ref="config:DiscoveredLocatorPruneDelay"/>
-        <xs:element minOccurs="0" ref="config:EnableTopicDiscoveryEndpoints"/>
-        <xs:element minOccurs="0" ref="config:ExternalDomainId"/>
-        <xs:element minOccurs="0" ref="config:InitialLocatorPruneDelay"/>
-        <xs:element minOccurs="0" ref="config:LeaseDuration"/>
-        <xs:element minOccurs="0" ref="config:MaxAutoParticipantIndex"/>
-        <xs:element minOccurs="0" ref="config:ParticipantIndex"/>
-        <xs:element minOccurs="0" ref="config:Peers"/>
-        <xs:element minOccurs="0" ref="config:Ports"/>
-        <xs:element minOccurs="0" ref="config:SPDPInterval"/>
-        <xs:element minOccurs="0" ref="config:SPDPMulticastAddress"/>
-        <xs:element minOccurs="0" ref="config:Tag"/>
+        <xs:element minOccurs="0" ref="config:DSGracePeriod" />
+        <xs:element minOccurs="0" ref="config:DefaultMulticastAddress" />
+        <xs:element minOccurs="0" ref="config:DiscoveredLocatorPruneDelay" />
+        <xs:element minOccurs="0" ref="config:EnableTopicDiscoveryEndpoints" />
+        <xs:element minOccurs="0" ref="config:ExternalDomainId" />
+        <xs:element minOccurs="0" ref="config:InitialLocatorPruneDelay" />
+        <xs:element minOccurs="0" ref="config:LeaseDuration" />
+        <xs:element minOccurs="0" ref="config:MaxAutoParticipantIndex" />
+        <xs:element minOccurs="0" ref="config:ParticipantIndex" />
+        <xs:element minOccurs="0" ref="config:Peers" />
+        <xs:element minOccurs="0" ref="config:Ports" />
+        <xs:element minOccurs="0" ref="config:SPDPInterval" />
+        <xs:element minOccurs="0" ref="config:SPDPMulticastAddress" />
+        <xs:element minOccurs="0" ref="config:Tag" />
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -228,7 +236,7 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:sequence>
-        <xs:element minOccurs="0" maxOccurs="unbounded" ref="config:Peer"/>
+        <xs:element minOccurs="0" maxOccurs="unbounded" ref="config:Peer" />
       </xs:sequence>
       <xs:attribute name="AddLocalhost" type="xs:boolean">
         <xs:annotation>
@@ -272,13 +280,13 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="config:Base"/>
-        <xs:element minOccurs="0" ref="config:DomainGain"/>
-        <xs:element minOccurs="0" ref="config:MulticastDataOffset"/>
-        <xs:element minOccurs="0" ref="config:MulticastMetaOffset"/>
-        <xs:element minOccurs="0" ref="config:ParticipantGain"/>
-        <xs:element minOccurs="0" ref="config:UnicastDataOffset"/>
-        <xs:element minOccurs="0" ref="config:UnicastMetaOffset"/>
+        <xs:element minOccurs="0" ref="config:Base" />
+        <xs:element minOccurs="0" ref="config:DomainGain" />
+        <xs:element minOccurs="0" ref="config:MulticastDataOffset" />
+        <xs:element minOccurs="0" ref="config:MulticastMetaOffset" />
+        <xs:element minOccurs="0" ref="config:ParticipantGain" />
+        <xs:element minOccurs="0" ref="config:UnicastDataOffset" />
+        <xs:element minOccurs="0" ref="config:UnicastMetaOffset" />
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -367,30 +375,33 @@ CycloneDDS configuration</xs:documentation>
           </xs:annotation>
           <xs:complexType>
             <xs:all>
-              <xs:element minOccurs="0" ref="config:delivered"/>
-              <xs:element minOccurs="0" ref="config:discarded"/>
-              <xs:element minOccurs="0" ref="config:mc"/>
-              <xs:element minOccurs="0" ref="config:redundant_psmx"/>
-              <xs:element minOccurs="0" ref="config:ssm"/>
-              <xs:element minOccurs="0" ref="config:uc"/>
+              <xs:element minOccurs="0" ref="config:delivered" />
+              <xs:element minOccurs="0" ref="config:discarded" />
+              <xs:element minOccurs="0" ref="config:mc" />
+              <xs:element minOccurs="0" ref="config:redundant_psmx" />
+              <xs:element minOccurs="0" ref="config:ssm" />
+              <xs:element minOccurs="0" ref="config:uc" />
             </xs:all>
           </xs:complexType>
         </xs:element>
-        <xs:element minOccurs="0" ref="config:AllowMulticast"/>
-        <xs:element minOccurs="0" ref="config:DontRoute"/>
-        <xs:element minOccurs="0" ref="config:EnableMulticastLoopback"/>
-        <xs:element minOccurs="0" ref="config:EntityAutoNaming"/>
-        <xs:element minOccurs="0" ref="config:ExternalNetworkAddress"/>
-        <xs:element minOccurs="0" ref="config:ExternalNetworkMask"/>
-        <xs:element minOccurs="0" ref="config:FragmentSize"/>
-        <xs:element minOccurs="0" ref="config:Interfaces"/>
-        <xs:element minOccurs="0" ref="config:MaxMessageSize"/>
-        <xs:element minOccurs="0" ref="config:MaxRexmitMessageSize"/>
-        <xs:element minOccurs="0" ref="config:MulticastRecvNetworkInterfaceAddresses"/>
-        <xs:element minOccurs="0" ref="config:MulticastTimeToLive"/>
-        <xs:element minOccurs="0" ref="config:RedundantNetworking"/>
-        <xs:element minOccurs="0" ref="config:Transport"/>
-        <xs:element minOccurs="0" ref="config:UseIPv6"/>
+        <xs:element minOccurs="0" ref="config:AllowMulticast" />
+        <xs:element minOccurs="0" ref="config:DontRoute" />
+        <xs:element minOccurs="0" ref="config:EnableMulticastLoopback" />
+        <xs:element minOccurs="0" ref="config:EntityAutoNaming" />
+        <xs:element minOccurs="0" ref="config:ExternalNetworkAddress" />
+        <xs:element minOccurs="0" ref="config:ExternalNetworkMask" />
+        <xs:element minOccurs="0" ref="config:FragmentSize" />
+        <xs:element minOccurs="0" ref="config:Interfaces" />
+        <xs:element minOccurs="0" ref="config:MaxMessageSize" />
+        <xs:element minOccurs="0" ref="config:MaxRexmitMessageSize" />
+        <xs:element
+                    minOccurs="0"
+                    ref="config:MulticastRecvNetworkInterfaceAddresses"
+                />
+        <xs:element minOccurs="0" ref="config:MulticastTimeToLive" />
+        <xs:element minOccurs="0" ref="config:RedundantNetworking" />
+        <xs:element minOccurs="0" ref="config:Transport" />
+        <xs:element minOccurs="0" ref="config:UseIPv6" />
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -451,7 +462,9 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:simpleType>
       <xs:restriction base="xs:token">
-        <xs:pattern value="default|((false|spdp|asm|ssm|true|default)(,(false|spdp|asm|ssm|true|default))*)"/>
+        <xs:pattern
+                    value="default|((false|spdp|asm|ssm|true|default)(,(false|spdp|asm|ssm|true|default))*)"
+                />
       </xs:restriction>
     </xs:simpleType>
   </xs:element>
@@ -480,8 +493,8 @@ CycloneDDS configuration</xs:documentation>
         <xs:restriction base="xs:anyType">
           <xs:simpleType>
             <xs:restriction base="xs:token">
-              <xs:enumeration value="empty"/>
-              <xs:enumeration value="fancy"/>
+              <xs:enumeration value="empty" />
+              <xs:enumeration value="fancy" />
             </xs:restriction>
           </xs:simpleType>
           <xs:attribute name="seed">
@@ -524,8 +537,8 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:choice minOccurs="0" maxOccurs="unbounded">
-        <xs:element ref="config:NetworkInterface"/>
-        <xs:element ref="config:PubSubMessageExchange"/>
+        <xs:element ref="config:NetworkInterface" />
+        <xs:element ref="config:PubSubMessageExchange" />
       </xs:choice>
     </xs:complexType>
   </xs:element>
@@ -543,12 +556,12 @@ CycloneDDS configuration</xs:documentation>
           </xs:annotation>
           <xs:complexType>
             <xs:all>
-              <xs:element minOccurs="0" ref="config:delivered"/>
-              <xs:element minOccurs="0" ref="config:discarded"/>
-              <xs:element minOccurs="0" ref="config:mc"/>
-              <xs:element minOccurs="0" ref="config:redundant_psmx"/>
-              <xs:element minOccurs="0" ref="config:ssm"/>
-              <xs:element minOccurs="0" ref="config:uc"/>
+              <xs:element minOccurs="0" ref="config:delivered" />
+              <xs:element minOccurs="0" ref="config:discarded" />
+              <xs:element minOccurs="0" ref="config:mc" />
+              <xs:element minOccurs="0" ref="config:redundant_psmx" />
+              <xs:element minOccurs="0" ref="config:ssm" />
+              <xs:element minOccurs="0" ref="config:uc" />
             </xs:all>
           </xs:complexType>
         </xs:element>
@@ -575,7 +588,9 @@ CycloneDDS configuration</xs:documentation>
         </xs:annotation>
         <xs:simpleType>
           <xs:restriction base="xs:token">
-            <xs:pattern value="default|((false|spdp|asm|ssm|true|default)(,(false|spdp|asm|ssm|true|default))*)"/>
+            <xs:pattern
+                            value="default|((false|spdp|asm|ssm|true|default)(,(false|spdp|asm|ssm|true|default))*)"
+                        />
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>
@@ -714,12 +729,12 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:simpleType>
       <xs:restriction base="xs:token">
-        <xs:enumeration value="default"/>
-        <xs:enumeration value="udp"/>
-        <xs:enumeration value="udp6"/>
-        <xs:enumeration value="tcp"/>
-        <xs:enumeration value="tcp6"/>
-        <xs:enumeration value="raweth"/>
+        <xs:enumeration value="default" />
+        <xs:enumeration value="udp" />
+        <xs:enumeration value="udp6" />
+        <xs:enumeration value="tcp" />
+        <xs:enumeration value="tcp6" />
+        <xs:enumeration value="raweth" />
       </xs:restriction>
     </xs:simpleType>
   </xs:element>
@@ -731,9 +746,9 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:simpleType>
       <xs:restriction base="xs:token">
-        <xs:enumeration value="false"/>
-        <xs:enumeration value="true"/>
-        <xs:enumeration value="default"/>
+        <xs:enumeration value="false" />
+        <xs:enumeration value="true" />
+        <xs:enumeration value="default" />
       </xs:restriction>
     </xs:simpleType>
   </xs:element>
@@ -744,47 +759,53 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="config:AccelerateRexmitBlockSize"/>
-        <xs:element minOccurs="0" ref="config:AckDelay"/>
-        <xs:element minOccurs="0" ref="config:AutoReschedNackDelay"/>
-        <xs:element minOccurs="0" ref="config:BuiltinEndpointSet"/>
-        <xs:element minOccurs="0" ref="config:BurstSize"/>
-        <xs:element minOccurs="0" ref="config:ControlTopic"/>
-        <xs:element minOccurs="0" ref="config:DefragReliableMaxSamples"/>
-        <xs:element minOccurs="0" ref="config:DefragUnreliableMaxSamples"/>
-        <xs:element minOccurs="0" ref="config:DeliveryQueueMaxSamples"/>
-        <xs:element minOccurs="0" ref="config:EnableExpensiveChecks"/>
-        <xs:element minOccurs="0" ref="config:ExtendedPacketInfo"/>
-        <xs:element minOccurs="0" ref="config:GenerateKeyhash"/>
-        <xs:element minOccurs="0" ref="config:HeartbeatInterval"/>
-        <xs:element minOccurs="0" ref="config:LateAckMode"/>
-        <xs:element minOccurs="0" ref="config:LivelinessMonitoring"/>
-        <xs:element minOccurs="0" ref="config:MaxParticipants"/>
-        <xs:element minOccurs="0" ref="config:MaxQueuedRexmitBytes"/>
-        <xs:element minOccurs="0" ref="config:MaxQueuedRexmitMessages"/>
-        <xs:element minOccurs="0" ref="config:MaxSampleSize"/>
-        <xs:element minOccurs="0" ref="config:MeasureHbToAckLatency"/>
-        <xs:element minOccurs="0" ref="config:MonitorPort"/>
-        <xs:element minOccurs="0" ref="config:MultipleReceiveThreads"/>
-        <xs:element minOccurs="0" ref="config:NackDelay"/>
-        <xs:element minOccurs="0" ref="config:PreEmptiveAckDelay"/>
-        <xs:element minOccurs="0" ref="config:PrimaryReorderMaxSamples"/>
-        <xs:element minOccurs="0" ref="config:PrioritizeRetransmit"/>
-        <xs:element minOccurs="0" ref="config:RediscoveryBlacklistDuration"/>
-        <xs:element minOccurs="0" ref="config:RetransmitMerging"/>
-        <xs:element minOccurs="0" ref="config:RetransmitMergingPeriod"/>
-        <xs:element minOccurs="0" ref="config:RetryOnRejectBestEffort"/>
-        <xs:element minOccurs="0" ref="config:SPDPResponseMaxDelay"/>
-        <xs:element minOccurs="0" ref="config:SecondaryReorderMaxSamples"/>
-        <xs:element minOccurs="0" ref="config:SocketReceiveBufferSize"/>
-        <xs:element minOccurs="0" ref="config:SocketSendBufferSize"/>
-        <xs:element minOccurs="0" ref="config:SquashParticipants"/>
-        <xs:element minOccurs="0" ref="config:SynchronousDeliveryLatencyBound"/>
-        <xs:element minOccurs="0" ref="config:SynchronousDeliveryPriorityThreshold"/>
-        <xs:element minOccurs="0" ref="config:Test"/>
-        <xs:element minOccurs="0" ref="config:UseMulticastIfMreqn"/>
-        <xs:element minOccurs="0" ref="config:Watermarks"/>
-        <xs:element minOccurs="0" ref="config:WriterLingerDuration"/>
+        <xs:element minOccurs="0" ref="config:AccelerateRexmitBlockSize" />
+        <xs:element minOccurs="0" ref="config:AckDelay" />
+        <xs:element minOccurs="0" ref="config:AutoReschedNackDelay" />
+        <xs:element minOccurs="0" ref="config:BuiltinEndpointSet" />
+        <xs:element minOccurs="0" ref="config:BurstSize" />
+        <xs:element minOccurs="0" ref="config:ControlTopic" />
+        <xs:element minOccurs="0" ref="config:DefragReliableMaxSamples" />
+        <xs:element minOccurs="0" ref="config:DefragUnreliableMaxSamples" />
+        <xs:element minOccurs="0" ref="config:DeliveryQueueMaxSamples" />
+        <xs:element minOccurs="0" ref="config:EnableExpensiveChecks" />
+        <xs:element minOccurs="0" ref="config:ExtendedPacketInfo" />
+        <xs:element minOccurs="0" ref="config:GenerateKeyhash" />
+        <xs:element minOccurs="0" ref="config:HeartbeatInterval" />
+        <xs:element minOccurs="0" ref="config:LateAckMode" />
+        <xs:element minOccurs="0" ref="config:LivelinessMonitoring" />
+        <xs:element minOccurs="0" ref="config:MaxParticipants" />
+        <xs:element minOccurs="0" ref="config:MaxQueuedRexmitBytes" />
+        <xs:element minOccurs="0" ref="config:MaxQueuedRexmitMessages" />
+        <xs:element minOccurs="0" ref="config:MaxSampleSize" />
+        <xs:element minOccurs="0" ref="config:MeasureHbToAckLatency" />
+        <xs:element minOccurs="0" ref="config:MonitorPort" />
+        <xs:element minOccurs="0" ref="config:MultipleReceiveThreads" />
+        <xs:element minOccurs="0" ref="config:NackDelay" />
+        <xs:element minOccurs="0" ref="config:PreEmptiveAckDelay" />
+        <xs:element minOccurs="0" ref="config:PrimaryReorderMaxSamples" />
+        <xs:element minOccurs="0" ref="config:PrioritizeRetransmit" />
+        <xs:element minOccurs="0" ref="config:RediscoveryBlacklistDuration" />
+        <xs:element minOccurs="0" ref="config:RetransmitMerging" />
+        <xs:element minOccurs="0" ref="config:RetransmitMergingPeriod" />
+        <xs:element minOccurs="0" ref="config:RetryOnRejectBestEffort" />
+        <xs:element minOccurs="0" ref="config:SPDPResponseMaxDelay" />
+        <xs:element minOccurs="0" ref="config:SecondaryReorderMaxSamples" />
+        <xs:element minOccurs="0" ref="config:SocketReceiveBufferSize" />
+        <xs:element minOccurs="0" ref="config:SocketSendBufferSize" />
+        <xs:element minOccurs="0" ref="config:SquashParticipants" />
+        <xs:element
+                    minOccurs="0"
+                    ref="config:SynchronousDeliveryLatencyBound"
+                />
+        <xs:element
+                    minOccurs="0"
+                    ref="config:SynchronousDeliveryPriorityThreshold"
+                />
+        <xs:element minOccurs="0" ref="config:Test" />
+        <xs:element minOccurs="0" ref="config:UseMulticastIfMreqn" />
+        <xs:element minOccurs="0" ref="config:Watermarks" />
+        <xs:element minOccurs="0" ref="config:WriterLingerDuration" />
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -822,8 +843,8 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:simpleType>
       <xs:restriction base="xs:token">
-        <xs:enumeration value="full"/>
-        <xs:enumeration value="writers"/>
+        <xs:enumeration value="full" />
+        <xs:enumeration value="writers" />
       </xs:restriction>
     </xs:simpleType>
   </xs:element>
@@ -834,9 +855,9 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="config:MaxFragsRexmitSample"/>
-        <xs:element minOccurs="0" ref="config:MaxInitTransmit"/>
-        <xs:element minOccurs="0" ref="config:MaxRexmit"/>
+        <xs:element minOccurs="0" ref="config:MaxFragsRexmitSample" />
+        <xs:element minOccurs="0" ref="config:MaxInitTransmit" />
+        <xs:element minOccurs="0" ref="config:MaxRexmit" />
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -867,7 +888,7 @@ CycloneDDS configuration</xs:documentation>
       <xs:documentation>
 &lt;p&gt;The ControlTopic element allows configured whether Cyclone DDS provides a special control interface via a predefined topic or not.&lt;p&gt;</xs:documentation>
     </xs:annotation>
-    <xs:complexType/>
+    <xs:complexType />
   </xs:element>
   <xs:element name="DefragReliableMaxSamples" type="xs:integer">
     <xs:annotation>
@@ -903,7 +924,7 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:simpleType>
       <xs:restriction base="xs:token">
-        <xs:pattern value="((whc|rhc|xevent|all)(,(whc|rhc|xevent|all))*)|"/>
+        <xs:pattern value="((whc|rhc|xevent|all)(,(whc|rhc|xevent|all))*)|" />
       </xs:restriction>
     </xs:simpleType>
   </xs:element>
@@ -1027,7 +1048,7 @@ CycloneDDS configuration</xs:documentation>
   <xs:element name="MeasureHbToAckLatency" type="xs:boolean">
     <xs:annotation>
       <xs:documentation>
-&lt;p&gt;This element enables heartbeat-to-ack latency among Cyclone DDS services by prepending timestamps to Heartbeat and AckNack messages and calculating round trip times. This is non-standard behaviour. The measured latencies are quite noisy and are currently not used anywhere.&lt;/p&gt;
+&lt;p&gt;This element enables heartbeat-to-ack latency among Cyclone DDS services by prepending timestamps to Heartbeat and AckNack messages and calculating round trip times. This is non-standard behavior. The measured latencies are quite noisy and are currently not used anywhere.&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;false&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
@@ -1049,9 +1070,9 @@ CycloneDDS configuration</xs:documentation>
         <xs:restriction base="xs:anyType">
           <xs:simpleType>
             <xs:restriction base="xs:token">
-              <xs:enumeration value="false"/>
-              <xs:enumeration value="true"/>
-              <xs:enumeration value="default"/>
+              <xs:enumeration value="false" />
+              <xs:enumeration value="true" />
+              <xs:enumeration value="default" />
             </xs:restriction>
           </xs:simpleType>
           <xs:attribute name="maxretries" type="xs:integer">
@@ -1128,9 +1149,9 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:simpleType>
       <xs:restriction base="xs:token">
-        <xs:enumeration value="never"/>
-        <xs:enumeration value="adaptive"/>
-        <xs:enumeration value="always"/>
+        <xs:enumeration value="never" />
+        <xs:enumeration value="adaptive" />
+        <xs:enumeration value="always" />
       </xs:restriction>
     </xs:simpleType>
   </xs:element>
@@ -1244,7 +1265,7 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:sequence>
-        <xs:element minOccurs="0" ref="config:XmitLossiness"/>
+        <xs:element minOccurs="0" ref="config:XmitLossiness" />
       </xs:sequence>
     </xs:complexType>
   </xs:element>
@@ -1269,10 +1290,10 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="config:WhcAdaptive"/>
-        <xs:element minOccurs="0" ref="config:WhcHigh"/>
-        <xs:element minOccurs="0" ref="config:WhcHighInit"/>
-        <xs:element minOccurs="0" ref="config:WhcLow"/>
+        <xs:element minOccurs="0" ref="config:WhcAdaptive" />
+        <xs:element minOccurs="0" ref="config:WhcHigh" />
+        <xs:element minOccurs="0" ref="config:WhcHighInit" />
+        <xs:element minOccurs="0" ref="config:WhcLow" />
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -1322,9 +1343,9 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="config:IgnoredPartitions"/>
-        <xs:element minOccurs="0" ref="config:NetworkPartitions"/>
-        <xs:element minOccurs="0" ref="config:PartitionMappings"/>
+        <xs:element minOccurs="0" ref="config:IgnoredPartitions" />
+        <xs:element minOccurs="0" ref="config:NetworkPartitions" />
+        <xs:element minOccurs="0" ref="config:PartitionMappings" />
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -1335,7 +1356,11 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:sequence>
-        <xs:element minOccurs="0" maxOccurs="unbounded" ref="config:IgnoredPartition"/>
+        <xs:element
+                    minOccurs="0"
+                    maxOccurs="unbounded"
+                    ref="config:IgnoredPartition"
+                />
       </xs:sequence>
     </xs:complexType>
   </xs:element>
@@ -1362,7 +1387,11 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:sequence>
-        <xs:element minOccurs="0" maxOccurs="unbounded" ref="config:NetworkPartition"/>
+        <xs:element
+                    minOccurs="0"
+                    maxOccurs="unbounded"
+                    ref="config:NetworkPartition"
+                />
       </xs:sequence>
     </xs:complexType>
   </xs:element>
@@ -1403,7 +1432,11 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:sequence>
-        <xs:element minOccurs="0" maxOccurs="unbounded" ref="config:PartitionMapping"/>
+        <xs:element
+                    minOccurs="0"
+                    maxOccurs="unbounded"
+                    ref="config:PartitionMapping"
+                />
       </xs:sequence>
     </xs:complexType>
   </xs:element>
@@ -1437,8 +1470,8 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="config:CertificateVerification"/>
-        <xs:element minOccurs="0" ref="config:Ciphers"/>
+        <xs:element minOccurs="0" ref="config:CertificateVerification" />
+        <xs:element minOccurs="0" ref="config:Ciphers" />
         <xs:element minOccurs="0" name="Enable" type="xs:boolean">
           <xs:annotation>
             <xs:documentation>
@@ -1446,12 +1479,12 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;The default value is: &lt;code&gt;false&lt;/code&gt;&lt;/p&gt;</xs:documentation>
           </xs:annotation>
         </xs:element>
-        <xs:element minOccurs="0" ref="config:EntropyFile"/>
-        <xs:element minOccurs="0" ref="config:KeyPassphrase"/>
-        <xs:element minOccurs="0" ref="config:KeystoreFile"/>
-        <xs:element minOccurs="0" ref="config:MinimumTLSVersion"/>
-        <xs:element minOccurs="0" ref="config:SelfSignedCertificates"/>
-        <xs:element minOccurs="0" ref="config:VerifyClient"/>
+        <xs:element minOccurs="0" ref="config:EntropyFile" />
+        <xs:element minOccurs="0" ref="config:KeyPassphrase" />
+        <xs:element minOccurs="0" ref="config:KeystoreFile" />
+        <xs:element minOccurs="0" ref="config:MinimumTLSVersion" />
+        <xs:element minOccurs="0" ref="config:SelfSignedCertificates" />
+        <xs:element minOccurs="0" ref="config:VerifyClient" />
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -1518,9 +1551,9 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="config:AccessControl"/>
-        <xs:element minOccurs="0" ref="config:Authentication"/>
-        <xs:element minOccurs="0" ref="config:Cryptographic"/>
+        <xs:element minOccurs="0" ref="config:AccessControl" />
+        <xs:element minOccurs="0" ref="config:Authentication" />
+        <xs:element minOccurs="0" ref="config:Cryptographic" />
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -1531,7 +1564,7 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="config:Governance"/>
+        <xs:element minOccurs="0" ref="config:Governance" />
         <xs:element minOccurs="0" name="Library">
           <xs:annotation>
             <xs:documentation>
@@ -1564,8 +1597,8 @@ CycloneDDS configuration</xs:documentation>
             </xs:attribute>
           </xs:complexType>
         </xs:element>
-        <xs:element minOccurs="0" ref="config:Permissions"/>
-        <xs:element minOccurs="0" ref="config:PermissionsCA"/>
+        <xs:element minOccurs="0" ref="config:Permissions" />
+        <xs:element minOccurs="0" ref="config:PermissionsCA" />
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -1633,10 +1666,10 @@ CycloneDDS configuration</xs:documentation>
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="config:CRL"/>
-        <xs:element ref="config:IdentityCA"/>
-        <xs:element ref="config:IdentityCertificate"/>
-        <xs:element minOccurs="0" ref="config:IncludeOptionalFields"/>
+        <xs:element minOccurs="0" ref="config:CRL" />
+        <xs:element ref="config:IdentityCA" />
+        <xs:element ref="config:IdentityCertificate" />
+        <xs:element minOccurs="0" ref="config:IncludeOptionalFields" />
         <xs:element minOccurs="0" name="Library">
           <xs:annotation>
             <xs:documentation>
@@ -1669,9 +1702,9 @@ CycloneDDS configuration</xs:documentation>
             </xs:attribute>
           </xs:complexType>
         </xs:element>
-        <xs:element minOccurs="0" ref="config:Password"/>
-        <xs:element ref="config:PrivateKey"/>
-        <xs:element minOccurs="0" ref="config:TrustedCADirectory"/>
+        <xs:element minOccurs="0" ref="config:Password" />
+        <xs:element ref="config:PrivateKey" />
+        <xs:element minOccurs="0" ref="config:TrustedCADirectory" />
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -1798,7 +1831,7 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
       <xs:documentation>
 &lt;p&gt;The Shared Memory element allows specifying various parameters related to using shared memory.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
-    <xs:complexType/>
+    <xs:complexType />
   </xs:element>
   <xs:element name="Sizing">
     <xs:annotation>
@@ -1807,8 +1840,8 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="config:ReceiveBufferChunkSize"/>
-        <xs:element minOccurs="0" ref="config:ReceiveBufferSize"/>
+        <xs:element minOccurs="0" ref="config:ReceiveBufferChunkSize" />
+        <xs:element minOccurs="0" ref="config:ReceiveBufferSize" />
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -1835,7 +1868,7 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="config:AlwaysUsePeeraddrForUnicast"/>
+        <xs:element minOccurs="0" ref="config:AlwaysUsePeeraddrForUnicast" />
         <xs:element minOccurs="0" name="Enable">
           <xs:annotation>
             <xs:documentation>
@@ -1844,16 +1877,16 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
           </xs:annotation>
           <xs:simpleType>
             <xs:restriction base="xs:token">
-              <xs:enumeration value="false"/>
-              <xs:enumeration value="true"/>
-              <xs:enumeration value="default"/>
+              <xs:enumeration value="false" />
+              <xs:enumeration value="true" />
+              <xs:enumeration value="default" />
             </xs:restriction>
           </xs:simpleType>
         </xs:element>
-        <xs:element minOccurs="0" ref="config:NoDelay"/>
-        <xs:element minOccurs="0" ref="config:Port"/>
-        <xs:element minOccurs="0" ref="config:ReadTimeout"/>
-        <xs:element minOccurs="0" ref="config:WriteTimeout"/>
+        <xs:element minOccurs="0" ref="config:NoDelay" />
+        <xs:element minOccurs="0" ref="config:Port" />
+        <xs:element minOccurs="0" ref="config:ReadTimeout" />
+        <xs:element minOccurs="0" ref="config:WriteTimeout" />
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -1901,7 +1934,7 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:annotation>
     <xs:complexType>
       <xs:sequence>
-        <xs:element minOccurs="0" maxOccurs="unbounded" ref="config:Thread"/>
+        <xs:element minOccurs="0" maxOccurs="unbounded" ref="config:Thread" />
       </xs:sequence>
     </xs:complexType>
   </xs:element>
@@ -1912,8 +1945,8 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="config:Scheduling"/>
-        <xs:element minOccurs="0" ref="config:StackSize"/>
+        <xs:element minOccurs="0" ref="config:Scheduling" />
+        <xs:element minOccurs="0" ref="config:StackSize" />
       </xs:all>
       <xs:attribute name="Name" use="required">
         <xs:annotation>
@@ -1941,9 +1974,9 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="config:Affinity"/>
-        <xs:element minOccurs="0" ref="config:Class"/>
-        <xs:element minOccurs="0" ref="config:Priority"/>
+        <xs:element minOccurs="0" ref="config:Affinity" />
+        <xs:element minOccurs="0" ref="config:Class" />
+        <xs:element minOccurs="0" ref="config:Priority" />
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -1962,9 +1995,9 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:annotation>
     <xs:simpleType>
       <xs:restriction base="xs:token">
-        <xs:enumeration value="realtime"/>
-        <xs:enumeration value="timeshare"/>
-        <xs:enumeration value="default"/>
+        <xs:enumeration value="realtime" />
+        <xs:enumeration value="timeshare" />
+        <xs:enumeration value="default" />
       </xs:restriction>
     </xs:simpleType>
   </xs:element>
@@ -1990,11 +2023,11 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:annotation>
     <xs:complexType>
       <xs:all>
-        <xs:element minOccurs="0" ref="config:AppendToFile"/>
-        <xs:element minOccurs="0" ref="config:Category"/>
-        <xs:element minOccurs="0" ref="config:OutputFile"/>
-        <xs:element minOccurs="0" ref="config:PacketCaptureFile"/>
-        <xs:element minOccurs="0" ref="config:Verbosity"/>
+        <xs:element minOccurs="0" ref="config:AppendToFile" />
+        <xs:element minOccurs="0" ref="config:Category" />
+        <xs:element minOccurs="0" ref="config:OutputFile" />
+        <xs:element minOccurs="0" ref="config:PacketCaptureFile" />
+        <xs:element minOccurs="0" ref="config:Verbosity" />
       </xs:all>
     </xs:complexType>
   </xs:element>
@@ -2039,7 +2072,9 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:annotation>
     <xs:simpleType>
       <xs:restriction base="xs:token">
-        <xs:pattern value="((fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|malformed|trace|user|user1|user2|user3)(,(fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|malformed|trace|user|user1|user2|user3))*)|"/>
+        <xs:pattern
+                    value="((fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|malformed|trace|user|user1|user2|user3)(,(fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|malformed|trace|user|user1|user2|user3))*)|"
+                />
       </xs:restriction>
     </xs:simpleType>
   </xs:element>
@@ -2075,56 +2110,70 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:annotation>
     <xs:simpleType>
       <xs:restriction base="xs:token">
-        <xs:enumeration value="finest"/>
-        <xs:enumeration value="finer"/>
-        <xs:enumeration value="fine"/>
-        <xs:enumeration value="config"/>
-        <xs:enumeration value="info"/>
-        <xs:enumeration value="warning"/>
-        <xs:enumeration value="severe"/>
-        <xs:enumeration value="none"/>
+        <xs:enumeration value="finest" />
+        <xs:enumeration value="finer" />
+        <xs:enumeration value="fine" />
+        <xs:enumeration value="config" />
+        <xs:enumeration value="info" />
+        <xs:enumeration value="warning" />
+        <xs:enumeration value="severe" />
+        <xs:enumeration value="none" />
       </xs:restriction>
     </xs:simpleType>
   </xs:element>
   <xs:simpleType name="bandwidth">
     <xs:restriction base="xs:token">
-      <xs:pattern value="0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([kMG]i?)?[Bb][p/]s"/>
+      <xs:pattern
+                value="0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([kMG]i?)?[Bb][p/]s"
+            />
     </xs:restriction>
   </xs:simpleType>
   <xs:simpleType name="duration">
     <xs:restriction base="xs:token">
-      <xs:pattern value="0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([num]?s|min|hr|day)"/>
+      <xs:pattern
+                value="0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([num]?s|min|hr|day)"
+            />
     </xs:restriction>
   </xs:simpleType>
   <xs:simpleType name="duration_inf">
     <xs:restriction base="xs:token">
-      <xs:pattern value="inf|0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([num]?s|min|hr|day)"/>
+      <xs:pattern
+                value="inf|0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([num]?s|min|hr|day)"
+            />
     </xs:restriction>
   </xs:simpleType>
   <xs:simpleType name="maybe_duration">
     <xs:restriction base="xs:token">
-      <xs:pattern value="default|0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([num]?s|min|hr|day)"/>
+      <xs:pattern
+                value="default|0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([num]?s|min|hr|day)"
+            />
     </xs:restriction>
   </xs:simpleType>
   <xs:simpleType name="maybe_duration_inf">
     <xs:restriction base="xs:token">
-      <xs:pattern value="default|inf|0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([num]?s|min|hr|day)"/>
+      <xs:pattern
+                value="default|inf|0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([num]?s|min|hr|day)"
+            />
     </xs:restriction>
   </xs:simpleType>
   <xs:simpleType name="memsize">
     <xs:restriction base="xs:token">
-      <xs:pattern value="0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([kMG]i?)?B"/>
+      <xs:pattern
+                value="0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([kMG]i?)?B"
+            />
     </xs:restriction>
   </xs:simpleType>
   <xs:simpleType name="maybe_memsize">
     <xs:restriction base="xs:token">
-      <xs:pattern value="default|0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([kMG]i?)?B"/>
+      <xs:pattern
+                value="default|0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([kMG]i?)?B"
+            />
     </xs:restriction>
   </xs:simpleType>
 </xs:schema>
 <!--- generated from ddsi_config.h[94ad20bdb44ea1f393ba906865b1da591bbe1b57] -->
-<!--- generated from ddsi_config.c[9fb9ace4394a1b7d50f4e0fa3905bbba2a183e36] -->
-<!--- generated from ddsi__cfgelems.h[6e57a9213340839aeac89e7417646451cc5bb706] -->
+<!--- generated from ddsi_config.c[824f3aec4546af5fc49d767a9cb8d98b6554bcdd] -->
+<!--- generated from ddsi__cfgelems.h[f09dba36857055fdfc4cf50554dd9133aa4c40d4] -->
 <!--- generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] -->
 <!--- generated from _confgen.h[bb9a0fc6ef1f7f7c46790ee00132e340e5fff36d] -->
 <!--- generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] -->

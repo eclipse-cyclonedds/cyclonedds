@@ -8,7 +8,7 @@ Subscribers
 
 A Subscriber is a consumer of data on a Domain. It uses the :ref:`domainparticipants_bm` 
 to gain access to the Domain and is created using it. A Subscriber allows the 
-:ref:`datareaders_bm` associated with it to share the same behaviour, such as:
+:ref:`datareaders_bm` associated with it to share the same behavior, such as:
 
 - Liveliness notifications
 - :ref:`qos_bm`
