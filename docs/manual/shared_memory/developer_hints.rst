@@ -41,7 +41,7 @@ The following is a list of useful tips:
             </Tracing>
             <General>
                 <Interfaces>
-                    <PubSubMessageExchange name="iox" library="psmx_iox" config="LOG_LEVEL=INFO;"/>
+                    <PubSubMessageExchange type="iox" config="LOG_LEVEL=INFO;"/>
                 </Interfaces>
             </General>
         </Domain>
