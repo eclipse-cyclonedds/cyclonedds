@@ -408,6 +408,7 @@ static dds_return_t set_dont_route (struct ddsi_domaingv const * const gv, ddsrt
   return rc;
 }
 
+#if PACKET_DESTINATION_INFO
  // Perhaps not all platforms support this, so only log errors on setting in the trace
 static dds_return_t setsockopt_pktinfo (struct ddsi_domaingv const * const gv, ddsrt_socket_t socket, bool ipv6)
 {
@@ -440,6 +441,7 @@ static dds_return_t setsockopt_pktinfo (struct ddsi_domaingv const * const gv, d
 #endif
   return rc;
 }
+#endif // PACKET_DESTINATION_INFO
 
 static dds_return_t set_socket_buffer (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock, int32_t socket_option, const char *socket_option_name, const char *name, const struct ddsi_config_socket_buf_size *config, uint32_t default_min_size)
 {
@@ -692,12 +694,20 @@ static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, stru
   if (gv->config.dontRoute && set_dont_route (gv, sock, ipv6) != DDS_RETCODE_OK)
     goto fail_w_socket;
 
+#if PACKET_DESTINATION_INFO
   // IP_PKTINFO on socket so we get to know the destination address and the interface
   // on which the packet was received.  If it doesn't work, we don't mind: it simply
   // means there is slightly less information available for making sense of addresses
   // or deciding whether multicast SPDP packet really is to be processed
-  if (gv->config.extended_packet_info)
+  if (gv->config.extended_packet_info != DDSI_BOOLDEF_FALSE)
     (void) setsockopt_pktinfo (gv, sock, ipv6);
+#else
+  if (gv->config.extended_packet_info == DDSI_BOOLDEF_TRUE)
+  {
+    GVERROR ("ddsi_udp_create_conn: ExtendedPacketInfo enabled in configuration but not supported\n");
+    goto fail_w_socket;
+  }
+#endif
 
   if ((rc = ddsrt_bind (sock, &socketname.a, ddsrt_sockaddr_get_size (&socketname.a))) != DDS_RETCODE_OK)
   {
@@ -1102,12 +1112,14 @@ static uint32_t ownaddrs_hash4 (const void *va)
   return ddsrt_mh3 (&a->a4.sin_port, sizeof (a->a4.sin_port), ddsrt_mh3 (&a->a4.sin_addr, sizeof (a->a4.sin_addr), 0));
 }
 
+#if DDSRT_HAVE_IPV6
 static uint32_t ownaddrs_hash6 (const void *va)
 {
   union addr const * const a = va;
   assert (a->a.sa_family == AF_INET6);
   return ddsrt_mh3 (&a->a6.sin6_port, sizeof (a->a6.sin6_port), ddsrt_mh3 (&a->a6.sin6_addr, sizeof (a->a6.sin6_addr), 0));
 }
+#endif
 
 static bool ownaddrs_eq4 (const void *va, const void *vb)
 {
@@ -1117,6 +1129,7 @@ static bool ownaddrs_eq4 (const void *va, const void *vb)
   return a->a4.sin_port == b->a4.sin_port && a->a4.sin_addr.s_addr == b->a4.sin_addr.s_addr;
 }
 
+#if DDSRT_HAVE_IPV6
 static bool ownaddrs_eq6 (const void *va, const void *vb)
 {
   union addr const * const a = va;
@@ -1124,6 +1137,7 @@ static bool ownaddrs_eq6 (const void *va, const void *vb)
   assert (a->a.sa_family == AF_INET6 && b->a.sa_family == AF_INET6);
   return a->a6.sin6_port == b->a6.sin6_port && memcmp (&a->a6.sin6_addr, &b->a6.sin6_addr, sizeof (a->a6.sin6_addr)) == 0;
 }
+#endif
 
 int ddsi_udp_init (struct ddsi_domaingv*gv)
 {
@@ -1163,11 +1177,16 @@ int ddsi_udp_init (struct ddsi_domaingv*gv)
 #endif
 
   ddsrt_mutex_init (&fact->ownaddrs_lock);
+#if DDSRT_HAVE_IPV6
   assert (fact->m_kind == DDSI_LOCATOR_KIND_UDPv4 || fact->m_kind == DDSI_LOCATOR_KIND_UDPv6);
   if (fact->m_kind == DDSI_LOCATOR_KIND_UDPv4)
     fact->ownaddrs = ddsrt_hh_new (32, ownaddrs_hash4, ownaddrs_eq4);
   else
     fact->ownaddrs = ddsrt_hh_new (32, ownaddrs_hash6, ownaddrs_eq6);
+#else
+  assert (fact->m_kind == DDSI_LOCATOR_KIND_UDPv4);
+  fact->ownaddrs = ddsrt_hh_new (32, ownaddrs_hash4, ownaddrs_eq4);
+#endif
 
   ddsrt_atomic_st32 (&fact->receive_buf_size, UINT32_MAX);
 

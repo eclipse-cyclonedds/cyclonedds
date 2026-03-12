@@ -111,8 +111,12 @@ static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_
   uint32_t index = 0;
   struct ddsrt_hh *deps = NULL;
   memset (request, 0, sizeof (*request));
-  memcpy (&request->header.requestId.writer_guid.guidPrefix, &wr->e.guid.prefix, sizeof (request->header.requestId.writer_guid.guidPrefix));
-  memcpy (&request->header.requestId.writer_guid.entityId, &wr->e.guid.entityid, sizeof (request->header.requestId.writer_guid.entityId));
+  const ddsi_guid_t wr_guid_ext = {
+    .prefix = ddsi_hton_guid_prefix (wr->e.guid.prefix),
+    .entityid = ddsi_hton_entityid (wr->e.guid.entityid)
+  };
+  DDSRT_STATIC_ASSERT (sizeof (request->header.requestId.writer_guid) == sizeof (wr_guid_ext));
+  memcpy (&request->header.requestId.writer_guid, &wr_guid_ext, sizeof (request->header.requestId.writer_guid));
   /* For the (DDS-RPC) sample identity, we'll use the sequence number of the top-level
      type that requires a lookup, even if the top-level type itself is resolved and only
      one or more of its dependencies need to be resolved. When handling the reply, there
@@ -229,13 +233,10 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
   return true;
 }
 
-static void create_tl_reply_msg (DDS_Builtin_TypeLookup_Reply *reply, const struct ddsi_writer *wr, ddsi_seqno_t seqno, const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
+static void create_tl_reply_msg (DDS_Builtin_TypeLookup_Reply *reply, const struct DDS_SampleIdentity *requestid, const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
 {
   memset (reply, 0, sizeof (*reply));
-  memcpy (&reply->header.relatedRequestId.writer_guid.guidPrefix, &wr->e.guid.prefix, sizeof (reply->header.relatedRequestId.writer_guid.guidPrefix));
-  memcpy (&reply->header.relatedRequestId.writer_guid.entityId, &wr->e.guid.entityid, sizeof (reply->header.relatedRequestId.writer_guid.entityId));
-  reply->header.relatedRequestId.sequence_number.high = (int32_t) (seqno >> 32);
-  reply->header.relatedRequestId.sequence_number.low = (uint32_t) seqno;
+  reply->header.relatedRequestId = *requestid;
   reply->header.remoteEx = DDS_RPC_REMOTE_EX_OK;
   reply->return_data._d = DDS_Builtin_TypeLookup_getTypes_HashId;
   reply->return_data._u.getType._d = DDS_RETCODE_OK;
@@ -244,11 +245,11 @@ static void create_tl_reply_msg (DDS_Builtin_TypeLookup_Reply *reply, const stru
 
 }
 
-static void write_typelookup_reply (struct ddsi_writer *wr, ddsi_seqno_t seqno, const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
+static void write_typelookup_reply (struct ddsi_writer *wr, const struct DDS_SampleIdentity *requestid, const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   DDS_Builtin_TypeLookup_Reply reply;
-  create_tl_reply_msg (&reply, wr, seqno, types);
+  create_tl_reply_msg (&reply, requestid, types);
   GVTRACE (" tl-reply ");
   struct ddsi_serdata *serdata = ddsi_serdata_from_sample (gv->tl_svc_reply_type, SDK_DATA, &reply);
   if (!serdata)
@@ -269,7 +270,7 @@ static ddsi_guid_t from_guid (const DDS_GUID_t *guid)
   ddsi_guid_t ddsi_guid;
   memcpy (&ddsi_guid.prefix, &guid->guidPrefix, sizeof (ddsi_guid.prefix));
   memcpy (&ddsi_guid.entityid, &guid->entityId, sizeof (ddsi_guid.entityid));
-  return ddsi_guid;
+  return ddsi_ntoh_guid (ddsi_guid);
 }
 
 static ddsi_seqno_t from_seqno (const DDS_SequenceNumber *seqno)
@@ -323,7 +324,7 @@ void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
 
   struct ddsi_writer *wr = get_typelookup_writer (gv, DDSI_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER);
   if (wr != NULL)
-    write_typelookup_reply (wr, from_seqno (&req.header.requestId.sequence_number), &types);
+    write_typelookup_reply (wr, &req.header.requestId, &types);
   else
     GVTRACE (" no tl-reply writer");
 

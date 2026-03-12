@@ -1742,14 +1742,14 @@ static struct cfgelem internal_cfgelems[] = {
     NOMEMBER,
     NOFUNCTIONS,
     DESCRIPTION("<p>Setting for controlling the size of transmitting bursts.</p>")),
-  BOOL("ExtendedPacketInfo", NULL, 1, "true",
+  BOOL("ExtendedPacketInfo", NULL, 1, "default",
     MEMBER(extended_packet_info),
-    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
+    FUNCTIONS(0, uf_boolean_default, 0, pf_boolean_default),
     DESCRIPTION(
       "<p>Whether to enable the IP_PKTINFO on UDP sockets to get hold of the packet "
       "destination address and interface on which it was received. This allows "
       "for better filtering on discovery packets, but comes at a small performance "
-      "penalty.</p>")),
+      "penalty. Enabled by default if supported.</p>")),
   LIST("EnableExpensiveChecks", NULL, 1, "",
     MEMBER(enabled_xchecks),
     FUNCTIONS(0, uf_xcheck, 0, pf_xcheck),

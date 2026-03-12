@@ -191,3 +191,53 @@ variable to this config file:
   This example configuration uses the attribute ``id=any`` for the ``domain`` element, any participant
   that is created (which implicitly creates a domain) in an application using this configuration gets
   these security settings.
+
+.. index:: HSM; Configuration
+    single: PKCS#11; Example configuration
+
+.. _hsm_security_configuration:
+
+================================================
+Using Hardware Security Modules (HSM) or tokens
+================================================
+
+For deployments requiring hardware-based protection of private keys, |var-project-short|
+supports loading cryptographic credentials from PKCS#11-compatible devices. This section
+demonstrates configuration using credentials stored on an HSM or token.
+
+See :ref:`pkcs11_hsm` for more information.
+
+HSM configuration example
+-------------------------
+
+The following configuration uses PKCS#11 for the private key and identity certificate,
+while keeping CA certificates and policy documents on the filesystem:
+
+.. code-block:: xml
+
+    <?xml version="1.0" encoding="UTF-8" ?>
+    <CycloneDDS xmlns="https://cdds.io/config">
+        <Domain id="any">
+            <Security>
+                <Authentication>
+                    <IdentityCertificate>pkcs11:token=DDSToken;object=alice_cert?pin-value=1234</IdentityCertificate>
+                    <IdentityCA>file:example_id_ca_cert.pem</IdentityCA>
+                    <PrivateKey>pkcs11:token=DDSToken;object=alice_key;type=private?pin-value=1234</PrivateKey>
+                </Authentication>
+                <AccessControl>
+                    <PermissionsCA>file:example_perm_ca_cert.pem</PermissionsCA>
+                    <Governance>file:example_governance.p7s</Governance>
+                    <Permissions>file:example_permissions.p7s</Permissions>
+                </AccessControl>
+            </Security>
+        </Domain>
+    </CycloneDDS>
+
+.. warning::
+    The PIN is embedded directly in the configuration when using ``pin-value``. For
+    production deployments, restrict access to the configuration file (e.g., mode 0400)
+    and consider using configuration management tools that support secret injection.
+
+The Permissions CA certificate can also be stored on the HSM if required by your
+security policy. Loading arbitrary data from the HSM is not supported, therefore
+the governance and permissions documents must remain as files or inline data.

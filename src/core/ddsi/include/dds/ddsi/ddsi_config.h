@@ -420,7 +420,7 @@ struct ddsi_config
   int retry_on_reject_besteffort;
   int generate_keyhash;
   uint32_t max_sample_size;
-  int extended_packet_info;
+  enum ddsi_boolean_default extended_packet_info;
 
   /* compability options */
   enum ddsi_standards_conformance standards_conformance;
