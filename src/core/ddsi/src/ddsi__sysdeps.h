@@ -25,7 +25,7 @@ extern "C" {
 struct ddsrt_log_cfg;
 
 /** @component debug_support */
-void ddsi_log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, ddsrt_thread_t tid);
+DDS_EXPORT void ddsi_log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, ddsrt_thread_t tid);
 
 #if defined (__cplusplus)
 }

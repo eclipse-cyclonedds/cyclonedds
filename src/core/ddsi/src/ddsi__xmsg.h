@@ -69,7 +69,7 @@ void ddsi_xmsgpool_free (struct ddsi_xmsgpool *pool)
  * @param kind          the xmsg kind
  * @return struct ddsi_xmsg*
  */
-struct ddsi_xmsg *ddsi_xmsg_new (struct ddsi_xmsgpool *pool, const ddsi_guid_t *src_guid, struct ddsi_participant *pp, size_t expected_size, enum ddsi_xmsg_kind kind)
+DDS_EXPORT struct ddsi_xmsg *ddsi_xmsg_new (struct ddsi_xmsgpool *pool, const ddsi_guid_t *src_guid, struct ddsi_participant *pp, size_t expected_size, enum ddsi_xmsg_kind kind)
   ddsrt_nonnull ((1, 2)) ddsrt_attribute_warn_unused_result;
 
 /**
@@ -201,7 +201,7 @@ int ddsi_xmsg_compare_fragid (const struct ddsi_xmsg *a, const struct ddsi_xmsg 
   ddsrt_nonnull_all;
 
 /** @component rtps_submsg */
-void ddsi_xmsg_free (struct ddsi_xmsg *msg)
+DDS_EXPORT void ddsi_xmsg_free (struct ddsi_xmsg *m)
   ddsrt_nonnull_all;
 
 /** @component rtps_submsg */
@@ -225,11 +225,11 @@ void ddsi_xmsg_guid_seq_fragid (const struct ddsi_xmsg *m, ddsi_guid_t *wrguid, 
   ddsrt_nonnull_all;
 
 /** @component rtps_submsg */
-void *ddsi_xmsg_submsg_from_marker (struct ddsi_xmsg *msg, struct ddsi_xmsg_marker marker)
+DDS_EXPORT void *ddsi_xmsg_submsg_from_marker (struct ddsi_xmsg *msg, struct ddsi_xmsg_marker marker)
   ddsrt_nonnull_all ddsrt_attribute_returns_nonnull;
 
 /** @component rtps_submsg */
-void *ddsi_xmsg_append (struct ddsi_xmsg *m, struct ddsi_xmsg_marker *marker, size_t sz)
+DDS_EXPORT void *ddsi_xmsg_append (struct ddsi_xmsg *m, struct ddsi_xmsg_marker *marker, size_t sz)
   ddsrt_nonnull ((1)) ddsrt_attribute_warn_unused_result;
 
 /** @component rtps_submsg */
@@ -296,7 +296,7 @@ void ddsi_xmsg_addpar_sentinel (struct ddsi_xmsg *m)
   ddsrt_nonnull_all;
 
 /** @component rtps_submsg */
-void ddsi_xmsg_addpar_sentinel_bo (struct ddsi_xmsg * m, enum ddsrt_byte_order_selector bo)
+DDS_EXPORT void ddsi_xmsg_addpar_sentinel_bo (struct ddsi_xmsg * m, enum ddsrt_byte_order_selector bo)
   ddsrt_nonnull_all;
 
 /** @component rtps_submsg */

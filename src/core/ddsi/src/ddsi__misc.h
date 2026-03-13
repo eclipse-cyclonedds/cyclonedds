@@ -12,6 +12,7 @@
 #define DDSI__MISC_H
 
 #include "ddsi__protocol.h"
+#include "dds/export.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -66,7 +67,7 @@ int ddsi_guid_prefix_eq (const ddsi_guid_prefix_t *a, const ddsi_guid_prefix_t *
 int ddsi_guid_eq (const struct ddsi_guid *a, const struct ddsi_guid *b);
 
 /** @component misc */
-int ddsi_patmatch (const char *pat, const char *str);
+DDS_EXPORT int ddsi_patmatch (const char *pat, const char *str);
 
 #if defined (__cplusplus)
 }

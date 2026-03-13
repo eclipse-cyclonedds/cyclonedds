@@ -8,1239 +8,1400 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-#include <assert.h>
-#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-#include "dds/dds.h"
-#include "dds/features.h"
+#include "dds/config.h"     // Exports values for #if sections in test
+#include "dds/ddsrt/arch.h" // Exports values for DDSRT_64BIT
+#include "dds/features.h"   // Exports values for #if sections in test
 
-#include "dds/ddsrt/atomics.h"
-#include "dds/ddsrt/bswap.h"
-#include "dds/ddsrt/environ.h"
-#include "dds/ddsrt/bits.h"
-#include "dds/ddsrt/md5.h"
-#include "dds/ddsrt/mh3.h"
-#include "dds/ddsrt/environ.h"
-#include "dds/ddsrt/threads.h"
-#include "dds/ddsrt/process.h"
-#include "dds/ddsrt/sync.h"
-#include "dds/ddsrt/hopscotch.h"
-#include "dds/ddsrt/avl.h"
-#include "dds/ddsrt/fibheap.h"
-#include "dds/ddsrt/random.h"
-#include "dds/ddsrt/retcode.h"
-#include "dds/ddsrt/log.h"
-#include "dds/ddsrt/machineid.h"
-#include "dds/ddsrt/sockets.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/string.h"
-#include "dds/ddsrt/strtol.h"
-#include "dds/ddsrt/xmlparser.h"
-#include "dds/ddsrt/io.h"
-#include "dds/ddsrt/ifaddrs.h"
-#include "dds/ddsrt/sockets.h"
-#if DDSRT_HAVE_FILESYSTEM
-#include "dds/ddsrt/filesystem.h"
-#endif
-#if DDSRT_HAVE_NETSTAT
-#include "dds/ddsrt/netstat.h"
-#endif
-#if DDSRT_HAVE_RUSAGE
-#include "dds/ddsrt/rusage.h"
-#endif
-
-#include "dds/ddsi/ddsi_config.h"
-#include "dds/ddsi/ddsi_thread.h"
-#include "dds/ddsi/ddsi_xqos.h"
-#include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_gc.h"
-#ifdef DDS_HAS_TYPELIB
-#include "dds/ddsi/ddsi_typelib.h"
-#include "dds/ddsi/ddsi_typebuilder.h"
-#endif
-#include "dds/ddsi/ddsi_proxy_participant.h"
-#include "dds/ddsi/ddsi_proxy_endpoint.h"
-#include "dds/ddsi/ddsi_plist.h"
-#include "dds/ddsi/ddsi_xmsg.h"
-#include "dds/ddsi/ddsi_guid.h"
-#include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/ddsi_transmit.h"
-#include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/ddsi_addrset.h"
-#include "dds/ddsi/ddsi_tran.h"
-#include "dds/ddsi/ddsi_portmapping.h"
-#include "ddsi__ipaddr.h"
-#include "ddsi__discovery_addrset.h"
-
-#ifdef DDS_HAS_SECURITY
-#include "dds/security/core/dds_security_serialize.h"
-#include "dds/security/core/dds_security_timed_cb.h"
-#include "dds/security/core/dds_security_utils.h"
-#include "dds/security/core/dds_security_shared_secret.h"
-#endif
-
-#ifdef DDS_HAS_QOS_PROVIDER
-#include "dds/ddsc/dds_public_qos_provider.h"
-#endif
-
-#include "dds/ddsc/dds_internal_api.h"
-#include "dds/ddsc/dds_loaned_sample.h"
-#include "dds/ddsc/dds_rhc.h"
-#include "dds/ddsc/dds_statistics.h"
-#include "dds/ddsc/dds_psmx.h"
-
-#include "dds/cdr/dds_cdrstream.h"
-
-#include "dds__write.h"
-#include "dds__writer.h"
-#include "dds__entity.h"
-#include "dds__sysdef_parser.h"
-
-DDSRT_WARNING_DEPRECATED_OFF
-DDSRT_WARNING_GNUC_OFF (unused-result)
-DDSRT_WARNING_CLANG_OFF (unused-result)
-
-DDSRT_WARNING_CLANG_OFF(unused-result)
-DDSRT_WARNING_GNUC_OFF(unused-result)
-
-#ifdef DDS_HAS_SECURITY
-static void test_DDS_Security_Exception_vset (void *ptr, const char *msg, ...)
-{
-  va_list ap;
-  va_start (ap, msg);
-  DDS_Security_Exception_vset (ptr, ptr, 0, 0, msg, ap);
-  va_end (ap);
-}
-#endif
-
-static void test_ddsrt_vasprintf (char **buf, const char *fmt, ...)
-{
-  va_list ap;
-  va_start (ap, fmt);
-  ddsrt_vasprintf (buf, fmt, ap);
-  va_end (ap);
-}
-
-static dds_return_t test_collect_sample (void *arg, const dds_sample_info_t *si, const struct ddsi_sertype *st, struct ddsi_serdata *serdata)
-{
-  (void)arg; (void)si; (void)st; (void)serdata;
-  return 0;
-}
+#include "symbol_export/ddsc_loader.h"
 
 /* Check that all exported functions are actually exported
    in case of a build that has testing disabled. All newly added
    functions that are exported (including DDSI and DDSRT) should
    be added in this test. */
-int main (int argc, char **argv)
-{
-  (void) argc;
-  (void) argv;
-  void *ptr = &ptr, *ptr2 = &ptr2, *ptr3 = &ptr3, *ptr4 = &ptr4, *ptr5 = &ptr5, *ptr6 = &ptr6, *ptr7 = &ptr7, *ptr8 = &ptr8;
+int main() {
+  void *ddsc_library_handle = DDSC_LIBRARY_HANDLE();
+  if (ddsc_library_handle == NULL) {
+    printf("Unable to load %s library\n", DDSC_LIBRARY_NAME);
+    return EXIT_FAILURE;
+  }
 
-  /* The functions shouldn't actually be called, just included here so that
-     the linker resolves the symbols. An early return (with unreachable code
-     warnings disabled) does not work here, because in that case the compiler
-     optimizes the code and strips out all function calls. */
-  if (dds_time () > 0)
-    return 1;
+  int result = EXIT_SUCCESS;
 
   // dds.h
-  dds_enable (1);
-  dds_delete (1);
-  dds_get_publisher (1);
-  dds_get_subscriber (1);
-  dds_get_datareader (1);
-  dds_get_mask (1, ptr);
-  dds_get_instance_handle (1, ptr);
-  dds_get_guid (1, ptr);
-  dds_read_status (1, ptr, 0);
-  dds_take_status (1, ptr, 0);
-  dds_get_status_changes (1, ptr);
-  dds_get_status_mask (1, ptr);
-  dds_set_status_mask (1, 0);
-  dds_get_qos (1, ptr);
-  dds_set_qos (1, ptr);
-  dds_get_listener (1, ptr);
-  dds_set_listener (1, ptr);
-  dds_create_participant (0, ptr, ptr);
-  dds_create_participant_guid (1, ptr, ptr2, 0, ptr3);
-  dds_create_domain (0, ptr);
-  dds_create_domain_with_rawconfig (0, ptr);
-  dds_get_parent (1);
-  dds_get_participant (1);
-  dds_get_children (1, ptr, 0);
-  dds_get_domainid (1, ptr);
-  dds_lookup_participant (0, ptr, 0);
-  dds_create_topic (1, ptr, ptr, ptr, ptr);
-  dds_create_topic_sertype (1, ptr, ptr, ptr, ptr, ptr);
-  dds_find_topic (0, 1, ptr, ptr, 0);
-  dds_find_topic_scoped (0, 1, ptr, 0);
-  dds_create_topic_descriptor (0, 1, ptr, 0, ptr);
-  dds_delete_topic_descriptor (ptr);
-  dds_get_name (1, ptr, 0);
-  dds_get_type_name (1, ptr, 0);
-  dds_set_topic_filter_and_arg (1, 0, ptr);
-  dds_set_topic_filter_extended (1, ptr);
-  dds_get_topic_filter_and_arg (1, ptr, ptr);
-  dds_get_topic_filter_extended (1, ptr);
-  dds_create_subscriber (1, ptr, ptr);
-  dds_create_publisher (1, ptr, ptr);
-  dds_suspend (1);
-  dds_resume (1);
-  dds_wait_for_acks (1, 0);
-  dds_create_reader (1, 1, ptr, ptr);
-  dds_create_reader_guid (1, 1, ptr, ptr2, ptr3);
-  dds_create_reader_rhc (1, 1, ptr, ptr, ptr);
-  dds_reader_wait_for_historical_data (1, 0);
-  dds_create_writer (1, 1, ptr, ptr);
-  dds_create_writer_guid (1, 1, ptr, ptr2, ptr3);
-  dds_register_instance (1, ptr, ptr);
-  dds_unregister_instance (1, ptr);
-  dds_unregister_instance_ih (1, 1);
-  dds_unregister_instance_ts (1, ptr, 0);
-  dds_unregister_instance_ih_ts (1, 1, 0);
-  dds_writedispose (1, ptr);
-  dds_writedispose_ts (1, ptr, 0);
-  dds_dispose (1, ptr);
-  dds_dispose_ts (1, ptr, 0);
-  dds_dispose_ih (1, 1);
-  dds_dispose_ih_ts (1, 1, 0);
-  dds_write (1, ptr);
-  dds_write_flush (1);
-  dds_writecdr (1, ptr);
-  dds_forwardcdr (1, ptr);
-  dds_write_ts (1, ptr, 0);
-  dds_create_readcondition (1, 0);
-  dds_create_querycondition (1, 0, 0);
-  dds_create_guardcondition (1);
-  dds_set_guardcondition (1, 0);
-  dds_read_guardcondition (1, ptr);
-  dds_take_guardcondition (1, ptr);
-  dds_create_waitset (1);
-  dds_waitset_get_entities (1, ptr, 0);
-  dds_waitset_attach (1, 1, 0);
-  dds_waitset_detach (1, 1);
-  dds_waitset_set_trigger (1, 0);
-  dds_waitset_wait (1, ptr, 0, 0);
-  dds_waitset_wait_until (1, ptr, 0, 0);
-  dds_peek (1, ptr, ptr, 0, 0);
-  dds_peek_mask (1, ptr, ptr, 0, 0, 0);
-  dds_peek_instance (1, ptr, ptr, 0, 0, 1);
-  dds_peek_instance_mask (1, ptr, ptr, 0, 0, 1, 0);
-  dds_peek_next (1, ptr, ptr);
-  dds_read (1, ptr, ptr, 0, 0);
-  dds_read_wl (1, ptr, ptr, 0);
-  dds_read_mask (1, ptr, ptr, 0, 0, 0);
-  dds_read_mask_wl (1, ptr, ptr, 0, 0);
-  dds_read_instance (1, ptr, ptr, 0, 0, 1);
-  dds_read_instance_wl (1, ptr, ptr, 0, 1);
-  dds_read_instance_mask (1, ptr, ptr, 0, 0, 1, 0);
-  dds_read_instance_mask_wl (1, ptr, ptr, 0, 1, 0);
-  dds_read_next (1, ptr, ptr);
-  dds_read_next_wl (1, ptr, ptr);
-  dds_take (1, ptr, ptr, 0, 0);
-  dds_take_wl (1, ptr, ptr, 0);
-  dds_take_mask (1, ptr, ptr, 0, 0, 0);
-  dds_take_mask_wl (1, ptr, ptr, 0, 0);
-  dds_take_instance (1, ptr, ptr, 0, 0, 1);
-  dds_take_instance_wl (1, ptr, ptr, 0, 1);
-  dds_take_instance_mask (1, ptr, ptr, 0, 0, 1, 0);
-  dds_take_instance_mask_wl (1, ptr, ptr, 0, 1, 0);
-  dds_take_next (1, ptr, ptr);
-  dds_take_next_wl (1, ptr, ptr);
-  dds_peekcdr (1, ptr, 0, ptr, 0);
-  dds_peekcdr_instance (1, ptr, 0, ptr, 1, 0);
-  dds_readcdr (1, ptr, 0, ptr, 0);
-  dds_readcdr_instance (1, ptr, 0, ptr, 1, 0);
-  dds_takecdr (1, ptr, 0, ptr, 0);
-  dds_takecdr_instance (1, ptr, 0, ptr, 1, 0);
-  dds_peek_with_collector (1, 0, 1, 0, test_collect_sample, ptr);
-  dds_read_with_collector (1, 0, 1, 0, test_collect_sample, ptr);
-  dds_take_with_collector (1, 0, 1, 0, test_collect_sample, ptr);
-  dds_lookup_instance (1, ptr);
-  dds_instance_get_key (1, 1, ptr);
-  dds_begin_coherent (1);
-  dds_end_coherent (1);
-  dds_notify_readers (1);
-  dds_triggered (1);
-  dds_get_topic (1);
-  dds_get_matched_subscriptions (1, ptr, 0);
-  dds_get_matched_subscription_data (1, 1);
-  dds_get_matched_publications (1, ptr, 0);
-  dds_get_matched_publication_data (1, 1);
+  check_symbol_export(&result, ddsc_library_handle, "dds_enable");
+  check_symbol_export(&result, ddsc_library_handle, "dds_delete");
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_publisher");
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_subscriber");
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_datareader");
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_mask");
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_instance_handle");
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_guid");
+  check_symbol_export(&result, ddsc_library_handle, "dds_read_status");
+  check_symbol_export(&result, ddsc_library_handle, "dds_take_status");
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_status_changes");
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_status_mask");
+  check_symbol_export(&result, ddsc_library_handle, "dds_set_status_mask");
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_qos");
+  check_symbol_export(&result, ddsc_library_handle, "dds_set_qos");
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_listener");
+  check_symbol_export(&result, ddsc_library_handle, "dds_set_listener");
+  check_symbol_export(&result, ddsc_library_handle, "dds_create_participant");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_create_participant_guid");
+  check_symbol_export(&result, ddsc_library_handle, "dds_create_domain");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_create_domain_with_rawconfig");
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_parent");
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_participant");
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_children");
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_domainid");
+  check_symbol_export(&result, ddsc_library_handle, "dds_lookup_participant");
+  check_symbol_export(&result, ddsc_library_handle, "dds_create_topic");
+  check_symbol_export(&result, ddsc_library_handle, "dds_create_topic_sertype");
+  check_symbol_export(&result, ddsc_library_handle, "dds_find_topic");
+  check_symbol_export(&result, ddsc_library_handle, "dds_find_topic_scoped");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_create_topic_descriptor");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_delete_topic_descriptor");
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_name");
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_type_name");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_set_topic_filter_and_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_set_topic_filter_extended");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_get_topic_filter_and_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_get_topic_filter_extended");
+  check_symbol_export(&result, ddsc_library_handle, "dds_create_subscriber");
+  check_symbol_export(&result, ddsc_library_handle, "dds_create_publisher");
+  check_symbol_export(&result, ddsc_library_handle, "dds_suspend");
+  check_symbol_export(&result, ddsc_library_handle, "dds_resume");
+  check_symbol_export(&result, ddsc_library_handle, "dds_wait_for_acks");
+  check_symbol_export(&result, ddsc_library_handle, "dds_create_reader");
+  check_symbol_export(&result, ddsc_library_handle, "dds_create_reader_guid");
+  check_symbol_export(&result, ddsc_library_handle, "dds_create_reader_rhc");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_reader_wait_for_historical_data");
+  check_symbol_export(&result, ddsc_library_handle, "dds_create_writer");
+  check_symbol_export(&result, ddsc_library_handle, "dds_create_writer_guid");
+  check_symbol_export(&result, ddsc_library_handle, "dds_register_instance");
+  check_symbol_export(&result, ddsc_library_handle, "dds_unregister_instance");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_unregister_instance_ih");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_unregister_instance_ts");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_unregister_instance_ih_ts");
+  check_symbol_export(&result, ddsc_library_handle, "dds_writedispose");
+  check_symbol_export(&result, ddsc_library_handle, "dds_writedispose_ts");
+  check_symbol_export(&result, ddsc_library_handle, "dds_dispose");
+  check_symbol_export(&result, ddsc_library_handle, "dds_dispose_ts");
+  check_symbol_export(&result, ddsc_library_handle, "dds_dispose_ih");
+  check_symbol_export(&result, ddsc_library_handle, "dds_dispose_ih_ts");
+  check_symbol_export(&result, ddsc_library_handle, "dds_write");
+  check_symbol_export(&result, ddsc_library_handle, "dds_write_flush");
+  check_symbol_export(&result, ddsc_library_handle, "dds_writecdr");
+  check_symbol_export(&result, ddsc_library_handle, "dds_forwardcdr");
+  check_symbol_export(&result, ddsc_library_handle, "dds_write_ts");
+  check_symbol_export(&result, ddsc_library_handle, "dds_create_readcondition");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_create_querycondition");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_create_guardcondition");
+  check_symbol_export(&result, ddsc_library_handle, "dds_set_guardcondition");
+  check_symbol_export(&result, ddsc_library_handle, "dds_read_guardcondition");
+  check_symbol_export(&result, ddsc_library_handle, "dds_take_guardcondition");
+  check_symbol_export(&result, ddsc_library_handle, "dds_create_waitset");
+  check_symbol_export(&result, ddsc_library_handle, "dds_waitset_get_entities");
+  check_symbol_export(&result, ddsc_library_handle, "dds_waitset_attach");
+  check_symbol_export(&result, ddsc_library_handle, "dds_waitset_detach");
+  check_symbol_export(&result, ddsc_library_handle, "dds_waitset_set_trigger");
+  check_symbol_export(&result, ddsc_library_handle, "dds_waitset_wait");
+  check_symbol_export(&result, ddsc_library_handle, "dds_waitset_wait_until");
+  check_symbol_export(&result, ddsc_library_handle, "dds_peek");
+  check_symbol_export(&result, ddsc_library_handle, "dds_peek_mask");
+  check_symbol_export(&result, ddsc_library_handle, "dds_peek_instance");
+  check_symbol_export(&result, ddsc_library_handle, "dds_peek_instance_mask");
+  check_symbol_export(&result, ddsc_library_handle, "dds_peek_next");
+  check_symbol_export(&result, ddsc_library_handle, "dds_read");
+  check_symbol_export(&result, ddsc_library_handle, "dds_read_wl");
+  check_symbol_export(&result, ddsc_library_handle, "dds_read_mask");
+  check_symbol_export(&result, ddsc_library_handle, "dds_read_mask_wl");
+  check_symbol_export(&result, ddsc_library_handle, "dds_read_instance");
+  check_symbol_export(&result, ddsc_library_handle, "dds_read_instance_wl");
+  check_symbol_export(&result, ddsc_library_handle, "dds_read_instance_mask");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_read_instance_mask_wl");
+  check_symbol_export(&result, ddsc_library_handle, "dds_read_next");
+  check_symbol_export(&result, ddsc_library_handle, "dds_read_next_wl");
+  check_symbol_export(&result, ddsc_library_handle, "dds_take");
+  check_symbol_export(&result, ddsc_library_handle, "dds_take_wl");
+  check_symbol_export(&result, ddsc_library_handle, "dds_take_mask");
+  check_symbol_export(&result, ddsc_library_handle, "dds_take_mask_wl");
+  check_symbol_export(&result, ddsc_library_handle, "dds_take_instance");
+  check_symbol_export(&result, ddsc_library_handle, "dds_take_instance_wl");
+  check_symbol_export(&result, ddsc_library_handle, "dds_take_instance_mask");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_take_instance_mask_wl");
+  check_symbol_export(&result, ddsc_library_handle, "dds_take_next");
+  check_symbol_export(&result, ddsc_library_handle, "dds_take_next_wl");
+  check_symbol_export(&result, ddsc_library_handle, "dds_peekcdr");
+  check_symbol_export(&result, ddsc_library_handle, "dds_peekcdr_instance");
+  check_symbol_export(&result, ddsc_library_handle, "dds_readcdr");
+  check_symbol_export(&result, ddsc_library_handle, "dds_readcdr_instance");
+  check_symbol_export(&result, ddsc_library_handle, "dds_takecdr");
+  check_symbol_export(&result, ddsc_library_handle, "dds_takecdr_instance");
+  check_symbol_export(&result, ddsc_library_handle, "dds_peek_with_collector");
+  check_symbol_export(&result, ddsc_library_handle, "dds_read_with_collector");
+  check_symbol_export(&result, ddsc_library_handle, "dds_take_with_collector");
+  check_symbol_export(&result, ddsc_library_handle, "dds_lookup_instance");
+  check_symbol_export(&result, ddsc_library_handle, "dds_instance_get_key");
+  check_symbol_export(&result, ddsc_library_handle, "dds_begin_coherent");
+  check_symbol_export(&result, ddsc_library_handle, "dds_end_coherent");
+  check_symbol_export(&result, ddsc_library_handle, "dds_notify_readers");
+  check_symbol_export(&result, ddsc_library_handle, "dds_triggered");
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_topic");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_get_matched_subscriptions");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_get_matched_subscription_data");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_get_matched_publications");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_get_matched_publication_data");
 #ifdef DDS_HAS_TYPELIB
-  dds_builtintopic_get_endpoint_type_info (ptr, ptr);
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_builtintopic_get_endpoint_type_info");
 #endif
-  dds_builtintopic_free_endpoint (ptr);
-  dds_builtintopic_free_topic (ptr);
-  dds_builtintopic_free_participant (ptr);
-  dds_assert_liveliness (1);
-  dds_domain_set_deafmute (1, 0, 0, 0);
-  dds_get_typeobj (1, ptr, 0, ptr);
-  dds_free_typeobj (ptr);
-  dds_get_typeinfo (1, ptr);
-  dds_free_typeinfo (ptr);
-  dds_get_entity_sertype (1, ptr);
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_builtintopic_free_endpoint");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_builtintopic_free_topic");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_builtintopic_free_participant");
+  check_symbol_export(&result, ddsc_library_handle, "dds_assert_liveliness");
+  check_symbol_export(&result, ddsc_library_handle, "dds_domain_set_deafmute");
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_typeobj");
+  check_symbol_export(&result, ddsc_library_handle, "dds_free_typeobj");
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_typeinfo");
+  check_symbol_export(&result, ddsc_library_handle, "dds_free_typeinfo");
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_entity_sertype");
 
   // dds_public_loan_api.h
-  dds_request_loan (1, ptr);
-  dds_return_loan (1, ptr, 0);
-  dds_is_shared_memory_available (1);
-  dds_request_loan_of_size (1, 0, ptr);
-  dds_is_loan_available (1); // deprecated
-  dds_loan_sample (1, ptr); // deprecated
+  check_symbol_export(&result, ddsc_library_handle, "dds_request_loan");
+  check_symbol_export(&result, ddsc_library_handle, "dds_return_loan");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_is_shared_memory_available");
+  check_symbol_export(&result, ddsc_library_handle, "dds_request_loan_of_size");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_is_loan_available"); // deprecated
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_loan_sample"); // deprecated
 
   // dds_public_alloc.h
-  dds_alloc (0);
-  dds_realloc (ptr, 0);
-  dds_realloc_zero (ptr, 0);
-  dds_free (ptr);
-  dds_string_alloc (0);
-  dds_string_dup (ptr);
-  dds_string_free (ptr);
-  dds_sample_free (ptr, ptr, DDS_FREE_ALL);
+  check_symbol_export(&result, ddsc_library_handle, "dds_alloc");
+  check_symbol_export(&result, ddsc_library_handle, "dds_realloc");
+  check_symbol_export(&result, ddsc_library_handle, "dds_realloc_zero");
+  check_symbol_export(&result, ddsc_library_handle, "dds_free");
+  check_symbol_export(&result, ddsc_library_handle, "dds_string_alloc");
+  check_symbol_export(&result, ddsc_library_handle, "dds_string_dup");
+  check_symbol_export(&result, ddsc_library_handle, "dds_string_free");
+  check_symbol_export(&result, ddsc_library_handle, "dds_sample_free");
 
   // dds_public_impl.h
-  dds_write_set_batch (0);
+  check_symbol_export(&result, ddsc_library_handle, "dds_write_set_batch");
 
   // dds_public_listener.h
-  dds_create_listener (ptr);
-  dds_delete_listener (ptr);
-  dds_reset_listener (ptr);
-  dds_copy_listener (ptr, ptr2);
-  dds_merge_listener (ptr, ptr2);
-  dds_lset_data_available_arg (ptr, 0, ptr2, 0);
-  dds_lset_data_on_readers_arg (ptr, 0, ptr2, 0);
-  dds_lset_inconsistent_topic_arg (ptr, 0, ptr2, 0);
-  dds_lset_liveliness_changed_arg (ptr, 0, ptr2, 0);
-  dds_lset_liveliness_lost_arg (ptr, 0, ptr2, 0);
-  dds_lset_offered_deadline_missed_arg (ptr, 0, ptr2, 0);
-  dds_lset_offered_incompatible_qos_arg (ptr, 0, ptr2, 0);
-  dds_lset_publication_matched_arg (ptr, 0, ptr2, 0);
-  dds_lset_requested_deadline_missed_arg (ptr, 0, ptr2, 0);
-  dds_lset_requested_incompatible_qos_arg (ptr, 0, ptr2, 0);
-  dds_lset_sample_lost_arg (ptr, 0, ptr2, 0);
-  dds_lset_sample_rejected_arg (ptr, 0, ptr2, 0);
-  dds_lset_subscription_matched_arg (ptr, 0, ptr2, 0);
-  dds_lset_inconsistent_topic (ptr, 0);
-  dds_lset_liveliness_lost (ptr, 0);
-  dds_lset_offered_deadline_missed (ptr, 0);
-  dds_lset_offered_incompatible_qos (ptr, 0);
-  dds_lset_data_on_readers (ptr, 0);
-  dds_lset_sample_lost (ptr, 0);
-  dds_lset_data_available (ptr, 0);
-  dds_lset_sample_rejected (ptr, 0);
-  dds_lset_liveliness_changed (ptr, 0);
-  dds_lset_requested_deadline_missed (ptr, 0);
-  dds_lset_requested_incompatible_qos (ptr, 0);
-  dds_lset_publication_matched (ptr, 0);
-  dds_lset_subscription_matched (ptr, 0);
-  dds_lget_data_available_arg (ptr, 0, ptr, ptr);
-  dds_lget_data_on_readers_arg (ptr, 0, ptr, ptr);
-  dds_lget_inconsistent_topic_arg (ptr, 0, ptr, ptr);
-  dds_lget_liveliness_changed_arg (ptr, 0, ptr, ptr);
-  dds_lget_liveliness_lost_arg (ptr, 0, ptr, ptr);
-  dds_lget_offered_deadline_missed_arg (ptr, 0, ptr, ptr);
-  dds_lget_offered_incompatible_qos_arg (ptr, 0, ptr, ptr);
-  dds_lget_publication_matched_arg (ptr, 0, ptr, ptr);
-  dds_lget_requested_deadline_missed_arg (ptr, 0, ptr, ptr);
-  dds_lget_requested_incompatible_qos_arg (ptr, 0, ptr, ptr);
-  dds_lget_sample_lost_arg (ptr, 0, ptr, ptr);
-  dds_lget_sample_rejected_arg (ptr, 0, ptr, ptr);
-  dds_lget_subscription_matched_arg (ptr, 0, ptr, ptr);
-  dds_lget_inconsistent_topic (ptr, 0);
-  dds_lget_liveliness_lost (ptr, 0);
-  dds_lget_offered_deadline_missed (ptr, 0);
-  dds_lget_offered_incompatible_qos (ptr, 0);
-  dds_lget_data_on_readers (ptr, 0);
-  dds_lget_sample_lost (ptr, 0);
-  dds_lget_data_available (ptr, 0);
-  dds_lget_sample_rejected (ptr, 0);
-  dds_lget_liveliness_changed (ptr, 0);
-  dds_lget_requested_deadline_missed (ptr, 0);
-  dds_lget_requested_incompatible_qos (ptr, 0);
-  dds_lget_publication_matched (ptr, 0);
-  dds_lget_subscription_matched (ptr, 0);
+  check_symbol_export(&result, ddsc_library_handle, "dds_create_listener");
+  check_symbol_export(&result, ddsc_library_handle, "dds_delete_listener");
+  check_symbol_export(&result, ddsc_library_handle, "dds_reset_listener");
+  check_symbol_export(&result, ddsc_library_handle, "dds_copy_listener");
+  check_symbol_export(&result, ddsc_library_handle, "dds_merge_listener");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lset_data_available_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lset_data_on_readers_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lset_inconsistent_topic_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lset_liveliness_changed_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lset_liveliness_lost_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lset_offered_deadline_missed_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lset_offered_incompatible_qos_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lset_publication_matched_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lset_requested_deadline_missed_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lset_requested_incompatible_qos_arg");
+  check_symbol_export(&result, ddsc_library_handle, "dds_lset_sample_lost_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lset_sample_rejected_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lset_subscription_matched_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lset_inconsistent_topic");
+  check_symbol_export(&result, ddsc_library_handle, "dds_lset_liveliness_lost");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lset_offered_deadline_missed");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lset_offered_incompatible_qos");
+  check_symbol_export(&result, ddsc_library_handle, "dds_lset_data_on_readers");
+  check_symbol_export(&result, ddsc_library_handle, "dds_lset_sample_lost");
+  check_symbol_export(&result, ddsc_library_handle, "dds_lset_data_available");
+  check_symbol_export(&result, ddsc_library_handle, "dds_lset_sample_rejected");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lset_liveliness_changed");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lset_requested_deadline_missed");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lset_requested_incompatible_qos");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lset_publication_matched");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lset_subscription_matched");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lget_data_available_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lget_data_on_readers_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lget_inconsistent_topic_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lget_liveliness_changed_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lget_liveliness_lost_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lget_offered_deadline_missed_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lget_offered_incompatible_qos_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lget_publication_matched_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lget_requested_deadline_missed_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lget_requested_incompatible_qos_arg");
+  check_symbol_export(&result, ddsc_library_handle, "dds_lget_sample_lost_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lget_sample_rejected_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lget_subscription_matched_arg");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lget_inconsistent_topic");
+  check_symbol_export(&result, ddsc_library_handle, "dds_lget_liveliness_lost");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lget_offered_deadline_missed");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lget_offered_incompatible_qos");
+  check_symbol_export(&result, ddsc_library_handle, "dds_lget_data_on_readers");
+  check_symbol_export(&result, ddsc_library_handle, "dds_lget_sample_lost");
+  check_symbol_export(&result, ddsc_library_handle, "dds_lget_data_available");
+  check_symbol_export(&result, ddsc_library_handle, "dds_lget_sample_rejected");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lget_liveliness_changed");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lget_requested_deadline_missed");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lget_requested_incompatible_qos");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lget_publication_matched");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_lget_subscription_matched");
 
   // dds_public_qos
-  dds_create_qos ();
-  dds_delete_qos (ptr);
-  dds_reset_qos (ptr);
-  dds_copy_qos (ptr, ptr2);
-  dds_merge_qos (ptr, ptr2);
-  dds_qos_equal (ptr, ptr2);
-  dds_qset_userdata (ptr, ptr2, 0);
-  dds_qset_topicdata (ptr, ptr2, 0);
-  dds_qset_groupdata (ptr, ptr2, 0);
-  dds_qset_durability (ptr, 0);
-  dds_qset_history (ptr, 0, 0);
-  dds_qset_resource_limits (ptr, 0, 0, 0);
-  dds_qset_presentation (ptr, 0, 0, 0);
-  dds_qset_lifespan (ptr, 0);
-  dds_qset_deadline (ptr, 0);
-  dds_qset_latency_budget (ptr, 0);
-  dds_qset_ownership (ptr, 0);
-  dds_qset_ownership_strength (ptr, 0);
-  dds_qset_liveliness (ptr, 0, 0);
-  dds_qset_time_based_filter (ptr, 0);
-  dds_qset_partition (ptr, 0, ptr2);
-  dds_qset_partition1 (ptr, ptr2);
-  dds_qset_reliability (ptr, 0, 0);
-  dds_qset_transport_priority (ptr, 0);
-  dds_qset_destination_order (ptr, 0);
-  dds_qset_writer_data_lifecycle (ptr, 0);
-  dds_qset_reader_data_lifecycle (ptr, 0, 0);
-  dds_qset_writer_batching (ptr, 0);
-  dds_qset_durability_service (ptr, 0, 0, 0, 0, 0, 0);
-  dds_qset_ignorelocal (ptr, 0);
-  dds_qset_prop (ptr, ptr2, ptr3);
-  dds_qset_prop_propagate (ptr, ptr, ptr, ptr);
-  dds_qunset_prop (ptr, ptr2);
-  dds_qset_bprop (ptr, ptr2, ptr3, 0);
-  dds_qset_bprop_propagate (ptr, ptr2, ptr3, 0, ptr);
-  dds_qunset_bprop (ptr, ptr2);
-  dds_qset_type_consistency (ptr, 0, 0, 0, 0, 0, 0);
-  dds_qset_data_representation (ptr, 0, ptr2);
-  dds_qset_entity_name (ptr, ptr2);
-  dds_qset_psmx_instances (ptr, 0, ptr2);
-  dds_qget_userdata (ptr, ptr2, ptr);
-  dds_qget_topicdata (ptr, ptr2, ptr);
-  dds_qget_groupdata (ptr, ptr2, ptr);
-  dds_qget_durability (ptr, 0);
-  dds_qget_history (ptr, 0, ptr);
-  dds_qget_resource_limits (ptr, ptr, ptr, ptr);
-  dds_qget_presentation (ptr, 0, ptr, ptr);
-  dds_qget_lifespan (ptr, ptr);
-  dds_qget_deadline (ptr, ptr);
-  dds_qget_latency_budget (ptr, ptr);
-  dds_qget_ownership (ptr, 0);
-  dds_qget_ownership_strength (ptr, ptr);
-  dds_qget_liveliness (ptr, 0, ptr);
-  dds_qget_time_based_filter (ptr, ptr);
-  dds_qget_partition (ptr, ptr, ptr);
-  dds_qget_reliability (ptr, 0, ptr);
-  dds_qget_transport_priority (ptr, ptr);
-  dds_qget_destination_order (ptr, 0);
-  dds_qget_writer_data_lifecycle (ptr, ptr);
-  dds_qget_reader_data_lifecycle (ptr, ptr, ptr);
-  dds_qget_writer_batching (ptr, ptr);
-  dds_qget_durability_service (ptr, ptr, 0, ptr, ptr, ptr, ptr);
-  dds_qget_ignorelocal (ptr, 0);
-  dds_qget_propnames (ptr, ptr, ptr);
-  dds_qget_prop (ptr, ptr, ptr);
-  dds_qget_prop_propagate (ptr, ptr, ptr, ptr);
-  dds_qget_bpropnames (ptr, ptr, ptr);
-  dds_qget_bprop (ptr, ptr, ptr, ptr);
-  dds_qget_bprop_propagate (ptr, ptr, ptr, ptr, ptr);
-  dds_qget_type_consistency (ptr, 0, ptr, ptr, ptr, ptr, ptr);
-  dds_qget_data_representation (ptr, ptr, ptr);
-  dds_qget_entity_name (ptr, ptr);
-  dds_qget_psmx_instances (ptr, ptr2, ptr3);
+  check_symbol_export(&result, ddsc_library_handle, "dds_create_qos");
+  check_symbol_export(&result, ddsc_library_handle, "dds_delete_qos");
+  check_symbol_export(&result, ddsc_library_handle, "dds_reset_qos");
+  check_symbol_export(&result, ddsc_library_handle, "dds_copy_qos");
+  check_symbol_export(&result, ddsc_library_handle, "dds_merge_qos");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qos_equal");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_userdata");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_topicdata");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_groupdata");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_durability");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_history");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_resource_limits");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_presentation");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_lifespan");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_deadline");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_latency_budget");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_ownership");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_qset_ownership_strength");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_liveliness");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_qset_time_based_filter");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_partition");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_partition1");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_reliability");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_qset_transport_priority");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_qset_destination_order");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_qset_writer_data_lifecycle");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_qset_reader_data_lifecycle");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_writer_batching");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_qset_durability_service");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_ignorelocal");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_prop");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_prop_propagate");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qunset_prop");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_bprop");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_bprop_propagate");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qunset_bprop");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_qset_type_consistency");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_qset_data_representation");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_entity_name");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qset_psmx_instances");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_userdata");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_topicdata");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_groupdata");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_durability");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_history");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_resource_limits");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_presentation");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_lifespan");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_deadline");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_latency_budget");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_ownership");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_qget_ownership_strength");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_liveliness");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_qget_time_based_filter");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_partition");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_reliability");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_qget_transport_priority");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_qget_destination_order");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_qget_writer_data_lifecycle");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_qget_reader_data_lifecycle");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_writer_batching");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_qget_durability_service");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_ignorelocal");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_propnames");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_prop");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_prop_propagate");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_bpropnames");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_bprop");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_bprop_propagate");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_qget_type_consistency");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_qget_data_representation");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_entity_name");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qget_psmx_instances");
 
   // dds_public_status.h
-  dds_get_inconsistent_topic_status (1, ptr);
-  dds_get_publication_matched_status (1, ptr);
-  dds_get_liveliness_lost_status (1, ptr);
-  dds_get_offered_deadline_missed_status (1, ptr);
-  dds_get_offered_incompatible_qos_status (1, ptr);
-  dds_get_subscription_matched_status (1, ptr);
-  dds_get_liveliness_changed_status (1, ptr);
-  dds_get_sample_rejected_status (1, ptr);
-  dds_get_sample_lost_status (1, ptr);
-  dds_get_requested_deadline_missed_status (1, ptr);
-  dds_get_requested_incompatible_qos_status (1, ptr);
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_get_inconsistent_topic_status");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_get_publication_matched_status");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_get_liveliness_lost_status");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_get_offered_deadline_missed_status");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_get_offered_incompatible_qos_status");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_get_subscription_matched_status");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_get_liveliness_changed_status");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_get_sample_rejected_status");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_get_sample_lost_status");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_get_requested_deadline_missed_status");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_get_requested_incompatible_qos_status");
 
-#ifdef DDS_HAS_TYPELIB
+#if DDS_HAS_TYPELIB // In dds/ddsrt/features.h
   // dds_public_dynamic_type.h
-  dds_dynamic_member_set_external (ptr, 0, 0);
-  dds_dynamic_member_set_hashid (ptr, 0, ptr);
-  dds_dynamic_member_set_key (ptr, 0, 0);
-  dds_dynamic_member_set_must_understand (ptr, 0, 0);
-  dds_dynamic_member_set_optional (ptr, 0, 0);
-  dds_dynamic_type_add_bitmask_field (ptr, ptr, 0);
-  dds_dynamic_type_add_enum_literal (ptr, ptr, (dds_dynamic_enum_literal_value_t) { .value_kind = 0 }, 0);
-  dds_dynamic_type_add_member (ptr, (dds_dynamic_member_descriptor_t) { .name = "dummy" });
-  dds_dynamic_type_create (0, (dds_dynamic_type_descriptor_t) { .name = "dummy" });
-  dds_dynamic_type_dup (ptr);
-  dds_dynamic_type_ref (ptr);
-  dds_dynamic_type_register (ptr, ptr);
-  dds_dynamic_type_set_autoid (ptr, 0);
-  dds_dynamic_type_set_bit_bound (ptr, 0);
-  dds_dynamic_type_set_extensibility (ptr, 0);
-  dds_dynamic_type_set_nested (ptr, 0);
-  dds_dynamic_type_unref (ptr);
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_dynamic_member_set_external");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_dynamic_member_set_hashid");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_dynamic_member_set_key");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_dynamic_member_set_must_understand");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_dynamic_member_set_optional");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_dynamic_type_add_bitmask_field");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_dynamic_type_add_enum_literal");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_dynamic_type_add_member");
+  check_symbol_export(&result, ddsc_library_handle, "dds_dynamic_type_create");
+  check_symbol_export(&result, ddsc_library_handle, "dds_dynamic_type_dup");
+  check_symbol_export(&result, ddsc_library_handle, "dds_dynamic_type_ref");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_dynamic_type_register");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_dynamic_type_set_autoid");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_dynamic_type_set_bit_bound");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_dynamic_type_set_extensibility");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_dynamic_type_set_nested");
+  check_symbol_export(&result, ddsc_library_handle, "dds_dynamic_type_unref");
 #endif
 
   // dds_rhs.h
-  dds_rhc_associate (ptr, NULL);
-  dds_rhc_store (ptr, NULL, NULL, NULL);
-  dds_rhc_unregister_wr (ptr, NULL);
-  dds_rhc_relinquish_ownership (ptr, 1);
-  dds_rhc_free (ptr);
-  dds_rhc_peek (ptr, 0, 0, 1, ptr, 0, 0);
-  dds_rhc_read (ptr, 0, 0, 1, ptr, 0, 0);
-  dds_rhc_take (ptr, 0, 0, 1, ptr, 0, 0);
-  dds_rhc_add_readcondition (ptr, ptr);
-  dds_rhc_remove_readcondition (ptr, ptr);
-  dds_reader_data_available_cb (ptr);
+  check_symbol_export(&result, ddsc_library_handle, "dds_rhc_associate");
+  check_symbol_export(&result, ddsc_library_handle, "dds_rhc_store");
+  check_symbol_export(&result, ddsc_library_handle, "dds_rhc_unregister_wr");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_rhc_relinquish_ownership");
+  check_symbol_export(&result, ddsc_library_handle, "dds_rhc_free");
+  check_symbol_export(&result, ddsc_library_handle, "dds_rhc_peek");
+  check_symbol_export(&result, ddsc_library_handle, "dds_rhc_read");
+  check_symbol_export(&result, ddsc_library_handle, "dds_rhc_take");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_rhc_add_readcondition");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_rhc_remove_readcondition");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_reader_data_available_cb");
 
   // dds_statistics.h
-  dds_create_statistics (1);
-  dds_refresh_statistics (ptr);
-  dds_delete_statistics (ptr);
-  dds_lookup_statistic (ptr, ptr);
+  check_symbol_export(&result, ddsc_library_handle, "dds_create_statistics");
+  check_symbol_export(&result, ddsc_library_handle, "dds_refresh_statistics");
+  check_symbol_export(&result, ddsc_library_handle, "dds_delete_statistics");
+  check_symbol_export(&result, ddsc_library_handle, "dds_lookup_statistic");
 
   // dds_cdrstream.h
-  bool ret_cdrs;
-  dds_istream_init (ptr, 0, ptr2, 0);
-  dds_istream_fini (ptr);
-  dds_ostream_init (ptr, ptr2, 0, 0);
-  dds_ostream_fini (ptr, ptr2);
-  dds_ostreamLE_init (ptr, ptr2, 0, 0);
-  dds_ostreamLE_fini (ptr, ptr2);
-  dds_ostreamBE_init (ptr, ptr2, 0, 0);
-  dds_ostreamBE_fini (ptr, ptr2);
+  check_symbol_export(&result, ddsc_library_handle, "dds_istream_init");
+  check_symbol_export(&result, ddsc_library_handle, "dds_istream_fini");
+  check_symbol_export(&result, ddsc_library_handle, "dds_ostream_init");
+  check_symbol_export(&result, ddsc_library_handle, "dds_ostream_fini");
+  check_symbol_export(&result, ddsc_library_handle, "dds_ostreamLE_init");
+  check_symbol_export(&result, ddsc_library_handle, "dds_ostreamLE_fini");
+  check_symbol_export(&result, ddsc_library_handle, "dds_ostreamBE_init");
+  check_symbol_export(&result, ddsc_library_handle, "dds_ostreamBE_fini");
+  check_symbol_export(&result, ddsc_library_handle, "dds_stream_normalize");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_stream_normalize_xcdr2_data");
 
-  ret_cdrs = dds_stream_normalize (ptr, 0, 0, 0, ptr2, 0, ptr3);
-  (void) ret_cdrs;
-  ret_cdrs = dds_stream_normalize_xcdr2_data (ptr, ptr2, 0, 0, ptr3);
-  (void) ret_cdrs;
+  check_symbol_export(&result, ddsc_library_handle, "dds_stream_write");
+  check_symbol_export(&result, ddsc_library_handle, "dds_stream_writeLE");
+  check_symbol_export(&result, ddsc_library_handle, "dds_stream_writeBE");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_stream_write_with_mid");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_stream_write_with_midLE");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_stream_write_with_midBE");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_stream_write_with_byte_order");
+  check_symbol_export(&result, ddsc_library_handle, "dds_stream_write_sample");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_stream_write_sampleLE");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_stream_write_sampleBE");
 
-  dds_stream_write (ptr, ptr2, ptr3, ptr4);
-  dds_stream_writeLE (ptr, ptr2, ptr3, ptr4);
-  dds_stream_writeBE (ptr, ptr2, ptr3, ptr4);
-  dds_stream_write_with_mid (ptr, ptr2, ptr3, ptr4, ptr5);
-  dds_stream_write_with_midLE (ptr, ptr2, ptr3, ptr4, ptr5);
-  dds_stream_write_with_midBE (ptr, ptr2, ptr3, ptr4, ptr5);
-  dds_stream_write_with_byte_order (ptr, ptr2, ptr3, ptr4, ptr5, 0);
-  dds_stream_write_sample (ptr, ptr2, ptr3, ptr4);
-  dds_stream_write_sampleLE (ptr, ptr2, ptr3, ptr4);
-  dds_stream_write_sampleBE (ptr, ptr2, ptr3, ptr4);
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_stream_getsize_sample");
+  check_symbol_export(&result, ddsc_library_handle, "dds_stream_getsize_key");
 
-  dds_stream_getsize_sample (ptr, ptr, 0);
-  dds_stream_getsize_key (ptr, ptr, 0);
+  check_symbol_export(&result, ddsc_library_handle, "dds_stream_read");
+  check_symbol_export(&result, ddsc_library_handle, "dds_stream_read_key");
 
-  dds_stream_read (ptr, ptr2, ptr3, ptr4);
-  dds_stream_read_key (ptr, ptr2, ptr3, ptr4);
+  check_symbol_export(&result, ddsc_library_handle, "dds_stream_read_sample");
+  check_symbol_export(&result, ddsc_library_handle, "dds_stream_free_sample");
+  check_symbol_export(&result, ddsc_library_handle, "dds_stream_countops");
+  check_symbol_export(&result, ddsc_library_handle, "dds_stream_print_key");
+  check_symbol_export(&result, ddsc_library_handle, "dds_stream_print_sample");
 
-  dds_stream_read_sample (ptr, ptr2, ptr3, ptr4);
-  dds_stream_free_sample (ptr, ptr2, ptr3);
-  dds_stream_countops (ptr, 0, ptr2);
-  dds_stream_print_key (ptr, ptr2, ptr3, 0);
-  dds_stream_print_sample (ptr, ptr2, ptr3, 0);
-
-  dds_stream_extract_key_from_data (ptr, ptr2, ptr3, ptr4);
-  dds_stream_extract_key_from_key (ptr, ptr2, 0, ptr3, ptr4);
-  dds_stream_extract_keyBE_from_data (ptr, ptr2, ptr3, ptr4);
-  dds_stream_extract_keyBE_from_key (ptr, ptr2, 0, ptr3, ptr4);
-  dds_cdrstream_desc_from_topic_desc (ptr, ptr2);
-  dds_cdrstream_desc_init_with_nops (ptr, ptr2, 0, 0, 0, ptr3, 0, ptr4, 0);
-  dds_cdrstream_desc_init (ptr, ptr2, 0, 0, 0, ptr3, ptr4, 0);
-  dds_cdrstream_desc_fini (ptr, ptr2);
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_stream_extract_key_from_data");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_stream_extract_key_from_key");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_stream_extract_keyBE_from_data");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_stream_extract_keyBE_from_key");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_cdrstream_desc_from_topic_desc");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_cdrstream_desc_init_with_nops");
+  check_symbol_export(&result, ddsc_library_handle, "dds_cdrstream_desc_init");
+  check_symbol_export(&result, ddsc_library_handle, "dds_cdrstream_desc_fini");
 
   // dds_psmx.h
-  dds_add_psmx_endpoint_to_list (ptr, ptr2);
-  dds_add_psmx_topic_to_list (ptr, ptr2);
-  dds_remove_psmx_endpoint_from_list (ptr, ptr2);
-  dds_remove_psmx_topic_from_list (ptr, ptr2);
-  dds_psmx_init_generic (ptr);
-  dds_psmx_cleanup_generic (ptr);
-  dds_psmx_topic_init_generic (ptr, ptr2, ptr3, ptr4, ptr, 0);
-  dds_psmx_topic_cleanup_generic (ptr);
-  dds_psmx_get_config_option_value (ptr, ptr2);
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_add_psmx_endpoint_to_list");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_add_psmx_topic_to_list");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_remove_psmx_endpoint_from_list");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_remove_psmx_topic_from_list");
+  check_symbol_export(&result, ddsc_library_handle, "dds_psmx_init_generic");
+  check_symbol_export(&result, ddsc_library_handle, "dds_psmx_cleanup_generic");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_psmx_topic_init_generic");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_psmx_topic_cleanup_generic");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_psmx_get_config_option_value");
 
   // dds_loaned_sample.h
-  dds_loaned_sample_ref (ptr);
-  dds_loaned_sample_unref (ptr);
-  dds_reader_store_loaned_sample (1, ptr);
-  dds_reader_store_loaned_sample_wr_metadata (0, ptr, 0, 0, 0);
+  check_symbol_export(&result, ddsc_library_handle, "dds_loaned_sample_ref");
+  check_symbol_export(&result, ddsc_library_handle, "dds_loaned_sample_unref");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_reader_store_loaned_sample");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_reader_store_loaned_sample_wr_metadata");
 
 #ifdef DDS_HAS_SECURITY
   // dds_security_timed_cb.h
-  dds_security_timed_dispatcher_new (ptr);
-  dds_security_timed_dispatcher_free (ptr);
-  dds_security_timed_dispatcher_enable (ptr);
-  dds_security_timed_dispatcher_disable (ptr);
-  dds_security_timed_dispatcher_add (ptr, 0, 0, ptr);
-  dds_security_timed_dispatcher_remove (ptr, 0);
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_security_timed_dispatcher_new");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_security_timed_dispatcher_free");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_security_timed_dispatcher_enable");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_security_timed_dispatcher_disable");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_security_timed_dispatcher_add");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_security_timed_dispatcher_remove");
 
   // dds_security_utils.h
-  DDS_Security_BinaryProperty_alloc ();
-  DDS_Security_BinaryProperty_deinit (ptr);
-  DDS_Security_BinaryProperty_free (ptr);
-  DDS_Security_BinaryProperty_copy (ptr, ptr);
-  DDS_Security_BinaryProperty_equal (ptr, ptr);
-  DDS_Security_BinaryProperty_set_by_value (ptr, ptr, ptr, 0);
-  DDS_Security_BinaryProperty_set_by_string (ptr, ptr, ptr);
-  DDS_Security_BinaryProperty_set_by_ref (ptr, ptr, ptr, 0);
-  DDS_Security_BinaryPropertySeq_alloc ();
-  DDS_Security_BinaryPropertySeq_allocbuf (0);
-  DDS_Security_BinaryPropertySeq_deinit (ptr);
-  DDS_Security_BinaryPropertySeq_free (ptr);
-  DDS_Security_Property_alloc ();
-  DDS_Security_Property_free (ptr);
-  DDS_Security_Property_deinit (ptr);
-  DDS_Security_Property_copy (ptr, ptr);
-  DDS_Security_Property_equal (ptr, ptr);
-  DDS_Security_Property_get_value (ptr, ptr);
-  DDS_Security_PropertySeq_alloc ();
-  DDS_Security_PropertySeq_allocbuf (0);
-  DDS_Security_PropertySeq_freebuf (ptr);
-  DDS_Security_PropertySeq_free (ptr);
-  DDS_Security_PropertySeq_deinit (ptr);
-  DDS_Security_PropertySeq_find_property (ptr, ptr);
-  DDS_Security_DataHolder_alloc ();
-  DDS_Security_DataHolder_free (ptr);
-  DDS_Security_DataHolder_deinit (ptr);
-  DDS_Security_DataHolder_copy (ptr, ptr);
-  DDS_Security_DataHolder_equal (ptr, ptr);
-  DDS_Security_DataHolder_find_property (ptr, ptr);
-  DDS_Security_DataHolder_find_binary_property (ptr, ptr);
-  DDS_Security_DataHolderSeq_alloc ();
-  DDS_Security_DataHolderSeq_allocbuf (0);
-  DDS_Security_DataHolderSeq_freebuf (ptr);
-  DDS_Security_DataHolderSeq_free (ptr);
-  DDS_Security_DataHolderSeq_deinit (ptr);
-  DDS_Security_DataHolderSeq_copy (ptr, ptr);
-  DDS_Security_ParticipantBuiltinTopicData_alloc ();
-  DDS_Security_ParticipantBuiltinTopicData_free (ptr);
-  DDS_Security_ParticipantBuiltinTopicData_deinit (ptr);
-  DDS_Security_OctetSeq_alloc ();
-  DDS_Security_OctetSeq_allocbuf (0);
-  DDS_Security_OctetSeq_freebuf (ptr);
-  DDS_Security_OctetSeq_free (ptr);
-  DDS_Security_OctetSeq_deinit (ptr);
-  DDS_Security_OctetSeq_copy (ptr, ptr);
-  DDS_Security_HandleSeq_alloc ();
-  DDS_Security_HandleSeq_allocbuf (0);
-  DDS_Security_HandleSeq_freebuf (ptr);
-  DDS_Security_HandleSeq_free (ptr);
-  DDS_Security_HandleSeq_deinit (ptr);
-  test_DDS_Security_Exception_vset (ptr, " ");
-  DDS_Security_Exception_set (ptr, ptr, 0, 0, " ");
-  DDS_Security_Exception_reset (ptr);
-  DDS_Security_Exception_clean (ptr);
-  DDS_Security_PropertyQosPolicy_deinit (ptr);
-  DDS_Security_PropertyQosPolicy_free (ptr);
-  DDS_Security_set_token_nil (ptr);
-  DDS_Security_KeyMaterial_AES_GCM_GMAC_deinit (ptr);
-  DDS_Security_basicprotectionkind2transformationkind (ptr, DDS_SECURITY_BASICPROTECTION_KIND_NONE);
-  DDS_Security_protectionkind2transformationkind (ptr, DDS_SECURITY_PROTECTION_KIND_NONE);
-  DDS_Security_get_conf_item_type (ptr, ptr);
-  DDS_Security_normalize_file (ptr);
-  DDS_Security_parse_xml_date (ptr);
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_BinaryProperty_alloc");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_BinaryProperty_deinit");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_BinaryProperty_free");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_BinaryProperty_copy");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_BinaryProperty_equal");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_BinaryProperty_set_by_value");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_BinaryProperty_set_by_string");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_BinaryProperty_set_by_ref");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_BinaryPropertySeq_alloc");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_BinaryPropertySeq_allocbuf");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_BinaryPropertySeq_deinit");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_BinaryPropertySeq_free");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Property_alloc");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Property_free");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Property_deinit");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Property_copy");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Property_equal");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Property_get_value");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_PropertySeq_alloc");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_PropertySeq_allocbuf");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_PropertySeq_freebuf");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_PropertySeq_free");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_PropertySeq_deinit");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_PropertySeq_find_property");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_DataHolder_alloc");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_DataHolder_free");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_DataHolder_deinit");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_DataHolder_copy");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_DataHolder_equal");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_DataHolder_find_property");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_DataHolder_find_binary_property");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_DataHolderSeq_alloc");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_DataHolderSeq_allocbuf");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_DataHolderSeq_freebuf");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_DataHolderSeq_free");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_DataHolderSeq_deinit");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_DataHolderSeq_copy");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_ParticipantBuiltinTopicData_alloc");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_ParticipantBuiltinTopicData_free");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_ParticipantBuiltinTopicData_deinit");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_OctetSeq_alloc");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_OctetSeq_allocbuf");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_OctetSeq_freebuf");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_OctetSeq_free");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_OctetSeq_deinit");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_OctetSeq_copy");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_HandleSeq_alloc");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_HandleSeq_allocbuf");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_HandleSeq_freebuf");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_HandleSeq_free");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_HandleSeq_deinit");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Exception_vset");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Exception_set");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Exception_reset");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Exception_clean");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_PropertyQosPolicy_deinit");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_PropertyQosPolicy_free");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_set_token_nil");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_KeyMaterial_AES_GCM_GMAC_deinit");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_basicprotectionkind2transformationkind");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_protectionkind2transformationkind");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_get_conf_item_type");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_normalize_file");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_parse_xml_date");
 
   // dds_security_serializer.h
-  DDS_Security_Serializer_new (0, 0);
-  DDS_Security_Serializer_free (ptr);
-  DDS_Security_Serializer_buffer (ptr, ptr, ptr);
-  DDS_Security_Serialize_PropertySeq (ptr, ptr);
-  DDS_Security_Serialize_BinaryPropertyArray (ptr, ptr, 0);
-  DDS_Security_Serialize_BinaryPropertySeq (ptr, ptr);
-  DDS_Security_Serialize_ParticipantBuiltinTopicData (ptr, ptr);
-  DDS_Security_Serialize_KeyMaterial_AES_GCM_GMAC (ptr, ptr);
-  DDS_Security_Deserializer_new (ptr, 0);
-  DDS_Security_Deserializer_free (ptr);
-  DDS_Security_Deserialize_ParticipantBuiltinTopicData (ptr, ptr, ptr);
-  DDS_Security_BuiltinTopicKeyBE (ptr, ptr);
-  DDS_Security_Deserialize_KeyMaterial_AES_GCM_GMAC (ptr, ptr);
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Serializer_new");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Serializer_free");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Serializer_buffer");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Serialize_PropertySeq");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Serialize_BinaryPropertyArray");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Serialize_BinaryPropertySeq");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Serialize_ParticipantBuiltinTopicData");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Serialize_KeyMaterial_AES_GCM_GMAC");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Deserializer_new");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Deserializer_free");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Deserialize_ParticipantBuiltinTopicData");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_BuiltinTopicKeyBE");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_Deserialize_KeyMaterial_AES_GCM_GMAC");
 
   // shared_secret.h
-  DDS_Security_get_challenge1_from_secret_handle (1);
-  DDS_Security_get_challenge2_from_secret_handle (1);
-  DDS_Security_get_secret_from_secret_handle (1);
-  DDS_Security_get_secret_size_from_secret_handle (1);
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_get_challenge1_from_secret_handle");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_get_challenge2_from_secret_handle");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_get_secret_from_secret_handle");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "DDS_Security_get_secret_size_from_secret_handle");
 #endif
 
 #ifdef DDS_HAS_QOS_PROVIDER
-  dds_create_qos_provider(ptr,ptr);
-  dds_create_qos_provider_scope(ptr,ptr,ptr);
-  dds_qos_provider_get_qos(ptr,0,ptr,ptr);
-  dds_delete_qos_provider(ptr);
+  check_symbol_export(&result, ddsc_library_handle, "dds_create_qos_provider");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_create_qos_provider_scope");
+  check_symbol_export(&result, ddsc_library_handle, "dds_qos_provider_get_qos");
+  check_symbol_export(&result, ddsc_library_handle, "dds_delete_qos_provider");
 #endif
 
-  // ddsi_sertype.h
-  struct dds_type_consistency_enforcement_qospolicy tce = { 0, false, false, false, false, false };
-  ddsi_sertype_v0 (ptr);
-  ddsi_sertype_init_props (ptr, ptr, ptr, ptr, 0, 0, 0, 0);
-  ddsi_sertype_init_flags (ptr, ptr, ptr, ptr, 0);
-  ddsi_sertype_init (ptr, ptr, ptr, ptr, 0);
-  ddsi_sertype_fini (ptr);
-  ddsi_sertype_ref (ptr);
-  ddsi_sertype_unref (ptr);
-  ddsi_sertype_compute_serdata_basehash (ptr);
-  ddsi_sertype_equal (ptr, ptr);
-  ddsi_sertype_hash (ptr);
-  ddsi_sertype_extensibility_enc_format (0);
-  ddsi_sertype_get_native_enc_identifier (0, 0);
-  ddsi_sertype_enc_id_xcdr_version (0);
-  ddsi_sertype_enc_id_enc_format (0);
-  ddsi_sertype_free (ptr);
-  ddsi_sertype_zero_samples (ptr, ptr, 0);
-  ddsi_sertype_realloc_samples (ptr, ptr, ptr, 0, 0);
-  ddsi_sertype_free_samples (ptr, ptr, 0, DDS_FREE_ALL);
-  ddsi_sertype_zero_sample (ptr, ptr);
-  ddsi_sertype_alloc_sample (ptr);
-  ddsi_sertype_free_sample (ptr, ptr, DDS_FREE_ALL);
-  ddsi_sertype_typeid (ptr, 0);
-  ddsi_sertype_typemap (ptr);
-  ddsi_sertype_typeinfo (ptr);
-  ddsi_sertype_derive_sertype (ptr, 0, tce);
-  ddsi_sertype_get_serialized_size (ptr, SDK_DATA, ptr, ptr, ptr);
-  ddsi_sertype_serialize_into (ptr, SDK_DATA, ptr, ptr, 0);
+// ddsi_sertype.h
+#ifndef _WIN32
+  // ddsi_sertype_v0 is a function only when not built for Windows, otherwise is
+  // a struct
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_sertype_v0");
+#endif
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_sertype_init_props");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_sertype_init_flags");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_sertype_init");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_sertype_fini");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_sertype_ref");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_sertype_unref");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_sertype_compute_serdata_basehash");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_sertype_equal");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_sertype_hash");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_sertype_extensibility_enc_format");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_sertype_get_native_enc_identifier");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_sertype_enc_id_xcdr_version");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_sertype_enc_id_enc_format");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_sertype_free");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_sertype_zero_samples");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_sertype_realloc_samples");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_sertype_free_samples");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_sertype_zero_sample");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_sertype_alloc_sample");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_sertype_free_sample");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_sertype_typeid");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_sertype_typemap");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_sertype_typeinfo");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_sertype_derive_sertype");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_sertype_get_serialized_size");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_sertype_serialize_into");
 
   // ddsi_serdata.h
-  ddsi_serdata_init (ptr, ptr, 0);
-  ddsi_serdata_ref (ptr);
-  ddsi_serdata_unref (ptr);
-  ddsi_serdata_size (ptr);
-  ddsi_serdata_from_ser (ptr, 0, ptr, 0);
-  ddsi_serdata_from_ser_iov (ptr, 0, 0, ptr, 0);
-  ddsi_serdata_from_keyhash (ptr, ptr);
-  ddsi_serdata_from_sample (ptr, 0, ptr);
-  ddsi_serdata_to_untyped (ptr);
-  ddsi_serdata_to_ser (ptr, 0, 0, ptr);
-  ddsi_serdata_to_ser_ref (ptr, 0, 0, ptr);
-  ddsi_serdata_to_ser_unref (ptr, ptr);
-  ddsi_serdata_to_sample (ptr, ptr, ptr, ptr);
-  ddsi_serdata_untyped_to_sample (ptr, ptr, ptr, ptr, ptr);
-  ddsi_serdata_eqkey (ptr, ptr);
-  char buf[10];
-  ddsi_serdata_print (ptr, buf, 0);
-  ddsi_serdata_print_untyped (ptr, ptr, buf, 0);
-  ddsi_serdata_get_keyhash (ptr, ptr, 0);
-  ddsi_serdata_from_loaned_sample (ptr, 0, ptr2, ptr3, 0);
-  ddsi_serdata_from_psmx (ptr, ptr2);
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_serdata_init");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_serdata_ref");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_serdata_unref");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_serdata_size");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_serdata_from_ser");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_serdata_from_ser_iov");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_serdata_from_keyhash");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_serdata_from_sample");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_serdata_to_untyped");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_serdata_to_ser");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_serdata_to_ser_ref");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_serdata_to_ser_unref");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_serdata_to_sample");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_serdata_untyped_to_sample");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_serdata_eqkey");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_serdata_print");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_serdata_print_untyped");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_serdata_get_keyhash");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_serdata_from_loaned_sample");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_serdata_from_psmx");
 
 #ifdef DDS_HAS_TYPELIB
   // ddsi_typewrap.h
-  ddsi_typeid_compare (ptr, ptr);
-  ddsi_typeid_copy (ptr, ptr);
-  ddsi_typeid_dup (ptr);
-  ddsi_typeid_ser (ptr, ptr, ptr);
-  ddsi_typeid_is_none (ptr);
-  ddsi_typeid_is_hash (ptr);
-  ddsi_typeid_is_minimal (ptr);
-  ddsi_typeid_is_complete (ptr);
-  ddsi_typeid_is_fully_descriptive (ptr);
-  ddsi_typeid_get_equivalence_hash (ptr, ptr);
-  ddsi_typeid_kind (ptr);
-  ddsi_typeid_fini (ptr);
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_typeid_compare");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_typeid_copy");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_typeid_dup");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_typeid_ser");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_typeid_is_none");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_typeid_is_hash");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_typeid_is_minimal");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_typeid_is_complete");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_typeid_is_fully_descriptive");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_typeid_get_equivalence_hash");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_typeid_kind");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_typeid_fini");
 
   // ddsi_typelib.h
-  ddsi_typeinfo_equal (ptr, ptr, 0);
-  ddsi_typeinfo_typeid (ptr, 0);
-  ddsi_typeinfo_deser (ptr, 0);
-  ddsi_typeinfo_fini (ptr);
-  ddsi_typeinfo_free (ptr);
-  ddsi_typeinfo_dup (ptr);
-  ddsi_typeinfo_minimal_typeid (ptr);
-  ddsi_typeinfo_complete_typeid (ptr);
-  ddsi_typemap_deser (ptr, 0);
-  ddsi_typemap_fini (ptr);
-  ddsi_typemap_equal (ptr, ptr);
-  ddsi_typemap_get_type_name (ptr, ptr2);
-  ddsi_type_lookup (ptr, ptr);
-  ddsi_type_compare (ptr, ptr);
-  ddsi_type_ref (ptr, ptr2, ptr3);
-  ddsi_type_unref (ptr, ptr2);
-  ddsi_type_add (ptr, ptr2, ptr3, ptr4, ptr5);
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_typeinfo_equal");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_typeinfo_typeid");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_typeinfo_deser");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_typeinfo_fini");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_typeinfo_free");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_typeinfo_dup");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_typeinfo_minimal_typeid");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_typeinfo_complete_typeid");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_typemap_deser");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_typemap_fini");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_typemap_equal");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_typemap_get_type_name");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_type_lookup");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_type_compare");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_type_ref");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_type_unref");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_type_add");
 
-  ddsi_make_typeid_str (ptr, ptr);
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_make_typeid_str");
 #endif
 
   // ddsi_config.h
-  ddsi_config_init_default (ptr);
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_config_init_default");
 
   // ddsi_config_impl.h
-  ddsi_config_fini (ptr);
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_config_fini");
 
   // ddsi/ddsi_thread.h
-  ddsi_lookup_thread_state ();
-  ddsi_lookup_thread_state_real ();
-  ddsi_thread_state_asleep (ptr);
-  ddsi_thread_state_awake (ptr, ptr2);
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_lookup_thread_state");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_lookup_thread_state_real");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_thread_state_asleep");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_thread_state_awake");
 
   // ddsi/ddsi_gc.h
-  ddsi_gcreq_new (ptr, ptr);
-  ddsi_gcreq_free (ptr);
-  ddsi_gcreq_enqueue (ptr);
-  ddsi_gcreq_get_arg (ptr);
-  ddsi_gcreq_set_arg (ptr, ptr2);
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_gcreq_new");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_gcreq_free");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_gcreq_enqueue");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_gcreq_get_arg");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_gcreq_set_arg");
 
-#ifdef DDS_HAS_TYPELIB
+#if DDS_HAS_TYPELIB // In dds/ddsrt/features.h
   // ddsi/ddsi_typebuilder.h
-  ddsi_topic_descriptor_from_type (ptr, ptr2, ptr3);
-  ddsi_topic_descriptor_fini (ptr);
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_topic_descriptor_from_type");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_topic_descriptor_fini");
 #endif
 
   // ddsi/ddsi_proxy_endpoint.h
-  ddsi_new_proxy_writer (ptr, ptr2, ptr3, ptr4, ptr5, ptr6, ptr7, ptr8, ddsrt_time_wallclock(), 0);
-#ifdef DDSRT_HAVE_SSM
-  ddsi_new_proxy_reader (ptr, ptr2, ptr3, ptr4, ptr5, ptr6, ddsrt_time_wallclock(), 0, 0);
-#else
-  ddsi_new_proxy_reader (ptr, ptr2, ptr3, ptr4, ptr5, ptr6, ddsrt_time_wallclock(), 0);
-#endif
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_new_proxy_writer");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_new_proxy_reader");
 
   // ddsi/ddsi_proxy_participant.h
-  ddsi_new_proxy_participant (ptr, ptr2, ptr3, 0, ptr5, ptr6, ptr7, 0, (ddsi_vendorid_t) { 0 }, ddsrt_time_wallclock(), 0);
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_new_proxy_participant");
 
   // ddsi/ddsi_plist.h
-  ddsi_plist_init_empty (ptr);
-  ddsi_plist_fini (ptr);
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_plist_init_empty");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_plist_fini");
 
   // ddsi/ddsi_xqos.h
-  ddsi_xqos_delta (ptr, ptr2, 0);
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_xqos_delta");
 
   // ddsi/ddsi_xmsg.h
-  (void) ddsi_xpack_new (ptr, false);
-  ddsi_xpack_free (ptr);
-  ddsi_xpack_send (ptr, false);
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_xpack_new");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_xpack_free");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_xpack_send");
 
   // ddsi/ddsi_guid.h
-  ddsi_hton_guid ((ddsi_guid_t) { 0 });
-  ddsi_ntoh_guid ((ddsi_guid_t) { 0 });
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_hton_guid");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_ntoh_guid");
 
   // ddsi/ddsi_tkmap.h
-  (void) ddsi_tkmap_lookup_instance_ref (ptr, ptr2);
-  ddsi_tkmap_instance_unref (ptr, ptr2);
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_tkmap_lookup_instance_ref");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_tkmap_instance_unref");
 
   // ddsi/ddsi_transmit.h
-  ddsi_write_sample_gc (ptr, ptr2, ptr3, ptr4, ptr5);
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_write_sample_gc");
 
   // ddsi/ddsi_entity_index.h
-  (void) ddsi_entidx_lookup_writer_guid (ptr, ptr2);
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_entidx_lookup_writer_guid");
 
   // ddsi/ddsi_addrset.h
-  (void) ddsi_ref_addrset (ptr);
-  ddsi_unref_addrset (ptr);
-  (void) ddsi_new_addrset ();
-  ddsi_add_locator_to_addrset (ptr, ptr2, ptr3);
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_ref_addrset");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_unref_addrset");
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_new_addrset");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_add_locator_to_addrset");
 
   // ddsi/ddsi_tran.h
-  (void) ddsi_locator_to_string (ptr, 0, ptr2);
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_locator_to_string");
 
   // ddsi/ddsi_portmapping.h
-  ddsi_get_port_int (ptr, ptr2, 0, 0, 0, ptr3, 0);
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_get_port_int");
 
   // ddsi__ipaddr.h
-  ddsi_ipaddr_to_loc (ptr, ptr2, 0);
+  check_symbol_export(&result, ddsc_library_handle, "ddsi_ipaddr_to_loc");
 
   // ddsi__discovery_addrset.h
-  ddsi_include_multicast_locator_in_discovery (ptr);
-
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsi_include_multicast_locator_in_discovery");
 
   // ddsrt/atomics.h
-  ddsrt_atomic_ld32 (ptr);
-  ddsrt_atomic_ldptr (ptr);
-  ddsrt_atomic_ldvoidp (ptr);
-  ddsrt_atomic_st32 (ptr, 0);
-  ddsrt_atomic_stptr (ptr, 0);
-  ddsrt_atomic_stvoidp (ptr, ptr);
-  ddsrt_atomic_inc32 (ptr);
-  ddsrt_atomic_incptr (ptr);
-  ddsrt_atomic_inc32_ov (ptr);
-  ddsrt_atomic_incptr_ov (ptr);
-  ddsrt_atomic_inc32_nv (ptr);
-  ddsrt_atomic_incptr_nv (ptr);
-  ddsrt_atomic_dec32 (ptr);
-  ddsrt_atomic_decptr (ptr);
-  ddsrt_atomic_dec32_nv (ptr);
-  ddsrt_atomic_decptr_nv (ptr);
-  ddsrt_atomic_dec32_ov (ptr);
-  ddsrt_atomic_decptr_ov (ptr);
-  ddsrt_atomic_add32 (ptr, 0);
-  ddsrt_atomic_addptr (ptr, 0);
-  ddsrt_atomic_add32_ov (ptr, 0);
-  ddsrt_atomic_addptr_ov (ptr, 0);
-  ddsrt_atomic_add32_nv (ptr, 0);
-  ddsrt_atomic_addptr_nv (ptr, 0);
-  ddsrt_atomic_sub32 (ptr, 0);
-  ddsrt_atomic_subptr (ptr, 0);
-  ddsrt_atomic_sub32_ov (ptr, 0);
-  ddsrt_atomic_subptr_ov (ptr, 0);
-  ddsrt_atomic_sub32_nv (ptr, 0);
-  ddsrt_atomic_subptr_nv (ptr, 0);
-  ddsrt_atomic_and32 (ptr, 0);
-  ddsrt_atomic_andptr (ptr, 0);
-  ddsrt_atomic_and32_ov (ptr, 0);
-  ddsrt_atomic_andptr_ov (ptr, 0);
-  ddsrt_atomic_and32_nv (ptr, 0);
-  ddsrt_atomic_andptr_nv (ptr, 0);
-  ddsrt_atomic_or32 (ptr, 0);
-  ddsrt_atomic_orptr (ptr, 0);
-  ddsrt_atomic_or32_ov (ptr, 0);
-  ddsrt_atomic_orptr_ov (ptr, 0);
-  ddsrt_atomic_or32_nv (ptr, 0);
-  ddsrt_atomic_orptr_nv (ptr, 0);
-  ddsrt_atomic_cas32 (ptr, 0, 0);
-  ddsrt_atomic_casptr (ptr, 0, 0);
-  ddsrt_atomic_casvoidp (ptr, ptr, ptr);
-  ddsrt_atomic_fence ();
-  ddsrt_atomic_fence_ldld ();
-  ddsrt_atomic_fence_stst ();
-  ddsrt_atomic_fence_acq ();
-  ddsrt_atomic_fence_rel ();
-#if DDSRT_HAVE_ATOMIC64
-  ddsrt_atomic_ld64 (ptr);
-  ddsrt_atomic_st64 (ptr, 0);
-  ddsrt_atomic_inc64 (ptr);
-  ddsrt_atomic_inc64_ov (ptr);
-  ddsrt_atomic_inc64_nv (ptr);
-  ddsrt_atomic_dec64 (ptr);
-  ddsrt_atomic_dec64_ov (ptr);
-  ddsrt_atomic_dec64_nv (ptr);
-  ddsrt_atomic_add64 (ptr, 0);
-  ddsrt_atomic_add64_ov (ptr, 0);
-  ddsrt_atomic_add64_nv (ptr, 0);
-  ddsrt_atomic_sub64 (ptr, 0);
-  ddsrt_atomic_sub64_ov (ptr, 0);
-  ddsrt_atomic_sub64_nv (ptr, 0);
-  ddsrt_atomic_and64 (ptr, 0);
-  ddsrt_atomic_and64_ov (ptr, 0);
-  ddsrt_atomic_and64_nv (ptr, 0);
-  ddsrt_atomic_or64 (ptr, 0);
-  ddsrt_atomic_or64_ov (ptr, 0);
-  ddsrt_atomic_or64_nv (ptr, 0);
-  ddsrt_atomic_cas64 (ptr, 0, 0);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_ld32");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_ldptr");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_ldvoidp");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_st32");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_stptr");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_stvoidp");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_inc32");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_incptr");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_inc32_ov");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_incptr_ov");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_inc32_nv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_incptr_nv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_dec32");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_decptr");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_dec32_nv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_decptr_nv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_dec32_ov");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_decptr_ov");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_add32");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_addptr");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_add32_ov");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_addptr_ov");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_add32_nv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_addptr_nv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_sub32");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_subptr");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_sub32_ov");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_subptr_ov");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_sub32_nv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_subptr_nv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_and32");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_andptr");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_and32_ov");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_andptr_ov");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_and32_nv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_andptr_nv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_or32");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_orptr");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_or32_ov");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_orptr_ov");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_or32_nv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_orptr_nv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_cas32");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_casptr");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_casvoidp");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_fence");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_fence_ldld");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_fence_stst");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_fence_acq");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_fence_rel");
+#if DDSRT_64BIT
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_ld64");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_st64");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_inc64");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_inc64_ov");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_inc64_nv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_dec64");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_dec64_ov");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_dec64_nv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_add64");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_add64_ov");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_add64_nv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_sub64");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_sub64_ov");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_sub64_nv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_and64");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_and64_ov");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_and64_nv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_or64");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_or64_ov");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_or64_nv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_atomic_cas64");
 #endif
 
   // ddsrt/bits.h
-  ddsrt_ffs32u (0);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_ffs32u");
 
   // ddsrt/md5.h
-  ddsrt_md5_init (ptr);
-  ddsrt_md5_append (ptr, ptr, 0);
-  ddsrt_md5_finish (ptr, ptr);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_md5_init");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_md5_append");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_md5_finish");
 
   // ddsrt/mh3.h
-  ddsrt_mh3 (ptr, 0, 0);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_mh3");
 
   // ddsrt/hopscotch.h
-  ddsrt_hh_new (0, ptr, ptr);
-  ddsrt_hh_free (ptr);
-  ddsrt_hh_lookup (ptr, ptr);
-  ddsrt_hh_add (ptr, ptr2);
-  ddsrt_hh_remove (ptr, ptr2);
-  ddsrt_hh_add_absent (ptr, ptr2);
-  ddsrt_hh_remove_present (ptr, ptr2);
-  ddsrt_hh_enum (ptr, ptr2, ptr3);
-  ddsrt_hh_iter_first (ptr, ptr2);
-  ddsrt_hh_iter_next (ptr);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_hh_new");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_hh_free");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_hh_lookup");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_hh_add");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_hh_remove");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_hh_add_absent");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_hh_remove_present");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_hh_enum");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_hh_iter_first");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_hh_iter_next");
 
   // ddsrt/sync.h
-  bool ret_sync;
-  ddsrt_mutex_init (ptr);
-  ddsrt_mutex_destroy (ptr);
-  ddsrt_mutex_lock (ptr);
-  ret_sync = ddsrt_mutex_trylock (ptr);
-  (void) ret_sync;
-  ddsrt_mutex_unlock (ptr);
-  ddsrt_cond_init (ptr);
-  ddsrt_cond_destroy (ptr);
-  ddsrt_cond_wait (ptr,ptr);
-  ddsrt_cond_signal (ptr);
-  ddsrt_cond_broadcast (ptr);
-  ddsrt_cond_wctime_init (ptr);
-  ddsrt_cond_wctime_destroy (ptr);
-  ddsrt_cond_wctime_wait (ptr,ptr);
-  ddsrt_cond_wctime_waituntil (ptr, ptr, (ddsrt_wctime_t){0});
-  ddsrt_cond_wctime_signal (ptr);
-  ddsrt_cond_wctime_broadcast (ptr);
-  ddsrt_cond_mtime_init (ptr);
-  ddsrt_cond_mtime_destroy (ptr);
-  ddsrt_cond_mtime_wait (ptr,ptr);
-  ddsrt_cond_mtime_waituntil (ptr, ptr, (ddsrt_mtime_t){0});
-  ddsrt_cond_mtime_signal (ptr);
-  ddsrt_cond_mtime_broadcast (ptr);
-  ddsrt_cond_etime_init (ptr);
-  ddsrt_cond_etime_destroy (ptr);
-  ddsrt_cond_etime_wait (ptr,ptr);
-  ddsrt_cond_etime_waituntil (ptr, ptr, (ddsrt_etime_t){0});
-  ddsrt_cond_etime_signal (ptr);
-  ddsrt_cond_etime_broadcast (ptr);
-  ddsrt_rwlock_init (ptr);
-  ddsrt_rwlock_destroy (ptr);
-  ddsrt_rwlock_read (ptr);
-  ddsrt_rwlock_write (ptr);
-  ret_sync = ddsrt_rwlock_tryread (ptr);
-  (void) ret_sync;
-  ret_sync = ddsrt_rwlock_trywrite (ptr);
-  (void) ret_sync;
-  ddsrt_rwlock_unlock (ptr);
-  ddsrt_once (ptr, 0);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_mutex_init");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_mutex_destroy");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_mutex_lock");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_mutex_trylock");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_mutex_unlock");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_cond_init");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_cond_destroy");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_cond_wait");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_cond_signal");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_cond_broadcast");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_cond_wctime_init");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_cond_wctime_destroy");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_cond_wctime_wait");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_cond_wctime_waituntil");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_cond_wctime_signal");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_cond_wctime_broadcast");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_cond_mtime_init");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_cond_mtime_destroy");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_cond_mtime_wait");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_cond_mtime_waituntil");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_cond_mtime_signal");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_cond_mtime_broadcast");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_cond_etime_init");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_cond_etime_destroy");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_cond_etime_wait");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_cond_etime_waituntil");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_cond_etime_signal");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_cond_etime_broadcast");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_rwlock_init");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_rwlock_destroy");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_rwlock_read");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_rwlock_write");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_rwlock_tryread");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_rwlock_trywrite");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_rwlock_unlock");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_once");
 
   // ddsrt/threads.h
-  ddsrt_thread_t t;
-  ddsrt_threadattr_init (ptr);
-  ddsrt_thread_create (&t, ptr, ptr, ptr, ptr);
-  ddsrt_gettid ();
-  ddsrt_gettid_for_thread (t);
-  ddsrt_thread_self ();
-  ddsrt_thread_equal (t, t);
-  ddsrt_thread_join (t, ptr);
-  ddsrt_thread_getname (ptr, 0);
-#if DDSRT_HAVE_THREAD_SETNAME
-  ddsrt_thread_setname (ptr);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_threadattr_init");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_thread_create");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_gettid");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_gettid_for_thread");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_thread_self");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_thread_equal");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_thread_join");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_thread_getname");
+#ifdef DDSRT_HAVE_THREAD_SETNAME
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_thread_setname");
 #endif
-#if DDSRT_HAVE_THREAD_LIST
-  ddsrt_thread_list (ptr, 0);
-  ddsrt_thread_getname_anythread (0, ptr, 0);
+#ifdef DDSRT_HAVE_THREAD_LIST
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_thread_list");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_thread_getname_anythread");
 #endif
-  ddsrt_thread_cleanup_push (0, ptr);
-  ddsrt_thread_cleanup_pop (0);
-  ddsrt_thread_init (0);
-  ddsrt_thread_fini (0);
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_thread_cleanup_push");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_thread_cleanup_pop");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_thread_init");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_thread_fini");
 
   // ddsrt/process.h
-  ddsrt_getpid ();
-  ddsrt_getprocessname ();
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_getpid");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_getprocessname");
 
   // ddsrt/time.h
-  ddsrt_mtime_t mt = { .v = 0};
-  ddsrt_wctime_t wct = { .v = 0};
-  ddsrt_etime_t et = { .v = 0};
-  dds_time ();
-  dds_sleepfor (0);
-  ddsrt_time_wallclock ();
-  ddsrt_time_monotonic ();
-  ddsrt_time_elapsed ();
-  ddsrt_time_highres ();
-  ddsrt_ctime (0, ptr, 0);
-  ddsrt_time_add_duration (0, 0);
-  ddsrt_mtime_add_duration (mt, 0);
-  ddsrt_wctime_add_duration (wct, 0);
-  ddsrt_etime_add_duration (et, 0);
-  ddsrt_mtime_to_sec_usec (ptr, ptr2, mt);
-  ddsrt_wctime_to_sec_usec (ptr, ptr2, wct);
-  ddsrt_etime_to_sec_usec (ptr, ptr2, et);
+  check_symbol_export(&result, ddsc_library_handle, "dds_time");
+  check_symbol_export(&result, ddsc_library_handle, "dds_sleepfor");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_time_wallclock");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_time_monotonic");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_time_elapsed");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_time_highres");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_ctime");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_time_add_duration");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_mtime_add_duration");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_wctime_add_duration");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_etime_add_duration");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_mtime_to_sec_usec");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_wctime_to_sec_usec");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_etime_to_sec_usec");
 
   // ddsrt/bswap.h
-  ddsrt_bswap2u (0);
-  ddsrt_bswap2 (0);
-  ddsrt_bswap4u (0);
-  ddsrt_bswap4 (0);
-  ddsrt_bswap8u (0);
-  ddsrt_bswap8 (0);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_bswap2u");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_bswap2");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_bswap4u");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_bswap4");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_bswap8u");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_bswap8");
 
   // ddsrt/random.h
-  ddsrt_random ();
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_random");
 
   // ddsrt/avl.h
-  ddsrt_avl_treedef_init (ptr, 0, 0, ptr, ptr, 0);
-  ddsrt_avl_treedef_init_r (ptr, 0, 0, ptr, ptr, ptr, 0);
-  ddsrt_avl_init (ptr, ptr);
-  ddsrt_avl_free (ptr, ptr, 0);
-  ddsrt_avl_free_arg (ptr, ptr, 0, ptr);
-  ddsrt_avl_root (ptr, ptr);
-  ddsrt_avl_root_non_empty (ptr, ptr);
-  ddsrt_avl_lookup (ptr, ptr, ptr);
-  ddsrt_avl_lookup_ipath (ptr, ptr, ptr, ptr);
-  ddsrt_avl_lookup_dpath (ptr, ptr, ptr, ptr);
-  ddsrt_avl_lookup_pred_eq (ptr, ptr, ptr);
-  ddsrt_avl_lookup_succ_eq (ptr, ptr, ptr);
-  ddsrt_avl_lookup_pred (ptr, ptr, ptr);
-  ddsrt_avl_lookup_succ (ptr, ptr, ptr);
-  ddsrt_avl_insert (ptr, ptr, ptr);
-  ddsrt_avl_delete (ptr, ptr, ptr);
-  ddsrt_avl_insert_ipath (ptr, ptr, ptr, ptr);
-  ddsrt_avl_delete_dpath (ptr, ptr, ptr, ptr);
-  ddsrt_avl_swap_node (ptr, ptr, ptr, ptr);
-  ddsrt_avl_augment_update (ptr, ptr);
-  ddsrt_avl_is_empty (ptr);
-  ddsrt_avl_is_singleton (ptr);
-  ddsrt_avl_find_min (ptr, ptr);
-  ddsrt_avl_find_max (ptr, ptr);
-  ddsrt_avl_find_pred (ptr, ptr, ptr);
-  ddsrt_avl_find_succ (ptr, ptr, ptr);
-  ddsrt_avl_walk (ptr, ptr, ptr, ptr);
-  ddsrt_avl_const_walk (ptr, ptr, ptr, ptr);
-  ddsrt_avl_walk_range (ptr, ptr, ptr, ptr, ptr, ptr);
-  ddsrt_avl_const_walk_range (ptr, ptr, ptr, ptr, ptr, ptr);
-  ddsrt_avl_walk_range_reverse (ptr, ptr, ptr, ptr, ptr, ptr);
-  ddsrt_avl_const_walk_range_reverse (ptr, ptr, ptr, ptr, ptr, ptr);
-  ddsrt_avl_iter_first (ptr, ptr, ptr);
-  ddsrt_avl_iter_succ_eq (ptr, ptr, ptr, ptr);
-  ddsrt_avl_iter_succ (ptr, ptr, ptr, ptr);
-  ddsrt_avl_iter_next (ptr);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_treedef_init");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_treedef_init_r");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_init");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_free");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_free_arg");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_root");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_root_non_empty");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_lookup");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_lookup_ipath");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_lookup_dpath");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_lookup_pred_eq");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_lookup_succ_eq");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_lookup_pred");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_lookup_succ");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_insert");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_delete");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_insert_ipath");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_delete_dpath");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_swap_node");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_augment_update");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_is_empty");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_is_singleton");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_find_min");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_find_max");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_find_pred");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_find_succ");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_walk");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_const_walk");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_walk_range");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_avl_const_walk_range");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_avl_walk_range_reverse");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_avl_const_walk_range_reverse");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_iter_first");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_iter_succ_eq");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_iter_succ");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_iter_next");
 
-  ddsrt_avl_ctreedef_init (ptr, 0, 0, ptr, ptr, 0);
-  ddsrt_avl_ctreedef_init_r (ptr, 0, 0, ptr, ptr, ptr, 0);
-  ddsrt_avl_cinit (ptr, ptr);
-  ddsrt_avl_cfree (ptr, ptr, ptr);
-  ddsrt_avl_cfree_arg (ptr, ptr, ptr, ptr);
-  ddsrt_avl_croot (ptr, ptr);
-  ddsrt_avl_croot_non_empty (ptr, ptr);
-  ddsrt_avl_clookup (ptr, ptr, ptr);
-  ddsrt_avl_clookup_ipath (ptr, ptr, ptr, ptr);
-  ddsrt_avl_clookup_dpath (ptr, ptr, ptr, ptr);
-  ddsrt_avl_clookup_pred_eq (ptr, ptr, ptr);
-  ddsrt_avl_clookup_succ_eq (ptr, ptr, ptr);
-  ddsrt_avl_clookup_pred (ptr, ptr, ptr);
-  ddsrt_avl_clookup_succ (ptr, ptr, ptr);
-  ddsrt_avl_cinsert (ptr, ptr, ptr);
-  ddsrt_avl_cdelete (ptr, ptr, ptr);
-  ddsrt_avl_cinsert_ipath (ptr, ptr, ptr, ptr);
-  ddsrt_avl_cdelete_dpath (ptr, ptr, ptr, ptr);
-  ddsrt_avl_cswap_node (ptr, ptr, ptr, ptr);
-  ddsrt_avl_caugment_update (ptr, ptr);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_ctreedef_init");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_avl_ctreedef_init_r");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_cinit");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_cfree");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_cfree_arg");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_croot");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_avl_croot_non_empty");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_clookup");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_clookup_ipath");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_clookup_dpath");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_avl_clookup_pred_eq");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_avl_clookup_succ_eq");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_clookup_pred");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_clookup_succ");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_cinsert");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_cdelete");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_cinsert_ipath");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_cdelete_dpath");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_cswap_node");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_avl_caugment_update");
 
-  ddsrt_avl_cis_empty (ptr);
-  ddsrt_avl_cis_singleton (ptr);
-  ddsrt_avl_ccount (ptr);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_cis_empty");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_cis_singleton");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_ccount");
 
-  ddsrt_avl_cfind_min (ptr, ptr);
-  ddsrt_avl_cfind_max (ptr, ptr);
-  ddsrt_avl_cfind_pred (ptr, ptr, ptr);
-  ddsrt_avl_cfind_succ (ptr, ptr, ptr);
-  ddsrt_avl_cwalk (ptr, ptr, ptr, ptr);
-  ddsrt_avl_cconst_walk (ptr, ptr, ptr, ptr);
-  ddsrt_avl_cwalk_range (ptr, ptr, ptr, ptr, ptr, ptr);
-  ddsrt_avl_cconst_walk_range (ptr, ptr, ptr, ptr, ptr, ptr);
-  ddsrt_avl_cwalk_range_reverse (ptr, ptr, ptr, ptr, ptr, ptr);
-  ddsrt_avl_cconst_walk_range_reverse (ptr, ptr, ptr, ptr, ptr, ptr);
-  ddsrt_avl_citer_first (ptr, ptr, ptr);
-  ddsrt_avl_citer_succ_eq (ptr, ptr, ptr, ptr);
-  ddsrt_avl_citer_succ (ptr, ptr, ptr, ptr);
-  ddsrt_avl_citer_next (ptr);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_cfind_min");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_cfind_max");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_cfind_pred");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_cfind_succ");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_cwalk");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_cconst_walk");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_cwalk_range");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_avl_cconst_walk_range");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_avl_cwalk_range_reverse");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_avl_cconst_walk_range_reverse");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_citer_first");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_citer_succ_eq");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_citer_succ");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_avl_citer_next");
 
   // ddsrt/fibheap.h
-  ddsrt_fibheap_def_init (ptr, 0, 0);
-  ddsrt_fibheap_init (ptr, ptr);
-  ddsrt_fibheap_min (ptr, ptr);
-  ddsrt_fibheap_merge (ptr, ptr, ptr);
-  ddsrt_fibheap_insert (ptr, ptr, ptr);
-  ddsrt_fibheap_delete (ptr, ptr, ptr);
-  ddsrt_fibheap_extract_min (ptr, ptr);
-  ddsrt_fibheap_decrease_key (ptr, ptr, ptr);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_fibheap_def_init");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_fibheap_init");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_fibheap_min");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_fibheap_merge");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_fibheap_insert");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_fibheap_delete");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_fibheap_extract_min");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_fibheap_decrease_key");
 
 #if DDSRT_HAVE_NETSTAT
   // ddsrt/netstat.h
-  ddsrt_netstat_new (ptr, ptr);
-  ddsrt_netstat_free (ptr);
-  ddsrt_netstat_get (ptr, ptr);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_netstat_new");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_netstat_free");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_netstat_get");
 #endif
 
-#if DDSRT_HAVE_RUSAGE && DDSRT_HAVE_THREAD_LIST
+#if DDSRT_HAVE_RUSAGE
+#ifdef DDSRT_HAVE_THREAD_LIST
   // ddsrt/rusage.h
-  ddsrt_thread_list_id_t tids[1];
-  ddsrt_thread_list (tids, 1);
-  ddsrt_getrusage (0, ptr);
-  ddsrt_getrusage_anythread (tids[0], (ddsrt_rusage_t *) ptr);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_thread_list");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_getrusage");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "ddsrt_getrusage_anythread");
+#endif
 #endif
 
   // ddsrt/environ.h
-  ddsrt_getenv (ptr, ptr);
-  ddsrt_setenv (ptr, ptr);
-  ddsrt_unsetenv (ptr);
-  ddsrt_expand_envvars (ptr, 0);
-  ddsrt_expand_envvars_sh (ptr, 0);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_getenv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_setenv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_unsetenv");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_expand_envvars");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_expand_envvars_sh");
 
   // ddsrt/retcode.h
-  dds_strretcode (0);
+  check_symbol_export(&result, ddsc_library_handle, "dds_strretcode");
 
   // ddsrt/log.h
-  dds_log (0, ptr, 0, ptr, " ");
-  dds_set_log_mask (0); // ROS 2 rmw_cyclonedds_cpp needs this, probably erroneously
-  dds_get_log_mask ();
+  check_symbol_export(&result, ddsc_library_handle, "dds_log");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_set_log_mask"); // ROS 2 rmw_cyclonedds_cpp needs
+                                           // this, probably erroneously
+  check_symbol_export(&result, ddsc_library_handle, "dds_get_log_mask");
 
   // ddsrt/sockets.h
 #if DDSRT_HAVE_GETHOSTNAME
-  ddsrt_gethostname (ptr, 0);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_gethostname");
 #endif
 
   // ddsrt/heap.h
-  ddsrt_allocation_ops_t ao = {0,0,0,0};
-  ddsrt_malloc (1);
-  ddsrt_malloc_s (1);
-  ddsrt_calloc (1, 1);
-  ddsrt_calloc_s (1, 1);
-  ddsrt_realloc (ptr, 1);
-  ddsrt_realloc_s (ptr, 1);
-  ddsrt_free (ptr);
-  ddsrt_set_allocator(ao);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_malloc");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_malloc_s");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_calloc");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_calloc_s");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_realloc");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_realloc_s");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_free");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_set_allocator");
 
   // ddsrt/string.h
-  ddsrt_strcasecmp (ptr, ptr);
-  ddsrt_strncasecmp (ptr, ptr, 1);
-  ddsrt_strsep (ptr, ptr);
-  ddsrt_memdup (ptr, 1);
-  ddsrt_strdup (ptr);
-  ddsrt_strndup (ptr, 1);
-  ddsrt_strlcpy (ptr, ptr2, 1);
-  ddsrt_strlcat (ptr, ptr2, 1);
-  ddsrt_str_replace (ptr, ptr2, ptr3, 1);
-  ddsrt_str_trim_ord_space (ptr);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_strcasecmp");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_strncasecmp");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_strsep");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_memdup");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_strdup");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_strndup");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_strlcpy");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_strlcat");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_str_replace");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_str_trim_ord_space");
 
   // ddsrt/strtol.h
-  ddsrt_todigit (0);
-  ddsrt_strtoint64 (ptr, ptr, 0, ptr);
-  ddsrt_strtouint64 (ptr, ptr, 0, ptr);
-  ddsrt_int64tostr (0, ptr, 0, ptr);
-  ddsrt_uint64tostr (0, ptr, 0, ptr);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_todigit");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_strtoint64");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_strtouint64");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_int64tostr");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_uint64tostr");
 
   // ddsrt/xmlparser.h
-  ddsrt_xmlp_new_file (ptr, ptr, ptr);
-  ddsrt_xmlp_new_string (ptr, ptr, ptr);
-  ddsrt_xmlp_set_options (ptr, 0);
-  ddsrt_xmlp_get_bufpos (ptr);
-  ddsrt_xmlp_free (ptr);
-  ddsrt_xmlp_parse (ptr);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_xmlp_new_file");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_xmlp_new_string");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_xmlp_set_options");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_xmlp_get_bufpos");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_xmlp_free");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_xmlp_parse");
 
   // ddsrt/machineid.h
-  ddsrt_get_machineid (ptr);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_get_machineid");
 
 #if DDSRT_HAVE_FILESYSTEM
   // ddsrt/filesystem.h
-  ddsrt_opendir (ptr, ptr);
-  ddsrt_closedir (ptr);
-  ddsrt_readdir (ptr, ptr);
-  ddsrt_stat (ptr, ptr);
-  ddsrt_file_normalize (ptr);
-  ddsrt_file_sep ();
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_opendir");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_closedir");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_readdir");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_stat");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_file_normalize");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_file_sep");
 #endif
 
   // ddsrt/io.h
-  test_ddsrt_vasprintf (ptr, " ");
-  ddsrt_asprintf (ptr, " ");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_vasprintf");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_asprintf");
 
   // ddsrt/ifaddrs.h
-  ddsrt_getifaddrs (ptr, ptr);
-  ddsrt_freeifaddrs (ptr);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_getifaddrs");
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_freeifaddrs");
 
   // ddsrt/sockets.h
-  ddsrt_sockaddrfromstr (0, ptr, ptr2);
+  check_symbol_export(&result, ddsc_library_handle, "ddsrt_sockaddrfromstr");
 
   // dds__write.h
-  dds_write_impl (ptr, ptr, 0, (dds_write_action) 0);
-  dds_writecdr_impl (ptr, ptr, ptr, false);
+  check_symbol_export(&result, ddsc_library_handle, "dds_write_impl");
+  check_symbol_export(&result, ddsc_library_handle, "dds_writecdr_impl");
 
   // dds__writer.h
-  dds_writer_psmx_loan_raw (ptr, ptr2, 0, 0, 0);
-  dds_writer_psmx_loan_from_serdata (ptr, ptr2);
+  check_symbol_export(&result, ddsc_library_handle, "dds_writer_psmx_loan_raw");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_writer_psmx_loan_from_serdata");
 
   // dds__entity.h
-  dds_entity_pin (0, ptr);
-  dds_entity_unpin (ptr);
-  dds_entity_lock (0, 0, ptr);
-  dds_entity_unlock (ptr);
+  check_symbol_export(&result, ddsc_library_handle, "dds_entity_pin");
+  check_symbol_export(&result, ddsc_library_handle, "dds_entity_unpin");
+  check_symbol_export(&result, ddsc_library_handle, "dds_entity_lock");
+  check_symbol_export(&result, ddsc_library_handle, "dds_entity_unlock");
 
   // dds__sysdef_parser.h
-  dds_sysdef_init_sysdef (ptr, ptr2, 0);
-  dds_sysdef_init_sysdef_str (ptr, ptr2, 0);
-  dds_sysdef_fini_sysdef (ptr);
-  dds_sysdef_init_data_types (ptr, ptr2);
-  dds_sysdef_init_data_types_str (ptr, ptr2);
-  dds_sysdef_fini_data_types (ptr);
+  check_symbol_export(&result, ddsc_library_handle, "dds_sysdef_init_sysdef");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_sysdef_init_sysdef_str");
+  check_symbol_export(&result, ddsc_library_handle, "dds_sysdef_fini_sysdef");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_sysdef_init_data_types");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_sysdef_init_data_types_str");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_sysdef_fini_data_types");
 
   // deprecated functions from v0.1
-  dds_fail_set (0);
-  dds_fail_get ();
-  dds_err_str (0);
-  dds_fail (ptr, ptr2);
-  dds_err_check (0, 0, ptr);
+  check_symbol_export(&result, ddsc_library_handle, "dds_fail_set");
+  check_symbol_export(&result, ddsc_library_handle, "dds_fail_get");
+  check_symbol_export(&result, ddsc_library_handle, "dds_err_str");
+  check_symbol_export(&result, ddsc_library_handle, "dds_fail");
+  check_symbol_export(&result, ddsc_library_handle, "dds_err_check");
 
-  return 0;
+  printf("Symbol Export result: %s\n",
+         result == EXIT_SUCCESS ? "OK" : "FAILED");
+
+  close_library(ddsc_library_handle);
+
+  return result;
 }
-
-#undef EXP

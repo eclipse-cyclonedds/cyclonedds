@@ -27,6 +27,8 @@ set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}")
 set(binary_dir "${CMAKE_CURRENT_BINARY_DIR}")
 
 add_library(ddsrt INTERFACE)
+add_library(${PROJECT_NAME}::ddsrt ALIAS ddsrt)
+target_compile_definitions(ddsrt INTERFACE $<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:DDS_STATIC_DEFINE>)
 target_include_directories(
   ddsrt INTERFACE
     "$<BUILD_INTERFACE:${source_dir}/include>"
@@ -230,7 +232,20 @@ else()
   message(STATUS "Building without support for cond_timewait using different clocks")
 endif()
 
+# Posix Systems have threads by default except for some
+# Used for symbol Export tests
+set(DDSRT_HAVE_THREAD_SETNAME ON)
+set(DDSRT_HAVE_THREAD_LIST ON)
+
+if(NOT LINUX AND NOT APPLE AND NOT QNX)
+  set(DDSRT_HAVE_THREAD_LIST OFF)
+endif()
+
 if(WITH_FREERTOS)
+  # FREERTOS have threads disabled by default
+  set(DDSRT_HAVE_THREAD_SETNAME OFF)
+  set(DDSRT_HAVE_THREAD_LIST OFF)
+
   list(APPEND headers
     "${source_dir}/include/dds/ddsrt/sync/freertos.h"
     "${source_dir}/include/dds/ddsrt/threads/freertos.h")
@@ -279,6 +294,10 @@ else()
 
   set(DDSRT_HAVE_DYNLIB TRUE)
   set(DDSRT_HAVE_FILESYSTEM TRUE)
+
+  list(APPEND headers
+      "${source_dir}/include/dds/ddsrt/filesystem.h"
+  )
 
   list(APPEND sources
     "${source_dir}/src/heap/posix/heap.c")
@@ -364,6 +383,11 @@ else()
   endif()
 endif()
 
+set(DDSRT_HAVE_DYNLIB ${DDSRT_HAVE_DYNLIB} PARENT_SCOPE)
+set(DDSRT_HAVE_FILESYSTEM ${DDSRT_HAVE_FILESYSTEM} PARENT_SCOPE)
+set(DDSRT_HAVE_NETSTAT ${DDSRT_HAVE_NETSTAT} PARENT_SCOPE)
+set(DDSRT_HAVE_RUSAGE ${DDSRT_HAVE_RUSAGE} PARENT_SCOPE)
+
 # Generate configuration file
 set(DDSRT_WITH_LWIP ${WITH_LWIP})
 set(DDSRT_WITH_FREERTOS ${WITH_FREERTOS})
@@ -371,14 +395,15 @@ set(DDSRT_WITH_FREERTOS ${WITH_FREERTOS})
 foreach(feature TCP_TLS SECURITY LIFESPAN DEADLINE_MISSED NETWORK_PARTITIONS
                 TYPELIB TYPE_DISCOVERY TOPIC_DISCOVERY QOS_PROVIDER TCP)
   set(DDS_HAS_${feature} ${ENABLE_${feature}})
+  set(DDS_HAS_${feature} ${DDS_HAS_${feature}} PARENT_SCOPE) # Tell to CDR, DDSC and DDSI the settings
 endforeach()
 
 if(BUILD_TESTING)
-  set(DDS_ALLOW_NESTED_DOMAIN 1)
+  set(DDS_ALLOW_NESTED_DOMAIN TRUE)
 endif()
 
 if (NOT BUILD_SHARED_LIBS)
-  set(DDS_IS_STATIC_LIBRARY 1)
+  set(DDS_IS_STATIC_LIBRARY TRUE)
 endif()
 
 configure_file(include/dds/config.h.in include/dds/config.h)

@@ -103,13 +103,13 @@ struct ddsi_reader_sec_attributes {
 };
 
 /** @component security_entity */
-struct dds_security_access_control *ddsi_omg_participant_get_access_control(const struct ddsi_participant *pp);
+DDS_EXPORT struct dds_security_access_control *ddsi_omg_participant_get_access_control(const struct ddsi_participant *pp);
 
 /** @component security_entity */
-struct dds_security_authentication *ddsi_omg_participant_get_authentication(const struct ddsi_participant *pp);
+DDS_EXPORT struct dds_security_authentication *ddsi_omg_participant_get_authentication(const struct ddsi_participant *pp);
 
 /** @component security_entity */
-struct dds_security_cryptography *ddsi_omg_participant_get_cryptography(const struct ddsi_participant *pp);
+DDS_EXPORT struct dds_security_cryptography *ddsi_omg_participant_get_cryptography(const struct ddsi_participant *pp);
 
 /** @component security_core */
 void ddsi_omg_vlog_exception(const struct ddsrt_log_cfg *lc, uint32_t cat, DDS_Security_SecurityException *exception, const char *file, uint32_t line, const char *func, const char *fmt, va_list ap);

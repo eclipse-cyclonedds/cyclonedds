@@ -40,11 +40,11 @@ jobs:
         with:
           repository: github/codeql-coding-standards
           path: codeql-coding-standards/
-          ref: 39f8f9801307e058d6d9f07dcbe7c7d229c18dd0
+          ref: 5ca3ff87b232288c28e2da72866e9631de7f5ca3
 
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           # Points at the config file containing the MISRA rules that have been resolved.
@@ -52,10 +52,10 @@ jobs:
 
       # Autobuild attempts to build any compiled languages  (C/C++, C#, Go, or Java).
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v2
+        uses: github/codeql-action/autobuild@v4
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
+        uses: github/codeql-action/analyze@v4
         with:
           upload: False
           output: sarif-results
@@ -80,7 +80,7 @@ jobs:
           output: sarif-results/cpp.sarif
 
       - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-results/cpp.sarif
           category: "MISRA"

@@ -47,13 +47,13 @@ enum ddsi_pserop {
 } ddsrt_attribute_packed;
 
 /** @component parameter_list */
-void ddsi_plist_fini_generic (void * restrict dst, const enum ddsi_pserop *desc, bool aliased);
+DDS_EXPORT void ddsi_plist_fini_generic (void * restrict dst, const enum ddsi_pserop *desc, bool aliased);
 
 /** @component parameter_list */
 void ddsi_plist_ser_generic_size_embeddable (size_t *dstoff, const void *src, size_t srcoff, const enum ddsi_pserop *desc);
 
 /** @component parameter_list */
-dds_return_t ddsi_plist_deser_generic (void * restrict dst, const void *src, size_t srcsize, bool bswap, const enum ddsi_pserop *desc);
+DDS_EXPORT dds_return_t ddsi_plist_deser_generic (void * restrict dst, const void * restrict src, size_t srcsize, bool bswap, const enum ddsi_pserop *desc);
 
 /** @component parameter_list */
 dds_return_t ddsi_plist_deser_generic_srcoff (void * restrict dst, const void *src, size_t srcsize, size_t * restrict srcoff, bool bswap, const enum ddsi_pserop *desc);
@@ -62,19 +62,19 @@ dds_return_t ddsi_plist_deser_generic_srcoff (void * restrict dst, const void *s
 dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t * restrict dstoff, const void *src, size_t srcoff, const enum ddsi_pserop *desc, enum ddsrt_byte_order_selector bo);
 
 /** @component parameter_list */
-dds_return_t ddsi_plist_ser_generic (void **dst, size_t *dstsize, const void *src, const enum ddsi_pserop *desc);
+DDS_EXPORT dds_return_t ddsi_plist_ser_generic (void **dst, size_t *dstsize, const void *src, const enum ddsi_pserop *desc);
 
 /** @component parameter_list */
 dds_return_t ddsi_plist_ser_generic_be (void **dst, size_t *dstsize, const void *src, const enum ddsi_pserop *desc);
 
 /** @component parameter_list */
-dds_return_t ddsi_plist_unalias_generic (void * restrict dst, const enum ddsi_pserop *desc);
+DDS_EXPORT dds_return_t ddsi_plist_unalias_generic (void * restrict dst, const enum ddsi_pserop *desc);
 
 /** @component parameter_list */
-bool ddsi_plist_equal_generic (const void *srcx, const void *srcy, const enum ddsi_pserop *desc);
+DDS_EXPORT bool ddsi_plist_equal_generic (const void *srcx, const void *srcy, const enum ddsi_pserop *desc);
 
 /** @component parameter_list */
-size_t ddsi_plist_memsize_generic (const enum ddsi_pserop *desc);
+DDS_EXPORT size_t ddsi_plist_memsize_generic (const enum ddsi_pserop *desc);
 
 /** @component parameter_list */
 size_t ddsi_plist_print_generic (char * restrict buf, size_t bufsize, const void *src, const enum ddsi_pserop *desc);

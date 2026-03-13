@@ -1,0 +1,47 @@
+#ifndef DDSC_LOADER_H
+#define DDSC_LOADER_H
+
+#include <stdlib.h>
+
+// TODO // Create a general-purpose file with these functions to avoid code
+// duplication There is one in ddsrt already implemented, but being DDSRT
+// symbols being tested in symbol_export it makes no sense to use it because by
+// linking we are already exploiting them
+
+char *DDSC_LIBRARY_NAME = "@DDSC_LIBRARY_FILEPATH@";
+
+#if WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h> // Windows shared library loader API
+HMODULE(WINAPI *load_library)(LPCSTR) = &LoadLibrary;
+BOOL(WINAPI *close_library)(HMODULE) = &FreeLibrary;
+FARPROC(WINAPI *resolve_library_symbol)(HMODULE,
+                                        const char *) = &GetProcAddress;
+#define DDSC_LIBRARY_HANDLE() load_library(DDSC_LIBRARY_NAME)
+#else
+#include <dlfcn.h> // Unix Shared library loader API
+void *(*load_library)(const char *, int) = &dlopen;
+int (*close_library)(void *) = &dlclose;
+void *(*resolve_library_symbol)(void *, const char *) = &dlsym;
+#define DDSC_LIBRARY_HANDLE()                                                  \
+  load_library(DDSC_LIBRARY_NAME, RTLD_GLOBAL | RTLD_NOW)
+#endif
+
+/**
+ * @brief Function used to check that a symbol in the DDSC library is being
+ * exported
+ *
+ * @param result Pointer to integer variable representing check return value
+ * @param library_handle Handle to library which symbols have to be checked
+ * @param symbol String representing the symbol name to be checked
+ */
+static void check_symbol_export(int *result, void *library_handle,
+                                const char *symbol) {
+  void *symbol_address = resolve_library_symbol(library_handle, symbol);
+  if (symbol_address == NULL) {
+    printf("Symbol '%s' does not exist in '%s'\n", symbol, DDSC_LIBRARY_NAME);
+    *result = EXIT_FAILURE;
+  }
+}
+
+#endif // DDSC_LOADER_H

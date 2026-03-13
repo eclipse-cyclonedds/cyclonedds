@@ -9,7 +9,7 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.21)
 # C++ is only for Iceoryx plugin
 project(CycloneDDS VERSION 11.0.0 LANGUAGES C CXX)
 
@@ -48,6 +48,9 @@ endif()
 #
 # It appears that on macOS, all code is position independent and it'll work regardless.
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
+if(BUILD_SHARED_LIBS)
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
 if(NOT BUILD_SHARED_LIBS AND NOT CMAKE_CROSSCOMPILING)
   message(WARNING "It is probably best to build a static library as-if cross compiling (e.g., use -DCMAKE_CROSSCOMPILING=1 -DCMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME} -DCMAKE_PREFIX_PATH=<path to shared-library build>)")
 endif()
@@ -57,7 +60,8 @@ endif()
 # small mistake would run into errors.  CI builds can be configured differently.
 option(WERROR "Treat compiler warnings as errors" OFF)
 
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
+# Update CMake module path variable with our own for this project
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
 option(BUILD_IDLC "Build IDL preprocessor" ${not_crosscompiling})
 option(BUILD_DDSPERF "Build ddsperf tool" ${not_crosscompiling})
@@ -65,12 +69,8 @@ option(BUILD_DDSPERF "Build ddsperf tool" ${not_crosscompiling})
 option(WITH_ZEPHYR "Build for Zephyr RTOS" OFF)
 
 # We require C99, test code can benefit from C23
-if(CMAKE_VERSION VERSION_LESS "3.21" OR MSVC)
-  set(CMAKE_C_STANDARD 99)
-else()
-  set(CMAKE_C_STANDARD 23)
-  set(CMAKE_C_STANDARD_REQUIRED FALSE)
-endif()
+set(CMAKE_C_STANDARD 23)
+set(CMAKE_C_STANDARD_REQUIRED FALSE)
 if(CMAKE_SYSTEM_NAME STREQUAL "VxWorks")
   add_definitions(-std=c99)
 endif()
@@ -152,7 +152,7 @@ elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
   endif()
 elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
   #message(STATUS msvc)
-  add_compile_options(/W3)
+  add_compile_options(/W3 /wd5105) # /wd5105 Disables warning of #defines operator
   if(${WERROR})
     add_compile_options(/WX)
     add_link_options(/WX)

@@ -95,7 +95,7 @@ static uint32_t ipaddr_prefixlen (const struct sockaddr * const addr)
   return prefixlen;
 }
 
-enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const ddsi_locator_t *loc, size_t ninterf, const struct ddsi_network_interface interf[], size_t *interf_idx)
+enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const ddsi_locator_t *loc, size_t ninterf, const struct ddsi_network_interface *interf, size_t *interf_idx)
 {
   enum ddsi_nearby_address_result default_result = DNAR_UNREACHABLE;
 

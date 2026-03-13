@@ -60,7 +60,7 @@ struct ddsrt_circlist_elem {
  * 
  * @param[out] list the circular list
  */
-void ddsrt_circlist_init (struct ddsrt_circlist *list);
+DDS_EXPORT void ddsrt_circlist_init (struct ddsrt_circlist *list);
 
 /**
  * @brief check whether the list is empty
@@ -68,7 +68,7 @@ void ddsrt_circlist_init (struct ddsrt_circlist *list);
  * @param[in] list the circular list
  * @return true if empty, false if not empty
  */
-bool ddsrt_circlist_isempty (const struct ddsrt_circlist *list);
+DDS_EXPORT bool ddsrt_circlist_isempty (const struct ddsrt_circlist *list);
 
 /**
  * @brief append an element to the list
@@ -78,7 +78,7 @@ bool ddsrt_circlist_isempty (const struct ddsrt_circlist *list);
  * 
  * See @ref ddsrt_circlist_remove
  */
-void ddsrt_circlist_append (struct ddsrt_circlist *list, struct ddsrt_circlist_elem *elem);
+DDS_EXPORT void ddsrt_circlist_append (struct ddsrt_circlist *list, struct ddsrt_circlist_elem *elem);
 
 /**
  * @brief remove an element from the list
@@ -90,7 +90,7 @@ void ddsrt_circlist_append (struct ddsrt_circlist *list, struct ddsrt_circlist_e
  * 
  * See @ref ddsrt_circlist_append
  */
-void ddsrt_circlist_remove (struct ddsrt_circlist *list, struct ddsrt_circlist_elem *elem);
+DDS_EXPORT void ddsrt_circlist_remove (struct ddsrt_circlist *list, struct ddsrt_circlist_elem *elem);
 
 /**
  * @brief get the oldest (earliest appended) element
@@ -100,7 +100,7 @@ void ddsrt_circlist_remove (struct ddsrt_circlist *list, struct ddsrt_circlist_e
  * 
  * See @ref ddsrt_circlist_latest, @ref ddsrt_circlist_elem
  */
-struct ddsrt_circlist_elem *ddsrt_circlist_oldest (const struct ddsrt_circlist *list);
+DDS_EXPORT struct ddsrt_circlist_elem *ddsrt_circlist_oldest (const struct ddsrt_circlist *list);
 
 /**
  * @brief get the latest (most recently appended) element

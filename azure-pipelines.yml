@@ -62,7 +62,7 @@ jobs:
         sanitizer: address,undefined
         ssl: off
         lifespan: off
-        deadline: off
+        deadline_missed: off
         type_discovery: off
         topic_discovery: off
         idlc_xtests: off # temporary disabled because of passing -t option to idlc in this test for recursive types

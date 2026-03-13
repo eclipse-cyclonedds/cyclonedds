@@ -35,7 +35,7 @@ typedef void (*ddsi_xevent_cb_t) (struct ddsi_domaingv *gv, struct ddsi_xevent *
  *
  * @param[in] ev the event to be deleted
  */
-void ddsi_delete_xevent (struct ddsi_xevent *ev)
+DDS_EXPORT void ddsi_delete_xevent (struct ddsi_xevent *ev)
   ddsrt_nonnull_all;
 
 /** @brief reschedules the event iff `tsched` precedes the time for which it is currently scheduled
@@ -92,7 +92,7 @@ int ddsi_xevent_is_scheduled (struct ddsi_xevent *ev)
  *
  * @return the new event object
  */
-struct ddsi_xevent *ddsi_qxev_callback (struct ddsi_xeventq *evq, ddsrt_mtime_t tsched, ddsi_xevent_cb_t cb, const void *arg, size_t arg_size, bool sync_on_delete)
+DDS_EXPORT struct ddsi_xevent *ddsi_qxev_callback (struct ddsi_xeventq *evq, ddsrt_mtime_t tsched, ddsi_xevent_cb_t cb, const void *arg, size_t arg_size, bool sync_on_delete)
   ddsrt_nonnull((1,3));
 
 #if defined (__cplusplus)

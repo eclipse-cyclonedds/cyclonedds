@@ -89,7 +89,7 @@ dds_return_t ddsi_type_get_typeinfo_ser (struct ddsi_domaingv *gv, const struct 
 dds_return_t ddsi_type_get_typeinfo_locked (struct ddsi_domaingv *gv, struct ddsi_type *type_c, struct ddsi_typeinfo *type_info, struct ddsi_type **type_m);
 
 /** @component type_system */
-dds_return_t ddsi_type_get_typemap_ser (struct ddsi_domaingv *gv, const struct ddsi_type *type, unsigned char **data, uint32_t *sz);
+DDS_EXPORT dds_return_t ddsi_type_get_typemap_ser (struct ddsi_domaingv *gv, const struct ddsi_type *type, unsigned char **data, uint32_t *sz);
 
 /** @component type_system */
 void ddsi_type_unreg_proxy (struct ddsi_domaingv *gv, struct ddsi_type *type, const ddsi_guid_t *proxy_guid);
@@ -98,7 +98,7 @@ void ddsi_type_unreg_proxy (struct ddsi_domaingv *gv, struct ddsi_type *type, co
 void ddsi_type_unref_locked (struct ddsi_domaingv *gv, struct ddsi_type *type);
 
 /** @component type_system */
-bool ddsi_type_resolved_locked (struct ddsi_domaingv *gv, const struct ddsi_type *type, enum ddsi_type_include_deps resolved_kind);
+DDS_EXPORT bool ddsi_type_resolved_locked (struct ddsi_domaingv *gv, const struct ddsi_type *type, enum ddsi_type_include_deps resolved_kind);
 
 /** @component type_system */
 void ddsi_type_free (struct ddsi_type *type);
@@ -108,10 +108,10 @@ void ddsi_type_free (struct ddsi_type *type);
 bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type_pair *rd_type_pair, uint32_t rd_resolved, const struct ddsi_type_pair *wr_type_pair, uint32_t wr_resolved, const dds_type_consistency_enforcement_qospolicy_t *tce);
 
 /** @component type_system */
-const ddsi_typeid_t *ddsi_type_pair_minimal_id (const struct ddsi_type_pair *type_pair);
+DDS_EXPORT const ddsi_typeid_t *ddsi_type_pair_minimal_id (const struct ddsi_type_pair *type_pair);
 
 /** @component type_system */
-const ddsi_typeid_t *ddsi_type_pair_complete_id (const struct ddsi_type_pair *type_pair);
+DDS_EXPORT const ddsi_typeid_t *ddsi_type_pair_complete_id (const struct ddsi_type_pair *type_pair);
 
 /** @component type_system */
 ddsi_typeinfo_t *ddsi_type_pair_get_typeinfo (struct ddsi_domaingv *gv, const struct ddsi_type_pair *type_pair);
@@ -127,7 +127,7 @@ void ddsi_type_pair_free (struct ddsi_type_pair *type_pair);
  *
  * @note The caller of this functions needs to have locked gv->typelib_lock
  */
-struct ddsi_type * ddsi_type_lookup_locked (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id);
+DDS_EXPORT struct ddsi_type * ddsi_type_lookup_locked (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id);
 
 /**
  * @component type_system

@@ -275,7 +275,7 @@ void ddsi_update_proxy_participant_endpoint_matching (struct ddsi_proxy_particip
 #endif /* DDS_HAS_SECURITY */
 
 /** @component endpoint_matching */
-void ddsi_update_proxy_endpoint_matching (const struct ddsi_domaingv *gv, struct ddsi_generic_proxy_endpoint *proxy_ep);
+DDS_EXPORT void ddsi_update_proxy_endpoint_matching (const struct ddsi_domaingv *gv, struct ddsi_generic_proxy_endpoint *proxy_ep);
 
 #if defined (__cplusplus)
 }

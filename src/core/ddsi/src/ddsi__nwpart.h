@@ -22,10 +22,10 @@ extern "C" {
 struct ddsi_domaingv;
 
 /** @component network_partitions */
-void ddsi_free_config_nwpart_addresses (struct ddsi_domaingv *gv) ddsrt_nonnull_all;
+DDS_EXPORT void ddsi_free_config_nwpart_addresses (struct ddsi_domaingv *gv) ddsrt_nonnull_all;
 
 /** @component network_partitions */
-int ddsi_convert_nwpart_config (struct ddsi_domaingv *gv, uint32_t port_data_uc) ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
+DDS_EXPORT int ddsi_convert_nwpart_config (struct ddsi_domaingv *gv, uint32_t port_data_uc) ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 /** @component network_partitions */
 bool ddsi_is_ignored_nwpart (const struct ddsi_domaingv *gv, const struct dds_qos *xqos, const char *topic_name) ddsrt_nonnull_all;

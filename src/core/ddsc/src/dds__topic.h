@@ -11,6 +11,7 @@
 #ifndef DDS__TOPIC_H
 #define DDS__TOPIC_H
 
+#include "dds/export.h"
 #include "dds__types.h"
 #include "dds__entity.h"
 
@@ -24,10 +25,10 @@ DEFINE_ENTITY_LOCK_UNLOCK(dds_topic, DDS_KIND_TOPIC, topic)
 dds_return_t dds_topic_pin_with_origin (dds_entity_t handle, bool from_user, struct dds_topic **tp) ddsrt_nonnull_all;
 
 /** @component topic */
-dds_return_t dds_topic_pin (dds_entity_t handle, struct dds_topic **tp) ddsrt_nonnull_all;
+DDS_EXPORT dds_return_t dds_topic_pin (dds_entity_t handle, struct dds_topic **tp) ddsrt_nonnull_all;
 
 /** @component topic */
-void dds_topic_unpin (struct dds_topic *tp) ddsrt_nonnull_all;
+DDS_EXPORT void dds_topic_unpin (struct dds_topic *tp) ddsrt_nonnull_all;
 
 /** @component topic */
 void dds_topic_defer_set_qos (struct dds_topic *tp) ddsrt_nonnull_all;

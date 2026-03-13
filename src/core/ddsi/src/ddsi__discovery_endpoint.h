@@ -14,6 +14,7 @@
 #include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__discovery.h"
+#include "dds/export.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -33,7 +34,7 @@ struct ddsi_receiver_state;
 struct ddsi_network_packet_info;
 
 /** @component discovery */
-struct ddsi_addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, const ddsi_plist_t *datap, struct ddsi_addrset *proxypp_as_default, const struct ddsi_network_packet_info *pktinfo, bool allow_srcloc, bool force_srcloc)
+DDS_EXPORT struct ddsi_addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, const ddsi_plist_t *datap, struct ddsi_addrset *proxypp_as_default, const struct ddsi_network_packet_info *pktinfo, bool allow_srcloc, bool force_srcloc)
   ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 /** @component discovery */

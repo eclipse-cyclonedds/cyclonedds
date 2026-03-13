@@ -86,7 +86,7 @@ struct ddsi_deleted_participants_admin *ddsi_deleted_participants_admin_new (con
 void ddsi_deleted_participants_admin_free (struct ddsi_deleted_participants_admin *admin);
 
 /** @component ddsi_participant */
-int ddsi_is_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid);
+DDS_EXPORT int ddsi_is_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid);
 
 /**
  * @component ddsi_participant
@@ -97,7 +97,7 @@ int ddsi_is_deleted_participant_guid (struct ddsi_deleted_participants_admin *ad
  * @param[in] pp The participant
  * @returns The PMD interval of the participant
  */
-dds_duration_t ddsi_participant_get_pmd_interval (struct ddsi_participant *pp);
+DDS_EXPORT dds_duration_t ddsi_participant_get_pmd_interval (struct ddsi_participant *pp);
 
 /**
  * @component ddsi_participant
@@ -113,7 +113,7 @@ dds_duration_t ddsi_participant_get_pmd_interval (struct ddsi_participant *pp);
  * @retval `DDS_RETCODE_PRECONDITION_NOT_MET` data should be written but participant does not have a writer
  * @retval `DDS_RETCODE_BAD_PARAMETER` entityid is invalid
  */
-dds_return_t ddsi_get_builtin_writer (const struct ddsi_participant *pp, unsigned entityid, struct ddsi_writer **bwr);
+DDS_EXPORT dds_return_t ddsi_get_builtin_writer (const struct ddsi_participant *pp, unsigned entityid, struct ddsi_writer **bwr);
 
 #if defined (__cplusplus)
 }

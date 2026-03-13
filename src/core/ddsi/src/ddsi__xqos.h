@@ -77,7 +77,7 @@ void ddsi_xqos_addtomsg (struct ddsi_xmsg *m, const dds_qos_t *xqos, uint64_t wa
  * @param[in] logcfg     logging configuration
  * @param[in] xqos       qos object to be logged
  */
-void ddsi_xqos_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos);
+DDS_EXPORT void ddsi_xqos_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos);
 
 /**
  * @brief Formats xqos into a buffer

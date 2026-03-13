@@ -33,7 +33,7 @@ extern "C" {
  * and if the current call isn't the first one, it just waits for initializing (by the first one) to finish.
  * Note calling @ref ddsrt_init in parallel to the last invocation of @ref ddsrt_fini results in undefined behavior.
  */
-void ddsrt_init(void);
+DDS_EXPORT void ddsrt_init(void);
 
 /**
  * @brief Finalize ddsrt units
@@ -41,7 +41,7 @@ void ddsrt_init(void);
  * Since @ref ddsrt_init increments the reference count, it is decremented here. Only the last invocation
  * (when the reference count is 1) actually finalizes it.
  */
-void ddsrt_fini(void);
+DDS_EXPORT void ddsrt_fini(void);
 
 /**
  * @brief Get a pointer to the global 'init_mutex'

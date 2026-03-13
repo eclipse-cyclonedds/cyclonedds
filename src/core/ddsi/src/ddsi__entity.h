@@ -72,7 +72,7 @@ int ddsi_set_xqos_topic_and_type (dds_qos_t *xqos, const char * topic_name, cons
 int ddsi_compare_entityid (const void *a, const void *b);
 
 /** @component ddsi_generic_entity */
-int ddsi_compare_guid (const void *va, const void *vb);
+DDS_EXPORT int ddsi_compare_guid (const void *va, const void *vb);
 
 /** @component ddsi_generic_entity */
 void ddsi_entity_common_init (struct ddsi_entity_common *e, struct ddsi_domaingv *gv, const struct ddsi_guid *guid, enum ddsi_entity_kind kind, ddsrt_wctime_t tcreate, ddsi_vendorid_t vendorid, bool onlylocal);

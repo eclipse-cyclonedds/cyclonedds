@@ -40,7 +40,7 @@ struct dds_read_collect_sample_arg {
  * @param[in] heap_loan_cache a cache of returned heap loans (optional; only used by
  *            collect_sample_loan)
  */
-void dds_read_collect_sample_arg_init (struct dds_read_collect_sample_arg *arg, void **ptrs, dds_sample_info_t *infos, struct dds_loan_pool *loan_pool, struct dds_loan_pool *heap_loan_cache)
+DDS_EXPORT void dds_read_collect_sample_arg_init (struct dds_read_collect_sample_arg *arg, void **ptrs, dds_sample_info_t *infos, struct dds_loan_pool *loan_pool, struct dds_loan_pool *heap_loan_cache)
   ddsrt_nonnull ((1, 2, 3));
 
 /** @brief Sample collector that deserializes the samples into ptrs[i]
@@ -53,7 +53,7 @@ void dds_read_collect_sample_arg_init (struct dds_read_collect_sample_arg *arg, 
  *
  * @retval DDS_RETCODE_OK if deserialization succeded
  * @retval DDS_RETCODE_ERROR if deserialization failed */
-dds_return_t dds_read_collect_sample (void *varg, const dds_sample_info_t *si, const struct ddsi_sertype *st, struct ddsi_serdata *sd);
+DDS_EXPORT dds_return_t dds_read_collect_sample (void *varg, const dds_sample_info_t *si, const struct ddsi_sertype *st, struct ddsi_serdata *sd);
 
 /** @brief Sample collector that deserializes the samples into ptrs[i]
  * @component read_data

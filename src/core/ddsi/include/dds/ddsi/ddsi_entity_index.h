@@ -55,28 +55,28 @@ struct ddsi_entity_enum
 
 
 /** @component entity_index */
-void *ddsi_entidx_lookup_guid_untyped (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+DDS_EXPORT void *ddsi_entidx_lookup_guid_untyped (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
 
 /** @component entity_index */
 void *ddsi_entidx_lookup_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid, enum ddsi_entity_kind kind) ddsrt_nonnull_all;
 
 /** @component entity_index */
-struct ddsi_participant *ddsi_entidx_lookup_participant_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+DDS_EXPORT struct ddsi_participant *ddsi_entidx_lookup_participant_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
 
 /** @component entity_index */
 DDS_EXPORT struct ddsi_writer *ddsi_entidx_lookup_writer_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
 
 /** @component entity_index */
-struct ddsi_reader *ddsi_entidx_lookup_reader_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+DDS_EXPORT struct ddsi_reader *ddsi_entidx_lookup_reader_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
 
 /** @component entity_index */
-struct ddsi_proxy_participant *ddsi_entidx_lookup_proxy_participant_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+DDS_EXPORT struct ddsi_proxy_participant *ddsi_entidx_lookup_proxy_participant_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
 
 /** @component entity_index */
-struct ddsi_proxy_writer *ddsi_entidx_lookup_proxy_writer_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+DDS_EXPORT struct ddsi_proxy_writer *ddsi_entidx_lookup_proxy_writer_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
 
 /** @component entity_index */
-struct ddsi_proxy_reader *ddsi_entidx_lookup_proxy_reader_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+DDS_EXPORT struct ddsi_proxy_reader *ddsi_entidx_lookup_proxy_reader_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
 
 /* Enumeration of entries in the hash table:
 

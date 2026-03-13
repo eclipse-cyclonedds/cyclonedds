@@ -17,6 +17,7 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsi/ddsi_locator.h"
 #include "dds/ddsi/ddsi_config.h"
+#include "dds/export.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -41,7 +42,7 @@ struct ddsi_tran_qos;
 #define DDSI_LOCSTRLEN 81
 
 /** @component locators */
-char *ddsi_xlocator_to_string (char *dst, size_t sizeof_dst, const ddsi_xlocator_t *loc);
+DDS_EXPORT char *ddsi_xlocator_to_string (char *dst, size_t sizeof_dst, const ddsi_xlocator_t *loc);
 
 /** @component locators */
 DDS_EXPORT char *ddsi_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc);
@@ -50,7 +51,7 @@ DDS_EXPORT char *ddsi_locator_to_string (char *dst, size_t sizeof_dst, const dds
 char *ddsi_xlocator_to_string_no_port (char *dst, size_t sizeof_dst, const ddsi_xlocator_t *loc);
 
 /** @component locators */
-char *ddsi_locator_to_string_no_port (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc);
+DDS_EXPORT char *ddsi_locator_to_string_no_port (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc);
 
 #if defined (__cplusplus)
 }

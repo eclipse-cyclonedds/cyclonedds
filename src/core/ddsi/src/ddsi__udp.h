@@ -11,6 +11,8 @@
 #ifndef DDSI__UDP_H
 #define DDSI__UDP_H
 
+#include "dds/export.h"
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -27,7 +29,7 @@ typedef struct ddsi_udpv4mcgen_address {
 } ddsi_udpv4mcgen_address_t;
 
 /** @component udp_transport */
-int ddsi_udp_init (struct ddsi_domaingv *gv);
+DDS_EXPORT int ddsi_udp_init (struct ddsi_domaingv *gv);
 
 #if defined (__cplusplus)
 }

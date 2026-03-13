@@ -11,6 +11,7 @@
 #ifndef DDSI__TCP_H
 #define DDSI__TCP_H
 
+#include "dds/export.h"
 #include "dds/ddsi/ddsi_tran.h"
 
 #if defined (__cplusplus)
@@ -20,7 +21,7 @@ extern "C" {
 struct ddsi_domaingv;
 
 /** @component tcp_transport */
-int ddsi_tcp_init (struct ddsi_domaingv *gv);
+DDS_EXPORT int ddsi_tcp_init (struct ddsi_domaingv *gv);
 
 #if defined (__cplusplus)
 }

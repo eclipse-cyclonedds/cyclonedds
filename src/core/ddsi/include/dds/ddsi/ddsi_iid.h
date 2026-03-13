@@ -25,13 +25,13 @@ struct ddsi_iid {
 };
 
 /** @component instance_id */
-void ddsi_iid_init (void);
+DDS_EXPORT void ddsi_iid_init (void);
 
 /** @component instance_id */
-void ddsi_iid_fini (void);
+DDS_EXPORT void ddsi_iid_fini (void);
 
 /** @component instance_id */
-uint64_t ddsi_iid_gen (void);
+DDS_EXPORT uint64_t ddsi_iid_gen (void);
 
 #if defined (__cplusplus)
 }

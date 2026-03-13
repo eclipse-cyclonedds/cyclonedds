@@ -297,10 +297,10 @@ DDSRT_STATIC_ASSERT (offsetof (struct ddsi_typeinfo, x) == 0);
 DDSRT_STATIC_ASSERT (offsetof (struct ddsi_typemap, x) == 0);
 
 /** @component xtypes_wrapper */
-int ddsi_typeid_compare_impl (const struct DDS_XTypes_TypeIdentifier *a, const struct DDS_XTypes_TypeIdentifier *b);
+DDS_EXPORT int ddsi_typeid_compare_impl (const struct DDS_XTypes_TypeIdentifier *a, const struct DDS_XTypes_TypeIdentifier *b);
 
 /** @component xtypes_wrapper */
-void ddsi_typeid_copy_impl (struct DDS_XTypes_TypeIdentifier *dst, const struct DDS_XTypes_TypeIdentifier *src);
+DDS_EXPORT void ddsi_typeid_copy_impl (struct DDS_XTypes_TypeIdentifier *dst, const struct DDS_XTypes_TypeIdentifier *src);
 
 /** @component xtypes_wrapper */
 void ddsi_typeid_copy_to_impl (struct DDS_XTypes_TypeIdentifier *dst, const ddsi_typeid_t *src);
@@ -315,7 +315,7 @@ ddsi_typeid_t * ddsi_typeid_dup_from_impl (const struct DDS_XTypes_TypeIdentifie
 bool ddsi_typeid_is_none_impl (const struct DDS_XTypes_TypeIdentifier *type_id);
 
 /** @component xtypes_wrapper */
-void ddsi_typeid_fini_impl (struct DDS_XTypes_TypeIdentifier *type_id);
+DDS_EXPORT void ddsi_typeid_fini_impl (struct DDS_XTypes_TypeIdentifier *type_id);
 
 
 /** @component xtypes_wrapper */

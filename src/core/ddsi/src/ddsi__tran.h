@@ -314,13 +314,13 @@ void ddsi_tran_factories_fini (struct ddsi_domaingv *gv);
 void ddsi_factory_add (struct ddsi_domaingv *gv, struct ddsi_tran_factory * factory);
 
 /** @component transport */
-void ddsi_factory_free (struct ddsi_tran_factory * factory);
+DDS_EXPORT void ddsi_factory_free (struct ddsi_tran_factory * factory);
 
 /** @component transport */
-struct ddsi_tran_factory * ddsi_factory_find (const struct ddsi_domaingv *gv, const char * type);
+DDS_EXPORT struct ddsi_tran_factory * ddsi_factory_find (const struct ddsi_domaingv *gv, const char * type);
 
 /** @component transport */
-struct ddsi_tran_factory * ddsi_factory_find_supported_kind (const struct ddsi_domaingv *gv, int32_t kind);
+DDS_EXPORT struct ddsi_tran_factory * ddsi_factory_find_supported_kind (const struct ddsi_domaingv *gv, int32_t kind);
 
 /** @component transport */
 void ddsi_factory_conn_init (const struct ddsi_tran_factory *factory, const struct ddsi_network_interface *interf, struct ddsi_tran_conn * conn);
@@ -478,7 +478,7 @@ enum ddsi_nearby_address_result ddsi_is_nearby_address (const struct ddsi_domain
 
 
 /** @component transport */
-enum ddsi_locator_from_string_result ddsi_locator_from_string (const struct ddsi_domaingv *gv, ddsi_locator_t *loc, const char *str, struct ddsi_tran_factory * default_factory);
+DDS_EXPORT enum ddsi_locator_from_string_result ddsi_locator_from_string (const struct ddsi_domaingv *gv, ddsi_locator_t *loc, const char *str, struct ddsi_tran_factory * default_factory);
 
 
 /** @component transport */
