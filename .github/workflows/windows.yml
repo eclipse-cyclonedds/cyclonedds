@@ -29,6 +29,7 @@ jobs:
               build_type: Debug,
               generator: "Visual Studio 17 2022",
               idlc_xtests: false,
+              testing: true,
             }
           - {
               name: "no tests",
@@ -45,6 +46,7 @@ jobs:
               build_type: RelWithDebInfo,
               generator: "Visual Studio 17 2022",
               idlc_xtests: false,
+              testing: true,
             }
           # Following is known to fail due to cmake cyclical dependency of psmx
           # TODO # Re-enable and fix in issue

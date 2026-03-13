@@ -19,9 +19,10 @@ jobs:
               build_type: "Debug",
               sanitizer: "address,undefined",
               deadline_update_skip: true,
+              coverage: true,
+              testing: true,
               cc: clang,
               cxx: clang,
-              coverage: true,
             }
           - {
               name: "Release clang",
@@ -29,6 +30,7 @@ jobs:
               build_type: "Release",
               sanitizer: "undefined",
               deadline_update_skip: true,
+              testing: true,
               cc: clang,
               cxx: clang,
             }
@@ -36,6 +38,7 @@ jobs:
               name: "Debug gcc-14",
               os: "macos-14",
               build_type: "Debug",
+              testing: true,
               cc: gcc-14,
               cxx: g++-14,
               analyzer: true,

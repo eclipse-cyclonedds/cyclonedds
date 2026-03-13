@@ -18,6 +18,7 @@ jobs:
               os: "ubuntu-22.04",
               build_type: "Release",
               sanitizer: "undefined",
+              testing: true,
             }
           - {
               name: "debug_iceoryx",
@@ -25,6 +26,7 @@ jobs:
               iceoryx: "ON",
               sanitizer: "undefined",
               coverage: true,
+              testing: true,
             }
           - {
               name: "debug_iceoryx2",
@@ -32,6 +34,7 @@ jobs:
               iceoryx2: "ON",
               sanitizer: "undefined",
               coverage: true,
+              testing: true,
             }
           - {
               name: "release_gcc14",
@@ -40,6 +43,7 @@ jobs:
               sanitizer: "undefined",
               cc: gcc-14,
               cxx: g++-14,
+              testing: true,
             }
           - {
               name: "debug security only",
@@ -52,6 +56,7 @@ jobs:
               type_discovery: false,
               topic_discovery: false,
               idlc_xtests: false,
+              testing: true,
               cc: gcc-12,
               cxx: g++-12,
             }
@@ -72,6 +77,7 @@ jobs:
               build_type: "Debug",
               analyzer: true,
               sanitizer: "address,undefined",
+              testing: true,
               cc: clang,
               cxx: clang,
             }
@@ -81,6 +87,7 @@ jobs:
               build_type: "Debug",
               sanitizer: "address,undefined",
               security: false,
+              testing: true,
               cc: clang,
               cxx: clang,
             }
@@ -91,6 +98,16 @@ jobs:
               sanitizer: "undefined",
               topic_discovery: false,
               idlc_xtests: false,
+              cc: clang,
+              cxx: clang,
+            }
+          - {
+              name: "static release iceoryx",
+              os: "ubuntu-24.04",
+              build_type: "Release",
+              idlc_xtests: false,
+              shared_libs: false,
+              iceoryx: "ON",
               cc: clang,
               cxx: clang,
             }

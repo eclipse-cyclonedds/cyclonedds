@@ -31,7 +31,7 @@ if(ENABLE_ICEORYX2)
 
   target_include_directories(psmx_iox2 PRIVATE
     "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/ddsrt/include>"
-    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core/include>"
+    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core/ddsc/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../ddsrt/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../core/ddsc/include>"
@@ -74,7 +74,7 @@ if(ENABLE_ICEORYX)
 
   target_include_directories(psmx_iox PRIVATE
     "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/ddsrt/include>"
-    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core/include>"
+    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core/ddsc/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../ddsrt/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../core/ddsc/include>"
