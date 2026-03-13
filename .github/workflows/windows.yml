@@ -1,0 +1,177 @@
+on:
+  # Disable for now, we are testing a lot
+  # pull_request:
+  #     branches:
+  #         - master
+  push:
+    branches: "*"
+  workflow_dispatch:
+
+jobs:
+  cycloneDDS_windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {
+              name: "no security",
+              os: windows-latest,
+              arch: "WIN32",
+              build_type: Debug,
+              shared_libs: true,
+              generator: "Visual Studio 17 2022",
+              ssl: "OFF",
+              security: false,
+              testing: true,
+              idlc_xtests: false,
+            }
+          - {
+              name: "no idlc xtests",
+              os: windows-latest,
+              build_type: Debug,
+              shared_libs: true,
+              generator: "Visual Studio 17 2022",
+              ssl: "ON",
+              security: true,
+              testing: true,
+              idlc_xtests: false,
+            }
+          - {
+              name: "no tests",
+              os: windows-latest,
+              build_type: Release,
+              shared_libs: true,
+              generator: "Visual Studio 17 2022",
+              ssl: "ON",
+              security: true,
+              testing: false,
+              idlc_xtests: false,
+              check_symbol_export: true,
+            }
+          - {
+              name: "no xtests",
+              os: windows-latest,
+              build_type: RelWithDebInfo,
+              shared_libs: true,
+              generator: "Visual Studio 17 2022",
+              ssl: "ON",
+              security: true,
+              testing: true,
+              idlc_xtests: false,
+            }
+          # Following is known to fail due to cmake cyclical dependency of psmx
+          # TODO # Re-enable and fix in issue
+          # - {
+          #     name: "static with examples, testing and ssl",
+          #     os: windows-latest,
+          #     generator: "Visual Studio 17 2022",
+          #     shared_libs: false,
+          #     ssl: "ON",
+          #     security: true,
+          #     testing: true,
+          #     idlc_xtests: true,
+          #   }
+    runs-on: ${{ matrix.config.os }}
+    name: ${{ matrix.config.name }}
+    steps:
+      - uses: actions/checkout@v4
+        name: Repository Checkout
+      - name: C compiler
+        if: ${{ matrix.config.cc != '' }}
+        run: echo "CC=${{ matrix.config.cc }}" >> $GITHUB_ENV
+        shell: bash
+      - name: C++ compiler
+        if: ${{ matrix.config.cxx != '' }}
+        run: echo "CXX=${{ matrix.config.cxx }}" >> $GITHUB_ENV
+        shell: bash
+      - name: Iceoryx v1
+        if: ${{ matrix.config.iceoryx == 'ON' }}
+        run: |
+          sudo apt install libacl1-dev libncurses5-dev pkg-config
+          git clone --depth 1 --branch release_2.0 https://github.com/eclipse-iceoryx/iceoryx.git
+          cmake -S ./iceoryx/iceoryx_meta -B ./iceoryx/build \
+           -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type || 'Release' }} \
+           -DBUILD_SHARED_LIBS=${{ matrix.config.shared_libs || true }}
+          cmake --build ./iceoryx/build --config ${{ matrix.config.build_type || 'Release' }}
+          sudo cmake --install ./iceoryx/build
+        shell: bash
+      - name: Iceoryx v2
+        if: ${{ matrix.config.iceoryx2 == 'ON' }}
+        run: |
+          sudo apt install libacl1-dev libncurses5-dev pkg-config
+          git clone --depth 1 https://github.com/eclipse-iceoryx/iceoryx2.git
+          cd iceoryx2
+          cargo build --release --package iceoryx2-ffi-c
+          cmake -S . -B target/ffi/build \
+            -DBUILD_CXX_BINDING=OFF \
+            -DRUST_BUILD_ARTIFACT_PATH="$(pwd)/target/release"
+          cmake --build target/ffi/build
+          sudo cmake --install target/ffi/build
+          echo "./target/ffi/install" >> $GITHUB_PATH
+        shell: bash
+      - run: |
+          cmake -S . -B build \
+            -A x64 \
+            -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type || 'Release' }} \
+            -DCMAKE_INSTALL_PREFIX=build/install \
+            -DBUILD_SHARED_LIBS=${{ matrix.config.shared_libs }} \
+            -DANALYZER=OFF \
+            -DSANITIZER=${{ matrix.config.sanitizer || 'none' }} \
+            -DENABLE_SSL=${{ matrix.config.ssl }} \
+            -DENABLE_SECURITY=${{ matrix.config.security }} \
+            -DENABLE_LIFESPAN=ON \
+            -DENABLE_DEADLINE_MISSED=ON \
+            -DSKIP_DEADLINE_UPDATE=OFF \
+            -DENABLE_TYPELIB=ON \
+            -DENABLE_TYPE_DISCOVERY=ON \
+            -DENABLE_TOPIC_DISCOVERY=ON \
+            -DENABLE_COVERAGE=OFF \
+            -DENABLE_ICEORYX=OFF \
+            -DENABLE_ICEORYX2=OFF \
+            -DBUILD_DDSPERF=ON \
+            -DBUILD_TESTING=${{ matrix.config.testing }} \
+            -DBUILD_IDLC_XTESTS=OFF \
+            -DBUILD_EXAMPLES=ON \
+            -DWERROR=ON
+        shell: bash # Use bash to have a cross-platform workflow
+        name: configure
+      - run: cmake --build ./build --config ${{ matrix.config.build_type || 'Release' }}
+        name: build
+      - run: cmake --install ./build --config ${{ matrix.config.build_type || 'Release' }}
+        name: install
+      - if: ${{ matrix.config.testing != false}}
+        run: |
+          set -e -x
+          ctest --test-dir ./build -j 4 --output-on-failure -T test -E '^CUnit_ddsrt_random_default_random$' -C ${{ matrix.config.build_type || 'Release' }}
+        shell: bash
+        env:
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        name: ctest
+      - run: |
+          set -e -x
+          cd build
+          ../src/tools/ddsperf/sanity.bash
+        shell: bash
+        env:
+          BUILD_TYPE: ${{ matrix.config.build_type || 'Release' }}
+          SANITIZER: ${{ matrix.config.sanitizer || 'none' }}
+        name: Sanity check ddsperf
+      - if: ${{ matrix.config.shared_libs == '' || matrix.config.shared_libs != false }}
+        run: |
+          set -e -x
+          cd build
+          ../scripts/sanity_helloworld.bash
+        shell: bash
+        env:
+          BUILD_TYPE: ${{ matrix.config.build_type || 'Release' }}
+          SANITIZER: ${{ matrix.config.sanitizer || 'none' }}
+          CFLAGS: -fsanitize=${{ matrix.config.sanitizer || 'none' }}
+          LDFLAGS: -fsanitize=${{ matrix.config.sanitizer || 'none' }}
+        name: Sanity check Hello World
+      - if: ${{ matrix.config.testing && matrix.config.check_symbol_export}}
+        run: |
+          set -e -x
+          cd build
+          test -e ./bin/${{ matrix.config.build_type }}/symbol_export_test
+        shell: bash
+        name: Sanity check export symbols
