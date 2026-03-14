@@ -207,7 +207,7 @@ jobs:
           git clone --depth 1 --branch release_2.0 https://github.com/eclipse-iceoryx/iceoryx.git
           cmake -S ./iceoryx/iceoryx_meta -B ./iceoryx/build \
            -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type || 'Release' }} \
-           -DBUILD_SHARED_LIBS=${{ matrix.config.shared_libs || true }}
+           -DBUILD_SHARED_LIBS=${{ matrix.config.shared_libs }}
           cmake --build ./iceoryx/build --config ${{ matrix.config.build_type || 'Release' }}
           sudo cmake --install ./iceoryx/build
         shell: bash
