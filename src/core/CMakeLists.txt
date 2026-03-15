@@ -166,4 +166,6 @@ if (INSTALL_PDB)
   )
 endif()
 
-add_subdirectory(xtests)
+if(BUILD_TESTING AND BUILD_IDLC)
+  add_subdirectory(xtests)
+endif()

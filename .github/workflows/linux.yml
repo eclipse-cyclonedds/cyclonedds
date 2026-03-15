@@ -168,6 +168,7 @@ jobs:
               os: "ubuntu-24.04",
               build_type: "Release",
               shared_libs: false,
+              crosscompiling: true,
               ssl: "ON",
               security: true,
               lifespan: true,
@@ -177,8 +178,6 @@ jobs:
               iceoryx: "ON",
               testing: true,
               idlc_xtests: false,
-              cc: clang,
-              cxx: clang,
             }
     runs-on: ${{ matrix.config.os }}
     name: ${{ matrix.config.name }}
@@ -191,6 +190,10 @@ jobs:
           # high-entropy ASLR in much newer kernels that GitHub runners are
           # using leading to random crashes: https://reviews.llvm.org/D148280
           sudo sysctl vm.mmap_rnd_bits=28
+        shell: bash
+      - name: setup_linux
+        run: |
+          sudo apt install -y clang clang-tools clang-tidy
         shell: bash
       - name: C compiler
         if: ${{ matrix.config.cc != '' }}
@@ -208,7 +211,7 @@ jobs:
           cmake -S ./iceoryx/iceoryx_meta -B ./iceoryx/build \
            -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type || 'Release' }} \
            -DBUILD_SHARED_LIBS=${{ matrix.config.shared_libs }}
-          cmake --build ./iceoryx/build --config ${{ matrix.config.build_type || 'Release' }}
+          cmake --build ./iceoryx/build --config ${{ matrix.config.build_type || 'Release' }} --parallel
           sudo cmake --install ./iceoryx/build
         shell: bash
       - name: Iceoryx v2
@@ -221,14 +224,18 @@ jobs:
           cmake -S . -B target/ffi/build \
             -DBUILD_CXX_BINDING=OFF \
             -DRUST_BUILD_ARTIFACT_PATH="$(pwd)/target/release"
-          cmake --build target/ffi/build
+          cmake --build target/ffi/build --parallel
           sudo cmake --install target/ffi/build
           echo "./target/ffi/install" >> $GITHUB_PATH
         shell: bash
       - run: |
+          if [[ "${{ matrix.config.crosscompiling }}" == true ]]; then 
+              crosscompiling="-DCMAKE_CROSSCOMPILING=ON -DCMAKE_SYSTEM_NAME=$RUNNER_OS"
+          fi
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type || 'Release' }} \
             -DBUILD_SHARED_LIBS=${{ matrix.config.shared_libs }} \
+            ${crosscompiling} \
             -DANALYZER=${{ matrix.config.analyzer || false}} \
             -DSANITIZER=${{ matrix.config.sanitizer || 'none' }} \
             -DENABLE_SSL=${{ matrix.config.ssl }} \
@@ -249,7 +256,7 @@ jobs:
             -DWERROR=ON
         shell: bash # Use bash to have a cross-platform workflow
         name: configure
-      - run: cmake --build ./build --config ${{ matrix.config.build_type || 'Release' }}
+      - run: cmake --build ./build --config ${{ matrix.config.build_type || 'Release' }} --parallel
         name: build
       - run: sudo cmake --install ./build --config ${{ matrix.config.build_type || 'Release' }}
         name: install
@@ -261,7 +268,9 @@ jobs:
         env:
           UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
         name: ctest
-      - run: |
+      # ddsperf won't be build when crosscompiling because it requires IDLC that will not be built
+      - if: ${{ matrix.config.crosscompiling == false }}
+        run: |
           set -e -x
           cd build
           ../src/tools/ddsperf/sanity.bash
