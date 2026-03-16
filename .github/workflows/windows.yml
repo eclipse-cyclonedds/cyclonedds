@@ -92,7 +92,7 @@ jobs:
           cmake -S ./iceoryx/iceoryx_meta -B ./iceoryx/build \
            -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type || 'Release' }} \
            -DBUILD_SHARED_LIBS=${{ matrix.config.shared_libs }}
-          cmake --build ./iceoryx/build --config ${{ matrix.config.build_type || 'Release' }}
+          cmake --build ./iceoryx/build --config ${{ matrix.config.build_type || 'Release' }}  --parallel
           sudo cmake --install ./iceoryx/build
         shell: bash
       - name: Iceoryx v2
@@ -105,7 +105,7 @@ jobs:
           cmake -S . -B target/ffi/build \
             -DBUILD_CXX_BINDING=OFF \
             -DRUST_BUILD_ARTIFACT_PATH="$(pwd)/target/release"
-          cmake --build target/ffi/build
+          cmake --build target/ffi/build  --parallel
           sudo cmake --install target/ffi/build
           echo "./target/ffi/install" >> $GITHUB_PATH
         shell: bash
@@ -135,7 +135,7 @@ jobs:
             -DWERROR=ON
         shell: bash # Use bash to have a cross-platform workflow
         name: configure
-      - run: cmake --build ./build --config ${{ matrix.config.build_type || 'Release' }}
+      - run: cmake --build ./build --config ${{ matrix.config.build_type || 'Release' }} --parallel
         name: build
       - run: cmake --install ./build --config ${{ matrix.config.build_type || 'Release' }}
         name: install
@@ -168,7 +168,7 @@ jobs:
           CFLAGS: -fsanitize=${{ matrix.config.sanitizer || 'none' }}
           LDFLAGS: -fsanitize=${{ matrix.config.sanitizer || 'none' }}
         name: Sanity check Hello World
-      - if: ${{ matrix.config.testing && matrix.config.check_symbol_export}}
+      - if: ${{ matrix.config.testing == false }}
         run: |
           set -e -x
           cd build
