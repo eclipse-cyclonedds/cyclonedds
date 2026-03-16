@@ -86,7 +86,7 @@ jobs:
               ssl: "OFF",
               security: true,
               lifespan: false,
-              deadline_missed: false,
+              deadline_missed: true,
               type_discovery: false,
               topic_discovery: false,
               testing: true,
