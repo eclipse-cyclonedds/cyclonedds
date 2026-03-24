@@ -1327,7 +1327,7 @@ emit_array(
   /* resolve aliases, squash multi-dimensional arrays */
   for (; idl_is_alias(type_spec); type_spec = idl_type_spec(type_spec))
     if (idl_is_array(type_spec) &&
-        !idl_array_size(type_spec, &dims))
+        !idl_multiply_by_array_size(type_spec, &dims))
       return IDL_RETCODE_BAD_PARAMETER;
 
   simple = (idl_mask(type_spec) & (IDL_BASE_TYPE|IDL_STRING|IDL_WSTRING|IDL_ENUM|IDL_BITMASK)) != 0;

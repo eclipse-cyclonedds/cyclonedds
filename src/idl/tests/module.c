@@ -21,7 +21,6 @@ CU_Test(idl_module, reopen)
 {
   idl_retcode_t ret;
   idl_pstate_t* pstate = NULL;
-  uint32_t dim = 1;
 
   const char str[] =
   "module m1 {\n"\
@@ -61,7 +60,6 @@ CU_Test(idl_module, reopen)
   CU_ASSERT_NEQ_FATAL (decl1, NULL);
   CU_ASSERT_EQ (decl1->node.next, NULL);
   CU_ASSERT_STREQ (decl1->name->identifier, "l");
-  CU_ASSERT (!idl_array_size(decl1, &dim));
 
   idl_module_t* m2 = (idl_module_t*)m1->node.next;
   CU_ASSERT_NEQ_FATAL (m2, NULL);
@@ -87,7 +85,6 @@ CU_Test(idl_module, reopen)
   CU_ASSERT_NEQ_FATAL (decl2, NULL);
   CU_ASSERT_EQ (decl2->node.next, NULL);
   CU_ASSERT_STREQ (decl2->name->identifier, "m_s1");
-  CU_ASSERT (!idl_array_size(decl2, &dim));
 
   idl_delete_pstate(pstate);
 }

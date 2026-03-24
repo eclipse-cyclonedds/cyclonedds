@@ -594,6 +594,7 @@ IDL_EXPORT const char *idl_identifier(const void *node);
 IDL_EXPORT bool idl_identifier_is(const void *node, const char *identifier);
 IDL_EXPORT const idl_name_t *idl_name(const void *node);
 IDL_EXPORT bool idl_array_size(const void *node, uint32_t *dims);
+IDL_EXPORT bool idl_multiply_by_array_size(const void *node, uint32_t *dims);
 IDL_EXPORT uint32_t idl_bound(const void *node);
 IDL_EXPORT const idl_literal_t *idl_default_value(const void *node);
 IDL_EXPORT bool idl_requires_xcdr2(const void *node);

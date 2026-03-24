@@ -3783,10 +3783,20 @@ idl_type_spec_t *idl_type_spec(const void *node)
 
 bool idl_array_size(const void *node, uint32_t *dims)
 {
+  if (!dims || !node)
+    return false;
+  else
+    *dims = 1;
+
+  return idl_multiply_by_array_size(node, dims);
+}
+
+bool idl_multiply_by_array_size(const void *node, uint32_t *dims)
+{
   const idl_literal_t *literal;
   if (!dims ||
       *dims == 0 ||
-      node == NULL ||
+      !node ||
       !(idl_mask(node) & IDL_DECLARATOR))
     return false;
   literal = ((const idl_declarator_t *)node)->const_expr;
@@ -3795,8 +3805,7 @@ bool idl_array_size(const void *node, uint32_t *dims)
   uint32_t result = *dims;
   for (; literal; literal = idl_next(literal)) {
     const uint32_t cur_dim = literal->value.uint32;
-    if (UINT32_MAX / result < cur_dim ||
-        (UINT32_MAX / result == cur_dim && UINT32_MAX % result > 0))
+    if (UINT32_MAX / result < cur_dim)
       return false;
     result *= literal->value.uint32;
   }
