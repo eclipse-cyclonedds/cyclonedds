@@ -1403,7 +1403,8 @@ static const char *ddsi_non_assignability_code_str (enum ddsi_non_assignability_
     case DDSI_NONASSIGN_INCOMPATIBLE_TYPE: return "incompatible type";
     case DDSI_NONASSIGN_DIFFERENT_EXTENSIBILITY: return "different extensibility";
     case DDSI_NONASSIGN_WR_TYPE_NOT_DELIMITED: return "wr type not delimited";
-    case DDSI_NONASSIGN_NAME_HASH_DIFFERS: return "name hash differs";
+    case DDSI_NONASSIGN_NAME_HASH_DIFFERS: return "name hash differs for same member id";
+    case DDSI_NONASSIGN_MEMBER_ID_DIFFERS: return "member ids differ for same name hash";
     case DDSI_NONASSIGN_MISSING_CASE: return "missing case/enum label";
     case DDSI_NONASSIGN_NUMBER_OF_MEMBERS: return "number of members/enum labels";
     case DDSI_NONASSIGN_KEY_DIFFERS: return "key annotation differs";
