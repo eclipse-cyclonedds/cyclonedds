@@ -1252,17 +1252,11 @@ static dds_return_t get_ops_aggrtype (struct typebuilder_aggregated_type *tb_agg
   {
     case DDS_XTypes_TK_STRUCTURE:
       if ((ret = get_ops_struct (&tb_aggrtype->detail._struct, tb_aggrtype->base_type, tb_aggrtype->extensibility, tb_aggrtype->insn_offs, ops)) != DDS_RETCODE_OK)
-      {
-        typebuilder_ops_fini (ops);
         return ret;
-      }
       break;
     case DDS_XTypes_TK_UNION:
       if ((ret = get_ops_union (&tb_aggrtype->detail._union, tb_aggrtype->extensibility, ops)) != DDS_RETCODE_OK)
-      {
-        typebuilder_ops_fini (ops);
         return ret;
-      }
       break;
     default:
       abort ();
