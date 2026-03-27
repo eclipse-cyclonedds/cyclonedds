@@ -371,7 +371,7 @@ static void unregister_and_free_pending_match(const struct ddsi_domaingv * gv, d
   if (match->crypto_handle != 0)
   {
     DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
-    const char *ename;
+    const char *ename = "unknown";
     bool r = true;
 
     assert(sc);
