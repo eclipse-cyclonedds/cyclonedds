@@ -335,24 +335,6 @@ CU_Theory((dds_entity_t *ent, void **buf, dds_sample_info_t *si, size_t bufsz, u
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-CU_TheoryDataPoints(ddsc_take_next_instance_wl, invalid_params) = {
-        CU_DataPoints(dds_entity_t*,      &g_reader, &g_rcond,  &g_qcond),
-        CU_DataPoints(void**,              g_loans,  (void**)0, (void**)0),
-        CU_DataPoints(dds_sample_info_t*,  g_info,    NULL,      NULL),
-        CU_DataPoints(uint32_t,            0,         2,         MAX_SAMPLES),
-};
-CU_Theory((dds_entity_t *ent, void **buf, dds_sample_info_t *si, uint32_t maxs), ddsc_take_next_instance_wl, invalid_params, .init=take_next_instance_init, .fini=take_next_instance_fini)
-{
-    dds_return_t ret;
-    /* The only valid permutation is when non of the buffer values are
-     * invalid and neither is the handle. So, don't test that. */
-    CU_ASSERT_FATAL((buf != g_loans) || (si != g_info) || (maxs == 0));
-    ret = dds_take_next_instance_wl(*ent, buf, si, maxs, g_hdl_valid);
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
-}
-/*************************************************************************************************/
-
-/*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_take_next_instance_mask, invalid_params) = {
         CU_DataPoints(dds_entity_t*,      &g_reader, &g_rcond, &g_qcond),
         CU_DataPoints(void**,              g_samples, g_loans, (void**)0),
@@ -382,25 +364,6 @@ CU_Theory((dds_entity_t *ent, void **buf, dds_sample_info_t *si, size_t bufsz, u
 }
 /*************************************************************************************************/
 
-/*************************************************************************************************/
-CU_TheoryDataPoints(ddsc_take_next_instance_mask_wl, invalid_params) = {
-        CU_DataPoints(dds_entity_t*,      &g_reader, &g_rcond,  &g_qcond),
-        CU_DataPoints(void**,              g_loans,  (void**)0, (void**)0),
-        CU_DataPoints(dds_sample_info_t*,  g_info,    NULL,      NULL),
-        CU_DataPoints(uint32_t,            0,         2,         MAX_SAMPLES),
-};
-CU_Theory((dds_entity_t *ent, void **buf, dds_sample_info_t *si, uint32_t maxs), ddsc_take_next_instance_mask_wl, invalid_params, .init=take_next_instance_init, .fini=take_next_instance_fini)
-{
-    uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
-    dds_return_t ret;
-    /* The only valid permutation is when non of the buffer values are
-     * invalid and neither is the handle. So, don't test that. */
-    CU_ASSERT_FATAL((buf != g_loans) || (si != g_info) || (maxs == 0));
-    ret = dds_take_next_instance_mask_wl(*ent, buf, si, maxs, g_hdl_valid, mask);
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
-}
-/*************************************************************************************************/
-
 
 
 
@@ -424,19 +387,6 @@ CU_Theory((dds_entity_t *rdr, dds_instance_handle_t hdl), ddsc_take_next_instanc
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-CU_TheoryDataPoints(ddsc_take_next_instance_wl, invalid_handles) = {
-        CU_DataPoints(dds_entity_t*,         &g_reader, &g_rcond, &g_qcond),
-        CU_DataPoints(dds_instance_handle_t, UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX),
-};
-CU_Theory((dds_entity_t *rdr, dds_instance_handle_t hdl), ddsc_take_next_instance_wl, invalid_handles, .init=take_next_instance_init, .fini=take_next_instance_fini)
-{
-    dds_return_t ret;
-    ret = dds_take_next_instance_wl(*rdr, g_loans, g_info, MAX_SAMPLES, hdl);
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
-}
-/*************************************************************************************************/
-
-/*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_take_next_instance_mask, invalid_handles) = {
         CU_DataPoints(dds_entity_t*,         &g_reader, &g_rcond, &g_qcond),
         CU_DataPoints(dds_instance_handle_t, UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX),
@@ -446,20 +396,6 @@ CU_Theory((dds_entity_t *rdr, dds_instance_handle_t hdl), ddsc_take_next_instanc
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     ret = dds_take_next_instance_mask(*rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, hdl, mask);
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
-}
-/*************************************************************************************************/
-
-/*************************************************************************************************/
-CU_TheoryDataPoints(ddsc_take_next_instance_mask_wl, invalid_handles) = {
-        CU_DataPoints(dds_entity_t*,         &g_reader, &g_rcond, &g_qcond),
-        CU_DataPoints(dds_instance_handle_t, UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX),
-};
-CU_Theory((dds_entity_t *rdr, dds_instance_handle_t hdl), ddsc_take_next_instance_mask_wl, invalid_handles, .init=take_next_instance_init, .fini=take_next_instance_fini)
-{
-    uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
-    dds_return_t ret;
-    ret = dds_take_next_instance_mask_wl(*rdr, g_loans, g_info, MAX_SAMPLES, hdl, mask);
     CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
 }
 /*************************************************************************************************/
@@ -487,19 +423,6 @@ CU_Theory((dds_entity_t rdr), ddsc_take_next_instance, invalid_readers, .init=ta
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-CU_TheoryDataPoints(ddsc_take_next_instance_wl, invalid_readers) = {
-        CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
-};
-CU_Theory((dds_entity_t rdr), ddsc_take_next_instance_wl, invalid_readers, .init=take_next_instance_init, .fini=take_next_instance_fini)
-{
-    dds_return_t ret;
-
-    ret = dds_take_next_instance_wl(rdr, g_loans, g_info, MAX_SAMPLES, g_hdl_valid);
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
-}
-/*************************************************************************************************/
-
-/*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_take_next_instance_mask, invalid_readers) = {
         CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
 };
@@ -511,20 +434,7 @@ CU_Theory((dds_entity_t rdr), ddsc_take_next_instance_mask, invalid_readers, .in
     ret = dds_take_next_instance_mask(rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, g_hdl_valid, mask);
     CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
-/*************************************************************************************************/
 
-/*************************************************************************************************/
-CU_TheoryDataPoints(ddsc_take_next_instance_mask_wl, invalid_readers) = {
-        CU_DataPoints(dds_entity_t, -2, -1, 0, INT_MAX, INT_MIN),
-};
-CU_Theory((dds_entity_t rdr), ddsc_take_next_instance_mask_wl, invalid_readers, .init=take_next_instance_init, .fini=take_next_instance_fini)
-{
-    uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
-    dds_return_t ret;
-
-    ret = dds_take_next_instance_mask_wl(rdr, g_loans, g_info, MAX_SAMPLES, g_hdl_valid, mask);
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
-}
 /*************************************************************************************************/
 
 
@@ -550,18 +460,6 @@ CU_Theory((dds_entity_t *rdr), ddsc_take_next_instance, non_readers, .init=take_
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-CU_TheoryDataPoints(ddsc_take_next_instance_wl, non_readers) = {
-        CU_DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_subscriber, &g_publisher, &g_waitset),
-};
-CU_Theory((dds_entity_t *rdr), ddsc_take_next_instance_wl, non_readers, .init=take_next_instance_init, .fini=take_next_instance_fini)
-{
-    dds_return_t ret;
-    ret = dds_take_next_instance_wl(*rdr, g_loans, g_info, MAX_SAMPLES, g_hdl_valid);
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_ILLEGAL_OPERATION);
-}
-/*************************************************************************************************/
-
-/*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_take_next_instance_mask, non_readers) = {
         CU_DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_subscriber, &g_publisher, &g_waitset),
 };
@@ -572,19 +470,7 @@ CU_Theory((dds_entity_t *rdr), ddsc_take_next_instance_mask, non_readers, .init=
     ret = dds_take_next_instance_mask(*rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, g_hdl_valid, mask);
     CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_ILLEGAL_OPERATION);
 }
-/*************************************************************************************************/
 
-/*************************************************************************************************/
-CU_TheoryDataPoints(ddsc_take_next_instance_mask_wl, non_readers) = {
-        CU_DataPoints(dds_entity_t*, &g_participant, &g_topic, &g_writer, &g_subscriber, &g_publisher, &g_waitset),
-};
-CU_Theory((dds_entity_t *rdr), ddsc_take_next_instance_mask_wl, non_readers, .init=take_next_instance_init, .fini=take_next_instance_fini)
-{
-    uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
-    dds_return_t ret;
-    ret = dds_take_next_instance_mask_wl(*rdr, g_loans, g_info, MAX_SAMPLES, g_hdl_valid, mask);
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_ILLEGAL_OPERATION);
-}
 /*************************************************************************************************/
 
 
@@ -612,20 +498,6 @@ CU_Theory((dds_entity_t *rdr), ddsc_take_next_instance, already_deleted, .init=t
 /*************************************************************************************************/
 
 /*************************************************************************************************/
-CU_TheoryDataPoints(ddsc_take_next_instance_wl, already_deleted) = {
-        CU_DataPoints(dds_entity_t*, &g_rcond, &g_qcond, &g_reader),
-};
-CU_Theory((dds_entity_t *rdr), ddsc_take_next_instance_wl, already_deleted, .init=take_next_instance_init, .fini=take_next_instance_fini)
-{
-    dds_return_t ret;
-    ret = dds_delete(*rdr);
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_OK);
-    ret = dds_take_next_instance_wl(*rdr, g_loans, g_info, MAX_SAMPLES, g_hdl_valid);
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
-}
-/*************************************************************************************************/
-
-/*************************************************************************************************/
 
 CU_TheoryDataPoints(ddsc_take_next_instance_mask, already_deleted) = {
         CU_DataPoints(dds_entity_t*, &g_rcond, &g_qcond, &g_reader),
@@ -639,21 +511,7 @@ CU_Theory((dds_entity_t *rdr), ddsc_take_next_instance_mask, already_deleted, .i
     ret = dds_take_next_instance_mask(*rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, g_hdl_valid, mask);
     CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
-/*************************************************************************************************/
 
-/*************************************************************************************************/
-CU_TheoryDataPoints(ddsc_take_next_instance_mask_wl, already_deleted) = {
-        CU_DataPoints(dds_entity_t*, &g_rcond, &g_qcond, &g_reader),
-};
-CU_Theory((dds_entity_t *rdr), ddsc_take_next_instance_mask_wl, already_deleted, .init=take_next_instance_init, .fini=take_next_instance_fini)
-{
-    uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
-    dds_return_t ret;
-    ret = dds_delete(*rdr);
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_OK);
-    ret = dds_take_next_instance_mask_wl(*rdr, g_loans, g_info, MAX_SAMPLES, g_hdl_valid, mask);
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
-}
 /*************************************************************************************************/
 
 
@@ -667,61 +525,6 @@ CU_Theory((dds_entity_t *rdr), ddsc_take_next_instance_mask_wl, already_deleted,
  *************************************************************************************************/
 /*************************************************************************************************/
 CU_Test(ddsc_take_next_instance, reader, .init=take_next_instance_init, .fini=take_next_instance_fini)
-{
-    dds_return_t cnt = 0, cntinv = 0;
-    dds_return_t ret = 1;
-    dds_instance_handle_t previous_handle = DDS_HANDLE_NIL;
-
-    while (ret >= 1){
-        ret = dds_read_next_instance(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle);
-        if(ret == DDS_RETCODE_NO_DATA) break;
-        CU_ASSERT_FATAL(ret >= 0 );
-        for(int i = 0; i < ret; i++)
-        {
-            if(g_info[i].valid_data){
-                Space_Type1 *sample = (Space_Type1*)g_samples[i];
-
-                /* Expected states. */
-                int                  expected_long_2 = sample->long_2;
-                int                  expected_long_1 = expected_long_2/3;
-                int                  expected_long_3 = expected_long_2*2;
-                dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1, expected_long_2);
-                dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-                dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
-
-                /* Check data. */
-                CU_ASSERT_EQ_FATAL(sample->long_1, expected_long_1);
-                CU_ASSERT_EQ_FATAL(sample->long_2, expected_long_2);
-                CU_ASSERT_EQ_FATAL(sample->long_3, expected_long_3);
-
-                /* Check states. */
-                CU_ASSERT_EQ_FATAL(g_info[i].valid_data,     true);
-                CU_ASSERT_EQ_FATAL(g_info[i].sample_state,   expected_sst);
-                CU_ASSERT_EQ_FATAL(g_info[i].view_state,     expected_vst);
-                CU_ASSERT_EQ_FATAL(g_info[i].instance_state, expected_ist);
-                cnt ++;
-            } else {
-                cntinv ++;
-            }
-        }
-        CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
-        previous_handle = g_info[0].instance_handle;
-    }
-
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
-    CU_ASSERT_EQ_FATAL(cnt, MAX_SAMPLES);
-    CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
-
-    /* All samples should still be available. */
-    ret = samples_cnt();
-    CU_ASSERT_EQ_FATAL(ret, MAX_SAMPLES);
-
-}
-
-/*************************************************************************************************/
-
-/*************************************************************************************************/
-CU_Test(ddsc_take_next_instance_wl, reader, .init=take_next_instance_init, .fini=take_next_instance_fini)
 {
     dds_return_t cnt = 0, cntinv = 0;
     dds_return_t ret = 1;
@@ -867,85 +670,6 @@ CU_Test(ddsc_take_next_instance_mask, reader, .init=take_next_instance_init, .fi
 }
 /*************************************************************************************************/
 
-/*************************************************************************************************/
-CU_Test(ddsc_take_next_instance_mask_wl, reader, .init=take_next_instance_init, .fini=take_next_instance_fini)
-{
-    /*    | long_1 | long_2 | long_3 |    sst   | vst |    ist     |
-     *    ----------------------------------------------------------
-     *    |    0   |    0   |    0   | not_read | new | alive      |
-     *    |    0   |    1   |    2   | not_read | new | alive      |
-     *    |    0   |    2   |    4   | not_read | new | alive      |
-     *    |    1   |    3   |    6   |     read | old | alive      |
-     *    |    1   |    4   |    8   |     read | old | alive      |
-     *    |    1   |    5   |   10   |     read | old | alive      |
-     *    |    2   |    6   |   12   | not_read | old | alive      |
-     *    |    2   |    7   |   14   | not_read | old | alive      |
-     *    |    2   |    8   |   16   |     read | old | alive      |
-     *    |    3   |    9   |   18   | not_read | old | alive      |
-     *    |    3   |   10   |   20   |     read | old | alive      |
-     *    |    3   |   11   |   22   | not_read | old | alive      |
-     *    |    4   |   12   |   24   |     read | old | alive      |
-     *    |    4   |   13   |   26   | not_read | old | alive      |
-     *    |    4   |   14   |   28   | not_read | old | alive      |
-     *    |    5   |   15   |   30   |     read | old | disposed   |
-     *    |    5   |   16   |   32   | not_read | old | disposed   |
-     *    |    5   |   17   |   34   |     read | old | disposed   |
-     *    |    6   |   18   |   36   |     read | old | no_writers |
-     *    |    6   |   19   |   38   | not_read | old | no_writers |
-     *    |    6   |   20   |   40   |     read | old | no_writers |
-     */
-    uint32_t mask = DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
-    dds_return_t cnt = 0, cntinv = 0;
-    dds_return_t ret = 1;
-    dds_instance_handle_t previous_handle = DDS_HANDLE_NIL;
-
-    while (ret >= 1){
-        ret = dds_read_next_instance_mask_wl(g_reader, g_samples, g_info, MAX_SAMPLES, previous_handle, mask);
-        if(ret == DDS_RETCODE_NO_DATA) break;
-        CU_ASSERT_FATAL(ret >= 0 );
-        for(int i = 0; i < ret; i++)
-        {
-            if(g_info[i].valid_data){
-                Space_Type1 *sample = (Space_Type1*)g_samples[i];
-
-                /* Expected states. */
-                int                  expected_long_2 = sample->long_2;
-                int                  expected_long_1 = expected_long_2/3;
-                int                  expected_long_3 = expected_long_2*2;
-                dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1, expected_long_2);
-                dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-                dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
-
-                /* Check data. */
-                CU_ASSERT_EQ_FATAL(sample->long_1, expected_long_1);
-                CU_ASSERT_EQ_FATAL(sample->long_2, expected_long_2);
-                CU_ASSERT_EQ_FATAL(sample->long_3, expected_long_3);
-
-                /* Check states. */
-                CU_ASSERT_EQ_FATAL(g_info[i].valid_data,     true);
-                CU_ASSERT_EQ_FATAL(g_info[i].sample_state,   expected_sst);
-                CU_ASSERT_EQ_FATAL(g_info[i].view_state,     expected_vst);
-                CU_ASSERT_EQ_FATAL(g_info[i].instance_state, expected_ist);
-                cnt ++;
-            } else {
-                cntinv ++;
-            }
-        }
-        CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
-        previous_handle = g_info[0].instance_handle;
-    }
-
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
-    CU_ASSERT_EQ_FATAL(cnt, RDR_NOT_READ_CNT);
-    CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
-
-    /* All samples should still be available. */
-    ret = samples_cnt();
-    CU_ASSERT_EQ_FATAL(ret, MAX_SAMPLES);
-
-}
-/*************************************************************************************************/
-
 
 
 
@@ -990,85 +714,6 @@ CU_Test(ddsc_take_next_instance, readcondition, .init=take_next_instance_init, .
 
     while (ret >= 1){
         ret = dds_read_next_instance(g_rcond, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle);
-        if(ret == DDS_RETCODE_NO_DATA) break;
-        CU_ASSERT_FATAL(ret >= 0 );
-        for(int i = 0; i < ret; i++)
-        {
-            if(g_info[i].valid_data){
-                Space_Type1 *sample = (Space_Type1*)g_samples[i];
-
-                /* Expected states. */
-                int                  expected_long_2 = sample->long_2;
-                int                  expected_long_1 = expected_long_2/3;
-                int                  expected_long_3 = expected_long_2*2;
-                dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1, expected_long_2);
-                dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-                dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
-
-                /* Check data. */
-                CU_ASSERT_EQ_FATAL(sample->long_1, expected_long_1);
-                CU_ASSERT_EQ_FATAL(sample->long_2, expected_long_2);
-                CU_ASSERT_EQ_FATAL(sample->long_3, expected_long_3);
-
-                /* Check states. */
-                CU_ASSERT_EQ_FATAL(g_info[i].valid_data,     true);
-                CU_ASSERT_EQ_FATAL(g_info[i].sample_state,   expected_sst);
-                CU_ASSERT_EQ_FATAL(g_info[i].view_state,     expected_vst);
-                CU_ASSERT_EQ_FATAL(g_info[i].instance_state, expected_ist);
-                cnt ++;
-            } else {
-                cntinv ++;
-            }
-        }
-        CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
-        previous_handle = g_info[0].instance_handle;
-    }
-
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
-    CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
-    CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
-
-    /* All samples should still be available. */
-    ret = samples_cnt();
-    CU_ASSERT_EQ_FATAL(ret, MAX_SAMPLES);
-
-}
-/*************************************************************************************************/
-
-/*************************************************************************************************/
-CU_Test(ddsc_take_next_instance_wl, readcondition, .init=take_next_instance_init, .fini=take_next_instance_fini)
-{
-    /*    | long_1 | long_2 | long_3 |    sst   | vst |    ist     |
-     *    ----------------------------------------------------------
-     *    |    0   |    0   |    0   | not_read | new | alive      |
-     *    |    0   |    1   |    2   | not_read | new | alive      |
-     *    |    0   |    2   |    4   | not_read | new | alive      |
-     *    |    1   |    3   |    6   |     read | old | alive      |
-     *    |    1   |    4   |    8   |     read | old | alive      |
-     *    |    1   |    5   |   10   |     read | old | alive      |
-     *    |    2   |    6   |   12   | not_read | old | alive      |
-     *    |    2   |    7   |   14   | not_read | old | alive      |
-     *    |    2   |    8   |   16   |     read | old | alive      |
-     *    |    3   |    9   |   18   | not_read | old | alive      |
-     *    |    3   |   10   |   20   |     read | old | alive      |
-     *    |    3   |   11   |   22   | not_read | old | alive      |
-     *    |    4   |   12   |   24   |     read | old | alive      |
-     *    |    4   |   13   |   26   | not_read | old | alive      |
-     *    |    4   |   14   |   28   | not_read | old | alive      |
-     *    |    5   |   15   |   30   |     read | old | disposed   |
-     *    |    5   |   16   |   32   | not_read | old | disposed   |
-     *    |    5   |   17   |   34   |     read | old | disposed   |
-     *    |    6   |   18   |   36   |     read | old | no_writers |
-     *    |    6   |   19   |   38   | not_read | old | no_writers |
-     *    |    6   |   20   |   40   |     read | old | no_writers |
-     */
-    dds_return_t cnt = 0, cntinv = 0;
-    int expected_cnt = 8;
-    dds_return_t ret = 1;
-    dds_instance_handle_t previous_handle = DDS_HANDLE_NIL;
-
-    while (ret >= 1){
-        ret = dds_read_next_instance_wl(g_rcond, g_samples, g_info, MAX_SAMPLES, previous_handle);
         if(ret == DDS_RETCODE_NO_DATA) break;
         CU_ASSERT_FATAL(ret >= 0 );
         for(int i = 0; i < ret; i++)
@@ -1196,87 +841,6 @@ CU_Test(ddsc_take_next_instance_mask, readcondition, .init=take_next_instance_in
 
 /*************************************************************************************************/
 
-/*************************************************************************************************/
-CU_Test(ddsc_take_next_instance_mask_wl, readcondition, .init=take_next_instance_init, .fini=take_next_instance_fini)
-{
-    /*    | long_1 | long_2 | long_3 |    sst   | vst |    ist     |
-     *    ----------------------------------------------------------
-     *    |    0   |    0   |    0   | not_read | new | alive      |
-     *    |    0   |    1   |    2   | not_read | new | alive      |
-     *    |    0   |    2   |    4   | not_read | new | alive      |
-     *    |    1   |    3   |    6   |     read | old | alive      |
-     *    |    1   |    4   |    8   |     read | old | alive      |
-     *    |    1   |    5   |   10   |     read | old | alive      |
-     *    |    2   |    6   |   12   | not_read | old | alive      |
-     *    |    2   |    7   |   14   | not_read | old | alive      |
-     *    |    2   |    8   |   16   |     read | old | alive      |
-     *    |    3   |    9   |   18   | not_read | old | alive      |
-     *    |    3   |   10   |   20   |     read | old | alive      |
-     *    |    3   |   11   |   22   | not_read | old | alive      |
-     *    |    4   |   12   |   24   |     read | old | alive      |
-     *    |    4   |   13   |   26   | not_read | old | alive      |
-     *    |    4   |   14   |   28   | not_read | old | alive      |
-     *    |    5   |   15   |   30   |     read | old | disposed   |
-     *    |    5   |   16   |   32   | not_read | old | disposed   |
-     *    |    5   |   17   |   34   |     read | old | disposed   |
-     *    |    6   |   18   |   36   |     read | old | no_writers |
-     *    |    6   |   19   |   38   | not_read | old | no_writers |
-     *    |    6   |   20   |   40   |     read | old | no_writers |
-     */
-    dds_return_t cnt = 0, cntinv = 0;
-    uint32_t mask = DDS_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
-    int expected_cnt = 21;
-    dds_return_t ret = 1;
-    dds_instance_handle_t previous_handle = DDS_HANDLE_NIL;
-
-    while (ret >= 1){
-        ret = dds_read_next_instance_mask_wl(g_rcond, g_samples, g_info, MAX_SAMPLES, previous_handle, mask);
-        if(ret == DDS_RETCODE_NO_DATA) break;
-        CU_ASSERT_FATAL(ret >= 0 );
-        for(int i = 0; i < ret; i++)
-        {
-            if(g_info[i].valid_data){
-                Space_Type1 *sample = (Space_Type1*)g_samples[i];
-
-                /* Expected states. */
-                int                  expected_long_2 = sample->long_2;
-                int                  expected_long_1 = expected_long_2/3;
-                int                  expected_long_3 = expected_long_2*2;
-                dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1, expected_long_2);
-                dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-                dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
-
-                /* Check data. */
-                CU_ASSERT_EQ_FATAL(sample->long_1, expected_long_1);
-                CU_ASSERT_EQ_FATAL(sample->long_2, expected_long_2);
-                CU_ASSERT_EQ_FATAL(sample->long_3, expected_long_3);
-
-                /* Check states. */
-                CU_ASSERT_EQ_FATAL(g_info[i].valid_data,     true);
-                CU_ASSERT_EQ_FATAL(g_info[i].sample_state,   expected_sst);
-                CU_ASSERT_EQ_FATAL(g_info[i].view_state,     expected_vst);
-                CU_ASSERT_EQ_FATAL(g_info[i].instance_state, expected_ist);
-                cnt ++;
-            } else {
-                cntinv ++;
-            }
-        }
-        CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
-        previous_handle = g_info[0].instance_handle;
-    }
-
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
-    CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
-    CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
-
-    /* All samples should still be available. */
-    ret = samples_cnt();
-    CU_ASSERT_EQ_FATAL(ret, MAX_SAMPLES);
-
-}
-
-/*************************************************************************************************/
-
 
 
 
@@ -1321,86 +885,6 @@ CU_Test(ddsc_take_next_instance, querycondition, .init=take_next_instance_init, 
 
     while (ret >= 1){
         ret = dds_read_next_instance(g_qcond, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle);
-        if(ret == DDS_RETCODE_NO_DATA) break;
-        CU_ASSERT_FATAL(ret >= 0 );
-        for(int i = 0; i < ret; i++)
-        {
-            if(g_info[i].valid_data){
-                Space_Type1 *sample = (Space_Type1*)g_samples[i];
-
-                /* Expected states. */
-                int                  expected_long_2 = sample->long_2;
-                int                  expected_long_1 = expected_long_2/3;
-                int                  expected_long_3 = expected_long_2*2;
-                dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1, expected_long_2);
-                dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-                dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
-
-                /* Check data. */
-                CU_ASSERT_EQ_FATAL(sample->long_1, expected_long_1);
-                CU_ASSERT_EQ_FATAL(sample->long_2, expected_long_2);
-                CU_ASSERT_EQ_FATAL(sample->long_3, expected_long_3);
-
-                /* Check states. */
-                CU_ASSERT_EQ_FATAL(g_info[i].valid_data,     true);
-                CU_ASSERT_EQ_FATAL(g_info[i].sample_state,   expected_sst);
-                CU_ASSERT_EQ_FATAL(g_info[i].view_state,     expected_vst);
-                CU_ASSERT_EQ_FATAL(g_info[i].instance_state, expected_ist);
-                cnt ++;
-            } else {
-                cntinv ++;
-            }
-        }
-        CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
-        previous_handle = g_info[0].instance_handle;
-    }
-
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
-    CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
-    CU_ASSERT_EQ_FATAL(cntinv, 1);
-
-    /* All samples should still be available. */
-    ret = samples_cnt();
-    CU_ASSERT_EQ_FATAL(ret, MAX_SAMPLES);
-
-}
-
-/*************************************************************************************************/
-
-/*************************************************************************************************/
-CU_Test(ddsc_take_next_instance_wl, querycondition, .init=take_next_instance_init, .fini=take_next_instance_fini)
-{
-    /*    | long_1 | long_2 | long_3 |    sst   | vst |    ist     |
-     *    ----------------------------------------------------------
-     *    |    0   |    0   |    0   | not_read | new | alive      |
-     *    |    0   |    1   |    2   | not_read | new | alive      |
-     *    |    0   |    2   |    4   | not_read | new | alive      |
-     *    |    1   |    3   |    6   |     read | old | alive      |
-     *    |    1   |    4   |    8   |     read | old | alive      |
-     *    |    1   |    5   |   10   |     read | old | alive      |
-     *    |    2   |    6   |   12   | not_read | old | alive      |
-     *    |    2   |    7   |   14   | not_read | old | alive      |
-     *    |    2   |    8   |   16   |     read | old | alive      |
-     *    |    3   |    9   |   18   | not_read | old | alive      |
-     *    |    3   |   10   |   20   |     read | old | alive      |
-     *    |    3   |   11   |   22   | not_read | old | alive      |
-     *    |    4   |   12   |   24   |     read | old | alive      |
-     *    |    4   |   13   |   26   | not_read | old | alive      |
-     *    |    4   |   14   |   28   | not_read | old | alive      |
-     *    |    5   |   15   |   30   |     read | old | disposed   |
-     *    |    5   |   16   |   32   | not_read | old | disposed   |
-     *    |    5   |   17   |   34   |     read | old | disposed   |
-     *    |    6   |   18   |   36   |     read | old | no_writers |
-     *    |    6   |   19   |   38   | not_read | old | no_writers |
-     *    |    6   |   20   |   40   |     read | old | no_writers |
-     */
-    dds_return_t cnt = 0, cntinv = 0;
-    int expected_cnt = 5;
-    dds_return_t ret = 1;
-    dds_instance_handle_t previous_handle = DDS_HANDLE_NIL;
-
-    while (ret >= 1){
-        ret = dds_read_next_instance_wl(g_qcond, g_samples, g_info, MAX_SAMPLES, previous_handle);
         if(ret == DDS_RETCODE_NO_DATA) break;
         CU_ASSERT_FATAL(ret >= 0 );
         for(int i = 0; i < ret; i++)
@@ -1525,86 +1009,3 @@ CU_Test(ddsc_take_next_instance_mask, querycondition, .init=take_next_instance_i
     CU_ASSERT_EQ_FATAL(ret, MAX_SAMPLES);
 
 }
-
-/*************************************************************************************************/
-
-/*************************************************************************************************/
-CU_Test(ddsc_take_next_instance_mask_wl, querycondition, .init=take_next_instance_init, .fini=take_next_instance_fini)
-{
-    /*    | long_1 | long_2 | long_3 |    sst   | vst |    ist     |
-     *    ----------------------------------------------------------
-     *    |    0   |    0   |    0   | not_read | new | alive      |
-     *    |    0   |    1   |    2   | not_read | new | alive      |
-     *    |    0   |    2   |    4   | not_read | new | alive      |
-     *    |    1   |    3   |    6   |     read | old | alive      |
-     *    |    1   |    4   |    8   |     read | old | alive      |
-     *    |    1   |    5   |   10   |     read | old | alive      |
-     *    |    2   |    6   |   12   | not_read | old | alive      |
-     *    |    2   |    7   |   14   | not_read | old | alive      |
-     *    |    2   |    8   |   16   |     read | old | alive      |
-     *    |    3   |    9   |   18   | not_read | old | alive      |
-     *    |    3   |   10   |   20   |     read | old | alive      |
-     *    |    3   |   11   |   22   | not_read | old | alive      |
-     *    |    4   |   12   |   24   |     read | old | alive      |
-     *    |    4   |   13   |   26   | not_read | old | alive      |
-     *    |    4   |   14   |   28   | not_read | old | alive      |
-     *    |    5   |   15   |   30   |     read | old | disposed   |
-     *    |    5   |   16   |   32   | not_read | old | disposed   |
-     *    |    5   |   17   |   34   |     read | old | disposed   |
-     *    |    6   |   18   |   36   |     read | old | no_writers |
-     *    |    6   |   19   |   38   | not_read | old | no_writers |
-     *    |    6   |   20   |   40   |     read | old | no_writers |
-     */
-    dds_return_t cnt = 0, cntinv = 0;
-    uint32_t mask = DDS_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
-    int expected_cnt = 11;
-    dds_return_t ret = 1;
-    dds_instance_handle_t previous_handle = DDS_HANDLE_NIL;
-
-    while (ret >= 1){
-        ret = dds_read_next_instance_mask_wl(g_qcond, g_samples, g_info, MAX_SAMPLES, previous_handle, mask);
-        if(ret == DDS_RETCODE_NO_DATA) break;
-        CU_ASSERT_FATAL(ret >= 0 );
-        for(int i = 0; i < ret; i++)
-        {
-            if(g_info[i].valid_data){
-                Space_Type1 *sample = (Space_Type1*)g_samples[i];
-
-                /* Expected states. */
-                int                  expected_long_2 = sample->long_2;
-                int                  expected_long_1 = expected_long_2/3;
-                int                  expected_long_3 = expected_long_2*2;
-                dds_sample_state_t   expected_sst    = SAMPLE_SST(expected_long_1, expected_long_2);
-                dds_view_state_t     expected_vst    = SAMPLE_VST(expected_long_1);
-                dds_instance_state_t expected_ist    = SAMPLE_IST(expected_long_1);
-
-                /* Check data. */
-                CU_ASSERT_EQ_FATAL(sample->long_1, expected_long_1);
-                CU_ASSERT_EQ_FATAL(sample->long_2, expected_long_2);
-                CU_ASSERT_EQ_FATAL(sample->long_3, expected_long_3);
-
-                /* Check states. */
-                CU_ASSERT_EQ_FATAL(g_info[i].valid_data,     true);
-                CU_ASSERT_EQ_FATAL(g_info[i].sample_state,   expected_sst);
-                CU_ASSERT_EQ_FATAL(g_info[i].view_state,     expected_vst);
-                CU_ASSERT_EQ_FATAL(g_info[i].instance_state, expected_ist);
-                cnt ++;
-            } else {
-                cntinv ++;
-            }
-        }
-        CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
-        previous_handle = g_info[0].instance_handle;
-    }
-
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
-    CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
-    CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
-
-    /* All samples should still be available. */
-    ret = samples_cnt();
-    CU_ASSERT_EQ_FATAL(ret, MAX_SAMPLES);
-
-}
-
-/*************************************************************************************************/
