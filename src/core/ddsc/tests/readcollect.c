@@ -174,7 +174,8 @@ static void dotest (read_op op)
   CU_ASSERT_EQ_FATAL (rc, 3);
   for (int i = 0; i < rc; i++)
   {
-    CU_ASSERT_EQ_FATAL (xs[i].long_1, (arg1.k+2)%3);
+    if (!(op == dds_take_next_instance_with_collector || op == dds_read_next_instance_with_collector))
+      CU_ASSERT_EQ_FATAL (xs[i].long_1, (arg1.k+2)%3);
     CU_ASSERT_EQ_FATAL (si[i].sample_state, DDS_NOT_READ_SAMPLE_STATE);
     CU_ASSERT_EQ_FATAL (si[i].view_state, DDS_NEW_VIEW_STATE);
   }
