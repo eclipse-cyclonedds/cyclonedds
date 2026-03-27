@@ -98,6 +98,11 @@ H
     Heartbeat
         TBD
 
+    HSM
+        Hardware Security Module. A physical device that safeguards cryptographic keys and
+        performs cryptographic operations. HSMs provide tamper-resistant storage where private
+        keys can be used for signing and decryption without ever leaving the device.
+
 I
 =
 
@@ -168,6 +173,16 @@ P
 
     Peer Node
         TBD
+
+    PKCS#7
+        Public-Key Cryptography Standards #7. A standard for signing and encrypting data,
+        also known as Cryptographic Message Syntax (CMS). Used in DDS Security to sign
+        governance and permissions documents, ensuring their integrity and authenticity.
+
+    PKCS#11
+        Public-Key Cryptography Standards #11. A platform-independent API (also known as
+        "Cryptoki") for interfacing with cryptographic tokens such as :term:`HSM`\s, smart
+        cards, and USB security keys. Defined originally by RSA Security.
 
     PKI
         Public Key Infrastructure
@@ -269,6 +284,11 @@ X
 =
 
 .. glossary::
+    X.509
+        A standard defining the format of public key certificates, defined in :rfc:`5280`.
+        X.509 certificates bind a public key to an identity (subject) and are signed by a
+        :term:`Certificate Authority <PKI>`. DDS Security uses X.509 certificates for
+        participant authentication.
 
 Y
 =

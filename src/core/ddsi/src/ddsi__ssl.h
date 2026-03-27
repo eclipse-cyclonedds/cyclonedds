@@ -25,14 +25,38 @@
 extern "C" {
 #endif
 
+/** @brief Read bytes from an SSL connection
+ * @param[in,out] ssl SSL connection
+ * @param[out] buf buffer of at least len bytes to store received bytes
+ * @param[in] len size of buffer pointed to by buf
+ * @param[out] bytes_read number of bytes read on successful completion, set to 0 in all other cases
+ * @return return code indicating success or failure
+ * @retval `DDS_RETCODE_OK` bytes read or EOF, `bytes_read` is 0 on EOF else in [1,len]
+ * @retval `DDS_RETCODE_TRY_AGAIN` no bytes available but not EOF either
+ * @retval `DDS_RETCODE_ERROR` unspecified error */
+typedef dds_return_t (*ddsi_ssl_plugin_read_t) (SSL *ssl, void *buf, size_t len, size_t *bytes_read)
+  ddsrt_nonnull((1, 2, 4)) ddsrt_attribute_warn_unused_result;
+
+/** @brief Write bytes to an SSL connection
+ * @param[in,out] ssl SSL connection
+ * @param[in] msg data to write
+ * @param[in] len number of bytes in msg
+ * @param[out] bytes_written optional, number of bytes written on successful completion, undefined in all other cases
+ * @return return code indicating success or failure
+ * @retval `DDS_RETCODE_OK` bytes written or EOF, `bytes_written` is 0 on EOF else in [1,len]
+ * @retval `DDS_RETCODE_TRY_AGAIN` no bytes written but not EOF either
+ * @retval `DDS_RETCODE_ERROR` unspecified error */
+typedef dds_return_t (*ddsi_ssl_plugin_write_t) (SSL *ssl, const void *msg, size_t len, size_t *bytes_written)
+  ddsrt_nonnull((1, 2));
+
 struct ddsi_ssl_plugins
 {
   bool (*init) (struct ddsi_domaingv *gv);
   void (*fini) (void);
   void (*ssl_free) (SSL *ssl);
   void (*bio_vfree) (BIO *bio);
-  ssize_t (*read) (SSL *ssl, void *buf, size_t len, dds_return_t *err);
-  ssize_t (*write) (SSL *ssl, const void *msg, size_t len, dds_return_t *err);
+  ddsi_ssl_plugin_read_t read;
+  ddsi_ssl_plugin_write_t write;
   SSL * (*connect) (const struct ddsi_domaingv *gv, ddsrt_socket_t sock);
   BIO * (*listen) (ddsrt_socket_t sock);
   SSL * (*accept) (const struct ddsi_domaingv *gv, BIO *bio, ddsrt_socket_t *sock);

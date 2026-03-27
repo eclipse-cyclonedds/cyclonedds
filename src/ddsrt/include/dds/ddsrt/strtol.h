@@ -48,7 +48,7 @@ ddsrt_todigit(const int chr);
  *                      character is stored.
  * @param[in]   base    Base to use. Must be a base between 2 and 36, or 0 to
  *                      determine from @str.
- * @param[out]  llng    A long long integer where the number is stored.
+ * @param[out]  value    A int64_t where the number is stored.
  *
  * @returns A dds_return_t indicating success or failure.
  *
@@ -60,11 +60,11 @@ ddsrt_todigit(const int chr);
  *             String converted to an integer, but was out of range.
  */
 DDS_EXPORT dds_return_t
-ddsrt_strtoll(
+ddsrt_strtoint64(
   const char *str,
   char **endptr,
   int32_t base,
-  long long *llng);
+  int64_t *value);
 
 /**
  * @brief Convert a string to an unsigned long long integer.
@@ -80,7 +80,7 @@ ddsrt_strtoll(
  *                      character is stored.
  * @param[in]   base    Base to use. Must be a base between 2 and 36, or 0 to
  *                      determine from @str.
- * @param[out]  ullng   A long long integer where the number is stored.
+ * @param[out]  value   An uint64_t where the number is stored.
  *
  * @returns A dds_return_t indicating success or failure.
  *
@@ -92,54 +92,14 @@ ddsrt_strtoll(
  *             String converted to an integer, but was out of range.
  */
 DDS_EXPORT dds_return_t
-ddsrt_strtoull(
+ddsrt_strtouint64(
   const char *str,
   char **endptr,
   int32_t base,
-  unsigned long long *ullng);
+  uint64_t *value);
 
 /**
- * @brief Convert a string to a long long integer.
- *
- * @param[in]  str   String to convert into a long long integer.
- * @param[in]  llng  A long long integer where the number is stored.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             String successfully converted to an integer.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             Base is invalid.
- * @retval DDS_RETCODE_OUT_OF_RANGE
- *             String converted to an integer, but was out of range.
- */
-DDS_EXPORT dds_return_t
-ddsrt_atoll(
-  const char *str,
-  long long *llng);
-
-/**
- * @brief Convert a string to an unsigned long long integer.
- *
- * @param[in]   str    String to conver into an unsigned long long integer.
- * @param[out]  ullng  An unsigned long long integer where the number is stored.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             String successfully converted to an integer.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             Base is invalid.
- * @retval DDS_RETCODE_OUT_OF_RANGE
- *             String converted to an integer, but was out of range.
- */
-DDS_EXPORT dds_return_t
-ddsrt_atoull(
-  const char *str,
-  unsigned long long *ullng);
-
-/**
- * @brief Convert a long long integer into a string.
+ * @brief Convert a int64 into a string.
  *
  * @param[in]   num     Long long integer to convert into a string.
  * @param[in]   str     Buffer where string representation is written.
@@ -150,14 +110,14 @@ ddsrt_atoull(
  * @returns The value of @str on success, otherwise NULL.
  */
 DDS_EXPORT char *
-ddsrt_lltostr(
-  long long num,
+ddsrt_int64tostr(
+  int64_t num,
   char *str,
   size_t len,
   char **endptr);
 
 /**
- * @brief Convert an unsigned long long integer into a string.
+ * @brief Convert an uint64 into a string.
  *
  * @param[in]   num     Unsigned long long integer to covert into a string.
  * @param[in]   str     Buffer where string representation is stored.
@@ -168,8 +128,8 @@ ddsrt_lltostr(
  * @returns The value of @str on success, otherwise NULL.
  */
 DDS_EXPORT char *
-ddsrt_ulltostr(
-  unsigned long long num,
+ddsrt_uint64tostr(
+  uint64_t num,
   char *str,
   size_t len,
   char **endptr);

@@ -11,7 +11,7 @@
 #
 cmake_minimum_required(VERSION 3.16)
 # C++ is only for Iceoryx plugin
-project(CycloneDDS VERSION 0.11.0 LANGUAGES C CXX)
+project(CycloneDDS VERSION 11.0.1 LANGUAGES C CXX)
 
 # Set a default build type if none was specified
 set(default_build_type "RelWithDebInfo")
@@ -65,8 +65,12 @@ option(BUILD_DDSPERF "Build ddsperf tool" ${not_crosscompiling})
 option(WITH_ZEPHYR "Build for Zephyr RTOS" OFF)
 
 # We require C99, test code can benefit from C23
-set(CMAKE_C_STANDARD 23)
-set(CMAKE_C_STANDARD_REQUIRED FALSE)
+if(CMAKE_VERSION VERSION_LESS "3.21" OR MSVC)
+  set(CMAKE_C_STANDARD 99)
+else()
+  set(CMAKE_C_STANDARD 23)
+  set(CMAKE_C_STANDARD_REQUIRED FALSE)
+endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "VxWorks")
   add_definitions(-std=c99)
 endif()
@@ -171,6 +175,7 @@ endif()
 
 # I don't know how to enable warnings properly so that they are enabled in Xcode projects as well
 if(${CMAKE_GENERATOR} STREQUAL "Xcode")
+  set (CMAKE_XCODE_GENERATE_SCHEME YES)
   set (CMAKE_XCODE_ATTRIBUTE_CLANG_WARN_EMPTY_BODY YES)
   set (CMAKE_XCODE_ATTRIBUTE_GCC_WARN_SHADOW YES)
   set (CMAKE_XCODE_ATTRIBUTE_CLANG_WARN_BOOL_CONVERSION YES)
@@ -264,9 +269,40 @@ set(MEMORYCHECK_COMMAND_OPTIONS "--track-origins=yes --leak-check=full --trace-c
 # library so we can actually build the tests.
 option(BUILD_TESTING "Build the testing tree." OFF)
 
+# ROS2 build use BUILD_TESTING but it makes (1) little sense to include the Cyclone tests
+# in a ROS2 test run, and (2) some variant of the Windows CI platform ran into:
+#
+#    Auto build dll exports
+#
+#    $P: error MSB3073: The command "setlocal [C:\ci\ws\build\cyclonedds\src\core\ddsc.vcxproj]
+#    $P: error MSB3073: cd C:\ci\ws\build\cyclonedds\src\core [C:\ci\ws\build\cyclonedds\src\core\ddsc.vcxproj]
+#    $P: error MSB3073: if %errorlevel% neq 0 goto :cmEnd [C:\ci\ws\build\cyclonedds\src\core\ddsc.vcxproj]
+#    ...
+#
+# where P = C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\
+#    ...Microsoft\VC\v160\Microsoft.CppCommon.targets(150,5)
+set(CYCLONEDDS_BUILD_TESTING "AUTO" CACHE STRING "Override regular BUILD_TESTING")
+set_property(CACHE CYCLONEDDS_BUILD_TESTING PROPERTY STRINGS ON OFF AUTO)
+if(NOT CYCLONEDDS_BUILD_TESTING STREQUAL "AUTO")
+  if(CYCLONEDDS_BUILD_TESTING)
+    if(NOT BUILD_TESTING)
+      message(WARNING "Enabling test code: CYCLONEDDS_BUILD_TESTING and not BUILD_TESTING")
+      set(BUILD_TESTING TRUE)
+    endif()
+  else()
+    if(BUILD_TESTING)
+      message(WARNING "Disabling test code: not CYCLONEDDS_BUILD_TESTING and BUILD_TESTING")
+      set(BUILD_TESTING FALSE)
+    endif()
+  endif()
+endif()
+
 # For special-purpose builds it can be useful to export all symbols from the library,
 # like we do when building the tests.
 option(EXPORT_ALL_SYMBOLS "Export all symbols from the library." OFF)
+if(BUILD_TESTING OR EXPORT_ALL_SYMBOLS)
+  message(STATUS "Exporting all symbols from library")
+endif()
 
 # Include the xtests for idlc. These tests use the idl compiler (C back-end) to
 # compile an idl file at (test) runtime, and use the C compiler to build a test

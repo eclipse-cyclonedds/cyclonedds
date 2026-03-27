@@ -1055,12 +1055,11 @@ ddsi_rtps_msg_state_t ddsi_security_decode_rtps_message (struct ddsi_thread_stat
  * @param[in]     dst_one       Is there only one specific destination?
  * @param[in]     sec_info      Security information for handles.
  * @param[in]     conn_write_cb Function to call to do the actual writing.
+ * @param[out]    bytes_written Optional, number of bytes written
  *
- * @returns ssize_t
- * @retval negative/zero    Something went wrong.
- * @retval positive         Secure writing succeeded.
+ * @returns dds_return_t
  */
-ssize_t
+dds_return_t
 ddsi_security_secure_conn_write(
     const struct ddsi_domaingv *gv,
     struct ddsi_tran_conn * conn,
@@ -1070,7 +1069,9 @@ ddsi_security_secure_conn_write(
     ddsi_rtps_msg_len_t *msg_len,
     bool dst_one,
     ddsi_msg_sec_info_t *sec_info,
-    ddsi_tran_write_fn_t conn_write_cb);
+    ddsi_tran_write_fn_t conn_write_cb,
+    size_t *bytes_written)
+  ddsrt_nonnull ((1, 2, 3, 4, 6, 8, 9));
 
 
 /**

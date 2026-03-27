@@ -1196,16 +1196,16 @@ CU_Theory((dds_qos_kind_t kind, sysdef_qos_conf_t dur_conf), ddsc_qos_provider, 
   uint64_t validate_mask = 0;
   // init configuraiton with qos of `kind` in sysdef format
   ret = get_single_configuration(&qos, &dur_conf, kind, &full_configuration, &validate_mask);
-  CU_ASSERT_GEQ (ret, 0);
+  CU_ASSERT_GEQ_FATAL (ret, 0);
   dds_qos_provider_t *provider;
   // init qos provider with create configuration
   ret = dds_create_qos_provider(full_configuration, &provider);
   ddsrt_free(full_configuration);
-  CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   const dds_qos_t *act_qos;
   // get qos from provider
   ret = dds_qos_provider_get_qos(provider, kind, "lib1::pro00", &act_qos);
-  CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   // calculate the difference between defined qos and qos from provider
   uint64_t res = ddsi_xqos_delta(&qos, act_qos, validate_mask);
   CU_ASSERT_EQ (act_qos->present, validate_mask);
@@ -1314,15 +1314,15 @@ CU_Theory((dds_qos_kind_t kind), ddsc_qos_provider, get_qos_all)
     uint64_t validate_mask = 0;
     // init configuraiton with qos of `kind` in sysdef format
     ret = get_single_configuration(&qos, &dur_conf, kind, &full_configuration, &validate_mask);
-    CU_ASSERT_GEQ (ret, 0);
+    CU_ASSERT_GEQ_FATAL (ret, 0);
     dds_qos_provider_t *provider;
     // init qos provider with create configuration
     ret = dds_create_qos_provider(full_configuration, &provider);
     ddsrt_free(full_configuration);
-    CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     const dds_qos_t *act_qos;
     ret = dds_qos_provider_get_qos(provider, kind, "lib1::pro00", &act_qos);
-    CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
     // calculate the difference between defined qos and qos from provider
     uint64_t res = ddsi_xqos_delta(&qos, act_qos, validate_mask);
     CU_ASSERT_EQ (act_qos->present, validate_mask);
@@ -1384,7 +1384,7 @@ CU_Theory((dds_qos_kind_t kind, dds_return_t code), ddsc_qos_provider, create_wr
   CU_ASSERT_GEQ (ret, 0);
   ret = ddsrt_asprintf(&full_configuration, def, qos_conf);
   ddsrt_free(qos_conf);
-  CU_ASSERT_GEQ (ret, 0);
+  CU_ASSERT_GEQ_FATAL (ret, 0);
   dds_qos_provider_t *provider = NULL;
   // init qos provider with create configuration
   ret = dds_create_qos_provider(full_configuration, &provider);
@@ -1405,7 +1405,7 @@ CU_Test(ddsc_qos_provider, read_sysdef)
   // uri base
   const char *configuration_uri = CONFIG_ENV_READ_SYSDEF;
   ret = dds_create_qos_provider(configuration_uri, &provider);
-  CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   CU_ASSERT_NEQ (provider, NULL);
 
   dds_delete_qos_provider(provider);
@@ -1413,7 +1413,7 @@ CU_Test(ddsc_qos_provider, read_sysdef)
   // reg path base
   const char uri_prefix[] = "file://";
   ret = dds_create_qos_provider(configuration_uri+sizeof(uri_prefix)-1U, &provider);
-  CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   CU_ASSERT_NEQ (provider, NULL);
 
   dds_delete_qos_provider(provider);

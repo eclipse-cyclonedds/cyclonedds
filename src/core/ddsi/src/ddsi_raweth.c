@@ -78,7 +78,7 @@ typedef struct ddsi_raweth_conn {
   ddsrt_mutex_t lock;
   char *buffer;
   uint32_t buflen;
-  ssize_t avail;
+  size_t avail;
   char *bptr;
 #endif
 } *ddsi_raweth_conn_t;
@@ -146,17 +146,25 @@ static size_t set_ethernet_header(struct ddsi_vlan_header *hdr, uint16_t proto, 
 }
 
 #if defined(__linux)
-static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned char * buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo)
+static uint16_t get_vtag_from_msghdr (struct msghdr *msghdr)
 {
-  dds_return_t rc;
-  ssize_t ret = 0;
+  for (struct cmsghdr *cptr = CMSG_FIRSTHDR(msghdr); cptr; cptr = CMSG_NXTHDR(msghdr, cptr))
+  {
+    if ((cptr->cmsg_len < CMSG_LEN(sizeof( struct tpacket_auxdata))) || (cptr->cmsg_level != SOL_PACKET) || (cptr->cmsg_type != PACKET_AUXDATA))
+      continue;
+    struct tpacket_auxdata * const pauxd = (struct tpacket_auxdata *)CMSG_DATA(cptr);
+    return pauxd->tp_vlan_tci;
+  }
+  return 0;
+}
+
+ddsrt_nonnull ((1, 2, 6)) ddsrt_attribute_warn_unused_result
+static dds_return_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned char * buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo, size_t *bytes_read)
+{
   struct msghdr msghdr;
   struct sockaddr_ll src;
   struct ddsi_ethernet_header ehdr;
   union ddsi_cmessage cmessage;
-  struct tpacket_auxdata *pauxd;
-  struct cmsghdr *cptr;
-  uint16_t vtag = 0;
   struct iovec msg_iov[2];
   socklen_t srclen = (socklen_t) sizeof (src);
   (void) allow_spurious;
@@ -175,54 +183,51 @@ static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned cha
   msghdr.msg_control = &cmessage;
   msghdr.msg_controllen = sizeof(cmessage);
 
+  size_t nread = 0;
+  dds_return_t rc;
   do {
-    rc = ddsrt_recvmsg(&((ddsi_raweth_conn_t) conn)->m_sockext, &msghdr, 0, &ret);
+    rc = ddsrt_recvmsg(&((ddsi_raweth_conn_t) conn)->m_sockext, &msghdr, 0, &nread);
   } while (rc == DDS_RETCODE_INTERRUPTED);
-
-  if (ret > (ssize_t) sizeof (ehdr))
+  if (rc != DDS_RETCODE_OK)
   {
-    ret -= (ssize_t) sizeof (ehdr);
+    if (rc != DDS_RETCODE_BAD_PARAMETER && rc != DDS_RETCODE_NO_CONNECTION)
+      DDS_CERROR (&conn->m_base.gv->logconfig, "UDP recvmsg sock %d: ret %d retcode %d\n", (int) ((ddsi_raweth_conn_t) conn)->m_sockext.sock, (int) nread, rc);
+    *bytes_read = 0;
+    return rc;
+  }
+  else if (nread < sizeof (ehdr))
+  {
+    *bytes_read = 0;
+    return DDS_RETCODE_OK;
+  }
 
-    for (cptr = CMSG_FIRSTHDR(&msghdr); cptr; cptr = CMSG_NXTHDR( &msghdr, cptr))
-    {
-      if ((cptr->cmsg_len < CMSG_LEN(sizeof( struct tpacket_auxdata))) || (cptr->cmsg_level != SOL_PACKET) || (cptr->cmsg_type != PACKET_AUXDATA))
-        continue;
-      pauxd = (struct tpacket_auxdata *)CMSG_DATA(cptr);
-      vtag = pauxd->tp_vlan_tci;
-      break;
-    }
+  if (pktinfo)
+    set_pktinfo (pktinfo, src.sll_addr, ntohs (src.sll_protocol), get_vtag_from_msghdr (&msghdr));
 
-    if (pktinfo)
-      set_pktinfo(pktinfo, src.sll_addr, ntohs (src.sll_protocol), vtag);
-
-    /* Check for udp packet truncation */
-    if ((((size_t) ret) > len)
+  nread -= sizeof (ehdr);
+  /* Check for packet truncation */
+  if ((nread > len)
 #if DDSRT_MSGHDR_FLAGS
-        || (msghdr.msg_flags & MSG_TRUNC)
+      || (msghdr.msg_flags & MSG_TRUNC)
 #endif
-        )
-    {
-      char addrbuf[DDSI_LOCSTRLEN];
-      (void) snprintf(addrbuf, sizeof(addrbuf), "[%02x:%02x:%02x:%02x:%02x:%02x]:%u",
-                      src.sll_addr[0], src.sll_addr[1], src.sll_addr[2],
-                      src.sll_addr[3], src.sll_addr[4], src.sll_addr[5], ntohs(src.sll_protocol));
-      DDS_CWARNING(&conn->m_base.gv->logconfig, "%s => %d truncated to %d\n", addrbuf, (int)ret, (int)len);
-    }
-  }
-  else if (rc != DDS_RETCODE_OK &&
-           rc != DDS_RETCODE_BAD_PARAMETER &&
-           rc != DDS_RETCODE_NO_CONNECTION)
+      )
   {
-    DDS_CERROR(&conn->m_base.gv->logconfig, "UDP recvmsg sock %d: ret %d retcode %d\n", (int) ((ddsi_raweth_conn_t) conn)->m_sockext.sock, (int) ret, rc);
+    char addrbuf[DDSI_LOCSTRLEN];
+    (void) snprintf(addrbuf, sizeof(addrbuf), "[%02x:%02x:%02x:%02x:%02x:%02x]:%u",
+                    src.sll_addr[0], src.sll_addr[1], src.sll_addr[2],
+                    src.sll_addr[3], src.sll_addr[4], src.sll_addr[5], ntohs(src.sll_protocol));
+    DDS_CWARNING(&conn->m_base.gv->logconfig, "%s => %d truncated to %d\n", addrbuf, (int)nread, (int)len);
   }
-  return ret;
+  *bytes_read = nread;
+  return rc;
 }
 
-static ssize_t ddsi_raweth_conn_write (struct ddsi_tran_conn * conn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags)
+ddsrt_nonnull ((1, 2, 3))
+static dds_return_t ddsi_raweth_conn_write (struct ddsi_tran_conn * conn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags, size_t *bytes_written)
 {
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) conn;
   dds_return_t rc;
-  ssize_t ret = -1;
+  size_t nsent;
   unsigned retry = 2;
   int sendflags = 0;
   struct msghdr msg;
@@ -257,7 +262,7 @@ static ssize_t ddsi_raweth_conn_write (struct ddsi_tran_conn * conn, const ddsi_
 #endif
 
   do {
-    rc = ddsrt_sendmsg (uc->m_sockext.sock, &msg, sendflags, &ret);
+    rc = ddsrt_sendmsg (uc->m_sockext.sock, &msg, sendflags, &nsent);
   } while ((rc == DDS_RETCODE_INTERRUPTED) ||
            (rc == DDS_RETCODE_TRY_AGAIN) ||
            (rc == DDS_RETCODE_NOT_ALLOWED && retry-- > 0));
@@ -268,7 +273,9 @@ static ssize_t ddsi_raweth_conn_write (struct ddsi_tran_conn * conn, const ddsi_
   {
     DDS_CERROR(&conn->m_base.gv->logconfig, "ddsi_raweth_conn_write failed with retcode %d", rc);
   }
-  return (rc == DDS_RETCODE_OK ? ret : -1);
+  if (bytes_written)
+    *bytes_written = nsent;
+  return rc;
 }
 
 /* The linux kernel appears to remove the vlan tag before applying the filter and adjusting the ethernet header.
@@ -433,85 +440,86 @@ struct ddsi_vlan_tag {
  * the manipulations using the field to obtain the next packet in the buffer can be safely done.
  */
 
-static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned char * buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo)
+ddsrt_nonnull ((1, 2, 6)) ddsrt_attribute_warn_unused_result
+static dds_return_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned char * buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo, size_t *bytes_read)
 {
-  ssize_t ret  = 0;
-  dds_return_t rc = DDS_RETCODE_OK;
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) conn;
-  struct bpf_hdr *bpf_hdr;
-  struct ddsi_ethernet_header *eth_hdr;
-  struct ddsi_vlan_tag *vtag = NULL;
-  char *ptr;
   (void) allow_spurious;
 
   ddsrt_mutex_lock (&uc->lock);
 
   if (uc->avail == 0)
   {
-    if ((ret = read(uc->m_sockext.sock, uc->buffer, uc->buflen)) <= 0)
+    ssize_t nread = 0;
+    if ((nread = read (uc->m_sockext.sock, uc->buffer, uc->buflen)) <= 0)
     {
-      DDS_CERROR (&conn->m_base.gv->logconfig, "ddsi_raweth_create_conn read failed ... retcode = %"PRIdSIZE"\n", ret);
-      rc = DDS_RETCODE_ERROR;
+      DDS_CERROR (&conn->m_base.gv->logconfig, "ddsi_raweth_create_conn read failed ... retcode = %"PRIdSIZE"\n", nread);
       goto error;
     }
-    uc->avail = ret;
+    if ((size_t) nread < sizeof (struct bpf_hdr))
+    {
+      // not even a single packet header
+      goto error;
+    }
+    uc->avail = (size_t) nread;
     uc->bptr = uc->buffer;
   }
 
-  if (uc->bptr < uc->buffer + uc->avail)
+  struct bpf_hdr * const bpf_hdr = (struct bpf_hdr *) uc->bptr;
+  const size_t next_packet_offset = BPF_WORDALIGN (bpf_hdr->bh_hdrlen + bpf_hdr->bh_caplen);
+  char *ptr = uc->bptr;
+  if ((size_t) (uc->buffer + uc->avail - uc->bptr) < next_packet_offset + sizeof (struct bpf_hdr))
+    uc->avail = 0; // no next packet header
+  else
+    uc->bptr += next_packet_offset;
+
+  ptr += bpf_hdr->bh_hdrlen;
+  struct ddsi_ethernet_header * const eth_hdr = (struct ddsi_ethernet_header *) ptr;
+  ptr += sizeof (*eth_hdr);
+  if (bpf_hdr->bh_datalen != bpf_hdr->bh_caplen || bpf_hdr->bh_datalen < sizeof (struct ddsi_ethernet_header))
+    goto error;
+
+  size_t eth_payload_len = bpf_hdr->bh_datalen - sizeof (struct ddsi_ethernet_header);
+  struct ddsi_vlan_tag *vtag = NULL;
+  if (ntohs (eth_hdr->proto) == ETHERTYPE_VLAN)
   {
-    ptr = uc->bptr;
-    bpf_hdr = (struct bpf_hdr *) ptr;
-    ptr += bpf_hdr->bh_hdrlen;
+    if (eth_payload_len < sizeof (struct ddsi_vlan_tag))
+      goto error;
 
-    eth_hdr = (struct ddsi_ethernet_header *)ptr;
-    ptr += sizeof(*eth_hdr);
+    vtag = (struct ddsi_vlan_tag *) ptr;
+    ptr += sizeof (*vtag);
+    eth_payload_len -= sizeof (*vtag);
+  }
 
-    if (bpf_hdr->bh_datalen == bpf_hdr->bh_caplen)
-    {
-      ret = (ssize_t)(bpf_hdr->bh_datalen - sizeof(struct ddsi_ethernet_header));
-      if (ntohs(eth_hdr->proto) == ETHERTYPE_VLAN)
-      {
-        vtag = (struct ddsi_vlan_tag *)ptr;
-        ptr += sizeof(*vtag);
-        ret -= (ssize_t)sizeof(*vtag);
-      }
-      if ((size_t)ret <= len)
-      {
-        memcpy(buf, ptr, (size_t)ret);
-        if (pktinfo)
-          set_pktinfo(pktinfo, eth_hdr->smac, ntohs (eth_hdr->proto), (vtag ? ntohs(vtag->tag) : 0));
-      }
-      else
-      {
-        char addrbuf[DDSI_LOCSTRLEN];
-        (void) snprintf(addrbuf, sizeof(addrbuf), "[%02x:%02x:%02x:%02x:%02x:%02x]:%u",
-                  eth_hdr->smac[0], eth_hdr->smac[1], eth_hdr->smac[2],
-                  eth_hdr->smac[3], eth_hdr->smac[4], eth_hdr->smac[5], vtag ? ntohs(vtag->proto) : ntohs(eth_hdr->proto));
-        DDS_CWARNING(&conn->m_base.gv->logconfig, "%s => %d truncated to %d\n", addrbuf, (int)ret, (int)len);
-        rc = DDS_RETCODE_ERROR;
-        goto error;
-      }
-    }
-    // else drop packet because it was truncated thus exceeded buffer size.
-
-    uc->bptr += BPF_WORDALIGN(bpf_hdr->bh_hdrlen + bpf_hdr->bh_caplen);
-    if (uc->bptr >= uc->buffer + uc->avail)
-      uc->avail = 0;
+  if (eth_payload_len <= len)
+  {
+    memcpy (buf, ptr, eth_payload_len);
+    *bytes_read = eth_payload_len;
+    if (pktinfo)
+      set_pktinfo(pktinfo, eth_hdr->smac, ntohs (eth_hdr->proto), (vtag ? ntohs(vtag->tag) : 0));
   }
   else
-    uc->avail = 0;
+  {
+    char addrbuf[DDSI_LOCSTRLEN];
+    (void) snprintf(addrbuf, sizeof(addrbuf), "[%02x:%02x:%02x:%02x:%02x:%02x]:%u",
+                    eth_hdr->smac[0], eth_hdr->smac[1], eth_hdr->smac[2],
+                    eth_hdr->smac[3], eth_hdr->smac[4], eth_hdr->smac[5], vtag ? ntohs(vtag->proto) : ntohs(eth_hdr->proto));
+    DDS_CWARNING(&conn->m_base.gv->logconfig, "%s => %d truncated to %d\n", addrbuf, (int)eth_payload_len, (int)len);
+    goto error;
+  }
+  ddsrt_mutex_unlock (&uc->lock);
+  return DDS_RETCODE_OK;
 
 error:
   ddsrt_mutex_unlock (&uc->lock);
-  return (rc == DDS_RETCODE_OK ? ret : -1);;
+  *bytes_read = 0;
+  return DDS_RETCODE_ERROR;
 }
 
-static ssize_t ddsi_raweth_conn_write (struct ddsi_tran_conn * conn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags)
+ddsrt_nonnull ((1, 2, 3))
+static dds_return_t ddsi_raweth_conn_write (struct ddsi_tran_conn * conn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags, size_t *bytes_written)
 {
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) conn;
-  dds_return_t rc = DDS_RETCODE_OK;
-  ssize_t ret = -1;
   struct ddsi_vlan_header vhdr;
   size_t hdrlen;
   (void) flags;
@@ -526,13 +534,18 @@ static ssize_t ddsi_raweth_conn_write (struct ddsi_tran_conn * conn, const ddsi_
   iovs[0].iov_base = &vhdr;
   iovs[0].iov_len = hdrlen;
 
-  if ((ret = writev (uc->m_sockext.sock, iovs, (int)(msgfrags->niov + 1))) < 0)
+  ssize_t nwritten;
+  if ((nwritten = writev (uc->m_sockext.sock, iovs, (int)(msgfrags->niov + 1))) < 0)
   {
-      DDS_CERROR(&conn->m_base.gv->logconfig, "ddsi_raweth_conn_write failed with retcode %"PRIdSIZE, ret);
-      rc = DDS_RETCODE_ERROR;
+    DDS_CERROR(&conn->m_base.gv->logconfig, "ddsi_raweth_conn_write failed with retcode %"PRIdSIZE, nwritten);
+    return DDS_RETCODE_ERROR;
   }
-
-  return (rc == DDS_RETCODE_OK ? ret : -1);
+  else
+  {
+    if (bytes_written)
+      *bytes_written = (size_t) nwritten;
+    return DDS_RETCODE_OK;
+  }
 }
 
 static dds_return_t ddsi_raweth_set_filter (struct ddsi_tran_factory * fact, ddsrt_socket_t sock, uint32_t port)

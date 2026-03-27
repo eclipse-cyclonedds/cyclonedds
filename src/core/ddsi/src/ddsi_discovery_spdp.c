@@ -100,17 +100,15 @@ void ddsi_get_participant_builtin_topic_data (const struct ddsi_participant *pp,
   }
 
   // Construct unicast locator parameters
+  if (gv->config.publish_uc_locators)
   {
     struct locators_builder def_uni = locators_builder_init (&dst->default_unicast_locators, locs->def_uni, MAX_XMIT_CONNS);
     struct locators_builder meta_uni = locators_builder_init (&dst->metatraffic_unicast_locators, locs->meta_uni, MAX_XMIT_CONNS);
     for (int i = 0; i < gv->n_interfaces; i++)
     {
       if (!gv->xmit_conns[i]->m_factory->m_enable_spdp)
-      {
-        // skip any interfaces where the address kind doesn't match the selected transport
-        // as a reasonablish way of not advertising PSMX locators here
         continue;
-      }
+
 #ifndef NDEBUG
       int32_t kind;
 #endif
@@ -135,9 +133,6 @@ void ddsi_get_participant_builtin_topic_data (const struct ddsi_participant *pp,
       assert (kind == gv->interfaces[i].extloc.kind);
       locators_add_one (&def_uni, &gv->interfaces[i].extloc, data_port);
       locators_add_one (&meta_uni, &gv->interfaces[i].extloc, meta_port);
-    }
-    if (gv->config.publish_uc_locators)
-    {
       dst->present |= PP_DEFAULT_UNICAST_LOCATOR | PP_METATRAFFIC_UNICAST_LOCATOR;
       dst->aliased |= PP_DEFAULT_UNICAST_LOCATOR | PP_METATRAFFIC_UNICAST_LOCATOR;
     }
@@ -664,18 +659,25 @@ void ddsi_handle_spdp (const struct ddsi_receiver_state *rst, ddsi_entityid_t pw
   if (ddsi_serdata_to_sample (serdata, &decoded_data, NULL, NULL))
   {
     enum handle_spdp_result interesting = HSR_NOT_INTERESTING;
-    switch (serdata->statusinfo & (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER))
+    if (memcmp (&decoded_data.participant_guid.prefix, &rst->src_guid_prefix, sizeof (rst->src_guid_prefix)) != 0)
     {
-      case 0:
-        interesting = handle_spdp_alive (rst, seq, serdata->timestamp, &decoded_data);
-        break;
+      GVTRACE ("SPDP ST%x "PGUIDFMT": mismatch with RTPS source "PGUIDPREFIXFMT, serdata->statusinfo, PGUID (decoded_data.participant_guid), PGUIDPREFIX(rst->src_guid_prefix));
+    }
+    else
+    {
+      switch (serdata->statusinfo & (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER))
+      {
+        case 0:
+          interesting = handle_spdp_alive (rst, seq, serdata->timestamp, &decoded_data);
+          break;
 
-      case DDSI_STATUSINFO_DISPOSE:
-      case DDSI_STATUSINFO_UNREGISTER:
-      case (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER):
-        handle_spdp_dead (rst, pwr_entityid, serdata->timestamp, &decoded_data, serdata->statusinfo);
-        interesting = HSR_INTERESTING;
-        break;
+        case DDSI_STATUSINFO_DISPOSE:
+        case DDSI_STATUSINFO_UNREGISTER:
+        case (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER):
+          handle_spdp_dead (rst, pwr_entityid, serdata->timestamp, &decoded_data, serdata->statusinfo);
+          interesting = HSR_INTERESTING;
+          break;
+      }
     }
 
     ddsi_plist_fini (&decoded_data);

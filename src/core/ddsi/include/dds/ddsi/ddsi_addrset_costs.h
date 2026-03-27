@@ -1,4 +1,4 @@
-// Copyright(c) 2025 ZettaScale Technology and others
+// Copyright(c) 2026 ZettaScale Technology and others
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License v. 2.0 which is available at
@@ -8,25 +8,27 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-#ifndef DDSRT_MACHINEID_H
-#define DDSRT_MACHINEID_H
+#ifndef DDSI_WRADDRSET_COSTS_H
+#define DDSI_WRADDRSET_COSTS_H
 
-#include <stdbool.h>
+#include <stddef.h>
+#include "dds/ddsrt/time.h"
 
-#include "dds/export.h"
-
-#if defined(__cplusplus)
+#if defined (__cplusplus)
 extern "C" {
 #endif
 
-typedef struct ddsrt_machineid {
-  unsigned char x[16];
-} ddsrt_machineid_t;
+struct ddsi_addrset_costs {
+  int32_t uc;
+  int32_t mc;
+  int32_t ssm;
+  int32_t delivered;
+  int32_t discarded;
+  int32_t redundant_psmx;
+};
 
-DDS_EXPORT bool ddsrt_get_machineid (ddsrt_machineid_t *id);
-
-#if defined(__cplusplus)
+#if defined (__cplusplus)
 }
 #endif
 
-#endif /* DDSRT_MACHINEID_H */
+#endif /* DDSI_WRADDRSET_COSTS_H */

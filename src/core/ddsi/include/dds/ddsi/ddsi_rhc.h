@@ -45,13 +45,11 @@ typedef void (*ddsi_rhc_free_t) (struct ddsi_rhc *rhc);
 typedef bool (*ddsi_rhc_store_t) (struct ddsi_rhc *rhc, const struct ddsi_writer_info *wrinfo, struct ddsi_serdata *sample, struct ddsi_tkmap_instance *tk);
 typedef void (*ddsi_rhc_unregister_wr_t) (struct ddsi_rhc *rhc, const struct ddsi_writer_info *wrinfo);
 typedef void (*ddsi_rhc_relinquish_ownership_t) (struct ddsi_rhc *rhc, const uint64_t wr_iid);
-typedef void (*ddsi_rhc_set_qos_t) (struct ddsi_rhc *rhc, const struct dds_qos *qos);
 
 struct ddsi_rhc_ops {
   ddsi_rhc_store_t store;
   ddsi_rhc_unregister_wr_t unregister_wr;
   ddsi_rhc_relinquish_ownership_t relinquish_ownership;
-  ddsi_rhc_set_qos_t set_qos;
   ddsi_rhc_free_t free;
 };
 

@@ -39,11 +39,6 @@ inline void ddsi_rhc_relinquish_ownership (struct ddsi_rhc *rhc, const uint64_t 
 }
 
 /** @component rhc_if */
-inline void ddsi_rhc_set_qos (struct ddsi_rhc *rhc, const struct dds_qos *qos) {
-  rhc->ops->set_qos (rhc, qos);
-}
-
-/** @component rhc_if */
 inline void ddsi_rhc_free (struct ddsi_rhc *rhc) {
   rhc->ops->free (rhc);
 }

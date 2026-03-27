@@ -32,8 +32,6 @@ struct ddsi_addrset {
   ddsrt_avl_ctree_t ucaddrs, mcaddrs;
 };
 
-typedef ssize_t (*ddsi_addrset_forone_fun_t) (const ddsi_xlocator_t *loc, void *arg);
-
 /** @component locators */
 void ddsi_add_xlocator_to_addrset (const struct ddsi_domaingv *gv, struct ddsi_addrset *as, const ddsi_xlocator_t *loc)
   ddsrt_nonnull_all;
@@ -97,10 +95,6 @@ bool ddsi_addrset_contains_non_psmx_uc (const struct ddsi_addrset *as)
 
 
 /* Keeps AS locked */
-
-/** @component locators */
-int ddsi_addrset_forone (struct ddsi_addrset *as, ddsi_addrset_forone_fun_t f, void *arg)
-  ddsrt_nonnull ((1, 2));
 
 /** @component locators */
 size_t ddsi_addrset_forall_count (struct ddsi_addrset *as, ddsi_addrset_forall_fun_t f, void *arg)

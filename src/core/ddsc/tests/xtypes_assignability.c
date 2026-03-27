@@ -352,7 +352,7 @@ static void sample_init_TBT (void *ptr)
 {
   TypeBuilderTypes_t45 *sample = ptr;
   sample->parent.parent.n2_1 = 1;
-  sample->parent.parent.n2_1 = 2;
+  sample->parent.parent.n2_2 = 2;
   sample->parent.n1_1 = 3;
   sample->t1 = 4;
 }

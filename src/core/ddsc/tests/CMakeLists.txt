@@ -91,6 +91,7 @@ set(ddsc_test_sources
     "subscriber.c"
     "take_instance.c"
     "take_next_instance.c"
+    "tcp.c"
     "time.c"
     "time_based_filter.c"
     "topic.c"

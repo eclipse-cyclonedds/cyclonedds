@@ -24,6 +24,10 @@ void
 ddsrt_set_allocator(
   ddsrt_allocation_ops_t custom_ops)
 {
+  if (custom_ops.malloc == NULL) { custom_ops.malloc = malloc; }
+  if (custom_ops.calloc == NULL) { custom_ops.calloc = calloc; }
+  if (custom_ops.realloc == NULL) { custom_ops.realloc = realloc; }
+  if (custom_ops.free == NULL) { custom_ops.free = free; }
   ddsrt_allocator = custom_ops;
 }
 

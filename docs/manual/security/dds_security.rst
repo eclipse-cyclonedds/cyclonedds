@@ -15,6 +15,7 @@ DDS security
     
     public_key_infrastructure
     dds_security_config
+    pkcs11_hsm
     logging_tracing
     data_comms_handshake
     dds_secure_discovery

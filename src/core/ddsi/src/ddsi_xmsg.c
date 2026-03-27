@@ -1117,9 +1117,10 @@ void ddsi_xpack_free (struct ddsi_xpack *xp)
   ddsrt_free (xp);
 }
 
-static ssize_t ddsi_xpack_send_rtps(struct ddsi_xpack * xp, const ddsi_xlocator_t *loc)
+ddsrt_nonnull ((1, 2))
+static dds_return_t ddsi_xpack_send_rtps(struct ddsi_xpack * xp, const ddsi_xlocator_t *loc, size_t *bytes_written)
 {
-  ssize_t ret = -1;
+  dds_return_t ret;
 
 #ifdef DDS_HAS_SECURITY
   /* Only encode when needed. */
@@ -1134,22 +1135,24 @@ static ssize_t ddsi_xpack_send_rtps(struct ddsi_xpack * xp, const ddsi_xlocator_
                       &(xp->msg_len),
                       (xp->dstmode == NN_XMSG_DST_ONE || xp->dstmode == NN_XMSG_DST_ALL_UC),
                       &(xp->sec_info),
-                      ddsi_conn_write);
+                      ddsi_conn_write,
+                      bytes_written);
   }
   else
 #endif /* DDS_HAS_SECURITY */
   {
-    ret = ddsi_conn_write (loc->conn, &loc->c, xp->msgfrags, xp->call_flags);
+    ret = ddsi_conn_write (loc->conn, &loc->c, xp->msgfrags, xp->call_flags, bytes_written);
   }
 
   return ret;
 }
 
-static ssize_t ddsi_xpack_send1 (const ddsi_xlocator_t *loc, void * varg)
+ddsrt_nonnull ((1))
+static dds_return_t ddsi_xpack_send1 (const ddsi_xlocator_t *loc, void * varg, size_t *bytes_written)
 {
   struct ddsi_xpack *xp = varg;
   struct ddsi_domaingv const * const gv = xp->gv;
-  ssize_t nbytes = 0;
+  dds_return_t ret;
 
   if (gv->logconfig.c.mask & DDS_LC_TRACE)
   {
@@ -1172,7 +1175,7 @@ static ssize_t ddsi_xpack_send1 (const ddsi_xlocator_t *loc, void * varg)
   assert (loc->c.kind != DDSI_LOCATOR_KIND_PSMX);
   if (!gv->mute)
   {
-    nbytes = ddsi_xpack_send_rtps(xp, loc);
+    ret = ddsi_xpack_send_rtps(xp, loc, bytes_written);
 
 #ifndef NDEBUG
     {
@@ -1182,27 +1185,30 @@ static ssize_t ddsi_xpack_send1 (const ddsi_xlocator_t *loc, void * varg)
       }
       /* Possible number of bytes written can be larger
        * due to security. */
-      assert (nbytes == -1 || (size_t) nbytes >= len);
+      assert (ret != 0 || bytes_written == NULL || *bytes_written >= len);
     }
 #endif
   }
   else
   {
     GVTRACE ("(dropped)");
-    nbytes = (ssize_t) xp->msg_len.length;
+    if (bytes_written)
+      *bytes_written = xp->msg_len.length;
+    ret = DDS_RETCODE_OK;
   }
 
   /* Clear call flags, as used on a per call basis */
   xp->call_flags = 0;
-
-  return nbytes;
+  return ret;
 }
 
+ddsrt_nonnull ((1))
 static void ddsi_xpack_send1v (const ddsi_xlocator_t *loc, void * varg)
 {
-  (void) ddsi_xpack_send1 (loc, varg);
+  (void) ddsi_xpack_send1 (loc, varg, NULL);
 }
 
+ddsrt_nonnull_all
 static void ddsi_xpack_send_real (struct ddsi_xpack *xp)
 {
   struct ddsi_domaingv const * const gv = xp->gv;
@@ -1234,7 +1240,7 @@ static void ddsi_xpack_send_real (struct ddsi_xpack *xp)
       assert (0);
       break;
     case NN_XMSG_DST_ONE:
-      (void) ddsi_xpack_send1 (&xp->dstaddr.loc, xp);
+      (void) ddsi_xpack_send1 (&xp->dstaddr.loc, xp, NULL);
       calls++;
       break;
     case NN_XMSG_DST_ALL:

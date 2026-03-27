@@ -13,7 +13,6 @@
 
 #include "dds/features.h"
 
-
 static struct cfgelem network_interface_attributes[] = {
   STRING("autodetermine", NULL, 1, "false",
     MEMBEROF(ddsi_config_network_interface_listelem, cfg.automatic),
@@ -137,8 +136,74 @@ static struct cfgelem psmx_attributes[] = {
   END_MARKER
 };
 
+static struct cfgelem network_interface_wraddrset_cfgelems[] = {
+  INT("uc", NULL, 1, "default",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.addrset_costs.uc),
+    FUNCTIONS(0, uf_maybe_int32, 0, pf_maybe_int32),
+    DESCRIPTION(
+      "<p>The base \"cost\" of a unicast. If set to \"default\", taken "
+      "from General/AddrsetCosts/uc unless \"prefer_multicast\" is true, "
+      "in which case it defaults to 1000000.</p>"
+    )),
+  INT("mc", NULL, 1, "default",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.addrset_costs.mc),
+    FUNCTIONS(0, uf_maybe_int32, 0, pf_maybe_int32),
+    DESCRIPTION(
+      "<p>The base \"cost\" of an (any-source) multicast. If set to "
+      "\"default\", taken from General/AddrsetCosts/mc unless "
+      "\"prefer_multicast\" is true, in which case it defaults to 2.</p>"
+    )),
+  INT("ssm", NULL, 1, "default",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.addrset_costs.ssm),
+    FUNCTIONS(0, uf_maybe_int32, 0, pf_maybe_int32),
+    DESCRIPTION(
+      "<p>The base \"cost\" of a source-specific multicast. If set to "
+      "\"default\", taken from General/AddrsetCosts/ssm unless "
+      "\"prefer_multicast\" is true, in which case it defaults to 1.</p>"
+    )),
+  INT("delivered", NULL, 1, "default",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.addrset_costs.delivered),
+    FUNCTIONS(0, uf_maybe_int32, 0, pf_maybe_int32),
+    DESCRIPTION(
+      "<p>The \"cost\" associated with delivering to a reader. Typically "
+      "negative to make delivering to more readers with a single message "
+      "advantageous. If set to \"default\", taken from "
+      "General/AddrsetCosts/delivered.</p>"
+    )),
+  INT("discarded", NULL, 1, "default",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.addrset_costs.discarded),
+    FUNCTIONS(0, uf_maybe_int32, 0, pf_maybe_int32),
+    DESCRIPTION(
+      "<p>The \"cost\" of delivering another copy to a reader via a network "
+      "interface. Typically positive to make delivering to the same reader "
+      "twice more costly. If set to \"default\", taken from "
+      "General/AddrsetCosts/discarded.</p>"
+    )),
+  INT("redundant_psmx", NULL, 1, "default",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.addrset_costs.redundant_psmx),
+    FUNCTIONS(0, uf_maybe_int32, 0, pf_maybe_int32),
+    DESCRIPTION(
+      "<p>The \"cost\" of delivering another copy to a reader via a PSMX "
+      "interface. The code still mostly assumes that delivering via PSMX "
+      "is free (a remnant of its origins as a shared-memory bypass)."
+      "If set to \"default\", taken from General/AddrsetCosts/redundant_psmx.</p>"
+    )),
+  END_MARKER
+};
+
+static struct cfgelem network_interface_cfgelems[] = {
+  GROUP("AddrsetCosts", network_interface_wraddrset_cfgelems, NULL, 1,
+    NOMEMBER,
+    NOFUNCTIONS,
+    DESCRIPTION(
+      "<p>This element allows overriding the constants used in computing the "
+      "address sets for a network interface. See General/AddrsetCosts for more "
+      "information.</p>")),
+  END_MARKER
+};
+
 static struct cfgelem interfaces_cfgelems[] = {
-  GROUP("NetworkInterface", NULL, network_interface_attributes, INT_MAX,
+  GROUP("NetworkInterface", network_interface_cfgelems, network_interface_attributes, INT_MAX,
     MEMBER(network_interfaces),
     FUNCTIONS(if_network_interfaces, 0, 0, 0),
     DESCRIPTION(
@@ -169,6 +234,51 @@ static struct cfgelem entity_autonaming_attributes[] = {
   END_MARKER
 };
 
+static struct cfgelem general_wraddrset_cfgelems[] = {
+  INT("uc", NULL, 1, "2",
+    MEMBER(addrset_costs.uc),
+    FUNCTIONS(0, uf_int32, 0, pf_int32),
+    DESCRIPTION(
+      "<p>The base \"cost\" of a unicast.</p>"
+    )),
+  INT("mc", NULL, 1, "3",
+    MEMBER(addrset_costs.mc),
+    FUNCTIONS(0, uf_int32, 0, pf_int32),
+    DESCRIPTION(
+      "<p>The base \"cost\" of an (any-source) multicast.</p>"
+    )),
+  INT("ssm", NULL, 1, "2",
+    MEMBER(addrset_costs.ssm),
+    FUNCTIONS(0, uf_int32, 0, pf_int32),
+    DESCRIPTION(
+      "<p>The base \"cost\" of a source-specific multicast.</p>"
+    )),
+  INT("delivered", NULL, 1, "-1",
+    MEMBER(addrset_costs.delivered),
+    FUNCTIONS(0, uf_int32, 0, pf_int32),
+    DESCRIPTION(
+      "<p>The \"cost\" associated with delivering to a reader. Typically "
+      "negative to make delivering to more readers with a single message "
+      "advantageous.</p>"
+    )),
+  INT("discarded", NULL, 1, "1",
+    MEMBER(addrset_costs.discarded),
+    FUNCTIONS(0, uf_int32, 0, pf_int32),
+    DESCRIPTION(
+      "<p>The \"cost\" of delivering another copy to a reader via a network "
+      "interface. Typically positive to make delivering to the same reader "
+      "twice more costly.</p>"
+    )),
+  INT("redundant_psmx", NULL, 1, "0",
+    MEMBER(addrset_costs.redundant_psmx),
+    FUNCTIONS(0, uf_int32, 0, pf_int32),
+    DESCRIPTION(
+      "<p>The \"cost\" of delivering another copy to a reader via a PSMX "
+      "interface. The code still mostly assumes that delivering via PSMX "
+      "is free (a remnant of its origins as a shared-memory bypass).</p>"
+    )),
+  END_MARKER
+};
 
 static struct cfgelem general_cfgelems[] = {
   STRING("MulticastRecvNetworkInterfaceAddresses", NULL, 1, "preferred",
@@ -208,6 +318,18 @@ static struct cfgelem general_cfgelems[] = {
       "DDS. Multiple interfaces can be specified with an assigned priority. "
       "The list in use will be sorted by priority. If interfaces have an "
       "equal priority, the specification order will be preserved.</p>"
+    )),
+  GROUP("AddrsetCosts", general_wraddrset_cfgelems, NULL, 1,
+    NOMEMBER,
+    NOFUNCTIONS,
+    DESCRIPTION(
+      "<p>This element specifies the \"costs\" used in deciding which set of "
+      "addresses to use when sending data to readers. It is based on repeatedly "
+      "selecting the lowest-cost locator from the available locators, where the "
+      "cost is defined as -priority + {uc|mc|ssm} + delivered |READERS| + SUM(X) "
+      "where \"priority\" is the network interface priority, and X is 0 "
+      "for readers not yet reached, and (discarded-delivered) for readers "
+      "already reached via a previously selected locator.</p>"
     )),
   STRING(DEPRECATED("NetworkInterfaceAddress"), NULL, 1, "auto",
     MEMBER(depr_networkAddressString),
@@ -306,6 +428,7 @@ static struct cfgelem general_cfgelems[] = {
     FUNCTIONS(0, uf_boolean_default, 0, pf_nop),
     DESCRIPTION("<p>Deprecated (use Transport instead)</p>"),
     VALUES("false","true","default")),
+#ifdef DDS_HAS_TCP
   ENUM("Transport", NULL, 1, "default",
     MEMBER(transport_selector),
     FUNCTIONS(0, uf_transport_selector, 0, pf_transport_selector),
@@ -313,6 +436,15 @@ static struct cfgelem general_cfgelems[] = {
       "<p>This element allows selecting the transport to be used (udp, udp6, "
       "tcp, tcp6, raweth)</p>"),
     VALUES("default","udp","udp6","tcp","tcp6","raweth")),
+#else
+  ENUM("Transport", NULL, 1, "default",
+    MEMBER(transport_selector),
+    FUNCTIONS(0, uf_transport_selector, 0, pf_transport_selector),
+    DESCRIPTION(
+      "<p>This element allows selecting the transport to be used (udp, udp6, "
+      "raweth)</p>"),
+    VALUES("default","udp","udp6","raweth")),
+#endif
   BOOL("EnableMulticastLoopback", NULL, 1, "true",
     MEMBER(enableMulticastLoopback),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
@@ -982,6 +1114,28 @@ static struct cfgelem compatibility_cfgelems[] = {
       "<p>This option allows configuring the advertised protocol version.  Valid "
       "values are \"2.1\" and \"2.5\"</p>"
     )),
+  BOOL("AllowInvalidTryConstruct", NULL, 1, "false",
+    MEMBER(allow_invalid_try_construct),
+    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
+    DESCRIPTION(
+      "<p>Setting option makes the TypeObject validation code accept types with "
+      "the two \"try construct\" bits both set to 0, which is explicitly noted "
+      "as an invalid setting in the spec.</p>"
+    )),
+  BOOL("IgnoreTypeInformation", NULL, 1, "",
+    MEMBER(ignore_type_information),
+    FUNCTIONS(0, uf_vendorid_list, 0, pf_vendorid_list),
+    DESCRIPTION(
+      "<p>Setting option causes type information included in discovery messages "
+      "from the listed vendor ids to be ignored. This reduces the type assignability "
+      "check to a check of the type names. This may cause readers/writers to match "
+      "when they shouldn't or not to match when they should. Use with care.</p>"
+      "<p>The vendor ids are specified using a comma-separated list of two decimal "
+      "integers separated by a dot. E.g., to ignore them from Cyclone and RTI Connext "
+      "set it to \"1.1,1.16\". Order doesn't matter.</p>"
+      "<p>The current implementation restricts them to the form 1.N, where 1<N<=32. "
+      "This covers all vendor ids currently allocated by the OMG.</p>"
+    )),
   END_MARKER
 };
 
@@ -1588,14 +1742,14 @@ static struct cfgelem internal_cfgelems[] = {
     NOMEMBER,
     NOFUNCTIONS,
     DESCRIPTION("<p>Setting for controlling the size of transmitting bursts.</p>")),
-  BOOL("ExtendedPacketInfo", NULL, 1, "true",
+  BOOL("ExtendedPacketInfo", NULL, 1, "default",
     MEMBER(extended_packet_info),
-    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
+    FUNCTIONS(0, uf_boolean_default, 0, pf_boolean_default),
     DESCRIPTION(
       "<p>Whether to enable the IP_PKTINFO on UDP sockets to get hold of the packet "
       "destination address and interface on which it was received. This allows "
       "for better filtering on discovery packets, but comes at a small performance "
-      "penalty.</p>")),
+      "penalty. Enabled by default if supported.</p>")),
   LIST("EnableExpensiveChecks", NULL, 1, "",
     MEMBER(enabled_xchecks),
     FUNCTIONS(0, uf_xcheck, 0, pf_xcheck),
@@ -1690,6 +1844,7 @@ static struct cfgelem discovery_ports_cfgelems[] = {
   END_MARKER
 };
 
+#ifdef DDS_HAS_TCP
 static struct cfgelem tcp_cfgelems[] = {
   ENUM("Enable", NULL, 1, "default",
     MEMBER(compat_tcp_enable),
@@ -1742,6 +1897,7 @@ static struct cfgelem tcp_cfgelems[] = {
     )),
   END_MARKER
 };
+#endif
 
 #ifdef DDS_HAS_TCP_TLS
 static struct cfgelem ssl_cfgelems[] = {
@@ -2227,6 +2383,7 @@ static struct cfgelem domain_cfgelems[] = {
       "functionality is reserved. This includes renaming or moving "
       "options.</p>"
     )),
+#ifdef DDS_HAS_TCP
   GROUP("TCP", tcp_cfgelems, NULL, 1,
     NOMEMBER,
     NOFUNCTIONS,
@@ -2234,6 +2391,7 @@ static struct cfgelem domain_cfgelems[] = {
       "<p>The TCP element allows you to specify various parameters related to "
       "running DDSI over TCP.</p>"
     )),
+#endif
 #ifdef DDS_HAS_TCP_TLS
   GROUP("SSL", ssl_cfgelems, NULL, 1,
     NOMEMBER,
@@ -2272,7 +2430,9 @@ static struct cfgelem root_cfgelems[] = {
   MOVED("Discovery", "CycloneDDS/Domain/Discovery"),
   MOVED("Tracing", "CycloneDDS/Domain/Tracing"),
   MOVED("Internal|Unsupported", "CycloneDDS/Domain/Internal"),
+#if DDS_HAS_TCP
   MOVED("TCP", "CycloneDDS/Domain/TCP"),
+#endif
 #if DDS_HAS_SECURITY
   MOVED("DDSSecurity", "CycloneDDS/Domain/Security"),
 #endif

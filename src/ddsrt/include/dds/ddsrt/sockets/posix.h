@@ -25,6 +25,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <sys/select.h>
+#include <unistd.h>
 #endif
 
 #include "dds/ddsrt/iovec.h"

@@ -34,9 +34,8 @@ typedef long int ddsrt_thread_list_id_t;
 typedef int ddsrt_tid_t;
 #define PRIdTID "d"
 /* __FreeBSD__ */
-#elif defined(__APPLE__) && !(defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && \
-                                      __MAC_OS_X_VERSION_MIN_REQUIRED < 1060)
-/* macOS X >= 10.6 */
+#elif defined(__APPLE__)
+/* macOS X (>= 10.6 assumed) */
 typedef uint64_t ddsrt_tid_t;
 #define PRIdTID PRIu64
 /* ddsrt_thread_list_id_t is actually a mach_port_t */

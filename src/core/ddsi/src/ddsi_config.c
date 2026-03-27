@@ -148,6 +148,7 @@ DU(ipv4);
 DUPF(allow_multicast);
 DUPF(boolean);
 DUPF(protocol_version);
+DUPF(vendorid_list);
 DU(boolean_default);
 PF(boolean_default);
 DUPF(string);
@@ -157,15 +158,17 @@ DUPF(tracemask);
 DUPF(xcheck);
 DUPF(int);
 DUPF(uint);
-#if 0
 DUPF(int32);
+#if 0
 DUPF(uint32);
 #endif
 DU(natint);
 DU(natint_255);
 DU(pos_uint);
 DUPF(participantIndex);
+#ifdef DDS_HAS_TCP
 DU(dyn_port);
+#endif
 DUPF(memsize);
 DUPF(memsize16);
 DU(duration_inf);
@@ -991,8 +994,20 @@ static const char *en_sched_class_vs[] = { "realtime", "timeshare", "default", N
 static const ddsrt_sched_t en_sched_class_ms[] = { DDSRT_SCHED_REALTIME, DDSRT_SCHED_TIMESHARE, DDSRT_SCHED_DEFAULT, 0 };
 GENERIC_ENUM_CTYPE (sched_class, ddsrt_sched_t)
 
-static const char *en_transport_selector_vs[] = { "default", "udp", "udp6", "tcp", "tcp6", "raweth", "none", NULL };
-static const enum ddsi_transport_selector en_transport_selector_ms[] = { DDSI_TRANS_DEFAULT, DDSI_TRANS_UDP, DDSI_TRANS_UDP6, DDSI_TRANS_TCP, DDSI_TRANS_TCP6, DDSI_TRANS_RAWETH, DDSI_TRANS_NONE, 0 };
+static const char *en_transport_selector_vs[] = {
+  "default", "udp", "udp6",
+#ifdef DDS_HAS_TCP
+  "tcp", "tcp6",
+#endif
+  "raweth", "none", NULL
+};
+static const enum ddsi_transport_selector en_transport_selector_ms[] = {
+  DDSI_TRANS_DEFAULT, DDSI_TRANS_UDP, DDSI_TRANS_UDP6,
+#ifdef DDS_HAS_TCP
+  DDSI_TRANS_TCP, DDSI_TRANS_TCP6,
+#endif
+  DDSI_TRANS_RAWETH, DDSI_TRANS_NONE, 0
+};
 GENERIC_ENUM_CTYPE (transport_selector, enum ddsi_transport_selector)
 
 /* by putting the  "true" and "false" aliases at the end, they won't come out of the
@@ -1128,6 +1143,51 @@ static void pf_protocol_version (struct ddsi_cfgst *cfgst, void *parent, struct 
 {
   ddsi_protocol_version_t * const p = cfg_address (cfgst, parent, cfgelem);
   cfg_logelem (cfgst, sources, "%d.%d", p->major, p->minor);
+}
+
+static enum update_result uf_vendorid_list (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  DDSRT_WARNING_MSVC_OFF(4996);
+  uint32_t * const elem = cfg_address (cfgst, parent, cfgelem);
+  char *valuecopy = ddsrt_strdup (value), *cursor = valuecopy, *tok;
+  *elem = 0;
+  while ((tok = ddsrt_strsep (&cursor, ",")) != NULL)
+  {
+    int pos;
+    unsigned min;
+    if (sscanf (tok, "1.%u%n", &min, &pos) != 1 || tok[pos] != 0 || min < 1 || min > 32)
+    {
+      cfg_error(cfgst, "'%s': invalid or out-of-range vendor id", tok);
+      ddsrt_free (valuecopy);
+      return URES_ERROR;
+    }
+    *elem |= 1u << (min - 1);
+  }
+  ddsrt_free (valuecopy);
+  return URES_SUCCESS;
+  DDSRT_WARNING_MSVC_ON(4996);
+}
+
+static void pf_vendorid_list (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
+{
+  uint32_t * const p = cfg_address (cfgst, parent, cfgelem);
+  // 1..9 : 4 chars each including comma => 36
+  // 10..32 : 5 chars each including comma => 115
+  // terminating 0 but no leading comma, so max = 151
+  char buf[151] = "", *bufp = buf;
+  const char *sep = "";
+  for (int min = 1; min <= 32; min++)
+  {
+    if (*p & (1u << (min-1)))
+    {
+      assert ((size_t) (bufp - buf) < sizeof (buf));
+      const int n = snprintf (bufp, sizeof (buf) - (size_t) (bufp - buf), "%s1.%d", sep, min);
+      if (n > 0)
+        bufp += n;
+      sep = ",";
+    }
+  }
+  cfg_logelem (cfgst, sources, "%s", buf);
 }
 
 static enum update_result uf_string (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
@@ -1410,6 +1470,16 @@ static enum update_result uf_int (struct ddsi_cfgst *cfgst, void *parent, struct
   return URES_SUCCESS;
 }
 
+static enum update_result uf_int32 (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  int32_t * const elem = cfg_address (cfgst, parent, cfgelem);
+  int64_t x;
+  if (uf_int64_unit (cfgst, &x, value, NULL, 1, INT32_MIN, INT32_MAX) != URES_SUCCESS)
+    return URES_ERROR;
+  *elem = (int32_t) x;
+  return URES_SUCCESS;
+}
+
 static enum update_result uf_int_min_max (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value, int min, int max)
 {
   int *elem = cfg_address (cfgst, parent, cfgelem);
@@ -1426,10 +1496,18 @@ static void pf_int (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const
   cfg_logelem (cfgst, sources, "%d", *p);
 }
 
+static void pf_int32 (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
+{
+  int32_t const * const p = cfg_address (cfgst, parent, cfgelem);
+  cfg_logelem (cfgst, sources, "%"PRId32, *p);
+}
+
+#ifdef DDS_HAS_TCP
 static enum update_result uf_dyn_port(struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
 {
   return uf_int_min_max(cfgst, parent, cfgelem, first, value, -1, 65535);
 }
+#endif
 
 static enum update_result uf_natint(struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
 {

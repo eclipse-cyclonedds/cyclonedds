@@ -499,29 +499,6 @@ size_t ddsi_addrset_forall_uc_count (struct ddsi_addrset *as, ddsi_addrset_foral
   return count;
 }
 
-int ddsi_addrset_forone (struct ddsi_addrset *as, ddsi_addrset_forone_fun_t f, void *arg)
-{
-  struct ddsi_addrset_node *n;
-  ddsrt_avl_ctree_t *trees[2];
-  ddsrt_avl_citer_t iter;
-
-  trees[0] = &as->mcaddrs;
-  trees[1] = &as->ucaddrs;
-  for (int i = 0; i < 2; i++)
-  {
-    n = (struct ddsi_addrset_node *) ddsrt_avl_citer_first (&addrset_treedef, trees[i], &iter);
-    while (n)
-    {
-      if ((f) (&n->loc, arg) > 0)
-      {
-        return 0;
-      }
-      n = (struct ddsi_addrset_node *) ddsrt_avl_citer_next (&iter);
-    }
-  }
-  return -1;
-}
-
 struct log_addrset_helper_arg
 {
   uint32_t tf;
