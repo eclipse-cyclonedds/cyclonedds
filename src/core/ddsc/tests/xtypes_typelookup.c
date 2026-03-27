@@ -462,7 +462,7 @@ CU_Test (ddsc_typelookup, resolve_dep_type, .init = typelookup_init, .fini = typ
   dds_entity_t wr = dds_create_writer (g_participant1, topic, NULL, NULL);
   CU_ASSERT_GT_FATAL (wr, 0);
 
-  dds_topic_descriptor_t desc;
+  dds_topic_descriptor_t desc = {0};
   xtypes_util_modify_type_meta (&desc, &XSpace_dep_test_desc, mod_dep_test, true, DDS_XTypes_EK_BOTH);
 
   DDS_XTypes_TypeInformation *ti;
