@@ -1057,7 +1057,7 @@ add_typedef (
   if ((ret = emit_hashed_type (DDS_XTypes_TK_ALIAS, node, revisit, dtm)) < 0)
     return ret;
   if (!revisit && dtm->stack->finalized)
-    return IDL_VISIT_REVISIT | IDL_VISIT_DONT_RECURSE | (visit_type_spec ? IDL_VISIT_TYPE_SPEC : 0);
+    return (int32_t)IDL_VISIT_REVISIT | (int32_t)IDL_VISIT_DONT_RECURSE | (int32_t)(visit_type_spec ? IDL_VISIT_TYPE_SPEC : 0);
 
   if (!revisit) {
     if ((ret = get_complete_type_detail (node, &dtm->stack->to_complete->_u.complete._u.alias_type.header.detail)) < 0)
@@ -1093,7 +1093,7 @@ add_array (
   if ((ret = emit_hashed_type (DDS_XTypes_TK_ARRAY, node, revisit, dtm)) < 0)
     return ret;
   if (!revisit && dtm->stack->finalized)
-    return IDL_VISIT_REVISIT | IDL_VISIT_DONT_RECURSE;
+    return (int32_t)IDL_VISIT_REVISIT | (int32_t)IDL_VISIT_DONT_RECURSE;
 
   if (!revisit) {
     dtm->stack->to_minimal->_u.minimal._u.array_type.element.common.element_flags =
@@ -1150,7 +1150,7 @@ emit_struct(
   if ((ret = emit_hashed_type (DDS_XTypes_TK_STRUCTURE, node, revisit, dtm)) < 0)
     return ret;
   if (!revisit && dtm->stack->finalized)
-    return IDL_VISIT_REVISIT | IDL_VISIT_DONT_RECURSE | (node == dtm->root ? IDL_VISIT_DONT_ITERATE : 0);
+    return (int32_t)IDL_VISIT_REVISIT | (int32_t)IDL_VISIT_DONT_RECURSE | (int32_t)(node == dtm->root ? IDL_VISIT_DONT_ITERATE : 0);
 
   if (!revisit) {
     dtm->stack->to_minimal->_u.minimal._u.struct_type.struct_flags =
@@ -1182,7 +1182,7 @@ emit_union(
     return ret;
 
   if (!revisit && dtm->stack->finalized)
-    return IDL_VISIT_REVISIT | IDL_VISIT_DONT_RECURSE | (node == dtm->root ? IDL_VISIT_DONT_ITERATE : 0);
+    return (int32_t)IDL_VISIT_REVISIT | (int32_t)IDL_VISIT_DONT_RECURSE | (int32_t)(node == dtm->root ? IDL_VISIT_DONT_ITERATE : 0);
 
   if (!revisit) {
     dtm->stack->to_minimal->_u.minimal._u.union_type.union_flags =
@@ -1340,7 +1340,7 @@ emit_enum (
   if ((ret = emit_hashed_type (DDS_XTypes_TK_ENUM, node, revisit, (struct descriptor_type_meta *) user_data)) < 0)
     return ret;
   if (!revisit && dtm->stack->finalized)
-    return IDL_VISIT_REVISIT | IDL_VISIT_DONT_RECURSE;
+    return (int32_t)IDL_VISIT_REVISIT | (int32_t)IDL_VISIT_DONT_RECURSE;
   if (!revisit) {
     dtm->stack->to_minimal->_u.minimal._u.enumerated_type.header.common.bit_bound =
       dtm->stack->to_complete->_u.complete._u.enumerated_type.header.common.bit_bound = _enum->bit_bound.value;
@@ -1438,7 +1438,7 @@ emit_bitmask(
   if ((ret = emit_hashed_type (DDS_XTypes_TK_BITMASK, node, revisit, (struct descriptor_type_meta *) user_data)) < 0)
     return ret;
   if (!revisit && dtm->stack->finalized)
-    return IDL_VISIT_REVISIT | IDL_VISIT_DONT_RECURSE;
+    return (int32_t)IDL_VISIT_REVISIT | (int32_t)IDL_VISIT_DONT_RECURSE;
   if (!revisit) {
     dtm->stack->to_minimal->_u.minimal._u.bitmask_type.header.common.bit_bound =
       dtm->stack->to_complete->_u.complete._u.bitmask_type.header.common.bit_bound = _bitmask->bit_bound.value;
