@@ -66,9 +66,9 @@ static dds_return_t coll_fail_after_1 (void *varg, const dds_sample_info_t *si, 
 
 static void dotest (read_op op)
 {
-  bool is_next_instance = (op == dds_read_next_instance_with_collector || op == dds_take_next_instance_with_collector);
+  bool is_next_instance = (op == dds_read_next_instance_with_collector || op == dds_take_next_instance_with_collector || op == dds_peek_next_instance_with_collector);
   bool isread = (op == dds_read_with_collector || op == dds_read_next_instance_with_collector);
-  bool isnew = (op == dds_peek_with_collector);
+  bool isnew = (op == dds_peek_with_collector || op == dds_peek_next_instance_with_collector);
   
   const dds_entity_t dp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   CU_ASSERT_GT_FATAL (dp, 0);
@@ -125,7 +125,7 @@ static void dotest (read_op op)
     CU_ASSERT_FATAL (arg2.ih > ih); 
   }
 
-  assert (op == dds_peek_with_collector || op == dds_read_with_collector || op == dds_take_with_collector || op == dds_take_next_instance_with_collector || op == dds_read_next_instance_with_collector);
+  assert (op == dds_peek_with_collector || op == dds_read_with_collector || op == dds_take_with_collector || op == dds_take_next_instance_with_collector || op == dds_read_next_instance_with_collector || op == dds_peek_next_instance_with_collector);
 
   // check that the remainder is as we expect it
   Space_Type1 xs[10];
@@ -174,7 +174,7 @@ static void dotest (read_op op)
   CU_ASSERT_EQ_FATAL (rc, 3);
   for (int i = 0; i < rc; i++)
   {
-    if (!(op == dds_take_next_instance_with_collector || op == dds_read_next_instance_with_collector))
+    if (!(op == dds_take_next_instance_with_collector || op == dds_read_next_instance_with_collector || op == dds_peek_next_instance_with_collector))
       CU_ASSERT_EQ_FATAL (xs[i].long_1, (arg1.k+2)%3);
     CU_ASSERT_EQ_FATAL (si[i].sample_state, DDS_NOT_READ_SAMPLE_STATE);
     CU_ASSERT_EQ_FATAL (si[i].view_state, DDS_NEW_VIEW_STATE);
@@ -207,4 +207,9 @@ CU_Test(ddsc_read_with_collector, read_next_instance)
 CU_Test(ddsc_read_with_collector, take_next_instance)
 {
   dotest (dds_take_next_instance_with_collector);
+}
+
+CU_Test(ddsc_read_with_collector, peek_next_instance)
+{
+  dotest (dds_peek_next_instance_with_collector);
 }
