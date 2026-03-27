@@ -15,66 +15,66 @@ static bool dds_stream_write_keyBO_impl (RESTRICT_OSTREAM_T *os, const struct dd
   assert (DDS_OP (insn) == DDS_OP_ADR);
   void *addr = (char *) src + ops[1];
 
-  if (op_type_external (insn) || DDS_OP_TYPE (insn) == DDS_OP_VAL_STR || DDS_OP_TYPE (insn) == DDS_OP_VAL_WSTR)
+  if (op_type_external (insn) || DDS_OP_TYPE (insn) == DDS_SOP_VAL_STR || DDS_OP_TYPE (insn) == DDS_SOP_VAL_WSTR)
   {
     addr = *(char **) addr;
-    if (addr == NULL && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR && DDS_OP_TYPE (insn) != DDS_OP_VAL_WSTR)
+    if (addr == NULL && DDS_OP_TYPE (insn) != DDS_SOP_VAL_STR && DDS_OP_TYPE (insn) != DDS_SOP_VAL_WSTR)
       return false;
   }
 
   switch (DDS_OP_TYPE (insn))
   {
-    case DDS_OP_VAL_BLN: dds_os_put1BO (os, allocator, *((uint8_t *) addr) != 0); break;
-    case DDS_OP_VAL_1BY: dds_os_put1BO (os, allocator, *((uint8_t *) addr)); break;
-    case DDS_OP_VAL_2BY: dds_os_put2BO (os, allocator, *((uint16_t *) addr)); break;
-    case DDS_OP_VAL_4BY: dds_os_put4BO (os, allocator, *((uint32_t *) addr)); break;
-    case DDS_OP_VAL_8BY: dds_os_put8BO (os, allocator, *((uint64_t *) addr)); break;
-    case DDS_OP_VAL_16BY: dds_os_put16BO (os, allocator, *((ddsrt_uint128_t *) addr)); break;
-    case DDS_OP_VAL_ENU:
+    case DDS_SOP_VAL_BLN: dds_os_put1BO (os, allocator, *((uint8_t *) addr) != 0); break;
+    case DDS_SOP_VAL_1BY: dds_os_put1BO (os, allocator, *((uint8_t *) addr)); break;
+    case DDS_SOP_VAL_2BY: dds_os_put2BO (os, allocator, *((uint16_t *) addr)); break;
+    case DDS_SOP_VAL_4BY: dds_os_put4BO (os, allocator, *((uint32_t *) addr)); break;
+    case DDS_SOP_VAL_8BY: dds_os_put8BO (os, allocator, *((uint64_t *) addr)); break;
+    case DDS_SOP_VAL_16BY: dds_os_put16BO (os, allocator, *((ddsrt_uint128_t *) addr)); break;
+    case DDS_SOP_VAL_ENU:
       if (!dds_stream_write_enum_valueBO (os, allocator, insn, *((uint32_t *) addr), ops[2]))
         return false;
       break;
-    case DDS_OP_VAL_BMK:
+    case DDS_SOP_VAL_BMK:
       if (!dds_stream_write_bitmask_valueBO (os, allocator, insn, addr, ops[2], ops[3]))
         return false;
       break;
-    case DDS_OP_VAL_STR:
+    case DDS_SOP_VAL_STR:
       if (!dds_stream_write_stringBO (os, allocator, addr))
         return false;
       break;
-    case DDS_OP_VAL_WSTR:
+    case DDS_SOP_VAL_WSTR:
       if (!dds_stream_write_wstringBO (os, allocator, (const wchar_t *) addr))
         return false;
       break;
-    case DDS_OP_VAL_BST:
+    case DDS_SOP_VAL_BST:
       if (!dds_stream_write_bstringBO (os, allocator, addr, ops[2] - 1))
         return false;
       break;
-    case DDS_OP_VAL_BWSTR:
+    case DDS_SOP_VAL_BWSTR:
       if (!dds_stream_write_bwstringBO (os, allocator, (const wchar_t *) addr, ops[2] - 1))
         return false;
       break;
-    case DDS_OP_VAL_WCHAR:
+    case DDS_SOP_VAL_WCHAR:
       if (!dds_stream_write_wcharBO (os, allocator, *(wchar_t *) addr))
         return false;
       break;
-    case DDS_OP_VAL_ARR:
+    case DDS_SOP_VAL_ARR:
       if (!dds_stream_write_arrBO (os, allocator, mid_table, addr, ops, insn, CDR_KIND_KEY))
         return false;
       break;
-    case DDS_OP_VAL_EXT: {
+    case DDS_SOP_VAL_EXT: {
       assert (key_offset_count > 0);
       const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]) + *key_offset_insn;
       if (!dds_stream_write_keyBO_impl (os, allocator, mid_table, jsr_ops, addr, --key_offset_count, ++key_offset_insn))
         return false;
       break;
     }
-    case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: {
+    case DDS_SOP_VAL_SEQ: case DDS_SOP_VAL_BSQ: {
       if (!dds_stream_write_seqBO (os, allocator, mid_table, addr, ops, insn, CDR_KIND_KEY))
         return false;
       break;
     }
-    case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
+    case DDS_SOP_VAL_UNI: case DDS_SOP_VAL_STU: {
       // FIXME: implement support for unions as part of the key
       abort ();
       break;
@@ -110,14 +110,14 @@ static bool dds_stream_write_keyBO_restrict (RESTRICT_OSTREAM_T *os, enum dds_cd
       const uint32_t *insnp = desc->ops.ops + keylist[i].ops_offs;
       switch (DDS_OP (*insnp))
       {
-        case DDS_OP_KOF: {
+        case DDS_SOP_KOF: {
           uint16_t n_offs = DDS_OP_LENGTH (*insnp);
           assert (n_offs > 0);
           if (!dds_stream_write_keyBO_impl (os, allocator, &desc->member_ids, desc->ops.ops + insnp[1], sample, --n_offs, insnp + 2))
             return false;
           break;
         }
-        case DDS_OP_ADR: {
+        case DDS_SOP_ADR: {
           if (!dds_stream_write_keyBO_impl (os, allocator, &desc->member_ids, insnp, sample, 0, NULL))
             return false;
           break;
@@ -166,7 +166,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
     }
   }
 
-  if (type == DDS_OP_VAL_EXT)
+  if (type == DDS_SOP_VAL_EXT)
   {
     const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
     const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
@@ -225,16 +225,16 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_skip_delimited (dds_is
   {
     switch (DDS_OP (insn))
     {
-      case DDS_OP_ADR:
+      case DDS_SOP_ADR:
         /* skip fields that are not in serialized data for appendable type */
         ops = dds_stream_skip_adr (insn, ops);
         break;
-      case DDS_OP_JSR:
+      case DDS_SOP_JSR:
         // FIXME: seems to be unused
         (void) dds_stream_extract_keyBO_from_data1 (is, os, allocator, mid_table, ops + DDS_OP_JUMP (insn), false, n_keys, keys_remaining);
         ops++;
         break;
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM: case DDS_OP_MID:
+      case DDS_SOP_RTS: case DDS_SOP_JEQ: case DDS_SOP_JEQ4: case DDS_SOP_KOF: case DDS_SOP_DLC: case DDS_SOP_PLC: case DDS_SOP_PLM: case DDS_SOP_MID:
         abort ();
         break;
     }
@@ -251,20 +251,20 @@ static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t *is, R
   {
     switch (DDS_OP (insn))
     {
-      case DDS_OP_ADR:
+      case DDS_SOP_ADR:
         ops = dds_stream_extract_keyBO_from_data_adr (insn, is, os, allocator, mid_table, ops, mutable_member, n_keys, keys_remaining);
         break;
-      case DDS_OP_JSR:
+      case DDS_SOP_JSR:
         (void) dds_stream_extract_keyBO_from_data1 (is, os, allocator, mid_table, ops + DDS_OP_JUMP (insn), mutable_member, n_keys, keys_remaining);
         ops++;
         break;
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM: case DDS_OP_MID:
+      case DDS_SOP_RTS: case DDS_SOP_JEQ: case DDS_SOP_JEQ4: case DDS_SOP_KOF: case DDS_SOP_PLM: case DDS_SOP_MID:
         abort ();
         break;
-      case DDS_OP_DLC:
+      case DDS_SOP_DLC:
         ops = dds_stream_extract_keyBO_from_data_skip_delimited (is, os, allocator, mid_table, ops, n_keys, keys_remaining);
         break;
-      case DDS_OP_PLC:
+      case DDS_SOP_PLC:
         /* Shouldn't be here if there is a key in this appendable struct, the non-optimized
         path should be used in that case. */
         assert (os == NULL);
@@ -346,13 +346,13 @@ static void dds_stream_extract_keyBO_from_key_optimized (dds_istream_t *is, REST
     uint32_t const * const op = desc->ops.ops + desc->keys.keys_definition_order[i].ops_offs;
     switch (DDS_OP (*op))
     {
-      case DDS_OP_KOF: {
+      case DDS_SOP_KOF: {
         uint16_t n_offs = DDS_OP_LENGTH (*op);
         assert (n_offs > 0);
         dds_stream_extract_keyBO_from_key_prim_op (is, os, allocator, &desc->member_ids, desc->ops.ops + op[1], --n_offs, op + 2);
         break;
       }
-      case DDS_OP_ADR: {
+      case DDS_SOP_ADR: {
         dds_stream_extract_keyBO_from_key_prim_op (is, os, allocator, &desc->member_ids, op, 0, NULL);
         break;
       }
