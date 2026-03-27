@@ -382,7 +382,7 @@ CU_Theory((dds_entity_t *rdr, dds_instance_handle_t hdl), ddsc_take_next_instanc
 {
     dds_return_t ret;
     ret = dds_take_next_instance(*rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, hdl);
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(ret, 0);
 }
 /*************************************************************************************************/
 
@@ -396,7 +396,7 @@ CU_Theory((dds_entity_t *rdr, dds_instance_handle_t hdl), ddsc_take_next_instanc
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_return_t ret;
     ret = dds_take_next_instance_mask(*rdr, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, hdl, mask);
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(ret, 0);
 }
 /*************************************************************************************************/
 
@@ -532,7 +532,7 @@ CU_Test(ddsc_read_next_instance, reader, .init=take_next_instance_init, .fini=ta
 
     while (ret >= 1){
         ret = dds_read_next_instance(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle);
-        if(ret == DDS_RETCODE_NO_DATA) break;
+        if(ret <= 0) break;
         CU_ASSERT_FATAL(ret >= 0 );
         for(int i = 0; i < ret; i++)
         {
@@ -562,11 +562,12 @@ CU_Test(ddsc_read_next_instance, reader, .init=take_next_instance_init, .fini=ta
                 cntinv ++;
             }
         }
+        printf("prev handle: %llu, cur handle: %llu\n", previous_handle, g_info[0].instance_handle);
         CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(ret, 0);
     CU_ASSERT_EQ_FATAL(cnt, MAX_SAMPLES);
     CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
 
@@ -613,7 +614,7 @@ CU_Test(ddsc_read_next_instance_mask, reader, .init=take_next_instance_init, .fi
 
     while (ret >= 0){
         ret = dds_read_next_instance_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle, mask);
-        if(ret == DDS_RETCODE_NO_DATA) break;
+        if(ret <= 0) break;
         CU_ASSERT_FATAL(ret >= 0 );
         printf("prev_handle: %lu\n", previous_handle);
         printf("valid: %d, sample_state: %d, view_state: %d, instance_state: %d, instance_handle: %lu\n", g_info[0].valid_data, g_info[0].sample_state, g_info[0].view_state, g_info[0].instance_state, g_info[0].instance_handle);
@@ -659,7 +660,7 @@ CU_Test(ddsc_read_next_instance_mask, reader, .init=take_next_instance_init, .fi
     }
 
     printf("\n%d\n", ret);
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(ret, 0);
     CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
     CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
 
@@ -714,7 +715,7 @@ CU_Test(ddsc_read_next_instance, readcondition, .init=take_next_instance_init, .
 
     while (ret >= 1){
         ret = dds_read_next_instance(g_rcond, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle);
-        if(ret == DDS_RETCODE_NO_DATA) break;
+        if(ret <= 0) break;
         CU_ASSERT_FATAL(ret >= 0 );
         for(int i = 0; i < ret; i++)
         {
@@ -748,7 +749,7 @@ CU_Test(ddsc_read_next_instance, readcondition, .init=take_next_instance_init, .
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(ret, 0);
     CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
     CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
 
@@ -794,7 +795,7 @@ CU_Test(ddsc_read_next_instance_mask, readcondition, .init=take_next_instance_in
 
     while (ret >= 1){
         ret = dds_read_next_instance_mask(g_rcond, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle, mask);
-        if(ret == DDS_RETCODE_NO_DATA) break;
+        if(ret <= 0) break;
         CU_ASSERT_FATAL(ret >= 0 );
         for(int i = 0; i < ret; i++)
         {
@@ -828,7 +829,7 @@ CU_Test(ddsc_read_next_instance_mask, readcondition, .init=take_next_instance_in
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(ret, 0);
     printf("count: %d\n", cnt);
     CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
     CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
@@ -885,7 +886,7 @@ CU_Test(ddsc_read_next_instance, querycondition, .init=take_next_instance_init, 
 
     while (ret >= 1){
         ret = dds_read_next_instance(g_qcond, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle);
-        if(ret == DDS_RETCODE_NO_DATA) break;
+        if(ret <= 0) break;
         CU_ASSERT_FATAL(ret >= 0 );
         for(int i = 0; i < ret; i++)
         {
@@ -919,7 +920,7 @@ CU_Test(ddsc_read_next_instance, querycondition, .init=take_next_instance_init, 
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(ret, 0);
     CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
     CU_ASSERT_EQ_FATAL(cntinv, 1);
 
@@ -966,7 +967,7 @@ CU_Test(ddsc_read_next_instance_mask, querycondition, .init=take_next_instance_i
 
     while (ret >= 1){
         ret = dds_read_next_instance_mask(g_qcond, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle, mask);
-        if(ret == DDS_RETCODE_NO_DATA) break;
+        if(ret <= 0) break;
         CU_ASSERT_FATAL(ret >= 0 );
         for(int i = 0; i < ret; i++)
         {
@@ -1000,7 +1001,7 @@ CU_Test(ddsc_read_next_instance_mask, querycondition, .init=take_next_instance_i
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(ret, 0);
     CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
     CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
 
@@ -1029,7 +1030,7 @@ CU_Test(ddsc_peek_next_instance, reader, .init=take_next_instance_init, .fini=ta
 
     while (ret >= 1){
         ret = dds_peek_next_instance(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle);
-        if(ret == DDS_RETCODE_NO_DATA) break;
+        if(ret <= 0) break;
         CU_ASSERT_FATAL(ret >= 0 );
         for(int i = 0; i < ret; i++)
         {
@@ -1063,7 +1064,7 @@ CU_Test(ddsc_peek_next_instance, reader, .init=take_next_instance_init, .fini=ta
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(ret, 0);
     CU_ASSERT_EQ_FATAL(cnt, MAX_SAMPLES);
     CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
 
@@ -1110,7 +1111,7 @@ CU_Test(ddsc_peek_next_instance_mask, reader, .init=take_next_instance_init, .fi
 
     while (ret >= 0){
         ret = dds_peek_next_instance_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle, mask);
-        if(ret == DDS_RETCODE_NO_DATA) break;
+        if(ret <= 0) break;
         CU_ASSERT_FATAL(ret >= 0 );
         printf("prev_handle: %lu\n", previous_handle);
         printf("valid: %d, sample_state: %d, view_state: %d, instance_state: %d, instance_handle: %lu\n", g_info[0].valid_data, g_info[0].sample_state, g_info[0].view_state, g_info[0].instance_state, g_info[0].instance_handle);
@@ -1156,7 +1157,7 @@ CU_Test(ddsc_peek_next_instance_mask, reader, .init=take_next_instance_init, .fi
     }
 
     printf("\n%d\n", ret);
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(ret, 0);
     CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
     CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
 
@@ -1211,7 +1212,7 @@ CU_Test(ddsc_peek_next_instance, readcondition, .init=take_next_instance_init, .
 
     while (ret >= 1){
         ret = dds_peek_next_instance(g_rcond, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle);
-        if(ret == DDS_RETCODE_NO_DATA) break;
+        if(ret <= 0) break;
         CU_ASSERT_FATAL(ret >= 0 );
         for(int i = 0; i < ret; i++)
         {
@@ -1245,7 +1246,7 @@ CU_Test(ddsc_peek_next_instance, readcondition, .init=take_next_instance_init, .
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(ret, 0);
     CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
     CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
 
@@ -1291,7 +1292,7 @@ CU_Test(ddsc_peek_next_instance_mask, readcondition, .init=take_next_instance_in
 
     while (ret >= 1){
         ret = dds_peek_next_instance_mask(g_rcond, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle, mask);
-        if(ret == DDS_RETCODE_NO_DATA) break;
+        if(ret <= 0) break;
         CU_ASSERT_FATAL(ret >= 0 );
         for(int i = 0; i < ret; i++)
         {
@@ -1325,7 +1326,7 @@ CU_Test(ddsc_peek_next_instance_mask, readcondition, .init=take_next_instance_in
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(ret, 0);
     printf("count: %d\n", cnt);
     CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
     CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
@@ -1382,7 +1383,7 @@ CU_Test(ddsc_peek_next_instance, querycondition, .init=take_next_instance_init, 
 
     while (ret >= 1){
         ret = dds_peek_next_instance(g_qcond, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle);
-        if(ret == DDS_RETCODE_NO_DATA) break;
+        if(ret <= 0) break;
         CU_ASSERT_FATAL(ret >= 0 );
         for(int i = 0; i < ret; i++)
         {
@@ -1416,7 +1417,7 @@ CU_Test(ddsc_peek_next_instance, querycondition, .init=take_next_instance_init, 
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(ret, 0);
     CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
     CU_ASSERT_EQ_FATAL(cntinv, 1);
 
@@ -1463,7 +1464,7 @@ CU_Test(ddsc_peek_next_instance_mask, querycondition, .init=take_next_instance_i
 
     while (ret >= 1){
         ret = dds_peek_next_instance_mask(g_qcond, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle, mask);
-        if(ret == DDS_RETCODE_NO_DATA) break;
+        if(ret <= 0) break;
         CU_ASSERT_FATAL(ret >= 0 );
         for(int i = 0; i < ret; i++)
         {
@@ -1497,7 +1498,7 @@ CU_Test(ddsc_peek_next_instance_mask, querycondition, .init=take_next_instance_i
         previous_handle = g_info[0].instance_handle;
     }
 
-    CU_ASSERT_EQ_FATAL(ret, DDS_RETCODE_NO_DATA);
+    CU_ASSERT_EQ_FATAL(ret, 0);
     CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
     CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
 

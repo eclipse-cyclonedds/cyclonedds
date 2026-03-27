@@ -2071,7 +2071,7 @@ static bool readtake_w_qminv_inst_get_rank_info_shortcut (const struct readtake_
   }
 }
 
-static struct rhc_instance *next_nonempty_instance_by_id(const struct readtake_w_qminv_inst_state *state, const struct dds_rhc_default *rhc, const struct rhc_instance *inst)
+static struct rhc_instance *next_nonempty_instance_by_id(const struct readtake_w_qminv_inst_state *state, const struct dds_rhc_default *rhc, dds_instance_handle_t handle)
 {
   struct rhc_instance *smallest_greater_instance = NULL;
   struct rhc_instance *current_instance = oldest_nonempty_instance(rhc);
@@ -2080,7 +2080,7 @@ static struct rhc_instance *next_nonempty_instance_by_id(const struct readtake_w
   {
     current_instance = next_nonempty_instance(current_instance);
 
-    if(current_instance->iid <= inst->iid) continue;
+    if(current_instance->iid <= handle) continue;
 
     //C doesn't evaluate the second operation if the first one fails in an && operation, prevents segfaults
     if((smallest_greater_instance != NULL) && (current_instance->iid >= smallest_greater_instance->iid)) continue;
@@ -2385,12 +2385,11 @@ static dds_return_t read_w_qminv (const struct readtake_w_qminv_inst_state *stat
     rhc->n_vread, rhc->n_invread);
   if (next_instance)
   {
-    struct rhc_instance template, *inst;
-    template.iid = handle;
-    if ((inst = next_nonempty_instance_by_id (state, rhc, &template)) != NULL)
+    struct rhc_instance *inst;
+    if ((inst = next_nonempty_instance_by_id (state, rhc, handle)) != NULL)
         rc = read_w_qminv_inst(state, mark_as_read, inst);
     else
-        rc = DDS_RETCODE_NO_DATA;
+        rc = 0;
   }
   else if (handle)
   {
@@ -2429,12 +2428,11 @@ static dds_return_t take_w_qminv (const struct readtake_w_qminv_inst_state *stat
     rhc->n_invsamples, rhc->n_vread, rhc->n_invread);
   if (next_instance)
   {
-    struct rhc_instance template, *inst;
-    template.iid = handle;
-    if ((inst = next_nonempty_instance_by_id(state, rhc, &template)) != NULL)
+    struct rhc_instance *inst;
+    if ((inst = next_nonempty_instance_by_id(state, rhc, handle)) != NULL)
       rc = take_w_qminv_inst (state, &inst);
     else
-      rc = DDS_RETCODE_NO_DATA;
+      rc = 0;
   }
   else if (handle)
   {
