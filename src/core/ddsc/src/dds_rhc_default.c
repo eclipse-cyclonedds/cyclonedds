@@ -2076,6 +2076,10 @@ static bool readtake_w_qminv_inst_get_rank_info_shortcut (const struct readtake_
 
 static struct rhc_instance *next_nonempty_instance_by_id(const struct readtake_w_qminv_inst_state *state, const struct dds_rhc_default *rhc, dds_instance_handle_t handle)
 {
+  if (rhc->nonempty_instances.latest == NULL)
+  {
+    return NULL;
+  }
   struct rhc_instance *smallest_greater_instance = NULL;
   struct rhc_instance *current_instance = oldest_nonempty_instance(rhc);
 
