@@ -29,6 +29,7 @@ struct dds_qos;
 struct ddsi_rhc;
 struct ddsi_tkmap_instance;
 struct ddsi_serdata;
+struct ddsi_rhc_state;
 
 struct ddsi_writer_info
 {
@@ -45,21 +46,37 @@ typedef void (*ddsi_rhc_free_t) (struct ddsi_rhc *rhc);
 typedef bool (*ddsi_rhc_store_t) (struct ddsi_rhc *rhc, const struct ddsi_writer_info *wrinfo, struct ddsi_serdata *sample, struct ddsi_tkmap_instance *tk);
 typedef void (*ddsi_rhc_unregister_wr_t) (struct ddsi_rhc *rhc, const struct ddsi_writer_info *wrinfo);
 typedef void (*ddsi_rhc_relinquish_ownership_t) (struct ddsi_rhc *rhc, const uint64_t wr_iid);
+typedef void (*ddsi_rhc_get_state_t)(const struct ddsi_rhc *, struct ddsi_rhc_state *);
 
 struct ddsi_rhc_ops {
   ddsi_rhc_store_t store;
   ddsi_rhc_unregister_wr_t unregister_wr;
   ddsi_rhc_relinquish_ownership_t relinquish_ownership;
   ddsi_rhc_free_t free;
+  ddsi_rhc_get_state_t get_state;
 };
 
 struct ddsi_rhc {
   const struct ddsi_rhc_ops *ops;
 };
 
+struct ddsi_rhc_state {
+  uint32_t n_instances;
+  uint32_t n_nonempty_instances;
+  uint32_t n_vsamples;
+  uint32_t n_vread;
+  uint32_t n_invsamples;
+  uint32_t n_invread;
+};
+
 /** @component rhc_if */
 inline bool ddsi_rhc_store (struct ddsi_rhc *rhc, const struct ddsi_writer_info *wrinfo, struct ddsi_serdata *sample, struct ddsi_tkmap_instance *tk) {
   return rhc->ops->store (rhc, wrinfo, sample, tk);
+}
+
+inline void ddsi_rhc_get_state (const struct ddsi_rhc *rhc, struct ddsi_rhc_state *st)
+{
+  rhc->ops->get_state (rhc, st);
 }
 
 #if defined (__cplusplus)

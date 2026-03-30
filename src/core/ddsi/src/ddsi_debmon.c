@@ -23,6 +23,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_rhc.h"
 #include "ddsi__entity.h"
 #include "ddsi__endpoint_match.h"
 #include "ddsi__participant.h"
@@ -276,6 +277,27 @@ static void print_reader_pwrseq (struct st *st, void *vr)
     cpfguid (st, &m->pwr_guid);
 }
 
+static void print_rhc_state (struct st *st, void *vr)
+{
+  struct ddsi_reader * const r = vr;
+  struct ddsi_rhc_state rhcst;
+
+  if (r->rhc == NULL)
+  {
+    cpfkbool (st, "present", false);
+    return;
+  }
+
+  ddsi_rhc_get_state (r->rhc, &rhcst);
+  cpfkbool (st, "present", true);
+  cpfku32 (st, "n_instances", rhcst.n_instances);
+  cpfku32 (st, "n_nonempty_instances", rhcst.n_nonempty_instances);
+  cpfku32 (st, "n_vsamples", rhcst.n_vsamples);
+  cpfku32 (st, "n_vread", rhcst.n_vread);
+  cpfku32 (st, "n_invsamples", rhcst.n_invsamples);
+  cpfku32 (st, "n_invread", rhcst.n_invread);
+}
+
 static void print_reader (struct st *st, void *varg)
 {
   struct print_reader_arg * const arg = varg;
@@ -287,6 +309,7 @@ static void print_reader (struct st *st, void *varg)
     cpfobj (st, print_nwpart_seq, r);
 #endif
   cpfku64 (st, "received_bytes", ddsrt_atomic_ld64(&r->received_bytes));
+  cpfkobj (st, "rhc", print_rhc_state, r);
   cpfkseq (st, "local_writers", print_reader_wrseq, r);
   cpfkseq (st, "proxy_writers", print_reader_pwrseq, r);
   ddsrt_mutex_unlock (&r->e.lock);
