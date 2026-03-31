@@ -19,8 +19,8 @@ DDS_EXPORT extern inline bool dds_rhc_store (struct dds_rhc *rhc, const struct d
 DDS_EXPORT extern inline void dds_rhc_unregister_wr (struct dds_rhc *rhc, const struct ddsi_writer_info *wr_info);
 DDS_EXPORT extern inline void dds_rhc_relinquish_ownership (struct dds_rhc *rhc, const uint64_t wr_iid);
 DDS_EXPORT extern inline void dds_rhc_free (struct dds_rhc *rhc);
-DDS_EXPORT extern inline int32_t dds_rhc_peek (struct dds_rhc *rhc, int32_t max_samples, uint32_t mask, dds_instance_handle_t handle, struct dds_readcond *cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg);
-DDS_EXPORT extern inline int32_t dds_rhc_read (struct dds_rhc *rhc, int32_t max_samples, uint32_t mask, dds_instance_handle_t handle, struct dds_readcond *cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg);
-DDS_EXPORT extern inline int32_t dds_rhc_take (struct dds_rhc *rhc, int32_t max_samples, uint32_t mask, dds_instance_handle_t handle, struct dds_readcond *cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg);
+DDS_EXPORT extern inline int32_t dds_rhc_peek (struct dds_rhc *rhc, int32_t max_samples, uint32_t mask, dds_instance_handle_t handle, struct dds_readcond *cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg, bool next_instance);
+DDS_EXPORT extern inline int32_t dds_rhc_read (struct dds_rhc *rhc, int32_t max_samples, uint32_t mask, dds_instance_handle_t handle, struct dds_readcond *cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg, bool next_instance);
+DDS_EXPORT extern inline int32_t dds_rhc_take (struct dds_rhc *rhc, int32_t max_samples, uint32_t mask, dds_instance_handle_t handle, struct dds_readcond *cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg, bool next_instance);
 DDS_EXPORT extern inline bool dds_rhc_add_readcondition (struct dds_rhc *rhc, struct dds_readcond *cond);
 DDS_EXPORT extern inline void dds_rhc_remove_readcondition (struct dds_rhc *rhc, struct dds_readcond *cond);

@@ -50,6 +50,7 @@ static dds_return_t coll_fail_always (void *varg, const dds_sample_info_t *si, c
 struct coll_fail_after_1_arg {
   int count;
   int32_t k;
+  dds_instance_handle_t ih;
 };
 
 static dds_return_t coll_fail_after_1 (void *varg, const dds_sample_info_t *si, const struct ddsi_sertype *st, struct ddsi_serdata *sd)
@@ -59,11 +60,16 @@ static dds_return_t coll_fail_after_1 (void *varg, const dds_sample_info_t *si, 
   Space_Type1 s = getdata (si, st, sd);
   tprintf ("coll_fail_after_1: %d, %d\n", s.long_1, s.long_2);
   arg->k = s.long_1;
+  arg->ih = si->instance_handle;
   return (arg->count++ == 0) ? 0 : INT32_MIN;
 }
 
 static void dotest (read_op op)
 {
+  bool is_next_instance = (op == dds_read_next_instance_with_collector || op == dds_take_next_instance_with_collector || op == dds_peek_next_instance_with_collector);
+  bool isread = (op == dds_read_with_collector || op == dds_read_next_instance_with_collector);
+  bool isnew = (op == dds_peek_with_collector || op == dds_peek_next_instance_with_collector);
+  
   const dds_entity_t dp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   CU_ASSERT_GT_FATAL (dp, 0);
   char topicname[100];
@@ -94,25 +100,32 @@ static void dotest (read_op op)
   CU_ASSERT_EQ_FATAL (rc, INT32_MIN);
 
   // failure on subsequent calls to collect: partial result returned
-  struct coll_fail_after_1_arg arg1 = { .count = 0, .k = -1 };
+  struct coll_fail_after_1_arg arg1 = { .count = 0, .k = -1, .ih = 0 };
   rc = op (rd, INT32_MAX, 0, 0, coll_fail_after_1, &arg1);
   CU_ASSERT_EQ_FATAL (rc, 1);
   CU_ASSERT_FATAL (arg1.k >= 0 && arg1.k <= 2);
 
   // same should be true if instance handle is provided, use a different instance just because we can
   dds_instance_handle_t ih;
-  rc = dds_register_instance (wr, &ih, &(Space_Type1){ .long_1 = (1+arg1.k)%3, .long_2 = 0, .long_3 = 0 });
-  CU_ASSERT_EQ_FATAL (rc, 0);
+  if (!is_next_instance) {
+    rc = dds_register_instance (wr, &ih, &(Space_Type1){ .long_1 = (1+arg1.k)%3, .long_2 = 0, .long_3 = 0 });
+    CU_ASSERT_FATAL (rc == 0);
+  }else {
+    ih = arg1.ih;
+  }
   rc = op (rd, INT32_MAX, ih, 0, coll_fail_always, NULL);
-  CU_ASSERT_EQ_FATAL (rc, INT32_MIN);
-  struct coll_fail_after_1_arg arg2 = { .count = 0, .k = -1 };
+  CU_ASSERT_FATAL (rc == INT32_MIN);
+  struct coll_fail_after_1_arg arg2 = { .count = 0, .k = -1, .ih = 0 };
   rc = op (rd, INT32_MAX, ih, 0, coll_fail_after_1, &arg2);
-  CU_ASSERT_EQ_FATAL (rc, 1);
-  CU_ASSERT_EQ_FATAL (arg2.k, (1+arg1.k)%3);
+  CU_ASSERT_FATAL (rc == 1);
 
-  assert (op == dds_peek_with_collector || op == dds_read_with_collector || op == dds_take_with_collector);
-  bool isread = (op == dds_read_with_collector);
-  bool isnew = (op == dds_peek_with_collector);
+  if(!is_next_instance) {
+    CU_ASSERT_FATAL (arg2.k == (1+arg1.k)%3);
+  } else {
+    CU_ASSERT_FATAL (arg2.ih > ih); 
+  }
+
+  assert (op == dds_peek_with_collector || op == dds_read_with_collector || op == dds_take_with_collector || op == dds_take_next_instance_with_collector || op == dds_read_next_instance_with_collector || op == dds_peek_next_instance_with_collector);
 
   // check that the remainder is as we expect it
   Space_Type1 xs[10];
@@ -120,7 +133,11 @@ static void dotest (read_op op)
   void *ptrs[10];
   for (uint32_t i = 0; i < 10; i++)
     ptrs[i] = &xs[i];
-  rc = dds_take (rd, ptrs, si, (size_t) (2 + isread + isnew), (uint32_t) (2 + isread + isnew));
+  if (is_next_instance) {
+    rc = dds_take_next_instance (rd, ptrs, si, (size_t) (2 + isread + isnew), (uint32_t) (2 + isread + isnew),DDS_HANDLE_NIL);
+  } else {
+    rc = dds_take (rd, ptrs, si, (size_t) (2 + isread + isnew), (uint32_t) (2 + isread + isnew));
+  }
   for (int i = 0; i < rc; i++)
     tprintf ("take(1) %"PRId32", %"PRId32" %c%c\n", xs[i].long_1, xs[i].long_2,
             (si[i].sample_state == DDS_NOT_READ_SAMPLE_STATE) ? 'f' : 's',
@@ -132,7 +149,12 @@ static void dotest (read_op op)
     CU_ASSERT_FATAL (si[i].sample_state == (i == 0 && isread ? DDS_READ_SAMPLE_STATE : DDS_NOT_READ_SAMPLE_STATE));
     CU_ASSERT_EQ_FATAL (si[i].view_state, (isnew ? DDS_NEW_VIEW_STATE : DDS_NOT_NEW_VIEW_STATE));
   }
-  rc = dds_take_instance (rd, ptrs, si, (size_t) (2 + isread + isnew), (uint32_t) (2 + isread + isnew), ih);
+  if (is_next_instance){
+    rc = dds_take_next_instance (rd, ptrs, si, (size_t) (2 + isread + isnew), (uint32_t) (2 + isread + isnew), ih);
+  }else {
+    rc = dds_take_instance (rd, ptrs, si, (size_t) (2 + isread + isnew), (uint32_t) (2 + isread + isnew), ih);
+  }
+  
   for (int i = 0; i < rc; i++)
     tprintf ("take(2) %"PRId32", %"PRId32" %c%c\n", xs[i].long_1, xs[i].long_2,
             (si[i].sample_state == DDS_NOT_READ_SAMPLE_STATE) ? 'f' : 's',
@@ -152,7 +174,8 @@ static void dotest (read_op op)
   CU_ASSERT_EQ_FATAL (rc, 3);
   for (int i = 0; i < rc; i++)
   {
-    CU_ASSERT_EQ_FATAL (xs[i].long_1, (arg1.k+2)%3);
+    if (!(op == dds_take_next_instance_with_collector || op == dds_read_next_instance_with_collector || op == dds_peek_next_instance_with_collector))
+      CU_ASSERT_EQ_FATAL (xs[i].long_1, (arg1.k+2)%3);
     CU_ASSERT_EQ_FATAL (si[i].sample_state, DDS_NOT_READ_SAMPLE_STATE);
     CU_ASSERT_EQ_FATAL (si[i].view_state, DDS_NEW_VIEW_STATE);
   }
@@ -174,4 +197,19 @@ CU_Test(ddsc_read_with_collector, read)
 CU_Test(ddsc_read_with_collector, take)
 {
   dotest (dds_take_with_collector);
+}
+
+CU_Test(ddsc_read_with_collector, read_next_instance)
+{
+  dotest (dds_read_next_instance_with_collector);
+}
+
+CU_Test(ddsc_read_with_collector, take_next_instance)
+{
+  dotest (dds_take_next_instance_with_collector);
+}
+
+CU_Test(ddsc_read_with_collector, peek_next_instance)
+{
+  dotest (dds_peek_next_instance_with_collector);
 }
