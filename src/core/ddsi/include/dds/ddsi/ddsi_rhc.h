@@ -63,6 +63,9 @@ struct ddsi_rhc {
 struct ddsi_rhc_state {
   uint32_t n_instances;
   uint32_t n_nonempty_instances;
+  uint32_t n_not_alive_disposed;
+  uint32_t n_not_alive_no_writers;
+  uint32_t n_new;
   uint32_t n_vsamples;
   uint32_t n_vread;
   uint32_t n_invsamples;

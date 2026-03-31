@@ -291,6 +291,9 @@ static void print_rhc_state (struct st *st, void *vr)
   ddsi_rhc_get_state (r->rhc, &rhcst);
   cpfku32 (st, "n_instances", rhcst.n_instances);
   cpfku32 (st, "n_nonempty_instances", rhcst.n_nonempty_instances);
+  cpfku32 (st, "n_not_alive_disposed", rhcst.n_not_alive_disposed);
+  cpfku32 (st, "n_not_alive_no_writers", rhcst.n_not_alive_no_writers);
+  cpfku32 (st, "n_new", rhcst.n_new);
   cpfku32 (st, "n_vsamples", rhcst.n_vsamples);
   cpfku32 (st, "n_vread", rhcst.n_vread);
   cpfku32 (st, "n_invsamples", rhcst.n_invsamples);

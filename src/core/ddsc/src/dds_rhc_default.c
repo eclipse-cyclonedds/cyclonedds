@@ -801,6 +801,9 @@ static void dds_rhc_default_get_state (const struct ddsi_rhc *rhc_common, struct
 
   st->n_instances = rhc->n_instances;
   st->n_nonempty_instances = rhc->n_nonempty_instances;
+  st->n_not_alive_disposed = rhc->n_not_alive_disposed;
+  st->n_not_alive_no_writers = rhc->n_not_alive_no_writers;
+  st->n_new = rhc->n_new;
   st->n_vsamples = rhc->n_vsamples;
   st->n_vread = rhc->n_vread;
   st->n_invsamples = rhc->n_invsamples;
