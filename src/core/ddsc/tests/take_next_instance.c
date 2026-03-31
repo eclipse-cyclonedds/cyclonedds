@@ -562,7 +562,6 @@ CU_Test(ddsc_read_next_instance, reader, .init=take_next_instance_init, .fini=ta
                 cntinv ++;
             }
         }
-        printf("prev handle: %llu, cur handle: %llu\n", previous_handle, g_info[0].instance_handle);
         CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
         previous_handle = g_info[0].instance_handle;
     }
@@ -616,14 +615,10 @@ CU_Test(ddsc_read_next_instance_mask, reader, .init=take_next_instance_init, .fi
         ret = dds_read_next_instance_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle, mask);
         if(ret <= 0) break;
         CU_ASSERT_FATAL(ret >= 0 );
-        printf("prev_handle: %lu\n", previous_handle);
-        printf("valid: %d, sample_state: %d, view_state: %d, instance_state: %d, instance_handle: %lu\n", g_info[0].valid_data, g_info[0].sample_state, g_info[0].view_state, g_info[0].instance_state, g_info[0].instance_handle);
         for(int i = 0; i < ret; i++)
         {
-            printf("i = %d\n", i);
             if(g_info[i].valid_data){
                 Space_Type1 *sample = (Space_Type1*)g_samples[i];
-                printf("sample = {%d,%d,%d}\n", sample->long_1, sample->long_2, sample->long_3);
 
                 /* Expected states. */
                 int                  expected_long_2 = sample->long_2;
@@ -650,16 +645,13 @@ CU_Test(ddsc_read_next_instance_mask, reader, .init=take_next_instance_init, .fi
         }
         if(previous_handle == g_info[0].instance_handle){
             dds_read_instance(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle);
-            printf("\nEmpty instance: \n");
             Space_Type1 *sample = (Space_Type1*)g_samples[0];
-            printf("sample = {%d,%d,%d}\n", sample->long_1, sample->long_2, sample->long_3);
         }
 
         CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
         previous_handle = g_info[0].instance_handle;
     }
 
-    printf("\n%d\n", ret);
     CU_ASSERT_EQ_FATAL(ret, 0);
     CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
     CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
@@ -830,7 +822,6 @@ CU_Test(ddsc_read_next_instance_mask, readcondition, .init=take_next_instance_in
     }
 
     CU_ASSERT_EQ_FATAL(ret, 0);
-    printf("count: %d\n", cnt);
     CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
     CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
 
@@ -1113,14 +1104,10 @@ CU_Test(ddsc_peek_next_instance_mask, reader, .init=take_next_instance_init, .fi
         ret = dds_peek_next_instance_mask(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle, mask);
         if(ret <= 0) break;
         CU_ASSERT_FATAL(ret >= 0 );
-        printf("prev_handle: %lu\n", previous_handle);
-        printf("valid: %d, sample_state: %d, view_state: %d, instance_state: %d, instance_handle: %lu\n", g_info[0].valid_data, g_info[0].sample_state, g_info[0].view_state, g_info[0].instance_state, g_info[0].instance_handle);
         for(int i = 0; i < ret; i++)
         {
-            printf("i = %d\n", i);
             if(g_info[i].valid_data){
                 Space_Type1 *sample = (Space_Type1*)g_samples[i];
-                printf("sample = {%d,%d,%d}\n", sample->long_1, sample->long_2, sample->long_3);
 
                 /* Expected states. */
                 int                  expected_long_2 = sample->long_2;
@@ -1147,16 +1134,13 @@ CU_Test(ddsc_peek_next_instance_mask, reader, .init=take_next_instance_init, .fi
         }
         if(previous_handle == g_info[0].instance_handle){
             dds_peek_instance(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle);
-            printf("\nEmpty instance: \n");
             Space_Type1 *sample = (Space_Type1*)g_samples[0];
-            printf("sample = {%d,%d,%d}\n", sample->long_1, sample->long_2, sample->long_3);
         }
 
         CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
         previous_handle = g_info[0].instance_handle;
     }
 
-    printf("\n%d\n", ret);
     CU_ASSERT_EQ_FATAL(ret, 0);
     CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
     CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
@@ -1327,7 +1311,6 @@ CU_Test(ddsc_peek_next_instance_mask, readcondition, .init=take_next_instance_in
     }
 
     CU_ASSERT_EQ_FATAL(ret, 0);
-    printf("count: %d\n", cnt);
     CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
     CU_ASSERT_EQ_FATAL(cntinv, RDR_INV_READ_CNT);
 
