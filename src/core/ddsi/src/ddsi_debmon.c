@@ -282,14 +282,13 @@ static void print_rhc_state (struct st *st, void *vr)
   struct ddsi_reader * const r = vr;
   struct ddsi_rhc_state rhcst;
 
-  if (r->rhc == NULL)
-  {
-    cpfkbool (st, "present", false);
+  bool rhc_present = (r->rhc != NULL);
+  cpfkbool (st, "present", rhc_present);
+
+  if (!rhc_present)
     return;
-  }
 
   ddsi_rhc_get_state (r->rhc, &rhcst);
-  cpfkbool (st, "present", true);
   cpfku32 (st, "n_instances", rhcst.n_instances);
   cpfku32 (st, "n_nonempty_instances", rhcst.n_nonempty_instances);
   cpfku32 (st, "n_vsamples", rhcst.n_vsamples);
