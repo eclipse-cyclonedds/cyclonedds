@@ -196,9 +196,10 @@ static struct ddsi_serdata *local_make_sample (struct ddsi_tkmap_instance **tk, 
     d = ddsi_serdata_copy_as_type (type, din);
   else
     d = ddsi_serdata_ref_as_type (type, din);
-  if (d == NULL)
+  if (d == NULL || d == DDSI_SERDATA_FROM_SER_DISCARD)
   {
-    DDS_CWARNING (&gv->logconfig, "local: deserialization %s failed in type conversion\n", type->type_name);
+    if (d == NULL)
+      DDS_CWARNING (&gv->logconfig, "local: deserialization %s failed in type conversion\n", type->type_name);
     return NULL;
   }
   // Mustn't store *PSMX writer* loans in RHCs because the PSMX write operation is
@@ -510,7 +511,7 @@ static dds_return_t dds_writecdr_impl_common (struct dds_writer *wr, struct ddsi
     // Don't need din anymore, drop the reference.  (And if it was an alias, there'd be
     // no additional refcount, in which case this unref call must not be done.)
     ddsi_serdata_unref (&din->a);
-    if (d == NULL)
+    if (d == NULL || (struct ddsi_serdata *) d == DDSI_SERDATA_FROM_SER_DISCARD)
       return DDS_RETCODE_ERROR;
   }
 

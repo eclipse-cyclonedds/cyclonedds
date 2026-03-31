@@ -20,6 +20,7 @@
 #include "dds/ddsi/ddsi_typewrap.h"
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
+#include "idl/tree.h"
 #ifdef DDS_HAS_TYPELIB
 #include "dds/ddsi/ddsi_typelib.h"
 #endif
@@ -479,14 +480,27 @@ get_union_flags(const idl_union_t *_union)
   return flags;
 }
 
+static uint16_t
+get_try_construct_flags (const idl_try_construct_t tc)
+{
+  switch (tc)
+  {
+    case IDL_DISCARD:
+      return DDS_XTypes_TRY_CONSTRUCT_DISCARD;
+    case IDL_TRIM:
+      return DDS_XTypes_TRY_CONSTRUCT_TRIM;
+    case IDL_USE_DEFAULT:
+      return DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  }
+  abort ();
+  return 0;
+}
+
 static DDS_XTypes_UnionDiscriminatorFlag
 get_union_discriminator_flags(const idl_switch_type_spec_t *switch_type_spec)
 {
   DDS_XTypes_UnionDiscriminatorFlag flags = 0u;
-
-  // FIXME: support non-default try-construct
-  flags |= DDS_XTypes_TRY_CONSTRUCT_DISCARD;
-
+  flags |= get_try_construct_flags (switch_type_spec->try_construct.value);
   // XTypes spec 7.2.2.4.4.4.6: In a union type, the discriminator member shall always have the 'must understand' attribute set to true
   flags |= DDS_XTypes_IS_MUST_UNDERSTAND;
   if (switch_type_spec->key.value)
@@ -499,17 +513,7 @@ static DDS_XTypes_UnionMemberFlag
 get_union_case_flags(const idl_case_t *_case)
 {
   DDS_XTypes_UnionMemberFlag flags = 0u;
-  switch (_case->try_construct.value) {
-    case IDL_DISCARD:
-      flags |= DDS_XTypes_TRY_CONSTRUCT_DISCARD;
-      break;
-    case IDL_USE_DEFAULT:
-      flags |= DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
-      break;
-    case IDL_TRIM:
-      flags |= DDS_XTypes_TRY_CONSTRUCT_TRIM;
-      break;
-  }
+  flags |= get_try_construct_flags (_case->try_construct.value);
   if (_case->external.value)
     flags |= DDS_XTypes_IS_EXTERNAL;
   if (idl_is_default_case (_case))
@@ -522,11 +526,7 @@ static DDS_XTypes_CollectionElementFlag
 get_sequence_element_flags(const idl_sequence_t *seq)
 {
   DDS_XTypes_CollectionElementFlag flags = 0u;
-
-  // FIXME: support non-default try-construct
-  flags |= DDS_XTypes_TRY_CONSTRUCT_DISCARD;
-
-  (void) seq;
+  flags |= get_try_construct_flags (seq->elem_try_construct.value);
   // FIXME: support @external for sequence element type
   // if (seq->external)
   //   flags |= DDS_XTypes_IS_EXTERNAL;
@@ -538,8 +538,21 @@ get_array_element_flags(const idl_node_t *node)
 {
   DDS_XTypes_CollectionElementFlag flags = 0u;
 
+  idl_try_construct_t tc = IDL_DISCARD;
+  if (idl_is_member (idl_parent (node))) {
+    const idl_member_t *m = (const idl_member_t *) idl_parent (node);
+    tc = m->try_construct.value;
+  } else if (idl_is_case (idl_parent (node))) {
+    const idl_case_t *m = (const idl_case_t *) idl_parent (node);
+    tc = m->try_construct.value;
+  } else if (idl_is_typedef (idl_parent (node))) {
+    //const idl_typedef_t *m = (const idl_typedef_t *) idl_parent (node);
+  } else {
+    printf ("get_member_or_case_try_construct_for_array: unexpected node type\n");
+  }
+
   // FIXME: support non-default try-construct
-  flags |= DDS_XTypes_TRY_CONSTRUCT_DISCARD;
+  flags |= get_try_construct_flags (tc);
 
   (void) node;
   // FIXME: support @external for array element type
@@ -1084,7 +1097,7 @@ add_array (
 
   if (!revisit) {
     dtm->stack->to_minimal->_u.minimal._u.array_type.element.common.element_flags =
-      dtm->stack->to_complete->_u.complete._u.array_type.element.common.element_flags = get_sequence_element_flags (node);
+      dtm->stack->to_complete->_u.complete._u.array_type.element.common.element_flags = get_array_element_flags (node);
 
     if ((ret = get_complete_type_detail (type_spec, &dtm->stack->to_complete->_u.complete._u.array_type.header.detail)) < 0)
       return ret;

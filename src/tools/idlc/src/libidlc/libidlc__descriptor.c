@@ -510,6 +510,57 @@ stash_bitmask_bits(
   return stash_single (pstate, instructions, index, (uint32_t) (bits & 0xffffffffu));
 }
 
+static void set_try_construct (uint32_t *flags, const idl_type_spec_t *type_spec, idl_try_construct_t tc, bool for_subtype)
+{
+  type_spec = idl_strip (type_spec, IDL_STRIP_ALIASES|IDL_STRIP_FORWARD);
+  assert (!idl_is_typedef (type_spec) && !idl_is_forward (type_spec));
+
+  bool final_check = false;
+  switch (idl_type (type_spec))
+  {
+    case IDL_STRING:
+    case IDL_WSTRING:
+      if (!idl_is_bounded(type_spec))
+        return;
+      break;
+    case IDL_SEQUENCE:
+      if (!idl_is_bounded(type_spec))
+        return;
+      break;
+    case IDL_ENUM:
+    case IDL_BITMASK:
+      // @final enum/bitmask gets marked as "reject", @appendable gets marked as
+      // discard/use_default
+      final_check = true;
+      break;
+    default:
+      return;
+  }
+
+  if (final_check && idl_is_extensible (type_spec, IDL_FINAL))
+  {
+    if (for_subtype)
+      *flags |= DDS_OP_FLAG_SUBTYPE_TC_DEF | DDS_OP_FLAG_SUBTYPE_TC_TRIM;
+    else
+      *flags |= DDS_OP_FLAG_TYPE_TC_DEF | DDS_OP_FLAG_TYPE_TC_TRIM;
+  }
+  else
+  {
+    switch (tc)
+    {
+      case IDL_DISCARD:
+        *flags |= 0;
+        break;
+      case IDL_TRIM:
+        *flags |= (for_subtype ? DDS_OP_FLAG_SUBTYPE_TC_TRIM : DDS_OP_FLAG_TYPE_TC_TRIM);
+        break;
+      case IDL_USE_DEFAULT:
+        *flags |= (for_subtype ? DDS_OP_FLAG_SUBTYPE_TC_DEF : DDS_OP_FLAG_TYPE_TC_DEF);
+        break;
+    }
+  }
+}
+
 static idl_retcode_t add_typecode(const idl_pstate_t *pstate, const idl_type_spec_t *type_spec, uint32_t shift, bool struct_union_ext, uint32_t *add_to)
 {
   assert(add_to && (shift == 8 || shift == 16));
@@ -604,8 +655,7 @@ static idl_retcode_t add_typecode(const idl_pstate_t *pstate, const idl_type_spe
     case IDL_STRUCT:
       *add_to |= ((uint32_t)(struct_union_ext ? DDS_OP_VAL_EXT : DDS_OP_VAL_STU) << shift);
       break;
-    case IDL_BITMASK:
-    {
+    case IDL_BITMASK: {
       *add_to |= ((uint32_t)DDS_OP_VAL_BMK << shift);
       uint32_t bit_bound = idl_bound(type_spec);
       assert (bit_bound > 0 && bit_bound <= 64);
@@ -617,7 +667,6 @@ static idl_retcode_t add_typecode(const idl_pstate_t *pstate, const idl_type_spe
         *add_to |= 1 << DDS_OP_FLAG_SZ_SHIFT;
       break;
     }
-      break;
     default:
       idl_error (pstate, type_spec, "Unsupported type for opcode generation");
       return IDL_RETCODE_UNSUPPORTED;
@@ -811,9 +860,6 @@ emit_case(
     const idl_case_label_t *label;
     const idl_type_spec_t *type_spec;
 
-    if (_case->try_construct.annotation)
-      idl_warning(pstate, IDL_WARN_UNSUPPORTED_ANNOTATIONS, idl_location(node), "The @try_construct annotation is not supported yet in the C generator, the default try-construct behavior will be used");
-
     type_spec = idl_strip(idl_type_spec(node), IDL_STRIP_ALIASES|IDL_STRIP_FORWARD);
     if (idl_is_external(node) && !idl_is_unbounded_xstring(type_spec))
       opcode |= DDS_OP_FLAG_EXT;
@@ -823,15 +869,19 @@ emit_case(
     } else {
       if ((ret = add_typecode(pstate, type_spec, TYPE, false, &opcode)))
         return ret;
+
       if (idl_is_struct(type_spec) || idl_is_union(type_spec))
         case_type = EXTERNAL;
       else if (idl_is_array(type_spec) || idl_is_bounded_xstring(type_spec) || idl_is_sequence(type_spec) || idl_is_bitmask(type_spec))
         case_type = IN_UNION;
       else {
-        assert (idl_is_base_type(type_spec) || idl_is_unbounded_xstring(type_spec) || idl_is_bitmask(type_spec) || idl_is_enum(type_spec));
+        assert (idl_is_base_type(type_spec) || idl_is_unbounded_xstring(type_spec) || idl_is_enum(type_spec));
         case_type = INLINE;
       }
     }
+
+    if (case_type == INLINE)
+      set_try_construct (&opcode, type_spec, _case->try_construct.value, false);
 
     if ((ret = push_field(descriptor, _case, NULL)))
       return ret;
@@ -937,6 +987,8 @@ emit_switch_type_spec(
   opcode = DDS_OP_ADR | DDS_OP_TYPE_UNI;
   if ((ret = add_typecode(pstate, type_spec, SUBTYPE, false, &opcode)))
     return ret;
+
+  set_try_construct (&opcode, type_spec, ((idl_switch_type_spec_t *)node)->try_construct.value, true);
 
   // XTypes spec 7.2.2.4.4.4.6: In a union type, the discriminator member shall always have the 'must understand' attribute set to true.
   opcode |= DDS_OP_FLAG_MU;
@@ -1223,6 +1275,9 @@ emit_sequence(
     opcode |= idl_is_bounded(node) ? DDS_OP_TYPE_BSQ : DDS_OP_TYPE_SEQ;
     if ((ret = add_typecode(pstate, type_spec, SUBTYPE, false, &opcode)))
       return ret;
+
+    set_try_construct (&opcode, type_spec, ((idl_sequence_t *)node)->elem_try_construct.value, true);
+
     if (idl_is_struct(stype->ctype->node))
     {
       if (nested_collection_key (stype, path))
@@ -1257,13 +1312,49 @@ emit_sequence(
         opcode |= DDS_OP_FLAG_MU;
     }
 
+    // See if try-construct is set
+    idl_try_construct_t tc = IDL_DISCARD;
+    struct stack_type *owner = descriptor->type_stack;
+    while (idl_is_array (owner->node))
+      owner = owner->previous;
+    if (idl_is_struct (owner->node))
+    {
+      assert (idl_is_member (idl_parent(owner->fields->node)));
+      idl_member_t *m = (idl_member_t *) idl_parent(owner->fields->node);
+      tc = m->try_construct.value;
+    }
+    else if (idl_is_union (owner->node))
+    {
+      assert (idl_is_case (owner->fields->node));
+      idl_case_t *m = (idl_case_t *) owner->fields->node;
+      tc = m->try_construct.value;
+    }
+    else if (idl_is_sequence (owner->node))
+    {
+      idl_sequence_t *m = (idl_sequence_t *) owner->node;
+      tc = m->elem_try_construct.value;
+    }
+    else
+    {
+      // FIXME: at least
+      //   typedef long arr_def[300];
+      //   typedef sequence<arr_def> seq_arr_def[2];
+      //   struct {
+      //     seq_arr_def f16;
+      //   }
+      // gets here with owner->node a declarator, and that probably means
+      // we may be missing a try_construct ...
+
+      //printf ("W %"PRIx64"\n", ((idl_node_t *) owner->node)->mask);
+    }
+    set_try_construct (&opcode, node, tc, false);
+
     off = ctype->instructions.count;
     if ((ret = stash_opcode(pstate, &ctype->instructions, nop, opcode, order)))
       return ret;
     if ((ret = stash_offset(pstate, &ctype->instructions, nop, field)))
       return ret;
     if (idl_is_bounded(node)) {
-      /* generate seq bound field */
       if ((ret = stash_single(pstate, &ctype->instructions, nop, idl_bound(node))))
         return ret;
     }
@@ -1408,6 +1499,16 @@ emit_array(
         opcode |= DDS_OP_FLAG_MU;
     }
 
+    if (idl_is_struct (stype->node)) {
+      idl_node_t *parent = idl_parent (node);
+      assert (idl_is_member (parent));
+      set_try_construct (&opcode, type_spec, ((idl_member_t *)parent)->try_construct.value, true);
+    } else if (idl_is_union (stype->node)) {
+      idl_node_t *parent = idl_parent (node);
+      assert (idl_is_case (parent));
+      set_try_construct (&opcode, type_spec, ((idl_case_t *)parent)->try_construct.value, true);
+    }
+
     off = ctype->instructions.count;
     /* generate data field opcode */
     if ((ret = stash_opcode(pstate, &ctype->instructions, nop, opcode, order)))
@@ -1469,8 +1570,6 @@ emit_member(
   const idl_member_t *member = (const idl_member_t *)node;
   if (member->value.annotation)
     idl_warning(pstate, IDL_WARN_UNSUPPORTED_ANNOTATIONS, idl_location(node), "Explicit defaults are not supported yet in the C generator, the value from the @default annotation will not be used");
-  if (member->try_construct.annotation)
-    idl_warning(pstate, IDL_WARN_UNSUPPORTED_ANNOTATIONS, idl_location(node), "The @try_construct annotation is not supported yet in the C generator, the default try-construct behavior will be used");
   return IDL_RETCODE_OK;
 }
 
@@ -1595,6 +1694,11 @@ emit_declarator(
     if ((ret = add_typecode(pstate, type_spec, TYPE, true, &opcode)))
       return ret;
 
+    if (idl_is_member(parent))
+      set_try_construct (&opcode, type_spec, ((idl_member_t *)parent)->try_construct.value, false);
+    else if (idl_is_case (parent))
+      set_try_construct (&opcode, type_spec, ((idl_case_t *)parent)->try_construct.value, false);
+
     /* Mark this DDS_OP_ADR as key if @key annotation is present, even in case the referring
         member is not part of the key (which resulted in idl_is_topic_key returning false).
         The reason for adding the key flag here, is that if any other member (that is a key)
@@ -1670,7 +1774,7 @@ emit_declarator(
 static int print_opcode(FILE *fp, const struct instruction *inst)
 {
   char buf[32];
-  const char *vec[10];
+  const char *vec[20];
   size_t len = 0;
   enum dds_stream_opcode opcode;
 
@@ -1804,9 +1908,19 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       vec[len++] = " | DDS_OP_FLAG_DEF";
     else if (inst->data.opcode.code & DDS_OP_FLAG_FP)
       vec[len++] = " | DDS_OP_FLAG_FP";
+
     if (inst->data.opcode.code & DDS_OP_FLAG_SGN)
       vec[len++] = " | DDS_OP_FLAG_SGN";
   }
+
+  if (inst->data.opcode.code & DDS_OP_FLAG_TYPE_TC_DEF)
+    vec[len++] = " | DDS_OP_FLAG_TYPE_TC_DEF";
+  if (inst->data.opcode.code & DDS_OP_FLAG_TYPE_TC_TRIM)
+    vec[len++] = " | DDS_OP_FLAG_TYPE_TC_TRIM";
+  if (inst->data.opcode.code & DDS_OP_FLAG_SUBTYPE_TC_DEF)
+    vec[len++] = " | DDS_OP_FLAG_SUBTYPE_TC_DEF";
+  if (inst->data.opcode.code & DDS_OP_FLAG_SUBTYPE_TC_TRIM)
+    vec[len++] = " | DDS_OP_FLAG_SUBTYPE_TC_TRIM";
 
   for (size_t cnt=0; cnt < len; cnt++) {
     if (fputs(vec[cnt], fp) < 0)

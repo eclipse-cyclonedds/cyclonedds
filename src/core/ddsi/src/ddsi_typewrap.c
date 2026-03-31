@@ -212,9 +212,9 @@ static int plain_collection_header_compare (struct DDS_XTypes_PlainCollectionHea
   if (is_assignability_check)
   {
     if ((aef & (DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_TRY_CONSTRUCT2)) == 0)
-      aef |= DDS_XTypes_TRY_CONSTRUCT1;
+      aef |= DDS_XTypes_TRY_CONSTRUCT_DISCARD;
     if ((bef & (DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_TRY_CONSTRUCT2)) == 0)
-      bef |= DDS_XTypes_TRY_CONSTRUCT1;
+      bef |= DDS_XTypes_TRY_CONSTRUCT_DISCARD;
   }
   if (aef != bef)
     return aef > bef ? 1 : -1;

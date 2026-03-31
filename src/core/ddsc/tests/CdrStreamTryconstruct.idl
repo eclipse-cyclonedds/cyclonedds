@@ -1,0 +1,62 @@
+// Copyright(c) 2026 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
+module CdrStreamTryconstruct {
+  @final enum enf2 { E1f, E2f };
+  @appendable enum ena2 { E1a, E2a };
+
+  @final struct t1 {
+    enf2 f1;
+    ena2 f2;
+    @try_construct(USE_DEFAULT) ena2 f3;
+    string f4;
+  };
+
+  @final struct t2 {
+    string<3> f1;
+    @try_construct(TRIM) string<3> f2;
+    @try_construct(USE_DEFAULT) string<3> f3;
+    string f4;
+  };
+  
+  @final struct t3 {
+    wstring<3> f1;
+    @try_construct(TRIM) wstring<3> f2;
+    @try_construct(USE_DEFAULT) wstring<3> f3;
+    wstring f4;
+  };
+
+  @final struct t4 {
+    sequence<ena2, 3> f1;
+    sequence<@try_construct(USE_DEFAULT) ena2, 3> f2;
+    sequence<string<3>, 3> f3;
+    sequence<@try_construct(TRIM) string<3>, 3> f4;
+    sequence<@try_construct(USE_DEFAULT) string<3>, 3> f5;
+    string f6;
+  };
+
+  @final struct t5 { // must be same as t4 apart from try-construct (test code uses same eq function)
+    @try_construct(TRIM) sequence<ena2, 3> f1;
+    @try_construct(TRIM) sequence<@try_construct(USE_DEFAULT) ena2, 3> f2;
+    @try_construct(TRIM) sequence<string<3>, 3> f3;
+    @try_construct(TRIM) sequence<@try_construct(TRIM) string<3>, 3> f4;
+    @try_construct(TRIM) sequence<@try_construct(USE_DEFAULT) string<3>, 3> f5;
+    string f6;
+  };
+
+  @final struct t6 { // must be same as t4 apart from try-construct (test code uses same eq function)
+    @try_construct(USE_DEFAULT) sequence<ena2, 3> f1;
+    @try_construct(USE_DEFAULT) sequence<@try_construct(USE_DEFAULT) ena2, 3> f2;
+    @try_construct(USE_DEFAULT) sequence<string<3>, 3> f3;
+    @try_construct(USE_DEFAULT) sequence<@try_construct(TRIM) string<3>, 3> f4;
+    @try_construct(USE_DEFAULT) sequence<@try_construct(USE_DEFAULT) string<3>, 3> f5;
+    string f6;
+  };
+};

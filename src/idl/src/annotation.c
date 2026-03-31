@@ -1096,9 +1096,19 @@ annotate_try_construct(
     ts = cs->type_spec;
     try_construct_p = &(cs->try_construct.value);
     annotation_appl_p = &(cs->try_construct.annotation);
+  } else if (idl_is_sequence(node)) {
+    idl_sequence_t *st = (idl_sequence_t*)node;
+    ts = st->type_spec;
+    try_construct_p = &(st->elem_try_construct.value);
+    annotation_appl_p = &(st->elem_try_construct.annotation);
+  } else if (idl_is_switch_type_spec(node)) {
+    idl_switch_type_spec_t *ut = (idl_switch_type_spec_t*)node;
+    ts = ut->type_spec;
+    try_construct_p = &(ut->try_construct.value);
+    annotation_appl_p = &(ut->try_construct.annotation);
   } else {
     idl_error(pstate, idl_location(annotation_appl),
-      "@try_construct can only be applied to struct members and union cases");
+      "@try_construct can only be applied to struct members, union cases and sequence element types");
     return IDL_RETCODE_SEMANTIC_ERROR;
   }
 
@@ -1111,7 +1121,7 @@ annotate_try_construct(
     *try_construct_p = IDL_DISCARD;
   } else if (idl_strcasecmp(str, "trim") == 0) {
     /*TRIM can only be used on bounded sequences/strings*/
-    if (!idl_is_bounded(ts)) {
+    if (!idl_is_bounded(idl_unalias(ts))) {
       idl_error(pstate, idl_location(annotation_appl),
       "@try_construct(%s) can not be applied to types which cannot have bounds", str);
       return IDL_RETCODE_SEMANTIC_ERROR;

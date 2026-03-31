@@ -86,6 +86,12 @@ enum dds_cdr_key_serialization_kind
   DDS_CDR_KEY_SERIALIZATION_KEYHASH
 };
 
+enum dds_stream_normalize_result {
+  DDS_STREAM_NORMALIZE_ERROR,
+  DDS_STREAM_NORMALIZE_SUCCESS,
+  DDS_STREAM_NORMALIZE_DISCARD,
+};
+
 typedef struct dds_istream {
   const unsigned char *m_buffer;
   uint32_t m_size;          /* Buffer size */
@@ -210,11 +216,11 @@ dds_ostream_t dds_ostream_from_buffer (void *buffer, size_t size, uint16_t write
  * @param actual_size   is set to the actual size of the data (*actual_size <= size) on successful return
  * @returns             True iff validation and normalization succeeded
  */
-DDS_EXPORT bool dds_stream_normalize (void *data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct dds_cdrstream_desc *desc, bool just_key, uint32_t *actual_size)
+DDS_EXPORT enum dds_stream_normalize_result dds_stream_normalize (void *data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct dds_cdrstream_desc *desc, bool just_key, uint32_t *actual_size)
   ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 /** @component cdr_serializer */
-DDS_EXPORT const uint32_t *dds_stream_normalize_xcdr2_data (char *data, uint32_t *off, uint32_t size, bool bswap, const uint32_t *ops)
+DDS_EXPORT enum dds_stream_normalize_result dds_stream_normalize_xcdr2_data (char *data, uint32_t *off, uint32_t size, bool bswap, const uint32_t *ops)
   ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 /** @component cdr_serializer */

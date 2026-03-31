@@ -34,11 +34,12 @@ void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertype *tp, e
 
 struct ddsi_serdata *ddsi_serdata_copy_as_type (const struct ddsi_sertype *type, const struct ddsi_serdata *serdata)
 {
-  struct ddsi_serdata *converted;
+  ;
   ddsrt_iovec_t iov;
   uint32_t size = ddsi_serdata_size (serdata);
   struct ddsi_serdata *tmpref = ddsi_serdata_to_ser_ref (serdata, 0, size, &iov);
-  if ((converted = ddsi_serdata_from_ser_iov (type, serdata->kind, 1, &iov, size)) != NULL)
+  struct ddsi_serdata *converted = ddsi_serdata_from_ser_iov (type, serdata->kind, 1, &iov, size);
+  if (converted != NULL && converted != DDSI_SERDATA_FROM_SER_DISCARD)
   {
     converted->statusinfo = serdata->statusinfo;
     converted->timestamp = serdata->timestamp;

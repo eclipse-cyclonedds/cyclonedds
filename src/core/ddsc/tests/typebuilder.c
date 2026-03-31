@@ -133,13 +133,14 @@ static bool tmap_equal (ddsi_typemap_t *a, ddsi_typemap_t *b)
 
 #define D(n) TypeBuilderTypes_ ## n ## _desc
 CU_TheoryDataPoints (ddsc_typebuilder, topic_desc) = {
-  CU_DataPoints (const dds_topic_descriptor_t *, &D(t1), &D(t2), &D(t3), &D(t4), &D(t5), &D(t6), &D(t7), &D(t8),
-                                                 &D(t9), &D(t10), &D(t11), &D(t12), &D(t13), &D(t14), &D(t15), &D(t16),
-                                                 &D(t17), &D(t18), &D(t19), &D(t20), &D(t21), &D(t22), &D(t23), &D(t24),
-                                                 &D(t25), &D(t26), &D(t27), &D(t28), &D(t29), &D(t30), &D(t31), &D(t32),
-                                                 &D(t33), &D(t34), &D(t35), &D(t36), &D(t37), &D(t38), /* TODO &D(t39), */
-                                                 &D(t40), &D(t41), &D(t42), &D(t43), &D(t44), &D(t45), &D(t46), &D(t47),
-                                                 &D(t48), &D(t49) ),
+  CU_DataPoints (const dds_topic_descriptor_t *,
+                 &D(t1), &D(t2), &D(t3), &D(t4), &D(t5), &D(t6), &D(t7), &D(t8),
+                 &D(t9), &D(t10), &D(t11), &D(t12), &D(t13), &D(t14), &D(t15), &D(t16),
+                 &D(t17), &D(t18), &D(t19), &D(t20), &D(t21), &D(t22), &D(t23), &D(t24),
+                 &D(t25), &D(t26), &D(t27), &D(t28), &D(t29), &D(t30), &D(t31), &D(t32),
+                 &D(t33), &D(t34), &D(t35), &D(t36), &D(t37), &D(t38), /* TODO &D(t39), */
+                 &D(t40), &D(t41), &D(t42), &D(t43), &D(t44), &D(t45), &D(t46), &D(t47),
+                 &D(t48), &D(t49), &D(t50), &D(t51), &D(t52) ),
 };
 #undef D
 
@@ -151,7 +152,7 @@ CU_Theory((const dds_topic_descriptor_t *desc), ddsc_typebuilder, topic_desc, .i
   struct ddsi_type *type;
   dds_topic_descriptor_t *generated_desc;
 
-  tprintf ("Testing %s\n", desc->m_typename);
+  tprintf ("Testing %s [TYPEBUILDER (IDLC)]\n", desc->m_typename);
 
   create_unique_topic_name ("ddsc_typebuilder", topic_name, sizeof (topic_name));
   topic = dds_create_topic (g_participant, desc, topic_name, NULL, NULL);

@@ -453,6 +453,24 @@ dds_return_t dds_dynamic_type_set_bit_bound (dds_dynamic_type_t *type, uint16_t 
   return type->ret;
 }
 
+dds_return_t dds_dynamic_type_set_try_construct (dds_dynamic_type_t *type, enum dds_dynamic_type_try_construct try_construct)
+{
+  dds_return_t ret;
+  if ((ret = check_type_param (type, false)) != DDS_RETCODE_OK)
+    return ret;
+
+  switch (xtkind_to_typekind (ddsi_type_get_kind (get_dtype_complete (type))))
+  {
+    case DDS_DYNAMIC_SEQUENCE:
+      type->ret = ddsi_dynamic_type_set_try_construct (get_dtype_complete (type), try_construct);
+      break;
+    default:
+      type->ret = DDS_RETCODE_BAD_PARAMETER;
+      break;
+  }
+  return type->ret;
+}
+
 typedef dds_return_t (*set_struct_prop_fn) (struct ddsi_type *type, uint32_t member_id, bool is_key);
 
 static dds_return_t set_member_bool_prop (dds_dynamic_type_t *type, uint32_t member_id, bool value, set_struct_prop_fn set_fn_struct, set_struct_prop_fn set_fn_union)
@@ -513,6 +531,25 @@ dds_return_t dds_dynamic_member_set_hashid (dds_dynamic_type_t *type, uint32_t m
 dds_return_t dds_dynamic_member_set_must_understand (dds_dynamic_type_t *type, uint32_t member_id, bool is_must_understand)
 {
   return (type->ret = set_member_bool_prop (type, member_id, is_must_understand, ddsi_dynamic_type_member_set_must_understand, NULL));
+}
+
+dds_return_t dds_dynamic_member_set_try_construct (dds_dynamic_type_t *type, uint32_t member_id, enum dds_dynamic_type_try_construct try_construct)
+{
+  dds_return_t ret;
+  if ((ret = check_type_param (type, false)) != DDS_RETCODE_OK)
+    return ret;
+
+  switch (xtkind_to_typekind (ddsi_type_get_kind (get_dtype_complete (type))))
+  {
+    case DDS_DYNAMIC_STRUCTURE:
+    case DDS_DYNAMIC_UNION:
+      type->ret = ddsi_dynamic_type_member_set_try_construct (get_dtype_complete (type), member_id, try_construct);
+      break;
+    default:
+      type->ret = DDS_RETCODE_BAD_PARAMETER;
+      break;
+  }
+  return type->ret;
 }
 
 dds_return_t dds_dynamic_type_register (dds_dynamic_type_t *type, struct ddsi_typeinfo **type_info)
