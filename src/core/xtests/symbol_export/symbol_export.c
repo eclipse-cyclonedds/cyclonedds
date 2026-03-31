@@ -227,6 +227,8 @@ int main (int argc, char **argv)
   dds_peek_mask (1, ptr, ptr, 0, 0, 0);
   dds_peek_instance (1, ptr, ptr, 0, 0, 1);
   dds_peek_instance_mask (1, ptr, ptr, 0, 0, 1, 0);
+  dds_peek_next_instance (1, ptr, ptr, 0, 0, 0);
+  dds_peek_next_instance_mask (1, ptr, ptr, 0, 0, 0, 0);
   dds_peek_next (1, ptr, ptr);
   dds_read (1, ptr, ptr, 0, 0);
   dds_read_wl (1, ptr, ptr, 0);
@@ -236,6 +238,8 @@ int main (int argc, char **argv)
   dds_read_instance_wl (1, ptr, ptr, 0, 1);
   dds_read_instance_mask (1, ptr, ptr, 0, 0, 1, 0);
   dds_read_instance_mask_wl (1, ptr, ptr, 0, 1, 0);
+  dds_read_next_instance (1, ptr, ptr, 0, 0, 0);
+  dds_read_next_instance_mask (1, ptr, ptr, 0, 0, 0, 0);
   dds_read_next (1, ptr, ptr);
   dds_read_next_wl (1, ptr, ptr);
   dds_take (1, ptr, ptr, 0, 0);
@@ -246,6 +250,8 @@ int main (int argc, char **argv)
   dds_take_instance_wl (1, ptr, ptr, 0, 1);
   dds_take_instance_mask (1, ptr, ptr, 0, 0, 1, 0);
   dds_take_instance_mask_wl (1, ptr, ptr, 0, 1, 0);
+  dds_take_next_instance (1, ptr, ptr, 0, 0, 0);
+  dds_take_next_instance_mask (1, ptr, ptr, 0, 0, 0, 0);
   dds_take_next (1, ptr, ptr);
   dds_take_next_wl (1, ptr, ptr);
   dds_peekcdr (1, ptr, 0, ptr, 0);
@@ -255,8 +261,11 @@ int main (int argc, char **argv)
   dds_takecdr (1, ptr, 0, ptr, 0);
   dds_takecdr_instance (1, ptr, 0, ptr, 1, 0);
   dds_peek_with_collector (1, 0, 1, 0, test_collect_sample, ptr);
+  dds_peek_next_instance_with_collector (1, 0, 0, 0, test_collect_sample, ptr);
   dds_read_with_collector (1, 0, 1, 0, test_collect_sample, ptr);
+  dds_read_next_instance_with_collector (1, 0, 0, 0, test_collect_sample, ptr);
   dds_take_with_collector (1, 0, 1, 0, test_collect_sample, ptr);
+  dds_take_next_instance_with_collector (1, 0, 0, 0, test_collect_sample, ptr);
   dds_lookup_instance (1, ptr);
   dds_instance_get_key (1, 1, ptr);
   dds_begin_coherent (1);
