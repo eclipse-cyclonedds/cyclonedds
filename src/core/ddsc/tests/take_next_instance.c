@@ -645,7 +645,6 @@ CU_Test(ddsc_read_next_instance_mask, reader, .init=take_next_instance_init, .fi
         }
         if(previous_handle == g_info[0].instance_handle){
             dds_read_instance(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle);
-            Space_Type1 *sample = (Space_Type1*)g_samples[0];
         }
 
         CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
@@ -1134,7 +1133,6 @@ CU_Test(ddsc_peek_next_instance_mask, reader, .init=take_next_instance_init, .fi
         }
         if(previous_handle == g_info[0].instance_handle){
             dds_peek_instance(g_reader, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, previous_handle);
-            Space_Type1 *sample = (Space_Type1*)g_samples[0];
         }
 
         CU_ASSERT_NEQ_FATAL(previous_handle, g_info[0].instance_handle);
