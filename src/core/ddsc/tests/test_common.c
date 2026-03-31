@@ -105,8 +105,8 @@ void xcdr2_deser (const unsigned char *buf, uint32_t sz, void **obj, const dds_t
   {
     data = ddsrt_malloc (sz);
     memcpy (data, buf, sz);
-    const uint32_t *ret = dds_stream_normalize_xcdr2_data ((char *) data, &srcoff, sz, bswap, desc->m_ops);
-    CU_ASSERT_NEQ_FATAL (ret, NULL);
+    enum dds_stream_normalize_result ret = dds_stream_normalize_xcdr2_data ((char *) data, &srcoff, sz, bswap, desc->m_ops);
+    CU_ASSERT_EQ_FATAL (ret, DDS_STREAM_NORMALIZE_SUCCESS);
   }
   else
     data = (void *) buf;

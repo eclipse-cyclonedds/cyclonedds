@@ -348,11 +348,14 @@ int ddsi_builtins_dqueue_handler (const struct ddsi_rsample_info *sampleinfo, co
                PGUID (srcguid), sampleinfo->seq);
     goto done_upd_deliv;
   }
-  if (d == NULL)
+  if (d == NULL || d == DDSI_SERDATA_FROM_SER_DISCARD)
   {
-    GVLOG (DDS_LC_DISCOVERY | DDS_LC_WARNING, "data(builtin, vendor %u.%u): "PGUIDFMT" #%"PRIu64": deserialization failed\n",
-           sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
-           PGUID (srcguid), sampleinfo->seq);
+    if (d == NULL)
+    {
+      GVLOG (DDS_LC_DISCOVERY | DDS_LC_WARNING, "data(builtin, vendor %u.%u): "PGUIDFMT" #%"PRIu64": deserialization failed\n",
+             sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
+             PGUID (srcguid), sampleinfo->seq);
+    }
     goto done_upd_deliv;
   }
 

@@ -41,21 +41,21 @@ extern "C" {
  * @ingroup serialization
  * @brief Mask for the OP type flags
  */
-#define DDS_OP_TYPE_FLAGS_MASK    0x00800000
+#define DDS_OP_TYPE_FLAGS_MASK    0x00e00000
 
 /**
  * @anchor DDS_OP_TYPE_MASK
  * @ingroup serialization
  * @brief Mask for the OP type
  */
-#define DDS_OP_TYPE_MASK          0x007f0000
+#define DDS_OP_TYPE_MASK          0x001f0000
 
 /**
  * @anchor DDS_OP_SUBTYPE_MASK
  * @ingroup serialization
  * @brief Mask for the OP subtype
  */
-#define DDS_OP_SUBTYPE_MASK       0x0000ff00
+#define DDS_OP_SUBTYPE_MASK       0x00001f00
 
 /**
  * @anchor DDS_OP_JMP_MASK
@@ -76,14 +76,14 @@ extern "C" {
  * @ingroup serialization
  * @brief Mask for the JEQ type flags
  */
-#define DDS_JEQ_TYPE_FLAGS_MASK   0x00800000
+#define DDS_JEQ_TYPE_FLAGS_MASK   0x00e00000
 
 /**
  * @anchor DDS_JEQ_TYPE_MASK
  * @ingroup serialization
  * @brief Mask for the JEQ type
  */
-#define DDS_JEQ_TYPE_MASK         0x007f0000
+#define DDS_JEQ_TYPE_MASK         0x001f0000
 
 /**
  * @anchor DDS_PLM_FLAGS_MASK
@@ -221,7 +221,7 @@ enum dds_stream_opcode {
   DDS_OP_RTS = 0x00 << 24,
 
   /** data field
-     [ADR, nBY,   0, f] [offset]
+     [ADR, nBY,   0, f | ar] [offset]
      [ADR, BLN,   0, f] [offset]
      [ADR, WCHAR,   0, f] [offset]
      [ADR, ENU,   0, f] [offset] [max]
@@ -231,7 +231,7 @@ enum dds_stream_opcode {
      [ADR, BST,   0, f] [offset] [max-size]
      [ADR, BWSTR,   0, f] [offset] [max-size]
 
-     [ADR, SEQ, nBY, f] [offset]
+     [ADR, SEQ, nBY, f | ar] [offset]
      [ADR, SEQ, BLN, f] [offset]
      [ADR, SEQ, WCHAR, f] [offset]
      [ADR, SEQ, ENU, f] [offset] [max]
@@ -244,7 +244,7 @@ enum dds_stream_opcode {
        where s = {SEQ,ARR,UNI,STU,BSQ}
      [ADR, SEQ, EXT, f] *** not supported
 
-     [ADR, BSQ, nBY, f] [offset] [sbound]
+     [ADR, BSQ, nBY, f | ar] [offset] [sbound]
      [ADR, BSQ, BLN, f] [offset] [sbound]
      [ADR, BSQ, WCHAR, f] [offset] [sbound]
      [ADR, BSQ, ENU, f] [offset] [sbound] [max]
@@ -257,7 +257,7 @@ enum dds_stream_opcode {
        where s = {SEQ,ARR,UNI,STU,BSQ}
      [ADR, BSQ, EXT, f] *** not supported
 
-     [ADR, ARR, nBY, f] [offset] [alen]
+     [ADR, ARR, nBY, f | ar] [offset] [alen]
      [ADR, ARR, BLN, f] [offset] [alen]
      [ADR, ARR, WCHAR, f] [offset] [alen]
      [ADR, ARR, ENU, f] [offset] [alen] [max]
@@ -270,11 +270,12 @@ enum dds_stream_opcode {
          where s = {SEQ,ARR,UNI,STU,BSQ}
      [ADR, ARR, EXT, f] *** not supported
 
-     [ADR, UNI,   d, z] [offset] [alen] [next-insn, cases]
+     [ADR, UNI,   d, z | ar] [offset] [alen] [next-insn, cases]
      [ADR, UNI, ENU, z] [offset] [alen] [next-insn, cases] [max]
+     [ADR, UNI, BMK, z] [offset] [alen] [next-insn, cases] [bits-low]
      [ADR, UNI, EXT, f] *** not supported
        where
-         d = discriminant type of {1BY,2BY,4BY,BLN}
+         d = discriminant type of {1BY,2BY,4BY,8BY,BLN}, 8BY must have top 32-bits 0
          z = default present/not present (DDS_OP_FLAG_DEF)
          offset = discriminant offset
          max = max enum value
@@ -291,13 +292,16 @@ enum dds_stream_opcode {
                     - optional (DDS_OP_FLAG_OPT)
                     - must-understand (DDS_OP_FLAG_MU)
                     - storage size, only for ENU and BMK (n << DDS_OP_FLAG_SZ_SHIFT)
+     ar           = "arithmetic" flags:
+                    - floating-point instead of integer (DDS_OP_FLAG_FP)
+                    - signed integer instead of unsigned (DDS_OP_FLAG_SGN)
      [offset]     = field offset from start of element in memory
      [elem-size]  = element size in memory (elem-size is only included in case 'external' flag is set)
      [max-size]   = string bound + 1
      [max]        = max enum value
      [bits-..]    = identified bits in the bitmask, split into high and low 32 bits
      [alen]       = array length, number of cases
-     [sbound]     = bounded sequence maximum number of elements
+     [sbound]     = bounded sequence maximum number of elements (0 .. 2^31-1) and TRIM (2^31)
      [next-insn]  = (unsigned 16 bits) offset to instruction for next field, from start of insn
      [elem-insn]  = (unsigned 16 bits) offset to first instruction for element, from start of insn
      [cases]      = (unsigned 16 bits) offset to first case label, from start of insn
@@ -440,6 +444,22 @@ enum dds_stream_typecode_primary {
 };
 
 /**
+ * @anchor DDS_OP_FLAG_TYPE_TC_DEF
+ * @ingroup serializeation
+ * @brief this flag indicates that the type has \@try_construct(USE_DEFAULT) in effect
+ * (combining TC_DEF and TC_TRIM means an out-of-range input is considered erroneous)
+ */
+#define DDS_OP_FLAG_TYPE_TC_DEF (1u << 21)
+
+/**
+ * @anchor DDS_OP_FLAG_TYPE_TC_TRIM
+ * @ingroup serializeation
+ * @brief this flag indicates that the type has \@try_construct(TRIM) in effect
+ * (combining TC_DEF and TC_TRIM means an out-of-range input is considered erroneous)
+ */
+#define DDS_OP_FLAG_TYPE_TC_TRIM (1u << 22)
+
+/**
  * @anchor DDS_OP_FLAG_EXT
  * @ingroup serialization
  * @brief This flag indicates that the type has external data
@@ -481,6 +501,22 @@ enum dds_stream_typecode_subtype {
 };
 
 /**
+ * @anchor DDS_OP_FLAG_SUBTYPE_TC_DEF
+ * @ingroup serializeation
+ * @brief this flag indicates that the subtype has \@try_construct(USE_DEFAULT) in effect
+ * (combining TC_DEF and TC_TRIM means an out-of-range input is considered erroneous)
+ */
+#define DDS_OP_FLAG_SUBTYPE_TC_DEF (1u << 13)
+
+/**
+ * @anchor DDS_OP_FLAG_SUBTYPE_TC_TRIM
+ * @ingroup serializeation
+ * @brief this flag indicates that the subtype has \@try_construct(USE_DEFAULT) in effect
+ * (combining TC_DEF and TC_TRIM means an out-of-range input is considered erroneous)
+ */
+#define DDS_OP_FLAG_SUBTYPE_TC_TRIM (1u << 14)
+
+/**
  * @anchor DDS_OP_FLAG_KEY
  * @ingroup serialization
  * @brief mark field as key
@@ -508,7 +544,7 @@ enum dds_stream_typecode_subtype {
  * @anchor DDS_OP_FLAG_FP
  * @ingroup serialization
  * @brief floating-point,
- * applicable to {4,8}BY and arrays, sequences of them
+ * applicable to {4,8,16}BY and arrays, sequences of them
  */
 #define DDS_OP_FLAG_FP   (1u << 1)
 
@@ -516,7 +552,8 @@ enum dds_stream_typecode_subtype {
  * @anchor DDS_OP_FLAG_SGN
  * @ingroup serialization
  * @brief signed,
- * applicable to {1,2,4,8}BY and arrays, sequences of them
+ * applicable to {1,2,4,8,16}BY and arrays, sequences of them
+ * over
  */
 #define DDS_OP_FLAG_SGN  (1u << 2)
 

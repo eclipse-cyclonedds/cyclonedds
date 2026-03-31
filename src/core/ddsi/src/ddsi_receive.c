@@ -1998,7 +1998,7 @@ static int handle_Gap (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, stru
 static struct ddsi_serdata *get_serdata (struct ddsi_sertype const * const type, const struct ddsi_rdata *fragchain, uint32_t sz, int justkey, unsigned statusinfo, ddsrt_wctime_t tstamp)
 {
   struct ddsi_serdata *sd = ddsi_serdata_from_ser (type, justkey ? SDK_KEY : SDK_DATA, fragchain, sz);
-  if (sd)
+  if (sd != NULL && sd != DDSI_SERDATA_FROM_SER_DISCARD)
   {
     sd->statusinfo = statusinfo;
     sd->timestamp = tstamp;
@@ -2089,18 +2089,23 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
   {
     failmsg = "no content whatsoever";
   }
-  if (sample == NULL)
+  if (sample == NULL || sample == DDSI_SERDATA_FROM_SER_DISCARD)
   {
     /* No message => error out */
     const struct ddsi_proxy_writer *pwr = sampleinfo->pwr;
     ddsi_guid_t guid;
     if (pwr) guid = pwr->e.guid; else memset (&guid, 0, sizeof (guid));
-    DDS_CWARNING (&gv->logconfig,
-                  "data(application, vendor %u.%u): "PGUIDFMT" #%"PRIu64": deserialization %s/%s failed (%s)\n",
-                  sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
-                  PGUID (guid), sampleinfo->seq,
-                  pwr && (pwr->c.xqos->present & DDSI_QP_TOPIC_NAME) ? pwr->c.xqos->topic_name : "", type->type_name,
-                  failmsg ? failmsg : "for reasons unknown");
+    if (sample != NULL)
+      sample = NULL;
+    else
+    {
+      DDS_CWARNING (&gv->logconfig,
+                    "data(application, vendor %u.%u): "PGUIDFMT" #%"PRIu64": deserialization %s/%s failed (%s)\n",
+                    sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
+                    PGUID (guid), sampleinfo->seq,
+                    pwr && (pwr->c.xqos->present & DDSI_QP_TOPIC_NAME) ? pwr->c.xqos->topic_name : "", type->type_name,
+                    failmsg ? failmsg : "for reasons unknown");
+    }
   }
   else
   {

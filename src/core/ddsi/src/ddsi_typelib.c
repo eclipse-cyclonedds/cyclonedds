@@ -97,7 +97,7 @@ ddsi_typeinfo_t *ddsi_typeinfo_deser (const unsigned char *data, uint32_t sz)
   bool bswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
   DDSRT_WARNING_MSVC_ON(6326)
   data_norm = ddsrt_memdup (data, sz);
-  if (!dds_stream_normalize_xcdr2_data ((char *) data_norm, &srcoff, sz, bswap, DDS_XTypes_TypeInformation_desc.m_ops))
+  if (dds_stream_normalize_xcdr2_data ((char *) data_norm, &srcoff, sz, bswap, DDS_XTypes_TypeInformation_desc.m_ops) != DDS_STREAM_NORMALIZE_SUCCESS)
   {
     ddsrt_free (data_norm);
     return NULL;
@@ -233,7 +233,7 @@ ddsi_typemap_t *ddsi_typemap_deser (const unsigned char *data, uint32_t sz)
   bool bswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
   DDSRT_WARNING_MSVC_ON(6326)
   data_norm = ddsrt_memdup (data, sz);
-  if (!dds_stream_normalize_xcdr2_data ((char *) data_norm, &srcoff, sz, bswap, DDS_XTypes_TypeMapping_desc.m_ops))
+  if (dds_stream_normalize_xcdr2_data ((char *) data_norm, &srcoff, sz, bswap, DDS_XTypes_TypeMapping_desc.m_ops) != DDS_STREAM_NORMALIZE_SUCCESS)
   {
     ddsrt_free (data_norm);
     return NULL;

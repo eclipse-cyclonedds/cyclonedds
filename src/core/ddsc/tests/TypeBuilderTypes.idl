@@ -542,4 +542,53 @@ module TypeBuilderTypes {
     @optional @id(26) sequence<sequence<t49k> > f7;
   };
 
+  // try-construct
+  @final
+  enum en50f {
+    EN50F_1, EN50F_2, EN50F_3
+  };
+  @appendable
+  enum en50a {
+    EN50A_1, EN50A_2, EN50A_3
+  };
+  typedef sequence<en50a, 1> t50_1;
+  typedef sequence<@try_construct(USE_DEFAULT) en50a, 1> t50_2;
+  struct t50 {
+    en50f f1;
+    en50a f2;
+    /*@try_construct()*/ en50a f3;
+    @try_construct(USE_DEFAULT) en50a f4;
+    @try_construct(DISCARD) en50a f5;
+    t50_1 f6;
+    t50_2 f7;
+    sequence<en50a, 1> f8;
+    sequence<@try_construct(USE_DEFAULT) en50a, 1> f9;
+    /*@try_construct()*/ t50_1 f10;
+    @try_construct(TRIM) t50_1 f11;
+    @try_construct(TRIM) sequence<@try_construct(USE_DEFAULT) en50a, 1> f12;
+  };
+
+  typedef string<3> t51_1;
+  struct t51 {
+    t51_1 f1;
+    @try_construct(TRIM) t51_1 f2;
+    @try_construct(USE_DEFAULT) t51_1 f3;
+    sequence<t51_1, 1> f4;
+    @try_construct(TRIM) sequence<t51_1, 1> f5;
+    sequence<@try_construct(TRIM) t51_1, 1> f6;
+    sequence<@try_construct(USE_DEFAULT) t51_1, 1> f7;
+    @try_construct(TRIM) sequence<@try_construct(TRIM) t51_1, 1> f8;
+    @try_construct(TRIM) sequence<@try_construct(USE_DEFAULT) t51_1, 1> f9;
+  };
+
+  struct t52 {
+    @try_construct(TRIM) sequence<sequence<t51_1, 1>, 1> f1[2][2];
+    sequence<@try_construct(TRIM) sequence<t51_1, 1>, 1> f2[2][2];
+    @try_construct(TRIM) sequence<sequence<t51_1, 1>, 1> f3[2][2];
+    @try_construct(TRIM) sequence<@try_construct(TRIM) sequence<t51_1, 1>, 1> f4[2][2];
+    @try_construct(TRIM) sequence<sequence<@try_construct(TRIM) t51_1, 1>, 1> f5[2][2];
+    sequence<@try_construct(TRIM) sequence<@try_construct(TRIM) t51_1, 1>, 1> f6[2][2];
+    @try_construct(TRIM) sequence<sequence<@try_construct(TRIM) t51_1, 1>, 1> f7[2][2];
+    @try_construct(TRIM) sequence<@try_construct(TRIM) sequence<@try_construct(TRIM) t51_1, 1>, 1> f8[2][2];
+  };
 };

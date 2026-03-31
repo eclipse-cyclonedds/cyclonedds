@@ -31,6 +31,7 @@ idlc_generate(TARGET CdrStreamString FILES CdrStreamString.idl)
 idlc_generate(TARGET CdrStreamParamHeader FILES CdrStreamParamHeader.idl)
 idlc_generate(TARGET CdrStreamSerDes FILES CdrStreamSerDes.idl NO_TYPE_INFO WARNINGS no-enum-consecutive)
 idlc_generate(TARGET CdrStreamXcdr1Opt FILES CdrStreamXcdr1Opt.idl)
+idlc_generate(TARGET CdrStreamTryconstruct FILES CdrStreamTryconstruct.idl)
 idlc_generate(TARGET SerdataData FILES SerdataData.idl)
 idlc_generate(TARGET PsmxDataModels FILES PsmxDataModels.idl WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET CdrStreamDataTypeInfo FILES CdrStreamDataTypeInfo.idl WARNINGS no-implicit-extensibility)
@@ -189,6 +190,7 @@ target_link_libraries(cunit_ddsc PRIVATE
   CdrStreamParamHeader
   CdrStreamSerDes
   CdrStreamXcdr1Opt
+  CdrStreamTryconstruct
   PsmxDataModels
   psmx_dummy
   psmx_dummy_v0

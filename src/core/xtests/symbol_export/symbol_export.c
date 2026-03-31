@@ -457,6 +457,7 @@ int main (int argc, char **argv)
   dds_dynamic_member_set_key (ptr, 0, 0);
   dds_dynamic_member_set_must_understand (ptr, 0, 0);
   dds_dynamic_member_set_optional (ptr, 0, 0);
+  dds_dynamic_member_set_try_construct (ptr, 0, 0);
   dds_dynamic_type_add_bitmask_field (ptr, ptr, 0);
   dds_dynamic_type_add_enum_literal (ptr, ptr, (dds_dynamic_enum_literal_value_t) { .value_kind = 0 }, 0);
   dds_dynamic_type_add_member (ptr, (dds_dynamic_member_descriptor_t) { .name = "dummy" });
@@ -468,6 +469,7 @@ int main (int argc, char **argv)
   dds_dynamic_type_set_bit_bound (ptr, 0);
   dds_dynamic_type_set_extensibility (ptr, 0);
   dds_dynamic_type_set_nested (ptr, 0);
+  dds_dynamic_type_set_try_construct (ptr, 0);
   dds_dynamic_type_unref (ptr);
 #endif
 
@@ -503,8 +505,7 @@ int main (int argc, char **argv)
 
   ret_cdrs = dds_stream_normalize (ptr, 0, 0, 0, ptr2, 0, ptr3);
   (void) ret_cdrs;
-  ret_cdrs = dds_stream_normalize_xcdr2_data (ptr, ptr2, 0, 0, ptr3);
-  (void) ret_cdrs;
+  (void) dds_stream_normalize_xcdr2_data (ptr, ptr2, 0, 0, ptr3);
 
   dds_stream_write (ptr, ptr2, ptr3, ptr4);
   dds_stream_writeLE (ptr, ptr2, ptr3, ptr4);

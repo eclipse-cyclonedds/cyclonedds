@@ -805,7 +805,7 @@ static dds_return_t deser_type_information (void * restrict dst, struct flagset 
   dds_return_t ret = 0;
 
   buf = ddsrt_memdup (dd->buf, dd->bufsz);
-  if (!dds_stream_normalize_xcdr2_data ((char *) buf, &srcoff, (uint32_t) dd->bufsz, dd->bswap, DDS_XTypes_TypeInformation_desc.m_ops))
+  if (dds_stream_normalize_xcdr2_data ((char *) buf, &srcoff, (uint32_t) dd->bufsz, dd->bswap, DDS_XTypes_TypeInformation_desc.m_ops) != DDS_STREAM_NORMALIZE_SUCCESS)
   {
     ret = DDS_RETCODE_BAD_PARAMETER;
     goto err_normalize;

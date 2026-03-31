@@ -52,13 +52,18 @@ typedef uint32_t (*ddsi_serdata_size_t) (const struct ddsi_serdata *d)
 typedef void (*ddsi_serdata_free_t) (struct ddsi_serdata *d)
   ddsrt_nonnull_all;
 
+#define DDSI_SERDATA_FROM_SER_DISCARD ((struct ddsi_serdata *) 1)
+
 /* Construct a serdata from a fragchain received over the network
    - "kind" is KEY or DATA depending on the type of payload
    - "size" is the serialised size of the sample, inclusive of DDSI encoding header
    - the first fragchain always contains the encoding header in its entirety
    - fragchains may overlap, though I have never seen any DDS implementation
      actually send such nasty fragments
-   - FIXME: get the encoding header out of the serialised data */
+   - FIXME: get the encoding header out of the serialised data
+
+  DDSI_SERDATA_FROM_SER_DISCARD should be returned when the data is to be silently
+  discarded (e.g., an out-of-bounds string with @try_construct(discard)) */
 typedef struct ddsi_serdata * (*ddsi_serdata_from_ser_t) (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size)
   ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
@@ -66,7 +71,7 @@ typedef struct ddsi_serdata * (*ddsi_serdata_from_ser_t) (const struct ddsi_sert
 typedef struct ddsi_serdata * (*ddsi_serdata_from_ser_iov_t) (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size)
   ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
-/* Construct a serdata from a keyhash (an SDK_KEY by definition) */
+/* Construct a serdata from a keyhash (an SDK_KEY by definition, may return DDSI_SERDATA_FROM_SER_DISCARD) */
 typedef struct ddsi_serdata * (*ddsi_serdata_from_keyhash_t) (const struct ddsi_sertype *type, const struct ddsi_keyhash *keyhash)
   ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
