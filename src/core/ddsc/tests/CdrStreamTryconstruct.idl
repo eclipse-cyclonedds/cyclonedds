@@ -59,4 +59,17 @@ module CdrStreamTryconstruct {
     @try_construct(USE_DEFAULT) sequence<@try_construct(USE_DEFAULT) string<3>, 3> f5;
     string f6;
   };
+
+  @final struct t7 {
+    sequence<sequence<unsigned long, 3>, 3> f1;
+    sequence<@try_construct(TRIM) sequence<unsigned long, 3>, 3> f2;
+    sequence<@try_construct(USE_DEFAULT) sequence<unsigned long, 3>, 3> f3;
+    @try_construct(TRIM) sequence<sequence<unsigned long, 3>, 3> f4;
+    @try_construct(TRIM) sequence<@try_construct(TRIM) sequence<unsigned long, 3>, 3> f5;
+    @try_construct(TRIM) sequence<@try_construct(USE_DEFAULT) sequence<unsigned long, 3>, 3> f6;
+    @try_construct(USE_DEFAULT) sequence<sequence<unsigned long, 3>, 3> f7;
+    @try_construct(USE_DEFAULT) sequence<@try_construct(TRIM) sequence<unsigned long, 3>, 3> f8;
+    @try_construct(USE_DEFAULT) sequence<@try_construct(USE_DEFAULT) sequence<unsigned long, 3>, 3> f9;
+    string f10;
+  };
 };
