@@ -2851,6 +2851,170 @@ CU_Test (ddsc_cdrstream, tryconstruct)
     dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
   }
 }
+
+static bool eq_seq_seq_unsigned_long (const dds_sequence_sequence_dds_sequence_unsigned_long *a, const dds_sequence_sequence_dds_sequence_unsigned_long *b)
+{
+  if (a->_length != b->_length)
+    return false;
+  for (uint32_t i = 0; i < a->_length; i++)
+  {
+    if (a->_buffer[i]._length != b->_buffer[i]._length)
+      return false;
+    if (a->_buffer[i]._length > 0 && memcmp (a->_buffer[i]._buffer, b->_buffer[i]._buffer, a->_buffer[i]._length) != 0)
+      return false;
+  }
+  return true;
+}
+
+static bool eq_CdrStreamTryconstruct_t7 (const void *va, const void *vb)
+{
+  const CdrStreamTryconstruct_t7 *a = va;
+  const CdrStreamTryconstruct_t7 *b = vb;
+  if (!eq_seq_seq_unsigned_long (&a->f1, &b->f1)) return false;
+  if (!eq_seq_seq_unsigned_long (&a->f2, &b->f2)) return false;
+  if (!eq_seq_seq_unsigned_long (&a->f3, &b->f3)) return false;
+  if (!eq_seq_seq_unsigned_long (&a->f4, &b->f4)) return false;
+  if (!eq_seq_seq_unsigned_long (&a->f5, &b->f5)) return false;
+  if (!eq_seq_seq_unsigned_long (&a->f6, &b->f6)) return false;
+  if (!eq_seq_seq_unsigned_long (&a->f7, &b->f7)) return false;
+  if (!eq_seq_seq_unsigned_long (&a->f8, &b->f8)) return false;
+  if (!eq_seq_seq_unsigned_long (&a->f9, &b->f9)) return false;
+  if (strcmp (a->f10, b->f10) != 0) return false;
+  return true;
+}
+
+static void init_CdrStreamTryconstruct_t7 (struct CdrStreamTryconstruct_t7 *a, unsigned char **cdr, uint32_t *cdrsize, uint32_t fidx, uint32_t n0, uint32_t n1, bool xcdr2)
+{
+  assert (n0 <= 9 && n1 <= 9);
+  memset (a, 0, sizeof (*a));
+  dds_sequence_sequence_dds_sequence_unsigned_long *x = NULL;
+  switch (fidx) {
+    case 0: x = &a->f1; break;
+    case 1: x = &a->f2; break;
+    case 2: x = &a->f3; break;
+    case 3: x = &a->f4; break;
+    case 4: x = &a->f5; break;
+    case 5: x = &a->f6; break;
+    case 6: x = &a->f7; break;
+    case 7: x = &a->f8; break;
+    case 8: x = &a->f9; break;
+    default: abort ();
+  }
+  assert (x);
+  x->_length = x->_maximum = n0;
+  x->_release = true;
+  x->_buffer = dds_alloc (n0 * sizeof (*x->_buffer));
+  for (uint32_t i = 0; i < n0; i++)
+  {
+    dds_sequence_unsigned_long * const y = &x->_buffer[i];
+    y->_length = y->_maximum = n1;
+    y->_release = true;
+    y->_buffer = dds_alloc (n1 * sizeof (*y->_buffer));
+    for (uint32_t j = 0; j < n1; j++)
+      y->_buffer[j] = ((j + 1) << 24) | ((j + 1) << 16) | ((j + 1) << 8) | (j + 1);
+  }
+  a->f10 = dds_alloc (6);
+  snprintf (a->f10, 6, "%1"PRIu32"_%1"PRIu32"_%1"PRIu32, fidx, n0, n1);
+
+  if (cdr)
+  {
+    const uint32_t y_cdrsize = /* prim seq: no dhr */ 0u + /* nelem */ 4u + /* content */ n1 * 4u;
+    const uint32_t x_cdrsize = (xcdr2 ? /* dhdr */ 4u : 0u) + /* nelem */ 4u + /* content */ n0 * y_cdrsize;
+    *cdrsize = /* 8 * dhr + empty seq */ 8u * (xcdr2 ? 8u : 4u) + x_cdrsize + /* f10 */ 10u;
+    *cdr = ddsrt_calloc ((*cdrsize + sizeof (uint32_t) - 1) / sizeof (uint32_t), sizeof (uint32_t));
+    uint32_t *d = (uint32_t *) *cdr;
+    for (uint32_t i = 0; i < fidx; i++)
+    {
+      if (xcdr2)
+        *d++ = 4; /* dhdr */
+      *d++ = 0; /* nelem */
+    }
+    if (xcdr2)
+      *d++ = x_cdrsize - 4 /* dhdr */;
+    *d++ = n0;
+    for (uint32_t i = 0; i < n0; i++)
+    {
+      *d++ = n1;
+      for (uint32_t j = 0; j < n1; j++)
+        *d++ = x->_buffer[i]._buffer[j];
+    }
+    for (uint32_t i = fidx + 1; i < 9; i++)
+    {
+      if (xcdr2)
+        *d++ = 4; /* dhdr */
+      *d++ = 0; /* nelem */
+    }
+    *d++ = (uint32_t) (strlen (a->f10) + 1);
+    memcpy (d, a->f10, strlen (a->f10) + 1);
+  }
+}
+
+CU_Test (ddsc_cdrstream, tryconstruct_nested_seq)
+{
+  struct dds_cdrstream_desc desc;
+  dds_cdrstream_desc_from_topic_desc (&desc, &CdrStreamTryconstruct_t7_desc);
+  assert (desc.ops.ops);
+  for (int xcdri = 1; xcdri <= 2; xcdri++)
+  {
+    const uint32_t xcdrv = (xcdri == 1) ? XCDR1 : XCDR2;
+    for (uint32_t fidx = 0; fidx < 9; fidx++)
+    {
+      const enum { DISCARD, TRIM, DEF } tc0 = fidx / 3, tc1 = fidx % 3;
+      for (uint32_t n0 = 1; n0 <= 4; n0++)
+      {
+        const uint32_t n0cmp = (n0 <= 3) ? n0 : (tc0 == TRIM) ? 3 : 0;
+        for (uint32_t n1 = 4; n1 <= 4; n1++)
+        {
+          const uint32_t n1cmp = (n1 <= 3) ? n1 : (tc1 == TRIM) ? 3 : 0;
+          struct CdrStreamTryconstruct_t7 a;
+          unsigned char *cdr;
+          uint32_t cdrsize;
+          init_CdrStreamTryconstruct_t7 (&a, &cdr, &cdrsize, fidx, n0, n1, xcdrv == XCDR2);
+          if (n0 <= 3 && n1 <= 3)
+          {
+            dds_ostream_t os;
+            dds_ostream_init (&os, &dds_cdrstream_default_allocator, 0, xcdrv);
+            const bool wres = dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, &a, &desc);
+            CU_ASSERT_FATAL (wres);
+            CU_ASSERT_MEMEQ_FATAL (os.m_buffer, os.m_index, cdr, cdrsize);
+            dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
+          }
+
+          uint32_t act_size;
+          const enum dds_stream_normalize_result norm_res =
+            dds_stream_normalize (cdr, cdrsize, false, xcdrv, &desc, false, &act_size);
+
+          if ((tc0 == DISCARD && n0 > 3) || (tc1 == DISCARD && n1 > 3))
+          {
+            CU_ASSERT_EQ_FATAL (norm_res, DDS_STREAM_NORMALIZE_DISCARD);
+          }
+          else
+          {
+            CU_ASSERT_EQ_FATAL (norm_res, DDS_STREAM_NORMALIZE_SUCCESS);
+            CU_ASSERT_EQ_FATAL (cdrsize, act_size);
+
+            struct CdrStreamTryconstruct_t7 acmp;
+            init_CdrStreamTryconstruct_t7 (&acmp, NULL, NULL, fidx, n0cmp, n1cmp, xcdrv == XCDR2);
+            snprintf (acmp.f10, strlen (acmp.f10) + 1, "%"PRIu32"_%"PRIu32"_%"PRIu32, fidx, n0, n1);
+
+            struct CdrStreamTryconstruct_t7 ard = {0};
+            dds_istream_t is;
+            dds_istream_init (&is, act_size, cdr, xcdrv);
+            dds_stream_read (&is, (char *) &ard, &dds_cdrstream_default_allocator, desc.ops.ops);
+
+            CU_ASSERT_FATAL (eq_CdrStreamTryconstruct_t7 (&ard, &acmp));
+            dds_stream_free_sample (&ard, &dds_cdrstream_default_allocator, desc.ops.ops);
+            dds_stream_free_sample (&acmp, &dds_cdrstream_default_allocator, desc.ops.ops);
+          }
+
+          dds_stream_free_sample (&a, &dds_cdrstream_default_allocator, desc.ops.ops);
+          ddsrt_free (cdr);
+        }
+      }
+    }
+  }
+  dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+}
 #undef E2a
 #undef E1a
 #undef ena2
