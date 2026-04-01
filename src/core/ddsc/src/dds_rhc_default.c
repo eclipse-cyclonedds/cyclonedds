@@ -793,6 +793,25 @@ static void dds_rhc_default_free (struct ddsi_rhc *rhc_common)
   ddsrt_free (rhc);
 }
 
+static void dds_rhc_default_get_state (const struct ddsi_rhc *rhc_common, struct ddsi_rhc_state *st)
+{
+  struct dds_rhc_default *rhc = (struct dds_rhc_default *) rhc_common;
+
+  ddsrt_mutex_lock (&rhc->lock);
+
+  st->n_instances = rhc->n_instances;
+  st->n_nonempty_instances = rhc->n_nonempty_instances;
+  st->n_not_alive_disposed = rhc->n_not_alive_disposed;
+  st->n_not_alive_no_writers = rhc->n_not_alive_no_writers;
+  st->n_new = rhc->n_new;
+  st->n_vsamples = rhc->n_vsamples;
+  st->n_vread = rhc->n_vread;
+  st->n_invsamples = rhc->n_invsamples;
+  st->n_invread = rhc->n_invread;
+
+  ddsrt_mutex_unlock (&rhc->lock);
+}
+
 static void init_trigger_info_cmn_nonmatch (struct trigger_info_cmn *info)
 {
   info->qminst = ~0u;
@@ -3071,7 +3090,8 @@ static const struct dds_rhc_ops dds_rhc_default_ops = {
     .store = dds_rhc_default_store,
     .unregister_wr = dds_rhc_default_unregister_wr,
     .relinquish_ownership = dds_rhc_default_relinquish_ownership,
-    .free = dds_rhc_default_free
+    .free = dds_rhc_default_free,
+    .get_state = dds_rhc_default_get_state
   },
   .peek = dds_rhc_default_peek,
   .read = dds_rhc_default_read,
