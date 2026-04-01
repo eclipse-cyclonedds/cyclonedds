@@ -162,7 +162,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
     {
       assert (!is_key);
       is->m_index = is1.m_index + param_len; // param_len is 0 for XCDR2
-      return dds_stream_skip_adr (insn, ops);
+      return dds_stream_skip_adr_insns (insn, ops);
     }
   }
 
@@ -187,7 +187,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
       assert (*keys_remaining > 0);
       assert (os != NULL);
       dds_stream_extract_keyBO_from_key_prim_op (&is1, os, allocator, mid_table, ops, 0, NULL);
-      ops = dds_stream_skip_adr (insn, ops);
+      ops = dds_stream_skip_adr_insns (insn, ops);
       (*keys_remaining)--;
     }
     else
@@ -227,7 +227,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_skip_delimited (dds_is
     {
       case DDS_SOP_ADR:
         /* skip fields that are not in serialized data for appendable type */
-        ops = dds_stream_skip_adr (insn, ops);
+        ops = dds_stream_skip_adr_insns (insn, ops);
         break;
       case DDS_SOP_JSR:
         // FIXME: seems to be unused

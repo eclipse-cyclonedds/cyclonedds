@@ -632,7 +632,7 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, RESTRICT_OSTREAM_T
   // and initialized (see also comment in dds_stream_read_adr)
   const bool is_key = (insn & DDS_OP_FLAG_KEY);
   if (cdr_kind == CDR_KIND_KEY && !is_key)
-    return dds_stream_skip_adr (insn, ops);
+    return dds_stream_skip_adr_insns (insn, ops);
 
   const void *addr = data + ops[1];
   if (op_type_external (insn) || op_type_optional (insn) || DDS_OP_TYPE (insn) == DDS_SOP_VAL_STR || DDS_OP_TYPE (insn) == DDS_SOP_VAL_WSTR)
@@ -665,7 +665,7 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, RESTRICT_OSTREAM_T
       dds_os_put1BO (os, allocator, present ? 1 : 0);
     }
     if (!present)
-      return dds_stream_skip_adr (insn, ops);
+      return dds_stream_skip_adr_insns (insn, ops);
   }
   assert (addr || DDS_OP_TYPE (insn) == DDS_SOP_VAL_STR || DDS_OP_TYPE (insn) == DDS_SOP_VAL_WSTR);
 
