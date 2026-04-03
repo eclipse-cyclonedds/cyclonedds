@@ -3783,7 +3783,7 @@ static bool normalize_uint128 (char * restrict data, uint32_t * restrict off, ui
     *((uint32_t *) (data + *off + 8)) = x;
     *((uint32_t *) (data + *off + 12)) = w;
   }
-  (*off) += 8;
+  (*off) += 16;
   return true;
 }
 
