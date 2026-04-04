@@ -185,7 +185,11 @@ struct ddsi_serdata_ops {
   ddsi_serdata_get_keyhash_t get_keyhash;
   ddsi_serdata_from_loan_t from_loaned_sample;
   ddsi_serdata_from_psmx_t from_psmx;
+#ifdef __cplusplus
+  ddsi_serdata_get_related_sample_identity_t get_related_sample_identity = nullptr;
+#else
   ddsi_serdata_get_related_sample_identity_t get_related_sample_identity;
+#endif
 };
 
 #define DDSI_SERDATA_HAS_PRINT 1
