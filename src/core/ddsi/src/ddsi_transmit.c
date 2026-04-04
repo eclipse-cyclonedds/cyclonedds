@@ -120,7 +120,7 @@ static dds_return_t ddsi_create_fragment_message_simple (struct ddsi_writer *wr,
 #else
   ddsi_xmsg_serdata (*pmsg, serdata, 0, ddsi_serdata_size (serdata), wr);
 #endif
-  ddsi_xmsg_submsg_setnext (*pmsg, sm_marker);
+  ddsi_xmsg_submsg_setlast (*pmsg, sm_marker);
   return 0;
 }
 
@@ -269,7 +269,7 @@ dds_return_t ddsi_create_fragment_message (struct ddsi_writer *wr, ddsi_seqno_t 
   }
 
   ddsi_xmsg_serdata (*pmsg, serdata, fragstart, fraglen, wr);
-  ddsi_xmsg_submsg_setnext (*pmsg, sm_marker);
+  ddsi_xmsg_submsg_setlast (*pmsg, sm_marker);
 #if 0
   GVTRACE ("queue data%s "PGUIDFMT" #%"PRId64"/%"PRIu32"[%"PRIu32"..%"PRIu32")\n",
            fragging ? "frag" : "", PGUID (wr->e.guid),

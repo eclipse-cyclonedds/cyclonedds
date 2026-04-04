@@ -49,6 +49,8 @@ struct ddsi_xmsgpool {
 };
 
 struct ddsi_xmsg_data {
+  size_t payload_smhdr_off;
+  uint32_t pad_block;
   ddsi_rtps_info_src_t src;
   ddsi_rtps_info_dst_t dst;
   char payload[]; /* of size maxsz */
@@ -180,10 +182,6 @@ struct ddsi_xpack
 #endif
 };
 
-static size_t align4u (size_t x)
-{
-  return (x + 3) & ~(size_t)3;
-}
 
 /* XMSGPOOL ------------------------------------------------------------
 
@@ -275,6 +273,8 @@ static struct ddsi_xmsg *ddsi_xmsg_allocnew (struct ddsi_xmsgpool *pool, size_t 
   d->dst.smhdr.submessageId = DDSI_RTPS_SMID_INFO_DST;
   d->dst.smhdr.flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS : 0);
   d->dst.smhdr.octetsToNextHeader = sizeof (d->dst.guid_prefix);
+  d->pad_block = 0;
+  d->payload_smhdr_off = SIZE_MAX;
   ddsi_xmsg_reinit (m, kind);
   return m;
 }
@@ -287,6 +287,7 @@ struct ddsi_xmsg *ddsi_xmsg_new (struct ddsi_xmsgpool *pool, const ddsi_guid_t *
   else if ((m = ddsi_xmsg_allocnew (pool, expected_size, kind)) == NULL)
     return NULL;
   m->data->src.guid_prefix = ddsi_hton_guid_prefix (src_guid->prefix);
+  m->data->payload_smhdr_off = SIZE_MAX;
 
 #ifdef DDS_HAS_SECURITY
   m->sec_info.use_rtps_encoding = 0;
@@ -489,18 +490,33 @@ void ddsi_xmsg_submsg_setnext (struct ddsi_xmsg *msg, struct ddsi_xmsg_marker ma
     ((unsigned)(msg->data->payload + msg->sz + plsize - (char *) hdr) - DDSI_RTPS_SUBMESSAGE_HEADER_SIZE);
 }
 
+void ddsi_xmsg_submsg_setlast (struct ddsi_xmsg *msg, struct ddsi_xmsg_marker marker)
+{
+  ddsi_rtps_submessage_header_t *hdr = (ddsi_rtps_submessage_header_t *) (msg->data->payload + marker.offset);
+  unsigned plsize = msg->refd_payload ? (unsigned) msg->refd_payload_iov.iov_len : 0;
+  assert ((unsigned) (msg->data->payload + msg->sz + plsize - (char *) hdr) >= DDSI_RTPS_SUBMESSAGE_HEADER_SIZE);
+  if (plsize != 0 && plsize % 4 != 0) {
+    msg->data->payload_smhdr_off = marker.offset;
+    hdr->octetsToNextHeader = 0u;
+  } else {
+    hdr->octetsToNextHeader = (unsigned short)
+      ((unsigned)(msg->data->payload + msg->sz + plsize - (char *) hdr) - DDSI_RTPS_SUBMESSAGE_HEADER_SIZE);
+  }
+}
+
 #ifdef DDS_HAS_SECURITY
 
 size_t ddsi_xmsg_submsg_size (struct ddsi_xmsg *msg, struct ddsi_xmsg_marker marker)
 {
-  ddsi_rtps_submessage_header_t *hdr = (ddsi_rtps_submessage_header_t*)ddsi_xmsg_submsg_from_marker(msg, marker);
-  return align4u(hdr->octetsToNextHeader + sizeof(ddsi_rtps_submessage_header_t));
+  return msg->sz - marker.offset;
 }
 
 void ddsi_xmsg_submsg_remove(struct ddsi_xmsg *msg, struct ddsi_xmsg_marker sm_marker)
 {
   /* Just reset the message size to the start of the current sub-message. */
   msg->sz = sm_marker.offset;
+  if (msg->data->payload_smhdr_off >= msg->sz)
+    msg->data->payload_smhdr_off = SIZE_MAX;
 
   /* Deleting the submessage means the readerId offset in a DATA_REXMIT message is no
      longer valid.  Converting the message kind to a _NOMERGE one ensures no subsequent
@@ -540,6 +556,11 @@ void ddsi_xmsg_submsg_replace(struct ddsi_xmsg *msg, struct ddsi_xmsg_marker sm_
      been tampered with. */
   if (msg->kind == DDSI_XMSG_KIND_DATA_REXMIT)
     msg->kind = DDSI_XMSG_KIND_DATA_REXMIT_NOMERGE;
+
+  /* Target potentially missaligned submessage was replaced, keep offset in
+   * case of new_len missaligned only. */
+  if (msg->data->payload_smhdr_off >= sm_marker.offset && (new_len % 4) == 0)
+    msg->data->payload_smhdr_off = SIZE_MAX;
 }
 
 void ddsi_xmsg_submsg_append_refd_payload(struct ddsi_xmsg *msg, struct ddsi_xmsg_marker sm_marker)
@@ -587,21 +608,12 @@ void *ddsi_xmsg_submsg_from_marker (struct ddsi_xmsg *msg, struct ddsi_xmsg_mark
 
 static void *ddsi_xmsg_append_impl (struct ddsi_xmsg *m, struct ddsi_xmsg_marker *marker, size_t sz)
 {
-  static const size_t a = 4;
-
   /* May realloc, in which case m may change.  But that will not
      happen if you do not exceed expected_size.  Max size is always a
      multiple of A: that means we don't have to worry about memory
      available just for alignment. */
   char *p;
-  assert (1 <= a && a <= DDSI_XMSG_MAX_ALIGN);
-  assert ((m->maxsz % a) == 0);
-  if ((m->sz % a) != 0)
-  {
-    size_t npad = a - (m->sz % a);
-    memset (m->data->payload + m->sz, 0, npad);
-    m->sz += npad;
-  }
+  assert ((m->maxsz % 4) == 0);
   if (m->sz + sz > m->maxsz)
   {
     size_t nmax = (m->maxsz + sz + DDSI_XMSG_CHUNK_SIZE - 1) & (size_t)-DDSI_XMSG_CHUNK_SIZE;
@@ -658,12 +670,19 @@ void ddsi_xmsg_serdata (struct ddsi_xmsg *m, struct ddsi_serdata *serdata, size_
 {
   if (serdata->kind != SDK_EMPTY)
   {
-    size_t len4 = align4u (len);
+    size_t size = len;
     assert (m->refd_payload == NULL);
-    m->refd_payload = ddsi_serdata_to_ser_ref (serdata, off, len4, &m->refd_payload_iov);
+    m->refd_payload = ddsi_serdata_to_ser_ref (serdata, off, size, &m->refd_payload_iov);
 
 #ifdef DDS_HAS_SECURITY
     assert (m->refd_payload_encoded == NULL);
+    if (ddsi_serdata_size (serdata) == len && ddsi_omg_writer_is_payload_protected (wr))
+    {
+      const uint16_t pad = (4 - (m->refd_payload_iov.iov_len % 4)) % 4;
+      struct dds_cdr_header *cdr_hdr = (struct dds_cdr_header *) m->refd_payload_iov.iov_base;
+      cdr_hdr->options |= ddsrt_toBE2u(pad);
+    }
+
     /* When encoding is necessary, m->refd_payload_encoded will be allocated
      * and m->refd_payload_iov contents will change to point to that buffer.
      * If no encoding is necessary, nothing changes. */
@@ -1481,9 +1500,7 @@ int ddsi_xpack_addmsg (struct ddsi_xpack *xp, struct ddsi_xmsg *m, const uint32_
   /* Submessage offset must be a multiple of 4 to meet alignment
      requirement (DDSI 2.1, 9.4.1).  If we keep everything 4-byte
      aligned all the time, we don't need to check for padding here. */
-  assert ((xp->msg_len.length % 4) == 0);
   assert ((m->sz % 4) == 0);
-  assert (m->refd_payload == NULL || (m->refd_payload_iov.iov_len % 4) == 0);
 
   if (xp->msgfrags == NULL)
   {
@@ -1528,8 +1545,11 @@ int ddsi_xpack_addmsg (struct ddsi_xpack *xp, struct ddsi_xmsg *m, const uint32_
 
   /* If a fresh xp has been provided, add an RTPS header */
 
+  uint8_t req_align = (4U - (sz % 4U)) % 4U;
+  uint8_t align = req_align;
   if (niov == 0)
   {
+    assert (req_align == 0);
     copy_addressing_info (xp, m);
     xp->hdr.guid_prefix = m->data->src.guid_prefix;
     xp->msgfrags->iov[niov].iov_base = (void*) &xp->hdr;
@@ -1561,9 +1581,10 @@ int ddsi_xpack_addmsg (struct ddsi_xpack *xp, struct ddsi_xmsg *m, const uint32_
     {
       /* If m's source participant differs from that of the source
          currently set in the packed message, add an InfoSRC note. */
-      xp->msgfrags->iov[niov].iov_base = (void*) &m->data->src;
-      xp->msgfrags->iov[niov].iov_len = sizeof (m->data->src);
-      sz += sizeof (m->data->src);
+      xp->msgfrags->iov[niov].iov_base = (void*) ((char *)&m->data->src - align);
+      xp->msgfrags->iov[niov].iov_len = sizeof (m->data->src) + align;
+      sz += sizeof (m->data->src) + align;
+      align = 0u;
       xp->last_src = &m->data->src.guid_prefix;
       niov++;
     }
@@ -1593,30 +1614,31 @@ int ddsi_xpack_addmsg (struct ddsi_xpack *xp, struct ddsi_xmsg *m, const uint32_
   {
     /* Try to merge iovecs, a few large ones should be more efficient
        than many small ones */
-    if ((char *) xp->msgfrags->iov[niov-1].iov_base + xp->msgfrags->iov[niov-1].iov_len == (char *) dst)
+    if ((char *) xp->msgfrags->iov[niov-1].iov_base + xp->msgfrags->iov[niov-1].iov_len == (char *) dst - align)
     {
-      xp->msgfrags->iov[niov-1].iov_len += (ddsrt_iov_len_t)sizeof (*dst);
+      xp->msgfrags->iov[niov-1].iov_len += (ddsrt_iov_len_t)sizeof (*dst) + align;
     }
     else
     {
-      xp->msgfrags->iov[niov].iov_base = (void*) dst;
-      xp->msgfrags->iov[niov].iov_len = sizeof (*dst);
+      xp->msgfrags->iov[niov].iov_base = (void*) ((char *)dst - align);
+      xp->msgfrags->iov[niov].iov_len = sizeof (*dst) + align;
       niov++;
     }
-    sz += sizeof (*dst);
+    sz += sizeof (*dst) + align;
+    align = 0u;
     xp->last_dst = dst;
   }
 
   /* Append submessage; can possibly be merged with preceding iovec */
-  if ((char *) xp->msgfrags->iov[niov-1].iov_base + xp->msgfrags->iov[niov-1].iov_len == (char *) m->data->payload)
-    xp->msgfrags->iov[niov-1].iov_len += (ddsrt_iov_len_t)m->sz;
+  if ((char *) xp->msgfrags->iov[niov-1].iov_base + xp->msgfrags->iov[niov-1].iov_len == (char *) m->data->payload - align)
+    xp->msgfrags->iov[niov-1].iov_len += (ddsrt_iov_len_t)m->sz + align;
   else
   {
-    xp->msgfrags->iov[niov].iov_base = m->data->payload;
-    xp->msgfrags->iov[niov].iov_len = (ddsrt_iov_len_t)m->sz;
+    xp->msgfrags->iov[niov].iov_base = m->data->payload - align;
+    xp->msgfrags->iov[niov].iov_len = (ddsrt_iov_len_t)m->sz + align;
     niov++;
   }
-  sz += m->sz;
+  sz += m->sz + align;
 
   /* Append ref'd payload if given; whoever constructed the message
      should've taken care of proper alignment for the payload.  The
@@ -1652,6 +1674,24 @@ int ddsi_xpack_addmsg (struct ddsi_xpack *xp, struct ddsi_xmsg *m, const uint32_
   }
   else
   {
+    if (xp->included_msgs.latest != NULL) {
+      struct ddsi_xmsg_chain_elem *ce = xp->included_msgs.latest;
+      struct ddsi_xmsg *pm = (struct ddsi_xmsg *) ((char *) ce - offsetof (struct ddsi_xmsg, link));
+      if (pm->data->payload_smhdr_off != SIZE_MAX) {
+        ddsi_rtps_submessage_header_t *hdr = (ddsi_rtps_submessage_header_t *) (pm->data->payload + pm->data->payload_smhdr_off);
+        /* Currently, only `DATA/DATA_FRAG` may introduce some imbalance into the payload. */
+        assert (hdr->submessageId == DDSI_RTPS_SMID_DATA || hdr->submessageId == DDSI_RTPS_SMID_DATA_FRAG);
+        size_t plsize = pm->refd_payload ? pm->refd_payload_iov.iov_len : 0;
+        hdr->octetsToNextHeader = (uint16_t) ((uint32_t) (pm->data->payload + pm->sz + plsize - (char *) hdr) - DDSI_RTPS_SUBMESSAGE_HEADER_SIZE) + req_align;
+        if (hdr->submessageId == DDSI_RTPS_SMID_DATA && pm->refd_payload) {
+          struct dds_cdr_header *cdr_hdr = (struct dds_cdr_header *) pm->refd_payload_iov.iov_base;
+          cdr_hdr->options |= ddsrt_toBE2u(req_align);
+        }
+        /* Proper alignment already in, no need to keep offset anymore. */
+        pm->data->payload_smhdr_off = SIZE_MAX;
+      }
+    }
+
     xp->call_flags = flags;
     if (ddsi_xmsg_is_rexmit (m))
       xp->includes_rexmit = true;
