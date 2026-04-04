@@ -198,8 +198,12 @@ static struct test_sertype *test_sertype_new (void)
 static struct test_serdata *test_serdata_new (const struct test_sertype *st, uint32_t payload_size)
 {
   struct test_serdata *sd = ddsrt_malloc (sizeof (*sd) + payload_size);
+  const ddsrt_wctime_t now = ddsrt_time_wallclock ();
+  const ddsrt_mtime_t mnow = ddsrt_time_monotonic ();
   ddsi_serdata_init (&sd->c, &st->c, SDK_DATA);
   sd->c.hash = st->c.serdata_basehash;
+  sd->c.timestamp = now;
+  sd->c.twrite = mnow;
   sd->size = payload_size;
   sd->have_related_sample_identity = false;
   memset (&sd->related_writer_guid, 0, sizeof (sd->related_writer_guid));
