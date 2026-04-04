@@ -47,7 +47,7 @@ jobs:
     runs-on: ${{ matrix.config.os }}
     name: ${{ matrix.config.name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.2
         name: Repository Checkout
       - name: C compiler
         if: ${{ matrix.config.cc != '' }}

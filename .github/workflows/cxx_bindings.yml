@@ -17,7 +17,7 @@ jobs:
     runs-on: ${{ matrix.config.os }}
     name: ${{ matrix.config.name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.2
         name: Repository Checkout
       - run: |
           git clone --depth 1 --branch release-1.12.1 https://github.com/google/googletest.git
