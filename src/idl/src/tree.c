@@ -3781,18 +3781,36 @@ idl_type_spec_t *idl_type_spec(const void *node)
   return NULL;
 }
 
-uint32_t idl_array_size(const void *node)
+bool idl_array_size(const void *node, uint32_t *dims)
 {
-  uint32_t dims = 1;
+  if (!dims || !node)
+    return false;
+  else
+    *dims = 1;
+
+  return idl_multiply_by_array_size(node, dims);
+}
+
+bool idl_multiply_by_array_size(const void *node, uint32_t *dims)
+{
   const idl_literal_t *literal;
-  if (!(idl_mask(node) & IDL_DECLARATOR))
-    return 0u;
+  if (!dims ||
+      *dims == 0 ||
+      !node ||
+      !(idl_mask(node) & IDL_DECLARATOR))
+    return false;
   literal = ((const idl_declarator_t *)node)->const_expr;
   if (!literal)
-    return 0u;
-  for (; literal; literal = idl_next(literal))
-    dims *= literal->value.uint32;
-  return dims;
+    return false;
+  uint32_t result = *dims;
+  for (; literal; literal = idl_next(literal)) {
+    const uint32_t cur_dim = literal->value.uint32;
+    if (UINT32_MAX / result < cur_dim)
+      return false;
+    result *= literal->value.uint32;
+  }
+  *dims = result;
+  return true;
 }
 
 bool idl_is_topic(const void *node, bool keylist)

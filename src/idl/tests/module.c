@@ -60,7 +60,6 @@ CU_Test(idl_module, reopen)
   CU_ASSERT_NEQ_FATAL (decl1, NULL);
   CU_ASSERT_EQ (decl1->node.next, NULL);
   CU_ASSERT_STREQ (decl1->name->identifier, "l");
-  CU_ASSERT_EQ (idl_array_size(decl1), 0);
 
   idl_module_t* m2 = (idl_module_t*)m1->node.next;
   CU_ASSERT_NEQ_FATAL (m2, NULL);
@@ -86,7 +85,6 @@ CU_Test(idl_module, reopen)
   CU_ASSERT_NEQ_FATAL (decl2, NULL);
   CU_ASSERT_EQ (decl2->node.next, NULL);
   CU_ASSERT_STREQ (decl2->name->identifier, "m_s1");
-  CU_ASSERT_EQ (idl_array_size(decl2), 0);
 
   idl_delete_pstate(pstate);
 }

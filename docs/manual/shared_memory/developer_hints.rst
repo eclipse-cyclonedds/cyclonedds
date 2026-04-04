@@ -26,7 +26,7 @@ The following is a list of useful tips:
 
 * |var-project-short| can be configured to show logging information from shared memory.
 
-  * Setting Tracing::Category to *shm* shows the |var-project-short| log related to shared memory, while SharedMemory::LogLevel decides which log level iceoryx shows:
+  * Setting Tracing::Category to *shm* shows the |var-project-short| log related to shared memory. The iceoryx log level is set via the ``config`` attribute on the ``PubSubMessageExchange`` element (e.g., ``LOG_LEVEL=INFO``):
 
   .. code-block:: xml
 
@@ -39,9 +39,10 @@ The following is a list of useful tips:
                 <Category>shm</Category>
                 <OutputFile>stdout</OutputFile>
             </Tracing>
-            <SharedMemory>
-                <Enable>true</Enable>
-                <LogLevel>info</LogLevel>
-            </SharedMemory>
+            <General>
+                <Interfaces>
+                    <PubSubMessageExchange type="iox" config="LOG_LEVEL=INFO;"/>
+                </Interfaces>
+            </General>
         </Domain>
     </CycloneDDS>

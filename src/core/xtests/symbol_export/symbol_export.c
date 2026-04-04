@@ -127,6 +127,9 @@ int main() {
   check_symbol_export(&result, ddsc_library_handle, "dds_peek_mask");
   check_symbol_export(&result, ddsc_library_handle, "dds_peek_instance");
   check_symbol_export(&result, ddsc_library_handle, "dds_peek_instance_mask");
+  check_symbol_export(&result, ddsc_library_handle, "dds_peek_next_instance");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_peek_next_instance_mask");
   check_symbol_export(&result, ddsc_library_handle, "dds_peek_next");
   check_symbol_export(&result, ddsc_library_handle, "dds_read");
   check_symbol_export(&result, ddsc_library_handle, "dds_read_wl");
@@ -137,6 +140,9 @@ int main() {
   check_symbol_export(&result, ddsc_library_handle, "dds_read_instance_mask");
   check_symbol_export(&result, ddsc_library_handle,
                       "dds_read_instance_mask_wl");
+  check_symbol_export(&result, ddsc_library_handle, "dds_read_next_instance");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_read_next_instance_mask");
   check_symbol_export(&result, ddsc_library_handle, "dds_read_next");
   check_symbol_export(&result, ddsc_library_handle, "dds_read_next_wl");
   check_symbol_export(&result, ddsc_library_handle, "dds_take");
@@ -148,6 +154,9 @@ int main() {
   check_symbol_export(&result, ddsc_library_handle, "dds_take_instance_mask");
   check_symbol_export(&result, ddsc_library_handle,
                       "dds_take_instance_mask_wl");
+  check_symbol_export(&result, ddsc_library_handle, "dds_take_next_instance");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_take_next_instance_mask");
   check_symbol_export(&result, ddsc_library_handle, "dds_take_next");
   check_symbol_export(&result, ddsc_library_handle, "dds_take_next_wl");
   check_symbol_export(&result, ddsc_library_handle, "dds_peekcdr");
@@ -157,8 +166,14 @@ int main() {
   check_symbol_export(&result, ddsc_library_handle, "dds_takecdr");
   check_symbol_export(&result, ddsc_library_handle, "dds_takecdr_instance");
   check_symbol_export(&result, ddsc_library_handle, "dds_peek_with_collector");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_peek_next_instance_with_collector");
   check_symbol_export(&result, ddsc_library_handle, "dds_read_with_collector");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_read_next_instance_with_collector");
   check_symbol_export(&result, ddsc_library_handle, "dds_take_with_collector");
+  check_symbol_export(&result, ddsc_library_handle,
+                      "dds_take_next_instance_with_collector");
   check_symbol_export(&result, ddsc_library_handle, "dds_lookup_instance");
   check_symbol_export(&result, ddsc_library_handle, "dds_instance_get_key");
   check_symbol_export(&result, ddsc_library_handle, "dds_begin_coherent");
