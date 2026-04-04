@@ -150,7 +150,7 @@ static struct ddsi_serdata *test_serdata_to_ser_ref (const struct ddsi_serdata *
   }
 
   ref->iov_base = buf;
-  ref->iov_len = sz;
+  ref->iov_len = (ddsrt_iov_len_t) sz;
   return ret;
 }
 
