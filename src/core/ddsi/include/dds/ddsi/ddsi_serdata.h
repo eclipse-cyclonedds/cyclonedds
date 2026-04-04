@@ -183,9 +183,9 @@ struct ddsi_serdata_ops {
   ddsi_serdata_free_t free;
   ddsi_serdata_print_t print;
   ddsi_serdata_get_keyhash_t get_keyhash;
-  ddsi_serdata_get_related_sample_identity_t get_related_sample_identity;
   ddsi_serdata_from_loan_t from_loaned_sample;
   ddsi_serdata_from_psmx_t from_psmx;
+  ddsi_serdata_get_related_sample_identity_t get_related_sample_identity;
 };
 
 #define DDSI_SERDATA_HAS_PRINT 1
