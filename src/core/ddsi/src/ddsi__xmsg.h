@@ -288,6 +288,10 @@ void ddsi_xmsg_addpar_keyhash (struct ddsi_xmsg *m, const struct ddsi_serdata *s
   ddsrt_nonnull_all;
 
 /** @component rtps_submsg */
+void ddsi_xmsg_addpar_related_sample_identity (struct ddsi_xmsg *m, const ddsi_guid_t *writer_guid, ddsi_seqno_t seq)
+  ddsrt_nonnull_all;
+
+/** @component rtps_submsg */
 void ddsi_xmsg_addpar_statusinfo (struct ddsi_xmsg *m, unsigned statusinfo)
   ddsrt_nonnull_all;
 

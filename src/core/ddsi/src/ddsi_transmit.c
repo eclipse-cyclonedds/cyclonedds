@@ -57,9 +57,9 @@ static int have_reliable_subs (const struct ddsi_writer *wr)
 static dds_return_t ddsi_create_fragment_message_simple (struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_xmsg **pmsg)
 {
 #define TEST_KEYHASH 0
-  /* actual expected_inline_qos_size is typically 0, but always claiming 32 bytes won't make
+  /* actual expected_inline_qos_size is typically 0, but always claiming 60 bytes won't make
      a difference, so no point in being precise */
-  const size_t expected_inline_qos_size = /* statusinfo */ 8 + /* keyhash */ 20 + /* sentinel */ 4;
+  const size_t expected_inline_qos_size = /* statusinfo */ 8 + /* keyhash */ 20 + /* related_sample_identity */ 28 + /* sentinel */ 4;
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct ddsi_xmsg_marker sm_marker;
   unsigned char contentflag = 0;
@@ -83,7 +83,7 @@ static dds_return_t ddsi_create_fragment_message_simple (struct ddsi_writer *wr,
 
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
-  /* INFO_TS: 12 bytes, ddsi_rtps_data_t: 24 bytes, expected inline QoS: 32 => should be single chunk */
+  /* INFO_TS: 12 bytes, ddsi_rtps_data_t: 24 bytes, expected inline QoS: 60 => should be single chunk */
   if ((*pmsg = ddsi_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (ddsi_rtps_info_ts_t) + sizeof (ddsi_rtps_data_t) + expected_inline_qos_size, DDSI_XMSG_KIND_DATA)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
 
@@ -104,10 +104,14 @@ static dds_return_t ddsi_create_fragment_message_simple (struct ddsi_writer *wr,
     ddsi_xmsg_setwriterseq (*pmsg, &wr->e.guid, seq);
 
   /* Adding parameters means potential reallocing, so sm, ddcmn now likely become invalid */
+  ddsi_guid_t related_writer_guid;
+  ddsi_seqno_t related_seq;
   if (wr->num_readers_requesting_keyhash > 0)
     ddsi_xmsg_addpar_keyhash (*pmsg, serdata, wr->force_md5_keyhash);
   if (serdata->statusinfo)
     ddsi_xmsg_addpar_statusinfo (*pmsg, serdata->statusinfo);
+  if (ddsi_serdata_get_related_sample_identity (serdata, &related_writer_guid, &related_seq))
+    ddsi_xmsg_addpar_related_sample_identity (*pmsg, &related_writer_guid, related_seq);
   if (ddsi_xmsg_addpar_sentinel_ifparam (*pmsg) > 0)
   {
     data = ddsi_xmsg_submsg_from_marker (*pmsg, sm_marker);
@@ -137,9 +141,9 @@ dds_return_t ddsi_create_fragment_message (struct ddsi_writer *wr, ddsi_seqno_t 
      Note: fragnum is 0-based here, 1-based in DDSI. But 0-based is
      much easier ...
 
-     actual expected_inline_qos_size is typically 0, but always claiming 32 bytes won't make
+     actual expected_inline_qos_size is typically 0, but always claiming 60 bytes won't make
      a difference, so no point in being precise */
-  const size_t expected_inline_qos_size = /* statusinfo */ 8 + /* keyhash */ 20 + /* sentinel */ 4;
+  const size_t expected_inline_qos_size = /* statusinfo */ 8 + /* keyhash */ 20 + /* related_sample_identity */ 28 + /* sentinel */ 4;
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct ddsi_xmsg_marker sm_marker;
   void *sm;
@@ -163,7 +167,7 @@ dds_return_t ddsi_create_fragment_message (struct ddsi_writer *wr, ddsi_seqno_t 
 
   fragging = (nfrags * (uint32_t) gv->config.fragment_size < size);
 
-  /* INFO_TS: 12 bytes, ddsi_rtps_datafrag_t: 36 bytes, expected inline QoS: 32 => should be single chunk */
+  /* INFO_TS: 12 bytes, ddsi_rtps_datafrag_t: 36 bytes, expected inline QoS: 60 => should be single chunk */
   if ((*pmsg = ddsi_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (ddsi_rtps_info_ts_t) + sizeof (ddsi_rtps_datafrag_t) + expected_inline_qos_size, xmsg_kind)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
 
@@ -251,6 +255,8 @@ dds_return_t ddsi_create_fragment_message (struct ddsi_writer *wr, ddsi_seqno_t 
   if (fragnum == 0)
   {
     int rc;
+    ddsi_guid_t related_writer_guid;
+    ddsi_seqno_t related_seq;
     /* Adding parameters means potential reallocing, so sm, ddcmn now likely become invalid */
     if (wr->num_readers_requesting_keyhash > 0)
     {
@@ -259,6 +265,10 @@ dds_return_t ddsi_create_fragment_message (struct ddsi_writer *wr, ddsi_seqno_t 
     if (serdata->statusinfo)
     {
       ddsi_xmsg_addpar_statusinfo (*pmsg, serdata->statusinfo);
+    }
+    if (ddsi_serdata_get_related_sample_identity (serdata, &related_writer_guid, &related_seq))
+    {
+      ddsi_xmsg_addpar_related_sample_identity (*pmsg, &related_writer_guid, related_seq);
     }
     rc = ddsi_xmsg_addpar_sentinel_ifparam (*pmsg);
     if (rc > 0)

@@ -153,6 +153,11 @@ typedef size_t (*ddsi_serdata_print_t) (const struct ddsi_sertype *type, const s
 typedef void (*ddsi_serdata_get_keyhash_t) (const struct ddsi_serdata *d, struct ddsi_keyhash *buf, bool force_md5)
   ddsrt_nonnull_all;
 
+/* Return the related sample identity for a sample when one should be emitted in inline QoS.
+   Returns true when available, false otherwise. */
+typedef bool (*ddsi_serdata_get_related_sample_identity_t) (const struct ddsi_serdata *d, ddsi_guid_t *writer_guid, ddsi_seqno_t *seq)
+  ddsrt_nonnull ((1)) ddsrt_attribute_warn_unused_result;
+
 // Used for taking a loaned sample and constructing a serdata around this
 // takes over ownership of loan on success (leaves it unchanged on failure)
 typedef struct ddsi_serdata* (*ddsi_serdata_from_loan_t) (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample, struct dds_loaned_sample *loaned_sample, bool will_require_cdr)
@@ -178,6 +183,7 @@ struct ddsi_serdata_ops {
   ddsi_serdata_free_t free;
   ddsi_serdata_print_t print;
   ddsi_serdata_get_keyhash_t get_keyhash;
+  ddsi_serdata_get_related_sample_identity_t get_related_sample_identity;
   ddsi_serdata_from_loan_t from_loaned_sample;
   ddsi_serdata_from_psmx_t from_psmx;
 };
@@ -185,6 +191,7 @@ struct ddsi_serdata_ops {
 #define DDSI_SERDATA_HAS_PRINT 1
 #define DDSI_SERDATA_HAS_FROM_SER_IOV 1
 #define DDSI_SERDATA_HAS_GET_KEYHASH 1
+#define DDSI_SERDATA_HAS_GET_RELATED_SAMPLE_IDENTITY 1
 
 /** @component typesupport_if */
 DDS_EXPORT void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertype *tp, enum ddsi_serdata_kind kind)
@@ -389,6 +396,14 @@ inline void ddsi_serdata_get_keyhash (const struct ddsi_serdata *d, struct ddsi_
   d->ops->get_keyhash (d, buf, force_md5);
 }
 
+/** @component typesupport_if */
+DDS_INLINE_EXPORT inline bool ddsi_serdata_get_related_sample_identity (const struct ddsi_serdata *d, ddsi_guid_t *writer_guid, ddsi_seqno_t *seq)
+  ddsrt_nonnull ((1)) ddsrt_attribute_warn_unused_result;
+
+inline bool ddsi_serdata_get_related_sample_identity (const struct ddsi_serdata *d, ddsi_guid_t *writer_guid, ddsi_seqno_t *seq) {
+  return d->ops->get_related_sample_identity && d->ops->get_related_sample_identity (d, writer_guid, seq);
+}
+
 DDS_INLINE_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_loaned_sample(const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample, struct dds_loaned_sample *loan, bool will_require_cdr) ddsrt_nonnull_all;
 
 /** @component typesupport_if */
@@ -409,5 +424,3 @@ inline struct ddsi_serdata *ddsi_serdata_from_psmx(const struct ddsi_sertype *ty
 #endif
 
 #endif //DDSI_SERDATA_H
-
-
