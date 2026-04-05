@@ -39,6 +39,8 @@ static struct ddsi_thread_state *thrst;
 static struct test_sertype *test_st;
 
 static struct test_sertype *test_sertype_new (void);
+static struct test_sertype *test_sertype_new_with_serdata_ops (const struct ddsi_serdata_ops *serdata_ops);
+static struct ddsi_xmsg *build_message_for_sertype (const struct test_sertype *st, bool fragmented, bool include_related_sample_identity, const ddsi_guid_t *related_writer_guid, ddsi_seqno_t related_seq);
 
 struct test_sertype
 {
@@ -179,6 +181,16 @@ static const struct ddsi_serdata_ops test_serdata_ops = {
   .get_related_sample_identity = test_serdata_get_related_sample_identity
 };
 
+static const struct ddsi_serdata_ops test_serdata_ops_without_related_sample_identity = {
+  .get_size = test_serdata_get_size,
+  .eqkey = test_serdata_eqkey,
+  .free = test_serdata_free,
+  .to_ser = test_serdata_to_ser,
+  .to_ser_ref = test_serdata_to_ser_ref,
+  .to_ser_unref = test_serdata_to_ser_unref,
+  .to_untyped = test_serdata_to_untyped
+};
+
 static const struct ddsi_sertype_ops test_sertype_ops = {
   .version = ddsi_sertype_v0,
   .free = test_sertype_free,
@@ -186,13 +198,18 @@ static const struct ddsi_sertype_ops test_sertype_ops = {
   .equal = test_sertype_equal
 };
 
-static struct test_sertype *test_sertype_new (void)
+static struct test_sertype *test_sertype_new_with_serdata_ops (const struct ddsi_serdata_ops *serdata_ops)
 {
   struct test_sertype *st = ddsrt_malloc (sizeof (*st));
   ddsi_sertype_init_props (
-    &st->c, "related_sample_identity_test", &test_sertype_ops, &test_serdata_ops, 1u,
+    &st->c, "related_sample_identity_test", &test_sertype_ops, serdata_ops, 1u,
     DDS_DATA_TYPE_IS_MEMCPY_SAFE, DDS_DATA_REPRESENTATION_XCDR1, 0);
   return st;
+}
+
+static struct test_sertype *test_sertype_new (void)
+{
+  return test_sertype_new_with_serdata_ops (&test_serdata_ops);
 }
 
 static struct test_serdata *test_serdata_new (const struct test_sertype *st, uint32_t payload_size)
@@ -234,13 +251,18 @@ static void fini_test_writer (struct ddsi_writer *wr)
 
 static struct ddsi_xmsg *build_message (bool fragmented, bool include_related_sample_identity, const ddsi_guid_t *related_writer_guid, ddsi_seqno_t related_seq)
 {
+  return build_message_for_sertype (test_st, fragmented, include_related_sample_identity, related_writer_guid, related_seq);
+}
+
+static struct ddsi_xmsg *build_message_for_sertype (const struct test_sertype *st, bool fragmented, bool include_related_sample_identity, const ddsi_guid_t *related_writer_guid, ddsi_seqno_t related_seq)
+{
   static const ddsi_guid_t writer_guid = {
     .prefix = { .s = { 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b } },
     .entityid = { .u = 0x000003c2u }
   };
 
   const uint32_t payload_size = fragmented ? (uint32_t) gv.config.fragment_size + 8u : 12u;
-  struct test_serdata *sd = test_serdata_new (test_st, payload_size);
+  struct test_serdata *sd = test_serdata_new (st, payload_size);
   struct dds_qos *xqos = dds_create_qos ();
   struct ddsi_writer wr;
   struct ddsi_xmsg *msg = NULL;
@@ -331,6 +353,26 @@ CU_Test (ddsi_related_sample_identity, default_behavior, .init = setup, .fini = 
   CU_ASSERT_FATAL (submsg != NULL);
   CU_ASSERT_FATAL (find_inline_qos_parameter (submsg, DDSI_RTPS_SMID_DATA, DDSI_PID_RELATED_SAMPLE_IDENTITY) == NULL);
   ddsi_xmsg_free (msg);
+}
+
+CU_Test (ddsi_related_sample_identity, absent_getter, .init = setup, .fini = teardown)
+{
+  const ddsi_guid_t related_guid = {
+    .prefix = { .s = { 0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xc9, 0xca, 0xcb } },
+    .entityid = { .u = 0x010203c5u }
+  };
+  const ddsi_seqno_t related_seq = UINT64_C (0x1112131415161718);
+  struct test_sertype *st_without_getter = test_sertype_new_with_serdata_ops (&test_serdata_ops_without_related_sample_identity);
+  struct ddsi_xmsg *msg = build_message_for_sertype (st_without_getter, false, true, &related_guid, related_seq);
+  size_t size;
+  const unsigned char *payload = ddsi_xmsg_payload (&size, msg);
+  const unsigned char *submsg = find_data_submessage (payload, size, DDSI_RTPS_SMID_DATA);
+
+  CU_ASSERT_FATAL (submsg != NULL);
+  CU_ASSERT_FATAL (find_inline_qos_parameter (submsg, DDSI_RTPS_SMID_DATA, DDSI_PID_RELATED_SAMPLE_IDENTITY) == NULL);
+
+  ddsi_xmsg_free (msg);
+  ddsi_sertype_unref (&st_without_getter->c);
 }
 
 CU_Test (ddsi_related_sample_identity, emit_when_enabled, .init = setup, .fini = teardown)
