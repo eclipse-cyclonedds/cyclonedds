@@ -203,7 +203,7 @@ dds_set_trace_file(
  * @param[in]  userdata  User specified data passed along with each invocation
  *                       of callback.
  */
-void
+DDS_EXPORT void
 dds_set_log_sink(
     dds_log_write_fn_t callback,
     void *userdata);
@@ -224,7 +224,7 @@ dds_set_log_sink(
  * @param[in]  userdata  User specified data passed along with each invocation
  *                       of callback.
  */
-void
+DDS_EXPORT void
 dds_set_trace_sink(
     dds_log_write_fn_t callback,
     void *userdata);
