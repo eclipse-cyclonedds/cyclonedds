@@ -1152,6 +1152,8 @@ int main (int argc, char **argv)
   dds_log (0, ptr, 0, ptr, " ");
   dds_set_log_mask (0); // ROS 2 rmw_cyclonedds_cpp needs this, probably erroneously
   dds_get_log_mask ();
+  dds_set_log_sink (ptr, ptr);
+  dds_set_trace_sink (ptr, ptr);
 
   // ddsrt/sockets.h
 #if DDSRT_HAVE_GETHOSTNAME
