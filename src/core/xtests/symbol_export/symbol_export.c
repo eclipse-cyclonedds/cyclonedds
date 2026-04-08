@@ -718,6 +718,9 @@ int main (int argc, char **argv)
   ddsi_serdata_print (ptr, buf, 0);
   ddsi_serdata_print_untyped (ptr, ptr, buf, 0);
   ddsi_serdata_get_keyhash (ptr, ptr, 0);
+  ddsi_guid_t guid;
+  ddsi_seqno_t seq = 0;
+  ddsi_serdata_get_related_sample_identity (ptr, &guid, &seq);
   ddsi_serdata_from_loaned_sample (ptr, 0, ptr2, ptr3, 0);
   ddsi_serdata_from_psmx (ptr, ptr2);
 
