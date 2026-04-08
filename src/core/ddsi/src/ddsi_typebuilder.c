@@ -549,7 +549,7 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
       {
         tb_type->args.collection_args.bound = type->xt._u.seq.bound;
         if (tc != TYPEBUILDER_TC_REJECT && tc != TYPEBUILDER_TC_DISCARD)
-          tb_type->args.collection_args.tc = TYPEBUILDER_TC_TRIM;
+          tb_type->args.collection_args.tc = tc;
       }
       if (!(tb_type->args.collection_args.element_type.type = ddsrt_calloc (1, sizeof (*tb_type->args.collection_args.element_type.type))))
       {
