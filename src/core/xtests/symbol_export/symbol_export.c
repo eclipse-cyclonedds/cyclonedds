@@ -1312,6 +1312,8 @@ int main() {
                       "dds_set_log_mask"); // ROS 2 rmw_cyclonedds_cpp needs
                                            // this, probably erroneously
   check_symbol_export(&result, ddsc_library_handle, "dds_get_log_mask");
+  check_symbol_export(&result, ddsc_library_handle, "dds_set_log_sink");
+  check_symbol_export(&result, ddsc_library_handle, "dds_set_trace_sink");
 
   // ddsrt/sockets.h
 #if DDSRT_HAVE_GETHOSTNAME
