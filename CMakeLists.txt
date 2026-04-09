@@ -417,11 +417,11 @@ set(generated_defconfig_src  "${CMAKE_CURRENT_SOURCE_DIR}/src/core/ddsi/defconfi
 
 add_subdirectory(compat)
 add_subdirectory(src)
-if(BUILD_EXAMPLES)
+if(BUILD_EXAMPLES AND BUILD_IDLC)
   add_subdirectory(examples)
 endif()
 
-if(DEFINED ENV{LIB_FUZZING_ENGINE})
+if(DEFINED ENV{LIB_FUZZING_ENGINE} AND BUILD_IDLC)
   add_subdirectory(fuzz)
 endif()
 

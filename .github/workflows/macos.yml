@@ -1,0 +1,154 @@
+on:
+  # Disable for now, we are testing a lot
+  # pull_request:
+  #     branches:
+  #         - master
+  push:
+    branches: "*"
+  workflow_dispatch:
+
+jobs:
+  cycloneDDS_macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {
+              name: "debug clang",
+              os: "macos-14",
+              build_type: "Debug",
+              shared_libs: true,
+              sanitizer: "address,undefined",
+              deadline_update_skip: true,
+              coverage: true,
+              cc: clang,
+              cxx: clang,
+            }
+          - {
+              name: "Release clang",
+              os: "macos-14",
+              build_type: "Release",
+              shared_libs: true,
+              sanitizer: "undefined",
+              deadline_update_skip: true,
+              cc: clang,
+              cxx: clang,
+            }
+          - {
+              name: "Debug gcc-14",
+              os: "macos-14",
+              build_type: "Debug",
+              shared_libs: true,
+              analyzer: true,
+              deadline_update_skip: true,
+              cc: gcc-14,
+              cxx: g++-14,
+            }
+    runs-on: ${{ matrix.config.os }}
+    name: ${{ matrix.config.name }}
+    steps:
+      - uses: actions/checkout@v6.0.2
+        name: Repository Checkout
+      - name: C compiler
+        if: ${{ matrix.config.cc != '' }}
+        run: echo "CC=${{ matrix.config.cc }}" >> $GITHUB_ENV
+        shell: bash
+      - name: C++ compiler
+        if: ${{ matrix.config.cxx != '' }}
+        run: echo "CXX=${{ matrix.config.cxx }}" >> $GITHUB_ENV
+        shell: bash
+      - name: setup MacOS
+        run: |
+          set -e -x
+          sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate off
+          echo "###vso[task.setvariable variable=pip_cache;]${HOME}/Library/Caches/pip"
+          echo "###vso[task.setvariable variable=PATH;]$(python3 -m site --user-base)/bin:${PATH}"
+          echo "###vso[task.setvariable variable=build_tool_options;]-j 4"
+      - name: Iceoryx v1
+        if: ${{ matrix.config.iceoryx == 'ON' }}
+        run: |
+          sudo apt install libacl1-dev libncurses5-dev pkg-config
+          git clone --depth 1 --branch release_2.0 https://github.com/eclipse-iceoryx/iceoryx.git
+          cmake -S ./iceoryx/iceoryx_meta -B ./iceoryx/build \
+           -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type || 'Release' }} \
+           -DBUILD_SHARED_LIBS=${{ matrix.config.shared_libs }}
+          cmake --build ./iceoryx/build --config ${{ matrix.config.build_type || 'Release' }}
+          sudo cmake --install ./iceoryx/build
+        shell: bash
+      - name: Iceoryx v2
+        if: ${{ matrix.config.iceoryx2 == 'ON' }}
+        run: |
+          sudo apt install libacl1-dev libncurses5-dev pkg-config
+          git clone --depth 1 https://github.com/eclipse-iceoryx/iceoryx2.git
+          cd iceoryx2
+          cargo build --release --package iceoryx2-ffi-c
+          cmake -S . -B target/ffi/build \
+            -DBUILD_CXX_BINDING=OFF \
+            -DRUST_BUILD_ARTIFACT_PATH="$(pwd)/target/release"
+          cmake --build target/ffi/build
+          sudo cmake --install target/ffi/build
+          echo "./target/ffi/install" >> $GITHUB_PATH
+        shell: bash
+      - run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type || 'Release' }} \
+            -DBUILD_SHARED_LIBS=${{ matrix.config.shared_libs }} \
+            -DANALYZER=${{ matrix.config.analyzer || false}} \
+            -DSANITIZER=${{ matrix.config.sanitizer || 'none' }} \
+            -DENABLE_SSL=ON \
+            -DENABLE_SECURITY=ON \
+            -DENABLE_LIFESPAN=ON \
+            -DENABLE_DEADLINE_MISSED=ON \
+            -DSKIP_DEADLINE_UPDATE=${{ matrix.config.deadline_update_skip || false}} \
+            -DENABLE_TYPELIB=ON \
+            -DENABLE_TYPE_DISCOVERY=ON \
+            -DENABLE_TOPIC_DISCOVERY=ON \
+            -DENABLE_COVERAGE=${{ matrix.config.coverage || false}} \
+            -DENABLE_ICEORYX=OFF \
+            -DENABLE_ICEORYX2=OFF \
+            -DBUILD_DDSPERF=ON \
+            -DBUILD_TESTING=ON \
+            -DBUILD_IDLC_XTESTS=ON \
+            -DBUILD_EXAMPLES=ON \
+            -DWERROR=ON
+        shell: bash # Use bash to have a cross-platform workflow
+        name: configure
+      - run: cmake --build ./build --config ${{ matrix.config.build_type || 'Release' }}
+        name: build
+      - run: sudo cmake --install ./build --config ${{ matrix.config.build_type || 'Release' }}
+        name: install
+      - run: |
+          set -e -x
+          ctest --test-dir ./build -j 4 --output-on-failure -T test -E '^CUnit_ddsrt_random_default_random$' -C ${{ matrix.config.build_type || 'Release' }}
+        shell: bash
+        env:
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        name: ctest
+      - run: |
+          set -e -x
+          cd build
+          ../src/tools/ddsperf/sanity.bash
+        shell: bash
+        env:
+          BUILD_TYPE: ${{ matrix.config.build_type || 'Release' }}
+          SANITIZER: ${{ matrix.config.sanitizer || 'none' }}
+        name: Sanity check ddsperf
+      - if: ${{ matrix.config.shared_libs == '' || matrix.config.shared_libs != false }}
+        run: |
+          set -e -x
+          cd build
+          ../scripts/sanity_helloworld.bash
+        shell: bash
+        env:
+          BUILD_TYPE: ${{ matrix.config.build_type || 'Release' }}
+          SANITIZER: ${{ matrix.config.sanitizer || 'none' }}
+          CFLAGS: -fsanitize=${{ matrix.config.sanitizer || 'none' }}
+          LDFLAGS: -fsanitize=${{ matrix.config.sanitizer || 'none' }}
+        name: Sanity check Hello World
+      - if: ${{ matrix.config.check_symbol_export}}
+        run: |
+          set -e -x
+          cd build
+          test -e ./bin/symbol_export_test
+        shell: bash
+        name: Sanity check export symbols

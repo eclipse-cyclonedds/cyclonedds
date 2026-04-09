@@ -62,7 +62,7 @@ jobs:
         sanitizer: address,undefined
         ssl: off
         lifespan: off
-        deadline: off
+        deadline_missed: on
         type_discovery: off
         topic_discovery: off
         idlc_xtests: off # temporary disabled because of passing -t option to idlc in this test for recursive types
@@ -99,11 +99,13 @@ jobs:
         image: macos-14
         build_type: Release
         sanitizer: undefined
+        deadline_update_skip: on
         cc: clang
       'macOS 14 + GCC 14 (Deb, analyzer, x86_64)':
         image: macos-14
         cc: gcc-14
         analyzer: on
+        deadline_update_skip: on
       # 32-bit Windows: without SSL/security because Chocolateley only provides 64-bit OpenSSL
       'Win 2025 + VS 2022 (Deb, x86, no security)':
         arch: x86

@@ -1,0 +1,64 @@
+on:
+  # Disable for now, we are testing a lot
+  # pull_request:
+  #     branches:
+  #         - master
+  push:
+    branches: "*"
+  workflow_dispatch:
+
+jobs:
+  python_bindings:
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - { name: "python bindings", os: "ubuntu-24.04", build_type: "Debug" }
+    runs-on: ${{ matrix.config.os }}
+    name: ${{ matrix.config.name }}
+    steps:
+      - uses: actions/checkout@v6.0.2
+        name: Repository Checkout
+      - run: |
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang" >> $GITHUB_ENV
+        name: Compiler to clang
+      - run: |
+          cmake -S . -B build \
+                     -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }} \
+                     -DCMAKE_INSTALL_PREFIX=build/install \
+                     -DENABLE_SSL=off \
+                     -DENABLE_SECURITY=off \
+                     -DBUILD_TESTING=off \
+                     -DBUILD_IDLC_XTESTS=off \
+                     -DBUILD_EXAMPLES=off \
+                     -DWERROR=on
+        shell: bash # Use bash to have a cross-platform workflow
+        name: configure
+      - run: cmake --build ./build --config ${{ matrix.config.build_type || 'Release' }}
+        name: build
+      - run: sudo cmake --install ./build
+        name: install
+      - run: git clone https://github.com/eclipse-cyclonedds/cyclonedds-python.git cyclonedds_python --branch master
+        name: Download python bindings
+      - name: Install Cyclonedds-py
+        run: |
+          export CYCLONEDDS_HOME=$(pwd)/build/install
+          export PATH=$PATH:$CYCLONEDDS_HOME/bin
+          python -m pip install --user --upgrade pip wheel setuptools
+          python -m pip install --user --upgrade pytest-azurepipelines
+          python -m pip install --user ./cyclonedds_python[dev]
+      - name: Run Python tests
+        run: |
+          cd cyclonedds_python/tests
+          python -m pytest .. -vv --no-coverage-upload --color=yes
+      - name: Run python fuzzing tests
+        run: |
+          export CYCLONEDDS_HOME=$(pwd)/build/install
+          export PATH=$PATH:$CYCLONEDDS_HOME/bin
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CYCLONEDDS_HOME/lib
+          export CYCLONEDDS_URI=
+          export RSEED=$(shuf -i 1-100000 -n 1)
+          cd cyclonedds_python/tests
+          echo "Random seed used: $RSEED"
+          python -m pytest .. -vv --no-coverage-upload --color=yes -k fuzzy --fuzzing num_types=100 type_seed=$RSEED -s

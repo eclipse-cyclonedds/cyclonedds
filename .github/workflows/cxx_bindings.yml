@@ -1,0 +1,67 @@
+on:
+  # Disable for now, we are testing a lot
+  # pull_request:
+  #     branches:
+  #         - master
+  push:
+    branches: "*"
+  workflow_dispatch:
+
+jobs:
+  cxx_bindings:
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - { name: "CXX bindings", os: "ubuntu-22.04", build_type: "Debug" }
+    runs-on: ${{ matrix.config.os }}
+    name: ${{ matrix.config.name }}
+    steps:
+      - uses: actions/checkout@v6.0.2
+        name: Repository Checkout
+      - run: |
+          git clone --depth 1 --branch release-1.12.1 https://github.com/google/googletest.git
+          cmake -S ./googletest -B googletest/build -DCMAKE_INSTALL_PREFIX=./googletest/build/install -DBUILD_SHARED_LIBS=on
+          cmake --build ./googletest/build --config ${{ matrix.config.build_type || 'Release' }}
+          sudo cmake --install ./googletest/build
+          echo "./googletest/build/install" >> $GITHUB_PATH
+        name: Setup GoogleTests
+      - run: |
+          cmake -S . -B build \
+                     -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }} \
+                     -DCMAKE_INSTALL_PREFIX=build/install \
+                     -DENABLE_SSL=off \
+                     -DENABLE_SECURITY=off \
+                     -DBUILD_TESTING=off \
+                     -DBUILD_IDLC_XTESTS=off \
+                     -DBUILD_EXAMPLES=off \
+                     -DWERROR=on
+        shell: bash # Use bash to have a cross-platform workflow
+        name: configure
+      - run: cmake --build ./build --config ${{ matrix.config.build_type || 'Release' }}
+        name: build
+      - run: sudo cmake --install ./build
+        name: install
+      - run: echo "$(pwd)/build/install" >> $GITHUB_PATH
+        name: Installation folder to path
+      - run: git clone https://github.com/eclipse-cyclonedds/cyclonedds-cxx.git --branch master
+        name: Download CXX bindings
+      - run: |
+          cmake -S ./cyclonedds-cxx -B ./cyclonedds-cxx/build \
+                     -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }} \
+                     -DCMAKE_INSTALL_PREFIX=./cyclonedds-cxx/build/install \
+                     -DCMAKE_PREFIX_PATH="$(pwd)/build/install;$(pwd)/googletest/build/install" \
+                     -DBUILD_TESTING=on \
+                     -DBUILD_EXAMPLES=on \
+                     -DWERROR=on
+        shell: bash # Use bash to have a cross-platform workflow
+        name: configure cxx bindings
+      - run: cmake --build ./cyclonedds-cxx/build --config ${{ matrix.config.build_type || 'Release' }}
+        name: build CXX bindings
+      - run: sudo cmake --install ./cyclonedds-cxx/build
+        name: install CXX bindings
+      - run: |
+          cd cyclonedds-cxx/build
+          ctest -j 4 --output-on-failure --schedule-random
+        shell: bash
+        name: Run CycloneDDS C++ tests

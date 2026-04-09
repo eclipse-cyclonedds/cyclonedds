@@ -1,0 +1,301 @@
+on:
+  # Disable for now, we are testing a lot
+  # pull_request:
+  #     branches:
+  #         - master
+  push:
+    branches: "*"
+  workflow_dispatch:
+
+jobs:
+  cycloneDDS_linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {
+              name: "release",
+              os: "ubuntu-22.04",
+              build_type: "Release",
+              shared_libs: true,
+              sanitizer: "undefined",
+              ssl: "ON",
+              security: true,
+              lifespan: true,
+              deadline_missed: true,
+              type_discovery: true,
+              topic_discovery: true,
+              testing: true,
+              idlc_xtests: true,
+            }
+          - {
+              name: "debug_iceoryx",
+              os: "ubuntu-24.04",
+              shared_libs: true,
+              sanitizer: "undefined",
+              ssl: "ON",
+              security: true,
+              lifespan: true,
+              deadline_missed: true,
+              type_discovery: true,
+              topic_discovery: true,
+              coverage: true,
+              iceoryx: "ON",
+              testing: true,
+              idlc_xtests: true,
+            }
+          - {
+              name: "debug_iceoryx2",
+              os: "ubuntu-24.04",
+              shared_libs: true,
+              sanitizer: "undefined",
+              ssl: "ON",
+              security: true,
+              lifespan: true,
+              deadline_missed: true,
+              type_discovery: true,
+              topic_discovery: true,
+              coverage: true,
+              iceoryx2: "ON",
+              testing: true,
+              idlc_xtests: true,
+            }
+          - {
+              name: "release_gcc14",
+              os: "ubuntu-24.04",
+              build_type: "Release",
+              shared_libs: true,
+              sanitizer: "undefined",
+              ssl: "ON",
+              security: true,
+              lifespan: true,
+              deadline_missed: true,
+              type_discovery: true,
+              topic_discovery: true,
+              testing: true,
+              idlc_xtests: true,
+              cc: gcc-14,
+              cxx: g++-14,
+            }
+          - {
+              name: "debug security only",
+              os: "ubuntu-24.04",
+              build_type: "Debug",
+              shared_libs: true,
+              sanitizer: "address,undefined",
+              ssl: "OFF",
+              security: true,
+              lifespan: false,
+              deadline_missed: true,
+              type_discovery: false,
+              topic_discovery: false,
+              testing: true,
+              idlc_xtests: false,
+              cc: gcc-12,
+              cxx: g++-12,
+            }
+          - {
+              name: "debug no tests",
+              os: "ubuntu-24.04",
+              build_type: "Debug",
+              shared_libs: true,
+              ssl: "ON",
+              security: true,
+              lifespan: true,
+              deadline_missed: true,
+              type_discovery: true,
+              topic_discovery: true,
+              testing: false,
+              idlc_xtests: false,
+              cc: gcc-12,
+              cxx: g++-12,
+              check_symbol_export: true,
+            }
+          - {
+              name: "debug clang",
+              os: "ubuntu-24.04",
+              build_type: "Debug",
+              shared_libs: true,
+              analyzer: true,
+              sanitizer: "address,undefined",
+              ssl: "ON",
+              security: true,
+              lifespan: true,
+              deadline_missed: true,
+              type_discovery: true,
+              topic_discovery: true,
+              testing: true,
+              idlc_xtests: true,
+              cc: clang,
+              cxx: clang,
+            }
+          - {
+              name: "debug clang no security",
+              os: "ubuntu-24.04",
+              build_type: "Debug",
+              shared_libs: true,
+              sanitizer: "address,undefined",
+              ssl: "ON",
+              security: false,
+              lifespan: true,
+              deadline_missed: true,
+              type_discovery: true,
+              topic_discovery: true,
+              testing: true,
+              idlc_xtests: true,
+              cc: clang,
+              cxx: clang,
+            }
+          - {
+              name: "release clang no topic discovery",
+              os: "ubuntu-24.04",
+              build_type: "Release",
+              shared_libs: true,
+              sanitizer: "undefined",
+              ssl: "ON",
+              security: true,
+              lifespan: true,
+              deadline_missed: true,
+              type_discovery: true,
+              topic_discovery: false,
+              testing: true,
+              idlc_xtests: false,
+              cc: clang,
+              cxx: clang,
+            }
+          - {
+              name: "static release iceoryx",
+              os: "ubuntu-24.04",
+              build_type: "Release",
+              shared_libs: false,
+              crosscompiling: true,
+              ssl: "ON",
+              security: true,
+              lifespan: true,
+              deadline_missed: true,
+              type_discovery: true,
+              topic_discovery: true,
+              iceoryx: "ON",
+              testing: true,
+              idlc_xtests: false,
+            }
+    runs-on: ${{ matrix.config.os }}
+    name: ${{ matrix.config.name }}
+    steps:
+      - uses: actions/checkout@v6.0.2
+        name: Repository Checkout
+      - name: fix_kernel_mmap_rnd_bits
+        run: |
+          # Asan in llvm 14 provided in ubuntu 22.04 is incompatible with
+          # high-entropy ASLR in much newer kernels that GitHub runners are
+          # using leading to random crashes: https://reviews.llvm.org/D148280
+          sudo sysctl vm.mmap_rnd_bits=28
+        shell: bash
+      - name: setup_linux
+        run: |
+          sudo apt install -y clang clang-tools clang-tidy
+        shell: bash
+      - name: C compiler
+        if: ${{ matrix.config.cc != '' }}
+        run: echo "CC=${{ matrix.config.cc }}" >> $GITHUB_ENV
+        shell: bash
+      - name: C++ compiler
+        if: ${{ matrix.config.cxx != '' }}
+        run: echo "CXX=${{ matrix.config.cxx }}" >> $GITHUB_ENV
+        shell: bash
+      - name: Iceoryx v1
+        if: ${{ matrix.config.iceoryx == 'ON' }}
+        run: |
+          sudo apt install libacl1-dev libncurses5-dev pkg-config
+          git clone --depth 1 --branch release_2.0 https://github.com/eclipse-iceoryx/iceoryx.git
+          cmake -S ./iceoryx/iceoryx_meta -B ./iceoryx/build \
+           -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type || 'Release' }} \
+           -DBUILD_SHARED_LIBS=${{ matrix.config.shared_libs }}
+          cmake --build ./iceoryx/build --config ${{ matrix.config.build_type || 'Release' }} --parallel
+          sudo cmake --install ./iceoryx/build
+        shell: bash
+      - name: Iceoryx v2
+        if: ${{ matrix.config.iceoryx2 == 'ON' }}
+        run: |
+          sudo apt install libacl1-dev libncurses5-dev pkg-config
+          git clone --depth 1 https://github.com/eclipse-iceoryx/iceoryx2.git
+          cd iceoryx2
+          cargo build --release --package iceoryx2-ffi-c
+          cmake -S . -B target/ffi/build \
+            -DBUILD_CXX_BINDING=OFF \
+            -DRUST_BUILD_ARTIFACT_PATH="$(pwd)/target/release"
+          cmake --build target/ffi/build --parallel
+          sudo cmake --install target/ffi/build
+          echo "./target/ffi/install" >> $GITHUB_PATH
+        shell: bash
+      - run: |
+          if [[ "${{ matrix.config.crosscompiling }}" == true ]]; then 
+              crosscompiling="-DCMAKE_CROSSCOMPILING=ON -DCMAKE_SYSTEM_NAME=$RUNNER_OS"
+          fi
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type || 'Release' }} \
+            -DBUILD_SHARED_LIBS=${{ matrix.config.shared_libs }} \
+            ${crosscompiling} \
+            -DANALYZER=${{ matrix.config.analyzer || false}} \
+            -DSANITIZER=${{ matrix.config.sanitizer || 'none' }} \
+            -DENABLE_SSL=${{ matrix.config.ssl }} \
+            -DENABLE_SECURITY=${{ matrix.config.security }} \
+            -DENABLE_LIFESPAN=${{ matrix.config.lifespan }} \
+            -DENABLE_DEADLINE_MISSED=${{ matrix.config.deadline_missed }} \
+            -DSKIP_DEADLINE_UPDATE=OFF \
+            -DENABLE_TYPELIB=ON \
+            -DENABLE_TYPE_DISCOVERY=${{ matrix.config.type_discovery }} \
+            -DENABLE_TOPIC_DISCOVERY=${{ matrix.config.topic_discovery }} \
+            -DENABLE_COVERAGE=${{ matrix.config.coverage || false }} \
+            -DENABLE_ICEORYX=${{ matrix.config.iceoryx || false }} \
+            -DENABLE_ICEORYX2=${{ matrix.config.iceoryx2 || false }} \
+            -DBUILD_DDSPERF=ON \
+            -DBUILD_TESTING=${{ matrix.config.testing}} \
+            -DBUILD_IDLC_XTESTS=${{ matrix.config.idlc_xtests }} \
+            -DBUILD_EXAMPLES=ON \
+            -DWERROR=ON
+        shell: bash # Use bash to have a cross-platform workflow
+        name: configure
+      - run: cmake --build ./build --config ${{ matrix.config.build_type || 'Release' }} --parallel
+        name: build
+      - run: sudo cmake --install ./build --config ${{ matrix.config.build_type || 'Release' }}
+        name: install
+      - if: ${{ matrix.config.testing != false}}
+        run: |
+          set -e -x
+          ctest --test-dir ./build -j 4 --output-on-failure -T test -E '^CUnit_ddsrt_random_default_random$' -C ${{ matrix.config.build_type || 'Release' }}
+        shell: bash
+        env:
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        name: ctest
+      # ddsperf won't be build when crosscompiling because it requires IDLC that will not be built
+      - if: ${{ matrix.config.crosscompiling == false }}
+        run: |
+          set -e -x
+          cd build
+          ../src/tools/ddsperf/sanity.bash
+        shell: bash
+        env:
+          BUILD_TYPE: ${{ matrix.config.build_type || 'Release' }}
+          SANITIZER: ${{ matrix.config.sanitizer || 'none' }}
+        name: Sanity check ddsperf
+      - if: ${{ matrix.config.shared_libs == '' || matrix.config.shared_libs != false }}
+        run: |
+          set -e -x
+          cd build
+          ../scripts/sanity_helloworld.bash
+        shell: bash
+        env:
+          BUILD_TYPE: ${{ matrix.config.build_type || 'Release' }}
+          SANITIZER: ${{ matrix.config.sanitizer || 'none' }}
+          CFLAGS: -fsanitize=${{ matrix.config.sanitizer || 'none' }}
+          LDFLAGS: -fsanitize=${{ matrix.config.sanitizer || 'none' }}
+        name: Sanity check Hello World
+      - if: ${{ matrix.config.check_symbol_export}}
+        run: |
+          set -e -x
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/build/lib/
+          cd build
+          test -e ./bin/symbol_export_test
+        shell: bash
+        name: Sanity check export symbols
