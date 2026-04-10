@@ -488,7 +488,7 @@ static dds_return_t make_union (const struct make_context *ctxt, const struct el
       const char *valstr = getattr (m, "value");
       if (valstr == NULL)
         return dtl_set_error (err, m, "no value in caseDiscriminator\n");
-      if (strcmp (valstr, "default") == 0) // what about an enum where "default" is a literal?
+      if (strcmp (valstr, "default") == 0)
         isdefault = true;
       else if (*valstr == 0)
         return dtl_set_error (err, m, "empty value in caseDiscriminator\n");
