@@ -2528,6 +2528,11 @@ static bool xt_is_assignable_from_union (struct ddsi_domaingv *gv, const struct 
 
   /* Note that union members are ordered by their member index (=ordering in idl) and not by their member ID */
   uint32_t i1_max = t1->_u.union_type.members.length, i2_max = t2->_u.union_type.members.length;
+  /* Rule: If T1 (and therefore T2) extensibility is final then the set of labels is identical. By marking it
+     non-assignable early if the number of labels is different, the remainder only needs to check that the
+     cases in T1 exist in T2. */
+  if (i1_max != i2_max && xt_get_extensibility (t1) == DDS_XTypes_IS_FINAL)
+    return xt_non_assignable (reason, DDSI_NONASSIGN_MISSING_CASE, t1, t2, 0);
   bool any_match = false;
   for (uint32_t i1 = 0; i1 < i1_max; i1++)
   {
