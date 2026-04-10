@@ -8,8 +8,14 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-#ifndef DYNSUB_H
-#define DYNSUB_H
+#ifndef COMPARE_SAMPLES_H
+#define COMPARE_SAMPLES_H
 
+#include "dds/dds.h"
+#include "dds/ddsi/ddsi_xt_typeinfo.h"
 
-#endif /* DYNSUB_H */
+struct type_cache;
+
+int compare_samples (struct type_cache *tc, bool valid_data, const void *sample1, const void* sample2, const DDS_XTypes_CompleteTypeObject *typeobj);
+
+#endif /* COMPARE_SAMPLES_H */

@@ -390,7 +390,7 @@ static ddsrt_mtime_t whc_sample_expired_cb(void *hc, ddsrt_mtime_t tnow)
 static ddsrt_mtime_t whc_deadline_missed_cb(void *hc, ddsrt_mtime_t tnow)
 {
   struct whc_impl *whc = hc;
-  void *vidxnode;
+  void *vidxnode = NULL;
   ddsrt_mtime_t tnext = {0};
   uint32_t ninst = 0;
   ddsrt_mutex_lock (&whc->lock);

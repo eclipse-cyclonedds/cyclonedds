@@ -278,7 +278,7 @@ struct const_tainted_encrypted_state {
 
 typedef struct tainted_input_buffer {
   const unsigned char *ptr;
-  unsigned char const * const endp;
+  unsigned char const *endp;
 } tainted_input_buffer_t;
 
 static tainted_input_buffer_t tainted_input_buffer_from_OctetSeq (const DDS_Security_OctetSeq *seq)

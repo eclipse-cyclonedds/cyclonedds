@@ -94,7 +94,7 @@ static void xtypes_typeinfo_fini (void)
 CU_Test (ddsc_xtypes_typeinfo, invalid_top_level_local_hash, .init = xtypes_typeinfo_init, .fini = xtypes_typeinfo_fini)
 {
   char topic_name[100];
-  dds_topic_descriptor_t desc;
+  dds_topic_descriptor_t desc = {0};
   DDS_XTypes_TypeInformation *ti;
 
   for (uint32_t n = 0; n < 6; n++)
@@ -129,7 +129,7 @@ CU_Test (ddsc_xtypes_typeinfo, invalid_top_level_local_non_hash, .init = xtypes_
 {
   char topic_name[100];
 
-  dds_topic_descriptor_t desc;
+  dds_topic_descriptor_t desc = {0};
   // coverity[store_writes_const_field]
   memcpy (&desc, &XSpace_to_toplevel_desc, sizeof (desc));
 
@@ -213,7 +213,7 @@ CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, ty
   char topic_name[100];
   tprintf("Test invalid_type_object_local: %s\n", test_descr);
 
-  dds_topic_descriptor_t desc;
+  dds_topic_descriptor_t desc = {0};
   xtypes_util_modify_type_meta (&desc, topic_desc, mod, matching_typeinfo, DDS_XTypes_EK_MINIMAL);
 
   // test that topic creation fails
@@ -229,7 +229,7 @@ CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, ty
 /* Invalid hashed type (with valid hash type id) as top-level type for proxy endpoint */
 CU_Test (ddsc_xtypes_typeinfo, invalid_top_level_remote_hash, .init = xtypes_typeinfo_init, .fini = xtypes_typeinfo_fini)
 {
-  dds_topic_descriptor_t desc;
+  dds_topic_descriptor_t desc = {0};
   DDS_XTypes_TypeInformation *ti;
   struct ddsi_domaingv *gv = get_domaingv (g_participant1);
   char topic_name[100];
@@ -297,7 +297,7 @@ CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, ty
   dds_entity_t wr = dds_create_writer (g_participant1, topic, NULL, NULL);
   CU_ASSERT_GT_FATAL (wr, 0);
 
-  dds_topic_descriptor_t desc;
+  dds_topic_descriptor_t desc = {0};
   xtypes_util_modify_type_meta (&desc, topic_desc, mod, true, DDS_XTypes_EK_MINIMAL);
 
   DDS_XTypes_TypeInformation *ti;

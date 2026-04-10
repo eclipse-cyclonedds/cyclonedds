@@ -41,21 +41,21 @@ extern "C" {
  * @ingroup serialization
  * @brief Mask for the OP type flags
  */
-#define DDS_OP_TYPE_FLAGS_MASK    0x00800000
+#define DDS_OP_TYPE_FLAGS_MASK    0x00e00000
 
 /**
  * @anchor DDS_OP_TYPE_MASK
  * @ingroup serialization
  * @brief Mask for the OP type
  */
-#define DDS_OP_TYPE_MASK          0x007f0000
+#define DDS_OP_TYPE_MASK          0x001f0000
 
 /**
  * @anchor DDS_OP_SUBTYPE_MASK
  * @ingroup serialization
  * @brief Mask for the OP subtype
  */
-#define DDS_OP_SUBTYPE_MASK       0x0000ff00
+#define DDS_OP_SUBTYPE_MASK       0x00001f00
 
 /**
  * @anchor DDS_OP_JMP_MASK
@@ -76,14 +76,14 @@ extern "C" {
  * @ingroup serialization
  * @brief Mask for the JEQ type flags
  */
-#define DDS_JEQ_TYPE_FLAGS_MASK   0x00800000
+#define DDS_JEQ_TYPE_FLAGS_MASK   0x00e00000
 
 /**
  * @anchor DDS_JEQ_TYPE_MASK
  * @ingroup serialization
  * @brief Mask for the JEQ type
  */
-#define DDS_JEQ_TYPE_MASK         0x007f0000
+#define DDS_JEQ_TYPE_MASK         0x001f0000
 
 /**
  * @anchor DDS_PLM_FLAGS_MASK
@@ -210,6 +210,16 @@ extern "C" {
 #define DDS_PLM_FLAGS(o)      ((enum dds_stream_typecode) (((o) & DDS_PLM_FLAGS_MASK) >> 16))
 
 
+#define DDS_OP_RTS  (0x00 << 24)
+#define DDS_OP_ADR  (0x01 << 24)
+#define DDS_OP_JSR  (0x02 << 24)
+#define DDS_OP_JEQ  (0x03 << 24)
+#define DDS_OP_DLC  (0x04 << 24)
+#define DDS_OP_PLC  (0x05 << 24)
+#define DDS_OP_PLM  (0x06 << 24)
+#define DDS_OP_KOF  (0x07 << 24)
+#define DDS_OP_JEQ4 (0x08 << 24)
+#define DDS_OP_MID  (0x09 << 24)
 
 /**
  * @ingroup serialization
@@ -218,10 +228,10 @@ extern "C" {
 enum dds_stream_opcode {
   /** return from subroutine, exits top-level
      [RTS,   0,   0, 0] */
-  DDS_OP_RTS = 0x00 << 24,
+  DDS_SOP_RTS = DDS_OP_RTS,
 
   /** data field
-     [ADR, nBY,   0, f] [offset]
+     [ADR, nBY,   0, f | ar] [offset]
      [ADR, BLN,   0, f] [offset]
      [ADR, WCHAR,   0, f] [offset]
      [ADR, ENU,   0, f] [offset] [max]
@@ -231,7 +241,7 @@ enum dds_stream_opcode {
      [ADR, BST,   0, f] [offset] [max-size]
      [ADR, BWSTR,   0, f] [offset] [max-size]
 
-     [ADR, SEQ, nBY, f] [offset]
+     [ADR, SEQ, nBY, f | ar] [offset]
      [ADR, SEQ, BLN, f] [offset]
      [ADR, SEQ, WCHAR, f] [offset]
      [ADR, SEQ, ENU, f] [offset] [max]
@@ -244,7 +254,7 @@ enum dds_stream_opcode {
        where s = {SEQ,ARR,UNI,STU,BSQ}
      [ADR, SEQ, EXT, f] *** not supported
 
-     [ADR, BSQ, nBY, f] [offset] [sbound]
+     [ADR, BSQ, nBY, f | ar] [offset] [sbound]
      [ADR, BSQ, BLN, f] [offset] [sbound]
      [ADR, BSQ, WCHAR, f] [offset] [sbound]
      [ADR, BSQ, ENU, f] [offset] [sbound] [max]
@@ -257,7 +267,7 @@ enum dds_stream_opcode {
        where s = {SEQ,ARR,UNI,STU,BSQ}
      [ADR, BSQ, EXT, f] *** not supported
 
-     [ADR, ARR, nBY, f] [offset] [alen]
+     [ADR, ARR, nBY, f | ar] [offset] [alen]
      [ADR, ARR, BLN, f] [offset] [alen]
      [ADR, ARR, WCHAR, f] [offset] [alen]
      [ADR, ARR, ENU, f] [offset] [alen] [max]
@@ -270,47 +280,48 @@ enum dds_stream_opcode {
          where s = {SEQ,ARR,UNI,STU,BSQ}
      [ADR, ARR, EXT, f] *** not supported
 
-     [ADR, UNI,   d, z] [offset] [alen] [next-insn, cases]
+     [ADR, UNI,   d, z | ar] [offset] [alen] [next-insn, cases]
      [ADR, UNI, ENU, z] [offset] [alen] [next-insn, cases] [max]
+     [ADR, UNI, BMK, z] [offset] [alen] [next-insn, cases] [bits-low]
      [ADR, UNI, EXT, f] *** not supported
        where
-         d = discriminant type of {1BY,2BY,4BY,BLN}
-         z = default present/not present (DDS_OP_FLAG_DEF)
-         offset = discriminant offset
-         max = max enum value
-       followed by alen case labels: in JEQ format
+         d = discriminant type of {1BY,2BY,4BY,8BY,BLN}, 8BY must have top
+   32-bits 0 z = default present/not present (DDS_OP_FLAG_DEF) offset =
+   discriminant offset max = max enum value followed by alen case labels: in JEQ
+   format
 
-     [ADR, e | EXT,   0, f] [offset] [next-insn, elem-insn] [elem-size iff "external" flag e is set, or flag f has DDS_OP_FLAG_OPT]
-     [ADR, STU,   0, f] *** not supported
-   where
-     s            = subtype
-     e            = external: stored as external data (pointer) (DDS_OP_FLAG_EXT)
-     f            = flags:
+     [ADR, e | EXT,   0, f] [offset] [next-insn, elem-insn] [elem-size iff
+   "external" flag e is set, or flag f has DDS_OP_FLAG_OPT] [ADR, STU,   0, f]
+   *** not supported where s            = subtype e            = external:
+   stored as external data (pointer) (DDS_OP_FLAG_EXT) f            = flags:
                     - key/not key (DDS_OP_FLAG_KEY)
                     - base type member, used with EXT type (DDS_OP_FLAG_BASE)
                     - optional (DDS_OP_FLAG_OPT)
                     - must-understand (DDS_OP_FLAG_MU)
-                    - storage size, only for ENU and BMK (n << DDS_OP_FLAG_SZ_SHIFT)
+                    - storage size, only for ENU and BMK (n <<
+   DDS_OP_FLAG_SZ_SHIFT) ar           = "arithmetic" flags:
+                    - floating-point instead of integer (DDS_OP_FLAG_FP)
+                    - signed integer instead of unsigned (DDS_OP_FLAG_SGN)
      [offset]     = field offset from start of element in memory
-     [elem-size]  = element size in memory (elem-size is only included in case 'external' flag is set)
-     [max-size]   = string bound + 1
-     [max]        = max enum value
-     [bits-..]    = identified bits in the bitmask, split into high and low 32 bits
-     [alen]       = array length, number of cases
-     [sbound]     = bounded sequence maximum number of elements
-     [next-insn]  = (unsigned 16 bits) offset to instruction for next field, from start of insn
-     [elem-insn]  = (unsigned 16 bits) offset to first instruction for element, from start of insn
-     [cases]      = (unsigned 16 bits) offset to first case label, from start of insn
+     [elem-size]  = element size in memory (elem-size is only included in case
+   'external' flag is set) [max-size]   = string bound + 1 [max]        = max
+   enum value [bits-..]    = identified bits in the bitmask, split into high and
+   low 32 bits [alen]       = array length, number of cases [sbound]     =
+   bounded sequence maximum number of elements (0 .. 2^31-1) and TRIM (2^31)
+     [next-insn]  = (unsigned 16 bits) offset to instruction for next field,
+   from start of insn [elem-insn]  = (unsigned 16 bits) offset to first
+   instruction for element, from start of insn [cases]      = (unsigned 16 bits)
+   offset to first case label, from start of insn
    */
-  DDS_OP_ADR = 0x01 << 24,
+  DDS_SOP_ADR = DDS_OP_ADR,
 
   /** jump-to-subroutine (e.g. used for recursive types and appendable unions)
      [JSR,   0, e]
        where
-         e = (signed 16 bits) offset to first instruction in subroutine, from start of insn
-             instruction sequence must end in RTS, execution resumes at instruction
-             following JSR */
-  DDS_OP_JSR = 0x02 << 24,
+         e = (signed 16 bits) offset to first instruction in subroutine, from
+     start of insn instruction sequence must end in RTS, execution resumes at
+     instruction following JSR */
+  DDS_SOP_JSR = DDS_OP_JSR,
 
   /** jump-if-equal, used for union cases:
      [JEQ, nBY, 0] [disc] [offset]
@@ -321,33 +332,33 @@ enum dds_stream_opcode {
      [JEQ4, e | STR, 0] [disc] [offset] 0
      [JEQ4, e | ENU, f] [disc] [offset] [max]
      [JEQ4, EXT, 0] *** not supported, use STU/UNI for external defined types
-     [JEQ4, e | s, i] [disc] [offset] [elem-size iff "external" flag e is set, else 0]
-       where
-         e  = external: stored as external data (pointer) (DDS_OP_FLAG_EXT)
-         s  = subtype other than {nBY,STR} for JEQ and {nBY,STR,ENU,EXT} for JEQ4
-              (note that BMK cannot be inline, because it needs 2 additional instructions
-              for the bits that are identified in the bitmask type)
-         i  = (unsigned 16 bits) offset to first instruction for case, from start of insn
-              instruction sequence must end in RTS, at which point executes continues
-              at the next field's instruction as specified by the union
-         f  = size flags for ENU instruction
+     [JEQ4, e | s, i] [disc] [offset] [elem-size iff "external" flag e is set,
+     else 0] where e  = external: stored as external data (pointer)
+     (DDS_OP_FLAG_EXT) s  = subtype other than {nBY,STR} for JEQ and
+     {nBY,STR,ENU,EXT} for JEQ4 (note that BMK cannot be inline, because it
+     needs 2 additional instructions for the bits that are identified in the
+     bitmask type) i  = (unsigned 16 bits) offset to first instruction for case,
+     from start of insn instruction sequence must end in RTS, at which point
+     executes continues at the next field's instruction as specified by the
+     union f  = size flags for ENU instruction
 
-      Note that the JEQ instruction is deprecated and replaced by the JEQ4 instruction. The
-      IDL compiler only generates JEQ4 for union cases, the JEQ instruction is included here
-      for backwards compatibility (topic descriptors generated with a previous version of IDLC)
+      Note that the JEQ instruction is deprecated and replaced by the JEQ4
+     instruction. The IDL compiler only generates JEQ4 for union cases, the JEQ
+     instruction is included here for backwards compatibility (topic descriptors
+     generated with a previous version of IDLC)
   */
-  DDS_OP_JEQ = 0x03 << 24,
+  DDS_SOP_JEQ = DDS_OP_JEQ,
 
   /** XCDR2 delimited CDR (inserts DHEADER before type)
     [DLC, 0, 0]
   */
-  DDS_OP_DLC = 0x04 << 24,
+  DDS_SOP_DLC = DDS_OP_DLC,
 
   /** XCDR2 parameter list CDR (inserts DHEADER before type and EMHEADER before each member)
      [PLC, 0, 0]
           followed by a list of JEQ instructions
   */
-  DDS_OP_PLC = 0x05 << 24,
+  DDS_SOP_PLC = DDS_OP_PLC,
 
   /**
      [PLM,   f, elem-insn] [member id]
@@ -359,7 +370,7 @@ enum dds_stream_opcode {
                         when FLAG_BASE is set, this is the offset of the PLM list of the base type
          [member id] = id for this member (0 in case FLAG_BASE is set)
   */
-  DDS_OP_PLM = 0x06 << 24,
+  DDS_SOP_PLM = DDS_OP_PLM,
 
   /** Key offset list
      [KOF, 0, n] [offset-1] ... [offset-n]
@@ -369,10 +380,10 @@ enum dds_stream_opcode {
                  in a nested struct. In case of inheritance of mutable structs, a single offset of
                  the key member relative to the first op of the top-level type (index 0).
   */
-  DDS_OP_KOF = 0x07 << 24,
+  DDS_SOP_KOF = DDS_OP_KOF,
 
   /** see comment for JEQ/JEQ4 above */
-  DDS_OP_JEQ4 = 0x08 << 24,
+  DDS_SOP_JEQ4 = DDS_OP_JEQ4,
 
   /**
    * [MID, 0, elem-insn] [member id]
@@ -383,33 +394,74 @@ enum dds_stream_opcode {
          [elem-insn] = (unsigned 16 bits) offset to instruction for element, from start of insn
          [member id] = id for this member
    */
-  DDS_OP_MID = 0x09 << 24
+  DDS_SOP_MID = DDS_OP_MID
 };
+
+#define DDS_OP_VAL_1BY   (0x01)
+#define DDS_OP_VAL_2BY   (0x02)
+#define DDS_OP_VAL_4BY   (0x03)
+#define DDS_OP_VAL_8BY   (0x04)
+#define DDS_OP_VAL_STR   (0x05)
+#define DDS_OP_VAL_BST   (0x06)
+#define DDS_OP_VAL_SEQ   (0x07)
+#define DDS_OP_VAL_ARR   (0x08)
+#define DDS_OP_VAL_UNI   (0x09)
+#define DDS_OP_VAL_STU   (0x0a)
+#define DDS_OP_VAL_BSQ   (0x0b)
+#define DDS_OP_VAL_ENU   (0x0c)
+#define DDS_OP_VAL_EXT   (0x0d)
+#define DDS_OP_VAL_BLN   (0x0e)
+#define DDS_OP_VAL_BMK   (0x0f)
+#define DDS_OP_VAL_WSTR  (0x10)
+#define DDS_OP_VAL_BWSTR (0x11)
+#define DDS_OP_VAL_WCHAR (0x12)
+#define DDS_OP_VAL_16BY  (0x13)
 
 /**
  * @ingroup serialization
  * @brief datatypes as recognized by serialization VM.
  */
 enum dds_stream_typecode {
-  DDS_OP_VAL_1BY = 0x01, /**< one byte simple type (char, octet) */
-  DDS_OP_VAL_2BY = 0x02, /**< two byte simple type ((unsigned) short) */
-  DDS_OP_VAL_4BY = 0x03, /**< four byte simple type ((unsigned) long, float) */
-  DDS_OP_VAL_8BY = 0x04, /**< eight byte simple type ((unsigned) long long, double) */
-  DDS_OP_VAL_STR = 0x05, /**< string */
-  DDS_OP_VAL_BST = 0x06, /**< bounded string */
-  DDS_OP_VAL_SEQ = 0x07, /**< sequence */
-  DDS_OP_VAL_ARR = 0x08, /**< array */
-  DDS_OP_VAL_UNI = 0x09, /**< union */
-  DDS_OP_VAL_STU = 0x0a, /**< struct */
-  DDS_OP_VAL_BSQ = 0x0b, /**< bounded sequence */
-  DDS_OP_VAL_ENU = 0x0c, /**< enumerated value (long) */
-  DDS_OP_VAL_EXT = 0x0d, /**< field with external definition */
-  DDS_OP_VAL_BLN = 0x0e, /**< boolean */
-  DDS_OP_VAL_BMK = 0x0f, /**< bitmask */
-  DDS_OP_VAL_WSTR = 0x10,  /**< wstring (UTF-16) */
-  DDS_OP_VAL_BWSTR = 0x11, /**< bounded wstring (UTF-16) */
-  DDS_OP_VAL_WCHAR = 0x12  /**< wchar: UTF-16, no surrogates allowed */
+  DDS_SOP_VAL_1BY   = DDS_OP_VAL_1BY,   /**< one byte simple type (char, octet) */
+  DDS_SOP_VAL_2BY   = DDS_OP_VAL_2BY,   /**< two byte simple type ((unsigned) short) */
+  DDS_SOP_VAL_4BY   = DDS_OP_VAL_4BY,   /**< four byte simple type ((unsigned) long, float) */
+  DDS_SOP_VAL_8BY   = DDS_OP_VAL_8BY,   /**< eight byte simple type ((unsigned) long long, double) */
+  DDS_SOP_VAL_STR   = DDS_OP_VAL_STR,   /**< string */
+  DDS_SOP_VAL_BST   = DDS_OP_VAL_BST,   /**< bounded string */
+  DDS_SOP_VAL_SEQ   = DDS_OP_VAL_SEQ,   /**< sequence */
+  DDS_SOP_VAL_ARR   = DDS_OP_VAL_ARR,   /**< array */
+  DDS_SOP_VAL_UNI   = DDS_OP_VAL_UNI,   /**< union */
+  DDS_SOP_VAL_STU   = DDS_OP_VAL_STU,   /**< struct */
+  DDS_SOP_VAL_BSQ   = DDS_OP_VAL_BSQ,   /**< bounded sequence */
+  DDS_SOP_VAL_ENU   = DDS_OP_VAL_ENU,   /**< enumerated value (long) */
+  DDS_SOP_VAL_EXT   = DDS_OP_VAL_EXT,   /**< field with external definition */
+  DDS_SOP_VAL_BLN   = DDS_OP_VAL_BLN,   /**< boolean */
+  DDS_SOP_VAL_BMK   = DDS_OP_VAL_BMK,   /**< bitmask */
+  DDS_SOP_VAL_WSTR  = DDS_OP_VAL_WSTR,  /**< wstring (UTF-16) */
+  DDS_SOP_VAL_BWSTR = DDS_OP_VAL_BWSTR, /**< bounded wstring (UTF-16) */
+  DDS_SOP_VAL_WCHAR = DDS_OP_VAL_WCHAR, /**< wchar: UTF-16, no surrogates allowed */
+  DDS_SOP_VAL_16BY  = DDS_OP_VAL_16BY   /**< uint128/int128/float128 */
 };
+
+#define DDS_OP_TYPE_1BY   (DDS_OP_VAL_1BY   << 16)
+#define DDS_OP_TYPE_2BY   (DDS_OP_VAL_2BY   << 16)
+#define DDS_OP_TYPE_4BY   (DDS_OP_VAL_4BY   << 16)
+#define DDS_OP_TYPE_8BY   (DDS_OP_VAL_8BY   << 16)
+#define DDS_OP_TYPE_STR   (DDS_OP_VAL_STR   << 16)
+#define DDS_OP_TYPE_BST   (DDS_OP_VAL_BST   << 16)
+#define DDS_OP_TYPE_SEQ   (DDS_OP_VAL_SEQ   << 16)
+#define DDS_OP_TYPE_ARR   (DDS_OP_VAL_ARR   << 16)
+#define DDS_OP_TYPE_UNI   (DDS_OP_VAL_UNI   << 16)
+#define DDS_OP_TYPE_STU   (DDS_OP_VAL_STU   << 16)
+#define DDS_OP_TYPE_BSQ   (DDS_OP_VAL_BSQ   << 16)
+#define DDS_OP_TYPE_ENU   (DDS_OP_VAL_ENU   << 16)
+#define DDS_OP_TYPE_EXT   (DDS_OP_VAL_EXT   << 16)
+#define DDS_OP_TYPE_BLN   (DDS_OP_VAL_BLN   << 16)
+#define DDS_OP_TYPE_BMK   (DDS_OP_VAL_BMK   << 16)
+#define DDS_OP_TYPE_WSTR  (DDS_OP_VAL_WSTR  << 16)
+#define DDS_OP_TYPE_BWSTR (DDS_OP_VAL_BWSTR << 16)
+#define DDS_OP_TYPE_WCHAR (DDS_OP_VAL_WCHAR << 16)
+#define DDS_OP_TYPE_16BY  (DDS_OP_VAL_16BY  << 16)
 
 /**
  * @ingroup serialization
@@ -417,25 +469,42 @@ enum dds_stream_typecode {
  * Convinience pre-bitshifted values.
  */
 enum dds_stream_typecode_primary {
-  DDS_OP_TYPE_1BY = DDS_OP_VAL_1BY << 16, /**< one byte simple type (char, octet) */
-  DDS_OP_TYPE_2BY = DDS_OP_VAL_2BY << 16, /**< two byte simple type ((unsigned) short) */
-  DDS_OP_TYPE_4BY = DDS_OP_VAL_4BY << 16, /**< four byte simple type ((unsigned) long, float) */
-  DDS_OP_TYPE_8BY = DDS_OP_VAL_8BY << 16, /**< eight byte simple type ((unsigned) long long, double) */
-  DDS_OP_TYPE_STR = DDS_OP_VAL_STR << 16, /**< string */
-  DDS_OP_TYPE_BST = DDS_OP_VAL_BST << 16, /**< bounded string */
-  DDS_OP_TYPE_SEQ = DDS_OP_VAL_SEQ << 16, /**< sequence */
-  DDS_OP_TYPE_ARR = DDS_OP_VAL_ARR << 16, /**< array */
-  DDS_OP_TYPE_UNI = DDS_OP_VAL_UNI << 16, /**< union */
-  DDS_OP_TYPE_STU = DDS_OP_VAL_STU << 16, /**< struct */
-  DDS_OP_TYPE_BSQ = DDS_OP_VAL_BSQ << 16, /**< bounded sequence */
-  DDS_OP_TYPE_ENU = DDS_OP_VAL_ENU << 16, /**< enumerated value (long) */
-  DDS_OP_TYPE_EXT = DDS_OP_VAL_EXT << 16, /**< field with external definition */
-  DDS_OP_TYPE_BLN = DDS_OP_VAL_BLN << 16, /**< boolean */
-  DDS_OP_TYPE_BMK = DDS_OP_VAL_BMK << 16, /**< bitmask */
-  DDS_OP_TYPE_WSTR = DDS_OP_VAL_WSTR << 16,   /**< wstring (UTF-16) */
-  DDS_OP_TYPE_BWSTR = DDS_OP_VAL_BWSTR << 16, /**< bounded wstring (UTF-16) */
-  DDS_OP_TYPE_WCHAR = DDS_OP_VAL_WCHAR << 16  /**< wchar: UTF-16, no surrogates allowed */
+  DDS_SOP_TYPE_1BY   = DDS_OP_TYPE_1BY,   /**< one byte simple type (char, octet) */
+  DDS_SOP_TYPE_2BY   = DDS_OP_TYPE_2BY,   /**< two byte simple type ((unsigned) short) */
+  DDS_SOP_TYPE_4BY   = DDS_OP_TYPE_4BY,   /**< four byte simple type ((unsigned) long, float) */
+  DDS_SOP_TYPE_8BY   = DDS_OP_TYPE_8BY,   /**< eight byte simple type ((unsigned) long long, double) */
+  DDS_SOP_TYPE_STR   = DDS_OP_TYPE_STR,   /**< string */
+  DDS_SOP_TYPE_BST   = DDS_OP_TYPE_BST,   /**< bounded string */
+  DDS_SOP_TYPE_SEQ   = DDS_OP_TYPE_SEQ,   /**< sequence */
+  DDS_SOP_TYPE_ARR   = DDS_OP_TYPE_ARR,   /**< array */
+  DDS_SOP_TYPE_UNI   = DDS_OP_TYPE_UNI,   /**< union */
+  DDS_SOP_TYPE_STU   = DDS_OP_TYPE_STU,   /**< struct */
+  DDS_SOP_TYPE_BSQ   = DDS_OP_TYPE_BSQ,   /**< bounded sequence */
+  DDS_SOP_TYPE_ENU   = DDS_OP_TYPE_ENU,   /**< enumerated value (long) */
+  DDS_SOP_TYPE_EXT   = DDS_OP_TYPE_EXT,   /**< field with external definition */
+  DDS_SOP_TYPE_BLN   = DDS_OP_TYPE_BLN,   /**< boolean */
+  DDS_SOP_TYPE_BMK   = DDS_OP_TYPE_BMK,   /**< bitmask */
+  DDS_SOP_TYPE_WSTR  = DDS_OP_TYPE_WSTR,  /**< wstring (UTF-16) */
+  DDS_SOP_TYPE_BWSTR = DDS_OP_TYPE_BWSTR, /**< bounded wstring (UTF-16) */
+  DDS_SOP_TYPE_WCHAR = DDS_OP_TYPE_WCHAR, /**< wchar: UTF-16, no surrogates allowed */
+  DDS_SOP_TYPE_16BY  = DDS_OP_TYPE_16BY   /**< uint128/int128/float128 */
 };
+
+/**
+ * @anchor DDS_OP_FLAG_TYPE_TC_DEF
+ * @ingroup serializeation
+ * @brief this flag indicates that the type has \@try_construct(USE_DEFAULT) in effect
+ * (combining TC_DEF and TC_TRIM means an out-of-range input is considered erroneous)
+ */
+#define DDS_OP_FLAG_TYPE_TC_DEF (1u << 21)
+
+/**
+ * @anchor DDS_OP_FLAG_TYPE_TC_TRIM
+ * @ingroup serializeation
+ * @brief this flag indicates that the type has \@try_construct(TRIM) in effect
+ * (combining TC_DEF and TC_TRIM means an out-of-range input is considered erroneous)
+ */
+#define DDS_OP_FLAG_TYPE_TC_TRIM (1u << 22)
 
 /**
  * @anchor DDS_OP_FLAG_EXT
@@ -449,6 +518,24 @@ enum dds_stream_typecode_primary {
 #define DDS_OP_FLAG_EXT (1u << 23)
 
 
+#define DDS_OP_SUBTYPE_1BY   (DDS_OP_VAL_1BY   << 8)
+#define DDS_OP_SUBTYPE_2BY   (DDS_OP_VAL_2BY   << 8)
+#define DDS_OP_SUBTYPE_4BY   (DDS_OP_VAL_4BY   << 8)
+#define DDS_OP_SUBTYPE_8BY   (DDS_OP_VAL_8BY   << 8)
+#define DDS_OP_SUBTYPE_STR   (DDS_OP_VAL_STR   << 8)
+#define DDS_OP_SUBTYPE_BST   (DDS_OP_VAL_BST   << 8)
+#define DDS_OP_SUBTYPE_SEQ   (DDS_OP_VAL_SEQ   << 8)
+#define DDS_OP_SUBTYPE_ARR   (DDS_OP_VAL_ARR   << 8)
+#define DDS_OP_SUBTYPE_UNI   (DDS_OP_VAL_UNI   << 8)
+#define DDS_OP_SUBTYPE_STU   (DDS_OP_VAL_STU   << 8)
+#define DDS_OP_SUBTYPE_BSQ   (DDS_OP_VAL_BSQ   << 8)
+#define DDS_OP_SUBTYPE_ENU   (DDS_OP_VAL_ENU   << 8)
+#define DDS_OP_SUBTYPE_BLN   (DDS_OP_VAL_BLN   << 8)
+#define DDS_OP_SUBTYPE_BMK   (DDS_OP_VAL_BMK   << 8)
+#define DDS_OP_SUBTYPE_WSTR  (DDS_OP_VAL_WSTR  << 8)
+#define DDS_OP_SUBTYPE_BWSTR (DDS_OP_VAL_BWSTR << 8)
+#define DDS_OP_SUBTYPE_WCHAR (DDS_OP_VAL_WCHAR << 8)
+#define DDS_OP_SUBTYPE_16BY  (DDS_OP_VAL_16BY  << 8)
 
 /**
  * @ingroup serialization
@@ -458,24 +545,41 @@ enum dds_stream_typecode_primary {
  * Convinience pre-bitshifted values.
  */
 enum dds_stream_typecode_subtype {
-  DDS_OP_SUBTYPE_1BY = DDS_OP_VAL_1BY << 8, /**< one byte simple type (char, octet) */
-  DDS_OP_SUBTYPE_2BY = DDS_OP_VAL_2BY << 8, /**< two byte simple type ((unsigned) short) */
-  DDS_OP_SUBTYPE_4BY = DDS_OP_VAL_4BY << 8, /**< four byte simple type ((unsigned) long, float) */
-  DDS_OP_SUBTYPE_8BY = DDS_OP_VAL_8BY << 8, /**< eight byte simple type ((unsigned) long long, double) */
-  DDS_OP_SUBTYPE_STR = DDS_OP_VAL_STR << 8, /**< string */
-  DDS_OP_SUBTYPE_BST = DDS_OP_VAL_BST << 8, /**< bounded string */
-  DDS_OP_SUBTYPE_SEQ = DDS_OP_VAL_SEQ << 8, /**< sequence */
-  DDS_OP_SUBTYPE_ARR = DDS_OP_VAL_ARR << 8, /**< array */
-  DDS_OP_SUBTYPE_UNI = DDS_OP_VAL_UNI << 8, /**< union */
-  DDS_OP_SUBTYPE_STU = DDS_OP_VAL_STU << 8, /**< struct */
-  DDS_OP_SUBTYPE_BSQ = DDS_OP_VAL_BSQ << 8, /**< bounded sequence */
-  DDS_OP_SUBTYPE_ENU = DDS_OP_VAL_ENU << 8, /**< enumerated value (long) */
-  DDS_OP_SUBTYPE_BLN = DDS_OP_VAL_BLN << 8, /**< boolean */
-  DDS_OP_SUBTYPE_BMK = DDS_OP_VAL_BMK << 8, /**< bitmask */
-  DDS_OP_SUBTYPE_WSTR = DDS_OP_VAL_WSTR << 8,   /**< wstring */
-  DDS_OP_SUBTYPE_BWSTR = DDS_OP_VAL_BWSTR << 8, /**< bounded wstring */
-  DDS_OP_SUBTYPE_WCHAR = DDS_OP_VAL_WCHAR << 8  /**< wchar: UTF-16, no surrogates allowed */
+  DDS_SOP_SUBTYPE_1BY   = DDS_OP_SUBTYPE_1BY,   /**< one byte simple type (char, octet) */
+  DDS_SOP_SUBTYPE_2BY   = DDS_OP_SUBTYPE_2BY,   /**< two byte simple type ((unsigned) short) */
+  DDS_SOP_SUBTYPE_4BY   = DDS_OP_SUBTYPE_4BY,   /**< four byte simple type ((unsigned) long, float) */
+  DDS_SOP_SUBTYPE_8BY   = DDS_OP_SUBTYPE_8BY,   /**< eight byte simple type ((unsigned) long long, double) */
+  DDS_SOP_SUBTYPE_STR   = DDS_OP_SUBTYPE_STR,   /**< string */
+  DDS_SOP_SUBTYPE_BST   = DDS_OP_SUBTYPE_BST,   /**< bounded string */
+  DDS_SOP_SUBTYPE_SEQ   = DDS_OP_SUBTYPE_SEQ,   /**< sequence */
+  DDS_SOP_SUBTYPE_ARR   = DDS_OP_SUBTYPE_ARR,   /**< array */
+  DDS_SOP_SUBTYPE_UNI   = DDS_OP_SUBTYPE_UNI,   /**< union */
+  DDS_SOP_SUBTYPE_STU   = DDS_OP_SUBTYPE_STU,   /**< struct */
+  DDS_SOP_SUBTYPE_BSQ   = DDS_OP_SUBTYPE_BSQ,   /**< bounded sequence */
+  DDS_SOP_SUBTYPE_ENU   = DDS_OP_SUBTYPE_ENU,   /**< enumerated value (long) */
+  DDS_SOP_SUBTYPE_BLN   = DDS_OP_SUBTYPE_BLN,   /**< boolean */
+  DDS_SOP_SUBTYPE_BMK   = DDS_OP_SUBTYPE_BMK,   /**< bitmask */
+  DDS_SOP_SUBTYPE_WSTR  = DDS_OP_SUBTYPE_WSTR,  /**< wstring */
+  DDS_SOP_SUBTYPE_BWSTR = DDS_OP_SUBTYPE_BWSTR, /**< bounded wstring */
+  DDS_SOP_SUBTYPE_WCHAR = DDS_OP_SUBTYPE_WCHAR, /**< wchar: UTF-16, no surrogates allowed */
+  DDS_SOP_SUBTYPE_16BY  = DDS_OP_SUBTYPE_16BY   /**< uint128/int128/float128 */
 };
+
+/**
+ * @anchor DDS_OP_FLAG_SUBTYPE_TC_DEF
+ * @ingroup serializeation
+ * @brief this flag indicates that the subtype has \@try_construct(USE_DEFAULT) in effect
+ * (combining TC_DEF and TC_TRIM means an out-of-range input is considered erroneous)
+ */
+#define DDS_OP_FLAG_SUBTYPE_TC_DEF (1u << 13)
+
+/**
+ * @anchor DDS_OP_FLAG_SUBTYPE_TC_TRIM
+ * @ingroup serializeation
+ * @brief this flag indicates that the subtype has \@try_construct(USE_DEFAULT) in effect
+ * (combining TC_DEF and TC_TRIM means an out-of-range input is considered erroneous)
+ */
+#define DDS_OP_FLAG_SUBTYPE_TC_TRIM (1u << 14)
 
 /**
  * @anchor DDS_OP_FLAG_KEY
@@ -505,7 +609,7 @@ enum dds_stream_typecode_subtype {
  * @anchor DDS_OP_FLAG_FP
  * @ingroup serialization
  * @brief floating-point,
- * applicable to {4,8}BY and arrays, sequences of them
+ * applicable to {4,8,16}BY and arrays, sequences of them
  */
 #define DDS_OP_FLAG_FP   (1u << 1)
 
@@ -513,7 +617,8 @@ enum dds_stream_typecode_subtype {
  * @anchor DDS_OP_FLAG_SGN
  * @ingroup serialization
  * @brief signed,
- * applicable to {1,2,4,8}BY and arrays, sequences of them
+ * applicable to {1,2,4,8,16}BY and arrays, sequences of them
+ * over
  */
 #define DDS_OP_FLAG_SGN  (1u << 2)
 

@@ -249,6 +249,17 @@ enum dds_dynamic_type_autoid {
 };
 
 /**
+ * @ingroup dynamic_type
+ *
+ * Dynamic Type try construct kind
+ */
+enum dds_dynamic_type_try_construct {
+  DDS_DYNAMIC_MEMBER_TRY_CONSTRUCT_DISCARD,
+  DDS_DYNAMIC_MEMBER_TRY_CONSTRUCT_USE_DEFAULT,
+  DDS_DYNAMIC_MEMBER_TRY_CONSTRUCT_TRIM
+};
+
+/**
  * @brief Enum value kind
  *
  * see @ref dds_dynamic_enum_literal_value
@@ -347,6 +358,25 @@ DDS_EXPORT dds_return_t dds_dynamic_type_set_extensibility (dds_dynamic_type_t *
  *            The provided type is not in the CONSTRUCTING state.
  */
 DDS_EXPORT dds_return_t dds_dynamic_type_set_bit_bound (dds_dynamic_type_t *type, uint16_t bit_bound);
+
+/**
+ * @brief Set the try-construct for sequence elements
+ * @ingroup dynamic_type
+ * @component dynamic_type_api
+ *
+ * @param[in,out] type Dynamic Type to set the bit-bound for. This must be a bounded sequence type.
+ * @param[in] try_construct The try-construct value to set.
+ *
+ * @return dds_return_t Return code. In case of an error, the return code field in the provided type is also set to this value.
+ *
+ * @retval DDS_RETCODE_OK
+ *            The try-construct value is set successfully on the element type.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *            One or more of the provided parameters are invalid.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *            The provided type is not in the CONSTRUCTING state.
+ */
+DDS_EXPORT dds_return_t dds_dynamic_type_set_try_construct (dds_dynamic_type_t *type, enum dds_dynamic_type_try_construct try_construct);
 
 /**
  * @brief Set the nested flag of a Dynamic Type
@@ -555,6 +585,25 @@ DDS_EXPORT dds_return_t dds_dynamic_member_set_hashid (dds_dynamic_type_t *type,
  */
 DDS_EXPORT dds_return_t dds_dynamic_member_set_must_understand (dds_dynamic_type_t *type, uint32_t member_id, bool is_must_understand);
 
+/**
+ * @brief Set the try_construct mode for a Dynamic Type member
+ * @ingroup dynamic_type
+ * @component dynamic_type_api
+ *
+ * @param[in,out] type Dynamic Type that contains the member to set the must-understand flag for (must be a structure type).
+ * @param[in] member_id The ID of the member to set the flag for.
+ * @param[in] try_construct Indicates whether the must-understand flag should be set or cleared.
+ *
+ * @return dds_return_t Return code. In case of an error, the return code field in the provided type is also set to this value.
+ *
+ * @retval DDS_RETCODE_OK
+ *            The flag is updated successfully.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *            One or more of the provided parameters are invalid.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *            The provided type is not in the CONSTRUCTING state.
+ */
+DDS_EXPORT dds_return_t dds_dynamic_member_set_try_construct (dds_dynamic_type_t *type, uint32_t member_id, enum dds_dynamic_type_try_construct try_construct);
 
 /**
  * @brief Registers a Dynamic Type

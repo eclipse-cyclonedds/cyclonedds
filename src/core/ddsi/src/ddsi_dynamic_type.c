@@ -45,6 +45,12 @@ static dds_return_t dynamic_type_ref_deps (struct ddsi_type *type)
       ddsi_type_unref_locked (type->gv, type->xt._u.map.key_type);
       break;
     case DDS_XTypes_TK_STRUCTURE:
+      if (type->xt._u.structure.base_type)
+      {
+        if ((ret = ddsi_type_register_dep (type->gv, &type->xt.id, &type->xt._u.structure.base_type, &type->xt._u.structure.base_type->xt.id.x)) != DDS_RETCODE_OK)
+          goto err;
+        ddsi_type_unref_locked (type->gv, type->xt._u.structure.base_type);
+      }
       for (uint32_t m = 0; m < type->xt._u.structure.members.length; m++)
       {
         if ((ret = ddsi_type_register_dep (type->gv, &type->xt.id, &type->xt._u.structure.members.seq[m].type, &type->xt._u.structure.members.seq[m].type->xt.id.x)) != DDS_RETCODE_OK)
@@ -53,6 +59,9 @@ static dds_return_t dynamic_type_ref_deps (struct ddsi_type *type)
       }
       break;
     case DDS_XTypes_TK_UNION:
+      if ((ret = ddsi_type_register_dep (type->gv, &type->xt.id, &type->xt._u.union_type.disc_type, &type->xt._u.union_type.disc_type->xt.id.x)) != DDS_RETCODE_OK)
+        goto err;
+      ddsi_type_unref_locked (type->gv, type->xt._u.union_type.disc_type);
       for (uint32_t m = 0; m < type->xt._u.union_type.members.length; m++)
       {
         if ((ret = ddsi_type_register_dep (type->gv, &type->xt.id, &type->xt._u.union_type.members.seq[m].type, &type->xt._u.union_type.members.seq[m].type->xt.id.x)) != DDS_RETCODE_OK)
@@ -715,28 +724,48 @@ dds_return_t ddsi_dynamic_type_add_bitmask_field (struct ddsi_type *type, struct
 
 static dds_return_t find_struct_member (struct ddsi_type *type, uint32_t member_id, uint32_t *member_index)
 {
-  for (uint32_t n = 0; n < type->xt._u.structure.members.length; n++)
+  if (member_id == DDS_DYNAMIC_MEMBER_ID_AUTO)
   {
-    if (type->xt._u.structure.members.seq[n].id == member_id)
-    {
-      *member_index = n;
-      return DDS_RETCODE_OK;
-    }
+    if (type->xt._u.structure.members.length == 0)
+      return DDS_RETCODE_BAD_PARAMETER;
+    *member_index = type->xt._u.structure.members.length - 1;
+    return DDS_RETCODE_OK;
   }
-  return DDS_RETCODE_BAD_PARAMETER;
+  else
+  {
+    for (uint32_t n = 0; n < type->xt._u.structure.members.length; n++)
+    {
+      if (type->xt._u.structure.members.seq[n].id == member_id)
+      {
+        *member_index = n;
+        return DDS_RETCODE_OK;
+      }
+    }
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
 }
 
 static dds_return_t find_union_member (struct ddsi_type *type, uint32_t member_id, uint32_t *member_index)
 {
-  for (uint32_t n = 0; n < type->xt._u.union_type.members.length; n++)
+  if (member_id == DDS_DYNAMIC_MEMBER_ID_AUTO)
   {
-    if (type->xt._u.union_type.members.seq[n].id == member_id)
-    {
-      *member_index = n;
-      return DDS_RETCODE_OK;
-    }
+    if (type->xt._u.union_type.members.length == 0)
+      return DDS_RETCODE_BAD_PARAMETER;
+    *member_index = type->xt._u.union_type.members.length - 1;
+    return DDS_RETCODE_OK;
   }
-  return DDS_RETCODE_BAD_PARAMETER;
+  else
+  {
+    for (uint32_t n = 0; n < type->xt._u.union_type.members.length; n++)
+    {
+      if (type->xt._u.union_type.members.seq[n].id == member_id)
+      {
+        *member_index = n;
+        return DDS_RETCODE_OK;
+      }
+    }
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
 }
 
 static dds_return_t set_struct_member_flag (struct ddsi_type *type, uint32_t member_id, bool set, uint16_t flag)
@@ -829,6 +858,52 @@ dds_return_t ddsi_dynamic_type_member_set_hashid (struct ddsi_type *type, uint32
     }
   }
   return ret;
+}
+
+static void set_try_construct (uint16_t * const flags, enum dds_dynamic_type_try_construct try_construct)
+{
+  const uint16_t tc_mask = (uint16_t)(DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_TRY_CONSTRUCT2);
+  uint16_t tc_set = 0;
+  switch (try_construct)
+  {
+    case DDS_DYNAMIC_MEMBER_TRY_CONSTRUCT_DISCARD:
+      tc_set = DDS_XTypes_TRY_CONSTRUCT_DISCARD;
+      break;
+    case DDS_DYNAMIC_MEMBER_TRY_CONSTRUCT_USE_DEFAULT:
+      tc_set = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+      break;
+    case DDS_DYNAMIC_MEMBER_TRY_CONSTRUCT_TRIM:
+      tc_set = DDS_XTypes_TRY_CONSTRUCT_TRIM;
+      break;
+  }
+  *flags = (uint16_t) ((*flags & ~tc_mask) | tc_set);
+}
+
+dds_return_t ddsi_dynamic_type_member_set_try_construct (struct ddsi_type *type, uint32_t member_id, enum dds_dynamic_type_try_construct try_construct)
+{
+  assert (type->state == DDSI_TYPE_CONSTRUCTING);
+  assert (type->xt._d == DDS_XTypes_TK_STRUCTURE || type->xt._d == DDS_XTypes_TK_UNION);
+  dds_return_t ret;
+  uint32_t member_index;
+  if (type->xt._d == DDS_XTypes_TK_STRUCTURE)
+  {
+    if ((ret = find_struct_member (type, member_id, &member_index)) == DDS_RETCODE_OK)
+      set_try_construct (&type->xt._u.structure.members.seq[member_index].flags, try_construct);
+  }
+  else
+  {
+    if ((ret = find_union_member (type, member_id, &member_index)) == DDS_RETCODE_OK)
+      set_try_construct (&type->xt._u.union_type.members.seq[member_index].flags, try_construct);
+  }
+  return ret;
+}
+
+dds_return_t ddsi_dynamic_type_set_try_construct (struct ddsi_type *type, enum dds_dynamic_type_try_construct try_construct)
+{
+  assert (type->state == DDSI_TYPE_CONSTRUCTING);
+  assert (type->xt._d == DDS_XTypes_TK_SEQUENCE);
+  set_try_construct (&type->xt._u.seq.c.element_flags, try_construct);
+  return DDS_RETCODE_OK;
 }
 
 dds_return_t ddsi_dynamic_type_register (struct ddsi_type **type_c, struct ddsi_type **type_m, ddsi_typeinfo_t **type_info)

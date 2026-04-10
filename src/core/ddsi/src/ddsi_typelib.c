@@ -97,7 +97,7 @@ ddsi_typeinfo_t *ddsi_typeinfo_deser (const unsigned char *data, uint32_t sz)
   bool bswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
   DDSRT_WARNING_MSVC_ON(6326)
   data_norm = ddsrt_memdup (data, sz);
-  if (!dds_stream_normalize_xcdr2_data ((char *) data_norm, &srcoff, sz, bswap, DDS_XTypes_TypeInformation_desc.m_ops))
+  if (dds_stream_normalize_xcdr2_data ((char *) data_norm, &srcoff, sz, bswap, DDS_XTypes_TypeInformation_desc.m_ops) != DDS_STREAM_NORMALIZE_SUCCESS)
   {
     ddsrt_free (data_norm);
     return NULL;
@@ -233,7 +233,7 @@ ddsi_typemap_t *ddsi_typemap_deser (const unsigned char *data, uint32_t sz)
   bool bswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
   DDSRT_WARNING_MSVC_ON(6326)
   data_norm = ddsrt_memdup (data, sz);
-  if (!dds_stream_normalize_xcdr2_data ((char *) data_norm, &srcoff, sz, bswap, DDS_XTypes_TypeMapping_desc.m_ops))
+  if (dds_stream_normalize_xcdr2_data ((char *) data_norm, &srcoff, sz, bswap, DDS_XTypes_TypeMapping_desc.m_ops) != DDS_STREAM_NORMALIZE_SUCCESS)
   {
     ddsrt_free (data_norm);
     return NULL;
@@ -1403,7 +1403,8 @@ static const char *ddsi_non_assignability_code_str (enum ddsi_non_assignability_
     case DDSI_NONASSIGN_INCOMPATIBLE_TYPE: return "incompatible type";
     case DDSI_NONASSIGN_DIFFERENT_EXTENSIBILITY: return "different extensibility";
     case DDSI_NONASSIGN_WR_TYPE_NOT_DELIMITED: return "wr type not delimited";
-    case DDSI_NONASSIGN_NAME_HASH_DIFFERS: return "name hash differs";
+    case DDSI_NONASSIGN_NAME_HASH_DIFFERS: return "name hash differs for same member id";
+    case DDSI_NONASSIGN_MEMBER_ID_DIFFERS: return "member ids differ for same name hash";
     case DDSI_NONASSIGN_MISSING_CASE: return "missing case/enum label";
     case DDSI_NONASSIGN_NUMBER_OF_MEMBERS: return "number of members/enum labels";
     case DDSI_NONASSIGN_KEY_DIFFERS: return "key annotation differs";

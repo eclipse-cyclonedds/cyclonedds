@@ -533,7 +533,7 @@ ddsrt_mtime_t dds_rhc_default_deadline_missed_cb(void *hc, ddsrt_mtime_t tnow)
   struct dds_rhc_default *rhc = hc;
   ddsrt_mtime_t tnext = {0};
   uint32_t ninst = 0;
-  void *vinst;
+  void *vinst = NULL;
   ddsrt_mutex_lock (&rhc->lock);
   // stop after touching all instances to somewhat gracefully handle cases where we can't keep up
   // alternatively one could do at most a fixed number at the time

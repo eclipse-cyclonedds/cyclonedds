@@ -673,10 +673,14 @@ template_type_spec:
   ;
 
 sequence_type:
-    "sequence" '<' type_spec ',' positive_int_const '>'
-      { TRY(idl_create_sequence(pstate, LOC(@1.first, @6.last), $3, $5, &$$)); }
-  | "sequence" '<' type_spec '>'
-      { TRY(idl_create_sequence(pstate, LOC(@1.first, @4.last), $3, NULL, &$$)); }
+    "sequence" '<' annotations type_spec ',' positive_int_const '>'
+      { TRY(idl_create_sequence(pstate, LOC(@1.first, @7.last), $4, $6, &$$));
+        TRY_EXCEPT(idl_annotate(pstate, $$, $3), idl_free($$));
+      }
+  | "sequence" '<' annotations type_spec '>'
+      { TRY(idl_create_sequence(pstate, LOC(@1.first, @5.last), $4, NULL, &$$));
+        TRY_EXCEPT(idl_annotate(pstate, $$, $3), idl_free($$));
+      }
   ;
 
 string_type:

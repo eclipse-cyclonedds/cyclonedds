@@ -177,7 +177,7 @@ static struct ddsi_serdata_cdr *serdata_cdr_from_ser_common (const struct ddsi_s
     goto err;
 
   uint32_t actual_size;
-  if (d->pos < pad || !dds_stream_normalize (d->data, d->pos - pad, needs_bswap, DDSI_RTPS_CDR_ENC_VERSION_2, &tp->type, false, &actual_size))
+  if (d->pos < pad || (dds_stream_normalize (d->data, d->pos - pad, needs_bswap, DDSI_RTPS_CDR_ENC_VERSION_2, &tp->type, false, &actual_size) != DDS_STREAM_NORMALIZE_SUCCESS))
     goto err;
 
   dds_istream_t is;

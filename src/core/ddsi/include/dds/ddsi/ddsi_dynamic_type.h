@@ -96,6 +96,9 @@ dds_return_t ddsi_dynamic_type_set_nested (struct ddsi_type *type, bool is_neste
 dds_return_t ddsi_dynamic_type_set_autoid (struct ddsi_type *type, enum dds_dynamic_type_autoid value);
 
 /** @component dynamic_type_support */
+dds_return_t ddsi_dynamic_type_set_try_construct (struct ddsi_type *type, enum dds_dynamic_type_try_construct try_construct);
+
+/** @component dynamic_type_support */
 dds_return_t ddsi_dynamic_type_add_struct_member (struct ddsi_type *type, struct ddsi_type **member_type, struct ddsi_dynamic_type_struct_member_param params);
 
 /** @component dynamic_type_support */
@@ -126,6 +129,8 @@ dds_return_t ddsi_dynamic_type_member_set_must_understand (struct ddsi_type *typ
 /** @component dynamic_type_support */
 dds_return_t ddsi_dynamic_type_member_set_hashid (struct ddsi_type *type, uint32_t member_id, const char *hash_member_name);
 
+/** @component dynamic_type_support */
+dds_return_t ddsi_dynamic_type_member_set_try_construct (struct ddsi_type *type, uint32_t member_id, enum dds_dynamic_type_try_construct try_construct);
 
 /** @component dynamic_type_support */
 dds_return_t ddsi_dynamic_type_register (struct ddsi_type **type_c, struct ddsi_type **type_m, ddsi_typeinfo_t **type_info);

@@ -25,6 +25,14 @@
 extern "C" {
 #endif
 
+#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
+typedef struct { uint64_t l, h; } ddsrt_uint128_t;
+typedef struct { uint64_t l; int64_t h; } ddsrt_int128_t;
+#else
+typedef struct { uint64_t h, l; } ddsrt_uint128_t;
+typedef struct { int64_t h; uint64_t l; } ddsrt_int128_t;
+#endif
+
 /**
  * @brief Defines the byte order options: native, big endian, and little endian
  */
@@ -103,6 +111,34 @@ DDS_INLINE_EXPORT inline int64_t ddsrt_bswap8 (int64_t x)
 }
 
 /**
+ * @brief Byteswap uint64_t
+ *
+ * @param[in] x the uint64_t to byteswap
+ * @return the byteswapped uint64_t
+ */
+DDS_INLINE_EXPORT inline ddsrt_uint128_t ddsrt_bswap16u (ddsrt_uint128_t x)
+{
+  ddsrt_uint128_t tmp;
+  tmp.h = ddsrt_bswap8u (x.l);
+  tmp.l = ddsrt_bswap8u (x.h);
+  return tmp;
+}
+
+/**
+ * @brief Byteswap int64_t
+ *
+ * @param[in] x the int64_t to byteswap
+ * @return the byteswapped int64_t
+ */
+DDS_INLINE_EXPORT inline ddsrt_int128_t ddsrt_bswap16 (ddsrt_int128_t x)
+{
+  ddsrt_int128_t tmp;
+  tmp.h = (int64_t) ddsrt_bswap8u (x.l);
+  tmp.l = ddsrt_bswap8u ((uint64_t) x.h);
+  return tmp;
+}
+
+/**
  * @brief Macros for byteswapping
  * 
  * These macros are for converting integer types from and to big endian or little endian.
@@ -124,48 +160,64 @@ DDS_INLINE_EXPORT inline int64_t ddsrt_bswap8 (int64_t x)
 #define ddsrt_toBE4u(x) ddsrt_bswap4u (x)
 #define ddsrt_toBE8(x) ddsrt_bswap8 (x)
 #define ddsrt_toBE8u(x) ddsrt_bswap8u (x)
+#define ddsrt_toBE16(x) ddsrt_bswap16 (x)
+#define ddsrt_toBE16u(x) ddsrt_bswap16u (x)
 #define ddsrt_toLE2(x) (x)
 #define ddsrt_toLE2u(x) (x)
 #define ddsrt_toLE4(x) (x)
 #define ddsrt_toLE4u(x) (x)
 #define ddsrt_toLE8(x) (x)
 #define ddsrt_toLE8u(x) (x)
+#define ddsrt_toLE16(x) (x)
+#define ddsrt_toLE16u(x) (x)
 #define ddsrt_toBO2(bo, x) ((bo) == DDSRT_BOSEL_BE ? ddsrt_bswap2 (x) : (x))
 #define ddsrt_toBO2u(bo, x) ((bo) == DDSRT_BOSEL_BE ? ddsrt_bswap2u (x) : (x))
 #define ddsrt_toBO4(bo, x) ((bo) == DDSRT_BOSEL_BE ? ddsrt_bswap4 (x) : (x))
 #define ddsrt_toBO4u(bo, x) ((bo) == DDSRT_BOSEL_BE ? ddsrt_bswap4u (x) : (x))
 #define ddsrt_toBO8(bo, x) ((bo) == DDSRT_BOSEL_BE ? ddsrt_bswap8 (x) : (x))
 #define ddsrt_toBO8u(bo, x) ((bo) == DDSRT_BOSEL_BE ? ddsrt_bswap8u (x) : (x))
+#define ddsrt_toBO16(bo, x) ((bo) == DDSRT_BOSEL_BE ? ddsrt_bswap16 (x) : (x))
+#define ddsrt_toBO16u(bo, x) ((bo) == DDSRT_BOSEL_BE ? ddsrt_bswap16u (x) : (x))
 #define ddsrt_fromBE2(x) ddsrt_bswap2 (x)
 #define ddsrt_fromBE2u(x) ddsrt_bswap2u (x)
 #define ddsrt_fromBE4(x) ddsrt_bswap4 (x)
 #define ddsrt_fromBE4u(x) ddsrt_bswap4u (x)
 #define ddsrt_fromBE8(x) ddsrt_bswap8 (x)
 #define ddsrt_fromBE8u(x) ddsrt_bswap8u (x)
+#define ddsrt_fromBE16(x) ddsrt_bswap16 (x)
+#define ddsrt_fromBE16u(x) ddsrt_bswap816u (x)
 #else
 #define ddsrt_toBE2u(x) (x)
 #define ddsrt_toBE4(x) (x)
 #define ddsrt_toBE4u(x) (x)
 #define ddsrt_toBE8(x) (x)
 #define ddsrt_toBE8u(x) (x)
+#define ddsrt_toBE16(x) (x)
+#define ddsrt_toBE16u(x) (x)
 #define ddsrt_toLE2(x) ddsrt_bswap2 (x)
 #define ddsrt_toLE2u(x) ddsrt_bswap2u (x)
 #define ddsrt_toLE4(x) ddsrt_bswap4 (x)
 #define ddsrt_toLE4u(x) ddsrt_bswap4u (x)
 #define ddsrt_toLE8(x) ddsrt_bswap8 (x)
 #define ddsrt_toLE8u(x) ddsrt_bswap8u (x)
+#define ddsrt_toLE16(x) ddsrt_bswap16 (x)
+#define ddsrt_toLE16u(x) ddsrt_bswap16u (x)
 #define ddsrt_toBO2(bo, x) ((bo) == DDSRT_BOSEL_LE ? ddsrt_bswap2 (x) : (x))
 #define ddsrt_toBO2u(bo, x) ((bo) == DDSRT_BOSEL_LE ? ddsrt_bswap2u (x) : (x))
 #define ddsrt_toBO4(bo, x) ((bo) == DDSRT_BOSEL_LE ? ddsrt_bswap4 (x) : (x))
 #define ddsrt_toBO4u(bo, x) ((bo) == DDSRT_BOSEL_LE ? ddsrt_bswap4u (x) : (x))
 #define ddsrt_toBO8(bo, x) ((bo) == DDSRT_BOSEL_LE ? ddsrt_bswap8 (x) : (x))
 #define ddsrt_toBO8u(bo, x) ((bo) == DDSRT_BOSEL_LE ? ddsrt_bswap8u (x) : (x))
+#define ddsrt_toBO16(bo, x) ((bo) == DDSRT_BOSEL_LE ? ddsrt_bswap16 (x) : (x))
+#define ddsrt_toBO16u(bo, x) ((bo) == DDSRT_BOSEL_LE ? ddsrt_bswap16u (x) : (x))
 #define ddsrt_fromBE2(x) (x)
 #define ddsrt_fromBE2u(x) (x)
 #define ddsrt_fromBE4(x) (x)
 #define ddsrt_fromBE4u(x) (x)
 #define ddsrt_fromBE8(x) (x)
 #define ddsrt_fromBE8u(x) (x)
+#define ddsrt_fromBE16(x) (x)
+#define ddsrt_fromBE16u(x) (x)
 #endif
 
 #if defined (__cplusplus)

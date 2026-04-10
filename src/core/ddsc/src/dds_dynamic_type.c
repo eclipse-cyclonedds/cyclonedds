@@ -82,8 +82,18 @@ static dds_dynamic_type_t dyntype_from_typespec (struct ddsi_domaingv *gv, dds_d
       type.ret = ddsi_dynamic_type_create_primitive (gv, get_dtype_complete_addr (&type), type_spec.type.primitive);
       return type;
     }
-    case DDS_DYNAMIC_TYPE_KIND_DEFINITION:
-      return type_spec.type.type;
+    case DDS_DYNAMIC_TYPE_KIND_DEFINITION: {
+      // Drop reference to minimal type: add_member and create consume a
+      // reference of the complete type but ignore the minimal one
+      dds_dynamic_type_t no_min = type_spec.type.type;
+      struct ddsi_type **mta = get_dtype_minimal_addr (&no_min);
+      if (*mta)
+      {
+        ddsi_type_unref (ddsi_type_get_gv (*mta), *mta);
+        *mta = NULL;
+      }
+      return no_min;
+    }
   }
 
   return (dds_dynamic_type_t) { .ret = DDS_RETCODE_BAD_PARAMETER };
@@ -118,7 +128,7 @@ static bool union_disc_valid (dds_dynamic_type_spec_t type_spec)
       if (type_spec.type.type.ret != DDS_RETCODE_OK || get_dtype_complete (&type_spec.type.type) == NULL)
         return false;
       DDS_XTypes_TypeKind xtkind = ddsi_type_get_kind (get_dtype_complete (&type_spec.type.type));
-      return xtkind == DDS_XTypes_TK_ENUM || xtkind == DDS_XTypes_TK_ALIAS;
+      return xtkind == DDS_XTypes_TK_ENUM || xtkind == DDS_XTypes_TK_BITMASK || xtkind == DDS_XTypes_TK_ALIAS;
     }
   }
   return false;
@@ -443,6 +453,24 @@ dds_return_t dds_dynamic_type_set_bit_bound (dds_dynamic_type_t *type, uint16_t 
   return type->ret;
 }
 
+dds_return_t dds_dynamic_type_set_try_construct (dds_dynamic_type_t *type, enum dds_dynamic_type_try_construct try_construct)
+{
+  dds_return_t ret;
+  if ((ret = check_type_param (type, false)) != DDS_RETCODE_OK)
+    return ret;
+
+  switch (xtkind_to_typekind (ddsi_type_get_kind (get_dtype_complete (type))))
+  {
+    case DDS_DYNAMIC_SEQUENCE:
+      type->ret = ddsi_dynamic_type_set_try_construct (get_dtype_complete (type), try_construct);
+      break;
+    default:
+      type->ret = DDS_RETCODE_BAD_PARAMETER;
+      break;
+  }
+  return type->ret;
+}
+
 typedef dds_return_t (*set_struct_prop_fn) (struct ddsi_type *type, uint32_t member_id, bool is_key);
 
 static dds_return_t set_member_bool_prop (dds_dynamic_type_t *type, uint32_t member_id, bool value, set_struct_prop_fn set_fn_struct, set_struct_prop_fn set_fn_union)
@@ -503,6 +531,25 @@ dds_return_t dds_dynamic_member_set_hashid (dds_dynamic_type_t *type, uint32_t m
 dds_return_t dds_dynamic_member_set_must_understand (dds_dynamic_type_t *type, uint32_t member_id, bool is_must_understand)
 {
   return (type->ret = set_member_bool_prop (type, member_id, is_must_understand, ddsi_dynamic_type_member_set_must_understand, NULL));
+}
+
+dds_return_t dds_dynamic_member_set_try_construct (dds_dynamic_type_t *type, uint32_t member_id, enum dds_dynamic_type_try_construct try_construct)
+{
+  dds_return_t ret;
+  if ((ret = check_type_param (type, false)) != DDS_RETCODE_OK)
+    return ret;
+
+  switch (xtkind_to_typekind (ddsi_type_get_kind (get_dtype_complete (type))))
+  {
+    case DDS_DYNAMIC_STRUCTURE:
+    case DDS_DYNAMIC_UNION:
+      type->ret = ddsi_dynamic_type_member_set_try_construct (get_dtype_complete (type), member_id, try_construct);
+      break;
+    default:
+      type->ret = DDS_RETCODE_BAD_PARAMETER;
+      break;
+  }
+  return type->ret;
 }
 
 dds_return_t dds_dynamic_type_register (dds_dynamic_type_t *type, struct ddsi_typeinfo **type_info)

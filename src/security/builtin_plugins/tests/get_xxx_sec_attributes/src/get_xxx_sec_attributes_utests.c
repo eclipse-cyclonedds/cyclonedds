@@ -543,7 +543,7 @@ CU_Test(ddssec_builtin_get_xxx_sec_attributes, datawriter_happy_day, .init = sui
 {
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PartitionQosPolicy *partition = NULL;
-  DDS_Security_DataTagQosPolicy data_tag;
+  DDS_Security_DataTagQosPolicy data_tag = {.tags = {0}};
   DDS_Security_EndpointSecurityAttributes attributes;
   bool result;
   unsigned i;
@@ -593,7 +593,7 @@ CU_Test(ddssec_builtin_get_xxx_sec_attributes, datawriter_non_existing_topic, .i
 {
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PartitionQosPolicy *partition = NULL;
-  DDS_Security_DataTagQosPolicy data_tag;
+  DDS_Security_DataTagQosPolicy data_tag = {.tags = {0}};
   DDS_Security_EndpointSecurityAttributes attributes;
   bool result;
 
@@ -633,7 +633,7 @@ CU_Test(ddssec_builtin_get_xxx_sec_attributes, datareader_happy_day, .init = sui
 {
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PartitionQosPolicy *partition = NULL;
-  DDS_Security_DataTagQosPolicy data_tag;
+  DDS_Security_DataTagQosPolicy data_tag = {.tags = {0}};
   DDS_Security_EndpointSecurityAttributes attributes;
   bool result;
   unsigned i;
@@ -683,7 +683,7 @@ CU_Test(ddssec_builtin_get_xxx_sec_attributes, datareader_non_existing_topic, .i
 {
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PartitionQosPolicy *partition = NULL;
-  DDS_Security_DataTagQosPolicy data_tag;
+  DDS_Security_DataTagQosPolicy data_tag = {.tags = {0}};
   DDS_Security_EndpointSecurityAttributes attributes;
   bool result;
 
@@ -778,7 +778,7 @@ CU_Test(ddssec_builtin_get_xxx_sec_attributes, datareader_invalid_param, .init =
 {
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PartitionQosPolicy *partition = NULL;
-  DDS_Security_DataTagQosPolicy data_tag;
+  DDS_Security_DataTagQosPolicy data_tag = {.tags = {0}};
   DDS_Security_EndpointSecurityAttributes attributes;
   bool result;
 
@@ -862,7 +862,7 @@ CU_Test(ddssec_builtin_get_xxx_sec_attributes, datawriter_invalid_param, .init =
 {
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PartitionQosPolicy *partition = NULL;
-  DDS_Security_DataTagQosPolicy data_tag;
+  DDS_Security_DataTagQosPolicy data_tag = {.tags = {0}};
   DDS_Security_EndpointSecurityAttributes attributes;
   bool result;
 
@@ -1214,7 +1214,7 @@ static void test_liveliness_discovery_writer_attr(
   DDS_Security_unsigned_long mask = DDS_SECURITY_PARTICIPANT_ATTRIBUTES_FLAG_IS_VALID | submsg_mask;
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_EndpointSecurityAttributes attr;
-  DDS_Security_DataTagQosPolicy data_tag;
+  DDS_Security_DataTagQosPolicy data_tag = {.tags = {0}};
   DDS_Security_PartitionQosPolicy *partition = NULL;
   bool result;
 
@@ -1259,7 +1259,7 @@ static void test_liveliness_discovery_reader_attr(
   DDS_Security_unsigned_long mask = DDS_SECURITY_PARTICIPANT_ATTRIBUTES_FLAG_IS_VALID | submsg_mask;
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_EndpointSecurityAttributes attr;
-  DDS_Security_DataTagQosPolicy data_tag;
+  DDS_Security_DataTagQosPolicy data_tag = {.tags = {0}};
   DDS_Security_PartitionQosPolicy *partition = NULL;
   bool result;
 
