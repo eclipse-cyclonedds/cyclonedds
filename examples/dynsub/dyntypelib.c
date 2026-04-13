@@ -374,12 +374,12 @@ static dds_return_t add_struct_member (const struct make_context *ctxt, struct d
   return add_member (ctxt, dtype, m, ns, 0, NULL, false, err);
 }
 
-static dds_return_t set_extensibility (dds_dynamic_type_t *dtype, const struct elem *elem, struct dyntypelib_error *err)
+static dds_return_t set_extensibility (const struct make_context *ctxt, dds_dynamic_type_t *dtype, const struct elem *elem, struct dyntypelib_error *err)
 {
   const char *ext = getattr (elem, "extensibility");
+  dds_return_t rc = DDS_RETCODE_OK;
   if (ext)
   {
-    dds_return_t rc;
     if (strcmp (ext, "final") == 0)
       rc = dds_dynamic_type_set_extensibility (dtype, DDS_DYNAMIC_TYPE_EXT_FINAL);
     else if (strcmp (ext, "appendable") == 0)
@@ -388,9 +388,12 @@ static dds_return_t set_extensibility (dds_dynamic_type_t *dtype, const struct e
       rc = dds_dynamic_type_set_extensibility (dtype, DDS_DYNAMIC_TYPE_EXT_MUTABLE);
     else
       return dtl_set_error (err, elem, "unknown extensibility %s\n", ext);
-    if (rc != DDS_RETCODE_OK)
-      return dtl_set_error (err, elem, "set_extensibility failed: %s\n", dds_strretcode (rc));
+  } else 
+  {
+    rc = dds_dynamic_type_set_extensibility (dtype, ctxt->dtl->default_extensibility);
   }
+  if (rc != DDS_RETCODE_OK)
+    return dtl_set_error (err, elem, "set_extensibility failed: %s\n", dds_strretcode (rc));
   return DDS_RETCODE_OK;
 }
 
@@ -424,7 +427,7 @@ static dds_return_t make_struct (const struct make_context *ctxt, const struct e
     .kind = DDS_DYNAMIC_STRUCTURE, .name = fqname
   });
   dds_return_t rc;
-  if ((rc = set_extensibility (dstruct, elem, err)) != 0)
+  if ((rc = set_extensibility (ctxt, dstruct, elem, err)) != 0)
     return rc;
   if ((rc = set_autoid (dstruct, elem, err)) != 0)
     return rc;
@@ -477,7 +480,7 @@ static dds_return_t make_union (const struct make_context *ctxt, const struct el
     .kind = DDS_DYNAMIC_UNION, .name = fqname, .discriminator_type = discts
   });
 
-  if ((rc = set_extensibility (dunion, elem, err)) != 0)
+  if ((rc = set_extensibility (ctxt, dunion, elem, err)) != 0)
     return rc;
   if ((rc = set_autoid (dunion, elem, err)) != 0)
     return rc;
@@ -559,7 +562,7 @@ static dds_return_t make_enum (const struct make_context *ctxt, const struct ele
     .kind = DDS_DYNAMIC_ENUMERATION, .name = fqname
   });
 
-  if ((rc = set_extensibility (denum, elem, err)) != 0)
+  if ((rc = set_extensibility (ctxt, denum, elem, err)) != 0)
     return rc;
 
   const char *bitboundstr = getattr (elem, "bitBound");
@@ -611,7 +614,7 @@ static dds_return_t make_bitmask (const struct make_context *ctxt, const struct 
     .kind = DDS_DYNAMIC_BITMASK, .name = fqname
   });
 
-  if ((rc = set_extensibility (dbitmask, elem, err)) != 0)
+  if ((rc = set_extensibility (ctxt, dbitmask, elem, err)) != 0)
     return rc;
 
   const char *bitboundstr = getattr (elem, "bitBound");
@@ -693,6 +696,7 @@ struct dyntypelib *dtl_new (dds_entity_t dp)
   struct dyntypelib *dtl = ddsrt_malloc (sizeof (*dtl));
   dtl->dp = dp;
   dtl->print_types = false;
+  dtl->default_extensibility = DDS_DYNAMIC_TYPE_EXT_APPENDABLE;
   dtl->typelib = ddsrt_hh_new (32, namehash, nameequal);
   dtl->typecache = type_cache_new ();
   ppc_init (&dtl->ppc);
@@ -702,6 +706,11 @@ struct dyntypelib *dtl_new (dds_entity_t dp)
 void dtl_set_print_types (struct dyntypelib *dtl, bool print_types)
 {
   dtl->print_types = print_types;
+}
+
+void dtl_set_default_extensibility (struct dyntypelib *dtl, enum dds_dynamic_type_extensibility default_extensibility)
+{
+  dtl->default_extensibility = default_extensibility;
 }
 
 dds_return_t dtl_add_xml_type_library (struct dyntypelib *dtl, const char *xml_type_lib, struct dyntypelib_error *err)

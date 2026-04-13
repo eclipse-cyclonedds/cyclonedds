@@ -34,6 +34,7 @@ struct dyntype {
 struct dyntypelib {
   dds_entity_t dp;
   bool print_types;
+  enum dds_dynamic_type_extensibility default_extensibility;
   struct ppc ppc;
   struct ddsrt_hh *typelib;
   struct type_cache *typecache;
@@ -49,6 +50,7 @@ dds_return_t dtl_set_error (struct dyntypelib_error *err, const struct elem *ele
 
 struct dyntypelib *dtl_new (dds_entity_t dp);
 void dtl_set_print_types (struct dyntypelib *dtl, bool print_types);
+void dtl_set_default_extensibility (struct dyntypelib *dtl, enum dds_dynamic_type_extensibility default_extensibility);
 dds_return_t dtl_add_xml_type_library (struct dyntypelib *dtl, const char *xml_type_lib, struct dyntypelib_error *err);
 dds_return_t dtl_add_typeid (struct dyntypelib *dtl, const dds_typeinfo_t *typeinfo, const DDS_XTypes_TypeObject **typeobj, struct dyntypelib_error *err);
 struct dyntype *dtl_lookup_typename (struct dyntypelib *dtl, const char *name);
