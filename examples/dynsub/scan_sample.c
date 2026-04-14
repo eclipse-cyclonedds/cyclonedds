@@ -427,15 +427,28 @@ static bool scan_sample1_to (struct dyntypelib *dtl, unsigned char *obj, DDS_XTy
 
     case DDS_XTypes_TK_ENUM: {
       const DDS_XTypes_CompleteEnumeratedType *t = &typeobj->_u.enumerated_type;
+      if (elem->data == NULL)
+        return (dtl_set_error (err, elem, "enum value expected\n") == DDS_RETCODE_OK);
+      char* endptr = NULL;
+      int32_t enum_val = (int32_t) strtol(elem->data, &endptr, 0);
       for (uint32_t l = 0; l < t->literal_seq._length; l++)
       {
-        if (elem->data == NULL)
-          return (dtl_set_error (err, elem, "enum value expected\n") == DDS_RETCODE_OK);
-        if (strcmp (t->literal_seq._buffer[l].detail.name, elem->data) == 0)
+        if (*endptr)
         {
-          // FIXME: bit bound
-          *((int *) obj) = (int) t->literal_seq._buffer[l].common.value;
-          return true;
+          if (strcmp (t->literal_seq._buffer[l].detail.name, elem->data) == 0)
+          {
+            // FIXME: bit bound
+            *((int *) obj) = (int) t->literal_seq._buffer[l].common.value;
+            return true;
+          }
+        } else
+        {
+          if (t->literal_seq._buffer[l].common.value == enum_val)
+          {
+            // FIXME: bit bound
+            *((int *) obj) = (int) enum_val;
+            return true;
+          }
         }
       }
       return (dtl_set_error (err, elem, "literal \"%s\" not found in enum\n", elem->data) == DDS_RETCODE_OK);
