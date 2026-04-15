@@ -237,13 +237,11 @@ void fuzz_handshake_reset(bool initiate_remote) {
             &g_proxy_ppguid,
             DDSI_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER|
             DDSI_BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_ANNOUNCER|DDSI_BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_DETECTOR,
-            NULL,
             as,
             ddsi_ref_addrset(as),
             &pplist,
             DDS_INFINITY,
             DDSI_VENDORID_ECLIPSE,
-            DDSI_CF_PROXYPP_NO_SPDP,
             timestamp,
             0)) {
         abort();

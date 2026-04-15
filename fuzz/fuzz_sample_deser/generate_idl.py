@@ -21,7 +21,7 @@ if __name__ == '__main__':
         die(-1, f"{directory} is not a directory")
 
     # Generate random idl
-    scope = generate_random_types(MODULE_NAME, number=25, seed=seed)
+    scope = generate_random_types(MODULE_NAME, xcdr_version=2, number=25, seed=seed)
     idl_text = generate_random_idl(scope)
     with open(os.path.join(directory, "fuzz_sample.idl"), "w") as f:
         f.write(idl_text)
