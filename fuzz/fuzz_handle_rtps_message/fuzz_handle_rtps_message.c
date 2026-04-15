@@ -92,7 +92,7 @@ int LLVMFuzzerTestOneInput(
   unsigned char *buff = (unsigned char *) DDSI_RMSG_PAYLOAD (rmsg);
   memcpy (buff, data, size);
   ddsi_rmsg_setsize (rmsg, (uint32_t) size);
-  ddsi_handle_rtps_message (thrst, &gv, fakeconn, &guidprefix, rbpool, rmsg, size, buff, &pktinfo);
+  ddsi_handle_rtps_message (thrst, &gv, fakeconn, &guidprefix, rbpool, rmsg, size, &pktinfo);
   ddsi_rmsg_commit (rmsg);
 
   ddsi_fini(&gv);
