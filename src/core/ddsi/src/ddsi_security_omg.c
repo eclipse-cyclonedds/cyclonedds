@@ -3629,10 +3629,20 @@ static bool ddsi_security_decode_sec_prefix_patched_hdr_flags (const struct ddsi
        */
       assert (totalsize >= submsg_size);
       assert (dst_len <= totalsize - submsg_size);
-      memcpy (body_submsg, dst_buf, dst_len);
+
+      unsigned char *data_submsg = body_submsg;
+      uint16_t pad = 0U;
+      if ((pad = (4 - (dst_len % 4)) % 4) != 0)
+      {
+        ddsi_rtps_submessage_header_t * const data_submsg_hdr = (ddsi_rtps_submessage_header_t *)dst_buf;
+        data_submsg_hdr->octetsToNextHeader = (uint16_t)(dst_len + pad - DDSI_RTPS_SUBMESSAGE_HEADER_SIZE);
+        if (byteswap)
+          data_submsg_hdr->octetsToNextHeader = ddsrt_bswap2u (data_submsg_hdr->octetsToNextHeader);
+      }
+      (void) memcpy (data_submsg, dst_buf, dst_len);
 
       /* Remainder of SEC_BODY & SEC_POSTFIX should be padded to keep the submsg sequence going. */
-      smsize = padding_submsg (rst->gv, body_submsg + dst_len, prefix_submsg + totalsize, byteswap);
+      smsize = padding_submsg (rst->gv, data_submsg + dst_len + pad, prefix_submsg + totalsize, byteswap);
     }
     else
     {
