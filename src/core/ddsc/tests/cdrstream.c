@@ -1790,6 +1790,42 @@ CU_Test (ddsc_cdrstream, check_normalize_boolean)
 }
 #undef D
 
+
+#define D(n) (&CdrStreamChecking_ ## n ## _desc)
+CU_Test (ddsc_cdrstream, check_sequence_alloc)
+{
+  // Need to verify that stream_normalize cleans up the booleans
+  const struct {
+    const dds_topic_descriptor_t *desc;
+    const char *description;
+    uint32_t cdrsize;
+    const uint8_t *cdr;
+  } tests[] = {
+    { D(t9), "seq/bstring", CDR(32,3, STR('a','b','c'), STR('d','e','f'), STR('g','h','i')) },
+    { D(t10), "seq/struct-w-bstring", CDR(32,3, STR('a','b','c'), STR('d','e','f'), STR('g','h','i')) },
+    { D(t11), "seq/union-w-bstring", CDR(32,3, 8,0,8,0,8,0) },
+    { D(t12), "seq/union-w-array", CDR(32,3, 8,0,8,0,8,0) }
+  };
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    tprintf("running test for desc %s: %s\n", tests[i].desc->m_typename, tests[i].description);
+
+    struct dds_cdrstream_desc desc;
+    dds_cdrstream_desc_from_topic_desc (&desc, tests[i].desc);
+    assert (desc.ops.ops);
+
+    void *cdr = ddsrt_memdup (tests[i].cdr, tests[i].cdrsize);
+    uint32_t act_size;
+    enum dds_stream_normalize_result ret = dds_stream_normalize (cdr, tests[i].cdrsize, false, DDSI_RTPS_CDR_ENC_VERSION_1, &desc, false, &act_size);
+    CU_ASSERT_EQ_FATAL (ret, DDS_STREAM_NORMALIZE_ERROR);
+    ddsrt_free (cdr);
+    dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+  }
+}
+#undef D
+
+
 struct test_cdr_params {
   const dds_topic_descriptor_t *desc;
   bool (*eq) (const void *a, const void *b);

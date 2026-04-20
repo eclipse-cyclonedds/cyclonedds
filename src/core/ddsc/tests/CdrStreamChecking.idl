@@ -52,4 +52,30 @@ module CdrStreamChecking {
   // use t8x for constructing sample
   @final struct t8 { @key boolean f1[2]; };
   @final struct t8x { octet f1[2]; };
+
+  // sequence of bounded strings (about 1.6GB for each string, so a
+  // sequence of length two should be rejected)
+  typedef string<1600000000> bstr3gb;
+  typedef long ary3gb[400000000];
+  @final struct t9 {
+    sequence<bstr3gb> f1;
+  };
+  @nested @final struct t10a {
+    bstr3gb f1;
+  };
+  @final struct t10 {
+    sequence<t10a> f1;
+  };
+  @nested @final union t11a switch (boolean) {
+    case true: bstr3gb f1;
+  };
+  @final struct t11 {
+    sequence<t11a> f1;
+  };
+  @nested @final union t12a switch (boolean) {
+    case true: ary3gb f1;
+  };
+  @final struct t12 {
+    sequence<t12a> f1;
+  };
 };

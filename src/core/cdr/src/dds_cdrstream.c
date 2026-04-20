@@ -4444,7 +4444,13 @@ static enum dds_stream_normalize_result normalize_seq (char * restrict data, uin
     case DDS_SOP_VAL_STR: case DDS_SOP_VAL_BST: {
       // Note: tc is meaningless for unbounded string
       const enum tryconstruct tc = tryconstruct_mode (insn, true);
-      const size_t maxsz = (subtype == DDS_SOP_VAL_STR) ? SIZE_MAX : (*ops)[2 + bound_op];
+      size_t maxsz;
+      if (subtype == DDS_SOP_VAL_STR)
+        maxsz = SIZE_MAX;
+      else if (num > UINT32_MAX / (*ops)[2 + bound_op])
+        return normalize_error ();
+      else
+        maxsz = (*ops)[2 + bound_op];
       for (uint32_t i = 0; i < num; i++)
         if ((res = normalize_string (data, off, size1, bswap, maxsz, tc)) != DDS_STREAM_NORMALIZE_SUCCESS)
           return res;
@@ -4454,7 +4460,13 @@ static enum dds_stream_normalize_result normalize_seq (char * restrict data, uin
     case DDS_SOP_VAL_WSTR: case DDS_SOP_VAL_BWSTR: {
       // Note: tc is meaningless for unbounded string
       const enum tryconstruct tc = tryconstruct_mode (insn, true);
-      const size_t maxsz = (subtype == DDS_SOP_VAL_WSTR) ? SIZE_MAX : (*ops)[2 + bound_op];
+      size_t maxsz;
+      if (subtype == DDS_SOP_VAL_WSTR)
+        maxsz = SIZE_MAX;
+      else if (num > (UINT32_MAX / sizeof (wchar_t)) / (*ops)[2 + bound_op])
+        return normalize_error ();
+      else
+        maxsz = (*ops)[2 + bound_op];
       for (uint32_t i = 0; i < num; i++)
         if ((res = normalize_wstring (data, off, size1, bswap, maxsz, tc)) != DDS_STREAM_NORMALIZE_SUCCESS)
           return res;
@@ -4469,6 +4481,9 @@ static enum dds_stream_normalize_result normalize_seq (char * restrict data, uin
       break;
     }
     case DDS_SOP_VAL_SEQ: case DDS_SOP_VAL_BSQ: case DDS_SOP_VAL_ARR: case DDS_SOP_VAL_UNI: case DDS_SOP_VAL_STU: {
+      const uint32_t elem_size = (*ops)[2 + bound_op];
+      if (num > UINT32_MAX / elem_size)
+        return normalize_error ();
       const uint32_t jmp = DDS_OP_ADR_JMP ((*ops)[3 + bound_op]);
       uint32_t const * const jsr_ops = *ops + DDS_OP_ADR_JSR ((*ops)[3 + bound_op]);
       for (uint32_t i = 0; i < num; i++)
