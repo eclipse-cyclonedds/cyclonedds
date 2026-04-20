@@ -26,6 +26,12 @@
 
 #include "dyntypelib.h"
 
+#include "dds/ddsi/ddsi_serdata.h"
+
+#if ENABLE_RAW_SAMPLE_BYPASS
+#include "dds__serdata_default.h"
+#endif
+
 ddsrt_nonnull_all
 ddsrt_attribute_noreturn
 ddsrt_attribute_format_printf (1, 2)
@@ -126,7 +132,8 @@ int main (int argc, char **argv)
   dds_return_t rc;
   int opt;
   uint32_t tce = 0x18; // default true,true,false,false,false
-  while ((opt = getopt (argc, argv, "c:")) != EOF)
+  bool skip_normalize_for_bin = false;
+  while ((opt = getopt (argc, argv, "c:R")) != EOF)
   {
     switch (opt)
     {
@@ -138,6 +145,9 @@ int main (int argc, char **argv)
         tce = 0;
         for (const char *p = optarg; *p; p++)
           tce = (tce << 1) | (*p == '1');
+        break;
+      case 'R':
+        skip_normalize_for_bin = true;
         break;
       default:
         usage (argv[0]);
@@ -155,16 +165,22 @@ int main (int argc, char **argv)
   struct dyntypelib *dtl = dtl_new (dp);
   struct dyntypelib_error err;
 
-  if (dtl_add_xml_type_library (dtl, argv[optind], &err) != DDS_RETCODE_OK)
-    exitfmt ("%s: %s: %s\n", argv[0], argv[optind], err.errmsg);
+  // Load type libraries
+  int argi = optind;
+  while (argi < argc && strlen (argv[argi]) > 4 && strcmp (argv[argi] + strlen (argv[argi]) - 4, ".xml") == 0)
+  {
+    if (dtl_add_xml_type_library (dtl, argv[optind], &err) != DDS_RETCODE_OK)
+      exitfmt ("%s: %s: %s\n", argv[0], argv[optind], err.errmsg);
+    argi++;
+  }
 
   struct dyntype *wrtype = NULL, *rdtype = NULL;
   dds_topic_descriptor_t *wrdescriptor = NULL, *rddescriptor = NULL;
   dds_entity_t wrtp = 0, rdtp = 0, wr = 0, rd = 0, ws = 0;
-  for (int argi = optind + 1; argi < argc; argi++)
+  for (; argi < argc; argi++)
   {
     size_t arglen = strlen (argv[argi]);
-    if (arglen <= 4 || strcmp (argv[argi] + arglen - 4, ".xml") != 0)
+    if (arglen <= 4 || (strcmp (argv[argi] + arglen - 4, ".xml") != 0 && strcmp (argv[argi] + arglen - 4, ".bin") != 0))
     {
       if (!lookup_type_pair (dtl, argv[argi], &wrtype, &rdtype))
         exitfmt ("\ncreate topic: type lookup failed\n");
@@ -245,7 +261,7 @@ int main (int argc, char **argv)
       // short sleep before writing so a remote reader is likely to have been discovered before the sample is written
       dds_sleepfor (DDS_MSECS (100));
     }
-    else
+    else if (strcmp (argv[argi] + arglen - 4, ".xml") == 0)
     {
       // data file
       if (wr == 0)
@@ -267,6 +283,73 @@ int main (int argc, char **argv)
         .realloc = ddsrt_realloc };
       dds_stream_free_sample (sample, &a, wrdescriptor->m_ops);
       ddsrt_free (sample);
+
+      if (rd)
+        doread (dtl, ws, rd, rdtype->typeobj, true);
+
+      // sleep a bit after writing data
+      if (argi < argc)
+        dds_sleepfor (DDS_MSECS (500));
+    }
+    else if (strcmp (argv[argi] + arglen - 4, ".bin") == 0)
+    {
+      // ONE BIG HACK
+      if (wr == 0)
+        exitfmt ("%s: data file given, but no writer type set yet\n", argv[argi]);
+      assert (wrtype);
+
+      FILE *fp = fopen (argv[argi], "rb");
+      if (fp == NULL)
+        exitfmt ("%s: %s: can't open file\n", argv[0], argv[argi]);
+      size_t bufcap = 1000;
+      size_t bufsz = 0;
+      char *buf = ddsrt_malloc (bufcap);
+      while (!feof(fp) && !ferror(fp))
+      {
+        if (bufsz == bufcap)
+          buf = ddsrt_realloc (buf, bufcap *= 2);
+        bufsz += fread (buf + bufsz, 1, bufcap - bufsz, fp);
+      }
+      if (ferror (fp))
+        exitfmt ("%s: %s: error reading file\n", argv[0], argv[argi]);
+      if (bufsz < 4)
+        exitfmt ("%s: %s: not enough space for an encoding header\n", argv[0], argv[argi]);
+      fclose (fp);
+
+      struct ddsi_serdata *sd;
+      const struct ddsi_sertype *st;
+      dds_get_entity_sertype (wr, &st);
+
+      if (skip_normalize_for_bin)
+      {
+#if ENABLE_RAW_SAMPLE_BYPASS
+        void *sample = calloc (1, st->sizeof_type);
+        sd = ddsi_serdata_from_sample (st, SDK_DATA, sample);
+        ddsrt_free (sample);
+        if (sd == NULL || sd == DDSI_SERDATA_FROM_SER_DISCARD)
+          exitfmt ("%s: %s: failed to convert all-zero sample to serdata\n", argv[0], argv[argi]);
+        struct dds_serdata_default *sdd;
+        sdd = ddsrt_realloc (sd, offsetof (struct dds_serdata_default, hdr) + ((bufsz + 3) & ~(size_t)0x3));
+        sdd->pos = sdd->size = (uint32_t) bufsz - 4;
+        memcpy (&sdd->hdr, buf, bufsz);
+        sd = (struct ddsi_serdata *) sdd;
+#else
+        exitfmt ("%s: injecting raw data while bypassing normalization in this build\n", argv[0]);
+#endif
+      }
+      else
+      {
+        ddsrt_iovec_t iov = { .iov_len = (ddsrt_iov_len_t) bufsz, .iov_base = buf };
+        sd = ddsi_serdata_from_ser_iov (st, SDK_DATA, 1, &iov, bufsz);
+        if (sd == NULL || sd == DDSI_SERDATA_FROM_SER_DISCARD)
+          exitfmt ("%s: %s: failed to convert CDR to serdata\n", argv[0], argv[argi]);
+      }
+
+      sd->timestamp = ddsrt_time_wallclock ();
+      sd->statusinfo = 0;
+
+      if ((rc = dds_forwardcdr (wr, sd)) != 0)
+        exitfmt ("%s: %s: can't forward: %s\n", argv[0], argv[argi], dds_strretcode (rc));
 
       if (rd)
         doread (dtl, ws, rd, rdtype->typeobj, true);

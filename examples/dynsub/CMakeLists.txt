@@ -39,6 +39,10 @@ if(TARGET CycloneDDS::ddsc)
     PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/cdr/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsi/include")
+  target_include_directories(xmltype
+    PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsc/src")
+  target_compile_definitions(xmltype PUBLIC ENABLE_RAW_SAMPLE_BYPASS=1)
 endif()
 target_link_libraries(dynsub dyntypelib CycloneDDS::ddsc)
 target_link_libraries(xmltype dyntypelib CycloneDDS::ddsc)
