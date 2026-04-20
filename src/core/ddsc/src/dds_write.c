@@ -642,15 +642,13 @@ static struct dds_loaned_sample *dds_write_impl_serialize_into_loan (const struc
   uint16_t enc_identifier;
   if (ddsi_sertype_get_serialized_size (sertype, sdkind, data, &loan_size_unpadded, &enc_identifier) != 0)
     return NULL;
-  const uint32_t pad_mask = 3u;
-  const uint32_t loan_size_padded = ((uint32_t) loan_size_unpadded + pad_mask) & ~pad_mask;
-  struct dds_loaned_sample * const loan = dds_writer_request_psmx_loan (wr, loan_size_padded);
+  struct dds_loaned_sample * const loan = dds_writer_request_psmx_loan (wr, (uint32_t)loan_size_unpadded);
   if (loan == NULL)
     return NULL;
   struct dds_psmx_metadata * const md = loan->metadata;
   md->sample_state = (sdkind == SDK_KEY) ? DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY : DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA;
   md->cdr_identifier = enc_identifier;
-  md->cdr_options = ddsrt_toBE2u ((uint16_t) (loan_size_padded - loan_size_unpadded));
+  md->cdr_options = 0;
   ddsi_sertype_serialize_into (sertype, sdkind, data, loan->sample_ptr, loan_size_unpadded);
   dds_psmx_set_loan_writeinfo (loan, &wr->m_entity.m_guid, timestamp, statusinfo);
   return loan;
