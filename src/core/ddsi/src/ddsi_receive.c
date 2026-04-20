@@ -384,11 +384,15 @@ static enum validation_result validate_Data (const struct ddsi_receiver_state *r
     return VR_MALFORMED;
   sampleinfo->fragsize = 0; /* for unfragmented data, fragsize = 0 works swell */
 
+  /* QoS and/or payload, so octetsToInlineQos must be within the
+     msg; since the serialized data and serialized parameter lists
+     have a 4 byte header, that one, too must fit */
+  if (offsetof (ddsi_rtps_data_datafrag_common_t, octetsToInlineQos) + sizeof (msg->x.octetsToInlineQos) + msg->x.octetsToInlineQos + 4 > size)
+    return VR_MALFORMED;
+
   if ((msg->x.smhdr.flags & (DDSI_DATA_FLAG_INLINE_QOS | DDSI_DATA_FLAG_DATAFLAG | DDSI_DATA_FLAG_KEYFLAG)) == 0)
   {
-    /* no QoS, no payload, so octetsToInlineQos will never be used
-       though one would expect octetsToInlineQos and size to be in
-       agreement or octetsToInlineQos to be 0 or so */
+    /* no QoS, no payload */
     *payloadp = NULL;
     *keyhashp = NULL;
     sampleinfo->size = 0; /* size is full payload size, no payload & unfragmented => size = 0 */
@@ -396,12 +400,6 @@ static enum validation_result validate_Data (const struct ddsi_receiver_state *r
     sampleinfo->complex_qos = 0;
     goto accept;
   }
-
-  /* QoS and/or payload, so octetsToInlineQos must be within the
-     msg; since the serialized data and serialized parameter lists
-     have a 4 byte header, that one, too must fit */
-  if (offsetof (ddsi_rtps_data_datafrag_common_t, octetsToInlineQos) + sizeof (msg->x.octetsToInlineQos) + msg->x.octetsToInlineQos + 4 > size)
-    return VR_MALFORMED;
 
   ptr = (unsigned char *) msg + offsetof (ddsi_rtps_data_datafrag_common_t, octetsToInlineQos) + sizeof (msg->x.octetsToInlineQos) + msg->x.octetsToInlineQos;
   if (msg->x.smhdr.flags & DDSI_DATA_FLAG_INLINE_QOS)

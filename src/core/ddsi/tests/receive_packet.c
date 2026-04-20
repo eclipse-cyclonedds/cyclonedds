@@ -38,10 +38,19 @@
 #include "ddsi__radmin.h"
 #include "ddsi__wraddrset.h"
 #include "ddsi__vnet.h"
+#include "mem_ser.h"
 
 static struct ddsi_cfgst *cfgst;
 static struct ddsi_domaingv gv;
 static struct ddsi_rbufpool *rbufpool;
+
+struct logger_arg {
+  ddsrt_atomic_uint32_t match;
+};
+
+static struct logger_arg logger_arg = {
+  DDSRT_ATOMIC_UINT32_INIT (0)
+};
 
 static void setup (void)
 {
@@ -69,12 +78,27 @@ static void teardown (void)
   ddsrt_fini ();
 }
 
+static void logger (void *ptr, const dds_log_data_t *data)
+{
+  struct logger_arg *arg = ptr;
+  printf ("%s", data->message);
+  fflush (stdout);
+  // We know the GUID; 707 is simply how the beginnning of
+  // TEST_GUIDPREFIX_BYTES gets printed, and as the first
+  // two bytes are vendor code and not Cyclone DDS, this
+  // suffices
+  if (strstr (data->message, "malformed"))
+    ddsrt_atomic_or32 (&arg->match, 1);
+}
+
 static void setup_and_start (void)
 {
   setup ();
+  dds_set_log_sink (&logger, &logger_arg);
+  dds_set_trace_sink (&logger, &logger_arg);
   // not very proper to do this here
   // abusing DDS_LC_CONTENT a bit
-  dds_log_cfg_init (&gv.logconfig, gv.config.domainId, DDS_LC_CONTENT /* DDS_LC_ALL or DDS_LC_CONTENT */, stdout, stdout);
+  dds_log_cfg_init (&gv.logconfig, gv.config.domainId, DDS_LC_CONTENT | DDS_LC_ALL /* DDS_LC_ALL or DDS_LC_CONTENT */, stdout, stdout);
 
   ddsi_set_deafmute (&gv, true, true, DDS_INFINITY);
   ddsi_start (&gv);
@@ -89,6 +113,9 @@ static void setup_and_start (void)
 
 static void stop_and_teardown (void)
 {
+  dds_set_log_sink (0, 0);
+  dds_set_trace_sink (0, 0);
+
   // On shutdown there is an expectation that the thread was discovered dynamically.
   // We overrode it in the setup code, we undo it now.
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
@@ -135,12 +162,20 @@ static uint32_t serdata_get_size (const struct ddsi_serdata *sd0)
   return sd->size;
 };
 
+static size_t serdata_print (const struct ddsi_sertype *type, const struct ddsi_serdata *sd0, char *buf, size_t size)
+{
+  struct serdata *sd = (struct serdata *) sd0;
+  (void) type;
+  return (size_t) snprintf (buf, size, "(%"PRIu32" bytes)", sd->size);
+}
+
 static const struct ddsi_serdata_ops serdata_ops = {
   .from_ser = serdata_from_ser,
   .free = serdata_free,
   .to_untyped = serdata_to_untyped,
   .eqkey = serdata_eqkey,
-  .get_size = serdata_get_size
+  .get_size = serdata_get_size,
+  .print = serdata_print
 };
 
 static void sertype_free (struct ddsi_sertype *st)
@@ -306,7 +341,9 @@ static void receive_packet_init (ddsi_guid_t *rdguid, ddsi_guid_t *wrguid, bool 
   ddsi_locator_t loc = ucloc[1]; loc.port = 1000;
   ddsi_add_locator_to_addrset (&gv, proxypp_as, &loc);
   ddsi_add_locator_to_addrset (&gv, proxypp_as, &mcloc);
-  ddsi_new_proxy_participant (&proxy_participant, &gv, &wrppguid, 0, proxypp_as, ddsi_ref_addrset (proxypp_as), &plist_pp[1], DDS_INFINITY, DDSI_VENDORID_ECLIPSE, ddsrt_time_wallclock (), next_seqno);
+  const uint32_t bes = 0
+  | DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER;
+  ddsi_new_proxy_participant (&proxy_participant, &gv, &wrppguid, bes, proxypp_as, ddsi_ref_addrset (proxypp_as), &plist_pp[1], DDS_INFINITY, DDSI_VENDORID_ECLIPSE, ddsrt_time_wallclock (), 1);
   assert (proxy_participant != NULL);
 
   if (isnullguid (wrguid))
@@ -318,20 +355,65 @@ static void receive_packet_init (ddsi_guid_t *rdguid, ddsi_guid_t *wrguid, bool 
     else
       wrguid->entityid.u |= DDSI_ENTITYID_KIND_WRITER_NO_KEY;
   };
-  ddsi_plist_t plist_wr = { .present = 0, .qos = ddsi_default_qos_writer };
-  plist_wr.qos.present |= DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME;
-  plist_wr.qos.reliability.kind = DDS_RELIABILITY_RELIABLE;
-  plist_wr.qos.topic_name = "Q";
-  plist_wr.qos.type_name = "Q";
-  struct ddsi_addrset *wr_as = ddsi_new_addrset ();
-  ddsi_add_locator_to_addrset (&gv, wr_as, &loc);
-  ddsi_add_locator_to_addrset (&gv, wr_as, &mcloc);
-  struct ddsi_proxy_writer *proxy_writer;
-  //int ddsi_new_proxy_writer (struct ddsi_proxy_writer **proxy_writer, struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const ddsi_plist_t *plist, struct ddsi_dqueue *dqueue, struct ddsi_xeventq *evq, ddsrt_wctime_t timestamp, ddsi_seqno_t seq)
-  ddsi_new_proxy_writer (&proxy_writer, &gv, &wrppguid, wrguid, wr_as, &plist_wr, gv.user_dqueue, gv.xevents, ddsrt_time_wallclock (), 1);
-  assert (proxy_writer);
-  ddsi_unref_addrset (wr_as);
+
+  struct ddsi_proxy_writer *pwr;
+  if (ddsi_is_builtin_endpoint (wrguid->entityid, DDSI_VENDORID_UNKNOWN))
+  {
+    pwr = ddsi_entidx_lookup_proxy_writer_guid (gv.entity_index, wrguid);
+  }
+  else
+  {
+    ddsi_plist_t plist_wr = { .present = 0, .qos = ddsi_default_qos_writer };
+    plist_wr.qos.present |= DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME;
+    plist_wr.qos.reliability.kind = DDS_RELIABILITY_RELIABLE;
+    plist_wr.qos.topic_name = "Q";
+    plist_wr.qos.type_name = "Q";
+    struct ddsi_addrset *wr_as = ddsi_new_addrset ();
+    ddsi_add_locator_to_addrset (&gv, wr_as, &loc);
+    ddsi_add_locator_to_addrset (&gv, wr_as, &mcloc);
+    //int ddsi_new_proxy_writer (struct ddsi_proxy_writer **proxy_writer, struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const ddsi_plist_t *plist, struct ddsi_dqueue *dqueue, struct ddsi_xeventq *evq, ddsrt_wctime_t timestamp, ddsi_seqno_t seq)
+    ddsi_new_proxy_writer (&pwr, &gv, &wrppguid, wrguid, wr_as, &plist_wr, gv.user_dqueue, gv.xevents, ddsrt_time_wallclock (), 1);
+    ddsi_unref_addrset (wr_as);
+  }
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+  assert (pwr);
+
+  // pretend we have received a heartbeat and that the next_seqno
+  // is the next expected sequence number
+  struct ddsi_network_packet_info pktinfo;
+  ddsi_conn_locator (gv.xmit_conns[0], &pktinfo.src);
+  pktinfo.dst.kind = DDSI_LOCATOR_KIND_INVALID;
+  pktinfo.if_index = 0;
+
+  // Process the packet we so carefully constructed above as if it was received
+  // over the network.  Stack is deaf (and mute), so there is no risk that the
+  // message gets dropped because some buffer is full
+  struct ddsi_rmsg *rmsg = ddsi_rmsg_new (rbufpool);
+  unsigned char *buf = (unsigned char *) DDSI_RMSG_PAYLOAD (rmsg);
+  const ddsi_guid_prefix_t gp = ddsi_hton_guid_prefix (wrguid->prefix);
+  const ddsi_guid_prefix_t dgp = ddsi_hton_guid_prefix (rdguid->prefix);
+  const unsigned char rtps_message[] = {
+    'R', 'T', 'P', 'S',
+    2, 5, gp.s[0], gp.s[1],
+    gp.s[0], gp.s[1], gp.s[2], gp.s[3],
+    gp.s[4], gp.s[5], gp.s[6], gp.s[7],
+    gp.s[8], gp.s[9], gp.s[10], gp.s[11],
+    DDSI_RTPS_SMID_INFO_DST, 0, SER16BE(3 * 4),
+    dgp.s[0], dgp.s[1], dgp.s[2], dgp.s[3],
+    dgp.s[4], dgp.s[5], dgp.s[6], dgp.s[7],
+    dgp.s[8], dgp.s[9], dgp.s[10], dgp.s[11],
+    DDSI_RTPS_SMID_HEARTBEAT, 0, SER16BE(7 * 4),
+    SER32BE(0),//rdid.u),
+    SER32BE(wrguid->entityid.u),
+    SER64BE(next_seqno),
+    SER64BE(next_seqno-1),
+    SER32BE(1)
+  };
+  memcpy (buf, rtps_message, sizeof (rtps_message));
+  ddsi_rmsg_setsize (rmsg, (uint32_t) sizeof (rtps_message));
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, (uint32_t) sizeof (rtps_message), &pktinfo);
+  ddsi_rmsg_commit (rmsg);
 }
 
 static void receive_packet_fini (void)
@@ -410,11 +492,74 @@ CU_Test (ddsi_receive_packet, rti_dispose_with_key)
   unsigned char *buf = (unsigned char *) DDSI_RMSG_PAYLOAD (rmsg);
   memcpy (buf, rtps_message, sizeof (rtps_message));
   ddsi_rmsg_setsize (rmsg, (uint32_t) sizeof (rtps_message));
-  
+
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, (uint32_t) sizeof (rtps_message), &pktinfo);
   ddsi_rmsg_commit (rmsg);
 
   receive_packet_fini ();
   CU_ASSERT_NEQ (rhc.stored, 0);
+}
+
+CU_Test (ddsi_receive_packet, data_with_bad_octetsToInlineQos)
+{
+  ddsi_guid_t rdguid = nullguid;
+  ddsi_guid_t wrguid = ddsi_guid_from_octets (((unsigned char[]){
+    0x01,0x10,0xe8,0x8c,0x42,0x17,0xa6,0xb4,0x14,0x83,0xa5,0x4d,
+    0x00,0x02,0x00,0xc2}));
+  const unsigned char rtps_message[] = {
+    0x52,0x54,0x50,0x53,
+    0x02,0x05,
+    0x01,0x10,
+    0x01,0x10,0xe8,0x8c,
+    0x42,0x17,0xa6,0xb4,0x14,0x83,0xa5,0x4d,
+    0x09,0x01,0x08,0x00,
+    0x69,0x5d,0xe7,0x69,0xe4,0x26,0x6d,0x8f,
+    0x15,0x01,0x30,0x00,
+    0x00,0x00,
+    0xfc,0xff,
+    0x00,0x00,0x00,0x00,
+    0x00,0x02,0x00,0xc2,
+    0x00,0x00,0x00,0x00,
+    0xa0,0x03,0x00,0x00,
+    0x00,0x01,0x00,0x00,
+    0x01,0x10,0xe8,0x8c,
+    0x42,0x17,0xa6,0xb4,
+    0x14,0x83,0xa5,0x4d,
+    0x00,0x00,0x00,0x01,
+    0x01,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,
+    0x07,0x03,0x1c,0x00,
+    0x00,0x00,0x00,0x00,
+    0x00,0x02,0x00,0xc2,
+    0x00,0x00,0x00,0x00,
+    0xa0,0x03,0x00,0x00,
+    0x00,0x00,0x00,0x00,
+    0xa0,0x03,0x00,0x00,
+    0x9f,0x03,0x00,0x00
+  };
+  const ddsi_seqno_t seqno = 0x3a0;
+
+  ddsrt_atomic_st32 (&logger_arg.match, 0);
+  receive_packet_init (&rdguid, &wrguid, true, seqno);
+
+  struct ddsi_network_packet_info pktinfo;
+  ddsi_conn_locator (gv.xmit_conns[0], &pktinfo.src);
+  pktinfo.dst.kind = DDSI_LOCATOR_KIND_INVALID;
+  pktinfo.if_index = 0;
+
+  // Process the packet we so carefully constructed above as if it was received
+  // over the network.  Stack is deaf (and mute), so there is no risk that the
+  // message gets dropped because some buffer is full
+  struct ddsi_rmsg *rmsg = ddsi_rmsg_new (rbufpool);
+  unsigned char *buf = (unsigned char *) DDSI_RMSG_PAYLOAD (rmsg);
+  memcpy (buf, rtps_message, sizeof (rtps_message));
+  ddsi_rmsg_setsize (rmsg, (uint32_t) sizeof (rtps_message));
+
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, (uint32_t) sizeof (rtps_message), &pktinfo);
+  ddsi_rmsg_commit (rmsg);
+
+  receive_packet_fini ();
+  CU_ASSERT_EQ (ddsrt_atomic_ld32 (&logger_arg.match), 1);
 }
