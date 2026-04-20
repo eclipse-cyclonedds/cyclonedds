@@ -117,6 +117,7 @@ typedef struct dds_cdrstream_allocator {
 } dds_cdrstream_allocator_t;
 
 typedef struct dds_cdrstream_desc_key {
+  char *name;          /* Name of key field */
   uint32_t ops_offs;   /* Offset for key ops */
   uint32_t idx;        /* Key index in containing type (definition order) */
 } dds_cdrstream_desc_key_t;

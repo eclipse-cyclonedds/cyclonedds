@@ -118,6 +118,8 @@ struct ddsi_domaingv *ddsi_type_get_gv (const struct ddsi_type *type);
 /** @component type_system */
 DDS_XTypes_TypeKind ddsi_type_get_kind (const struct ddsi_type *type);
 
+/** @component type_system */
+struct ddsi_type * ddsi_type_dup_with_keys (const struct ddsi_type *type, const char *fields[], const size_t nfields);
 
 #ifdef DDS_HAS_TYPELIB
 
