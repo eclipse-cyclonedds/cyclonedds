@@ -736,7 +736,14 @@ dds_return_t dtl_add_xml_type_library (struct dyntypelib *dtl, const char *xml_t
     .dp = dtl->dp,
     .dtl = dtl
   };
-  return make_types (&ctxt, root->children->children, "", err);
+
+  for (struct elem *e = root->children->children; e; e = e->next)
+  {
+    dds_return_t rc = make_types (&ctxt, e, "", err);
+    if (rc != DDS_RETCODE_OK)
+      return rc;
+  }
+  return DDS_RETCODE_OK;
 }
 
 dds_return_t dtl_add_typeid (struct dyntypelib *dtl, const dds_typeinfo_t *typeinfo, const DDS_XTypes_TypeObject **typeobj, struct dyntypelib_error *err)
