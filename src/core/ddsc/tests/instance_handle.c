@@ -70,7 +70,7 @@ CU_Test (ddsc_instance_handle, a, .init = instance_handle_init, .fini = instance
 
      The point behind this model is that it allows one to use an instance handle obtained on
      one reader and use it to read the matching instance in another reader.  So that bit of
-     behaviour needs to be checked.
+     behavior needs to be checked.
 
      I'm not sure whether the "serialised" part should be included in the test, I don't think
      that's something that should be guaranteed in the API.  However, it is worth verifying that

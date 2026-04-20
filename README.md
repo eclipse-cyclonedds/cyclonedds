@@ -82,7 +82,7 @@ Zero-configuration discovery is also included in the standard and supported by a
 DDS actually brings more: publish-subscribe messaging is a nice abstraction over "ordinary" networking, but plain publish-subscribe doesn't affect how one *thinks* about systems.
 A very powerful architecture that truly changes the perspective on distributed systems is that of the "shared data space", in itself an old idea, and really just a distributed database.
 Most shared data space designs have failed miserably in real-time control systems because they provided strong consistency guarantees and sacrificed too much performance and flexibility.
-The *eventually consistent* shared data space of DDS has been very successful in helping with building systems that need to satisfy many "ilities": dependability, maintainability, extensibility, upgradeability, ...
+The *eventually consistent* shared data space of DDS has been very successful in helping with building systems that need to satisfy many "ilities": dependability, maintainability, extensibility, upgradeability, etc.
 Truth be told, that's why it was invented, and publish-subscribe messaging was simply an implementation technique.
 
 Cyclone DDS aims at full coverage of the specs and today already covers most of this.
