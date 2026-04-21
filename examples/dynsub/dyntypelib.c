@@ -445,6 +445,7 @@ static dds_return_t make_union (const struct make_context *ctxt, const struct el
 
   // We require the discriminator type at the time of creating the union, so go look for it
   const struct elem *discriminator_elem = NULL;
+  bool discriminator_is_key = false;
   dds_dynamic_type_spec_t discts = DDS_DYNAMIC_TYPE_SPEC_PRIM (DDS_DYNAMIC_BOOLEAN);
   {
     bool discts_set = false;
@@ -456,6 +457,15 @@ static dds_return_t make_union (const struct make_context *ctxt, const struct el
       if ((rc = get_typespec (ctxt, c, ns, &discts, err)) != 0)
         return rc;
       discts_set = true;
+      const char *keystr = getattr (c, "key");
+      if (keystr) {
+        if (strcmp (keystr, "false") == 0)
+          discriminator_is_key = false;
+        else if (strcmp (keystr, "true") == 0)
+          discriminator_is_key = true;
+        else
+          return dtl_set_error (err, elem, "disciminator key attribute has invalid value: %s\n", keystr);
+      }
       break;
     }
     if (!discts_set)
@@ -471,6 +481,8 @@ static dds_return_t make_union (const struct make_context *ctxt, const struct el
     return rc;
   if ((rc = set_autoid (dunion, elem, err)) != 0)
     return rc;
+  if ((rc = dds_dynamic_member_set_key (dunion, 0, discriminator_is_key)) != 0)
+    return dtl_set_error (err, elem, "failed to set key attribute for union type: %s\n", dds_strretcode (rc));
 
   for (const struct elem *c = elem->children; c; c = c->next)
   {
