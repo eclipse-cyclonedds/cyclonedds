@@ -496,7 +496,7 @@ static dds_return_t set_member_bool_prop (dds_dynamic_type_t *type, uint32_t mem
 
 dds_return_t dds_dynamic_member_set_key (dds_dynamic_type_t *type, uint32_t member_id, bool is_key)
 {
-  return (type->ret = set_member_bool_prop (type, member_id, is_key, ddsi_dynamic_type_member_set_key, NULL));
+  return (type->ret = set_member_bool_prop (type, member_id, is_key, ddsi_dynamic_type_member_set_key, ddsi_dynamic_union_member_set_key));
 }
 
 dds_return_t dds_dynamic_member_set_optional (dds_dynamic_type_t *type, uint32_t member_id, bool is_optional)

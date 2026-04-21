@@ -121,6 +121,9 @@ dds_return_t ddsi_dynamic_type_member_set_optional (struct ddsi_type *type, uint
 dds_return_t ddsi_dynamic_struct_member_set_external (struct ddsi_type *type, uint32_t member_id, bool is_external);
 
 /** @component dynamic_type_support */
+dds_return_t ddsi_dynamic_union_member_set_key (struct ddsi_type *type, uint32_t member_id, bool is_key);
+
+/** @component dynamic_type_support */
 dds_return_t ddsi_dynamic_union_member_set_external (struct ddsi_type *type, uint32_t member_id, bool is_external);
 
 /** @component dynamic_type_support */

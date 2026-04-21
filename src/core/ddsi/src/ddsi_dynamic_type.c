@@ -756,12 +756,20 @@ static dds_return_t find_union_member (struct ddsi_type *type, uint32_t member_i
   }
   else
   {
-    for (uint32_t n = 0; n < type->xt._u.union_type.members.length; n++)
+    if (member_id == 0)
     {
-      if (type->xt._u.union_type.members.seq[n].id == member_id)
+      *member_index = UINT32_MAX;
+      return DDS_RETCODE_OK;
+    }
+    else
+    {
+      for (uint32_t n = 0; n < type->xt._u.union_type.members.length; n++)
       {
-        *member_index = n;
-        return DDS_RETCODE_OK;
+        if (type->xt._u.union_type.members.seq[n].id == member_id)
+        {
+          *member_index = n;
+          return DDS_RETCODE_OK;
+        }
       }
     }
     return DDS_RETCODE_BAD_PARAMETER;
@@ -792,10 +800,11 @@ static dds_return_t set_union_member_flag (struct ddsi_type *type, uint32_t memb
   uint32_t member_index;
   if ((ret = find_union_member (type, member_id, &member_index)) == DDS_RETCODE_OK)
   {
+    DDS_XTypes_MemberFlag * const flags = (member_index == UINT32_MAX) ? &type->xt._u.union_type.disc_flags : &type->xt._u.union_type.members.seq[member_index].flags;
     if (set)
-      type->xt._u.union_type.members.seq[member_index].flags |= flag;
+      *flags |= flag;
     else
-      type->xt._u.union_type.members.seq[member_index].flags &= (uint16_t) ~flag;
+      *flags &= (uint16_t) ~flag;
   }
   return ret;
 }
@@ -818,6 +827,13 @@ dds_return_t ddsi_dynamic_struct_member_set_external (struct ddsi_type *type, ui
 dds_return_t ddsi_dynamic_union_member_set_external (struct ddsi_type *type, uint32_t member_id, bool is_external)
 {
   return set_union_member_flag (type, member_id, is_external, DDS_XTypes_IS_EXTERNAL);
+}
+
+dds_return_t ddsi_dynamic_union_member_set_key (struct ddsi_type *type, uint32_t member_id, bool is_key)
+{
+  if (member_id != 0)
+    return DDS_RETCODE_BAD_PARAMETER;
+  return set_union_member_flag (type, member_id, is_key, DDS_XTypes_IS_KEY);
 }
 
 dds_return_t ddsi_dynamic_type_member_set_must_understand (struct ddsi_type *type, uint32_t member_id, bool is_must_understand)
