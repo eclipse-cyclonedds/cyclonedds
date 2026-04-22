@@ -1025,10 +1025,18 @@ static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertyp
       uint32_t actual_size;
 
       // FIXME: how much do we trust PSMX-provided data? If we *really* trust it, we can skip this
-      if (dds_stream_normalize (loaned_sample->sample_ptr, md->sample_size - pad, false, xcdr_version, &tp->type, just_key, &actual_size) != DDS_STREAM_NORMALIZE_SUCCESS)
+      const enum dds_stream_normalize_result nres =
+        dds_stream_normalize (loaned_sample->sample_ptr, md->sample_size - pad, false, xcdr_version, &tp->type, just_key, &actual_size);
+      switch (nres)
       {
+        case DDS_STREAM_NORMALIZE_SUCCESS:
+          break;
+        case DDS_STREAM_NORMALIZE_DISCARD:
+          ddsi_serdata_unref (&d->c);
+          return DDSI_SERDATA_FROM_SER_DISCARD;
+        case DDS_STREAM_NORMALIZE_ERROR:
         ddsi_serdata_unref (&d->c);
-        return NULL;
+          return NULL;
       }
       serdata_default_append_blob (&d, md->sample_size, loaned_sample->sample_ptr);
       dds_istream_t is;

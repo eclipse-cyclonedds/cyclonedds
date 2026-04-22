@@ -971,7 +971,11 @@ int ddsi_write_sample_nogc_notk (struct ddsi_thread_state * const thrst, struct 
 
 int ddsi_write_and_fini_plist (struct ddsi_writer *wr, ddsi_plist_t *ps, bool alive)
 {
-  struct ddsi_serdata *serdata = ddsi_serdata_from_sample (wr->type, alive ? SDK_DATA : SDK_KEY, ps);
+  dds_return_t rc;
+  struct ddsi_serdata *serdata;
+  rc = ddsi_serdata_from_sample_err (&serdata, wr->type, alive ? SDK_DATA : SDK_KEY, ps);
+  assert (rc == DDS_RETCODE_OK);
+  (void) rc;
   ddsi_plist_fini (ps);
   serdata->statusinfo = alive ? 0 : (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER);
   serdata->timestamp = ddsrt_time_wallclock ();

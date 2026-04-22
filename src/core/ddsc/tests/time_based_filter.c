@@ -131,7 +131,8 @@ static void test_insert(void)
       goto fail;
 
     msg.long_2++;
-    sd = ddsi_serdata_from_sample (st, SDK_DATA, &msg);
+    dds_return_t rc = ddsi_serdata_from_sample_err (&sd, st, SDK_DATA, &msg);
+    CU_ASSERT_EQ_FATAL (rc, 0);
     CU_ASSERT_NEQ_FATAL (sd, NULL);
     if (!sd)
       goto fail;

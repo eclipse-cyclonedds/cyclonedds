@@ -1464,8 +1464,11 @@ CU_Test(ddsc_serdata, key_serialization)
 
       // Create SDK_DATA serdata from sample
       {
-        struct dds_serdata_default *sd = (struct dds_serdata_default *) ddsi_serdata_from_sample (sertype, SDK_DATA, sample);
-        CU_ASSERT_NEQ_FATAL (sd, NULL);
+        struct ddsi_serdata *sd0;
+        dds_return_t rc = ddsi_serdata_from_sample_err (&sd0, sertype, SDK_DATA, sample);
+        CU_ASSERT_EQ_FATAL (rc, 0);
+        CU_ASSERT_NEQ_FATAL (sd0, NULL);
+        struct dds_serdata_default * const sd = (struct dds_serdata_default *) sd0;
 
         size_t exp_sz_aligned = alignN (tests[test_index].xcdrv[dr].data_sz, 4);
         tprintf ("Data: ");
@@ -1481,8 +1484,11 @@ CU_Test(ddsc_serdata, key_serialization)
 
       // Create SDK_KEY serdata from sample
       {
-        struct dds_serdata_default *sd = (struct dds_serdata_default *) ddsi_serdata_from_sample (sertype, SDK_KEY, sample);
-        CU_ASSERT_NEQ_FATAL (sd, NULL);
+        struct ddsi_serdata *sd0;
+        dds_return_t rc = ddsi_serdata_from_sample_err (&sd0, sertype, SDK_KEY, sample);
+        CU_ASSERT_EQ_FATAL (rc, 0);
+        CU_ASSERT_NEQ_FATAL (sd0, NULL);
+        struct dds_serdata_default * const sd = (struct dds_serdata_default *) sd0;
 
         size_t exp_sz = tests[test_index].xcdrv[dr].key_sz;
         const unsigned char *exp_data = tests[test_index].xcdrv[dr].key;
@@ -1506,9 +1512,10 @@ CU_Test(ddsc_serdata, key_serialization)
         key_cdr.iov_base = ddsrt_malloc (key_cdr.iov_len);
         memcpy (key_cdr.iov_base, &hdr, sizeof (hdr));
         memcpy ((unsigned char *) key_cdr.iov_base + sizeof (hdr), tests[test_index].xcdrv[dr].key, tests[test_index].xcdrv[dr].key_sz);
-        struct ddsi_serdata *sd0 = ddsi_serdata_from_ser_iov (sertype, SDK_KEY, 1, &key_cdr, key_cdr.iov_len);
+        struct ddsi_serdata *sd0;
+        dds_return_t rc = ddsi_serdata_from_ser_iov_err (&sd0, sertype, SDK_KEY, 1, &key_cdr, key_cdr.iov_len);
+        CU_ASSERT_EQ_FATAL (rc, 0);
         CU_ASSERT_NEQ_FATAL (sd0, NULL);
-        CU_ASSERT_NEQ_FATAL (sd0, DDSI_SERDATA_FROM_SER_DISCARD);
         struct dds_serdata_default *sd = (struct dds_serdata_default *) sd0;
         ddsrt_free (key_cdr.iov_base);
 
@@ -1525,9 +1532,10 @@ CU_Test(ddsc_serdata, key_serialization)
         data_cdr.iov_base = ddsrt_malloc (data_cdr.iov_len);
         memcpy (data_cdr.iov_base, &hdr, sizeof (hdr));
         memcpy ((unsigned char *) data_cdr.iov_base + sizeof (hdr), tests[test_index].xcdrv[dr].data, tests[test_index].xcdrv[dr].data_sz);
-        struct ddsi_serdata *sd0 = ddsi_serdata_from_ser_iov (sertype, SDK_DATA, 1, &data_cdr, data_cdr.iov_len);
+        struct ddsi_serdata *sd0;
+        dds_return_t rc = ddsi_serdata_from_ser_iov_err (&sd0, sertype, SDK_DATA, 1, &data_cdr, data_cdr.iov_len);
+        CU_ASSERT_EQ_FATAL (rc, 0);
         CU_ASSERT_NEQ_FATAL (sd0, NULL);
-        CU_ASSERT_NEQ_FATAL (sd0, DDSI_SERDATA_FROM_SER_DISCARD);
         struct dds_serdata_default *sd = (struct dds_serdata_default *) sd0;
         ddsrt_free (data_cdr.iov_base);
 

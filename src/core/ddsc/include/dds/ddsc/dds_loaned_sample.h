@@ -152,6 +152,8 @@ DDS_INLINE_EXPORT inline void ddsrt_nonnull_all dds_loaned_sample_unref (dds_loa
  *
  * @retval DDS_RETCODE_OK
  *             The operation was successful.
+ * @retval DDS_RETCODE_NO_DATA
+ *             Sample should be discarded silently
  * @retval DDS_RETCODE_BAD_PARAMETER
  *             One or more parameters are invalid.
  * @retval DDS_RETCODE_ILLEGAL_OPERATION
@@ -184,6 +186,8 @@ DDS_EXPORT dds_return_t dds_reader_store_loaned_sample (dds_entity_t reader, dds
  *
  * @retval DDS_RETCODE_OK
  *             The operation was successful.
+ * @retval DDS_RETCODE_NO_DATA
+ *             Sample should be discarded silently
  * @retval DDS_RETCODE_BAD_PARAMETER
  *             One or more parameters are invalid.
  * @retval DDS_RETCODE_ILLEGAL_OPERATION

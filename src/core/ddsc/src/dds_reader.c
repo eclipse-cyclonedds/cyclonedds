@@ -780,12 +780,10 @@ static dds_return_t dds_reader_store_loaned_sample_impl (dds_entity_t reader, dd
       lookup_entity->kind == DDSI_EK_WRITER)
     goto drop_local;
 
-  struct ddsi_serdata * sd = ddsi_serdata_from_psmx (rd->type, data);
-  if (sd == NULL)
-  {
-    ret = DDS_RETCODE_ERROR;
+  struct ddsi_serdata *sd;
+  ret = ddsi_serdata_from_psmx_err (&sd, rd->type, data);
+  if (ret != DDS_RETCODE_OK)
     goto fail_serdata;
-  }
 
   struct ddsi_writer_info wi;
   if ((ret = get_writer_info (gv, &ddsi_guid, sd->statusinfo, writer_md, &wi)) != DDS_RETCODE_OK)

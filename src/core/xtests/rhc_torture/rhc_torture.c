@@ -95,7 +95,9 @@ static int64_t dds_time_uniq (void)
 static struct ddsi_serdata *mksample (int32_t keyval, unsigned statusinfo)
 {
   RhcTypes_T d = { keyval, "A", (int32_t) ++seq, 0, "B" };
-  struct ddsi_serdata *sd = ddsi_serdata_from_sample (mdtype, SDK_DATA, &d);
+  struct ddsi_serdata *sd;
+  if (ddsi_serdata_from_sample_err (&sd, mdtype, SDK_DATA, &d) != DDS_RETCODE_OK)
+    return NULL;
   sd->statusinfo = statusinfo;
   sd->timestamp.v = dds_time_uniq ();
   return sd;
@@ -104,7 +106,9 @@ static struct ddsi_serdata *mksample (int32_t keyval, unsigned statusinfo)
 static struct ddsi_serdata *mkkeysample (int32_t keyval, unsigned statusinfo)
 {
   RhcTypes_T d = { keyval, "A", 0, 0, "B" };
-  struct ddsi_serdata *sd = ddsi_serdata_from_sample (mdtype, SDK_KEY, &d);
+  struct ddsi_serdata *sd;
+  if (ddsi_serdata_from_sample_err (&sd, mdtype, SDK_KEY, &d) != DDS_RETCODE_OK)
+    return NULL;
   sd->statusinfo = statusinfo;
   sd->timestamp.v = dds_time_uniq ();
   return sd;

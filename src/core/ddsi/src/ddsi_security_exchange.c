@@ -63,7 +63,8 @@ bool ddsi_write_auth_handshake_message(const struct ddsi_participant *pp, const 
     ddsi_participant_generic_message_init(&pmg, &wr->e.guid, seq, &proxypp->e.guid, NULL, NULL, DDS_SECURITY_AUTH_HANDSHAKE, mdata, related_message_id);
   }
 
-  serdata = ddsi_serdata_from_sample (wr->type, SDK_DATA, &pmg);
+  result = ddsi_serdata_from_sample_err (&serdata, wr->type, SDK_DATA, &pmg);
+  assert (result == DDS_RETCODE_OK);
   serdata->timestamp = ddsrt_time_wallclock ();
   wr->sent_bytes += ddsi_serdata_size (serdata);
   result = ddsi_enqueue_sample_wrlock_held (wr, seq, serdata, prd, 1) == 0;
@@ -170,8 +171,10 @@ static bool write_crypto_exchange_message(const struct ddsi_participant *pp, con
   seq = ++wr->seq;
 
   /* Get serialized message. */
-  ddsi_participant_generic_message_init(&pmg, &wr->e.guid, seq, dst_pguid, dst_eguid, src_eguid, classid, tokens, NULL);
-  serdata = ddsi_serdata_from_sample (wr->type, SDK_DATA, &pmg);
+  ddsi_participant_generic_message_init (&pmg, &wr->e.guid, seq, dst_pguid, dst_eguid, src_eguid, classid, tokens, NULL);
+  dds_return_t rc = ddsi_serdata_from_sample_err (&serdata, wr->type, SDK_DATA, &pmg);
+  assert (rc == DDS_RETCODE_OK);
+  (void) rc;
   serdata->timestamp = ddsrt_time_wallclock ();
   tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
   wr->sent_bytes += ddsi_serdata_size (serdata);

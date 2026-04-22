@@ -32,28 +32,33 @@ void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertype *tp, e
   ddsrt_atomic_st32 (&d->refc, 1);
 }
 
-struct ddsi_serdata *ddsi_serdata_copy_as_type (const struct ddsi_sertype *type, const struct ddsi_serdata *serdata)
+dds_return_t ddsi_serdata_copy_as_type (struct ddsi_serdata **sd_out, const struct ddsi_sertype *type, const struct ddsi_serdata *serdata)
 {
-  ;
   ddsrt_iovec_t iov;
   uint32_t size = ddsi_serdata_size (serdata);
   struct ddsi_serdata *tmpref = ddsi_serdata_to_ser_ref (serdata, 0, size, &iov);
-  struct ddsi_serdata *converted = ddsi_serdata_from_ser_iov (type, serdata->kind, 1, &iov, size);
-  if (converted != NULL && converted != DDSI_SERDATA_FROM_SER_DISCARD)
+  struct ddsi_serdata *converted;
+  dds_return_t rc;
+  if ((rc = ddsi_serdata_from_ser_iov_err (&converted, type, serdata->kind, 1, &iov, size)) != DDS_RETCODE_OK)
+    *sd_out = NULL;
+  else
   {
     converted->statusinfo = serdata->statusinfo;
     converted->timestamp = serdata->timestamp;
+    *sd_out = converted;
   }
   ddsi_serdata_to_ser_unref (tmpref, &iov);
-  return converted;
+  return rc;
 }
 
-struct ddsi_serdata *ddsi_serdata_ref_as_type (const struct ddsi_sertype *type, struct ddsi_serdata *serdata)
+dds_return_t ddsi_serdata_ref_as_type (struct ddsi_serdata **sd_out, const struct ddsi_sertype *type, struct ddsi_serdata *serdata)
 {
-  if (serdata->type == type)
-    return ddsi_serdata_ref (serdata);
-  else
-    return ddsi_serdata_copy_as_type (type, serdata);
+  if (serdata->type == type) {
+    *sd_out = ddsi_serdata_ref (serdata);
+    return DDS_RETCODE_OK;
+  } else {
+    return ddsi_serdata_copy_as_type (sd_out, type, serdata);
+  }
 }
 
 const ddsi_keyhash_t *ddsi_serdata_keyhash_from_fragchain (const struct ddsi_rdata *fragchain)
@@ -64,9 +69,17 @@ const ddsi_keyhash_t *ddsi_serdata_keyhash_from_fragchain (const struct ddsi_rda
     return (const ddsi_keyhash_t *) DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_KEYHASH_OFF (fragchain));
 }
 
+extern inline dds_return_t ddsi_serdata_from_convert_result (struct ddsi_serdata **sd_out, struct ddsi_serdata *sd);
+
 DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_ref (const struct ddsi_serdata *serdata_const);
 DDS_EXPORT extern inline void ddsi_serdata_unref (struct ddsi_serdata *serdata);
 DDS_EXPORT extern inline uint32_t ddsi_serdata_size (const struct ddsi_serdata *d);
+DDS_EXPORT extern inline dds_return_t ddsi_serdata_from_loaned_sample_err (struct ddsi_serdata **sd_out, const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample, struct dds_loaned_sample *loan, bool will_require_cdr);
+DDS_EXPORT extern inline dds_return_t ddsi_serdata_from_psmx_err (struct ddsi_serdata **sd_out, const struct ddsi_sertype *type, struct dds_loaned_sample *data);
+DDS_EXPORT extern inline dds_return_t ddsi_serdata_from_ser_err (struct ddsi_serdata **sd_out, const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size);
+DDS_EXPORT extern inline dds_return_t ddsi_serdata_from_ser_iov_err (struct ddsi_serdata **sd_out, const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size);
+DDS_EXPORT extern inline dds_return_t ddsi_serdata_from_keyhash_err (struct ddsi_serdata **sd_out, const struct ddsi_sertype *type, const struct ddsi_keyhash *keyhash);
+DDS_EXPORT extern inline dds_return_t ddsi_serdata_from_sample_err (struct ddsi_serdata **sd_out, const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const void *sample);
 DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_from_ser (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size);
 DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_from_ser_iov (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size);
 DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_from_keyhash (const struct ddsi_sertype *type, const struct ddsi_keyhash *keyhash);

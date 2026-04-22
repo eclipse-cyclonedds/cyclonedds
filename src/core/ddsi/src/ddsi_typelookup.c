@@ -212,9 +212,10 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
     return false;
   }
 
-  struct ddsi_serdata *serdata = ddsi_serdata_from_sample (gv->tl_svc_request_type, SDK_DATA, &request);
+  struct ddsi_serdata *serdata;
+  dds_return_t rc = ddsi_serdata_from_sample_err (&serdata, gv->tl_svc_request_type, SDK_DATA, &request);
   ddsrt_free (request.data._u.getTypes.type_ids._buffer);
-  if (!serdata)
+  if (rc != DDS_RETCODE_OK)
   {
     GVTRACE (" from_sample failed\n");
     ddsrt_mutex_unlock (&gv->typelib_lock);
@@ -251,8 +252,9 @@ static void write_typelookup_reply (struct ddsi_writer *wr, const struct DDS_Sam
   DDS_Builtin_TypeLookup_Reply reply;
   create_tl_reply_msg (&reply, requestid, types);
   GVTRACE (" tl-reply ");
-  struct ddsi_serdata *serdata = ddsi_serdata_from_sample (gv->tl_svc_reply_type, SDK_DATA, &reply);
-  if (!serdata)
+  struct ddsi_serdata *serdata;
+  dds_return_t rc = ddsi_serdata_from_sample_err (&serdata, gv->tl_svc_reply_type, SDK_DATA, &reply);
+  if (rc != DDS_RETCODE_OK)
   {
     GVTRACE (" from_sample failed\n");
     return;

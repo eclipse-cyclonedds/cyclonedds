@@ -334,13 +334,14 @@ int ddsi_builtins_dqueue_handler (const struct ddsi_rsample_info *sampleinfo, co
     goto done_upd_deliv;
   }
 
+  dds_return_t rc = DDS_RETCODE_ERROR;;
   struct ddsi_serdata *d;
   if (data_smhdr_flags & DDSI_DATA_FLAG_DATAFLAG)
-    d = ddsi_serdata_from_ser (type, SDK_DATA, fragchain, sampleinfo->size);
+    rc = ddsi_serdata_from_ser_err (&d, type, SDK_DATA, fragchain, sampleinfo->size);
   else if (data_smhdr_flags & DDSI_DATA_FLAG_KEYFLAG)
-    d = ddsi_serdata_from_ser (type, SDK_KEY, fragchain, sampleinfo->size);
+    rc = ddsi_serdata_from_ser_err (&d, type, SDK_KEY, fragchain, sampleinfo->size);
   else if ((qos.present & PP_KEYHASH) && !DDSI_SC_STRICT_P(gv->config))
-    d = ddsi_serdata_from_keyhash (type, &qos.keyhash);
+    rc = ddsi_serdata_from_keyhash_err (&d, type, &qos.keyhash);
   else
   {
     GVLOGDISC ("data(builtin, vendor %u.%u): "PGUIDFMT" #%"PRIu64": missing payload\n",
@@ -348,9 +349,9 @@ int ddsi_builtins_dqueue_handler (const struct ddsi_rsample_info *sampleinfo, co
                PGUID (srcguid), sampleinfo->seq);
     goto done_upd_deliv;
   }
-  if (d == NULL || d == DDSI_SERDATA_FROM_SER_DISCARD)
+  if (rc != DDS_RETCODE_OK)
   {
-    if (d == NULL)
+    if (rc != DDS_RETCODE_NO_DATA)
     {
       GVLOG (DDS_LC_DISCOVERY | DDS_LC_WARNING, "data(builtin, vendor %u.%u): "PGUIDFMT" #%"PRIu64": deserialization failed\n",
              sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],

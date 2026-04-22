@@ -737,7 +737,11 @@ static void update_participant_spdp_sample_locked (struct ddsi_participant *pp, 
     ps.present = PP_PARTICIPANT_GUID;
     ps.participant_guid = pp->e.guid;
   }
-  struct ddsi_serdata * const serdata = ddsi_serdata_from_sample (pp->e.gv->spdp_type, isalive ? SDK_DATA : SDK_KEY, &ps);
+  dds_return_t rc;
+  struct ddsi_serdata *serdata;
+  rc = ddsi_serdata_from_sample_err (&serdata, pp->e.gv->spdp_type, isalive ? SDK_DATA : SDK_KEY, &ps);
+  assert (rc == DDS_RETCODE_OK); // internally generated, so how coud it possibly go wrong?
+  (void) rc;
   ddsi_plist_fini (&ps);
   serdata->statusinfo = isalive ? 0 : (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER);
   serdata->timestamp = ddsrt_time_wallclock ();

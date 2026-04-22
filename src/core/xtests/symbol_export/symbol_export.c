@@ -704,6 +704,10 @@ int main (int argc, char **argv)
   ddsi_serdata_ref (ptr);
   ddsi_serdata_unref (ptr);
   ddsi_serdata_size (ptr);
+  ddsi_serdata_from_ser_err (ptr, ptr, 0, ptr, 0);
+  ddsi_serdata_from_ser_iov_err (ptr, ptr, 0, 0, ptr, 0);
+  ddsi_serdata_from_keyhash_err (ptr, ptr, ptr);
+  ddsi_serdata_from_sample_err (ptr, ptr, 0, ptr);
   ddsi_serdata_from_ser (ptr, 0, ptr, 0);
   ddsi_serdata_from_ser_iov (ptr, 0, 0, ptr, 0);
   ddsi_serdata_from_keyhash (ptr, ptr);
@@ -719,6 +723,8 @@ int main (int argc, char **argv)
   ddsi_serdata_print (ptr, buf, 0);
   ddsi_serdata_print_untyped (ptr, ptr, buf, 0);
   ddsi_serdata_get_keyhash (ptr, ptr, 0);
+  ddsi_serdata_from_loaned_sample_err (ptr, ptr, 0, ptr2, ptr3, 0);
+  ddsi_serdata_from_psmx_err (ptr, ptr, ptr2);
   ddsi_serdata_from_loaned_sample (ptr, 0, ptr2, ptr3, 0);
   ddsi_serdata_from_psmx (ptr, ptr2);
 

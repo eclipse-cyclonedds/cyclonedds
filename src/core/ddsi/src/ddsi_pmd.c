@@ -73,9 +73,10 @@ void ddsi_write_pmd_message (struct ddsi_thread_state * const thrst, struct ddsi
     pmd.kind = pmd_kind;
     pmd.value.length = (uint32_t) sizeof (data);
     pmd.value.value = data;
-    serdata = ddsi_serdata_from_sample (gv->pmd_type, SDK_DATA, &pmd);
-    serdata->timestamp = ddsrt_time_wallclock ();
+    if (ddsi_serdata_from_sample_err (&serdata, gv->pmd_type, SDK_DATA, &pmd) != DDS_RETCODE_OK)
+      return;
 
+    serdata->timestamp = ddsrt_time_wallclock ();
     tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
     ddsi_write_sample_nogc (thrst, xp, wr, serdata, tk);
     ddsi_tkmap_instance_unref (gv->m_tkmap, tk);

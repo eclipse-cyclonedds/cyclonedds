@@ -40,8 +40,8 @@ dds_return_t dds_dispose_ih (dds_entity_t writer, dds_instance_handle_t handle)
 
 static struct ddsi_tkmap_instance *dds_instance_find (const dds_writer *writer, const void *data, const bool create)
 {
-  struct ddsi_serdata *sd = ddsi_serdata_from_sample (writer->m_wr->type, SDK_KEY, data);
-  if (sd == NULL)
+  struct ddsi_serdata *sd;
+  if (ddsi_serdata_from_sample_err (&sd, writer->m_wr->type, SDK_KEY, data) != DDS_RETCODE_OK)
     return NULL;
   struct ddsi_tkmap_instance *inst = ddsi_tkmap_find (writer->m_entity.m_domain->gv.m_tkmap, sd, create);
   ddsi_serdata_unref (sd);
@@ -279,7 +279,7 @@ dds_instance_handle_t dds_lookup_instance (dds_entity_t entity, const void *data
   dds_instance_handle_t ih;
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   ddsi_thread_state_awake (thrst, &w_or_r->m_domain->gv);
-  if ((sd = ddsi_serdata_from_sample (sertype, SDK_KEY, data)) == NULL)
+  if (ddsi_serdata_from_sample_err (&sd, sertype, SDK_KEY, data) != DDS_RETCODE_OK)
     ih = DDS_HANDLE_NIL;
   else
   {

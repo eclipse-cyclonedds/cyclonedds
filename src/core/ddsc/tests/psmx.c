@@ -822,7 +822,9 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, bo
           const struct ddsi_sertype *st;
           rc = dds_get_entity_sertype (wr, &st);
           CU_ASSERT_EQ_FATAL (rc, 0);
-          struct ddsi_serdata * const sd = ddsi_serdata_from_sample (st, valid_data ? SDK_DATA : SDK_KEY, sample);
+          struct ddsi_serdata *sd;
+          rc = ddsi_serdata_from_sample_err (&sd, st, valid_data ? SDK_DATA : SDK_KEY, sample);
+          CU_ASSERT_EQ_FATAL (rc, 0);
           CU_ASSERT_NEQ_FATAL (sd, NULL);
           // the odious dds_writecdr overwrites statusinfo and timestamp, but dds_forwardcdr is better behaved
           switch (ops[opidx].op)

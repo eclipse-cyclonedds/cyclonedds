@@ -1993,15 +1993,14 @@ static int handle_Gap (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, stru
   return 1;
 }
 
-static struct ddsi_serdata *get_serdata (struct ddsi_sertype const * const type, const struct ddsi_rdata *fragchain, uint32_t sz, int justkey, unsigned statusinfo, ddsrt_wctime_t tstamp)
+static dds_return_t get_serdata (struct ddsi_serdata **sd_out, struct ddsi_sertype const * const type, const struct ddsi_rdata *fragchain, uint32_t sz, int justkey, unsigned statusinfo, ddsrt_wctime_t tstamp)
 {
-  struct ddsi_serdata *sd = ddsi_serdata_from_ser (type, justkey ? SDK_KEY : SDK_DATA, fragchain, sz);
-  if (sd != NULL && sd != DDSI_SERDATA_FROM_SER_DISCARD)
-  {
-    sd->statusinfo = statusinfo;
-    sd->timestamp = tstamp;
-  }
-  return sd;
+  dds_return_t rc;
+  if ((rc = ddsi_serdata_from_ser_err (sd_out, type, justkey ? SDK_KEY : SDK_DATA, fragchain, sz)) != DDS_RETCODE_OK)
+    return rc;
+  (*sd_out)->statusinfo = statusinfo;
+  (*sd_out)->timestamp = tstamp;
+  return rc;
 }
 
 struct remote_sourceinfo {
@@ -2026,6 +2025,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
   const ddsi_plist_t *qos = si->qos;
   const char *failmsg = NULL;
   struct ddsi_serdata *sample = NULL;
+  dds_return_t get_serdata_result = DDS_RETCODE_ERROR;
 
   if (si->statusinfo == 0)
   {
@@ -2044,7 +2044,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
                   si->data_smhdr_flags, sampleinfo->size);
       return NULL;
     }
-    sample = get_serdata (type, fragchain, sampleinfo->size, 0, statusinfo, tstamp);
+    get_serdata_result = get_serdata (&sample, type, fragchain, sampleinfo->size, 0, statusinfo, tstamp);
   }
   else if (sampleinfo->size)
   {
@@ -2053,12 +2053,12 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
        as one would expect to receive */
     if (data_smhdr_flags & DDSI_DATA_FLAG_KEYFLAG)
     {
-      sample = get_serdata (type, fragchain, sampleinfo->size, 1, statusinfo, tstamp);
+      get_serdata_result = get_serdata (&sample, type, fragchain, sampleinfo->size, 1, statusinfo, tstamp);
     }
     else
     {
       assert (data_smhdr_flags & DDSI_DATA_FLAG_DATAFLAG);
-      sample = get_serdata (type, fragchain, sampleinfo->size, 0, statusinfo, tstamp);
+      get_serdata_result = get_serdata (&sample, type, fragchain, sampleinfo->size, 0, statusinfo, tstamp);
     }
   }
   else if (data_smhdr_flags & DDSI_DATA_FLAG_INLINE_QOS)
@@ -2075,7 +2075,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
        * hash. This means the keyhash can't be decoded into a sample. */
       failmsg = "keyhash is protected";
     }
-    else if ((sample = ddsi_serdata_from_keyhash (type, &qos->keyhash)) == NULL)
+    else if ((get_serdata_result = ddsi_serdata_from_keyhash_err (&sample, type, &qos->keyhash)) != DDS_RETCODE_OK)
       failmsg = "keyhash is MD5 and can't be converted to key value";
     else
     {
@@ -2087,15 +2087,14 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
   {
     failmsg = "no content whatsoever";
   }
-  if (sample == NULL || sample == DDSI_SERDATA_FROM_SER_DISCARD)
+  if (get_serdata_result != DDS_RETCODE_OK)
   {
     /* No message => error out */
     const struct ddsi_proxy_writer *pwr = sampleinfo->pwr;
     ddsi_guid_t guid;
+    sample = NULL;
     if (pwr) guid = pwr->e.guid; else memset (&guid, 0, sizeof (guid));
-    if (sample != NULL)
-      sample = NULL;
-    else
+    if (get_serdata_result != DDS_RETCODE_NO_DATA)
     {
       DDS_CWARNING (&gv->logconfig,
                     "data(application, vendor %u.%u): "PGUIDFMT" #%"PRIu64": deserialization %s/%s failed (%s)\n",

@@ -60,7 +60,7 @@ static dds_return_t dds_write_impl_psmx_get_key (struct dds_write_impl_psmx_key 
 {
   if (k->ksd || !type->has_key)
     return DDS_RETCODE_OK;
-  if ((k->ksd = ddsi_serdata_from_sample (type, SDK_KEY, data)) == NULL)
+  if (ddsi_serdata_from_sample_err (&k->ksd, type, SDK_KEY, data) != DDS_RETCODE_OK)
     return DDS_RETCODE_ERROR;
   k->ksdref = ddsi_serdata_to_ser_ref (k->ksd, 0, ddsi_serdata_size (k->ksd), &k->key_iov);
   return DDS_RETCODE_OK;
@@ -183,6 +183,7 @@ static struct ddsi_serdata *local_make_sample (struct ddsi_tkmap_instance **tk, 
   struct ddsi_serdata * const din = si->src_payload;
 
   struct ddsi_serdata *d;
+  dds_return_t rc;
   // Mustn't store *PSMX writer* loans in RHCs because the PSMX write operation is
   // assumed to consume the reference (the write path zeros some pointers in the
   // loan structure to give us a fighting chance of catching a mistake).
@@ -193,12 +194,12 @@ static struct ddsi_serdata *local_make_sample (struct ddsi_tkmap_instance **tk, 
   // And for completeness: data arriving over the network never goes through here
   // either.
   if (din->loan != NULL && din->loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX)
-    d = ddsi_serdata_copy_as_type (type, din);
+    rc = ddsi_serdata_copy_as_type (&d, type, din);
   else
-    d = ddsi_serdata_ref_as_type (type, din);
-  if (d == NULL || d == DDSI_SERDATA_FROM_SER_DISCARD)
+    rc = ddsi_serdata_ref_as_type (&d, type, din);
+  if (rc != DDS_RETCODE_OK)
   {
-    if (d == NULL)
+    if (rc != DDS_RETCODE_NO_DATA)
       DDS_CWARNING (&gv->logconfig, "local: deserialization %s failed in type conversion\n", type->type_name);
     return NULL;
   }
@@ -265,21 +266,21 @@ static dds_return_t deliver_locally (struct ddsi_writer *wr, struct ddsi_serdata
   return rc;
 }
 
-static struct ddsi_serdata_any *convert_serdata (struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *din, bool require_copy)
-  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
-
-static struct ddsi_serdata_any *convert_serdata (struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *din, bool require_copy)
+ddsrt_nonnull_all ddsrt_attribute_warn_unused_result
+static dds_return_t convert_serdata (struct ddsi_serdata_any **dany_out, struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *din, bool require_copy)
 {
-  struct ddsi_serdata_any *dout;
+  struct ddsi_serdata *dout;
+  dds_return_t rc;
   if (require_copy)
   {
-    dout = (struct ddsi_serdata_any *) ddsi_serdata_copy_as_type (ddsi_wr->type, &din->a);
+    rc = ddsi_serdata_copy_as_type (&dout, ddsi_wr->type, &din->a);
     // dout refc: must consume 1
     // din refc: must consume 1 (independent of dact: types are distinct)
   }
   else if (ddsi_wr->type == din->a.type)
   {
-    dout = din;
+    rc = DDS_RETCODE_OK;
+    dout = &din->a;
     // dout refc: must consume 1
     // din refc: must consume 0 (it is an alias of dact)
   }
@@ -288,11 +289,12 @@ static struct ddsi_serdata_any *convert_serdata (struct ddsi_writer *ddsi_wr, st
     assert (din->a.type->ops->version == ddsi_sertype_v0);
     // deliberately allowing mismatches between d->type and ddsi_wr->type:
     // that way we can allow transferring data from one domain to another
-    dout = (struct ddsi_serdata_any *) ddsi_serdata_ref_as_type (ddsi_wr->type, &din->a);
+    rc = ddsi_serdata_ref_as_type (&dout, ddsi_wr->type, &din->a);
     // dout refc: must consume 1
     // din refc: must consume 1 (independent of dact: types are distinct)
   }
-  return dout;
+  *dany_out = (struct ddsi_serdata_any *) dout;
+  return rc;
 }
 
 static dds_return_t deliver_data_network (struct ddsi_thread_state * const thrst, struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *d, struct ddsi_xpack *xp, bool flush, struct ddsi_tkmap_instance *tk)
@@ -505,14 +507,17 @@ static dds_return_t dds_writecdr_impl_common (struct dds_writer *wr, struct ddsi
   // - if d != din, both need to be unref'd else only one
   const bool uses_psmx = (wr->m_endpoint.psmx_endpoints.length > 0);
   const bool require_copy = uses_psmx && din->a.loan == NULL && ddsrt_atomic_ld32 (&din->a.refc) > 1;
-  struct ddsi_serdata_any * const d = convert_serdata (ddsi_wr, din, require_copy);
-  if (d != din)
+  struct ddsi_serdata_any *d;
+  if (convert_serdata (&d, ddsi_wr, din, require_copy) != DDS_RETCODE_OK)
+  {
+    ddsi_serdata_unref (&din->a);
+    return DDS_RETCODE_ERROR;
+  }
+  else if (d != din)
   {
     // Don't need din anymore, drop the reference.  (And if it was an alias, there'd be
     // no additional refcount, in which case this unref call must not be done.)
     ddsi_serdata_unref (&din->a);
-    if (d == NULL || (struct ddsi_serdata *) d == DDSI_SERDATA_FROM_SER_DISCARD)
-      return DDS_RETCODE_ERROR;
   }
 
   // If we need a loan to be present because of PSMX, but none is, make one.  It could be
@@ -657,20 +662,20 @@ static struct dds_loaned_sample *dds_write_impl_serialize_into_loan (const struc
   return loan;
 }
 
-ddsrt_attribute_warn_unused_result ddsrt_nonnull ((1, 3))
-static struct ddsi_serdata *dds_write_impl_make_serdata (const struct ddsi_sertype *sertype, enum ddsi_serdata_kind sdkind, const void *data, struct dds_loaned_sample *heap_loan, dds_time_t timestamp, uint32_t statusinfo)
+ddsrt_attribute_warn_unused_result ddsrt_nonnull ((1, 2, 4))
+static dds_return_t dds_write_impl_make_serdata (struct ddsi_serdata **sd_out, const struct ddsi_sertype *sertype, enum ddsi_serdata_kind sdkind, const void *data, struct dds_loaned_sample *heap_loan, dds_time_t timestamp, uint32_t statusinfo)
 {
   assert (heap_loan == NULL || heap_loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_HEAP);
-  struct ddsi_serdata *serdata;
+  dds_return_t rc;
   if (heap_loan == NULL)
-    serdata = ddsi_serdata_from_sample (sertype, sdkind, data);
+    rc = ddsi_serdata_from_sample_err (sd_out, sertype, sdkind, data);
   else // claim "cdr required" to keep things simple
-    serdata = ddsi_serdata_from_loaned_sample (sertype, sdkind, data, heap_loan, true);
-  if (serdata == NULL)
-    return NULL;
-  serdata->statusinfo = statusinfo;
-  serdata->timestamp.v = timestamp;
-  return serdata;
+    rc = ddsi_serdata_from_loaned_sample_err (sd_out, sertype, sdkind, data, heap_loan, true);
+  if (rc != DDS_RETCODE_OK)
+    return rc;
+  (*sd_out)->statusinfo = statusinfo;
+  (*sd_out)->timestamp.v = timestamp;
+  return DDS_RETCODE_OK;
 }
 
 ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
@@ -703,7 +708,7 @@ static dds_return_t dds_write_impl_psmxloan_serdata (struct dds_writer *wr, cons
           // short-circuit possible without requiring a serdata
           *serdata = NULL;
         }
-        else if ((*serdata = dds_write_impl_make_serdata (sertype, sdkind, data, NULL, timestamp, statusinfo)) == NULL)
+        else if (dds_write_impl_make_serdata (serdata, sertype, sdkind, data, NULL, timestamp, statusinfo) != DDS_RETCODE_OK)
         {
           // It is either no memory or invalid data, we've historically gambled on it being invalid
           // data because being out of memory is exceedingly unlikely on decent platforms
@@ -732,7 +737,7 @@ static dds_return_t dds_write_impl_psmxloan_serdata (struct dds_writer *wr, cons
           *psmx_loan = NULL;
           // claim "cdr required" - it may not be strictly required for volatile data if there are only
           // local readers, but let's not complicate it too much now
-          if ((*serdata = dds_write_impl_make_serdata (sertype, sdkind, data, loan, timestamp, statusinfo)) == NULL)
+          if (dds_write_impl_make_serdata (serdata, sertype, sdkind, data, loan, timestamp, statusinfo) != DDS_RETCODE_OK)
           {
             // It is either no memory or invalid data, we've historically gambled on it being invalid
             // data because being out of memory is exceedingly unlikely on decent platforms
@@ -746,8 +751,7 @@ static dds_return_t dds_write_impl_psmxloan_serdata (struct dds_writer *wr, cons
           // PSMX to make it worth the retaining the loan
           assert (!sertype->is_memcpy_safe);
           // Make a "standard" serdata and then use that to make a PSMX loan
-          *serdata = dds_write_impl_make_serdata (sertype, sdkind, data, NULL, timestamp, statusinfo);
-          if (*serdata == NULL)
+          if (dds_write_impl_make_serdata (serdata, sertype, sdkind, data, NULL, timestamp, statusinfo) != DDS_RETCODE_OK)
           {
             // It is either no memory or invalid data, we've historically gambled on it being invalid
             // data because being out of memory is exceedingly unlikely on decent platforms
@@ -780,7 +784,7 @@ static dds_return_t dds_write_impl_psmxloan_serdata (struct dds_writer *wr, cons
   {
     // not much room for optimization, so keep things simple: construct a serdata, then take it from
     // there
-    if ((*serdata = dds_write_impl_make_serdata (sertype, sdkind, data, NULL, timestamp, statusinfo)) == NULL)
+    if (dds_write_impl_make_serdata (serdata, sertype, sdkind, data, NULL, timestamp, statusinfo) != DDS_RETCODE_OK)
     {
       // It is either no memory or invalid data, we've historically gambled on it being invalid
       // data because being out of memory is exceedingly unlikely on decent platforms
