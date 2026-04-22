@@ -324,9 +324,9 @@ int main (int argc, char **argv)
       {
 #if ENABLE_RAW_SAMPLE_BYPASS
         void *sample = calloc (1, st->sizeof_type);
-        sd = ddsi_serdata_from_sample (st, SDK_DATA, sample);
+        rc = ddsi_serdata_from_sample_err (&sd, st, SDK_DATA, sample);
         ddsrt_free (sample);
-        if (sd == NULL || sd == DDSI_SERDATA_FROM_SER_DISCARD)
+        if (rc != DDS_RETCODE_OK)
           exitfmt ("%s: %s: failed to convert all-zero sample to serdata\n", argv[0], argv[argi]);
         struct dds_serdata_default *sdd;
         sdd = ddsrt_realloc (sd, offsetof (struct dds_serdata_default, hdr) + ((bufsz + 3) & ~(size_t)0x3));
@@ -340,8 +340,8 @@ int main (int argc, char **argv)
       else
       {
         ddsrt_iovec_t iov = { .iov_len = (ddsrt_iov_len_t) bufsz, .iov_base = buf };
-        sd = ddsi_serdata_from_ser_iov (st, SDK_DATA, 1, &iov, bufsz);
-        if (sd == NULL || sd == DDSI_SERDATA_FROM_SER_DISCARD)
+        rc = ddsi_serdata_from_ser_iov_err (&sd, st, SDK_DATA, 1, &iov, bufsz);
+        if (rc != DDS_RETCODE_OK)
           exitfmt ("%s: %s: failed to convert CDR to serdata\n", argv[0], argv[argi]);
       }
 
