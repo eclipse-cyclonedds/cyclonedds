@@ -287,6 +287,7 @@ typedef union ddsi_rtps_submessage {
 #define DDSI_PID_ENTITY_NAME                         0x62u
 #define DDSI_PID_KEYHASH                             0x70u
 #define DDSI_PID_STATUSINFO                          0x71u
+#define DDSI_PID_RELATED_SAMPLE_IDENTITY             0x83u
 #define DDSI_PID_CONTENT_FILTER_INFO                 0x55u
 #define DDSI_PID_COHERENT_SET                        0x56u
 #define DDSI_PID_DIRECTED_WRITE                      0x57u

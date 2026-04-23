@@ -958,6 +958,15 @@ void ddsi_xmsg_addpar_keyhash (struct ddsi_xmsg *m, const struct ddsi_serdata *s
   }
 }
 
+void ddsi_xmsg_addpar_related_sample_identity (struct ddsi_xmsg *m, const ddsi_guid_t *writer_guid, ddsi_seqno_t seq)
+{
+  char *p = ddsi_xmsg_addpar (m, DDSI_PID_RELATED_SAMPLE_IDENTITY, sizeof (ddsi_guid_t) + sizeof (ddsi_sequence_number_t));
+  const ddsi_guid_t wire_guid = ddsi_hton_guid (*writer_guid);
+  const ddsi_sequence_number_t wire_seq = ddsi_to_seqno (seq);
+  memcpy (p, &wire_guid, sizeof (wire_guid));
+  memcpy (p + sizeof (wire_guid), &wire_seq, sizeof (wire_seq));
+}
+
 static void ddsi_xmsg_addpar_BE4u (struct ddsi_xmsg *m, ddsi_parameterid_t pid, uint32_t x)
 {
   unsigned *p = ddsi_xmsg_addpar (m, pid, sizeof (x));

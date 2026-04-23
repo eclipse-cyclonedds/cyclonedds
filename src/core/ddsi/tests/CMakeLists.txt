@@ -17,6 +17,7 @@ set(ddsi_test_sources
     "plist_generic.c"
     "plist.c"
     "plist_leasedur.c"
+    "related_sample_identity.c"
     "pmd_message.c"
     "radmin.c"
     "receive_packet.c"
