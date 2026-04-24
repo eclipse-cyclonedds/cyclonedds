@@ -841,11 +841,18 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, bo
             rc = dds_forwardcdr (wr, sd);
           else
           {
+#if !defined (__clang__) && defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 1100 && ((__GNUC__ * 100) + __GNUC_MINOR__) < 1500
+            _Pragma("GCC diagnostic push")
+            _Pragma("GCC diagnostic ignored \"-Wstringop-overflow\"")
+#endif
             assert (ddsrt_atomic_ld32 (&sd->refc) >= 1 && sd->loan == NULL);
             struct ddsi_serdata * const check_sd = ddsi_serdata_ref (sd);
             rc = dds_forwardcdr (wr, check_sd);
             assert (ddsrt_atomic_ld32 (&check_sd->refc) >= 1 && check_sd->loan == NULL);
             ddsi_serdata_unref (check_sd);
+#if !defined (__clang__) && defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 1100 && ((__GNUC__ * 100) + __GNUC_MINOR__) < 1500
+            _Pragma("GCC diagnostic pop")
+#endif
           }
         }
         CU_ASSERT_EQ_FATAL (rc, 0);
