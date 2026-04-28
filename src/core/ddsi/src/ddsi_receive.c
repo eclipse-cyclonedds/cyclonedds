@@ -1293,7 +1293,7 @@ static int handle_Heartbeat (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow
   ddsrt_mutex_lock (&pwr->e.lock);
   if (msg->smhdr.flags & DDSI_HEARTBEAT_FLAG_LIVELINESS &&
       pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_AUTOMATIC &&
-      pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY)
+      pwr->lease != NULL)
   {
     if ((lease = ddsrt_atomic_ldvoidp (&pwr->c.proxypp->minl_man)) != NULL)
       ddsi_lease_renew (lease, tnow);

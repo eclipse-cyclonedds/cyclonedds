@@ -31,6 +31,7 @@
 #include "ddsi__proxy_participant.h"
 #include "ddsi__typelib.h"
 #include "ddsi__lease.h"
+#include "ddsi__vendor.h"
 
 const ddsrt_avl_treedef_t ddsi_pwr_readers_treedef =
   DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_pwr_rd_match, avlnode), offsetof (struct ddsi_pwr_rd_match, rd_guid), ddsi_compare_guid, 0);
@@ -325,7 +326,21 @@ dds_return_t ddsi_new_proxy_writer (struct ddsi_proxy_writer **proxy_writer, str
     pwr->redundant_networking = proxypp->redundant_networking;
 
   assert (pwr->c.xqos->present & DDSI_QP_LIVELINESS);
-  if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY)
+  if (pwr->c.xqos->liveliness.lease_duration == DDS_INFINITY)
+  {
+    // Infinite lease duration really means no lease
+    pwr->lease = NULL;
+  }
+  else if (ddsi_vendor_is_opensplice (pwr->c.vendor))
+  {
+    // From OpenSplice trace:
+    //
+    //   incorrectly treating it as of automatic liveliness kind with lease duration = inf
+    //
+    // and there are indeed no proper lease renewals, so best to pretend it is the previous case
+    pwr->lease = NULL;
+  }
+  else
   {
     ddsrt_etime_t texpire = ddsrt_etime_add_duration (ddsrt_time_elapsed (), pwr->c.xqos->liveliness.lease_duration);
     pwr->lease = ddsi_lease_new (texpire, pwr->c.xqos->liveliness.lease_duration, &pwr->e);
@@ -339,10 +354,6 @@ dds_return_t ddsi_new_proxy_writer (struct ddsi_proxy_writer **proxy_writer, str
     {
       ddsi_lease_register (pwr->lease);
     }
-  }
-  else
-  {
-    pwr->lease = NULL;
   }
 
   if (isreliable)
@@ -494,7 +505,7 @@ static void gc_delete_proxy_writer (struct ddsi_gcreq *gcreq)
     ddsi_free_pwr_rd_match (m);
   }
   ddsi_local_reader_ary_fini (&pwr->rdary);
-  if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY)
+  if (pwr->lease != NULL)
     ddsi_lease_free (pwr->lease);
 #ifdef DDS_HAS_SECURITY
   ddsi_omg_security_deregister_remote_writer (pwr);
@@ -564,7 +575,7 @@ int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *
     ddsi_type_unreg_proxy (gv, pwr->c.type_pair->complete, &pwr->e.guid);
   }
 #endif
-  if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY && pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
+  if (pwr->lease != NULL && pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
     ddsi_lease_unregister (pwr->lease);
   if (ddsi_proxy_writer_set_notalive (pwr, false) != DDS_RETCODE_OK)
     GVLOGDISC ("ddsi_proxy_writer_set_notalive failed for "PGUIDFMT"\n", PGUID(*guid));
@@ -609,7 +620,7 @@ void ddsi_proxy_writer_set_alive_may_unlock (struct ddsi_proxy_writer *pwr, bool
   ddsrt_mutex_lock (&pwr->c.proxypp->e.lock);
   pwr->alive = true;
   pwr->alive_vclock++;
-  if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY)
+  if (pwr->lease != NULL)
   {
     if (pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
       ddsi_proxy_participant_add_pwr_lease_locked (pwr->c.proxypp, pwr);
@@ -636,7 +647,7 @@ int ddsi_proxy_writer_set_notalive (struct ddsi_proxy_writer *pwr, bool notify)
   ddsrt_mutex_lock (&pwr->c.proxypp->e.lock);
   pwr->alive = false;
   pwr->alive_vclock++;
-  if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY && pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
+  if (pwr->lease != NULL && pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
     ddsi_proxy_participant_remove_pwr_lease_locked (pwr->c.proxypp, pwr);
   ddsrt_mutex_unlock (&pwr->c.proxypp->e.lock);
 
@@ -889,7 +900,7 @@ int ddsi_delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *
   }
 #endif
   GVLOGDISC ("- deleting\n");
-    
+
   /* If the proxy reader is reliable, pretend it has just acked all
      messages: this allows a throttled writer to once again make
      progress, which in turn is necessary for the garbage collector to
