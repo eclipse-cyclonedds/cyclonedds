@@ -424,7 +424,7 @@ static dds_return_t make_struct (const struct make_context *ctxt, const struct e
   ddsrt_asprintf (&fqname, "%s::%s", ns, name);
   dds_dynamic_type_t *dstruct = ddsrt_malloc (sizeof (*dstruct));
   *dstruct = dds_dynamic_type_create (ctxt->dp, (dds_dynamic_type_descriptor_t) {
-    .kind = DDS_DYNAMIC_STRUCTURE, .name = fqname
+    .kind = DDS_DYNAMIC_STRUCTURE, .name = fqname + 2
   });
   dds_return_t rc;
   if ((rc = set_extensibility (ctxt, dstruct, elem, err)) != 0)
@@ -477,7 +477,7 @@ static dds_return_t make_union (const struct make_context *ctxt, const struct el
 
   dds_dynamic_type_t *dunion = ddsrt_malloc (sizeof (*dunion));
   *dunion = dds_dynamic_type_create (ctxt->dp, (dds_dynamic_type_descriptor_t) {
-    .kind = DDS_DYNAMIC_UNION, .name = fqname, .discriminator_type = discts
+    .kind = DDS_DYNAMIC_UNION, .name = fqname + 2, .discriminator_type = discts
   });
 
   if ((rc = set_extensibility (ctxt, dunion, elem, err)) != 0)
@@ -559,7 +559,7 @@ static dds_return_t make_enum (const struct make_context *ctxt, const struct ele
   ddsrt_asprintf (&fqname, "%s::%s", ns, name);
   dds_dynamic_type_t *denum = ddsrt_malloc (sizeof (*denum));
   *denum = dds_dynamic_type_create (ctxt->dp, (dds_dynamic_type_descriptor_t) {
-    .kind = DDS_DYNAMIC_ENUMERATION, .name = fqname
+    .kind = DDS_DYNAMIC_ENUMERATION, .name = fqname + 2
   });
 
   if ((rc = set_extensibility (ctxt, denum, elem, err)) != 0)
@@ -611,7 +611,7 @@ static dds_return_t make_bitmask (const struct make_context *ctxt, const struct 
   ddsrt_asprintf (&fqname, "%s::%s", ns, name);
   dds_dynamic_type_t *dbitmask = ddsrt_malloc (sizeof (*dbitmask));
   *dbitmask = dds_dynamic_type_create (ctxt->dp, (dds_dynamic_type_descriptor_t) {
-    .kind = DDS_DYNAMIC_BITMASK, .name = fqname
+    .kind = DDS_DYNAMIC_BITMASK, .name = fqname + 2
   });
 
   if ((rc = set_extensibility (ctxt, dbitmask, elem, err)) != 0)
