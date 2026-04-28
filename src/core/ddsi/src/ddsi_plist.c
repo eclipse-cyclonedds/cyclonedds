@@ -1161,7 +1161,12 @@ static dds_return_t deser_generic_r (void * restrict dst, size_t * restrict dsto
         if (deser_uint32 (&x->length, dd, srcoff) < 0 || x->length > dd->bufsz - *srcoff)
           goto fail;
         const size_t elem_size = ser_generic_srcsize (desc + 1);
-        x->value = x->length ? ddsrt_malloc (x->length * elem_size) : NULL;
+        if (x->length > UINT32_MAX / elem_size)
+          goto fail;
+        if (x->length == 0)
+          x->value = NULL;
+        else if ((x->value = ddsrt_malloc (x->length * elem_size)) == NULL)
+          goto fail;
         for (uint32_t i = 0; i < x->length; i++)
         {
           size_t elem_off = i * elem_size;
