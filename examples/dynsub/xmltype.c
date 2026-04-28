@@ -18,11 +18,7 @@
 #include <getopt.h>
 
 #include "dds/dds.h"
-#include "dds/ddsrt/hopscotch.h"
-#include "dds/ddsrt/md5.h"
-#include "dds/ddsrt/string.h"
 #include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/io.h"
 
 #include "dyntypelib.h"
 
@@ -112,7 +108,7 @@ static bool doread (struct dyntypelib *dtl, const dds_entity_t ws, const dds_ent
 
 static void usage (const char *argv0)
 {
-  fprintf (stderr, "usage: %s [OPTIONS] xmlfile TYPE DATA...\n\
+  fprintf (stderr, "usage: %s [OPTIONS] TYPELIB... TYPE DATA...\n\
 \n\
 OPTIONS:\n\
 -c BINDIGITS   set type consistency enforcement to BINDIGITS, which must\n\
@@ -122,6 +118,10 @@ OPTIONS:\n\
                 - ignore member names\n\
                 - prevent type widening\n\
                 - force type validation\n\
+-i ID          use domain ID\n\
+-P P           use partition instead of default\n\
+-R             use binary data without input validation\n\
+-T NAME        use topic NAME\n\
 ",
            argv0);
   exit (2);
@@ -133,7 +133,10 @@ int main (int argc, char **argv)
   int opt;
   uint32_t tce = 0x18; // default true,true,false,false,false
   bool skip_normalize_for_bin = false;
-  while ((opt = getopt (argc, argv, "c:R")) != EOF)
+  const char *partition = NULL;
+  const char *topicname = "T";
+  dds_domainid_t domainid = DDS_DOMAIN_DEFAULT;
+  while ((opt = getopt (argc, argv, "c:i:P:RT:")) != EOF)
   {
     switch (opt)
     {
@@ -146,8 +149,17 @@ int main (int argc, char **argv)
         for (const char *p = optarg; *p; p++)
           tce = (tce << 1) | (*p == '1');
         break;
+      case 'i':
+        domainid = (uint32_t) atoi (optarg);
+        break;
+      case 'P':
+        partition = optarg;
+        break;
       case 'R':
         skip_normalize_for_bin = true;
+        break;
+      case 'T':
+        topicname = optarg;
         break;
       default:
         usage (argv[0]);
@@ -158,7 +170,7 @@ int main (int argc, char **argv)
   if (argc - optind < 2)
     usage (argv[0]);
 
-  dds_entity_t dp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+  dds_entity_t dp = dds_create_participant (domainid, NULL, NULL);
   if (dp < 0)
     exitfmt ("%s: create_participant failed: %s\n", argv[0], dds_strretcode (dp));
 
@@ -207,12 +219,14 @@ int main (int argc, char **argv)
               (tce >> 2) & 1,
               (tce >> 1) & 1,
               tce & 1);
+      if (partition)
+        dds_qset_partition1 (epqos, partition);
 
       if (wrtype) {
         rc = dds_create_topic_descriptor (DDS_FIND_SCOPE_LOCAL_DOMAIN, dp, wrtype->typeinfo, 0, &wrdescriptor);
         if (rc != 0)
           exitfmt ("dds_create_topic_descriptor: %s\n", dds_strretcode (rc));
-        wrtp = dds_create_topic (dp, wrdescriptor, "T", tpqos, NULL);
+        wrtp = dds_create_topic (dp, wrdescriptor, topicname, tpqos, NULL);
         if (wrtp < 0)
           exitfmt ("dds_create_topic: %s\n", dds_strretcode (wrtp));
         wr = dds_create_writer (dp, wrtp, epqos, NULL);
@@ -226,7 +240,7 @@ int main (int argc, char **argv)
         rc = dds_create_topic_descriptor (DDS_FIND_SCOPE_LOCAL_DOMAIN, dp, rdtype->typeinfo, 0, &rddescriptor);
         if (rc != 0)
           exitfmt ("dds_create_topic_descriptor: %s\n", dds_strretcode (rc));
-        rdtp = dds_create_topic (dp, rddescriptor, "T", tpqos, NULL);
+        rdtp = dds_create_topic (dp, rddescriptor, topicname, tpqos, NULL);
         if (rdtp < 0)
           exitfmt ("dds_create_topic: %s\n", dds_strretcode (rdtp));
         rd = dds_create_reader (dp, rdtp, epqos, NULL);
