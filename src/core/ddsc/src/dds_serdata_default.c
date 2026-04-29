@@ -632,7 +632,7 @@ static void ostream_from_serdata_default (dds_ostream_t *s, const struct dds_ser
 static void ostream_add_to_serdata_default (dds_ostream_t *s, struct dds_serdata_default **d)
 {
   /* DDSI requires 4 byte alignment */
-  const uint32_t pad = dds_cdr_alignto4_clear_and_resize (s, &dds_cdrstream_default_allocator, s->m_xcdr_version);
+  const uint32_t pad = dds_cdr_alignto4_clear_and_resize (s, &dds_cdrstream_default_allocator);
   assert (pad <= 3);
 
   /* Reset data pointer as stream may have reallocated */
@@ -667,7 +667,7 @@ static struct dds_serdata_default *serdata_default_from_sample_cdr_common (const
          so that we could alias the XCDR1 key from d->data */
       /* FIXME: use CDR encoding version used by the writer, not the write encoding
          of the sertype */
-      if (tp->write_encoding_version == DDSI_RTPS_CDR_ENC_VERSION_2)
+      if (tp->xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2)
       {
         d->key.buftype = KEYBUFTYPE_DYNALIAS;
         // dds_ostream_add_to_serdata_default pads the size to a multiple of 4,
@@ -958,7 +958,7 @@ static struct ddsi_serdata *serdata_default_from_loaned_sample (const struct dds
   {
     // If we know there is no neeed for the serialized representation (so only PSMX and "memcpy safe"),
     // construct an empty serdata and stay away from the serializers
-    d = serdata_default_new (tp, kind, tp->write_encoding_version);
+    d = serdata_default_new (tp, kind, tp->xcdr_version);
     if (d == NULL)
       return NULL;
     if (!gen_serdata_key_from_sample (tp, &d->key, sample))

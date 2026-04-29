@@ -226,7 +226,7 @@ static void ostream_from_serdata_cdr (dds_ostream_t *s, const struct ddsi_serdat
 static void ostream_add_to_serdata_cdr (dds_ostream_t *s, struct ddsi_serdata_cdr **d)
 {
   /* DDSI requires 4 byte alignment */
-  const uint32_t pad = dds_cdr_alignto4_clear_and_resize (s, &dds_cdrstream_default_allocator, s->m_xcdr_version);
+  const uint32_t pad = dds_cdr_alignto4_clear_and_resize (s, &dds_cdrstream_default_allocator);
   assert (pad <= 3);
 
   /* Reset data pointer as stream may have reallocated */

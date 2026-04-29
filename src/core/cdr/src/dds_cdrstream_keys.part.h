@@ -35,7 +35,7 @@ static bool dds_stream_write_keyBO_impl (RESTRICT_OSTREAM_T *os, const struct dd
         return false;
       break;
     case DDS_SOP_VAL_BMK:
-      if (!dds_stream_write_bitmask_valueBO (os, allocator, insn, addr, ops[2], ops[3]))
+      if (!dds_stream_write_bitmask_valueBO (os, allocator, insn, addr, bitmask_bits_hl (ops[2], ops[3])))
         return false;
       break;
     case DDS_SOP_VAL_STR:

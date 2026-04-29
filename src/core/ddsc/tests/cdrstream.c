@@ -1107,7 +1107,7 @@ CU_Test (ddsc_cdrstream, appendable_mutable, .init = cdrstream_init, .fini = cdr
 
         struct dds_cdrstream_desc desc_wr;
         dds_cdrstream_desc_from_topic_desc (&desc_wr, topic_desc_wr);
-        uint16_t min_xcdrv_wr = dds_stream_minimum_xcdr_version (desc_wr.ops.ops);
+        enum dds_cdr_enc_version min_xcdrv_wr = dds_stream_minimum_xcdr_version (desc_wr.ops.ops);
         CU_ASSERT (x == 0 || min_xcdrv_wr == DDSI_RTPS_CDR_ENC_VERSION_1);
 
         void * msg_wr = t ? tests[i].i2 () : tests[i].i1 ();
@@ -1123,7 +1123,7 @@ CU_Test (ddsc_cdrstream, appendable_mutable, .init = cdrstream_init, .fini = cdr
 
         struct dds_cdrstream_desc desc_rd;
         dds_cdrstream_desc_from_topic_desc (&desc_rd, topic_desc_rd);
-        uint16_t min_xcdrv_rd = dds_stream_minimum_xcdr_version (desc_wr.ops.ops);
+        enum dds_cdr_enc_version min_xcdrv_rd = dds_stream_minimum_xcdr_version (desc_wr.ops.ops);
         CU_ASSERT (x == 0 || min_xcdrv_rd == DDSI_RTPS_CDR_ENC_VERSION_1);
 
         uint32_t act_size;
@@ -3160,5 +3160,136 @@ CU_Test (ddsc_cdrstream, signed_union_discriminators)
       dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
     }
   }
+  dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+}
+
+// IDLC doesn't fully support recursive types yet and leaks some memory, so include a copy
+// of the output for:
+//
+// module CdrStreamRecursive {
+//   @final struct t0 {
+//     sequence<t0> f1;
+//   };
+// };
+typedef struct dds_sequence_CdrStreamRecursive_t0 {
+  uint32_t _maximum;
+  uint32_t _length;
+  struct CdrStreamRecursive_t0 *_buffer;
+  bool _release;
+} dds_sequence_CdrStreamRecursive_t0;
+
+typedef struct CdrStreamRecursive_t0 {
+  dds_sequence_CdrStreamRecursive_t0 f1;
+} CdrStreamRecursive_t0;
+
+static const uint32_t CdrStreamRecursive_t0_ops [] =
+{
+  /* t0 */
+  DDS_OP_ADR | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_STU, offsetof (CdrStreamRecursive_t0, f1), sizeof (CdrStreamRecursive_t0), (4u << 16u) + 0u /* t0 */,
+  DDS_OP_RTS
+};
+
+static const uint32_t CdrStreamRecursiveAppendable_t0_ops [] =
+{
+  /* t0 */
+  DDS_OP_DLC,
+  DDS_OP_ADR | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_STU, offsetof (CdrStreamRecursive_t0, f1), sizeof (CdrStreamRecursive_t0), (4u << 16u) + 65535u /* t0 */,
+  DDS_OP_RTS
+};
+
+const dds_topic_descriptor_t CdrStreamRecursive_t0_desc =
+{
+  .m_size = sizeof (CdrStreamRecursive_t0),
+  .m_align = dds_alignof (CdrStreamRecursive_t0),
+  .m_flagset = 0u,
+  .m_nkeys = 0u,
+  .m_typename = "CdrStreamRecursive::t0",
+  .m_keys = NULL,
+  .m_nops = sizeof (CdrStreamRecursive_t0_ops) / sizeof (CdrStreamRecursive_t0_ops[0]),
+  .m_ops = CdrStreamRecursive_t0_ops,
+  .m_meta = ""
+};
+
+const dds_topic_descriptor_t CdrStreamRecursiveAppendable_t0_desc =
+{
+  .m_size = sizeof (CdrStreamRecursive_t0),
+  .m_align = dds_alignof (CdrStreamRecursive_t0),
+  .m_flagset = 0u,
+  .m_nkeys = 0u,
+  .m_typename = "CdrStreamRecursiveAppendable::t0",
+  .m_keys = NULL,
+  .m_nops = sizeof (CdrStreamRecursiveAppendable_t0_ops) / sizeof (CdrStreamRecursiveAppendable_t0_ops[0]),
+  .m_ops = CdrStreamRecursiveAppendable_t0_ops,
+  .m_meta = ""
+};
+
+static void init_recursive_appendable_t0_cdr (uint32_t *cdr, uint32_t n)
+{
+  uint32_t i = 0;
+  for (uint32_t level = 0; level < n; level++)
+  {
+    const uint32_t child_size = (n - level - 1u) * 3u * sizeof (uint32_t);
+    const uint32_t seq_size = sizeof (uint32_t) + child_size;
+    cdr[i++] = seq_size + sizeof (uint32_t);
+    cdr[i++] = seq_size;
+    cdr[i++] = (level + 1u < n) ? 1u : 0u;
+  }
+}
+
+CU_Test (ddsc_cdrstream, recursion_limit_t0)
+{
+  struct dds_cdrstream_desc desc;
+  dds_cdrstream_desc_from_topic_desc (&desc, &CdrStreamRecursive_t0_desc);
+  assert (desc.ops.ops);
+
+  const uint32_t n = 128 * 1024;
+  const uint32_t cdrsize = n * sizeof (uint32_t);
+  uint32_t *cdr = ddsrt_malloc (cdrsize);
+  uint32_t i = 0;
+  while (i < n - 1)
+    cdr[i++] = 1;
+  cdr[i++] = 0;
+
+  uint32_t act_size;
+  const enum dds_stream_normalize_result norm_res =
+    dds_stream_normalize (cdr, cdrsize, false, XCDR1, &desc, false, &act_size);
+  CU_ASSERT_EQ_FATAL (norm_res, DDS_STREAM_NORMALIZE_ERROR);
+  ddsrt_free (cdr);
+
+  dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+}
+
+CU_Test (ddsc_cdrstream, recursion_limit_appendable_t0)
+{
+  struct dds_cdrstream_desc desc;
+  dds_cdrstream_desc_from_topic_desc (&desc, &CdrStreamRecursiveAppendable_t0_desc);
+  assert (desc.ops.ops);
+
+  {
+    const uint32_t n = 2;
+    const uint32_t cdrsize = n * 3u * sizeof (uint32_t);
+    uint32_t cdr[2 * 3] = { 0 };
+    init_recursive_appendable_t0_cdr (cdr, n);
+
+    uint32_t act_size;
+    const enum dds_stream_normalize_result norm_res =
+      dds_stream_normalize (cdr, cdrsize, false, XCDR2, &desc, false, &act_size);
+    CU_ASSERT_EQ_FATAL (norm_res, DDS_STREAM_NORMALIZE_SUCCESS);
+    CU_ASSERT_EQ_FATAL (act_size, cdrsize);
+  }
+
+  {
+    const uint32_t n = 128 * 1024;
+    const uint32_t cdrsize = n * 3u * sizeof (uint32_t);
+    uint32_t *cdr = ddsrt_malloc (cdrsize);
+    init_recursive_appendable_t0_cdr (cdr, n);
+
+    uint32_t act_size;
+    const enum dds_stream_normalize_result norm_res =
+      dds_stream_normalize (cdr, cdrsize, false, XCDR2, &desc, false, &act_size);
+    CU_ASSERT_EQ_FATAL (norm_res, DDS_STREAM_NORMALIZE_ERROR);
+    ddsrt_free (cdr);
+  }
+
   dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
 }

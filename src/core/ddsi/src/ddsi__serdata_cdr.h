@@ -82,7 +82,7 @@ DDSRT_STATIC_ASSERT ((offsetof (struct ddsi_serdata_cdr, data) % 8) == 0);
  */
 struct ddsi_sertype_cdr {
   struct ddsi_sertype c;
-  uint16_t encoding_format; /* DDSI_RTPS_CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) - CDR encoding format for the top-level type in this sertype */
+  enum dds_cdr_enc_format encoding_format; /* DDSI_RTPS_CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) - CDR encoding format for the top-level type in this sertype */
   struct dds_cdrstream_desc type;
 };
 

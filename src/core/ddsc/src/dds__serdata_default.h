@@ -124,8 +124,8 @@ struct dds_sertype_default_cdr_data {
 
 struct dds_sertype_default {
   struct ddsi_sertype c;
-  uint16_t encoding_format; /* DDSI_RTPS_CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) - CDR encoding format for the top-level type in this sertype */
-  uint16_t write_encoding_version; /* DDSI_RTPS_CDR_ENC_VERSION_(1|2) - CDR encoding version used for writing data using this sertype */
+  enum dds_cdr_enc_format encoding_format; /* DDSI_RTPS_CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) - CDR encoding format for the top-level type in this sertype */
+  enum dds_cdr_enc_version xcdr_version; /* DDSI_RTPS_CDR_ENC_VERSION_(1|2) - CDR encoding version used for writing data using this sertype */
   struct dds_serdatapool *serpool;
   struct dds_cdrstream_desc type;
   struct dds_sertype_default_cdr_data typeinfo_ser;
@@ -147,7 +147,7 @@ struct dds_serdatapool * dds_serdatapool_new (void);
 void dds_serdatapool_free (struct dds_serdatapool * pool);
 
 /** @component typesupport_c */
-dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct dds_sertype_default *st, const dds_topic_descriptor_t *desc, uint16_t min_xcdrv, dds_data_representation_id_t data_representation);
+dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct dds_sertype_default *st, const dds_topic_descriptor_t *desc, enum dds_cdr_enc_version min_xcdrv, dds_data_representation_id_t data_representation);
 
 #if defined (__cplusplus)
 }

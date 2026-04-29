@@ -238,7 +238,7 @@ static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_s
     ddsrt_atomic_st32 (&derived_sertype->c.flags_refc, refc & ~DDSI_SERTYPE_REFC_MASK);
     derived_sertype->c.base_sertype = ddsi_sertype_ref (base_sertype);
     derived_sertype->c.serdata_ops = required_ops;
-    derived_sertype->write_encoding_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? DDSI_RTPS_CDR_ENC_VERSION_1 : DDSI_RTPS_CDR_ENC_VERSION_2;
+    derived_sertype->xcdr_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? DDSI_RTPS_CDR_ENC_VERSION_1 : DDSI_RTPS_CDR_ENC_VERSION_2;
   }
 
   return (struct ddsi_sertype *) derived_sertype;
@@ -248,12 +248,12 @@ static dds_return_t sertype_default_get_serialized_size (const struct ddsi_serty
 {
   const struct dds_sertype_default *tp = (const struct dds_sertype_default *) tpcmn;
   if (sdkind == SDK_KEY)
-    *size = dds_stream_getsize_key (sample, &tp->type, tp->write_encoding_version);
+    *size = dds_stream_getsize_key (sample, &tp->type, tp->xcdr_version);
   else
-    *size = dds_stream_getsize_sample (sample, &tp->type, tp->write_encoding_version);
+    *size = dds_stream_getsize_sample (sample, &tp->type, tp->xcdr_version);
   if (*size == SIZE_MAX)
     return DDS_RETCODE_BAD_PARAMETER;
-  *enc_identifier = ddsi_sertype_get_native_enc_identifier (tp->write_encoding_version, tp->encoding_format);
+  *enc_identifier = ddsi_sertype_get_native_enc_identifier (tp->xcdr_version, tp->encoding_format);
   return DDS_RETCODE_OK;
 }
 
@@ -265,7 +265,7 @@ static bool sertype_default_serialize_into (const struct ddsi_sertype *tpcmn, en
     .m_buffer = dst_buffer,
     .m_size = (uint32_t) dst_size,
     .m_index = 0,
-    .m_xcdr_version = tp->write_encoding_version
+    .m_xcdr_version = tp->xcdr_version
   };
   if (sdkind == SDK_KEY)
     return dds_stream_write_key (&os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &no_allocator, sample, &tp->type);
@@ -296,7 +296,7 @@ const struct ddsi_sertype_ops dds_sertype_ops_default = {
   .serialize_into = sertype_default_serialize_into
 };
 
-dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct dds_sertype_default *st, const dds_topic_descriptor_t *desc, uint16_t min_xcdrv, dds_data_representation_id_t data_representation)
+dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct dds_sertype_default *st, const dds_topic_descriptor_t *desc, enum dds_cdr_enc_version min_xcdrv, dds_data_representation_id_t data_representation)
 {
   const struct ddsi_domaingv *gv = &domain->gv;
   const struct ddsi_serdata_ops *serdata_ops;
@@ -329,7 +329,7 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
   st->encoding_format = ddsi_sertype_extensibility_enc_format (type_ext);
   /* Store the encoding version used for writing data using this sertype. When reading data,
      the encoding version from the encapsulation header in the CDR is used */
-  st->write_encoding_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? DDSI_RTPS_CDR_ENC_VERSION_1 : DDSI_RTPS_CDR_ENC_VERSION_2;
+  st->xcdr_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? DDSI_RTPS_CDR_ENC_VERSION_1 : DDSI_RTPS_CDR_ENC_VERSION_2;
   st->serpool = domain->serpool;
 
   dds_cdrstream_desc_init_with_nops (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_nops, desc->m_keys, desc->m_nkeys);
