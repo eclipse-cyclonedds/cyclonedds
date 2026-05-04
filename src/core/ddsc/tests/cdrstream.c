@@ -9,6 +9,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 #include <wchar.h>
+#include <stdint.h>
 
 #include "CUnit/Theory.h"
 #include "dds/dds.h"
@@ -38,6 +39,7 @@
 #include "CdrStreamSerDes.h"
 #include "CdrStreamXcdr1Opt.h"
 #include "CdrStreamTryconstruct.h"
+#include "CdrStreamSignedUnion.h"
 #include "mem_ser.h"
 
 #define DDS_DOMAINID1 0
@@ -3022,3 +3024,105 @@ CU_Test (ddsc_cdrstream, tryconstruct_nested_seq)
 #undef X_DISCARD
 #undef X
 #undef D
+
+static bool eq_CdrStreamSignedUnion_t1 (const CdrStreamSignedUnion_t1 *a, const CdrStreamSignedUnion_t1 *b)
+{
+  if (a->_d != b->_d)
+    return false;
+  switch (a->_d)
+  {
+    case INT8_MIN: return a->_u.f1 == b->_u.f1;
+    case -1: return a->_u.f2 == b->_u.f2;
+    case 1: return a->_u.f3 == b->_u.f3;
+    case INT8_MAX: return a->_u.f4 == b->_u.f4;
+  }
+  return false;
+}
+
+static bool eq_CdrStreamSignedUnion_t2 (const CdrStreamSignedUnion_t2 *a, const CdrStreamSignedUnion_t2 *b)
+{
+  if (a->_d != b->_d)
+    return false;
+  switch (a->_d)
+  {
+    case INT16_MIN: return a->_u.f1 == b->_u.f1;
+    case -1: return a->_u.f2 == b->_u.f2;
+    case 1: return a->_u.f3 == b->_u.f3;
+    case INT16_MAX: return a->_u.f4 == b->_u.f4;
+  }
+  return false;
+}
+
+static bool eq_CdrStreamSignedUnion_t3 (const CdrStreamSignedUnion_t3 *a, const CdrStreamSignedUnion_t3 *b)
+{
+  if (a->_d != b->_d)
+    return false;
+  switch (a->_d)
+  {
+    case INT32_MIN: return a->_u.f1 == b->_u.f1;
+    case -1: return a->_u.f2 == b->_u.f2;
+    case 1: return a->_u.f3 == b->_u.f3;
+    case INT32_MAX: return a->_u.f4 == b->_u.f4;
+  }
+  return false;
+}
+
+static bool eq_CdrStreamSignedUnion_t4 (const CdrStreamSignedUnion_t4 *a, const CdrStreamSignedUnion_t4 *b)
+{
+  return eq_CdrStreamSignedUnion_t1 (&a->f1, &b->f1)
+    && eq_CdrStreamSignedUnion_t2 (&a->f2, &b->f2)
+    && eq_CdrStreamSignedUnion_t3 (&a->f3, &b->f3);
+}
+
+CU_Test (ddsc_cdrstream, signed_union_discriminators)
+{
+  static const CdrStreamSignedUnion_t4 tests[] = {
+    {
+      .f1 = { ._d = INT8_MIN, ._u = { .f1 = 'a' } },
+      .f2 = { ._d = INT16_MIN, ._u = { .f1 = 'b' } },
+      .f3 = { ._d = INT32_MIN, ._u = { .f1 = 'c' } }
+    },
+    {
+      .f1 = { ._d = -1, ._u = { .f2 = -123 } },
+      .f2 = { ._d = -1, ._u = { .f2 = -234 } },
+      .f3 = { ._d = -1, ._u = { .f2 = -345 } }
+    },
+    {
+      .f1 = { ._d = 1, ._u = { .f3 = 12345 } },
+      .f2 = { ._d = 1, ._u = { .f3 = 23456 } },
+      .f3 = { ._d = 1, ._u = { .f3 = 34567 } }
+    },
+    {
+      .f1 = { ._d = INT8_MAX, ._u = { .f4 = 1.25f } },
+      .f2 = { ._d = INT16_MAX, ._u = { .f4 = 2.25f } },
+      .f3 = { ._d = INT32_MAX, ._u = { .f4 = 3.25f } }
+    }
+  };
+
+  struct dds_cdrstream_desc desc;
+  dds_cdrstream_desc_from_topic_desc (&desc, &CdrStreamSignedUnion_t4_desc);
+  for (uint32_t xcdrv = XCDR1; xcdrv <= XCDR2; xcdrv++)
+  {
+    for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+    {
+      dds_ostream_t os = { .m_xcdr_version = xcdrv };
+      const bool wres = dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, &tests[i], &desc);
+      CU_ASSERT_FATAL (wres);
+
+      void *cdr_copy = ddsrt_memdup (os.m_buffer, os.m_index);
+      uint32_t act_size;
+      const enum dds_stream_normalize_result nres = dds_stream_normalize (cdr_copy, os.m_index, false, xcdrv, &desc, false, &act_size);
+      CU_ASSERT_EQ_FATAL (nres, DDS_STREAM_NORMALIZE_SUCCESS);
+      CU_ASSERT_EQ_FATAL (act_size, os.m_index);
+      ddsrt_free (cdr_copy);
+
+      CdrStreamSignedUnion_t4 sample_rd;
+      memset (&sample_rd, 0, sizeof (sample_rd));
+      dds_istream_t is = { .m_buffer = os.m_buffer, .m_index = 0, .m_size = os.m_index, .m_xcdr_version = xcdrv };
+      dds_stream_read_sample (&is, &sample_rd, &dds_cdrstream_default_allocator, &desc);
+      CU_ASSERT_FATAL (eq_CdrStreamSignedUnion_t4 (&tests[i], &sample_rd));
+      dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
+    }
+  }
+  dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+}

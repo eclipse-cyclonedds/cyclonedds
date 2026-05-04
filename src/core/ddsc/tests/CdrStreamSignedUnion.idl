@@ -1,0 +1,38 @@
+// Copyright(c) 2026 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
+module CdrStreamSignedUnion {
+  @final union t1 switch (int8) {
+    case -128: char f1;
+    case -1: short f2;
+    case 1: long f3;
+    case 127: float f4;
+  };
+
+  @final union t2 switch (int16) {
+    case -32768: char f1;
+    case -1: short f2;
+    case 1: long f3;
+    case 32767: float f4;
+  };
+
+  @final union t3 switch (int32) {
+    case -2147483648: char f1;
+    case -1: short f2;
+    case 1: long f3;
+    case 2147483647: float f4;
+  };
+
+  @final struct t4 {
+    t1 f1;
+    t2 f2;
+    t3 f3;
+  };
+};

@@ -616,4 +616,32 @@ module TypeBuilderTypes {
   @final struct t54 {
     t54b f1;
   };
+
+  // unions with signed integer discriminants and negative labels
+  @nested @final union t55a switch (int8) {
+    case -128: char f1;
+    case -1: short f2;
+    case 1: long f3;
+    case 127: float f4;
+  };
+
+  @nested @final union t55b switch (int16) {
+    case -32768: char f1;
+    case -1: short f2;
+    case 1: long f3;
+    case 32767: float f4;
+  };
+
+  @nested @final union t55c switch (int32) {
+    case -2147483648: char f1;
+    case -1: short f2;
+    case 1: long f3;
+    case 2147483647: float f4;
+  };
+
+  @final struct t55 {
+    t55a f1;
+    t55b f2;
+    t55c f3;
+  };
 };

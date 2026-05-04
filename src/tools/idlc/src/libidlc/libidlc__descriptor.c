@@ -410,6 +410,7 @@ static idl_retcode_t
 stash_case_label32(
   const idl_pstate_t *pstate, struct instructions *instructions, uint32_t index, const idl_const_expr_t *const_expr)
 {
+  // discrimiant value and case labels are always read as unsigned integer by the deserializer
   int cnt = 0;
   struct instruction inst = { CONSTANT, { .constant = { NULL } } };
   char **strp = &inst.data.constant.value;
@@ -449,7 +450,7 @@ stash_case_label32(
         cnt = idl_asprintf(strp, "%s", literal->value.bln ? "true" : "false");
         break;
       case IDL_INT8:
-        cnt = idl_asprintf(strp, "%" PRId8, literal->value.int8);
+        cnt = idl_asprintf(strp, "%" PRIu8, (uint8_t) literal->value.int8);
         break;
       case IDL_OCTET:
       case IDL_UINT8:
@@ -457,7 +458,7 @@ stash_case_label32(
         break;
       case IDL_SHORT:
       case IDL_INT16:
-        cnt = idl_asprintf(strp, "%" PRId16, literal->value.int16);
+        cnt = idl_asprintf(strp, "%" PRIu16, (uint16_t) literal->value.int16);
         break;
       case IDL_USHORT:
       case IDL_UINT16:
@@ -465,7 +466,7 @@ stash_case_label32(
         break;
       case IDL_LONG:
       case IDL_INT32:
-        cnt = idl_asprintf(strp, "%" PRId32, literal->value.int32);
+        cnt = idl_asprintf(strp, "%" PRIu32, (uint32_t) literal->value.int32);
         break;
       case IDL_ULONG:
       case IDL_UINT32:

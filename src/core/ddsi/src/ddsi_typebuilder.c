@@ -152,6 +152,19 @@ struct typebuilder_union
   struct typebuilder_union_member *cases;
 };
 
+static uint32_t union_case_label_to_disc_value (const struct typebuilder_type *disc_type, int32_t label)
+{
+  switch (disc_type->type_code)
+  {
+    case DDS_OP_VAL_1BY:
+      return (uint8_t) label;
+    case DDS_OP_VAL_2BY:
+      return (uint16_t) label;
+    default:
+      return (uint32_t) label;
+  }
+}
+
 struct typebuilder_aggregated_type
 {
   char *type_name;
@@ -807,7 +820,7 @@ static dds_return_t typebuilder_add_union (struct typebuilder_data *tbd, struct 
       bool is_last = !is_default && (l == type->xt._u.union_type.members.seq[n].label_seq._length - 1);
       tb_aggrtype->detail._union.cases[c].is_external = is_ext;
       tb_aggrtype->detail._union.cases[c].is_last_label = is_last;
-      tb_aggrtype->detail._union.cases[c].disc_value = (uint32_t) type->xt._u.union_type.members.seq[n].label_seq._buffer[l];
+      tb_aggrtype->detail._union.cases[c].disc_value = union_case_label_to_disc_value (&tb_aggrtype->detail._union.disc_type, type->xt._u.union_type.members.seq[n].label_seq._buffer[l]);
       if ((ret = typebuilder_add_type (tbd, &sz, &align, &tb_aggrtype->detail._union.cases[c].type, type->xt._u.union_type.members.seq[n].type, is_ext, false,
           get_tc (type->xt._u.union_type.members.seq[n].flags))) != DDS_RETCODE_OK)
         goto err;
