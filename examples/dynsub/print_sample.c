@@ -327,12 +327,26 @@ static void print_sample1_to (struct type_cache *tc, const unsigned char *sample
       if (t->discriminator.common.type_id._d == DDS_XTypes_EK_COMPLETE)
       {
         struct typeinfo templ_disc = { .key = { .key = (uintptr_t) &t->discriminator.common.type_id } }, *info_disc = type_cache_lookup (tc, &templ_disc);
-        if (info_disc->typeobj->_d != DDS_XTypes_TK_ENUM)
+        if (info_disc->typeobj->_d == DDS_XTypes_TK_ENUM)
+        {
+          disc_value = * (int32_t *) p;
+        }
+        else if (info_disc->typeobj->_d == DDS_XTypes_TK_BITMASK)
+        {
+          if (info_disc->typeobj->_u.bitmask_type.header.common.bit_bound > 32)
+            disc_value = (int32_t) (* (int64_t *) p);
+          else if (info_disc->typeobj->_u.bitmask_type.header.common.bit_bound > 16)
+            disc_value = * (int32_t *) p;
+          else if (info_disc->typeobj->_u.bitmask_type.header.common.bit_bound > 8)
+            disc_value = * (int16_t *) p;
+          else
+            disc_value = * (int8_t *) p;
+        }
+        else
         {
           printf ("unsupported union discriminant value %u\n", info_disc->typeobj->_d);
           abort ();
         }
-        disc_value = * (int32_t *) p;
         print_sample1_to (tc, p, info_disc->typeobj, &c1, "_d", false, false);
       }
       else if (!print_sample1_simple (p, t->discriminator.common.type_id._d, &c1, "_d", &disc_value, false))

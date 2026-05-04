@@ -29,9 +29,10 @@
 #define STRUCT_BASE_MEMBER_NAME "parent"
 #define KEY_NAME_SEP "."
 
-#define _PUSH(fn,val) \
-  if ((ret = fn (ops, (val))) != DDS_RETCODE_OK) \
-    return ret;
+#define _PUSH(fn,val) do {                              \
+  if ((ret = fn (ops, (val))) != DDS_RETCODE_OK)        \
+    return ret;                                         \
+  } while (0)
 #define PUSH_OP(val) _PUSH(push_op,val)
 #define PUSH_ARG(val) _PUSH(push_op_arg,val)
 #define OR_OP(idx,val) or_op(ops, (idx), (val))
@@ -1319,9 +1320,16 @@ static dds_return_t get_ops_union (const struct typebuilder_union *tb_union, uin
   PUSH_ARG (0u);
   PUSH_ARG (tb_union->n_cases);
   uint32_t next_insn_idx = ops->index;
-  PUSH_ARG (4u + (tb_union->disc_type.type_code == DDS_OP_VAL_ENU ? 1 : 0));
-  if (tb_union->disc_type.type_code == DDS_OP_VAL_ENU)
+  if (tb_union->disc_type.type_code == DDS_OP_VAL_ENU) {
+    PUSH_ARG (5u);
     PUSH_ARG (tb_union->disc_type.args.enum_args.max);
+  } else if (tb_union->disc_type.type_code == DDS_OP_VAL_BMK) {
+    PUSH_ARG (6u);
+    PUSH_ARG (tb_union->disc_type.args.bitmask_args.bits_h);
+    PUSH_ARG (tb_union->disc_type.args.bitmask_args.bits_l);
+  } else {
+    PUSH_ARG (4u);
+  }
 
   uint32_t inline_types_offs = ops->index + (uint32_t) (4u * tb_union->n_cases);
   for (uint32_t c = 0; c < tb_union->n_cases; c++)

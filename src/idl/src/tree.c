@@ -2049,6 +2049,18 @@ static uint64_t maximum_labels(const idl_type_spec_t *type_spec)
     case IDL_INT64:
     case IDL_UINT64:
       return UINT64_MAX;
+    case IDL_BITMASK: {
+      // FIXME: imprecise, should check actual bits
+      const idl_bitmask_t *btype = (const idl_bitmask_t *) type_spec;
+      if (btype->bit_bound.value <= 8)
+        return UINT8_MAX;
+      else if (btype->bit_bound.value <= 16)
+        return UINT16_MAX;
+      else if (btype->bit_bound.value <= 32)
+        return UINT32_MAX;
+      else
+        return UINT64_MAX;
+    }
     default:
       assert(type == IDL_ENUM);
       return idl_degree(((const idl_enum_t *)type_spec)->enumerators);
@@ -2368,6 +2380,7 @@ idl_is_switch_type_spec(const void *ptr)
   type_spec = idl_unalias(type_spec);
   switch (idl_type(type_spec)) {
     case IDL_ENUM:
+    case IDL_BITMASK:
       return true;
     case IDL_WCHAR:
     case IDL_OCTET:
@@ -2429,6 +2442,7 @@ idl_create_switch_type_spec(
   assert(type_spec);
   type = idl_type(idl_unalias(type_spec));
   if (!(type == IDL_ENUM) &&
+      !(type == IDL_BITMASK) &&
       !(type == IDL_BOOL) &&
       !(type == IDL_CHAR) &&
       !(((unsigned)type & (unsigned)IDL_INTEGER_TYPE) == IDL_INTEGER_TYPE) &&
@@ -2685,6 +2699,10 @@ int64_t idl_case_label_intvalue(const void *ptr)
     idl_enumerator_t *enumerator = node->const_expr;
     assert(enumerator->value.value <= INT32_MAX);
     return enumerator->value.value;
+  } else if (type == IDL_BITMASK) {
+    // FIXME: should allow (or require?) symbolic values
+    idl_intval_t val = idl_intval(node->const_expr);
+    return val.value.llng;
   } else {
     assert(false);
   }

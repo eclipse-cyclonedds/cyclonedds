@@ -432,11 +432,14 @@ eval_unary_int_expr(
 
 static idl_intval_t bitval(const idl_const_expr_t *const_expr)
 {
-  assert(idl_is_bit_value(const_expr));
-
-  const idl_bit_value_t *val = (idl_bit_value_t *)const_expr;
-
-  return (idl_intval_t){.type = IDL_ULLONG, .value = {.ullng = (uint64_t) (0x1ull << val->position.value)} };
+  if (idl_is_bit_value(const_expr)) {
+    const idl_bit_value_t *val = (idl_bit_value_t *)const_expr;
+    return (idl_intval_t){.type = IDL_ULLONG, .value = {.ullng = (uint64_t) (0x1ull << val->position.value)} };
+  } else {
+    // FIXME: probably broken, bit it kinda works on little-endian machines
+    const idl_literal_t *val = (idl_literal_t *)const_expr;
+    return (idl_intval_t){.type = IDL_ULLONG, .value = {.ullng = val->value.uint64} };
+  }
 }
 
 #undef u
@@ -914,7 +917,7 @@ idl_intval_t idl_intval(const idl_const_expr_t *const_expr)
     case IDL_UINT64:
     case IDL_ULLONG:
     default:
-      assert(type == IDL_ULLONG);
+      assert(type == IDL_ULLONG || type == IDL_UINT64);
       return UNSIGNED(IDL_ULLONG, val->value.uint64);
   }
 

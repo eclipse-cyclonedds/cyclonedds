@@ -282,36 +282,41 @@ enum dds_stream_opcode {
 
      [ADR, UNI,   d, z | ar] [offset] [alen] [next-insn, cases]
      [ADR, UNI, ENU, z] [offset] [alen] [next-insn, cases] [max]
-     [ADR, UNI, BMK, z] [offset] [alen] [next-insn, cases] [bits-low]
+     [ADR, UNI, BMK, z] [offset] [alen] [next-insn, cases] [bits-high] [bits-low]
      [ADR, UNI, EXT, f] *** not supported
        where
-         d = discriminant type of {1BY,2BY,4BY,8BY,BLN}, 8BY must have top
-   32-bits 0 z = default present/not present (DDS_OP_FLAG_DEF) offset =
-   discriminant offset max = max enum value followed by alen case labels: in JEQ
-   format
+         d      = discriminant type of {1BY,2BY,4BY,8BY,BLN}, 8BY must have top
+                  32-bits 0 (FIXME: should add a JEQ5 for 64-bit discriminants)
+         z      = default present/not present (DDS_OP_FLAG_DEF)
+         offset = discriminant offset
+         max    = max enum value followed by alen case labels: in JEQ format
 
      [ADR, e | EXT,   0, f] [offset] [next-insn, elem-insn] [elem-size iff
-   "external" flag e is set, or flag f has DDS_OP_FLAG_OPT] [ADR, STU,   0, f]
-   *** not supported where s            = subtype e            = external:
-   stored as external data (pointer) (DDS_OP_FLAG_EXT) f            = flags:
+   "external" flag e is set, or flag f has DDS_OP_FLAG_OPT]
+     [ADR, STU,   0, f] *** not supported
+   where
+        s       = subtype
+        e       = external: stored as external data (pointer) (DDS_OP_FLAG_EXT)
+        f       = flags:
                     - key/not key (DDS_OP_FLAG_KEY)
                     - base type member, used with EXT type (DDS_OP_FLAG_BASE)
                     - optional (DDS_OP_FLAG_OPT)
                     - must-understand (DDS_OP_FLAG_MU)
-                    - storage size, only for ENU and BMK (n <<
-   DDS_OP_FLAG_SZ_SHIFT) ar           = "arithmetic" flags:
+                    - storage size, only for ENU and BMK (n << DDS_OP_FLAG_SZ_SHIFT)
                     - floating-point instead of integer (DDS_OP_FLAG_FP)
                     - signed integer instead of unsigned (DDS_OP_FLAG_SGN)
      [offset]     = field offset from start of element in memory
      [elem-size]  = element size in memory (elem-size is only included in case
-   'external' flag is set) [max-size]   = string bound + 1 [max]        = max
-   enum value [bits-..]    = identified bits in the bitmask, split into high and
-   low 32 bits [alen]       = array length, number of cases [sbound]     =
-   bounded sequence maximum number of elements (0 .. 2^31-1) and TRIM (2^31)
+                    'external' flag is set)
+     [max-size]   = string bound + 1
+     [max]        = max enum value
+     [bits-..]    = identified bits in the bitmask, split into high and low 32 bits
+     [alen]       = array length, number of cases
+     [sbound]     = bounded sequence maximum number of elements
      [next-insn]  = (unsigned 16 bits) offset to instruction for next field,
-   from start of insn [elem-insn]  = (unsigned 16 bits) offset to first
-   instruction for element, from start of insn [cases]      = (unsigned 16 bits)
-   offset to first case label, from start of insn
+                    from start of insn
+     [elem-insn]  = (unsigned 16 bits) offset to first instruction for element, from start of insn
+     [cases]      = (unsigned 16 bits) offset to first case label, from start of insn
    */
   DDS_SOP_ADR = DDS_OP_ADR,
 
@@ -332,17 +337,18 @@ enum dds_stream_opcode {
      [JEQ4, e | STR, 0] [disc] [offset] 0
      [JEQ4, e | ENU, f] [disc] [offset] [max]
      [JEQ4, EXT, 0] *** not supported, use STU/UNI for external defined types
-     [JEQ4, e | s, i] [disc] [offset] [elem-size iff "external" flag e is set,
-     else 0] where e  = external: stored as external data (pointer)
-     (DDS_OP_FLAG_EXT) s  = subtype other than {nBY,STR} for JEQ and
-     {nBY,STR,ENU,EXT} for JEQ4 (note that BMK cannot be inline, because it
-     needs 2 additional instructions for the bits that are identified in the
-     bitmask type) i  = (unsigned 16 bits) offset to first instruction for case,
-     from start of insn instruction sequence must end in RTS, at which point
-     executes continues at the next field's instruction as specified by the
-     union f  = size flags for ENU instruction
+     [JEQ4, e | s, i] [disc] [offset] [elem-size iff "external" flag e is set, else 0]
+   where
+     e  = external: stored as external data (pointer) (DDS_OP_FLAG_EXT)
+     s  = subtype other than {nBY,STR} for JEQ and {nBY,STR,ENU,EXT} for JEQ4 (note
+          that BMK cannot be inline, because it needs 2 additional instructions for
+          the bits that are identified in the bitmask type)
+     i  = (unsigned 16 bits) offset to first instruction for case, from start of insn
+          instruction sequence must end in RTS, at which point executes continues at
+          the next field's instruction as specified by the union
+     f  = size flags for ENU instruction
 
-      Note that the JEQ instruction is deprecated and replaced by the JEQ4
+     Note that the JEQ instruction is deprecated and replaced by the JEQ4
      instruction. The IDL compiler only generates JEQ4 for union cases, the JEQ
      instruction is included here for backwards compatibility (topic descriptors
      generated with a previous version of IDLC)

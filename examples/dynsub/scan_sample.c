@@ -441,6 +441,27 @@ static bool scan_sample1_to (struct dyntypelib *dtl, unsigned char *obj, DDS_XTy
       return (dtl_set_error (err, elem, "literal \"%s\" not found in enum\n", elem->data) == DDS_RETCODE_OK);
     }
 
+    case DDS_XTypes_TK_BITMASK: { // FIXME: symbolic names?
+      const DDS_XTypes_CompleteBitmaskType *t = &typeobj->_u.bitmask_type;
+      uint64_t v;
+      if (!getuint64 (elem->data, &v))
+        return (dtl_set_error (err, elem, "bitmask value \"%s\" not handled\n", elem->data) == DDS_RETCODE_OK);
+      uint64_t flags = 0;
+      for (uint32_t i = 0; i < t->flag_seq._length; i++)
+        flags |= (uint64_t)1 << t->flag_seq._buffer[i].common.position;
+      if (v & ~flags)
+        return (dtl_set_error (err, elem, "bitmask value \"%s\" sets undefined bits\n", elem->data) == DDS_RETCODE_OK);
+      if (t->header.common.bit_bound > 32)
+        *((uint64_t *) obj) = v;
+      else if (t->header.common.bit_bound > 16)
+        *((uint32_t *) obj) = (uint32_t) v;
+      else if (t->header.common.bit_bound > 16)
+        *((uint16_t *) obj) = (uint16_t) v;
+      else
+        *((uint8_t *) obj) = (uint8_t) v;
+      return true;
+    }
+
     case DDS_XTypes_TK_UNION: {
       const DDS_XTypes_CompleteUnionType *t = &typeobj->_u.union_type;
       uint64_t disc_value = 0;

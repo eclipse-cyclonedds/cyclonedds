@@ -481,11 +481,11 @@ static const uint32_t *dds_stream_write_arrBO (RESTRICT_OSTREAM_T *os, const str
   return ops;
 }
 
-static bool dds_stream_write_union_discriminantBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, uint32_t insn, const void *addr, uint32_t *disc)
+ddsrt_nonnull_all
+static bool dds_stream_write_union_discriminantBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, uint32_t insn, const void *addr, uint64_t *disc)
 {
-  assert (disc);
   enum dds_stream_typecode type = DDS_OP_SUBTYPE (insn);
-  assert (type == DDS_SOP_VAL_BLN || type == DDS_SOP_VAL_1BY || type == DDS_SOP_VAL_2BY || type == DDS_SOP_VAL_4BY || type == DDS_SOP_VAL_ENU);
+  assert (is_primitive_or_enum_or_bitmask_type (type));
   switch (type)
   {
     case DDS_SOP_VAL_BLN:
@@ -503,11 +503,26 @@ static bool dds_stream_write_union_discriminantBO (RESTRICT_OSTREAM_T *os, const
       break;
     case DDS_SOP_VAL_4BY:
       *disc = *((const uint32_t *) addr);
-      dds_os_put4BO (os, allocator, *disc);
+      dds_os_put4BO (os, allocator, (uint32_t) *disc);
+      break;
+    case DDS_SOP_VAL_8BY:
+      *disc = *((const uint64_t *) addr);
+      dds_os_put8BO (os, allocator, *disc);
       break;
     case DDS_SOP_VAL_ENU:
       *disc = *((const uint32_t *) addr);
-      if (!dds_stream_write_enum_valueBO (os, allocator, insn, *disc, ops[4]))
+      if (!dds_stream_write_enum_valueBO (os, allocator, insn, (uint32_t) *disc, ops[4]))
+        return false;
+      break;
+    case DDS_SOP_VAL_BMK:
+      switch (DDS_OP_TYPE_SZ (insn))
+      {
+        case 1: *disc = *((const uint8_t *) addr); break;
+        case 2: *disc = *((const uint16_t *) addr); break;
+        case 4: *disc = *((const uint32_t *) addr); break;
+        default: /* case 8: */ *disc = *((const uint64_t *) addr); break;
+      }
+      if (!dds_stream_write_bitmask_valueBO (os, allocator, insn, disc, ops[4], ops[5]))
         return false;
       break;
     default:
@@ -518,7 +533,7 @@ static bool dds_stream_write_union_discriminantBO (RESTRICT_OSTREAM_T *os, const
 
 static const uint32_t *dds_stream_write_uniBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const char *discaddr, const char *baseaddr, const uint32_t *ops, uint32_t insn, enum cdr_data_kind cdr_kind)
 {
-  uint32_t disc;
+  uint64_t disc;
   if (!dds_stream_write_union_discriminantBO (os, allocator, ops, insn, discaddr, &disc))
     return NULL;
   uint32_t const * const jeq_op = find_union_case (ops, disc);

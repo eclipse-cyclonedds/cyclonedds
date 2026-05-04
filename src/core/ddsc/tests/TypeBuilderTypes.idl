@@ -591,4 +591,29 @@ module TypeBuilderTypes {
     @try_construct(TRIM) sequence<sequence<@try_construct(TRIM) t51_1, 1>, 1> f7[2][2];
     @try_construct(TRIM) sequence<@try_construct(TRIM) sequence<@try_construct(TRIM) t51_1, 1>, 1> f8[2][2];
   };
+
+  // unions with 64-bit and bitmask discriminants (FIXME: only half-heartedly supported)
+  @nested @final union t53a switch (uint64) {
+    case 1: octet f1;
+    case 0x3456789a: string f2;
+  };
+  
+  @final struct t53 {
+    t53a f1;
+  };
+
+  @final bitmask t54a {
+    t54a_a, t54a_b, t54a_c
+  };
+  
+  @nested @final union t54b switch (t54a) {
+    case t54a_a: char f1;
+    case t54a_b | t54a_c: double f2;
+    case t54a_c: string f3;
+    default: octet f4;
+  };
+
+  @final struct t54 {
+    t54b f1;
+  };
 };

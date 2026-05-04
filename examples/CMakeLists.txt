@@ -65,9 +65,20 @@ if (ENABLE_TOPIC_DISCOVERY)
       dynsub/variouspub_types.idl
       dynsub/dynsub.c
       dynsub/dynsub.h
+      dynsub/dyntypelib.c
+      dynsub/dyntypelib.h
+      dynsub/domtree.c
+      dynsub/domtree.h
       dynsub/type_cache.c
-      dynsub/print_sample.c
+      dynsub/type_cache.h
       dynsub/print_type.c
+      dynsub/print_type.h
+      dynsub/print_sample.c
+      dynsub/scan_sample.c
+      dynsub/compare_samples.c
+      dynsub/compare_samples.h
+      dynsub/size_and_align.c
+      dynsub/size_and_align.h
       dynsub/variouspub.c
       dynsub/CMakeLists.txt
       dynsub/readme.rst

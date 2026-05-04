@@ -50,7 +50,7 @@ CU_Test(idlc_type_meta, union_max_label_value)
     bool type_info;
     const char *switch_type;
     int64_t label_value;
-    idl_retcode_t result_parse;
+    idl_retcode_t result_descr;
     idl_retcode_t result_meta;
   } tests[] = {
     { true, "int32",  INT32_MAX,               IDL_RETCODE_OK,            IDL_RETCODE_OK },
@@ -58,12 +58,12 @@ CU_Test(idlc_type_meta, union_max_label_value)
     { true, "int32",  (int64_t) INT32_MAX + 1, IDL_RETCODE_OUT_OF_RANGE,  0 },
     { true, "uint32", INT32_MAX,               IDL_RETCODE_OK,            IDL_RETCODE_OK },
     { true, "uint32", (int64_t) INT32_MAX + 1, IDL_RETCODE_OK,            IDL_RETCODE_OUT_OF_RANGE },
-    { true, "int64",  (int64_t) INT64_MAX,     IDL_RETCODE_OK,            IDL_RETCODE_OUT_OF_RANGE },
-    { true, "int64",  (int64_t) INT64_MIN,     IDL_RETCODE_OK,            IDL_RETCODE_OUT_OF_RANGE },
+    { true, "int64",  (int64_t) INT64_MAX,     IDL_RETCODE_OUT_OF_RANGE,  IDL_RETCODE_OUT_OF_RANGE },
+    { true, "int64",  (int64_t) INT64_MIN,     IDL_RETCODE_OUT_OF_RANGE,  IDL_RETCODE_OUT_OF_RANGE },
 
     { false, "uint32", (int64_t) INT32_MAX + 1, IDL_RETCODE_OK,           IDL_RETCODE_OK },
-    { false, "int64",  (int64_t) INT64_MAX,     IDL_RETCODE_OK,           IDL_RETCODE_OK },
-    { false, "int64",  (int64_t) INT64_MIN,     IDL_RETCODE_OK,           IDL_RETCODE_OK }
+    { false, "int64",  (int64_t) INT64_MAX,     IDL_RETCODE_OUT_OF_RANGE, IDL_RETCODE_OK },
+    { false, "int64",  (int64_t) INT64_MIN,     IDL_RETCODE_OUT_OF_RANGE, IDL_RETCODE_OK }
   };
 
   uint32_t flags = IDL_FLAG_EXTENDED_DATA_TYPES |
@@ -84,7 +84,7 @@ CU_Test(idlc_type_meta, union_max_label_value)
 
     memset (&descriptor, 0, sizeof (descriptor)); /* static analyzer */
     ret = generate_test_descriptor (pstate, idl, &descriptor);
-    CU_ASSERT_EQ_FATAL (ret, tests[i].result_parse);
+    CU_ASSERT_EQ_FATAL (ret, tests[i].result_descr);
 
     if (ret == IDL_RETCODE_OK && tests[i].type_info)
     {
@@ -93,7 +93,8 @@ CU_Test(idlc_type_meta, union_max_label_value)
       descriptor_type_meta_fini (&dtm);
     }
 
-    descriptor_fini (&descriptor);
+    if (tests[i].result_descr == IDL_RETCODE_OK)
+      descriptor_fini (&descriptor);
     idl_delete_pstate (pstate);
   }
 }

@@ -140,7 +140,7 @@ CU_TheoryDataPoints (ddsc_typebuilder, topic_desc) = {
                  &D(t25), &D(t26), &D(t27), &D(t28), &D(t29), &D(t30), &D(t31), &D(t32),
                  &D(t33), &D(t34), &D(t35), &D(t36), &D(t37), &D(t38), /* TODO &D(t39), */
                  &D(t40), &D(t41), &D(t42), &D(t43), &D(t44), &D(t45), &D(t46), &D(t47),
-                 &D(t48), &D(t49), &D(t50), &D(t51), &D(t52) ),
+                 &D(t48), &D(t49), &D(t50), &D(t51), &D(t52), &D(t53), &D(t54) ),
 };
 #undef D
 

@@ -314,16 +314,37 @@ static int samples_eq1_to (struct type_cache *tc, const unsigned char *sample1, 
       if (t->discriminator.common.type_id._d == DDS_XTypes_EK_COMPLETE)
       {
         struct typeinfo templ_disc = { .key = { .key = (uintptr_t) &t->discriminator.common.type_id } }, *info_disc = type_cache_lookup (tc, &templ_disc);
-        if (info_disc->typeobj->_d != DDS_XTypes_TK_ENUM)
+        if (info_disc->typeobj->_d == DDS_XTypes_TK_ENUM)
+        {
+          if (*(int32_t *) p1 != *(int32_t *) p2)
+            return 0;
+          disc_value = * (int32_t *) p1;
+        }
+        else if (info_disc->typeobj->_d == DDS_XTypes_TK_BITMASK)
+        {
+          if (info_disc->typeobj->_u.bitmask_type.header.common.bit_bound > 32) {
+            if (*(int64_t *) p1 != *(int64_t *) p2)
+              return 0;
+            disc_value = (int32_t) (* (int64_t *) p1);
+          } else if (info_disc->typeobj->_u.bitmask_type.header.common.bit_bound > 16) {
+            if (*(int32_t *) p1 != *(int32_t *) p2)
+              return 0;
+            disc_value = * (int32_t *) p1;
+          } else if (info_disc->typeobj->_u.bitmask_type.header.common.bit_bound > 8) {
+            if (*(int16_t *) p1 != *(int16_t *) p2)
+              return 0;
+            disc_value = * (int16_t *) p1;
+          } else {
+            if (*(int8_t *) p1 != *(int8_t *) p2)
+              return 0;
+            disc_value = * (int8_t *) p1;
+          }
+        }
+        else
         {
           printf ("unsupported union discriminant value %u\n", info_disc->typeobj->_d);
           abort ();
         }
-        if(*(int32_t *) p1 != *(int32_t *) p2)
-        {
-          return 0;
-        }
-        disc_value = * (int32_t *) p1;
         int temp = samples_eq1_to (tc, p1, p2, info_disc->typeobj, &c1_1, &c2_1, "_d", false, false);
         if (temp != 1) return temp;
       }
