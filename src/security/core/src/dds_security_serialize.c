@@ -9,6 +9,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 #include <assert.h>
+#include <stdint.h>
 #include <string.h>
 #include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/heap.h"
@@ -604,6 +605,14 @@ DDS_Security_Deserialize_OctetSeq(
 }
 
 static int
+DDS_Security_Deserialize_seq_alloc_size_ok(
+     uint32_t length,
+     size_t elem_size)
+{
+    return elem_size == 0 || length <= UINT32_MAX / elem_size;
+}
+
+static int
 DDS_Security_Deserialize_Property(
      DDS_Security_Deserializer dser,
      DDS_Security_Property_t *property)
@@ -638,6 +647,9 @@ DDS_Security_Deserialize_PropertySeq(
     if (length > dser->remain / minpropsize) {
         return 0;
     }
+    if (!DDS_Security_Deserialize_seq_alloc_size_ok(length, sizeof(*seq->_buffer))) {
+        return 0;
+    }
     DDS_Security_PropertySeq_deinit(seq);
     seq->_length = seq->_maximum = length;
     seq->_buffer = (seq->_length == 0) ? NULL : DDS_Security_PropertySeq_allocbuf(seq->_length);
@@ -662,6 +674,9 @@ DDS_Security_Deserialize_BinaryPropertySeq(
         return 0;
     }
     if (length > dser->remain / minpropsize) {
+        return 0;
+    }
+    if (!DDS_Security_Deserialize_seq_alloc_size_ok(length, sizeof(*seq->_buffer))) {
         return 0;
     }
     DDS_Security_BinaryPropertySeq_deinit(seq);
