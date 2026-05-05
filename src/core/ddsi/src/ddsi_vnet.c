@@ -71,7 +71,8 @@ static dds_return_t ddsi_vnet_conn_write (struct ddsi_tran_conn * conn_cmn, cons
   ddsrt_iov_len_t n = 0;
   for (size_t i = 0; i < msgfrags->niov; i++)
     n += msgfrags->iov[i].iov_len;
-  *bytes_written = n;
+  if (bytes_written)
+    *bytes_written = n;
   return DDS_RETCODE_OK;
 }
 
