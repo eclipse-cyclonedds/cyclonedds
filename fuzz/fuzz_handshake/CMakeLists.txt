@@ -22,6 +22,7 @@ set(protobuf_DIR "${PROTOBUF_ROOT}/lib/cmake/protobuf")
 # ...sometime in the future these two statements should suffice:
 set(Protobuf_USE_STATIC_LIBS ON)
 find_package(protobuf REQUIRED CONFIG)
+find_package(OpenSSL REQUIRED)
 
 add_library(fuzz_handshake_harness fuzz_handshake_harness.c)
 target_include_directories(
@@ -39,6 +40,7 @@ target_include_directories(
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/security/core/tests>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/security/api/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../install/include>")
+target_link_libraries(fuzz_handshake_harness PRIVATE OpenSSL::SSL)
 
 add_executable(fuzz_handshake fuzz_handshake.cc)
 protobuf_generate(TARGET fuzz_handshake LANGUAGE cpp PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/fuzz_handshake.proto")
@@ -50,8 +52,6 @@ target_include_directories(
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../install/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/>")
 
-
-find_package(OpenSSL REQUIRED)
 target_link_libraries(fuzz_handshake
     fuzz_handshake_harness
     ${CMAKE_BINARY_DIR}/../LPM/src/libfuzzer/libprotobuf-mutator-libfuzzer.a
