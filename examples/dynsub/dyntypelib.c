@@ -388,7 +388,7 @@ static dds_return_t set_extensibility (const struct make_context *ctxt, dds_dyna
       rc = dds_dynamic_type_set_extensibility (dtype, DDS_DYNAMIC_TYPE_EXT_MUTABLE);
     else
       return dtl_set_error (err, elem, "unknown extensibility %s\n", ext);
-  } else 
+  } else
   {
     rc = dds_dynamic_type_set_extensibility (dtype, ctxt->dtl->default_extensibility);
   }
@@ -515,11 +515,13 @@ static dds_return_t make_union (const struct make_context *ctxt, const struct el
         labs[nlabs++] = (int32_t) strtol (valstr, &endptr, 0);
         if (*endptr)
         {
-          if (strcmp(getattr(discriminator_elem, "type"), "nonBasic") != 0)
-            return dtl_set_error (err, m, "junk at end of value\n");
+          if (getattr(discriminator_elem, "type") == NULL ||
+              strcmp(getattr(discriminator_elem, "type"), "nonBasic") != 0 ||
+              getattr(discriminator_elem, "nonBasicTypeName") == NULL)
+            return dtl_set_error (err, m, "junk at end of value / non enum type for discriminator\n");
           struct dyntype* d_enum = lookup_type(ctxt, ns, getattr(discriminator_elem, "nonBasicTypeName"));
-          if (d_enum->typeobj->_u.complete._d != DDS_XTypes_TK_ENUM)
-            return dtl_set_error (err, m, "Non eunm type for literal values\n");
+          if (d_enum == NULL || d_enum->typeobj->_u.complete._d != DDS_XTypes_TK_ENUM)
+            return dtl_set_error (err, m, "Non enum type for literal values\n");
           const DDS_XTypes_CompleteEnumeratedType *c_enum = &d_enum->typeobj->_u.complete._u.enumerated_type;
           bool enum_contains_value = false;
           for (uint32_t i = 0; i < c_enum->literal_seq._length; i++)
