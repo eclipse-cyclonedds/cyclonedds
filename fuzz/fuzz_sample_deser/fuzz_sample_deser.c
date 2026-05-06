@@ -23,7 +23,7 @@ int LLVMFuzzerTestOneInput(void *data, size_t size)
         struct dds_cdrstream_desc desc;
         topic_to_descriptor(&desc, topic);
         void *data_copy = ddsrt_memdup (data, size);
-        if (dds_stream_normalize(data_copy, (uint32_t) size, false, DDSI_RTPS_CDR_ENC_VERSION_2, &desc, false, &actual_size)) {
+        if (dds_stream_normalize(data_copy, (uint32_t) size, false, DDSI_RTPS_CDR_ENC_VERSION_2, &desc, false, &actual_size) == DDS_STREAM_NORMALIZE_SUCCESS) {
             void *sample = ddsrt_calloc(1, desc.size);
             dds_istream_t is;
             dds_istream_init(&is, (uint32_t) size, data_copy, DDSI_RTPS_CDR_ENC_VERSION_2);
