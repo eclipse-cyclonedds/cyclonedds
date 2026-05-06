@@ -12,3 +12,10 @@ build/
 **/.DS_Store
 compile_commands.json
 .clangd
+
+# building the fuzzers creates these files:
+fuzz/fuzz_sample_deser/fuzz_sample.idl
+fuzz/fuzz_sample_deser/fuzz_sample_deser_seed_corpus/**
+fuzz/fuzz_sample_deser/fuzz_samples.h
+libprotobuf-mutator/**
+LPM/**
