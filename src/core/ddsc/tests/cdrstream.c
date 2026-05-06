@@ -3001,7 +3001,7 @@ CU_Test (ddsc_cdrstream, tryconstruct_nested_seq)
       for (uint32_t n0 = 1; n0 <= 4; n0++)
       {
         const uint32_t n0cmp = (n0 <= 3) ? n0 : (tc0 == TRIM) ? 3 : 0;
-        for (uint32_t n1 = 4; n1 <= 4; n1++)
+        for (uint32_t n1 = 0; n1 <= 4; n1++)
         {
           const uint32_t n1cmp = (n1 <= 3) ? n1 : (tc1 == TRIM) ? 3 : 0;
           struct CdrStreamTryconstruct_t7 a;
