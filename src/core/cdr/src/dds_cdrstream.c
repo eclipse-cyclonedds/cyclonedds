@@ -1471,7 +1471,7 @@ static uint64_t read_union_discriminant (dds_istream_t *is, uint32_t insn)
     case DDS_SOP_VAL_BMK:
       return read_varsized_as_uint64 (is, insn);
     default:
-      return 0;
+      break;
   }
   abort ();
   return 0;
