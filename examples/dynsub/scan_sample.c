@@ -468,7 +468,7 @@ static bool scan_sample1_to (struct dyntypelib *dtl, unsigned char *obj, DDS_XTy
         *((uint64_t *) obj) = v;
       else if (t->header.common.bit_bound > 16)
         *((uint32_t *) obj) = (uint32_t) v;
-      else if (t->header.common.bit_bound > 16)
+      else if (t->header.common.bit_bound > 8)
         *((uint16_t *) obj) = (uint16_t) v;
       else
         *((uint8_t *) obj) = (uint8_t) v;
