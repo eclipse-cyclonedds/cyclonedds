@@ -160,8 +160,10 @@ void *dtl_advance_string_ti (unsigned char *base, size_t *off, const DDS_XTypes_
 void *dtl_advance_ti (struct dyntypelib *dtl, unsigned char *base, size_t *off, const DDS_XTypes_TypeIdentifier *typeid, bool is_opt_or_ext)
 {
   // Advancing over an @optional or @external always means advancing over a pointer
-  if (is_opt_or_ext)
+  if (is_opt_or_ext) {
+    // coverity[suspicious_sizeof:FALSE]
     return dtl_align (base, off, _Alignof (void *), sizeof (void *));
+  }
 
   void *p = dtl_advance_simple (base, off, typeid->_d);
   if (p != NULL)
@@ -216,8 +218,10 @@ void *dtl_advance_ti (struct dyntypelib *dtl, unsigned char *base, size_t *off, 
 void *dtl_advance_to (struct dyntypelib *dtl, unsigned char *base, size_t *off, const DDS_XTypes_CompleteTypeObject *typeobj, bool is_opt_or_ext)
 {
   // Advancing over an @optional or @external always means advancing over a pointer
-  if (is_opt_or_ext)
+  if (is_opt_or_ext) {
+    // coverity[suspicious_sizeof:FALSE]
     return dtl_align (base, off, _Alignof (void *), sizeof (void *));
+  }
 
   void *p = dtl_advance_simple (base, off, typeobj->_d);
   if (p != NULL)
@@ -311,4 +315,3 @@ size_t dtl_get_typeobj_size (struct dyntypelib *dtl, DDS_XTypes_CompleteTypeObje
 {
   return get_typeid_typeobj_size (dtl, typeobj->_d, typeobj);
 }
-
