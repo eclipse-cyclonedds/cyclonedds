@@ -154,7 +154,8 @@ endif()
 
 if(ENABLE_QOS_PROVIDER)
   list(APPEND ddsc_test_sources
-    "qos_provider.c")
+    "qos_provider.c"
+    "sysdef_parser.c")
 endif()
 
 add_cunit_executable(cunit_ddsc ${ddsc_test_sources})
