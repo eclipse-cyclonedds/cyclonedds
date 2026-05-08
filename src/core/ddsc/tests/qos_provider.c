@@ -414,23 +414,28 @@ static const unsigned char base64_etable[64] = {
 
 static uint32_t b64_encode (const unsigned char *text, const uint32_t sz, unsigned char **buff)
 {
-  uint32_t act_len = (sz * 4U/3U);
-  uint32_t buff_len = (act_len % 4U)? ((act_len / 4U + 1U)*4U): act_len;
-  *buff = (unsigned char *) ddsrt_malloc(buff_len);
-  (void) memset (*buff, '=', buff_len);
-
-  for (size_t i = 0, j = 0; i < buff_len && j < sz; i+=4, j+=3)
+  const uint32_t buff_len = 4u * ((sz + 2u) / 3u);
+  *buff = ddsrt_malloc (buff_len + 1);
+  unsigned char *bs = *buff;
+  size_t j = 0;
+  for (; j + 3 <= sz; j += 3)
   {
-    unsigned char chunk[4] = {0x00, 0x00, 0x00, 0x00};
-    size_t cp_sz = (sz - j);
-    unsigned char tmp[3] = {text[j], (cp_sz > 1)? text[j+1]: 0x00, (cp_sz > 2)? text[j+2]: 0x00};
-    chunk[3] = base64_etable[tmp[2] & 0x3FU];
-    chunk[2] = base64_etable[((tmp[1] & 0x0FU) << 0x02U) | (tmp[2] & 0xC0U) >> 0x06U];
-    chunk[1] = base64_etable[((tmp[0] & 0x03U) << 0x04U) | (tmp[1] >> 0x04U)];
-    chunk[0] = base64_etable[(tmp[0] >> 0x02U)];
-    (void) memcpy(*(buff)+i, chunk, cp_sz > 3? cp_sz + 1: 4U);
+    *bs++ = base64_etable[text[j] >> 0x02u];
+    *bs++ = base64_etable[((text[j] & 0x03u) << 0x04u) | (text[j+1] >> 0x04u)];
+    *bs++ = base64_etable[((text[j+1] & 0x0fu) << 0x02u) | (text[j+2] & 0xc0u) >> 0x06u];
+    *bs++ = base64_etable[text[j+2] & 0x3fu];
   }
-
+  if (j < sz)
+  {
+    const unsigned char a = text[j];
+    const unsigned char b = (j + 1 == sz) ? 0 : text[j+1];
+    *bs++ = base64_etable[a >> 0x02u];
+    *bs++ = base64_etable[((a & 0x03u) << 0x04u) | (b >> 0x04u)];
+    *bs++ = (j + 1 == sz) ? '=' : base64_etable[((b & 0x0fu) << 0x02u)];
+    *bs++ = '=';
+  }
+  assert (buff_len == (uint32_t) (bs - *buff));
+  *bs++ = 0;
   return buff_len;
 }
 
