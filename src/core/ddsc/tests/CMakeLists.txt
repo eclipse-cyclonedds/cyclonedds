@@ -62,7 +62,7 @@ set(ddsc_test_sources
     "entity_api.c"
     "entity_hierarchy.c"
     "entity_status.c"
-    "err.c"
+    "err_check.c"
     "filter.c"
     "instance_get_key.c"
     "instance_handle.c"
