@@ -18,6 +18,7 @@ set(sources
   heap.c
   ifaddrs.c
   sync.c
+  strtod.c
   strtoll.c
   thread.c
   thread_cleanup.c

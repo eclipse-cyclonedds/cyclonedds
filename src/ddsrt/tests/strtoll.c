@@ -274,10 +274,21 @@ CU_Test(ddsrt_strtoint64, strtouint64)
 CU_Test(ddsrt_strtoint64, int64tostr)
 {
   int64_t ll;
+  char *end;
 
   ll = llmax;
   ptr = ddsrt_int64tostr(ll, buf, 0, NULL);
   CU_ASSERT_EQ (ptr, NULL);
+
+  end = (char *) 1;
+  ptr = ddsrt_int64tostr(ll, buf, 0, &end);
+  CU_ASSERT_EQ (ptr, NULL);
+  CU_ASSERT_EQ (end, NULL);
+
+  end = NULL;
+  ptr = ddsrt_int64tostr(ll, buf, 1, &end);
+  CU_ASSERT_STREQ (ptr, "");
+  CU_ASSERT (end == buf);
 
   /* calling os_int64tostr with %lld with buffer size of 5, expected result \"5432\" */
   ll = 54321;
@@ -308,6 +319,7 @@ CU_Test(ddsrt_strtoint64, int64tostr)
 CU_Test(ddsrt_strtoint64, uint64tostr)
 {
   uint64_t ull;
+  char *end;
 
   ull = ullmax;
   ptr = ddsrt_uint64tostr(ull, buf, sizeof(buf), NULL);
@@ -316,5 +328,30 @@ CU_Test(ddsrt_strtoint64, uint64tostr)
   ull = 0ULL;
   ptr = ddsrt_uint64tostr(ull, buf, sizeof(buf), NULL);
   CU_ASSERT_STREQ (ptr, "0");
+
+  end = (char *) 1;
+  ptr = ddsrt_uint64tostr(1234, buf, 0, &end);
+  CU_ASSERT_EQ (ptr, NULL);
+  CU_ASSERT_EQ (end, NULL);
+
+  end = NULL;
+  ptr = ddsrt_uint64tostr(1234, buf, 1, &end);
+  CU_ASSERT_STREQ (ptr, "");
+  CU_ASSERT (end == buf);
+
+  end = NULL;
+  ptr = ddsrt_uint64tostr(1234, buf, 3, &end);
+  CU_ASSERT_STREQ (ptr, "12");
+  CU_ASSERT_EQ (end, buf + 2);
 }
 
+CU_Test(ddsrt_strtoint64, todigit)
+{
+  CU_ASSERT_EQ (ddsrt_todigit ('0'), 0);
+  CU_ASSERT_EQ (ddsrt_todigit ('9'), 9);
+  CU_ASSERT_EQ (ddsrt_todigit ('a'), 10);
+  CU_ASSERT_EQ (ddsrt_todigit ('z'), 35);
+  CU_ASSERT_EQ (ddsrt_todigit ('A'), 10);
+  CU_ASSERT_EQ (ddsrt_todigit ('Z'), 35);
+  CU_ASSERT_EQ (ddsrt_todigit ('/'), -1);
+}

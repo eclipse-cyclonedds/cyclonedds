@@ -90,6 +90,7 @@ set(ddsc_test_sources
     "redundantnw.c"
     "register.c"
     "spdp.c"
+    "statistics.c"
     "subscriber.c"
     "take_instance.c"
     "take_next_instance.c"

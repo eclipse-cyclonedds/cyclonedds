@@ -13,6 +13,7 @@
 
 #include "CUnit/Theory.h"
 #include "dds/ddsrt/environ.h"
+#include "dds/ddsrt/expand_vars.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/heap.h"
 
@@ -198,4 +199,42 @@ CU_Theory((const char *var, const char *expect), ddsrt_environ, expand_sh)
   CU_ASSERT_EQ (rc, DDS_RETCODE_OK);
   rc = ddsrt_unsetenv(x_name);
   CU_ASSERT_EQ (rc, DDS_RETCODE_OK);
+}
+
+static const char *expand_lookup_test_vars (const char *name, void *data)
+{
+  (void) data;
+  if (strcmp (name, "SET") == 0)
+    return "value";
+  else if (strcmp (name, "EMPTY") == 0)
+    return "";
+  else if (strcmp (name, "1") == 0)
+    return "one";
+  else if (strcmp (name, "?") == 0)
+    return "question";
+  return NULL;
+}
+
+static void assert_expand (char *(*expand) (const char *, expand_lookup_fn, void *), const char *input, const char *expected)
+{
+  char *result = expand (input, expand_lookup_test_vars, NULL);
+  CU_ASSERT_NEQ_FATAL (result, NULL);
+  CU_ASSERT_STREQ (result, expected);
+  ddsrt_free (result);
+}
+
+CU_Test(ddsrt_environ, expand_vars_direct)
+{
+  assert_expand (ddsrt_expand_vars, "pre-${SET}-${EMPTY:-fallback}-${MISSING:-${SET}}-post", "pre-value-fallback-value-post");
+  assert_expand (ddsrt_expand_vars, "$SET-${SET:+alt}-${MISSING:+alt}", "$SET-alt-");
+  assert_expand (ddsrt_expand_vars_sh, "\\$SET-$SET-${EMPTY:-$SET}-$1-$?", "$SET-value-value-one-question");
+}
+
+CU_Test(ddsrt_environ, expand_vars_errors)
+{
+  CU_ASSERT_EQ (ddsrt_expand_vars ("${SET", expand_lookup_test_vars, NULL), NULL);
+  CU_ASSERT_EQ (ddsrt_expand_vars ("${SET:bad}", expand_lookup_test_vars, NULL), NULL);
+  CU_ASSERT_EQ (ddsrt_expand_vars ("${MISSING:?${SET}}", expand_lookup_test_vars, NULL), NULL);
+  CU_ASSERT_EQ (ddsrt_expand_vars_sh ("\\", expand_lookup_test_vars, NULL), NULL);
+  CU_ASSERT_EQ (ddsrt_expand_vars_sh ("$", expand_lookup_test_vars, NULL), NULL);
 }
