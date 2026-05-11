@@ -12,6 +12,7 @@
 include(CUnit)
 
 set(ddsi_test_sources
+    "bswap.c"
     "ipaddr.c"
     "locators.c"
     "plist_generic.c"
