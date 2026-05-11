@@ -74,6 +74,7 @@ set(ddsc_test_sources
     "netstat.c"
     "nwpart.c"
     "participant.c"
+    "pcap.c"
     "pp_lease_dur.c"
     "psmx.c"
     "psmxif.c"
