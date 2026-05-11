@@ -12,6 +12,7 @@
 include(CUnit)
 
 set(ddsi_test_sources
+    "bitset.c"
     "bswap.c"
     "ipaddr.c"
     "locators.c"
