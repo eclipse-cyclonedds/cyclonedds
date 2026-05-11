@@ -185,8 +185,9 @@ DDS_INLINE_EXPORT inline ddsrt_int128_t ddsrt_bswap16 (ddsrt_int128_t x)
 #define ddsrt_fromBE8(x) ddsrt_bswap8 (x)
 #define ddsrt_fromBE8u(x) ddsrt_bswap8u (x)
 #define ddsrt_fromBE16(x) ddsrt_bswap16 (x)
-#define ddsrt_fromBE16u(x) ddsrt_bswap816u (x)
+#define ddsrt_fromBE16u(x) ddsrt_bswap16u (x)
 #else
+#define ddsrt_toBE2(x) (x)
 #define ddsrt_toBE2u(x) (x)
 #define ddsrt_toBE4(x) (x)
 #define ddsrt_toBE4u(x) (x)
@@ -225,4 +226,3 @@ DDS_INLINE_EXPORT inline ddsrt_int128_t ddsrt_bswap16 (ddsrt_int128_t x)
 #endif
 
 #endif /* DDSRT_BSWAP_H */
-

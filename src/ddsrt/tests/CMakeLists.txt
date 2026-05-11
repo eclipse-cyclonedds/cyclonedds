@@ -13,6 +13,7 @@ include(CUnit)
 
 set(sources
   atomics.c
+  bswap.c
   bits.c
   environ.c
   heap.c
