@@ -13,6 +13,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__dynamic_type.h"
+#include "ddsi__typelib.h"
 #include "ddsi__typewrap.h"
 #include "ddsi__xt_impl.h"
 #include "test_util.h"
@@ -44,6 +45,39 @@ struct bitflag {
   const char *name;
   uint16_t position;
 };
+
+struct struct_member {
+  const char *name;
+  uint32_t id;
+};
+
+struct union_member {
+  const char *name;
+  uint32_t id;
+  int32_t label;
+};
+
+static void check_typeobject (
+    const struct DDS_XTypes_TypeObject *typeobj,
+    dds_return_t expected_ret)
+{
+  ddsi_typeid_t typeid;
+  dds_return_t ret = ddsi_typeobj_get_hash_id (typeobj, &typeid);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  struct ddsi_domaingv *gv = get_domaingv (participant);
+  struct ddsi_type *type = NULL;
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  ret = ddsi_type_ref_id_locked (gv, &type, &typeid);
+  CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
+  if (ret == DDS_RETCODE_OK)
+  {
+    ret = ddsi_type_add_typeobj (gv, type, typeobj);
+    CU_ASSERT_EQ (ret, expected_ret);
+    ddsi_type_unref_locked (gv, type);
+  }
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+}
 
 static void check_enum_typeobject (
     const char *name,
@@ -79,17 +113,7 @@ static void check_enum_typeobject (
   ddsrt_strlcpy (typeobj._u.complete._u.enumerated_type.header.detail.type_name, name,
       sizeof (typeobj._u.complete._u.enumerated_type.header.detail.type_name));
 
-  ddsi_typeid_t typeid;
-  dds_return_t ret = ddsi_typeobj_get_hash_id (&typeobj, &typeid);
-  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
-
-  struct ddsi_domaingv *gv = get_domaingv (participant);
-  struct xt_type xt = {0};
-  ret = ddsi_xt_type_init (gv, &xt, &typeid, (const ddsi_typeobj_t *) &typeobj);
-  CU_ASSERT_EQ_FATAL (ret, expected_ret);
-
-  if (ret == DDS_RETCODE_OK)
-    ddsi_xt_type_fini (gv, &xt, true);
+  check_typeobject (&typeobj, expected_ret);
 }
 
 static void check_bitmask_typeobject (
@@ -126,17 +150,93 @@ static void check_bitmask_typeobject (
   ddsrt_strlcpy (typeobj._u.complete._u.bitmask_type.header.detail.type_name, name,
       sizeof (typeobj._u.complete._u.bitmask_type.header.detail.type_name));
 
-  ddsi_typeid_t typeid;
-  dds_return_t ret = ddsi_typeobj_get_hash_id (&typeobj, &typeid);
-  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  check_typeobject (&typeobj, expected_ret);
+}
 
-  struct ddsi_domaingv *gv = get_domaingv (participant);
-  struct xt_type xt = {0};
-  ret = ddsi_xt_type_init (gv, &xt, &typeid, (const ddsi_typeobj_t *) &typeobj);
-  CU_ASSERT_EQ_FATAL (ret, expected_ret);
+static void check_struct_typeobject (
+    const char *name,
+    const struct struct_member *members,
+    uint32_t n_members,
+    dds_return_t expected_ret)
+{
+  struct DDS_XTypes_CompleteStructMember member_buf[5] = {0};
+  CU_ASSERT_LEQ_FATAL (n_members, sizeof (member_buf) / sizeof (member_buf[0]));
+  for (uint32_t n = 0; n < n_members; n++)
+  {
+    member_buf[n].common.member_id = members[n].id;
+    member_buf[n].common.member_flags = DDS_XTypes_TRY_CONSTRUCT1;
+    member_buf[n].common.member_type_id._d = DDS_XTypes_TK_INT32;
+    ddsrt_strlcpy (member_buf[n].detail.name, members[n].name, sizeof (member_buf[n].detail.name));
+  }
 
-  if (ret == DDS_RETCODE_OK)
-    ddsi_xt_type_fini (gv, &xt, true);
+  struct DDS_XTypes_TypeObject typeobj = {
+    ._d = DDS_XTypes_EK_COMPLETE,
+    ._u.complete = {
+      ._d = DDS_XTypes_TK_STRUCTURE,
+      ._u.struct_type = {
+        .struct_flags = DDS_XTypes_IS_FINAL,
+        .member_seq = {
+          ._maximum = n_members,
+          ._length = n_members,
+          ._buffer = member_buf,
+          ._release = false
+        }
+      }
+    }
+  };
+  ddsrt_strlcpy (typeobj._u.complete._u.struct_type.header.detail.type_name, name,
+      sizeof (typeobj._u.complete._u.struct_type.header.detail.type_name));
+
+  check_typeobject (&typeobj, expected_ret);
+}
+
+static void check_union_typeobject (
+    const char *name,
+    const struct union_member *members,
+    uint32_t n_members,
+    dds_return_t expected_ret)
+{
+  int32_t label_buf[5] = {0};
+  struct DDS_XTypes_CompleteUnionMember member_buf[5] = {0};
+  CU_ASSERT_LEQ_FATAL (n_members, sizeof (member_buf) / sizeof (member_buf[0]));
+  for (uint32_t n = 0; n < n_members; n++)
+  {
+    label_buf[n] = members[n].label;
+    member_buf[n].common.member_id = members[n].id;
+    member_buf[n].common.member_flags = DDS_XTypes_TRY_CONSTRUCT1;
+    member_buf[n].common.type_id._d = DDS_XTypes_TK_INT32;
+    member_buf[n].common.label_seq._maximum = 1;
+    member_buf[n].common.label_seq._length = 1;
+    member_buf[n].common.label_seq._buffer = &label_buf[n];
+    member_buf[n].common.label_seq._release = false;
+    ddsrt_strlcpy (member_buf[n].detail.name, members[n].name, sizeof (member_buf[n].detail.name));
+  }
+
+  struct DDS_XTypes_TypeObject typeobj = {
+    ._d = DDS_XTypes_EK_COMPLETE,
+    ._u.complete = {
+      ._d = DDS_XTypes_TK_UNION,
+      ._u.union_type = {
+        .union_flags = DDS_XTypes_IS_FINAL,
+        .discriminator = {
+          .common = {
+            .member_flags = DDS_XTypes_TRY_CONSTRUCT1,
+            .type_id = { ._d = DDS_XTypes_TK_INT32 }
+          }
+        },
+        .member_seq = {
+          ._maximum = n_members,
+          ._length = n_members,
+          ._buffer = member_buf,
+          ._release = false
+        }
+      }
+    }
+  };
+  ddsrt_strlcpy (typeobj._u.complete._u.union_type.header.detail.type_name, name,
+      sizeof (typeobj._u.complete._u.union_type.header.detail.type_name));
+
+  check_typeobject (&typeobj, expected_ret);
 }
 
 CU_Test (ddsc_typewrap, invalid_enum_typeobject, .init = typewrap_init, .fini = typewrap_fini)
@@ -310,4 +410,80 @@ CU_Test (ddsc_typewrap, invalid_bitmask_typeobject, .init = typewrap_init, .fini
   };
   check_bitmask_typeobject ("ValidSixtyFourBitBitmask", 64, valid_positions,
       sizeof (valid_positions) / sizeof (valid_positions[0]), DDS_RETCODE_OK);
+}
+
+CU_Test (ddsc_typewrap, invalid_struct_typeobject, .init = typewrap_init, .fini = typewrap_fini)
+{
+  const struct struct_member duplicate_adjacent[] = {
+    { "duplicate_adjacent_a", 1 },
+    { "duplicate_adjacent_b", 1 },
+    { "duplicate_adjacent_c", 2 }
+  };
+  check_struct_typeobject ("DuplicateAdjacentStructMember", duplicate_adjacent,
+      sizeof (duplicate_adjacent) / sizeof (duplicate_adjacent[0]), DDS_RETCODE_BAD_PARAMETER);
+
+  const struct struct_member duplicate_unsorted[] = {
+    { "duplicate_unsorted_a", 7 },
+    { "duplicate_unsorted_b", 2 },
+    { "duplicate_unsorted_c", 5 },
+    { "duplicate_unsorted_d", 2 }
+  };
+  check_struct_typeobject ("DuplicateUnsortedStructMember", duplicate_unsorted,
+      sizeof (duplicate_unsorted) / sizeof (duplicate_unsorted[0]), DDS_RETCODE_BAD_PARAMETER);
+
+  const struct struct_member duplicate_run[] = {
+    { "duplicate_run_a", 6 },
+    { "duplicate_run_b", 2 },
+    { "duplicate_run_c", 2 },
+    { "duplicate_run_d", 5 },
+    { "duplicate_run_e", 2 }
+  };
+  check_struct_typeobject ("DuplicateRunStructMember", duplicate_run,
+      sizeof (duplicate_run) / sizeof (duplicate_run[0]), DDS_RETCODE_BAD_PARAMETER);
+
+  const struct struct_member valid_member_ids[] = {
+    { "valid_first", 1 },
+    { "valid_middle", 12 },
+    { "valid_last", 27 }
+  };
+  check_struct_typeobject ("ValidStructMemberIds", valid_member_ids,
+      sizeof (valid_member_ids) / sizeof (valid_member_ids[0]), DDS_RETCODE_OK);
+}
+
+CU_Test (ddsc_typewrap, invalid_union_typeobject, .init = typewrap_init, .fini = typewrap_fini)
+{
+  const struct union_member duplicate_adjacent[] = {
+    { "duplicate_adjacent_a", 1, 1 },
+    { "duplicate_adjacent_b", 1, 2 },
+    { "duplicate_adjacent_c", 2, 3 }
+  };
+  check_union_typeobject ("DuplicateAdjacentUnionMember", duplicate_adjacent,
+      sizeof (duplicate_adjacent) / sizeof (duplicate_adjacent[0]), DDS_RETCODE_BAD_PARAMETER);
+
+  const struct union_member duplicate_unsorted[] = {
+    { "duplicate_unsorted_a", 7, 1 },
+    { "duplicate_unsorted_b", 2, 2 },
+    { "duplicate_unsorted_c", 5, 3 },
+    { "duplicate_unsorted_d", 2, 4 }
+  };
+  check_union_typeobject ("DuplicateUnsortedUnionMember", duplicate_unsorted,
+      sizeof (duplicate_unsorted) / sizeof (duplicate_unsorted[0]), DDS_RETCODE_BAD_PARAMETER);
+
+  const struct union_member duplicate_run[] = {
+    { "duplicate_run_a", 6, 1 },
+    { "duplicate_run_b", 2, 2 },
+    { "duplicate_run_c", 2, 3 },
+    { "duplicate_run_d", 5, 4 },
+    { "duplicate_run_e", 2, 5 }
+  };
+  check_union_typeobject ("DuplicateRunUnionMember", duplicate_run,
+      sizeof (duplicate_run) / sizeof (duplicate_run[0]), DDS_RETCODE_BAD_PARAMETER);
+
+  const struct union_member valid_member_ids[] = {
+    { "valid_first", 1, 1 },
+    { "valid_middle", 12, 2 },
+    { "valid_last", 27, 3 }
+  };
+  check_union_typeobject ("ValidUnionMemberIds", valid_member_ids,
+      sizeof (valid_member_ids) / sizeof (valid_member_ids[0]), DDS_RETCODE_OK);
 }
