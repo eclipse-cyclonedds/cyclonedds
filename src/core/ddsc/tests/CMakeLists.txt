@@ -137,6 +137,7 @@ if(ENABLE_TYPELIB)
     "data_representation.c"
     "typebuilder.c"
     "dynamic_type.c"
+    "typewrap.c"
   )
 endif()
 

@@ -10,6 +10,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <limits.h>
 #include "dds/features.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/md5.h"
@@ -737,10 +738,16 @@ static int xt_enum_value_cmp (const void *va, const void *vb)
   return (*m1 == *m2) ? 0 : (*m1 < *m2) ? -1 : 1;
 }
 
+static int xt_namehash_cmp (const void *va, const void *vb)
+{
+  return memcmp (va, vb, sizeof (DDS_XTypes_NameHash));
+}
+
 static dds_return_t xt_valid_enum_values (struct ddsi_domaingv *gv, const struct xt_type *t)
 {
   assert (ddsi_xt_is_resolved (t) && t->_d == DDS_XTypes_TK_ENUM);
   dds_return_t ret = DDS_RETCODE_OK;
+  const int32_t max = (t->_u.enum_type.bit_bound >= 31) ? INT32_MAX : (int32_t) ((1u << t->_u.enum_type.bit_bound) - 1);
 
   uint32_t cnt = t->_u.enum_type.literals.length;
   if (cnt == 0)
@@ -757,10 +764,28 @@ static dds_return_t xt_valid_enum_values (struct ddsi_domaingv *gv, const struct
     ret = DDS_RETCODE_OUT_OF_RESOURCES;
     goto failed;
   }
+  DDS_XTypes_NameHash *name_hashes = ddsrt_malloc (cnt * sizeof (*name_hashes));
+  if (name_hashes == NULL)
+  {
+    GVTRACE ("out-of-memory while checking enum literal names\n");
+    ret = DDS_RETCODE_OUT_OF_RESOURCES;
+    goto failed_values;
+  }
 
   for (uint32_t n = 0; n < cnt; n++)
+  {
+    const int32_t value = t->_u.enum_type.literals.seq[n].value;
+    if (value < 0 || value > max)
+    {
+      GVTRACE ("enum value %"PRId32" cannot be represented by bit_bound %"PRIu16"\n", value, t->_u.enum_type.bit_bound);
+      ret = DDS_RETCODE_BAD_PARAMETER;
+      goto failed_duplicate;
+    }
     values[n] = t->_u.enum_type.literals.seq[n].value;
+    memcpy (name_hashes[n], t->_u.enum_type.literals.seq[n].detail.name_hash, sizeof (name_hashes[n]));
+  }
   qsort (values, cnt, sizeof (*values), xt_enum_value_cmp);
+  qsort (name_hashes, cnt, sizeof (*name_hashes), xt_namehash_cmp);
   for (uint32_t n = 0; n < cnt - 1; n++)
   {
     if (values[n] == values[n + 1])
@@ -769,9 +794,17 @@ static dds_return_t xt_valid_enum_values (struct ddsi_domaingv *gv, const struct
       ret = DDS_RETCODE_BAD_PARAMETER;
       goto failed_duplicate;
     }
+    if (memcmp (name_hashes[n], name_hashes[n + 1], sizeof (name_hashes[n])) == 0)
+    {
+      GVTRACE ("duplicate enum literal name hash\n");
+      ret = DDS_RETCODE_BAD_PARAMETER;
+      goto failed_duplicate;
+    }
   }
 
 failed_duplicate:
+  ddsrt_free (name_hashes);
+failed_values:
   ddsrt_free (values);
 failed:
   return ret;
@@ -802,10 +835,28 @@ static dds_return_t xt_valid_bitmask_positions (struct ddsi_domaingv *gv, const 
     ret = DDS_RETCODE_OUT_OF_RESOURCES;
     goto failed;
   }
+  DDS_XTypes_NameHash *name_hashes = ddsrt_malloc (cnt * sizeof (*name_hashes));
+  if (name_hashes == NULL)
+  {
+    GVTRACE ("out-of-memory while checking bitmask flag names\n");
+    ret = DDS_RETCODE_OUT_OF_RESOURCES;
+    goto failed_positions;
+  }
 
   for (uint32_t n = 0; n < cnt; n++)
+  {
+    if (t->_u.bitmask.bitflags.seq[n].position >= t->_u.bitmask.bit_bound)
+    {
+      GVTRACE ("bitmask position %"PRIu16" cannot be represented by bit_bound %"PRIu16"\n",
+          t->_u.bitmask.bitflags.seq[n].position, t->_u.bitmask.bit_bound);
+      ret = DDS_RETCODE_BAD_PARAMETER;
+      goto failed_duplicate;
+    }
     positions[n] = t->_u.bitmask.bitflags.seq[n].position;
+    memcpy (name_hashes[n], t->_u.bitmask.bitflags.seq[n].detail.name_hash, sizeof (name_hashes[n]));
+  }
   qsort (positions, cnt, sizeof (*positions), xt_bitmask_position_cmp);
+  qsort (name_hashes, cnt, sizeof (*name_hashes), xt_namehash_cmp);
   for (uint32_t n = 0; n < cnt - 1; n++)
   {
     if (positions[n] == positions[n + 1])
@@ -814,9 +865,17 @@ static dds_return_t xt_valid_bitmask_positions (struct ddsi_domaingv *gv, const 
       ret = DDS_RETCODE_BAD_PARAMETER;
       goto failed_duplicate;
     }
+    if (memcmp (name_hashes[n], name_hashes[n + 1], sizeof (name_hashes[n])) == 0)
+    {
+      GVTRACE ("duplicate bitmask flag name hash\n");
+      ret = DDS_RETCODE_BAD_PARAMETER;
+      goto failed_duplicate;
+    }
   }
 
 failed_duplicate:
+  ddsrt_free (name_hashes);
+failed_positions:
   ddsrt_free (positions);
 failed:
   return ret;
@@ -1048,21 +1107,21 @@ static dds_return_t xt_validate_impl (struct ddsi_domaingv *gv, const struct xt_
       break;
     }
     case DDS_XTypes_TK_ENUM:
+      if (t->_u.enum_type.bit_bound == 0 || t->_u.enum_type.bit_bound > 32)
+        return DDS_RETCODE_BAD_PARAMETER;
       if ((ret = xt_valid_type_flags (gv, t->_u.enum_type.flags, t->_d))
           || (ret = xt_valid_enum_values (gv, t)))
         return ret;
-      if (t->_u.enum_type.bit_bound > 32)
-        return DDS_RETCODE_BAD_PARAMETER;
       for (uint32_t n = 0; n < t->_u.enum_type.literals.length; n++)
         if ((ret = xt_valid_member_flags (gv, t->_u.enum_type.literals.seq[n].flags, MEMBER_FLAG_ENUM_LITERAL, in_key)))
           return ret;
       break;
     case DDS_XTypes_TK_BITMASK:
+      if (t->_u.bitmask.bit_bound == 0 || t->_u.bitmask.bit_bound > 64)
+        return DDS_RETCODE_BAD_PARAMETER;
       if ((ret = xt_valid_type_flags (gv, t->_u.bitmask.flags, t->_d))
           || (ret = xt_valid_bitmask_positions (gv, t)))
         return ret;
-      if (t->_u.bitmask.bit_bound > 64)
-        return DDS_RETCODE_BAD_PARAMETER;
       for (uint32_t n = 0; n < t->_u.bitmask.bitflags.length; n++)
         if ((ret = xt_valid_member_flags (gv, t->_u.bitmask.bitflags.seq[n].flags, MEMBER_FLAG_BIT_FLAG, in_key)))
           return ret;
