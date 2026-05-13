@@ -122,32 +122,32 @@ struct ddsi_config;
  * @defgroup builtintopic_constants (Constants)
  * @ingroup builtintopic
  * @brief Convenience constants for referring to builtin topics
- * These constants can be used in place of an actual dds_topic_t, when creating
- * readers or writers for builtin-topics.
+ * These constants can be used in place of an actual topic handle when creating
+ * readers for built-in topics.
  */
 /**
  * @def DDS_BUILTIN_TOPIC_DCPSPARTICIPANT
  * @ingroup builtintopic_constants
- * Pseudo dds_topic_t for the builtin topic DcpsParticipant. Samples from this topic are
+ * Pseudo topic handle for the built-in topic DCPSParticipant. Samples from this topic are
  * @ref dds_builtintopic_participant structs.
  */
 /**
  * @def DDS_BUILTIN_TOPIC_DCPSTOPIC
  * @ingroup builtintopic_constants
- * Pseudo dds_topic_t for the builtin topic DcpsTopic. Samples from this topic are
- * @ref dds_builtintopic_topic structs. Note that this only works if you have specified
- * ENABLE_TOPIC_DISCOVERY in your cmake build.
+ * Pseudo topic handle for the built-in topic DCPSTopic. Samples from this topic are
+ * @ref dds_builtintopic_topic structs. Note that this only works if Cyclone DDS
+ * was built with topic discovery support.
  */
 /**
  * @def DDS_BUILTIN_TOPIC_DCPSPUBLICATION
  * @ingroup builtintopic_constants
- * Pseudo dds_topic_t for the builtin topic DcpsPublication. Samples from this topic are
+ * Pseudo topic handle for the built-in topic DCPSPublication. Samples from this topic are
  * @ref dds_builtintopic_endpoint structs.
  */
 /**
  * @def DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION
  * @ingroup builtintopic_constants
- * Pseudo dds_topic_t for the builtin topic DcpsSubscription. Samples from this topic are
+ * Pseudo topic handle for the built-in topic DCPSSubscription. Samples from this topic are
  * @ref dds_builtintopic_endpoint structs.
  */
 
@@ -464,6 +464,16 @@ dds_enable(dds_entity_t entity);
  * This operation will delete the given entity. It will also automatically
  * delete all its children, childrens' children, etc entities.
  *
+ * Some parent entities are created implicitly by the API. A domain can be
+ * created implicitly by @ref dds_create_participant. A publisher or subscriber
+ * can be created implicitly by @ref dds_create_writer or @ref dds_create_reader
+ * when called with a participant and a normal topic. Such implicit entities are
+ * deleted automatically when their last child is deleted. They are also deleted
+ * as part of the recursive deletion of one of their ancestors. Explicitly
+ * created domains, publishers and subscribers are not deleted merely because
+ * they have no children; they must be deleted explicitly, or by deleting an
+ * ancestor that contains them.
+ *
  * @param[in]  entity  Entity to delete.
  *
  * @returns A dds_return_t indicating success or failure.
@@ -489,6 +499,8 @@ dds_delete(dds_entity_t entity);
  * This operation returns the publisher to which the given entity belongs.
  * For instance, it will return the Publisher that was used when
  * creating a DataWriter (when that DataWriter was provided here).
+ * If the writer was created directly on a participant, this returns the
+ * implicit publisher that was created as the writer's parent.
  *
  * @param[in]  writer  Entity from which to get its publisher.
  *
@@ -514,6 +526,10 @@ dds_get_publisher(dds_entity_t writer);
  * This operation returns the subscriber to which the given entity belongs.
  * For instance, it will return the Subscriber that was used when
  * creating a DataReader (when that DataReader was provided here).
+ * If the reader was created directly on a participant and a normal topic, this
+ * returns the implicit subscriber that was created as the reader's parent. If
+ * the reader is for a built-in topic, this returns the participant's built-in
+ * subscriber.
  *
  * @param[in]  entity  Entity from which to get its subscriber.
  *
@@ -952,9 +968,10 @@ dds_set_listener(dds_entity_t entity, const dds_listener_t * listener);
 
 /*
   Creation functions for various entities. Creating a subscriber or
-  publisher is optional: if one creates a reader as a descendant of a
-  participant, it is as if a subscriber is created specially for
-  that reader.
+  publisher is optional: if one creates a reader or writer directly
+  as a descendant of a participant for a normal topic, an implicit
+  subscriber or publisher is created as the parent of that reader or
+  writer.
 
   QoS default values are those of the DDS specification, but the
   inheritance rules are different:
@@ -979,13 +996,17 @@ dds_set_listener(dds_entity_t entity, const dds_listener_t * listener);
  * @ingroup domain_participant
  * @component participant
  *
- * This function creates a new participant in the specified domain id, implicitly creating
- * a domain entity if one doesn't exist for the specified domain id.  The domain entity
- * can exist as a consequence of the existence of another participant in it, or because it
- * was explicitly created using @ref dds_create_domain or @ref
- * dds_create_domain_with_rawconfig.  If the domain entity has not been created yet, a new
- * domain entity is created using a configuration taken from the CYCLONEDDS_URI
- * environment variable.
+ * This function creates a new participant in the specified domain id,
+ * implicitly creating a domain entity if one doesn't exist for the specified
+ * domain id. The domain entity can exist as a consequence of the existence of
+ * another participant in it, or because it was explicitly created using
+ * @ref dds_create_domain or @ref dds_create_domain_with_rawconfig. If the domain
+ * entity has not been created yet, a new domain entity is created using a
+ * configuration taken from the CYCLONEDDS_URI environment variable.
+ *
+ * A domain implicitly created by this function is deleted automatically when
+ * its last participant is deleted. If the domain was explicitly created, it is
+ * not deleted automatically when its last participant is deleted.
  *
  * The domain id may be specified as DDS_DOMAIN_DEFAULT, in which case the behaviour
  * depends on whether some domain entity already exists or not.  If there is at least one,
@@ -1037,11 +1058,13 @@ dds_create_participant(
  *
  * To explicitly create a domain based on a configuration passed as a string.  A domain
  * created in this manner must be explicitly deleted by calling @ref dds_delete on the
- * domain (or on DDS_CYCLONEDDS_HANDLE).
+ * domain (or on DDS_CYCLONEDDS_HANDLE); it is not deleted automatically merely
+ * because it has no participants.
  *
- * It will not be created if a domain with the given domain id already exists.  This could
- * have been created implicitly by a previous call to this function, @ref
- * dds_create_participant or @ref dds_create_domain_with_rawconfig.
+ * It will not be created if a domain with the given domain id already exists.
+ * The existing domain could have been created implicitly by
+ * @ref dds_create_participant, or explicitly by a previous call to this
+ * function or @ref dds_create_domain_with_rawconfig.
  *
  * The domain configuration is constructed by amending the default configuration with the
  * Domain configuration (fragments) for which the domain id is specifed as "any" and those
@@ -1077,11 +1100,13 @@ dds_create_domain(const dds_domainid_t domain, const char *config);
  * couples the initializing to implementation.  See
  * dds/ddsi/ddsi_config.h:ddsi_config_init_default for a way to initialize the default
  * configuration.  A domain created in this manner must be explicitly deleted by calling
- * @ref dds_delete on the domain (or on DDS_CYCLONEDDS_HANDLE).
+ * @ref dds_delete on the domain (or on DDS_CYCLONEDDS_HANDLE); it is not
+ * deleted automatically merely because it has no participants.
  *
- * It will not be created if a domain with the given domain id already exists.  This could
- * have been created implicitly by a previous call to this function, @ref
- * dds_create_participant or @ref dds_create_domain_with_rawconfig.
+ * It will not be created if a domain with the given domain id already exists.
+ * The existing domain could have been created implicitly by
+ * @ref dds_create_participant, or explicitly by a previous call to this
+ * function or @ref dds_create_domain.
  *
  * Please be aware that the given domain_id always takes precedence over the
  * configuration.
@@ -1111,10 +1136,11 @@ dds_create_domain_with_rawconfig(const dds_domainid_t domain, const struct ddsi_
  * For instance, it will return the Participant that was used when
  * creating a Publisher (when that Publisher was provided here).
  *
- * When a reader or a writer are created with a participant, then a
- * subscriber or publisher are created implicitly.
- * This function will return the implicit parent and not the used
- * participant.
+ * When a reader or a writer is created with a participant and a normal topic,
+ * a subscriber or publisher is created implicitly as the direct parent. This
+ * function will return that implicit parent and not the participant supplied to
+ * @ref dds_create_reader or @ref dds_create_writer. For a reader of a built-in
+ * topic, this function returns the participant's built-in subscriber.
  *
  * @param[in]  entity  Entity from which to get its parent.
  *
@@ -1172,6 +1198,9 @@ dds_get_participant(dds_entity_t entity);
  * For instance, it will return all the Topics, Publishers and Subscribers
  * of the Participant that was used to create those entities (when that
  * Participant is provided here).
+ * Implicit children, such as an implicit publisher or subscriber created by
+ * @ref dds_create_writer or @ref dds_create_reader, are included. The
+ * participant's built-in subscriber is also included after it has been created.
  *
  * This functions takes a pre-allocated list to put the children in and
  * will return the number of found children. It is possible that the given
@@ -1747,6 +1776,10 @@ dds_get_topic_filter_extended (
  * @ingroup subscriber
  * @component subscriber
  *
+ * The subscriber created by this function is explicit. It is not deleted
+ * automatically merely because it has no readers; it must be deleted
+ * explicitly, or by deleting the participant that contains it.
+ *
  * @param[in]  participant The participant on which the subscriber is being created.
  * @param[in]  qos         The QoS to set on the new subscriber (can be NULL).
  * @param[in]  listener    Any listener functions associated with the new subscriber (can be NULL).
@@ -1783,6 +1816,10 @@ dds_create_subscriber(
  * @brief Creates a new instance of a DDS publisher
  * @ingroup publisher
  * @component publisher
+ *
+ * The publisher created by this function is explicit. It is not deleted
+ * automatically merely because it has no writers; it must be deleted
+ * explicitly, or by deleting the participant that contains it.
  *
  * @param[in]  participant The participant to create a publisher for.
  * @param[in]  qos         The QoS to set on the new publisher (can be NULL).
@@ -1892,12 +1929,40 @@ dds_wait_for_acks(dds_entity_t publisher_or_writer, dds_duration_t timeout);
  * @ingroup reader
  * @component reader
  *
- * When a participant is used to create a reader, an implicit subscriber is created.
- * This implicit subscriber will be deleted automatically when the created reader
- * is deleted.
+ * When a participant is used to create a reader for a normal topic, an
+ * implicit subscriber is created as the reader's parent. This implicit
+ * subscriber is deleted automatically when its last child is deleted, which is
+ * when the created reader is deleted unless additional children were added to
+ * the implicit subscriber. It is also deleted as part of the recursive deletion
+ * of the participant.
+ *
+ * The topic may be a normal topic handle or one of the built-in topic pseudo
+ * handles:
+ * - @ref DDS_BUILTIN_TOPIC_DCPSPARTICIPANT reads @ref dds_builtintopic_participant_t samples.
+ * - @ref DDS_BUILTIN_TOPIC_DCPSTOPIC reads @ref dds_builtintopic_topic_t samples.
+ * - @ref DDS_BUILTIN_TOPIC_DCPSPUBLICATION reads @ref dds_builtintopic_endpoint_t samples for writers.
+ * - @ref DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION reads @ref dds_builtintopic_endpoint_t samples for readers.
+ *
+ * Creating a reader for a built-in topic uses the participant's built-in
+ * subscriber. If a subscriber is provided, its participant is used to locate
+ * that built-in subscriber; the provided subscriber itself does not become the
+ * parent of the reader. The built-in subscriber is shared by built-in topic
+ * readers for that participant and is deleted when the participant is deleted,
+ * not when an individual built-in topic reader is deleted. The built-in topic
+ * handles are pseudo handles, not normal topic entities: @ref dds_get_topic on
+ * such a reader returns the same pseudo handle, and the internal topic entity
+ * cannot be used directly to create another reader.
+ *
+ * Reader QoS for built-in topics must be compatible with the corresponding
+ * built-in topic writer and must not impose resource limits, because otherwise
+ * discovery data could be rejected. When @p qos is NULL, Cyclone DDS supplies a
+ * compatible default built-in topic QoS. The DCPSTopic built-in topic is only
+ * available when Cyclone DDS was built with topic discovery support; otherwise
+ * creating a reader for @ref DDS_BUILTIN_TOPIC_DCPSTOPIC returns
+ * @ref DDS_RETCODE_UNSUPPORTED.
  *
  * @param[in]  participant_or_subscriber The participant or subscriber on which the reader is being created.
- * @param[in]  topic                     The topic to read.
+ * @param[in]  topic                     The topic to read, or a built-in topic pseudo handle.
  * @param[in]  qos                       The QoS to set on the new reader (can be NULL).
  * @param[in]  listener                  Any listener functions associated with the new reader (can be NULL).
  *
@@ -1907,8 +1972,23 @@ dds_wait_for_acks(dds_entity_t publisher_or_writer, dds_duration_t timeout);
  *            A valid reader handle.
  * @retval DDS_RETCODE_ERROR
  *            An internal error occurred.
- *
- * DOC_TODO: Complete list of error codes
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *            One of the parameters is invalid, or the participant and topic do
+ *            not belong to the same domain participant.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *            participant_or_subscriber is neither a participant nor a subscriber,
+ *            or the operation is otherwise inappropriate for the supplied entity.
+ * @retval DDS_RETCODE_INCONSISTENT_POLICY
+ *            The requested QoS is inconsistent, including a built-in topic reader
+ *            QoS that is incompatible with the built-in topic writer or has
+ *            finite resource limits.
+ * @retval DDS_RETCODE_UNSUPPORTED
+ *            The requested built-in topic requires a feature that is not enabled
+ *            in this build, such as topic discovery for
+ *            @ref DDS_BUILTIN_TOPIC_DCPSTOPIC.
+ * @retval DDS_RETCODE_NOT_ALLOWED_BY_SECURITY
+ *            The configured DDS Security access control plugin denied creation
+ *            of the reader.
  */
 DDS_EXPORT dds_entity_t
 dds_create_reader(
@@ -1922,12 +2002,16 @@ dds_create_reader(
  * @ingroup reader
  * @component reader
  *
- * When a participant is used to create a reader, an implicit subscriber is created.
- * This implicit subscriber will be deleted automatically when the created reader
+ * This function follows the same parent-selection rules as @ref dds_create_reader.
+ * When a participant is used to create a reader for a normal topic, an implicit
+ * subscriber is created as the reader's parent and is deleted automatically
+ * when its last child is deleted, or as part of the recursive deletion of the
+ * participant. A reader for a built-in topic uses the participant's shared
+ * built-in subscriber instead; that subscriber is deleted when the participant
  * is deleted.
  *
  * @param[in]  participant_or_subscriber The participant or subscriber on which the reader is being created.
- * @param[in]  topic                     The topic to read.
+ * @param[in]  topic                     The topic to read, or a built-in topic pseudo handle.
  * @param[in]  qos                       The QoS to set on the new reader (can be NULL).
  * @param[in]  listener                  Any listener functions associated with the new reader (can be NULL).
  * @param[in]  rhc                       Reader history cache to use, reader becomes the owner
@@ -1938,8 +2022,7 @@ dds_create_reader(
  *            A valid reader handle.
  * @retval DDS_RETCODE_ERROR
  *            An internal error occurred.
- *
- * DOC_TODO: Complete list of error codes
+ * @see dds_create_reader for the full set of possible return codes.
  */
 DDS_EXPORT dds_entity_t
 dds_create_reader_rhc(
@@ -1982,9 +2065,12 @@ dds_reader_wait_for_historical_data(
  * @ingroup writer
  * @component writer
  *
- * When a participant is used to create a writer, an implicit publisher is created.
- * This implicit publisher will be deleted automatically when the created writer
- * is deleted.
+ * When a participant is used to create a writer, an implicit publisher is
+ * created as the writer's parent. This implicit publisher is deleted
+ * automatically when its last child is deleted, which is when the created
+ * writer is deleted unless additional children were added to the implicit
+ * publisher. It is also deleted as part of the recursive deletion of the
+ * participant.
  *
  * @param[in]  participant_or_publisher The participant or publisher on which the writer is being created.
  * @param[in]  topic The topic to write.
@@ -1993,12 +2079,21 @@ dds_reader_wait_for_historical_data(
  *
  * @returns A valid writer handle or an error code.
  *
- * @returns >0
+ * @retval >0
  *              A valid writer handle.
- * @returns DDS_RETCODE_ERROR
+ * @retval DDS_RETCODE_ERROR
  *              An internal error occurred.
- *
- * DOC_TODO: Complete list of error codes
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *              One of the parameters is invalid, or the participant and topic do
+ *              not belong to the same domain participant.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *              participant_or_publisher is neither a participant nor a publisher,
+ *              or the operation is otherwise inappropriate for the supplied entity.
+ * @retval DDS_RETCODE_INCONSISTENT_POLICY
+ *              The requested QoS is inconsistent.
+ * @retval DDS_RETCODE_NOT_ALLOWED_BY_SECURITY
+ *              The configured DDS Security access control plugin denied creation
+ *              of the writer.
  */
 DDS_EXPORT dds_entity_t
 dds_create_writer(
