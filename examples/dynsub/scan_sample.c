@@ -383,6 +383,159 @@ static const DDS_XTypes_CompleteStructMember *find_struct_member (struct dyntype
   return find_struct_member1 (dtl, m_base, obj, &off, t, name);
 }
 
+static const DDS_XTypes_CompleteUnionMember *find_union_member (DDS_XTypes_CompleteUnionType const * const t, const char *name)
+{
+  for (uint32_t i = 0; i < t->member_seq._length; i++)
+  {
+    const DDS_XTypes_CompleteUnionMember *m = &t->member_seq._buffer[i];
+    if (strcmp (name, m->detail.name) == 0)
+      return m;
+  }
+  return NULL;
+}
+
+static size_t union_data_offset (struct dyntypelib *dtl, DDS_XTypes_CompleteUnionType const * const t)
+{
+  const size_t disc_size = dtl_get_typeid_size (dtl, &t->discriminator.common.type_id);
+  size_t data_off = disc_size;
+  for (uint32_t i = 0; i < t->member_seq._length; i++)
+  {
+    DDS_XTypes_CompleteUnionMember const * const m = &t->member_seq._buffer[i];
+    size_t a;
+    if (m->common.member_flags & (DDS_XTypes_IS_OPTIONAL | DDS_XTypes_IS_EXTERNAL))
+      a = _Alignof (char *);
+    else
+      a = dtl_get_typeid_align (dtl, &m->common.type_id);
+    if (a > data_off)
+      data_off = a;
+  }
+  return data_off;
+}
+
+static bool scan_union (struct dyntypelib *dtl, unsigned char *obj, DDS_XTypes_CompleteUnionType const * const t, struct elem const * const elem, bool ignore_unknown_members, struct dyntypelib_error *err)
+{
+  const size_t disc_size = dtl_get_typeid_size (dtl, &t->discriminator.common.type_id);
+  struct elem const * disc_elem = NULL;
+  struct elem const * data_elem = NULL;
+  for (struct elem const *e = elem->children; e; e = e->next)
+  {
+    if (strcmp (e->name, "discriminator") == 0)
+    {
+      if (disc_elem)
+        return (dtl_set_error (err, e, "union: multiple discriminator children\n") == DDS_RETCODE_OK);
+      disc_elem = e;
+    }
+    else
+    {
+      if (data_elem)
+        return (dtl_set_error (err, e, "union: multiple data children\n") == DDS_RETCODE_OK);
+      data_elem = e;
+    }
+  }
+  if (disc_elem == NULL && data_elem == NULL)
+    return (dtl_set_error (err, elem, "union: discriminator and data missing\n") == DDS_RETCODE_OK);
+
+  DDS_XTypes_CompleteUnionMember const *data_member = NULL;
+  if (data_elem)
+  {
+    data_member = find_union_member (t, data_elem->name);
+    if (data_member == NULL)
+      return (dtl_set_error (err, data_elem, "union: unknown data element\n") == DDS_RETCODE_OK);
+  }
+
+  // If discriminant given, convert and store it; if not, store the label value associated
+  // with the member that we did get (but only if there's exactly one label value).
+  //
+  // If either path succeeded, we have the numerical value of the discriminant in the
+  // struct we are scanning into and we can extract it and check it against the specified
+  // case.
+  if (disc_elem)
+  {
+    if (!scan_sample1_ti (dtl, obj, &t->discriminator.common.type_id, disc_elem, false, false, err))
+      return false;
+  }
+  else
+  {
+    assert (data_elem != NULL);
+
+    if (data_member->common.label_seq._length != 1)
+      return (dtl_set_error (err, data_elem, "union: no discriminant, ambiguous label for data element\n") == DDS_RETCODE_OK);
+
+    const int32_t dv = data_member->common.label_seq._buffer[0];
+    switch (t->discriminator.common.type_id._d)
+    {
+      case DDS_XTypes_TK_INT8:  *((int8_t *) obj) = (int8_t) dv; break;
+      case DDS_XTypes_TK_INT16: *((int16_t *) obj) = (int16_t) dv; break;
+      case DDS_XTypes_TK_INT32: *((int32_t *) obj) = dv; break;
+      case DDS_XTypes_TK_INT64: *((int64_t *) obj) = dv; break;
+      default:
+        switch (disc_size)
+        {
+          case 1: *((uint8_t *) obj) = (uint8_t) dv; break;
+          case 2: *((uint16_t *) obj) = (uint16_t) dv; break;
+          case 4: *((uint32_t *) obj) = (uint32_t) dv; break;
+          case 8: *((uint64_t *) obj) = (uint32_t) dv; break;
+          default: abort ();
+        }
+        break;
+    }
+  }
+
+  // Extract discriminant value
+  uint64_t disc_value = 0;
+  switch (t->discriminator.common.type_id._d)
+  {
+    case DDS_XTypes_TK_INT8:  disc_value = (uint64_t) *((int8_t *) obj); break;
+    case DDS_XTypes_TK_INT16: disc_value = (uint64_t) *((int16_t *) obj); break;
+    case DDS_XTypes_TK_INT32: disc_value = (uint64_t) *((int32_t *) obj); break;
+    case DDS_XTypes_TK_INT64: disc_value = (uint64_t) *((int64_t *) obj); break;
+    default:
+      switch (disc_size)
+      {
+        case 1: disc_value = *((uint8_t *) obj); break;
+        case 2: disc_value = *((uint16_t *) obj); break;
+        case 4: disc_value = *((uint32_t *) obj); break;
+        case 8: disc_value = *((uint64_t *) obj); break;
+        default: abort ();
+      }
+      break;
+  }
+
+  // Scan member if present
+  if (data_elem == NULL)
+  {
+    for (uint32_t i = 0; i < t->member_seq._length; i++)
+    {
+      DDS_XTypes_CompleteUnionMember const * const m = &t->member_seq._buffer[i];
+      if (m->common.member_flags & DDS_XTypes_IS_DEFAULT)
+        return (dtl_set_error (err, elem, "union value required") == DDS_RETCODE_OK);
+      for (uint32_t j = 0; j < m->common.label_seq._length; j++)
+        if (disc_value == (uint64_t) ((uint32_t) m->common.label_seq._buffer[j]))
+          return (dtl_set_error (err, elem, "union value required") == DDS_RETCODE_OK);
+    }
+    return true;
+  }
+  else
+  {
+    if (!(data_member->common.member_flags & DDS_XTypes_IS_DEFAULT))
+    {
+      uint32_t labelidx;
+      for (labelidx = 0; labelidx < data_member->common.label_seq._length; labelidx++)
+      {
+        // FIXME: it looks like label_seq holds 32-bit ints in type obj. If so, how are
+        // 64-bit discriminators supposed to be supported?
+        if (disc_value == (uint64_t) ((uint32_t) data_member->common.label_seq._buffer[labelidx]))
+          break;
+      }
+      if (labelidx == data_member->common.label_seq._length)
+        return (dtl_set_error (err, elem, "case labels do not include discriminator") == DDS_RETCODE_OK);
+    }
+    const bool case_is_opt_or_ext = data_member->common.member_flags & (DDS_XTypes_IS_OPTIONAL | DDS_XTypes_IS_EXTERNAL);
+    const size_t data_off = union_data_offset (dtl, t);
+    return scan_sample1_ti (dtl, obj + data_off, &data_member->common.type_id, data_elem, case_is_opt_or_ext, ignore_unknown_members, err);
+  }
+}
+
 static bool scan_sample1_to (struct dyntypelib *dtl, unsigned char *obj, DDS_XTypes_CompleteTypeObject const * const typeobj, struct elem const * const elem, const bool is_opt_or_ext, const bool ignore_unknown_members, struct dyntypelib_error *err)
 {
   if (is_opt_or_ext && !dtl_is_unbounded_string_to (typeobj))
@@ -476,73 +629,7 @@ static bool scan_sample1_to (struct dyntypelib *dtl, unsigned char *obj, DDS_XTy
     }
 
     case DDS_XTypes_TK_UNION: {
-      const DDS_XTypes_CompleteUnionType *t = &typeobj->_u.union_type;
-      uint64_t disc_value = 0;
-      // discriminator is always at offset 0
-      if (elem->children == NULL ||
-          strcmp (elem->children->name, "discriminator") != 0 ||
-          elem->children->next == NULL || elem->children->next->next != NULL)
-      {
-        return (dtl_set_error (err, elem, "union: expected first child 'discriminator' and second child matching union case\n") == DDS_RETCODE_OK);
-      }
-      if (!scan_sample1_ti (dtl, obj, &t->discriminator.common.type_id, elem->children, false, false, err))
-        return false;
-      const size_t disc_size = dtl_get_typeid_size (dtl, &t->discriminator.common.type_id);
-      switch (t->discriminator.common.type_id._d)
-      {
-        case DDS_XTypes_TK_INT8:  disc_value = (uint64_t) *((int8_t *) obj); break;
-        case DDS_XTypes_TK_INT16: disc_value = (uint64_t) *((int16_t *) obj); break;
-        case DDS_XTypes_TK_INT32: disc_value = (uint64_t) *((int32_t *) obj); break;
-        case DDS_XTypes_TK_INT64: disc_value = (uint64_t) *((int64_t *) obj); break;
-        default:
-          switch (disc_size)
-          {
-            case 1: disc_value = *((uint8_t *) obj); break;
-            case 2: disc_value = *((uint16_t *) obj); break;
-            case 4: disc_value = *((uint32_t *) obj); break;
-            case 8: disc_value = *((uint64_t *) obj); break;
-            default: abort ();
-          }
-          break;
-      }
-      size_t data_off = disc_size;
-      for (uint32_t i = 0; i < t->member_seq._length; i++)
-      {
-        // FIXME: shouldn't need to recompute this every time
-        DDS_XTypes_CompleteUnionMember const * const m = &t->member_seq._buffer[i];
-        size_t a;
-        if (m->common.member_flags & (DDS_XTypes_IS_OPTIONAL | DDS_XTypes_IS_EXTERNAL))
-          a = _Alignof (char *);
-        else
-          a = dtl_get_typeid_align (dtl, &m->common.type_id);
-        if (a > data_off)
-          data_off = a;
-      }
-      uint32_t memberidx;
-      for (memberidx = 0; memberidx < t->member_seq._length; memberidx++)
-      {
-        DDS_XTypes_CompleteUnionMember const * const m = &t->member_seq._buffer[memberidx];
-        if (strcmp (m->detail.name, elem->children->next->name) == 0)
-          break;
-      }
-      if (memberidx == t->member_seq._length)
-        return (dtl_set_error (err, elem, "union case not found") == DDS_RETCODE_OK);
-      DDS_XTypes_CompleteUnionMember const * const m = &t->member_seq._buffer[memberidx];
-      if (!(m->common.member_flags & DDS_XTypes_IS_DEFAULT))
-      {
-        uint32_t labelidx;
-        for (labelidx = 0; labelidx < m->common.label_seq._length; labelidx++)
-        {
-          // FIXME: it looks like label_seq holds 32-bit ints in type obj. If so, how are
-          // 64-bit discriminators supposed to be supported?
-          if (disc_value == (uint64_t) m->common.label_seq._buffer[labelidx])
-            break;
-        }
-        if (labelidx == m->common.label_seq._length)
-          return (dtl_set_error (err, elem, "case labels do not include discriminator") == DDS_RETCODE_OK);
-      }
-      const bool case_is_opt_or_ext = m->common.member_flags & (DDS_XTypes_IS_OPTIONAL | DDS_XTypes_IS_EXTERNAL);
-      return scan_sample1_ti (dtl, obj + data_off, &m->common.type_id, elem->children->next, case_is_opt_or_ext, ignore_unknown_members, err);
+      return scan_union (dtl, obj, &typeobj->_u.union_type, elem, ignore_unknown_members, err);
     }
   }
 
