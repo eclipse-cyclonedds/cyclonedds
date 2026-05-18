@@ -10,8 +10,7 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 cmake_minimum_required(VERSION 3.16)
-# C++ is only for Iceoryx plugin
-project(CycloneDDS VERSION 11.0.1 LANGUAGES C CXX)
+project(CycloneDDS VERSION 11.0.1 LANGUAGES C)
 
 # Set a default build type if none was specified
 set(default_build_type "RelWithDebInfo")
@@ -50,6 +49,12 @@ endif()
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 if(NOT BUILD_SHARED_LIBS AND NOT CMAKE_CROSSCOMPILING)
   message(WARNING "It is probably best to build a static library as-if cross compiling (e.g., use -DCMAKE_CROSSCOMPILING=1 -DCMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME} -DCMAKE_PREFIX_PATH=<path to shared-library build>)")
+endif()
+
+# When we are build static libraries, Iceoryx requires C++ support at top-level as well.
+if(NOT BUILD_SHARED_LIBS AND ENABLE_ICEORYX)
+  enable_language(CXX)
+  set(CMAKE_CXX_STANDARD 17)
 endif()
 
 # By default don't treat warnings as errors, else anyone building it with a different compiler that
@@ -360,24 +365,6 @@ endif()
 
 set(CMAKE_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}")
 
-# Generate <Package>Config.cmake
-configure_package_config_file(
-  "PackageConfig.cmake.in"
-  "${PROJECT_NAME}Config.cmake"
-  INSTALL_DESTINATION "${CMAKE_INSTALL_CMAKEDIR}")
-
-# Generate <Package>Version.cmake
-write_basic_package_version_file(
-  "${PROJECT_NAME}ConfigVersion.cmake"
-  VERSION ${PROJECT_VERSION}
-  COMPATIBILITY SameMajorVersion)
-
-install(
-  FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-        "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
-  DESTINATION "${CMAKE_INSTALL_CMAKEDIR}"
-  COMPONENT dev)
-
 # Generate <Package>Targets.cmake
 install(
   EXPORT ${PROJECT_NAME}
@@ -430,5 +417,24 @@ endif()
 if(DEFINED ENV{LIB_FUZZING_ENGINE} AND BUILD_IDLC)
   add_subdirectory(fuzz)
 endif()
+
+# Generate <Package>Config.cmake after processing subdirectories because
+# ENABLE_SSL can be AUTO and is resolved in src/CMakeLists.txt.
+configure_package_config_file(
+  "PackageConfig.cmake.in"
+  "${PROJECT_NAME}Config.cmake"
+  INSTALL_DESTINATION "${CMAKE_INSTALL_CMAKEDIR}")
+
+# Generate <Package>Version.cmake
+write_basic_package_version_file(
+  "${PROJECT_NAME}ConfigVersion.cmake"
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY SameMajorVersion)
+
+install(
+  FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+  DESTINATION "${CMAKE_INSTALL_CMAKEDIR}"
+  COMPONENT dev)
 
 include(CMakeCPack.cmake)

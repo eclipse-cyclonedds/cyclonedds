@@ -9,7 +9,6 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-set(CMAKE_CXX_STANDARD 17)
 include(GenerateExportHeader)
 
 if(ENABLE_ICEORYX2)
@@ -57,6 +56,8 @@ if(ENABLE_ICEORYX2)
 endif()
 
 if(ENABLE_ICEORYX)
+  enable_language(CXX)
+  set(CMAKE_CXX_STANDARD 17)
   message(STATUS "Building Iceoryx PSMX plugin")
   set(psmx_iox_sources
     src/psmx_iox_impl.cpp
