@@ -86,6 +86,8 @@ static bool doread (struct dyntypelib *dtl, const dds_entity_t ws, const dds_ent
   dds_sample_info_t si;
   while ((rc = dds_take (rd, &ptr, &si, 1, 1)) == 1)
   {
+    if (!si.valid_data)
+      printf ("[invalid] ");
     dtl_print_sample (dtl, si.valid_data, ptr, &typeobj->_u.complete);
     dds_return_loan (rd, &ptr, 1);
   }
