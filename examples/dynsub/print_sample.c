@@ -305,14 +305,17 @@ static void print_sample1_to (struct type_cache *tc, const unsigned char *sample
       struct typeinfo templ = { .key = { .key = (uintptr_t) typeobj } }, *info = type_cache_lookup (tc, &templ);
       const DDS_XTypes_CompleteEnumeratedType *t = &typeobj->_u.enumerated_type;
       const int *p = align (sample, c, info->align, info->size);
-      if (c->needs_comma) fputc (',', stdout);
-      if (label) printf ("\"%s\":", label);
-      for (uint32_t l = 0; l < t->literal_seq._length; l++)
+      if (c->key || c->valid_data)
       {
-        if (t->literal_seq._buffer[l].common.value == *p)
-          printf ("\"%s\"", t->literal_seq._buffer[l].detail.name);
+        if (c->needs_comma) fputc (',', stdout);
+        if (label) printf ("\"%s\":", label);
+        for (uint32_t l = 0; l < t->literal_seq._length; l++)
+        {
+          if (t->literal_seq._buffer[l].common.value == *p)
+            printf ("\"%s\"", t->literal_seq._buffer[l].detail.name);
+        }
+        c->needs_comma = true;
       }
-      c->needs_comma = true;
       break;
     }
     case DDS_XTypes_TK_UNION: {
