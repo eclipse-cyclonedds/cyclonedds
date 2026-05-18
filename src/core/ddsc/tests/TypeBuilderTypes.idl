@@ -644,4 +644,28 @@ module TypeBuilderTypes {
     t55b f2;
     t55c f3;
   };
+
+  bitmask t56_bm32pos {
+    @position(1) BM32POS_1,
+    BM32POS_2,
+    @position(3) BM32POS_3,
+    BM32POS_4,
+    BM32POS_5,
+    BM32POS_6,
+    BM32POS_7,
+    BM32POS_8,
+    BM32POS_9,
+    BM32POS_10
+  };
+
+  typedef t56_bm32pos t56_bm32pos_arr[3];
+  typedef string<3> t56_bstring;
+  typedef t56_bstring t56_bstring_arr[2];
+
+  struct t56 {
+    @key sequence<t56_bm32pos_arr> f1;
+    @optional double f2;
+    string<22> f3;
+    sequence<@try_construct(TRIM) t56_bstring_arr, 1> f4;
+  };
 };

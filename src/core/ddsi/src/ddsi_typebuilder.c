@@ -605,8 +605,7 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
       }
       if ((ret = typebuilder_add_type (tbd, &tb_type->args.collection_args.elem_sz,
               &tb_type->args.collection_args.elem_align,
-              tb_type->args.collection_args.element_type.type, el_type, false, false,
-              get_tc (type->xt._u.seq.c.element_flags))) != DDS_RETCODE_OK)
+              tb_type->args.collection_args.element_type.type, el_type, false, false, tc)) != DDS_RETCODE_OK)
       {
         goto err;
       }

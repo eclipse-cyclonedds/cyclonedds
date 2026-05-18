@@ -1497,6 +1497,7 @@ emit_array(
     uint32_t off;
     uint32_t opcode = DDS_OP_ADR | DDS_OP_TYPE_ARR;
     uint32_t order;
+    idl_try_construct_t tc = IDL_DISCARD;
     struct field *field = NULL;
 
     /* type definitions do not introduce a field */
@@ -1544,12 +1545,15 @@ emit_array(
     if (idl_is_struct (stype->node)) {
       idl_node_t *parent = idl_parent (node);
       assert (idl_is_member (parent));
-      set_try_construct (&opcode, type_spec, ((idl_member_t *)parent)->try_construct.value, true);
+      tc = ((idl_member_t *)parent)->try_construct.value;
     } else if (idl_is_union (stype->node)) {
       idl_node_t *parent = idl_parent (node);
       assert (idl_is_case (parent));
-      set_try_construct (&opcode, type_spec, ((idl_case_t *)parent)->try_construct.value, true);
+      tc = ((idl_case_t *)parent)->try_construct.value;
+    } else if (idl_is_sequence (stype->node)) {
+      tc = ((idl_sequence_t *) stype->node)->elem_try_construct.value;
     }
+    set_try_construct (&opcode, type_spec, tc, true);
 
     off = ctype->instructions.count;
     /* generate data field opcode */
