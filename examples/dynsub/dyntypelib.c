@@ -579,6 +579,7 @@ static dds_return_t make_enum (const struct make_context *ctxt, const struct ele
       return dtl_set_error (err, elem, "set_bit_bound failed: %s\n", dds_strretcode (rc));
   }
 
+  bool have_deflit = false;
   for (const struct elem *m = elem->children; m; m = m->next)
   {
     if (strcmp (m->name, "enumerator") != 0)
@@ -594,8 +595,25 @@ static dds_return_t make_enum (const struct make_context *ctxt, const struct ele
     int pos;
     if (sscanf (valuestr, "%"SCNd32"%n", &value, &pos) != 1 || valuestr[pos] != 0)
       return dtl_set_error (err, m, "value not a plain integer %s\n", valuestr);
+    const char *deflitstr = getattr (m, "defaultLiteral");
+    bool deflit = false;
+    if (deflitstr != NULL)
+    {
+      if (strcmp (deflitstr, "true") == 0)
+        deflit = true;
+      else if (strcmp (deflitstr, "false") == 0)
+        deflit = false;
+      else
+        return dtl_set_error (err, m, "defaultLiteral %s not valid\n", deflitstr);
+    }
+    if (deflit)
+    {
+      if (have_deflit)
+        return dtl_set_error (err, m, "multiple default literals\n");
+      have_deflit = true;
+    }
 
-    rc = dds_dynamic_type_add_enum_literal (denum, mname, DDS_DYNAMIC_ENUM_LITERAL_VALUE(value), false);
+    rc = dds_dynamic_type_add_enum_literal (denum, mname, DDS_DYNAMIC_ENUM_LITERAL_VALUE(value), deflit);
     if (rc != DDS_RETCODE_OK)
       return dtl_set_error (err, m, "add_enum_literal failed: %s\n",  dds_strretcode (rc));
   }
