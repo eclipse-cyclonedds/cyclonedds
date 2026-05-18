@@ -2738,6 +2738,8 @@ static bool xt_is_assignable_from_enum (const struct xt_type *t1, const struct x
 ddsrt_nonnull_all
 static bool xt_is_assignable_from_union (struct ddsi_domaingv *gv, const struct xt_type *t1, const struct xt_type *t2, const dds_type_consistency_enforcement_qospolicy_t *tce, struct ddsi_non_assignability_reason *reason)
 {
+  /* Note: T1 is the type of the writer, T2 is the type of the writer. These impractical names
+     are used because this is reader the definition of assignability in the specification. */
   assert (t1->_d == DDS_XTypes_TK_UNION);
   assert (t2->_d == DDS_XTypes_TK_UNION);
   if (xt_get_extensibility (t1) != xt_get_extensibility (t2))
@@ -2783,9 +2785,7 @@ static bool xt_is_assignable_from_union (struct ddsi_domaingv *gv, const struct 
       struct xt_union_member *m2 = &t2->_u.union_type.members.seq[i2 % i2_max];
       const struct xt_type *m2t = ddsi_xt_unalias (&m2->type->xt);
       if (m1->id == m2->id)
-      {
         m2_id_match = true;
-      }
 
       /* Rule: If T1 and T2 both have default labels, the type associated with T1 default member is assignable from
           the type associated with T2 default member. */
@@ -3053,10 +3053,10 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
         - if T1 is appendable, then members with the same member_index have the same member ID, the same setting for the
           optional attribute and the T1 member type is strongly assignable from the T2 member type
         - if T1 is final, then they meet the same condition as for T1 being appendable and ... (see below) */
-    struct xt_struct_member *m2 = &te2->_u.structure.members.seq[i1];
+    struct xt_struct_member *m2 = (i1 < i2_max) ? &te2->_u.structure.members.seq[i1] : NULL;
     if ((xt_get_extensibility (te1) == DDS_XTypes_IS_APPENDABLE && i1 < i2_max) || xt_get_extensibility (te1) == DDS_XTypes_IS_FINAL)
     {
-      if (i1 >= i2_max) {
+      if (m2 == NULL) {
         xt_non_assignable (reason, DDSI_NONASSIGN_NUMBER_OF_MEMBERS, t1, t2, 0);
         goto struct_failed;
       } else if (m1->id != m2->id) {
@@ -3070,9 +3070,9 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
       }
     }
     /* if T1 is final, or prevent type-widening is set: ... [continued] in addition T1 and T2 have the same set of member IDs */
-    if ((xt_get_extensibility (te1) == DDS_XTypes_IS_FINAL || (tce->prevent_type_widening && !(m2->flags & DDS_XTypes_IS_OPTIONAL))) && !match)
+    if ((xt_get_extensibility (te1) == DDS_XTypes_IS_FINAL || (tce->prevent_type_widening && !(m1->flags & DDS_XTypes_IS_OPTIONAL))) && !match)
     {
-      xt_non_assignable (reason, DDSI_NONASSIGN_NUMBER_OF_MEMBERS, t1, t2, m2->id);
+      xt_non_assignable (reason, DDSI_NONASSIGN_NUMBER_OF_MEMBERS, t1, t2, m1->id);
       goto struct_failed;
     }
   } /* for members in T1 */
@@ -3089,8 +3089,7 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
     bool match = false;
     if ((!(m2->flags & DDS_XTypes_IS_OPTIONAL) && (m2->flags & DDS_XTypes_IS_MUST_UNDERSTAND))
         || (m2->flags & DDS_XTypes_IS_KEY)
-        || xt_get_extensibility (te1) == DDS_XTypes_IS_FINAL
-        || (tce->prevent_type_widening && !(m2->flags & DDS_XTypes_IS_OPTIONAL)))
+        || xt_get_extensibility (te1) == DDS_XTypes_IS_FINAL)
     {
       for (uint32_t i1 = i2; !match && i1 < i1_max + i2; i1++)
         match = (te1->_u.structure.members.seq[i1 % i1_max].id == m2->id);

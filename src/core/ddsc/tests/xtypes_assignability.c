@@ -483,6 +483,11 @@ CU_Theory ((const dds_topic_descriptor_t *rd_desc, const dds_topic_descriptor_t 
 #define DDS_TD_T const dds_topic_descriptor_t *
 #define DDS_TCE_T dds_type_consistency_kind_t
 
+/* Note: for most of these cases the pattern is that t_1 is the reader type and t_N with N
+   > 1 the writer type. However, for type-widening it is inverted. The reason is that the
+   implementation of the assignability check and of this test case followed the naming in
+   the specification, but that meaning in the specification of T1 and T2 is effectively
+   reversed in the section describing type-widening. Yay. */
 CU_TheoryDataPoints (ddsc_xtypes_assignability, type_consistency_enforcement) = {
   CU_DataPoints (const char *,
                             "wr seq bound > rd seq bound, but ignore_seq_bounds",
@@ -507,8 +512,8 @@ CU_TheoryDataPoints (ddsc_xtypes_assignability, type_consistency_enforcement) = 
                                                                                                                                                                                                        "widen mutable type, prevent_type_widening",
                                                                                                                                                                                                                 "widen union type, !prevent_type_widening",
                                                                                                                                                                                                                          "widen union type, prevent_type_widening"),
-  CU_DataPoints (DDS_TD_T,  D(t1_1), D(t1_1), D(t1_1), D(t1_3), D(t1_1), D(t1_1), D(t2_1), D(t2_1), D(t2_1), D(t2_3), D(t3_1), D(t3_1), D(t4_1), D(t4_1), D(t5_1), D(t5_1), D(t5_1), D(t5_1), D(t6_1), D(t6_1), D(t7_1), D(t7_1)    ),
-  CU_DataPoints (DDS_TD_T,  D(t1_2), D(t1_2), D(t1_3), D(t1_1), D(t1_1), D(t1_3), D(t2_2), D(t2_2), D(t2_3), D(t2_1), D(t3_2), D(t3_2), D(t4_2), D(t4_2), D(t5_2), D(t5_2), D(t5_3), D(t5_4), D(t6_2), D(t6_2), D(t7_2), D(t7_2)    ),
+  CU_DataPoints (DDS_TD_T,  D(t1_1), D(t1_1), D(t1_1), D(t1_3), D(t1_1), D(t1_1), D(t2_1), D(t2_1), D(t2_1), D(t2_3), D(t3_1), D(t3_1), D(t4_1), D(t4_1), D(t5_2), D(t5_2), D(t5_3), D(t5_4), D(t6_2), D(t6_2), D(t7_2), D(t7_2)    ),
+  CU_DataPoints (DDS_TD_T,  D(t1_2), D(t1_2), D(t1_3), D(t1_1), D(t1_1), D(t1_3), D(t2_2), D(t2_2), D(t2_3), D(t2_1), D(t3_2), D(t3_2), D(t4_2), D(t4_2), D(t5_1), D(t5_1), D(t5_1), D(t5_1), D(t6_1), D(t6_1), D(t7_1), D(t7_1)    ),
 
   CU_DataPoints (DDS_TCE_T, ALLOW  , ALLOW  , ALLOW  , ALLOW  , DISALW , DISALW , ALLOW  , ALLOW  , ALLOW  , ALLOW  , ALLOW  , ALLOW  , ALLOW  , ALLOW  , ALLOW  , ALLOW  , ALLOW  , ALLOW  , ALLOW  , ALLOW  , ALLOW  , ALLOW      ),  // allow/disallow type coercion
   CU_DataPoints (bool,      DF     , DF     , DF     , DF     , DF     , DF     , DF     , DF     , DF     , DF     , DF     , DF     , DF     , DF     , false  , true   , true   , true   , false  , true   , false  , true       ),  // prevent_type_widening
@@ -539,6 +544,46 @@ CU_Theory ((const char *test, const dds_topic_descriptor_t *rd_desc, const dds_t
 #undef DF
 #undef DDS_TD_T
 #undef DDS_TCE_T
+
+#define D(n) (&XSpaceTypeConsistencyEnforcement_ ## n ## _desc)
+CU_Test (ddsc_xtypes_assignability, type_widening, .init = xtypes_assignability_init, .fini = xtypes_assignability_fini)
+{
+  static const struct {
+    const dds_topic_descriptor_t *rd_desc;
+    const dds_topic_descriptor_t *wr_desc;
+    bool assignable[2]; /* !prevent type widening, p t w */
+  } tests[] = {
+    // same struct type (not really interesting)
+    { D (t5_1), D (t5_1), { true, true } },
+    { D (t5_2), D (t5_2), { true, true } },
+    { D (t5_3), D (t5_3), { true, true } },
+    { D (t5_4), D (t5_4), { true, true } },
+    { D (t6_1), D (t6_1), { true, true } },
+    { D (t6_2), D (t6_2), { true, true } },
+    // read narrow, write wide: all ok
+    { D (t5_1), D (t5_2), { true, true } },
+    { D (t5_1), D (t5_3), { true, true } },
+    { D (t5_1), D (t5_4), { true, true } },
+    { D (t6_1), D (t6_2), { true, true } },
+    // read wide, write narrow: not all ok
+    { D (t5_2), D (t5_1), { true, false } },
+    { D (t5_3), D (t5_1), { true, false } },
+    { D (t5_4), D (t5_1), { true, true } },
+    { D (t6_2), D (t6_1), { true, false } }
+  };
+  for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    for (int ptw = 0; ptw <= 1; ptw++)
+    {
+      tprintf ("Running test type_widening: rd %s wr %s ptw %d\n", tests[i].rd_desc->m_typename, tests[i].wr_desc->m_typename, ptw);
+      dds_qos_t *qos = dds_create_qos ();
+      dds_qset_type_consistency (qos, DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION, true, true, false, (ptw != 0), false);
+      do_test (tests[i].rd_desc, qos, tests[i].wr_desc, NULL, tests[i].assignable[ptw], 0, false, 0);
+      dds_delete_qos (qos);
+    }
+  }
+}
+#undef D
 
 /* Type consistency enforcement policy test case for force_type_validation */
 CU_Test (ddsc_xtypes_assignability, type_consistency_enforcement_force_validation, .init = xtypes_assignability_init, .fini = xtypes_assignability_fini)
