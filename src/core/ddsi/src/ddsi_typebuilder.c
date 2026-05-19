@@ -1058,7 +1058,7 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
           PUSH_ARG (tb_type->args.collection_args.elem_sz);
           uint32_t next_insn_idx = ops->index;
           PUSH_ARG (4 + (bounded ? 1u : 0u));  // set elem_insn, next_insn is set after element
-          if ((ret = get_ops_type (element_type, flags & (DDS_OP_FLAG_KEY | DDS_OP_FLAG_MU), 0u, ops)) != DDS_RETCODE_OK)
+          if ((ret = get_ops_type (element_type, flags & DDS_OP_FLAG_KEY, 0u, ops)) != DDS_RETCODE_OK)
             goto err;
           PUSH_OP (DDS_OP_RTS);
           OR_OP (next_insn_idx, (uint32_t) (ops->index - adr_index) << 16u);
@@ -1116,7 +1116,7 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
           uint32_t next_insn_idx = ops->index;
           PUSH_ARG (5);  // set elem_insn, next_insn is set after element
           PUSH_ARG (tb_type->args.collection_args.elem_sz);
-          if ((ret = get_ops_type (element_type, flags & (DDS_OP_FLAG_KEY | DDS_OP_FLAG_MU), 0u, ops)) != DDS_RETCODE_OK)
+          if ((ret = get_ops_type (element_type, flags & DDS_OP_FLAG_KEY, 0u, ops)) != DDS_RETCODE_OK)
             goto err;
           PUSH_OP (DDS_OP_RTS);
           OR_OP (next_insn_idx, (uint32_t) (ops->index - adr_index) << 16u);

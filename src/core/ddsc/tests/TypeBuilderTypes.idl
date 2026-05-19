@@ -683,4 +683,10 @@ module TypeBuilderTypes {
     case 4: @try_construct(TRIM) @external t57_bstring u4;
     case 5: @external t57_bm16 u5;
   };
+
+  @mutable
+  struct t58 {
+    @id(1) @must_understand sequence<sequence<long> > f1;
+    @id(2) @must_understand sequence<long> f2[2];
+  };
 };
