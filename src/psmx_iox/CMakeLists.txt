@@ -42,9 +42,10 @@ if(ENABLE_ICEORYX2)
     target_link_libraries(psmx_iox2 PRIVATE ddsc)
   endif()
 
-  if(iceoryx2-c_VERSION VERSION_GREATER_EQUAL 0.8.999)
-    target_compile_definitions(psmx_iox2 PRIVATE HAS_DISCARD_DATA)
-  endif()
+  target_compile_definitions(psmx_iox2 PRIVATE PSMX_IOX2_MAJOR ${iceoryx2_c_VERSION_MAJOR})
+  target_compile_definitions(psmx_iox2 PRIVATE PSMX_IOX2_MINOR ${iceoryx2_c_VERSION_MINOR})
+  target_compile_definitions(psmx_iox2 PRIVATE PSMX_IOX2_PATCH ${iceoryx2_c_VERSION_PATCH})
+
   if(MSVC)
     target_compile_definitions(psmx_iox2 PRIVATE _CRT_SECURE_NO_WARNINGS)
   endif()

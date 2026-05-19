@@ -29,6 +29,10 @@
 
 #include "psmx_iox2_impl.h"
 
+#define PSMX_IOX2_VERSION_GEQ(ma, mi, pa)                               \
+  ((PSMX_IOX2_MAJOR * 1000000 + PSMX_IOX2_MINOR * 1000 + PSMX_IOX2_PATCH) >= \
+   ((ma) * 1000000 + (mi) * 1000 + (pa)))
+
 // I think we need to track whether the listener thread is supposed to stop or not because we don't
 // want to propagate the event through shared memory.  Perhaps creating a separate notification port
 // and attaching it separately to the waitset could work.
@@ -893,14 +897,19 @@ static bool psmx_iox2_init_writer (psmx_iox2_endpoint_t *ep, psmx_iox2_topic_t *
 
   dds_reliability_kind_t rel;
   (void) dds_qget_reliability (qos, &rel, NULL);
-#if HAS_DISCARD_DATA
+#if PSMX_IOX2_VERSION_GEQ(0,90,0)
+  iox2_backpressure_strategy_e discard = iox2_backpressure_strategy_e_DISCARD_DATA;
+  iox2_backpressure_strategy_e block = iox2_backpressure_strategy_e_RETRY_UNTIL_DELIVERED;
+  iox2_port_factory_publisher_builder_backpressure_strategy (&publisher_builder_handle, rel == DDS_RELIABILITY_BEST_EFFORT ? discard : block);
+#elif PSMX_IOX2_VERSION_GEQ(0,80,999)
   iox2_unable_to_deliver_strategy_e discard = iox2_unable_to_deliver_strategy_e_DISCARD_DATA;
   iox2_unable_to_deliver_strategy_e block = iox2_unable_to_deliver_strategy_e_RETRY_UNTIL_DELIVERED;
+  iox2_port_factory_publisher_builder_unable_to_deliver_strategy (&publisher_builder_handle, rel == DDS_RELIABILITY_BEST_EFFORT ? discard : block);
 #else
   iox2_unable_to_deliver_strategy_e discard = iox2_unable_to_deliver_strategy_e_DISCARD_SAMPLE;
   iox2_unable_to_deliver_strategy_e block = iox2_unable_to_deliver_strategy_e_BLOCK;
-#endif
   iox2_port_factory_publisher_builder_unable_to_deliver_strategy (&publisher_builder_handle, rel == DDS_RELIABILITY_BEST_EFFORT ? discard : block);
+#endif
 
   int e = iox2_port_factory_publisher_builder_create (publisher_builder_handle, NULL, &ep->iox2_handle.wr);
   if (e != IOX2_OK) {
