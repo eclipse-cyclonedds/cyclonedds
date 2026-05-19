@@ -1238,8 +1238,13 @@ static dds_return_t get_ops_union_case (struct typebuilder_type *tb_type, uint32
       PUSH_ARG (0);
       break;
     case DDS_OP_VAL_WCHAR:
-    case DDS_OP_VAL_16BY:
       PUSH_OP ((uint32_t) DDS_OP_JEQ4 | (uint32_t) DDS_OP_TYPE_WCHAR | flags);
+      PUSH_ARG (disc_value);
+      PUSH_ARG (offset);
+      PUSH_ARG (0);
+      break;
+    case DDS_OP_VAL_16BY:
+      PUSH_OP ((uint32_t) DDS_OP_JEQ4 | (uint32_t) DDS_OP_TYPE_16BY | flags);
       PUSH_ARG (disc_value);
       PUSH_ARG (offset);
       PUSH_ARG (0);
