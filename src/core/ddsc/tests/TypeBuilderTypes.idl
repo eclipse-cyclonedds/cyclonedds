@@ -668,4 +668,19 @@ module TypeBuilderTypes {
     string<22> f3;
     sequence<@try_construct(TRIM) t56_bstring_arr, 1> f4;
   };
+
+  @bit_bound(12) bitmask t57_bm16 {
+    T57_BM16_1,
+    T57_BM16_2
+  };
+
+  typedef string<5> t57_bstring;
+
+  union t57 switch (short) {
+    case 1: @external sequence<long> u1;
+    case 2: @external sequence<long, 3> u2;
+    case 3: @external sequence<t57_bstring, 2> u3;
+    case 4: @try_construct(TRIM) @external t57_bstring u4;
+    case 5: @external t57_bm16 u5;
+  };
 };

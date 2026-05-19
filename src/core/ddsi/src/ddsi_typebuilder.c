@@ -1262,13 +1262,20 @@ static dds_return_t get_ops_union_case (struct typebuilder_type *tb_type, uint32
     case DDS_OP_VAL_SEQ:
     case DDS_OP_VAL_ARR: {
       uint32_t inst_offs_idx = ops->index;
+      uint32_t ext_size = 0;
       /* don't add type flags here, because the offset of the (in-union) type ops
          is included here, which includes the member type flags */
       PUSH_OP (DDS_OP_JEQ4 | (tb_type->type_code << 16u) | flags);
       PUSH_ARG (disc_value);
       PUSH_ARG (offset);
-      bool push_elem_sz = flags & DDS_OP_FLAG_EXT && (tb_type->type_code != DDS_OP_VAL_SEQ || tb_type->type_code == DDS_OP_VAL_BSQ || tb_type->type_code == DDS_OP_VAL_ARR);
-      PUSH_ARG (push_elem_sz ? tb_type->args.collection_args.elem_sz : 0);
+      if (flags & DDS_OP_FLAG_EXT)
+      {
+        if (tb_type->type_code == DDS_OP_VAL_SEQ || tb_type->type_code == DDS_OP_VAL_BSQ)
+          ext_size = sizeof (dds_sequence_t);
+        else if (tb_type->type_code == DDS_OP_VAL_ARR)
+          ext_size = tb_type->args.collection_args.elem_sz;
+      }
+      PUSH_ARG (ext_size);
 
       // set offset to inline type
       assert (inst_offs_idx < *inline_types_offs);
