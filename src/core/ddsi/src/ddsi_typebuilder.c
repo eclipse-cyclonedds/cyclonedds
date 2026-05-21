@@ -1726,7 +1726,7 @@ static dds_return_t typebuilder_get_keys_build_descriptor (const struct typebuil
     if (!(*key_desc)[k].m_name)
     {
       for (uint32_t i = 0; i < k; i++)
-        ddsrt_free ((char *) (*key_desc)[k].m_name); // cast const away, inherited from ye olden days
+        ddsrt_free ((char *) (*key_desc)[i].m_name); // cast const away, inherited from ye olden days
       ddsrt_free (*key_desc);
       return DDS_RETCODE_OUT_OF_RESOURCES;
     }
