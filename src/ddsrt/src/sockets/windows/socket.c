@@ -100,6 +100,20 @@ ddsrt_socket(ddsrt_socket_t *sockptr, int domain, int type, int protocol)
   return DDS_RETCODE_ERROR;
 }
 
+#if defined UNDER_RTSS
+
+// RTX64 doesn't support SO_TYPE nor SIO_GET_EXENSION_FUNCTION_POINTER.
+void
+ddsrt_socket_ext_init(
+  ddsrt_socket_ext_t *sockext,
+  ddsrt_socket_t sock)
+{
+  sockext->sock = sock;
+  sockext->wsarecvmsg = 0;
+}
+
+#else // UNDER_RTSS
+
 void
 ddsrt_socket_ext_init(
   ddsrt_socket_ext_t *sockext,
@@ -129,6 +143,8 @@ ddsrt_socket_ext_init(
     }
   }
 }
+
+#endif // UNDER_RTSS
 
 void
 ddsrt_socket_ext_fini(
@@ -696,6 +712,66 @@ ddsrt_send(
   return send_error_to_retcode(WSAGetLastError());
 }
 
+#if defined UNDER_RTSS
+
+// RTX64 doesn't support Vectored I/O with WSASendTo,
+// so we have to copy the data into a contiguous buffer before sending it.
+// NOTE: To avoid dynamic memory allocation at every packet transmission,
+//       we use a fixed-size buffer on the stack.
+dds_return_t
+ddsrt_sendmsg(
+  ddsrt_socket_t sock,
+  const ddsrt_msghdr_t *msg,
+  int flags,
+  size_t *sent)
+{
+  BYTE TxBuffer[1500];
+  ULONG TxPayloadLength;
+  ULONG CurrentOffset;
+  int n;
+
+  assert(msg != NULL);
+  assert(msg->msg_controllen == 0);
+
+  TxPayloadLength = 0;
+  for(ULONG i = 0; i < msg->msg_iovlen; i++) {
+    ULONG iov_len = msg->msg_iov[i].iov_len;
+    TxPayloadLength += iov_len;
+  }
+
+  if (TxPayloadLength == 0) {
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
+
+  if (TxPayloadLength > sizeof(TxBuffer)) {
+     DDS_ERROR ("ddsrt_sendmsg: TxPayloadLength = %u, max = %u\n", TxPayloadLength, sizeof(TxBuffer));
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
+
+  CurrentOffset = 0;
+  for(ULONG i = 0; i < msg->msg_iovlen; i++) {
+    ULONG iov_len = msg->msg_iov[i].iov_len;
+    memcpy(TxBuffer + CurrentOffset, msg->msg_iov[i].iov_base, iov_len);
+    CurrentOffset += iov_len;
+  }
+
+  n = sendto(sock,
+             TxBuffer,
+             TxPayloadLength,
+             flags,
+             (struct sockaddr *)msg->msg_name,
+             msg->msg_namelen);
+
+  if (n != SOCKET_ERROR) {
+    *sent = n;
+    return DDS_RETCODE_OK;
+  }
+
+  return send_error_to_retcode(WSAGetLastError());
+}
+
+#else // UNDER_RTSS
+
 dds_return_t
 ddsrt_sendmsg(
   ddsrt_socket_t sock,
@@ -728,6 +804,8 @@ ddsrt_sendmsg(
 
   return send_error_to_retcode(WSAGetLastError());
 }
+
+#endif // UNDER_RTSS
 
 dds_return_t
 ddsrt_select(

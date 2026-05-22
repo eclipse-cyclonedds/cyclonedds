@@ -21,7 +21,7 @@ if (BUILD_DDSPERF)
     async_listener.c async_listener.h)
   target_link_libraries(ddsperf ddsperf_types ddsc compat)
 
-  if(WIN32)
+  if(WIN32 OR RTX64)
     target_compile_definitions(ddsperf PRIVATE _CRT_SECURE_NO_WARNINGS)
   endif()
 

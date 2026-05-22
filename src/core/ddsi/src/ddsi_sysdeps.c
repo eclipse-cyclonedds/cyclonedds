@@ -67,7 +67,7 @@ void ddsi_log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, 
   }
   ddsrt_atomic_st32 (&log_stacktrace_flag, 0);
 }
-#elif defined _MSC_VER
+#elif (defined _MSC_VER && !defined UNDER_RTSS)
 #include <dbghelp.h>
 
 static ddsrt_atomic_uint32_t log_stacktrace_init = DDSRT_ATOMIC_UINT32_INIT(0);

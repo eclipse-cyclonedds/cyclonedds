@@ -14,7 +14,10 @@
 #include "dds/ddsrt/types.h"
 
 #define DDSRT_HAVE_THREAD_SETNAME (1)
+
+#if !defined UNDER_RTSS
 #define DDSRT_HAVE_THREAD_LIST (1)
+#endif // UNDER_RTSS
 
 #if defined (__cplusplus)
 extern "C" {

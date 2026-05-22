@@ -16,6 +16,11 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/misc.h"
 
+#if defined UNDER_RTSS
+#include <rtapi.h>
+#include <rtssapi.h>
+#endif
+
 /* tlhelp32 for ddsrt_thread_list */
 #include <stdio.h>
 #include <stdlib.h>
@@ -100,6 +105,85 @@ os_startRoutineWrapper(
   return resultValue;
 }
 
+#if defined UNDER_RTSS
+
+dds_return_t
+ddsrt_thread_create(
+  ddsrt_thread_t *thrptr,
+  const char *name,
+  const ddsrt_threadattr_t *attr,
+  ddsrt_thread_routine_t start_routine,
+  void *arg)
+{
+  ddsrt_thread_t thr;
+  thread_context_t *ctx;
+  int32_t prio;
+
+  assert(thrptr != NULL);
+  assert(name != NULL);
+  assert(attr != NULL);
+  assert(start_routine != NULL);
+
+  if (attr->schedAffinityN > 0)
+  {
+    /* Didn't implement setting thread affinity on Windows yet */
+    return DDS_RETCODE_ERROR;
+  }
+
+  if ((ctx = ddsrt_malloc(sizeof(*ctx))) == NULL ||
+      (ctx->name = ddsrt_strdup(name)) == NULL)
+  {
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  }
+
+  ctx->routine = start_routine;
+  ctx->arg = arg;
+  thr.handle = CreateThread(NULL,
+    (SIZE_T)attr->stackSize,
+    (LPTHREAD_START_ROUTINE)os_startRoutineWrapper,
+    (LPVOID)ctx,
+    CREATE_SUSPENDED,
+    &thr.tid);
+
+  if (thr.handle == NULL)
+  {
+    return DDS_RETCODE_ERROR;
+  }
+
+  *thrptr = thr;
+
+  prio = attr->schedPriority;
+  if (prio < RT_PRIORITY_MIN || prio > RT_PRIORITY_MAX)
+  {
+    return DDS_RETCODE_ERROR;
+  }
+
+  if (!RtSetThreadPriority(thr.handle, prio))
+  {
+    DDS_WARNING("RtSetThreadPriority failed with %" PRIu32 "\n", (uint32_t)GetLastError());
+  }
+
+  DWORD IdealProcessor = RtGetCurrentProcessorNumber();
+  SetLastError(0);
+  DWORD PreviousIdealProcessor = SetThreadIdealProcessor(thr.handle, IdealProcessor);
+  DWORD LastErrorCode = GetLastError(); 
+  if (PreviousIdealProcessor == (DWORD)-1 || LastErrorCode != 0)
+  {
+    DDS_WARNING("SetThreadIdealProcessor failed with %" PRIu32 "\n", (uint32_t)LastErrorCode);
+  }
+
+  DWORD Ret = ResumeThread(thr.handle);
+  if (Ret == 0xFFFFFFFF)
+  {
+    DDS_WARNING("ResumeThread failed with %" PRIu32 "\n", (uint32_t)GetLastError());
+    return DDS_RETCODE_ERROR;
+  }
+
+  return DDS_RETCODE_OK;
+}
+
+#else // UNDER_RTSS
+
 dds_return_t
 ddsrt_thread_create(
   ddsrt_thread_t *thrptr,
@@ -175,6 +259,8 @@ ddsrt_thread_create(
 
   return DDS_RETCODE_OK;
 }
+
+#endif // UNDER_RTSS
 
 ddsrt_tid_t
 ddsrt_gettid(void)

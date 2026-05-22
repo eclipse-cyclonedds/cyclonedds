@@ -806,9 +806,12 @@ static int make_pipe (ddsrt_socket_t fd[2])
   addr.sin_port = 0;
   if (bind (listener, (struct sockaddr *)&addr, sizeof (addr)) == -1)
     goto fail;
-  if (getsockname (listener, (struct sockaddr *)&addr, &asize) == -1)
-    goto fail;
+  // NOTE: Although the common practice is to call getsockname() immediately
+  //       after bind(), some WIN32-like platforms like RTX64 require that
+  //       listen() be called before getsockname() when using ephemeral port.
   if (listen (listener, 1) == -1)
+    goto fail;
+  if (getsockname (listener, (struct sockaddr *)&addr, &asize) == -1)
     goto fail;
   if (connect (s1, (struct sockaddr *)&addr, sizeof (addr)) == -1)
     goto fail;

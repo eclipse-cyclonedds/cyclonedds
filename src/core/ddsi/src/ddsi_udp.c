@@ -586,10 +586,17 @@ static dds_return_t set_mc_options_transmit_ipv4 (struct ddsi_domaingv const * c
     GVERROR ("ddsi_udp_create_conn: set IP_MULTICAST_TTL failed: %s\n", dds_strretcode (rc));
     return rc;
   }
+#if defined UNDER_RTSS
+  if (loop) {
+    GVERROR ("ddsi_udp_create_conn: IP_MULTICAST_LOOP is not supported by RTX64, please set EnableMulticastLoopback to false\n");
+    return DDS_RETCODE_ERROR;
+  }
+#else
   if ((rc = ddsrt_setsockopt (sock, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof (loop))) != DDS_RETCODE_OK) {
     GVERROR ("ddsi_udp_create_conn: set IP_MULTICAST_LOOP failed: %s\n", dds_strretcode (rc));
     return rc;
   }
+#endif
   return DDS_RETCODE_OK;
 }
 

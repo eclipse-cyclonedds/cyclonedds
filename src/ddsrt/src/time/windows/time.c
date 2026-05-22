@@ -110,6 +110,50 @@ ddsrt_wctime_t ddsrt_time_wallclock(void)
   return (ddsrt_wctime_t) { dds_time() } ;
 }
 
+#if defined UNDER_RTSS
+
+static int64_t get_time_since_rtss_startup(void)
+{
+  LARGE_INTEGER qpc;
+  static LONGLONG qpc_freq_mhz; // Counts per microsecond
+
+  if (qpc_freq_mhz == 0){
+    LARGE_INTEGER frequency;
+
+    if (QueryPerformanceFrequency(&frequency)) {
+      qpc_freq_mhz = frequency.QuadPart/1000000;
+    }
+  }
+  assert(qpc_freq_mhz);
+
+  QueryPerformanceCounter(&qpc);
+
+  return (qpc.QuadPart*1000) / qpc_freq_mhz;
+}
+
+ddsrt_mtime_t ddsrt_time_monotonic(void)
+{
+  ddsrt_mtime_t mt;
+  mt.v = get_time_since_rtss_startup();
+  return mt;
+}
+
+ddsrt_etime_t ddsrt_time_elapsed(void)
+{
+  ddsrt_etime_t et;
+  et.v = get_time_since_rtss_startup();
+  return et;
+}
+
+ddsrt_hrtime_t ddsrt_time_highres(void)
+{
+  ddsrt_hrtime_t hrt;
+  hrt.v = get_time_since_rtss_startup();
+  return hrt;
+}
+
+#else // UNDER_RTSS
+
 ddsrt_mtime_t ddsrt_time_monotonic(void)
 {
   ULONGLONG ubit;
@@ -169,6 +213,8 @@ ddsrt_hrtime_t ddsrt_time_highres(void)
   (void)QueryUnbiasedInterruptTime(&ubit); /* 100ns ticks */
   return (ddsrt_hrtime_t) { ubit * 100 };
 }
+
+#endif // UNDER_RTSS
 
 void dds_sleepfor (dds_duration_t timeout)
 {

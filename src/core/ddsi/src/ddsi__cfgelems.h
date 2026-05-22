@@ -445,6 +445,18 @@ static struct cfgelem general_cfgelems[] = {
       "raweth)</p>"),
     VALUES("default","udp","udp6","raweth")),
 #endif
+#if defined UNDER_RTSS // EnableMulticastLoopback option is not supported on RTX64
+  BOOL("EnableMulticastLoopback", NULL, 1, "false",
+    MEMBER(enableMulticastLoopback),
+    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
+    DESCRIPTION(
+      "<p>This element specifies whether Cyclone DDS allows IP multicast "
+      "packets to be visible to all DDSI participants in the same node, "
+      "including itself. It must be \"true\" for intra-node multicast "
+      "communications. However, if a node runs only a single Cyclone DDS service "
+      "and does not host any other DDSI-capable programs, it should be set "
+      "to \"false\" for improved performance.</p>")),
+#else
   BOOL("EnableMulticastLoopback", NULL, 1, "true",
     MEMBER(enableMulticastLoopback),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
@@ -455,6 +467,21 @@ static struct cfgelem general_cfgelems[] = {
       "communications. However, if a node runs only a single Cyclone DDS service "
       "and does not host any other DDSI-capable programs, it should be set "
       "to \"false\" for improved performance.</p>")),
+#endif
+#if defined UNDER_RTSS // Messages larger than 1500 bytes are not supported on RTX64 (see ddsrt_sendmsg)
+  STRING("MaxMessageSize", NULL, 1, "1500 B",
+    MEMBER(max_msg_size),
+    FUNCTIONS(0, uf_memsize, 0, pf_memsize),
+    DESCRIPTION(
+      "<p>This element specifies the maximum size of the UDP payload that "
+      "Cyclone DDS will generate. Cyclone DDS will try to maintain this limit within "
+      "the bounds of the DDSI specification, which means that in some cases "
+      "(especially for very low values of MaxMessageSize) larger payloads "
+      "may sporadically be observed (currently up to 1192 B).</p>\n"
+      "<p>On some networks it may be necessary to set this item to keep the "
+      "packetsize below the MTU to prevent IP fragmentation.</p>"),
+    UNIT("memsize")),
+#else
   STRING("MaxMessageSize", NULL, 1, "14720 B",
     MEMBER(max_msg_size),
     FUNCTIONS(0, uf_memsize, 0, pf_memsize),
@@ -467,6 +494,7 @@ static struct cfgelem general_cfgelems[] = {
       "<p>On some networks it may be necessary to set this item to keep the "
       "packetsize below the MTU to prevent IP fragmentation.</p>"),
     UNIT("memsize")),
+#endif
   STRING("MaxRexmitMessageSize", NULL, 1, "1456 B",
     MEMBER(max_rexmit_msg_size),
     FUNCTIONS(0, uf_memsize, 0, pf_memsize),
