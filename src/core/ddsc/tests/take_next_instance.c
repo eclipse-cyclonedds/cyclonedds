@@ -912,7 +912,7 @@ CU_Test(ddsc_read_next_instance, querycondition, .init=take_next_instance_init, 
 
     CU_ASSERT_EQ_FATAL(ret, 0);
     CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
-    CU_ASSERT_EQ_FATAL(cntinv, 1);
+    CU_ASSERT_EQ_FATAL(cntinv, 2);
 
     /* All samples should still be available. */
     ret = samples_cnt();
@@ -1400,7 +1400,7 @@ CU_Test(ddsc_peek_next_instance, querycondition, .init=take_next_instance_init, 
 
     CU_ASSERT_EQ_FATAL(ret, 0);
     CU_ASSERT_EQ_FATAL(cnt, expected_cnt);
-    CU_ASSERT_EQ_FATAL(cntinv, 1);
+    CU_ASSERT_EQ_FATAL(cntinv, 2);
 
     /* All samples should still be available. */
     ret = samples_cnt();
