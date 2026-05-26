@@ -586,12 +586,7 @@ static dds_return_t set_mc_options_transmit_ipv4 (struct ddsi_domaingv const * c
     GVERROR ("ddsi_udp_create_conn: set IP_MULTICAST_TTL failed: %s\n", dds_strretcode (rc));
     return rc;
   }
-#if defined UNDER_RTSS
-  if (loop) {
-    GVERROR ("ddsi_udp_create_conn: IP_MULTICAST_LOOP is not supported by RTX64, please set EnableMulticastLoopback to false\n");
-    return DDS_RETCODE_ERROR;
-  }
-#else
+#if !defined UNDER_RTSS // IP_MULTICAST_LOOP is not supported by RTX64
   if ((rc = ddsrt_setsockopt (sock, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof (loop))) != DDS_RETCODE_OK) {
     GVERROR ("ddsi_udp_create_conn: set IP_MULTICAST_LOOP failed: %s\n", dds_strretcode (rc));
     return rc;
@@ -1182,6 +1177,21 @@ int ddsi_udp_init (struct ddsi_domaingv*gv)
     fact->fact.m_default_spdp_address = "udp6/ff02::ffff:239.255.0.1";
   }
 #endif
+
+#if defined UNDER_RTSS
+  // Some of the configuration values are restricted by RTX64:
+  // - EnableMulticastLoopback must be equal to false
+  // - MaxMessageSize must be lower than or equal to 1500 bytes
+  // We enforce those restrictions here.
+  if (gv->config.enableMulticastLoopback) {
+    GVWARNING ("ddsi_udp_init: EnableMulticastLoopback not supported by RTX64: forcing value to false\n");
+    gv->config.enableMulticastLoopback = 0;
+  }
+  if (gv->config.max_msg_size > 1500) {
+    GVWARNING ("ddsi_udp_init: MaxMessageSize > 1500 not supported by RTX64: clamping value to 1500\n");
+    gv->config.max_msg_size = 1500;
+  }
+#endif // UNDER_RTSS
 
   ddsrt_mutex_init (&fact->ownaddrs_lock);
 #if DDSRT_HAVE_IPV6
