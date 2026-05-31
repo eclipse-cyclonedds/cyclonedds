@@ -421,6 +421,7 @@ struct ddsi_config
   int generate_keyhash;
   uint32_t max_sample_size;
   enum ddsi_boolean_default extended_packet_info;
+  int use_destination_port_as_source_port;
 
   /* compability options */
   enum ddsi_standards_conformance standards_conformance;

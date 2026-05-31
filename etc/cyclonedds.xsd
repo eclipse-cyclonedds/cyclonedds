@@ -782,6 +782,7 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:SynchronousDeliveryLatencyBound"/>
         <xs:element minOccurs="0" ref="config:SynchronousDeliveryPriorityThreshold"/>
         <xs:element minOccurs="0" ref="config:Test"/>
+        <xs:element minOccurs="0" ref="config:UseDestinationPortAsSourcePort"/>
         <xs:element minOccurs="0" ref="config:UseMulticastIfMreqn"/>
         <xs:element minOccurs="0" ref="config:Watermarks"/>
         <xs:element minOccurs="0" ref="config:WriterLingerDuration"/>
@@ -1253,6 +1254,13 @@ CycloneDDS configuration</xs:documentation>
       <xs:documentation>
 &lt;p&gt;This element controls the fraction of outgoing packets to drop, specified as samples per thousand.&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;0&lt;/code&gt;&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+  <xs:element name="UseDestinationPortAsSourcePort" type="xs:boolean">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;This element controls whether UDP packets are sent with a source port equal to the destination port of the packet. When disabled, dedicated transmit sockets may use an operating-system-selected source port.&lt;/p&gt;
+&lt;p&gt;The default value is: &lt;code&gt;false&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="UseMulticastIfMreqn" type="xs:integer">
@@ -2122,9 +2130,9 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:restriction>
   </xs:simpleType>
 </xs:schema>
-<!--- generated from ddsi_config.h[94ad20bdb44ea1f393ba906865b1da591bbe1b57] -->
+<!--- generated from ddsi_config.h[77696283ffc117218de7889db4354cf4f79d548d] -->
 <!--- generated from ddsi_config.c[9fb9ace4394a1b7d50f4e0fa3905bbba2a183e36] -->
-<!--- generated from ddsi__cfgelems.h[6e57a9213340839aeac89e7417646451cc5bb706] -->
+<!--- generated from ddsi__cfgelems.h[9eefd4a1daf98e64bc1a545d48c710c712690487] -->
 <!--- generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] -->
 <!--- generated from _confgen.h[bb9a0fc6ef1f7f7c46790ee00132e340e5fff36d] -->
 <!--- generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] -->

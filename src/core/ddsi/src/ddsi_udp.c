@@ -157,6 +157,44 @@ static void translate_pktinfo (struct ddsi_network_packet_info *pktinfo, ddsrt_m
   pktinfo->if_index = 0;
 }
 
+static void sockaddr_set_port (union addr *addr, uint32_t port)
+{
+  assert (port <= UINT16_MAX);
+  switch (addr->a.sa_family)
+  {
+#if DDSRT_HAVE_IPV6
+    case AF_INET6:
+      addr->a6.sin6_port = htons ((uint16_t) port);
+      break;
+#endif
+    default:
+      assert (addr->a.sa_family == AF_INET);
+      addr->a4.sin_port = htons ((uint16_t) port);
+      break;
+  }
+}
+
+static struct ddsi_tran_conn *same_port_conn_for_dst (
+    const struct ddsi_domaingv *gv,
+    struct ddsi_tran_conn *conn,
+    const ddsi_locator_t *dst)
+{
+  struct ddsi_tran_conn *candidates[] = {
+    gv->disc_conn_mc,
+    gv->data_conn_mc,
+    gv->disc_conn_uc,
+    gv->data_conn_uc
+  };
+  for (size_t i = 0; i < sizeof (candidates) / sizeof (candidates[0]); i++)
+  {
+    struct ddsi_tran_conn *candidate = candidates[i];
+    if (candidate && candidate != conn && candidate->m_factory == conn->m_factory &&
+        ddsi_conn_port (candidate) == dst->port && ddsi_factory_supports (candidate->m_factory, dst->kind))
+      return candidate;
+  }
+  return NULL;
+}
+
 ddsrt_nonnull((1, 2, 6)) ddsrt_attribute_warn_unused_result
 static dds_return_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned char * buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo, size_t *bytes_read)
 {
@@ -257,9 +295,11 @@ static dds_return_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   struct ddsi_domaingv * const gv = conn->m_base.m_base.gv;
   dds_return_t rc;
-  size_t nsent;
+  size_t nsent = 0;
   unsigned retry = 2;
   int sendflags = 0;
+  ddsrt_socket_t sendsock = conn->m_sockext.sock;
+  bool close_sendsock = false;
 #if defined _WIN32 && !defined WINCE
   ddsrt_mtime_t timeout = DDSRT_MTIME_NEVER;
   ddsrt_mtime_t tnow = { 0 };
@@ -279,10 +319,33 @@ static dds_return_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const
   };
   (void) flags; // in case ! DDSRT_MSGHDR_FLAGS
 
+  if (gv->config.use_destination_port_as_source_port &&
+      dst->port != DDSI_LOCATOR_PORT_INVALID &&
+      conn->m_base.m_base.m_port != dst->port)
+  {
+    struct ddsi_tran_conn *same_port_conn = same_port_conn_for_dst (gv, conn_cmn, dst);
+    if (same_port_conn)
+    {
+      return ddsi_conn_write (same_port_conn, dst, msgfrags, flags, bytes_written);
+    }
+    else
+    {
+      union addr srcaddr = conn->m_addr;
+      sockaddr_set_port (&srcaddr, dst->port);
+      if ((rc = ddsrt_socket (&sendsock, srcaddr.a.sa_family, SOCK_DGRAM, 0)) != DDS_RETCODE_OK)
+        goto fail_same_port_socket;
+      close_sendsock = true;
+      if ((rc = ddsrt_setsockreuse (sendsock, true)) != DDS_RETCODE_OK && rc != DDS_RETCODE_UNSUPPORTED)
+        goto fail_same_port_socket;
+      if ((rc = ddsrt_bind (sendsock, &srcaddr.a, ddsrt_sockaddr_get_size (&srcaddr.a))) != DDS_RETCODE_OK)
+        goto fail_same_port_socket;
+    }
+  }
+
 #if MSG_NOSIGNAL && !LWIP_SOCKET
   sendflags |= MSG_NOSIGNAL;
 #endif
-  rc = ddsrt_sendmsg (conn->m_sockext.sock, &msg, sendflags, &nsent);
+  rc = ddsrt_sendmsg (sendsock, &msg, sendflags, &nsent);
   if (rc != DDS_RETCODE_OK)
   {
     // IIRC, NOT_ALLOWED is something that spuriously happens on some old versions of Linux i.c.w. firewalls
@@ -312,7 +375,7 @@ static dds_return_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const
         WSAEnumNetworkEvents (conn->m_sockext.sock, conn->m_sockEvent, &ev);
       }
 #endif
-      rc = ddsrt_sendmsg (conn->m_sockext.sock, &msg, sendflags, &nsent);
+      rc = ddsrt_sendmsg (sendsock, &msg, sendflags, &nsent);
     }
   }
 
@@ -320,7 +383,7 @@ static dds_return_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const
   {
     union addr sa;
     socklen_t alen = sizeof (sa);
-    if (ddsrt_getsockname (conn->m_sockext.sock, &sa.a, &alen) != DDS_RETCODE_OK)
+    if (ddsrt_getsockname (sendsock, &sa.a, &alen) != DDS_RETCODE_OK)
       memset(&sa, 0, sizeof(sa));
     ddsi_write_pcap_sent (gv, ddsrt_time_wallclock (), &sa.x, &msg, (size_t) nsent);
   }
@@ -331,6 +394,21 @@ static dds_return_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const
   }
   if (bytes_written)
     *bytes_written = (size_t) nsent;
+  if (close_sendsock)
+    ddsrt_close (sendsock);
+  return rc;
+
+fail_same_port_socket:
+  if (close_sendsock)
+    ddsrt_close (sendsock);
+  if (rc != DDS_RETCODE_NOT_ALLOWED && rc != DDS_RETCODE_NO_CONNECTION)
+  {
+    char locbuf[DDSI_LOCSTRLEN];
+    GVERROR ("ddsi_udp_conn_write to %s failed to bind source port %"PRIu32": %s\n",
+             ddsi_locator_to_string (locbuf, sizeof (locbuf), dst), dst->port, dds_strretcode (rc));
+  }
+  if (bytes_written)
+    *bytes_written = 0;
   return rc;
 }
 
@@ -747,6 +825,7 @@ static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, stru
 
   ddsi_factory_conn_init (&fact->fact, intf, &conn->m_base);
   conn->m_base.m_base.m_port = get_socket_port (gv, sock);
+  sockaddr_set_port (&conn->m_addr, conn->m_base.m_base.m_port);
   conn->m_base.m_base.m_trantype = DDSI_TRAN_CONN;
   conn->m_base.m_base.m_multicast = (qos->m_purpose == DDSI_TRAN_QOS_RECV_MC);
   conn->m_base.m_base.m_handle_fn = ddsi_udp_conn_handle;
