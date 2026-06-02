@@ -8,7 +8,7 @@ RTX64 SDK v4.5.5 or later
 
 ### Build
 
-Open a Visual Studio Developer Command Prompt and navigate to the root of the repository.
+Open an x64 Native Tools Command Prompt and navigate to the root of the repository.
 
 **Pass 1: make a Windows build**
 
@@ -34,9 +34,11 @@ cmake --build . --config RtssRelease --target install
 
 ### Test the installation
 
-Make sure you have a NIC configured with TCP/IP support.
+Run the build steps above with BUILD_DDSPERF=ON.
 
-If needed, create a configuration file (see https://cyclonedds.io/docs/cyclonedds/latest/config/index.html) and create a system environment variable named ``CYCLONEDDS_URI`` that points to it. A configuration file might be useful if you have multiple NICs configured and you want to specify which one Cyclone DDS shall use.
+Make sure you have a NIC converted to RTX64 and configured with TCP/IP support enabled and with Link status monitoring enabled.
+
+If needed, create a configuration file (see https://cyclonedds.io/docs/cyclonedds/latest/config/index.html) and create an environment variable, at the system level, named ``CYCLONEDDS_URI``, that points to the file. A configuration file is especially useful if you have multiple NICs configured and you want to specify which one Cyclone DDS shall use.
 
 Start the RTX64 runtime, the NAL and the TCP/IP Stack.
 
@@ -44,7 +46,7 @@ Go to ``<rtx64-install-location>\bin`` and do ``rtssrun ddsperf sanity``.
 
 On another machine connected to the same network, run ``ddsperf pong``.
 
-Note: the other machine may be running RTX64, Windows, Linux, or any other system supported by Cyclone DDS.
+Note: the other machine may be running RTX64, Windows, Linux, or any other system supported by Cyclone DDS. Make sure you also define a configuration file on that other machine if it has multiple NICs.
 
 
 ## Known limitations
