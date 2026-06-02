@@ -42,7 +42,7 @@ static void exitfmt (const char *fmt, ...)
 
 static bool lookup_type_pair (struct dyntypelib *dtl, const char *names, struct dyntype **wrtype, struct dyntype **rdtype)
 {
-  char *wtname = strdup (names);
+  char *wtname = ddsrt_strdup (names);
   if (wtname == NULL)
     return false;
   char *rtname = strchr (wtname, '/');

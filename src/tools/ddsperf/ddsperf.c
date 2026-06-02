@@ -704,7 +704,9 @@ static uint32_t pubthread (void *varg)
   int result;
   dds_instance_handle_t *ihs;
   ddsrt_hrtime_t ntot = {0}, tfirst;
-  union data data;
+  // "data" is a big variable (>64KB), that's why it's defined as static here.
+  // Note: there is no risk as there cannot be more than 1 "pub" thread running.
+  static union data data;
   void *baggage = NULL;
   (void) varg;
 
@@ -1228,7 +1230,9 @@ static bool process_pong (dds_entity_t rd, struct subthread_arg *arg)
 static void maybe_send_new_ping (ddsrt_hrtime_t tnow, ddsrt_hrtime_t *tnextping)
 {
   void *baggage;
-  union data data;
+  // "data" is a big variable (>64KB), that's why it's defined as static here.
+  // Note: there is no risk as this function is called from main() only.
+  static union data data;
   int32_t rc;
   assert (ping_intv != DDS_INFINITY);
   ddsrt_mutex_lock (&pongwr_lock);

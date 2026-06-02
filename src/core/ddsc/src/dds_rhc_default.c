@@ -2115,19 +2115,30 @@ static struct rhc_instance *next_nonempty_instance_by_id(const struct readtake_w
     //otherwise the application won't be able to get the next instance handle
 
     //Make sure instance view state matches, otherwise it's as if the instance is empty
-    if((qmask_of_inst(current_instance) & state->qminv) != 0) continue; 
+    if(inst_is_empty(current_instance) || (qmask_of_inst(current_instance) & state->qminv) != 0) continue; 
 
     //check for readable valid samples
     bool unmasked_sample_exists = false;
-    struct rhc_sample *sample = current_instance->latest->next, * const end1 = sample;
-    do {
-      if ((qmask_of_sample (sample) & state->qminv) == 0 && (state->qcmask == 0 || (sample->conds & state->qcmask)))
+    if(current_instance->latest != NULL)
+    {
+      struct rhc_sample *sample = current_instance->latest->next, * const end1 = sample;
+      do 
       {
-        unmasked_sample_exists = true;
-        break;
-      }
-      sample = sample->next;
-    } while (sample != end1);
+        if ((qmask_of_sample (sample) & state->qminv) == 0 && (state->qcmask == 0 || (sample->conds & state->qcmask)))
+        {
+          unmasked_sample_exists = true;
+          break;
+        }
+        sample = sample->next;
+      } while (sample != end1);
+    }
+
+    if (current_instance->inv_exists &&
+        (qmask_of_invsample (current_instance) & state->qminv) == 0 &&
+        (state->qcmask == 0 || (current_instance->conds & state->qcmask) != 0))
+    {
+      unmasked_sample_exists = true;
+    }
 
     if(!unmasked_sample_exists) continue;
 
