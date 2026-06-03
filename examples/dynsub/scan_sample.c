@@ -189,7 +189,10 @@ static bool scan_sample1_simple (unsigned char * const base, const uint8_t disc,
     case DDS_XTypes_TK_UINT64:
       return getuint64 (elem->data, (uint64_t *) base);
     case DDS_XTypes_TK_CHAR8:
-      *(char *) base = elem->data[0];
+      if (strlen(elem->data) > 1)
+        *(char *) base = (char)strtol(elem->data, NULL, 0);
+      else
+        *(char *) base = elem->data[0];
       return true;
     case DDS_XTypes_TK_STRING8:
       *(char **) base = ddsrt_strdup (elem->data);
