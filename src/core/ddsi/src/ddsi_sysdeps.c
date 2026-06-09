@@ -120,6 +120,14 @@ static DWORD init_stackframe (STACKFRAME64 *frame, const CONTEXT *context)
   frame->AddrStack.Offset = context->IntSp;
   frame->AddrStack.Mode = AddrModeFlat;
   return IMAGE_FILE_MACHINE_IA64;
+#elif _M_ARM64
+  frame->AddrPC.Offset = context->Pc;
+  frame->AddrPC.Mode = AddrModeFlat;
+  frame->AddrFrame.Offset = context->Fp;
+  frame->AddrFrame.Mode = AddrModeFlat;
+  frame->AddrStack.Offset = context->Sp;
+  frame->AddrStack.Mode = AddrModeFlat;
+  return IMAGE_FILE_MACHINE_ARM64;
 #else
 #error "Unsupported machine type for windows stacktrace support"
 #endif
