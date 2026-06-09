@@ -7218,7 +7218,9 @@ bool dds_stream_extensibility (const uint32_t *ops, enum dds_cdr_type_extensibil
         break;
     }
   }
-  return false;
+  /* A final empty aggregate has no ADR/DLC/PLC instruction before RTS. */
+  *ext = DDS_CDR_TYPE_EXT_FINAL;
+  return true;
 }
 
 uint32_t dds_stream_type_nesting_depth (const uint32_t *ops)
@@ -7755,7 +7757,8 @@ static bool mid_equal (const void *va, const void *vb)
 
 static const uint32_t *dds_stream_get_memberid_table (const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, struct ddsrt_hh **table)
 {
-  *table = ddsrt_hh_new (1, mid_hash, mid_equal);
+  if (*table == NULL)
+    *table = ddsrt_hh_new (1, mid_hash, mid_equal);
   uint32_t insn;
   while ((insn = *ops) != DDS_OP_RTS)
   {
@@ -7765,7 +7768,8 @@ static const uint32_t *dds_stream_get_memberid_table (const struct dds_cdrstream
         struct dds_cdrstream_desc_mid *m = allocator->malloc (sizeof (*m));
         m->adr_offs = (uint32_t) (insn & DDS_MID_OFFSET_MASK);
         m->mid = ops[1];
-        ddsrt_hh_add (*table, m);
+        if (!ddsrt_hh_add (*table, m))
+          allocator->free (m);
         ops += 2;
         break;
       }
