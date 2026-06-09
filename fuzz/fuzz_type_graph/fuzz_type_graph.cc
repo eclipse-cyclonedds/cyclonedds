@@ -36,6 +36,7 @@ extern "C" {
 #include "dds/ddsi/ddsi_init.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_typewrap.h"
+#include "dds/ddsi/ddsi_xt_typemap.h"
 #include "ddsi__thread.h"
 #include "ddsi__typelib.h"
 #include "ddsi__typewrap.h"
@@ -50,9 +51,14 @@ constexpr uint32_t kMaxValues = 8;
 constexpr uint32_t kMaxActions = 8;
 constexpr uint32_t kMaxMutations = 8;
 constexpr uint32_t kUseExternalTypeRefFlag = 0x40u;
+constexpr uint32_t kTypeBuiltinAnnotationFlag = 0x80u;
+constexpr uint32_t kTypeCustomAnnotationFlag = 0x100u;
+constexpr uint32_t kMemberBuiltinAnnotationFlag = 0x200u;
+constexpr uint32_t kMemberCustomAnnotationFlag = 0x400u;
 constexpr uint32_t kRawRootSelectorMask = 0x0fu;
 constexpr int kActionRoundtripTypeInfoTypeMap = fuzz_type_graph::ACTION_ROUNDTRIP_TYPEINFO_TYPEMAP;
 constexpr int kActionImportTypeInfoTypeMap = fuzz_type_graph::ACTION_IMPORT_TYPEINFO_TYPEMAP;
+constexpr int kActionRoundtripGeneratedTypeInfoTypeMap = fuzz_type_graph::ACTION_ROUNDTRIP_GENERATED_TYPEINFO_TYPEMAP;
 constexpr int kActionAssignability = fuzz_type_graph::ACTION_ASSIGNABILITY;
 
 struct OwnedType {
@@ -60,9 +66,23 @@ struct OwnedType {
   std::vector<xt_struct_member> struct_members;
   std::vector<xt_union_member> union_members;
   std::vector<std::vector<int32_t>> union_labels;
+  std::vector<xt_bitfield> bitfields;
   std::vector<xt_enum_literal> enum_literals;
   std::vector<xt_bitflag> bitflags;
   std::vector<DDS_XTypes_LBound> bounds;
+  DDS_XTypes_AppliedVerbatimAnnotation type_verbatim{};
+  DDS_XTypes_AppliedBuiltinTypeAnnotations type_builtin{};
+  DDS_XTypes_AppliedAnnotation type_custom{};
+  DDS_XTypes_AppliedAnnotationSeq type_custom_seq{};
+  DDS_XTypes_AppliedBuiltinMemberAnnotations member_builtin{};
+  DDS_XTypes_AnnotationParameterValue member_min{};
+  DDS_XTypes_AnnotationParameterValue member_max{};
+  DDS_XTypes_AppliedAnnotation member_custom{};
+  DDS_XTypes_AppliedAnnotationSeq member_custom_seq{};
+  std::array<char, 64> type_verbatim_text{};
+  std::array<char, 16> member_unit{};
+  std::array<char, 32> member_hash_id{};
+  bool annotations_initialized = false;
 };
 
 struct SccPairSet {
@@ -76,6 +96,8 @@ struct SerializedTypeInfoTypeMap {
   unsigned char *typemap = nullptr;
   uint32_t typemap_size = 0;
 };
+
+static void fini_serialized_typeinfo_typemap(SerializedTypeInfoTypeMap &serialized);
 
 static ddsi_cfgst *g_cfgst;
 
@@ -99,7 +121,7 @@ static bool is_hash_type(uint8_t kind)
 {
   return kind == DDS_XTypes_TK_STRUCTURE || kind == DDS_XTypes_TK_UNION ||
     kind == DDS_XTypes_TK_ALIAS || kind == DDS_XTypes_TK_ENUM ||
-    kind == DDS_XTypes_TK_BITMASK;
+    kind == DDS_XTypes_TK_BITMASK || kind == DDS_XTypes_TK_BITSET;
 }
 
 static DDS_XTypes_StructTypeFlag valid_aggregate_flags(uint32_t flags)
@@ -209,6 +231,7 @@ static uint8_t normalized_kind(int proto_kind)
     case 6: return DDS_XTypes_TK_SEQUENCE;
     case 7: return DDS_XTypes_TK_ARRAY;
     case 8: return DDS_XTypes_TK_MAP;
+    case 9: return DDS_XTypes_TK_BITSET;
     default: return DDS_XTypes_TK_INT32;
   }
 }
@@ -234,6 +257,90 @@ static void set_member_name(xt_member_detail &detail, const char *prefix, uint32
   (void) snprintf(name, sizeof(name), "%s%u_%u", prefix, type_index, member_index);
   ddsrt_strlcpy(detail.name, name, sizeof(detail.name));
   ddsi_xt_get_namehash(detail.name_hash, detail.name);
+}
+
+static void set_hash_typeid(DDS_XTypes_TypeIdentifier &type_id, uint32_t index)
+{
+  type_id._d = DDS_XTypes_EK_COMPLETE;
+  for (size_t n = 0; n < sizeof(type_id._u.equivalence_hash); n++)
+    type_id._u.equivalence_hash[n] = static_cast<uint8_t>(0x80u + index * 17u + n);
+}
+
+static void set_annotation_value(DDS_XTypes_AnnotationParameterValue &value, int32_t v)
+{
+  value._d = DDS_XTypes_TK_INT32;
+  value._u.int32_value = v;
+}
+
+static void init_annotation_storage(OwnedType &slot, uint32_t index)
+{
+  if (slot.annotations_initialized)
+    return;
+
+  (void) snprintf(slot.type_verbatim_text.data(), slot.type_verbatim_text.size(), "fuzz-type-%u", index);
+  ddsrt_strlcpy(slot.type_verbatim.placement, "declaration", sizeof(slot.type_verbatim.placement));
+  ddsrt_strlcpy(slot.type_verbatim.language, "text", sizeof(slot.type_verbatim.language));
+  slot.type_verbatim.text = slot.type_verbatim_text.data();
+  slot.type_builtin.verbatim = &slot.type_verbatim;
+
+  set_hash_typeid(slot.type_custom.annotation_typeid, index);
+  slot.type_custom.param_seq = nullptr;
+  slot.type_custom_seq._maximum = 1;
+  slot.type_custom_seq._length = 1;
+  slot.type_custom_seq._buffer = &slot.type_custom;
+  slot.type_custom_seq._release = false;
+
+  (void) snprintf(slot.member_unit.data(), slot.member_unit.size(), "u%u", index);
+  (void) snprintf(slot.member_hash_id.data(), slot.member_hash_id.size(), "h%u", index);
+  set_annotation_value(slot.member_min, -static_cast<int32_t>(index + 1));
+  set_annotation_value(slot.member_max, static_cast<int32_t>(index + 1));
+  slot.member_builtin.unit = slot.member_unit.data();
+  slot.member_builtin.min = &slot.member_min;
+  slot.member_builtin.max = &slot.member_max;
+  slot.member_builtin.hash_id = slot.member_hash_id.data();
+
+  set_hash_typeid(slot.member_custom.annotation_typeid, index + 31u);
+  slot.member_custom.param_seq = nullptr;
+  slot.member_custom_seq._maximum = 1;
+  slot.member_custom_seq._length = 1;
+  slot.member_custom_seq._buffer = &slot.member_custom;
+  slot.member_custom_seq._release = false;
+
+  slot.annotations_initialized = true;
+}
+
+static void attach_type_annotations(OwnedType &slot, xt_applied_type_annotations &annotations, uint32_t flags, uint32_t index)
+{
+  if ((flags & (kTypeBuiltinAnnotationFlag | kTypeCustomAnnotationFlag)) == 0)
+    return;
+
+  init_annotation_storage(slot, index);
+  if ((flags & kTypeBuiltinAnnotationFlag) != 0)
+    annotations.ann_builtin = &slot.type_builtin;
+  if ((flags & kTypeCustomAnnotationFlag) != 0)
+    annotations.ann_custom = &slot.type_custom_seq;
+}
+
+static void attach_type_annotations(OwnedType &slot, xt_type_detail &detail, uint32_t flags, uint32_t index)
+{
+  attach_type_annotations(slot, detail.annotations, flags, index);
+}
+
+static void attach_member_annotations(OwnedType &slot, xt_applied_member_annotations &annotations, uint32_t flags, uint32_t index)
+{
+  if ((flags & (kMemberBuiltinAnnotationFlag | kMemberCustomAnnotationFlag)) == 0)
+    return;
+
+  init_annotation_storage(slot, index);
+  if ((flags & kMemberBuiltinAnnotationFlag) != 0)
+    annotations.ann_builtin = &slot.member_builtin;
+  if ((flags & kMemberCustomAnnotationFlag) != 0)
+    annotations.ann_custom = &slot.member_custom_seq;
+}
+
+static void attach_member_annotations(OwnedType &slot, xt_member_detail &detail, uint32_t flags, uint32_t index)
+{
+  attach_member_annotations(slot, detail.annotations, flags, index);
 }
 
 class Runtime {
@@ -312,6 +419,11 @@ public:
   bool root_is_dds_top_level() const
   {
     return is_dds_top_level_type(root_);
+  }
+
+  static bool dds_top_level_type(const ddsi_type *type)
+  {
+    return is_dds_top_level_type(type);
   }
 
   std::vector<OwnedType> &types()
@@ -427,6 +539,8 @@ private:
       owned->type.xt._u.array.bounds._buffer = owned->bounds.data();
       owned->type.xt._u.array.bounds._release = false;
       set_type_name(owned->type.xt._u.array.c.detail, "FuzzArray", index);
+      attach_type_annotations(*owned, owned->type.xt._u.array.c.detail, flags, index);
+      attach_member_annotations(*owned, owned->type.xt._u.array.c.element_annotations, flags, index);
     }
     else
     {
@@ -436,6 +550,8 @@ private:
       owned->type.xt._u.seq.c.element_flags = valid_collection_flags(flags);
       owned->type.xt._u.seq.bound = valid_bound(bound);
       set_type_name(owned->type.xt._u.seq.c.detail, "FuzzSeq", index);
+      attach_type_annotations(*owned, owned->type.xt._u.seq.c.detail, flags, index);
+      attach_member_annotations(*owned, owned->type.xt._u.seq.c.element_annotations, flags, index);
     }
     return owned;
   }
@@ -527,12 +643,16 @@ private:
         type.xt._u.alias.related_flags = 0;
         type.xt._u.alias.related_type = resolve_acyclic_ref(model.related_type(), index);
         set_type_name(type.xt._u.alias.detail, "FuzzAlias", index);
+        attach_type_annotations(slot, type.xt._u.alias.detail, model.flags(), index);
         break;
       case DDS_XTypes_TK_ENUM:
         build_enum(index, model, slot);
         break;
       case DDS_XTypes_TK_BITMASK:
         build_bitmask(index, model, slot);
+        break;
+      case DDS_XTypes_TK_BITSET:
+        build_bitset(index, model, slot);
         break;
       case DDS_XTypes_TK_SEQUENCE:
         type.xt.kind = DDSI_TYPEID_KIND_PLAIN_COLLECTION_COMPLETE;
@@ -541,6 +661,8 @@ private:
         type.xt._u.seq.c.element_flags = valid_collection_flags(model.flags());
         type.xt._u.seq.bound = valid_bound(model.bound());
         set_type_name(type.xt._u.seq.c.detail, "FuzzSeq", index);
+        attach_type_annotations(slot, type.xt._u.seq.c.detail, model.flags(), index);
+        attach_member_annotations(slot, type.xt._u.seq.c.element_annotations, model.flags(), index);
         break;
       case DDS_XTypes_TK_ARRAY:
         type.xt.kind = DDSI_TYPEID_KIND_PLAIN_COLLECTION_COMPLETE;
@@ -553,6 +675,8 @@ private:
         type.xt._u.array.bounds._buffer = slot.bounds.data();
         type.xt._u.array.bounds._release = false;
         set_type_name(type.xt._u.array.c.detail, "FuzzArray", index);
+        attach_type_annotations(slot, type.xt._u.array.c.detail, model.flags(), index);
+        attach_member_annotations(slot, type.xt._u.array.c.element_annotations, model.flags(), index);
         break;
       case DDS_XTypes_TK_MAP:
         type.xt.kind = DDSI_TYPEID_KIND_PLAIN_COLLECTION_COMPLETE;
@@ -565,6 +689,9 @@ private:
         type.xt._u.map.c.element_flags = valid_collection_flags(model.flags() >> 3);
         type.xt._u.map.bound = valid_bound(model.bound());
         set_type_name(type.xt._u.map.c.detail, "FuzzMap", index);
+        attach_type_annotations(slot, type.xt._u.map.c.detail, model.flags(), index);
+        attach_member_annotations(slot, type.xt._u.map.c.element_annotations, model.flags(), index);
+        attach_member_annotations(slot, type.xt._u.map.key_annotations, model.flags() >> 3, index);
         break;
       default:
         type.xt._d = DDS_XTypes_TK_INT32;
@@ -581,6 +708,7 @@ private:
     if ((model.flags() & kUseExternalTypeRefFlag) != 0)
       type.xt._u.structure.base_type = resolve_acyclic_ref(model.base_type(), index);
     set_type_name(type.xt._u.structure.detail, "FuzzStruct", index);
+    attach_type_annotations(slot, type.xt._u.structure.detail, model.flags(), index);
     const uint32_t n_members = bounded_count(model.members_size(), kMaxMembers);
     slot.struct_members.resize(n_members);
     for (uint32_t n = 0; n < n_members; n++)
@@ -592,6 +720,7 @@ private:
       dst.flags = valid_struct_member_flags(src.flags());
       dst.type = member_ref(src, index, n);
       set_member_name(dst.detail, "m", index, n);
+      attach_member_annotations(slot, dst.detail, src.flags(), index);
     }
     type.xt._u.structure.members.length = n_members;
     type.xt._u.structure.members.seq = slot.struct_members.data();
@@ -606,6 +735,8 @@ private:
       resolve_acyclic_ref(model.discriminator_type(), index) : &int32_type_;
     type.xt._u.union_type.disc_flags = DDS_XTypes_TRY_CONSTRUCT1;
     set_type_name(type.xt._u.union_type.detail, "FuzzUnion", index);
+    attach_type_annotations(slot, type.xt._u.union_type.detail, model.flags(), index);
+    attach_type_annotations(slot, type.xt._u.union_type.disc_annotations, model.flags(), index);
     const uint32_t n_members = bounded_count(model.members_size(), kMaxMembers);
     slot.union_members.resize(n_members);
     slot.union_labels.resize(n_members);
@@ -633,6 +764,7 @@ private:
       dst.label_seq._buffer = slot.union_labels[n].data();
       dst.label_seq._release = false;
       set_member_name(dst.detail, "u", index, n);
+      attach_member_annotations(slot, dst.detail, src.flags(), index);
     }
     type.xt._u.union_type.members.length = n_members;
     type.xt._u.union_type.members.seq = slot.union_members.data();
@@ -644,6 +776,7 @@ private:
     type.xt._u.enum_type.flags = valid_enum_flags(model.flags());
     type.xt._u.enum_type.bit_bound = valid_enum_bit_bound(model.bit_bound());
     set_type_name(type.xt._u.enum_type.detail, "FuzzEnum", index);
+    attach_type_annotations(slot, type.xt._u.enum_type.detail, model.flags(), index);
     const uint32_t n_literals = std::max<uint32_t>(1, bounded_count(model.values_size(), kMaxValues));
     slot.enum_literals.resize(n_literals);
     for (uint32_t n = 0; n < n_literals; n++)
@@ -653,6 +786,7 @@ private:
       literal.value = n < static_cast<uint32_t>(model.values_size()) ? model.values(static_cast<int>(n)).value() : static_cast<int32_t>(n);
       literal.flags = 0;
       set_member_name(literal.detail, "e", index, n);
+      attach_member_annotations(slot, literal.detail, model.flags() >> n, index);
     }
     type.xt._u.enum_type.literals.length = n_literals;
     type.xt._u.enum_type.literals.seq = slot.enum_literals.data();
@@ -664,6 +798,7 @@ private:
     type.xt._u.bitmask.flags = valid_enum_flags(model.flags());
     type.xt._u.bitmask.bit_bound = valid_bitmask_bit_bound(model.bit_bound());
     set_type_name(type.xt._u.bitmask.detail, "FuzzBitmask", index);
+    attach_type_annotations(slot, type.xt._u.bitmask.detail, model.flags(), index);
     const uint32_t n_flags = std::max<uint32_t>(1, bounded_count(model.values_size(), kMaxValues));
     slot.bitflags.resize(n_flags);
     for (uint32_t n = 0; n < n_flags; n++)
@@ -674,9 +809,48 @@ private:
       flag.position = static_cast<uint16_t>(position % type.xt._u.bitmask.bit_bound);
       flag.flags = 0;
       set_member_name(flag.detail, "b", index, n);
+      attach_member_annotations(slot, flag.detail, model.flags() >> n, index);
     }
     type.xt._u.bitmask.bitflags.length = n_flags;
     type.xt._u.bitmask.bitflags.seq = slot.bitflags.data();
+  }
+
+  static DDS_XTypes_TypeKind valid_bitfield_holder_type(uint32_t selector)
+  {
+    static const DDS_XTypes_TypeKind holders[] = {
+      DDS_XTypes_TK_UINT8,
+      DDS_XTypes_TK_UINT16,
+      DDS_XTypes_TK_UINT32,
+      DDS_XTypes_TK_UINT64
+    };
+    return holders[selector % (sizeof(holders) / sizeof(holders[0]))];
+  }
+
+  void build_bitset(uint32_t index, const fuzz_type_graph::Type &model, OwnedType &slot)
+  {
+    ddsi_type &type = slot.type;
+    type.xt._u.bitset.flags = 0;
+    set_type_name(type.xt._u.bitset.detail, "FuzzBitset", index);
+    attach_type_annotations(slot, type.xt._u.bitset.detail, model.flags(), index);
+    const uint32_t n_fields = std::max<uint32_t>(1, bounded_count(model.values_size(), kMaxValues));
+    slot.bitfields.resize(n_fields);
+    uint16_t position = 0;
+    for (uint32_t n = 0; n < n_fields; n++)
+    {
+      xt_bitfield &field = slot.bitfields[n];
+      memset(&field, 0, sizeof(field));
+      const uint32_t value =
+        n < static_cast<uint32_t>(model.values_size()) ? static_cast<uint32_t>(model.values(static_cast<int>(n)).value()) : n;
+      field.position = static_cast<uint16_t>(position + (value & 1u));
+      field.flags = 0;
+      field.bitcount = static_cast<uint8_t>(1u + ((value >> 1) % 8u));
+      field.holder_type = valid_bitfield_holder_type(value >> 4);
+      position = static_cast<uint16_t>(field.position + field.bitcount);
+      set_member_name(field.detail, "bf", index, n);
+      attach_member_annotations(slot, field.detail, model.flags() >> n, index);
+    }
+    type.xt._u.bitset.fields.length = n_fields;
+    type.xt._u.bitset.fields.seq = slot.bitfields.data();
   }
 
   static void mutate_bad_type_flags(OwnedType &slot)
@@ -694,6 +868,9 @@ private:
         break;
       case DDS_XTypes_TK_BITMASK:
         slot.type.xt._u.bitmask.flags |= 0x8000u;
+        break;
+      case DDS_XTypes_TK_BITSET:
+        slot.type.xt._u.bitset.flags |= 0x8000u;
         break;
       case DDS_XTypes_TK_ALIAS:
         slot.type.xt._u.alias.flags |= 0x8000u;
@@ -724,6 +901,8 @@ private:
       slot.type.xt._u.array.c.element_flags |= 0x8000u;
     else if (slot.type.xt._d == DDS_XTypes_TK_MAP)
       slot.type.xt._u.map.c.element_flags |= 0x8000u;
+    else if (slot.type.xt._d == DDS_XTypes_TK_BITSET && slot.type.xt._u.bitset.fields.length > 0)
+      slot.type.xt._u.bitset.fields.seq[0].flags |= 0x8000u;
   }
 
   static void mutate_duplicate_member_id(OwnedType &slot)
@@ -788,6 +967,9 @@ static void mutate_typeobject(DDS_XTypes_TypeObject &type_object)
       case DDS_XTypes_TK_BITMASK:
         type_object._u.complete._u.bitmask_type.header.common.bit_bound ^= 1;
         break;
+      case DDS_XTypes_TK_BITSET:
+        type_object._u.complete._u.bitset_type.bitset_flags ^= 0x8000u;
+        break;
       default:
         break;
     }
@@ -810,6 +992,9 @@ static void mutate_typeobject(DDS_XTypes_TypeObject &type_object)
         break;
       case DDS_XTypes_TK_BITMASK:
         type_object._u.minimal._u.bitmask_type.header.common.bit_bound ^= 1;
+        break;
+      case DDS_XTypes_TK_BITSET:
+        type_object._u.minimal._u.bitset_type.bitset_flags ^= 0x8000u;
         break;
       default:
         break;
@@ -1178,6 +1363,29 @@ static dds_return_t serialized_typeobject_size(const DDS_XTypes_TypeObject &type
   return DDS_RETCODE_OK;
 }
 
+static dds_return_t serialize_xcdr2(
+  const void *sample,
+  const struct dds_cdrstream_desc *desc,
+  unsigned char **data,
+  uint32_t *size)
+{
+  *data = nullptr;
+  *size = 0;
+
+  dds_ostreamLE_t os;
+  memset(&os, 0, sizeof(os));
+  os.x.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
+  if (!dds_stream_write_sampleLE(&os, &dds_cdrstream_default_allocator, sample, desc))
+  {
+    dds_ostreamLE_fini(&os, &dds_cdrstream_default_allocator);
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
+
+  *data = reinterpret_cast<unsigned char *>(os.x.m_buffer);
+  *size = os.x.m_index;
+  return DDS_RETCODE_OK;
+}
+
 static dds_return_t fill_typeid_with_size(DDS_XTypes_TypeIdentifierWithSize &dst, const ddsi_type *type, ddsi_typeid_kind_t kind)
 {
   DDS_XTypes_TypeObject type_object;
@@ -1259,14 +1467,29 @@ static void fini_generated_typeinfo_typemap(GeneratedTypeInfoTypeMap &generated)
   memset(&generated, 0, sizeof(generated));
 }
 
-static bool build_direct_typeinfo_typemap(TypeGraph &graph, GeneratedTypeInfoTypeMap &generated)
+static bool serialize_typeinfo_typemap(
+  const ddsi_typeinfo_t *type_info,
+  const ddsi_typemap_t *type_map,
+  SerializedTypeInfoTypeMap &serialized)
+{
+  memset(&serialized, 0, sizeof(serialized));
+  if (serialize_xcdr2(&type_info->x, &DDS_XTypes_TypeInformation_cdrstream_desc, &serialized.typeinfo, &serialized.typeinfo_size) != DDS_RETCODE_OK ||
+      serialize_xcdr2(&type_map->x, &DDS_XTypes_TypeMapping_cdrstream_desc, &serialized.typemap, &serialized.typemap_size) != DDS_RETCODE_OK)
+  {
+    fini_serialized_typeinfo_typemap(serialized);
+    return false;
+  }
+  return true;
+}
+
+static bool build_direct_typeinfo_typemap(TypeGraph &graph, ddsi_type *root, GeneratedTypeInfoTypeMap &generated)
 {
   memset(&generated, 0, sizeof(generated));
-  if (graph.root() == nullptr || !graph.root_is_dds_top_level() || graph.validate() != DDS_RETCODE_OK)
+  if (root == nullptr || !TypeGraph::dds_top_level_type(root) || graph.validate(root) != DDS_RETCODE_OK)
     return false;
 
   std::vector<ddsi_type *> closure;
-  collect_hash_type_closure(graph.root(), closure);
+  collect_hash_type_closure(root, closure);
   if (closure.empty())
     return false;
 
@@ -1329,6 +1552,196 @@ err:
   return false;
 }
 
+static bool build_direct_typeinfo_typemap(TypeGraph &graph, GeneratedTypeInfoTypeMap &generated)
+{
+  return build_direct_typeinfo_typemap(graph, graph.root(), generated);
+}
+
+static void exercise_typeid_accessors(const ddsi_typeid_t *type_id)
+{
+  if (type_id == nullptr)
+    return;
+
+  (void) ddsi_typeid_kind(type_id);
+  (void) ddsi_typeid_hash(type_id);
+  (void) ddsi_typeid_is_none(type_id);
+  (void) ddsi_typeid_is_hash(type_id);
+  (void) ddsi_typeid_is_minimal(type_id);
+  (void) ddsi_typeid_is_complete(type_id);
+  (void) ddsi_typeid_is_fully_descriptive(type_id);
+
+  struct ddsi_typeid_str str;
+  (void) ddsi_make_typeid_str(&str, type_id);
+
+  unsigned char *serialized = nullptr;
+  uint32_t serialized_size = 0;
+  ddsi_typeid_ser(type_id, &serialized, &serialized_size);
+  ddsrt_free(serialized);
+
+  ddsi_typeid_t copy;
+  memset(&copy, 0, sizeof(copy));
+  ddsi_typeid_copy(&copy, type_id);
+  (void) ddsi_typeid_compare(type_id, &copy);
+  (void) ddsi_typeid_compare_assignability_check(type_id, &copy);
+  ddsi_typeid_fini(&copy);
+
+  ddsi_typeid_t copy_to;
+  memset(&copy_to, 0, sizeof(copy_to));
+  ddsi_typeid_copy_to_impl(&copy_to.x, type_id);
+  ddsi_typeid_fini(&copy_to);
+
+  ddsi_typeid_t *dup = ddsi_typeid_dup(type_id);
+  if (dup != nullptr)
+  {
+    (void) ddsi_typeid_compare(type_id, dup);
+    ddsi_typeid_fini(dup);
+    ddsrt_free(dup);
+  }
+
+  ddsi_typeid_t *dup_from = ddsi_typeid_dup_from_impl(&type_id->x);
+  if (dup_from != nullptr)
+  {
+    (void) ddsi_typeid_compare(type_id, dup_from);
+    ddsi_typeid_fini(dup_from);
+    ddsrt_free(dup_from);
+  }
+
+  if (ddsi_typeid_is_hash(type_id))
+  {
+    DDS_XTypes_EquivalenceHash hash;
+    ddsi_typeid_get_equivalence_hash(type_id, &hash);
+    if (type_id->x._d == DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT)
+      (void) ddsi_type_scc_id_component_hash_impl(&type_id->x._u.sc_component_id);
+  }
+}
+
+static void exercise_typeobj_accessors(const DDS_XTypes_TypeObject &type_object)
+{
+  if (type_object._d != DDS_XTypes_EK_MINIMAL && type_object._d != DDS_XTypes_EK_COMPLETE)
+    return;
+
+  ddsi_typeid_t type_id;
+  memset(&type_id, 0, sizeof(type_id));
+  if (ddsi_typeobj_get_hash_id(&type_object, &type_id) == DDS_RETCODE_OK)
+  {
+    exercise_typeid_accessors(&type_id);
+    ddsi_typeid_fini(&type_id);
+  }
+}
+
+static void exercise_imported_type_accessors(ddsi_domaingv *gv, ddsi_type *type)
+{
+  if (type == nullptr)
+    return;
+
+  (void) ddsi_type_get_gv(type);
+  (void) ddsi_type_get_kind(type);
+  (void) ddsi_type_resolved(gv, type, DDSI_TYPE_IGNORE_DEPS);
+  (void) ddsi_type_resolved(gv, type, DDSI_TYPE_INCLUDE_DEPS);
+  exercise_typeid_accessors(&type->xt.id);
+
+  ddsi_type *lookup = ddsi_type_lookup(gv, &type->xt.id);
+  (void) lookup;
+
+  ddsi_typeobj_t *type_object = ddsi_type_get_typeobj(gv, type);
+  if (type_object != nullptr)
+  {
+    exercise_typeobj_accessors(type_object->x);
+    ddsi_typeobj_fini(type_object);
+    ddsrt_free(type_object);
+  }
+}
+
+struct ImportedTypePair {
+  ddsi_type_pair pair{};
+};
+
+static void unref_imported_type_pair(ddsi_domaingv *gv, ImportedTypePair &imported)
+{
+  if (imported.pair.minimal != nullptr)
+    ddsi_type_unref(gv, imported.pair.minimal);
+  if (imported.pair.complete != nullptr)
+    ddsi_type_unref(gv, imported.pair.complete);
+  imported.pair.minimal = nullptr;
+  imported.pair.complete = nullptr;
+}
+
+static void exercise_type_pair_accessors(ddsi_domaingv *gv, ddsi_type_pair *pair)
+{
+  if (pair == nullptr)
+    return;
+
+  const ddsi_typeid_t *minimal_id = ddsi_type_pair_minimal_id(pair);
+  const ddsi_typeid_t *complete_id = ddsi_type_pair_complete_id(pair);
+  exercise_typeid_accessors(minimal_id);
+  exercise_typeid_accessors(complete_id);
+
+  ddsi_type_pair *id_pair = ddsi_type_pair_init(minimal_id, complete_id);
+  if (id_pair != nullptr)
+  {
+    (void) ddsi_type_pair_minimal_id(id_pair);
+    (void) ddsi_type_pair_complete_id(id_pair);
+    ddsi_type_pair_free(id_pair);
+  }
+
+  ddsi_typeinfo_t *type_info = ddsi_type_pair_get_typeinfo(gv, pair);
+  if (type_info != nullptr)
+    ddsi_typeinfo_free(type_info);
+}
+
+static bool import_generated_type_pair(ddsi_domaingv *gv, TypeGraph &graph, ddsi_type *root, ImportedTypePair &imported)
+{
+  memset(&imported, 0, sizeof(imported));
+
+  GeneratedTypeInfoTypeMap generated;
+  if (!build_direct_typeinfo_typemap(graph, root, generated))
+    return false;
+
+  dds_return_t ret = ddsi_type_add(gv, &imported.pair.minimal, &imported.pair.complete, &generated.type_info, &generated.type_map);
+  fini_generated_typeinfo_typemap(generated);
+  if (ret != DDS_RETCODE_OK || imported.pair.minimal == nullptr || imported.pair.complete == nullptr)
+  {
+    unref_imported_type_pair(gv, imported);
+    return false;
+  }
+
+  exercise_imported_type_accessors(gv, imported.pair.minimal);
+  exercise_imported_type_accessors(gv, imported.pair.complete);
+  exercise_type_pair_accessors(gv, &imported.pair);
+  return true;
+}
+
+static dds_return_t add_typeinfo_typemap_retaining_complete(
+  ddsi_domaingv *gv,
+  ddsi_typeinfo_t *type_info,
+  ddsi_typemap_t *type_map,
+  ddsi_type **type_complete_out)
+{
+  *type_complete_out = nullptr;
+  if (type_info == nullptr || type_map == nullptr)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  ddsi_type *type_minimal = nullptr;
+  ddsi_type *type_complete = nullptr;
+  dds_return_t ret = ddsi_type_add(gv, &type_minimal, &type_complete, type_info, type_map);
+  if (type_minimal != nullptr)
+  {
+    exercise_imported_type_accessors(gv, type_minimal);
+    ddsi_type_unref(gv, type_minimal);
+  }
+  if (ret == DDS_RETCODE_OK && type_complete != nullptr)
+  {
+    exercise_imported_type_accessors(gv, type_complete);
+    *type_complete_out = type_complete;
+  }
+  else if (type_complete != nullptr)
+  {
+    exercise_imported_type_accessors(gv, type_complete);
+    ddsi_type_unref(gv, type_complete);
+  }
+  return ret;
+}
+
 static void add_typeinfo_typemap(ddsi_domaingv *gv, ddsi_typeinfo_t *type_info, ddsi_typemap_t *type_map)
 {
   if (type_info == nullptr || type_map == nullptr)
@@ -1338,9 +1751,15 @@ static void add_typeinfo_typemap(ddsi_domaingv *gv, ddsi_typeinfo_t *type_info, 
   ddsi_type *type_complete = nullptr;
   (void) ddsi_type_add(gv, &type_minimal, &type_complete, type_info, type_map);
   if (type_minimal != nullptr)
+  {
+    exercise_imported_type_accessors(gv, type_minimal);
     ddsi_type_unref(gv, type_minimal);
+  }
   if (type_complete != nullptr)
+  {
+    exercise_imported_type_accessors(gv, type_complete);
     ddsi_type_unref(gv, type_complete);
+  }
 }
 
 static void add_typeinfo_typemap_to_new_runtime(bool allow_recursive_types, ddsi_typeinfo_t *type_info, ddsi_typemap_t *type_map)
@@ -1415,9 +1834,12 @@ static void import_typeobject(
       }
       if (!refs.empty())
         (void) ddsi_type_add_scc_typeobjs_locked(runtime.gv(), &pairseq, &pairs.pairs[0].type_identifier, true, &complete);
-      for (ddsi_type *type : refs)
-        ddsi_type_unref_locked(runtime.gv(), type);
       ddsrt_mutex_unlock(&runtime.gv()->typelib_lock);
+      for (ddsi_type *type : refs)
+      {
+        exercise_imported_type_accessors(runtime.gv(), type);
+        ddsi_type_unref(runtime.gv(), type);
+      }
     }
     fini_scc_pairs(pairs);
   }
@@ -1433,11 +1855,13 @@ static void import_typeobject(
     ddsrt_mutex_lock(&runtime.gv()->typelib_lock);
     dds_return_t ret = ddsi_type_ref_id_locked_impl(runtime.gv(), &type, &type_id);
     if (ret == DDS_RETCODE_OK && type != nullptr)
-    {
       (void) ddsi_type_add_typeobj(runtime.gv(), type, &type_object);
-      ddsi_type_unref_locked(runtime.gv(), type);
-    }
     ddsrt_mutex_unlock(&runtime.gv()->typelib_lock);
+    if (type != nullptr)
+    {
+      exercise_imported_type_accessors(runtime.gv(), type);
+      ddsi_type_unref(runtime.gv(), type);
+    }
     ddsi_typeobj_fini_impl(&type_object);
   }
   ddsi_typeid_fini_impl(&type_id);
@@ -1500,15 +1924,9 @@ static bool export_typeinfo_typemap(const fuzz_type_graph::FuzzMsg &msg, Seriali
     GeneratedTypeInfoTypeMap generated;
     if (!build_direct_typeinfo_typemap(graph, generated))
       return false;
-    add_typeinfo_typemap(source.gv(), &generated.type_info, &generated.type_map);
-    fini_generated_typeinfo_typemap(generated);
 
-    memset(&root_id, 0, sizeof(root_id));
-    ddsi_xt_get_typeid_impl(&graph.root()->xt, &root_id, DDSI_TYPEID_KIND_COMPLETE);
-    ddsrt_mutex_lock(&source.gv()->typelib_lock);
-    ret = ddsi_type_ref_id_locked_impl(source.gv(), &root, &root_id);
-    ddsrt_mutex_unlock(&source.gv()->typelib_lock);
-    ddsi_typeid_fini_impl(&root_id);
+    ret = add_typeinfo_typemap_retaining_complete(source.gv(), &generated.type_info, &generated.type_map, &root);
+    fini_generated_typeinfo_typemap(generated);
 
     if (ret != DDS_RETCODE_OK || root == nullptr)
       return false;
@@ -1547,7 +1965,20 @@ static dds_type_consistency_enforcement_qospolicy_t type_consistency(uint32_t fl
   return tce;
 }
 
-static void run_assignability(TypeGraph &graph, uint32_t root, uint32_t target, uint32_t peer, uint32_t flags)
+static uint32_t assignability_resolved_kind(uint32_t selector)
+{
+  switch (selector & 3u)
+  {
+    case 1:
+      return DDS_XTypes_EK_MINIMAL;
+    case 2:
+      return DDS_XTypes_EK_COMPLETE;
+    default:
+      return DDS_XTypes_EK_BOTH;
+  }
+}
+
+static void run_assignability(Runtime &runtime, TypeGraph &graph, uint32_t root, uint32_t target, uint32_t peer, uint32_t flags)
 {
   ddsi_type *rd_type = graph.type_at(root, target);
   ddsi_type *wr_type = graph.type_at(root, peer);
@@ -1557,6 +1988,22 @@ static void run_assignability(TypeGraph &graph, uint32_t root, uint32_t target, 
   dds_type_consistency_enforcement_qospolicy_t tce = type_consistency(flags);
   ddsi_non_assignability_reason reason;
   (void) ddsi_xt_is_assignable_from(rd_type->gv, &rd_type->xt, &wr_type->xt, &tce, &reason);
+
+  ImportedTypePair rd_pair{};
+  ImportedTypePair wr_pair{};
+  if (import_generated_type_pair(runtime.gv(), graph, rd_type, rd_pair) &&
+      import_generated_type_pair(runtime.gv(), graph, wr_type, wr_pair))
+  {
+    (void) ddsi_is_assignable_from(
+      runtime.gv(),
+      &rd_pair.pair,
+      assignability_resolved_kind(flags >> 6),
+      &wr_pair.pair,
+      assignability_resolved_kind(flags >> 8),
+      &tce);
+  }
+  unref_imported_type_pair(runtime.gv(), wr_pair);
+  unref_imported_type_pair(runtime.gv(), rd_pair);
 }
 
 static void roundtrip_typeinfo_typemap(const fuzz_type_graph::FuzzMsg &msg)
@@ -1573,6 +2020,42 @@ static void roundtrip_typeinfo_typemap(const fuzz_type_graph::FuzzMsg &msg)
 
   if (type_info != nullptr && type_map != nullptr)
     add_typeinfo_typemap_to_new_runtime(msg.allow_recursive_types(), type_info, type_map);
+
+  if (type_info != nullptr)
+    ddsi_typeinfo_free(type_info);
+  if (type_map != nullptr)
+  {
+    ddsi_typemap_fini(type_map);
+    ddsrt_free(type_map);
+  }
+}
+
+static void roundtrip_generated_typeinfo_typemap(const fuzz_type_graph::FuzzMsg &msg)
+{
+  Runtime source(msg.allow_recursive_types());
+  TypeGraph graph(source.gv(), msg);
+  GeneratedTypeInfoTypeMap generated;
+  if (!build_direct_typeinfo_typemap(graph, generated))
+    return;
+
+  exercise_typeinfo_typemap_accessors(&generated.type_info, &generated.type_map);
+  apply_typeinfo_typemap_mutations(&generated.type_info, &generated.type_map, msg);
+
+  SerializedTypeInfoTypeMap serialized;
+  if (!serialize_typeinfo_typemap(&generated.type_info, &generated.type_map, serialized))
+  {
+    fini_generated_typeinfo_typemap(generated);
+    return;
+  }
+  fini_generated_typeinfo_typemap(generated);
+
+  ddsi_typeinfo_t *type_info = ddsi_typeinfo_deser(serialized.typeinfo, serialized.typeinfo_size);
+  ddsi_typemap_t *type_map = ddsi_typemap_deser(serialized.typemap, serialized.typemap_size);
+  fini_serialized_typeinfo_typemap(serialized);
+
+  exercise_typeinfo_typemap_accessors(type_info, type_map);
+  if (type_info != nullptr && type_map != nullptr)
+    add_typeinfo_typemap(source.gv(), type_info, type_map);
 
   if (type_info != nullptr)
     ddsi_typeinfo_free(type_info);
@@ -1624,7 +2107,7 @@ static void run_action(
         import_typeobject(runtime, graph, DDSI_TYPEID_KIND_MINIMAL, msg);
       break;
     case kActionAssignability:
-      run_assignability(graph, msg.root(), target, peer, flags);
+      run_assignability(runtime, graph, msg.root(), target, peer, flags);
       break;
     default:
       break;
@@ -1644,6 +2127,7 @@ DEFINE_PROTO_FUZZER(const fuzz_type_graph::FuzzMsg &message)
   if (n_actions == 0)
   {
     import_direct_typeinfo_typemap(message);
+    roundtrip_generated_typeinfo_typemap(message);
     roundtrip_typeinfo_typemap(message);
 
     Runtime runtime(message.allow_recursive_types());
@@ -1665,6 +2149,8 @@ DEFINE_PROTO_FUZZER(const fuzz_type_graph::FuzzMsg &message)
       roundtrip_typeinfo_typemap(message);
     else if (action == kActionImportTypeInfoTypeMap)
       import_direct_typeinfo_typemap(message);
+    else if (action == kActionRoundtripGeneratedTypeInfoTypeMap)
+      roundtrip_generated_typeinfo_typemap(message);
     else
       run_regular_actions = true;
   }
@@ -1680,7 +2166,9 @@ DEFINE_PROTO_FUZZER(const fuzz_type_graph::FuzzMsg &message)
   {
     const fuzz_type_graph::ActionEntry &entry = message.actions(static_cast<int>(n));
     const int action = static_cast<int>(entry.action());
-    if (action != kActionRoundtripTypeInfoTypeMap && action != kActionImportTypeInfoTypeMap)
+    if (action != kActionRoundtripTypeInfoTypeMap &&
+        action != kActionImportTypeInfoTypeMap &&
+        action != kActionRoundtripGeneratedTypeInfoTypeMap)
       run_action(runtime, graph, entry, message);
   }
 }
