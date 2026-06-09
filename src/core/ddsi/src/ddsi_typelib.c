@@ -1334,6 +1334,7 @@ static dds_return_t ddsi_type_new_impl (struct ddsi_domaingv *gv, struct ddsi_ty
   }
 
   ddsi_typeid_t type_obj_id;
+  memset (&type_obj_id, 0, sizeof (type_obj_id));
   if (type_obj && ((ret = ddsi_typeobj_get_hash_id (type_obj, &type_obj_id))
       || (ret = (type_id_matches_type_obj_id (type_id, &type_obj_id) ? DDS_RETCODE_OK : DDS_RETCODE_BAD_PARAMETER))))
   {

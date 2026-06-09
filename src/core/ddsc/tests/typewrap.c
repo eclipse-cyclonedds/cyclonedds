@@ -424,6 +424,11 @@ CU_Test (ddsc_typewrap, alias_base_validation, .init = typewrap_init, .fini = ty
   CU_ASSERT_EQ (ddsi_xt_validate (gv, &derived), DDS_RETCODE_OK);
   derived_member.id = base_member.id;
   CU_ASSERT_EQ (ddsi_xt_validate (gv, &derived), DDS_RETCODE_BAD_PARAMETER);
+
+  derived_member.id = 2;
+  base.state = DDSI_TYPE_RESOLVED;
+  base.xt._u.structure.base_type = &int32_type;
+  CU_ASSERT_EQ (ddsi_xt_validate (gv, &derived), DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test (ddsc_typewrap, invalid_dependency_state, .init = typewrap_init, .fini = typewrap_fini)
@@ -1263,6 +1268,27 @@ CU_Test (ddsc_typewrap, invalid_bitmask_typeobject, .init = typewrap_init, .fini
   };
   check_bitmask_typeobject ("ValidSixtyFourBitBitmask", 64, valid_positions,
       sizeof (valid_positions) / sizeof (valid_positions[0]), DDS_RETCODE_OK);
+}
+
+CU_Test (ddsc_typewrap, invalid_bitset_typeobject_hash)
+{
+  struct DDS_XTypes_TypeObject typeobj = {
+    ._d = DDS_XTypes_EK_COMPLETE,
+    ._u.complete = {
+      ._d = DDS_XTypes_TK_BITSET,
+      ._u.bitset_type = {
+        .bitset_flags = 0x8000u
+      }
+    }
+  };
+  ddsrt_strlcpy (typeobj._u.complete._u.bitset_type.header.detail.type_name, "InvalidBitsetHash",
+      sizeof (typeobj._u.complete._u.bitset_type.header.detail.type_name));
+
+  ddsi_typeid_t typeid;
+  dds_return_t ret = ddsi_typeobj_get_hash_id (&typeobj, &typeid);
+  CU_ASSERT_EQ (ret, DDS_RETCODE_BAD_PARAMETER);
+  if (ret == DDS_RETCODE_OK)
+    ddsi_typeid_fini (&typeid);
 }
 
 CU_Test (ddsc_typewrap, invalid_struct_typeobject, .init = typewrap_init, .fini = typewrap_fini)

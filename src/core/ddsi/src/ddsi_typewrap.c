@@ -728,14 +728,16 @@ void ddsi_typeid_get_equivalence_hash (const ddsi_typeid_t *type_id, DDS_XTypes_
 }
 
 ddsrt_nonnull_all
-void ddsi_typeobj_get_hash_id_impl (const struct DDS_XTypes_TypeObject *type_obj, struct DDS_XTypes_TypeIdentifier *type_id)
+static dds_return_t ddsi_typeobj_get_hash_id_impl1 (const struct DDS_XTypes_TypeObject *type_obj, struct DDS_XTypes_TypeIdentifier *type_id)
 {
-  assert (type_obj->_d == DDS_XTypes_EK_MINIMAL || type_obj->_d == DDS_XTypes_EK_COMPLETE);
+  if (type_obj->_d != DDS_XTypes_EK_MINIMAL && type_obj->_d != DDS_XTypes_EK_COMPLETE)
+    return DDS_RETCODE_BAD_PARAMETER;
+
   dds_ostreamLE_t os = { .x = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 } };
   if (!dds_stream_writeLE (&os, &dds_cdrstream_default_allocator, (const void *) type_obj, DDS_XTypes_TypeObject_desc.m_ops))
   {
-    // input type object is always valid
-    abort ();
+    dds_ostreamLE_fini (&os, &dds_cdrstream_default_allocator);
+    return DDS_RETCODE_BAD_PARAMETER;
   }
 
   char buf[16];
@@ -746,15 +748,24 @@ void ddsi_typeobj_get_hash_id_impl (const struct DDS_XTypes_TypeObject *type_obj
   type_id->_d = type_obj->_d;
   memcpy (type_id->_u.equivalence_hash, buf, sizeof(DDS_XTypes_EquivalenceHash));
   dds_ostreamLE_fini (&os, &dds_cdrstream_default_allocator);
+  return DDS_RETCODE_OK;
+}
+
+ddsrt_nonnull_all
+void ddsi_typeobj_get_hash_id_impl (const struct DDS_XTypes_TypeObject *type_obj, struct DDS_XTypes_TypeIdentifier *type_id)
+{
+  if (ddsi_typeobj_get_hash_id_impl1 (type_obj, type_id) != DDS_RETCODE_OK)
+    /* This helper is used for TypeObjects generated from validated xt_type
+       definitions.  Failure means the generator produced an internally
+       inconsistent TypeObject, whereas externally supplied TypeObjects go
+       through ddsi_typeobj_get_hash_id and get a return code instead. */
+    abort ();
 }
 
 ddsrt_nonnull_all
 dds_return_t ddsi_typeobj_get_hash_id (const struct DDS_XTypes_TypeObject *type_obj, ddsi_typeid_t *type_id)
 {
-  if (type_obj->_d != DDS_XTypes_EK_MINIMAL && type_obj->_d != DDS_XTypes_EK_COMPLETE)
-    return DDS_RETCODE_BAD_PARAMETER;
-  ddsi_typeobj_get_hash_id_impl (type_obj, &type_id->x);
-  return DDS_RETCODE_OK;
+  return ddsi_typeobj_get_hash_id_impl1 (type_obj, &type_id->x);
 }
 
 ddsrt_nonnull_all
@@ -920,25 +931,32 @@ static const struct xt_type *ddsi_xt_unalias (const struct xt_type *t)
   return t->_d == DDS_XTypes_TK_ALIAS ? ddsi_xt_unalias (&t->_u.alias.related_type->xt) : t;
 }
 
-static const struct xt_type *xt_unaliased_struct_base_type (const struct xt_type *t)
+static dds_return_t xt_resolve_valid_struct_base_type (struct ddsi_domaingv *gv, const struct xt_type *t, const struct xt_type **base_type)
 {
   assert (t->_d == DDS_XTypes_TK_STRUCTURE);
-  return t->_u.structure.base_type ? ddsi_xt_unalias (&t->_u.structure.base_type->xt) : NULL;
-}
-
-static dds_return_t xt_valid_struct_base_type (struct ddsi_domaingv *gv, const struct xt_type *t)
-{
-  assert (t->_u.structure.base_type);
+  *base_type = NULL;
+  if (!t->_u.structure.base_type)
+    return DDS_RETCODE_OK;
 
   /* Only a base type that has a definition, i.e. has a type object or is fully
      descriptive, can be used to check the type. */
   const struct xt_type *bt = &t->_u.structure.base_type->xt;
-  if (ddsi_xt_has_definition (bt) && (ddsi_xt_unalias (bt))->_d != DDS_XTypes_TK_STRUCTURE)
+  if (ddsi_xt_missing_definition (bt))
+    return DDS_RETCODE_OK;
+  bt = ddsi_xt_unalias (bt);
+  if (bt->_d != DDS_XTypes_TK_STRUCTURE)
   {
     GVTRACE ("base type for struct is not a struct type\n");
     return DDS_RETCODE_BAD_PARAMETER;
   }
+  *base_type = bt;
   return DDS_RETCODE_OK;
+}
+
+static dds_return_t xt_valid_struct_base_type (struct ddsi_domaingv *gv, const struct xt_type *t)
+{
+  const struct xt_type *base_type;
+  return xt_resolve_valid_struct_base_type (gv, t, &base_type);
 }
 
 static dds_return_t xt_valid_union_disc_type (struct ddsi_domaingv *gv, const struct xt_type *t)
@@ -1058,8 +1076,12 @@ static dds_return_t xt_valid_struct_member_ids (struct ddsi_domaingv *gv, const 
   dds_return_t ret = DDS_RETCODE_OK;
 
   uint32_t cnt = 0;
-  for (const struct xt_type *t1 = t; t1 && ddsi_xt_has_definition (t1); t1 = xt_unaliased_struct_base_type (t1))
+  for (const struct xt_type *t1 = t; t1; )
+  {
     cnt += t1->_u.structure.members.length;
+    if ((ret = xt_resolve_valid_struct_base_type (gv, t1, &t1)) != DDS_RETCODE_OK)
+      return ret;
+  }
   if (cnt == 0 && !t->_u.structure.base_type)
   {
     ret = DDS_RETCODE_OK;
@@ -1075,10 +1097,12 @@ static dds_return_t xt_valid_struct_member_ids (struct ddsi_domaingv *gv, const 
   }
 
   uint32_t cnt1 = cnt;
-  for (const struct xt_type *t1 = t; t1 && ddsi_xt_has_definition (t1); t1 = xt_unaliased_struct_base_type (t1))
+  for (const struct xt_type *t1 = t; t1; )
   {
     for (uint32_t n = 0; n < t1->_u.structure.members.length; n++)
       ids[--cnt1] = t1->_u.structure.members.seq[n].id;
+    if ((ret = xt_resolve_valid_struct_base_type (gv, t1, &t1)) != DDS_RETCODE_OK)
+      goto failed_duplicate;
   }
   qsort (ids, cnt, sizeof (*ids), xt_member_id_cmp);
   for (uint32_t n = 1; n < cnt; n++)
@@ -1700,9 +1724,13 @@ static dds_return_t xt_validate_impl (struct ddsi_domaingv *gv, struct xt_valida
         return ret;
 
       bool has_key_members = false;
-      for (const struct xt_type *t1 = t; t1 && ddsi_xt_has_definition (t1); t1 = xt_unaliased_struct_base_type (t1))
+      for (const struct xt_type *t1 = t; t1; )
+      {
         for (uint32_t n = 0; !has_key_members && n < t1->_u.structure.members.length; n++)
           has_key_members = (t1->_u.structure.members.seq[n].flags & DDS_XTypes_IS_KEY);
+        if ((ret = xt_resolve_valid_struct_base_type (gv, t1, &t1)) != DDS_RETCODE_OK)
+          return ret;
+      }
 
       for (uint32_t n = 0; n < t->_u.structure.members.length; n++)
       {
@@ -3114,10 +3142,10 @@ static struct xt_type *xt_type_keyholder (struct ddsi_domaingv *gv, const struct
       return tkh;
     }
     default:
-      assert (false);
-      ddsi_xt_type_fini (gv, tkh, true);
-      ddsrt_free (tkh);
-      return NULL;
+      /* KeyHolder is also applied to union case member types selected by a
+         discriminator value. Those member types can be non-aggregate types, for
+         which KeyHolder(T) is just T. */
+      return tkh;
   }
 }
 
