@@ -82,6 +82,8 @@ extern "C" {
 #define DDS_LC_SYSDEF (524288u)
 /** Debug/trace messages related to qos provider. */
 #define DDS_LC_QOSPROV (1048576u)
+/** Debug/trace messages related to the type library. */
+#define DDS_LC_TYPELIB (2097152u)
 /** Reserved for user defined log categories (e.g. user application that uses Cyclone logger) */
 #define DDS_LC_USER1 (1u << 29)
 #define DDS_LC_USER2 (1u << 30)

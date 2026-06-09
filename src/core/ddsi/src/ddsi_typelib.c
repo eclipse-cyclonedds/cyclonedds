@@ -10,6 +10,7 @@
 
 #include "dds/features.h"
 
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include "dds/ddsrt/heap.h"
@@ -42,6 +43,49 @@ static int ddsi_typeid_compare_src_dep (const void *typedep_a, const void *typed
 static int ddsi_typeid_compare_dep_src (const void *typedep_a, const void *typedep_b);
 const ddsrt_avl_treedef_t ddsi_typedeps_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_type_dep, src_avl_node), 0, ddsi_typeid_compare_src_dep, 0);
 const ddsrt_avl_treedef_t ddsi_typedeps_reverse_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_type_dep, dep_avl_node), 0, ddsi_typeid_compare_dep_src, 0);
+
+struct typelib_trace_typeid_str {
+  char str[96];
+};
+
+static const char *typelib_trace_scc_kind_str (uint8_t kind)
+{
+  switch (kind)
+  {
+    case DDS_XTypes_EK_MINIMAL: return "MINIMAL";
+    case DDS_XTypes_EK_COMPLETE: return "COMPLETE";
+    default: return "INVALID";
+  }
+}
+
+static char *typelib_trace_make_typeid_str (struct typelib_trace_typeid_str *buf, const struct DDS_XTypes_TypeIdentifier *type_id)
+{
+  if (type_id->_d == DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT)
+  {
+    const struct DDS_XTypes_StronglyConnectedComponentId *id = &type_id->_u.sc_component_id;
+    const unsigned char *hash = id->sc_component_id._u.hash;
+    snprintf (buf->str, sizeof (buf->str),
+              "[SCC %s len=%d idx=%d %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x]",
+              typelib_trace_scc_kind_str (id->sc_component_id._d),
+              (int) id->scc_length, (int) id->scc_index,
+              hash[0], hash[1], hash[2], hash[3], hash[4], hash[5], hash[6],
+              hash[7], hash[8], hash[9], hash[10], hash[11], hash[12], hash[13]);
+    return buf->str;
+  }
+  else
+  {
+    struct ddsi_typeid_str tistr;
+    snprintf (buf->str, sizeof (buf->str), "%s", ddsi_make_typeid_str_impl (&tistr, type_id));
+    return buf->str;
+  }
+}
+
+#define TYPELIB_TRACE(...) do { \
+    struct typelib_trace_typeid_str tistr; \
+    (void) tistr; \
+    DDS_CLOG (DDS_LC_TYPELIB, &gv->logconfig, __VA_ARGS__); \
+  } while (0)
+#define TYPELIB_IMPORT_TRACE(...) TYPELIB_TRACE ("import: " __VA_ARGS__)
 
 bool ddsi_typeinfo_equal (const ddsi_typeinfo_t *a, const ddsi_typeinfo_t *b, enum ddsi_type_include_deps deps)
 {

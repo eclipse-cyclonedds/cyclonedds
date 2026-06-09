@@ -2212,6 +2212,7 @@ static struct cfgelem tracing_cfgelems[] = {
       "<li><i>plist</i>: tracing of discovery parameter list interpretation</li>\n"
       "<li><i>content</i>: tracing of sample contents</li>\n"
       "<li><i>malformed</i>: dump malformed full packet as warning</li>\n"
+      "<li><i>typelib</i>: tracing of type library details</li>\n"
       "<li><i>user</i>: all user-defined tracing categories</li>\n"
       "<li><i>user1</i>: user-defined tracing category 1</li>\n"
       "<li><i>user2</i>: user-defined tracing category 2</li>\n"
