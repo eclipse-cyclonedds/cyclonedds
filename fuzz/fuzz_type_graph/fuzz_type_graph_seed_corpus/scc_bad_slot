@@ -1,0 +1,15 @@
+allow_recursive_types: true
+root: 0
+types {
+  kind: TYPE_STRUCT
+  members {
+    id: 1
+    type: 0
+    flags: 1
+    wrap: REF_SEQUENCE
+  }
+}
+actions { action: ACTION_IMPORT_COMPLETE }
+mutations {
+  kind: MUTATION_SCC_DUPLICATE_SLOT
+}

@@ -1,0 +1,11 @@
+allow_recursive_types: true
+root: 0
+types {
+  kind: TYPE_STRUCT
+  members {
+    id: 1
+    type: 0
+    flags: 1
+  }
+}
+actions { action: ACTION_VALIDATE }

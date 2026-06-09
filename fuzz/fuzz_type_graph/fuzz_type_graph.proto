@@ -1,0 +1,83 @@
+syntax = "proto3";
+package fuzz_type_graph;
+
+enum TypeKind {
+  TYPE_PRIMITIVE = 0;
+  TYPE_STRUCT = 1;
+  TYPE_UNION = 2;
+  TYPE_ALIAS = 3;
+  TYPE_ENUM = 4;
+  TYPE_BITMASK = 5;
+  TYPE_SEQUENCE = 6;
+  TYPE_ARRAY = 7;
+  TYPE_MAP = 8;
+}
+
+enum RefWrap {
+  REF_DIRECT = 0;
+  REF_SEQUENCE = 1;
+  REF_ARRAY = 2;
+}
+
+enum Action {
+  ACTION_VALIDATE = 0;
+  ACTION_IMPORT_COMPLETE = 1;
+  ACTION_IMPORT_MINIMAL = 2;
+}
+
+enum MutationKind {
+  MUTATION_NONE = 0;
+  MUTATION_BAD_TYPE_FLAGS = 1;
+  MUTATION_BAD_MEMBER_FLAGS = 2;
+  MUTATION_DUPLICATE_MEMBER_ID = 3;
+  MUTATION_DROP_INDIRECTION = 4;
+  MUTATION_DUPLICATE_ENUM_VALUE = 5;
+  MUTATION_BAD_BITMASK_POSITION = 6;
+  MUTATION_STALE_TYPEOBJECT_HASH = 7;
+  MUTATION_SCC_BAD_INDEX = 8;
+  MUTATION_SCC_BAD_LENGTH = 9;
+  MUTATION_SCC_BAD_HASH = 10;
+  MUTATION_SCC_DUPLICATE_SLOT = 11;
+  MUTATION_SCC_DROP_SLOT = 12;
+  MUTATION_SCC_WRONG_EQUIV_KIND = 13;
+}
+
+message Member {
+  uint32 id = 1;
+  uint32 type = 2;
+  uint32 flags = 3;
+  repeated IntValue labels = 4;
+  RefWrap wrap = 5;
+}
+
+message Type {
+  TypeKind kind = 1;
+  uint32 flags = 2;
+  uint32 related_type = 3;
+  uint32 bound = 4;
+  uint32 bit_bound = 5;
+  repeated Member members = 6;
+  repeated IntValue values = 7;
+}
+
+message Mutation {
+  MutationKind kind = 1;
+  uint32 target = 2;
+  uint32 arg = 3;
+}
+
+message IntValue {
+  int32 value = 1;
+}
+
+message ActionEntry {
+  Action action = 1;
+}
+
+message FuzzMsg {
+  bool allow_recursive_types = 1;
+  uint32 root = 2;
+  repeated Type types = 3;
+  repeated ActionEntry actions = 4;
+  repeated Mutation mutations = 5;
+}
