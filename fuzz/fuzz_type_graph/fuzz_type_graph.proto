@@ -59,6 +59,9 @@ message Type {
   uint32 bit_bound = 5;
   repeated Member members = 6;
   repeated IntValue values = 7;
+  uint32 base_type = 8;
+  uint32 discriminator_type = 9;
+  uint32 key_type = 10;
 }
 
 message Mutation {

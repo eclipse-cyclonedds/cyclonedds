@@ -48,6 +48,7 @@ constexpr uint32_t kMaxMembers = 8;
 constexpr uint32_t kMaxValues = 8;
 constexpr uint32_t kMaxActions = 8;
 constexpr uint32_t kMaxMutations = 8;
+constexpr uint32_t kUseExternalTypeRefFlag = 0x40u;
 constexpr int kActionRoundtripTypeInfoTypeMap = fuzz_type_graph::ACTION_ROUNDTRIP_TYPEINFO_TYPEMAP;
 
 struct OwnedType {
@@ -498,7 +499,9 @@ private:
       case DDS_XTypes_TK_MAP:
         type.xt.kind = DDSI_TYPEID_KIND_PLAIN_COLLECTION_COMPLETE;
         type.xt._u.map.c.ek = DDS_XTypes_EK_COMPLETE;
-        type.xt._u.map.key_type = &uint32_type_;
+        type.xt._u.map.key_type =
+          (model.flags() & kUseExternalTypeRefFlag) != 0 ?
+          resolve_acyclic_ref(model.key_type(), index) : &uint32_type_;
         type.xt._u.map.c.element_type = resolve_acyclic_ref(model.related_type(), index);
         type.xt._u.map.key_flags = valid_collection_flags(model.flags());
         type.xt._u.map.c.element_flags = valid_collection_flags(model.flags() >> 3);
@@ -517,6 +520,8 @@ private:
   {
     ddsi_type &type = slot.type;
     type.xt._u.structure.flags = valid_aggregate_flags(model.flags());
+    if ((model.flags() & kUseExternalTypeRefFlag) != 0)
+      type.xt._u.structure.base_type = resolve_acyclic_ref(model.base_type(), index);
     set_type_name(type.xt._u.structure.detail, "FuzzStruct", index);
     const uint32_t n_members = bounded_count(model.members_size(), kMaxMembers);
     slot.struct_members.resize(n_members);
@@ -538,7 +543,9 @@ private:
   {
     ddsi_type &type = slot.type;
     type.xt._u.union_type.flags = valid_aggregate_flags(model.flags());
-    type.xt._u.union_type.disc_type = &int32_type_;
+    type.xt._u.union_type.disc_type =
+      (model.flags() & kUseExternalTypeRefFlag) != 0 ?
+      resolve_acyclic_ref(model.discriminator_type(), index) : &int32_type_;
     type.xt._u.union_type.disc_flags = DDS_XTypes_TRY_CONSTRUCT1;
     set_type_name(type.xt._u.union_type.detail, "FuzzUnion", index);
     const uint32_t n_members = bounded_count(model.members_size(), kMaxMembers);

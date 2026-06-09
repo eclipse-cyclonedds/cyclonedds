@@ -1,0 +1,17 @@
+allow_recursive_types: true
+root: 1
+types {
+  kind: TYPE_STRUCT
+  members {
+    id: 1
+    flags: 1
+  }
+}
+types {
+  kind: TYPE_STRUCT
+  flags: 64
+  base_type: 0
+}
+actions { action: ACTION_VALIDATE }
+actions { action: ACTION_IMPORT_COMPLETE }
+actions { action: ACTION_ROUNDTRIP_TYPEINFO_TYPEMAP }

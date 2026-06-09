@@ -1,0 +1,26 @@
+allow_recursive_types: true
+root: 1
+types {
+  kind: TYPE_ENUM
+  values {
+    value: 0
+  }
+  values {
+    value: 1
+  }
+}
+types {
+  kind: TYPE_UNION
+  flags: 64
+  discriminator_type: 0
+  members {
+    id: 1
+    flags: 1
+    labels {
+      value: 0
+    }
+  }
+}
+actions { action: ACTION_VALIDATE }
+actions { action: ACTION_IMPORT_COMPLETE }
+actions { action: ACTION_ROUNDTRIP_TYPEINFO_TYPEMAP }

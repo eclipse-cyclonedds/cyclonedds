@@ -1,0 +1,23 @@
+allow_recursive_types: true
+root: 2
+types {
+  kind: TYPE_ALIAS
+}
+types {
+  kind: TYPE_MAP
+  flags: 64
+  related_type: 0
+  bound: 3
+  key_type: 0
+}
+types {
+  kind: TYPE_STRUCT
+  members {
+    id: 1
+    type: 1
+    flags: 1
+  }
+}
+actions { action: ACTION_VALIDATE }
+actions { action: ACTION_IMPORT_COMPLETE }
+actions { action: ACTION_ROUNDTRIP_TYPEINFO_TYPEMAP }
