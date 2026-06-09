@@ -21,52 +21,141 @@
 #include "ddsi__typewrap.h"
 #include "ddsi__dynamic_type.h"
 
+static dds_return_t dynamic_type_mark_completing_locked (struct ddsi_type **type);
+static dds_return_t dynamic_type_finalize_locked (struct ddsi_type **type, struct ddsrt_hh *visited);
+
+/* Completion is split in two walks.  The mark pass performs local finalization
+   such as enum defaults before any TypeIdentifier is hashed.  The finalize pass
+   can then assign IDs and register dependencies while safely cutting recursion
+   with the COMPLETING state. */
+static dds_return_t dynamic_type_mark_deps_completing_locked (struct ddsi_type *type)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
+  switch (type->xt._d)
+  {
+    case DDS_XTypes_TK_ALIAS:
+      ret = dynamic_type_mark_completing_locked (&type->xt._u.alias.related_type);
+      break;
+    case DDS_XTypes_TK_SEQUENCE:
+      ret = dynamic_type_mark_completing_locked (&type->xt._u.seq.c.element_type);
+      break;
+    case DDS_XTypes_TK_ARRAY:
+      ret = dynamic_type_mark_completing_locked (&type->xt._u.array.c.element_type);
+      break;
+    case DDS_XTypes_TK_MAP:
+      if ((ret = dynamic_type_mark_completing_locked (&type->xt._u.map.key_type)) == DDS_RETCODE_OK)
+        ret = dynamic_type_mark_completing_locked (&type->xt._u.map.c.element_type);
+      break;
+    case DDS_XTypes_TK_STRUCTURE:
+      if (type->xt._u.structure.base_type && (ret = dynamic_type_mark_completing_locked (&type->xt._u.structure.base_type)) != DDS_RETCODE_OK)
+        break;
+      for (uint32_t m = 0; m < type->xt._u.structure.members.length && ret == DDS_RETCODE_OK; m++)
+        ret = dynamic_type_mark_completing_locked (&type->xt._u.structure.members.seq[m].type);
+      break;
+    case DDS_XTypes_TK_UNION:
+      if ((ret = dynamic_type_mark_completing_locked (&type->xt._u.union_type.disc_type)) != DDS_RETCODE_OK)
+        break;
+      for (uint32_t m = 0; m < type->xt._u.union_type.members.length && ret == DDS_RETCODE_OK; m++)
+        ret = dynamic_type_mark_completing_locked (&type->xt._u.union_type.members.seq[m].type);
+      break;
+    default:
+      break;
+  }
+  return ret;
+}
+
+static dds_return_t dynamic_type_finalize_deps_locked (struct ddsi_type *type, struct ddsrt_hh *visited)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
+  switch (type->xt._d)
+  {
+    case DDS_XTypes_TK_ALIAS:
+      ret = dynamic_type_finalize_locked (&type->xt._u.alias.related_type, visited);
+      break;
+    case DDS_XTypes_TK_SEQUENCE:
+      ret = dynamic_type_finalize_locked (&type->xt._u.seq.c.element_type, visited);
+      break;
+    case DDS_XTypes_TK_ARRAY:
+      ret = dynamic_type_finalize_locked (&type->xt._u.array.c.element_type, visited);
+      break;
+    case DDS_XTypes_TK_MAP:
+      if ((ret = dynamic_type_finalize_locked (&type->xt._u.map.key_type, visited)) == DDS_RETCODE_OK)
+        ret = dynamic_type_finalize_locked (&type->xt._u.map.c.element_type, visited);
+      break;
+    case DDS_XTypes_TK_STRUCTURE:
+      if (type->xt._u.structure.base_type && (ret = dynamic_type_finalize_locked (&type->xt._u.structure.base_type, visited)) != DDS_RETCODE_OK)
+        break;
+      for (uint32_t m = 0; m < type->xt._u.structure.members.length && ret == DDS_RETCODE_OK; m++)
+        ret = dynamic_type_finalize_locked (&type->xt._u.structure.members.seq[m].type, visited);
+      break;
+    case DDS_XTypes_TK_UNION:
+      if ((ret = dynamic_type_finalize_locked (&type->xt._u.union_type.disc_type, visited)) != DDS_RETCODE_OK)
+        break;
+      for (uint32_t m = 0; m < type->xt._u.union_type.members.length && ret == DDS_RETCODE_OK; m++)
+        ret = dynamic_type_finalize_locked (&type->xt._u.union_type.members.seq[m].type, visited);
+      break;
+    default:
+      break;
+  }
+  return ret;
+}
+
+static dds_return_t dynamic_type_register_dep (struct ddsi_type *type, struct ddsi_type **dep_type)
+{
+  /* Dynamic construction hands dependency references to the containing type
+     before the type identifiers and explicit dependency edges exist.  Register
+     the edge, then drop the extra reference acquired by the dependency table so
+     the field keeps owning the same reference it already had.  If the graph is
+     recursive, SCC activation later converts those same-SCC field references
+     into a single component refcount. */
+  dds_return_t ret = ddsi_type_register_dep (type->gv, &type->xt.id, dep_type, &(*dep_type)->xt.id.x);
+  if (ret == DDS_RETCODE_OK)
+    ddsi_type_unref_locked (type->gv, *dep_type);
+  return ret;
+}
+
 static dds_return_t dynamic_type_ref_deps (struct ddsi_type *type)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   switch (type->xt._d)
   {
-    case DDS_XTypes_TK_SEQUENCE:
-      if ((ret = ddsi_type_register_dep (type->gv, &type->xt.id, &type->xt._u.seq.c.element_type, &type->xt._u.seq.c.element_type->xt.id.x)) != DDS_RETCODE_OK)
+    case DDS_XTypes_TK_ALIAS:
+      if ((ret = dynamic_type_register_dep (type, &type->xt._u.alias.related_type)) != DDS_RETCODE_OK)
         goto err;
-      ddsi_type_unref_locked (type->gv, type->xt._u.seq.c.element_type);
+      break;
+    case DDS_XTypes_TK_SEQUENCE:
+      if ((ret = dynamic_type_register_dep (type, &type->xt._u.seq.c.element_type)) != DDS_RETCODE_OK)
+        goto err;
       break;
     case DDS_XTypes_TK_ARRAY:
-      if ((ret = ddsi_type_register_dep (type->gv, &type->xt.id, &type->xt._u.array.c.element_type, &type->xt._u.array.c.element_type->xt.id.x)) != DDS_RETCODE_OK)
+      if ((ret = dynamic_type_register_dep (type, &type->xt._u.array.c.element_type)) != DDS_RETCODE_OK)
         goto err;
-      ddsi_type_unref_locked (type->gv, type->xt._u.array.c.element_type);
       break;
     case DDS_XTypes_TK_MAP:
-      if ((ret = ddsi_type_register_dep (type->gv, &type->xt.id, &type->xt._u.map.c.element_type, &type->xt._u.map.c.element_type->xt.id.x)) != DDS_RETCODE_OK)
+      if ((ret = dynamic_type_register_dep (type, &type->xt._u.map.c.element_type)) != DDS_RETCODE_OK)
         goto err;
-      if ((ret = ddsi_type_register_dep (type->gv, &type->xt.id, &type->xt._u.map.key_type, &type->xt._u.map.key_type->xt.id.x)) != DDS_RETCODE_OK)
+      if ((ret = dynamic_type_register_dep (type, &type->xt._u.map.key_type)) != DDS_RETCODE_OK)
         goto err;
-      ddsi_type_unref_locked (type->gv, type->xt._u.map.c.element_type);
-      ddsi_type_unref_locked (type->gv, type->xt._u.map.key_type);
       break;
     case DDS_XTypes_TK_STRUCTURE:
       if (type->xt._u.structure.base_type)
       {
-        if ((ret = ddsi_type_register_dep (type->gv, &type->xt.id, &type->xt._u.structure.base_type, &type->xt._u.structure.base_type->xt.id.x)) != DDS_RETCODE_OK)
+        if ((ret = dynamic_type_register_dep (type, &type->xt._u.structure.base_type)) != DDS_RETCODE_OK)
           goto err;
-        ddsi_type_unref_locked (type->gv, type->xt._u.structure.base_type);
       }
       for (uint32_t m = 0; m < type->xt._u.structure.members.length; m++)
       {
-        if ((ret = ddsi_type_register_dep (type->gv, &type->xt.id, &type->xt._u.structure.members.seq[m].type, &type->xt._u.structure.members.seq[m].type->xt.id.x)) != DDS_RETCODE_OK)
+        if ((ret = dynamic_type_register_dep (type, &type->xt._u.structure.members.seq[m].type)) != DDS_RETCODE_OK)
           goto err;
-        ddsi_type_unref_locked (type->gv, type->xt._u.structure.members.seq[m].type);
       }
       break;
     case DDS_XTypes_TK_UNION:
-      if ((ret = ddsi_type_register_dep (type->gv, &type->xt.id, &type->xt._u.union_type.disc_type, &type->xt._u.union_type.disc_type->xt.id.x)) != DDS_RETCODE_OK)
+      if ((ret = dynamic_type_register_dep (type, &type->xt._u.union_type.disc_type)) != DDS_RETCODE_OK)
         goto err;
-      ddsi_type_unref_locked (type->gv, type->xt._u.union_type.disc_type);
       for (uint32_t m = 0; m < type->xt._u.union_type.members.length; m++)
       {
-        if ((ret = ddsi_type_register_dep (type->gv, &type->xt.id, &type->xt._u.union_type.members.seq[m].type, &type->xt._u.union_type.members.seq[m].type->xt.id.x)) != DDS_RETCODE_OK)
+        if ((ret = dynamic_type_register_dep (type, &type->xt._u.union_type.members.seq[m].type)) != DDS_RETCODE_OK)
           goto err;
-        ddsi_type_unref_locked (type->gv, type->xt._u.union_type.members.seq[m].type);
       }
       break;
     default:
@@ -98,79 +187,147 @@ static dds_return_t dynamic_type_complete_type_specific (struct ddsi_type *type)
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t dynamic_type_complete_locked (struct ddsi_type **type)
+static dds_return_t dynamic_type_mark_completing_locked (struct ddsi_type **type)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   struct ddsi_domaingv *gv = (*type)->gv;
+  ddsi_type_canonicalize_locked (gv, type);
+
+  if ((*type)->state == DDSI_TYPE_COMPLETING)
+    return ret;
 
   if ((*type)->state != DDSI_TYPE_CONSTRUCTING)
   {
-    assert ((*type)->state == DDSI_TYPE_RESOLVED);
+    assert (ddsi_type_resolved_locked (gv, *type, DDSI_TYPE_IGNORE_DEPS));
     return ret;
   }
 
   /* Specific finalization for types */
   if ((ret = dynamic_type_complete_type_specific (*type)) != DDS_RETCODE_OK)
+  {
+    (*type)->state = DDSI_TYPE_INVALID;
+    return ret;
+  }
+
+  (*type)->state = DDSI_TYPE_COMPLETING;
+  if ((ret = dynamic_type_mark_deps_completing_locked (*type)) != DDS_RETCODE_OK)
+    (*type)->state = DDSI_TYPE_INVALID;
+  return ret;
+}
+
+static void dynamic_type_replace_locked (struct ddsi_type **type, struct ddsi_type *ref_type)
+{
+  struct ddsi_domaingv *gv = (*type)->gv;
+  struct ddsi_type *old_type = *type;
+
+  ddsi_type_ref_locked (gv, type, ref_type);
+  ddsi_type_replace_locked (gv, old_type, ref_type);
+  ddsi_type_unref_locked (gv, old_type);
+}
+
+static dds_return_t dynamic_type_finalize_locked (struct ddsi_type **type, struct ddsrt_hh *visited)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
+  struct ddsi_domaingv *gv = (*type)->gv;
+  ddsi_type_canonicalize_locked (gv, type);
+
+  if ((*type)->state != DDSI_TYPE_COMPLETING)
+  {
+    assert (ddsi_type_resolved_locked (gv, *type, DDSI_TYPE_IGNORE_DEPS));
+    return ret;
+  }
+
+  if (ddsi_type_visit_seen (visited, *type))
     return ret;
 
   struct DDS_XTypes_TypeIdentifier ti;
-  assert (ddsi_typeid_is_none (&(*type)->xt.id));
   ddsi_xt_get_typeid_impl (&(*type)->xt, &ti, (*type)->xt.kind);
 
   struct ddsi_type *ref_type = ddsi_type_lookup_locked_impl (gv, &ti);
-  if (ref_type && ref_type->state == DDSI_TYPE_RESOLVED)
+  if (ref_type && ddsi_type_resolved_locked (gv, ref_type, DDSI_TYPE_IGNORE_DEPS))
   {
     /* The constructed type exists in the type library and is resolved, so replace the type
-       pointer with the existing type and transfer the refcount for the constructed
-       type to the existing type. */
-    ddsi_type_free (*type);
-    *type = ref_type;
-    ddsi_type_ref_locked (gv, NULL, *type);
+       pointer with the existing type. Other dynamic type handles can still reference
+       the constructed object, so it remains as a forwarding record until those refs
+       are released or canonicalized. */
+    dynamic_type_replace_locked (type, ref_type);
   }
-  else if ((ret = ddsi_xt_validate (gv, &(*type)->xt)) == DDS_RETCODE_OK)
+  else if (ref_type && ref_type->state == DDSI_TYPE_INVALID)
   {
-    if (ref_type && ref_type->state == DDSI_TYPE_INVALID)
+    (*type)->state = DDSI_TYPE_INVALID;
+    ret = DDS_RETCODE_BAD_PARAMETER;
+  }
+  else
+  {
+    if (ref_type != NULL)
     {
-      (*type)->state = DDSI_TYPE_INVALID;
+      /* The constructed type exists in the type library, but is not (fully) resolved. */
+      ddsi_xt_copy (gv, &ref_type->xt, &(*type)->xt);
+      dynamic_type_replace_locked (type, ref_type);
     }
-    else
-    {
-      if (ref_type != NULL)
-      {
-        /* The constructed type exists in the type library, but is not (fully) resolved. */
-        ddsi_xt_copy (gv, &ref_type->xt, &(*type)->xt);
-        ddsi_type_free (*type);
-        *type = ref_type;
-        ddsi_type_ref_locked (gv, NULL, *type);
-      }
 
-      ddsi_typeid_copy_impl (&(*type)->xt.id.x, &ti);
+    ddsi_typeid_copy_impl (&(*type)->xt.id.x, &ti);
+    (*type)->xt.kind = ddsi_typeid_kind (&(*type)->xt.id);
+    assert ((*type)->xt.kind != DDSI_TYPEID_KIND_INVALID); // internally generated, so must be valid
+
+    if ((*type)->xt.id.x._d == DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT && (*type)->scc == NULL)
+      ret = ddsi_type_scc_attach_locked (gv, *type, &(*type)->xt.id.x._u.sc_component_id);
+    if (ret == DDS_RETCODE_OK)
+    {
+      (*type)->state = DDSI_TYPE_COMPLETING;
       if (ref_type == NULL)
         ddsrt_avl_insert (&ddsi_typelib_treedef, &gv->typelib, *type);
 
-      if ((ret = dynamic_type_ref_deps (*type)) != DDS_RETCODE_OK)
+      if ((ret = dynamic_type_finalize_deps_locked (*type, visited)) != DDS_RETCODE_OK)
+      {
+        assert (ref_type == NULL); // if a valid type with same ID exists, the constructed type can't be invalid
+        (*type)->state = DDSI_TYPE_INVALID;
+      }
+      else if ((ret = ddsi_xt_validate (gv, *type)) != DDS_RETCODE_OK)
+      {
+        assert (ref_type == NULL); // if a valid type with same ID exists, the constructed type can't be invalid
+        (*type)->state = DDSI_TYPE_INVALID;
+      }
+      else if ((ret = dynamic_type_ref_deps (*type)) != DDS_RETCODE_OK)
       {
         assert (ref_type == NULL); // if a valid type with same ID exists, the constructed type can't be invalid
         (*type)->state = DDSI_TYPE_INVALID;
       }
       else
       {
-        (*type)->state = DDSI_TYPE_RESOLVED;
-        (*type)->xt.kind = ddsi_typeid_kind (&(*type)->xt.id);
-        assert ((*type)->xt.kind != DDSI_TYPEID_KIND_INVALID); // internally generated, so must be valid
+        (*type)->state = DDSI_TYPE_PARTIAL_RESOLVED;
+        ddsi_type_update_state_locked (gv, *type);
       }
+    }
+    else
+    {
+      assert (ref_type == NULL); // if a valid type with same ID exists, the constructed type can't be invalid
+      (*type)->state = DDSI_TYPE_INVALID;
     }
   }
   ddsi_typeid_fini_impl (&ti);
   return ret;
 }
 
-static dds_return_t dynamic_type_complete (struct ddsi_type **type)
+static dds_return_t dynamic_type_complete_locked (struct ddsi_type **type)
 {
+  dds_return_t ret = DDS_RETCODE_OK;
   struct ddsi_domaingv *gv = (*type)->gv;
-  ddsrt_mutex_lock (&gv->typelib_lock);
-  dds_return_t ret = dynamic_type_complete_locked (type);
-  ddsrt_mutex_unlock (&gv->typelib_lock);
+  ddsi_type_canonicalize_locked (gv, type);
+
+  if ((*type)->state != DDSI_TYPE_CONSTRUCTING)
+  {
+    if ((*type)->state != DDSI_TYPE_COMPLETING)
+      assert (ddsi_type_resolved_locked (gv, *type, DDSI_TYPE_IGNORE_DEPS));
+    return ret;
+  }
+
+  if ((ret = dynamic_type_mark_completing_locked (type)) != DDS_RETCODE_OK)
+    return ret;
+
+  struct ddsrt_hh *visited = ddsi_type_visit_new ();
+  ret = dynamic_type_finalize_locked (type, visited);
+  ddsi_type_visit_free (visited);
   return ret;
 }
 
@@ -200,14 +357,7 @@ dds_return_t ddsi_dynamic_type_create_struct (struct ddsi_domaingv *gv, struct d
   }
   dynamic_type_init (gv, *type, DDS_XTypes_TK_STRUCTURE, DDSI_TYPEID_KIND_COMPLETE);
   if (*base_type)
-  {
-    if ((ret = dynamic_type_complete (base_type)) != DDS_RETCODE_OK)
-    {
-      ddsrt_free (*type);
-      goto err;
-    }
     (*type)->xt._u.structure.base_type = *base_type;
-  }
   (*type)->xt._u.structure.flags = DDS_XTypes_IS_FINAL;
   (void) ddsrt_strlcpy ((*type)->xt._u.structure.detail.type_name, type_name, sizeof ((*type)->xt._u.structure.detail.type_name));
 err:
@@ -216,9 +366,6 @@ err:
 
 dds_return_t ddsi_dynamic_type_create_union (struct ddsi_domaingv *gv, struct ddsi_type **type, const char *type_name, struct ddsi_type **discriminant_type)
 {
-  dds_return_t ret = DDS_RETCODE_OK;
-  if ((ret = dynamic_type_complete (discriminant_type)) != DDS_RETCODE_OK)
-    return ret;
   if ((*type = ddsrt_calloc (1, sizeof (**type))) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
   dynamic_type_init (gv, *type, DDS_XTypes_TK_UNION, DDSI_TYPEID_KIND_COMPLETE);
@@ -231,9 +378,6 @@ dds_return_t ddsi_dynamic_type_create_union (struct ddsi_domaingv *gv, struct dd
 
 dds_return_t ddsi_dynamic_type_create_sequence (struct ddsi_domaingv *gv, struct ddsi_type **type, const char *type_name, struct ddsi_type **element_type, uint32_t bound)
 {
-  dds_return_t ret = DDS_RETCODE_OK;
-  if ((ret = dynamic_type_complete (element_type)) != DDS_RETCODE_OK)
-    return ret;
   if ((*type = ddsrt_calloc (1, sizeof (**type))) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
   dynamic_type_init (gv, *type, DDS_XTypes_TK_SEQUENCE, DDSI_TYPEID_KIND_PLAIN_COLLECTION_COMPLETE);
@@ -246,9 +390,6 @@ dds_return_t ddsi_dynamic_type_create_sequence (struct ddsi_domaingv *gv, struct
 
 dds_return_t ddsi_dynamic_type_create_array (struct ddsi_domaingv *gv, struct ddsi_type **type, const char *type_name, struct ddsi_type **element_type, uint32_t num_bounds, const uint32_t *bounds)
 {
-  dds_return_t ret;
-  if ((ret = dynamic_type_complete (element_type)) != DDS_RETCODE_OK)
-    return ret;
   if ((*type = ddsrt_calloc (1, sizeof (**type))) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
   dynamic_type_init (gv, *type, DDS_XTypes_TK_ARRAY, DDSI_TYPEID_KIND_PLAIN_COLLECTION_COMPLETE);
@@ -289,9 +430,6 @@ dds_return_t ddsi_dynamic_type_create_bitmask (struct ddsi_domaingv *gv, struct 
 
 dds_return_t ddsi_dynamic_type_create_alias (struct ddsi_domaingv *gv, struct ddsi_type **type, const char *type_name, struct ddsi_type **aliased_type)
 {
-  dds_return_t ret;
-  if ((ret = dynamic_type_complete (aliased_type)) != DDS_RETCODE_OK)
-    return ret;
   if ((*type = ddsrt_calloc (1, sizeof (**type))) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
   dynamic_type_init (gv, *type, DDS_XTypes_TK_ALIAS, DDSI_TYPEID_KIND_COMPLETE);
@@ -463,13 +601,10 @@ uint32_t ddsi_dynamic_type_member_hashid (const char *name)
 
 dds_return_t ddsi_dynamic_type_add_struct_member (struct ddsi_type *type, struct ddsi_type **member_type, struct ddsi_dynamic_type_struct_member_param params)
 {
-  dds_return_t ret;
   assert (type->state == DDSI_TYPE_CONSTRUCTING);
   assert (type->xt._d == DDS_XTypes_TK_STRUCTURE);
   if (type->xt._u.structure.members.length == UINT32_MAX)
     return DDS_RETCODE_BAD_PARAMETER;
-  if ((ret = dynamic_type_complete (member_type)) != DDS_RETCODE_OK)
-    return ret;
 
   // check member id or set to max+1
   uint32_t member_id = 0;
@@ -527,13 +662,9 @@ dds_return_t ddsi_dynamic_type_add_struct_member (struct ddsi_type *type, struct
 
 dds_return_t ddsi_dynamic_type_add_union_member (struct ddsi_type *type, struct ddsi_type **member_type, struct ddsi_dynamic_type_union_member_param params)
 {
-  dds_return_t ret;
   assert (type->state == DDSI_TYPE_CONSTRUCTING);
   assert (type->gv == (*member_type)->gv);
   assert (type->xt._d == DDS_XTypes_TK_UNION);
-
-  if ((ret = dynamic_type_complete (member_type)) != DDS_RETCODE_OK)
-    return ret;
 
   // check member id or set to max+1
   uint32_t member_id = 0;
@@ -941,8 +1072,8 @@ dds_return_t ddsi_dynamic_type_register (struct ddsi_type **type_c, struct ddsi_
   }
 
   /* A dynamic type has a ref to the complete type. ddsi_type_get_typeinfo increases
-     the refcount for both minimal and complete type. The ref for the minimal type
-     is transferred to the dynamic type, so we need to release the complete type's ref */
+     the complete refcount and returns a minimal ref that is transferred to the
+     dynamic type. Release the extra complete ref. */
   ddsi_type_unref_locked (gv, *type_c);
 
 err:

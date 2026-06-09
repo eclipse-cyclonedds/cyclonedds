@@ -14,6 +14,7 @@
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "ddsi__dynamic_type.h"
+#include "ddsi__typelib.h"
 #include "ddsi__xt_impl.h"
 #include "test_util.h"
 #include "Space.h"
@@ -32,6 +33,8 @@ static void dynamic_type_init(void)
 static void dynamic_type_fini(void)
 {
   dds_return_t ret = dds_delete (participant);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_delete (domain);
   CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 }
 
@@ -760,6 +763,309 @@ CU_Test (ddsc_dynamic_type, existing_constructing, .init = dynamic_type_init, .f
   dds_free_typeinfo (type_info2);
   dds_dynamic_type_unref (&dstruct1);
   dds_dynamic_type_unref (&dstruct2);
+}
+
+CU_Test (ddsc_dynamic_type, existing_nested_constructing, .init = dynamic_type_init, .fini = dynamic_type_fini)
+{
+  dds_dynamic_type_t dstruct_existing = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dynamic_nested_struct" });
+  dds_dynamic_type_add_member (&dstruct_existing, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_UINT32, "member_uint32"));
+
+  dds_typeinfo_t *type_info_existing;
+  dds_return_t ret = dds_dynamic_type_register (&dstruct_existing, &type_info_existing);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  dds_dynamic_type_t dstruct_nested = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dynamic_nested_struct" });
+  dds_dynamic_type_add_member (&dstruct_nested, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_UINT32, "member_uint32"));
+
+  dds_dynamic_type_t dstruct_parent = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dynamic_parent_struct" });
+  dds_dynamic_type_add_member (&dstruct_parent, DDS_DYNAMIC_MEMBER (dds_dynamic_type_ref (&dstruct_nested), "member_struct"));
+
+  dds_typeinfo_t *type_info_parent;
+  ret = dds_dynamic_type_register (&dstruct_parent, &type_info_parent);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  dds_typeinfo_t *type_info_nested;
+  ret = dds_dynamic_type_register (&dstruct_nested, &type_info_nested);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (ddsi_typeid_compare (ddsi_typeinfo_complete_typeid (type_info_existing), ddsi_typeinfo_complete_typeid (type_info_nested)), 0);
+
+  dds_free_typeinfo (type_info_existing);
+  dds_free_typeinfo (type_info_parent);
+  dds_free_typeinfo (type_info_nested);
+  dds_dynamic_type_unref (&dstruct_existing);
+  dds_dynamic_type_unref (&dstruct_parent);
+  dds_dynamic_type_unref (&dstruct_nested);
+}
+
+static void recursive_import_expect (const ddsi_typeinfo_t *type_info, const ddsi_typemap_t *type_map, dds_domainid_t domainid, dds_return_t expected)
+{
+  dds_entity_t import_domain = dds_create_domain (domainid, NULL);
+  CU_ASSERT_GEQ_FATAL (import_domain, 0);
+  dds_entity_t import_participant = dds_create_participant (domainid, NULL, NULL);
+  CU_ASSERT_GEQ_FATAL (import_participant, 0);
+
+  struct ddsi_domaingv *import_gv = get_domaingv (import_participant);
+  struct ddsi_type *imported_minimal = NULL, *imported_complete = NULL;
+  dds_return_t ret = ddsi_type_add (import_gv, &imported_minimal, &imported_complete, type_info, type_map);
+  CU_ASSERT_EQ_FATAL (ret, expected);
+  ddsrt_mutex_lock (&import_gv->typelib_lock);
+  if (ret == DDS_RETCODE_OK)
+  {
+    if (imported_minimal)
+      ddsi_type_unref_locked (import_gv, imported_minimal);
+    if (imported_complete)
+      ddsi_type_unref_locked (import_gv, imported_complete);
+  }
+  else
+  {
+    CU_ASSERT_EQ (imported_minimal, NULL);
+    CU_ASSERT_EQ (imported_complete, NULL);
+    CU_ASSERT_EQ (ddsi_type_lookup_locked (import_gv, ddsi_typeinfo_minimal_typeid (type_info)), NULL);
+    CU_ASSERT_EQ (ddsi_type_lookup_locked (import_gv, ddsi_typeinfo_complete_typeid (type_info)), NULL);
+  }
+  ddsrt_mutex_unlock (&import_gv->typelib_lock);
+
+  ret = dds_delete (import_participant);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_delete (import_domain);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+}
+
+static void mutate_recursive_scc_typeobject (ddsi_typemap_t *type_map)
+{
+  DDS_XTypes_TypeIdentifierTypeObjectPair *min_pair = &type_map->x.identifier_object_pair_minimal._buffer[0];
+  CU_ASSERT_EQ_FATAL (min_pair->type_identifier._d, DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT);
+  CU_ASSERT_EQ_FATAL (min_pair->type_object._d, DDS_XTypes_EK_MINIMAL);
+  CU_ASSERT_EQ_FATAL (min_pair->type_object._u.minimal._d, DDS_XTypes_TK_STRUCTURE);
+  CU_ASSERT_FATAL (min_pair->type_object._u.minimal._u.struct_type.member_seq._length > 0);
+  min_pair->type_object._u.minimal._u.struct_type.member_seq._buffer[0].detail.name_hash[0] ^= 1;
+
+  DDS_XTypes_TypeIdentifierTypeObjectPair *complete_pair = &type_map->x.identifier_object_pair_complete._buffer[0];
+  CU_ASSERT_EQ_FATAL (complete_pair->type_identifier._d, DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT);
+  CU_ASSERT_EQ_FATAL (complete_pair->type_object._d, DDS_XTypes_EK_COMPLETE);
+  CU_ASSERT_EQ_FATAL (complete_pair->type_object._u.complete._d, DDS_XTypes_TK_STRUCTURE);
+  complete_pair->type_object._u.complete._u.struct_type.header.detail.type_name[0] ^= 1;
+}
+
+static void mutate_recursive_complete_scc_typeobject (ddsi_typemap_t *type_map)
+{
+  DDS_XTypes_TypeIdentifierTypeObjectPair *complete_pair = &type_map->x.identifier_object_pair_complete._buffer[0];
+  CU_ASSERT_EQ_FATAL (complete_pair->type_identifier._d, DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT);
+  CU_ASSERT_EQ_FATAL (complete_pair->type_object._d, DDS_XTypes_EK_COMPLETE);
+  CU_ASSERT_EQ_FATAL (complete_pair->type_object._u.complete._d, DDS_XTypes_TK_STRUCTURE);
+  complete_pair->type_object._u.complete._u.struct_type.header.detail.type_name[0] ^= 1;
+}
+
+static void mutate_recursive_scc_pair_index_out_of_bounds (ddsi_typemap_t *type_map)
+{
+  DDS_XTypes_TypeIdentifier *min_id = &type_map->x.identifier_object_pair_minimal._buffer[0].type_identifier;
+  DDS_XTypes_TypeIdentifier *complete_id = &type_map->x.identifier_object_pair_complete._buffer[0].type_identifier;
+  CU_ASSERT_EQ_FATAL (min_id->_d, DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT);
+  CU_ASSERT_EQ_FATAL (complete_id->_d, DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT);
+  min_id->_u.sc_component_id.scc_index = min_id->_u.sc_component_id.scc_length + 1;
+  complete_id->_u.sc_component_id.scc_index = complete_id->_u.sc_component_id.scc_length + 1;
+}
+
+static void mutate_recursive_scc_length (ddsi_typeinfo_t *type_info, ddsi_typemap_t *type_map, int32_t length)
+{
+  DDS_XTypes_TypeIdentifier *min_ti = &type_info->x.minimal.typeid_with_size.type_id;
+  DDS_XTypes_TypeIdentifier *complete_ti = &type_info->x.complete.typeid_with_size.type_id;
+  DDS_XTypes_TypeIdentifier *min_map = &type_map->x.identifier_object_pair_minimal._buffer[0].type_identifier;
+  DDS_XTypes_TypeIdentifier *complete_map = &type_map->x.identifier_object_pair_complete._buffer[0].type_identifier;
+  CU_ASSERT_EQ_FATAL (min_ti->_d, DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT);
+  CU_ASSERT_EQ_FATAL (complete_ti->_d, DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT);
+  CU_ASSERT_EQ_FATAL (min_map->_d, DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT);
+  CU_ASSERT_EQ_FATAL (complete_map->_d, DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT);
+  min_ti->_u.sc_component_id.scc_length = length;
+  complete_ti->_u.sc_component_id.scc_length = length;
+  min_map->_u.sc_component_id.scc_length = length;
+  complete_map->_u.sc_component_id.scc_length = length;
+}
+
+static void duplicate_first_scc_pair (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *seq)
+{
+  CU_ASSERT_EQ_FATAL (seq->_length, 1);
+  CU_ASSERT_EQ_FATAL (seq->_maximum, 1);
+  CU_ASSERT_NEQ_FATAL (seq->_buffer, NULL);
+  CU_ASSERT_EQ_FATAL (seq->_buffer[0].type_identifier._d, DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT);
+
+  DDS_XTypes_TypeIdentifierTypeObjectPair *buf = ddsrt_calloc (2, sizeof (*buf));
+  CU_ASSERT_NEQ_FATAL (buf, NULL);
+  buf[0] = seq->_buffer[0];
+  buf[1].type_identifier = buf[0].type_identifier;
+  buf[1].type_object._d = buf[0].type_object._d;
+  ddsrt_free (seq->_buffer);
+  seq->_buffer = buf;
+  seq->_length = 2;
+  seq->_maximum = 2;
+  seq->_release = true;
+}
+
+static void mutate_recursive_scc_pair_duplicate_index (ddsi_typeinfo_t *type_info, ddsi_typemap_t *type_map)
+{
+  mutate_recursive_scc_length (type_info, type_map, 2);
+  duplicate_first_scc_pair (&type_map->x.identifier_object_pair_minimal);
+  duplicate_first_scc_pair (&type_map->x.identifier_object_pair_complete);
+}
+
+static void mutate_recursive_scc_wrong_equivalence_kind (ddsi_typemap_t *type_map)
+{
+  DDS_XTypes_TypeIdentifier *min_id = &type_map->x.identifier_object_pair_minimal._buffer[0].type_identifier;
+  DDS_XTypes_TypeIdentifier *complete_id = &type_map->x.identifier_object_pair_complete._buffer[0].type_identifier;
+  CU_ASSERT_EQ_FATAL (min_id->_d, DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT);
+  CU_ASSERT_EQ_FATAL (complete_id->_d, DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT);
+  CU_ASSERT_EQ_FATAL (min_id->_u.sc_component_id.sc_component_id._d, DDS_XTypes_EK_MINIMAL);
+  CU_ASSERT_EQ_FATAL (complete_id->_u.sc_component_id.sc_component_id._d, DDS_XTypes_EK_COMPLETE);
+  min_id->_u.sc_component_id.sc_component_id._d = DDS_XTypes_EK_COMPLETE;
+  complete_id->_u.sc_component_id.sc_component_id._d = DDS_XTypes_EK_MINIMAL;
+}
+
+CU_Test (ddsc_dynamic_type, recursive_struct, .init = dynamic_type_init, .fini = dynamic_type_fini)
+{
+  dds_dynamic_type_t dnode = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "Node" });
+  CU_ASSERT_EQ_FATAL (dnode.ret, DDS_RETCODE_OK);
+
+  dds_dynamic_type_t dseq = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_SEQUENCE,
+    .name = "NodeSeq",
+    .element_type = DDS_DYNAMIC_TYPE_SPEC (dds_dynamic_type_ref (&dnode))
+  });
+  CU_ASSERT_EQ_FATAL (dseq.ret, DDS_RETCODE_OK);
+
+  dds_return_t ret = dds_dynamic_type_add_member (&dnode, DDS_DYNAMIC_MEMBER_PRIM (DDS_DYNAMIC_INT32, "value"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&dnode, DDS_DYNAMIC_MEMBER (dseq, "children"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  dds_typeinfo_t *type_info;
+  ret = dds_dynamic_type_register (&dnode, &type_info);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  struct ddsi_typeinfo *dti = (struct ddsi_typeinfo *) type_info;
+  const ddsi_typeid_t *type_id = ddsi_typeinfo_complete_typeid (dti);
+  CU_ASSERT_EQ_FATAL (type_id->x._d, DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT);
+  const ddsi_typeid_t *minimal_type_id = ddsi_typeinfo_minimal_typeid (dti);
+  CU_ASSERT_EQ_FATAL (minimal_type_id->x._d, DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT);
+  CU_ASSERT_NEQ_FATAL (dnode.x[1], NULL);
+
+  struct ddsi_domaingv *gv = get_domaingv (participant);
+  struct ddsi_type *type = ddsi_type_lookup (gv, type_id);
+  CU_ASSERT_NEQ_FATAL (type, NULL);
+  CU_ASSERT_EQ_FATAL (type->state, DDSI_TYPE_RESOLVED);
+
+  unsigned char *typemap_ser;
+  uint32_t typemap_ser_sz;
+  ret = ddsi_type_get_typemap_ser (gv, type, &typemap_ser, &typemap_ser_sz);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  unsigned char *typeinfo_ser;
+  uint32_t typeinfo_ser_sz;
+  ret = ddsi_type_get_typeinfo_ser (gv, type, &typeinfo_ser, &typeinfo_ser_sz);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  ddsi_typemap_t *type_map = ddsi_typemap_deser (typemap_ser, typemap_ser_sz);
+  CU_ASSERT_NEQ_FATAL (type_map, NULL);
+
+  dds_entity_t import_domain = dds_create_domain (1, NULL);
+  CU_ASSERT_GEQ_FATAL (import_domain, 0);
+  dds_entity_t import_participant = dds_create_participant (1, NULL, NULL);
+  CU_ASSERT_GEQ_FATAL (import_participant, 0);
+
+  struct ddsi_domaingv *import_gv = get_domaingv (import_participant);
+  struct ddsi_type *unresolved_minimal = NULL;
+  ddsrt_mutex_lock (&import_gv->typelib_lock);
+  ret = ddsi_type_ref_id_locked (import_gv, &unresolved_minimal, minimal_type_id);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (unresolved_minimal->state, DDSI_TYPE_UNRESOLVED);
+  ddsrt_mutex_unlock (&import_gv->typelib_lock);
+
+  struct ddsi_type *imported_minimal = NULL, *imported_complete = NULL;
+  ret = ddsi_type_add (import_gv, &imported_minimal, &imported_complete, dti, type_map);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_FATAL (ddsi_type_resolved (import_gv, imported_minimal, DDSI_TYPE_IGNORE_DEPS));
+  CU_ASSERT_FATAL (ddsi_type_resolved (import_gv, imported_complete, DDSI_TYPE_IGNORE_DEPS));
+  CU_ASSERT_NEQ_FATAL (imported_minimal->scc, NULL);
+  CU_ASSERT_EQ_FATAL (imported_minimal->scc->n_wire_types, 1);
+  CU_ASSERT_FATAL (imported_minimal->scc->types[0] == imported_minimal);
+  CU_ASSERT_EQ_FATAL (imported_minimal->scc->n_types, 2);
+  CU_ASSERT_EQ_FATAL (imported_minimal->xt._u.structure.members.seq[1].type->xt._d, DDS_XTypes_TK_SEQUENCE);
+  CU_ASSERT_FATAL (imported_minimal->scc->types[1] == imported_minimal->xt._u.structure.members.seq[1].type);
+  CU_ASSERT_NEQ_FATAL (imported_complete->scc, NULL);
+  CU_ASSERT_EQ_FATAL (imported_complete->scc->n_wire_types, 1);
+  CU_ASSERT_FATAL (imported_complete->scc->types[0] == imported_complete);
+  CU_ASSERT_EQ_FATAL (imported_complete->scc->n_types, 2);
+  CU_ASSERT_EQ_FATAL (imported_complete->xt._u.structure.members.seq[1].type->xt._d, DDS_XTypes_TK_SEQUENCE);
+  CU_ASSERT_FATAL (imported_complete->scc->types[1] == imported_complete->xt._u.structure.members.seq[1].type);
+
+  ddsrt_mutex_lock (&import_gv->typelib_lock);
+  ddsi_type_unref_locked (import_gv, unresolved_minimal);
+  ddsi_type_unref_locked (import_gv, imported_minimal);
+  ddsi_type_unref_locked (import_gv, imported_complete);
+  ddsrt_mutex_unlock (&import_gv->typelib_lock);
+
+  ret = dds_delete (import_participant);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_delete (import_domain);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  ddsi_typeinfo_t *bad_type_info;
+  ddsi_typemap_t *bad_type_map = ddsi_typemap_deser (typemap_ser, typemap_ser_sz);
+  CU_ASSERT_NEQ_FATAL (bad_type_map, NULL);
+  mutate_recursive_scc_typeobject (bad_type_map);
+  recursive_import_expect (dti, bad_type_map, 2, DDS_RETCODE_BAD_PARAMETER);
+  ddsi_typemap_fini (bad_type_map);
+  ddsrt_free (bad_type_map);
+
+  bad_type_map = ddsi_typemap_deser (typemap_ser, typemap_ser_sz);
+  CU_ASSERT_NEQ_FATAL (bad_type_map, NULL);
+  mutate_recursive_complete_scc_typeobject (bad_type_map);
+  recursive_import_expect (dti, bad_type_map, 3, DDS_RETCODE_BAD_PARAMETER);
+  ddsi_typemap_fini (bad_type_map);
+  ddsrt_free (bad_type_map);
+
+  bad_type_map = ddsi_typemap_deser (typemap_ser, typemap_ser_sz);
+  CU_ASSERT_NEQ_FATAL (bad_type_map, NULL);
+  mutate_recursive_scc_pair_index_out_of_bounds (bad_type_map);
+  recursive_import_expect (dti, bad_type_map, 4, DDS_RETCODE_BAD_PARAMETER);
+  ddsi_typemap_fini (bad_type_map);
+  ddsrt_free (bad_type_map);
+
+  bad_type_info = ddsi_typeinfo_deser (typeinfo_ser, typeinfo_ser_sz);
+  CU_ASSERT_NEQ_FATAL (bad_type_info, NULL);
+  bad_type_map = ddsi_typemap_deser (typemap_ser, typemap_ser_sz);
+  CU_ASSERT_NEQ_FATAL (bad_type_map, NULL);
+  mutate_recursive_scc_pair_duplicate_index (bad_type_info, bad_type_map);
+  recursive_import_expect (bad_type_info, bad_type_map, 5, DDS_RETCODE_BAD_PARAMETER);
+  ddsi_typeinfo_fini (bad_type_info);
+  ddsrt_free (bad_type_info);
+  ddsi_typemap_fini (bad_type_map);
+  ddsrt_free (bad_type_map);
+
+  bad_type_map = ddsi_typemap_deser (typemap_ser, typemap_ser_sz);
+  CU_ASSERT_NEQ_FATAL (bad_type_map, NULL);
+  mutate_recursive_scc_wrong_equivalence_kind (bad_type_map);
+  recursive_import_expect (dti, bad_type_map, 6, DDS_RETCODE_BAD_PARAMETER);
+  ddsi_typemap_fini (bad_type_map);
+  ddsrt_free (bad_type_map);
+
+  bad_type_info = ddsi_typeinfo_deser (typeinfo_ser, typeinfo_ser_sz);
+  CU_ASSERT_NEQ_FATAL (bad_type_info, NULL);
+  bad_type_map = ddsi_typemap_deser (typemap_ser, typemap_ser_sz);
+  CU_ASSERT_NEQ_FATAL (bad_type_map, NULL);
+  mutate_recursive_scc_length (bad_type_info, bad_type_map, 2);
+  recursive_import_expect (bad_type_info, bad_type_map, 7, DDS_RETCODE_BAD_PARAMETER);
+  ddsi_typeinfo_fini (bad_type_info);
+  ddsrt_free (bad_type_info);
+  ddsi_typemap_fini (bad_type_map);
+  ddsrt_free (bad_type_map);
+
+  ddsi_typemap_fini (type_map);
+  ddsrt_free (type_map);
+  ddsrt_free (typeinfo_ser);
+  ddsrt_free (typemap_ser);
+
+  dds_free_typeinfo (type_info);
+  dds_dynamic_type_unref (&dnode);
 }
 
 CU_Test (ddsc_dynamic_type, type_info, .init = dynamic_type_init, .fini = dynamic_type_fini)

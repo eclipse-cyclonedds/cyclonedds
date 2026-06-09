@@ -149,6 +149,40 @@ CU_Test (ddsc_xtypes_typeinfo, invalid_top_level_local_non_hash, .init = xtypes_
   ddsrt_free ((void *) desc.type_information.data);
 }
 
+CU_Test (ddsc_xtypes_typeinfo, invalid_map_key_flags, .init = xtypes_typeinfo_init, .fini = xtypes_typeinfo_fini)
+{
+  struct ddsi_domaingv *gv = get_domaingv (g_participant1);
+  struct ddsi_type key = { .xt = { ._d = DDS_XTypes_TK_UINT32 } };
+  struct ddsi_type element = { .xt = { ._d = DDS_XTypes_TK_UINT32 } };
+  struct ddsi_type map = { .xt = { ._d = DDS_XTypes_TK_MAP } };
+
+  map.xt._u.map.key_type = &key;
+  map.xt._u.map.c.element_type = &element;
+  map.xt._u.map.c.element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD;
+
+  map.xt._u.map.key_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD | DDS_XTypes_IS_OPTIONAL;
+  CU_ASSERT_EQ (ddsi_xt_validate (gv, &map), DDS_RETCODE_BAD_PARAMETER);
+
+  map.xt._u.map.key_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD | DDS_XTypes_IS_EXTERNAL;
+  CU_ASSERT_EQ (ddsi_xt_validate (gv, &map), DDS_RETCODE_OK);
+}
+
+CU_Test (ddsc_xtypes_typeinfo, optional_recursive_struct, .init = xtypes_typeinfo_init, .fini = xtypes_typeinfo_fini)
+{
+  struct ddsi_domaingv *gv = get_domaingv (g_participant1);
+  struct ddsi_type node = { .xt = { ._d = DDS_XTypes_TK_STRUCTURE } };
+  struct xt_struct_member member = { .type = &node, .flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD };
+
+  node.xt._u.structure.flags = DDS_XTypes_IS_FINAL;
+  node.xt._u.structure.members.length = 1;
+  node.xt._u.structure.members.seq = &member;
+
+  CU_ASSERT_EQ (ddsi_xt_validate (gv, &node), DDS_RETCODE_BAD_PARAMETER);
+
+  member.flags |= DDS_XTypes_IS_OPTIONAL;
+  CU_ASSERT_EQ (ddsi_xt_validate (gv, &node), DDS_RETCODE_OK);
+}
+
 static void mod_toplevel (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *type_id_obj_seq, uint32_t kind)
 {
   assert (kind == DDS_XTypes_EK_MINIMAL);

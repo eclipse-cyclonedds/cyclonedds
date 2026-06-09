@@ -31,39 +31,67 @@ extern "C" {
 #define DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT DDS_XTypes_TRY_CONSTRUCT2
 #define DDS_XTypes_TRY_CONSTRUCT_TRIM (DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_TRY_CONSTRUCT2)
 
+/* The validator currently rejects recursive paths beyond this size. Use the
+   same bound for peer-provided wire SCC arrays so bogus metadata can't demand
+   unbounded allocation before validation has a chance to run. */
+#define DDSI_TYPE_SCC_MAX_WIRE_TYPES 100u
+
 struct xt_type;
+struct ddsi_type;
 
 /** @component xtypes_wrapper */
 bool ddsi_type_id_with_deps_equal (const struct DDS_XTypes_TypeIdentifierWithDependencies *a, const struct DDS_XTypes_TypeIdentifierWithDependencies *b, enum ddsi_type_include_deps deps);
 
 /** @component xtypes_wrapper */
 const char * ddsi_typekind_descr (unsigned char disc);
-void ddsi_xt_get_typeid_impl (const struct xt_type *xt, struct DDS_XTypes_TypeIdentifier *ti, ddsi_typeid_kind_t kind);
+void ddsi_xt_get_typeid_impl (const struct xt_type *xt, struct DDS_XTypes_TypeIdentifier *ti, ddsi_typeid_kind_t kind)
+  ddsrt_nonnull_all;
 
 
 /** @component xtypes_wrapper */
-dds_return_t ddsi_typeobj_get_hash_id (const struct DDS_XTypes_TypeObject *type_obj, ddsi_typeid_t *type_id);
+dds_return_t ddsi_typeobj_get_hash_id (const struct DDS_XTypes_TypeObject *type_obj, ddsi_typeid_t *type_id)
+  ddsrt_nonnull_all;
 
 /** @component xtypes_wrapper */
-void ddsi_typeobj_get_hash_id_impl (const struct DDS_XTypes_TypeObject *type_obj, struct DDS_XTypes_TypeIdentifier *type_id);
+void ddsi_typeobj_get_hash_id_impl (const struct DDS_XTypes_TypeObject *type_obj, struct DDS_XTypes_TypeIdentifier *type_id)
+  ddsrt_nonnull_all;
 
 /** @component xtypes_wrapper */
-const char *ddsi_typeobj_get_type_name_impl (const struct DDS_XTypes_TypeObject *type_obj);
+dds_return_t ddsi_typeobj_get_scc_hash (DDS_XTypes_EquivalenceHash hash, const struct DDS_XTypes_TypeObject *type_objects, uint32_t n_type_objects)
+  ddsrt_nonnull_all;
 
 /** @component xtypes_wrapper */
-dds_return_t ddsi_xt_type_init (struct ddsi_domaingv *gv, struct xt_type *xt, const ddsi_typeid_t *ti, const ddsi_typeobj_t *to);
+dds_return_t ddsi_typeobj_scc_verify_strongly_connected (
+    const struct DDS_XTypes_StronglyConnectedComponentId *scc_id,
+    const struct DDS_XTypes_TypeIdentifierTypeObjectPair * const *slots)
+  ddsrt_nonnull_all;
 
 /** @component xtypes_wrapper */
-dds_return_t ddsi_xt_type_add_typeobj (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeObject *to);
+const char *ddsi_typeobj_get_type_name_impl (const struct DDS_XTypes_TypeObject *type_obj)
+  ddsrt_nonnull_all;
 
 /** @component xtypes_wrapper */
-void ddsi_xt_get_typeobject_kind_impl (const struct xt_type *xt, struct DDS_XTypes_TypeObject *to, ddsi_typeid_kind_t kind);
+dds_return_t ddsi_xt_type_init (struct ddsi_domaingv *gv, struct ddsi_type *type, const ddsi_typeid_t *ti, const ddsi_typeobj_t *to)
+  ddsrt_nonnull_all;
 
 /** @component xtypes_wrapper */
-void ddsi_xt_get_typeobject (const struct xt_type *xt, ddsi_typeobj_t *to);
+dds_return_t ddsi_xt_type_add_typeobj (struct ddsi_domaingv *gv, struct ddsi_type *type, const struct DDS_XTypes_TypeObject *to)
+  ddsrt_nonnull_all;
+
+/** @component xtypes_wrapper */
+void ddsi_xt_get_typeobject_kind_impl (const struct xt_type *xt, struct DDS_XTypes_TypeObject *to, ddsi_typeid_kind_t kind)
+  ddsrt_nonnull_all;
+
+/** @component xtypes_wrapper */
+void ddsi_xt_get_typeobject (const struct xt_type *xt, ddsi_typeobj_t *to)
+  ddsrt_nonnull_all;
 
 /** @component xtypes_wrapper */
 void ddsi_xt_type_fini (struct ddsi_domaingv *gv, struct xt_type *xt, bool include_typeid);
+
+/** @component xtypes_wrapper */
+void ddsi_xt_type_fini_owned (struct ddsi_domaingv *gv, const struct ddsi_type *owner, struct xt_type *xt, bool include_typeid)
+  ddsrt_nonnull((1,3));
 
 /** @component xtypes_wrapper */
 
@@ -100,15 +128,15 @@ bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type 
   ddsrt_nonnull_all;
 
 /** @component xtypes_wrapper */
-dds_return_t ddsi_xt_validate (struct ddsi_domaingv *gv, const struct xt_type *t)
+dds_return_t ddsi_xt_validate (struct ddsi_domaingv *gv, const struct ddsi_type *type)
   ddsrt_nonnull_all;
 
 /** @component xtypes_wrapper */
-bool ddsi_xt_is_unresolved (const struct xt_type *t)
+bool ddsi_xt_missing_definition (const struct xt_type *t)
   ddsrt_nonnull_all;
 
 /** @component xtypes_wrapper */
-bool ddsi_xt_is_resolved (const struct xt_type *t)
+bool ddsi_xt_has_definition (const struct xt_type *t)
   ddsrt_nonnull_all;
 
 /** @component xtypes_wrapper */

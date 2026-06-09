@@ -53,6 +53,9 @@ enum ddsi_type_include_deps {
 DDS_EXPORT int ddsi_typeid_compare (const ddsi_typeid_t *a, const ddsi_typeid_t *b);
 
 /** @component xtypes_wrapper */
+DDS_EXPORT uint32_t ddsi_typeid_hash (const ddsi_typeid_t *type_id);
+
+/** @component xtypes_wrapper */
 DDS_EXPORT void ddsi_typeid_copy (ddsi_typeid_t *dst, const ddsi_typeid_t *src);
 
 /** @component xtypes_wrapper */
@@ -77,7 +80,8 @@ DDS_EXPORT bool ddsi_typeid_is_complete (const ddsi_typeid_t *type_id);
 DDS_EXPORT bool ddsi_typeid_is_fully_descriptive (const ddsi_typeid_t *type_id);
 
 /** @component xtypes_wrapper */
-DDS_EXPORT void ddsi_typeid_get_equivalence_hash (const ddsi_typeid_t *type_id, DDS_XTypes_EquivalenceHash *hash);
+DDS_EXPORT void ddsi_typeid_get_equivalence_hash (const ddsi_typeid_t *type_id, DDS_XTypes_EquivalenceHash *hash)
+  ddsrt_nonnull_all;
 
 /** @component xtypes_wrapper */
 DDS_EXPORT ddsi_typeid_kind_t ddsi_typeid_kind (const ddsi_typeid_t *type);

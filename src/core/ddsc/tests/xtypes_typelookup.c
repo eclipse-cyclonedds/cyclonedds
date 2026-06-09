@@ -26,6 +26,7 @@
 #include "ddsi__typewrap.h"
 #include "ddsi__typelookup.h"
 #include "ddsi__endpoint_match.h"
+#include "ddsi__xt_impl.h"
 #include "dds/dds.h"
 #include "dds/version.h"
 #include "dds__domain.h"
@@ -406,6 +407,439 @@ CU_Test(ddsc_typelookup, api_resolve_invalid, .init = typelookup_init, .fini = t
   dds_free (type_name);
 }
 
+struct recursive_scc_dynamic_type {
+  dds_dynamic_type_t da;
+  dds_dynamic_type_t db;
+  dds_typeinfo_t *type_info;
+};
+
+static void create_recursive_scc_dynamic_type (dds_entity_t participant, struct recursive_scc_dynamic_type *type)
+{
+  memset (type, 0, sizeof (*type));
+  type->da = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "TypeLookupSccA" });
+  CU_ASSERT_EQ_FATAL (type->da.ret, DDS_RETCODE_OK);
+  type->db = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "TypeLookupSccB" });
+  CU_ASSERT_EQ_FATAL (type->db.ret, DDS_RETCODE_OK);
+
+  dds_dynamic_type_t dseq_a = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_SEQUENCE,
+    .name = "TypeLookupSccASeq",
+    .element_type = DDS_DYNAMIC_TYPE_SPEC (dds_dynamic_type_ref (&type->da))
+  });
+  CU_ASSERT_EQ_FATAL (dseq_a.ret, DDS_RETCODE_OK);
+  dds_dynamic_type_t dseq_b = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_SEQUENCE,
+    .name = "TypeLookupSccBSeq",
+    .element_type = DDS_DYNAMIC_TYPE_SPEC (dds_dynamic_type_ref (&type->db))
+  });
+  CU_ASSERT_EQ_FATAL (dseq_b.ret, DDS_RETCODE_OK);
+
+  dds_return_t ret = dds_dynamic_type_add_member (&type->da, DDS_DYNAMIC_MEMBER_PRIM (DDS_DYNAMIC_INT32, "a_value"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&type->da, DDS_DYNAMIC_MEMBER (dseq_b, "bs"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&type->db, DDS_DYNAMIC_MEMBER_PRIM (DDS_DYNAMIC_INT32, "b_value"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&type->db, DDS_DYNAMIC_MEMBER (dseq_a, "as"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  ret = dds_dynamic_type_register (&type->da, &type->type_info);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+}
+
+CU_Test(ddsc_typelookup, resolve_recursive_scc, .init = typelookup_init, .fini = typelookup_fini)
+{
+  dds_return_t ret;
+  struct recursive_scc_dynamic_type dtype;
+  create_recursive_scc_dynamic_type (g_participant1, &dtype);
+  ddsi_typeid_t *type_id = ddsi_typeid_dup (ddsi_typeinfo_complete_typeid ((ddsi_typeinfo_t *) dtype.type_info));
+  CU_ASSERT_EQ_FATAL (type_id->x._d, DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT);
+  CU_ASSERT_EQ_FATAL (type_id->x._u.sc_component_id.scc_length, 2);
+  struct ddsi_domaingv *local_gv = get_domaingv (g_participant1);
+  ddsrt_mutex_lock (&local_gv->typelib_lock);
+  const struct ddsi_type *local_type = ddsi_type_lookup_locked (local_gv, type_id);
+  const enum ddsi_type_state local_state = local_type ? local_type->state : DDSI_TYPE_INVALID;
+  const bool local_resolved = local_type && ddsi_type_resolved_locked (local_gv, local_type, DDSI_TYPE_INCLUDE_DEPS);
+  ddsrt_mutex_unlock (&local_gv->typelib_lock);
+  CU_ASSERT_NEQ_FATAL (local_type, NULL);
+  CU_ASSERT_EQ_FATAL (local_state, DDSI_TYPE_RESOLVED);
+  CU_ASSERT_FATAL (local_resolved);
+
+  dds_topic_descriptor_t *desc;
+  ret = dds_create_topic_descriptor (DDS_FIND_SCOPE_LOCAL_DOMAIN, g_participant1, dtype.type_info, 0, &desc);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  char topic_name[100];
+  create_unique_topic_name ("ddsc_typelookup", topic_name, sizeof (topic_name));
+  dds_entity_t topic = dds_create_topic (g_participant1, desc, topic_name, NULL, NULL);
+  CU_ASSERT_GT_FATAL (topic, 0);
+  dds_entity_t writer = dds_create_writer (g_participant1, topic, NULL, NULL);
+  CU_ASSERT_GT_FATAL (writer, 0);
+
+  endpoint_info_t *writer_ep = find_typeid_match (g_participant2, DDS_BUILTIN_TOPIC_DCPSPUBLICATION, type_id, topic_name, DDSI_TYPEID_KIND_COMPLETE);
+  CU_ASSERT_NEQ_FATAL (writer_ep, NULL);
+
+  dds_topic_descriptor_t *remote_desc;
+  ret = dds_create_topic_descriptor (DDS_FIND_SCOPE_GLOBAL, g_participant2, writer_ep->type_info, DDS_SECS (15), &remote_desc);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  dds_entity_t remote_topic = dds_create_topic (g_participant2, remote_desc, writer_ep->topic_name, NULL, NULL);
+  CU_ASSERT_GT_FATAL (remote_topic, 0);
+
+  struct ddsi_domaingv *gv = get_domaingv (g_participant2);
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  const struct ddsi_type *remote_type = ddsi_type_lookup_locked (gv, type_id);
+  const enum ddsi_type_state remote_state = remote_type ? remote_type->state : DDSI_TYPE_INVALID;
+  const bool remote_has_scc = remote_type && remote_type->scc != NULL;
+  const uint32_t n_wire_types = remote_has_scc ? remote_type->scc->n_wire_types : 0;
+  const bool wire_slots_filled = n_wire_types >= 2 && remote_type->scc->types[0] != NULL && remote_type->scc->types[1] != NULL;
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+  CU_ASSERT_NEQ_FATAL (remote_type, NULL);
+  CU_ASSERT_EQ_FATAL (remote_state, DDSI_TYPE_RESOLVED);
+  CU_ASSERT_FATAL (remote_has_scc);
+  CU_ASSERT_EQ_FATAL (n_wire_types, 2);
+  CU_ASSERT_FATAL (wire_slots_filled);
+
+  dds_delete_topic_descriptor (remote_desc);
+  endpoint_info_free (writer_ep);
+  dds_delete_topic_descriptor (desc);
+  dds_free_typeinfo (dtype.type_info);
+  dds_dynamic_type_unref (&dtype.da);
+  dds_dynamic_type_unref (&dtype.db);
+  ddsi_typeid_fini (type_id);
+  dds_free (type_id);
+}
+
+static void init_scc_ref_typeid (struct DDS_XTypes_TypeIdentifier *type_id, int32_t scc_length, int32_t scc_index, const DDS_XTypes_EquivalenceHash *hash)
+{
+  memset (type_id, 0, sizeof (*type_id));
+  type_id->_d = DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT;
+  type_id->_u.sc_component_id.sc_component_id._d = DDS_XTypes_EK_COMPLETE;
+  if (hash != NULL)
+    memcpy (type_id->_u.sc_component_id.sc_component_id._u.hash, *hash, sizeof (*hash));
+  type_id->_u.sc_component_id.scc_length = scc_length;
+  type_id->_u.sc_component_id.scc_index = scc_index;
+}
+
+static void init_scc_struct_typeobject (
+    struct DDS_XTypes_TypeObject *typeobj,
+    struct DDS_XTypes_CompleteStructMember *member,
+    const char *type_name,
+    const char *member_name,
+    const struct DDS_XTypes_TypeIdentifier *member_typeid)
+{
+  memset (member, 0, sizeof (*member));
+  member->common.member_id = 1;
+  member->common.member_flags = DDS_XTypes_TRY_CONSTRUCT1;
+  member->common.member_type_id = *member_typeid;
+  ddsrt_strlcpy (member->detail.name, member_name, sizeof (member->detail.name));
+
+  *typeobj = (struct DDS_XTypes_TypeObject) {
+    ._d = DDS_XTypes_EK_COMPLETE,
+    ._u.complete = {
+      ._d = DDS_XTypes_TK_STRUCTURE,
+      ._u.struct_type = {
+        .struct_flags = DDS_XTypes_IS_FINAL,
+        .member_seq = {
+          ._maximum = 1,
+          ._length = 1,
+          ._buffer = member,
+          ._release = false
+        }
+      }
+    }
+  };
+  ddsrt_strlcpy (typeobj->_u.complete._u.struct_type.header.detail.type_name, type_name,
+      sizeof (typeobj->_u.complete._u.struct_type.header.detail.type_name));
+}
+
+static void init_scc_reply_pairs (
+    DDS_XTypes_TypeIdentifierTypeObjectPair *pairs,
+    struct DDS_XTypes_TypeObject *typeobjs,
+    struct DDS_XTypes_CompleteStructMember *members,
+    struct DDS_XTypes_TypeIdentifier *element_typeids,
+    uint32_t ntypes,
+    const uint32_t *member_scc_indices)
+{
+  static const char *type_names[] = { "TypeLookupReplySccA", "TypeLookupReplySccB", "TypeLookupReplySccC" };
+  CU_ASSERT_LEQ_FATAL (ntypes, sizeof (type_names) / sizeof (type_names[0]));
+
+  for (uint32_t n = 0; n < ntypes; n++)
+  {
+    struct DDS_XTypes_TypeIdentifier member_typeid = { ._d = DDS_XTypes_TK_INT32 };
+    if (member_scc_indices[n] != 0)
+    {
+      init_scc_ref_typeid (&element_typeids[n], (int32_t) ntypes, (int32_t) member_scc_indices[n], NULL);
+      member_typeid = (struct DDS_XTypes_TypeIdentifier) {
+        ._d = DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL,
+        ._u.seq_sdefn = {
+          .header = {
+            .equiv_kind = DDS_XTypes_EK_COMPLETE,
+            .element_flags = DDS_XTypes_TRY_CONSTRUCT1
+          },
+          .bound = 0,
+          .element_identifier = &element_typeids[n]
+        }
+      };
+    }
+    init_scc_struct_typeobject (&typeobjs[n], &members[n], type_names[n], "next", &member_typeid);
+  }
+
+  DDS_XTypes_EquivalenceHash hash;
+  dds_return_t ret = ddsi_typeobj_get_scc_hash (hash, typeobjs, ntypes);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  for (uint32_t n = 0; n < ntypes; n++)
+  {
+    init_scc_ref_typeid (&pairs[n].type_identifier, (int32_t) ntypes, (int32_t) n + 1, &hash);
+    if (member_scc_indices[n] != 0)
+      memcpy (element_typeids[n]._u.sc_component_id.sc_component_id._u.hash, hash, sizeof (hash));
+    pairs[n].type_object = typeobjs[n];
+  }
+}
+
+static void set_scc_typeid_hash (struct DDS_XTypes_TypeIdentifier *type_id, const DDS_XTypes_EquivalenceHash hash)
+{
+  switch (type_id->_d)
+  {
+    case DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL:
+      set_scc_typeid_hash (type_id->_u.seq_sdefn.element_identifier, hash);
+      break;
+    case DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT:
+      memcpy (type_id->_u.sc_component_id.sc_component_id._u.hash, hash, sizeof (type_id->_u.sc_component_id.sc_component_id._u.hash));
+      break;
+    default:
+      break;
+  }
+}
+
+static void refresh_scc_reply_hash (
+    DDS_XTypes_TypeIdentifierTypeObjectPair *pairs,
+    struct DDS_XTypes_TypeObject *typeobjs,
+    uint32_t ntypes)
+{
+  const DDS_XTypes_EquivalenceHash zero_hash = { 0 };
+  for (uint32_t n = 0; n < ntypes; n++)
+    set_scc_typeid_hash (&typeobjs[n]._u.complete._u.struct_type.member_seq._buffer[0].common.member_type_id, zero_hash);
+
+  DDS_XTypes_EquivalenceHash hash;
+  dds_return_t ret = ddsi_typeobj_get_scc_hash (hash, typeobjs, ntypes);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  for (uint32_t n = 0; n < ntypes; n++)
+  {
+    memcpy (pairs[n].type_identifier._u.sc_component_id.sc_component_id._u.hash, hash, sizeof (hash));
+    set_scc_typeid_hash (&pairs[n].type_object._u.complete._u.struct_type.member_seq._buffer[0].common.member_type_id, hash);
+  }
+}
+
+static void corrupt_scc_typeid_hash (struct DDS_XTypes_TypeIdentifier *type_id)
+{
+  switch (type_id->_d)
+  {
+    case DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL:
+      corrupt_scc_typeid_hash (type_id->_u.seq_sdefn.element_identifier);
+      break;
+    case DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT:
+      type_id->_u.sc_component_id.sc_component_id._u.hash[0] ^= 0x80;
+      break;
+    default:
+      break;
+  }
+}
+
+static void corrupt_scc_reply_hash (DDS_XTypes_TypeIdentifierTypeObjectPair *pairs, uint32_t ntypes)
+{
+  for (uint32_t n = 0; n < ntypes; n++)
+  {
+    pairs[n].type_identifier._u.sc_component_id.sc_component_id._u.hash[0] ^= 0x80;
+    corrupt_scc_typeid_hash (&pairs[n].type_object._u.complete._u.struct_type.member_seq._buffer[0].common.member_type_id);
+  }
+}
+
+static void ref_scc_reply_types (
+    struct ddsi_domaingv *gv,
+    struct ddsi_type **types,
+    const DDS_XTypes_TypeIdentifierTypeObjectPair *pairs,
+    uint32_t ntypes)
+{
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  for (uint32_t n = 0; n < ntypes; n++)
+  {
+    ddsi_typeid_t typeid = { .x = pairs[n].type_identifier };
+    dds_return_t ret = ddsi_type_ref_id_locked (gv, &types[n], &typeid);
+    CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+    CU_ASSERT_NEQ_FATAL (types[n], NULL);
+  }
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+}
+
+static void unref_scc_reply_types (struct ddsi_domaingv *gv, struct ddsi_type **types, uint32_t ntypes)
+{
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  for (uint32_t n = 0; n < ntypes; n++)
+    ddsi_type_unref_locked (gv, types[n]);
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+}
+
+static void assert_scc_reply_types_resolved (struct ddsi_domaingv *gv, struct ddsi_type **types, uint32_t ntypes, bool expected)
+{
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  for (uint32_t n = 0; n < ntypes; n++)
+    CU_ASSERT_EQ (ddsi_type_resolved_locked (gv, types[n], DDSI_TYPE_IGNORE_DEPS), expected);
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+}
+
+static void import_scc_reply_direct (
+    struct ddsi_domaingv *gv,
+    DDS_XTypes_TypeIdentifierTypeObjectPair *pairs,
+    uint32_t npairs,
+    dds_return_t expected_ret,
+    bool expected_complete)
+{
+  dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair pairseq = {
+    ._maximum = npairs,
+    ._length = npairs,
+    ._buffer = pairs,
+    ._release = false
+  };
+  bool complete = false;
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  dds_return_t ret = ddsi_type_add_scc_typeobjs_locked (gv, &pairseq, &pairs[0].type_identifier, true, &complete);
+  CU_ASSERT_EQ (ret, expected_ret);
+  CU_ASSERT_EQ (complete, expected_complete);
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+}
+
+static void add_scc_type_lookup_reply (
+    struct ddsi_domaingv *gv,
+    DDS_XTypes_TypeIdentifierTypeObjectPair *pairs,
+    uint32_t npairs)
+{
+  struct ddsi_generic_proxy_endpoint **gpe_match_upd = NULL;
+  uint32_t n_match_upd = 0;
+  DDS_Builtin_TypeLookup_Reply reply = {
+    .header = { .remoteEx = DDS_RPC_REMOTE_EX_OK, .relatedRequestId = { .sequence_number = { .low = 1, .high = 0 }, .writer_guid = { .guidPrefix = { 0 }, .entityId = { .entityKind = DDSI_EK_WRITER, .entityKey = { 0 } } } } },
+    .return_data = { ._d = DDS_Builtin_TypeLookup_getTypes_HashId, ._u = { .getType = { ._d = DDS_RETCODE_OK, ._u = { .result =
+      { .types = { ._length = npairs, ._maximum = npairs, ._release = false, ._buffer = pairs } } } } } }
+  };
+  ddsi_tl_add_types (gv, &reply, &gpe_match_upd, &n_match_upd);
+  CU_ASSERT_EQ (n_match_upd, 0);
+  ddsrt_free (gpe_match_upd);
+}
+
+CU_Test(ddsc_typelookup, scc_incomplete_reply_can_retry, .init = typelookup_init, .fini = typelookup_fini)
+{
+  const uint32_t edges[] = { 2, 3, 1 };
+  DDS_XTypes_TypeIdentifierTypeObjectPair pairs[3] = { 0 };
+  struct DDS_XTypes_TypeObject typeobjs[3];
+  struct DDS_XTypes_CompleteStructMember members[3];
+  struct DDS_XTypes_TypeIdentifier element_typeids[3];
+  struct ddsi_type *types[3] = { NULL };
+  init_scc_reply_pairs (pairs, typeobjs, members, element_typeids, 3, edges);
+
+  struct ddsi_domaingv *gv = get_domaingv (g_participant1);
+  ref_scc_reply_types (gv, types, pairs, 3);
+  add_scc_type_lookup_reply (gv, pairs, 2);
+  assert_scc_reply_types_resolved (gv, types, 3, false);
+
+  add_scc_type_lookup_reply (gv, pairs, 3);
+  assert_scc_reply_types_resolved (gv, types, 3, true);
+  unref_scc_reply_types (gv, types, 3);
+}
+
+CU_Test(ddsc_typelookup, scc_duplicate_import_is_idempotent, .init = typelookup_init, .fini = typelookup_fini)
+{
+  const uint32_t edges[] = { 2, 1 };
+  DDS_XTypes_TypeIdentifierTypeObjectPair pairs[2] = { 0 };
+  struct DDS_XTypes_TypeObject typeobjs[2];
+  struct DDS_XTypes_CompleteStructMember members[2];
+  struct DDS_XTypes_TypeIdentifier element_typeids[2];
+  struct ddsi_type *types[2] = { NULL };
+  init_scc_reply_pairs (pairs, typeobjs, members, element_typeids, 2, edges);
+
+  struct ddsi_domaingv *gv = get_domaingv (g_participant1);
+  ref_scc_reply_types (gv, types, pairs, 2);
+  import_scc_reply_direct (gv, pairs, 2, DDS_RETCODE_OK, true);
+  assert_scc_reply_types_resolved (gv, types, 2, true);
+  import_scc_reply_direct (gv, pairs, 2, DDS_RETCODE_OK, true);
+  assert_scc_reply_types_resolved (gv, types, 2, true);
+  unref_scc_reply_types (gv, types, 2);
+}
+
+CU_Test(ddsc_typelookup, scc_failed_import_rolls_back_slots, .init = typelookup_init, .fini = typelookup_fini)
+{
+  const uint32_t edges[] = { 2, 1 };
+  DDS_XTypes_TypeIdentifierTypeObjectPair pairs[2] = { 0 };
+  struct DDS_XTypes_TypeObject typeobjs[2];
+  struct DDS_XTypes_CompleteStructMember members[2];
+  struct DDS_XTypes_TypeIdentifier element_typeids[2];
+  struct ddsi_type *types[2] = { NULL };
+  init_scc_reply_pairs (pairs, typeobjs, members, element_typeids, 2, edges);
+
+  ddsi_typeid_t invalid_base_typeid = { .x = { ._d = DDS_XTypes_EK_COMPLETE, ._u.equivalence_hash = { 0x55 } } };
+  struct ddsi_domaingv *gv = get_domaingv (g_participant1);
+  struct ddsi_type *invalid_base_type = NULL;
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  dds_return_t ret = ddsi_type_ref_id_locked (gv, &invalid_base_type, &invalid_base_typeid);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  invalid_base_type->state = DDSI_TYPE_INVALID;
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+
+  typeobjs[1]._u.complete._u.struct_type.header.base_type = invalid_base_typeid.x;
+  pairs[1].type_object = typeobjs[1];
+  refresh_scc_reply_hash (pairs, typeobjs, 2);
+
+  ref_scc_reply_types (gv, types, pairs, 2);
+  import_scc_reply_direct (gv, pairs, 2, DDS_RETCODE_BAD_PARAMETER, true);
+
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  for (uint32_t n = 0; n < 2; n++)
+  {
+    CU_ASSERT (!ddsi_type_resolved_locked (gv, types[n], DDSI_TYPE_IGNORE_DEPS));
+    CU_ASSERT_EQ (types[n]->xt._d, DDS_XTypes_TK_NONE);
+  }
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+  unref_scc_reply_types (gv, types, 2);
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  ddsi_type_unref_locked (gv, invalid_base_type);
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+}
+
+CU_Test(ddsc_typelookup, scc_rejects_hash_mismatch, .init = typelookup_init, .fini = typelookup_fini)
+{
+  const uint32_t edges[] = { 2, 1 };
+  DDS_XTypes_TypeIdentifierTypeObjectPair pairs[2] = { 0 };
+  struct DDS_XTypes_TypeObject typeobjs[2];
+  struct DDS_XTypes_CompleteStructMember members[2];
+  struct DDS_XTypes_TypeIdentifier element_typeids[2];
+  struct ddsi_type *types[2] = { NULL };
+  init_scc_reply_pairs (pairs, typeobjs, members, element_typeids, 2, edges);
+  corrupt_scc_reply_hash (pairs, 2);
+
+  struct ddsi_domaingv *gv = get_domaingv (g_participant1);
+  ref_scc_reply_types (gv, types, pairs, 2);
+  add_scc_type_lookup_reply (gv, pairs, 2);
+  assert_scc_reply_types_resolved (gv, types, 2, false);
+  unref_scc_reply_types (gv, types, 2);
+}
+
+CU_Test(ddsc_typelookup, scc_rejects_not_strongly_connected, .init = typelookup_init, .fini = typelookup_fini)
+{
+  const uint32_t edges[] = { 2, 0 };
+  DDS_XTypes_TypeIdentifierTypeObjectPair pairs[2] = { 0 };
+  struct DDS_XTypes_TypeObject typeobjs[2];
+  struct DDS_XTypes_CompleteStructMember members[2];
+  struct DDS_XTypes_TypeIdentifier element_typeids[2];
+  struct ddsi_type *types[2] = { NULL };
+  init_scc_reply_pairs (pairs, typeobjs, members, element_typeids, 2, edges);
+
+  struct ddsi_domaingv *gv = get_domaingv (g_participant1);
+  ref_scc_reply_types (gv, types, pairs, 2);
+  add_scc_type_lookup_reply (gv, pairs, 2);
+  assert_scc_reply_types_resolved (gv, types, 2, false);
+  unref_scc_reply_types (gv, types, 2);
+}
+
 static void test_proxy_rd_matches (dds_entity_t wr, bool exp_match)
 {
   struct dds_entity *x;
@@ -489,6 +923,16 @@ CU_Test (ddsc_typelookup, resolve_dep_type, .init = typelookup_init, .fini = typ
   // FIXME expect matching triggered (but matching would fail because deps are unresolved), this needs to be fixed in ddsi_tl_handle_reply
   CU_ASSERT_EQ_FATAL (n_match_upd, 1);
   ddsrt_free (gpe_match_upd);
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  struct ddsi_type *proxy_type = ddsi_type_lookup_locked_impl (gv, &ti->minimal.typeid_with_size.type_id);
+  enum ddsi_type_state proxy_state = proxy_type ? proxy_type->state : DDSI_TYPE_INVALID;
+  bool proxy_type_resolved = proxy_type && ddsi_type_resolved_locked (gv, proxy_type, DDSI_TYPE_IGNORE_DEPS);
+  bool proxy_deps_resolved = proxy_type && ddsi_type_resolved_locked (gv, proxy_type, DDSI_TYPE_INCLUDE_DEPS);
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+  CU_ASSERT_NEQ_FATAL (proxy_type, NULL);
+  CU_ASSERT_EQ_FATAL (proxy_state, DDSI_TYPE_PARTIAL_RESOLVED);
+  CU_ASSERT_FATAL (proxy_type_resolved);
+  CU_ASSERT_FATAL (!proxy_deps_resolved);
 
   // add nested type and expect match
   gpe_match_upd = NULL;
@@ -497,9 +941,15 @@ CU_Test (ddsc_typelookup, resolve_dep_type, .init = typelookup_init, .fini = typ
     .header = { .remoteEx = DDS_RPC_REMOTE_EX_OK, .relatedRequestId = { .sequence_number = { .low = 1, .high = 0 }, .writer_guid = { .guidPrefix = { 0 }, .entityId = { .entityKind = DDSI_EK_WRITER, .entityKey = { 0 } } } } },
     .return_data = { ._d = DDS_Builtin_TypeLookup_getTypes_HashId, ._u = { .getType = { ._d = DDS_RETCODE_OK, ._u = { .result =
       { .types = { ._length = 1, ._maximum = 1, ._release = false, ._buffer = &tmap->identifier_object_pair_minimal._buffer[1] } } } } } }
-    };
+  };
   ddsi_tl_add_types (gv, &reply, &gpe_match_upd, &n_match_upd);
   CU_ASSERT_EQ_FATAL (n_match_upd, 1);
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  proxy_state = proxy_type->state;
+  proxy_deps_resolved = ddsi_type_resolved_locked (gv, proxy_type, DDSI_TYPE_INCLUDE_DEPS);
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+  CU_ASSERT_EQ_FATAL (proxy_state, DDSI_TYPE_RESOLVED);
+  CU_ASSERT_FATAL (proxy_deps_resolved);
 
   assert (gpe_match_upd);
   for (uint32_t e = 0; e < n_match_upd; e++)

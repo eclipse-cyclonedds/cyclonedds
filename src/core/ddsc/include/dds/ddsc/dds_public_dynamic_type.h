@@ -612,7 +612,9 @@ DDS_EXPORT dds_return_t dds_dynamic_member_set_try_construct (dds_dynamic_type_t
  *
  * This function registers a dynamic type, making it immutable and finalizing
  * its definition. A type that is registered, get the state 'RESOLVED' and is
- * stored in the type library.
+ * stored in the type library. A type that has already been finalized as part
+ * of registering a recursive group of types can be registered again to obtain
+ * its TypeInformation.
  *
  * @param[in] type A pointer to the dynamic type to be registered.
  * @param[out] type_info A pointer to a pointer to a ddsi_typeinfo structure that holds information about the registered type.
@@ -624,7 +626,7 @@ DDS_EXPORT dds_return_t dds_dynamic_member_set_try_construct (dds_dynamic_type_t
  * @retval DDS_RETCODE_BAD_PARAMETER
  *            One or more of the provided parameters are invalid.
  * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *            The provided type is not in the CONSTRUCTING state.
+ *            The provided type cannot be finalized.
  * @retval DDS_RETCODE_OUT_OF_RESOURCES
  *            Not enough resources to create the type.
  */

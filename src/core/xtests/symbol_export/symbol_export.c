@@ -731,6 +731,7 @@ int main (int argc, char **argv)
 #ifdef DDS_HAS_TYPELIB
   // ddsi_typewrap.h
   ddsi_typeid_compare (ptr, ptr);
+  ddsi_typeid_hash (ptr);
   ddsi_typeid_copy (ptr, ptr);
   ddsi_typeid_dup (ptr);
   ddsi_typeid_ser (ptr, ptr, ptr);

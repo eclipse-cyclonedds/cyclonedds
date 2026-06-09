@@ -275,11 +275,28 @@ struct ddsi_type_dep {
   bool from_type_info;          // entry was added based on a dependent type in the type-info, requires unref of the dependent type on deletion
 };
 
+struct ddsi_type;
+
+struct ddsi_type_scc {
+  struct ddsi_domaingv *gv;
+  struct DDS_XTypes_TypeObjectHashId sc_component_id; // XTypes SCC id, without the per-type index
+  uint32_t refc;
+  uint32_t n_wire_types;        // number of XTypes SCC entries, stored as the prefix of types
+  uint32_t n_types;             // total number of runtime-owned types, including suffix-only helper types
+  struct ddsi_type **types;
+  struct ddsi_type *generated_minimal_ref; // representative ref keeping the generated minimal SCC cache alive
+  bool active;                  // true once refs/unrefs are managed by the SCC
+  bool freeing;                 // set while finalizing all types owned by the SCC
+};
+
 struct ddsi_type {
   struct xt_type xt;                            /* wrapper for XTypes type id/obj */
   struct ddsi_domaingv *gv;
   ddsrt_avl_node_t avl_node;
+  struct ddsi_type_scc *scc;
   enum ddsi_type_state state;
+  struct ddsi_type *replacement;              /* canonical type replacing this dynamic construction record */
+  bool freeing;                               /* set while finalizing, so recursive back-edges can be ignored */
   ddsi_seqno_t request_seqno;                        /* sequence number of the last type lookup request message */
   struct ddsi_type_proxy_guid_list proxy_guids; /* administration for proxy endpoints (not proxy topics) that are using this type */
   uint32_t refc;                                /* refcount for this record */
@@ -289,6 +306,12 @@ struct ddsi_type {
    in this type is at offset 0, and a ddsi_type can be used for hash table lookup
    without copying the type identifier in the search template */
 DDSRT_STATIC_ASSERT (offsetof (struct ddsi_type, xt) == 0);
+
+/** @component xtypes_wrapper */
+inline const struct ddsi_type *ddsi_type_from_xt_type (const struct xt_type *xt)
+{
+  return (const struct ddsi_type *) xt;
+}
 
 // To make sure casting DDS_XTypes_* to ddsi_type* is safe
 DDSRT_STATIC_ASSERT (offsetof (struct ddsi_typeid, x) == 0);
@@ -300,7 +323,31 @@ DDSRT_STATIC_ASSERT (offsetof (struct ddsi_typemap, x) == 0);
 int ddsi_typeid_compare_impl (const struct DDS_XTypes_TypeIdentifier *a, const struct DDS_XTypes_TypeIdentifier *b);
 
 /** @component xtypes_wrapper */
-void ddsi_typeid_copy_impl (struct DDS_XTypes_TypeIdentifier *dst, const struct DDS_XTypes_TypeIdentifier *src);
+uint32_t ddsi_typeid_hash_impl (const struct DDS_XTypes_TypeIdentifier *type_id);
+
+/** @component xtypes_wrapper */
+int ddsi_typeobject_hashid_compare_impl (const struct DDS_XTypes_TypeObjectHashId *a, const struct DDS_XTypes_TypeObjectHashId *b)
+  ddsrt_nonnull_all;
+
+/** @component xtypes_wrapper */
+bool ddsi_typeobject_hashid_equal_impl (const struct DDS_XTypes_TypeObjectHashId *a, const struct DDS_XTypes_TypeObjectHashId *b)
+  ddsrt_nonnull_all;
+
+/** @component xtypes_wrapper */
+bool ddsi_type_scc_id_is_valid_impl (const struct DDS_XTypes_StronglyConnectedComponentId *id)
+  ddsrt_nonnull_all;
+
+/** @component xtypes_wrapper */
+bool ddsi_type_scc_id_same_component_impl (const struct DDS_XTypes_StronglyConnectedComponentId *a, const struct DDS_XTypes_StronglyConnectedComponentId *b)
+  ddsrt_nonnull_all;
+
+/** @component xtypes_wrapper */
+uint32_t ddsi_type_scc_id_component_hash_impl (const struct DDS_XTypes_StronglyConnectedComponentId *id)
+  ddsrt_nonnull_all;
+
+/** @component xtypes_wrapper */
+void ddsi_typeid_copy_impl (struct DDS_XTypes_TypeIdentifier *dst, const struct DDS_XTypes_TypeIdentifier *src)
+  ddsrt_nonnull_all;
 
 /** @component xtypes_wrapper */
 void ddsi_typeid_copy_to_impl (struct DDS_XTypes_TypeIdentifier *dst, const ddsi_typeid_t *src);
@@ -319,7 +366,8 @@ void ddsi_typeid_fini_impl (struct DDS_XTypes_TypeIdentifier *type_id);
 
 
 /** @component xtypes_wrapper */
-void ddsi_xt_get_typeobject_impl (const struct xt_type *xt, struct DDS_XTypes_TypeObject *to);
+void ddsi_xt_get_typeobject_impl (const struct xt_type *xt, struct DDS_XTypes_TypeObject *to)
+  ddsrt_nonnull_all;
 
 /** @component xtypes_wrapper */
 dds_return_t ddsi_type_ref_id_locked_impl (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct DDS_XTypes_TypeIdentifier *type_id);
@@ -344,7 +392,8 @@ bool ddsi_typeid_is_complete_impl (const struct DDS_XTypes_TypeIdentifier *type_
 void ddsi_typeobj_fini_impl (struct DDS_XTypes_TypeObject *typeobj);
 
 /** @component xtypes_wrapper */
-dds_return_t ddsi_xt_type_init_impl (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeIdentifier *ti, const struct DDS_XTypes_TypeObject *to);
+dds_return_t ddsi_xt_type_init_impl (struct ddsi_domaingv *gv, struct ddsi_type *type, const struct DDS_XTypes_TypeIdentifier *ti, const struct DDS_XTypes_TypeObject *to)
+  ddsrt_nonnull ((1, 2, 3));
 
 #if defined (__cplusplus)
 }

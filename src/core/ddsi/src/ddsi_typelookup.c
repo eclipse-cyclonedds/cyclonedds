@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include "dds/features.h"
 #include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/mh3.h"
+#include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_plist.h"
@@ -66,8 +66,11 @@ static struct ddsi_writer *get_typelookup_writer (const struct ddsi_domaingv *gv
   return wr;
 }
 
-static int32_t tl_request_get_deps (struct ddsi_domaingv * const gv, struct ddsrt_hh *deps, int32_t cnt, struct ddsi_type *type)
+static int32_t tl_request_get_deps (struct ddsi_domaingv * const gv, struct ddsrt_hh *deps, struct ddsrt_hh *visited, int32_t cnt, struct ddsi_type *type)
 {
+  if (ddsi_type_visit_seen (visited, type))
+    return cnt;
+
   struct ddsi_type_dep tmpl, *dep = &tmpl;
   memset (&tmpl, 0, sizeof (tmpl));
   ddsi_typeid_copy (&tmpl.src_type_id, &type->xt.id);
@@ -80,11 +83,16 @@ static int32_t tl_request_get_deps (struct ddsi_domaingv * const gv, struct ddsr
     if (!ddsi_type_resolved_locked (gv, dep_type, DDSI_TYPE_IGNORE_DEPS))
     {
       assert (ddsi_typeid_is_hash (&dep_type->xt.id));
-      ddsrt_hh_add (deps, &dep_type->xt.id);
-      cnt++;
+      if (ddsrt_hh_add (deps, &dep_type->xt.id))
+      {
+        int32_t add = 1;
+        if (dep_type->xt.id.x._d == DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT)
+          add = dep_type->xt.id.x._u.sc_component_id.scc_length;
+        cnt = (add > 0 && add <= INT32_MAX - cnt) ? cnt + add : INT32_MAX;
+      }
       dep_type->state = DDSI_TYPE_REQUESTED;
     }
-    cnt = tl_request_get_deps (gv, deps, cnt, dep_type);
+    cnt = tl_request_get_deps (gv, deps, visited, cnt, dep_type);
   }
   ddsi_typeid_fini (&tmpl.src_type_id);
   return cnt;
@@ -92,17 +100,112 @@ static int32_t tl_request_get_deps (struct ddsi_domaingv * const gv, struct ddsr
 
 static bool deps_typeid_equal (const void *type_id_a, const void *type_id_b)
 {
+  const ddsi_typeid_t *a = type_id_a;
+  const ddsi_typeid_t *b = type_id_b;
+  if (a->x._d == DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT && b->x._d == DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT)
+  {
+    const DDS_XTypes_StronglyConnectedComponentId *sa = &a->x._u.sc_component_id;
+    const DDS_XTypes_StronglyConnectedComponentId *sb = &b->x._u.sc_component_id;
+    return ddsi_type_scc_id_same_component_impl (sa, sb);
+  }
   return ddsi_typeid_compare (type_id_a, type_id_b) == 0;
 }
 
 static uint32_t deps_typeid_hash (const void *type_id)
 {
-  uint32_t hash32;
-  DDS_XTypes_EquivalenceHash hash;
-  assert (ddsi_typeid_is_hash (type_id));
-  ddsi_typeid_get_equivalence_hash (type_id, &hash);
-  memcpy (&hash32, hash, sizeof (hash32));
-  return hash32;
+  const ddsi_typeid_t *id = type_id;
+  assert (ddsi_typeid_is_hash (id));
+  if (id->x._d == DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT)
+    return ddsi_type_scc_id_component_hash_impl (&id->x._u.sc_component_id);
+  return ddsi_typeid_hash (id);
+}
+
+static int32_t tl_typeid_request_count (const ddsi_typeid_t *type_id)
+{
+  if (type_id->x._d != DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT)
+    return 1;
+  return type_id->x._u.sc_component_id.scc_length > 0 ? type_id->x._u.sc_component_id.scc_length : INT32_MAX;
+}
+
+struct tl_scc_import_cache_entry {
+  struct DDS_XTypes_StronglyConnectedComponentId scc_id;
+  dds_return_t ret;
+  bool complete;
+};
+
+static bool tl_scc_import_cache_equal (const void *ventry_a, const void *ventry_b)
+{
+  const struct tl_scc_import_cache_entry *a = ventry_a;
+  const struct tl_scc_import_cache_entry *b = ventry_b;
+  return ddsi_type_scc_id_same_component_impl (&a->scc_id, &b->scc_id);
+}
+
+static uint32_t tl_scc_import_cache_hash (const void *ventry)
+{
+  const struct tl_scc_import_cache_entry *entry = ventry;
+  return ddsi_type_scc_id_component_hash_impl (&entry->scc_id);
+}
+
+static void tl_scc_import_cache_free_entry (void *ventry, void *arg)
+{
+  (void) arg;
+  ddsrt_free (ventry);
+}
+
+static struct tl_scc_import_cache_entry *tl_scc_import_cache_lookup (
+    struct ddsrt_hh *cache,
+    const struct DDS_XTypes_StronglyConnectedComponentId *scc_id)
+{
+  if (cache == NULL)
+    return NULL;
+  const struct tl_scc_import_cache_entry templ = {
+    .scc_id = *scc_id
+  };
+  return ddsrt_hh_lookup (cache, &templ);
+}
+
+static void tl_scc_import_cache_store (
+    struct ddsrt_hh *cache,
+    const struct DDS_XTypes_StronglyConnectedComponentId *scc_id,
+    dds_return_t ret,
+    bool complete)
+{
+  struct tl_scc_import_cache_entry *entry = ddsrt_malloc_s (sizeof (*entry));
+  if (entry == NULL)
+    return;
+  *entry = (struct tl_scc_import_cache_entry) {
+    .scc_id = *scc_id,
+    .ret = ret,
+    .complete = complete
+  };
+  ddsrt_hh_add_absent (cache, entry);
+}
+
+static void tl_scc_import_cache_free (struct ddsrt_hh *cache)
+{
+  if (cache != NULL)
+  {
+    ddsrt_hh_enum (cache, tl_scc_import_cache_free_entry, NULL);
+    ddsrt_hh_free (cache);
+  }
+}
+
+static void tl_typeid_copy_request_ids (struct DDS_XTypes_TypeIdentifier *dst, uint32_t *index, const ddsi_typeid_t *type_id)
+{
+  if (type_id->x._d == DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT)
+  {
+    const int32_t scc_length = type_id->x._u.sc_component_id.scc_length;
+    assert (scc_length > 0);
+    for (int32_t n = 1; n <= scc_length; n++)
+    {
+      ddsi_typeid_copy_impl (&dst[(*index)++], &type_id->x);
+      dst[*index - 1]._u.sc_component_id.scc_index = n;
+    }
+  }
+  else
+  {
+    ddsi_typeid_copy_impl (&dst[(*index)++], &type_id->x);
+  }
 }
 
 static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_Builtin_TypeLookup_Request *request, const struct ddsi_writer *wr, const ddsi_guid_t *proxypp_guid, struct ddsi_type *type, enum ddsi_type_include_deps resolve_deps)
@@ -129,18 +232,23 @@ static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_
   request->data._d = DDS_Builtin_TypeLookup_getTypes_HashId;
 
   if (!ddsi_type_resolved_locked (gv, type, DDSI_TYPE_IGNORE_DEPS))
-    cnt++;
+  {
+    cnt = tl_typeid_request_count (&type->xt.id);
+    if (cnt == INT32_MAX)
+      goto err;
+  }
   if (resolve_deps == DDSI_TYPE_INCLUDE_DEPS)
   {
     deps = ddsrt_hh_new (1, deps_typeid_hash, deps_typeid_equal);
-    const int32_t subcnt = tl_request_get_deps (gv, deps, 0, type);
-    if (subcnt <= INT32_MAX - cnt)
-      cnt += subcnt;
-    else
+    struct ddsrt_hh *visited = ddsi_type_visit_new ();
+    const int32_t subcnt = tl_request_get_deps (gv, deps, visited, 0, type);
+    ddsi_type_visit_free (visited);
+    if (subcnt == INT32_MAX || subcnt > INT32_MAX - cnt)
     {
       cnt = INT32_MAX;
       goto err;
     }
+    cnt += subcnt;
   }
   request->data._u.getTypes.type_ids._length = (uint32_t) cnt;
   if (cnt > 0)
@@ -153,7 +261,7 @@ static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_
 
     if (!ddsi_type_resolved_locked (gv, type, DDSI_TYPE_IGNORE_DEPS))
     {
-      ddsi_typeid_copy_impl (&request->data._u.getTypes.type_ids._buffer[index++], &type->xt.id.x);
+      tl_typeid_copy_request_ids (request->data._u.getTypes.type_ids._buffer, &index, &type->xt.id);
       type->state = DDSI_TYPE_REQUESTED;
     }
 
@@ -161,12 +269,12 @@ static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_
     {
       struct ddsrt_hh_iter iter;
       for (ddsi_typeid_t *tid = ddsrt_hh_iter_first (deps, &iter); tid; tid = ddsrt_hh_iter_next (&iter))
-        ddsi_typeid_copy_impl (&request->data._u.getTypes.type_ids._buffer[index++], &tid->x);
+        tl_typeid_copy_request_ids (request->data._u.getTypes.type_ids._buffer, &index, tid);
     }
   }
 
 err:
-  if (resolve_deps == DDSI_TYPE_INCLUDE_DEPS)
+  if (deps)
     ddsrt_hh_free (deps);
   return (cnt == INT32_MAX) ? DDS_RETCODE_ERROR : cnt;
 }
@@ -267,6 +375,49 @@ static void write_typelookup_reply (struct ddsi_writer *wr, const struct DDS_Sam
   ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
 }
 
+static bool tl_reply_has_type (const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types, const struct DDS_XTypes_TypeIdentifier *type_id)
+{
+  for (uint32_t n = 0; n < types->_length; n++)
+  {
+    if (ddsi_typeid_compare_impl (&types->_buffer[n].type_identifier, type_id) == 0)
+      return true;
+  }
+  return false;
+}
+
+static dds_return_t tl_reply_append_type (struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types, const struct ddsi_type *type)
+{
+  if (tl_reply_has_type (types, &type->xt.id.x))
+    return DDS_RETCODE_OK;
+
+  DDS_XTypes_TypeIdentifierTypeObjectPair *buf =
+    ddsrt_realloc_s (types->_buffer, (types->_length + 1) * sizeof (*types->_buffer));
+  if (buf == NULL)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  types->_buffer = buf;
+  ddsi_typeid_copy_impl (&types->_buffer[types->_length].type_identifier, &type->xt.id.x);
+  ddsi_xt_get_typeobject_impl (&type->xt, &types->_buffer[types->_length].type_object);
+  types->_length++;
+  types->_maximum = types->_length;
+  return DDS_RETCODE_OK;
+}
+
+static dds_return_t tl_reply_append_type_component (struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types, const struct ddsi_type *type)
+{
+  if (type->xt.id.x._d != DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT || type->scc == NULL)
+    return tl_reply_append_type (types, type);
+
+  dds_return_t ret = DDS_RETCODE_OK;
+  for (uint32_t n = 0; ret == DDS_RETCODE_OK && n < type->scc->n_wire_types; n++)
+  {
+    const struct ddsi_type *member = type->scc->types[n];
+    if (member == NULL || !ddsi_type_resolved_locked (type->gv, member, DDSI_TYPE_IGNORE_DEPS))
+      return DDS_RETCODE_BAD_PARAMETER;
+    ret = tl_reply_append_type (types, member);
+  }
+  return ret;
+}
+
 static ddsi_guid_t from_guid (const DDS_GUID_t *guid)
 {
   ddsi_guid_t ddsi_guid;
@@ -303,6 +454,7 @@ void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
 
   ddsrt_mutex_lock (&gv->typelib_lock);
   struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq types = { 0, 0, NULL, false };
+  dds_return_t ret = DDS_RETCODE_OK;
   for (uint32_t n = 0; n < req.data._u.getTypes.type_ids._length; n++)
   {
     struct ddsi_typeid_str tidstr;
@@ -316,16 +468,16 @@ void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
     const struct ddsi_type *type = ddsi_type_lookup_locked_impl (gv, type_id);
     if (type && ddsi_type_resolved_locked (gv, type, DDSI_TYPE_IGNORE_DEPS))
     {
-      types._buffer = ddsrt_realloc (types._buffer, (types._length + 1) * sizeof (*types._buffer));
-      ddsi_typeid_copy_impl (&types._buffer[types._length].type_identifier, type_id);
-      ddsi_xt_get_typeobject_impl (&type->xt, &types._buffer[types._length].type_object);
-      types._length++;
+      if ((ret = tl_reply_append_type_component (&types, type)) != DDS_RETCODE_OK)
+        break;
     }
   }
   ddsrt_mutex_unlock (&gv->typelib_lock);
 
   struct ddsi_writer *wr = get_typelookup_writer (gv, DDSI_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER);
-  if (wr != NULL)
+  if (ret != DDS_RETCODE_OK)
+    GVTRACE (" failed to construct tl-reply");
+  else if (wr != NULL)
     write_typelookup_reply (wr, &req.header.requestId, &types);
   else
     GVTRACE (" no tl-reply writer");
@@ -342,6 +494,7 @@ void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
 void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_Reply *reply, struct ddsi_generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd)
 {
   bool resolved = false;
+  struct ddsrt_hh *scc_import_cache = NULL;
   ddsrt_mutex_lock (&gv->typelib_lock);
   /* No need to correlate the sample identity of the incoming reply with the request
      that was sent, because the reply itself contains the type-id to type object mapping
@@ -366,7 +519,48 @@ void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_R
       continue;
     }
 
-    if (ddsi_type_add_typeobj (gv, type, &r.type_object) == DDS_RETCODE_OK)
+    if (r.type_identifier._d == DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT)
+    {
+      dds_return_t ret;
+      bool complete;
+      struct tl_scc_import_cache_entry *cache_entry =
+        tl_scc_import_cache_lookup (scc_import_cache, &r.type_identifier._u.sc_component_id);
+      const dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *pairs =
+        (const dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *) &reply->return_data._u.getType._u.result.types;
+      if (cache_entry != NULL)
+      {
+        ret = cache_entry->ret;
+        complete = cache_entry->complete;
+        GVTRACE (" cached SCC import ret=%d complete=%d", ret, complete);
+      }
+      else
+      {
+        complete = false;
+        ret = ddsi_type_add_scc_typeobjs_locked (gv, pairs, &r.type_identifier, false, &complete);
+        /* This cache is only an optimization for one immutable reply while
+           typelib_lock is held.  If allocating the table or entry fails, there
+           is simply no cached result and a later slot falls back to retrying
+           the import exactly as it did before this cache existed.  If a later
+           allocation succeeds, the result it stores is still valid for the same
+           reply/component pair; allocation failure never changes the reply or
+           the component identity. */
+        if (scc_import_cache == NULL)
+          scc_import_cache = ddsrt_hh_new (1, tl_scc_import_cache_hash, tl_scc_import_cache_equal);
+        if (scc_import_cache != NULL)
+          tl_scc_import_cache_store (scc_import_cache, &r.type_identifier._u.sc_component_id, ret, complete);
+      }
+      if (ret == DDS_RETCODE_OK && complete)
+      {
+        GVTRACE (" resolved SCC type %s\n", ddsi_make_typeid_str_impl (&str, &r.type_identifier));
+        ddsi_type_get_gpe_matches (gv, type, gpe_match_upd, n_match_upd);
+        resolved = true;
+      }
+      else
+      {
+        GVTRACE (" incomplete or invalid SCC component\n");
+      }
+    }
+    else if (ddsi_type_add_typeobj (gv, type, &r.type_object) == DDS_RETCODE_OK)
     {
       if (ddsi_typeid_is_minimal_impl (&r.type_identifier))
       {
@@ -389,6 +583,7 @@ void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_R
   if (resolved)
     ddsrt_cond_etime_broadcast (&gv->typelib_resolved_cond);
   ddsrt_mutex_unlock (&gv->typelib_lock);
+  tl_scc_import_cache_free (scc_import_cache);
 }
 
 void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)

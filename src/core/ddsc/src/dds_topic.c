@@ -411,12 +411,8 @@ static bool ktopic_type_guid_equal (const void *ktp_guid_a, const void *ktp_guid
 
 static uint32_t ktopic_type_guid_hash (const void *ktp_guid)
 {
-  uint32_t hash32;
   struct ktopic_type_guid *x = (struct ktopic_type_guid *) ktp_guid;
-  DDS_XTypes_EquivalenceHash hash;
-  ddsi_typeid_get_equivalence_hash (x->type_id, &hash);
-  memcpy (&hash32, hash, sizeof (hash32));
-  return hash32;
+  return ddsi_typeid_hash (x->type_id);
 }
 
 #else
