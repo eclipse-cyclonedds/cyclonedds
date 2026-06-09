@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <getopt.h>
 
 #include "dds/dds.h"
@@ -108,6 +109,14 @@ static bool doread (struct dyntypelib *dtl, const dds_entity_t ws, const dds_ent
   return (riq.total_count == 0 && (sm.current_count > 0 || sm.current_count_change >= 0));
 }
 
+static void load_print_minimal_type (struct dyntypelib *dtl, dds_entity_t dp, const char *role, const struct dyntype *type)
+{
+  if (type == NULL)
+    return;
+  if (load_type_with_deps_min (dtl->typecache, dp, type->typeinfo, &dtl->ppc) == NULL)
+    exitfmt ("loading %s minimal type with all dependencies failed\n", role);
+}
+
 static void usage (const char *argv0)
 {
   fprintf (stderr, "usage: %s [OPTIONS] TYPELIB... TYPE DATA...\n\
@@ -122,8 +131,10 @@ OPTIONS:\n\
                 - force type validation\n\
 -x 0|1|2       force default (0) or XCDR version N\n\
 -i ID          use domain ID\n\
+-M             also print minimal type object\n\
 -P P           use partition instead of default\n\
 -R             use binary data without input validation\n\
+-s SEC         sleep SEC seconds after creating the reader/writer\n\
 -T NAME        use topic NAME\n\
 ",
            argv0);
@@ -138,9 +149,11 @@ int main (int argc, char **argv)
   bool skip_normalize_for_bin = false;
   const char *partition = NULL;
   const char *topicname = "T";
+  uint32_t entity_sleep_seconds = 0;
   int xcdrv = 0;
   dds_domainid_t domainid = DDS_DOMAIN_DEFAULT;
-  while ((opt = getopt (argc, argv, "c:i:P:RT:x:")) != EOF)
+  bool print_min_typeobj = false;
+  while ((opt = getopt (argc, argv, "c:i:MP:Rs:T:x:")) != EOF)
   {
     switch (opt)
     {
@@ -156,12 +169,25 @@ int main (int argc, char **argv)
       case 'i':
         domainid = (uint32_t) atoi (optarg);
         break;
+      case 'M':
+        print_min_typeobj = true;
+        break;
       case 'P':
         partition = optarg;
         break;
       case 'R':
         skip_normalize_for_bin = true;
         break;
+      case 's': {
+        char *endp;
+        unsigned long n = strtoul (optarg, &endp, 10);
+        if (endp == optarg || *endp != 0 || n > UINT32_MAX) {
+          fprintf (stderr, "%s: %s is not a valid sleep duration\n", argv[0], optarg);
+          exit (2);
+        }
+        entity_sleep_seconds = (uint32_t) n;
+        break;
+      }
       case 'T':
         topicname = optarg;
         break;
@@ -277,16 +303,23 @@ int main (int argc, char **argv)
       dds_delete_qos (epqos);
       dds_delete_qos (tpqos);
 
+      if (entity_sleep_seconds != 0)
+        dds_sleepfor (DDS_SECS (entity_sleep_seconds));
+
       size_t align, size;
       if (wrtype)
       {
         build_typecache_to (dtl->typecache, &wrtype->typeobj->_u.complete, &align, &size);
         ppc_print_to (dtl->typecache, &dtl->ppc, &wrtype->typeobj->_u.complete);
+        if (print_min_typeobj)
+          load_print_minimal_type (dtl, dp, "writer", wrtype);
       }
       if (rdtype)
       {
         build_typecache_to (dtl->typecache, &rdtype->typeobj->_u.complete, &align, &size);
         ppc_print_to (dtl->typecache, &dtl->ppc, &rdtype->typeobj->_u.complete);
+        if (print_min_typeobj)
+          load_print_minimal_type (dtl, dp, "reader", rdtype);
       }
 
       // short sleep before writing so a remote reader is likely to have been discovered before the sample is written
