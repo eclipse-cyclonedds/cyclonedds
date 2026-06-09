@@ -206,7 +206,7 @@ static dds_return_t get_typespec (const struct make_context *ctxt, const struct 
     mtspec = DDS_DYNAMIC_TYPE_SPEC_PRIM (DDS_DYNAMIC_FLOAT64);
   else if (strcmp (type, "float128") == 0)
     mtspec = DDS_DYNAMIC_TYPE_SPEC_PRIM (DDS_DYNAMIC_FLOAT128);
-  else if (strcmp (type, "byte") == 0)
+  else if (strcmp (type, "byte") == 0 || strcmp (type, "octet") == 0)
     mtspec = DDS_DYNAMIC_TYPE_SPEC_PRIM (DDS_DYNAMIC_BYTE);
   else if (strcmp (type, "char8") == 0)
     mtspec = DDS_DYNAMIC_TYPE_SPEC_PRIM (DDS_DYNAMIC_CHAR8);
@@ -232,7 +232,10 @@ static dds_return_t get_typespec (const struct make_context *ctxt, const struct 
     const char *nbtype = getattr (m, "nonBasicTypeName");
     if (nbtype == NULL)
       return dtl_set_error (err, m, "non-basic type, but nonBasicTypeName missing\n");
-    mtspec = DDS_DYNAMIC_TYPE_SPEC (dds_dynamic_type_ref (lookup_type (ctxt, ns, nbtype)->dtype));
+    struct dyntype *t = lookup_type (ctxt, ns, nbtype);
+    if (t == NULL)
+      return dtl_set_error (err, m, "unknown non-basic type %s\n", nbtype);
+    mtspec = DDS_DYNAMIC_TYPE_SPEC (dds_dynamic_type_ref (t->dtype));
   }
   else
   {
@@ -746,8 +749,8 @@ dds_return_t dtl_add_xml_type_library (struct dyntypelib *dtl, const char *xml_t
 
   if (strcmp (root->name, "dds") != 0 || root->children == NULL || strcmp (root->children->name, "types") != 0)
   {
-    // FIXME: free domtree "root"
     dtl_set_error (err, NULL, "expected /dds/types");
+    domtree_free (root);
     return DDS_RETCODE_BAD_PARAMETER;
   }
 
@@ -761,8 +764,12 @@ dds_return_t dtl_add_xml_type_library (struct dyntypelib *dtl, const char *xml_t
   {
     dds_return_t rc = make_types (&ctxt, e, "", err);
     if (rc != DDS_RETCODE_OK)
+    {
+      domtree_free (root);
       return rc;
+    }
   }
+  domtree_free (root);
   return DDS_RETCODE_OK;
 }
 

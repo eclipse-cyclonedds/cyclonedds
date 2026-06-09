@@ -148,3 +148,24 @@ void domtree_print (const struct elem *root)
 {
   print_elem (root, 0);
 }
+
+void domtree_free (struct elem *e)
+{
+  while (e->attributes)
+  {
+    struct attr *a = e->attributes;
+    e->attributes = a->next;
+    ddsrt_free (a->name);
+    ddsrt_free (a->value);
+    ddsrt_free (a);
+  }
+  while (e->children)
+  {
+    struct elem *c = e->children;
+    e->children = c->next;
+    domtree_free (c);
+  }
+  ddsrt_free (e->name);
+  ddsrt_free (e->data);
+  ddsrt_free (e);
+}

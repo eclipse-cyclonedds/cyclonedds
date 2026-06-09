@@ -26,6 +26,11 @@
 #include "dyntypelib.h"
 #include "size_and_align.h"
 
+static size_t align_size (size_t size, size_t align)
+{
+  return (size % align) ? size + align - (size % align) : size;
+}
+
 void *dtl_align (unsigned char *base, size_t *off, size_t align, size_t size)
 {
   if (*off % align)
@@ -43,7 +48,7 @@ bool dtl_simple_alignof_sizeof (const uint8_t disc, size_t *align, size_t *size)
     case DDS_XTypes_TK_BOOLEAN: CASE(uint8_t);
     case DDS_XTypes_TK_CHAR8: CASE(int8_t);
     case DDS_XTypes_TK_CHAR16: CASE(wchar_t);
-    case DDS_XTypes_TK_INT8: CASE(int16_t);
+    case DDS_XTypes_TK_INT8: CASE(int8_t);
     case DDS_XTypes_TK_INT16: CASE(int16_t);
     case DDS_XTypes_TK_INT32: CASE(int32_t);
     case DDS_XTypes_TK_INT64: CASE(int64_t);
@@ -194,15 +199,9 @@ void *dtl_advance_ti (struct dyntypelib *dtl, unsigned char *base, size_t *off, 
         for (uint32_t i = 0; i < typeid->_u.array_ldefn.array_bound_seq._length; i++)
           n *= typeid->_u.array_ldefn.array_bound_seq._buffer[i];
       }
-      p = dtl_advance_ti (dtl, base, off, et, false);
-      if (n > 1)
-      {
-        size_t off1 = *off;
-        (void) dtl_advance_ti (dtl, base, off, et, false);
-        size_t elem_size_aligned = *off - off1;
-        *off += elem_size_aligned * (n - 2);
-      }
-      return p;
+      const size_t elem_align = dtl_get_typeid_align (dtl, et);
+      const size_t elem_size = dtl_get_typeid_size (dtl, et);
+      return dtl_align (base, off, elem_align, n * align_size (elem_size, elem_align));
     }
 
     case DDS_XTypes_EK_COMPLETE: {
@@ -236,13 +235,13 @@ void *dtl_advance_to (struct dyntypelib *dtl, unsigned char *base, size_t *off, 
       return dtl_align (base, off, _Alignof (dds_sequence_t), sizeof (dds_sequence_t));
 
     case DDS_XTypes_TK_ENUM:
-      return dtl_align (base, off, _Alignof (int), sizeof (int));
-
+    case DDS_XTypes_TK_BITMASK:
     case DDS_XTypes_TK_STRUCTURE:
     case DDS_XTypes_TK_UNION: {
       struct typeinfo templ = { .key = { .key = (uintptr_t) typeobj } }, *info = type_cache_lookup (dtl->typecache, &templ);
       return dtl_align (base, off, info->align, info->size);
     }
+
   }
 
   abort ();
@@ -284,7 +283,28 @@ size_t dtl_get_typeid_size (struct dyntypelib *dtl, DDS_XTypes_TypeIdentifier co
   }
   else
   {
-    return get_typeid_typeobj_size (dtl, typeid->_d, typeid);
+    switch (typeid->_d)
+    {
+      case DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL:
+      case DDS_XTypes_TI_PLAIN_SEQUENCE_LARGE:
+        return sizeof (dds_sequence_t);
+      case DDS_XTypes_TI_PLAIN_ARRAY_SMALL: {
+        const DDS_XTypes_TypeIdentifier *et = typeid->_u.array_sdefn.element_identifier;
+        size_t size = align_size (dtl_get_typeid_size (dtl, et), dtl_get_typeid_align (dtl, et));
+        for (uint32_t i = 0; i < typeid->_u.array_sdefn.array_bound_seq._length; i++)
+          size *= typeid->_u.array_sdefn.array_bound_seq._buffer[i];
+        return size;
+      }
+      case DDS_XTypes_TI_PLAIN_ARRAY_LARGE: {
+        const DDS_XTypes_TypeIdentifier *et = typeid->_u.array_ldefn.element_identifier;
+        size_t size = align_size (dtl_get_typeid_size (dtl, et), dtl_get_typeid_align (dtl, et));
+        for (uint32_t i = 0; i < typeid->_u.array_ldefn.array_bound_seq._length; i++)
+          size *= typeid->_u.array_ldefn.array_bound_seq._buffer[i];
+        return size;
+      }
+      default:
+        return get_typeid_typeobj_size (dtl, typeid->_d, typeid);
+    }
   }
 }
 

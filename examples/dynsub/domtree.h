@@ -33,5 +33,6 @@ struct elem {
 const char *getattr (const struct elem *elem, const char *name);
 struct elem *domtree_from_file (const char *fname);
 void domtree_print (const struct elem *elem);
+void domtree_free (struct elem *root);
 
 #endif

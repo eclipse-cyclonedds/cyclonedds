@@ -192,8 +192,8 @@ int main (int argc, char **argv)
   int argi = optind;
   while (argi < argc && strlen (argv[argi]) > 4 && strcmp (argv[argi] + strlen (argv[argi]) - 4, ".xml") == 0)
   {
-    if (dtl_add_xml_type_library (dtl, argv[optind], &err) != DDS_RETCODE_OK)
-      exitfmt ("%s: %s: %s\n", argv[0], argv[optind], err.errmsg);
+    if (dtl_add_xml_type_library (dtl, argv[argi], &err) != DDS_RETCODE_OK)
+      exitfmt ("%s: %s: %s\n", argv[0], argv[argi], err.errmsg);
     argi++;
   }
 
@@ -314,6 +314,7 @@ int main (int argc, char **argv)
         .realloc = ddsrt_realloc };
       dds_stream_free_sample (sample, &a, wrdescriptor->m_ops);
       ddsrt_free (sample);
+      domtree_free (input);
 
       if (rd)
         doread (dtl, ws, rd, rdtype->typeobj, true);
@@ -381,6 +382,7 @@ int main (int argc, char **argv)
 
       if ((rc = dds_forwardcdr (wr, sd)) != 0)
         exitfmt ("%s: %s: can't forward: %s\n", argv[0], argv[argi], dds_strretcode (rc));
+      ddsrt_free (buf);
 
       if (rd)
         doread (dtl, ws, rd, rdtype->typeobj, true);
@@ -408,6 +410,11 @@ int main (int argc, char **argv)
     while (doread (dtl, ws, rd, rdtype->typeobj, false))
       ;
   }
+
+  if (wrdescriptor)
+    dds_delete_topic_descriptor (wrdescriptor);
+  if (rddescriptor)
+    dds_delete_topic_descriptor (rddescriptor);
 
   dtl_free (dtl);
   dds_delete (dp);

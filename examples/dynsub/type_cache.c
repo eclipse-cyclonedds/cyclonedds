@@ -154,6 +154,22 @@ static bool build_typecache_simple (const uint8_t disc, size_t *align, size_t *s
   return false;
 }
 
+static bool is_pointer_member (DDS_XTypes_MemberFlag flags)
+{
+  return (flags & (DDS_XTypes_IS_OPTIONAL | DDS_XTypes_IS_EXTERNAL)) != 0;
+}
+
+static void build_typecache_pointer (size_t *align, size_t *size)
+{
+  *align = _Alignof (void *);
+  *size = sizeof (void *);
+}
+
+static size_t align_size (size_t size, size_t align)
+{
+  return (size % align) ? size + align - (size % align) : size;
+}
+
 struct type_hashid_map *lookup_hashid (struct type_cache *tc, const DDS_XTypes_EquivalenceHash hashid)
 {
   struct type_hashid_map templ, *info;
@@ -249,7 +265,7 @@ static void build_typecache_ti (struct type_cache *tc, const DDS_XTypes_TypeIden
       size_t a, s;
       build_typecache_ti (tc, et, &a, &s);
       *align = a;
-      *size = bound * s;
+      *size = bound * align_size (s, a);
       break;
     }
     case DDS_XTypes_EK_COMPLETE: {
@@ -274,7 +290,7 @@ static void build_typecache_ti (struct type_cache *tc, const DDS_XTypes_TypeIden
 
 void build_typecache_to (struct type_cache *tc, const DDS_XTypes_CompleteTypeObject *typeobj, size_t *align, size_t *size)
 {
-  if (build_typecache_simple (typeobj->_d, size, align))
+  if (build_typecache_simple (typeobj->_d, align, size))
     return;
   switch (typeobj->_d)
   {
@@ -325,19 +341,16 @@ void build_typecache_to (struct type_cache *tc, const DDS_XTypes_CompleteTypeObj
       break;
     }
     case DDS_XTypes_TK_SEQUENCE: {
-      const DDS_XTypes_CompleteSequenceType *x = &typeobj->_u.sequence_type;
-      struct typeinfo templ = { .key = { .key = (uintptr_t) typeobj } }, *info;
-      if ((info = ddsrt_hh_lookup (tc->tc, &templ)) != NULL) {
-        *align = info->align;
-        *size = info->size;
-      } else {
-        size_t a, s;
-        build_typecache_ti (tc, &x->element.common.type, &a, &s);
-        *align = a;
-        *size = s;
-        info = ddsrt_malloc (sizeof (*info));
-        *info = (struct typeinfo){ .key = { .key = (uintptr_t) typeobj }, .typeobj = typeobj, .release = NULL, .align = *align, .size = *size };
-        type_cache_add (tc, info);
+        struct typeinfo templ = { .key = { .key = (uintptr_t) typeobj } }, *info;
+        if ((info = ddsrt_hh_lookup (tc->tc, &templ)) != NULL) {
+          *align = info->align;
+          *size = info->size;
+        } else {
+          *align = _Alignof (dds_sequence_t);
+          *size = sizeof (dds_sequence_t);
+          info = ddsrt_malloc (sizeof (*info));
+          *info = (struct typeinfo){ .key = { .key = (uintptr_t) typeobj }, .typeobj = typeobj, .release = NULL, .align = *align, .size = *size };
+          type_cache_add (tc, info);
       }
       break;
     }
@@ -353,18 +366,16 @@ void build_typecache_to (struct type_cache *tc, const DDS_XTypes_CompleteTypeObj
         {
           const DDS_XTypes_CompleteStructMember *m = &t->member_seq._buffer[i];
           size_t a, s;
-          build_typecache_ti (tc, &m->common.member_type_id, &a, &s);
-          if (m->common.member_flags & DDS_XTypes_IS_OPTIONAL) {
-            a = _Alignof (void *); s = sizeof (void *);
-          }
+          if (is_pointer_member (m->common.member_flags))
+            build_typecache_pointer (&a, &s);
+          else
+            build_typecache_ti (tc, &m->common.member_type_id, &a, &s);
           if (a > *align)
             *align = a;
-          if (*size % a)
-            *size += a - (*size % a);
+          *size = align_size (*size, a);
           *size += s;
         }
-        if (*size % *align)
-          *size += *align - (*size % *align);
+        *size = align_size (*size, *align);
         info = ddsrt_malloc (sizeof (*info));
         *info = (struct typeinfo){ .key = { .key = (uintptr_t) typeobj }, .typeobj = typeobj, .release = NULL, .align = *align, .size = *size };
         type_cache_add (tc, info);
@@ -386,22 +397,23 @@ void build_typecache_to (struct type_cache *tc, const DDS_XTypes_CompleteTypeObj
         {
           const DDS_XTypes_CompleteUnionMember *m = &t->member_seq._buffer[i];
           size_t a, s;
-          build_typecache_ti (tc, &m->common.type_id, &a, &s);
+          if (is_pointer_member (m->common.member_flags))
+            build_typecache_pointer (&a, &s);
+          else
+            build_typecache_ti (tc, &m->common.type_id, &a, &s);
           if (a > *align)
             *align = a;
           if (s > *size)
             *size = s;
         }
         // FIXME: check this ...
-        if (*size % *align)
-          *size += *align - (*size % *align);
+        *size = align_size (*size, *align);
         if (*align > disc_size)
           disc_size = *align;
         *size += disc_size;
         if (disc_align > *align)
           *align = disc_align;
-        if (*size % *align)
-          *size += *align - (*size % *align);
+        *size = align_size (*size, *align);
         info = ddsrt_malloc (sizeof (*info));
         *info = (struct typeinfo){ .key = { .key = (uintptr_t) typeobj }, .typeobj = typeobj, .release = NULL, .align = *align, .size = *size };
         type_cache_add (tc, info);

@@ -397,7 +397,7 @@ static const DDS_XTypes_CompleteUnionMember *find_union_member (DDS_XTypes_Compl
 static size_t union_data_offset (struct dyntypelib *dtl, DDS_XTypes_CompleteUnionType const * const t)
 {
   const size_t disc_size = dtl_get_typeid_size (dtl, &t->discriminator.common.type_id);
-  size_t data_off = disc_size;
+  size_t member_align = 1;
   for (uint32_t i = 0; i < t->member_seq._length; i++)
   {
     DDS_XTypes_CompleteUnionMember const * const m = &t->member_seq._buffer[i];
@@ -406,10 +406,10 @@ static size_t union_data_offset (struct dyntypelib *dtl, DDS_XTypes_CompleteUnio
       a = _Alignof (char *);
     else
       a = dtl_get_typeid_align (dtl, &m->common.type_id);
-    if (a > data_off)
-      data_off = a;
+    if (a > member_align)
+      member_align = a;
   }
-  return data_off;
+  return (disc_size % member_align) ? disc_size + member_align - (disc_size % member_align) : disc_size;
 }
 
 static bool scan_union (struct dyntypelib *dtl, unsigned char *obj, DDS_XTypes_CompleteUnionType const * const t, struct elem const * const elem, bool ignore_unknown_members, struct dyntypelib_error *err)
