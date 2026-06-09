@@ -1314,6 +1314,12 @@ static dds_return_t ddsi_type_new_impl (struct ddsi_domaingv *gv, struct ddsi_ty
   assert (!ddsi_typeid_is_none_impl (type_id));
   assert (!ddsi_type_lookup_locked_impl (gv, type_id));
 
+  if (!gv->config.allow_recursive_types && ddsi_typeid_contains_scc_impl (type_id))
+  {
+    *type = NULL;
+    return DDS_RETCODE_UNSUPPORTED;
+  }
+
   if (type_obj != NULL && type_id->_d == DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT && !scc_component_verified)
   {
     TYPELIB_TRACE ("SCC type object for %s without component verification\n",
@@ -1391,6 +1397,7 @@ static void set_type_invalid_impl (struct ddsi_domaingv *gv, struct ddsi_type *t
     if (dep_src_type != NULL)
       set_type_invalid_impl (gv, dep_src_type, visited);
   }
+  ddsi_typeid_fini (&tmpl.dep_type_id);
 }
 
 static void set_type_invalid (struct ddsi_domaingv *gv, struct ddsi_type *type)
@@ -1650,6 +1657,8 @@ dds_return_t ddsi_type_add_scc_typeobjs_locked (
     bool *complete)
 {
   assert (type_id->_d == DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT);
+  if (!gv->config.allow_recursive_types)
+    return DDS_RETCODE_UNSUPPORTED;
   const struct DDS_XTypes_TypeIdentifierTypeObjectPair **slots;
   dds_return_t ret = type_scc_verify_component_pairs (pairs, &type_id->_u.sc_component_id, &slots, complete);
   TYPELIB_IMPORT_TRACE ("SCC import verify %s pairs=%"PRIu32" require-complete=%d ret=%d complete=%d\n",
@@ -1712,6 +1721,8 @@ static dds_return_t ddsi_type_register_dep_impl (struct ddsi_domaingv *gv, const
 
   if (ddsi_typeid_is_none_impl (dep_tid))
     return DDS_RETCODE_BAD_PARAMETER;
+  if (!gv->config.allow_recursive_types && ddsi_typeid_contains_scc_impl (dep_tid))
+    return DDS_RETCODE_UNSUPPORTED;
 
   dep_type_id.x = *dep_tid;
   struct ddsi_type_dep *dep = ddsrt_calloc (1, sizeof (*dep));
@@ -1928,6 +1939,11 @@ static dds_return_t type_add_deps (struct ddsi_domaingv *gv, struct ddsi_type *t
   for (uint32_t n = 0; dep_ids && n < dep_ids->_length && ret == DDS_RETCODE_OK; n++)
   {
     const struct DDS_XTypes_TypeIdentifier *dep_type_id = &dep_ids->_buffer[n].type_id;
+    if (!gv->config.allow_recursive_types && ddsi_typeid_contains_scc_impl (dep_type_id))
+    {
+      set_type_invalid (gv, type);
+      return DDS_RETCODE_UNSUPPORTED;
+    }
     if (dep_type_id->_d == DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT)
     {
       if (!ddsi_type_scc_id_is_valid_impl (&dep_type_id->_u.sc_component_id))
@@ -1991,6 +2007,12 @@ dds_return_t ddsi_type_ref_id_locked_impl (struct ddsi_domaingv *gv, struct ddsi
   dds_return_t ret = DDS_RETCODE_OK;
   if (ddsi_typeid_is_none_impl (type_id))
     return DDS_RETCODE_BAD_PARAMETER;
+  if (!gv->config.allow_recursive_types && ddsi_typeid_contains_scc_impl (type_id))
+  {
+    if (type)
+      *type = NULL;
+    return DDS_RETCODE_UNSUPPORTED;
+  }
 
   TYPELIB_TRACE ("ref ddsi_type type-id %s", typelib_trace_make_typeid_str (&tistr, type_id));
   struct ddsi_type *t = ddsi_type_lookup_locked_impl (gv, type_id);
@@ -2039,6 +2061,12 @@ static dds_return_t type_add_ref_impl (struct ddsi_domaingv *gv, struct ddsi_typ
                         (void *) t, t ? type_state_str (t->state) : "(new)",
                         resolved_ignore_deps, t ? (void *) t->scc : NULL,
                         ddsi_type_scc_materialized (t), type_map != NULL, type_obj != NULL);
+  if (!gv->config.allow_recursive_types && ddsi_typeid_contains_scc_impl (type_id))
+  {
+    ret = DDS_RETCODE_UNSUPPORTED;
+    ddsrt_mutex_unlock (&gv->typelib_lock);
+    goto err;
+  }
   if (type_id->_d == DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT)
   {
     if (type_map != NULL && (t == NULL || !ddsi_type_resolved_locked (gv, t, DDSI_TYPE_IGNORE_DEPS) || !ddsi_type_scc_materialized (t)))

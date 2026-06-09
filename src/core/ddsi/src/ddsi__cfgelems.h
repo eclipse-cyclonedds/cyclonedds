@@ -1122,6 +1122,16 @@ static struct cfgelem compatibility_cfgelems[] = {
       "the two \"try construct\" bits both set to 0, which is explicitly noted "
       "as an invalid setting in the spec.</p>"
     )),
+  BOOL("AllowRecursiveTypes", NULL, 1, "true",
+    MEMBER(allow_recursive_types),
+    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
+    DESCRIPTION(
+      "<p>This option controls support for recursive XTypes. When disabled, "
+      "TypeIdentifiers for strongly connected components and TypeObjects that "
+      "contain recursive dependency cycles are rejected. This reduces the "
+      "TypeLookup and type library attack surface at the cost of interoperability "
+      "with applications that use recursive types.</p>"
+    )),
   BOOL("IgnoreTypeInformation", NULL, 1, "",
     MEMBER(ignore_type_information),
     FUNCTIONS(0, uf_vendorid_list, 0, pf_vendorid_list),

@@ -44,7 +44,7 @@ The default value is: ``any``
 //CycloneDDS/Domain/Compatibility
 =================================
 
-Children: :ref:`AllowInvalidTryConstruct<//CycloneDDS/Domain/Compatibility/AllowInvalidTryConstruct>`, :ref:`AssumeRtiHasPmdEndpoints<//CycloneDDS/Domain/Compatibility/AssumeRtiHasPmdEndpoints>`, :ref:`ExplicitlyPublishQosSetToDefault<//CycloneDDS/Domain/Compatibility/ExplicitlyPublishQosSetToDefault>`, :ref:`IgnoreTypeInformation<//CycloneDDS/Domain/Compatibility/IgnoreTypeInformation>`, :ref:`ManySocketsMode<//CycloneDDS/Domain/Compatibility/ManySocketsMode>`, :ref:`ProtocolVersion<//CycloneDDS/Domain/Compatibility/ProtocolVersion>`, :ref:`StandardsConformance<//CycloneDDS/Domain/Compatibility/StandardsConformance>`
+Children: :ref:`AllowInvalidTryConstruct<//CycloneDDS/Domain/Compatibility/AllowInvalidTryConstruct>`, :ref:`AllowRecursiveTypes<//CycloneDDS/Domain/Compatibility/AllowRecursiveTypes>`, :ref:`AssumeRtiHasPmdEndpoints<//CycloneDDS/Domain/Compatibility/AssumeRtiHasPmdEndpoints>`, :ref:`ExplicitlyPublishQosSetToDefault<//CycloneDDS/Domain/Compatibility/ExplicitlyPublishQosSetToDefault>`, :ref:`IgnoreTypeInformation<//CycloneDDS/Domain/Compatibility/IgnoreTypeInformation>`, :ref:`ManySocketsMode<//CycloneDDS/Domain/Compatibility/ManySocketsMode>`, :ref:`ProtocolVersion<//CycloneDDS/Domain/Compatibility/ProtocolVersion>`, :ref:`StandardsConformance<//CycloneDDS/Domain/Compatibility/StandardsConformance>`
 
 The Compatibility element allows you to specify various settings related to compatibility with standards and with other DDSI implementations.
 
@@ -59,6 +59,18 @@ Boolean
 Setting option makes the TypeObject validation code accept types with the two "try construct" bits both set to 0, which is explicitly noted as an invalid setting in the spec.
 
 The default value is: ``false``
+
+
+.. _`//CycloneDDS/Domain/Compatibility/AllowRecursiveTypes`:
+
+//CycloneDDS/Domain/Compatibility/AllowRecursiveTypes
+-----------------------------------------------------
+
+Boolean
+
+This option controls support for recursive XTypes. When disabled, TypeIdentifiers for strongly connected components and TypeObjects that contain recursive dependency cycles are rejected. This reduces the TypeLookup and type library attack surface at the cost of interoperability with applications that use recursive types.
+
+The default value is: ``true``
 
 
 .. _`//CycloneDDS/Domain/Compatibility/AssumeRtiHasPmdEndpoints`:
@@ -302,7 +314,7 @@ This attribute determines controls the localhost will automatically be added to 
 
  * true: always
 
- * default: if multicast discovery is unavailable * 
+ * default: if multicast discovery is unavailable *
 
 The default value is: ``default``
 
@@ -639,7 +651,7 @@ The default value is: ``empty``
 
 Text
 
-Provide an initial seed for the entity naming. Your string will be hashed to provide the random state. When provided, the same sequence of names is generated every run. Creating your entities in the same order will ensure they are the same between runs. If you run multiple nodes, set this via environment variable to ensure every node generates unique names. A random starting seed is chosen when left empty, (the default). 
+Provide an initial seed for the entity naming. Your string will be hashed to provide the random state. When provided, the same sequence of names is generated every run. Creating your entities in the same order will ensure they are the same between runs. If you run multiple nodes, set this via environment variable to ensure every node generates unique names. A random starting seed is chosen when left empty, (the default).
 
 The default value is: ``<empty>``
 
@@ -710,7 +722,7 @@ This element defines a network interface. You can set autodetermine="true" to au
 
 Text
 
-This attribute specifies the address of the interface. With ipv4 allows  matching on the network part if the host part is set to zero. 
+This attribute specifies the address of the interface. With ipv4 allows  matching on the network part if the host part is set to zero.
 
 The default value is: ``<empty>``
 
@@ -773,7 +785,7 @@ The default value is: ``default``
 
 Text
 
-This attribute specifies the name of the interface. 
+This attribute specifies the name of the interface.
 
 The default value is: ``<empty>``
 
@@ -2179,7 +2191,7 @@ Examples file URIs:
 
 Content-Type: multipart/signed; protocol="application/x-pkcs7-signature"; micalg="sha-256"; boundary="----F9A8A198D6F08E1285A292ADF14DD04F"
 
-This is an S/MIME signed message 
+This is an S/MIME signed message
 
 ------F9A8A198D6F08E1285A292ADF14DD04F
 
@@ -2191,7 +2203,7 @@ xsi:noNamespaceSchemaLocation="omg\_shared\_ca\_governance.xsd">
 
 <domain\_access\_rules>
 
- . . . 
+ . . .
 
 </domain\_access\_rules>
 
@@ -2961,9 +2973,9 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 The default value is: ``none``
 
 ..
-   generated from ddsi_config.h[94ad20bdb44ea1f393ba906865b1da591bbe1b57] 
+   generated from ddsi_config.h[fa9f0e6c47e2cd035bc7d5a0949caff291f77019] 
    generated from ddsi_config.c[2bfa6f856d7398a905922d140943b27328d265f1] 
-   generated from ddsi__cfgelems.h[77ac61e4ae32873408c1286b2edc02d69723325a] 
+   generated from ddsi__cfgelems.h[b79c157f81518771ebd4ea7ca37a347b73008a9f] 
    generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] 
    generated from _confgen.h[bb9a0fc6ef1f7f7c46790ee00132e340e5fff36d] 
    generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] 

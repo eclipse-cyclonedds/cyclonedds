@@ -78,6 +78,7 @@ struct xt_validate_context {
   /* path[0] is the empty path. A node entered at depth n writes path[n + 1],
      so XT_VALIDATE_MAX_DEPTH entered nodes need indices 0..MAX_DEPTH. */
   struct xt_validate_path_entry path[XT_VALIDATE_MAX_DEPTH + 1];
+  bool allow_recursive_types;
 };
 
 struct xt_assignability_node {
@@ -1506,9 +1507,10 @@ static void xt_validate_node_free (void *vnode, void *arg)
   ddsrt_free (vnode);
 }
 
-static dds_return_t xt_validate_context_init (struct xt_validate_context *context)
+static dds_return_t xt_validate_context_init (struct xt_validate_context *context, bool allow_recursive_types)
 {
   memset (context, 0, sizeof (*context));
+  context->allow_recursive_types = allow_recursive_types;
   if ((context->types = ddsrt_hh_new (1, xt_validate_node_hash, xt_validate_node_equal)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
   return DDS_RETCODE_OK;
@@ -1573,8 +1575,11 @@ static const char *xt_validate_edge_descr (enum xt_validate_edge edge)
   return "unknown";
 }
 
-static bool xt_validate_can_skip_committed_hash (const struct xt_type *t, bool in_key, enum xt_validate_edge edge)
+static bool xt_validate_can_skip_committed_hash (const struct xt_validate_context *context,
+    const struct xt_type *t, bool in_key, enum xt_validate_edge edge)
 {
+  if (!context->allow_recursive_types)
+    return false;
   if (edge == XT_VALIDATE_EDGE_TOP || xt_is_non_hash (t))
     return false;
 
@@ -1599,12 +1604,15 @@ static dds_return_t xt_validate_enter (struct ddsi_domaingv *gv, struct xt_valid
   const struct xt_validate_node templ = { .type = t, .in_key = in_key };
   if ((*node = ddsrt_hh_lookup (context->types, &templ)) != NULL)
   {
-    if ((*node)->state == XT_VALIDATE_VALIDATED || xt_validate_cycle_is_valid (context, *node, indirect_edge, depth))
+    if ((*node)->state == XT_VALIDATE_VALIDATED ||
+        (context->allow_recursive_types && xt_validate_cycle_is_valid (context, *node, indirect_edge, depth)))
     {
       *skip = true;
       return DDS_RETCODE_OK;
     }
-    GVTRACE ("invalid recursive type dependency through %s\n", xt_validate_edge_descr (edge));
+    GVTRACE ("%srecursive type dependency through %s\n",
+             context->allow_recursive_types ? "invalid " : "disabled ",
+             xt_validate_edge_descr (edge));
     return DDS_RETCODE_BAD_PARAMETER;
   }
 
@@ -1637,7 +1645,7 @@ static dds_return_t xt_validate_impl (struct ddsi_domaingv *gv, struct xt_valida
 
   if (ddsi_xt_missing_definition (t))
     return DDS_RETCODE_OK;
-  if (xt_validate_can_skip_committed_hash (t, in_key, edge))
+  if (xt_validate_can_skip_committed_hash (context, t, in_key, edge))
   {
     node->state = XT_VALIDATE_VALIDATED;
     return DDS_RETCODE_OK;
@@ -1790,7 +1798,7 @@ dds_return_t ddsi_xt_validate (struct ddsi_domaingv *gv, const struct ddsi_type 
 {
   struct xt_validate_context context;
   dds_return_t ret;
-  if ((ret = xt_validate_context_init (&context)) != DDS_RETCODE_OK)
+  if ((ret = xt_validate_context_init (&context, gv->config.allow_recursive_types)) != DDS_RETCODE_OK)
     return ret;
   ret = xt_validate_impl (gv, &context, &type->xt, false, XT_VALIDATE_EDGE_TOP, false, 0);
   xt_validate_context_fini (&context);
@@ -3847,6 +3855,34 @@ static ddsi_typeid_kind_t ddsi_typeid_kind_impl (const struct DDS_XTypes_TypeIde
     }
   }
   return kind;
+}
+
+bool ddsi_typeid_contains_scc_impl (const struct DDS_XTypes_TypeIdentifier *type_id)
+{
+  if (type_id == NULL)
+    return false;
+
+  switch (type_id->_d)
+  {
+    case DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT:
+      return true;
+    case DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL:
+      return ddsi_typeid_contains_scc_impl (type_id->_u.seq_sdefn.element_identifier);
+    case DDS_XTypes_TI_PLAIN_SEQUENCE_LARGE:
+      return ddsi_typeid_contains_scc_impl (type_id->_u.seq_ldefn.element_identifier);
+    case DDS_XTypes_TI_PLAIN_ARRAY_SMALL:
+      return ddsi_typeid_contains_scc_impl (type_id->_u.array_sdefn.element_identifier);
+    case DDS_XTypes_TI_PLAIN_ARRAY_LARGE:
+      return ddsi_typeid_contains_scc_impl (type_id->_u.array_ldefn.element_identifier);
+    case DDS_XTypes_TI_PLAIN_MAP_SMALL:
+      return ddsi_typeid_contains_scc_impl (type_id->_u.map_sdefn.key_identifier) ||
+        ddsi_typeid_contains_scc_impl (type_id->_u.map_sdefn.element_identifier);
+    case DDS_XTypes_TI_PLAIN_MAP_LARGE:
+      return ddsi_typeid_contains_scc_impl (type_id->_u.map_ldefn.key_identifier) ||
+        ddsi_typeid_contains_scc_impl (type_id->_u.map_ldefn.element_identifier);
+    default:
+      return false;
+  }
 }
 
 bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type *rd_xt, const struct xt_type *wr_xt, const dds_type_consistency_enforcement_qospolicy_t *tce, struct ddsi_non_assignability_reason *reason)

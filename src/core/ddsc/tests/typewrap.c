@@ -28,6 +28,14 @@ static void typewrap_init (void)
   CU_ASSERT_GEQ_FATAL (participant, 0);
 }
 
+static void typewrap_no_recursive_init (void)
+{
+  domain = dds_create_domain (0, "<Compatibility><AllowRecursiveTypes>false</AllowRecursiveTypes></Compatibility>");
+  CU_ASSERT_GEQ_FATAL (domain, 0);
+  participant = dds_create_participant (0, NULL, NULL);
+  CU_ASSERT_GEQ_FATAL (participant, 0);
+}
+
 static void typewrap_fini (void)
 {
   dds_return_t ret = dds_delete (participant);
@@ -259,6 +267,46 @@ CU_Test (ddsc_typewrap, recursive_type_validation, .init = typewrap_init, .fini 
   key_context_parent.xt._u.structure.members.length = sizeof (key_context_members) / sizeof (key_context_members[0]);
   key_context_parent.xt._u.structure.members.seq = key_context_members;
   CU_ASSERT_EQ (ddsi_xt_validate (gv, &key_context_parent), DDS_RETCODE_BAD_PARAMETER);
+}
+
+CU_Test (ddsc_typewrap, recursive_type_validation_disabled, .init = typewrap_no_recursive_init, .fini = typewrap_fini)
+{
+  struct ddsi_domaingv *gv = get_domaingv (participant);
+  CU_ASSERT_EQ_FATAL (gv->config.allow_recursive_types, 0);
+
+  struct ddsi_type recursive_struct = {0}, sequence = {0};
+  struct xt_struct_member recursive_member = {
+    .id = 1,
+    .flags = DDS_XTypes_TRY_CONSTRUCT1,
+    .type = &sequence
+  };
+  init_test_hash_id (&recursive_struct.xt.id, 1);
+  recursive_struct.xt.kind = DDSI_TYPEID_KIND_COMPLETE;
+  recursive_struct.xt._d = DDS_XTypes_TK_STRUCTURE;
+  recursive_struct.xt._u.structure.flags = DDS_XTypes_IS_FINAL;
+  recursive_struct.xt._u.structure.members.length = 1;
+  recursive_struct.xt._u.structure.members.seq = &recursive_member;
+  init_test_hash_id (&sequence.xt.id, 2);
+  sequence.xt.kind = DDSI_TYPEID_KIND_COMPLETE;
+  sequence.xt._d = DDS_XTypes_TK_SEQUENCE;
+  sequence.xt._u.seq.c.element_flags = DDS_XTypes_TRY_CONSTRUCT1;
+  sequence.xt._u.seq.c.element_type = &recursive_struct;
+  CU_ASSERT_EQ (ddsi_xt_validate (gv, &recursive_struct), DDS_RETCODE_BAD_PARAMETER);
+
+  struct ddsi_type int32_type = { .xt = { ._d = DDS_XTypes_TK_INT32 } };
+  struct ddsi_type non_recursive_struct = {0};
+  struct xt_struct_member non_recursive_member = {
+    .id = 1,
+    .flags = DDS_XTypes_TRY_CONSTRUCT1,
+    .type = &int32_type
+  };
+  init_test_hash_id (&non_recursive_struct.xt.id, 3);
+  non_recursive_struct.xt.kind = DDSI_TYPEID_KIND_COMPLETE;
+  non_recursive_struct.xt._d = DDS_XTypes_TK_STRUCTURE;
+  non_recursive_struct.xt._u.structure.flags = DDS_XTypes_IS_FINAL;
+  non_recursive_struct.xt._u.structure.members.length = 1;
+  non_recursive_struct.xt._u.structure.members.seq = &non_recursive_member;
+  CU_ASSERT_EQ (ddsi_xt_validate (gv, &non_recursive_struct), DDS_RETCODE_OK);
 }
 
 CU_Test (ddsc_typewrap, recursive_type_assignability, .init = typewrap_init, .fini = typewrap_fini)

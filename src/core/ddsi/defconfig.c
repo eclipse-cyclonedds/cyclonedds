@@ -34,6 +34,7 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->many_sockets_mode = INT32_C (1);
   cfg->protocol_version.major = 2;
   cfg->protocol_version.minor = 5;
+  cfg->allow_recursive_types = INT32_C (1);
   cfg->domainTag = "";
   cfg->extDomainId.isdefault = 1;
   cfg->ds_grace_period = INT64_C (30000000000);
@@ -107,9 +108,9 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->ssl_min_version.minor = 3;
 #endif /* DDS_HAS_TCP_TLS */
 }
-/* generated from ddsi_config.h[94ad20bdb44ea1f393ba906865b1da591bbe1b57] */
+/* generated from ddsi_config.h[fa9f0e6c47e2cd035bc7d5a0949caff291f77019] */
 /* generated from ddsi_config.c[2bfa6f856d7398a905922d140943b27328d265f1] */
-/* generated from ddsi__cfgelems.h[77ac61e4ae32873408c1286b2edc02d69723325a] */
+/* generated from ddsi__cfgelems.h[b79c157f81518771ebd4ea7ca37a347b73008a9f] */
 /* generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] */
 /* generated from _confgen.h[bb9a0fc6ef1f7f7c46790ee00132e340e5fff36d] */
 /* generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] */

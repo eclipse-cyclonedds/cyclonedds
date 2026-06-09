@@ -80,6 +80,8 @@ static int32_t tl_request_get_deps (struct ddsi_domaingv * const gv, struct ddsr
   {
     struct ddsi_type *dep_type = ddsi_type_lookup_locked (gv, &dep->dep_type_id);
     assert (dep_type);
+    if (!gv->config.allow_recursive_types && ddsi_typeid_contains_scc_impl (&dep_type->xt.id.x))
+      continue;
     if (!ddsi_type_resolved_locked (gv, dep_type, DDSI_TYPE_IGNORE_DEPS))
     {
       assert (ddsi_typeid_is_hash (&dep_type->xt.id));
@@ -233,6 +235,8 @@ static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_
 
   if (!ddsi_type_resolved_locked (gv, type, DDSI_TYPE_IGNORE_DEPS))
   {
+    if (!gv->config.allow_recursive_types && ddsi_typeid_contains_scc_impl (&type->xt.id.x))
+      goto err;
     cnt = tl_typeid_request_count (&type->xt.id);
     if (cnt == INT32_MAX)
       goto err;
@@ -283,6 +287,8 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
 {
   struct ddsi_typeid_str tidstr;
   assert (ddsi_typeid_is_hash (type_id));
+  if (!gv->config.allow_recursive_types && ddsi_typeid_contains_scc_impl (&type_id->x))
+    return false;
   ddsrt_mutex_lock (&gv->typelib_lock);
   struct ddsi_type *type = ddsi_type_lookup_locked (gv, type_id);
   GVTRACE ("tl-req ");
@@ -506,6 +512,11 @@ void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_R
     struct ddsi_typeid_str str;
     DDS_XTypes_TypeIdentifierTypeObjectPair r = reply->return_data._u.getType._u.result.types._buffer[n];
     GVTRACE (" type %s", ddsi_make_typeid_str_impl (&str, &r.type_identifier));
+    if (!gv->config.allow_recursive_types && ddsi_typeid_contains_scc_impl (&r.type_identifier))
+    {
+      GVTRACE (" recursive types disabled\n");
+      continue;
+    }
     struct ddsi_type *type = ddsi_type_lookup_locked_impl (gv, &r.type_identifier);
     if (!type)
     {

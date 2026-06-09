@@ -30,6 +30,14 @@ static void dynamic_type_init(void)
   CU_ASSERT_GEQ_FATAL (participant, 0);
 }
 
+static void dynamic_type_no_recursive_init(void)
+{
+  domain = dds_create_domain (0, "<Compatibility><AllowRecursiveTypes>false</AllowRecursiveTypes></Compatibility>");
+  CU_ASSERT_GEQ_FATAL (domain, 0);
+  participant = dds_create_participant (0, NULL, NULL);
+  CU_ASSERT_GEQ_FATAL (participant, 0);
+}
+
 static void dynamic_type_fini(void)
 {
   dds_return_t ret = dds_delete (participant);
@@ -795,6 +803,78 @@ CU_Test (ddsc_dynamic_type, existing_nested_constructing, .init = dynamic_type_i
   dds_dynamic_type_unref (&dstruct_existing);
   dds_dynamic_type_unref (&dstruct_parent);
   dds_dynamic_type_unref (&dstruct_nested);
+}
+
+CU_Test (ddsc_dynamic_type, recursive_struct_disabled, .init = dynamic_type_no_recursive_init, .fini = dynamic_type_fini)
+{
+  struct ddsi_domaingv *gv = get_domaingv (participant);
+  CU_ASSERT_EQ_FATAL (gv->config.allow_recursive_types, 0);
+
+  dds_dynamic_type_t dnode = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "NodeDisabled" });
+  CU_ASSERT_EQ_FATAL (dnode.ret, DDS_RETCODE_OK);
+
+  dds_dynamic_type_t dseq = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_SEQUENCE,
+    .name = "NodeDisabledSeq",
+    .element_type = DDS_DYNAMIC_TYPE_SPEC (dds_dynamic_type_ref (&dnode))
+  });
+  CU_ASSERT_EQ_FATAL (dseq.ret, DDS_RETCODE_OK);
+
+  dds_return_t ret = dds_dynamic_type_add_member (&dnode, DDS_DYNAMIC_MEMBER_PRIM (DDS_DYNAMIC_INT32, "value"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&dnode, DDS_DYNAMIC_MEMBER (dseq, "children"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  dds_typeinfo_t *type_info = NULL;
+  ret = dds_dynamic_type_register (&dnode, &type_info);
+  CU_ASSERT_NEQ (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (type_info, NULL);
+
+  dds_dynamic_type_unref (&dnode);
+}
+
+CU_Test (ddsc_dynamic_type, recursive_struct_disabled_nested_cycle, .init = dynamic_type_no_recursive_init, .fini = dynamic_type_fini)
+{
+  struct ddsi_domaingv *gv = get_domaingv (participant);
+  CU_ASSERT_EQ_FATAL (gv->config.allow_recursive_types, 0);
+
+  dds_dynamic_type_t droot = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "RootDisabled" });
+  CU_ASSERT_EQ_FATAL (droot.ret, DDS_RETCODE_OK);
+  dds_dynamic_type_t da = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "ADisabled" });
+  CU_ASSERT_EQ_FATAL (da.ret, DDS_RETCODE_OK);
+  dds_dynamic_type_t da_ref = dds_dynamic_type_ref (&da);
+  CU_ASSERT_EQ_FATAL (da_ref.ret, DDS_RETCODE_OK);
+  dds_dynamic_type_t db = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "BDisabled" });
+  CU_ASSERT_EQ_FATAL (db.ret, DDS_RETCODE_OK);
+
+  dds_return_t ret = dds_dynamic_type_add_member (&db, DDS_DYNAMIC_MEMBER (dds_dynamic_type_ref (&da), "a"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  dds_dynamic_type_t dseqb = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_SEQUENCE,
+    .name = "BDisabledSeq",
+    .element_type = DDS_DYNAMIC_TYPE_SPEC (db)
+  });
+  CU_ASSERT_EQ_FATAL (dseqb.ret, DDS_RETCODE_OK);
+
+  ret = dds_dynamic_type_add_member (&da, DDS_DYNAMIC_MEMBER (dseqb, "bs"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&droot, DDS_DYNAMIC_MEMBER (da, "a"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  dds_typeinfo_t *type_info = NULL;
+  ret = dds_dynamic_type_register (&droot, &type_info);
+  CU_ASSERT_NEQ (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (droot.ret, ret);
+  CU_ASSERT_EQ (type_info, NULL);
+
+  ret = dds_dynamic_type_register (&da_ref, &type_info);
+  CU_ASSERT_NEQ (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (da_ref.ret, ret);
+  CU_ASSERT_EQ (type_info, NULL);
+
+  dds_dynamic_type_unref (&droot);
+  dds_dynamic_type_unref (&da_ref);
 }
 
 static void recursive_import_expect (const ddsi_typeinfo_t *type_info, const ddsi_typemap_t *type_map, dds_domainid_t domainid, dds_return_t expected)

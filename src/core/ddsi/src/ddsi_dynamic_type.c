@@ -100,6 +100,68 @@ static dds_return_t dynamic_type_finalize_deps_locked (struct ddsi_type *type, s
   return ret;
 }
 
+static void dynamic_type_abort_deps_locked (struct ddsi_type *type, struct ddsrt_hh *visited);
+
+static void dynamic_type_abort_dep_locked (struct ddsi_type *type, struct ddsrt_hh *visited)
+{
+  if (type == NULL || (type->state != DDSI_TYPE_CONSTRUCTING && type->state != DDSI_TYPE_COMPLETING))
+    return;
+  dynamic_type_abort_deps_locked (type, visited);
+}
+
+static void dynamic_type_abort_deps_locked (struct ddsi_type *type, struct ddsrt_hh *visited)
+{
+  struct ddsi_domaingv *gv = type->gv;
+  if (ddsi_type_visit_seen (visited, type))
+    return;
+
+  ddsi_type_ref_locked (gv, NULL, type);
+  switch (type->xt._d)
+  {
+    case DDS_XTypes_TK_ALIAS:
+      dynamic_type_abort_dep_locked (type->xt._u.alias.related_type, visited);
+      break;
+    case DDS_XTypes_TK_SEQUENCE:
+      dynamic_type_abort_dep_locked (type->xt._u.seq.c.element_type, visited);
+      break;
+    case DDS_XTypes_TK_ARRAY:
+      dynamic_type_abort_dep_locked (type->xt._u.array.c.element_type, visited);
+      break;
+    case DDS_XTypes_TK_MAP:
+      dynamic_type_abort_dep_locked (type->xt._u.map.key_type, visited);
+      dynamic_type_abort_dep_locked (type->xt._u.map.c.element_type, visited);
+      break;
+    case DDS_XTypes_TK_STRUCTURE:
+      dynamic_type_abort_dep_locked (type->xt._u.structure.base_type, visited);
+      for (uint32_t m = 0; m < type->xt._u.structure.members.length; m++)
+        dynamic_type_abort_dep_locked (type->xt._u.structure.members.seq[m].type, visited);
+      break;
+    case DDS_XTypes_TK_UNION:
+      dynamic_type_abort_dep_locked (type->xt._u.union_type.disc_type, visited);
+      for (uint32_t m = 0; m < type->xt._u.union_type.members.length; m++)
+        dynamic_type_abort_dep_locked (type->xt._u.union_type.members.seq[m].type, visited);
+      break;
+    default:
+      break;
+  }
+
+  /* At the early recursive-types-disabled failure point no type identifiers,
+     dependency table entries or SCC refcount consolidation exist yet.  Finalize
+     the owned XTypes payloads directly so their construction refs are dropped;
+     the outer ddsi_type shells remain alive until their normal refs are
+     released by the public dynamic type handles. */
+  type->state = DDSI_TYPE_INVALID;
+  ddsi_xt_type_fini_owned (gv, type, &type->xt, false);
+  ddsi_type_unref_locked (gv, type);
+}
+
+static void dynamic_type_abort_unidentified_graph_locked (struct ddsi_type *type)
+{
+  struct ddsrt_hh *visited = ddsi_type_visit_new ();
+  dynamic_type_abort_deps_locked (type, visited);
+  ddsi_type_visit_free (visited);
+}
+
 static dds_return_t dynamic_type_register_dep (struct ddsi_type *type, struct ddsi_type **dep_type)
 {
   /* Dynamic construction hands dependency references to the containing type
@@ -193,6 +255,8 @@ static dds_return_t dynamic_type_mark_completing_locked (struct ddsi_type **type
   struct ddsi_domaingv *gv = (*type)->gv;
   ddsi_type_canonicalize_locked (gv, type);
 
+  if ((*type)->state == DDSI_TYPE_INVALID)
+    return DDS_RETCODE_BAD_PARAMETER;
   if ((*type)->state == DDSI_TYPE_COMPLETING)
     return ret;
 
@@ -231,6 +295,8 @@ static dds_return_t dynamic_type_finalize_locked (struct ddsi_type **type, struc
   struct ddsi_domaingv *gv = (*type)->gv;
   ddsi_type_canonicalize_locked (gv, type);
 
+  if ((*type)->state == DDSI_TYPE_INVALID)
+    return DDS_RETCODE_BAD_PARAMETER;
   if ((*type)->state != DDSI_TYPE_COMPLETING)
   {
     assert (ddsi_type_resolved_locked (gv, *type, DDSI_TYPE_IGNORE_DEPS));
@@ -239,6 +305,12 @@ static dds_return_t dynamic_type_finalize_locked (struct ddsi_type **type, struc
 
   if (ddsi_type_visit_seen (visited, *type))
     return ret;
+
+  if (!gv->config.allow_recursive_types && (ret = ddsi_xt_validate (gv, *type)) != DDS_RETCODE_OK)
+  {
+    dynamic_type_abort_unidentified_graph_locked (*type);
+    return ret;
+  }
 
   struct DDS_XTypes_TypeIdentifier ti;
   ddsi_xt_get_typeid_impl (&(*type)->xt, &ti, (*type)->xt.kind);
@@ -315,6 +387,8 @@ static dds_return_t dynamic_type_complete_locked (struct ddsi_type **type)
   struct ddsi_domaingv *gv = (*type)->gv;
   ddsi_type_canonicalize_locked (gv, type);
 
+  if ((*type)->state == DDSI_TYPE_INVALID)
+    return DDS_RETCODE_BAD_PARAMETER;
   if ((*type)->state != DDSI_TYPE_CONSTRUCTING)
   {
     if ((*type)->state != DDSI_TYPE_COMPLETING)

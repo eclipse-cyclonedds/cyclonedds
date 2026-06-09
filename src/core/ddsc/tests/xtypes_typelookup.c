@@ -766,6 +766,22 @@ CU_Test(ddsc_typelookup, scc_duplicate_import_is_idempotent, .init = typelookup_
   unref_scc_reply_types (gv, types, 2);
 }
 
+CU_Test(ddsc_typelookup, scc_import_disabled, .init = typelookup_init, .fini = typelookup_fini)
+{
+  const uint32_t edges[] = { 2, 1 };
+  DDS_XTypes_TypeIdentifierTypeObjectPair pairs[2] = { 0 };
+  struct DDS_XTypes_TypeObject typeobjs[2];
+  struct DDS_XTypes_CompleteStructMember members[2];
+  struct DDS_XTypes_TypeIdentifier element_typeids[2];
+  init_scc_reply_pairs (pairs, typeobjs, members, element_typeids, 2, edges);
+
+  struct ddsi_domaingv *gv = get_domaingv (g_participant1);
+  const int allow_recursive_types = gv->config.allow_recursive_types;
+  gv->config.allow_recursive_types = false;
+  import_scc_reply_direct (gv, pairs, 2, DDS_RETCODE_UNSUPPORTED, false);
+  gv->config.allow_recursive_types = allow_recursive_types;
+}
+
 CU_Test(ddsc_typelookup, scc_failed_import_rolls_back_slots, .init = typelookup_init, .fini = typelookup_fini)
 {
   const uint32_t edges[] = { 2, 1 };

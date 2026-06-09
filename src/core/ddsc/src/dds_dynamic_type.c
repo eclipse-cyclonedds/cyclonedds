@@ -557,7 +557,7 @@ dds_return_t dds_dynamic_type_register (dds_dynamic_type_t *type, struct ddsi_ty
   dds_return_t ret;
   if ((ret = check_type_param (type, true)) != DDS_RETCODE_OK)
     return ret;
-  return ddsi_dynamic_type_register (get_dtype_complete_addr (type), get_dtype_minimal_addr (type), type_info);
+  return (type->ret = ddsi_dynamic_type_register (get_dtype_complete_addr (type), get_dtype_minimal_addr (type), type_info));
 }
 
 dds_dynamic_type_t dds_dynamic_type_ref (dds_dynamic_type_t *type)

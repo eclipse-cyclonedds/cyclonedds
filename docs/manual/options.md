@@ -20,7 +20,7 @@ The default value is: `any`
 
 
 ### //CycloneDDS/Domain/Compatibility
-Children: [AllowInvalidTryConstruct](#cycloneddsdomaincompatibilityallowinvalidtryconstruct), [AssumeRtiHasPmdEndpoints](#cycloneddsdomaincompatibilityassumertihaspmdendpoints), [ExplicitlyPublishQosSetToDefault](#cycloneddsdomaincompatibilityexplicitlypublishqossettodefault), [IgnoreTypeInformation](#cycloneddsdomaincompatibilityignoretypeinformation), [ManySocketsMode](#cycloneddsdomaincompatibilitymanysocketsmode), [ProtocolVersion](#cycloneddsdomaincompatibilityprotocolversion), [StandardsConformance](#cycloneddsdomaincompatibilitystandardsconformance)
+Children: [AllowInvalidTryConstruct](#cycloneddsdomaincompatibilityallowinvalidtryconstruct), [AllowRecursiveTypes](#cycloneddsdomaincompatibilityallowrecursivetypes), [AssumeRtiHasPmdEndpoints](#cycloneddsdomaincompatibilityassumertihaspmdendpoints), [ExplicitlyPublishQosSetToDefault](#cycloneddsdomaincompatibilityexplicitlypublishqossettodefault), [IgnoreTypeInformation](#cycloneddsdomaincompatibilityignoretypeinformation), [ManySocketsMode](#cycloneddsdomaincompatibilitymanysocketsmode), [ProtocolVersion](#cycloneddsdomaincompatibilityprotocolversion), [StandardsConformance](#cycloneddsdomaincompatibilitystandardsconformance)
 
 The Compatibility element allows you to specify various settings related to compatibility with standards and with other DDSI implementations.
 
@@ -31,6 +31,14 @@ Boolean
 Setting option makes the TypeObject validation code accept types with the two "try construct" bits both set to 0, which is explicitly noted as an invalid setting in the spec.
 
 The default value is: `false`
+
+
+#### //CycloneDDS/Domain/Compatibility/AllowRecursiveTypes
+Boolean
+
+This option controls support for recursive XTypes. When disabled, TypeIdentifiers for strongly connected components and TypeObjects that contain recursive dependency cycles are rejected. This reduces the TypeLookup and type library attack surface at the cost of interoperability with applications that use recursive types.
+
+The default value is: `true`
 
 
 #### //CycloneDDS/Domain/Compatibility/AssumeRtiHasPmdEndpoints
@@ -2071,9 +2079,9 @@ While none prevents any message from being written to a DDSI2 log file.
 The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful verbosity levels are config, fine and finest.
 
 The default value is: `none`
-<!--- generated from ddsi_config.h[94ad20bdb44ea1f393ba906865b1da591bbe1b57] -->
+<!--- generated from ddsi_config.h[fa9f0e6c47e2cd035bc7d5a0949caff291f77019] -->
 <!--- generated from ddsi_config.c[2bfa6f856d7398a905922d140943b27328d265f1] -->
-<!--- generated from ddsi__cfgelems.h[77ac61e4ae32873408c1286b2edc02d69723325a] -->
+<!--- generated from ddsi__cfgelems.h[b79c157f81518771ebd4ea7ca37a347b73008a9f] -->
 <!--- generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] -->
 <!--- generated from _confgen.h[bb9a0fc6ef1f7f7c46790ee00132e340e5fff36d] -->
 <!--- generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] -->

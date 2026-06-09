@@ -389,6 +389,9 @@ bool ddsi_typeid_is_minimal_impl (const struct DDS_XTypes_TypeIdentifier *type_i
 bool ddsi_typeid_is_complete_impl (const struct DDS_XTypes_TypeIdentifier *type_id);
 
 /** @component xtypes_wrapper */
+bool ddsi_typeid_contains_scc_impl (const struct DDS_XTypes_TypeIdentifier *type_id);
+
+/** @component xtypes_wrapper */
 void ddsi_typeobj_fini_impl (struct DDS_XTypes_TypeObject *typeobj);
 
 /** @component xtypes_wrapper */
