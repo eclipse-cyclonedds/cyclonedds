@@ -12,3 +12,4 @@ types {
 actions { action: ACTION_VALIDATE }
 actions { action: ACTION_IMPORT_COMPLETE }
 actions { action: ACTION_IMPORT_MINIMAL }
+actions { action: ACTION_ROUNDTRIP_TYPEINFO_TYPEMAP }

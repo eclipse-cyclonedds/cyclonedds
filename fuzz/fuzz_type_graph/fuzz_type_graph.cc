@@ -48,6 +48,7 @@ constexpr uint32_t kMaxMembers = 8;
 constexpr uint32_t kMaxValues = 8;
 constexpr uint32_t kMaxActions = 8;
 constexpr uint32_t kMaxMutations = 8;
+constexpr int kActionRoundtripTypeInfoTypeMap = fuzz_type_graph::ACTION_ROUNDTRIP_TYPEINFO_TYPEMAP;
 
 struct OwnedType {
   ddsi_type type;
@@ -62,6 +63,13 @@ struct OwnedType {
 struct SccPairSet {
   std::vector<DDS_XTypes_TypeIdentifierTypeObjectPair> pairs;
   uint32_t seq_length = 0;
+};
+
+struct SerializedTypeInfoTypeMap {
+  unsigned char *typeinfo = nullptr;
+  uint32_t typeinfo_size = 0;
+  unsigned char *typemap = nullptr;
+  uint32_t typemap_size = 0;
 };
 
 static ddsi_cfgst *g_cfgst;
@@ -852,9 +860,14 @@ static void fini_scc_pairs(SccPairSet &pairs)
   }
 }
 
-static void import_typeobject(Runtime &runtime, TypeGraph &graph, ddsi_typeid_kind_t kind, const fuzz_type_graph::FuzzMsg &msg)
+static void import_typeobject(
+  Runtime &runtime,
+  TypeGraph &graph,
+  ddsi_type *root,
+  ddsi_typeid_kind_t kind,
+  const fuzz_type_graph::FuzzMsg &msg,
+  bool mutate)
 {
-  ddsi_type *root = graph.root();
   if (root == nullptr || !is_hash_type(root->xt._d))
     return;
 
@@ -865,7 +878,8 @@ static void import_typeobject(Runtime &runtime, TypeGraph &graph, ddsi_typeid_ki
   if (type_id._d == DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT)
   {
     SccPairSet pairs = make_scc_pairs(graph, type_id, kind);
-    apply_scc_mutations(pairs, msg);
+    if (mutate)
+      apply_scc_mutations(pairs, msg);
     if (!pairs.pairs.empty() && pairs.seq_length > 0)
     {
       dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair pairseq;
@@ -898,7 +912,8 @@ static void import_typeobject(Runtime &runtime, TypeGraph &graph, ddsi_typeid_ki
     DDS_XTypes_TypeObject type_object;
     memset(&type_object, 0, sizeof(type_object));
     ddsi_xt_get_typeobject_kind_impl(&root->xt, &type_object, kind);
-    apply_typeobject_mutations(type_object, msg);
+    if (mutate)
+      apply_typeobject_mutations(type_object, msg);
 
     ddsi_type *type = nullptr;
     ddsrt_mutex_lock(&runtime.gv()->typelib_lock);
@@ -912,6 +927,104 @@ static void import_typeobject(Runtime &runtime, TypeGraph &graph, ddsi_typeid_ki
     ddsi_typeobj_fini_impl(&type_object);
   }
   ddsi_typeid_fini_impl(&type_id);
+}
+
+static void import_typeobject(Runtime &runtime, TypeGraph &graph, ddsi_typeid_kind_t kind, const fuzz_type_graph::FuzzMsg &msg)
+{
+  import_typeobject(runtime, graph, graph.root(), kind, msg, true);
+}
+
+static void import_all_typeobjects(Runtime &runtime, TypeGraph &graph, ddsi_typeid_kind_t kind, const fuzz_type_graph::FuzzMsg &msg)
+{
+  for (OwnedType &slot : graph.types())
+    import_typeobject(runtime, graph, &slot.type, kind, msg, false);
+}
+
+static void fini_serialized_typeinfo_typemap(SerializedTypeInfoTypeMap &serialized)
+{
+  ddsrt_free(serialized.typeinfo);
+  ddsrt_free(serialized.typemap);
+  serialized.typeinfo = nullptr;
+  serialized.typemap = nullptr;
+  serialized.typeinfo_size = 0;
+  serialized.typemap_size = 0;
+}
+
+static bool can_export_typeinfo(const ddsi_type *type)
+{
+  return type != nullptr && type->xt.kind == DDSI_TYPEID_KIND_COMPLETE && is_hash_type(type->xt._d);
+}
+
+static bool export_typeinfo_typemap(const fuzz_type_graph::FuzzMsg &msg, SerializedTypeInfoTypeMap &serialized)
+{
+  Runtime source(msg.allow_recursive_types());
+  TypeGraph graph(source.gv(), msg);
+  if (!can_export_typeinfo(graph.root()) || graph.validate() != DDS_RETCODE_OK)
+    return false;
+
+  import_all_typeobjects(source, graph, DDSI_TYPEID_KIND_COMPLETE, msg);
+
+  DDS_XTypes_TypeIdentifier root_id;
+  memset(&root_id, 0, sizeof(root_id));
+  ddsi_xt_get_typeid_impl(&graph.root()->xt, &root_id, DDSI_TYPEID_KIND_COMPLETE);
+
+  ddsi_type *root = nullptr;
+  ddsrt_mutex_lock(&source.gv()->typelib_lock);
+  dds_return_t ret = ddsi_type_ref_id_locked_impl(source.gv(), &root, &root_id);
+  ddsrt_mutex_unlock(&source.gv()->typelib_lock);
+  ddsi_typeid_fini_impl(&root_id);
+
+  if (ret != DDS_RETCODE_OK || root == nullptr)
+    return false;
+
+  if (!ddsi_type_resolved(source.gv(), root, DDSI_TYPE_INCLUDE_DEPS))
+  {
+    ddsi_type_unref(source.gv(), root);
+    return false;
+  }
+
+  ret = ddsi_type_get_typeinfo_ser(source.gv(), root, &serialized.typeinfo, &serialized.typeinfo_size);
+  if (ret == DDS_RETCODE_OK)
+    ret = ddsi_type_get_typemap_ser(source.gv(), root, &serialized.typemap, &serialized.typemap_size);
+  ddsi_type_unref(source.gv(), root);
+
+  if (ret != DDS_RETCODE_OK)
+  {
+    fini_serialized_typeinfo_typemap(serialized);
+    return false;
+  }
+  return true;
+}
+
+static void roundtrip_typeinfo_typemap(const fuzz_type_graph::FuzzMsg &msg)
+{
+  SerializedTypeInfoTypeMap serialized;
+  if (!export_typeinfo_typemap(msg, serialized))
+    return;
+
+  ddsi_typeinfo_t *type_info = ddsi_typeinfo_deser(serialized.typeinfo, serialized.typeinfo_size);
+  ddsi_typemap_t *type_map = ddsi_typemap_deser(serialized.typemap, serialized.typemap_size);
+  fini_serialized_typeinfo_typemap(serialized);
+
+  if (type_info != nullptr && type_map != nullptr)
+  {
+    Runtime sink(msg.allow_recursive_types());
+    ddsi_type *type_minimal = nullptr;
+    ddsi_type *type_complete = nullptr;
+    (void) ddsi_type_add(sink.gv(), &type_minimal, &type_complete, type_info, type_map);
+    if (type_minimal != nullptr)
+      ddsi_type_unref(sink.gv(), type_minimal);
+    if (type_complete != nullptr)
+      ddsi_type_unref(sink.gv(), type_complete);
+  }
+
+  if (type_info != nullptr)
+    ddsi_typeinfo_free(type_info);
+  if (type_map != nullptr)
+  {
+    ddsi_typemap_fini(type_map);
+    ddsrt_free(type_map);
+  }
 }
 
 static void run_action(Runtime &runtime, TypeGraph &graph, int action, const fuzz_type_graph::FuzzMsg &msg)
@@ -942,18 +1055,42 @@ static void run_action(Runtime &runtime, TypeGraph &graph, int action, const fuz
 
 DEFINE_PROTO_FUZZER(const fuzz_type_graph::FuzzMsg &message)
 {
+  const uint32_t n_actions = bounded_count(message.actions_size(), kMaxActions);
+  if (n_actions == 0)
+  {
+    roundtrip_typeinfo_typemap(message);
+
+    Runtime runtime(message.allow_recursive_types());
+    TypeGraph graph(runtime.gv(), message);
+    if (graph.root() == nullptr)
+      return;
+
+    run_action(runtime, graph, 0, message);
+    run_action(runtime, graph, 1, message);
+    return;
+  }
+
+  bool run_regular_actions = false;
+  for (uint32_t n = 0; n < n_actions; n++)
+  {
+    const int action = static_cast<int>(message.actions(static_cast<int>(n)).action());
+    if (action == kActionRoundtripTypeInfoTypeMap)
+      roundtrip_typeinfo_typemap(message);
+    else
+      run_regular_actions = true;
+  }
+  if (!run_regular_actions)
+    return;
+
   Runtime runtime(message.allow_recursive_types());
   TypeGraph graph(runtime.gv(), message);
   if (graph.root() == nullptr)
     return;
 
-  const uint32_t n_actions = bounded_count(message.actions_size(), kMaxActions);
-  if (n_actions == 0)
-  {
-    run_action(runtime, graph, 0, message);
-    run_action(runtime, graph, 1, message);
-    return;
-  }
   for (uint32_t n = 0; n < n_actions; n++)
-    run_action(runtime, graph, static_cast<int>(message.actions(static_cast<int>(n)).action()), message);
+  {
+    const int action = static_cast<int>(message.actions(static_cast<int>(n)).action());
+    if (action != kActionRoundtripTypeInfoTypeMap)
+      run_action(runtime, graph, action, message);
+  }
 }
