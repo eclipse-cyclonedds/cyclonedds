@@ -1,0 +1,29 @@
+allow_recursive_types: true
+types {
+  kind: TYPE_STRUCT
+  flags: 2
+  members {
+    id: 1
+    type: 0
+    flags: 1
+    wrap: REF_SEQUENCE
+  }
+}
+types {
+  kind: TYPE_STRUCT
+  flags: 2
+  members {
+    id: 1
+    type: 1
+    flags: 1
+    wrap: REF_SEQUENCE
+  }
+}
+actions {
+  action: ACTION_VALIDATE
+}
+actions {
+  action: ACTION_ASSIGNABILITY
+  peer: 1
+  flags: 8
+}

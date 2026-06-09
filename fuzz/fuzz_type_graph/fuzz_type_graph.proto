@@ -24,6 +24,7 @@ enum Action {
   ACTION_IMPORT_COMPLETE = 1;
   ACTION_IMPORT_MINIMAL = 2;
   ACTION_ROUNDTRIP_TYPEINFO_TYPEMAP = 3;
+  ACTION_ASSIGNABILITY = 4;
 }
 
 enum MutationKind {
@@ -76,6 +77,9 @@ message IntValue {
 
 message ActionEntry {
   Action action = 1;
+  uint32 target = 2;
+  uint32 peer = 3;
+  uint32 flags = 4;
 }
 
 message FuzzMsg {

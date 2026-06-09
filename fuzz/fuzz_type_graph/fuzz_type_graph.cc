@@ -50,6 +50,7 @@ constexpr uint32_t kMaxActions = 8;
 constexpr uint32_t kMaxMutations = 8;
 constexpr uint32_t kUseExternalTypeRefFlag = 0x40u;
 constexpr int kActionRoundtripTypeInfoTypeMap = fuzz_type_graph::ACTION_ROUNDTRIP_TYPEINFO_TYPEMAP;
+constexpr int kActionAssignability = fuzz_type_graph::ACTION_ASSIGNABILITY;
 
 struct OwnedType {
   ddsi_type type;
@@ -290,7 +291,7 @@ public:
       memset(&types_[n].type, 0, sizeof(types_[n].type));
       types_[n].type.gv = gv_;
       types_[n].type.refc = 1;
-      types_[n].type.state = DDSI_TYPE_RESOLVED;
+      types_[n].type.state = DDSI_TYPE_PARTIAL_RESOLVED;
       set_hash_id(types_[n].type, n + 1);
     }
 
@@ -310,6 +311,13 @@ public:
     return types_;
   }
 
+  ddsi_type *type_at(uint32_t root, uint32_t offset)
+  {
+    if (types_.empty())
+      return nullptr;
+    return &types_[bounded_index(root + offset, static_cast<uint32_t>(types_.size()))].type;
+  }
+
   ddsi_type *int32_type()
   {
     return &int32_type_;
@@ -317,9 +325,14 @@ public:
 
   dds_return_t validate() const
   {
-    if (root_ == nullptr)
+    return validate(root_);
+  }
+
+  dds_return_t validate(const ddsi_type *type) const
+  {
+    if (type == nullptr)
       return DDS_RETCODE_BAD_PARAMETER;
-    return ddsi_xt_validate(gv_, root_);
+    return ddsi_xt_validate(gv_, type);
   }
 
   void apply_graph_mutations(const fuzz_type_graph::FuzzMsg &msg)
@@ -1188,6 +1201,33 @@ static bool export_typeinfo_typemap(const fuzz_type_graph::FuzzMsg &msg, Seriali
   return true;
 }
 
+static dds_type_consistency_enforcement_qospolicy_t type_consistency(uint32_t flags)
+{
+  dds_type_consistency_enforcement_qospolicy_t tce;
+  memset(&tce, 0, sizeof(tce));
+  tce.kind = (flags & 0x01u) != 0 ?
+    DDS_TYPE_CONSISTENCY_DISALLOW_TYPE_COERCION :
+    DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION;
+  tce.ignore_sequence_bounds = (flags & 0x02u) == 0;
+  tce.ignore_string_bounds = (flags & 0x04u) == 0;
+  tce.ignore_member_names = (flags & 0x08u) != 0;
+  tce.prevent_type_widening = (flags & 0x10u) != 0;
+  tce.force_type_validation = (flags & 0x20u) != 0;
+  return tce;
+}
+
+static void run_assignability(TypeGraph &graph, uint32_t root, uint32_t target, uint32_t peer, uint32_t flags)
+{
+  ddsi_type *rd_type = graph.type_at(root, target);
+  ddsi_type *wr_type = graph.type_at(root, peer);
+  if (graph.validate(rd_type) != DDS_RETCODE_OK || graph.validate(wr_type) != DDS_RETCODE_OK)
+    return;
+
+  dds_type_consistency_enforcement_qospolicy_t tce = type_consistency(flags);
+  ddsi_non_assignability_reason reason;
+  (void) ddsi_xt_is_assignable_from(rd_type->gv, &rd_type->xt, &wr_type->xt, &tce, &reason);
+}
+
 static void roundtrip_typeinfo_typemap(const fuzz_type_graph::FuzzMsg &msg)
 {
   SerializedTypeInfoTypeMap serialized;
@@ -1221,7 +1261,14 @@ static void roundtrip_typeinfo_typemap(const fuzz_type_graph::FuzzMsg &msg)
   }
 }
 
-static void run_action(Runtime &runtime, TypeGraph &graph, int action, const fuzz_type_graph::FuzzMsg &msg)
+static void run_action(
+  Runtime &runtime,
+  TypeGraph &graph,
+  int action,
+  uint32_t target,
+  uint32_t peer,
+  uint32_t flags,
+  const fuzz_type_graph::FuzzMsg &msg)
 {
   switch (action)
   {
@@ -1240,9 +1287,17 @@ static void run_action(Runtime &runtime, TypeGraph &graph, int action, const fuz
       if (graph.validate() == DDS_RETCODE_OK)
         import_typeobject(runtime, graph, DDSI_TYPEID_KIND_MINIMAL, msg);
       break;
+    case kActionAssignability:
+      run_assignability(graph, msg.root(), target, peer, flags);
+      break;
     default:
       break;
   }
+}
+
+static void run_action(Runtime &runtime, TypeGraph &graph, const fuzz_type_graph::ActionEntry &entry, const fuzz_type_graph::FuzzMsg &msg)
+{
+  run_action(runtime, graph, static_cast<int>(entry.action()), entry.target(), entry.peer(), entry.flags(), msg);
 }
 
 } // namespace
@@ -1259,8 +1314,9 @@ DEFINE_PROTO_FUZZER(const fuzz_type_graph::FuzzMsg &message)
     if (graph.root() == nullptr)
       return;
 
-    run_action(runtime, graph, 0, message);
-    run_action(runtime, graph, 1, message);
+    run_action(runtime, graph, 0, 0, 0, 0, message);
+    run_action(runtime, graph, 1, 0, 0, 0, message);
+    run_action(runtime, graph, kActionAssignability, 0, 0, 0, message);
     return;
   }
 
@@ -1283,8 +1339,9 @@ DEFINE_PROTO_FUZZER(const fuzz_type_graph::FuzzMsg &message)
 
   for (uint32_t n = 0; n < n_actions; n++)
   {
-    const int action = static_cast<int>(message.actions(static_cast<int>(n)).action());
+    const fuzz_type_graph::ActionEntry &entry = message.actions(static_cast<int>(n));
+    const int action = static_cast<int>(entry.action());
     if (action != kActionRoundtripTypeInfoTypeMap)
-      run_action(runtime, graph, action, message);
+      run_action(runtime, graph, entry, message);
   }
 }
