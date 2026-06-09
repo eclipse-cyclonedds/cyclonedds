@@ -860,6 +860,191 @@ static void fini_scc_pairs(SccPairSet &pairs)
   }
 }
 
+static void replace_typeid(DDS_XTypes_TypeIdentifier &dst, const DDS_XTypes_TypeIdentifier &src)
+{
+  if (&dst == &src)
+    return;
+  ddsi_typeid_fini_impl(&dst);
+  memset(&dst, 0, sizeof(dst));
+  ddsi_typeid_copy_impl(&dst, &src);
+}
+
+static void set_typeid_none(DDS_XTypes_TypeIdentifier &type_id)
+{
+  ddsi_typeid_fini_impl(&type_id);
+  memset(&type_id, 0, sizeof(type_id));
+  type_id._d = DDS_XTypes_TK_NONE;
+}
+
+static void mutate_scc_typeid(DDS_XTypes_TypeIdentifier &type_id, int mutation_kind)
+{
+  if (type_id._d != DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT)
+    return;
+
+  switch (mutation_kind)
+  {
+    case fuzz_type_graph::MUTATION_SCC_BAD_INDEX:
+      type_id._u.sc_component_id.scc_index = type_id._u.sc_component_id.scc_length + 1;
+      break;
+    case fuzz_type_graph::MUTATION_SCC_BAD_LENGTH:
+      type_id._u.sc_component_id.scc_length = type_id._u.sc_component_id.scc_length + 1;
+      break;
+    case fuzz_type_graph::MUTATION_SCC_BAD_HASH:
+      type_id._u.sc_component_id.sc_component_id._u.hash[0] ^= 0x80;
+      break;
+    case fuzz_type_graph::MUTATION_SCC_WRONG_EQUIV_KIND:
+      type_id._u.sc_component_id.sc_component_id._d =
+        type_id._u.sc_component_id.sc_component_id._d == DDS_XTypes_EK_COMPLETE ?
+        DDS_XTypes_EK_MINIMAL : DDS_XTypes_EK_COMPLETE;
+      break;
+    default:
+      break;
+  }
+}
+
+static DDS_XTypes_TypeIdentifier *select_typeinfo_typeid(
+  DDS_XTypes_TypeIdentifierWithDependencies &typeinfo,
+  uint32_t target)
+{
+  const uint32_t n_typeids = typeinfo.dependent_typeids._length + 1;
+  const uint32_t idx = bounded_index(target, n_typeids);
+  if (idx == 0)
+    return &typeinfo.typeid_with_size.type_id;
+  return &typeinfo.dependent_typeids._buffer[idx - 1].type_id;
+}
+
+static DDS_XTypes_TypeIdentifier *select_typeinfo_typeid(ddsi_typeinfo_t *type_info, uint32_t target)
+{
+  if (type_info == nullptr)
+    return nullptr;
+  return (target & 1u) == 0 ?
+    select_typeinfo_typeid(type_info->x.complete, target >> 1) :
+    select_typeinfo_typeid(type_info->x.minimal, target >> 1);
+}
+
+static DDS_XTypes_TypeIdentifierTypeObjectPair *select_typemap_typeobj_pair(ddsi_typemap_t *type_map, uint32_t target)
+{
+  if (type_map == nullptr)
+    return nullptr;
+  dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *seqs[] = {
+    &type_map->x.identifier_object_pair_complete,
+    &type_map->x.identifier_object_pair_minimal
+  };
+  const uint32_t total = seqs[0]->_length + seqs[1]->_length;
+  if (total == 0)
+    return nullptr;
+
+  uint32_t idx = bounded_index(target, total);
+  for (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *seq : seqs)
+  {
+    if (idx < seq->_length)
+      return &seq->_buffer[idx];
+    idx -= seq->_length;
+  }
+  return nullptr;
+}
+
+static DDS_XTypes_TypeIdentifier *select_typemap_pair_typeid(ddsi_typemap_t *type_map, uint32_t target)
+{
+  if (type_map == nullptr || type_map->x.identifier_complete_minimal._length == 0)
+    return nullptr;
+
+  dds_sequence_DDS_XTypes_TypeIdentifierPair &seq = type_map->x.identifier_complete_minimal;
+  DDS_XTypes_TypeIdentifierPair &pair =
+    seq._buffer[bounded_index(target >> 1, seq._length)];
+  return (target & 1u) == 0 ? &pair.type_identifier1 : &pair.type_identifier2;
+}
+
+static void duplicate_typemap_typeid(ddsi_typemap_t *type_map, uint32_t target)
+{
+  if (type_map == nullptr)
+    return;
+
+  dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair &complete = type_map->x.identifier_object_pair_complete;
+  if (complete._length > 1)
+  {
+    const uint32_t dst = 1u + bounded_index(target, complete._length - 1u);
+    replace_typeid(complete._buffer[dst].type_identifier, complete._buffer[0].type_identifier);
+    return;
+  }
+
+  dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair &minimal = type_map->x.identifier_object_pair_minimal;
+  if (minimal._length > 1)
+  {
+    const uint32_t dst = 1u + bounded_index(target, minimal._length - 1u);
+    replace_typeid(minimal._buffer[dst].type_identifier, minimal._buffer[0].type_identifier);
+  }
+}
+
+static void duplicate_typeinfo_typeid(ddsi_typeinfo_t *type_info, uint32_t target)
+{
+  if (type_info == nullptr)
+    return;
+
+  DDS_XTypes_TypeIdentifierWithDependencies &half =
+    (target & 1u) == 0 ? type_info->x.complete : type_info->x.minimal;
+  if (half.dependent_typeids._length == 0)
+    return;
+  DDS_XTypes_TypeIdentifier &dst =
+    half.dependent_typeids._buffer[bounded_index(target >> 1, half.dependent_typeids._length)].type_id;
+  replace_typeid(dst, half.typeid_with_size.type_id);
+}
+
+static void invalidate_typeinfo_dependent_count(ddsi_typeinfo_t *type_info, uint32_t target)
+{
+  if (type_info == nullptr)
+    return;
+  DDS_XTypes_TypeIdentifierWithDependencies &half =
+    (target & 1u) == 0 ? type_info->x.complete : type_info->x.minimal;
+  half.dependent_typeid_count =
+    half.dependent_typeids._length > 0 ? static_cast<int32_t>(half.dependent_typeids._length - 1u) : -2;
+}
+
+static void apply_typeinfo_typemap_mutations(ddsi_typeinfo_t *type_info, ddsi_typemap_t *type_map, const fuzz_type_graph::FuzzMsg &msg)
+{
+  const uint32_t n = bounded_count(msg.mutations_size(), kMaxMutations);
+  for (uint32_t i = 0; i < n; i++)
+  {
+    const fuzz_type_graph::Mutation &mutation = msg.mutations(static_cast<int>(i));
+    const int kind = static_cast<int>(mutation.kind());
+    const uint32_t target = mutation.target();
+
+    DDS_XTypes_TypeIdentifierTypeObjectPair *typeobj_pair = select_typemap_typeobj_pair(type_map, target);
+    DDS_XTypes_TypeIdentifier *mapping_typeid = select_typemap_pair_typeid(type_map, target);
+    DDS_XTypes_TypeIdentifier *typeinfo_typeid = select_typeinfo_typeid(type_info, target);
+
+    switch (kind)
+    {
+      case fuzz_type_graph::MUTATION_STALE_TYPEOBJECT_HASH:
+        if (typeobj_pair != nullptr)
+          mutate_typeobject(typeobj_pair->type_object);
+        break;
+      case fuzz_type_graph::MUTATION_SCC_BAD_INDEX:
+      case fuzz_type_graph::MUTATION_SCC_BAD_LENGTH:
+      case fuzz_type_graph::MUTATION_SCC_BAD_HASH:
+      case fuzz_type_graph::MUTATION_SCC_WRONG_EQUIV_KIND:
+        if (typeobj_pair != nullptr)
+          mutate_scc_typeid(typeobj_pair->type_identifier, kind);
+        if (mapping_typeid != nullptr)
+          mutate_scc_typeid(*mapping_typeid, kind);
+        if (typeinfo_typeid != nullptr)
+          mutate_scc_typeid(*typeinfo_typeid, kind);
+        break;
+      case fuzz_type_graph::MUTATION_SCC_DUPLICATE_SLOT:
+        duplicate_typemap_typeid(type_map, target);
+        duplicate_typeinfo_typeid(type_info, target);
+        break;
+      case fuzz_type_graph::MUTATION_SCC_DROP_SLOT:
+        if (typeobj_pair != nullptr)
+          set_typeid_none(typeobj_pair->type_identifier);
+        invalidate_typeinfo_dependent_count(type_info, target);
+        break;
+      default:
+        break;
+    }
+  }
+}
+
 static void import_typeobject(
   Runtime &runtime,
   TypeGraph &graph,
@@ -1005,6 +1190,8 @@ static void roundtrip_typeinfo_typemap(const fuzz_type_graph::FuzzMsg &msg)
   ddsi_typeinfo_t *type_info = ddsi_typeinfo_deser(serialized.typeinfo, serialized.typeinfo_size);
   ddsi_typemap_t *type_map = ddsi_typemap_deser(serialized.typemap, serialized.typemap_size);
   fini_serialized_typeinfo_typemap(serialized);
+
+  apply_typeinfo_typemap_mutations(type_info, type_map, msg);
 
   if (type_info != nullptr && type_map != nullptr)
   {
