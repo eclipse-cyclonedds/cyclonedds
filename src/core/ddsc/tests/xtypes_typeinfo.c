@@ -29,6 +29,7 @@
 #include "ddsi__endpoint_match.h"
 #include "ddsi__proxy_endpoint.h"
 #include "ddsi__proxy_participant.h"
+#include "ddsi__typelib.h"
 #include "ddsi__typelookup.h"
 #include "ddsi__typewrap.h"
 #include "ddsi__vendor.h"
@@ -314,6 +315,25 @@ static void test_proxy_rd_matches (dds_entity_t wr, bool exp_match)
   CU_ASSERT_EQ_FATAL (dds_wr->m_wr->num_readers, exp_match ? 1 : 0);
   dds_entity_unpin (x);
 }
+
+static uint32_t count_typeobj_deps_locked (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id)
+{
+  uint32_t count = 0;
+  struct ddsi_type_dep tmpl;
+  memset (&tmpl, 0, sizeof (tmpl));
+  ddsi_typeid_copy (&tmpl.src_type_id, type_id);
+
+  struct ddsi_type_dep *dep = &tmpl;
+  while ((dep = ddsrt_avl_lookup_succ (&ddsi_typedeps_treedef, &gv->typedeps, dep)) != NULL &&
+         ddsi_typeid_compare (type_id, &dep->src_type_id) == 0)
+  {
+    if (!dep->from_type_info)
+      count++;
+  }
+
+  ddsi_typeid_fini (&tmpl.src_type_id);
+  return count;
+}
 #endif
 
 CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, typeobj_modify mod), ddsc_typelookup, invalid_type_object_remote, .init = xtypes_typeinfo_init, .fini = xtypes_typeinfo_fini)
@@ -358,9 +378,22 @@ CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, ty
   CU_ASSERT_EQ_FATAL (n_match_upd, 0);
   ddsrt_free (gpe_match_upd);
 
-  struct ddsi_type *type = ddsi_type_lookup (gv, (ddsi_typeid_t *) &tmap->identifier_object_pair_minimal._buffer[0].type_identifier);
-  CU_ASSERT_NEQ_FATAL (type, NULL);
-  CU_ASSERT_EQ_FATAL (type->state, DDSI_TYPE_INVALID);
+  const ddsi_typeid_t *type_id = (const ddsi_typeid_t *) &tmap->identifier_object_pair_minimal._buffer[0].type_identifier;
+  bool type_found = false;
+  enum ddsi_type_state type_state = DDSI_TYPE_UNRESOLVED;
+  uint32_t typeobj_deps = 0;
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  struct ddsi_type *type = ddsi_type_lookup_locked (gv, type_id);
+  if (type != NULL)
+  {
+    type_found = true;
+    type_state = type->state;
+    typeobj_deps = count_typeobj_deps_locked (gv, type_id);
+  }
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+  CU_ASSERT_FATAL (type_found);
+  CU_ASSERT_EQ_FATAL (type_state, DDSI_TYPE_INVALID);
+  CU_ASSERT_EQ_FATAL (typeobj_deps, 0);
 
   // clean up
   test_proxy_rd_fini (gv, &pp_guid, &rd_guid);

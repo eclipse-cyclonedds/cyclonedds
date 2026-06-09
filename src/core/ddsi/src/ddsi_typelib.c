@@ -948,6 +948,8 @@ static bool ddsi_type_scc_materialized (const struct ddsi_type *type)
   return type != NULL && type->scc != NULL && ddsi_type_scc_wire_complete (type->scc);
 }
 
+static bool type_state_has_valid_typeobj (enum ddsi_type_state state);
+
 #ifndef NDEBUG
 static void assert_scc_materialized (
     struct ddsi_domaingv *gv,
@@ -1055,9 +1057,11 @@ static uint32_t ddsi_type_scc_count_typeinfo_refs_locked (struct ddsi_domaingv *
 static bool ddsi_type_scc_ready_to_activate (const struct ddsi_type_scc *scc)
 {
   assert (!scc->active);
+  /* Activation only changes ownership of references inside the component. It
+     can run before dependencies outside the SCC have been resolved. */
   for (uint32_t n = 0; n < scc->n_types; n++)
   {
-    if (scc->types[n] == NULL || scc->types[n]->state != DDSI_TYPE_RESOLVED)
+    if (scc->types[n] == NULL || !type_state_has_valid_typeobj (scc->types[n]->state))
       return false;
   }
   return true;
@@ -1257,13 +1261,14 @@ static void ddsi_type_update_state_locked_impl (struct ddsi_domaingv *gv, struct
   if (state == type->state)
     return;
   type->state = state;
-  if (state == DDSI_TYPE_RESOLVED)
-    ddsi_type_scc_try_activate_locked (gv, type->scc);
 
   /* PARTIAL_RESOLVED has a valid type object but may still be waiting for dependencies.
      Wake all waiters: those ignoring dependencies may proceed, stricter waiters will recheck. */
   if (type_state_has_valid_typeobj (state))
+  {
+    ddsi_type_scc_try_activate_locked (gv, type->scc);
     ddsrt_cond_etime_broadcast (&gv->typelib_resolved_cond);
+  }
 
   struct ddsi_type_dep tmpl, *reverse_dep = &tmpl;
   memset (&tmpl, 0, sizeof (tmpl));
@@ -1415,6 +1420,8 @@ static dds_return_t validate_type (struct ddsi_domaingv *gv, struct ddsi_type *t
   return ret;
 }
 
+static void ddsi_type_remove_typeobj_deps_locked (struct ddsi_domaingv *gv, const struct ddsi_type *type);
+
 static dds_return_t ddsi_type_add_typeobj_impl_common (
     struct ddsi_domaingv *gv,
     struct ddsi_type *type,
@@ -1466,6 +1473,7 @@ static dds_return_t ddsi_type_add_typeobj_impl_common (
   {
     if (typeobj_pending && type->state == DDSI_TYPE_COMPLETING)
       type->state = prev_state;
+    ddsi_type_remove_typeobj_deps_locked (gv, type);
     if (invalidate_on_failure)
     {
       /* Mark this type and all types that (indirectly) depend on this type
@@ -1829,6 +1837,49 @@ dds_return_t ddsi_type_register_dep (struct ddsi_domaingv *gv, const ddsi_typeid
   return ddsi_type_register_dep_impl (gv, src_type_id, dst_dep_type, dep_tid, false);
 }
 
+static void type_unref_many_locked (struct ddsi_domaingv *gv, struct ddsi_type **types, uint32_t ntypes)
+{
+  if (types == NULL)
+    return;
+  for (uint32_t n = 0; n < ntypes; n++)
+    ddsi_type_unref_locked (gv, types[n]);
+  ddsrt_free (types);
+}
+
+static dds_return_t type_ref_scc_pairseq_locked (
+    struct ddsi_domaingv *gv,
+    const dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *pairs,
+    struct ddsi_type ***types,
+    uint32_t *ntypes)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
+  *types = NULL;
+  *ntypes = 0;
+  if (pairs->_length == 0)
+    return ret;
+
+  struct ddsi_type **refs = ddsrt_calloc (pairs->_length, sizeof (*refs));
+  if (refs == NULL)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+
+  for (uint32_t n = 0; n < pairs->_length && ret == DDS_RETCODE_OK; n++)
+  {
+    struct ddsi_type *type = NULL;
+    ret = ddsi_type_ref_id_locked_impl (gv, &type, &pairs->_buffer[n].type_identifier);
+    if (ret == DDS_RETCODE_OK && type != NULL)
+      refs[(*ntypes)++] = type;
+  }
+  if (ret != DDS_RETCODE_OK)
+  {
+    type_unref_many_locked (gv, refs, *ntypes);
+    *ntypes = 0;
+    return ret;
+  }
+
+  *types = refs;
+  return ret;
+}
+
 static dds_return_t type_add_dep (
     struct ddsi_domaingv *gv,
     struct ddsi_type *type,
@@ -1883,12 +1934,15 @@ static dds_return_t type_add_dep (
   if (dep_is_scc)
   {
     bool complete = false;
+    uint32_t nrefs = 0;
+    struct ddsi_type **refs = NULL;
     const dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *pairs = typemap_typeobj_pairseq (type_map, dep_type_id);
     assert (pairs);
     assert (n_match_upd && gpe_match_upd);
     TYPELIB_IMPORT_TRACE ("import SCC dep %s pairs=%"PRIu32"\n",
                           typelib_trace_make_typeid_str (&tistr, dep_type_id), pairs->_length);
-    if ((ret = ddsi_type_add_scc_typeobjs_locked (gv, pairs, dep_type_id, true, &complete)) == DDS_RETCODE_OK)
+    if ((ret = type_ref_scc_pairseq_locked (gv, pairs, &refs, &nrefs)) == DDS_RETCODE_OK &&
+        (ret = ddsi_type_add_scc_typeobjs_locked (gv, pairs, dep_type_id, true, &complete)) == DDS_RETCODE_OK)
     {
       assert (complete);
       const struct ddsi_type *dep_type = ddsi_type_lookup_locked_impl (gv, dep_type_id);
@@ -1902,6 +1956,7 @@ static dds_return_t type_add_dep (
       else
         ddsi_type_get_gpe_matches (gv, type, gpe_match_upd, n_match_upd);
     }
+    type_unref_many_locked (gv, refs, nrefs);
   }
   else
   {
@@ -2048,6 +2103,8 @@ static dds_return_t type_add_ref_impl (struct ddsi_domaingv *gv, struct ddsi_typ
   dds_return_t ret = DDS_RETCODE_OK;
   uint32_t n_match_upd = 0;
   bool resolved = false;
+  uint32_t n_scc_import_refs = 0;
+  struct ddsi_type **scc_import_refs = NULL;
   const struct DDS_XTypes_TypeIdentifier *type_id = (kind == DDSI_TYPEID_KIND_MINIMAL) ? &type_info->x.minimal.typeid_with_size.type_id : &type_info->x.complete.typeid_with_size.type_id;
   const struct DDS_XTypes_TypeObject *type_obj = ddsi_typemap_typeobj (type_map, type_id);
 
@@ -2076,8 +2133,10 @@ static dds_return_t type_add_ref_impl (struct ddsi_domaingv *gv, struct ddsi_typ
       assert (pairs);
       TYPELIB_IMPORT_TRACE ("top-level SCC import %s pairs=%"PRIu32"\n",
                             typelib_trace_make_typeid_str (&tistr, type_id), pairs->_length);
-      if ((ret = ddsi_type_add_scc_typeobjs_locked (gv, pairs, type_id, true, &complete)) != DDS_RETCODE_OK)
+      if ((ret = type_ref_scc_pairseq_locked (gv, pairs, &scc_import_refs, &n_scc_import_refs)) != DDS_RETCODE_OK ||
+          (ret = ddsi_type_add_scc_typeobjs_locked (gv, pairs, type_id, true, &complete)) != DDS_RETCODE_OK)
       {
+        type_unref_many_locked (gv, scc_import_refs, n_scc_import_refs);
         ddsrt_mutex_unlock (&gv->typelib_lock);
         goto err;
       }
@@ -2087,6 +2146,7 @@ static dds_return_t type_add_ref_impl (struct ddsi_domaingv *gv, struct ddsi_typ
       if (t == NULL)
       {
         ret = DDS_RETCODE_ERROR;
+        type_unref_many_locked (gv, scc_import_refs, n_scc_import_refs);
         ddsrt_mutex_unlock (&gv->typelib_lock);
         goto err;
       }
@@ -2094,6 +2154,7 @@ static dds_return_t type_add_ref_impl (struct ddsi_domaingv *gv, struct ddsi_typ
       {
         assert_scc_materialized (gv, t, type_id, "top-level SCC import");
         ret = DDS_RETCODE_BAD_PARAMETER;
+        type_unref_many_locked (gv, scc_import_refs, n_scc_import_refs);
         ddsrt_mutex_unlock (&gv->typelib_lock);
         goto err;
       }
@@ -2130,11 +2191,15 @@ static dds_return_t type_add_ref_impl (struct ddsi_domaingv *gv, struct ddsi_typ
   }
   if (ret != DDS_RETCODE_OK)
   {
+    type_unref_many_locked (gv, scc_import_refs, n_scc_import_refs);
     ddsrt_mutex_unlock (&gv->typelib_lock);
     goto err;
   }
 
   ddsi_type_ref_locked (gv, NULL, t);
+  type_unref_many_locked (gv, scc_import_refs, n_scc_import_refs);
+  scc_import_refs = NULL;
+  n_scc_import_refs = 0;
 
   if ((ret = valid_top_level_type (t) ? DDS_RETCODE_OK : DDS_RETCODE_BAD_PARAMETER)
       || (ret = type_add_deps (gv, t, type_info, type_map, kind, &n_match_upd, &gpe_match_upd))
@@ -2281,7 +2346,15 @@ static dds_return_t xcdr2_ser (const void *obj, const struct dds_cdrstream_desc 
   os->x.m_index = 0;
   os->x.m_size = 0;
   os->x.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
-  return dds_stream_write_sampleLE (os, &dds_cdrstream_default_allocator, obj, desc) ? DDS_RETCODE_OK : DDS_RETCODE_BAD_PARAMETER;
+  if (!dds_stream_write_sampleLE (os, &dds_cdrstream_default_allocator, obj, desc))
+  {
+    dds_ostreamLE_fini (os, &dds_cdrstream_default_allocator);
+    os->x.m_buffer = NULL;
+    os->x.m_index = 0;
+    os->x.m_size = 0;
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
+  return DDS_RETCODE_OK;
 }
 
 static dds_return_t get_typeid_with_size (DDS_XTypes_TypeIdentifierWithSize *typeid_with_size, const DDS_XTypes_TypeIdentifier *ti, const DDS_XTypes_TypeObject *to)
@@ -2290,7 +2363,11 @@ static dds_return_t get_typeid_with_size (DDS_XTypes_TypeIdentifierWithSize *typ
   dds_ostreamLE_t os;
   ddsi_typeid_copy_impl (&typeid_with_size->type_id, ti);
   if ((ret = xcdr2_ser (to, &DDS_XTypes_TypeObject_cdrstream_desc, &os)) < 0)
+  {
+    ddsi_typeid_fini_impl (&typeid_with_size->type_id);
+    memset (typeid_with_size, 0, sizeof (*typeid_with_size));
     return ret;
+  }
   typeid_with_size->typeobject_serialized_size = os.x.m_index;
   dds_ostreamLE_fini (&os, &dds_cdrstream_default_allocator);
   return DDS_RETCODE_OK;
@@ -2332,6 +2409,8 @@ static dds_return_t DDS_XTypes_TypeIdentifierWithDependencies_deps_append (DDS_X
         &x->dependent_typeids._buffer[x->dependent_typeids._length].type_id) == 0)
     {
       assert (x->dependent_typeids._buffer[i].typeobject_serialized_size == x->dependent_typeids._buffer[x->dependent_typeids._length].typeobject_serialized_size);
+      ddsi_typeid_fini_impl (&x->dependent_typeids._buffer[x->dependent_typeids._length].type_id);
+      memset (&x->dependent_typeids._buffer[x->dependent_typeids._length], 0, sizeof (x->dependent_typeids._buffer[x->dependent_typeids._length]));
       return DDS_RETCODE_OK;
     }
   }
@@ -2345,6 +2424,8 @@ static void DDS_XTypes_TypeIdentifierWithDependencies_deps_fini (DDS_XTypes_Type
   for (uint32_t i = 0; i < x->dependent_typeids._length; i++)
     ddsi_typeid_fini_impl (&x->dependent_typeids._buffer[i].type_id);
   ddsrt_free (x->dependent_typeids._buffer);
+  x->dependent_typeid_count = 0;
+  memset (&x->dependent_typeids, 0, sizeof (x->dependent_typeids));
 }
 
 static dds_return_t ddsi_typeinfo_deps_init (struct ddsi_typeinfo *type_info, uint32_t n_deps)
@@ -2508,6 +2589,14 @@ static void ddsi_typeinfo_deps_fini (struct ddsi_typeinfo *type_info)
   DDS_XTypes_TypeIdentifierWithDependencies_deps_fini (&type_info->x.complete);
 }
 
+static void ddsi_typeinfo_toplevel_fini (struct ddsi_typeinfo *type_info)
+{
+  ddsi_typeid_fini_impl (&type_info->x.minimal.typeid_with_size.type_id);
+  ddsi_typeid_fini_impl (&type_info->x.complete.typeid_with_size.type_id);
+  memset (&type_info->x.minimal.typeid_with_size, 0, sizeof (type_info->x.minimal.typeid_with_size));
+  memset (&type_info->x.complete.typeid_with_size, 0, sizeof (type_info->x.complete.typeid_with_size));
+}
+
 static dds_return_t ddsi_type_get_typeinfo_toplevel (struct ddsi_domaingv *gv, struct ddsi_type *type_c, struct ddsi_typeinfo *type_info, struct ddsi_type **type_m)
 {
   DDS_XTypes_TypeObject to_c, to_m;
@@ -2543,6 +2632,13 @@ static dds_return_t ddsi_type_get_typeinfo_toplevel (struct ddsi_domaingv *gv, s
 
   if ((ret = get_typeid_with_size (&type_info->x.minimal.typeid_with_size, &ti_m.x, &to_m)) == 0)
     ret = get_typeid_with_size (&type_info->x.complete.typeid_with_size, &type_c->xt.id.x, &to_c);
+  if (ret != DDS_RETCODE_OK)
+  {
+    ddsi_typeinfo_toplevel_fini (type_info);
+    ddsi_type_unref_locked (gv, *type_m);
+    *type_m = NULL;
+    ddsi_type_unref_locked (gv, type_c);
+  }
 
 err_type_new:
   ddsi_typeid_fini (&ti_m);
@@ -2837,6 +2933,8 @@ dds_return_t ddsi_type_get_typeinfo_locked (struct ddsi_domaingv *gv, struct dds
   dds_return_t ret;
 
   assert (ddsi_typeid_kind (&type_c->xt.id) == DDSI_TYPEID_KIND_COMPLETE);
+  memset (type_info, 0, sizeof (*type_info));
+  *type_m = NULL;
   if ((ret = ddsi_type_get_typeinfo_toplevel (gv, type_c, type_info, type_m)) != DDS_RETCODE_OK)
     return ret;
 
@@ -2844,7 +2942,10 @@ dds_return_t ddsi_type_get_typeinfo_locked (struct ddsi_domaingv *gv, struct dds
   uint32_t n_deps = get_type_ndeps_hash_r (gv, &type_c->xt.id, visited, false);
   ddsi_type_visit_free (visited);
   if ((ret = ddsi_typeinfo_deps_init (type_info, n_deps)) != DDS_RETCODE_OK)
-    return ret;
+  {
+    ddsi_typeinfo_deps_fini (type_info);
+    goto err_toplevel;
+  }
 
   visited = ddsi_type_visit_new ();
   ret = add_type_info_hash_deps_r (gv, &type_c->xt.id, type_info, visited, false);
@@ -2857,7 +2958,15 @@ dds_return_t ddsi_type_get_typeinfo_locked (struct ddsi_domaingv *gv, struct dds
   {
     // release memory allocated for partial set of dependencies
     ddsi_typeinfo_deps_fini (type_info);
+    goto err_toplevel;
   }
+  return ret;
+
+err_toplevel:
+  ddsi_typeinfo_toplevel_fini (type_info);
+  ddsi_type_unref_locked (gv, type_c);
+  ddsi_type_unref_locked (gv, *type_m);
+  *type_m = NULL;
   return ret;
 }
 
@@ -2867,6 +2976,9 @@ dds_return_t ddsi_type_get_typeinfo_ser (struct ddsi_domaingv *gv, const struct 
   dds_ostreamLE_t os = { .x = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 } };
   struct ddsi_typeinfo type_info;
   struct ddsi_type *type_m;
+
+  *data = NULL;
+  *sz = 0;
 
   ddsrt_mutex_lock (&gv->typelib_lock);
 
@@ -2970,6 +3082,7 @@ static dds_return_t add_type_map_hash_deps_r (struct ddsi_domaingv *gv, const dd
 static dds_return_t ddsi_type_get_typemap_locked (struct ddsi_domaingv *gv, const struct ddsi_type *type_c, struct ddsi_typemap *type_map)
 {
   dds_return_t ret = DDS_RETCODE_OK;
+  bool release_initialized = false;
   memset (type_map, 0, sizeof (*type_map));
 
   struct ddsrt_hh *visited = ddsi_type_visit_new ();
@@ -2987,6 +3100,7 @@ static dds_return_t ddsi_type_get_typemap_locked (struct ddsi_domaingv *gv, cons
   type_map->x.identifier_complete_minimal._release = true;
   type_map->x.identifier_object_pair_minimal._release = true;
   type_map->x.identifier_object_pair_complete._release = true;
+  release_initialized = true;
 
   // add top-level type to typemap
   typemap_add_type (type_map, type_c);
@@ -3002,12 +3116,18 @@ static dds_return_t ddsi_type_get_typemap_locked (struct ddsi_domaingv *gv, cons
 err:
   if (ret != DDS_RETCODE_OK)
   {
-    if (type_map->x.identifier_complete_minimal._buffer)
-      ddsrt_free (type_map->x.identifier_complete_minimal._buffer);
-    if (type_map->x.identifier_object_pair_minimal._buffer)
-      ddsrt_free (type_map->x.identifier_object_pair_minimal._buffer);
-    if (type_map->x.identifier_object_pair_complete._buffer)
-      ddsrt_free (type_map->x.identifier_object_pair_complete._buffer);
+    if (release_initialized)
+      ddsi_typemap_fini (type_map);
+    else
+    {
+      if (type_map->x.identifier_complete_minimal._buffer)
+        ddsrt_free (type_map->x.identifier_complete_minimal._buffer);
+      if (type_map->x.identifier_object_pair_minimal._buffer)
+        ddsrt_free (type_map->x.identifier_object_pair_minimal._buffer);
+      if (type_map->x.identifier_object_pair_complete._buffer)
+        ddsrt_free (type_map->x.identifier_object_pair_complete._buffer);
+    }
+    memset (type_map, 0, sizeof (*type_map));
   }
   return ret;
 }
@@ -3017,6 +3137,9 @@ dds_return_t ddsi_type_get_typemap_ser (struct ddsi_domaingv *gv, const struct d
   dds_return_t ret;
   dds_ostreamLE_t os = { .x = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 } };
   struct ddsi_typemap type_map;
+
+  *data = NULL;
+  *sz = 0;
 
   ddsrt_mutex_lock (&gv->typelib_lock);
   ret = ddsi_type_get_typemap_locked (gv, type, &type_map);

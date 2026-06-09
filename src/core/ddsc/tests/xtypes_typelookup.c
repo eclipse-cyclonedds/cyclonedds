@@ -552,6 +552,50 @@ static void init_scc_struct_typeobject (
       sizeof (typeobj->_u.complete._u.struct_type.header.detail.type_name));
 }
 
+static void init_scc_union_typeobject (
+    struct DDS_XTypes_TypeObject *typeobj,
+    struct DDS_XTypes_CompleteUnionMember *member,
+    int32_t *label,
+    const char *type_name,
+    const char *member_name,
+    const struct DDS_XTypes_TypeIdentifier *member_typeid)
+{
+  memset (member, 0, sizeof (*member));
+  *label = 0;
+  member->common.member_id = 1;
+  member->common.member_flags = DDS_XTypes_TRY_CONSTRUCT1;
+  member->common.type_id = *member_typeid;
+  member->common.label_seq._maximum = 1;
+  member->common.label_seq._length = 1;
+  member->common.label_seq._buffer = label;
+  member->common.label_seq._release = false;
+  ddsrt_strlcpy (member->detail.name, member_name, sizeof (member->detail.name));
+
+  *typeobj = (struct DDS_XTypes_TypeObject) {
+    ._d = DDS_XTypes_EK_COMPLETE,
+    ._u.complete = {
+      ._d = DDS_XTypes_TK_UNION,
+      ._u.union_type = {
+        .union_flags = DDS_XTypes_IS_FINAL,
+        .discriminator = {
+          .common = {
+            .member_flags = DDS_XTypes_TRY_CONSTRUCT1,
+            .type_id = { ._d = DDS_XTypes_TK_INT32 }
+          }
+        },
+        .member_seq = {
+          ._maximum = 1,
+          ._length = 1,
+          ._buffer = member,
+          ._release = false
+        }
+      }
+    }
+  };
+  ddsrt_strlcpy (typeobj->_u.complete._u.union_type.header.detail.type_name, type_name,
+      sizeof (typeobj->_u.complete._u.union_type.header.detail.type_name));
+}
+
 static void init_scc_reply_pairs (
     DDS_XTypes_TypeIdentifierTypeObjectPair *pairs,
     struct DDS_XTypes_TypeObject *typeobjs,
@@ -595,6 +639,111 @@ static void init_scc_reply_pairs (
       memcpy (element_typeids[n]._u.sc_component_id.sc_component_id._u.hash, hash, sizeof (hash));
     pairs[n].type_object = typeobjs[n];
   }
+}
+
+static void init_scc_union_sequence_self_reply_pair (
+    DDS_XTypes_TypeIdentifierTypeObjectPair *pair,
+    struct DDS_XTypes_TypeObject *typeobj,
+    struct DDS_XTypes_CompleteUnionMember *member,
+    struct DDS_XTypes_TypeIdentifier *element_typeid,
+    int32_t *label)
+{
+  init_scc_ref_typeid (element_typeid, 1, 1, NULL);
+  struct DDS_XTypes_TypeIdentifier member_typeid = {
+    ._d = DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL,
+    ._u.seq_sdefn = {
+      .header = {
+        .equiv_kind = DDS_XTypes_EK_COMPLETE,
+        .element_flags = DDS_XTypes_TRY_CONSTRUCT1
+      },
+      .bound = 0,
+      .element_identifier = element_typeid
+    }
+  };
+  init_scc_union_typeobject (typeobj, member, label, "TypeLookupReplySccUnion", "next", &member_typeid);
+
+  DDS_XTypes_EquivalenceHash hash;
+  dds_return_t ret = ddsi_typeobj_get_scc_hash (hash, typeobj, 1);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  init_scc_ref_typeid (&pair->type_identifier, 1, 1, &hash);
+  memcpy (element_typeid->_u.sc_component_id.sc_component_id._u.hash, hash, sizeof (hash));
+  pair->type_object = *typeobj;
+}
+
+static void init_scc_union_sequence_self_with_external_dep_reply_pair (
+    DDS_XTypes_TypeIdentifierTypeObjectPair *pair,
+    struct DDS_XTypes_TypeObject *typeobj,
+    struct DDS_XTypes_CompleteUnionMember *members,
+    int32_t *labels,
+    struct DDS_XTypes_TypeIdentifier *element_typeid)
+{
+  init_scc_ref_typeid (element_typeid, 1, 1, NULL);
+  struct DDS_XTypes_TypeIdentifier self_sequence_typeid = {
+    ._d = DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL,
+    ._u.seq_sdefn = {
+      .header = {
+        .equiv_kind = DDS_XTypes_EK_COMPLETE,
+        .element_flags = DDS_XTypes_TRY_CONSTRUCT1
+      },
+      .bound = 0,
+      .element_identifier = element_typeid
+    }
+  };
+  struct DDS_XTypes_TypeIdentifier external_typeid = {
+    ._d = DDS_XTypes_EK_COMPLETE,
+    ._u.equivalence_hash = { 0x55 }
+  };
+
+  memset (members, 0, 2 * sizeof (*members));
+  labels[0] = 0;
+  labels[1] = 1;
+  members[0].common.member_id = 1;
+  members[0].common.member_flags = DDS_XTypes_TRY_CONSTRUCT1;
+  members[0].common.type_id = external_typeid;
+  members[0].common.label_seq._maximum = 1;
+  members[0].common.label_seq._length = 1;
+  members[0].common.label_seq._buffer = &labels[0];
+  ddsrt_strlcpy (members[0].detail.name, "plain", sizeof (members[0].detail.name));
+  members[1].common.member_id = 2;
+  members[1].common.member_flags = DDS_XTypes_TRY_CONSTRUCT1;
+  members[1].common.type_id = self_sequence_typeid;
+  members[1].common.label_seq._maximum = 1;
+  members[1].common.label_seq._length = 1;
+  members[1].common.label_seq._buffer = &labels[1];
+  ddsrt_strlcpy (members[1].detail.name, "next", sizeof (members[1].detail.name));
+
+  *typeobj = (struct DDS_XTypes_TypeObject) {
+    ._d = DDS_XTypes_EK_COMPLETE,
+    ._u.complete = {
+      ._d = DDS_XTypes_TK_UNION,
+      ._u.union_type = {
+        .union_flags = DDS_XTypes_IS_FINAL,
+        .discriminator = {
+          .common = {
+            .member_flags = DDS_XTypes_TRY_CONSTRUCT1,
+            .type_id = { ._d = DDS_XTypes_TK_INT32 }
+          }
+        },
+        .member_seq = {
+          ._maximum = 2,
+          ._length = 2,
+          ._buffer = members,
+          ._release = false
+        }
+      }
+    }
+  };
+  ddsrt_strlcpy (typeobj->_u.complete._u.union_type.header.detail.type_name, "TypeLookupReplySccUnionWithDep",
+      sizeof (typeobj->_u.complete._u.union_type.header.detail.type_name));
+
+  DDS_XTypes_EquivalenceHash hash;
+  dds_return_t ret = ddsi_typeobj_get_scc_hash (hash, typeobj, 1);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  init_scc_ref_typeid (&pair->type_identifier, 1, 1, &hash);
+  memcpy (element_typeid->_u.sc_component_id.sc_component_id._u.hash, hash, sizeof (hash));
+  pair->type_object = *typeobj;
 }
 
 static void set_scc_typeid_hash (struct DDS_XTypes_TypeIdentifier *type_id, const DDS_XTypes_EquivalenceHash hash)
@@ -689,6 +838,13 @@ static void assert_scc_reply_types_resolved (struct ddsi_domaingv *gv, struct dd
   ddsrt_mutex_unlock (&gv->typelib_lock);
 }
 
+static void assert_scc_reply_type_deps_resolved (struct ddsi_domaingv *gv, struct ddsi_type *type, bool expected)
+{
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  CU_ASSERT_EQ (ddsi_type_resolved_locked (gv, type, DDSI_TYPE_INCLUDE_DEPS), expected);
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+}
+
 static void import_scc_reply_direct (
     struct ddsi_domaingv *gv,
     DDS_XTypes_TypeIdentifierTypeObjectPair *pairs,
@@ -764,6 +920,42 @@ CU_Test(ddsc_typelookup, scc_duplicate_import_is_idempotent, .init = typelookup_
   import_scc_reply_direct (gv, pairs, 2, DDS_RETCODE_OK, true);
   assert_scc_reply_types_resolved (gv, types, 2, true);
   unref_scc_reply_types (gv, types, 2);
+}
+
+CU_Test(ddsc_typelookup, scc_union_sequence_self_ref_unref, .init = typelookup_init, .fini = typelookup_fini)
+{
+  DDS_XTypes_TypeIdentifierTypeObjectPair pairs[1] = { 0 };
+  struct DDS_XTypes_TypeObject typeobjs[1];
+  struct DDS_XTypes_CompleteUnionMember members[1];
+  struct DDS_XTypes_TypeIdentifier element_typeids[1];
+  int32_t labels[1];
+  struct ddsi_type *types[1] = { NULL };
+  init_scc_union_sequence_self_reply_pair (pairs, typeobjs, members, element_typeids, labels);
+
+  struct ddsi_domaingv *gv = get_domaingv (g_participant1);
+  ref_scc_reply_types (gv, types, pairs, 1);
+  import_scc_reply_direct (gv, pairs, 1, DDS_RETCODE_OK, true);
+  assert_scc_reply_types_resolved (gv, types, 1, true);
+  assert_scc_reply_type_deps_resolved (gv, types[0], true);
+  unref_scc_reply_types (gv, types, 1);
+}
+
+CU_Test(ddsc_typelookup, scc_union_sequence_self_external_dep_unref, .init = typelookup_init, .fini = typelookup_fini)
+{
+  DDS_XTypes_TypeIdentifierTypeObjectPair pairs[1] = { 0 };
+  struct DDS_XTypes_TypeObject typeobjs[1];
+  struct DDS_XTypes_CompleteUnionMember members[2];
+  struct DDS_XTypes_TypeIdentifier element_typeids[1];
+  int32_t labels[2];
+  struct ddsi_type *types[1] = { NULL };
+  init_scc_union_sequence_self_with_external_dep_reply_pair (pairs, typeobjs, members, labels, element_typeids);
+
+  struct ddsi_domaingv *gv = get_domaingv (g_participant1);
+  ref_scc_reply_types (gv, types, pairs, 1);
+  import_scc_reply_direct (gv, pairs, 1, DDS_RETCODE_OK, true);
+  assert_scc_reply_types_resolved (gv, types, 1, true);
+  assert_scc_reply_type_deps_resolved (gv, types[0], false);
+  unref_scc_reply_types (gv, types, 1);
 }
 
 CU_Test(ddsc_typelookup, scc_import_disabled, .init = typelookup_init, .fini = typelookup_fini)
