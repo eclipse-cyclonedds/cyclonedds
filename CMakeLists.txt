@@ -414,7 +414,7 @@ if(BUILD_EXAMPLES AND HAVE_IDLC)
   add_subdirectory(examples)
 endif()
 
-if(DEFINED ENV{LIB_FUZZING_ENGINE} AND BUILD_IDLC)
+if(DEFINED ENV{LIB_FUZZING_ENGINE})
   add_subdirectory(fuzz)
 endif()
 
