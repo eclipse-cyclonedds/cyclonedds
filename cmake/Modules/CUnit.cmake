@@ -124,11 +124,8 @@ function(process_cunit_source_file SOURCE_FILE HEADER_FILE SUITES TESTS)
 
   set(theory_expr "CU_Theory${s}*\\(${s}*\\((${param_expr}(,${param_expr})*)\\)${s}*,${ident_expr},${ident_expr}${data_expr}\\)")
   string(REGEX MATCHALL "${theory_expr}" matches "${content}")
+  set(theory_header_content)
   foreach(match ${matches})
-    if(NOT theories)
-      # Ensure generated header is truncated before anything is written.
-      file(WRITE "${header}" "")
-    endif()
     string(REGEX REPLACE "${theory_expr}" "\\1" params "${match}")
     string(REGEX REPLACE "${theory_expr}" "\\7" suite "${match}")
     string(REGEX REPLACE "${theory_expr}" "\\8" test "${match}")
@@ -167,10 +164,22 @@ function(process_cunit_source_file SOURCE_FILE HEADER_FILE SUITES TESTS)
     set(slice "${slice} )")
     set(size "${size} )")
 
-    file(APPEND "${header}" "#define ${size}\n")
-    file(APPEND "${header}" "#define ${slice}\n")
-    file(APPEND "${header}" "#define ${typedef}\n")
+    string(APPEND theory_header_content "#define ${size}\n")
+    string(APPEND theory_header_content "#define ${slice}\n")
+    string(APPEND theory_header_content "#define ${typedef}\n")
   endforeach()
+
+  if(theories)
+    set(header_tmp "${header}.tmp")
+    file(WRITE "${header_tmp}" "${theory_header_content}")
+    execute_process(
+      COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${header_tmp}" "${header}"
+      RESULT_VARIABLE copy_result)
+    file(REMOVE "${header_tmp}")
+    if(copy_result)
+      message(FATAL_ERROR "Failed to update generated CUnit theory header: ${header}")
+    endif()
+  endif()
 
   # Propagate suites, tests and theories extracted from the source file.
   if(suites_wo_init_n_clean)
@@ -295,6 +304,10 @@ function(add_cunit_executable TARGET)
       endforeach()
 
       list(APPEND sources "${source}")
+      get_filename_component(
+        source_abs "${source}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+      set_property(
+        DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${source_abs}")
     endif()
   endforeach()
 
@@ -314,4 +327,3 @@ function(add_cunit_executable TARGET)
     target_compile_definitions(${TARGET} PRIVATE _CRT_SECURE_NO_WARNINGS)
   endif()
 endfunction()
-
