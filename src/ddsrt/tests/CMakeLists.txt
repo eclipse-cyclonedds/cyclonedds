@@ -25,6 +25,7 @@ set(sources
   thread_cleanup.c
   string.c
   log.c
+  mh3.c
   hopscotch.c
   random.c
   retcode.c

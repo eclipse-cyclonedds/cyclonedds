@@ -10,6 +10,8 @@
 
 #include "dds/ddsrt/mh3.h"
 
+#include <string.h>
+
 #define DDSRT_MH3_ROTL32(x,r) (((x) << (r)) | ((x) >> (32 - (r))))
 
 // Really
@@ -26,10 +28,10 @@ uint32_t ddsrt_mh3 (const void *key, size_t len, uint32_t seed)
   uint32_t h1 = seed;
 
   if(len){
-    const uint32_t *blocks = (const uint32_t *) (data + nblocks * 4);
-    for (intptr_t i = -nblocks; i; i++)
+    for (intptr_t i = 0; i < nblocks; i++)
     {
-      uint32_t k1 = blocks[i];
+      uint32_t k1;
+      memcpy (&k1, data + i * 4, sizeof (k1));
 
       k1 *= c1;
       k1 = DDSRT_MH3_ROTL32 (k1, 15);
