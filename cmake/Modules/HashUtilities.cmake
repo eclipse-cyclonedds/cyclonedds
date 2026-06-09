@@ -35,7 +35,11 @@ endfunction()
 function(generate_hash_text OUTVAR HASH_FILE PREFIX POSTFIX)
     hash_of_file(_hash "${HASH_FILE}")
     get_filename_component(_fname "${_hash_file}" NAME)
-    set(${OUTVAR} "${PREFIX} generated from ${_fname}[${_hash}] ${POSTFIX}" PARENT_SCOPE)
+    if("${POSTFIX}" STREQUAL "")
+        set(${OUTVAR} "${PREFIX} generated from ${_fname}[${_hash}]" PARENT_SCOPE)
+    else()
+        set(${OUTVAR} "${PREFIX} generated from ${_fname}[${_hash}] ${POSTFIX}" PARENT_SCOPE)
+    endif()
 endfunction()
 
 
