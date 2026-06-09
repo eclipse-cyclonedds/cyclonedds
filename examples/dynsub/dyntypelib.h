@@ -24,8 +24,18 @@
 #include "type_cache.h"
 #include "print_type.h"
 
+enum dyntype_state {
+  DYNTYPE_DECLARED,
+  DYNTYPE_MATERIALIZING,
+  DYNTYPE_MATERIALIZED,
+  DYNTYPE_REGISTERED
+};
+
 struct dyntype {
   char *name;
+  DDS_XTypes_TypeKind kind;
+  enum dyntype_state state;
+  const struct elem *definition;
   dds_dynamic_type_t *dtype;
   struct ddsi_typeinfo *typeinfo;
   DDS_XTypes_TypeObject *typeobj;

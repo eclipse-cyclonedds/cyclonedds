@@ -33,6 +33,12 @@ struct context {
   bool needs_comma;
 };
 
+static void finish_sequence_element (struct context *c)
+{
+  if (c->offset % c->maxalign)
+    c->offset += c->maxalign - (c->offset % c->maxalign);
+}
+
 static const void *align (const unsigned char *base, struct context *c, size_t align, size_t size)
 {
   if (align > c->maxalign)
@@ -42,6 +48,50 @@ static const void *align (const unsigned char *base, struct context *c, size_t a
   const size_t o = c->offset;
   c->offset += size;
   return base + o;
+}
+
+static bool is_indirect_member (DDS_XTypes_MemberFlag flags)
+{
+  return (flags & (DDS_XTypes_IS_OPTIONAL | DDS_XTypes_IS_EXTERNAL)) != 0;
+}
+
+static bool is_optional_member (DDS_XTypes_MemberFlag flags)
+{
+  return (flags & DDS_XTypes_IS_OPTIONAL) != 0;
+}
+
+static bool union_member_has_label (const DDS_XTypes_CompleteUnionMember *member, int32_t disc_value)
+{
+  for (uint32_t l = 0; l < member->common.label_seq._length; l++)
+    if (member->common.label_seq._buffer[l] == disc_value)
+      return true;
+  return false;
+}
+
+static const DDS_XTypes_CompleteUnionMember *find_union_member_for_disc (const DDS_XTypes_CompleteUnionType *type, int32_t disc_value)
+{
+  const DDS_XTypes_CompleteUnionMember *default_member = NULL;
+  for (uint32_t i = 0; i < type->member_seq._length; i++)
+  {
+    const DDS_XTypes_CompleteUnionMember *member = &type->member_seq._buffer[i];
+    if (union_member_has_label (member, disc_value))
+      return member;
+    if (member->common.member_flags & DDS_XTypes_IS_DEFAULT)
+      default_member = member;
+  }
+  return default_member;
+}
+
+static uint64_t read_bitmask_value (const void *p, uint16_t bit_bound)
+{
+  if (bit_bound > 32)
+    return *((const uint64_t *) p);
+  else if (bit_bound > 16)
+    return *((const uint32_t *) p);
+  else if (bit_bound > 8)
+    return *((const uint16_t *) p);
+  else
+    return *((const uint8_t *) p);
 }
 
 static void print_sample1_to (struct type_cache *tc, const unsigned char *sample, const DDS_XTypes_CompleteTypeObject *typeobj, struct context *c, const char *label, bool is_base_type, bool is_opt);
@@ -194,7 +244,10 @@ static void print_sample1_ti (struct type_cache *tc, const unsigned char *sample
         if (label) printf ("\"%s\":", label);
         printf ("[");
         for (uint32_t i = 0; i < p->_length; i++)
+        {
           print_sample1_ti (tc, p->_buffer, et, 0, &c1, NULL, false, false);
+          finish_sequence_element (&c1);
+        }
         printf ("]");
         c->needs_comma = true;
       }
@@ -232,8 +285,9 @@ static void print_sample1_ti (struct type_cache *tc, const unsigned char *sample
       }
       break;
     }
-    case DDS_XTypes_EK_COMPLETE: {
-      struct typeinfo templ = { .key = { .key = (uintptr_t) typeid } }, *info = type_cache_lookup (tc, &templ);
+    case DDS_XTypes_EK_COMPLETE:
+    case DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT: {
+      struct typeinfo *info = type_cache_lookup_typeid (tc, typeid);
       print_sample1_to (tc, sample, info->typeobj, c, label, is_base_type, is_opt);
       break;
     }
@@ -260,15 +314,14 @@ static void print_sample1_to (struct type_cache *tc, const unsigned char *sample
       for (uint32_t i = 0; i < p->_length; i++)
       {
         print_sample1_ti (tc, (const unsigned char *) p->_buffer, et, 0, &c1, NULL, false, false);
-        if (c1.offset % c1.maxalign)
-          c1.offset += c1.maxalign - (c1.offset % c1.maxalign);
+        finish_sequence_element (&c1);
       }
       printf ("]");
       c->needs_comma = true;
       break;
     }
     case DDS_XTypes_TK_STRUCTURE: {
-      struct typeinfo templ = { .key = { .key = (uintptr_t) typeobj } }, *info = type_cache_lookup (tc, &templ);
+      struct typeinfo *info = type_cache_lookup_typeobj (tc, typeobj);
       const DDS_XTypes_CompleteStructType *t = &typeobj->_u.struct_type;
       const unsigned char *p = align (sample, c, info->align, info->size);
       if (c->needs_comma) fputc (',', stdout);
@@ -280,14 +333,14 @@ static void print_sample1_to (struct type_cache *tc, const unsigned char *sample
       for (uint32_t i = 0; i < t->member_seq._length; i++)
       {
         const DDS_XTypes_CompleteStructMember *m = &t->member_seq._buffer[i];
-        if (!(m->common.member_flags & DDS_XTypes_IS_OPTIONAL)) {
-          c1.key = c->key && m->common.member_flags & DDS_XTypes_IS_KEY;
+        c1.key = c->key && (m->common.member_flags & DDS_XTypes_IS_KEY);
+        if (!is_indirect_member (m->common.member_flags)) {
           print_sample1_ti (tc, p, &m->common.member_type_id, 0, &c1, *m->detail.name ? m->detail.name : NULL, false, false);
         } else {
           void const * const *p1 = (const void *) align (p, &c1, _Alignof (void *), sizeof (void *));
-          if (c->valid_data) { // optional is never a key
-            if (*p1 != NULL) { // missing optional values are not visible at all in the output
-              struct context c2 = { .key = false, .valid_data = c1.valid_data, .offset = 0, .maxalign = 1, .needs_comma = c1.needs_comma };
+          if (c1.key || c->valid_data) {
+            if (*p1 != NULL) { // missing optional/external values are not visible at all in the output
+              struct context c2 = { .key = c1.key && !is_optional_member (m->common.member_flags), .valid_data = c1.valid_data, .offset = 0, .maxalign = 1, .needs_comma = c1.needs_comma };
               print_sample1_ti (tc, *p1, &m->common.member_type_id, 0, &c2, *m->detail.name ? m->detail.name : NULL, false, true);
               c1.needs_comma = c2.needs_comma;
             }
@@ -302,7 +355,7 @@ static void print_sample1_to (struct type_cache *tc, const unsigned char *sample
       break;
     }
     case DDS_XTypes_TK_ENUM: {
-      struct typeinfo templ = { .key = { .key = (uintptr_t) typeobj } }, *info = type_cache_lookup (tc, &templ);
+      struct typeinfo *info = type_cache_lookup_typeobj (tc, typeobj);
       const DDS_XTypes_CompleteEnumeratedType *t = &typeobj->_u.enumerated_type;
       const int *p = align (sample, c, info->align, info->size);
       if (c->key || c->valid_data)
@@ -318,8 +371,21 @@ static void print_sample1_to (struct type_cache *tc, const unsigned char *sample
       }
       break;
     }
+    case DDS_XTypes_TK_BITMASK: {
+      struct typeinfo *info = type_cache_lookup_typeobj (tc, typeobj);
+      const DDS_XTypes_CompleteBitmaskType *t = &typeobj->_u.bitmask_type;
+      const void *p = align (sample, c, info->align, info->size);
+      if (c->key || c->valid_data)
+      {
+        if (c->needs_comma) fputc (',', stdout);
+        if (label) printf ("\"%s\":", label);
+        printf ("%"PRIu64, read_bitmask_value (p, t->header.common.bit_bound));
+        c->needs_comma = true;
+      }
+      break;
+    }
     case DDS_XTypes_TK_UNION: {
-      struct typeinfo templ = { .key = { .key = (uintptr_t) typeobj } }, *info = type_cache_lookup (tc, &templ);
+      struct typeinfo *info = type_cache_lookup_typeobj (tc, typeobj);
       const DDS_XTypes_CompleteUnionType *t = &typeobj->_u.union_type;
       const unsigned char *p = align (sample, c, info->align, info->size);
       if (c->needs_comma) fputc (',', stdout);
@@ -329,7 +395,7 @@ static void print_sample1_to (struct type_cache *tc, const unsigned char *sample
       struct context c1 = { .key = c->key, .valid_data = c->valid_data, .offset = 0, .maxalign = 1, .needs_comma = false };
       if (t->discriminator.common.type_id._d == DDS_XTypes_EK_COMPLETE)
       {
-        struct typeinfo templ_disc = { .key = { .key = (uintptr_t) &t->discriminator.common.type_id } }, *info_disc = type_cache_lookup (tc, &templ_disc);
+        struct typeinfo *info_disc = type_cache_lookup_typeid (tc, &t->discriminator.common.type_id);
         if (info_disc->typeobj->_d == DDS_XTypes_TK_ENUM)
         {
           disc_value = * (int32_t *) p;
@@ -356,14 +422,26 @@ static void print_sample1_to (struct type_cache *tc, const unsigned char *sample
       {
         abort ();
       }
-      for (uint32_t i = 0; i < t->member_seq._length; i++)
+      const DDS_XTypes_CompleteUnionMember *m = find_union_member_for_disc (t, disc_value);
+      if (m != NULL)
       {
-        const DDS_XTypes_CompleteUnionMember *m = &t->member_seq._buffer[i];
-        for (uint32_t l = 0; l < m->common.label_seq._length; l++)
+        const unsigned char *data = p + type_cache_union_data_offset (tc, t);
+        struct context c2 = { .key = c1.key, .valid_data = c1.valid_data, .offset = 0, .maxalign = 1, .needs_comma = c1.needs_comma };
+        if (!is_indirect_member (m->common.member_flags))
         {
-          if (m->common.label_seq._buffer[l] == disc_value)
-            print_sample1_ti (tc, p, &m->common.type_id, 0, &c1, *m->detail.name ? m->detail.name : NULL, false, false);
+          print_sample1_ti (tc, data, &m->common.type_id, 0, &c2, *m->detail.name ? m->detail.name : NULL, false, false);
         }
+        else
+        {
+          void const * const *p1 = (const void *) align (data, &c2, _Alignof (void *), sizeof (void *));
+          if ((c2.key || c2.valid_data) && *p1 != NULL)
+          {
+            struct context c3 = { .key = c2.key && !is_optional_member (m->common.member_flags), .valid_data = c2.valid_data, .offset = 0, .maxalign = 1, .needs_comma = c2.needs_comma };
+            print_sample1_ti (tc, *p1, &m->common.type_id, 0, &c3, *m->detail.name ? m->detail.name : NULL, false, true);
+            c2.needs_comma = c3.needs_comma;
+          }
+        }
+        c1.needs_comma = c2.needs_comma;
       }
       printf ("}");
       c->needs_comma = true;

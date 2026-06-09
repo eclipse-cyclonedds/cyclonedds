@@ -136,13 +136,12 @@ static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_
     if ((info = type_cache_lookup (dyntypelib->typecache, &templ)) != NULL)
     {
       assert (info->release == NULL);
-      info->release = *xtypeobj;
     }
     else
     {
       // not sure whether this is at all possible
       info = ddsrt_malloc (sizeof (*info));
-      *info = (struct typeinfo){ .key = { .key = (uintptr_t) *xtypeobj }, .typeobj = &(*xtypeobj)->_u.complete, .release = *xtypeobj, .align = align, .size = size };
+      *info = (struct typeinfo){ .key = { .key = (uintptr_t) *xtypeobj }, .typeobj = &(*xtypeobj)->_u.complete, .release = NULL, .align = align, .size = size };
       type_cache_add (dyntypelib->typecache, info);
     }
   }

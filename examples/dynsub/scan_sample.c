@@ -326,8 +326,9 @@ static bool scan_sample1_ti (struct dyntypelib *dtl, unsigned char * obj, DDS_XT
       return scan_array (dtl, obj, typeid->_u.array_ldefn.element_identifier, nelem, elem, ignore_unknown_members, err);
     }
 
-    case DDS_XTypes_EK_COMPLETE: {
-      struct typeinfo templ = { .key = { .key = (uintptr_t) typeid } }, *info = type_cache_lookup (dtl->typecache, &templ);
+    case DDS_XTypes_EK_COMPLETE:
+    case DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT: {
+      struct typeinfo *info = type_cache_lookup_typeid (dtl->typecache, typeid);
       return scan_sample1_to (dtl, obj, info->typeobj, elem, false, ignore_unknown_members, err);
     }
   }
@@ -353,7 +354,7 @@ static const DDS_XTypes_CompleteStructType *get_base_struct_type_to (struct dynt
 
 static const DDS_XTypes_CompleteStructType *get_base_struct_type_ti (struct dyntypelib *dtl, DDS_XTypes_TypeIdentifier const * const typeid)
 {
-  struct typeinfo templ = { .key = { .key = (uintptr_t) typeid } }, *info = type_cache_lookup (dtl->typecache, &templ);
+  struct typeinfo *info = type_cache_lookup_typeid (dtl->typecache, typeid);
   return get_base_struct_type_to (dtl, info->typeobj);
 }
 
@@ -396,20 +397,7 @@ static const DDS_XTypes_CompleteUnionMember *find_union_member (DDS_XTypes_Compl
 
 static size_t union_data_offset (struct dyntypelib *dtl, DDS_XTypes_CompleteUnionType const * const t)
 {
-  const size_t disc_size = dtl_get_typeid_size (dtl, &t->discriminator.common.type_id);
-  size_t member_align = 1;
-  for (uint32_t i = 0; i < t->member_seq._length; i++)
-  {
-    DDS_XTypes_CompleteUnionMember const * const m = &t->member_seq._buffer[i];
-    size_t a;
-    if (m->common.member_flags & (DDS_XTypes_IS_OPTIONAL | DDS_XTypes_IS_EXTERNAL))
-      a = _Alignof (char *);
-    else
-      a = dtl_get_typeid_align (dtl, &m->common.type_id);
-    if (a > member_align)
-      member_align = a;
-  }
-  return (disc_size % member_align) ? disc_size + member_align - (disc_size % member_align) : disc_size;
+  return type_cache_union_data_offset (dtl->typecache, t);
 }
 
 static bool scan_union (struct dyntypelib *dtl, unsigned char *obj, DDS_XTypes_CompleteUnionType const * const t, struct elem const * const elem, bool ignore_unknown_members, struct dyntypelib_error *err)

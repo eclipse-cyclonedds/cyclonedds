@@ -344,14 +344,14 @@ void ppc_print_ti (struct type_cache *tc, struct ppc *ppc, const DDS_XTypes_Type
       ppc_print (ppc, "COMPLETE id=");
       ppc_print_equivhash (ppc, typeid->_u.equivalence_hash);
       ppc_indent (ppc);
-      struct type_hashid_map *info = lookup_hashid (tc, typeid->_u.equivalence_hash);
+      struct type_hashid_map *info = lookup_typeid (tc, typeid);
       if (info->lineno)
         ppc_print (ppc, ": See line %d\n", info->lineno);
       else
       {
         ppc_print (ppc, "\n");
         info->lineno = ppc_lineno (ppc);
-        ppc_print_to (tc, ppc, get_complete_typeobj_for_hashid (tc, typeid->_u.equivalence_hash));
+        ppc_print_to (tc, ppc, get_complete_typeobj_for_typeid (tc, typeid));
       }
       ppc_outdent (ppc);
       break;
@@ -360,14 +360,36 @@ void ppc_print_ti (struct type_cache *tc, struct ppc *ppc, const DDS_XTypes_Type
       ppc_print (ppc, "MINIMAL id=");
       ppc_print_equivhash (ppc, typeid->_u.equivalence_hash);
       ppc_indent (ppc);
-      struct type_hashid_map *info = lookup_hashid (tc, typeid->_u.equivalence_hash);
+      struct type_hashid_map *info = lookup_typeid (tc, typeid);
       if (info->lineno)
         ppc_print (ppc, ": See line %d\n", info->lineno);
       else
       {
         ppc_print (ppc, "\n");
         info->lineno = ppc_lineno (ppc);
-        ppc_print_to_min (tc, ppc, get_minimal_typeobj_for_hashid (tc, typeid->_u.equivalence_hash));
+        ppc_print_to_min (tc, ppc, get_minimal_typeobj_for_typeid (tc, typeid));
+      }
+      ppc_outdent (ppc);
+      break;
+    }
+    case DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT: {
+      const DDS_XTypes_StronglyConnectedComponentId *scc = &typeid->_u.sc_component_id;
+      ppc_print (ppc, "SCC_%s length=%"PRId32" index=%"PRId32" id=",
+        scc->sc_component_id._d == DDS_XTypes_EK_COMPLETE ? "COMPLETE" : "MINIMAL",
+        scc->scc_length, scc->scc_index);
+      ppc_print_equivhash (ppc, scc->sc_component_id._u.hash);
+      ppc_indent (ppc);
+      struct type_hashid_map *info = lookup_typeid (tc, typeid);
+      if (info->lineno)
+        ppc_print (ppc, ": See line %d\n", info->lineno);
+      else
+      {
+        ppc_print (ppc, "\n");
+        info->lineno = ppc_lineno (ppc);
+        if (scc->sc_component_id._d == DDS_XTypes_EK_COMPLETE)
+          ppc_print_to (tc, ppc, get_complete_typeobj_for_typeid (tc, typeid));
+        else
+          ppc_print_to_min (tc, ppc, get_minimal_typeobj_for_typeid (tc, typeid));
       }
       ppc_outdent (ppc);
       break;

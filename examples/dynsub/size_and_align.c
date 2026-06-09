@@ -204,8 +204,9 @@ void *dtl_advance_ti (struct dyntypelib *dtl, unsigned char *base, size_t *off, 
       return dtl_align (base, off, elem_align, n * align_size (elem_size, elem_align));
     }
 
-    case DDS_XTypes_EK_COMPLETE: {
-      struct typeinfo templ = { .key = { .key = (uintptr_t) typeid } }, *info = type_cache_lookup (dtl->typecache, &templ);
+    case DDS_XTypes_EK_COMPLETE:
+    case DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT: {
+      struct typeinfo *info = type_cache_lookup_typeid (dtl->typecache, typeid);
       return dtl_advance_to (dtl, base, off, info->typeobj, false);
     }
   }
@@ -238,38 +239,31 @@ void *dtl_advance_to (struct dyntypelib *dtl, unsigned char *base, size_t *off, 
     case DDS_XTypes_TK_BITMASK:
     case DDS_XTypes_TK_STRUCTURE:
     case DDS_XTypes_TK_UNION: {
-      struct typeinfo templ = { .key = { .key = (uintptr_t) typeobj } }, *info = type_cache_lookup (dtl->typecache, &templ);
+      struct typeinfo *info = type_cache_lookup_typeobj (dtl->typecache, typeobj);
       return dtl_align (base, off, info->align, info->size);
     }
-
   }
 
   abort ();
   return NULL;
 }
 
-static size_t get_typeid_typeobj_size (struct dyntypelib *dtl, const uint8_t disc, void const * const key)
+static size_t get_typeid_size (struct dyntypelib *dtl, const DDS_XTypes_TypeIdentifier *typeid)
 {
-  size_t size = dtl_simple_size (disc);
+  size_t size = dtl_simple_size (typeid->_d);
   if (size != 0)
     return size;
   else
-  {
-    struct typeinfo templ = { .key = { .key = (uintptr_t) key } }, *info = type_cache_lookup (dtl->typecache, &templ);
-    return info->size;
-  }
+    return type_cache_lookup_typeid (dtl->typecache, typeid)->size;
 }
 
-static size_t get_typeid_typeobj_align (struct dyntypelib *dtl, const uint8_t disc, void const * const key)
+static size_t get_typeid_align (struct dyntypelib *dtl, const DDS_XTypes_TypeIdentifier *typeid)
 {
-  size_t size = dtl_simple_align (disc);
+  size_t size = dtl_simple_align (typeid->_d);
   if (size != 0)
     return size;
   else
-  {
-    struct typeinfo templ = { .key = { .key = (uintptr_t) key } }, *info = type_cache_lookup (dtl->typecache, &templ);
-    return info->align;
-  }
+    return type_cache_lookup_typeid (dtl->typecache, typeid)->align;
 }
 
 size_t dtl_get_typeid_size (struct dyntypelib *dtl, DDS_XTypes_TypeIdentifier const * const typeid)
@@ -303,7 +297,7 @@ size_t dtl_get_typeid_size (struct dyntypelib *dtl, DDS_XTypes_TypeIdentifier co
         return size;
       }
       default:
-        return get_typeid_typeobj_size (dtl, typeid->_d, typeid);
+        return get_typeid_size (dtl, typeid);
     }
   }
 }
@@ -326,12 +320,16 @@ size_t dtl_get_typeid_align (struct dyntypelib *dtl, DDS_XTypes_TypeIdentifier c
       case DDS_XTypes_TI_PLAIN_ARRAY_LARGE:
         return dtl_get_typeid_align (dtl, typeid->_u.array_ldefn.element_identifier);
       default:
-        return get_typeid_typeobj_align (dtl, typeid->_d, typeid);
+        return get_typeid_align (dtl, typeid);
     }
   }
 }
 
 size_t dtl_get_typeobj_size (struct dyntypelib *dtl, DDS_XTypes_CompleteTypeObject const * const typeobj)
 {
-  return get_typeid_typeobj_size (dtl, typeobj->_d, typeobj);
+  size_t size = dtl_simple_size (typeobj->_d);
+  if (size != 0)
+    return size;
+  else
+    return type_cache_lookup_typeobj (dtl->typecache, typeobj)->size;
 }

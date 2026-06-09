@@ -29,8 +29,9 @@ struct typeinfo {
 };
 
 struct type_hashid_map {
-  DDS_XTypes_EquivalenceHash id;
+  DDS_XTypes_TypeIdentifier id;
   DDS_XTypes_TypeObject *typeobj; // complete type object for type T
+  DDS_XTypes_TypeObject *release; // type object to release, or NULL if nothing
   int lineno;
 };
 
@@ -43,13 +44,24 @@ struct ppc;
 
 struct type_cache *type_cache_new (void);
 struct typeinfo *type_cache_lookup (struct type_cache *tc, struct typeinfo *templ);
+/* Look up or lazily build layout information for complete TypeIdentifiers and
+   CompleteTypeObjects used by sample scan/print/compare paths. */
+struct typeinfo *type_cache_lookup_typeid (struct type_cache *tc, const DDS_XTypes_TypeIdentifier *typeid);
+struct typeinfo *type_cache_lookup_typeobj (struct type_cache *tc, const DDS_XTypes_CompleteTypeObject *typeobj);
+void type_cache_typeid_align_size (struct type_cache *tc, const DDS_XTypes_TypeIdentifier *typeid, size_t *align, size_t *size);
+size_t type_cache_union_data_offset (struct type_cache *tc, const DDS_XTypes_CompleteUnionType *type);
 void type_cache_add (struct type_cache *tc, struct typeinfo *info);
 void type_hashid_map_add (struct type_cache *tc, struct type_hashid_map *info);
+void type_hashid_map_init_id (struct type_hashid_map *info, const DDS_XTypes_TypeIdentifier *typeid);
+void type_hashid_map_init_hashid (struct type_hashid_map *info, DDS_XTypes_EquivalenceKind kind, const DDS_XTypes_EquivalenceHash hashid);
 void type_cache_free (struct type_cache *tc);
 
 struct type_hashid_map *lookup_hashid (struct type_cache *tc, const DDS_XTypes_EquivalenceHash hashid);
+struct type_hashid_map *lookup_typeid (struct type_cache *tc, const DDS_XTypes_TypeIdentifier *typeid);
 const DDS_XTypes_CompleteTypeObject *get_complete_typeobj_for_hashid (struct type_cache *tc, const DDS_XTypes_EquivalenceHash hashid);
 const DDS_XTypes_MinimalTypeObject *get_minimal_typeobj_for_hashid (struct type_cache *tc, const DDS_XTypes_EquivalenceHash hashid);
+const DDS_XTypes_CompleteTypeObject *get_complete_typeobj_for_typeid (struct type_cache *tc, const DDS_XTypes_TypeIdentifier *typeid);
+const DDS_XTypes_MinimalTypeObject *get_minimal_typeobj_for_typeid (struct type_cache *tc, const DDS_XTypes_TypeIdentifier *typeid);
 void build_typecache_to (struct type_cache *tc, const DDS_XTypes_CompleteTypeObject *typeobj, size_t *align, size_t *size);
 const DDS_XTypes_TypeObject *load_type_with_deps (struct type_cache *tc, dds_entity_t participant, const dds_typeinfo_t *typeinfo, struct ppc *ppc);
 const DDS_XTypes_TypeObject *load_type_with_deps_min (struct type_cache *tc, dds_entity_t participant, const dds_typeinfo_t *typeinfo, struct ppc *ppc);
