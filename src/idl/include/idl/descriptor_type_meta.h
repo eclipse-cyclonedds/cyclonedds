@@ -22,11 +22,25 @@
 extern "C" {
 #endif
 
+struct type_meta_scc;
+
 struct type_meta {
   bool finalized;
+  bool built;
+  bool visiting;
   struct type_meta *admin_next;
   struct type_meta *stack_prev;
+  struct type_meta **deps;
+  uint32_t n_deps;
+  uint32_t deps_size;
+  uint32_t order;
+  uint32_t index;
+  uint32_t lowlink;
+  bool on_stack;
+  bool scheduling;
+  struct type_meta_scc *scc;
   const void *node;
+  char *scoped_name;
   DDS_XTypes_TypeIdentifier *ti_complete;
   DDS_XTypes_TypeObject *to_complete;
   DDS_XTypes_TypeIdentifier *ti_minimal;
@@ -35,8 +49,22 @@ struct type_meta {
 
 struct descriptor_type_meta {
   const idl_node_t *root;
+  const idl_node_t *walk_root;
   struct type_meta *admin;
   struct type_meta *stack;
+  uint32_t n_types;
+  struct type_meta **scc_stack;
+  uint32_t scc_stack_len;
+  uint32_t scc_stack_size;
+  struct type_meta_scc **sccs;
+  uint32_t n_sccs;
+  uint32_t sccs_size;
+  struct type_meta_scc **scc_work;
+  uint32_t n_scc_work;
+  uint32_t scc_work_size;
+  uint32_t next_index;
+  struct type_meta_scc *rebuild_scc;
+  struct type_meta *rebuild_target;
 };
 
 IDL_EXPORT idl_retcode_t

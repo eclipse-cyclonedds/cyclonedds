@@ -38,6 +38,26 @@
 
 static struct dds_cdrstream_allocator idlc_cdrstream_default_allocator = { idl_malloc, idl_realloc, idl_free };
 
+#define IDLC_TYPE_SCC_MAX_WIRE_TYPES 100u
+
+struct type_meta_scc {
+  struct type_meta **nodes;
+  uint32_t n_nodes;
+  uint32_t order;
+  bool recursive;
+  bool scheduling;
+  bool scheduled;
+};
+
+static struct type_meta *
+find_type (const struct descriptor_type_meta *dtm, const void *node)
+{
+  for (struct type_meta *tm = dtm->admin; tm; tm = tm->admin_next)
+    if (tm->node == node)
+      return tm;
+  return NULL;
+}
+
 static idl_retcode_t
 push_type (struct descriptor_type_meta *dtm, const void *node)
 {
@@ -52,11 +72,16 @@ push_type (struct descriptor_type_meta *dtm, const void *node)
     if (!tm)
       return IDL_RETCODE_NO_MEMORY;
     tm->node = node;
-    if (!(tm->ti_minimal = idl_calloc (1, sizeof (*tm->ti_minimal))) ||
+    tm->order = dtm->n_types++;
+    tm->index = UINT32_MAX;
+    tm->lowlink = UINT32_MAX;
+    if (IDL_PRINT (&tm->scoped_name, print_scoped_name, node) < 0 ||
+        !(tm->ti_minimal = idl_calloc (1, sizeof (*tm->ti_minimal))) ||
         !(tm->to_minimal = idl_calloc (1, sizeof (*tm->to_minimal))) ||
         !(tm->ti_complete = idl_calloc (1, sizeof (*tm->ti_complete))) ||
         !(tm->to_complete = idl_calloc (1, sizeof (*tm->to_complete))))
     {
+      if (tm->scoped_name) idl_free (tm->scoped_name);
       if (tm->ti_minimal) idl_free (tm->ti_minimal);
       if (tm->to_minimal) idl_free (tm->to_minimal);
       if (tm->ti_complete) idl_free (tm->ti_complete);
@@ -90,6 +115,26 @@ pop_type (struct descriptor_type_meta *dtm, const void *node)
   assert (dtm->stack->node == node);
   (void) node;
   dtm->stack = dtm->stack->stack_prev;
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+type_meta_add_dep (struct type_meta *src, struct type_meta *dep)
+{
+  if (src == NULL || dep == NULL)
+    return IDL_RETCODE_OK;
+  for (uint32_t n = 0; n < src->n_deps; n++)
+    if (src->deps[n] == dep)
+      return IDL_RETCODE_OK;
+  if (src->n_deps == src->deps_size) {
+    const uint32_t size = src->deps_size ? 2 * src->deps_size : 4;
+    struct type_meta **deps = idl_realloc (src->deps, size * sizeof (*deps));
+    if (deps == NULL)
+      return IDL_RETCODE_NO_MEMORY;
+    src->deps = deps;
+    src->deps_size = size;
+  }
+  src->deps[src->n_deps++] = dep;
   return IDL_RETCODE_OK;
 }
 
@@ -374,22 +419,18 @@ get_hashed_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm,
 
   type_spec = idl_strip (type_spec, IDL_STRIP_FORWARD);
 
-  struct type_meta *tm = dtm->admin;
-  while (tm && tm->node != type_spec)
-    tm = tm->admin_next;
-  if (!tm || !tm->finalized) {
+  struct type_meta *tm = find_type (dtm, type_spec);
+  if (!tm) {
     idl_error (pstate, idl_location (type_spec), "Type id not found for type %s", idl_identifier (type_spec));
     return IDL_RETCODE_BAD_PARAMETER;
   }
+  if ((ret = type_meta_add_dep (dtm->stack, tm)) < 0)
+    return ret;
   if (kind == DDS_XTypes_EK_COMPLETE) {
-    ti->_d = DDS_XTypes_EK_COMPLETE;
-    if ((ret = get_type_hash (ti->_u.equivalence_hash, tm->to_complete)) < 0)
-      return ret;
+    memcpy (ti, tm->ti_complete, sizeof (*ti));
   } else {
     assert (kind == DDS_XTypes_EK_MINIMAL);
-    ti->_d = DDS_XTypes_EK_MINIMAL;
-    if ((ret = get_type_hash (ti->_u.equivalence_hash, tm->to_minimal)) < 0)
-      return ret;
+    memcpy (ti, tm->ti_minimal, sizeof (*ti));
   }
   return IDL_RETCODE_OK;
 }
@@ -1004,29 +1045,36 @@ emit_hashed_type(
   bool revisit,
   struct descriptor_type_meta *dtm)
 {
-  idl_retcode_t ret;
   assert (!has_fully_descriptive_typeid (node) && !has_plain_collection_typeid (node));
   if (revisit) {
-    if (!dtm->stack->finalized) {
-      if ((ret = get_type_hash (dtm->stack->ti_minimal->_u.equivalence_hash, dtm->stack->to_minimal)) < 0
-          || (ret = get_type_hash (dtm->stack->ti_complete->_u.equivalence_hash, dtm->stack->to_complete)) < 0)
-        return ret;
-      dtm->stack->finalized = true;
-    }
+    dtm->stack->built = true;
+    dtm->stack->visiting = false;
     pop_type (dtm, node);
     return IDL_RETCODE_OK;
   } else {
+    idl_retcode_t ret;
+    struct type_meta *tm = find_type (dtm, node);
+    if (tm && (tm->visiting || tm->built ||
+        (dtm->rebuild_scc && tm->scc == dtm->rebuild_scc && tm != dtm->rebuild_target)))
+    {
+      return (int32_t) IDL_VISIT_DONT_RECURSE | (int32_t) IDL_VISIT_DONT_REVISIT |
+        (int32_t) (node == dtm->walk_root ? IDL_VISIT_DONT_ITERATE : 0);
+    }
     if ((ret = push_type (dtm, node)) < 0)
       return ret;
-    if (!dtm->stack->finalized) {
-      dtm->stack->ti_minimal->_d = DDS_XTypes_EK_MINIMAL;
+    if (!dtm->stack->built) {
+      if (dtm->rebuild_target == NULL)
+        dtm->stack->ti_minimal->_d = DDS_XTypes_EK_MINIMAL;
       dtm->stack->to_minimal->_d = DDS_XTypes_EK_MINIMAL;
       dtm->stack->to_minimal->_u.minimal._d = type_kind;
-      dtm->stack->ti_complete->_d = DDS_XTypes_EK_COMPLETE;
+      if (dtm->rebuild_target == NULL)
+        dtm->stack->ti_complete->_d = DDS_XTypes_EK_COMPLETE;
       dtm->stack->to_complete->_d = DDS_XTypes_EK_COMPLETE;
       dtm->stack->to_complete->_u.complete._d = type_kind;
+      dtm->stack->visiting = true;
     }
-    return IDL_VISIT_REVISIT;
+    return (int32_t) IDL_VISIT_REVISIT |
+      (int32_t) (node == dtm->walk_root ? IDL_VISIT_DONT_ITERATE : 0);
   }
 }
 
@@ -1056,15 +1104,16 @@ add_typedef (
 
   if ((ret = emit_hashed_type (DDS_XTypes_TK_ALIAS, node, revisit, dtm)) < 0)
     return ret;
-  if (!revisit && dtm->stack->finalized)
-    return (int32_t)IDL_VISIT_REVISIT | (int32_t)IDL_VISIT_DONT_RECURSE | (int32_t)(visit_type_spec ? IDL_VISIT_TYPE_SPEC : 0);
+  if (!revisit && (ret & IDL_VISIT_DONT_REVISIT))
+    return ret;
 
   if (!revisit) {
     if ((ret = get_complete_type_detail (node, &dtm->stack->to_complete->_u.complete._u.alias_type.header.detail)) < 0)
       return ret;
     if ((ret = get_builtin_member_ann (node, &dtm->stack->to_complete->_u.complete._u.alias_type.body.ann_builtin)) < 0)
       return ret;
-    return IDL_VISIT_REVISIT | (visit_type_spec ? IDL_VISIT_TYPE_SPEC : 0);
+    return (int32_t) IDL_VISIT_REVISIT | (int32_t) (visit_type_spec ? IDL_VISIT_TYPE_SPEC : 0) |
+      (int32_t) (node == dtm->walk_root ? IDL_VISIT_DONT_ITERATE : 0);
   }
 
   return IDL_RETCODE_OK;
@@ -1092,8 +1141,8 @@ add_array (
 
   if ((ret = emit_hashed_type (DDS_XTypes_TK_ARRAY, node, revisit, dtm)) < 0)
     return ret;
-  if (!revisit && dtm->stack->finalized)
-    return (int32_t)IDL_VISIT_REVISIT | (int32_t)IDL_VISIT_DONT_RECURSE;
+  if (!revisit && (ret & IDL_VISIT_DONT_REVISIT))
+    return ret;
 
   if (!revisit) {
     dtm->stack->to_minimal->_u.minimal._u.array_type.element.common.element_flags =
@@ -1113,7 +1162,8 @@ add_array (
           &literal->value.uint32)) < 0)
         return ret;
     }
-    return IDL_VISIT_REVISIT;
+    return (int32_t) IDL_VISIT_REVISIT |
+      (int32_t) (node == dtm->walk_root ? IDL_VISIT_DONT_ITERATE : 0);
   }
   return IDL_RETCODE_OK;
 }
@@ -1126,8 +1176,8 @@ emit_struct(
   const void *node,
   void *user_data)
 {
-  struct descriptor_type_meta * dtm = (struct descriptor_type_meta *) user_data;
-  const idl_struct_t * _struct = (const idl_struct_t *) node;
+  struct descriptor_type_meta *dtm = (struct descriptor_type_meta *) user_data;
+  const idl_struct_t *_struct = (const idl_struct_t *) node;
   idl_retcode_t ret;
 
   (void) pstate;
@@ -1149,14 +1199,14 @@ emit_struct(
 
   if ((ret = emit_hashed_type (DDS_XTypes_TK_STRUCTURE, node, revisit, dtm)) < 0)
     return ret;
-  if (!revisit && dtm->stack->finalized)
-    return (int32_t)IDL_VISIT_REVISIT | (int32_t)IDL_VISIT_DONT_RECURSE | (int32_t)(node == dtm->root ? IDL_VISIT_DONT_ITERATE : 0);
+  if (!revisit && (ret & IDL_VISIT_DONT_REVISIT))
+    return ret;
 
   if (!revisit) {
     dtm->stack->to_minimal->_u.minimal._u.struct_type.struct_flags =
       dtm->stack->to_complete->_u.complete._u.struct_type.struct_flags = get_struct_flags (_struct);
     /* For a topic, only its top-level type should be visited, not the other (non-related) types in the idl */
-    return IDL_VISIT_REVISIT | (node == dtm->root ? IDL_VISIT_DONT_ITERATE : 0);
+    return IDL_VISIT_REVISIT | (node == dtm->walk_root ? IDL_VISIT_DONT_ITERATE : 0);
   }
   return IDL_RETCODE_OK;
 }
@@ -1169,7 +1219,7 @@ emit_union(
   const void *node,
   void *user_data)
 {
-  struct descriptor_type_meta * dtm = (struct descriptor_type_meta *) user_data;
+  struct descriptor_type_meta *dtm = (struct descriptor_type_meta *) user_data;
   idl_retcode_t ret;
 
   (void) pstate;
@@ -1181,8 +1231,8 @@ emit_union(
   if ((ret = emit_hashed_type (DDS_XTypes_TK_UNION, node, revisit, dtm)) < 0)
     return ret;
 
-  if (!revisit && dtm->stack->finalized)
-    return (int32_t)IDL_VISIT_REVISIT | (int32_t)IDL_VISIT_DONT_RECURSE | (int32_t)(node == dtm->root ? IDL_VISIT_DONT_ITERATE : 0);
+  if (!revisit && (ret & IDL_VISIT_DONT_REVISIT))
+    return ret;
 
   if (!revisit) {
     dtm->stack->to_minimal->_u.minimal._u.union_type.union_flags =
@@ -1190,7 +1240,7 @@ emit_union(
     if ((ret = get_complete_type_detail (node, &dtm->stack->to_complete->_u.complete._u.union_type.header.detail)) < 0)
       return ret;
     /* For a topic, only its top-level type should be visited, not the other (non-related) types in the idl */
-    return IDL_VISIT_REVISIT | (node == dtm->root ? IDL_VISIT_DONT_ITERATE : 0);
+    return IDL_VISIT_REVISIT | (node == dtm->walk_root ? IDL_VISIT_DONT_ITERATE : 0);
   }
   return IDL_RETCODE_OK;
 }
@@ -1227,7 +1277,8 @@ emit_switch_type_spec(
     return IDL_RETCODE_OK;
   } else {
     if (has_fully_descriptive_typeid (switch_type_spec))
-      return IDL_VISIT_REVISIT;
+      return (int32_t) IDL_VISIT_REVISIT |
+        (int32_t) (node == dtm->walk_root ? IDL_VISIT_DONT_ITERATE : 0);
     else
       return IDL_VISIT_TYPE_SPEC | IDL_VISIT_REVISIT;
   }
@@ -1269,13 +1320,14 @@ emit_declarator (
     if (!has_fully_descriptive_typeid (node) && !has_plain_collection_typeid (node)) {
       if ((ret = add_array (pstate, revisit, node, user_data)) < 0)
         return ret;
+      if (node == dtm->walk_root)
+        return ret;
     }
   }
 
   if (revisit) {
     struct type_meta *tm = dtm->stack;
-    assert(tm);
-    assert(!tm->finalized);
+    assert (tm);
     if (tm->to_minimal->_u.minimal._d == DDS_XTypes_TK_STRUCTURE) {
       assert (tm->to_complete->_u.complete._d == DDS_XTypes_TK_STRUCTURE);
       if ((ret = add_struct_member (pstate, dtm, tm->to_minimal, tm->to_complete, node, idl_is_array (node) ? node : idl_type_spec (node))) < 0)
@@ -1290,9 +1342,11 @@ emit_declarator (
   } else {
     const idl_type_spec_t *type_spec = idl_is_array (node) ? node : idl_type_spec (node);
     if (has_fully_descriptive_typeid (type_spec))
-      return IDL_VISIT_REVISIT;
+      return (int32_t) IDL_VISIT_REVISIT |
+        (int32_t) (node == dtm->walk_root ? IDL_VISIT_DONT_ITERATE : 0);
     else
-      return IDL_VISIT_TYPE_SPEC | IDL_VISIT_REVISIT;
+      return (int32_t) IDL_VISIT_TYPE_SPEC | (int32_t) IDL_VISIT_REVISIT |
+        (int32_t) (node == dtm->walk_root ? IDL_VISIT_DONT_ITERATE : 0);
   }
 
   return IDL_RETCODE_OK;
@@ -1339,8 +1393,8 @@ emit_enum (
   }
   if ((ret = emit_hashed_type (DDS_XTypes_TK_ENUM, node, revisit, (struct descriptor_type_meta *) user_data)) < 0)
     return ret;
-  if (!revisit && dtm->stack->finalized)
-    return (int32_t)IDL_VISIT_REVISIT | (int32_t)IDL_VISIT_DONT_RECURSE;
+  if (!revisit && (ret & IDL_VISIT_DONT_REVISIT))
+    return ret;
   if (!revisit) {
     dtm->stack->to_minimal->_u.minimal._u.enumerated_type.header.common.bit_bound =
       dtm->stack->to_complete->_u.complete._u.enumerated_type.header.common.bit_bound = _enum->bit_bound.value;
@@ -1348,7 +1402,8 @@ emit_enum (
       dtm->stack->to_complete->_u.complete._u.enumerated_type.enum_flags = get_enum_flags (_enum);
     if ((ret = get_complete_type_detail (node, &dtm->stack->to_complete->_u.complete._u.enumerated_type.header.detail)) < 0)
       return ret;
-    return IDL_VISIT_REVISIT;
+    return (int32_t) IDL_VISIT_REVISIT |
+      (int32_t) (node == dtm->walk_root ? IDL_VISIT_DONT_ITERATE : 0);
   }
   return IDL_RETCODE_OK;
 }
@@ -1437,8 +1492,8 @@ emit_bitmask(
   }
   if ((ret = emit_hashed_type (DDS_XTypes_TK_BITMASK, node, revisit, (struct descriptor_type_meta *) user_data)) < 0)
     return ret;
-  if (!revisit && dtm->stack->finalized)
-    return (int32_t)IDL_VISIT_REVISIT | (int32_t)IDL_VISIT_DONT_RECURSE;
+  if (!revisit && (ret & IDL_VISIT_DONT_REVISIT))
+    return ret;
   if (!revisit) {
     dtm->stack->to_minimal->_u.minimal._u.bitmask_type.header.common.bit_bound =
       dtm->stack->to_complete->_u.complete._u.bitmask_type.header.common.bit_bound = _bitmask->bit_bound.value;
@@ -1446,7 +1501,8 @@ emit_bitmask(
       dtm->stack->to_complete->_u.complete._u.bitmask_type.bitmask_flags = get_bitmask_flags (_bitmask);
     if ((ret = get_complete_type_detail (node, &dtm->stack->to_complete->_u.complete._u.bitmask_type.header.detail)) < 0)
       return ret;
-    return IDL_VISIT_REVISIT;
+    return (int32_t) IDL_VISIT_REVISIT |
+      (int32_t) (node == dtm->walk_root ? IDL_VISIT_DONT_ITERATE : 0);
   }
   return IDL_RETCODE_OK;
 }
@@ -1472,7 +1528,6 @@ emit_bit_value (
 
   assert (tm->to_complete->_u.complete._d == DDS_XTypes_TK_BITMASK);
   assert (idl_is_bitmask (idl_parent (node)));
-  assert (!dtm->stack->finalized);
 
   DDS_XTypes_MinimalBitflag m;
   memset (&m, 0, sizeof (m));
@@ -1517,8 +1572,8 @@ emit_sequence(
   const void *node,
   void *user_data)
 {
-  struct descriptor_type_meta * dtm = (struct descriptor_type_meta *) user_data;
-  const idl_sequence_t * seq = (const idl_sequence_t *) node;
+  struct descriptor_type_meta *dtm = (struct descriptor_type_meta *) user_data;
+  const idl_sequence_t *seq = (const idl_sequence_t *) node;
   idl_retcode_t ret;
 
   (void) path;
@@ -1545,8 +1600,8 @@ emit_sequence(
 
   if ((ret = emit_hashed_type (DDS_XTypes_TK_SEQUENCE, node, revisit, dtm)) < 0)
     return ret;
-  if (!revisit && dtm->stack->finalized)
-    return IDL_VISIT_REVISIT | IDL_VISIT_TYPE_SPEC;
+  if (!revisit && (ret & IDL_VISIT_DONT_REVISIT))
+    return ret;
 
   if (!revisit) {
     /* Add the sequence flags (not the element flags) and bound (maximum). The element type
@@ -1557,7 +1612,8 @@ emit_sequence(
       dtm->stack->to_complete->_u.complete._u.sequence_type.element.common.element_flags = get_sequence_element_flags (node);
     dtm->stack->to_minimal->_u.minimal._u.sequence_type.header.common.bound =
       dtm->stack->to_complete->_u.complete._u.sequence_type.header.common.bound = seq->maximum;
-    return IDL_VISIT_REVISIT | IDL_VISIT_TYPE_SPEC;
+    return (int32_t) IDL_VISIT_REVISIT | (int32_t) IDL_VISIT_TYPE_SPEC |
+      (int32_t) (node == dtm->walk_root ? IDL_VISIT_DONT_ITERATE : 0);
   }
   return IDL_RETCODE_OK;
 }
@@ -1630,6 +1686,388 @@ type_obj_fini (DDS_XTypes_TypeObject *to)
   dds_stream_free_sample (to, &idlc_cdrstream_default_allocator, DDS_XTypes_TypeObject_desc.m_ops);
 }
 
+static void
+init_type_meta_visitor (idl_visitor_t *visitor)
+{
+  memset (visitor, 0, sizeof (*visitor));
+  visitor->visit = IDL_STRUCT | IDL_UNION | IDL_DECLARATOR | IDL_BITMASK | IDL_BIT_VALUE | IDL_ENUM | IDL_ENUMERATOR | IDL_SWITCH_TYPE_SPEC | IDL_INHERIT_SPEC | IDL_SEQUENCE;
+  visitor->accept[IDL_ACCEPT_STRUCT] = &emit_struct;
+  visitor->accept[IDL_ACCEPT_UNION] = &emit_union;
+  visitor->accept[IDL_ACCEPT_SWITCH_TYPE_SPEC] = &emit_switch_type_spec;
+  visitor->accept[IDL_ACCEPT_DECLARATOR] = &emit_declarator;
+  visitor->accept[IDL_ACCEPT_BITMASK] = &emit_bitmask;
+  visitor->accept[IDL_ACCEPT_BIT_VALUE] = &emit_bit_value;
+  visitor->accept[IDL_ACCEPT_ENUM] = &emit_enum;
+  visitor->accept[IDL_ACCEPT_ENUMERATOR] = &emit_enumerator;
+  visitor->accept[IDL_ACCEPT_INHERIT_SPEC] = &emit_inherit_spec;
+  visitor->accept[IDL_ACCEPT_SEQUENCE] = &emit_sequence;
+  visitor->accept[IDL_ACCEPT_FORWARD] = &emit_forward;
+}
+
+static void
+type_meta_reset_typeobjs (struct type_meta *tm)
+{
+  type_obj_fini (tm->to_minimal);
+  memset (tm->to_minimal, 0, sizeof (*tm->to_minimal));
+  type_obj_fini (tm->to_complete);
+  memset (tm->to_complete, 0, sizeof (*tm->to_complete));
+  tm->built = false;
+  tm->visiting = false;
+}
+
+static idl_retcode_t
+type_meta_scc_stack_push (struct descriptor_type_meta *dtm, struct type_meta *tm)
+{
+  if (dtm->scc_stack_len == dtm->scc_stack_size) {
+    const uint32_t size = dtm->scc_stack_size ? 2 * dtm->scc_stack_size : 8;
+    struct type_meta **stack = idl_realloc (dtm->scc_stack, size * sizeof (*stack));
+    if (stack == NULL)
+      return IDL_RETCODE_NO_MEMORY;
+    dtm->scc_stack = stack;
+    dtm->scc_stack_size = size;
+  }
+  dtm->scc_stack[dtm->scc_stack_len++] = tm;
+  tm->on_stack = true;
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+type_meta_sccs_append (struct descriptor_type_meta *dtm, struct type_meta_scc *scc)
+{
+  if (dtm->n_sccs == dtm->sccs_size) {
+    const uint32_t size = dtm->sccs_size ? 2 * dtm->sccs_size : 8;
+    struct type_meta_scc **sccs = idl_realloc (dtm->sccs, size * sizeof (*sccs));
+    if (sccs == NULL)
+      return IDL_RETCODE_NO_MEMORY;
+    dtm->sccs = sccs;
+    dtm->sccs_size = size;
+  }
+  dtm->sccs[dtm->n_sccs++] = scc;
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+type_meta_scc_work_append (struct descriptor_type_meta *dtm, struct type_meta_scc *scc)
+{
+  if (dtm->n_scc_work == dtm->scc_work_size) {
+    const uint32_t size = dtm->scc_work_size ? 2 * dtm->scc_work_size : 8;
+    struct type_meta_scc **work = idl_realloc (dtm->scc_work, size * sizeof (*work));
+    if (work == NULL)
+      return IDL_RETCODE_NO_MEMORY;
+    dtm->scc_work = work;
+    dtm->scc_work_size = size;
+  }
+  scc->order = dtm->n_scc_work;
+  dtm->scc_work[dtm->n_scc_work++] = scc;
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+type_meta_component_new (struct descriptor_type_meta *dtm, struct type_meta *root)
+{
+  struct type_meta_scc *scc = idl_calloc (1, sizeof (*scc));
+  if (scc == NULL)
+    return IDL_RETCODE_NO_MEMORY;
+
+  uint32_t n_nodes = 0;
+  for (uint32_t n = dtm->scc_stack_len; n > 0; n--) {
+    n_nodes++;
+    if (dtm->scc_stack[n - 1] == root)
+      break;
+  }
+  assert (n_nodes > 0);
+
+  scc->nodes = idl_calloc (n_nodes, sizeof (*scc->nodes));
+  if (scc->nodes == NULL) {
+    idl_free (scc);
+    return IDL_RETCODE_NO_MEMORY;
+  }
+  scc->n_nodes = n_nodes;
+
+  for (uint32_t n = n_nodes; n > 0; n--) {
+    struct type_meta *tm = dtm->scc_stack[--dtm->scc_stack_len];
+    tm->on_stack = false;
+    tm->scc = scc;
+    scc->nodes[n - 1] = tm;
+  }
+
+  idl_retcode_t ret = type_meta_sccs_append (dtm, scc);
+  if (ret != IDL_RETCODE_OK) {
+    idl_free (scc->nodes);
+    idl_free (scc);
+  }
+  return ret;
+}
+
+static idl_retcode_t
+type_meta_strongconnect (struct descriptor_type_meta *dtm, struct type_meta *tm)
+{
+  idl_retcode_t ret;
+  tm->index = dtm->next_index;
+  tm->lowlink = dtm->next_index++;
+  if ((ret = type_meta_scc_stack_push (dtm, tm)) != IDL_RETCODE_OK)
+    return ret;
+
+  for (uint32_t n = 0; n < tm->n_deps; n++) {
+    struct type_meta *dep = tm->deps[n];
+    if (dep->index == UINT32_MAX) {
+      if ((ret = type_meta_strongconnect (dtm, dep)) != IDL_RETCODE_OK)
+        return ret;
+      if (dep->lowlink < tm->lowlink)
+        tm->lowlink = dep->lowlink;
+    } else if (dep->on_stack && dep->index < tm->lowlink) {
+      tm->lowlink = dep->index;
+    }
+  }
+
+  return tm->lowlink == tm->index ? type_meta_component_new (dtm, tm) : IDL_RETCODE_OK;
+}
+
+static bool
+type_meta_scc_is_recursive (const struct type_meta_scc *scc)
+{
+  if (scc->n_nodes > 1)
+    return true;
+  for (uint32_t n = 0; n < scc->nodes[0]->n_deps; n++)
+    if (scc->nodes[0]->deps[n] == scc->nodes[0])
+      return true;
+  return false;
+}
+
+static idl_retcode_t
+type_meta_schedule_scc (struct descriptor_type_meta *dtm, struct type_meta_scc *scc)
+{
+  if (scc->scheduled)
+    return IDL_RETCODE_OK;
+  if (scc->scheduling)
+    return IDL_RETCODE_BAD_PARAMETER;
+
+  scc->scheduling = true;
+  idl_retcode_t ret = IDL_RETCODE_OK;
+  for (uint32_t n = 0; ret == IDL_RETCODE_OK && n < scc->n_nodes; n++) {
+    struct type_meta *tm = scc->nodes[n];
+    for (uint32_t d = 0; ret == IDL_RETCODE_OK && d < tm->n_deps; d++)
+      if (tm->deps[d]->scc != scc)
+        ret = type_meta_schedule_scc (dtm, tm->deps[d]->scc);
+  }
+  scc->scheduling = false;
+  if (ret != IDL_RETCODE_OK)
+    return ret;
+
+  scc->recursive = type_meta_scc_is_recursive (scc);
+  scc->scheduled = true;
+  return type_meta_scc_work_append (dtm, scc);
+}
+
+static idl_retcode_t
+type_meta_build_sccs (struct descriptor_type_meta *dtm)
+{
+  idl_retcode_t ret = IDL_RETCODE_OK;
+  for (struct type_meta *tm = dtm->admin; ret == IDL_RETCODE_OK && tm; tm = tm->admin_next)
+    if (tm->index == UINT32_MAX)
+      ret = type_meta_strongconnect (dtm, tm);
+  for (uint32_t n = 0; ret == IDL_RETCODE_OK && n < dtm->n_sccs; n++)
+    ret = type_meta_schedule_scc (dtm, dtm->sccs[n]);
+  return ret;
+}
+
+static int
+type_meta_node_name_cmp (const void *va, const void *vb)
+{
+  const struct type_meta *a = *(struct type_meta * const *) va;
+  const struct type_meta *b = *(struct type_meta * const *) vb;
+  const char *aname = a->scoped_name ? a->scoped_name : "";
+  const char *bname = b->scoped_name ? b->scoped_name : "";
+  int cmp = strcmp (aname, bname);
+  if (cmp != 0)
+    return cmp;
+  if (idl_type (a->node) != idl_type (b->node))
+    return idl_type (a->node) < idl_type (b->node) ? -1 : 1;
+  return a->order < b->order ? -1 : a->order > b->order;
+}
+
+static void
+type_meta_set_hash_id (struct type_meta *tm, DDS_XTypes_EquivalenceKind kind, const DDS_XTypes_EquivalenceHash hash)
+{
+  DDS_XTypes_TypeIdentifier *ti;
+  assert (kind == DDS_XTypes_EK_MINIMAL || kind == DDS_XTypes_EK_COMPLETE);
+  ti = kind == DDS_XTypes_EK_MINIMAL ? tm->ti_minimal : tm->ti_complete;
+  type_id_fini (ti);
+  memset (ti, 0, sizeof (*ti));
+  ti->_d = kind;
+  memcpy (ti->_u.equivalence_hash, hash, sizeof (ti->_u.equivalence_hash));
+}
+
+static void
+type_meta_set_scc_id (
+  struct type_meta *tm,
+  DDS_XTypes_EquivalenceKind kind,
+  int32_t scc_length,
+  int32_t scc_index,
+  const DDS_XTypes_EquivalenceHash *hash)
+{
+  DDS_XTypes_TypeIdentifier *ti;
+  assert (kind == DDS_XTypes_EK_MINIMAL || kind == DDS_XTypes_EK_COMPLETE);
+  ti = kind == DDS_XTypes_EK_MINIMAL ? tm->ti_minimal : tm->ti_complete;
+  type_id_fini (ti);
+  memset (ti, 0, sizeof (*ti));
+  ti->_d = DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT;
+  ti->_u.sc_component_id.sc_component_id._d = kind;
+  if (hash != NULL)
+    memcpy (ti->_u.sc_component_id.sc_component_id._u.hash, *hash, sizeof (*hash));
+  ti->_u.sc_component_id.scc_length = scc_length;
+  ti->_u.sc_component_id.scc_index = scc_index;
+}
+
+static idl_retcode_t
+get_scc_type_hash (
+  DDS_XTypes_EquivalenceHash hash,
+  const struct type_meta_scc *scc,
+  DDS_XTypes_EquivalenceKind kind)
+{
+  dds_ostreamLE_t os;
+  dds_ostreamLE_init (&os, &idlc_cdrstream_default_allocator, sizeof (uint32_t), DDSI_RTPS_CDR_ENC_VERSION_2);
+  if (os.x.m_buffer == NULL)
+    return IDL_RETCODE_NO_MEMORY;
+
+  os.x.m_buffer[0] = (unsigned char) (scc->n_nodes & 0xff);
+  os.x.m_buffer[1] = (unsigned char) ((scc->n_nodes >> 8) & 0xff);
+  os.x.m_buffer[2] = (unsigned char) ((scc->n_nodes >> 16) & 0xff);
+  os.x.m_buffer[3] = (unsigned char) ((scc->n_nodes >> 24) & 0xff);
+  os.x.m_index = sizeof (uint32_t);
+
+  for (uint32_t n = 0; n < scc->n_nodes; n++) {
+    const DDS_XTypes_TypeObject *to = kind == DDS_XTypes_EK_MINIMAL ? scc->nodes[n]->to_minimal : scc->nodes[n]->to_complete;
+    if (!dds_stream_writeLE (&os, &idlc_cdrstream_default_allocator, (const char *) to, DDS_XTypes_TypeObject_desc.m_ops)) {
+      dds_ostreamLE_fini (&os, &idlc_cdrstream_default_allocator);
+      return IDL_RETCODE_BAD_PARAMETER;
+    }
+  }
+
+  char buf[16];
+  idl_md5_state_t md5st;
+  idl_md5_init (&md5st);
+  idl_md5_append (&md5st, (idl_md5_byte_t *) os.x.m_buffer, os.x.m_index);
+  idl_md5_finish (&md5st, (idl_md5_byte_t *) buf);
+  memcpy (hash, buf, sizeof (DDS_XTypes_EquivalenceHash));
+  dds_ostreamLE_fini (&os, &idlc_cdrstream_default_allocator);
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+build_type_meta (
+  const idl_pstate_t *pstate,
+  struct descriptor_type_meta *dtm,
+  struct type_meta *tm,
+  struct type_meta_scc *scc)
+{
+  idl_visitor_t visitor;
+  init_type_meta_visitor (&visitor);
+  type_meta_reset_typeobjs (tm);
+
+  const idl_node_t *prev_walk_root = dtm->walk_root;
+  struct type_meta_scc *prev_rebuild_scc = dtm->rebuild_scc;
+  struct type_meta *prev_rebuild_target = dtm->rebuild_target;
+  dtm->walk_root = tm->node;
+  dtm->rebuild_scc = scc;
+  dtm->rebuild_target = tm;
+
+  idl_retcode_t ret = idl_visit (pstate, tm->node, &visitor, dtm);
+
+  dtm->walk_root = prev_walk_root;
+  dtm->rebuild_scc = prev_rebuild_scc;
+  dtm->rebuild_target = prev_rebuild_target;
+  if (ret == IDL_RETCODE_OK && dtm->stack != NULL)
+    return IDL_RETCODE_BAD_PARAMETER;
+  return ret;
+}
+
+static idl_retcode_t
+type_meta_finalize_node (
+  const idl_pstate_t *pstate,
+  struct descriptor_type_meta *dtm,
+  struct type_meta *tm)
+{
+  idl_retcode_t ret;
+  DDS_XTypes_EquivalenceHash hash;
+
+  if ((ret = build_type_meta (pstate, dtm, tm, NULL)) != IDL_RETCODE_OK)
+    return ret;
+  if ((ret = get_type_hash (hash, tm->to_minimal)) != IDL_RETCODE_OK)
+    return ret;
+  type_meta_set_hash_id (tm, DDS_XTypes_EK_MINIMAL, hash);
+  if ((ret = get_type_hash (hash, tm->to_complete)) != IDL_RETCODE_OK)
+    return ret;
+  type_meta_set_hash_id (tm, DDS_XTypes_EK_COMPLETE, hash);
+  tm->finalized = true;
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+type_meta_finalize_recursive_scc (
+  const idl_pstate_t *pstate,
+  struct descriptor_type_meta *dtm,
+  struct type_meta_scc *scc)
+{
+  idl_retcode_t ret;
+  DDS_XTypes_EquivalenceHash minimal_hash, complete_hash;
+
+  assert (scc->recursive);
+  if (scc->n_nodes > IDLC_TYPE_SCC_MAX_WIRE_TYPES) {
+    idl_error (pstate, idl_location (scc->nodes[0]->node),
+      "strongly connected type component contains %"PRIu32" types, maximum is %"PRIu32,
+      scc->n_nodes, IDLC_TYPE_SCC_MAX_WIRE_TYPES);
+    return IDL_RETCODE_BAD_PARAMETER;
+  }
+
+  qsort (scc->nodes, scc->n_nodes, sizeof (*scc->nodes), type_meta_node_name_cmp);
+
+  const int32_t scc_length = (int32_t) scc->n_nodes;
+  for (int32_t n = 0; n < scc_length; n++) {
+    type_meta_set_scc_id (scc->nodes[n], DDS_XTypes_EK_MINIMAL, scc_length, n + 1, NULL);
+    type_meta_set_scc_id (scc->nodes[n], DDS_XTypes_EK_COMPLETE, scc_length, n + 1, NULL);
+  }
+
+  for (uint32_t n = 0; n < scc->n_nodes; n++)
+    if ((ret = build_type_meta (pstate, dtm, scc->nodes[n], scc)) != IDL_RETCODE_OK)
+      return ret;
+
+  if ((ret = get_scc_type_hash (minimal_hash, scc, DDS_XTypes_EK_MINIMAL)) != IDL_RETCODE_OK ||
+      (ret = get_scc_type_hash (complete_hash, scc, DDS_XTypes_EK_COMPLETE)) != IDL_RETCODE_OK)
+    return ret;
+
+  for (int32_t n = 0; n < scc_length; n++) {
+    type_meta_set_scc_id (scc->nodes[n], DDS_XTypes_EK_MINIMAL, scc_length, n + 1, &minimal_hash);
+    type_meta_set_scc_id (scc->nodes[n], DDS_XTypes_EK_COMPLETE, scc_length, n + 1, &complete_hash);
+  }
+
+  for (uint32_t n = 0; n < scc->n_nodes; n++) {
+    if ((ret = build_type_meta (pstate, dtm, scc->nodes[n], scc)) != IDL_RETCODE_OK)
+      return ret;
+    scc->nodes[n]->finalized = true;
+  }
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+descriptor_type_meta_finalize (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm)
+{
+  idl_retcode_t ret;
+  if ((ret = type_meta_build_sccs (dtm)) != IDL_RETCODE_OK)
+    return ret;
+
+  for (uint32_t n = 0; n < dtm->n_scc_work; n++) {
+    struct type_meta_scc *scc = dtm->scc_work[n];
+    if (scc->recursive)
+      ret = type_meta_finalize_recursive_scc (pstate, dtm, scc);
+    else
+      ret = type_meta_finalize_node (pstate, dtm, scc->nodes[0]);
+    if (ret != IDL_RETCODE_OK)
+      return ret;
+  }
+  return IDL_RETCODE_OK;
+}
+
 static idl_retcode_t
 print_typeid_with_deps (
   FILE *fp,
@@ -1678,28 +2116,17 @@ generate_descriptor_type_meta (
   idl_visitor_t visitor;
 
   memset (dtm, 0, sizeof (*dtm));
-  memset (&visitor, 0, sizeof (visitor));
-
-  visitor.visit = IDL_STRUCT | IDL_UNION | IDL_DECLARATOR | IDL_BITMASK | IDL_BIT_VALUE | IDL_ENUM | IDL_ENUMERATOR | IDL_SWITCH_TYPE_SPEC | IDL_INHERIT_SPEC | IDL_SEQUENCE;
-  visitor.accept[IDL_ACCEPT_STRUCT] = &emit_struct;
-  visitor.accept[IDL_ACCEPT_UNION] = &emit_union;
-  visitor.accept[IDL_ACCEPT_SWITCH_TYPE_SPEC] = &emit_switch_type_spec;
-  visitor.accept[IDL_ACCEPT_DECLARATOR] = &emit_declarator;
-  visitor.accept[IDL_ACCEPT_BITMASK] = &emit_bitmask;
-  visitor.accept[IDL_ACCEPT_BIT_VALUE] = &emit_bit_value;
-  visitor.accept[IDL_ACCEPT_ENUM] = &emit_enum;
-  visitor.accept[IDL_ACCEPT_ENUMERATOR] = &emit_enumerator;
-  visitor.accept[IDL_ACCEPT_INHERIT_SPEC] = &emit_inherit_spec;
-  visitor.accept[IDL_ACCEPT_SEQUENCE] = &emit_sequence;
-  visitor.accept[IDL_ACCEPT_FORWARD] = &emit_forward;
+  init_type_meta_visitor (&visitor);
 
   /* must be invoked for topics only, so structs and unions */
   assert (idl_is_struct (node) || idl_is_union (node));
 
   dtm->root = node;
+  dtm->walk_root = node;
   if ((ret = idl_visit (pstate, node, &visitor, dtm)))
     return ret;
-  return IDL_RETCODE_OK;
+  assert (dtm->stack == NULL);
+  return descriptor_type_meta_finalize (pstate, dtm);
 }
 
 void
@@ -1717,10 +2144,20 @@ descriptor_type_meta_fini (struct descriptor_type_meta *dtm)
     type_obj_fini (tm->to_complete);
     idl_free (tm->to_complete);
 
+    idl_free (tm->deps);
+    idl_free (tm->scoped_name);
     struct type_meta *tmp = tm;
     tm = tm->admin_next;
     idl_free (tmp);
   }
+
+  for (uint32_t n = 0; n < dtm->n_sccs; n++) {
+    idl_free (dtm->sccs[n]->nodes);
+    idl_free (dtm->sccs[n]);
+  }
+  idl_free (dtm->sccs);
+  idl_free (dtm->scc_work);
+  idl_free (dtm->scc_stack);
 }
 
 static void
@@ -1905,4 +2342,3 @@ err_nomem:
   dds_ostreamLE_fini (&os_typemap, &idlc_cdrstream_default_allocator);
   return rc;
 }
-

@@ -99,6 +99,115 @@ CU_Test(idlc_type_meta, union_max_label_value)
   }
 }
 
+static void check_scc_type_id (
+  const DDS_XTypes_TypeIdentifier *ti,
+  DDS_XTypes_EquivalenceKind kind,
+  int32_t length,
+  int32_t index)
+{
+  CU_ASSERT_NEQ_FATAL (ti, NULL);
+  CU_ASSERT_EQ_FATAL (ti->_d, DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT);
+  CU_ASSERT_EQ (ti->_u.sc_component_id.sc_component_id._d, kind);
+  CU_ASSERT_EQ (ti->_u.sc_component_id.scc_length, length);
+  CU_ASSERT_EQ (ti->_u.sc_component_id.scc_index, index);
+
+  bool nonzero_hash = false;
+  for (size_t n = 0; n < sizeof (ti->_u.sc_component_id.sc_component_id._u.hash); n++)
+    nonzero_hash = nonzero_hash || ti->_u.sc_component_id.sc_component_id._u.hash[n] != 0;
+  CU_ASSERT_NEQ (nonzero_hash, false);
+}
+
+static const DDS_XTypes_TypeIdentifier *plain_sequence_element_type_id (const DDS_XTypes_TypeIdentifier *ti)
+{
+  switch (ti->_d)
+  {
+    case DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL:
+      return ti->_u.seq_sdefn.element_identifier;
+    case DDS_XTypes_TI_PLAIN_SEQUENCE_LARGE:
+      return ti->_u.seq_ldefn.element_identifier;
+    default:
+      return NULL;
+  }
+}
+
+static void check_recursive_struct_type_meta (const struct descriptor_type_meta *dtm)
+{
+  const struct type_meta *tm = dtm->admin;
+  check_scc_type_id (tm->ti_minimal, DDS_XTypes_EK_MINIMAL, 1, 1);
+  check_scc_type_id (tm->ti_complete, DDS_XTypes_EK_COMPLETE, 1, 1);
+
+  CU_ASSERT_EQ_FATAL (tm->to_minimal->_u.minimal._d, DDS_XTypes_TK_STRUCTURE);
+  CU_ASSERT_EQ_FATAL (tm->to_complete->_u.complete._d, DDS_XTypes_TK_STRUCTURE);
+  CU_ASSERT_EQ_FATAL (tm->to_minimal->_u.minimal._u.struct_type.member_seq._length, 2);
+  CU_ASSERT_EQ_FATAL (tm->to_complete->_u.complete._u.struct_type.member_seq._length, 2);
+
+  const DDS_XTypes_TypeIdentifier *min_seq_id = &tm->to_minimal->_u.minimal._u.struct_type.member_seq._buffer[0].common.member_type_id;
+  const DDS_XTypes_TypeIdentifier *complete_seq_id = &tm->to_complete->_u.complete._u.struct_type.member_seq._buffer[0].common.member_type_id;
+  check_scc_type_id (plain_sequence_element_type_id (min_seq_id), DDS_XTypes_EK_MINIMAL, 1, 1);
+  check_scc_type_id (plain_sequence_element_type_id (complete_seq_id), DDS_XTypes_EK_COMPLETE, 1, 1);
+}
+
+static void check_recursive_union_type_meta (const struct descriptor_type_meta *dtm)
+{
+  const struct type_meta *tm = dtm->admin;
+  check_scc_type_id (tm->ti_minimal, DDS_XTypes_EK_MINIMAL, 1, 1);
+  check_scc_type_id (tm->ti_complete, DDS_XTypes_EK_COMPLETE, 1, 1);
+
+  CU_ASSERT_EQ_FATAL (tm->to_minimal->_u.minimal._d, DDS_XTypes_TK_UNION);
+  CU_ASSERT_EQ_FATAL (tm->to_complete->_u.complete._d, DDS_XTypes_TK_UNION);
+  CU_ASSERT_EQ_FATAL (tm->to_minimal->_u.minimal._u.union_type.member_seq._length, 2);
+  CU_ASSERT_EQ_FATAL (tm->to_complete->_u.complete._u.union_type.member_seq._length, 2);
+
+  const DDS_XTypes_TypeIdentifier *min_self_id = &tm->to_minimal->_u.minimal._u.union_type.member_seq._buffer[0].common.type_id;
+  const DDS_XTypes_TypeIdentifier *complete_self_id = &tm->to_complete->_u.complete._u.union_type.member_seq._buffer[0].common.type_id;
+  check_scc_type_id (min_self_id, DDS_XTypes_EK_MINIMAL, 1, 1);
+  check_scc_type_id (complete_self_id, DDS_XTypes_EK_COMPLETE, 1, 1);
+}
+
+CU_Test(idlc_type_meta, recursive_scc_typeids)
+{
+  idl_retcode_t ret;
+  static const struct {
+    const char *idl;
+    void (*check) (const struct descriptor_type_meta *dtm);
+  } tests[] = {
+    {
+      "struct struct_test; @topic @final struct struct_test { sequence<struct_test> u1; @key long u2; };",
+      check_recursive_struct_type_meta
+    },
+    {
+      "union union_test; @topic @final union union_test switch (short) { case 1: @external union_test u1; default: char u2; };",
+      check_recursive_union_type_meta
+    }
+  };
+
+  uint32_t flags = IDL_FLAG_EXTENDED_DATA_TYPES |
+                   IDL_FLAG_ANONYMOUS_TYPES |
+                   IDL_FLAG_ANNOTATIONS;
+
+  for (size_t i = 0, n = sizeof (tests) / sizeof (tests[0]); i < n; i++) {
+    idl_pstate_t *pstate = NULL;
+    struct descriptor descriptor;
+    struct descriptor_type_meta dtm;
+
+    ret = idl_create_pstate (flags, NULL, &pstate);
+    CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+
+    memset (&descriptor, 0, sizeof (descriptor)); /* static analyzer */
+    ret = generate_test_descriptor (pstate, tests[i].idl, &descriptor);
+    CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+
+    ret = generate_descriptor_type_meta (pstate, descriptor.topic, &dtm);
+    CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+
+    tests[i].check (&dtm);
+
+    descriptor_type_meta_fini (&dtm);
+    descriptor_fini (&descriptor);
+    idl_delete_pstate (pstate);
+  }
+}
+
 
 static void xcdr2_ser (const void *obj, const struct dds_cdrstream_desc *desc, dds_ostreamLE_t *os)
 {

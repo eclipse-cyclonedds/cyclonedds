@@ -155,7 +155,8 @@ typedef void idl_definition_t;
 typedef void idl_type_spec_t;
 
 typedef uint64_t idl_mask_t;
-typedef void(*idl_delete_t)(void *node);
+typedef struct idl_delete_context idl_delete_context_t;
+typedef void(*idl_delete_t)(idl_delete_context_t *ctx, void *node);
 typedef void *(*idl_iterate_t)(const void *root, const void *node);
 typedef const char *(*idl_describe_t)(const void *node);
 

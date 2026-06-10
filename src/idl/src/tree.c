@@ -25,6 +25,85 @@
 #include "hashid.h"
 #include "fieldid.h"
 
+enum delete_state {
+  DELETE_PENDING,
+  DELETE_BUSY,
+  DELETE_DONE
+};
+
+struct delete_context_entry {
+  idl_node_t *node;
+  enum delete_state state;
+};
+
+struct idl_delete_context {
+  struct delete_context_entry *entries;
+  size_t length;
+  size_t capacity;
+};
+
+/* A tree can contain reference cycles through recursive types. While tearing
+   down such a tree, references to nodes in the same tree are internal and must
+   not keep the tree alive or recurse into already freed nodes. */
+static struct delete_context_entry *
+delete_context_find(const idl_delete_context_t *ctx, const void *node)
+{
+  if (ctx == NULL || node == NULL)
+    return NULL;
+  for (size_t n = 0; n < ctx->length; n++)
+    if (ctx->entries[n].node == node)
+      return &ctx->entries[n];
+  return NULL;
+}
+
+static struct delete_context_entry *
+delete_context_add(idl_delete_context_t *ctx, idl_node_t *node)
+{
+  struct delete_context_entry *entry;
+  if ((entry = delete_context_find(ctx, node)) != NULL)
+    return entry;
+
+  if (ctx->length == ctx->capacity) {
+    size_t capacity = ctx->capacity ? 2 * ctx->capacity : 64;
+    if (capacity < ctx->capacity || capacity > SIZE_MAX / sizeof (*ctx->entries))
+      abort();
+    struct delete_context_entry *entries =
+      idl_realloc(ctx->entries, capacity * sizeof(*entries));
+    if (entries == NULL)
+      abort();
+    ctx->entries = entries;
+    ctx->capacity = capacity;
+  }
+
+  entry = &ctx->entries[ctx->length++];
+  entry->node = node;
+  entry->state = DELETE_PENDING;
+  return entry;
+}
+
+static void delete_context_collect(idl_delete_context_t *ctx, void *ptr)
+{
+  for (idl_node_t *node = ptr; node; node = node->next) {
+    struct delete_context_entry *entry = delete_context_find(ctx, node);
+    if (entry != NULL) {
+      if (entry->state == DELETE_DONE)
+        return;
+      continue;
+    }
+
+    (void) delete_context_add(ctx, node);
+    delete_context_collect(ctx, node->annotations);
+    if (node->iterate) {
+      void *child = NULL;
+      while ((child = node->iterate(node, child)) != NULL)
+        delete_context_collect(ctx, child);
+    }
+  }
+}
+
+static void *delete_node(idl_delete_context_t *ctx, void *ptr);
+static void *unreference_node(idl_delete_context_t *ctx, void *ptr);
+
 void *idl_push_node(void *list, void *node)
 {
   idl_node_t *last;
@@ -49,8 +128,11 @@ void *idl_reference_node(void *node)
   return node;
 }
 
-void *idl_unreference_node(void *ptr)
+static void *unreference_node(idl_delete_context_t *ctx, void *ptr)
 {
+  if (delete_context_find(ctx, ptr) != NULL)
+    return ptr;
+
   idl_node_t *node = ptr;
   if (!node)
     return NULL;
@@ -64,12 +146,17 @@ void *idl_unreference_node(void *ptr)
       previous->next = next;
     if (next)
       next->previous = previous;
-    idl_delete_node((idl_node_t *)node->annotations);
+    delete_node(ctx, (idl_node_t *)node->annotations);
     if (node->destructor)
-      node->destructor(node);
+      node->destructor(ctx, node);
     return next;
   }
   return node;
+}
+
+void *idl_unreference_node(void *ptr)
+{
+  return unreference_node(NULL, ptr);
 }
 
 idl_mask_t idl_mask(const void *node)
@@ -318,58 +405,99 @@ create_node(
   return IDL_RETCODE_OK;
 }
 
-static void *delete_type_spec(void *node, idl_type_spec_t *type_spec)
+static void *delete_type_spec(idl_delete_context_t *ctx, void *node, idl_type_spec_t *type_spec)
 {
   void *next;
   if (!type_spec)
     return NULL;
   if (((idl_node_t *)type_spec)->parent != node) {
-    next = idl_unreference_node(type_spec);
+    next = unreference_node(ctx, type_spec);
     assert(next == type_spec);
   } else {
-    next = idl_delete_node(type_spec);
+    next = delete_node(ctx, type_spec);
     assert(next == NULL);
   }
   return next;
 }
 
-static void *delete_const_expr(void *node, idl_const_expr_t *const_expr)
+static void *delete_const_expr(idl_delete_context_t *ctx, void *node, idl_const_expr_t *const_expr)
 {
   void *next;
   if (!const_expr)
     return NULL;
   if (((idl_node_t *)const_expr)->parent != node) {
-    next = idl_unreference_node(const_expr);
+    next = unreference_node(ctx, const_expr);
     assert(next == const_expr);
   } else {
-    next = idl_delete_node(const_expr);
+    next = delete_node(ctx, const_expr);
     assert(next == NULL);
   }
   return next;
 }
 
-void *idl_delete_node(void *ptr)
+static void *delete_node_(idl_delete_context_t *ctx, void *ptr)
 {
+  struct delete_context_entry *entry = delete_context_find(ctx, ptr);
+  if (entry != NULL &&
+      (entry->state == DELETE_BUSY || entry->state == DELETE_DONE))
+    return NULL;
+
   idl_node_t *next, *node = ptr;
   if (!node)
     return NULL;
+
+  assert(ctx != NULL);
+  assert(entry != NULL);
+  entry->state = DELETE_BUSY;
+
   if ((next = node->next))
-    next = idl_delete_node(node->next);
-  node->references--;
-  assert(node->references >= 0);
-  if (node->references == 0) {
-    idl_node_t *previous = node->previous;
-    if (previous)
-      previous->next = next;
-    if (next)
+    next = delete_node(ctx, node->next);
+
+  idl_node_t *previous = node->previous;
+  struct delete_context_entry *previous_entry = delete_context_find(ctx, previous);
+  if (previous && !(previous_entry && previous_entry->state == DELETE_DONE))
+    previous->next = next;
+  if (next) {
+    if (previous_entry && previous_entry->state == DELETE_DONE)
+      next->previous = NULL;
+    else
       next->previous = previous;
-    idl_delete_node((idl_node_t *)node->annotations);
-    /* self-destruct */
-    if (node->destructor)
-      node->destructor(node);
-    return next;
   }
-  return node;
+
+  delete_node(ctx, (idl_node_t *)node->annotations);
+  /* self-destruct */
+  if (node->destructor)
+    node->destructor(ctx, node);
+  entry = delete_context_find(ctx, node);
+  assert(entry != NULL);
+  entry->state = DELETE_DONE;
+  return next;
+}
+
+static void *delete_node(idl_delete_context_t *ctx, void *ptr)
+{
+  if (!ptr)
+    return NULL;
+
+  if (ctx) {
+    struct delete_context_entry *entry = delete_context_find(ctx, ptr);
+    if (entry != NULL &&
+        (entry->state == DELETE_BUSY || entry->state == DELETE_DONE))
+      return NULL;
+    delete_context_collect(ctx, ptr);
+    return delete_node_(ctx, ptr);
+  }
+
+  idl_delete_context_t lctx = { 0 };
+  delete_context_collect(&lctx, ptr);
+  void *next = delete_node_(&lctx, ptr);
+  idl_free(lctx.entries);
+  return next;
+}
+
+void *idl_delete_node(void *ptr)
+{
+  return delete_node(NULL, ptr);
 }
 
 bool idl_is_declaration(const void *ptr)
@@ -404,10 +532,10 @@ bool idl_is_module(const void *ptr)
   return true;
 }
 
-static void delete_module(void *ptr)
+static void delete_module(idl_delete_context_t *ctx, void *ptr)
 {
   idl_module_t *node = (idl_module_t *)ptr;
-  idl_delete_node(node->definitions);
+  delete_node(ctx, node->definitions);
   idl_delete_name(node->name);
   idl_free(node);
 }
@@ -522,11 +650,11 @@ bool idl_is_const(const void *ptr)
   return true;
 }
 
-static void delete_const(void *ptr)
+static void delete_const(idl_delete_context_t *ctx, void *ptr)
 {
   idl_const_t *node = (idl_const_t *)ptr;
-  delete_type_spec(node, node->type_spec);
-  delete_const_expr(node, node->const_expr);
+  delete_type_spec(ctx, node, node->type_spec);
+  delete_const_expr(ctx, node, node->const_expr);
   idl_delete_name(node->name);
   idl_free(node);
 }
@@ -604,8 +732,9 @@ bool idl_is_literal(const void *ptr)
   return true;
 }
 
-static void delete_literal(void *ptr)
+static void delete_literal(idl_delete_context_t *ctx, void *ptr)
 {
+  (void)ctx;
   idl_literal_t *node = ptr;
   assert(idl_mask(node) & IDL_LITERAL);
   if (idl_mask(node) & IDL_STRING)
@@ -654,11 +783,11 @@ idl_create_literal(
   return IDL_RETCODE_OK;
 }
 
-static void delete_binary_expr(void *ptr)
+static void delete_binary_expr(idl_delete_context_t *ctx, void *ptr)
 {
   idl_binary_expr_t *node = ptr;
-  delete_const_expr(node, node->left);
-  delete_const_expr(node, node->right);
+  delete_const_expr(ctx, node, node->left);
+  delete_const_expr(ctx, node, node->right);
   idl_free(node);
 }
 
@@ -697,10 +826,10 @@ idl_create_binary_expr(
   return IDL_RETCODE_OK;
 }
 
-static void delete_unary_expr(void *ptr)
+static void delete_unary_expr(idl_delete_context_t *ctx, void *ptr)
 {
   idl_unary_expr_t *node = ptr;
-  delete_const_expr(node, node->right);
+  delete_const_expr(ctx, node, node->right);
   idl_free(node);
 }
 
@@ -760,8 +889,9 @@ bool idl_is_integer_type(const void *node)
   return (idl_mask(node) & IDL_INTEGER_TYPE) != 0;
 }
 
-static void delete_base_type(void *ptr)
+static void delete_base_type(idl_delete_context_t *ctx, void *ptr)
 {
+  (void)ctx;
   idl_free(ptr);
 }
 
@@ -913,10 +1043,10 @@ bool idl_is_sequence(const void *ptr)
   return true;
 }
 
-static void delete_sequence(void *ptr)
+static void delete_sequence(idl_delete_context_t *ctx, void *ptr)
 {
   idl_sequence_t *node = (idl_sequence_t *)ptr;
-  delete_type_spec(node, node->type_spec);
+  delete_type_spec(ctx, node, node->type_spec);
   idl_free(node);
 }
 
@@ -984,8 +1114,9 @@ bool idl_is_bounded_string(const void *ptr)
   return idl_is_string(ptr) && idl_is_bounded(ptr);
 }
 
-static void delete_string(void *ptr)
+static void delete_string(idl_delete_context_t *ctx, void *ptr)
 {
+  (void)ctx;
   idl_free(ptr);
 }
 
@@ -1071,8 +1202,9 @@ bool idl_is_bounded_xstring(const void *ptr)
   return idl_is_bounded_string(ptr) || idl_is_bounded_wstring(ptr);
 }
 
-static void delete_wstring(void *ptr)
+static void delete_wstring(idl_delete_context_t *ctx, void *ptr)
 {
+  (void)ctx;
   idl_free(ptr);
 }
 
@@ -1135,12 +1267,12 @@ bool idl_is_struct(const void *ptr)
   return true;
 }
 
-static void delete_struct(void *ptr)
+static void delete_struct(idl_delete_context_t *ctx, void *ptr)
 {
   idl_struct_t *node = ptr;
-  idl_delete_node(node->inherit_spec);
-  idl_delete_node(node->keylist);
-  idl_delete_node(node->members);
+  delete_node(ctx, node->inherit_spec);
+  delete_node(ctx, node->keylist);
+  delete_node(ctx, node->members);
   idl_delete_name(node->name);
   idl_free(node);
 }
@@ -1681,8 +1813,9 @@ bool idl_is_empty(const void *node)
   return empty;
 }
 
-static void delete_forward(void *ptr)
+static void delete_forward(idl_delete_context_t *ctx, void *ptr)
 {
+  (void)ctx;
   idl_forward_t *node = ptr;
   idl_delete_name(node->name);
   idl_free(node);
@@ -1760,10 +1893,10 @@ bool idl_is_inherit_spec(const void *ptr)
   return true;
 }
 
-static void delete_inherit_spec(void *ptr)
+static void delete_inherit_spec(idl_delete_context_t *ctx, void *ptr)
 {
   idl_inherit_spec_t *node = ptr;
-  idl_unreference_node(node->base);
+  unreference_node(ctx, node->base);
   idl_free(node);
 }
 
@@ -1795,8 +1928,9 @@ idl_create_inherit_spec(
   return IDL_RETCODE_OK;
 }
 
-static void delete_key(void *ptr)
+static void delete_key(idl_delete_context_t *ctx, void *ptr)
 {
+  (void)ctx;
   idl_key_t *node = ptr;
   idl_delete_field_name(node->field_name);
   idl_free(node);
@@ -1826,10 +1960,10 @@ idl_create_key(
   return IDL_RETCODE_OK;
 }
 
-static void delete_keylist(void *ptr)
+static void delete_keylist(idl_delete_context_t *ctx, void *ptr)
 {
   idl_keylist_t *node = ptr;
-  idl_delete_node(node->keys);
+  delete_node(ctx, node->keys);
   idl_free(node);
 }
 
@@ -1876,11 +2010,11 @@ bool idl_is_member(const void *ptr)
   return true;
 }
 
-static void delete_member(void *ptr)
+static void delete_member(idl_delete_context_t *ctx, void *ptr)
 {
   idl_member_t *node = ptr;
-  delete_type_spec(node, node->type_spec);
-  idl_delete_node(node->declarators);
+  delete_type_spec(ctx, node, node->type_spec);
+  delete_node(ctx, node->declarators);
   idl_free(node);
 }
 
@@ -1982,12 +2116,12 @@ bool idl_is_union(const void *ptr)
   return true;
 }
 
-static void delete_union(void *ptr)
+static void delete_union(idl_delete_context_t *ctx, void *ptr)
 {
   idl_union_t *node = ptr;
-  idl_delete_node(node->switch_type_spec);
-  idl_unreference_node(node->default_case);
-  idl_delete_node(node->cases);
+  delete_node(ctx, node->switch_type_spec);
+  unreference_node(ctx, node->default_case);
+  delete_node(ctx, node->cases);
   idl_delete_name(node->name);
   idl_free(node);
 }
@@ -2394,10 +2528,10 @@ idl_is_switch_type_spec(const void *ptr)
   }
 }
 
-static void delete_switch_type_spec(void *ptr)
+static void delete_switch_type_spec(idl_delete_context_t *ctx, void *ptr)
 {
   idl_switch_type_spec_t *node = ptr;
-  delete_type_spec(node, node->type_spec);
+  delete_type_spec(ctx, node, node->type_spec);
   idl_free(node);
 }
 
@@ -2501,12 +2635,12 @@ bool idl_is_implicit_default_case(const void *ptr)
   return false;
 }
 
-static void delete_case(void *ptr)
+static void delete_case(idl_delete_context_t *ctx, void *ptr)
 {
   idl_case_t *node = ptr;
-  delete_type_spec(node, node->type_spec);
-  idl_delete_node(node->labels);
-  idl_delete_node(node->declarator);
+  delete_type_spec(ctx, node, node->type_spec);
+  delete_node(ctx, node->labels);
+  delete_node(ctx, node->declarator);
   idl_free(node);
 }
 
@@ -2634,10 +2768,10 @@ bool idl_is_implicit_default_case_label(const void *ptr)
   return idl_is_case_label_mask_impl (ptr, IDL_IMPLICIT_DEFAULT_CASE_LABEL);
 }
 
-static void delete_case_label(void *ptr)
+static void delete_case_label(idl_delete_context_t *ctx, void *ptr)
 {
   idl_case_label_t *node = ptr;
-  delete_const_expr(node, node->const_expr);
+  delete_const_expr(ctx, node, node->const_expr);
   idl_free(node);
 }
 
@@ -2736,10 +2870,10 @@ uint32_t idl_enum_max_value(const void *ptr)
   return max;
 }
 
-static void delete_enum(void *ptr)
+static void delete_enum(idl_delete_context_t *ctx, void *ptr)
 {
   idl_enum_t *node = ptr;
-  idl_delete_node(node->enumerators);
+  delete_node(ctx, node->enumerators);
   idl_delete_name(node->name);
   idl_free(node);
 }
@@ -2868,8 +3002,9 @@ bool idl_is_enumerator(const void *ptr)
   return true;
 }
 
-static void delete_enumerator(void *ptr)
+static void delete_enumerator(idl_delete_context_t *ctx, void *ptr)
 {
+  (void)ctx;
   idl_enumerator_t *node = ptr;
   idl_delete_name(node->name);
   idl_free(node);
@@ -2939,10 +3074,10 @@ bool idl_is_bitmask(const void *ptr)
   return true;
 }
 
-static void delete_bitmask(void *ptr)
+static void delete_bitmask(idl_delete_context_t *ctx, void *ptr)
 {
   idl_bitmask_t *node = ptr;
-  idl_delete_node(node->bit_values);
+  delete_node(ctx, node->bit_values);
   idl_delete_name(node->name);
   idl_free(node);
 }
@@ -3038,8 +3173,9 @@ bool idl_is_bit_value(const void *ptr)
   return true;
 }
 
-static void delete_bit_value(void *ptr)
+static void delete_bit_value(idl_delete_context_t *ctx, void *ptr)
 {
+  (void)ctx;
   idl_bit_value_t *node = ptr;
   idl_delete_name(node->name);
   idl_free(node);
@@ -3118,11 +3254,11 @@ bool idl_is_typedef(const void *ptr)
   return true;
 }
 
-static void delete_typedef(void *ptr)
+static void delete_typedef(idl_delete_context_t *ctx, void *ptr)
 {
   idl_typedef_t *node = ptr;
-  delete_type_spec(node, node->type_spec);
-  idl_delete_node(node->declarators);
+  delete_type_spec(ctx, node, node->type_spec);
+  delete_node(ctx, node->declarators);
   idl_free(node);
 }
 
@@ -3205,10 +3341,10 @@ bool idl_is_array(const void *ptr)
   return node->const_expr != NULL;
 }
 
-static void delete_declarator(void *ptr)
+static void delete_declarator(idl_delete_context_t *ctx, void *ptr)
 {
   idl_declarator_t *node = ptr;
-  idl_delete_node(node->const_expr);
+  delete_node(ctx, node->const_expr);
   idl_delete_name(node->name);
   idl_free(node);
 }
@@ -3275,12 +3411,12 @@ bool idl_is_annotation_member(const void *ptr)
   return true;
 }
 
-static void delete_annotation_member(void *ptr)
+static void delete_annotation_member(idl_delete_context_t *ctx, void *ptr)
 {
   idl_annotation_member_t *node = ptr;
-  delete_type_spec(node, node->type_spec);
-  delete_const_expr(node, node->const_expr);
-  idl_delete_node(node->declarator);
+  delete_type_spec(ctx, node, node->type_spec);
+  delete_const_expr(ctx, node, node->const_expr);
+  delete_node(ctx, node->declarator);
   idl_free(node);
 }
 
@@ -3529,10 +3665,10 @@ err_incompat:
   return IDL_RETCODE_SEMANTIC_ERROR;
 }
 
-static void delete_annotation(void *ptr)
+static void delete_annotation(idl_delete_context_t *ctx, void *ptr)
 {
   idl_annotation_t *node = ptr;
-  idl_delete_node(node->definitions);
+  delete_node(ctx, node->definitions);
   idl_delete_name(node->name);
   idl_free(node);
 }
@@ -3607,11 +3743,11 @@ err_node:
   return ret;
 }
 
-static void delete_annotation_appl_param(void *ptr)
+static void delete_annotation_appl_param(idl_delete_context_t *ctx, void *ptr)
 {
   idl_annotation_appl_param_t *node = ptr;
-  delete_const_expr(node, node->const_expr);
-  idl_unreference_node(node->member);
+  delete_const_expr(ctx, node, node->const_expr);
+  unreference_node(ctx, node->member);
   idl_free(node);
 }
 
@@ -3669,11 +3805,11 @@ bool idl_is_annotation_appl(const void *ptr)
   return true;
 }
 
-static void delete_annotation_appl(void *ptr)
+static void delete_annotation_appl(idl_delete_context_t *ctx, void *ptr)
 {
   idl_annotation_appl_t *node = ptr;
-  idl_unreference_node((idl_annotation_t *)node->annotation);
-  idl_delete_node(node->parameters);
+  unreference_node(ctx, (idl_annotation_t *)node->annotation);
+  delete_node(ctx, node->parameters);
   idl_free(node);
 }
 

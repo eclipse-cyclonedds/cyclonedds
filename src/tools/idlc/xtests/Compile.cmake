@@ -102,26 +102,13 @@ foreach(_source ${_sources})
 
   # idl compile the idl file
 
-  # FIXME: temporary disable leak checking for tests with recursive types
-  if (${_source} MATCHES ".*_r[.]idl")
-    set(ENV{ASAN_OPTIONS} "detect_leaks=0")
-  endif()
-
-  if($ENV{HAS_TYPE_META})
-    set(_disable_type_meta_option "-t")
-  endif()
-
   execute_process(
-    COMMAND ${_idl_compiler} ${_disable_type_meta_option} ${_source}   # FIXME: generating type meta-data disabled because recursive types are not supported yet
+    COMMAND ${_idl_compiler} ${_source}
     COMMAND_ECHO STDOUT
     WORKING_DIRECTORY ${_base_dir}
     RESULT_VARIABLE _result)
   if(NOT _result EQUAL "0")
     message(FATAL_ERROR "Cannot transpile ${_source} to source code")
-  endif()
-  # FIXME: re-enable leak checking
-  if (${_source} MATCHES ".*_r[.]idl")
-    unset(ENV{ASAN_OPTIONS})
   endif()
 
   # compile and link c files
