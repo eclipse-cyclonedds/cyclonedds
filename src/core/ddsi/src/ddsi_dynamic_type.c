@@ -371,13 +371,25 @@ static dds_return_t dynamic_type_finalize_locked (struct ddsi_type **type, struc
       /* The constructed type exists in the type library, but is not (fully) resolved. */
       if ((ret = dynamic_type_track_replaced_locked (gv, replaced, *type)) != DDS_RETCODE_OK)
         goto err_typeid;
-      ddsi_xt_copy (gv, &ref_type->xt, &(*type)->xt);
+      if (ddsi_xt_missing_definition (&ref_type->xt))
+      {
+        ddsi_typeid_fini (&ref_type->xt.id);
+        ddsi_xt_copy (gv, &ref_type->xt, &(*type)->xt);
+        /* ddsi_xt_copy also copies the construction record's current id,
+           which may not yet be the canonical id computed above. */
+        ddsi_typeid_fini (&ref_type->xt.id);
+        ddsi_typeid_copy_impl (&ref_type->xt.id.x, &ti);
+        ref_type->xt.kind = ddsi_typeid_kind (&ref_type->xt.id);
+      }
       dynamic_type_replace_locked (type, ref_type);
       (void) ddsi_type_visit_seen (visited, *type);
     }
 
-    ddsi_typeid_copy_impl (&(*type)->xt.id.x, &ti);
-    (*type)->xt.kind = ddsi_typeid_kind (&(*type)->xt.id);
+    if (ref_type == NULL)
+    {
+      ddsi_typeid_copy_impl (&(*type)->xt.id.x, &ti);
+      (*type)->xt.kind = ddsi_typeid_kind (&(*type)->xt.id);
+    }
     assert ((*type)->xt.kind != DDSI_TYPEID_KIND_INVALID); // internally generated, so must be valid
 
     if ((*type)->xt.id.x._d == DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT && (*type)->scc == NULL)

@@ -18,6 +18,7 @@
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
 #include "ddsi__entity.h"
@@ -45,6 +46,30 @@ static int ddsi_typeid_compare_src_dep (const void *typedep_a, const void *typed
 static int ddsi_typeid_compare_dep_src (const void *typedep_a, const void *typedep_b);
 const ddsrt_avl_treedef_t ddsi_typedeps_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_type_dep, src_avl_node), 0, ddsi_typeid_compare_src_dep, 0);
 const ddsrt_avl_treedef_t ddsi_typedeps_reverse_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_type_dep, dep_avl_node), 0, ddsi_typeid_compare_dep_src, 0);
+
+#ifndef NDEBUG
+void ddsi_typelib_dump_if_not_empty (struct ddsi_domaingv *gv)
+{
+  if (ddsrt_avl_is_empty (&gv->typelib))
+    return;
+
+  GVERROR ("typelib not empty at shutdown:\n");
+  ddsrt_avl_iter_t it;
+  for (struct ddsi_type *type = ddsrt_avl_iter_first (&ddsi_typelib_treedef, &gv->typelib, &it);
+       type != NULL; type = ddsrt_avl_iter_next (&it))
+  {
+    if (type->scc)
+      GVERROR ("  type=%p state=%d kind=%d refc=%"PRIu32" scc=%p scc_refc=%"PRIu32" active=%d freeing=%d nwire=%"PRIu32" ntypes=%"PRIu32" generated_minimal_ref=%p\n",
+               (void *) type, type->state, type->xt.id.x._d, type->refc, (void *) type->scc,
+               type->scc->refc, type->scc->active, type->scc->freeing,
+               type->scc->n_wire_types, type->scc->n_types,
+               (void *) type->scc->generated_minimal_ref);
+    else
+      GVERROR ("  type=%p state=%d kind=%d refc=%"PRIu32" scc=%p\n",
+               (void *) type, type->state, type->xt.id.x._d, type->refc, (void *) type->scc);
+  }
+}
+#endif
 
 static const char *type_state_str (enum ddsi_type_state state)
 {

@@ -1975,6 +1975,7 @@ void ddsi_fini (struct ddsi_domaingv *gv)
 #ifdef DDS_HAS_TYPELIB
 #ifndef NDEBUG
   {
+    ddsi_typelib_dump_if_not_empty (gv);
     assert(ddsrt_avl_is_empty(&gv->typelib));
     assert(ddsrt_avl_is_empty(&gv->typedeps));
     assert(ddsrt_avl_is_empty(&gv->typedeps_reverse));

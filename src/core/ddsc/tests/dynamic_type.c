@@ -1148,6 +1148,58 @@ CU_Test (ddsc_dynamic_type, recursive_struct, .init = dynamic_type_init, .fini =
   dds_dynamic_type_unref (&dnode);
 }
 
+CU_Test (ddsc_dynamic_type, recursive_two_slot_duplicate_sequence_register_all_reverse, .init = dynamic_type_init, .fini = dynamic_type_fini)
+{
+  dds_dynamic_type_t da = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "DupSeqAllRevA" });
+  CU_ASSERT_EQ_FATAL (da.ret, DDS_RETCODE_OK);
+  dds_return_t ret = dds_dynamic_type_set_extensibility (&da, DDS_DYNAMIC_TYPE_EXT_APPENDABLE);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  dds_dynamic_type_t dseq_a1 = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_SEQUENCE,
+    .name = "dds_sequence_nonBasic",
+    .element_type = DDS_DYNAMIC_TYPE_SPEC (dds_dynamic_type_ref (&da))
+  });
+  CU_ASSERT_EQ_FATAL (dseq_a1.ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&da, DDS_DYNAMIC_MEMBER (dseq_a1, "as"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  dds_dynamic_type_t db = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "DupSeqAllRevB" });
+  CU_ASSERT_EQ_FATAL (db.ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_set_extensibility (&db, DDS_DYNAMIC_TYPE_EXT_APPENDABLE);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  dds_dynamic_type_t dseq_a2 = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_SEQUENCE,
+    .name = "dds_sequence_nonBasic",
+    .element_type = DDS_DYNAMIC_TYPE_SPEC (dds_dynamic_type_ref (&da))
+  });
+  CU_ASSERT_EQ_FATAL (dseq_a2.ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&db, DDS_DYNAMIC_MEMBER (dseq_a2, "as"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  dds_dynamic_type_t dseq_b = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_SEQUENCE,
+    .name = "dds_sequence_nonBasic",
+    .element_type = DDS_DYNAMIC_TYPE_SPEC (dds_dynamic_type_ref (&db))
+  });
+  CU_ASSERT_EQ_FATAL (dseq_b.ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&da, DDS_DYNAMIC_MEMBER (dseq_b, "bs"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  /* This registration order reproduces the xmltype/dyntypelib order that exposed the leak. */
+  dds_typeinfo_t *type_info_b;
+  ret = dds_dynamic_type_register (&db, &type_info_b);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  dds_typeinfo_t *type_info_a;
+  ret = dds_dynamic_type_register (&da, &type_info_a);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  dds_free_typeinfo (type_info_a);
+  dds_free_typeinfo (type_info_b);
+  dds_dynamic_type_unref (&da);
+  dds_dynamic_type_unref (&db);
+}
+
 CU_Test (ddsc_dynamic_type, type_info, .init = dynamic_type_init, .fini = dynamic_type_fini)
 {
   dds_dynamic_type_t dsub1 = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dsub1" });

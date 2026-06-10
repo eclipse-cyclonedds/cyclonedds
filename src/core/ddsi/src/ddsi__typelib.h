@@ -50,6 +50,12 @@ enum ddsi_type_state {
   DDSI_TYPE_REPLACED
 };
 
+#ifndef NDEBUG
+/** @component type_system */
+void ddsi_typelib_dump_if_not_empty (struct ddsi_domaingv *gv)
+  ddsrt_nonnull_all;
+#endif
+
 /** @component type_system */
 struct ddsrt_hh *ddsi_type_visit_new (void)
   ddsrt_attribute_warn_unused_result;
