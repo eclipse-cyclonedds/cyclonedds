@@ -29,8 +29,11 @@
 
 #include "psmx_iox2_impl.h"
 
-#define PSMX_IOX2_VERSION_GEQ(ma, mi, pa)                               \
+#define PSMX_IOX2_VERSION_GEQ(ma, mi, pa) \
   ((PSMX_IOX2_MAJOR * 1000000 + PSMX_IOX2_MINOR * 1000 + PSMX_IOX2_PATCH) >= \
+   ((ma) * 1000000 + (mi) * 1000 + (pa)))
+#define PSMX_IOX2_VERSION_GT(ma, mi, pa) \
+  ((PSMX_IOX2_MAJOR * 1000000 + PSMX_IOX2_MINOR * 1000 + PSMX_IOX2_PATCH) > \
    ((ma) * 1000000 + (mi) * 1000 + (pa)))
 
 // I think we need to track whether the listener thread is supposed to stop or not because we don't
@@ -309,6 +312,30 @@ static void on_event_try_take (psmx_iox2_partition_topic_t * const part_topic)
   ddsrt_mutex_unlock (&part_topic->lock);
 }
 
+#if PSMX_IOX2_VERSION_GT(0,9,1)
+typedef struct {
+  psmx_iox2_partition_topic_t *part_topic;
+  iox2_callback_progression_e retval;
+} listener_event_arg;
+
+static void on_listener_event_try (const iox2_event_id_t *event_id, uint64_t count, void *varg)
+{
+  listener_event_arg * const arg = varg;
+  (void) event_id;
+#if USE_STOP_EVENT
+  if (event_id->value == stop_event.value)
+  {
+    arg->retval = iox2_callback_progression_e_STOP;
+    return;
+  }
+#endif
+
+  assert (event_id->value == data_event.value);
+  for (uint64_t n = 0; n < count; n++)
+    on_event_try_take (arg->part_topic);
+}
+#endif
+
 static iox2_callback_progression_e on_event_try (psmx_iox2_partition_topic_t * const part_topic, iox2_listener_h_ref listener)
 {
   while (true)
@@ -318,6 +345,27 @@ static iox2_callback_progression_e on_event_try (psmx_iox2_partition_topic_t * c
       return iox2_callback_progression_e_STOP;
 #endif
 
+#if PSMX_IOX2_VERSION_GT(0,9,1)
+    listener_event_arg callback_arg = {
+      .part_topic = part_topic,
+      .retval = iox2_callback_progression_e_CONTINUE
+    };
+    uint64_t number_of_notifications = 0;
+    int e = iox2_listener_try_wait (listener, &number_of_notifications, on_listener_event_try, &callback_arg);
+    if (e != IOX2_OK)
+    {
+      log_error ("Failed to receive event on listener: %s [%d]", iox2_listener_wait_error_string ((iox2_listener_wait_error_e)e), e);
+      return iox2_callback_progression_e_STOP;
+    }
+    else if (callback_arg.retval == iox2_callback_progression_e_STOP)
+    {
+      return iox2_callback_progression_e_STOP;
+    }
+    else if (number_of_notifications == 0)
+    {
+      break;
+    }
+#else
     bool has_received_event;
     iox2_event_id_t event_id;
     int e = iox2_listener_try_wait_one (listener, &event_id, &has_received_event);
@@ -333,8 +381,7 @@ static iox2_callback_progression_e on_event_try (psmx_iox2_partition_topic_t * c
 #if USE_STOP_EVENT
     else if (event_id.value == stop_event.value)
     {
-      retval = iox2_callback_progression_e_STOP;
-      break;
+      return iox2_callback_progression_e_STOP;
     }
 #endif
     else
@@ -342,6 +389,7 @@ static iox2_callback_progression_e on_event_try (psmx_iox2_partition_topic_t * c
       assert (event_id.value == data_event.value);
       on_event_try_take (part_topic);
     }
+#endif
   }
   return iox2_callback_progression_e_CONTINUE;
 }
@@ -897,11 +945,11 @@ static bool psmx_iox2_init_writer (psmx_iox2_endpoint_t *ep, psmx_iox2_topic_t *
 
   dds_reliability_kind_t rel;
   (void) dds_qget_reliability (qos, &rel, NULL);
-#if PSMX_IOX2_VERSION_GEQ(0,90,0)
+#if PSMX_IOX2_VERSION_GEQ(0,9,0)
   iox2_backpressure_strategy_e discard = iox2_backpressure_strategy_e_DISCARD_DATA;
   iox2_backpressure_strategy_e block = iox2_backpressure_strategy_e_RETRY_UNTIL_DELIVERED;
   iox2_port_factory_publisher_builder_backpressure_strategy (&publisher_builder_handle, rel == DDS_RELIABILITY_BEST_EFFORT ? discard : block);
-#elif PSMX_IOX2_VERSION_GEQ(0,80,999)
+#elif PSMX_IOX2_VERSION_GEQ(0,8,999)
   iox2_unable_to_deliver_strategy_e discard = iox2_unable_to_deliver_strategy_e_DISCARD_DATA;
   iox2_unable_to_deliver_strategy_e block = iox2_unable_to_deliver_strategy_e_RETRY_UNTIL_DELIVERED;
   iox2_port_factory_publisher_builder_unable_to_deliver_strategy (&publisher_builder_handle, rel == DDS_RELIABILITY_BEST_EFFORT ? discard : block);
