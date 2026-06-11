@@ -31,6 +31,10 @@ extern const ddsrt_avl_treedef_t ddsi_typelib_treedef;
 extern const ddsrt_avl_treedef_t ddsi_typedeps_treedef;
 extern const ddsrt_avl_treedef_t ddsi_typedeps_reverse_treedef;
 
+const ddsrt_avl_treedef_t *ddsi_get_typelib_treedef (void);
+const ddsrt_avl_treedef_t *ddsi_get_typedeps_treedef (void);
+const ddsrt_avl_treedef_t *ddsi_get_typedeps_reverse_treedef (void);
+
 struct ddsi_domaingv;
 struct ddsrt_hh;
 struct ddsi_sertype;

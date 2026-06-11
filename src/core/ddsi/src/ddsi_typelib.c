@@ -47,6 +47,12 @@ static int ddsi_typeid_compare_dep_src (const void *typedep_a, const void *typed
 const ddsrt_avl_treedef_t ddsi_typedeps_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_type_dep, src_avl_node), 0, ddsi_typeid_compare_src_dep, 0);
 const ddsrt_avl_treedef_t ddsi_typedeps_reverse_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_type_dep, dep_avl_node), 0, ddsi_typeid_compare_dep_src, 0);
 
+// Some tests check the type library, on Windows exporting the corresponding tree
+// definitions is a pain, so provide a set of accessor functions.
+const ddsrt_avl_treedef_t *ddsi_get_typelib_treedef (void) { return &ddsi_typelib_treedef; }
+const ddsrt_avl_treedef_t *ddsi_get_typedeps_treedef (void) { return &ddsi_typedeps_treedef; }
+const ddsrt_avl_treedef_t *ddsi_get_typedeps_reverse_treedef (void) { return &ddsi_typedeps_reverse_treedef; }
+
 #ifndef NDEBUG
 void ddsi_typelib_dump_if_not_empty (struct ddsi_domaingv *gv)
 {

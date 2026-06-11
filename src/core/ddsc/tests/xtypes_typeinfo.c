@@ -318,13 +318,14 @@ static void test_proxy_rd_matches (dds_entity_t wr, bool exp_match)
 
 static uint32_t count_typeobj_deps_locked (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id)
 {
+  ddsrt_avl_treedef_t const * const td = ddsi_get_typedeps_treedef ();
   uint32_t count = 0;
   struct ddsi_type_dep tmpl;
   memset (&tmpl, 0, sizeof (tmpl));
   ddsi_typeid_copy (&tmpl.src_type_id, type_id);
 
   struct ddsi_type_dep *dep = &tmpl;
-  while ((dep = ddsrt_avl_lookup_succ (&ddsi_typedeps_treedef, &gv->typedeps, dep)) != NULL &&
+  while ((dep = ddsrt_avl_lookup_succ (td, &gv->typedeps, dep)) != NULL &&
          ddsi_typeid_compare (type_id, &dep->src_type_id) == 0)
   {
     if (!dep->from_type_info)
