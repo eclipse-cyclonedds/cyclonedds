@@ -184,7 +184,24 @@ DDSRT_WARNING_CLANG_ON(missing-prototypes)
 // are executed when a thread (or program) attaches or detaches. In contrast to
 // DllMain, a TLS initializer is also executed when the library is linked
 // statically. TLS initializers are always executed before DllMain (both when
-// the library is attached and detached). See http://www.nynaeve.net/?p=190,
+// the library is attached and detached).
+//
+// The Windows C Runtime (CRT) has startup code which gets linked in alongside your
+// application. Its initialization and startup code get called before your application
+// code and it provides the ability to hook-in callbacks to be called as part of the
+// initialization process.
+// 
+// This is configured through specially named sections between .CRT$XLA till .CRT$XLZ
+// (where XLA and XLZ represent the sentinel values for the region). You can configure
+// your callbacks to execute on thread initialization by attaching your function to
+// .CRT$XLB to .CRT$XLY inclusive. The functions associated with these sections will
+// be called in alphabetical order from B till Y.
+//
+// WARN: BE CAREFUL NOT TO SPECIFY YOUR FUNCTION CALLBACKS AGAINST XLA nor XLZ! Only
+// configure them from XLB till XLY!
+// 
+// See https://web.archive.org/web/20251109192547/http://www.nynaeve.net/?p=190
+// and https://learn.microsoft.com/en-us/cpp/c-runtime-library/crt-initialization?view=msvc-170/
 // for a detailed explanation on TLS initializers. Boost and/or POSIX Threads
 // for Windows code bases may also form good sources of information on this
 // subject.
