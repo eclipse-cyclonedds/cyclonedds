@@ -55,3 +55,21 @@ struct dstruct {
     dunion m_union;
     denum m_enum;
 };
+
+@final
+struct dcycle1 {
+    int32 value;
+    sequence<dcycle1> next;
+};
+
+@final
+struct dcycle2 {
+    int32 value;
+    sequence<dcycle2> next;
+};
+
+@final
+struct dmulti_scc {
+    dcycle1 a;
+    dcycle2 b;
+};

@@ -1200,6 +1200,67 @@ CU_Test (ddsc_dynamic_type, recursive_two_slot_duplicate_sequence_register_all_r
   dds_dynamic_type_unref (&db);
 }
 
+static uint32_t count_scc_typeobject_pairs (const dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *pairs)
+{
+  uint32_t count = 0;
+  for (uint32_t n = 0; n < pairs->_length; n++)
+  {
+    if (pairs->_buffer[n].type_identifier._d == DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT)
+      count++;
+  }
+  return count;
+}
+
+static void assert_idlc_complete_scc_count (const dds_topic_descriptor_t *desc, uint32_t count)
+{
+  ddsi_typemap_t *typemap = ddsi_typemap_deser (desc->type_mapping.data, desc->type_mapping.sz);
+  CU_ASSERT_NEQ_FATAL (typemap, NULL);
+  CU_ASSERT_EQ (count_scc_typeobject_pairs (&typemap->x.identifier_object_pair_complete), count);
+  ddsi_typemap_fini (typemap);
+  ddsrt_free (typemap);
+}
+
+static void assert_dynamic_type_matches_idlc (dds_dynamic_type_t *dtype, const dds_topic_descriptor_t *desc)
+{
+  dds_typeinfo_t *type_info;
+  dds_return_t ret = dds_dynamic_type_register (dtype, &type_info);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  struct ddsi_typeinfo *dti = (struct ddsi_typeinfo *) type_info;
+
+  ddsi_typeinfo_t *ti = ddsi_typeinfo_deser (desc->type_information.data, desc->type_information.sz);
+  CU_ASSERT_NEQ_FATAL (ti, NULL);
+  CU_ASSERT_EQ_FATAL (ddsi_typeid_compare (ddsi_typeinfo_minimal_typeid (dti), ddsi_typeinfo_minimal_typeid (ti)), 0);
+  CU_ASSERT_EQ_FATAL (ddsi_typeid_compare (ddsi_typeinfo_complete_typeid (dti), ddsi_typeinfo_complete_typeid (ti)), 0);
+  if (!ddsi_typeinfo_equal (dti, ti, DDSI_TYPE_INCLUDE_DEPS))
+    CU_FAIL ("typeinfo not equal");
+
+  struct ddsi_domaingv *gv = get_domaingv (participant);
+  const ddsi_typeid_t *tid = ddsi_typeinfo_complete_typeid (dti);
+  struct ddsi_type *t = ddsi_type_lookup (gv, tid);
+  CU_ASSERT_NEQ_FATAL (t, NULL);
+
+  unsigned char *data;
+  uint32_t sz;
+  ret = ddsi_type_get_typemap_ser (gv, t, &data, &sz);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ddsi_typemap_t *dtypemap = ddsi_typemap_deser (data, sz);
+  ddsi_typemap_t *typemap = ddsi_typemap_deser (desc->type_mapping.data, desc->type_mapping.sz);
+  ddsrt_free (data);
+  CU_ASSERT_NEQ_FATAL (dtypemap, NULL);
+  CU_ASSERT_NEQ_FATAL (typemap, NULL);
+
+  if (!ddsi_typemap_equal (dtypemap, typemap))
+    CU_FAIL ("typemap not equal");
+  ddsi_typemap_fini (dtypemap);
+  ddsi_typemap_fini (typemap);
+  ddsrt_free (dtypemap);
+  ddsrt_free (typemap);
+
+  ddsi_typeinfo_fini (ti);
+  ddsrt_free (ti);
+  dds_free_typeinfo (type_info);
+}
+
 CU_Test (ddsc_dynamic_type, type_info, .init = dynamic_type_init, .fini = dynamic_type_fini)
 {
   dds_dynamic_type_t dsub1 = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dsub1" });
@@ -1263,38 +1324,49 @@ CU_Test (ddsc_dynamic_type, type_info, .init = dynamic_type_init, .fini = dynami
   dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER(dunion, "m_union"));
   dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER(denum, "m_enum"));
 
-  dds_typeinfo_t *type_info;
-  dds_return_t ret = dds_dynamic_type_register (&dstruct, &type_info);
-  if (ret != DDS_RETCODE_OK)
-    DDS_FATAL ("dds_dynamic_type_register: %s\n", dds_strretcode (-ret));
-  struct ddsi_typeinfo *dti = (struct ddsi_typeinfo *) type_info;
-
-  struct ddsi_domaingv *gv = get_domaingv (participant);
-  const ddsi_typeid_t *tid = ddsi_typeinfo_complete_typeid (dti);
-  struct ddsi_type *t = ddsi_type_lookup (gv, tid);
-  unsigned char *data;
-  uint32_t sz;
-  ret = ddsi_type_get_typemap_ser (gv, t, &data, &sz);
-  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
-  ddsi_typemap_t *dtypemap = ddsi_typemap_deser (data, sz);
-  ddsi_typemap_t *typemap = ddsi_typemap_deser (dstruct_desc.type_mapping.data, dstruct_desc.type_mapping.sz);
-  ddsrt_free (data);
-
-  if (!ddsi_typemap_equal (dtypemap, typemap))
-    CU_FAIL ("typemap not equal");
-  ddsi_typemap_fini (dtypemap);
-  ddsi_typemap_fini (typemap);
-  ddsrt_free (dtypemap);
-  ddsrt_free (typemap);
-
-  ddsi_typeinfo_t *ti = ddsi_typeinfo_deser (dstruct_desc.type_information.data, dstruct_desc.type_information.sz);
-  if (!ddsi_typeinfo_equal (dti, ti, DDSI_TYPE_INCLUDE_DEPS))
-    CU_FAIL ("typeinfo not equal");
-
-  ddsi_typeinfo_fini (ti);
-  ddsrt_free (ti);
+  assert_dynamic_type_matches_idlc (&dstruct, &dstruct_desc);
   dds_dynamic_type_unref (&dstruct);
-  dds_free_typeinfo (type_info);
+}
+
+CU_Test (ddsc_dynamic_type, type_info_multi_scc, .init = dynamic_type_init, .fini = dynamic_type_fini)
+{
+  assert_idlc_complete_scc_count (&dmulti_scc_desc, 2);
+
+  dds_dynamic_type_t dcycle1 = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dcycle1" });
+  CU_ASSERT_EQ_FATAL (dcycle1.ret, DDS_RETCODE_OK);
+  dds_dynamic_type_t dseq1 = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_SEQUENCE,
+    .name = "dcycle1_seq",
+    .element_type = DDS_DYNAMIC_TYPE_SPEC (dds_dynamic_type_ref (&dcycle1))
+  });
+  CU_ASSERT_EQ_FATAL (dseq1.ret, DDS_RETCODE_OK);
+  dds_return_t ret = dds_dynamic_type_add_member (&dcycle1, DDS_DYNAMIC_MEMBER_PRIM (DDS_DYNAMIC_INT32, "value"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&dcycle1, DDS_DYNAMIC_MEMBER (dseq1, "next"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  dds_dynamic_type_t dcycle2 = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dcycle2" });
+  CU_ASSERT_EQ_FATAL (dcycle2.ret, DDS_RETCODE_OK);
+  dds_dynamic_type_t dseq2 = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_SEQUENCE,
+    .name = "dcycle2_seq",
+    .element_type = DDS_DYNAMIC_TYPE_SPEC (dds_dynamic_type_ref (&dcycle2))
+  });
+  CU_ASSERT_EQ_FATAL (dseq2.ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&dcycle2, DDS_DYNAMIC_MEMBER_PRIM (DDS_DYNAMIC_INT32, "value"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&dcycle2, DDS_DYNAMIC_MEMBER (dseq2, "next"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  dds_dynamic_type_t dmulti_scc = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dmulti_scc" });
+  CU_ASSERT_EQ_FATAL (dmulti_scc.ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&dmulti_scc, DDS_DYNAMIC_MEMBER (dcycle1, "a"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&dmulti_scc, DDS_DYNAMIC_MEMBER (dcycle2, "b"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  assert_dynamic_type_matches_idlc (&dmulti_scc, &dmulti_scc_desc);
+  dds_dynamic_type_unref (&dmulti_scc);
 }
 
 CU_Test (ddsc_dynamic_type, struct_member_key, .init = dynamic_type_init, .fini = dynamic_type_fini)
