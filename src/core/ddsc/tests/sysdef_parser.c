@@ -18,7 +18,7 @@
 
 static const char sysdef_all_constructs[] =
 "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-"<dds xmlns=\"http://www.omg.org/spec/DDS-XML\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"unused\">"
+"<dds xmlns=\"http://www.omg.org/spec/DDS-XML\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"unused\" xsi:noNamespaceSchemaLocation=\"unused\">"
 "  <types>"
 "    <external_type_ref name=\"Msg\"/>"
 "    <external_type_ref name=\"OtherMsg\"/>"

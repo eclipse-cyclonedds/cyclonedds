@@ -879,11 +879,43 @@ static int split_ref (const char *ref, char **lib, char **local_name)
     return *type != NULL ? SD_PARSE_RESULT_OK : SD_PARSE_RESULT_INVALID_REF; \
   }
 
-RESOLVE_REF_FNDEF(qos_profile, qos, qos_profiles)
 RESOLVE_REF_FNDEF(domain, domain, domains)
 RESOLVE_REF_FNDEF(participant, participant, participants)
 RESOLVE_REF_FNDEF(node, node, nodes)
 RESOLVE_REF_FNDEF(application, application, applications)
+
+static int proc_attr_resolve_qos_profile_ref (struct parse_sysdef_state * const pstate, const char *type_ref, struct dds_sysdef_qos_profile **qos_profile)
+{
+  char *lib_name, *local_name;
+  if (*qos_profile != NULL)
+    return SD_PARSE_RESULT_DUPLICATE;
+
+  struct dds_sysdef_qos_lib *lib = NULL;
+  if (split_ref (type_ref, &lib_name, &local_name) != SD_PARSE_RESULT_OK)
+  {
+    if (pstate->current->parent != NULL &&
+        pstate->current->parent->kind == ELEMENT_KIND_QOS_LIB) {
+      lib = (struct dds_sysdef_qos_lib *) pstate->current->parent;
+    } else if (pstate->current->parent != NULL &&
+        pstate->current->parent->parent != NULL &&
+        pstate->current->parent->kind == ELEMENT_KIND_QOS_PROFILE) {
+      lib = (struct dds_sysdef_qos_lib *) pstate->current->parent->parent;
+    } else {
+      return SD_PARSE_RESULT_ERR;
+    }
+    lib_name = ddsrt_strdup(lib->name);
+    local_name = ddsrt_strdup(type_ref);
+  } else {
+    _RESOLVE_LIB (qos, lib_name, lib);
+  }
+
+  if (lib != NULL)
+    _RESOLVE_ENTITY(lib, qos_profile, qos_profiles, local_name, *qos_profile);
+  ddsrt_free (lib_name);
+  ddsrt_free (local_name);
+
+  return *qos_profile != NULL ? SD_PARSE_RESULT_OK : SD_PARSE_RESULT_INVALID_REF;
+}
 
 enum resolve_endpoint_kind {
   RESOLVE_ENDPOINT_READER,
@@ -1077,7 +1109,8 @@ static int proc_attr (void *varg, UNUSED_ARG (uintptr_t eleminfo), const char *n
   struct parse_sysdef_state * const pstate = varg;
   bool attr_processed = false;
 
-  if (ddsrt_strcasecmp(name, "xmlns") == 0 || ddsrt_strcasecmp(name, "xmlns:xsi") == 0 ||ddsrt_strcasecmp(name, "xsi:schemaLocation") == 0)
+  if (ddsrt_strcasecmp(name, "xmlns") == 0 || ddsrt_strcasecmp(name, "xmlns:xsi") == 0 ||
+      ddsrt_strcasecmp(name, "xsi:schemaLocation") == 0 || ddsrt_strcasecmp(name, "xsi:noNamespaceSchemaLocation") == 0)
     return 0;
 
   int ret = SD_PARSE_RESULT_OK;
