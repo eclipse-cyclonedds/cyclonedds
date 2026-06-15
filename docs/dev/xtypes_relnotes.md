@@ -12,7 +12,6 @@
 - The built-in TypeLookup service (7.6.3.3) has no support for requesting type dependencies (service operation `getTypeDependencies`, section 7.6.3.3.4.1) and replying to a request of this type.
     - Because of this, handling `PublicationBuiltinTopicData` or `SubscriptionBuiltinTopicData` with an incomplete set of dependent types (i.e. number of entries in `dependent_typeids` is less than `dependent_typeid_count`) may result in a failure to match a reader with a writer.
 - In case a union has a default case, the C (de)serializer requires that the default case comes last because of a limitation of the IDL compiler.
-- Using the `try_construct` annotation (7.2.2.7) with a parameter other than `DISCARD` (the default) is not supported.
 - The C deserializer does not support explicit defaults for members of an aggregated type (`default` annotation)
 - External (7.3.1.2.1.4) collections element types not supported (e.g. `sequence<@external b>`)
 - Using `default_literal` (7.3.1.2.1.10) to set the default for enumerated types is not supported
@@ -21,7 +20,6 @@
 ## Type Representation
 
 - Type Object type representation
-    - Recursive types are not supported (Strongly Connected Components, 7.3.4.9)
     - User-defined annotations (7.3.1.2.4) and `verbatim` annotations (7.3.2.5.1.1) are not included in complete type objects
 - IDL type representation
     - Pragma declarations other than `keylist` are not supported

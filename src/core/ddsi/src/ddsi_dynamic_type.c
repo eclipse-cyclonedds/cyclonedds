@@ -510,7 +510,7 @@ dds_return_t ddsi_dynamic_type_create_sequence (struct ddsi_domaingv *gv, struct
   dynamic_type_init (gv, *type, DDS_XTypes_TK_SEQUENCE, DDSI_TYPEID_KIND_PLAIN_COLLECTION_COMPLETE);
   (*type)->xt._u.seq.bound = bound;
   (*type)->xt._u.seq.c.element_type = *element_type;
-  (*type)->xt._u.seq.c.element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD; // FIXME: support non-default try-construct
+  (*type)->xt._u.seq.c.element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD; // default; callers can override before registration
   (void) ddsrt_strlcpy ((*type)->xt._u.seq.c.detail.type_name, type_name, sizeof ((*type)->xt._u.seq.c.detail.type_name));
   return DDS_RETCODE_OK;
 }
@@ -528,7 +528,7 @@ dds_return_t ddsi_dynamic_type_create_array (struct ddsi_domaingv *gv, struct dd
   }
   memcpy ((*type)->xt._u.array.bounds._buffer, bounds, num_bounds * sizeof (*(*type)->xt._u.array.bounds._buffer));
   (*type)->xt._u.array.c.element_type = *element_type;
-  (*type)->xt._u.array.c.element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD; // FIXME: support non-default try-construct
+  (*type)->xt._u.array.c.element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD; // default try-construct for array elements
   (void) ddsrt_strlcpy ((*type)->xt._u.array.c.detail.type_name, type_name, sizeof ((*type)->xt._u.array.c.detail.type_name));
   return DDS_RETCODE_OK;
 }

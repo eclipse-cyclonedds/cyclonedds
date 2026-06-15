@@ -364,7 +364,7 @@ DDS_EXPORT dds_return_t dds_dynamic_type_set_bit_bound (dds_dynamic_type_t *type
  * @ingroup dynamic_type
  * @component dynamic_type_api
  *
- * @param[in,out] type Dynamic Type to set the bit-bound for. This must be a bounded sequence type.
+ * @param[in,out] type Dynamic Type to set the try-construct value for. This must be a bounded sequence type.
  * @param[in] try_construct The try-construct value to set.
  *
  * @return dds_return_t Return code. In case of an error, the return code field in the provided type is also set to this value.
@@ -590,9 +590,9 @@ DDS_EXPORT dds_return_t dds_dynamic_member_set_must_understand (dds_dynamic_type
  * @ingroup dynamic_type
  * @component dynamic_type_api
  *
- * @param[in,out] type Dynamic Type that contains the member to set the must-understand flag for (must be a structure type).
- * @param[in] member_id The ID of the member to set the flag for.
- * @param[in] try_construct Indicates whether the must-understand flag should be set or cleared.
+ * @param[in,out] type Dynamic Type that contains the member to set the try-construct mode for (must be a structure or union type).
+ * @param[in] member_id The ID of the member to set the try-construct mode for.
+ * @param[in] try_construct The try-construct value to set.
  *
  * @return dds_return_t Return code. In case of an error, the return code field in the provided type is also set to this value.
  *

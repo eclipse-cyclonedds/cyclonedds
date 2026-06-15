@@ -592,7 +592,6 @@ get_array_element_flags(const idl_node_t *node)
     printf ("get_member_or_case_try_construct_for_array: unexpected node type\n");
   }
 
-  // FIXME: support non-default try-construct
   flags |= get_try_construct_flags (tc);
 
   (void) node;

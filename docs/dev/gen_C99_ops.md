@@ -235,24 +235,24 @@ struct.
 
 ## Recursive types
 
-The current implementation does not support recursive types. With a recursive
-type it is not possible to follow the above procedure because it will lead to
-an infinite sequence of operation codes. The operation also contain a jump
-subroutine operation, called JSR, that has a 16 bit signed integer value
-as an offset to the location where the code starts. It is thus possible to
-execute operation codes that have been defined before. There are two methods
-for deciding when to use a jump subroutine operation:
+Recursive types are supported by reusing generated operation-code fragments.
+Expanding a recursive type inline would lead to an infinite sequence of
+operation codes, so the operation stream uses a jump subroutine operation,
+called JSR, with a 16 bit signed integer value as an offset to the location
+where the code starts. It is thus possible to execute operation codes that have
+been defined before. There are two methods for deciding when to use a jump
+subroutine operation:
 1. Whenever a recursion is detected.
 2. Whenever a description of a struct already has been generated.
-The second method could lead to less operations, where the first method could
-lead to slightly efficient execution. In practice, this probably won't make
-much difference. The second method is slightly easier to implement: simple
+The second method can lead to fewer operations, where the first method can
+lead to slightly more efficient execution. In practice, this probably won't
+make much difference. The second method is slightly easier to implement: simply
 maintain a map of structures to offsets (of the start of a struct description
 from the start of the sequence).
 
 ### Example
 
-Give the IDL defintion:
+Given the IDL definition:
 
 ```C
 struct x {
@@ -266,7 +266,7 @@ The following operation codes can be used:
 ```C
   DDS_OP_ADR | DDS_OP_TYPE_1BY, offsetof (x, ch),
   DDS_OP_ADR | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_STU, offsetof (x, xs),
-  sizeof (coord_t), (7u << 16u) + 4u,
+  sizeof (x), (7u << 16u) + 4u,
   DDS_OP_JSR, -6,
   DDS_OP_RTS,
   DDS_OP_RTS,
@@ -281,4 +281,3 @@ sequence, start 6 positions before the `DDS_OP_JSR` operation. The first
 During the generation of operation codes, the tree needs to be traversed
 (at least) twice, because the values for the various jmp addresses need to be
 calculated.
-

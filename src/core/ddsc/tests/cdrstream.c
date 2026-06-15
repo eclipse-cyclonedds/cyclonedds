@@ -3163,8 +3163,8 @@ CU_Test (ddsc_cdrstream, signed_union_discriminators)
   dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
 }
 
-// IDLC doesn't fully support recursive types yet and leaks some memory, so include a copy
-// of the output for:
+// Keep a compact hand-written descriptor for this recursion-limit stress test
+// instead of depending on generated test fixtures for:
 //
 // module CdrStreamRecursive {
 //   @final struct t0 {
