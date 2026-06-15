@@ -893,16 +893,15 @@ static int proc_attr_resolve_qos_profile_ref (struct parse_sysdef_state * const 
   struct dds_sysdef_qos_lib *lib = NULL;
   if (split_ref (type_ref, &lib_name, &local_name) != SD_PARSE_RESULT_OK)
   {
-    if (pstate->current->parent != NULL &&
-        pstate->current->parent->kind == ELEMENT_KIND_QOS_LIB) {
-      lib = (struct dds_sysdef_qos_lib *) pstate->current->parent;
-    } else if (pstate->current->parent != NULL &&
-        pstate->current->parent->parent != NULL &&
-        pstate->current->parent->kind == ELEMENT_KIND_QOS_PROFILE) {
-      lib = (struct dds_sysdef_qos_lib *) pstate->current->parent->parent;
-    } else {
+    struct xml_element *cur = pstate->current->parent;
+    while (cur != NULL && cur->kind != ELEMENT_KIND_QOS_LIB)
+      cur = cur->parent;
+
+    if (cur != NULL)
+      lib = (struct dds_sysdef_qos_lib *) cur;
+    else
       return SD_PARSE_RESULT_ERR;
-    }
+
     lib_name = ddsrt_strdup(lib->name);
     local_name = ddsrt_strdup(type_ref);
   } else {

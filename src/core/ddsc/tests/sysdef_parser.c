@@ -50,13 +50,17 @@ static const char sysdef_all_constructs[] =
 "        <writer_batching><batch_updates>false</batch_updates></writer_batching>"
 "        <user_data/>"
 "      </datawriter_qos>"
+"      <datawriter_qos>"
+"        <writer_data_lifecycle><autodispose_unregistered_instances>false</autodispose_unregistered_instances></writer_data_lifecycle>"
+"      </datawriter_qos>"
 "      <publisher_qos name=\"PublisherDefaults\"><group_data><value>REVG</value></group_data><partition><name><element>Alpha</element><element>Beta</element></name></partition><presentation><access_scope>GROUP_PRESENTATION_QOS</access_scope><coherent_access>true</coherent_access><ordered_access>false</ordered_access></presentation><entity_factory><autoenable_created_entities>true</autoenable_created_entities></entity_factory></publisher_qos>"
 "      <subscriber_qos name=\"SubscriberDefaults\"><group_data/></subscriber_qos>"
 "      <topic_qos name=\"TopicDefaults\"><topic_data><value>R0hJ</value></topic_data><durability><kind>VOLATILE_DURABILITY_QOS</kind></durability></topic_qos>"
 "      <domain_participant_qos name=\"ParticipantDefaults\"><user_data><value>SlNM</value></user_data><entity_factory><autoenable_created_entities>false</autoenable_created_entities></entity_factory></domain_participant_qos>"
 "    </qos_profile>"
-"    <qos_profile name=\"DerivedProfile\" base_name=\"QosLib::BaseProfile\">"
+"    <qos_profile name=\"DerivedProfile\" base_name=\"BaseProfile\">"
 "      <domainparticipant_qos base_name=\"QosLib::BaseProfile\"/>"
+"      <datawriter_qos base_name=\"BaseProfile\"/>"
 "    </qos_profile>"
 "  </qos_library>"
 "  <domain_library name=\"DomainLib\">"
@@ -260,6 +264,8 @@ CU_Test (ddsc_sysdef_parser, all_constructs_values)
   CU_ASSERT_EQ (derived_profile->base_profile, base_profile);
   const struct dds_sysdef_qos *derived_participant_qos = find_qos (derived_profile, DDS_SYSDEF_PARTICIPANT_QOS, NULL);
   CU_ASSERT_EQ (derived_participant_qos->base_profile, base_profile);
+  const struct dds_sysdef_qos *derived_datawriter_qos = find_qos (derived_profile, DDS_SYSDEF_WRITER_QOS, NULL);
+  CU_ASSERT_EQ (derived_datawriter_qos->base_profile, base_profile);
   CU_ASSERT_EQ (derived_profile->xmlnode.next, NULL);
 
   const struct dds_sysdef_domain_lib *domain_lib = sysdef->domain_libs;
