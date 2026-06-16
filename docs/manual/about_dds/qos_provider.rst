@@ -17,7 +17,12 @@
 QoS Provider
 ############
 
-This page provides information on using the QoS provider API of |var-project|. The QoS provider API allows users to specify the QoS settings of their DDS entities outside of application code in XML. This can be seen as a useful feature where code recompilation is restricted during the later stages of application development / during application support. The following sections explain the API and explain how to build QoS Profiles in XML.
+This page provides information on using the QoS provider API of |var-project|.
+The QoS provider API allows users to specify the QoS settings of their DDS
+entities outside of application code in XML. This can be seen as a useful
+feature where code recompilation is restricted during the later stages of
+application development / during application support. The following sections
+explain the API and explain how to build QoS Profiles in XML.
 
 XML file syntax
 ===============
@@ -27,7 +32,8 @@ The syntax for the XML configuration file is defined in |url::omg_xml_1.0|.
 Entity QoS
 ----------
 
-To configure the QoS for a DDS Entity using XML, the following tags have to be used:
+To configure the QoS for a DDS Entity using XML, the following tags have to be
+used:
 
 - `<domainparticipant_qos>`
 - `<publisher_qos>`
@@ -36,13 +42,17 @@ To configure the QoS for a DDS Entity using XML, the following tags have to be u
 - `<datawriter_qos>`
 - `<datareader_qos>`
 
-Each XML tag with or without an associated name can be uniquely identified by its fully qualified name in C++ style.
-In case of unnamed XML tag, only one tag of this kind is allowed in scope of parent `<qos_profile>`.
+Each XML tag with or without an associated name can be uniquely identified by
+its fully qualified name in C++ style.
+In case of unnamed XML tag, only one tag of this kind is allowed in scope of
+parent `<qos_profile>`.
 
 QoS Policies
 ------------
 
-The fields in a Qos policy are described in XML using a 1-to-1 mapping with the equivalent IDL representation in the DDS specification. For example, the Reliability Qos policy is represented with the following structures:
+The fields in a Qos policy are described in XML using a 1-to-1 mapping with the
+equivalent IDL representation in the DDS specification. For example, the
+Reliability Qos policy is represented with the following structures:
 
 .. code-block:: C
 
@@ -70,7 +80,8 @@ The equivalent representation in XML is as follows:
 Sequences
 ---------
 
-In general, the sequences contained in the QoS policies are described with the following XML format:
+In general, the sequences contained in the QoS policies are described with the
+following XML format:
 
 .. code-block:: xml
 
@@ -80,7 +91,8 @@ In general, the sequences contained in the QoS policies are described with the f
       ...
     </a_sequence_member_name>
 
-Each element of the sequence is enclosed in an <element> tag, as shown in the following example:
+Each element of the sequence is enclosed in an <element> tag, as shown in the
+following example:
 
 .. code-block:: xml
 
@@ -101,7 +113,8 @@ Each element of the sequence is enclosed in an <element> tag, as shown in the fo
 Enumerations
 ------------
 
-Enumeration values are represented using their IDL string representation. For example:
+Enumeration values are represented using their IDL string representation. For
+example:
 
 .. code-block:: xml
 
@@ -150,6 +163,42 @@ A QoS profile groups a set of related QoS, usually one per entity. For example:
         </history>
       </datawriter_qos>
     </qos_profile>
+
+QoS profiles may inherit from each other, parent profile are specified via
+`base_name` attribute. For example:
+
+.. code-block:: xml
+
+    <qos_profile name="AAA">
+      <datareader_qos>
+        <history>
+          <kind>KEEP_LAST_HISTORY_QOS</kind>
+          <depth>5</depth>
+        </history>
+      </datareader_qos>
+      <datawriter_qos>
+       <history>
+          <kind>KEEP_LAST_HISTORY_QOS</kind>
+          <depth>1</depth>
+        </history>
+      </datawriter_qos>
+    </qos_profile>
+
+    <qos_profile name="BBB" base_name="AAA">
+      <datareader_qos>
+        <history>
+          <kind>KEEP_LAST_HISTORY_QOS</kind>
+          <depth>2</depth>
+        </history>
+      </datareader_qos>
+    </qos_profile>
+
+In that particular case profile `BBB` derived from profile `AAA`, and override
+it's `datareader_qos.history.depth` QoS value, but as a result `BBB` profile not
+only contains updated `datareader_qos` but merge `datawriter_qos` (from `AAA`
+profile) also.
+For inheritance over different `qos_library` `base_name` should contains full
+profile name e.g. `<qos_library-name>::<qos_profile-name>`.
 
 XML Example
 -----------
@@ -227,7 +276,7 @@ The following C application is an example to illustrate how the QoS settings fro
           (void) argc;
           (void) argv;
 
-          // provider will contains:
+          // provider will contain:
           //    myqoslib::foo_profile                     READER (KEEP_LAST 5)
           //    myqoslib::foo_profile                     WRITER (KEEP_LAST 1)
           //    myqoslib::foo_profile::my_topic           TOPIC  (KEEP_ALL)
@@ -265,14 +314,13 @@ The following C application is an example to illustrate how the QoS settings fro
 
         int main()
         {
-          // foo_provider will contains:
+          // foo_provider will contain:
           //    myqoslib::foo_profile                     READER (KEEP_LAST 5)
           //    myqoslib::foo_profile                     WRITER (KEEP_LAST 1)
           //    myqoslib::foo_profile::my_topic           TOPIC  (KEEP_ALL)
-          // bar_provider will contains:
+          // bar_provider will contain:
           //    myqoslib::bar_profile                     WRITER (KEEP_ALL)
           //    myqoslib::bar_profile::my_topic           TOPIC  (KEEP_LAST 10)
-
           dds::core::QosProvider foo_provider("/path/to/qos_definitions.xml", "myqoslib::foo_profile");
           dds::core::QosProvider bar_provider("/path/to/qos_definitions.xml", "myqoslib::bar_profile");
           auto topic_qos = bar_provider.topic_qos("my_topic");
@@ -285,6 +333,43 @@ The following C application is an example to illustrate how the QoS settings fro
           (void)writer;
           return 0;
         }
+
+    .. group-tab:: Python
+
+      .. code-block:: Python
+
+        from dataclasses import dataclass
+        from cyclonedds.domain import DomainParticipant
+        from cyclonedds.pub import DataWriter
+        from cyclonedds.sub import DataReader
+        from cyclonedds.topic import Topic
+        from cyclonedds.qos_provider import QosProvider
+        from cyclonedds.qos import (
+            DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, Qos,
+            SubscriberQos, TopicQos,
+        )
+        from cyclonedds.idl import IdlStruct
+
+        @dataclass
+        class DataType(IdlStruct, typename="DataType"):
+            data: str
+
+        # provider will contain:
+        #    myqoslib::foo_profile                     READER (KEEP_LAST 5)
+        #    myqoslib::foo_profile                     WRITER (KEEP_LAST 1)
+        #    myqoslib::foo_profile::my_topic           TOPIC  (KEEP_ALL)
+        #    myqoslib::bar_profile                     WRITER (KEEP_ALL)
+        #    myqoslib::bar_profile::my_topic           TOPIC  (KEEP_LAST 10)
+        provider = QosProvider("/path/to/qos_definitions.xml")
+        # qos can be accessed by <lib_name>::<profile_name>::[entity_name] if exist.
+        tp_qos = provider.get_topic_qos("myqoslib::bar_profile::my_topic")
+        # or if entity_qos is unnamed only by <lib_name>::<profile_name>.
+        wr_qos = provider.get_writer_qos("myqoslib::bar_profile")
+
+        dp = DomainParticipant()
+        tp = Topic(dp, "topic_A", DataType, tp_qos)
+        dw = DataWriter(dp, tp, wr_qos)
+
 
 Also C API allows you to specify which library, profile QoS Provider should contains.
 
@@ -326,6 +411,10 @@ Let's extend XML file example above, and omit QoS settings details for simplicit
 
 Let's create QoS Provider that contains versions of both profiles from different libraries.
 
+.. important::
+
+      CXX API doesn't allow wild cards and have strict initialization/access format, that's why we can't mix profiles from different libraries and required to initialize each profile instance.
+
 .. tabs::
 
     .. group-tab:: C
@@ -341,19 +430,20 @@ Let's create QoS Provider that contains versions of both profiles from different
             (void) argc;
             (void) argv;
 
-            // foo_provider will contains:
+            // foo_provider will contain:
             //    qos1_lib::foo_profile                     READER
             //    qos1_lib::foo_profile                     WRITER
             //    qos1_lib::foo_profile                     TOPIC
             //    qos2_lib::foo_profile                     READER
             //    qos2_lib::foo_profile                     WRITER
             //    qos2_lib::foo_profile                     TOPIC
+
             dds_qos_provider_t *foo_provider;
             char *foo_scope = "*::foo_profile";
             dds_return_t ret = dds_create_qos_provider_scope ("/path/to/qos_definitions.xml", &foo_provider, foo_scope);
             assert (ret == DDS_RETCODE_OK);
 
-            // bar_provider will contains:
+            // bar_provider will contain:
             //    qos1_lib::bar_profile                     WRITER
             //    qos1_lib::bar_profile                     TOPIC
             //    qos2_lib::bar_profile                     WRITER
@@ -380,21 +470,21 @@ Let's create QoS Provider that contains versions of both profiles from different
 
           int main()
           {
-            // foo_provider1 will contains:
+            // foo_provider1 will contain:
             //    qos1_lib::foo_profile                     READER
             //    qos1_lib::foo_profile                     WRITER
             //    qos1_lib::foo_profile                     TOPIC
-            // foo_provider2 will contains:
+            // foo_provider2 will contain:
             //    qos2_lib::foo_profile                     READER
             //    qos2_lib::foo_profile                     WRITER
             //    qos2_lib::foo_profile                     TOPIC
             dds::core::QosProvider foo_provider1("/path/to/qos_definitions.xml", "qos1_lib::foo_profile");
             dds::core::QosProvider foo_provider2("/path/to/qos_definitions.xml", "qos2_lib::foo_profile");
 
-            // bar_provider will contains:
+            // bar_provider will contain:
             //    qos1_lib::bar_profile                     WRITER
             //    qos1_lib::bar_profile                     TOPIC
-            // bar_provider2 will contains:
+            // bar_provider2 will contain:
             //    qos2_lib::bar_profile                     WRITER
             //    qos2_lib::bar_profile                     TOPIC
             dds::core::QosProvider bar_provider1("/path/to/qos_definitions.xml", "qos1_lib::bar_profile");
@@ -403,10 +493,50 @@ Let's create QoS Provider that contains versions of both profiles from different
             return 0;
           }
 
+    .. group-tab:: Python
+
+        .. code-block:: Python
+
+          from dataclasses import dataclass
+          from cyclonedds.domain import DomainParticipant
+          from cyclonedds.pub import DataWriter
+          from cyclonedds.sub import DataReader
+          from cyclonedds.topic import Topic
+          from cyclonedds.qos_provider import QosProvider
+          from cyclonedds.qos import (
+              DataReaderQos, DataWriterQos, DomainParticipantQos, PublisherQos, Qos,
+              SubscriberQos, TopicQos,
+          )
+          from cyclonedds.idl import IdlStruct
+
+          @dataclass
+          class DataType(IdlStruct, typename="DataType"):
+              data: str
+
+          # foo_provider will contain:
+          #    qos1_lib::foo_profile                     READER
+          #    qos1_lib::foo_profile                     WRITER
+          #    qos1_lib::foo_profile                     TOPIC
+          #    qos2_lib::foo_profile                     READER
+          #    qos2_lib::foo_profile                     WRITER
+          #    qos2_lib::foo_profile                     TOPIC
+          foo_provider = QosProvider("/path/to/qos_definitions.xml", "*::foo_profile")
+
+          # bar_provider will contain:
+          #    qos1_lib::bar_profile                     WRITER
+          #    qos1_lib::bar_profile                     TOPIC
+          #    qos2_lib::bar_profile                     WRITER
+          #    qos2_lib::bar_profile                     TOPIC
+          bar_provider = QosProvider("/path/to/qos_definitions.xml", "*::bar_profile")
+          ...
+
 Known limitations
 =================
 
-- Inheritance of QoS policies and QoS profiles in XML using the "base_name" attribute is not supported
-- The "topic_filter" attribute for writer, reader and topic QoSes to associate a set of topics to a specific QoS when that QoS is part of a DDS profile, is not supported yet.
-- The "entity_factory" attribute  for participant, writer and reader QoSes, support only "true" for "<autoenable_created_entities>".
-- The C++ API QosProvider may throw an UnsupportedError when trying to access a policy that is not supported yet.
+- The "topic_filter" attribute for writer, reader and topic QoSes to associate a
+  set of topics to a specific QoS when that QoS is part of a DDS profile, is not
+  supported yet.
+- The "entity_factory" attribute  for participant, writer and reader QoSes, support
+  only "true" for "<autoenable_created_entities>".
+- The C++ API QosProvider may throw an UnsupportedError when trying to access a
+  policy that is not supported yet.

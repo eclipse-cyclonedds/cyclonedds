@@ -22,6 +22,9 @@ extern "C" {
 #define QOSPROV_WARN(...)  DDS_LOG(DDS_LC_QOSPROV | DDS_LC_WARNING, __VA_ARGS__)
 #define QOSPROV_TRACE(...) DDS_LOG(DDS_LC_QOSPROV | DDS_LC_TRACE,   __VA_ARGS__)
 
+struct dds_qos_item;
+typedef void (* qos_item_fini_fn) (struct dds_qos_item *item);
+
 /**
  * @brief Sample structure of the Qos stored in Provider.
  * @ingroup qos_provider
@@ -32,6 +35,7 @@ typedef struct dds_qos_item
   char *full_name;
   dds_qos_t *qos;
   enum dds_qos_kind kind;
+  qos_item_fini_fn fini;
 } dds_qos_item_t;
 
 struct dds_qos_provider

@@ -25,10 +25,33 @@
     } \
   } while (0)
 
+#define CHECK_DUPLICATE_ADVANCE(lib,element_type,element,element_attr,element_attr1,element_descr) \
+  do { \
+    for (const struct element_type *e2 = lib; e2 != NULL; e2 = (struct element_type *) e2->xmlnode.next) \
+    { \
+      if (element != e2 && \
+          ((element->element_attr == e2->element_attr && element->element_attr == NULL && \
+           element->element_attr1 == e2->element_attr1) || \
+          (element->element_attr != e2->element_attr && element->element_attr != NULL && \
+           e2->element_attr != NULL && strcmp (element->element_attr, e2->element_attr) == 0))) { \
+        SYSDEF_ERROR ("Duplicate %s '%s'\n", element_descr, element->element_attr); \
+        goto failed; \
+      } \
+    } \
+  } while (0)
+
 #define CHECK_NULL_ATTR(lib,element_type,element,element_attr,element_descr) \
   do { \
     if (element->element_attr == NULL) { \
       SYSDEF_ERROR ("%s Attribute "#element_attr" is 'NULL'\n", element_descr); \
+      goto failed; \
+    } \
+  } while (0)
+
+#define CHECK_NOTNULL_ATTR(lib,element_type,element,element_attr,element_descr) \
+  do { \
+    if (element->element_attr != NULL) { \
+      SYSDEF_ERROR ("%s Attribute "#element_attr" not allowed\n", element_descr); \
       goto failed; \
     } \
   } while (0)
@@ -85,14 +108,17 @@ dds_return_t dds_validate_qos_lib (const struct dds_sysdef_system *sysdef, uint6
     CHECK_DUPLICATE(sysdef->qos_libs, dds_sysdef_qos_lib, qos_lib, name, "QoS library");
     for (const struct dds_sysdef_qos_profile *qos_profile = qos_lib->qos_profiles; qos_profile != NULL; qos_profile = (struct dds_sysdef_qos_profile *) qos_profile->xmlnode.next)
     {
+      if (qos_profile == qos_profile->base_profile)
+      {
+        SYSDEF_ERROR ("QoS profile must not reference itself via base profile chain (%s::%s)\n", qos_lib->name, qos_profile->name);
+        goto failed;
+      }
       CHECK_NULL_ATTR(qos_lib->qos_profiles, dds_sysdef_qos_profile, qos_profile, name, "QoS profile");
       CHECK_DUPLICATE(qos_lib->qos_profiles, dds_sysdef_qos_profile, qos_profile, name, "QoS profile");
       for (const struct dds_sysdef_qos *qos = qos_profile->qos; qos != NULL; qos = (struct dds_sysdef_qos *) qos->xmlnode.next)
       {
-        CHECK_DUPLICATE(qos_profile->qos, dds_sysdef_qos, qos, name, "QoS");
-
         uint64_t mask = ~(uint64_t)0U;
-        const char *kind;
+        const char *kind = "unknown";
         switch (qos->kind)
         {
           case DDS_SYSDEF_TOPIC_QOS:
@@ -120,6 +146,17 @@ dds_return_t dds_validate_qos_lib (const struct dds_sysdef_system *sysdef, uint6
             kind = "participant";
             break;
         }
+
+        if (qos->base_profile != NULL)
+        {
+          SYSDEF_ERROR ("Entity QoS base profile attribute are not supported, when defined in qos library scope (%s::%s, %s QoS%s%s)\n", qos_lib->name, qos_profile->name, kind, (qos->name != NULL ? " " : ""), (qos->name != NULL ? qos->name : ""));
+          goto failed;
+        }
+
+        /* objects like qos, can be identified not only by name, but also
+         * by qos_kind currently we don't support `named` qos in profiles, but still need
+         * to detect duplicates `kind` is helpful for that. */
+        CHECK_DUPLICATE_ADVANCE(qos_profile->qos, dds_sysdef_qos, qos, name, kind, "QoS");
 
         // Unsupported policies
         if (qos->qos->present & ~mask)

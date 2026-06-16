@@ -217,8 +217,8 @@ enum element_data_type {
   ELEMENT_DATA_TYPE_DURATION
 };
 
-typedef int (* init_fn) (struct parse_sysdef_state * const pstate, struct xml_element *element);
-typedef void (* fini_fn) (struct xml_element *element);
+typedef int (* xml_node_init_fn) (struct parse_sysdef_state * const pstate, struct xml_element *element);
+typedef void (* xml_node_fini_fn) (struct xml_element *element);
 
 struct xml_element
 {
@@ -228,7 +228,7 @@ struct xml_element
   bool retain;
   bool handle_close;
   struct xml_element *next;
-  fini_fn fini;
+  xml_node_fini_fn fini;
 };
 
 /* Type library */

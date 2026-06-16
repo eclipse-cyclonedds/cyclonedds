@@ -33,13 +33,17 @@
   "\n <qos_library>"profiles"\n </qos_library>"
 #define PRO(prof_name,ents) \
   "\n  <qos_profile name=\""#prof_name"\">"ents"\n  </qos_profile>"
+#define B_PRO(prof_name,base_name,ents) \
+  "\n  <qos_profile name=\""#prof_name"\"" \
+  "                 base_name=\""base_name"\">"ents"\n  </qos_profile>"
 #define N_PRO(ents) \
   "\n  <qos_profile>"ents"\n  </qos_profile>"
 #define ENT(qos,kind) \
   "\n   <" #kind "_qos>"qos"\n   </" #kind "_qos>"
+#define ENT_B(bnm,qos,kind) \
+  "\n   <" #kind "_qos base_name=\""bnm"\">"qos"\n  </" #kind "_qos>"
 #define ENT_N(nm,qos,kind) \
-  "\n   <" #kind "_qos name=\""#nm"\">"qos"\n   </" #kind "_qos>"
-
+  "\n   <" #kind "_qos name=\""#nm"\">"qos"\n  </" #kind "_qos>"
 
 CU_TheoryDataPoints(ddsc_qos_provider, create) = {
   // The various of sysdef configuration files
@@ -63,6 +67,21 @@ CU_TheoryDataPoints(ddsc_qos_provider, create) = {
         LIB(lib0,PRO(pro1,ENT("",datareader)))),
     DEF(LIB(lib0,N_PRO(   ENT("",datareader)))),
     DEF(N_LIB(   PRO(pro0,ENT("",datareader)))),
+
+
+    DEF(LIB(lib0,PRO(pro0,ENT("",datareader)))),
+    // should have a warning, since "base_profile" doesn't contains any of
+    // "domain_participant" kind QoS, but still valid.
+    DEF(LIB(lib0,PRO(pro0,ENT("",domain_participant)))),
+
+
+    // it's okay to ref. profile without prefix within scope of the same qos
+    // lib. the rest of the cases lead to parsing error.
+    DEF(LIB(lib0,PRO(pro3,ENT("",datawriter))
+                 B_PRO(pro2,"pro3",
+                          ENT("",datareader))
+                 B_PRO(pro1,"pro2",
+                          ENT("",datawriter)))),
   ),
   // Expected retcodes
   CU_DataPoints(int32_t,
@@ -76,6 +95,11 @@ CU_TheoryDataPoints(ddsc_qos_provider, create) = {
     DDS_RETCODE_BAD_PARAMETER,
     DDS_RETCODE_ERROR,
     DDS_RETCODE_ERROR,
+
+    DDS_RETCODE_OK,
+    DDS_RETCODE_OK,
+
+    DDS_RETCODE_OK,
   )
 };
 // @brief This tests creating qos_provider with different sysdef files.
@@ -132,7 +156,7 @@ CU_Theory((char *configuration, dds_return_t ret), ddsc_qos_provider, create)
     LIB(lib2, \
       PRO(pro01, \
         ENT_N(rd0,"",datareader)ENT_N(tp0,"",topic)) \
-      PRO(pro02, \
+      B_PRO(pro02,"lib0::pro03", \
         ENT_N(rd0,"",datareader)ENT_N(wr0,"",datawriter) \
         ENT_N(pp0,"",domain_participant)ENT_N(tp0,"",topic)) \
       PRO(pro03, \
@@ -153,29 +177,47 @@ typedef struct cscope_tokens
 CU_TheoryDataPoints(ddsc_qos_provider, create_scope) = {
   // The sysdef file with multiple libs/profiles/entity qos.
   CU_DataPoints(char *,
-    N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N),
+    NULL,
+    N,
+    N,N,
+    N,N,
+    N,N,N,
+    N,N,N,
+    N,N,N,
+    N,N,
+    N,N,
+    N,N,
+  ),
   // The scopes for initialize qos_provider (scope)
   // and pattern that all qos in qos_provider should match with (pattern)
   // SCOPE(<scope>,<pattern>)
   CU_DataPoints(cscope_tokens_t,
-    SCOPE("*","::"), SCOPE("lib1","lib1::"), SCOPE("lib0::*","lib0::"),
+    SCOPE("*","::"),
+
+    SCOPE("*","::"),
+    SCOPE("lib1","lib1::"), SCOPE("lib0::*","lib0::"),
     SCOPE("lib0::pro00","lib0::pro00"), SCOPE("lib0::pro00::","lib0::pro00"),
     SCOPE("*::","::"), SCOPE("*::pro00::*","::pro00"), SCOPE("::pro00","::pro00"),
     SCOPE("*::*::rd0","::rd0"), SCOPE("::::::","::"), SCOPE("::","::"),
     SCOPE("::::rd0","::rd0"), SCOPE("lib3",""), SCOPE("lib2::pro10",""),
     SCOPE("lib0::pro01::rd0","lib0::pro01::rd0"), SCOPE("lib2::*::tp0","::tp0"),
     SCOPE("lib2::*::sb0","lib2::pro03::sb0"), SCOPE("::pro03::rd0", "::pro03::rd0"),
-    SCOPE("**", "::"), SCOPE("::!:absolutely:***::wrong*scope;", "")),
+    SCOPE("**", ""), SCOPE("::!:absolutely:***::wrong*scope;", ""),
+  ),
   // The number of expected qos that qos_provider contains when created with (scope) above.
   CU_DataPoints(int32_t,
-    63, 24, 27,
+    0,
+
+    63+6,
+    24, 27+0,
     7, 7,
-    63, 13, 13,
-    6, 63, 63,
+    63+6, 13, 13,
+    6, 63+6, 63+6,
     6, 0, 0,
     1, 3,
     1, 2,
-    63, 0)
+    0, 0,
+)
 };
 #undef N
 #undef SCOPE
@@ -203,7 +245,7 @@ CU_Theory((char * configuration, cscope_tokens_t tok, int32_t n), ddsc_qos_provi
   /* NOTE:
    * wrong scope initialization are handled and by itsef signal about
    * BAD_PARAMETER error */
-  if (n == 0U) {
+  if (n == 0U && configuration != NULL) {
     CU_ASSERT_EQ (ret, DDS_RETCODE_BAD_PARAMETER);
   } else {
     CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
@@ -229,23 +271,28 @@ CU_TheoryDataPoints(ddsc_qos_provider, get_qos) = {
   CU_DataPoints(char *,
     N,N,N,N,N,N,
     N,N,N,N,N,
-    N,N,N,N,N),
+    N,N,N,N,N,N,N,
+  ),
   // Keys which qos we would like to get
   CU_DataPoints(char *,
     "lib0::pro00","lib0::pro00","lib0::pro00","lib0::pro00","lib0::pro00","lib0::pro00",
-    "lib0::pro00::pb0","lib2::pro01::sb0","lib0::pro01::rd0","lib0::pro03","lib0::pro03::rd1",
-    "lib0::pro00","lib0::*","*::pro00::rd1","*","lib2::pro01"),
+    "lib0::pro00::pb0","lib2::pro01::sb0","lib0::pro01::rd0","lib0::pro02","lib0::pro03::rd1",
+    "lib0::pro03","lib0::pro00","lib0::*","*::pro00::rd1","*","lib2::pro01","lib2::pro02::wr1",
+  ),
   // Type of entity for which qos we try to get
   CU_DataPoints(dds_qos_kind_t,
     RD,WR,PP,PB,SB,TP,
     PB,SB,RD,RD,RD,
-    RD,WR,RD,PP,PP),
+    RD,RD,WR,RD,PP,PP,WR,
+  ),
   // Expected retcodes
   CU_DataPoints(dds_return_t,
     OK,OK,OK,OK,OK,OK,
     BAD,BAD,OK,BAD,OK,
-    OK,BAD,BAD,BAD,BAD)
+    BAD,OK,BAD,BAD,BAD,BAD,OK,
+  )
 };
+
 #undef BAD
 #undef OK
 #undef TP
@@ -1035,10 +1082,13 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
     ddsrt_free(data_buff);
     ddsrt_free(data);
     CHECK_RET_OK(ret);
+
     char *tmp = sysdef_qos;
     ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, user_data);
     ddsrt_free(tmp);
     ddsrt_free(user_data);
+    CHECK_RET_OK(ret);
+
     *validate_mask |= DDSI_QP_USER_DATA;
   }
   if ((ignore_ent || (kind == DDS_READER_QOS)) &&
@@ -1159,10 +1209,13 @@ static dds_return_t get_single_configuration(dds_qos_t *qos, sysdef_qos_conf_t *
 CU_TheoryDataPoints(ddsc_qos_provider, get_qos_default) = {
   // The type of entity_qos that will be tested with it default qos.
   CU_DataPoints(dds_qos_kind_t,
-    DDS_TOPIC_QOS,DDS_READER_QOS,DDS_WRITER_QOS),
+    DDS_TOPIC_QOS,DDS_READER_QOS,DDS_WRITER_QOS,
+    DDS_PUBLISHER_QOS,DDS_SUBSCRIBER_QOS,DDS_PARTICIPANT_QOS
+  ),
   // In which format <sec>/<nanosec> `duration` will be presented in sysdef file.
   CU_DataPoints(sysdef_qos_conf_t,
     {N,N,S,S,N,N,S,S,N},{S,S,S,S,S,N,S,S,N},{S,N,S,N,S,N,S,N,S},
+    {S,N,S,N,S,N,S,N,S},{S,N,S,N,S,N,S,N,S},{S,N,S,N,S,N,S,N,S},
   ),
 };
 #undef N
@@ -1216,7 +1269,6 @@ CU_Theory((dds_qos_kind_t kind, sysdef_qos_conf_t dur_conf), ddsc_qos_provider, 
   CU_ASSERT_EQ (act_qos->present, validate_mask);
   CU_ASSERT_EQ (res, 0);
   dds_delete_qos_provider(provider);
-
 }
 
 #define _C "abcdefghijklmnopqrstuvwxyz"

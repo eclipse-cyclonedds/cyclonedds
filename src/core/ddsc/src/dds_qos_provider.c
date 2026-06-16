@@ -29,7 +29,7 @@ static dds_return_t read_sysdef (const char *path, struct dds_sysdef_system **sy
     return DDS_RETCODE_BAD_PARAMETER;
   if (path[0] == '<')
   {
-    ret = dds_sysdef_init_sysdef_str(path, sysdef, SYSDEF_SCOPE_QOS_LIB);
+    ret = dds_sysdef_init_sysdef_str(path, sysdef, SYSDEF_SCOPE_QOS_LIB_FULL);
   } else {
     FILE *fp;
     const char *cursor = path;
@@ -43,9 +43,10 @@ static dds_return_t read_sysdef (const char *path, struct dds_sysdef_system **sy
       ret = DDS_RETCODE_BAD_PARAMETER;
     }
     DDSRT_WARNING_MSVC_ON(4996)
-    if (ret == DDS_RETCODE_OK) {
-      ret = dds_sysdef_init_sysdef (fp, sysdef, SYSDEF_SCOPE_QOS_LIB);
-      (void)fclose(fp);
+    if (ret == DDS_RETCODE_OK)
+    {
+      ret = dds_sysdef_init_sysdef (fp, sysdef, SYSDEF_SCOPE_QOS_LIB_FULL);
+      (void) fclose (fp);
     }
   }
 
@@ -68,13 +69,18 @@ static bool qos_item_equals_fn(const void *a, const void *b)
   return aa->kind == bb->kind && strcmp(aa->full_name, bb->full_name) == 0;
 }
 
+static void qos_item_fini (struct dds_qos_item *item)
+{
+  ddsrt_free (item->full_name);
+  dds_delete_qos (item->qos);
+  ddsrt_free (item);
+}
+
 static void cleanup_qos_items (void *vnode, void *varg)
 {
   (void) varg;
   dds_qos_item_t *d = (dds_qos_item_t *) vnode;
-  ddsrt_free (d->full_name);
-  dds_delete_qos(d->qos);
-  ddsrt_free(d);
+  d->fini(d);
 }
 
 #define PROVIDER_ALLOWED_QOS_MASK \
@@ -105,6 +111,37 @@ err_read:
 }
 #undef PROVIDER_ALLOWED_QOS_MASK
 
+static bool merge_qos_with_profile (const struct dds_sysdef_qos *sysdef_qos, const struct dds_sysdef_qos_profile *sysdef_profile, dds_qos_t **qos)
+{
+  assert (*qos != NULL);
+  assert (sysdef_qos != NULL);
+  bool found = false;
+  if (sysdef_profile != NULL)
+  {
+    // lookup for qos with provided "qos_profile"
+    for (const struct dds_sysdef_qos *base_qos = sysdef_profile->qos; base_qos != NULL; base_qos = (const struct dds_sysdef_qos *) base_qos->xmlnode.next)
+    {
+      if (sysdef_qos->kind == base_qos->kind)
+      {
+        if ((sysdef_qos->name == NULL && base_qos->name == NULL)
+            || (sysdef_qos->name != NULL && base_qos->name != NULL && strcmp(sysdef_qos->name, base_qos->name) == 0))
+        {
+          dds_merge_qos (*qos, base_qos->qos);
+          (void) merge_qos_with_profile (base_qos, base_qos->base_profile, qos);
+          goto status_ok;
+        }
+      }
+    }
+    // no qos found for provided "name"&"kind", check with profile base
+    found = merge_qos_with_profile (sysdef_qos, sysdef_profile->base_profile, qos);
+  }
+
+  return found;
+
+status_ok:
+  return true;
+}
+
 static dds_return_t init_qos_provider (const struct dds_sysdef_system *sysdef, const char *path, dds_qos_provider_t **provider, char *lib_scope, char *prof_scope, char *ent_scope)
 {
   dds_return_t ret = DDS_RETCODE_OK;
@@ -127,53 +164,75 @@ static dds_return_t init_qos_provider (const struct dds_sysdef_system *sysdef, c
       prof_name = prof->name;
       char *prefix;
       (void) ddsrt_asprintf(&prefix, "%s"PROVIDER_ITEM_SEP"%s", lib_name, prof_name);
-      for (const struct dds_sysdef_qos *qos = prof->qos; qos != NULL; qos = (const struct dds_sysdef_qos *)qos->xmlnode.next)
+      for (const struct dds_sysdef_qos_profile *base_prof = prof; base_prof != NULL; base_prof = base_prof->base_profile)
       {
-        if (ent_scope != NULL && strict_ent && (qos->name == NULL || strcmp(qos->name, ent_scope) != 0))
-          continue;
-        ent_name = qos->name;
-        dds_qos_item_t *item = ddsrt_malloc(sizeof(*item));
-        dds_qos_kind_t kind;
-        switch(qos->kind)
+        for (const struct dds_sysdef_qos *qos = base_prof->qos; qos != NULL; qos = (const struct dds_sysdef_qos *)qos->xmlnode.next)
         {
-          case DDS_SYSDEF_TOPIC_QOS:
-            kind = DDS_TOPIC_QOS;
-            break;
-          case DDS_SYSDEF_READER_QOS:
-            kind = DDS_READER_QOS;
-            break;
-          case DDS_SYSDEF_WRITER_QOS:
-            kind = DDS_WRITER_QOS;
-            break;
-          case DDS_SYSDEF_SUBSCRIBER_QOS:
-            kind = DDS_SUBSCRIBER_QOS;
-            break;
-          case DDS_SYSDEF_PUBLISHER_QOS:
-            kind = DDS_PUBLISHER_QOS;
-            break;
-          case DDS_SYSDEF_PARTICIPANT_QOS:
-            kind = DDS_PARTICIPANT_QOS;
-            break;
-          default:
-            ddsrt_free(prefix);
-            ddsrt_free(item);
-            goto err_prov;
-        }
-        item->kind = kind;
-        item->qos = dds_create_qos();
-        dds_merge_qos(item->qos, qos->qos);
-        if (qos->name != NULL)
-          (void) ddsrt_asprintf(&item->full_name, "%s"PROVIDER_ITEM_SEP"%s", prefix, qos->name);
-        else
-          item->full_name = ddsrt_strdup(prefix);
-        if (!ddsrt_hh_add(keyed_qos, item))
-        {
-          QOSPROV_ERROR("Qos duplicate name: %s kind: %d file: %s.\n",
-                        item->full_name, item->kind, path);
-          ret = DDS_RETCODE_BAD_PARAMETER;
-          ddsrt_free(prefix);
-          cleanup_qos_items(item, NULL);
-          goto err_prov;
+          if (ent_scope != NULL && strict_ent && (qos->name == NULL || strcmp(qos->name, ent_scope) != 0))
+            continue;
+          ent_name = qos->name;
+          dds_qos_item_t *item = ddsrt_malloc(sizeof(*item));
+          dds_qos_kind_t kind;
+          char *kind_str = "unknown";
+          switch(qos->kind)
+          {
+            case DDS_SYSDEF_TOPIC_QOS:
+              kind = DDS_TOPIC_QOS;
+              kind_str = "topic";
+              break;
+            case DDS_SYSDEF_READER_QOS:
+              kind = DDS_READER_QOS;
+              kind_str = "reader";
+              break;
+            case DDS_SYSDEF_WRITER_QOS:
+              kind = DDS_WRITER_QOS;
+              kind_str = "writer";
+              break;
+            case DDS_SYSDEF_SUBSCRIBER_QOS:
+              kind = DDS_SUBSCRIBER_QOS;
+              kind_str = "subscriber";
+              break;
+            case DDS_SYSDEF_PUBLISHER_QOS:
+              kind = DDS_PUBLISHER_QOS;
+              kind_str = "publisher";
+              break;
+            case DDS_SYSDEF_PARTICIPANT_QOS:
+              kind = DDS_PARTICIPANT_QOS;
+              kind_str = "participant";
+              break;
+            default:
+              ddsrt_free(prefix);
+              goto err_prov;
+          }
+          item->kind = kind;
+          item->fini = qos_item_fini;
+          item->qos = dds_create_qos();
+          dds_merge_qos (item->qos, qos->qos);
+          if (qos->base_profile != NULL && !merge_qos_with_profile (qos, qos->base_profile, &item->qos))
+            QOSPROV_WARN("Entity QoS base profile does not contain any valid qos to refer (%s, %s QoS%s%s)\n", prefix, kind_str, (qos->name != NULL ? " " : ""), (qos->name != NULL ? qos->name : ""));
+          if (qos->name != NULL)
+            (void) ddsrt_asprintf(&item->full_name, "%s"PROVIDER_ITEM_SEP"%s", prefix, qos->name);
+          else
+            item->full_name = ddsrt_strdup(prefix);
+          if (!ddsrt_hh_add(keyed_qos, item))
+          {
+            /* in case of "name" & "kind" duplicate within same "profile",
+             * raise a error */
+            if (base_prof == prof)
+            {
+              QOSPROV_ERROR("Qos duplicate name: %s kind: %d file: %s.\n",
+                            item->full_name, item->kind, path);
+              ret = DDS_RETCODE_BAD_PARAMETER;
+              ddsrt_free(prefix);
+              cleanup_qos_items(item, NULL);
+              goto err_prov;
+            }
+
+            /* otherwise extend base qos */
+            dds_qos_item_t *orig = (dds_qos_item_t *)ddsrt_hh_lookup (keyed_qos, item);
+            dds_merge_qos (orig->qos, item->qos);
+            cleanup_qos_items (item, NULL);
+          }
         }
       }
       ddsrt_free(prefix);
@@ -283,6 +342,8 @@ dds_return_t dds_create_qos_provider_scope (const char *path, dds_qos_provider_t
 {
   dds_return_t ret = DDS_RETCODE_OK;
   struct dds_sysdef_system *sysdef;
+  if (path == NULL)
+    path = "<dds/>"; /* empty path is valid path! */
   if ((ret = read_validate_sysdef(path, &sysdef)) != DDS_RETCODE_OK)
     return ret;
   char *lib_name = NULL, *prof_name = NULL, *ent_name = NULL;

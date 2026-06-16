@@ -99,23 +99,28 @@
       return SD_PARSE_RESULT_ERR; \
   }
 
+#define CREATE_NODE_LIST_ST(pstate, element_type, element_kind, element_init, element_fini, element_name, parent_type, parent_kind, current) \
+do { \
+  struct parent_type *parent = (struct parent_type *) current; \
+  _CREATE_NODE(pstate, element_type, element_kind, ELEMENT_DATA_TYPE_GENERIC, parent_kind, current, element_init, element_fini); \
+  if (parent->element_name == NULL) { \
+    parent->element_name = (struct element_type *) current; \
+  } else { \
+    struct xml_element *tail = (struct xml_element *) parent->element_name; \
+    while (tail->next != NULL) { \
+      tail = tail->next; \
+    } \
+    tail->next = current; \
+  } \
+} while (0)
+
 #define CREATE_NODE_LIST(pstate, element_type, element_kind, element_init, element_fini, element_name, parent_type, parent_kind, current) \
   do { \
-    struct parent_type *parent = (struct parent_type *) current; \
-    _CREATE_NODE(pstate, element_type, element_kind, ELEMENT_DATA_TYPE_GENERIC, parent_kind, current, element_init, element_fini); \
-    if (parent->element_name == NULL) { \
-      parent->element_name = (struct element_type *) current; \
-    } else { \
-      struct xml_element *tail = (struct xml_element *) parent->element_name; \
-      while (tail->next != NULL) { \
-        tail = tail->next; \
-      } \
-      tail->next = current; \
-    } \
+    CREATE_NODE_LIST_ST(pstate, element_type, element_kind, element_init, element_fini, element_name, parent_type, parent_kind, current); \
     goto status_ok; \
   } while (0)
 
-#define CREATE_NODE_SINGLE(pstate, element_type, element_kind, element_init, element_fini, element_name, parent_type, parent_kind, current) \
+#define CREATE_NODE_SINGLE_ST(pstate, element_type, element_kind, element_init, element_fini, element_name, parent_type, parent_kind, current) \
   do { \
     struct parent_type *parent = (struct parent_type *) current; \
     if (parent->element_name != NULL) { \
@@ -124,6 +129,12 @@
     } \
     _CREATE_NODE(pstate, element_type, element_kind, ELEMENT_DATA_TYPE_GENERIC, parent_kind, current, element_init, element_fini); \
     parent->element_name = (struct element_type *) current; \
+    goto status_ok; \
+  } while (0)
+
+#define CREATE_NODE_SINGLE(pstate, element_type, element_kind, element_init, element_fini, element_name, parent_type, parent_kind, current) \
+  do { \
+    CREATE_NODE_SINGLE_ST(pstate, element_type, element_kind, element_init, element_fini, element_name, parent_type, parent_kind, current); \
     goto status_ok; \
   } while (0)
 
@@ -266,7 +277,7 @@ static bool str_to_bool (const char *str, bool *value)
   return true;
 }
 
-static struct xml_element *new_node (struct parse_sysdef_state * const pstate, enum element_kind kind, enum element_data_type data_type, struct xml_element *parent, size_t size, init_fn init, fini_fn fini)
+static struct xml_element *new_node (struct parse_sysdef_state * const pstate, enum element_kind kind, enum element_data_type data_type, struct xml_element *parent, size_t size, xml_node_init_fn init, xml_node_fini_fn fini)
 {
   struct xml_element *e = ddsrt_malloc (size);
   if (e == NULL) {
@@ -2580,7 +2591,7 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
       PARSER_ERROR (pstate, line, "Nested element '%s' not supported", name);
       ret = SD_PARSE_RESULT_SYNTAX_ERR;
     }
-    else if ((pstate->current = new_node (pstate, ELEMENT_KIND_DDS, ELEMENT_DATA_TYPE_GENERIC, NULL, sizeof(struct dds_sysdef_system), NO_INIT, fini_sysdef)) == NULL)
+    else if ((pstate->current = new_node (pstate, ELEMENT_KIND_DDS, ELEMENT_DATA_TYPE_GENERIC, NULL, sizeof(struct dds_sysdef_system), NULL, fini_sysdef)) == NULL)
     {
       PARSER_ERROR (pstate, line, "Error creating root node");
       ret = SD_PARSE_RESULT_ERR;
