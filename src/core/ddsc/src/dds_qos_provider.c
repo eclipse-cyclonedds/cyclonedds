@@ -173,7 +173,7 @@ static dds_return_t init_qos_provider (const struct dds_sysdef_system *sysdef, c
           ent_name = qos->name;
           dds_qos_item_t *item = ddsrt_malloc(sizeof(*item));
           dds_qos_kind_t kind;
-          char *kind_str = "unknown";
+          char *kind_str = NULL;
           switch(qos->kind)
           {
             case DDS_SYSDEF_TOPIC_QOS:
@@ -202,6 +202,7 @@ static dds_return_t init_qos_provider (const struct dds_sysdef_system *sysdef, c
               break;
             default:
               ddsrt_free(prefix);
+              ddsrt_free(item);
               goto err_prov;
           }
           item->kind = kind;
@@ -209,7 +210,7 @@ static dds_return_t init_qos_provider (const struct dds_sysdef_system *sysdef, c
           item->qos = dds_create_qos();
           dds_merge_qos (item->qos, qos->qos);
           if (qos->base_profile != NULL && !merge_qos_with_profile (qos, qos->base_profile, &item->qos))
-            QOSPROV_WARN("Entity QoS base profile does not contain any valid qos to refer (%s, %s QoS%s%s)\n", prefix, kind_str, (qos->name != NULL ? " " : ""), (qos->name != NULL ? qos->name : ""));
+            QOSPROV_WARN("Entity QoS base profile does not contain any valid qos to refer (%s, %s QoS%s%s)\n", prefix, kind_str != NULL? kind_str : "unknown", (qos->name != NULL ? " " : ""), (qos->name != NULL ? qos->name : ""));
           if (qos->name != NULL)
             (void) ddsrt_asprintf(&item->full_name, "%s"PROVIDER_ITEM_SEP"%s", prefix, qos->name);
           else

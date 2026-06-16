@@ -57,7 +57,7 @@ typedef struct dds_qos_provider dds_qos_provider_t;
  *
  * Create dds_qos_provider with provided system definition file path.
  *
- * @param[in] path - String that contains system definition inself or path to system defenition file.
+ * @param[in] path - String that contains system definition inself or path to system defenition file (can be NULL).
  * @param[in,out] provider - Pointer to the Qos Provider structure.
  *
  * @return a DDS return code
@@ -72,7 +72,7 @@ dds_create_qos_provider (const char *path, dds_qos_provider_t **provider);
  *
  * Create dds_qos_provider with provided system definition file path and scope.
  *
- * @param[in] path - String that contains system definition inself or path to system defenition file.
+ * @param[in] path - String that contains system definition inself or path to system defenition file (can be NULL).
  * @param[in,out] provider - Pointer to the Qos Provider structure.
  * @param[in] key - String that contains pattern of interested qos from `path` in format '<library name>::<profile name>::<entity name>'.
  *
