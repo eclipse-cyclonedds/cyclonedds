@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(fuzz_sample_deser LANGUAGES C)
+project(fuzz_sample_deser LANGUAGES C CXX)
 
 if(NOT TARGET CycloneDDS::ddsc)
   # Find the CycloneDDS package.

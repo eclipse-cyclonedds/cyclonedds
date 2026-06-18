@@ -10,7 +10,7 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 
-project(fuzz_config_init LANGUAGES C)
+project(fuzz_config_init LANGUAGES C CXX)
 cmake_minimum_required(VERSION 3.5)
 
 if(NOT TARGET CycloneDDS::ddsc)

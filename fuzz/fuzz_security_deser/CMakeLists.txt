@@ -1,4 +1,4 @@
-project(fuzz_security_deser LANGUAGES C)
+project(fuzz_security_deser LANGUAGES C CXX)
 cmake_minimum_required(VERSION 3.5)
 
 if(NOT TARGET CycloneDDS::ddsc)

@@ -5,6 +5,8 @@ prepare_fuzz_handshake() {
     apt-get -y install ninja-build liblzma-dev libz-dev libtool
     rm -rf libprotobuf-mutator LPM
     git clone --depth 1 https://github.com/google/libprotobuf-mutator.git
+    # Build LPM's bundled protobuf/abseil at C++17, required by protobuf v29.x
+    sed -i "s@CMAKE_CXX_STANDARD=14@CMAKE_CXX_STANDARD=17@" libprotobuf-mutator/cmake/external/protobuf.cmake
     mkdir LPM && cd LPM
     cmake ../libprotobuf-mutator -GNinja \
         -DCMAKE_BUILD_TYPE=Release \
