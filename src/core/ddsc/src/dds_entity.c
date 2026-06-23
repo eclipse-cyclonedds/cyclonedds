@@ -1286,7 +1286,6 @@ dds_return_t dds_get_guid (dds_entity_t entity, dds_guid_t *guid)
     case DDS_KIND_PARTICIPANT:
     case DDS_KIND_READER:
     case DDS_KIND_WRITER:
-    case DDS_KIND_TOPIC:
       *guid = dds_guid_from_ddsi_guid (e->m_guid);
       ret = DDS_RETCODE_OK;
       break;
