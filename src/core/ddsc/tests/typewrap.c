@@ -649,6 +649,29 @@ CU_Test (ddsc_typewrap, scc_component_must_be_strongly_connected, .init = typewr
   ddsrt_mutex_unlock (&gv->typelib_lock);
 }
 
+CU_Test (ddsc_typewrap, small_map_key_flags_compare_orders)
+{
+  struct DDS_XTypes_TypeIdentifier key_typeid = { ._d = DDS_XTypes_TK_INT32 };
+  struct DDS_XTypes_TypeIdentifier element_typeid = { ._d = DDS_XTypes_TK_INT64 };
+  ddsi_typeid_t map_a = {
+    .x = {
+      ._d = DDS_XTypes_TI_PLAIN_MAP_SMALL,
+      ._u.map_sdefn = {
+        .header = { .equiv_kind = DDS_XTypes_EK_MINIMAL },
+        .bound = 1,
+        .element_identifier = &element_typeid,
+        .key_flags = 1,
+        .key_identifier = &key_typeid
+      }
+    }
+  };
+  ddsi_typeid_t map_b = map_a;
+  map_b.x._u.map_sdefn.key_flags = 2;
+
+  CU_ASSERT (ddsi_typeid_compare (&map_a, &map_b) < 0);
+  CU_ASSERT (ddsi_typeid_compare (&map_b, &map_a) > 0);
+}
+
 CU_Test (ddsc_typewrap, large_map_kind_uses_key_identifier)
 {
   struct DDS_XTypes_TypeIdentifier key_typeid = {

@@ -521,7 +521,7 @@ static int ddsi_typeid_compare_acflag (const struct DDS_XTypes_TypeIdentifier *a
       if ((r = ddsi_typeid_compare_acflag (a->_u.map_sdefn.element_identifier, b->_u.map_sdefn.element_identifier, is_assignability_check)) != 0)
         return r;
       if (a->_u.map_sdefn.key_flags != b->_u.map_sdefn.key_flags)
-        return a->_u.map_sdefn.key_flags != b->_u.map_sdefn.key_flags ? 1 : -1;
+        return a->_u.map_sdefn.key_flags > b->_u.map_sdefn.key_flags ? 1 : -1;
       return ddsi_typeid_compare_acflag (a->_u.map_sdefn.key_identifier, b->_u.map_sdefn.key_identifier, is_assignability_check);
     case DDS_XTypes_TI_PLAIN_MAP_LARGE:
       if ((r = plain_collection_header_compare (a->_u.map_ldefn.header, b->_u.map_ldefn.header, is_assignability_check)) != 0)
