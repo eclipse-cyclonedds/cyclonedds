@@ -77,7 +77,7 @@ Samples in DDS can be arbitrarily large, and do not always fit within a single d
 DDSI can fragment samples so they can fit in UDP datagrams. IP has facilities to fragment
 UDP datagrams into network packets. The DDSI specification (see |url::dds2.5| section 8.4.14.1.2)
 describes how to send fragments (Data must only be fragmented if required). However, |var-project|
-provides a fully configurable behaviour.
+provides a fully configurable behavior.
 
 If the serialised form of a sample is at least the size set in:
 :ref:`General/FragmentSize <//CycloneDDS/Domain/General/FragmentSize>`,
@@ -141,7 +141,7 @@ Receiving of data is split into multiple threads:
    - Liveliness assertions
 
 - One or more delivery threads dedicated to the handling of application data:
-   - deserialisation
+   - deserialization
    - delivery to the DCPS data reader caches
 
 Fragmented data first enters the defragmentation stage, which is per proxy writer. The

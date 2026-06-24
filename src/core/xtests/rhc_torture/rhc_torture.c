@@ -82,7 +82,7 @@ static char *print_tstamp (char *buf, size_t sz, dds_time_t t)
 
 static int64_t dds_time_uniq (void)
 {
-  /* behaviour depends on time stamps being strictly monotonically increasing, but there
+  /* behavior depends on time stamps being strictly monotonically increasing, but there
      is no way of knowing whether dds_time provides sufficient resolution, so fake it */
   int64_t t = dds_time ();
   if (t > last_dds_time)

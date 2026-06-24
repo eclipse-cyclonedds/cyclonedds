@@ -227,7 +227,7 @@ being accessed:
 
 
 For a detailed explanation of the different QoSPolicies and their effects on the 
-behaviour of CycloneDDS, refer to the |url::dds_spec| v1.4 section 2.2.3.
+behavior of CycloneDDS, refer to the |url::dds_spec| v1.4 section 2.2.3.
 
 Default and Inherited QoSes
 ---------------------------

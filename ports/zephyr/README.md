@@ -31,7 +31,7 @@ $ west build -b qemu_x86 . -- -DOVERLAY_CONFIG=overlay-e1000.conf -DBUILD_ROUNDT
 
 Command-line parameters for the example can be modified in `src/rountrip_main.c`
 
-The CycloneDDS configuration in `config.xml` is automatically converted to a char array and available as environment variable to support the default behaviour of retrieving config from `CYCLONEDDS_URI`.
+The CycloneDDS configuration in `config.xml` is automatically converted to a char array and available as environment variable to support the default behavior of retrieving config from `CYCLONEDDS_URI`.
 Alternatively, [dds_create_domain_with_rawconfig](https://cyclonedds.io/docs/cyclonedds/latest/api/domain.html?#c.dds_create_domain_with_rawconfig) can be used without XML configuration data.
 
 ## Zephyr versions

@@ -11,7 +11,7 @@ network interface). The set of enabled interfaces determines the addresses that 
 advertises in the discovery information (see :ref:`discovery_participants_endpoints`).
 
 -----------------
-Default behaviour
+Default behavior
 -----------------
 
 To determine the default network interface, the eligible interfaces are ranked by quality, 
@@ -44,12 +44,12 @@ The default address family is IPv4. To change the address family to IPv6, set:
 
 .. note::
   |var-project| does not mix IPv4 and IPv6 addressing. Therefore, all DDSI participants in 
-  the network must use the same addressing mode. When interoperating, this behaviour is 
+  the network must use the same addressing mode. When interoperating, this behavior is 
   the same. That is, it looks at either IPv4 or IPv6 addresses in the advertised address 
   information in the SPDP and SEDP discovery protocols.
 
 IPv6 link-local addresses are considered undesirable because they must be published 
-and received via the discovery mechanism (see :ref:`discovery_behaviour`). There is no way to 
+and received via the discovery mechanism (see :ref:`discovery_behavior`). There is no way to 
 determine to which interface a received link-local address is related.
 
 If IPv6 is requested and the selected interface has a non-link-local address, |var-project| 
@@ -57,7 +57,7 @@ operates in a *global addressing* mode and will only consider discovered non-lin
 addresses. In this mode, you can select any set of interfaces for listening to multicasts. 
 
 .. note:: 
-  This behaviour is identical to that when using IPv4, as IPv4 does not have 
+  This behavior is identical to that when using IPv4, as IPv4 does not have 
   the formal notion of address scopes that IPv6 has. If only a link-local address is 
   available, |var-project| runs in a *link-local addressing* mode. In this mode, it accepts 
   any address in a discovery packet (assuming that a link-local address is valid on the selected 
@@ -72,7 +72,7 @@ Multiple network interfaces
 
 Multiple network interfaces can be used simultaneously by listing multiple 
 :ref:`NetworkInterface <//CycloneDDS/Domain/General/Interfaces/NetworkInterface>` elements. 
-The default behaviour still applies, but with extended network interfaces. For example, 
+The default behavior still applies, but with extended network interfaces. For example, 
 the SPDP packets advertise multiple addresses and sends these packets out on all interfaces. 
 If link-local addresses are used, the issue with *link-local addressing* gains importance.
 

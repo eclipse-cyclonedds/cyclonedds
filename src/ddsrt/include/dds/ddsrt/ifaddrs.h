@@ -78,7 +78,7 @@ ddsrt_freeifaddrs(
  * Copies the first 6 bytes of the mac address into the buffer 'mac_addr'.
  * Specifying an unknown interface results in DDS_RETCODE_ERROR.
  * If the interface exists and doesn't actually have a MAC address, like a loopback interface,
- * the behaviour is platform-dependent. (On Linux, you get all 0, but that may not be universally true.)
+ * the behavior is platform-dependent. (On Linux, you get all 0, but that may not be universally true.)
  * 
  * @param[in] interface_name the name of the interface
  * @param[out] mac_addr a buffer to copy the mac address into

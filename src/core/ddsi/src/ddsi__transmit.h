@@ -31,7 +31,7 @@ struct ddsi_thread_state;
    recentish; serdata is unref'd.  If xp == NULL, data is queued, else
    packed.
 
-   "nogc": no GC may occur, so it may not block to throttle the writer if the high water mark of the WHC is reached, which implies true KEEP_LAST behaviour.  This is true for all the DDSI built-in writers.
+   "nogc": no GC may occur, so it may not block to throttle the writer if the high water mark of the WHC is reached, which implies true KEEP_LAST behavior.  This is true for all the DDSI built-in writers.
    "gc": GC may occur, which means the writer history and watermarks can be anything.  This must be used for all application data.
  */
 

@@ -37,7 +37,7 @@ writers with the two participants. For |var-project|, SEDP also exchanges inform
 publishers, subscribers and topics in a manner compatible with OpenSplice.
 
 The SEDP data is handled as reliable (see :ref:`reliable_coms`), transient-local data 
-(see :ref:`DDSI-specific transient-local behaviour`). Therefore, the SEDP Writers
+(see :ref:`DDSI-specific transient-local behavior`). Therefore, the SEDP Writers
 send Heartbeats. If the SEDP Readers detect they have not yet received all samples and send
 AckNacks requesting re-transmissions, the Writer responds to these and eventually
 receives a pure acknowledgement informing it that the reader has now received the

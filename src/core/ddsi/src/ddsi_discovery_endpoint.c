@@ -488,7 +488,7 @@ void ddsi_handle_sedp_alive_endpoint (const struct ddsi_receiver_state *rst, dds
     GVLOGDISC (" NEW");
   }
 
-  // allow, force this way: original behaviour; allow_srcloc = true means SEDP quite quickly ends up using it
+  // allow, force this way: original behavior; allow_srcloc = true means SEDP quite quickly ends up using it
   // in favour of inheriting addresses from participant
   const bool allow_srcloc = gv->config.tcp_use_peeraddr_for_unicast && !ddsi_is_unspec_locator (&rst->pktinfo.src);
   const bool force_srcloc = allow_srcloc;
