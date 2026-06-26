@@ -322,6 +322,7 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
 
   uint32_t allowed_data_representation = desc->m_flagset & DDS_TOPIC_RESTRICT_DATA_REPRESENTATION ?
       desc->restrict_data_representation : DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT;
+  allowed_data_representation &= dds_stream_allowed_data_representations (desc->m_ops);
   if (min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
     allowed_data_representation &= ~DDS_DATA_REPRESENTATION_FLAG_XCDR1;
 

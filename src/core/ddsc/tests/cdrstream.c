@@ -1902,6 +1902,81 @@ static const uint32_t CdrStreamEnumUnionAppendableDefaultMeta_ops[] = {
   DDS_OP_RTS
 };
 
+static const uint32_t CdrStreamEnumUnionFinalDiscUseDefaultMeta_ops[] = {
+  DDS_OP_ADR | DDS_OP_TYPE_UNI | DDS_OP_SUBTYPE_ENU | DDS_OP_FLAG_SUBTYPE_TC_DEF | (2u << DDS_OP_FLAG_SZ_SHIFT), offsetof (CdrStreamEnumUnionDefaultMeta, d), 1u, (9u << 16u) + 5u, UINT32_MAX,
+  DDS_OP_JEQ4 | DDS_OP_TYPE_ENU | DDS_OP_FLAG_TYPE_TC_DEF | (2u << DDS_OP_FLAG_SZ_SHIFT), 3u, offsetof (CdrStreamEnumUnionDefaultMeta, u.e), UINT32_MAX,
+  DDS_OP_RTS,
+  DDS_OP_EVS | 0u, 3u, 3u, 1u, 3u, UINT32_MAX,
+  DDS_OP_RTS,
+  DDS_OP_EVM | 0u, 0u,
+  DDS_OP_EVM | 5u, 0u,
+  DDS_OP_RTS
+};
+
+typedef struct CdrStreamEnumUnionStructMeta {
+  uint32_t before;
+  CdrStreamEnumUnionDefaultMeta u;
+  uint32_t after;
+} CdrStreamEnumUnionStructMeta;
+
+static const uint32_t CdrStreamFinalStructUnionLastDiscUseDefaultMeta_ops[] = {
+  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (CdrStreamEnumUnionStructMeta, before),
+  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (CdrStreamEnumUnionStructMeta, u), (3u << 16u) + 4u,
+  DDS_OP_RTS,
+  DDS_OP_ADR | DDS_OP_TYPE_UNI | DDS_OP_SUBTYPE_ENU | DDS_OP_FLAG_SUBTYPE_TC_DEF | (2u << DDS_OP_FLAG_SZ_SHIFT), offsetof (CdrStreamEnumUnionDefaultMeta, d), 1u, (9u << 16u) + 5u, UINT32_MAX,
+  DDS_OP_JEQ4 | DDS_OP_TYPE_ENU | DDS_OP_FLAG_TYPE_TC_DEF | (2u << DDS_OP_FLAG_SZ_SHIFT), 3u, offsetof (CdrStreamEnumUnionDefaultMeta, u.e), UINT32_MAX,
+  DDS_OP_RTS,
+  DDS_OP_EVS | 0u, 3u, 3u, 1u, 3u, UINT32_MAX,
+  DDS_OP_RTS,
+  DDS_OP_EVM | 6u, 0u,
+  DDS_OP_EVM | 11u, 0u,
+  DDS_OP_RTS
+};
+
+static const uint32_t CdrStreamFinalStructUnionThenMemberDiscUseDefaultMeta_ops[] = {
+  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (CdrStreamEnumUnionStructMeta, u), (3u << 16u) + 6u,
+  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (CdrStreamEnumUnionStructMeta, after),
+  DDS_OP_RTS,
+  DDS_OP_ADR | DDS_OP_TYPE_UNI | DDS_OP_SUBTYPE_ENU | DDS_OP_FLAG_SUBTYPE_TC_DEF | (2u << DDS_OP_FLAG_SZ_SHIFT), offsetof (CdrStreamEnumUnionDefaultMeta, d), 1u, (9u << 16u) + 5u, UINT32_MAX,
+  DDS_OP_JEQ4 | DDS_OP_TYPE_ENU | DDS_OP_FLAG_TYPE_TC_DEF | (2u << DDS_OP_FLAG_SZ_SHIFT), 3u, offsetof (CdrStreamEnumUnionDefaultMeta, u.e), UINT32_MAX,
+  DDS_OP_RTS,
+  DDS_OP_EVS | 0u, 3u, 3u, 1u, 3u, UINT32_MAX,
+  DDS_OP_RTS,
+  DDS_OP_EVM | 6u, 0u,
+  DDS_OP_EVM | 11u, 0u,
+  DDS_OP_RTS
+};
+
+static const uint32_t CdrStreamAppendableStructUnionLastDiscUseDefaultMeta_ops[] = {
+  DDS_OP_DLC,
+  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (CdrStreamEnumUnionStructMeta, before),
+  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (CdrStreamEnumUnionStructMeta, u), (3u << 16u) + 4u,
+  DDS_OP_RTS,
+  DDS_OP_ADR | DDS_OP_TYPE_UNI | DDS_OP_SUBTYPE_ENU | DDS_OP_FLAG_SUBTYPE_TC_DEF | (2u << DDS_OP_FLAG_SZ_SHIFT), offsetof (CdrStreamEnumUnionDefaultMeta, d), 1u, (9u << 16u) + 5u, UINT32_MAX,
+  DDS_OP_JEQ4 | DDS_OP_TYPE_ENU | DDS_OP_FLAG_TYPE_TC_DEF | (2u << DDS_OP_FLAG_SZ_SHIFT), 3u, offsetof (CdrStreamEnumUnionDefaultMeta, u.e), UINT32_MAX,
+  DDS_OP_RTS,
+  DDS_OP_EVS | 0u, 3u, 3u, 1u, 3u, UINT32_MAX,
+  DDS_OP_RTS,
+  DDS_OP_EVM | 7u, 0u,
+  DDS_OP_EVM | 12u, 0u,
+  DDS_OP_RTS
+};
+
+static const uint32_t CdrStreamAppendableStructUnionThenMemberDiscUseDefaultMeta_ops[] = {
+  DDS_OP_DLC,
+  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (CdrStreamEnumUnionStructMeta, u), (3u << 16u) + 6u,
+  DDS_OP_ADR | DDS_OP_TYPE_4BY, offsetof (CdrStreamEnumUnionStructMeta, after),
+  DDS_OP_RTS,
+  DDS_OP_ADR | DDS_OP_TYPE_UNI | DDS_OP_SUBTYPE_ENU | DDS_OP_FLAG_SUBTYPE_TC_DEF | (2u << DDS_OP_FLAG_SZ_SHIFT), offsetof (CdrStreamEnumUnionDefaultMeta, d), 1u, (9u << 16u) + 5u, UINT32_MAX,
+  DDS_OP_JEQ4 | DDS_OP_TYPE_ENU | DDS_OP_FLAG_TYPE_TC_DEF | (2u << DDS_OP_FLAG_SZ_SHIFT), 3u, offsetof (CdrStreamEnumUnionDefaultMeta, u.e), UINT32_MAX,
+  DDS_OP_RTS,
+  DDS_OP_EVS | 0u, 3u, 3u, 1u, 3u, UINT32_MAX,
+  DDS_OP_RTS,
+  DDS_OP_EVM | 7u, 0u,
+  DDS_OP_EVM | 12u, 0u,
+  DDS_OP_RTS
+};
+
 CU_Test (ddsc_cdrstream, check_normalize_enum_value_metadata)
 {
   struct dds_cdrstream_desc desc;
@@ -2078,6 +2153,64 @@ CU_Test (ddsc_cdrstream, read_appendable_enum_union_default_metadata)
   dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
 }
 
+CU_Test (ddsc_cdrstream, union_discriminator_use_default_data_representations)
+{
+  const uint32_t xcdr12 = DDS_DATA_REPRESENTATION_FLAG_XCDR1 | DDS_DATA_REPRESENTATION_FLAG_XCDR2;
+  CU_ASSERT_EQ_FATAL (dds_stream_allowed_data_representations (CdrStreamEnumUnionFinalDiscUseDefaultMeta_ops), xcdr12);
+  CU_ASSERT_EQ_FATAL (dds_stream_allowed_data_representations (CdrStreamFinalStructUnionLastDiscUseDefaultMeta_ops), xcdr12);
+  CU_ASSERT_EQ_FATAL (dds_stream_allowed_data_representations (CdrStreamFinalStructUnionThenMemberDiscUseDefaultMeta_ops), 0u);
+  CU_ASSERT_EQ_FATAL (dds_stream_allowed_data_representations (CdrStreamEnumUnionAppendableDefaultMeta_ops), xcdr12);
+  CU_ASSERT_EQ_FATAL (dds_stream_allowed_data_representations (CdrStreamAppendableStructUnionLastDiscUseDefaultMeta_ops), xcdr12);
+  CU_ASSERT_EQ_FATAL (dds_stream_allowed_data_representations (CdrStreamAppendableStructUnionThenMemberDiscUseDefaultMeta_ops), 0u);
+  CU_ASSERT_EQ_FATAL (dds_stream_minimum_xcdr_version (CdrStreamEnumUnionAppendableDefaultMeta_ops), XCDR1);
+}
+
+CU_Test (ddsc_cdrstream, normalize_read_union_discriminator_use_default)
+{
+  struct dds_cdrstream_desc desc;
+  dds_cdrstream_desc_init_with_nops (&desc, &dds_cdrstream_default_allocator, sizeof (CdrStreamEnumUnionDefaultMeta), dds_alignof (CdrStreamEnumUnionDefaultMeta), 0, CdrStreamEnumUnionAppendableDefaultMeta_ops, sizeof (CdrStreamEnumUnionAppendableDefaultMeta_ops) / sizeof (CdrStreamEnumUnionAppendableDefaultMeta_ops[0]), NULL, 0);
+  CU_ASSERT_FATAL (desc.member_ids.has_special_defaults);
+
+  uint32_t cdr[] = { 8u, 2u, 1u };
+  uint32_t actual_size = 0;
+  enum dds_stream_normalize_result ret = dds_stream_normalize (cdr, sizeof (cdr), false, DDSI_RTPS_CDR_ENC_VERSION_2, &desc, false, &actual_size);
+  CU_ASSERT_EQ_FATAL (ret, DDS_STREAM_NORMALIZE_SUCCESS);
+  CU_ASSERT_EQ_FATAL (actual_size, sizeof (cdr));
+  CU_ASSERT_EQ_FATAL (cdr[1], 3u);
+  CU_ASSERT_EQ_FATAL (cdr[2], 1u);
+
+  CdrStreamEnumUnionDefaultMeta sample = { .d = 1u, .u = { .e = 99u } };
+  dds_istream_t is;
+  dds_istream_init (&is, sizeof (cdr), cdr, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_stream_read_sample (&is, &sample, &dds_cdrstream_default_allocator, &desc);
+
+  CU_ASSERT_EQ_FATAL (is.m_index, sizeof (cdr));
+  CU_ASSERT_EQ_FATAL (sample.d, 3u);
+  CU_ASSERT_EQ_FATAL (sample.u.e, 1u);
+
+  dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+
+  dds_cdrstream_desc_init_with_nops (&desc, &dds_cdrstream_default_allocator, sizeof (CdrStreamEnumUnionDefaultMeta), dds_alignof (CdrStreamEnumUnionDefaultMeta), 0, CdrStreamEnumUnionFinalDiscUseDefaultMeta_ops, sizeof (CdrStreamEnumUnionFinalDiscUseDefaultMeta_ops) / sizeof (CdrStreamEnumUnionFinalDiscUseDefaultMeta_ops[0]), NULL, 0);
+  CU_ASSERT_FATAL (desc.member_ids.has_special_defaults);
+
+  uint32_t final_cdr[] = { 2u, 1u };
+  actual_size = 0;
+  ret = dds_stream_normalize (final_cdr, sizeof (final_cdr), false, DDSI_RTPS_CDR_ENC_VERSION_1, &desc, false, &actual_size);
+  CU_ASSERT_EQ_FATAL (ret, DDS_STREAM_NORMALIZE_SUCCESS);
+  CU_ASSERT_EQ_FATAL (actual_size, sizeof (final_cdr));
+  CU_ASSERT_EQ_FATAL (final_cdr[0], 3u);
+  CU_ASSERT_EQ_FATAL (final_cdr[1], 1u);
+
+  sample = (CdrStreamEnumUnionDefaultMeta) { .d = 1u, .u = { .e = 99u } };
+  dds_istream_init (&is, sizeof (final_cdr), final_cdr, DDSI_RTPS_CDR_ENC_VERSION_1);
+  dds_stream_read_sample (&is, &sample, &dds_cdrstream_default_allocator, &desc);
+
+  CU_ASSERT_EQ_FATAL (is.m_index, sizeof (final_cdr));
+  CU_ASSERT_EQ_FATAL (sample.d, 3u);
+  CU_ASSERT_EQ_FATAL (sample.u.e, 1u);
+
+  dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+}
 
 #define D(n) (&CdrStreamChecking_ ## n ## _desc)
 CU_Test (ddsc_cdrstream, check_sequence_alloc)

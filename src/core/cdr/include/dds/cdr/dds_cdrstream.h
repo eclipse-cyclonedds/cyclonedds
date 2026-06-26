@@ -735,6 +735,16 @@ enum dds_cdr_enc_version dds_stream_minimum_xcdr_version (const uint32_t *ops)
   ddsrt_nonnull_all;
 
 /**
+ * @brief Determine the data representations supported by stream operations.
+ * @component cdr_serializer
+ *
+ * @param ops  marshalling metadata to inspect
+ * @returns    bitmask of DDS_DATA_REPRESENTATION_FLAG_XCDR1/XCDR2
+ */
+uint32_t dds_stream_allowed_data_representations (const uint32_t *ops)
+  ddsrt_nonnull_all;
+
+/**
  * @brief Determine the maximum type nesting depth in stream operations.
  * @component cdr_serializer
  *
