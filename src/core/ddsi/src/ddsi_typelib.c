@@ -3537,7 +3537,8 @@ bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type_p
     *rd_xt = (rd_resolved == DDS_XTypes_EK_BOTH || rd_resolved == DDS_XTypes_EK_MINIMAL) ? &rd_type_pair->minimal->xt : &rd_type_pair->complete->xt,
     *wr_xt = (wr_resolved == DDS_XTypes_EK_BOTH || wr_resolved == DDS_XTypes_EK_MINIMAL) ? &wr_type_pair->minimal->xt : &wr_type_pair->complete->xt;
   struct ddsi_non_assignability_reason reason;
-  bool assignable = ddsi_xt_is_assignable_from (gv, rd_xt, wr_xt, tce, &reason);
+  const uint32_t reason_flags = (gv->logconfig.c.mask & DDS_LC_DISCOVERY) ? DDSI_NONASSIGN_REASON_DETAIL_PATH : 0;
+  bool assignable = ddsi_xt_is_assignable_from (gv, rd_xt, wr_xt, tce, &reason, reason_flags);
   ddsrt_mutex_unlock (&gv->typelib_lock);
 
   if (!assignable)
@@ -3546,14 +3547,17 @@ bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type_p
     struct typelib_trace_typeid_str t1str, t2str;
     // not supposed to perform an assignability check while there are still unresolved types involved
     const uint32_t lc_cat = DDS_LC_DISCOVERY | (reason.code == DDSI_NONASSIGN_TYPE_UNRESOLVED ? DDS_LC_WARNING : 0);
-    GVLOG (lc_cat, "assignability check failed: rd type %s wr type %s, t1=%s (%s) t2=%s (%s) id %"PRIu32": %s\n",
+    GVLOG (lc_cat, "assignability check failed: rd type %s wr type %s, t1=%s (%s) t2=%s (%s) id %"PRIu32": %s%s%s%s%s%s\n",
            typelib_trace_make_typeid_str (&trdstr, &rd_xt->id.x),
            typelib_trace_make_typeid_str (&twrstr, &wr_xt->id.x),
            reason.t1_id._d != DDS_XTypes_TK_NONE ? typelib_trace_make_typeid_str (&t1str, &reason.t1_id) : "(none)",
            reason.t1_typekind ? ddsi_typekind_descr (reason.t1_typekind) : "",
            reason.t2_id._d != DDS_XTypes_TK_NONE ? typelib_trace_make_typeid_str (&t2str, &reason.t2_id) : "(none)",
            reason.t2_typekind ? ddsi_typekind_descr (reason.t2_typekind) : "",
-           reason.id, ddsi_non_assignability_code_str (reason.code));
+           reason.id, ddsi_non_assignability_code_str (reason.code),
+           reason.detail[0] ? ": " : "", reason.detail,
+           reason.path[0] ? ", path " : "", reason.path,
+           reason.path_truncated ? " (truncated)" : "");
   }
   return assignable;
 }

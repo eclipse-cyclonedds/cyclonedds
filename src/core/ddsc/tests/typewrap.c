@@ -407,7 +407,7 @@ CU_Test (ddsc_typewrap, recursive_type_assignability, .init = typewrap_init, .fi
   struct ddsi_non_assignability_reason reason;
   CU_ASSERT_EQ_FATAL (ddsi_xt_validate (gv, &rd_struct), DDS_RETCODE_OK);
   CU_ASSERT_EQ_FATAL (ddsi_xt_validate (gv, &wr_struct), DDS_RETCODE_OK);
-  CU_ASSERT (ddsi_xt_is_assignable_from (gv, &rd_struct.xt, &wr_struct.xt, &tce, &reason));
+  CU_ASSERT (ddsi_xt_is_assignable_from (gv, &rd_struct.xt, &wr_struct.xt, &tce, &reason, 0));
 
   struct ddsi_type rd_sequence_a = {0}, rd_sequence_b = {0}, wr_sequence_a = {0}, wr_sequence_b = {0};
   init_test_hash_id (&rd_sequence_a.xt.id, 14);
@@ -509,7 +509,7 @@ CU_Test (ddsc_typewrap, keyholder_releases_removed_member_annotations, .init = t
     .ignore_member_names = true
   };
   struct ddsi_non_assignability_reason reason;
-  CU_ASSERT (ddsi_xt_is_assignable_from (gv, &rd_top.xt, &wr_top.xt, &tce, &reason));
+  CU_ASSERT (ddsi_xt_is_assignable_from (gv, &rd_top.xt, &wr_top.xt, &tce, &reason, 0));
 }
 
 CU_Test (ddsc_typewrap, typeobject_fini_walks_mutated_owned_sequences)
@@ -589,6 +589,65 @@ CU_Test (ddsc_typewrap, typeobject_fini_walks_mutated_owned_sequences)
   CU_ASSERT_NEQ_FATAL (flag_seq->_buffer[0].detail.ann_custom, NULL);
   flag_seq->_length = 0;
   ddsi_typeobj_fini_impl (&bitmask_object);
+}
+
+CU_Test (ddsc_typewrap, non_assignability_reason_member_path, .init = typewrap_init, .fini = typewrap_fini)
+{
+  struct ddsi_domaingv *gv = get_domaingv (participant);
+
+  struct ddsi_type rd_string = {0}, wr_string = {0};
+  rd_string.xt.id.x._d = DDS_XTypes_TI_STRING8_SMALL;
+  rd_string.xt.id.x._u.string_sdefn.bound = 4;
+  rd_string.xt.kind = DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE;
+  rd_string.xt._d = DDS_XTypes_TK_STRING8;
+  rd_string.xt._u.str8.bound = 4;
+  wr_string.xt.id.x._d = DDS_XTypes_TI_STRING8_SMALL;
+  wr_string.xt.id.x._u.string_sdefn.bound = 8;
+  wr_string.xt.kind = DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE;
+  wr_string.xt._d = DDS_XTypes_TK_STRING8;
+  wr_string.xt._u.str8.bound = 8;
+
+  struct xt_struct_member rd_member = {
+    .id = 1,
+    .flags = DDS_XTypes_TRY_CONSTRUCT1,
+    .type = &rd_string
+  };
+  struct xt_struct_member wr_member = {
+    .id = 1,
+    .flags = DDS_XTypes_TRY_CONSTRUCT1,
+    .type = &wr_string
+  };
+  ddsrt_strlcpy (rd_member.detail.name, "payload", sizeof (rd_member.detail.name));
+  ddsi_xt_get_namehash (rd_member.detail.name_hash, rd_member.detail.name);
+  ddsrt_strlcpy (wr_member.detail.name, "payload", sizeof (wr_member.detail.name));
+  ddsi_xt_get_namehash (wr_member.detail.name_hash, wr_member.detail.name);
+
+  struct ddsi_type rd_struct = {0}, wr_struct = {0};
+  init_test_hash_id (&rd_struct.xt.id, 18);
+  rd_struct.xt.kind = DDSI_TYPEID_KIND_COMPLETE;
+  rd_struct.xt._d = DDS_XTypes_TK_STRUCTURE;
+  rd_struct.xt._u.structure.flags = DDS_XTypes_IS_MUTABLE;
+  rd_struct.xt._u.structure.members.length = 1;
+  rd_struct.xt._u.structure.members.seq = &rd_member;
+  init_test_hash_id (&wr_struct.xt.id, 19);
+  wr_struct.xt.kind = DDSI_TYPEID_KIND_COMPLETE;
+  wr_struct.xt._d = DDS_XTypes_TK_STRUCTURE;
+  wr_struct.xt._u.structure.flags = DDS_XTypes_IS_MUTABLE;
+  wr_struct.xt._u.structure.members.length = 1;
+  wr_struct.xt._u.structure.members.seq = &wr_member;
+
+  dds_type_consistency_enforcement_qospolicy_t tce = {
+    .kind = DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION
+  };
+  struct ddsi_non_assignability_reason reason;
+  CU_ASSERT (!ddsi_xt_is_assignable_from (gv, &rd_struct.xt, &wr_struct.xt, &tce, &reason, DDSI_NONASSIGN_REASON_DETAIL_PATH));
+  CU_ASSERT_EQ (reason.code, DDSI_NONASSIGN_BOUND);
+  CU_ASSERT (reason.detailed);
+  CU_ASSERT (!reason.path_truncated);
+  CU_ASSERT (strstr (reason.detail, "bounds are incompatible") != NULL);
+  CU_ASSERT (strstr (reason.detail, "reader member payload[id=1]") != NULL);
+  CU_ASSERT (strstr (reason.detail, "writer member payload[id=1]") != NULL);
+  CU_ASSERT (strstr (reason.path, "reader .payload[id=1] <= writer .payload[id=1]") != NULL);
 }
 
 CU_Test (ddsc_typewrap, alias_base_validation, .init = typewrap_init, .fini = typewrap_fini)
