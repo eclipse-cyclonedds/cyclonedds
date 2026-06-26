@@ -14,6 +14,7 @@
 #include <assert.h>
 #include <locale.h>
 #include <signal.h>
+#include <getopt.h>
 #if !defined _WIN32 && !DDSRT_WITH_FREERTOS && !__ZEPHYR__
 #include <unistd.h>
 #endif
@@ -47,8 +48,49 @@
 // For convenience, the DDS participant is global
 static struct dyntypelib *dyntypelib;
 static dds_entity_t participant;
+static enum dtl_sample_format output_format = DTL_SAMPLE_FORMAT_JSON;
 
 static dds_entity_t termcond;
+
+static void usage (const char *argv0)
+{
+  fprintf (stderr, "usage: %s [-r] [-f json|xml] topicname\n", argv0);
+}
+
+static bool parse_sample_format (const char *arg, enum dtl_sample_format *fmt)
+{
+  if (strcmp (arg, "json") == 0)
+  {
+    *fmt = DTL_SAMPLE_FORMAT_JSON;
+    return true;
+  }
+  if (strcmp (arg, "xml") == 0)
+  {
+    *fmt = DTL_SAMPLE_FORMAT_XML;
+    return true;
+  }
+  return false;
+}
+
+static void print_sample (struct dyntypelib *dtl, bool valid_data, const void *sample, const DDS_XTypes_CompleteTypeObject *typeobj)
+{
+  struct dyntypelib_error err = { .errmsg = "" };
+  char *str = NULL;
+  const struct dtl_sample_print_options opts = {
+    .format = output_format,
+    .trailing_newline = true
+  };
+  dds_return_t rc = dtl_print_sample_to_string (dtl, valid_data, sample, typeobj, &opts, &str, NULL, &err);
+  if (rc == DDS_RETCODE_OK)
+  {
+    (void) fputs (str, stdout);
+    ddsrt_free (str);
+  }
+  else
+  {
+    printf ("(sample print failed: %s)\n", err.errmsg);
+  }
+}
 
 // Helper function to wait for a DCPSPublication/DCPSSubscription to show up with the desired topic name,
 // then calls dds_find_topic to create a topic for that data writer's/reader's type up the retrieves the
@@ -162,7 +204,7 @@ static bool print_sample_normal (dds_entity_t reader, const DDS_XTypes_TypeObjec
   else if (ret != 0)
   {
     // ... that we then print
-    dtl_print_sample (dyntypelib, si.valid_data, raw, &xtypeobj->_u.complete);
+    print_sample (dyntypelib, si.valid_data, raw, &xtypeobj->_u.complete);
     if (dds_return_loan (reader, &raw, 1) < 0)
       return false;
   }
@@ -257,7 +299,7 @@ static bool print_sample_cdr (dds_entity_t reader, const DDS_XTypes_TypeObject *
       ok = ddsi_serdata_untyped_to_sample (st, sd, raw, NULL, NULL);
     }
     if (ok)
-      dtl_print_sample (dyntypelib, si.valid_data, raw, &xtypeobj->_u.complete);
+      print_sample (dyntypelib, si.valid_data, raw, &xtypeobj->_u.complete);
     else
       printf ("(conversion to sample failed)\n");
     ddsi_sertype_free_sample (sd->type, raw, DDS_FREE_CONTENTS);
@@ -297,21 +339,33 @@ int main (int argc, char **argv)
   // for printf("%ls")
   setlocale (LC_CTYPE, "");
 
-  if (argc == 2)
+  raw_mode = false;
+  int opt;
+  while ((opt = getopt (argc, argv, "f:r")) != EOF)
   {
-    raw_mode = false;
-    topic_name = argv[1];
+    switch (opt)
+    {
+      case 'f':
+        if (!parse_sample_format (optarg, &output_format))
+        {
+          fprintf (stderr, "unsupported output format %s\n", optarg);
+          return 2;
+        }
+        break;
+      case 'r':
+        raw_mode = true;
+        break;
+      default:
+        usage (argv[0]);
+        return 2;
+    }
   }
-  else if (argc == 3 && strcmp (argv[1], "-r") == 0)
+  if (argc - optind != 1)
   {
-    raw_mode = true;
-    topic_name = argv[2];
-  }
-  else
-  {
-    fprintf (stderr, "usage: %s [-r] topicname\n", argv[0]);
+    usage (argv[0]);
     return 2;
   }
+  topic_name = argv[optind];
 
   participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   if (participant < 0)

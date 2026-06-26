@@ -15,7 +15,12 @@
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
 
 struct type_cache;
+struct dyntypelib_error;
 
-int compare_samples (struct type_cache *tc, bool valid_data, const void *sample1, const void* sample2, const DDS_XTypes_CompleteTypeObject *typeobj);
+/* valid_data selects the comparison scope: true compares all fields, false
+   compares only values reachable through key-annotated member paths. */
+dds_return_t compare_samples_equal (struct type_cache *tc, bool valid_data, const void *sample1, const void *sample2,
+  const DDS_XTypes_CompleteTypeObject *typeobj, bool *equal, struct dyntypelib_error *err);
+int compare_samples (struct type_cache *tc, bool valid_data, const void *sample1, const void *sample2, const DDS_XTypes_CompleteTypeObject *typeobj);
 
 #endif /* COMPARE_SAMPLES_H */
