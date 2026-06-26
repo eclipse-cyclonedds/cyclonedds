@@ -31,7 +31,7 @@ static bool dds_stream_write_keyBO_impl (RESTRICT_OSTREAM_T *os, const struct dd
     case DDS_SOP_VAL_8BY: dds_os_put8BO (os, allocator, *((uint64_t *) addr)); break;
     case DDS_SOP_VAL_16BY: dds_os_put16BO (os, allocator, *((ddsrt_uint128_t *) addr)); break;
     case DDS_SOP_VAL_ENU:
-      if (!dds_stream_write_enum_valueBO (os, allocator, insn, *((uint32_t *) addr), ops[2]))
+      if (!dds_stream_write_enum_valueBO (os, allocator, mid_table, ops, *((uint32_t *) addr), ops[2]))
         return false;
       break;
     case DDS_SOP_VAL_BMK:
@@ -86,10 +86,14 @@ static bool dds_stream_write_keyBO_impl (RESTRICT_OSTREAM_T *os, const struct dd
 ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
 static bool dds_stream_write_keyBO_restrict (RESTRICT_OSTREAM_T *os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator *allocator, const char *sample, const struct dds_cdrstream_desc *desc)
 {
-  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM) && ser_kind == DDS_CDR_KEY_SERIALIZATION_SAMPLE)
+  const bool use_regular_sample_key_writer =
+    (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM)) ||
+    desc->member_ids.enum_value_sets != NULL;
+  if (use_regular_sample_key_writer && ser_kind == DDS_CDR_KEY_SERIALIZATION_SAMPLE)
   {
     /* For types with key fields in aggregated types with appendable or mutable
-       extensibility, write the key CDR using the regular write functions */
+       extensibility or with enum value tables, write the key CDR using the
+       regular write functions. */
     if (dds_stream_write_implBO (os, allocator, &desc->member_ids, sample, desc->ops.ops, false, CDR_KIND_KEY) == NULL)
       return false;
   }
@@ -283,13 +287,17 @@ static bool dds_stream_extract_keyBO_from_data_restrict (dds_istream_t *is, REST
   if (keys_remaining == 0)
     return ret;
 
-  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM))
+  const bool use_regular_key_extraction =
+    (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM)) ||
+    desc->member_ids.enum_value_sets != NULL;
+  if (use_regular_key_extraction)
   {
     /* In case key members exist in top-level type or any subtype has non-final extensibility,
-       read the full sample and use the write function to get the key CDR for this sample */
+       or enum value tables are present, read the full sample and use the write function
+       to get the key CDR for this sample. */
     void *sample = allocator->malloc (desc->size);
     memset (sample, 0, desc->size);
-    (void) dds_stream_read (is, sample, allocator, desc->ops.ops);
+    (void) dds_stream_read_impl (is, sample, allocator, &desc->member_ids, desc->ops.ops, false, CDR_KIND_DATA, SAMPLE_DATA_INITIALIZED);
     if (!dds_stream_write_keyBO_restrict (os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, allocator, sample, desc))
     {
       // can't happen given normalized input (and it has to be normalized, else dds_stream_read may not be used)
@@ -373,12 +381,16 @@ void dds_stream_extract_keyBO_from_key (dds_istream_t *is, DDS_OSTREAM_T *os, en
 
   /* This assumes that the key fields in the input CDR are in definition order.
      In case any key field is in an appendable or mutable type, or in case a serialized
-     key for a keyhash is required (in member-id order), extract and write the key
-     in two steps. Otherwise, extract the output CDR in a single step. */
+     key for a keyhash is required (in member-id order), or when enum value tables
+     are present, extract and write the key in two steps. Otherwise, extract the
+     output CDR in a single step. */
   RESTRICT_OSTREAM_T ros;
   memcpy (&ros, os, sizeof (*os));
   ros.x.m_align_off = 0;
-  if ((desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM)) || ser_kind == DDS_CDR_KEY_SERIALIZATION_KEYHASH)
+  const bool use_regular_key_extraction =
+    (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM)) ||
+    desc->member_ids.enum_value_sets != NULL;
+  if (use_regular_key_extraction || ser_kind == DDS_CDR_KEY_SERIALIZATION_KEYHASH)
     dds_stream_extract_keyBO_from_key_impl (is, &ros, ser_kind, allocator, desc);
   else
     dds_stream_extract_keyBO_from_key_optimized (is, &ros, allocator, desc);

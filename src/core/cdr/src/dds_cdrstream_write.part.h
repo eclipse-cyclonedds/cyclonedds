@@ -16,10 +16,12 @@ static inline bool dds_stream_write_bool_valueBO (RESTRICT_OSTREAM_T *os, const 
   return true;
 }
 
-static bool dds_stream_write_enum_valueBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, uint32_t insn, uint32_t val, uint32_t max)
+static bool dds_stream_write_enum_valueBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *op, uint32_t val, uint32_t max)
 {
-  if (val > max)
+  const struct dds_cdrstream_desc_enum_value_set *set;
+  if (!dds_stream_enum_value_set (mid_table, op, max, &set) || !dds_stream_enum_value_valid (set, max, val))
     return write_error_bool ();
+  const uint32_t insn = *op;
   switch (DDS_OP_TYPE_SZ (insn))
   {
     case 1:
@@ -167,14 +169,18 @@ static bool dds_stream_write_bool_arrBO (RESTRICT_OSTREAM_T *os, const struct dd
   return true;
 }
 
-static bool dds_stream_write_enum_arrBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, uint32_t insn, const uint32_t *addr, uint32_t num, uint32_t max)
+static bool dds_stream_write_enum_arrBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *op, const uint32_t *addr, uint32_t num, uint32_t max)
 {
+  const struct dds_cdrstream_desc_enum_value_set *set;
+  if (!dds_stream_enum_value_set (mid_table, op, max, &set))
+    return write_error_bool ();
+  const uint32_t insn = *op;
   switch (DDS_OP_TYPE_SZ (insn))
   {
     case 1:
       for (uint32_t i = 0; i < num; i++)
       {
-        if (addr[i] > max)
+        if (!dds_stream_enum_value_valid (set, max, addr[i]))
           return write_error_bool ();
         dds_os_put1BO (os, allocator, (uint8_t) addr[i]);
       }
@@ -182,7 +188,7 @@ static bool dds_stream_write_enum_arrBO (RESTRICT_OSTREAM_T *os, const struct dd
     case 2:
       for (uint32_t i = 0; i < num; i++)
       {
-        if (addr[i] > max)
+        if (!dds_stream_enum_value_valid (set, max, addr[i]))
           return write_error_bool ();
         dds_os_put2BO (os, allocator, (uint16_t) addr[i]);
       }
@@ -190,7 +196,7 @@ static bool dds_stream_write_enum_arrBO (RESTRICT_OSTREAM_T *os, const struct dd
     case 4:
       for (uint32_t i = 0; i < num; i++)
       {
-        if (addr[i] > max)
+        if (!dds_stream_enum_value_valid (set, max, addr[i]))
           return write_error_bool ();
         dds_os_put4BO (os, allocator, addr[i]);
       }
@@ -303,7 +309,7 @@ static const uint32_t *dds_stream_write_seqBO (RESTRICT_OSTREAM_T *os, const str
         break;
       }
       case DDS_SOP_VAL_ENU:
-        if (!dds_stream_write_enum_arrBO (os, allocator, insn, (const uint32_t *) seq->_buffer, num, ops[2 + bound_op]))
+        if (!dds_stream_write_enum_arrBO (os, allocator, mid_table, ops, (const uint32_t *) seq->_buffer, num, ops[2 + bound_op]))
           return NULL;
         ops += 3 + bound_op;
         break;
@@ -408,7 +414,7 @@ static const uint32_t *dds_stream_write_arrBO (RESTRICT_OSTREAM_T *os, const str
       break;
     }
     case DDS_SOP_VAL_ENU:
-      if (!dds_stream_write_enum_arrBO (os, allocator, insn, (const uint32_t *) addr, num, ops[3]))
+      if (!dds_stream_write_enum_arrBO (os, allocator, mid_table, ops, (const uint32_t *) addr, num, ops[3]))
         return NULL;
       ops += 4;
       break;
@@ -482,7 +488,7 @@ static const uint32_t *dds_stream_write_arrBO (RESTRICT_OSTREAM_T *os, const str
 }
 
 ddsrt_nonnull_all
-static bool dds_stream_write_union_discriminantBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, uint32_t insn, const void *addr, uint64_t *disc)
+static bool dds_stream_write_union_discriminantBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, uint32_t insn, const void *addr, uint64_t *disc)
 {
   enum dds_stream_typecode type = DDS_OP_SUBTYPE (insn);
   assert (is_primitive_or_enum_or_bitmask_type (type));
@@ -511,7 +517,7 @@ static bool dds_stream_write_union_discriminantBO (RESTRICT_OSTREAM_T *os, const
       break;
     case DDS_SOP_VAL_ENU:
       *disc = *((const uint32_t *) addr);
-      if (!dds_stream_write_enum_valueBO (os, allocator, insn, (uint32_t) *disc, ops[4]))
+      if (!dds_stream_write_enum_valueBO (os, allocator, mid_table, ops, (uint32_t) *disc, ops[4]))
         return false;
       break;
     case DDS_SOP_VAL_BMK:
@@ -534,7 +540,7 @@ static bool dds_stream_write_union_discriminantBO (RESTRICT_OSTREAM_T *os, const
 static const uint32_t *dds_stream_write_uniBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const char *discaddr, const char *baseaddr, const uint32_t *ops, uint32_t insn, enum cdr_data_kind cdr_kind)
 {
   uint64_t disc;
-  if (!dds_stream_write_union_discriminantBO (os, allocator, ops, insn, discaddr, &disc))
+  if (!dds_stream_write_union_discriminantBO (os, allocator, mid_table, ops, insn, discaddr, &disc))
     return NULL;
   uint32_t const * const jeq_op = find_union_case (ops, disc);
   ops += DDS_OP_ADR_JMP (ops[3]);
@@ -566,7 +572,7 @@ static const uint32_t *dds_stream_write_uniBO (RESTRICT_OSTREAM_T *os, const str
       case DDS_SOP_VAL_8BY: dds_os_put8BO (os, allocator, *(const uint64_t *) valaddr); break;
       case DDS_SOP_VAL_16BY: dds_os_put16BO (os, allocator, *(const ddsrt_uint128_t *) valaddr); break;
       case DDS_SOP_VAL_ENU:
-        if (!dds_stream_write_enum_valueBO (os, allocator, jeq_op[0], *((const uint32_t *) valaddr), jeq_op[3]))
+        if (!dds_stream_write_enum_valueBO (os, allocator, mid_table, jeq_op, *((const uint32_t *) valaddr), jeq_op[3]))
           return NULL;
         break;
       case DDS_SOP_VAL_STR:
@@ -697,7 +703,7 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, RESTRICT_OSTREAM_T
     case DDS_SOP_VAL_8BY: dds_os_put8BO (os, allocator, *((const uint64_t *) addr)); ops += 2; break;
     case DDS_SOP_VAL_16BY: dds_os_put16BO (os, allocator, *((const ddsrt_uint128_t *) addr)); ops += 2; break;
     case DDS_SOP_VAL_ENU:
-      if (!dds_stream_write_enum_valueBO (os, allocator, insn, *((const uint32_t *) addr), ops[2]))
+      if (!dds_stream_write_enum_valueBO (os, allocator, mid_table, ops, *((const uint32_t *) addr), ops[2]))
         return NULL;
       ops += 3;
       break;
@@ -799,7 +805,7 @@ static bool dds_stream_write_xcdr1_pl_memberBO (RESTRICT_OSTREAM_T *os, const st
   return true;
 }
 
-static bool dds_stream_write_xcdr2_pl_memberBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, uint32_t mid, const char *data, const uint32_t *ops, enum cdr_data_kind cdr_kind)
+static bool dds_stream_write_xcdr2_pl_memberBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, uint32_t mid, const struct dds_cdrstream_desc_mid_table *mid_table, const char *data, const uint32_t *ops, enum cdr_data_kind cdr_kind)
 {
   assert (!(mid & ~EMHEADER_MEMBERID_MASK));
 
@@ -816,7 +822,7 @@ static bool dds_stream_write_xcdr2_pl_memberBO (RESTRICT_OSTREAM_T *os, const st
   uint32_t lc = get_length_code (ops);
   assert (lc <= LENGTH_CODE_ALSO_NEXTINT8);
   uint32_t data_offs = (lc != LENGTH_CODE_NEXTINT) ? dds_os_reserve4BO (os, allocator) : dds_os_reserve8BO (os, allocator);
-  if (!(dds_stream_write_implBO (os, allocator, &static_empty_mid_table, data, ops, true, cdr_kind)))
+  if (!(dds_stream_write_implBO (os, allocator, mid_table, data, ops, true, cdr_kind)))
     return false;
 
   /* add emheader with data length code and flags and optionally the serialized size of the data */
@@ -855,7 +861,7 @@ static const uint32_t *dds_stream_write_pl_memberlistBO (RESTRICT_OSTREAM_T *os,
           uint32_t member_id = ops[1];
           if (os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2)
           {
-            if (!dds_stream_write_xcdr2_pl_memberBO (os, allocator, member_id, data, plm_ops, cdr_kind))
+            if (!dds_stream_write_xcdr2_pl_memberBO (os, allocator, member_id, mid_table, data, plm_ops, cdr_kind))
               return NULL;
           }
           else
