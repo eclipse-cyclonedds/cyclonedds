@@ -145,6 +145,8 @@ struct typebuilder_struct
 struct typebuilder_union_member
 {
   struct typebuilder_type type;
+  uint32_t member_id;
+  uint32_t insn_offs;
   uint32_t disc_value;
   bool is_external;
   bool is_default;
@@ -938,6 +940,7 @@ static dds_return_t typebuilder_add_union (struct typebuilder_data *tbd, struct 
     for (uint32_t l = 0; l < type->xt._u.union_type.members.seq[n].label_seq._length; l++)
     {
       bool is_last = !is_default && (l == type->xt._u.union_type.members.seq[n].label_seq._length - 1);
+      tb_aggrtype->detail._union.cases[c].member_id = type->xt._u.union_type.members.seq[n].id;
       tb_aggrtype->detail._union.cases[c].is_external = is_ext;
       tb_aggrtype->detail._union.cases[c].is_last_label = is_last;
       tb_aggrtype->detail._union.cases[c].disc_value = union_case_label_to_disc_value (&tb_aggrtype->detail._union.disc_type, type->xt._u.union_type.members.seq[n].label_seq._buffer[l]);
@@ -948,6 +951,7 @@ static dds_return_t typebuilder_add_union (struct typebuilder_data *tbd, struct 
     }
     if (is_default)
     {
+      tb_aggrtype->detail._union.cases[c].member_id = type->xt._u.union_type.members.seq[n].id;
       tb_aggrtype->detail._union.cases[c].is_external = is_ext;
       tb_aggrtype->detail._union.cases[c].is_default = true;
       tb_aggrtype->detail._union.cases[c].is_last_label = true;
@@ -1427,7 +1431,9 @@ static dds_return_t get_ops_union (struct typebuilder_union *tb_union, uint16_t 
 {
   dds_return_t ret;
   if (extensibility == DDS_XTypes_IS_MUTABLE)
-    return DDS_RETCODE_UNSUPPORTED;
+  {
+    PUSH_OP (DDS_OP_PLC);
+  }
   else if (extensibility == DDS_XTypes_IS_APPENDABLE)
   {
     PUSH_OP (DDS_OP_DLC);
@@ -1459,7 +1465,7 @@ static dds_return_t get_ops_union (struct typebuilder_union *tb_union, uint16_t 
     flags |= tb_union->cases[c].is_default ? DDS_OP_FLAG_DEF : 0u;
 
   uint32_t next_insn_offs = ops->index;
-  if (tb_union->disc_type.type_code == DDS_OP_VAL_ENU && (ret = typebuilder_add_enum_use (ops, &tb_union->disc_type, ops->index)) != DDS_RETCODE_OK)
+  if (tb_union->disc_type.type_code == DDS_OP_VAL_ENU && (ret = typebuilder_add_enum_use (ops, &tb_union->disc_type, next_insn_offs)) != DDS_RETCODE_OK)
     return ret;
   tb_union->disc_insn_offs = ops->index - parent_insn_offs;
   PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_UNI | (uint32_t) (tb_union->disc_type.type_code << 8) | flags);
@@ -1482,6 +1488,7 @@ static dds_return_t get_ops_union (struct typebuilder_union *tb_union, uint16_t 
   {
     uint32_t case_flags = 0u;
     case_flags |= tb_union->cases[c].is_external ? DDS_OP_FLAG_EXT : 0u;
+    tb_union->cases[c].insn_offs = ops->index - parent_insn_offs;
     if ((ret = get_ops_union_case (&tb_union->cases[c].type, case_flags, tb_union->cases[c].disc_value, tb_union->member_offs, tb_union->cases[c].is_last_label, &inline_types_offs, ops)) != DDS_RETCODE_OK)
       return ret;
   }
@@ -1510,8 +1517,8 @@ static dds_return_t get_ops_aggrtype (struct typebuilder_aggregated_type *tb_agg
       abort ();
   }
 
-  // mutable types have an RTS instruction per member
-  if (tb_aggrtype->extensibility != DDS_XTypes_IS_MUTABLE)
+  // mutable structs have an RTS instruction per member
+  if (tb_aggrtype->extensibility != DDS_XTypes_IS_MUTABLE || tb_aggrtype->kind == DDS_XTypes_TK_UNION)
     PUSH_OP (DDS_OP_RTS);
 
   return ret;
@@ -2087,12 +2094,20 @@ err:
   return ret;
 }
 
-static dds_return_t add_memberids_union (struct typebuilder_data *tbd, struct typebuilder_ops *ops, const struct typebuilder_union *tb_union, struct visited_aggrtype *visited_aggrtypes)
+static dds_return_t add_memberids_union (struct typebuilder_data *tbd, struct typebuilder_ops *ops, const struct typebuilder_union *tb_union, uint32_t parent_insn_offs, struct visited_aggrtype *visited_aggrtypes, bool is_mutable_union)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   for (uint32_t n = 0; n < tb_union->n_cases; n++)
   {
     struct typebuilder_union_member *_case = &tb_union->cases[n];
+    if (is_mutable_union)
+    {
+      const uint32_t case_insn_offs = parent_insn_offs + _case->insn_offs;
+      if (case_insn_offs > DDS_MID_OFFSET_MASK)
+        return DDS_RETCODE_UNSUPPORTED;
+      PUSH_OP (DDS_OP_MID | case_insn_offs);
+      PUSH_ARG (_case->member_id);
+    }
     switch (_case->type.type_code)
     {
       case DDS_OP_VAL_STU: case DDS_OP_VAL_UNI:
@@ -2148,7 +2163,7 @@ static dds_return_t add_memberids_aggrtype (struct typebuilder_data *tbd, struct
         goto err;
       break;
     case DDS_XTypes_TK_UNION:
-      if ((ret = add_memberids_union (tbd, ops, &tb_aggrtype->detail._union, visited_aggrtypes)) != DDS_RETCODE_OK)
+      if ((ret = add_memberids_union (tbd, ops, &tb_aggrtype->detail._union, tb_aggrtype->insn_offs, visited_aggrtypes, tb_aggrtype->extensibility == DDS_XTypes_IS_MUTABLE)) != DDS_RETCODE_OK)
         goto err;
       break;
     default:

@@ -130,10 +130,12 @@ CU_Test(idlc_descriptor, default_extensibility)
     { S(""), IDL_MUTABLE, IDL_MUTABLE },
     { U(""), IDL_FINAL, IDL_FINAL },
     { U(""), IDL_APPENDABLE, IDL_APPENDABLE },
+    { U(""), IDL_MUTABLE, IDL_MUTABLE },
     { S("@appendable"), IDL_MUTABLE, IDL_APPENDABLE },
     { S("@extensibility(MUTABLE)"), IDL_APPENDABLE, IDL_MUTABLE },
     { U("@appendable"), IDL_FINAL, IDL_APPENDABLE },
     { U("@extensibility(APPENDABLE)"), IDL_MUTABLE, IDL_APPENDABLE },
+    { U("@extensibility(MUTABLE)"), IDL_APPENDABLE, IDL_MUTABLE },
   };
 
   uint32_t flags = IDL_FLAG_EXTENDED_DATA_TYPES |
@@ -160,6 +162,7 @@ CU_Test(idlc_descriptor, default_extensibility)
     assert (descriptor.constructed_types->instructions.table);
     if (descriptor.constructed_types->instructions.table[0].type == OPCODE)
       instr1 = descriptor.constructed_types->instructions.table[0].data.opcode.code;
+    const bool is_union = idl_is_union (descriptor.constructed_types->node);
     switch (tests[i].exp_ext) {
       case IDL_FINAL:
         CU_ASSERT_FATAL (instr1 != DDS_OP_DLC && instr1 != DDS_OP_PLC);
@@ -169,6 +172,11 @@ CU_Test(idlc_descriptor, default_extensibility)
         break;
       case IDL_MUTABLE:
         CU_ASSERT_EQ_FATAL (instr1, DDS_OP_PLC);
+        if (is_union) {
+          const uint32_t instr2 = descriptor.constructed_types->instructions.table[1].data.opcode.code;
+          CU_ASSERT_EQ_FATAL (DDS_OP (instr2), DDS_OP_ADR);
+          CU_ASSERT_EQ_FATAL (DDS_OP_TYPE (instr2), DDS_OP_VAL_UNI);
+        }
         break;
     }
     descriptor_fini (&descriptor);
@@ -255,6 +263,69 @@ CU_Test(idlc_descriptor, enum_value_metadata_union_case_sequence)
     evm_count++;
   }
   CU_ASSERT_EQ_FATAL (evm_count, 1);
+
+  descriptor_fini (&descriptor);
+  idl_delete_pstate (pstate);
+}
+
+CU_Test(idlc_descriptor, mutable_union_member_ids)
+{
+  idl_retcode_t ret;
+  idl_pstate_t *pstate = NULL;
+  struct descriptor descriptor;
+  uint32_t flags = IDL_FLAG_EXTENDED_DATA_TYPES |
+                   IDL_FLAG_ANONYMOUS_TYPES |
+                   IDL_FLAG_ANNOTATIONS;
+  const char *idl =
+    "@topic @mutable union test switch(long) { "
+    "case 1: case 2: @id(7) long a; "
+    "case 3: @id(8) short b; "
+    "};";
+
+  ret = idl_create_pstate (flags, NULL, &pstate);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+  memset (&descriptor, 0, sizeof (descriptor));
+  ret = generate_test_descriptor (pstate, idl, &descriptor);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+
+  const struct constructed_type *ctype = descriptor.constructed_types;
+  CU_ASSERT_FATAL (ctype != NULL);
+  CU_ASSERT_FATAL (ctype->instructions.table != NULL);
+  CU_ASSERT_EQ_FATAL (ctype->instructions.table[0].type, OPCODE);
+  CU_ASSERT_EQ_FATAL (ctype->instructions.table[0].data.opcode.code, DDS_OP_PLC);
+  CU_ASSERT_EQ_FATAL (ctype->instructions.table[1].type, OPCODE);
+  CU_ASSERT_EQ_FATAL (DDS_OP (ctype->instructions.table[1].data.opcode.code), DDS_OP_ADR);
+  CU_ASSERT_EQ_FATAL (DDS_OP_TYPE (ctype->instructions.table[1].data.opcode.code), DDS_OP_VAL_UNI);
+
+  uint32_t jeq_count = 0;
+  uint32_t mid_count = 0;
+  uint32_t mid_7_count = 0;
+  uint32_t mid_8_count = 0;
+  for (uint32_t n = 0; n < ctype->instructions.count; n++)
+    if (ctype->instructions.table[n].type == OPCODE &&
+        DDS_OP (ctype->instructions.table[n].data.opcode.code) == DDS_OP_JEQ4)
+      jeq_count++;
+  for (uint32_t n = 0; n + 1 < descriptor.member_ids.count; n++)
+  {
+    const struct instruction *mid = &descriptor.member_ids.table[n];
+    if (mid->type != MEMBER_ID)
+      continue;
+    CU_ASSERT_EQ_FATAL (descriptor.member_ids.table[n + 1].type, SINGLE);
+    CU_ASSERT_FATAL (mid->data.member_id.addr_offs >= 0);
+    CU_ASSERT_LT_FATAL ((uint32_t) mid->data.member_id.addr_offs, ctype->instructions.count);
+    CU_ASSERT_EQ_FATAL (ctype->instructions.table[mid->data.member_id.addr_offs].type, OPCODE);
+    CU_ASSERT_EQ_FATAL (DDS_OP (ctype->instructions.table[mid->data.member_id.addr_offs].data.opcode.code), DDS_OP_JEQ4);
+    mid_count++;
+    switch (descriptor.member_ids.table[n + 1].data.single) {
+      case 7: mid_7_count++; break;
+      case 8: mid_8_count++; break;
+      default: CU_FAIL_FATAL ("unexpected mutable union member id");
+    }
+  }
+  CU_ASSERT_EQ_FATAL (jeq_count, 3);
+  CU_ASSERT_EQ_FATAL (mid_count, 3);
+  CU_ASSERT_EQ_FATAL (mid_7_count, 2);
+  CU_ASSERT_EQ_FATAL (mid_8_count, 1);
 
   descriptor_fini (&descriptor);
   idl_delete_pstate (pstate);

@@ -361,8 +361,8 @@ static DDS_XTypes_TypeObject *get_typeobj3 (void)
     DDS_XTypes_IS_FINAL,
     (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_INT16 },
     2, (umember_t[]) {
-      { 0, DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_INT32 }, "f1", 1, (int32_t[]) { 1 } },
-      { 1, DDS_XTypes_IS_EXTERNAL | DDS_XTypes_IS_DEFAULT | DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TI_STRING8_SMALL, ._u.string_sdefn.bound = 0 }, "f2", 2, (int32_t[]) { 2, 3 } }
+      { 1, DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_INT32 }, "f1", 1, (int32_t[]) { 1 } },
+      { 2, DDS_XTypes_IS_EXTERNAL | DDS_XTypes_IS_DEFAULT | DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TI_STRING8_SMALL, ._u.string_sdefn.bound = 0 }, "f2", 2, (int32_t[]) { 2, 3 } }
     });
 }
 

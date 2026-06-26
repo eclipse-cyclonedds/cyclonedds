@@ -598,6 +598,35 @@ void test_id(
   idl_delete_pstate(pstate);
 }
 
+static
+void test_id_legacy_union_member_ids(
+  id_test_t test)
+{
+  idl_pstate_t *pstate = NULL;
+  idl_retcode_t ret = idl_create_pstate(IDL_FLAG_ANNOTATIONS, NULL, &pstate);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+  pstate->config.default_extensibility = IDL_FINAL;
+  pstate->config.legacy_union_member_ids = true;
+
+  ret = idl_parse_string(pstate, test.s);
+  CU_ASSERT_EQ (ret, test.ret);
+  if (ret == IDL_RETCODE_OK && ret == test.ret) {
+    const idl_node_t *node = pstate->root;
+    CU_ASSERT_FATAL (idl_is_union(node));
+    const idl_union_t *u = (const idl_union_t*)node;
+    CU_ASSERT_EQ (u->autoid.value, test.aid[0]);
+    const idl_case_t *_case = NULL;
+    uint32_t n = 0;
+    IDL_FOREACH(_case, u->cases) {
+      CU_ASSERT_LT_FATAL (n, sizeof(test.id)/sizeof(test.id[0]));
+      CU_ASSERT_EQ (_case->declarator->id.value, test.id[n]);
+      n++;
+    }
+  }
+
+  idl_delete_pstate(pstate);
+}
+
 CU_Test(idl_annotation, id)
 {
   static const id_test_t tests[] = {
@@ -629,6 +658,10 @@ CU_Test(idl_annotation, id)
      "case 0: char c;\n"
      "default: double d;\n"
      "};",                                    IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},    {0}},         // @id on union
+    {"@mutable union u switch(long) {\n"
+     "case 0: @id(0) char c;\n"
+     "default: long l;\n"
+     "};",                                    IDL_RETCODE_SEMANTIC_ERROR, {0},              {0},    {0}},         // 0 reserved for discriminator
   };
 
   for (size_t i = 0; i < sizeof(tests)/sizeof(id_test_t); i++)
@@ -688,7 +721,7 @@ CU_Test(idl_annotation, autoid_union)
     {"union u switch(long) {\n"
      "case 0: char c;\n"
      "default: string s;\n"
-     "};",                                          IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {false},  {0, 1}},                      // implicit sequential autoid
+     "};",                                          IDL_RETCODE_OK,             {IDL_SEQUENTIAL}, {false},  {1, 2}},                      // implicit sequential autoid
     {"union u switch(long) {\n"
      "case 0: @id(123) char c;\n"
      "default: string s;\n"
@@ -715,6 +748,16 @@ CU_Test(idl_annotation, autoid_union)
 
   for (size_t i = 0; i < sizeof(tests)/sizeof(id_test_t); i++)
     test_id(tests[i]);
+}
+
+CU_Test(idl_annotation, autoid_union_legacy_member_ids)
+{
+  test_id_legacy_union_member_ids((id_test_t) {
+    "union u switch(long) {\n"
+    "case 0: char c;\n"
+    "default: string s;\n"
+    "};", IDL_RETCODE_OK, {IDL_SEQUENTIAL}, {false}, {0, 1}
+  });
 }
 
 CU_Test(idl_annotation, autoid_inheritance)

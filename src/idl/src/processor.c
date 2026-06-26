@@ -157,6 +157,7 @@ idl_create_pstate(
   pstate->config.flags = flags;
   pstate->config.default_extensibility = IDL_DEFAULT_EXTENSIBILITY_UNDEFINED;
   pstate->config.default_nested = false;
+  pstate->config.legacy_union_member_ids = false;
   pstate->global_scope = pstate->scope = scope;
 
   if (pstate->config.flags & IDL_FLAG_ANNOTATIONS) {

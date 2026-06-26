@@ -794,7 +794,7 @@ dds_return_t ddsi_dynamic_type_add_union_member (struct ddsi_type *type, struct 
   assert (type->xt._d == DDS_XTypes_TK_UNION);
 
   // check member id or set to max+1
-  uint32_t member_id = 0;
+  uint32_t member_id = 1;
   if (params.id == DDS_DYNAMIC_MEMBER_ID_INVALID)
   {
     if (type->xt._u.union_type.flags & DDS_XTypes_IS_AUTOID_HASH)
@@ -813,6 +813,8 @@ dds_return_t ddsi_dynamic_type_add_union_member (struct ddsi_type *type, struct 
       return DDS_RETCODE_BAD_PARAMETER;
     member_id = params.id;
   }
+  if ((type->xt._u.union_type.flags & DDS_XTypes_IS_MUTABLE) && member_id == 0)
+    return DDS_RETCODE_BAD_PARAMETER;
 
   // Detect duplicate labels, duplicate member ids and multiple default members
   for (uint32_t n = 0; n < type->xt._u.union_type.members.length; n++)

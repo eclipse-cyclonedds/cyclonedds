@@ -1197,9 +1197,11 @@ emit_case(
         return ret;
       /* generate union case member (address) offset; use offset 0 for empty types,
          as these members are not generated and no offset can be calculated */
+      const uint32_t case_member_off = off;
       shift_enum_metadata_for_insert(descriptor, ctype, &ctype->instructions, off);
       if ((ret = stash_offset(pstate, &ctype->instructions, off++, idl_is_empty(type_spec) ? NULL : stype->fields)))
         return ret;
+      ctype->instructions.table[case_member_off].data.offset.member_id = _case->declarator->id.value;
       /* For @external union members include the size of the member to allow the
          serializer to allocate memory when deserializing. Stash 0 in case
          no size is required (not an external member), so that the size of a JEQ4
@@ -1341,8 +1343,8 @@ emit_union(
       if ((ret = stash_opcode(pstate, &ctype->instructions, nop, DDS_OP_DLC, 0u)))
         return ret;
     } else if (idl_is_extensible(node, IDL_MUTABLE)) {
-      idl_error(pstate, idl_location(node), "Mutable unions are not supported yet");
-      return IDL_RETCODE_UNSUPPORTED;
+      if ((ret = stash_opcode(pstate, &ctype->instructions, nop, DDS_OP_PLC, 0u)))
+        return ret;
     }
 
     if ((ret = push_type(descriptor, node, ctype, &stype)))
@@ -1917,14 +1919,14 @@ emit_declarator(
   struct stack_type *stype = descriptor->type_stack;
   struct constructed_type *ctype = stype->ctype;
   idl_node_t *parent = idl_parent(node);
-  bool mutable_aggr_type_member = idl_is_extensible(ctype->node, IDL_MUTABLE) &&
-    (idl_is_member(idl_parent(node)) || idl_is_case(idl_parent(node)));
+  bool mutable_struct_member = idl_is_struct(ctype->node) && idl_is_extensible(ctype->node, IDL_MUTABLE) &&
+    idl_is_member(idl_parent(node));
 
   type_spec = idl_strip(idl_type_spec(node), IDL_STRIP_ALIASES|IDL_STRIP_FORWARD);
 
   /* delegate array type specifiers or declarators */
   if (idl_is_array(node) || idl_is_array(type_spec)) {
-    if (!revisit && mutable_aggr_type_member) {
+    if (!revisit && mutable_struct_member) {
       if ((ret = add_mutable_member_offset(pstate, descriptor, ctype, ((idl_declarator_t *)node)->id.value)))
         return ret;
     }
@@ -1934,7 +1936,7 @@ emit_declarator(
 
     /* in case there is no revisit required (array has simple element type) we have
        to close the mutable member immediately, otherwise close it when revisiting */
-    if (mutable_aggr_type_member && (!(ret & IDL_VISIT_REVISIT) || revisit)) {
+    if (mutable_struct_member && (!(ret & IDL_VISIT_REVISIT) || revisit)) {
       idl_retcode_t ret2;
       if ((ret2 = close_mutable_member(pstate, ctype)) < 0)
         ret = ret2;
@@ -1946,7 +1948,7 @@ emit_declarator(
   if (revisit) {
     if (!idl_is_alias(node) && idl_is_struct(stype->node))
       pop_field(descriptor);
-    if (mutable_aggr_type_member) {
+    if (mutable_struct_member) {
       if ((ret = close_mutable_member(pstate, ctype)))
         return ret;
     }
@@ -1955,7 +1957,7 @@ emit_declarator(
     uint32_t order = 0;
     struct field *field = NULL;
 
-    if (mutable_aggr_type_member && (ret = add_mutable_member_offset(pstate, descriptor, ctype, ((idl_declarator_t *)node)->id.value)))
+    if (mutable_struct_member && (ret = add_mutable_member_offset(pstate, descriptor, ctype, ((idl_declarator_t *)node)->id.value)))
       return ret;
 
     if (!idl_is_alias(node) && idl_is_struct(stype->node)) {
@@ -2066,7 +2068,6 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
   assert(inst->type == OPCODE);
 
   opcode = inst->data.opcode.code & DDS_OP_MASK;
-
   switch (opcode) {
     case DDS_OP_DLC:
       vec[len++] = "DDS_OP_DLC";
@@ -2876,6 +2877,39 @@ static void free_ctype_enummetas(struct constructed_type_enummeta *ems)
 
 static idl_retcode_t get_ctype_memberids(const idl_pstate_t *pstate, struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_memberid **ctype_mids, struct visited_ctype *visited_ctypes);
 
+static idl_retcode_t add_ctype_memberid(
+  struct constructed_type *ctype,
+  struct constructed_type_memberid **ctype_mids,
+  int16_t rel_offs,
+  uint32_t value,
+  const char *type,
+  const char *member)
+{
+  for (struct constructed_type_memberid *mid = *ctype_mids; mid; mid = mid->next)
+    if (mid->ctype == ctype && mid->rel_offs == rel_offs)
+      return IDL_RETCODE_OK;
+
+  struct constructed_type_memberid *mid = idl_calloc (1, sizeof(*mid));
+  if (mid == NULL)
+    return IDL_RETCODE_NO_MEMORY;
+  mid->ctype = ctype;
+  mid->rel_offs = rel_offs;
+  mid->value = value;
+  mid->type = type;
+  mid->member = member;
+
+  if (*ctype_mids == NULL)
+    *ctype_mids = mid;
+  else
+  {
+    struct constructed_type_memberid *last = *ctype_mids;
+    while (last->next)
+      last = last->next;
+    last->next = mid;
+  }
+  return IDL_RETCODE_OK;
+}
+
 static idl_retcode_t get_ctype_memberids_adr(const idl_pstate_t *pstate, struct descriptor *descriptor, uint32_t offs, struct instruction *inst, struct constructed_type *ctype, struct constructed_type_memberid **ctype_mids, struct visited_ctype *visited_ctypes, bool is_mutable_member)
 {
   idl_retcode_t ret;
@@ -2890,29 +2924,9 @@ static idl_retcode_t get_ctype_memberids_adr(const idl_pstate_t *pstate, struct 
      it uses PLM ops as part of the type's ops */
   if ((inst->data.opcode.code & DDS_OP_FLAG_OPT) && !is_mutable_member)
   {
-    struct constructed_type_memberid *mid = idl_calloc (1, sizeof(*mid));
-    if (mid == NULL)
-      return IDL_RETCODE_NO_MEMORY;
-    mid->ctype = ctype;
-    mid->rel_offs = (int16_t) offs;
-    mid->value = inst_offs->data.offset.member_id;
-    mid->type = inst_offs->data.offset.type;
-    mid->member = inst_offs->data.offset.member;
-
-    if (*ctype_mids == NULL)
-    {
-      *ctype_mids = mid;
-    }
-    else
-    {
-      struct constructed_type_memberid *last = *ctype_mids;
-      while (!(last->ctype == mid->ctype && last->value == mid->value) && last->next)
-        last = last->next;
-      if (last->next == NULL)
-        last->next = mid;
-      else
-        idl_free (mid);
-    }
+    assert(offs <= INT16_MAX);
+    if ((ret = add_ctype_memberid(ctype, ctype_mids, (int16_t) offs, inst_offs->data.offset.member_id, inst_offs->data.offset.type, inst_offs->data.offset.member)) != IDL_RETCODE_OK)
+      return ret;
   }
 
   const enum dds_stream_typecode type = DDS_OP_TYPE(inst->data.opcode.code);
@@ -2968,9 +2982,18 @@ static idl_retcode_t get_ctype_memberids_adr(const idl_pstate_t *pstate, struct 
       assert(ctype->instructions.table[offs + 2].type == SINGLE);
       assert(ctype->instructions.table[offs + 3].type == COUPLE);
       const uint32_t num_cases = ctype->instructions.table[offs + 2].data.single;
+      const bool is_mutable_union = idl_is_extensible(ctype->node, IDL_MUTABLE);
       uint32_t jeq_offs = offs + ctype->instructions.table[offs + 3].data.couple.low;
       for (uint32_t c = 0; c < num_cases; c++)
       {
+        if (is_mutable_union)
+        {
+          assert(jeq_offs <= INT16_MAX);
+          assert(ctype->instructions.table[jeq_offs + 2].type == OFFSET);
+          const struct instruction *case_offs = &ctype->instructions.table[jeq_offs + 2];
+          if ((ret = add_ctype_memberid(ctype, ctype_mids, (int16_t) jeq_offs, case_offs->data.offset.member_id, case_offs->data.offset.type, case_offs->data.offset.member)) != IDL_RETCODE_OK)
+            return ret;
+        }
         if (ctype->instructions.table[jeq_offs].type == OPCODE)
         {
           // FIXME: SEQ/BSQ/ARR
