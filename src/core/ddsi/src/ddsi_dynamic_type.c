@@ -1015,32 +1015,41 @@ static dds_return_t find_struct_member (struct ddsi_type *type, uint32_t member_
   }
 }
 
-static dds_return_t find_union_member (struct ddsi_type *type, uint32_t member_id, uint32_t *member_index)
+enum dynamic_union_member_selection {
+  DYNAMIC_UNION_MEMBER_CASE,
+  DYNAMIC_UNION_MEMBER_DISCRIMINATOR
+};
+
+static dds_return_t find_union_member (struct ddsi_type *type, uint32_t member_id, enum dynamic_union_member_selection *selection, uint32_t *member_index)
 {
-  if (member_id == DDS_DYNAMIC_MEMBER_ID_AUTO)
+  if (member_id == DDS_DYNAMIC_MEMBER_ID_DISCRIMINATOR)
+  {
+    *selection = DYNAMIC_UNION_MEMBER_DISCRIMINATOR;
+    return DDS_RETCODE_OK;
+  }
+  else if (member_id == DDS_DYNAMIC_MEMBER_ID_AUTO)
   {
     if (type->xt._u.union_type.members.length == 0)
       return DDS_RETCODE_BAD_PARAMETER;
+    *selection = DYNAMIC_UNION_MEMBER_CASE;
     *member_index = type->xt._u.union_type.members.length - 1;
     return DDS_RETCODE_OK;
   }
   else
   {
+    for (uint32_t n = 0; n < type->xt._u.union_type.members.length; n++)
+    {
+      if (type->xt._u.union_type.members.seq[n].id == member_id)
+      {
+        *selection = DYNAMIC_UNION_MEMBER_CASE;
+        *member_index = n;
+        return DDS_RETCODE_OK;
+      }
+    }
     if (member_id == 0)
     {
-      *member_index = UINT32_MAX;
+      *selection = DYNAMIC_UNION_MEMBER_DISCRIMINATOR;
       return DDS_RETCODE_OK;
-    }
-    else
-    {
-      for (uint32_t n = 0; n < type->xt._u.union_type.members.length; n++)
-      {
-        if (type->xt._u.union_type.members.seq[n].id == member_id)
-        {
-          *member_index = n;
-          return DDS_RETCODE_OK;
-        }
-      }
     }
     return DDS_RETCODE_BAD_PARAMETER;
   }
@@ -1062,15 +1071,19 @@ static dds_return_t set_struct_member_flag (struct ddsi_type *type, uint32_t mem
   return ret;
 }
 
-static dds_return_t set_union_member_flag (struct ddsi_type *type, uint32_t member_id, bool set, uint16_t flag)
+static dds_return_t set_union_member_flag (struct ddsi_type *type, uint32_t member_id, bool set, uint16_t flag, bool allow_case, bool allow_disc)
 {
   assert (type->state == DDSI_TYPE_CONSTRUCTING);
   assert (type->xt._d == DDS_XTypes_TK_UNION);
   dds_return_t ret;
+  enum dynamic_union_member_selection selection;
   uint32_t member_index;
-  if ((ret = find_union_member (type, member_id, &member_index)) == DDS_RETCODE_OK)
+  if ((ret = find_union_member (type, member_id, &selection, &member_index)) == DDS_RETCODE_OK)
   {
-    DDS_XTypes_MemberFlag * const flags = (member_index == UINT32_MAX) ? &type->xt._u.union_type.disc_flags : &type->xt._u.union_type.members.seq[member_index].flags;
+    if ((selection == DYNAMIC_UNION_MEMBER_CASE && !allow_case) ||
+        (selection == DYNAMIC_UNION_MEMBER_DISCRIMINATOR && !allow_disc))
+      return DDS_RETCODE_BAD_PARAMETER;
+    DDS_XTypes_MemberFlag * const flags = (selection == DYNAMIC_UNION_MEMBER_DISCRIMINATOR) ? &type->xt._u.union_type.disc_flags : &type->xt._u.union_type.members.seq[member_index].flags;
     if (set)
       *flags |= flag;
     else
@@ -1096,14 +1109,12 @@ dds_return_t ddsi_dynamic_struct_member_set_external (struct ddsi_type *type, ui
 
 dds_return_t ddsi_dynamic_union_member_set_external (struct ddsi_type *type, uint32_t member_id, bool is_external)
 {
-  return set_union_member_flag (type, member_id, is_external, DDS_XTypes_IS_EXTERNAL);
+  return set_union_member_flag (type, member_id, is_external, DDS_XTypes_IS_EXTERNAL, true, false);
 }
 
 dds_return_t ddsi_dynamic_union_member_set_key (struct ddsi_type *type, uint32_t member_id, bool is_key)
 {
-  if (member_id != 0)
-    return DDS_RETCODE_BAD_PARAMETER;
-  return set_union_member_flag (type, member_id, is_key, DDS_XTypes_IS_KEY);
+  return set_union_member_flag (type, member_id, is_key, DDS_XTypes_IS_KEY, false, true);
 }
 
 dds_return_t ddsi_dynamic_type_member_set_must_understand (struct ddsi_type *type, uint32_t member_id, bool is_must_understand)
@@ -1135,8 +1146,13 @@ dds_return_t ddsi_dynamic_type_member_set_hashid (struct ddsi_type *type, uint32
   {
     if (!(type->xt._u.union_type.flags & DDS_XTypes_IS_AUTOID_HASH))
       return DDS_RETCODE_PRECONDITION_NOT_MET;
-    if ((ret = find_union_member (type, member_id, &member_index)) == DDS_RETCODE_OK)
+    enum dynamic_union_member_selection selection;
+    if ((ret = find_union_member (type, member_id, &selection, &member_index)) == DDS_RETCODE_OK)
     {
+      if (selection != DYNAMIC_UNION_MEMBER_CASE)
+        return DDS_RETCODE_BAD_PARAMETER;
+      if ((type->xt._u.union_type.flags & DDS_XTypes_IS_MUTABLE) && id == 0)
+        return DDS_RETCODE_BAD_PARAMETER;
       for (uint32_t n = 0; n < type->xt._u.union_type.members.length; n++)
         if (type->xt._u.union_type.members.seq[n].id == id)
           return DDS_RETCODE_BAD_PARAMETER;
@@ -1178,9 +1194,10 @@ dds_return_t ddsi_dynamic_type_member_set_try_construct (struct ddsi_type *type,
   }
   else
   {
-    if ((ret = find_union_member (type, member_id, &member_index)) == DDS_RETCODE_OK)
+    enum dynamic_union_member_selection selection;
+    if ((ret = find_union_member (type, member_id, &selection, &member_index)) == DDS_RETCODE_OK)
     {
-      uint16_t * const flags = (member_index == UINT32_MAX)
+      uint16_t * const flags = (selection == DYNAMIC_UNION_MEMBER_DISCRIMINATOR)
         ? &type->xt._u.union_type.disc_flags
         : &type->xt._u.union_type.members.seq[member_index].flags;
       set_try_construct (flags, try_construct);
