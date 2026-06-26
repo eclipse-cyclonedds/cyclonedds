@@ -180,6 +180,86 @@ CU_Test(idlc_descriptor, default_extensibility)
 #undef S
 #undef U
 
+static const struct instruction *instruction_at_absolute_offset (const struct descriptor *descriptor, uint32_t offs)
+{
+  for (const struct constructed_type *ctype = descriptor->constructed_types; ctype; ctype = ctype->next)
+  {
+    if (offs >= ctype->offset && offs < ctype->offset + ctype->instructions.count)
+      return &ctype->instructions.table[offs - ctype->offset];
+  }
+  return NULL;
+}
+
+static bool instruction_uses_enum_value_metadata (const struct instruction *inst)
+{
+  if (inst == NULL || inst->type != OPCODE)
+    return false;
+
+  const uint32_t op = inst->data.opcode.code;
+  switch (DDS_OP (op))
+  {
+    case DDS_OP_ADR:
+      switch (DDS_OP_TYPE (op))
+      {
+        case DDS_OP_VAL_ENU:
+          return true;
+        case DDS_OP_VAL_UNI:
+          return DDS_OP_SUBTYPE (op) == DDS_OP_VAL_ENU;
+        case DDS_OP_VAL_SEQ:
+        case DDS_OP_VAL_BSQ:
+        case DDS_OP_VAL_ARR:
+          return DDS_OP_SUBTYPE (op) == DDS_OP_VAL_ENU;
+        default:
+          return false;
+      }
+    case DDS_OP_JEQ4:
+      return DDS_OP_TYPE (op) == DDS_OP_VAL_ENU;
+    default:
+      return false;
+  }
+}
+
+CU_Test(idlc_descriptor, enum_value_metadata_union_case_sequence)
+{
+  idl_retcode_t ret;
+  idl_pstate_t *pstate = NULL;
+  struct descriptor descriptor;
+  uint32_t flags = IDL_FLAG_EXTENDED_DATA_TYPES |
+                   IDL_FLAG_ANONYMOUS_TYPES |
+                   IDL_FLAG_ANNOTATIONS;
+  const char *idl =
+    "enum e { A, @default_literal B, @value(4) C }; "
+    "@nested union u switch(long) { "
+    "case 1: sequence<long> a; "
+    "case 2: sequence<e> b; "
+    "case 3: string c; "
+    "default: string d; "
+    "}; "
+    "@topic struct s { sequence<u, 4> us; };";
+
+  ret = idl_create_pstate (flags, NULL, &pstate);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+  memset (&descriptor, 0, sizeof (descriptor));
+  ret = generate_test_descriptor (pstate, idl, &descriptor);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+
+  uint32_t evm_count = 0;
+  for (uint32_t n = 0; n + 1 < descriptor.member_ids.count; n++)
+  {
+    const struct instruction *evm = &descriptor.member_ids.table[n];
+    if (evm->type != OPCODE || DDS_OP (evm->data.opcode.code) != DDS_OP_EVM)
+      continue;
+
+    const uint32_t offs = evm->data.opcode.code & DDS_MID_OFFSET_MASK;
+    CU_ASSERT_FATAL (instruction_uses_enum_value_metadata (instruction_at_absolute_offset (&descriptor, offs)));
+    evm_count++;
+  }
+  CU_ASSERT_EQ_FATAL (evm_count, 1);
+
+  descriptor_fini (&descriptor);
+  idl_delete_pstate (pstate);
+}
+
 CU_Test(idlc_descriptor, key_valid_types)
 {
   static const struct {

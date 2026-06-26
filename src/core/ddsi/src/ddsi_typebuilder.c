@@ -40,12 +40,15 @@
   if ((ret = set_op (ops, (idx), (val))) != DDS_RETCODE_OK) \
     return ret;
 
+struct typebuilder_data;
+
 struct typebuilder_ops
 {
   uint32_t *ops;
   uint32_t index;
   uint32_t maximum;
   uint32_t n_ops;
+  struct typebuilder_data *tbd;
 };
 
 struct typebuilder_type;
@@ -92,7 +95,12 @@ struct typebuilder_type
     struct {
       uint32_t bit_bound;
       uint32_t max;
+      uint32_t default_value;
+      uint32_t nvalues;
+      uint32_t *values;
       enum typebuilder_try_construct tc;
+      bool needs_value_metadata;
+      const struct ddsi_type *type;
     } enum_args;
     struct {
       uint32_t bit_bound;
@@ -212,6 +220,14 @@ struct typebuilder_key
   struct typebuilder_key_path *path;
 };
 
+struct typebuilder_enum_use
+{
+  const struct ddsi_type *type;
+  const struct typebuilder_type *tb_type;
+  uint32_t insn_offs;
+  struct typebuilder_enum_use *next;
+};
+
 #define NOARG
 DDSI_LIST_TYPES_TMPL(typebuilder_dep_types, struct typebuilder_aggregated_type *, NOARG, 32)
 #undef NOARG
@@ -224,6 +240,7 @@ struct typebuilder_data
   struct typebuilder_dep_types dep_types;
   uint32_t n_keys;
   struct typebuilder_key *keys;
+  struct typebuilder_enum_use *enum_uses;
   bool fixed_size;
 };
 
@@ -274,6 +291,9 @@ static void typebuilder_type_fini (struct typebuilder_type *tb_type)
         ddsrt_free (tb_type->args.collection_args.element_type.type);
       }
       break;
+    case DDS_OP_VAL_ENU:
+      ddsrt_free (tb_type->args.enum_args.values);
+      break;
     default:
       break;
   }
@@ -294,6 +314,7 @@ static void typebuilder_struct_fini (struct typebuilder_struct *tb_struct)
 
 static void typebuilder_union_fini (struct typebuilder_union *tb_union)
 {
+  typebuilder_type_fini (&tb_union->disc_type);
   if (tb_union->cases)
   {
     for (uint32_t n = 0; n < tb_union->n_cases; n++)
@@ -339,6 +360,13 @@ static void typebuilder_data_free (struct typebuilder_data *tbd)
     ddsrt_free (tb_aggrtype);
   }
   typebuilder_dep_types_free (&tbd->dep_types);
+
+  while (tbd->enum_uses)
+  {
+    struct typebuilder_enum_use *next = tbd->enum_uses->next;
+    ddsrt_free (tbd->enum_uses);
+    tbd->enum_uses = next;
+  }
 
   for (uint32_t n = 0; n < tbd->n_keys; n++)
   {
@@ -456,6 +484,18 @@ static enum typebuilder_try_construct get_tc (uint16_t flags)
   return TYPEBUILDER_TC_REJECT;
 }
 
+static int uint32_cmp (const void *va, const void *vb)
+{
+  const uint32_t a = *((const uint32_t *) va);
+  const uint32_t b = *((const uint32_t *) vb);
+  return (a > b) - (a < b);
+}
+
+static bool typebuilder_enum_needs_value_metadata (uint32_t max, uint32_t nvalues, uint32_t default_value)
+{
+  return nvalues == 0 || default_value != 0 || max != nvalues - 1;
+}
+
 static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t *size, uint32_t *align, struct typebuilder_type *tb_type, const struct ddsi_type *type, bool is_ext, bool use_ext_type, enum typebuilder_try_construct tc)
 {
   assert (tbd);
@@ -542,15 +582,34 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
     }
     case DDS_XTypes_TK_ENUM: {
       uint32_t max = 0;
+      uint32_t default_value = 0;
+      const uint32_t nvalues = type->xt._u.enum_type.literals.length;
+      uint32_t *values = nvalues ? ddsrt_calloc (nvalues, sizeof (*values)) : NULL;
+      if (nvalues && values == NULL)
+      {
+        ret = DDS_RETCODE_OUT_OF_RESOURCES;
+        break;
+      }
       for (uint32_t n = 0; n < type->xt._u.enum_type.literals.length; n++)
       {
         assert (type->xt._u.enum_type.literals.seq[n].value >= 0);
-        if ((uint32_t) type->xt._u.enum_type.literals.seq[n].value > max)
-          max = (uint32_t) type->xt._u.enum_type.literals.seq[n].value;
+        const uint32_t value = (uint32_t) type->xt._u.enum_type.literals.seq[n].value;
+        values[n] = value;
+        if (value > max)
+          max = value;
+        if (n == 0 || (type->xt._u.enum_type.literals.seq[n].flags & DDS_XTypes_IS_DEFAULT))
+          default_value = value;
       }
+      if (nvalues > 1)
+        qsort (values, nvalues, sizeof (*values), uint32_cmp);
       tb_type->type_code = DDS_OP_VAL_ENU;
       tb_type->args.enum_args.max = max;
+      tb_type->args.enum_args.default_value = default_value;
+      tb_type->args.enum_args.nvalues = nvalues;
+      tb_type->args.enum_args.values = values;
       tb_type->args.enum_args.bit_bound = type->xt._u.enum_type.bit_bound;
+      tb_type->args.enum_args.needs_value_metadata = typebuilder_enum_needs_value_metadata (max, nvalues, default_value);
+      tb_type->args.enum_args.type = type;
       if (type->xt._u.enum_type.flags & DDS_XTypes_IS_FINAL)
         tb_type->args.enum_args.tc = TYPEBUILDER_TC_REJECT;
       else
@@ -964,6 +1023,35 @@ static void or_op (struct typebuilder_ops *ops, uint32_t index, uint32_t value)
   ops->ops[index] |= value;
 }
 
+static uint32_t typebuilder_enum_descriptor_max (const struct typebuilder_type *tb_type)
+{
+  return tb_type->args.enum_args.needs_value_metadata ? UINT32_MAX : tb_type->args.enum_args.max;
+}
+
+static dds_return_t typebuilder_add_enum_use (struct typebuilder_ops *ops, const struct typebuilder_type *tb_type, uint32_t insn_offs)
+{
+  if (tb_type->type_code != DDS_OP_VAL_ENU || !tb_type->args.enum_args.needs_value_metadata)
+    return DDS_RETCODE_OK;
+
+  struct typebuilder_enum_use *use = ddsrt_calloc (1, sizeof (*use));
+  if (use == NULL)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  use->type = tb_type->args.enum_args.type;
+  use->tb_type = tb_type;
+  use->insn_offs = insn_offs;
+
+  if (ops->tbd->enum_uses == NULL)
+    ops->tbd->enum_uses = use;
+  else
+  {
+    struct typebuilder_enum_use *last = ops->tbd->enum_uses;
+    while (last->next)
+      last = last->next;
+    last->next = use;
+  }
+  return DDS_RETCODE_OK;
+}
+
 static uint32_t get_type_flags (const struct typebuilder_type *tb_type, bool for_subtype)
 {
   uint32_t flags = 0;
@@ -1016,9 +1104,11 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
       break;
     case DDS_OP_VAL_ENU:
       flags |= get_type_flags (tb_type, false);
+      if ((ret = typebuilder_add_enum_use (ops, tb_type, ops->index)) != DDS_RETCODE_OK)
+        goto err;
       PUSH_OP ((uint32_t) DDS_OP_ADR | type_code_to_op_type (tb_type->type_code) | flags);
       PUSH_ARG (member_offset);
-      PUSH_ARG (tb_type->args.enum_args.max);
+      PUSH_ARG (typebuilder_enum_descriptor_max (tb_type));
       break;
     case DDS_OP_VAL_BMK:
       flags |= get_type_flags (tb_type, false);
@@ -1059,7 +1149,9 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
         case DDS_OP_VAL_16BY:
           break;
         case DDS_OP_VAL_ENU:
-          PUSH_ARG (element_type->args.enum_args.max);
+          if ((ret = typebuilder_add_enum_use (ops, element_type, adr_index)) != DDS_RETCODE_OK)
+            goto err;
+          PUSH_ARG (typebuilder_enum_descriptor_max (element_type));
           break;
         case DDS_OP_VAL_BMK:
           PUSH_ARG (element_type->args.bitmask_args.bits_h);
@@ -1117,7 +1209,9 @@ static dds_return_t get_ops_type (struct typebuilder_type *tb_type, uint32_t fla
         case DDS_OP_VAL_16BY:
           break;
         case DDS_OP_VAL_ENU:
-          PUSH_ARG (element_type->args.enum_args.max);
+          if ((ret = typebuilder_add_enum_use (ops, element_type, adr_index)) != DDS_RETCODE_OK)
+            goto err;
+          PUSH_ARG (typebuilder_enum_descriptor_max (element_type));
           break;
         case DDS_OP_VAL_BMK:
           PUSH_ARG (element_type->args.bitmask_args.bits_h);
@@ -1236,10 +1330,12 @@ static dds_return_t get_ops_union_case (struct typebuilder_type *tb_type, uint32
       break;
     case DDS_OP_VAL_ENU:
       flags |= get_type_flags (tb_type, false);
+      if ((ret = typebuilder_add_enum_use (ops, tb_type, ops->index)) != DDS_RETCODE_OK)
+        break;
       PUSH_OP ((uint32_t) DDS_OP_JEQ4 | type_code_to_op_type (tb_type->type_code) | flags);
       PUSH_ARG (disc_value);
       PUSH_ARG (offset);
-      PUSH_ARG (tb_type->args.enum_args.max);
+      PUSH_ARG (typebuilder_enum_descriptor_max (tb_type));
       break;
     case DDS_OP_VAL_STR:
     case DDS_OP_VAL_WSTR:
@@ -1340,13 +1436,15 @@ static dds_return_t get_ops_union (const struct typebuilder_union *tb_union, uin
     flags |= tb_union->cases[c].is_default ? DDS_OP_FLAG_DEF : 0u;
 
   uint32_t next_insn_offs = ops->index;
+  if (tb_union->disc_type.type_code == DDS_OP_VAL_ENU && (ret = typebuilder_add_enum_use (ops, &tb_union->disc_type, ops->index)) != DDS_RETCODE_OK)
+    return ret;
   PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_UNI | (uint32_t) (tb_union->disc_type.type_code << 8) | flags);
   PUSH_ARG (0u);
   PUSH_ARG (tb_union->n_cases);
   uint32_t next_insn_idx = ops->index;
   if (tb_union->disc_type.type_code == DDS_OP_VAL_ENU) {
     PUSH_ARG (5u);
-    PUSH_ARG (tb_union->disc_type.args.enum_args.max);
+    PUSH_ARG (typebuilder_enum_descriptor_max (&tb_union->disc_type));
   } else if (tb_union->disc_type.type_code == DDS_OP_VAL_BMK) {
     PUSH_ARG (6u);
     PUSH_ARG (tb_union->disc_type.args.bitmask_args.bits_h);
@@ -1992,6 +2090,93 @@ err:
   return ret;
 }
 
+struct typebuilder_enum_value_set_id
+{
+  const struct ddsi_type *type;
+  const struct typebuilder_type *tb_type;
+  uint32_t setid;
+  struct typebuilder_enum_value_set_id *next;
+};
+
+static struct typebuilder_enum_value_set_id *find_enum_value_set_id (struct typebuilder_enum_value_set_id *sets, const struct ddsi_type *type)
+{
+  while (sets)
+  {
+    if (sets->type == type)
+      return sets;
+    sets = sets->next;
+  }
+  return NULL;
+}
+
+static void free_enum_value_set_ids (struct typebuilder_enum_value_set_id *sets)
+{
+  while (sets)
+  {
+    struct typebuilder_enum_value_set_id *next = sets->next;
+    ddsrt_free (sets);
+    sets = next;
+  }
+}
+
+static dds_return_t emit_enum_value_set (struct typebuilder_ops *ops, const struct typebuilder_type *tb_type, uint32_t setid)
+{
+  dds_return_t ret;
+  assert (setid <= UINT16_MAX);
+  PUSH_OP (DDS_OP_EVS | setid);
+  PUSH_ARG (tb_type->args.enum_args.default_value);
+  PUSH_ARG (tb_type->args.enum_args.nvalues);
+  for (uint32_t n = 0; n < tb_type->args.enum_args.nvalues; n++)
+    PUSH_ARG (tb_type->args.enum_args.values[n]);
+  return DDS_RETCODE_OK;
+}
+
+static dds_return_t typebuilder_add_enum_value_metadata (struct typebuilder_data *tbd, struct typebuilder_ops *ops)
+{
+  dds_return_t ret;
+  struct typebuilder_enum_value_set_id *sets = NULL;
+  uint32_t nsets = 0;
+
+  for (const struct typebuilder_enum_use *use = tbd->enum_uses; use; use = use->next)
+  {
+    if (find_enum_value_set_id (sets, use->type) == NULL)
+    {
+      struct typebuilder_enum_value_set_id *set = ddsrt_calloc (1, sizeof (*set));
+      if (set == NULL)
+      {
+        free_enum_value_set_ids (sets);
+        return DDS_RETCODE_OUT_OF_RESOURCES;
+      }
+      set->type = use->type;
+      set->tb_type = use->tb_type;
+      set->setid = nsets++;
+      set->next = sets;
+      sets = set;
+      if ((ret = emit_enum_value_set (ops, set->tb_type, set->setid)) != DDS_RETCODE_OK)
+      {
+        free_enum_value_set_ids (sets);
+        return ret;
+      }
+    }
+  }
+  if (sets != NULL)
+    PUSH_OP (DDS_OP_RTS);
+
+  for (const struct typebuilder_enum_use *use = tbd->enum_uses; use; use = use->next)
+  {
+    struct typebuilder_enum_value_set_id *set = find_enum_value_set_id (sets, use->type);
+    assert (set != NULL);
+    assert (use->insn_offs <= UINT16_MAX);
+    PUSH_OP (DDS_OP_EVM | use->insn_offs);
+    PUSH_ARG (set->setid);
+  }
+  if (sets != NULL)
+    PUSH_OP (DDS_OP_RTS);
+
+  free_enum_value_set_ids (sets);
+  return DDS_RETCODE_OK;
+}
+
 static dds_return_t typebuilder_add_mid_table (struct typebuilder_data *tbd, struct typebuilder_ops *ops)
 {
   dds_return_t ret;
@@ -2012,7 +2197,7 @@ static dds_return_t typebuilder_add_mid_table (struct typebuilder_data *tbd, str
     va = van;
   }
 
-  return ret;
+  return typebuilder_add_enum_value_metadata (tbd, ops);
 }
 
 
@@ -2021,7 +2206,7 @@ static dds_return_t get_topic_descriptor (dds_topic_descriptor_t *desc, struct t
   dds_return_t ret;
   unsigned char *typeinfo_data = NULL, *typemap_data = NULL;
   uint32_t typeinfo_sz, typemap_sz;
-  struct typebuilder_ops ops = { NULL, 0, 0, 0 };
+  struct typebuilder_ops ops = { NULL, 0, 0, 0, tbd };
 
   if ((ret = ddsi_type_get_typeinfo_ser (tbd->gv, tbd->type, &typeinfo_data, &typeinfo_sz)) != DDS_RETCODE_OK)
     goto err;

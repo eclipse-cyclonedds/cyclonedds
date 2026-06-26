@@ -220,6 +220,8 @@ extern "C" {
 #define DDS_OP_KOF  (0x07 << 24)
 #define DDS_OP_JEQ4 (0x08 << 24)
 #define DDS_OP_MID  (0x09 << 24)
+#define DDS_OP_EVS  (0x0a << 24)
+#define DDS_OP_EVM  (0x0b << 24)
 
 /**
  * @ingroup serialization
@@ -402,6 +404,13 @@ enum dds_stream_opcode {
    */
   DDS_SOP_MID = DDS_OP_MID
 };
+
+/**
+ * Trailing metadata records, not part of the serialization VM instruction set:
+ *   [EVS, 0, set-id] [default value] [nvalues] [value-0] ... [value-n-1]
+ *       where values are sorted in ascending order
+ *   [EVM, 0, elem-insn] [set-id]
+ */
 
 #define DDS_OP_VAL_1BY   (0x01)
 #define DDS_OP_VAL_2BY   (0x02)

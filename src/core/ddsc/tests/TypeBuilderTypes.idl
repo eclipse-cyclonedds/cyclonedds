@@ -689,4 +689,97 @@ module TypeBuilderTypes {
     @id(1) @must_understand sequence<sequence<long> > f1;
     @id(2) @must_understand sequence<long> f2[2];
   };
+
+  @bit_bound(16)
+  enum en59 {
+    EN59_0,
+    @value(65000) EN59_65000,
+    EN59_65001
+  };
+
+  @mutable
+  struct t59 {
+    @id(1) long before;
+    @id(2) en59 scalar;
+    @id(3) long between;
+    @id(4) en59 arr[2];
+    @id(5) sequence<en59, 2> seq;
+    @id(6) long after;
+  };
+
+  @nested @mutable
+  struct t60_base {
+    @id(1) long base_member;
+  };
+
+  @mutable
+  struct t60 : t60_base {
+    @id(2) en59 scalar;
+    @id(3) long after;
+  };
+
+  /* enum value metadata for a nested sequence element */
+  enum en61 {
+    @value(1) EN61_1,
+    @default_literal
+    EN61_2,
+    EN61_3,
+    EN61_4,
+    @value(6) EN61_6,
+    EN61_7,
+    EN61_8,
+    @value(14) EN61_14,
+    EN61_15,
+    EN61_16,
+    EN61_17,
+    EN61_18,
+    EN61_19
+  };
+
+  typedef sequence<sequence<en61>, 10> t61_seq_en;
+
+  typedef sequence<sequence<long, 6> > t61_seq_long;
+
+  typedef char t61_char_arr[2];
+
+  @appendable
+  struct t61 {
+    @key
+    float f1;
+    sequence<t61_char_arr, 17> f2;
+    t61_seq_long f3[3][1];
+    string f4[1][2];
+    long f5;
+    sequence<octet, 12> f6;
+    @optional
+    t61_seq_en f7;
+  };
+
+  /* enum value metadata for a union case sequence element */
+  enum en62 {
+    EN62_1,
+    @default_literal
+    EN62_2,
+    EN62_3,
+    @value(6) EN62_6,
+    EN62_7
+  };
+
+  @nested
+  union t62_union switch(long) {
+    case 1:
+      sequence<long> f1;
+    case 2:
+      string f2;
+    case 3:
+      sequence<en62> f3;
+    case 4:
+      string<16> f4;
+    default:
+      string<24> f5;
+  };
+
+  struct t62 {
+    sequence<t62_union, 8> f1;
+  };
 };

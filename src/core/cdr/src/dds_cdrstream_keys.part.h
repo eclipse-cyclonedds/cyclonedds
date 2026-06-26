@@ -328,7 +328,7 @@ static void dds_stream_extract_keyBO_from_key_impl (dds_istream_t *is, RESTRICT_
      and write the key-only CDR for this sample */
   void *sample = allocator->malloc (desc->size);
   memset (sample, 0, desc->size);
-  (void) dds_stream_read_impl (is, sample, allocator, desc->ops.ops, false, CDR_KIND_KEY, SAMPLE_DATA_INITIALIZED);
+  (void) dds_stream_read_impl (is, sample, allocator, &desc->member_ids, desc->ops.ops, false, CDR_KIND_KEY, SAMPLE_DATA_INITIALIZED);
   if (!dds_stream_write_keyBO_restrict (os, ser_kind, allocator, sample, desc))
   {
     // input must have been proven correct (using normalize), so write can't run into invalid data

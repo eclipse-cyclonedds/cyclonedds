@@ -131,6 +131,13 @@ struct constructed_type_memberid {
   const char *member; /**< Name of the member */
 };
 
+struct constructed_type_enummeta {
+  const struct constructed_type *ctype; /**< Reference to constructed type that contains this enum use */
+  struct constructed_type_enummeta *next; /**< Next item in linked-list */
+  int16_t rel_offs; /**< Relative offset from the ctype's offset */
+  const idl_enum_t *type; /**< Enum type needing value metadata */
+};
+
 struct field {
   struct field *previous;
   const void *node;
@@ -164,6 +171,7 @@ struct descriptor {
   struct constructed_type *constructed_types;
   struct instructions key_offsets;
   struct instructions member_ids;
+  struct constructed_type_enummeta *enum_metadata;
 };
 
 void
