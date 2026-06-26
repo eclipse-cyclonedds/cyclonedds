@@ -44,3 +44,29 @@ module XSpaceEnumLabel {
   @final struct wr1_5 { enum_f_label f1; };
   @final struct wr2_5 { enum_a_label f1; };
 };
+
+module XSpaceBitmask {
+  @final @bit_bound(8) bitmask bm_f { BMF0, BMF1 };
+  @appendable @bit_bound(8) bitmask bm_a { BMA0, BMA1 };
+
+  @final @bit_bound(8) bitmask bm_f_plus { BMFP0, BMFP1, BMFP2 };
+  @appendable @bit_bound(8) bitmask bm_a_plus { BMAP0, BMAP1, BMAP2 };
+
+  @final @bit_bound(8) bitmask bm_f_min { BMFM0 };
+  @appendable @bit_bound(8) bitmask bm_a_min { BMAM0 };
+
+  @final @bit_bound(16) bitmask bm_f_wide { BMFW0, BMFW1 };
+  @appendable @bit_bound(16) bitmask bm_a_wide { BMAW0, BMAW1 };
+
+  @final struct rd_f { bm_f f1; };
+  @final struct rd_a { bm_a f1; };
+
+  @final struct wr_f { bm_f f1; };
+  @final struct wr_a { bm_a f1; };
+  @final struct wr_f_plus { bm_f_plus f1; };
+  @final struct wr_a_plus { bm_a_plus f1; };
+  @final struct wr_f_min { bm_f_min f1; };
+  @final struct wr_a_min { bm_a_min f1; };
+  @final struct wr_f_wide { bm_f_wide f1; };
+  @final struct wr_a_wide { bm_a_wide f1; };
+};

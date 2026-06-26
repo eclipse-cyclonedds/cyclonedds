@@ -575,10 +575,13 @@ static void set_try_construct (uint32_t *flags, const idl_type_spec_t *type_spec
         return;
       break;
     case IDL_ENUM:
-    case IDL_BITMASK:
-      // @final enum/bitmask gets marked as "reject", @appendable gets marked as
+      // @final enum gets marked as "reject", @appendable gets marked as
       // discard/use_default
       final_check = true;
+      break;
+    case IDL_BITMASK:
+      // A bitmask can be assignable from an unsigned integer, so even a @final
+      // bitmask must keep the declared try-construct mode.
       break;
     default:
       return;
@@ -1873,10 +1876,9 @@ emit_bitmask(
 {
   (void)revisit;
   (void)path;
+  (void)pstate;
+  (void)node;
   (void)user_data;
-  const idl_bitmask_t *bitmask = (const idl_bitmask_t *)node;
-  if (bitmask->extensibility.annotation && bitmask->extensibility.value != IDL_FINAL)
-    idl_warning(pstate, IDL_WARN_UNSUPPORTED_ANNOTATIONS, idl_location(node), "Extensibility appendable and mutable for bitmask type are not yet supported in the C generator, the extensibility will not be used");
   return IDL_RETCODE_OK;
 }
 
