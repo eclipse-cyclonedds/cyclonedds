@@ -1243,7 +1243,7 @@ emit_switch_type_spec(
   void *user_data)
 {
   idl_retcode_t ret;
-  uint32_t opcode, order;
+  uint32_t opcode, order = 0;
   const idl_type_spec_t *type_spec;
   struct descriptor *descriptor = user_data;
   struct constructed_type *ctype = descriptor->type_stack->ctype;
@@ -1268,6 +1268,11 @@ emit_switch_type_spec(
   // XTypes spec 7.2.2.4.4.4.6: In a union type, the discriminator member shall always have the 'must understand' attribute set to true.
   opcode |= DDS_OP_FLAG_MU;
   if (idl_is_topic_key(descriptor->topic, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0, path, &order) != IDL_KEYTYPE_NONE) {
+    opcode |= DDS_OP_FLAG_KEY;
+    ctype->has_key_member = true;
+  }
+  else if (((idl_switch_type_spec_t *)node)->key.value)
+  {
     opcode |= DDS_OP_FLAG_KEY;
     ctype->has_key_member = true;
   }
@@ -2597,8 +2602,9 @@ static idl_retcode_t get_ctype_keys_adr(const idl_pstate_t *pstate, struct descr
             return ret;
           break;
         }
-        case DDS_OP_VAL_STU: {
-          // For collection of structs, recurse into the struct type so that the implicit KEY flag is set
+        case DDS_OP_VAL_STU:
+        case DDS_OP_VAL_UNI: {
+          // For collections of aggregated types, recurse so that implicit KEY flags are set
           uint32_t elem_offs = offs + 3 + ((DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_BSQ) ? 1 : 0);
           assert(ctype->instructions.table[elem_offs].type == ELEM_OFFSET);
           const idl_node_t *node = ctype->instructions.table[elem_offs].data.inst_offset.node;
@@ -2608,9 +2614,6 @@ static idl_retcode_t get_ctype_keys_adr(const idl_pstate_t *pstate, struct descr
             return ret;
           break;
         }
-        case DDS_OP_VAL_UNI:
-          idl_error (pstate, ctype->node, "Using an array or sequence with a union element type as part of the key is currently unsupported");
-          return IDL_RETCODE_UNSUPPORTED;
         case DDS_OP_VAL_EXT:
           abort ();
           return IDL_RETCODE_BAD_PARAMETER;
@@ -2623,8 +2626,9 @@ static idl_retcode_t get_ctype_keys_adr(const idl_pstate_t *pstate, struct descr
     }
 
     case DDS_OP_VAL_UNI:
-        idl_error (pstate, ctype->node, "Using union type as part of the key is currently unsupported");
-        return IDL_RETCODE_UNSUPPORTED;
+      if (!in_collection)
+        (*n_keys)++;
+      break;
 
     case DDS_OP_VAL_STU:
       abort ();
@@ -2663,7 +2667,8 @@ static idl_retcode_t get_ctype_keys(const idl_pstate_t *pstate, struct descripto
             add the key flag to all members in this type. The serializer will only use these
             key flags in case the top-level member (which is referring to this member)
             also has the key flag set. */
-          if (parent_is_key && !ctype->has_key_member)
+          if (parent_is_key && !ctype->has_key_member
+              && (!idl_is_union(ctype->node) || DDS_OP_TYPE(inst->data.opcode.code) == DDS_OP_VAL_UNI))
             inst->data.opcode.code |= DDS_OP_FLAG_KEY;
           if (inst->data.opcode.code & DDS_OP_FLAG_KEY) {
             if (inst->data.opcode.code & DDS_OP_FLAG_OPT) {
