@@ -495,7 +495,7 @@ static int ddsi_typeid_compare_acflag (const struct DDS_XTypes_TypeIdentifier *a
   if (a == NULL && b == NULL)
     return 0;
   if (a == NULL || b == NULL)
-    return a > b ? 1 : -1;
+    return a == NULL ? -1 : 1;
   if (a->_d != b->_d)
     return a->_d > b->_d ? 1 : -1;
   if (a->_d <= DDS_XTypes_TK_STRING16)

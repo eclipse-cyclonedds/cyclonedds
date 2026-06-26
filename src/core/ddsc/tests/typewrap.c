@@ -870,6 +870,34 @@ struct typeid_compare_case {
   const ddsi_typeid_t *high;
 };
 
+static int cmp_sign (int cmp)
+{
+  return (cmp > 0) - (cmp < 0);
+}
+
+static void assert_cmp_sign (const char *name, int actual, int expected)
+{
+  const int actual_sign = cmp_sign (actual);
+  if (actual_sign != expected)
+    tprintf ("typeid compare law %s: got sign %d from %d, expected %d\n",
+             name, actual_sign, actual, expected);
+  CU_ASSERT_EQ (actual_sign, expected);
+}
+
+static void assert_typeid_compare_laws (const struct typeid_compare_case *c)
+{
+  assert_cmp_sign (c->name, ddsi_typeid_compare (c->low, c->low), 0);
+  assert_cmp_sign (c->name, ddsi_typeid_compare (c->mid, c->mid), 0);
+  assert_cmp_sign (c->name, ddsi_typeid_compare (c->high, c->high), 0);
+
+  assert_cmp_sign (c->name, ddsi_typeid_compare (c->low, c->mid), -1);
+  assert_cmp_sign (c->name, ddsi_typeid_compare (c->mid, c->low), 1);
+  assert_cmp_sign (c->name, ddsi_typeid_compare (c->mid, c->high), -1);
+  assert_cmp_sign (c->name, ddsi_typeid_compare (c->high, c->mid), 1);
+  assert_cmp_sign (c->name, ddsi_typeid_compare (c->low, c->high), -1);
+  assert_cmp_sign (c->name, ddsi_typeid_compare (c->high, c->low), 1);
+}
+
 CU_Test (ddsc_typewrap, scc_identifier_hashes_slot_and_component_identity)
 {
   ddsi_typeid_t slot1, slot2, different_length, different_component;
@@ -1129,6 +1157,293 @@ CU_Test (ddsc_typewrap, small_map_key_flags_compare_orders)
 
   CU_ASSERT (ddsi_typeid_compare (&map_a, &map_b) < 0);
   CU_ASSERT (ddsi_typeid_compare (&map_b, &map_a) > 0);
+}
+
+CU_Test (ddsc_typewrap, typeid_compare_laws)
+{
+  struct DDS_XTypes_TypeIdentifier tid_i16 = { ._d = DDS_XTypes_TK_INT16 };
+  struct DDS_XTypes_TypeIdentifier tid_i32 = { ._d = DDS_XTypes_TK_INT32 };
+  struct DDS_XTypes_TypeIdentifier tid_i64 = { ._d = DDS_XTypes_TK_INT64 };
+
+  ddsi_typeid_t prim_low = { .x = { ._d = DDS_XTypes_TK_BOOLEAN } };
+  ddsi_typeid_t prim_mid = { .x = { ._d = DDS_XTypes_TK_INT32 } };
+  ddsi_typeid_t prim_high = { .x = { ._d = DDS_XTypes_TK_INT64 } };
+
+  ddsi_typeid_t str8s_low = { .x = { ._d = DDS_XTypes_TI_STRING8_SMALL, ._u.string_sdefn = { .bound = 1 } } };
+  ddsi_typeid_t str8s_mid = str8s_low, str8s_high = str8s_low;
+  str8s_mid.x._u.string_sdefn.bound = 2;
+  str8s_high.x._u.string_sdefn.bound = 3;
+
+  ddsi_typeid_t str8l_low = { .x = { ._d = DDS_XTypes_TI_STRING8_LARGE, ._u.string_ldefn = { .bound = 1 } } };
+  ddsi_typeid_t str8l_mid = str8l_low, str8l_high = str8l_low;
+  str8l_mid.x._u.string_ldefn.bound = 2;
+  str8l_high.x._u.string_ldefn.bound = 3;
+
+  ddsi_typeid_t str16s_low = { .x = { ._d = DDS_XTypes_TI_STRING16_SMALL, ._u.string_sdefn = { .bound = 1 } } };
+  ddsi_typeid_t str16s_mid = str16s_low, str16s_high = str16s_low;
+  str16s_mid.x._u.string_sdefn.bound = 2;
+  str16s_high.x._u.string_sdefn.bound = 3;
+
+  ddsi_typeid_t str16l_low = { .x = { ._d = DDS_XTypes_TI_STRING16_LARGE, ._u.string_ldefn = { .bound = 1 } } };
+  ddsi_typeid_t str16l_mid = str16l_low, str16l_high = str16l_low;
+  str16l_mid.x._u.string_ldefn.bound = 2;
+  str16l_high.x._u.string_ldefn.bound = 3;
+
+  ddsi_typeid_t hash_low = { .x = { ._d = DDS_XTypes_EK_MINIMAL } };
+  ddsi_typeid_t hash_mid = hash_low, hash_high = hash_low;
+  fill_equivalence_hash (hash_low.x._u.equivalence_hash, 0x10);
+  fill_equivalence_hash (hash_mid.x._u.equivalence_hash, 0x20);
+  fill_equivalence_hash (hash_high.x._u.equivalence_hash, 0x30);
+
+  ddsi_typeid_t equiv_kind_low = hash_low;
+  ddsi_typeid_t equiv_kind_mid = hash_low;
+  ddsi_typeid_t equiv_kind_high = hash_mid;
+  equiv_kind_mid.x._d = DDS_XTypes_EK_COMPLETE;
+  equiv_kind_high.x._d = DDS_XTypes_EK_COMPLETE;
+
+  ddsi_typeid_t scc_len_low, scc_len_mid, scc_len_high;
+  init_scc_typeid (&scc_len_low, 1, 1);
+  init_scc_typeid (&scc_len_mid, 2, 1);
+  init_scc_typeid (&scc_len_high, 3, 1);
+
+  ddsi_typeid_t scc_index_low, scc_index_mid, scc_index_high;
+  init_scc_typeid (&scc_index_low, 3, 1);
+  init_scc_typeid (&scc_index_mid, 3, 2);
+  init_scc_typeid (&scc_index_high, 3, 3);
+
+  ddsi_typeid_t scc_hash_low, scc_hash_mid, scc_hash_high;
+  init_scc_typeid (&scc_hash_low, 3, 1);
+  init_scc_typeid (&scc_hash_mid, 3, 1);
+  init_scc_typeid (&scc_hash_high, 3, 1);
+  fill_equivalence_hash (scc_hash_low.x._u.sc_component_id.sc_component_id._u.hash, 0x10);
+  fill_equivalence_hash (scc_hash_mid.x._u.sc_component_id.sc_component_id._u.hash, 0x20);
+  fill_equivalence_hash (scc_hash_high.x._u.sc_component_id.sc_component_id._u.hash, 0x30);
+
+  ddsi_typeid_t scc_kind_low = scc_hash_low;
+  ddsi_typeid_t scc_kind_mid = scc_hash_low;
+  ddsi_typeid_t scc_kind_high = scc_hash_mid;
+  scc_kind_low.x._u.sc_component_id.sc_component_id._d = DDS_XTypes_EK_MINIMAL;
+  scc_kind_mid.x._u.sc_component_id.sc_component_id._d = DDS_XTypes_EK_COMPLETE;
+  scc_kind_high.x._u.sc_component_id.sc_component_id._d = DDS_XTypes_EK_COMPLETE;
+
+  ddsi_typeid_t seq_s_base = {
+    .x = {
+      ._d = DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL,
+      ._u.seq_sdefn = {
+        .header = { .equiv_kind = DDS_XTypes_EK_COMPLETE, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
+        .bound = 1,
+        .element_identifier = &tid_i32
+      }
+    }
+  };
+  ddsi_typeid_t seq_s_header_kind_low = seq_s_base, seq_s_header_kind_mid = seq_s_base, seq_s_header_kind_high = seq_s_base;
+  seq_s_header_kind_low.x._u.seq_sdefn.header.equiv_kind = DDS_XTypes_EK_MINIMAL;
+  seq_s_header_kind_high.x._u.seq_sdefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  ddsi_typeid_t seq_s_header_flags_low = seq_s_base, seq_s_header_flags_mid = seq_s_base, seq_s_header_flags_high = seq_s_base;
+  seq_s_header_flags_mid.x._u.seq_sdefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  seq_s_header_flags_high.x._u.seq_sdefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_TRIM;
+  ddsi_typeid_t seq_s_element_low = seq_s_base, seq_s_element_mid = seq_s_base, seq_s_element_high = seq_s_base;
+  seq_s_element_low.x._u.seq_sdefn.element_identifier = &tid_i16;
+  seq_s_element_high.x._u.seq_sdefn.element_identifier = &tid_i64;
+  ddsi_typeid_t seq_s_bound_low = seq_s_base, seq_s_bound_mid = seq_s_base, seq_s_bound_high = seq_s_base;
+  seq_s_bound_mid.x._u.seq_sdefn.bound = 2;
+  seq_s_bound_high.x._u.seq_sdefn.bound = 3;
+
+  ddsi_typeid_t seq_l_base = {
+    .x = {
+      ._d = DDS_XTypes_TI_PLAIN_SEQUENCE_LARGE,
+      ._u.seq_ldefn = {
+        .header = { .equiv_kind = DDS_XTypes_EK_COMPLETE, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
+        .bound = 1,
+        .element_identifier = &tid_i32
+      }
+    }
+  };
+  ddsi_typeid_t seq_l_header_kind_low = seq_l_base, seq_l_header_kind_mid = seq_l_base, seq_l_header_kind_high = seq_l_base;
+  seq_l_header_kind_low.x._u.seq_ldefn.header.equiv_kind = DDS_XTypes_EK_MINIMAL;
+  seq_l_header_kind_high.x._u.seq_ldefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  ddsi_typeid_t seq_l_header_flags_low = seq_l_base, seq_l_header_flags_mid = seq_l_base, seq_l_header_flags_high = seq_l_base;
+  seq_l_header_flags_mid.x._u.seq_ldefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  seq_l_header_flags_high.x._u.seq_ldefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_TRIM;
+  ddsi_typeid_t seq_l_element_low = seq_l_base, seq_l_element_mid = seq_l_base, seq_l_element_high = seq_l_base;
+  seq_l_element_low.x._u.seq_ldefn.element_identifier = &tid_i16;
+  seq_l_element_high.x._u.seq_ldefn.element_identifier = &tid_i64;
+  ddsi_typeid_t seq_l_bound_low = seq_l_base, seq_l_bound_mid = seq_l_base, seq_l_bound_high = seq_l_base;
+  seq_l_bound_mid.x._u.seq_ldefn.bound = 2;
+  seq_l_bound_high.x._u.seq_ldefn.bound = 3;
+
+  DDS_XTypes_SBound sbounds_1[] = { 1 };
+  DDS_XTypes_SBound sbounds_2[] = { 2 };
+  DDS_XTypes_SBound sbounds_3[] = { 3 };
+  DDS_XTypes_SBound sbounds_len2[] = { 1, 1 };
+  DDS_XTypes_SBound sbounds_len3[] = { 1, 1, 1 };
+  DDS_XTypes_LBound lbounds_1[] = { 1 };
+  DDS_XTypes_LBound lbounds_2[] = { 2 };
+  DDS_XTypes_LBound lbounds_3[] = { 3 };
+  DDS_XTypes_LBound lbounds_len2[] = { 1, 1 };
+  DDS_XTypes_LBound lbounds_len3[] = { 1, 1, 1 };
+
+  ddsi_typeid_t array_s_base = {
+    .x = {
+      ._d = DDS_XTypes_TI_PLAIN_ARRAY_SMALL,
+      ._u.array_sdefn = {
+        .header = { .equiv_kind = DDS_XTypes_EK_COMPLETE, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
+        .array_bound_seq = { ._maximum = 1, ._length = 1, ._buffer = sbounds_1, ._release = false },
+        .element_identifier = &tid_i32
+      }
+    }
+  };
+  ddsi_typeid_t array_s_header_kind_low = array_s_base, array_s_header_kind_mid = array_s_base, array_s_header_kind_high = array_s_base;
+  array_s_header_kind_low.x._u.array_sdefn.header.equiv_kind = DDS_XTypes_EK_MINIMAL;
+  array_s_header_kind_high.x._u.array_sdefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  ddsi_typeid_t array_s_header_flags_low = array_s_base, array_s_header_flags_mid = array_s_base, array_s_header_flags_high = array_s_base;
+  array_s_header_flags_mid.x._u.array_sdefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  array_s_header_flags_high.x._u.array_sdefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_TRIM;
+  ddsi_typeid_t array_s_len_low = array_s_base, array_s_len_mid = array_s_base, array_s_len_high = array_s_base;
+  array_s_len_mid.x._u.array_sdefn.array_bound_seq = (DDS_XTypes_SBoundSeq) { ._maximum = 2, ._length = 2, ._buffer = sbounds_len2, ._release = false };
+  array_s_len_high.x._u.array_sdefn.array_bound_seq = (DDS_XTypes_SBoundSeq) { ._maximum = 3, ._length = 3, ._buffer = sbounds_len3, ._release = false };
+  ddsi_typeid_t array_s_bound_low = array_s_base, array_s_bound_mid = array_s_base, array_s_bound_high = array_s_base;
+  array_s_bound_mid.x._u.array_sdefn.array_bound_seq._buffer = sbounds_2;
+  array_s_bound_high.x._u.array_sdefn.array_bound_seq._buffer = sbounds_3;
+  ddsi_typeid_t array_s_element_low = array_s_base, array_s_element_mid = array_s_base, array_s_element_high = array_s_base;
+  array_s_element_low.x._u.array_sdefn.element_identifier = &tid_i16;
+  array_s_element_high.x._u.array_sdefn.element_identifier = &tid_i64;
+
+  ddsi_typeid_t array_l_base = {
+    .x = {
+      ._d = DDS_XTypes_TI_PLAIN_ARRAY_LARGE,
+      ._u.array_ldefn = {
+        .header = { .equiv_kind = DDS_XTypes_EK_COMPLETE, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
+        .array_bound_seq = { ._maximum = 1, ._length = 1, ._buffer = lbounds_1, ._release = false },
+        .element_identifier = &tid_i32
+      }
+    }
+  };
+  ddsi_typeid_t array_l_header_kind_low = array_l_base, array_l_header_kind_mid = array_l_base, array_l_header_kind_high = array_l_base;
+  array_l_header_kind_low.x._u.array_ldefn.header.equiv_kind = DDS_XTypes_EK_MINIMAL;
+  array_l_header_kind_high.x._u.array_ldefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  ddsi_typeid_t array_l_header_flags_low = array_l_base, array_l_header_flags_mid = array_l_base, array_l_header_flags_high = array_l_base;
+  array_l_header_flags_mid.x._u.array_ldefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  array_l_header_flags_high.x._u.array_ldefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_TRIM;
+  ddsi_typeid_t array_l_len_low = array_l_base, array_l_len_mid = array_l_base, array_l_len_high = array_l_base;
+  array_l_len_mid.x._u.array_ldefn.array_bound_seq = (DDS_XTypes_LBoundSeq) { ._maximum = 2, ._length = 2, ._buffer = lbounds_len2, ._release = false };
+  array_l_len_high.x._u.array_ldefn.array_bound_seq = (DDS_XTypes_LBoundSeq) { ._maximum = 3, ._length = 3, ._buffer = lbounds_len3, ._release = false };
+  ddsi_typeid_t array_l_bound_low = array_l_base, array_l_bound_mid = array_l_base, array_l_bound_high = array_l_base;
+  array_l_bound_mid.x._u.array_ldefn.array_bound_seq._buffer = lbounds_2;
+  array_l_bound_high.x._u.array_ldefn.array_bound_seq._buffer = lbounds_3;
+  ddsi_typeid_t array_l_element_low = array_l_base, array_l_element_mid = array_l_base, array_l_element_high = array_l_base;
+  array_l_element_low.x._u.array_ldefn.element_identifier = &tid_i16;
+  array_l_element_high.x._u.array_ldefn.element_identifier = &tid_i64;
+
+  ddsi_typeid_t map_s_base = {
+    .x = {
+      ._d = DDS_XTypes_TI_PLAIN_MAP_SMALL,
+      ._u.map_sdefn = {
+        .header = { .equiv_kind = DDS_XTypes_EK_COMPLETE, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
+        .bound = 1,
+        .element_identifier = &tid_i32,
+        .key_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD,
+        .key_identifier = &tid_i32
+      }
+    }
+  };
+  ddsi_typeid_t map_s_header_low = map_s_base, map_s_header_mid = map_s_base, map_s_header_high = map_s_base;
+  map_s_header_low.x._u.map_sdefn.header.equiv_kind = DDS_XTypes_EK_MINIMAL;
+  map_s_header_high.x._u.map_sdefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  ddsi_typeid_t map_s_bound_low = map_s_base, map_s_bound_mid = map_s_base, map_s_bound_high = map_s_base;
+  map_s_bound_mid.x._u.map_sdefn.bound = 2;
+  map_s_bound_high.x._u.map_sdefn.bound = 3;
+  ddsi_typeid_t map_s_element_low = map_s_base, map_s_element_mid = map_s_base, map_s_element_high = map_s_base;
+  map_s_element_low.x._u.map_sdefn.element_identifier = &tid_i16;
+  map_s_element_high.x._u.map_sdefn.element_identifier = &tid_i64;
+  ddsi_typeid_t map_s_key_flags_low = map_s_base, map_s_key_flags_mid = map_s_base, map_s_key_flags_high = map_s_base;
+  map_s_key_flags_mid.x._u.map_sdefn.key_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  map_s_key_flags_high.x._u.map_sdefn.key_flags = DDS_XTypes_TRY_CONSTRUCT_TRIM;
+  ddsi_typeid_t map_s_key_low = map_s_base, map_s_key_mid = map_s_base, map_s_key_high = map_s_base;
+  map_s_key_low.x._u.map_sdefn.key_identifier = &tid_i16;
+  map_s_key_high.x._u.map_sdefn.key_identifier = &tid_i64;
+
+  ddsi_typeid_t map_l_base = {
+    .x = {
+      ._d = DDS_XTypes_TI_PLAIN_MAP_LARGE,
+      ._u.map_ldefn = {
+        .header = { .equiv_kind = DDS_XTypes_EK_COMPLETE, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
+        .bound = 1,
+        .element_identifier = &tid_i32,
+        .key_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD,
+        .key_identifier = &tid_i32
+      }
+    }
+  };
+  ddsi_typeid_t map_l_header_low = map_l_base, map_l_header_mid = map_l_base, map_l_header_high = map_l_base;
+  map_l_header_low.x._u.map_ldefn.header.equiv_kind = DDS_XTypes_EK_MINIMAL;
+  map_l_header_high.x._u.map_ldefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  ddsi_typeid_t map_l_bound_low = map_l_base, map_l_bound_mid = map_l_base, map_l_bound_high = map_l_base;
+  map_l_bound_mid.x._u.map_ldefn.bound = 2;
+  map_l_bound_high.x._u.map_ldefn.bound = 3;
+  ddsi_typeid_t map_l_element_low = map_l_base, map_l_element_mid = map_l_base, map_l_element_high = map_l_base;
+  map_l_element_low.x._u.map_ldefn.element_identifier = &tid_i16;
+  map_l_element_high.x._u.map_ldefn.element_identifier = &tid_i64;
+  ddsi_typeid_t map_l_key_flags_low = map_l_base, map_l_key_flags_mid = map_l_base, map_l_key_flags_high = map_l_base;
+  map_l_key_flags_mid.x._u.map_ldefn.key_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  map_l_key_flags_high.x._u.map_ldefn.key_flags = DDS_XTypes_TRY_CONSTRUCT_TRIM;
+  ddsi_typeid_t map_l_key_low = map_l_base, map_l_key_mid = map_l_base, map_l_key_high = map_l_base;
+  map_l_key_low.x._u.map_ldefn.key_identifier = &tid_i16;
+  map_l_key_high.x._u.map_ldefn.key_identifier = &tid_i64;
+
+  const struct typeid_compare_case cases[] = {
+    { "primitive kind", &prim_low, &prim_mid, &prim_high },
+    { "string8 small bound", &str8s_low, &str8s_mid, &str8s_high },
+    { "string8 large bound", &str8l_low, &str8l_mid, &str8l_high },
+    { "string16 small bound", &str16s_low, &str16s_mid, &str16s_high },
+    { "string16 large bound", &str16l_low, &str16l_mid, &str16l_high },
+    { "equivalence kind", &equiv_kind_low, &equiv_kind_mid, &equiv_kind_high },
+    { "equivalence hash", &hash_low, &hash_mid, &hash_high },
+    { "scc kind", &scc_kind_low, &scc_kind_mid, &scc_kind_high },
+    { "scc length", &scc_len_low, &scc_len_mid, &scc_len_high },
+    { "scc index", &scc_index_low, &scc_index_mid, &scc_index_high },
+    { "scc hash", &scc_hash_low, &scc_hash_mid, &scc_hash_high },
+    { "sequence small header kind", &seq_s_header_kind_low, &seq_s_header_kind_mid, &seq_s_header_kind_high },
+    { "sequence small header flags", &seq_s_header_flags_low, &seq_s_header_flags_mid, &seq_s_header_flags_high },
+    { "sequence small element", &seq_s_element_low, &seq_s_element_mid, &seq_s_element_high },
+    { "sequence small bound", &seq_s_bound_low, &seq_s_bound_mid, &seq_s_bound_high },
+    { "sequence large header kind", &seq_l_header_kind_low, &seq_l_header_kind_mid, &seq_l_header_kind_high },
+    { "sequence large header flags", &seq_l_header_flags_low, &seq_l_header_flags_mid, &seq_l_header_flags_high },
+    { "sequence large element", &seq_l_element_low, &seq_l_element_mid, &seq_l_element_high },
+    { "sequence large bound", &seq_l_bound_low, &seq_l_bound_mid, &seq_l_bound_high },
+    { "array small header kind", &array_s_header_kind_low, &array_s_header_kind_mid, &array_s_header_kind_high },
+    { "array small header flags", &array_s_header_flags_low, &array_s_header_flags_mid, &array_s_header_flags_high },
+    { "array small length", &array_s_len_low, &array_s_len_mid, &array_s_len_high },
+    { "array small bound", &array_s_bound_low, &array_s_bound_mid, &array_s_bound_high },
+    { "array small element", &array_s_element_low, &array_s_element_mid, &array_s_element_high },
+    { "array large header kind", &array_l_header_kind_low, &array_l_header_kind_mid, &array_l_header_kind_high },
+    { "array large header flags", &array_l_header_flags_low, &array_l_header_flags_mid, &array_l_header_flags_high },
+    { "array large length", &array_l_len_low, &array_l_len_mid, &array_l_len_high },
+    { "array large bound", &array_l_bound_low, &array_l_bound_mid, &array_l_bound_high },
+    { "array large element", &array_l_element_low, &array_l_element_mid, &array_l_element_high },
+    { "map small header", &map_s_header_low, &map_s_header_mid, &map_s_header_high },
+    { "map small bound", &map_s_bound_low, &map_s_bound_mid, &map_s_bound_high },
+    { "map small element", &map_s_element_low, &map_s_element_mid, &map_s_element_high },
+    { "map small key flags", &map_s_key_flags_low, &map_s_key_flags_mid, &map_s_key_flags_high },
+    { "map small key", &map_s_key_low, &map_s_key_mid, &map_s_key_high },
+    { "map large header", &map_l_header_low, &map_l_header_mid, &map_l_header_high },
+    { "map large bound", &map_l_bound_low, &map_l_bound_mid, &map_l_bound_high },
+    { "map large element", &map_l_element_low, &map_l_element_mid, &map_l_element_high },
+    { "map large key flags", &map_l_key_flags_low, &map_l_key_flags_mid, &map_l_key_flags_high },
+    { "map large key", &map_l_key_low, &map_l_key_mid, &map_l_key_high }
+  };
+
+  for (size_t n = 0; n < sizeof (cases) / sizeof (cases[0]); n++)
+    assert_typeid_compare_laws (&cases[n]);
+}
+
+CU_Test (ddsc_typewrap, typeid_compare_impl_orders_null)
+{
+  struct DDS_XTypes_TypeIdentifier tid = { ._d = DDS_XTypes_TK_INT32 };
+
+  assert_cmp_sign ("null/null", ddsi_typeid_compare_impl (NULL, NULL), 0);
+  assert_cmp_sign ("null/non-null", ddsi_typeid_compare_impl (NULL, &tid), -1);
+  assert_cmp_sign ("non-null/null", ddsi_typeid_compare_impl (&tid, NULL), 1);
 }
 
 CU_Test (ddsc_typewrap, large_map_kind_uses_key_identifier)
