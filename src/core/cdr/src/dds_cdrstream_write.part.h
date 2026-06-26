@@ -560,6 +560,8 @@ static const uint32_t *dds_stream_write_uniBO (RESTRICT_OSTREAM_T *os, const str
   uint64_t disc;
   if (!dds_stream_write_union_discriminantBO (os, allocator, mid_table, ops, insn, discaddr, &disc))
     return NULL;
+  if (cdr_kind == CDR_KIND_KEY)
+    return ops + DDS_OP_ADR_JMP (ops[3]);
   uint32_t const * const jeq_op = find_union_case (ops, disc);
   ops += DDS_OP_ADR_JMP (ops[3]);
   if (jeq_op)

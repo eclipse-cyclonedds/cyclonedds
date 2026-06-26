@@ -150,12 +150,15 @@ struct key_props {
   bool is_mutable;
   bool is_sequence;
   bool is_array_nonprim;
+  bool is_union;
 };
 
 enum cdr_data_kind {
   CDR_KIND_DATA,
   CDR_KIND_KEY
 };
+
+#define DDS_TOPIC_KEY_USE_REGULAR (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM | DDS_TOPIC_KEY_UNION)
 
 /**
  * @brief Indicates if the sample data is initialized
@@ -1521,6 +1524,28 @@ static uint64_t read_union_discriminant (dds_istream_t *is, uint32_t insn)
   return 0;
 }
 
+static uint32_t get_union_discriminant_size (uint32_t insn)
+{
+  enum dds_stream_typecode type = DDS_OP_SUBTYPE (insn);
+  assert (is_primitive_or_enum_or_bitmask_type (type));
+  switch (type)
+  {
+    case DDS_SOP_VAL_BLN:
+    case DDS_SOP_VAL_1BY:
+    case DDS_SOP_VAL_2BY:
+    case DDS_SOP_VAL_4BY:
+    case DDS_SOP_VAL_8BY:
+      return get_primitive_size (type);
+    case DDS_SOP_VAL_ENU:
+    case DDS_SOP_VAL_BMK:
+      return DDS_OP_TYPE_SZ (insn);
+    default:
+      break;
+  }
+  abort ();
+  return 0;
+}
+
 ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
 static const uint32_t *find_union_case (const uint32_t *union_ops, uint64_t disc)
 {
@@ -2396,8 +2421,11 @@ static const uint32_t *dds_stream_getsize_uni (struct getsize_state *st, const c
   uint64_t disc;
   if (!dds_stream_getsize_union_discriminant (st, insn, discaddr, &disc))
     return NULL;
-  uint32_t const * const jeq_op = find_union_case (ops, disc);
+  const uint32_t *union_ops = ops;
   ops += DDS_OP_ADR_JMP (ops[3]);
+  if (st->cdr_kind == CDR_KIND_KEY)
+    return ops;
+  uint32_t const * const jeq_op = find_union_case (union_ops, disc);
   if (jeq_op)
   {
     const enum dds_stream_typecode valtype = DDS_JEQ_TYPE (jeq_op[0]);
@@ -2805,10 +2833,10 @@ size_t dds_stream_getsize_key (const char *sample, const struct dds_cdrstream_de
     .cdr_kind = CDR_KIND_KEY,
     .xcdr_version = xcdr_version
   };
-  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM))
+  if (desc->flagset & DDS_TOPIC_KEY_USE_REGULAR)
   {
-    /* For types with key fields in aggregated types with appendable or mutable
-       extensibility, determine the key CDR size using the regular function */
+    /* For key fields that need key-mode traversal, determine the key CDR size
+       using the regular function. */
     if (dds_stream_getsize_impl (&st, sample, desc->ops.ops, false) == NULL)
       return false;
   }
@@ -3268,6 +3296,8 @@ static const uint32_t *dds_stream_read_uni (dds_istream_t *is, char * restrict d
   const uint64_t disc = read_union_discriminant (is, insn);
   uint32_t const * const jeq_op = stream_union_switch_case (insn, disc, discaddr, baseaddr, allocator, ops, &sample_state);
   ops += DDS_OP_ADR_JMP (ops[3]);
+  if (cdr_kind == CDR_KIND_KEY)
+    return ops;
   if (jeq_op)
   {
     const enum dds_stream_typecode valtype = DDS_JEQ_TYPE (jeq_op[0]);
@@ -4927,6 +4957,8 @@ static enum dds_stream_normalize_result normalize_uni (struct normalize_state co
     return discres;
   uint32_t const * const jeq_op = find_union_case (*ops, disc);
   *ops += DDS_OP_ADR_JMP ((*ops)[3]);
+  if (st->cdr_kind == CDR_KIND_KEY)
+    return normalize_success ();
   if (!jeq_op) {
     // not matching a case label, no body
     return normalize_success ();
@@ -5715,10 +5747,10 @@ static enum dds_stream_normalize_result stream_normalize_key (struct normalize_s
   enum dds_stream_normalize_result res;
   uint32_t offs = 0;
 
-  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM))
+  if (desc->flagset & DDS_TOPIC_KEY_USE_REGULAR)
   {
-    /* For types with key fields in aggregated types with appendable or mutable
-       extensibility, use the regular normalize functions */
+    /* For key fields that need key-mode traversal, use the regular normalize
+       functions. */
     const uint32_t *tmp_ops = desc->ops.ops;
     // FIXME: st->mid_table = &desc->member_ids;
     if ((res = stream_normalize_data_impl (st, &offs, &tmp_ops, false)) != DDS_STREAM_NORMALIZE_SUCCESS)
@@ -6636,10 +6668,10 @@ static void dds_stream_read_key_impl (dds_istream_t *is, char *sample, const str
 
 void dds_stream_read_key (dds_istream_t *is, char *sample, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc)
 {
-  if (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM))
+  if (desc->flagset & DDS_TOPIC_KEY_USE_REGULAR)
   {
-    /* For types with key fields in aggregated types with appendable or mutable
-       extensibility, use the regular read functions to read the key fields */
+    /* For key fields that need key-mode traversal, use the regular read
+       functions. */
     (void) dds_stream_read_impl (is, sample, allocator, &desc->member_ids, desc->ops.ops, false, CDR_KIND_KEY, SAMPLE_DATA_INITIALIZED);
   }
   else
@@ -7065,6 +7097,8 @@ static const uint32_t *prtf_uni (char **buf, size_t *bufsize, dds_istream_t *is,
   if (!prtf (buf, bufsize, "%"PRIu64":", disc))
     return NULL;
   ops += DDS_OP_ADR_JMP (ops[3]);
+  if (cdr_kind == CDR_KIND_KEY)
+    return ops;
   if (jeq_op)
   {
     const enum dds_stream_typecode valtype = DDS_JEQ_TYPE (jeq_op[0]);
@@ -7671,8 +7705,11 @@ static const uint32_t *dds_stream_key_size_adr (const uint32_t *ops, uint32_t in
       break;
     }
     case DDS_SOP_VAL_UNI:
-      // TODO: support union as part of key
-      set_key_size_unbounded (k);
+      k->is_union = true;
+      {
+        const uint32_t sz = get_union_discriminant_size (insn);
+        add_to_key_size (k, sz, 1, sz);
+      }
       ops = dds_stream_skip_adr_insns (insn, ops);
       break;
     case DDS_SOP_VAL_ENU: {
@@ -7914,6 +7951,8 @@ uint32_t dds_stream_key_flags (struct dds_cdrstream_desc *desc, uint32_t *keysz_
         key_flags |= DDS_TOPIC_KEY_SEQUENCE;
       if (key_properties.is_array_nonprim)
         key_flags |= DDS_TOPIC_KEY_ARRAY_NONPRIM;
+      if (key_properties.is_union)
+        key_flags |= DDS_TOPIC_KEY_UNION;
 
       if (keysz_xcdrv1 != NULL)
         *keysz_xcdrv1 = key_props_supports_xcdr1 (&key_properties) ? key_properties.sz_xcdrv1 : 0;
