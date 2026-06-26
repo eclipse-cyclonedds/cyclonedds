@@ -93,6 +93,12 @@ dds_return_t dtl_print_sample_to_string (struct dyntypelib *dtl, bool valid_data
   struct dyntypelib_error *err);
 void *dtl_scan_sample (struct dyntypelib *dtl, const struct elem *input, const DDS_XTypes_CompleteTypeObject *typeobj, const bool ignore_unknown_members, struct dyntypelib_error *err);
 
+/* valid_data selects the comparison scope: true compares all fields, false
+   compares only values reachable through key-annotated member paths. */
+dds_return_t dtl_compare_samples_equal (struct dyntypelib *dtl, bool valid_data, const void *sample1, const void *sample2,
+  const DDS_XTypes_CompleteTypeObject *typeobj, bool *equal, struct dyntypelib_error *err);
+int dtl_compare_samples (struct dyntypelib *dtl, bool valid_data, const void *sample1, const void *sample2, const DDS_XTypes_CompleteTypeObject *typeobj);
+
 void dtl_free (struct dyntypelib *dtl);
 
 #endif

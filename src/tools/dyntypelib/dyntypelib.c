@@ -15,7 +15,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <getopt.h>
 
 #include "dds/dds.h"
 #include "dds/ddsrt/hopscotch.h"

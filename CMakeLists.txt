@@ -66,6 +66,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
 option(BUILD_IDLC "Build IDL preprocessor" ${not_crosscompiling})
 option(BUILD_DDSPERF "Build ddsperf tool" ${not_crosscompiling})
+option(INSTALL_XMLTYPE "Install xmltype tool" OFF)
 
 option(WITH_ZEPHYR "Build for Zephyr RTOS" OFF)
 

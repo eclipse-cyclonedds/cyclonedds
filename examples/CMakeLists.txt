@@ -60,30 +60,18 @@ if (ENABLE_TOPIC_DISCOVERY)
       listtopics/readme.rst
     DESTINATION "${CMAKE_INSTALL_EXAMPLESDIR}/listtopics"
     COMPONENT dev)
-  install(
-    FILES
-      dynsub/variouspub_types.idl
-      dynsub/dynsub.c
-      dynsub/dynsub.h
-      dynsub/dyntypelib.c
-      dynsub/dyntypelib.h
-      dynsub/domtree.c
-      dynsub/domtree.h
-      dynsub/type_cache.c
-      dynsub/type_cache.h
-      dynsub/print_type.c
-      dynsub/print_type.h
-      dynsub/print_sample.c
-      dynsub/scan_sample.c
-      dynsub/compare_samples.c
-      dynsub/compare_samples.h
-      dynsub/size_and_align.c
-      dynsub/size_and_align.h
-      dynsub/variouspub.c
-      dynsub/CMakeLists.txt
-      dynsub/readme.rst
-    DESTINATION "${CMAKE_INSTALL_EXAMPLESDIR}/dynsub"
-    COMPONENT dev)
+  if(ENABLE_TYPELIB)
+    install(
+      FILES
+        dynsub/variouspub_types.idl
+        dynsub/dynsub.c
+        dynsub/dynsub.h
+        dynsub/variouspub.c
+        dynsub/CMakeLists.txt
+        dynsub/readme.rst
+      DESTINATION "${CMAKE_INSTALL_EXAMPLESDIR}/dynsub"
+      COMPONENT dev)
+  endif()
 endif ()
 
 add_subdirectory(helloworld)
@@ -91,7 +79,9 @@ add_subdirectory(roundtrip)
 add_subdirectory(throughput)
 if (ENABLE_TOPIC_DISCOVERY)
   add_subdirectory(listtopics)
-  add_subdirectory(dynsub)
+  if (ENABLE_TYPELIB)
+    add_subdirectory(dynsub)
+  endif ()
 endif ()
 if (ENABLE_TYPELIB)
   add_subdirectory(dyntype)
