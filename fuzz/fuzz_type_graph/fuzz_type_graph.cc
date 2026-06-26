@@ -2853,7 +2853,7 @@ static void run_assignability(Runtime &runtime, TypeGraph &graph, uint32_t root,
 
   dds_type_consistency_enforcement_qospolicy_t tce = type_consistency(flags);
   ddsi_non_assignability_reason reason;
-  (void) ddsi_xt_is_assignable_from(rd_type->gv, &rd_type->xt, &wr_type->xt, &tce, &reason);
+  (void) ddsi_xt_is_assignable_from(rd_type->gv, &rd_type->xt, &wr_type->xt, &tce, &reason, 0);
 
   ImportedTypePair rd_pair{};
   ImportedTypePair wr_pair{};

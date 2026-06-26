@@ -115,6 +115,10 @@ enum ddsi_non_assignability_code {
   DDSI_NONASSIGN_UNKNOWN
 };
 
+#define DDSI_NONASSIGN_REASON_DETAIL_PATH 1u
+#define DDSI_NONASSIGN_REASON_PATH_BUFSZ 1024u
+#define DDSI_NONASSIGN_REASON_DETAIL_BUFSZ 512u
+
 struct ddsi_non_assignability_reason {
   enum ddsi_non_assignability_code code;
   DDS_XTypes_TypeIdentifier t1_id;
@@ -122,9 +126,13 @@ struct ddsi_non_assignability_reason {
   uint8_t t1_typekind;
   uint8_t t2_typekind;
   uint32_t id;
+  bool detailed;
+  bool path_truncated;
+  char path[DDSI_NONASSIGN_REASON_PATH_BUFSZ];
+  char detail[DDSI_NONASSIGN_REASON_DETAIL_BUFSZ];
 };
 
-bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type *rd_xt, const struct xt_type *wr_xt, const dds_type_consistency_enforcement_qospolicy_t *tce, struct ddsi_non_assignability_reason *reason)
+bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type *rd_xt, const struct xt_type *wr_xt, const dds_type_consistency_enforcement_qospolicy_t *tce, struct ddsi_non_assignability_reason *reason, uint32_t reason_flags)
   ddsrt_nonnull_all;
 
 /** @component xtypes_wrapper */
