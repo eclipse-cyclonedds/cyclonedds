@@ -8,6 +8,7 @@ gen.*
 build/
 build-*/
 *~
+*#*
 .zed
 .cache
 **/.DS_Store
@@ -18,5 +19,5 @@ compile_commands.json
 fuzz/fuzz_sample_deser/fuzz_sample.idl
 fuzz/fuzz_sample_deser/fuzz_sample_deser_seed_corpus/**
 fuzz/fuzz_sample_deser/fuzz_samples.h
-libprotobuf-mutator/**
-LPM/**
+libprotobuf-mutator/
+LPM/
