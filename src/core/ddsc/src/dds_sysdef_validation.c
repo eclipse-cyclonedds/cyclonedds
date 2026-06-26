@@ -119,6 +119,7 @@ dds_return_t dds_validate_qos_lib (const struct dds_sysdef_system *sysdef, uint6
       {
         uint64_t mask = ~(uint64_t)0U;
         const char *kind = "unknown";
+        (void) kind; // error: Value stored to 'kind' during its initialization is never read
         switch (qos->kind)
         {
           case DDS_SYSDEF_TOPIC_QOS:
