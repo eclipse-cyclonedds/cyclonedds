@@ -6269,55 +6269,49 @@ static const uint32_t *dds_stream_free_sample_seq (char * restrict addr, const s
   dds_sequence_t * const seq = (dds_sequence_t *) addr;
   uint32_t num = (seq->_buffer == NULL) ? 0 : (seq->_maximum > seq->_length) ? seq->_maximum : seq->_length;
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
-  uint32_t bound_op = seq_is_bounded (DDS_OP_TYPE (insn)) ? 1 : 0;
-  if ((seq->_release && num) || subtype > DDS_SOP_VAL_STR)
+  switch (subtype)
   {
-    switch (subtype)
-    {
-      case DDS_SOP_VAL_BLN: case DDS_SOP_VAL_1BY: case DDS_SOP_VAL_2BY: case DDS_SOP_VAL_4BY: case DDS_SOP_VAL_8BY: case DDS_SOP_VAL_WCHAR: case DDS_SOP_VAL_16BY:
-        ops += 2 + bound_op;
-        break;
-      case DDS_SOP_VAL_BST: case DDS_SOP_VAL_BWSTR: case DDS_SOP_VAL_ENU:
-        ops += 3 + bound_op;
-        break;
-      case DDS_SOP_VAL_BMK:
-        ops += 4 + bound_op;
-        break;
-      case DDS_SOP_VAL_STR: {
+    case DDS_SOP_VAL_BLN: case DDS_SOP_VAL_1BY: case DDS_SOP_VAL_2BY: case DDS_SOP_VAL_4BY: case DDS_SOP_VAL_8BY: case DDS_SOP_VAL_WCHAR: case DDS_SOP_VAL_16BY:
+      break;
+    case DDS_SOP_VAL_BST: case DDS_SOP_VAL_BWSTR: case DDS_SOP_VAL_ENU:
+      break;
+    case DDS_SOP_VAL_BMK:
+      break;
+    case DDS_SOP_VAL_STR: {
+      if (seq->_release)
+      {
         char **ptr = (char **) seq->_buffer;
-        while (num--)
-          allocator->free (*ptr++);
-        ops += 2 + bound_op;
-        break;
+        for (uint32_t i = 0; i < num; i++)
+          allocator->free (ptr[i]);
       }
-      case DDS_SOP_VAL_WSTR: {
+      break;
+    }
+    case DDS_SOP_VAL_WSTR: {
+      if (seq->_release)
+      {
         wchar_t **ptr = (wchar_t **) seq->_buffer;
-        while (num--)
-          allocator->free (*ptr++);
-        ops += 2 + bound_op;
-        break;
+        for (uint32_t i = 0; i < num; i++)
+          allocator->free (ptr[i]);
       }
-      case DDS_SOP_VAL_SEQ: case DDS_SOP_VAL_BSQ: case DDS_SOP_VAL_ARR: case DDS_SOP_VAL_UNI: case DDS_SOP_VAL_STU: {
-        const uint32_t elem_size = ops[2 + bound_op];
-        const uint32_t jmp = DDS_OP_ADR_JMP (ops[3 + bound_op]);
-        const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[3 + bound_op]);
-        char *ptr = (char *) seq->_buffer;
-        while (num--)
-        {
-          dds_stream_free_sample (ptr, allocator, jsr_ops);
-          ptr += elem_size;
-        }
-        ops += jmp ? jmp : (4 + bound_op);
-        break;
+      break;
+    }
+    case DDS_SOP_VAL_SEQ: case DDS_SOP_VAL_BSQ: case DDS_SOP_VAL_ARR: case DDS_SOP_VAL_UNI: case DDS_SOP_VAL_STU: {
+      const uint32_t bound_op = seq_is_bounded (DDS_OP_TYPE (insn)) ? 1 : 0;
+      const uint32_t elem_size = ops[2 + bound_op];
+      const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[3 + bound_op]);
+      char *ptr = (char *) seq->_buffer;
+      for (uint32_t i = 0; i < num; i++)
+      {
+        dds_stream_free_sample (ptr, allocator, jsr_ops);
+        ptr += elem_size;
       }
-      case DDS_SOP_VAL_EXT: {
-        abort (); /* not supported */
-        break;
-      }
+      break;
+    }
+    case DDS_SOP_VAL_EXT: {
+      abort (); /* not supported */
+      break;
     }
   }
-  else
-    ops = skip_sequence_insns (ops);
 
   if (seq->_release)
   {
@@ -6326,7 +6320,7 @@ static const uint32_t *dds_stream_free_sample_seq (char * restrict addr, const s
     seq->_length = 0;
     seq->_buffer = NULL;
   }
-  return ops;
+  return skip_sequence_insns (ops);
 }
 
 static const uint32_t *dds_stream_free_sample_arr (char * restrict addr, const struct dds_cdrstream_allocator *allocator, const uint32_t *ops, uint32_t insn)

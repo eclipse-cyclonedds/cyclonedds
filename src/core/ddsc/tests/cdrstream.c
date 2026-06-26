@@ -3763,6 +3763,77 @@ CU_Test (ddsc_cdrstream, check_wstring_invalid)
 #undef D
 
 
+CU_Test (ddsc_cdrstream, sequence_string_wstring_free_contents_release_false)
+{
+  char wr1_s0[] = "abc";
+  char wr2_s0[] = "";
+  wchar_t wr1_w0[] = L"abc";
+  wchar_t wr2_w0[] = L"";
+  char *wr1_ss[] = { wr1_s0 };
+  char *wr2_ss[] = { wr2_s0 };
+  wchar_t *wr1_ws[] = { wr1_w0 };
+  wchar_t *wr2_ws[] = { wr2_w0 };
+  CdrStreamStringWstring_t1 wr1 = {
+    .ss = { ._length = 1, ._maximum = 1, ._release = false, ._buffer = wr1_ss },
+    .ws = { ._length = 1, ._maximum = 1, ._release = false, ._buffer = wr1_ws },
+    .k = 1
+  };
+  CdrStreamStringWstring_t1 wr2 = {
+    .ss = { ._length = 1, ._maximum = 1, ._release = false, ._buffer = wr2_ss },
+    .ws = { ._length = 1, ._maximum = 1, ._release = false, ._buffer = wr2_ws },
+    .k = 2
+  };
+
+  struct dds_cdrstream_desc desc;
+  dds_cdrstream_desc_from_topic_desc (&desc, &CdrStreamStringWstring_t1_desc);
+  assert (desc.ops.ops);
+
+  dds_ostream_t os1;
+  dds_ostream_t os2;
+  dds_ostream_init (&os1, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_ostream_init (&os2, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
+  bool ret = dds_stream_write_sample (&os1, &dds_cdrstream_default_allocator, &wr1, &desc);
+  CU_ASSERT_FATAL (ret);
+  ret = dds_stream_write_sample (&os2, &dds_cdrstream_default_allocator, &wr2, &desc);
+  CU_ASSERT_FATAL (ret);
+
+  char *rd_ss[1] = { NULL };
+  wchar_t *rd_ws[1] = { NULL };
+  CdrStreamStringWstring_t1 sample_rd = {
+    .ss = { ._length = 1, ._maximum = 1, ._release = false, ._buffer = rd_ss },
+    .ws = { ._length = 1, ._maximum = 1, ._release = false, ._buffer = rd_ws },
+    .k = 0
+  };
+
+  dds_istream_t is;
+  dds_istream_init (&is, os1.m_index, os1.m_buffer, os1.m_xcdr_version);
+  dds_stream_read_sample (&is, &sample_rd, &dds_cdrstream_default_allocator, &desc);
+  CU_ASSERT_EQ_FATAL (is.m_index, is.m_size);
+  CU_ASSERT_FATAL (strcmp (sample_rd.ss._buffer[0], "abc") == 0);
+  CU_ASSERT_FATAL (wcscmp (sample_rd.ws._buffer[0], L"abc") == 0);
+  CU_ASSERT_EQ_FATAL (sample_rd.k, 1);
+
+  dds_sample_free (&sample_rd, &CdrStreamStringWstring_t1_desc, DDS_FREE_CONTENTS);
+  CU_ASSERT_FATAL (sample_rd.ss._buffer == rd_ss);
+  CU_ASSERT_FATAL (sample_rd.ws._buffer == rd_ws);
+  CU_ASSERT_FATAL (sample_rd.ss._buffer[0] != NULL);
+  CU_ASSERT_FATAL (sample_rd.ws._buffer[0] != NULL);
+
+  dds_istream_init (&is, os2.m_index, os2.m_buffer, os2.m_xcdr_version);
+  dds_stream_read_sample (&is, &sample_rd, &dds_cdrstream_default_allocator, &desc);
+  CU_ASSERT_EQ_FATAL (is.m_index, is.m_size);
+  CU_ASSERT_FATAL (strcmp (sample_rd.ss._buffer[0], "") == 0);
+  CU_ASSERT_FATAL (wcscmp (sample_rd.ws._buffer[0], L"") == 0);
+  CU_ASSERT_EQ_FATAL (sample_rd.k, 2);
+
+  ddsrt_free (sample_rd.ss._buffer[0]);
+  ddsrt_free (sample_rd.ws._buffer[0]);
+  dds_ostream_fini (&os2, &dds_cdrstream_default_allocator);
+  dds_ostream_fini (&os1, &dds_cdrstream_default_allocator);
+  dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+}
+
+
 static bool eq_CdrStreamMutable_t1 (const void *va, const void *vb)
 {
   const CdrStreamMutable_t1 *a = va;
