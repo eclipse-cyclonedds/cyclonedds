@@ -334,13 +334,6 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
 
   dds_cdrstream_desc_init_with_nops (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_nops, desc->m_keys, desc->m_nkeys);
 
-  if (!(supported_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR1) && dds_stream_type_nesting_depth (desc->m_ops) > DDS_CDRSTREAM_MAX_NESTING_DEPTH)
-  {
-    ddsi_sertype_unref (&st->c);
-    GVTRACE ("Serializer ops for type %s has unsupported nesting depth (max %u)\n", desc->m_typename, DDS_CDRSTREAM_MAX_NESTING_DEPTH);
-    return DDS_RETCODE_BAD_PARAMETER;
-  }
-
   if (desc->m_flagset & DDS_TOPIC_XTYPES_METADATA)
   {
     if (desc->type_information.sz == 0 || desc->type_information.data == NULL
