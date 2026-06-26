@@ -41,18 +41,37 @@ extern "C" {
 
 /**
  * @ingroup implementation
- * @brief Datastructure of a Sequence type
- * Container for a sequence of bytes. The general model of this type is also used in IDL output,
- * where the uint8_t * _buffer is replaced by the appropriate subtype of what is contained.
+ * @brief Representation of an IDL sequence in the C binding
+ *
+ * The IDL compiler emits the same layout for every IDL sequence type.  In
+ * generated type definitions, the `uint8_t *` buffer used here is replaced by a
+ * pointer to the sequence element type.
+ *
+ * `_maximum` is the number of elements for which `_buffer` has storage and
+ * `_length` is the number of elements currently in use.  A sequence with all
+ * fields set to 0 is a valid empty sequence; when such a sequence is passed to
+ * a read operation, Cyclone DDS may allocate a new buffer and set `_release` to
+ * true.
+ *
+ * `_release` describes ownership of this sequence object's `_buffer`.
+ * Generated type-specific free macros and @ref dds_sample_free free the buffer
+ * only when `_release` is true.  When `_release` is false, the application owns
+ * the buffer and remains responsible for freeing it.
+ *
+ * For `sequence<string>` and `sequence<wstring>`, `_release` also controls the
+ * strings stored in the sequence buffer: if `_release` is true they are freed,
+ * if it is false they are left untouched.  For sequences of complex elements
+ * such as structs, unions, arrays or nested sequences, the elements are part of
+ * the sequence buffer but their owned contents are still freed recursively.
+ * This means a nested sequence with `_release` true can have its buffer freed
+ * even when the containing sequence has `_release` false.
  */
 typedef struct dds_sequence
 {
-  uint32_t _maximum; /**< Allocated space in _buffer */
-  uint32_t _length; /**< Used space in _buffer */
-  uint8_t * _buffer; /**< Sequence of bytes */
-  bool _release; /**< Whether a CycloneDDS _free method should free the contained buffer.
-                      if you put in your own allocated _buffer set this to false to avoid
-                      CycloneDDS calling free() on it. */
+  uint32_t _maximum; /**< Number of elements for which _buffer has storage. */
+  uint32_t _length; /**< Number of elements currently in use. */
+  uint8_t * _buffer; /**< Pointer to the first element, or NULL for an empty sequence. */
+  bool _release; /**< Whether the sample free functions may free _buffer. */
 }
 dds_sequence_t;
 
