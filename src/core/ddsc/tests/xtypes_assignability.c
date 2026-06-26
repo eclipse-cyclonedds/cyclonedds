@@ -647,3 +647,20 @@ CU_Theory ((const dds_topic_descriptor_t *rd_desc, const dds_topic_descriptor_t 
 #undef DM
 #undef DL
 #undef I
+
+/* Bitmask extensibility test cases */
+#define DB(n) XSpaceBitmask_ ## n ## _desc
+CU_TheoryDataPoints (ddsc_xtypes_assignability, bitmask_extensibility) = {
+  CU_DataPoints (const dds_topic_descriptor_t *, &DB(rd_f),     &DB(rd_f),          &DB(rd_f),         &DB(rd_f),        &DB(rd_f),        &DB(rd_a),     &DB(rd_a),          &DB(rd_a),         &DB(rd_a),        &DB(rd_a)        ),
+  CU_DataPoints (const dds_topic_descriptor_t *, &DB(wr_f),     &DB(wr_f_plus),     &DB(wr_f_min),     &DB(wr_a_plus),   &DB(wr_f_wide),   &DB(wr_a),     &DB(wr_a_plus),     &DB(wr_a_min),     &DB(wr_f_plus),   &DB(wr_a_wide)   ),
+  CU_DataPoints (bool,                          true,          true,              true,             true,             false,            true,          true,              true,             true,             false            )
+};
+
+CU_Theory ((const dds_topic_descriptor_t *rd_desc, const dds_topic_descriptor_t *wr_desc, bool assignable),
+    ddsc_xtypes_assignability, bitmask_extensibility, .init = xtypes_assignability_init, .fini = xtypes_assignability_fini)
+{
+  tprintf ("Running test xtypes_bitmask: %s %s\n", wr_desc->m_typename, rd_desc->m_typename);
+  do_test (rd_desc, NULL, wr_desc, NULL, assignable, 0, false, 0);
+}
+
+#undef DB

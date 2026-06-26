@@ -3616,6 +3616,13 @@ static bool eq_CdrStreamTryconstruct_t6 (const void *va, const void *vb)
   return eq_CdrStreamTryconstruct_t456 (va, vb);
 }
 
+static bool eq_CdrStreamTryconstruct_t8 (const void *va, const void *vb)
+{
+  const CdrStreamTryconstruct_t8 *a = va;
+  const CdrStreamTryconstruct_t8 *b = vb;
+  return a->f1 == b->f1 && a->f2 == b->f2 && a->f3 == b->f3 && a->f4 == b->f4 && strcmp (a->f5, b->f5) == 0;
+}
+
 #define D(n) (&CdrStreamTryconstruct_##n##_desc), eq_CdrStreamTryconstruct_##n
 #define X(n, ...) (&(CdrStreamTryconstruct_##n){ __VA_ARGS__ })
 #define X_ERROR ((const void *) 1)
@@ -3719,6 +3726,12 @@ CU_Test (ddsc_cdrstream, tryconstruct)
     { D(t6), X(t6, CSEQ0, CSEQ0, CSEQ0, CSEQ0, CSEQ0, "6j"), // f5 w oversize str beyond bound
       CDR(DHDR(32,0), DHDR(32,0), DHDR(32,0), DHDR(32,0), DHDR(32,4, STR('a'),PAD2,STR('b'),PAD2,STR('c'),PAD2,STR('a','b','c','d')),
           PAD3, STR('6','j')) },
+    // t8 (bitmask try-construct)
+    { D(t8), X(t8, 1,2,1,2,"8a"), CDR(8,1, 8,2, 8,1, 8,2, STR('8','a')) },
+    { D(t8), X_DISCARD, CDR(8,4, 8,2, 8,1, 8,2, STR('8','b')) }, // final bitmask f1 -> discard
+    { D(t8), X(t8, 1,0,1,2,"8c"), CDR(8,1, 8,4, 8,1, 8,2, STR('8','c')) }, // final bitmask f2 -> use_default
+    { D(t8), X_DISCARD, CDR(8,1, 8,2, 8,4, 8,2, STR('8','d')) }, // appendable bitmask f3 -> discard
+    { D(t8), X(t8, 1,2,1,0,"8e"), CDR(8,1, 8,2, 8,1, 8,4, STR('8','e')) }, // appendable bitmask f4 -> use_default
   };
 
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)

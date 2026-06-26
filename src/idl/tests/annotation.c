@@ -792,8 +792,8 @@ CU_Test(idl_annotation, autoid_module)
 
 #define S(ann) ann " struct s { char c; };"
 #define U(ann) ann " union u switch(short) { case 1: char c; };"
-#define BM(ann) ann " bitmask bm { bm0, bm1; };"
-#define E(ann) ann " enum e { enum0, enum1; };"
+#define BM(ann) ann " bitmask bm { bm0, bm1 };"
+#define E(ann) ann " enum e { enum0, enum1 };"
 CU_Test(idl_annotation, extensibility)
 {
   static const struct {
@@ -814,12 +814,10 @@ CU_Test(idl_annotation, extensibility)
     { IDL_STRUCT, S("@mutable @data_representation(XCDR1)"), IDL_MUTABLE, IDL_RETCODE_OK },
     { IDL_UNION, U("@mutable @data_representation(XCDR1)"), IDL_MUTABLE, IDL_RETCODE_SEMANTIC_ERROR },
 
-    /* FIXME: extensibility on bitmask and enum not supported yet
-        (both can be final or appendable, not mutable */
-    { IDL_BITMASK, BM("@appendable"), 0, IDL_RETCODE_SYNTAX_ERROR },
-    { IDL_BITMASK, BM("@mutable"), 0, IDL_RETCODE_SYNTAX_ERROR },
-    { IDL_ENUM, E("@appendable"), 0, IDL_RETCODE_SYNTAX_ERROR },
-    { IDL_ENUM, E("@mutable"), 0, IDL_RETCODE_SYNTAX_ERROR },
+    { IDL_BITMASK, BM("@appendable"), IDL_APPENDABLE, IDL_RETCODE_OK },
+    { IDL_BITMASK, BM("@mutable"), 0, IDL_RETCODE_SEMANTIC_ERROR },
+    { IDL_ENUM, E("@appendable"), IDL_APPENDABLE, IDL_RETCODE_OK },
+    { IDL_ENUM, E("@mutable"), 0, IDL_RETCODE_SEMANTIC_ERROR },
   };
   static const size_t n = sizeof(tests)/sizeof(tests[0]);
 
@@ -846,6 +844,20 @@ CU_Test(idl_annotation, extensibility)
           CU_ASSERT_NEQ_FATAL (u, NULL);
           CU_ASSERT_FATAL (idl_is_union(u));
           CU_ASSERT_EQ (u->extensibility.value, tests[i].ext);
+          break;
+        }
+        case IDL_BITMASK: {
+          idl_bitmask_t *bm = (idl_bitmask_t *)pstate->root;
+          CU_ASSERT_NEQ_FATAL (bm, NULL);
+          CU_ASSERT_FATAL (idl_is_bitmask(bm));
+          CU_ASSERT_EQ (bm->extensibility.value, tests[i].ext);
+          break;
+        }
+        case IDL_ENUM: {
+          idl_enum_t *e = (idl_enum_t *)pstate->root;
+          CU_ASSERT_NEQ_FATAL (e, NULL);
+          CU_ASSERT_FATAL (idl_is_enum(e));
+          CU_ASSERT_EQ (e->extensibility.value, tests[i].ext);
           break;
         }
         default:

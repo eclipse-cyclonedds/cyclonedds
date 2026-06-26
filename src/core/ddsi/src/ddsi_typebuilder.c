@@ -643,10 +643,9 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
       tb_type->args.bitmask_args.bits_l = (uint32_t) (bits & 0xffffffffu);
       tb_type->args.bitmask_args.bits_h = (uint32_t) (bits >> 32);
       tb_type->args.bitmask_args.bit_bound = type->xt._u.bitmask.bit_bound;
-      if (type->xt._u.bitmask.flags & DDS_XTypes_IS_FINAL)
-        tb_type->args.bitmask_args.tc = TYPEBUILDER_TC_REJECT;
-      else
-        tb_type->args.bitmask_args.tc = tc;
+      /* Unlike enum, a bitmask can be assignable from an unsigned integer, so
+         final bitmasks must preserve the declared try-construct mode. */
+      tb_type->args.bitmask_args.tc = tc;
       if (type->xt._u.bitmask.bit_bound > 32)
       {
         *align = ALGN (uint64_t, is_ext);
