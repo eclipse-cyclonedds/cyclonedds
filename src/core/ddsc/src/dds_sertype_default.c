@@ -296,7 +296,7 @@ const struct ddsi_sertype_ops dds_sertype_ops_default = {
   .serialize_into = sertype_default_serialize_into
 };
 
-dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct dds_sertype_default *st, const dds_topic_descriptor_t *desc, enum dds_cdr_enc_version min_xcdrv, dds_data_representation_id_t data_representation)
+dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct dds_sertype_default *st, const dds_topic_descriptor_t *desc, dds_data_representation_id_t data_representation)
 {
   const struct ddsi_domaingv *gv = &domain->gv;
   const struct ddsi_serdata_ops *serdata_ops;
@@ -322,9 +322,8 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
 
   uint32_t allowed_data_representation = desc->m_flagset & DDS_TOPIC_RESTRICT_DATA_REPRESENTATION ?
       desc->restrict_data_representation : DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT;
-  allowed_data_representation &= dds_stream_allowed_data_representations (desc->m_ops);
-  if (min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
-    allowed_data_representation &= ~DDS_DATA_REPRESENTATION_FLAG_XCDR1;
+  const uint32_t supported_data_representations = dds_stream_supported_data_representations (desc->m_ops);
+  allowed_data_representation &= supported_data_representations;
 
   ddsi_sertype_init_props (&st->c, desc->m_typename, &dds_sertype_ops_default, serdata_ops, desc->m_size, dds_stream_data_types (desc->m_ops), allowed_data_representation, 0);
   st->encoding_format = ddsi_sertype_extensibility_enc_format (type_ext);
@@ -335,7 +334,7 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
 
   dds_cdrstream_desc_init_with_nops (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_nops, desc->m_keys, desc->m_nkeys);
 
-  if (min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2 && dds_stream_type_nesting_depth (desc->m_ops) > DDS_CDRSTREAM_MAX_NESTING_DEPTH)
+  if (!(supported_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR1) && dds_stream_type_nesting_depth (desc->m_ops) > DDS_CDRSTREAM_MAX_NESTING_DEPTH)
   {
     ddsi_sertype_unref (&st->c);
     GVTRACE ("Serializer ops for type %s has unsupported nesting depth (max %u)\n", desc->m_typename, DDS_CDRSTREAM_MAX_NESTING_DEPTH);

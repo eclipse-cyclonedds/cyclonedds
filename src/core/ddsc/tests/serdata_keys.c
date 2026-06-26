@@ -1437,12 +1437,14 @@ CU_Test(ddsc_serdata, key_serialization)
   for (uint32_t test_index = 0; test_index < sizeof (tests) / sizeof (tests[0]); test_index++)
   {
     dds_entity_t participant = create_pp (0);
+    const uint32_t supported_representations = dds_stream_supported_data_representations (tests[test_index].desc->m_ops);
+    CU_ASSERT_NEQ_FATAL (supported_representations, 0u);
 
     for (uint32_t dr = 0; dr < sizeof (data_repr) / sizeof (data_repr[0]); dr++)
     {
+      const uint32_t representation_flag = data_repr[dr] == DDS_DATA_REPRESENTATION_XCDR1 ? DDS_DATA_REPRESENTATION_FLAG_XCDR1 : DDS_DATA_REPRESENTATION_FLAG_XCDR2;
       tprintf ("\ntest type %s (XCDRv%u)\n", tests[test_index].desc->m_typename, dr + 1);
-      if (dds_stream_minimum_xcdr_version (tests[test_index].desc->m_ops) == DDSI_RTPS_CDR_ENC_VERSION_2
-          && data_repr[dr] != DDS_DATA_REPRESENTATION_XCDR2)
+      if (!(supported_representations & representation_flag))
       {
         tprintf ("xcdrv not supported\n");
         continue;

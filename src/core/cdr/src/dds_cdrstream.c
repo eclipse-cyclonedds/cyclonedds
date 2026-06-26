@@ -145,7 +145,7 @@ typedef struct restrict_ostreamLE {
 struct key_props {
   uint32_t sz_xcdrv1;
   uint32_t sz_xcdrv2;
-  enum dds_cdr_enc_version min_xcdrv;
+  uint32_t supported_data_representations;
   bool is_appendable;
   bool is_mutable;
   bool is_sequence;
@@ -174,10 +174,9 @@ enum sample_data_state {
 struct dds_cdrstream_ops_info {
   const uint32_t *toplevel_op;
   const uint32_t *ops_end;
-  enum dds_cdr_enc_version min_xcdrv;
   uint32_t nesting_max;
   dds_data_type_properties_t data_types;
-  uint32_t allowed_data_representations;
+  uint32_t supported_data_representations;
 };
 
 enum tryconstruct {
@@ -1064,12 +1063,9 @@ static const uint32_t *dds_stream_get_ops_info_uni (const uint32_t *ops, uint32_
   const enum tryconstruct disc_tc = tryconstruct_mode (*ops, true);
   if ((disc_type == DDS_SOP_VAL_ENU || disc_type == DDS_SOP_VAL_BMK) && (disc_tc == TC_USE_DEFAULT || disc_tc == TC_TRIM))
   {
-    info->allowed_data_representations &= union_bound_xcdrv;
-    if (!(info->allowed_data_representations & XCDR1_REP))
-    {
+    info->supported_data_representations &= union_bound_xcdrv;
+    if (!(info->supported_data_representations & XCDR1_REP))
       info->data_types |= DDS_DATA_TYPE_DEFAULTS_TO_XCDR2;
-      info->min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_2;
-    }
   }
 
   const uint32_t numcases = ops[2];
@@ -1228,7 +1224,7 @@ static void dds_stream_get_ops_info1 (const uint32_t *ops, uint32_t nestc, struc
       case DDS_SOP_DLC: {
         info->data_types |= DDS_DATA_TYPE_DEFAULTS_TO_XCDR2;
         if (!in_xcdr1_delimited_scope)
-          info->min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_2;
+          info->supported_data_representations &= ~XCDR1_REP;
         tail_bound_xcdrv = XCDR2_REP | ((tail_bound_xcdrv | value_bound_xcdrv) & XCDR1_REP);
         value_bound_xcdrv = 0u;
         ops++;
@@ -1263,10 +1259,9 @@ static void dds_stream_get_ops_info (const uint32_t *ops, struct dds_cdrstream_o
 {
   info->toplevel_op = NULL;
   info->ops_end = ops;
-  info->min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_1;
   info->nesting_max = 0;
   info->data_types = DDS_DATA_TYPE_IS_MEMCPY_SAFE;
-  info->allowed_data_representations = XCDR12_REP;
+  info->supported_data_representations = XCDR12_REP;
   dds_stream_get_ops_info1 (ops, 0, info, true, 0, XCDR12_REP, false);
 }
 
@@ -7330,24 +7325,11 @@ uint32_t dds_stream_countops (const uint32_t *ops, uint32_t nkeys, const dds_key
   return (uint32_t) (info.ops_end - ops);
 }
 
-/* Gets the (minimum) extensibility of the types used for this topic, and returns the XCDR
-   version that is required for (de)serializing the type for this topic descriptor */
-enum dds_cdr_enc_version dds_stream_minimum_xcdr_version (const uint32_t *ops)
+uint32_t dds_stream_supported_data_representations (const uint32_t *ops)
 {
   struct dds_cdrstream_ops_info info;
   dds_stream_get_ops_info (ops, &info);
-  if (!(info.allowed_data_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR1))
-    return DDSI_RTPS_CDR_ENC_VERSION_2;
-  return info.min_xcdrv;
-}
-
-uint32_t dds_stream_allowed_data_representations (const uint32_t *ops)
-{
-  struct dds_cdrstream_ops_info info;
-  dds_stream_get_ops_info (ops, &info);
-  if (info.min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
-    info.allowed_data_representations &= ~DDS_DATA_REPRESENTATION_FLAG_XCDR1;
-  return info.allowed_data_representations;
+  return info.supported_data_representations;
 }
 
 /* Gets the extensibility of the top-level type for a topic, by inspecting the serializer ops */
@@ -7422,16 +7404,21 @@ static void add_to_key_size_xcdrv2 (struct key_props *k, uint32_t field_size, ui
   k->sz_xcdrv2 = add_to_key_size_impl (k->sz_xcdrv2, field_size, field_dims, field_align, XCDR2_MAX_ALIGN);
 }
 
+static bool key_props_supports_xcdr1 (const struct key_props *k)
+{
+  return (k->supported_data_representations & XCDR1_REP) != 0;
+}
+
 static void add_to_key_size (struct key_props *k, uint32_t field_size, uint32_t field_dims, uint32_t field_align)
 {
-  if (k->min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_1)
+  if (key_props_supports_xcdr1 (k))
     add_to_key_size_xcdrv1 (k, field_size, field_dims, field_align);
   add_to_key_size_xcdrv2 (k, field_size, field_dims, field_align);
 }
 
 static void set_key_size_unbounded (struct key_props *k)
 {
-  if (k->min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_1)
+  if (key_props_supports_xcdr1 (k))
     k->sz_xcdrv1 = DDS_FIXED_KEY_MAX_SIZE + 1;
   k->sz_xcdrv2 = DDS_FIXED_KEY_MAX_SIZE + 1;
 }
@@ -7439,7 +7426,7 @@ static void set_key_size_unbounded (struct key_props *k)
 #ifndef NDEBUG
 static bool key_size_is_unbounded (const struct key_props *k)
 {
-  return (k->min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_1) ?
+  return key_props_supports_xcdr1 (k) ?
       (k->sz_xcdrv1 == DDS_FIXED_KEY_MAX_SIZE + 1) : (k->sz_xcdrv2 == DDS_FIXED_KEY_MAX_SIZE + 1);
 }
 #endif
@@ -7840,10 +7827,10 @@ uint32_t dds_stream_key_flags (struct dds_cdrstream_desc *desc, uint32_t *keysz_
   {
     {
       struct key_props key_properties = { 0 };
-      key_properties.min_xcdrv = dds_stream_minimum_xcdr_version (desc->ops.ops);
+      key_properties.supported_data_representations = dds_stream_supported_data_representations (desc->ops.ops);
       (void) dds_stream_key_size (desc->ops.ops, &key_properties);
 
-      if (key_properties.min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_1 && key_properties.sz_xcdrv1 <= DDS_FIXED_KEY_MAX_SIZE)
+      if (key_props_supports_xcdr1 (&key_properties) && key_properties.sz_xcdrv1 <= DDS_FIXED_KEY_MAX_SIZE)
         key_flags |= DDS_TOPIC_FIXED_KEY;
       if (key_properties.sz_xcdrv2 <= DDS_FIXED_KEY_MAX_SIZE)
         key_flags |= DDS_TOPIC_FIXED_KEY_XCDR2;
@@ -7858,7 +7845,7 @@ uint32_t dds_stream_key_flags (struct dds_cdrstream_desc *desc, uint32_t *keysz_
         key_flags |= DDS_TOPIC_KEY_ARRAY_NONPRIM;
 
       if (keysz_xcdrv1 != NULL)
-        *keysz_xcdrv1 = key_properties.min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_1 ? key_properties.sz_xcdrv1 : 0;
+        *keysz_xcdrv1 = key_props_supports_xcdr1 (&key_properties) ? key_properties.sz_xcdrv1 : 0;
       if (keysz_xcdrv2 != NULL)
         *keysz_xcdrv2 = key_properties.sz_xcdrv2;
     }
