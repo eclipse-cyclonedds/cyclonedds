@@ -310,6 +310,50 @@ CU_Test(idlc_descriptor, key_valid_types)
   }
 }
 
+CU_Test(idlc_descriptor, enum_bit_bound_one)
+{
+  idl_pstate_t *pstate = NULL;
+  struct descriptor descriptor;
+  uint32_t flags = IDL_FLAG_EXTENDED_DATA_TYPES |
+                   IDL_FLAG_ANONYMOUS_TYPES |
+                   IDL_FLAG_ANNOTATIONS;
+
+  idl_retcode_t ret = idl_create_pstate (flags, NULL, &pstate);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+  memset (&descriptor, 0, sizeof (descriptor));
+  ret = generate_test_descriptor (pstate, "@bit_bound(1) enum e { @value(-1) E_NEG1, E_0 }; @topic struct test { e f; };", &descriptor);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+
+  bool saw_evs = false;
+  for (uint32_t n = 0; n + 4 < descriptor.member_ids.count; n++)
+  {
+    const struct instruction *inst = &descriptor.member_ids.table[n];
+    if (inst->type != OPCODE || DDS_OP (inst->data.opcode.code) != DDS_OP_EVS)
+      continue;
+    CU_ASSERT_EQ_FATAL (descriptor.member_ids.table[n + 1].type, SINGLE);
+    CU_ASSERT_EQ_FATAL (descriptor.member_ids.table[n + 2].type, SINGLE);
+    CU_ASSERT_EQ_FATAL (descriptor.member_ids.table[n + 3].type, SINGLE);
+    CU_ASSERT_EQ_FATAL (descriptor.member_ids.table[n + 4].type, SINGLE);
+    CU_ASSERT_EQ_FATAL (descriptor.member_ids.table[n + 1].data.single, UINT32_MAX);
+    CU_ASSERT_EQ_FATAL (descriptor.member_ids.table[n + 2].data.single, 2);
+    CU_ASSERT_EQ_FATAL (descriptor.member_ids.table[n + 3].data.single, 0);
+    CU_ASSERT_EQ_FATAL (descriptor.member_ids.table[n + 4].data.single, 0xff);
+    saw_evs = true;
+    break;
+  }
+  CU_ASSERT_FATAL (saw_evs);
+  descriptor_fini (&descriptor);
+  idl_delete_pstate (pstate);
+
+  pstate = NULL;
+  ret = idl_create_pstate (flags, NULL, &pstate);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+  memset (&descriptor, 0, sizeof (descriptor));
+  ret = generate_test_descriptor (pstate, "@bit_bound(1) enum e { E_0, E_1 }; @topic struct test { e f; };", &descriptor);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OUT_OF_RANGE);
+  idl_delete_pstate (pstate);
+}
+
 #define TEST_MAX_KEYS 10
 CU_Test(idlc_descriptor, keys_inheritance)
 {
@@ -378,4 +422,3 @@ CU_Test(idlc_descriptor, keys_inheritance)
   }
 }
 #undef TEST_MAX_KEYS
-

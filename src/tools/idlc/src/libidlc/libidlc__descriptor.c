@@ -406,18 +406,34 @@ err_type:
   return IDL_RETCODE_NO_MEMORY;
 }
 
+static uint32_t idl_enum_value_image (uint32_t bit_bound, int32_t value)
+{
+  /* XTypes enum literals are signed Int32 values. The cdrstream descriptor
+     stores valid enum values as the unsigned image of the CDR holder selected
+     by @bit_bound, so narrow negative values compare without sign-extension. */
+  if (bit_bound <= 8)
+    return (uint8_t) value;
+  if (bit_bound <= 16)
+    return (uint16_t) value;
+  return (uint32_t) value;
+}
+
 static idl_retcode_t
 stash_case_label32(
-  const idl_pstate_t *pstate, struct instructions *instructions, uint32_t index, const idl_const_expr_t *const_expr)
+  const idl_pstate_t *pstate, struct instructions *instructions, uint32_t index, const idl_type_spec_t *disc_type, const idl_const_expr_t *const_expr)
 {
-  // discrimiant value and case labels are always read as unsigned integer by the deserializer
+  // discriminator value and case labels are always read as unsigned integer by the deserializer
   int cnt = 0;
   struct instruction inst = { CONSTANT, { .constant = { NULL } } };
   char **strp = &inst.data.constant.value;
 
-  if (idl_is_enumerator(const_expr)) {
-    cnt = IDL_PRINT(strp, print_type, const_expr);
-  } else if (const_expr) {
+  if (!const_expr) {
+    /* Default case labels use the NULL constant value, printed as 0. */
+  } else if (idl_is_enumerator(const_expr)) {
+    assert (idl_is_enum (disc_type));
+    const idl_enumerator_t *e = (const idl_enumerator_t *) const_expr;
+    cnt = idl_asprintf (strp, "%" PRIu32, idl_enum_value_image (idl_bound (disc_type), e->value.value));
+  } else {
     const idl_literal_t *literal = const_expr;
 
     switch (idl_type(const_expr)) {
@@ -881,12 +897,12 @@ static uint32_t idl_enum_default_value (const idl_enum_t *_enum)
 {
   assert (_enum);
   assert (_enum->default_enumerator);
-  return _enum->default_enumerator->value.value;
+  return (uint32_t) _enum->default_enumerator->value.value;
 }
 
 static bool idl_enum_needs_value_metadata (const idl_enum_t *_enum)
 {
-  uint32_t expected = 0;
+  int64_t expected = 0;
   for (const idl_enumerator_t *e = _enum->enumerators; e; e = idl_next (e), expected++)
     if (e->value.value != expected)
       return true;
@@ -977,10 +993,12 @@ static idl_retcode_t emit_enum_value_set (const idl_pstate_t *pstate, struct des
     return IDL_RETCODE_NO_MEMORY;
   uint32_t idx = 0;
   for (const idl_enumerator_t *e = _enum->enumerators; e; e = idl_next (e))
-    values[idx++] = e->value.value;
+    values[idx++] = idl_enum_value_image (_enum->bit_bound.value, e->value.value);
   if (nvalues > 1)
     qsort (values, nvalues, sizeof (*values), uint32_cmp);
   assert (setid <= UINT16_MAX);
+  /* EVS default_value is the semantic int32 bit pattern for memory/defaulting.
+     EVS values are unsigned CDR holder images for membership tests. */
   if ((ret = stash_opcode (pstate, &descriptor->member_ids, nop, DDS_OP_EVS | setid, 0u)) < 0 ||
       (ret = stash_single (pstate, &descriptor->member_ids, nop, idl_enum_default_value (_enum))) < 0 ||
       (ret = stash_single (pstate, &descriptor->member_ids, nop, nvalues)) < 0)
@@ -1172,7 +1190,7 @@ emit_case(
       }
       shift_enum_metadata_for_insert(descriptor, ctype, &ctype->instructions, off);
       /* generate union case discriminator, use 0 for default case */
-      if ((ret = stash_case_label32(pstate, &ctype->instructions, off++, idl_is_default_case_label(label) || idl_is_implicit_default_case_label(label) ? 0 : label->const_expr)))
+      if ((ret = stash_case_label32(pstate, &ctype->instructions, off++, idl_type_spec(union_spec->switch_type_spec), idl_is_default_case_label(label) || idl_is_implicit_default_case_label(label) ? 0 : label->const_expr)))
         return ret;
       /* generate union case member (address) offset; use offset 0 for empty types,
          as these members are not generated and no offset can be calculated */

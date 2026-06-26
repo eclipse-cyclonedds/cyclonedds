@@ -526,7 +526,8 @@ emit_enum(
   char *name = NULL, *type = NULL;
   const char *fmt, *sep = "";
   const idl_enumerator_t *enumerator;
-  uint32_t skip = 0, value = 0;
+  int64_t skip = 0;
+  int32_t value = 0;
 
   (void)pstate;
   (void)revisit;
@@ -545,11 +546,11 @@ emit_enum(
     if (value == skip)
       fmt = "%s  %s";
     else
-      fmt = "%s  %s = %" PRIu32;
+      fmt = "%s  %s = %" PRId32;
     if (idl_fprintf(gen->header.handle, fmt, sep, name, value) < 0)
       return IDL_RETCODE_NO_MEMORY;
     sep = ",\n";
-    skip = value + 1;
+    skip = (int64_t) value + 1;
   }
 
   fmt = "\n} %1$s;\n\n"

@@ -238,6 +238,15 @@ static bool dds_stream_enum_value_set (const struct dds_cdrstream_desc_mid_table
 static bool dds_stream_enum_value_valid (const struct dds_cdrstream_desc_enum_value_set *set, uint32_t max, uint32_t val)
   ddsrt_attribute_warn_unused_result;
 
+static uint32_t dds_stream_enum_value_image (const uint32_t *op, uint32_t val)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+
+static uint32_t dds_stream_enum_value_from_image (const uint32_t *op, uint32_t image)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+
+static bool dds_stream_enum_value_image_from_memory (const uint32_t *op, uint32_t val, uint32_t *image)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+
 static enum tryconstruct tryconstruct_mode (uint32_t insn, bool for_subtype)
   ddsrt_attribute_warn_unused_result;
 
@@ -1687,8 +1696,10 @@ static inline uint32_t const * stream_union_switch_case (uint32_t insn, uint64_t
       *((uint16_t *) discaddr) = (uint16_t) disc;
       break;
     case DDS_SOP_VAL_4BY:
-    case DDS_SOP_VAL_ENU:
       *((uint32_t *) discaddr) = (uint32_t) disc;
+      break;
+    case DDS_SOP_VAL_ENU:
+      *((uint32_t *) discaddr) = dds_stream_enum_value_from_image (&insn, (uint32_t) disc);
       break;
     case DDS_SOP_VAL_8BY:
       *((uint64_t *) discaddr) = (uint64_t) disc;
@@ -1726,7 +1737,7 @@ ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
 static uint64_t union_default_discriminant (const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, const uint32_t insn)
 {
   if (DDS_OP_SUBTYPE (insn) == DDS_SOP_VAL_ENU)
-    return dds_stream_enum_default_value (mid_table, ops, ops[4]);
+    return dds_stream_enum_value_image (ops, dds_stream_enum_default_value (mid_table, ops, ops[4]));
   return 0;
 }
 
@@ -2328,8 +2339,8 @@ static const uint32_t *dds_stream_getsize_arr (struct getsize_state *st, const c
   return ops;
 }
 
-ddsrt_nonnull_all
-static void dds_stream_getsize_union_discriminant (struct getsize_state *st, uint32_t insn, const void *addr, uint64_t *disc)
+ddsrt_nonnull_all ddsrt_attribute_warn_unused_result
+static bool dds_stream_getsize_union_discriminant (struct getsize_state *st, uint32_t insn, const void *addr, uint64_t *disc)
 {
   enum dds_stream_typecode type = DDS_OP_SUBTYPE (insn);
   assert (is_primitive_or_enum_or_bitmask_type (type));
@@ -2355,10 +2366,14 @@ static void dds_stream_getsize_union_discriminant (struct getsize_state *st, uin
       *disc = *((const uint64_t *) addr);
       getsize_reserve (st, 8);
       break;
-    case DDS_SOP_VAL_ENU:
-      *disc = *((const uint32_t *) addr);
+    case DDS_SOP_VAL_ENU: {
+      uint32_t image = 0;
+      if (!dds_stream_enum_value_image_from_memory (&insn, *((const uint32_t *) addr), &image))
+        return false;
+      *disc = image;
       getsize_reserve (st, DDS_OP_TYPE_SZ (insn));
       break;
+    }
     case DDS_SOP_VAL_BMK:
       switch (DDS_OP_TYPE_SZ (insn))
       {
@@ -2372,12 +2387,15 @@ static void dds_stream_getsize_union_discriminant (struct getsize_state *st, uin
     default:
       abort ();
   }
+  return true;
 }
 
+ddsrt_attribute_warn_unused_result
 static const uint32_t *dds_stream_getsize_uni (struct getsize_state *st, const char *discaddr, const char *baseaddr, const uint32_t *ops, uint32_t insn)
 {
   uint64_t disc;
-  dds_stream_getsize_union_discriminant (st, insn, discaddr, &disc);
+  if (!dds_stream_getsize_union_discriminant (st, insn, discaddr, &disc))
+    return NULL;
   uint32_t const * const jeq_op = find_union_case (ops, disc);
   ops += DDS_OP_ADR_JMP (ops[3]);
   if (jeq_op)
@@ -3068,11 +3086,11 @@ static const uint32_t *dds_stream_read_seq (dds_istream_t *is, char * restrict a
       {
         case 1:
           for (uint32_t i = 0; i < seq->_length; i++)
-            ((uint32_t *) seq->_buffer)[i] = dds_is_get1 (is);
+            ((uint32_t *) seq->_buffer)[i] = dds_stream_enum_value_from_image (&insn, dds_is_get1 (is));
           break;
         case 2:
           for (uint32_t i = 0; i < seq->_length; i++)
-            ((uint32_t *) seq->_buffer)[i] = dds_is_get2 (is);
+            ((uint32_t *) seq->_buffer)[i] = dds_stream_enum_value_from_image (&insn, dds_is_get2 (is));
           break;
         case 4:
           dds_is_get_bytes (is, seq->_buffer, seq->_length, elem_size);
@@ -3183,11 +3201,11 @@ static const uint32_t *dds_stream_read_arr (dds_istream_t *is, char * restrict a
       {
         case 1:
           for (uint32_t i = 0; i < num; i++)
-             ((uint32_t *) addr)[i] = dds_is_get1 (is);
+             ((uint32_t *) addr)[i] = dds_stream_enum_value_from_image (&insn, dds_is_get1 (is));
           break;
         case 2:
           for (uint32_t i = 0; i < num; i++)
-             ((uint32_t *) addr)[i] = dds_is_get2 (is);
+             ((uint32_t *) addr)[i] = dds_stream_enum_value_from_image (&insn, dds_is_get2 (is));
           break;
         case 4:
           dds_is_get_bytes (is, addr, num, 4);
@@ -3269,8 +3287,8 @@ static const uint32_t *dds_stream_read_uni (dds_istream_t *is, char * restrict d
       case DDS_SOP_VAL_ENU:
         switch (DDS_OP_TYPE_SZ (jeq_op[0]))
         {
-          case 1: *((uint32_t *) valaddr) = dds_is_get1 (is); break;
-          case 2: *((uint32_t *) valaddr) = dds_is_get2 (is); break;
+          case 1: *((uint32_t *) valaddr) = dds_stream_enum_value_from_image (jeq_op, dds_is_get1 (is)); break;
+          case 2: *((uint32_t *) valaddr) = dds_stream_enum_value_from_image (jeq_op, dds_is_get2 (is)); break;
           case 4: *((uint32_t *) valaddr) = dds_is_get4 (is); break;
           default: abort ();
         }
@@ -3375,8 +3393,8 @@ static inline const uint32_t *dds_stream_read_adr (uint32_t insn, dds_istream_t 
     case DDS_SOP_VAL_ENU: {
       switch (DDS_OP_TYPE_SZ (insn))
       {
-        case 1: *((uint32_t *) addr) = dds_is_get1 (&is1); break;
-        case 2: *((uint32_t *) addr) = dds_is_get2 (&is1); break;
+        case 1: *((uint32_t *) addr) = dds_stream_enum_value_from_image (ops, dds_is_get1 (&is1)); break;
+        case 2: *((uint32_t *) addr) = dds_stream_enum_value_from_image (ops, dds_is_get2 (&is1)); break;
         case 4: *((uint32_t *) addr) = dds_is_get4 (&is1); break;
         default: abort ();
       }
@@ -4087,11 +4105,65 @@ static uint32_t dds_stream_enum_default_value (const struct dds_cdrstream_desc_m
 
 static bool dds_stream_enum_value_valid (const struct dds_cdrstream_desc_enum_value_set *set, const uint32_t max, const uint32_t val)
 {
+  /* val is already the unsigned holder image. This keeps enum discriminator
+     selection independent of signed extension for 8/16-bit enum holders. */
   if (set == NULL)
     return val <= max;
   if (val > set->max)
     return false;
   return uint32_set_contains (set->values, set->nvalues, val);
+}
+
+static uint32_t dds_stream_enum_value_image (const uint32_t *op, uint32_t val)
+{
+  switch (DDS_OP_TYPE_SZ (*op))
+  {
+    case 1: return (uint8_t) val;
+    case 2: return (uint16_t) val;
+    case 4: return val;
+    default: abort ();
+  }
+}
+
+static uint32_t dds_stream_enum_value_from_image (const uint32_t *op, uint32_t image)
+{
+  /* CDR carries the unsigned holder image. Application memory stores the
+     semantic signed Int32 value, so narrow images with the sign bit set become
+     their signed enum literal value after validation/normalization. */
+  switch (DDS_OP_TYPE_SZ (*op))
+  {
+    case 1: return (uint32_t) (int32_t) (int8_t) (uint8_t) image;
+    case 2: return (uint32_t) (int32_t) (int16_t) (uint16_t) image;
+    case 4: return image;
+    default: abort ();
+  }
+}
+
+static bool dds_stream_enum_value_image_from_memory (const uint32_t *op, uint32_t val, uint32_t *image)
+{
+  /* Application memory stores the semantic signed Int32 enum value. Validate
+     that it is canonical for the CDR holder before comparing holder images, so
+     e.g. semantic -1 (0xffffffff) is accepted but invalid +255 is not an alias
+     for an 8-bit enum literal with holder image 0xff. */
+  const int32_t s_val = (int32_t) val;
+  switch (DDS_OP_TYPE_SZ (*op))
+  {
+    case 1:
+      if (s_val < INT8_MIN || s_val > INT8_MAX)
+        return false;
+      *image = (uint8_t) val;
+      return true;
+    case 2:
+      if (s_val < INT16_MIN || s_val > INT16_MAX)
+        return false;
+      *image = (uint16_t) val;
+      return true;
+    case 4:
+      *image = val;
+      return true;
+    default:
+      abort ();
+  }
 }
 
 static void normalize_store_uint_value (unsigned char * restrict const data, const uint32_t sz, const uint64_t val)
@@ -4135,7 +4207,7 @@ static enum dds_stream_normalize_result read_normalize_enum_tryconstruct (struct
       const uint32_t sz = DDS_OP_TYPE_SZ (insn);
       const uint32_t default_value = set ? set->default_value : 0;
       normalize_store_uint_value (post_data - sz, sz, default_value);
-      *val = default_value;
+      *val = dds_stream_enum_value_image (op, default_value);
       return normalize_success ();
     }
   }
@@ -5849,8 +5921,10 @@ static const uint32_t *dds_stream_free_sample_uni (char * restrict discaddr, cha
       disc = *((uint16_t *) discaddr);
       break;
     case DDS_SOP_VAL_4BY:
-    case DDS_SOP_VAL_ENU:
       disc = *((uint32_t *) discaddr);
+      break;
+    case DDS_SOP_VAL_ENU:
+      disc = dds_stream_enum_value_image (&insn, *((uint32_t *) discaddr));
       break;
     case DDS_SOP_VAL_BMK:
       switch (DDS_OP_TYPE_SZ (insn))
@@ -6492,8 +6566,8 @@ static void dds_stream_read_key_impl (dds_istream_t *is, char *sample, const str
     case DDS_SOP_VAL_ENU:
       switch (DDS_OP_TYPE_SZ (insn))
       {
-        case 1: *((uint32_t *) dst) = dds_is_get1 (is); break;
-        case 2: *((uint32_t *) dst) = dds_is_get2 (is); break;
+        case 1: *((uint32_t *) dst) = dds_stream_enum_value_from_image (&insn, dds_is_get1 (is)); break;
+        case 2: *((uint32_t *) dst) = dds_stream_enum_value_from_image (&insn, dds_is_get2 (is)); break;
         case 4: *((uint32_t *) dst) = dds_is_get4 (is); break;
         default: assert (0);
       }
@@ -6528,11 +6602,11 @@ static void dds_stream_read_key_impl (dds_istream_t *is, char *sample, const str
           {
             case 1:
               for (uint32_t i = 0; i < num; i++)
-                ((uint32_t *) dst)[i] = dds_is_get1 (is);
+                ((uint32_t *) dst)[i] = dds_stream_enum_value_from_image (&insn, dds_is_get1 (is));
               break;
             case 2:
               for (uint32_t i = 0; i < num; i++)
-                ((uint32_t *) dst)[i] = dds_is_get2 (is);
+                ((uint32_t *) dst)[i] = dds_stream_enum_value_from_image (&insn, dds_is_get2 (is));
               break;
             case 4:
               dds_is_get_bytes (is, dst, num, 4);

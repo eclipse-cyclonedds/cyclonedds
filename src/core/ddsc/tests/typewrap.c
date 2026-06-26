@@ -1595,17 +1595,17 @@ CU_Test (ddsc_typewrap, invalid_enum_typeobject, .init = typewrap_init, .fini = 
       sizeof (duplicate_name_run) / sizeof (duplicate_name_run[0]), DDS_RETCODE_BAD_PARAMETER);
 
   const struct enum_literal too_large_two_bits[] = {
-    { "TwoBitsMin", 0 },
-    { "TwoBitsMax", 3 },
-    { "TwoBitsTooLarge", 4 }
+    { "TwoBitsMin", -2 },
+    { "TwoBitsMax", 1 },
+    { "TwoBitsTooLarge", 2 }
   };
   check_enum_typeobject ("TooLargeForTwoBits", 2, too_large_two_bits,
       sizeof (too_large_two_bits) / sizeof (too_large_two_bits[0]), DDS_RETCODE_BAD_PARAMETER);
 
   const struct enum_literal too_large_eight_bits[] = {
-    { "EightBitsMin", 0 },
-    { "EightBitsMax", 255 },
-    { "EightBitsTooLarge", 256 }
+    { "EightBitsMin", -128 },
+    { "EightBitsMax", 127 },
+    { "EightBitsTooLarge", 128 }
   };
   check_enum_typeobject ("TooLargeForEightBits", 8, too_large_eight_bits,
       sizeof (too_large_eight_bits) / sizeof (too_large_eight_bits[0]), DDS_RETCODE_BAD_PARAMETER);
@@ -1617,7 +1617,7 @@ CU_Test (ddsc_typewrap, invalid_enum_typeobject, .init = typewrap_init, .fini = 
     { "NegativeMid", 0 }
   };
   check_enum_typeobject ("NegativeValues", 1, negative_values,
-      sizeof (negative_values) / sizeof (negative_values[0]), DDS_RETCODE_BAD_PARAMETER);
+      sizeof (negative_values) / sizeof (negative_values[0]), DDS_RETCODE_OK);
 }
 
 CU_Test (ddsc_typewrap, invalid_bitmask_typeobject, .init = typewrap_init, .fini = typewrap_fini)

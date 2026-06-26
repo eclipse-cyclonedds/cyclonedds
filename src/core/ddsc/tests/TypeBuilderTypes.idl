@@ -693,8 +693,8 @@ module TypeBuilderTypes {
   @bit_bound(16)
   enum en59 {
     EN59_0,
-    @value(65000) EN59_65000,
-    EN59_65001
+    @value(-32000) EN59_NEG32000,
+    EN59_NEG31999
   };
 
   @mutable

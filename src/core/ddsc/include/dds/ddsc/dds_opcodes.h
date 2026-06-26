@@ -408,7 +408,9 @@ enum dds_stream_opcode {
 /**
  * Trailing metadata records, not part of the serialization VM instruction set:
  *   [EVS, 0, set-id] [default value] [nvalues] [value-0] ... [value-n-1]
- *       where values are sorted in ascending order
+ *       where default value is the semantic signed Int32 enum value bit
+ *       pattern for memory/defaulting, and values are unsigned CDR holder
+ *       images sorted in ascending order for membership tests
  *   [EVM, 0, elem-insn] [set-id]
  */
 

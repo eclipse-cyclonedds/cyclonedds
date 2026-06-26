@@ -19,19 +19,22 @@ static inline bool dds_stream_write_bool_valueBO (RESTRICT_OSTREAM_T *os, const 
 static bool dds_stream_write_enum_valueBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *op, uint32_t val, uint32_t max)
 {
   const struct dds_cdrstream_desc_enum_value_set *set;
-  if (!dds_stream_enum_value_set (mid_table, op, max, &set) || !dds_stream_enum_value_valid (set, max, val))
+  uint32_t image;
+  if (!dds_stream_enum_value_image_from_memory (op, val, &image))
+    return write_error_bool ();
+  if (!dds_stream_enum_value_set (mid_table, op, max, &set) || !dds_stream_enum_value_valid (set, max, image))
     return write_error_bool ();
   const uint32_t insn = *op;
   switch (DDS_OP_TYPE_SZ (insn))
   {
     case 1:
-      dds_os_put1BO (os, allocator, (uint8_t) val);
+      dds_os_put1BO (os, allocator, (uint8_t) image);
       break;
     case 2:
-      dds_os_put2BO (os, allocator, (uint16_t) val);
+      dds_os_put2BO (os, allocator, (uint16_t) image);
       break;
     case 4:
-      dds_os_put4BO (os, allocator, val);
+      dds_os_put4BO (os, allocator, image);
       break;
     default:
       abort ();
@@ -180,25 +183,34 @@ static bool dds_stream_write_enum_arrBO (RESTRICT_OSTREAM_T *os, const struct dd
     case 1:
       for (uint32_t i = 0; i < num; i++)
       {
-        if (!dds_stream_enum_value_valid (set, max, addr[i]))
+        uint32_t image;
+        if (!dds_stream_enum_value_image_from_memory (op, addr[i], &image))
           return write_error_bool ();
-        dds_os_put1BO (os, allocator, (uint8_t) addr[i]);
+        if (!dds_stream_enum_value_valid (set, max, image))
+          return write_error_bool ();
+        dds_os_put1BO (os, allocator, (uint8_t) image);
       }
       break;
     case 2:
       for (uint32_t i = 0; i < num; i++)
       {
-        if (!dds_stream_enum_value_valid (set, max, addr[i]))
+        uint32_t image;
+        if (!dds_stream_enum_value_image_from_memory (op, addr[i], &image))
           return write_error_bool ();
-        dds_os_put2BO (os, allocator, (uint16_t) addr[i]);
+        if (!dds_stream_enum_value_valid (set, max, image))
+          return write_error_bool ();
+        dds_os_put2BO (os, allocator, (uint16_t) image);
       }
       break;
     case 4:
       for (uint32_t i = 0; i < num; i++)
       {
-        if (!dds_stream_enum_value_valid (set, max, addr[i]))
+        uint32_t image;
+        if (!dds_stream_enum_value_image_from_memory (op, addr[i], &image))
           return write_error_bool ();
-        dds_os_put4BO (os, allocator, addr[i]);
+        if (!dds_stream_enum_value_valid (set, max, image))
+          return write_error_bool ();
+        dds_os_put4BO (os, allocator, image);
       }
       break;
     default:
@@ -487,7 +499,7 @@ static const uint32_t *dds_stream_write_arrBO (RESTRICT_OSTREAM_T *os, const str
   return ops;
 }
 
-ddsrt_nonnull_all
+ddsrt_nonnull_all ddsrt_attribute_warn_unused_result
 static bool dds_stream_write_union_discriminantBO (RESTRICT_OSTREAM_T *os, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, uint32_t insn, const void *addr, uint64_t *disc)
 {
   enum dds_stream_typecode type = DDS_OP_SUBTYPE (insn);
@@ -515,12 +527,17 @@ static bool dds_stream_write_union_discriminantBO (RESTRICT_OSTREAM_T *os, const
       *disc = *((const uint64_t *) addr);
       dds_os_put8BO (os, allocator, *disc);
       break;
-    case DDS_SOP_VAL_ENU:
-      *disc = *((const uint32_t *) addr);
-      if (!dds_stream_write_enum_valueBO (os, allocator, mid_table, ops, (uint32_t) *disc, ops[4]))
+    case DDS_SOP_VAL_ENU: {
+      const uint32_t val = *((const uint32_t *) addr);
+      uint32_t image;
+      if (!dds_stream_enum_value_image_from_memory (ops, val, &image))
+        return false;
+      *disc = image;
+      if (!dds_stream_write_enum_valueBO (os, allocator, mid_table, ops, val, ops[4]))
         return false;
       break;
-    case DDS_SOP_VAL_BMK:
+    }
+    case DDS_SOP_VAL_BMK: {
       switch (DDS_OP_TYPE_SZ (insn))
       {
         case 1: *disc = *((const uint8_t *) addr); break;
@@ -531,6 +548,7 @@ static bool dds_stream_write_union_discriminantBO (RESTRICT_OSTREAM_T *os, const
       if (!dds_stream_write_bitmask_valueBO (os, allocator, insn, disc, bitmask_bits_hl (ops[4], ops[5])))
         return false;
       break;
+    }
     default:
       abort ();
   }
