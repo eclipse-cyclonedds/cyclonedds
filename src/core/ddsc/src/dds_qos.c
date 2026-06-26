@@ -83,6 +83,9 @@ dds_return_t dds_copy_qos (dds_qos_t *dst, const dds_qos_t *src)
 {
   if (src == NULL || dst == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
+  if (dst == src)
+    return DDS_RETCODE_OK;
+  dds_reset_qos (dst);
   ddsi_xqos_copy (dst, src);
   return DDS_RETCODE_OK;
 }

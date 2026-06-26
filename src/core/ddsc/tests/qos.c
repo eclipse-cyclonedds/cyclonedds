@@ -11,6 +11,7 @@
 #include "CUnit/Test.h"
 #include "dds/dds.h"
 #include <assert.h>
+#include <string.h>
 
 /****************************************************************************
  * Convenience global policies
@@ -243,6 +244,55 @@ qos_fini(void)
     dds_delete_qos(g_qos);
 }
 
+static void
+set_copy_source_qos(dds_qos_t *qos)
+{
+    dds_qset_partition(qos, g_pol_partition.n, (const char **)g_pol_partition.ps);
+    dds_qset_userdata(qos, g_pol_userdata.value, g_pol_userdata.sz);
+    dds_qset_prop(qos, c_property_names[0], c_property_values[0]);
+    dds_qset_bprop(qos, c_bproperty_names[0], c_bproperty_values[0], sizeof (c_bproperty_values[0]));
+    dds_qset_data_representation(qos, 2, (dds_data_representation_id_t []) { DDS_DATA_REPRESENTATION_XCDR2, DDS_DATA_REPRESENTATION_XCDR1 });
+}
+
+static void
+assert_copy_source_qos(const dds_qos_t *qos)
+{
+    struct pol_partition partition = { 0, NULL };
+    struct pol_userdata userdata = { NULL, 0 };
+    char *value = NULL;
+    void *bvalue = NULL;
+    size_t size = 0;
+    uint32_t nids = 0;
+    dds_data_representation_id_t *ids = NULL;
+
+    CU_ASSERT_FATAL (dds_qget_partition(qos, &partition.n, &partition.ps));
+    CU_ASSERT_EQ_FATAL (partition.n, g_pol_partition.n);
+    for (uint32_t cnt = 0; cnt < partition.n; cnt++) {
+        CU_ASSERT_STREQ_FATAL (partition.ps[cnt], g_pol_partition.ps[cnt]);
+        dds_free (partition.ps[cnt]);
+    }
+    dds_free (partition.ps);
+
+    CU_ASSERT_FATAL (dds_qget_userdata(qos, &userdata.value, &userdata.sz));
+    CU_ASSERT_EQ_FATAL (userdata.sz, g_pol_userdata.sz);
+    CU_ASSERT_STREQ_FATAL (userdata.value, g_pol_userdata.value);
+    dds_free (userdata.value);
+
+    CU_ASSERT_FATAL (dds_qget_prop(qos, c_property_names[0], &value));
+    CU_ASSERT_STREQ_FATAL (value, c_property_values[0]);
+    dds_free (value);
+
+    CU_ASSERT_FATAL (dds_qget_bprop(qos, c_bproperty_names[0], &bvalue, &size));
+    CU_ASSERT_MEMEQ_FATAL (bvalue, size, c_bproperty_values[0], sizeof (c_bproperty_values[0]));
+    dds_free (bvalue);
+
+    CU_ASSERT_FATAL (dds_qget_data_representation(qos, &nids, &ids));
+    CU_ASSERT_EQ_FATAL (nids, 2);
+    CU_ASSERT_EQ_FATAL (ids[0], DDS_DATA_REPRESENTATION_XCDR2);
+    CU_ASSERT_EQ_FATAL (ids[1], DDS_DATA_REPRESENTATION_XCDR1);
+    dds_free (ids);
+}
+
 /****************************************************************************
  * API tests
  ****************************************************************************/
@@ -287,6 +337,47 @@ CU_Test(ddsc_qos, copy_with_partition, .init=qos_init, .fini=qos_fini)
         }
         dds_free (p.ps);
         dds_delete_qos(qos);
+}
+
+CU_Test(ddsc_qos, copy_overwrites_existing, .init=qos_init, .fini=qos_fini)
+{
+        static const char *old_partitions[] = { "OldPartition1", "OldPartition2" };
+        static const unsigned char old_bproperty_value[] = { 0xa0, 0xb1, 0xc2, 0xd3 };
+        dds_return_t result;
+        dds_qos_t *qos;
+        char *value = NULL;
+        void *bvalue = NULL;
+        size_t size = 0;
+
+        qos = dds_create_qos();
+        CU_ASSERT_NEQ_FATAL (qos, NULL);
+
+        set_copy_source_qos(g_qos);
+
+        dds_qset_partition(qos, 2, old_partitions);
+        dds_qset_userdata(qos, "old-user-data", strlen("old-user-data") + 1);
+        dds_qset_prop(qos, "old_prop", "old_value");
+        dds_qset_bprop(qos, "old_bprop", old_bproperty_value, sizeof (old_bproperty_value));
+        dds_qset_data_representation(qos, 1, (dds_data_representation_id_t []) { DDS_DATA_REPRESENTATION_XCDR1 });
+
+        result = dds_copy_qos(qos, g_qos);
+        CU_ASSERT_EQ_FATAL (result, DDS_RETCODE_OK);
+        assert_copy_source_qos(qos);
+        CU_ASSERT_FATAL (!dds_qget_prop(qos, "old_prop", &value));
+        CU_ASSERT_FATAL (!dds_qget_bprop(qos, "old_bprop", &bvalue, &size));
+
+        dds_delete_qos(qos);
+}
+
+CU_Test(ddsc_qos, copy_self, .init=qos_init, .fini=qos_fini)
+{
+        dds_return_t result;
+
+        set_copy_source_qos(g_qos);
+        result = dds_copy_qos(g_qos, g_qos);
+
+        CU_ASSERT_EQ_FATAL (result, DDS_RETCODE_OK);
+        assert_copy_source_qos(g_qos);
 }
 
 CU_Test(ddsc_qos, userdata, .init=qos_init, .fini=qos_fini)
