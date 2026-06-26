@@ -65,3 +65,13 @@ module CdrStreamWstring {
     @key wstring<1> k[2];
   };
 };
+
+module CdrStreamStringWstring {
+  typedef sequence<string> string_seq;
+  typedef sequence<wstring> wstring_seq;
+  @final struct t1 {
+    string_seq ss;
+    wstring_seq ws;
+    @key uint32 k;
+  };
+};
