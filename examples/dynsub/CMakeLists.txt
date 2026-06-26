@@ -15,37 +15,35 @@ if(NOT TARGET CycloneDDS::ddsc)
   find_package(CycloneDDS REQUIRED)
 endif()
 
-add_library(dyntypelib STATIC
-  dyntypelib.c
-  dyntypelib.h
-  domtree.c
-  domtree.h
-  type_cache.c
-  type_cache.h
-  print_type.c
-  print_sample.c
-  compare_samples.c
-  compare_samples.h
-  size_and_align.c
-  size_and_align.h
-  scan_sample.c)
-target_link_libraries(dyntypelib CycloneDDS::ddsc compat)
+set(dynsub_compat_target)
+if(TARGET compat)
+  set(dynsub_compat_target compat)
+else()
+  include(CheckIncludeFile)
+  check_include_file(getopt.h HAVE_GETOPT_H)
+  if(NOT HAVE_GETOPT_H)
+    message(FATAL_ERROR "dynsub requires getopt.h or the CycloneDDS compat target")
+  endif()
+endif()
+
+if(TARGET dyntypelib)
+  set(dynsub_dyntypelib_target dyntypelib)
+elseif(TARGET CycloneDDS::dyntypelib)
+  set(dynsub_dyntypelib_target CycloneDDS::dyntypelib)
+else()
+  message(FATAL_ERROR "dynsub requires the dyntypelib target")
+endif()
 
 add_executable(dynsub dynsub.c)
-add_executable(xmltype xmltype.c)
 
-if(TARGET CycloneDDS::ddsc)
-  target_include_directories(dyntypelib
-    PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/cdr/include"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsi/include")
-  target_include_directories(xmltype
-    PUBLIC
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsc/src")
-  target_compile_definitions(xmltype PUBLIC ENABLE_RAW_SAMPLE_BYPASS=1)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsc/src")
+  target_include_directories(dynsub
+    PRIVATE
+      "${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/cdr/include"
+      "${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsc/src"
+      "${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsi/include")
 endif()
-target_link_libraries(dynsub dyntypelib CycloneDDS::ddsc compat)
-target_link_libraries(xmltype dyntypelib CycloneDDS::ddsc compat)
+target_link_libraries(dynsub PRIVATE ${dynsub_dyntypelib_target} CycloneDDS::ddsc ${dynsub_compat_target})
 
 add_executable(variouspub variouspub.c)
 idlc_generate(TARGET variouspub_lib FILES "variouspub_types.idl" WARNINGS no-implicit-extensibility)

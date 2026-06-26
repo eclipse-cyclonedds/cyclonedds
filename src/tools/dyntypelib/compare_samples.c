@@ -15,7 +15,6 @@
 #include <string.h>
 #include <wchar.h>
 
-#include "compare_samples.h"
 #include "dyntypelib.h"
 #include "size_and_align.h"
 
@@ -292,7 +291,7 @@ static dds_return_t compare_sequence (struct compare_ctx *ctx, const unsigned ch
 
 static dds_return_t compare_array (struct compare_ctx *ctx, const unsigned char *obj1, const unsigned char *obj2, const DDS_XTypes_TypeIdentifier *typeid, bool key_path)
 {
-  struct array_info info;
+  struct array_info info = { 0 };
   if (!get_array_info (typeid, &info))
     return compare_error (ctx, "unsupported array type discriminator %u", (unsigned) typeid->_d);
 
@@ -506,13 +505,13 @@ static dds_return_t compare_to (struct compare_ctx *ctx, const unsigned char *ob
   return compare_error (ctx, "unsupported type object discriminator %u", (unsigned) typeobj->_d);
 }
 
-dds_return_t compare_samples_equal (struct type_cache *tc, bool valid_data, const void *sample1, const void *sample2, const DDS_XTypes_CompleteTypeObject *typeobj, bool *equal, struct dyntypelib_error *err)
+dds_return_t dtl_compare_samples_equal (struct dyntypelib *dtl, bool valid_data, const void *sample1, const void *sample2, const DDS_XTypes_CompleteTypeObject *typeobj, bool *equal, struct dyntypelib_error *err)
 {
   if (equal == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
   struct compare_ctx ctx = {
-    .tc = tc,
+    .tc = dtl->typecache,
     .valid_data = valid_data,
     .equal = true,
     .err = err
@@ -522,10 +521,10 @@ dds_return_t compare_samples_equal (struct type_cache *tc, bool valid_data, cons
   return rc;
 }
 
-int compare_samples (struct type_cache *tc, bool valid_data, const void *sample1, const void *sample2, const DDS_XTypes_CompleteTypeObject *typeobj)
+int dtl_compare_samples (struct dyntypelib *dtl, bool valid_data, const void *sample1, const void *sample2, const DDS_XTypes_CompleteTypeObject *typeobj)
 {
   bool equal = false;
-  dds_return_t rc = compare_samples_equal (tc, valid_data, sample1, sample2, typeobj, &equal, NULL);
+  dds_return_t rc = dtl_compare_samples_equal (dtl, valid_data, sample1, sample2, typeobj, &equal, NULL);
   if (rc != DDS_RETCODE_OK)
     return -1;
   return equal ? 1 : 0;

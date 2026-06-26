@@ -13,6 +13,14 @@
 set(CMAKE_INSTALL_TOOLSDIR "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/tools")
 
 add_subdirectory(_confgen)
+
+if(ENABLE_TYPELIB)
+  add_subdirectory(dyntypelib)
+  add_subdirectory(xmltype)
+elseif(INSTALL_XMLTYPE)
+  message(FATAL_ERROR "INSTALL_XMLTYPE requires ENABLE_TYPELIB")
+endif()
+
 if(BUILD_IDLC)
   add_subdirectory(idlpp)
   add_subdirectory(idlc)

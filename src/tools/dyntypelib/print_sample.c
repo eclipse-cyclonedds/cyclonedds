@@ -13,6 +13,7 @@
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
 
@@ -815,8 +816,9 @@ static uint32_t array_bound (const struct array_info *info, uint32_t rank)
 
 static void advance_array_rank (struct print_ctx *ctx, const unsigned char *obj, const DDS_XTypes_TypeIdentifier *typeid, uint32_t rank, size_t *off)
 {
-  struct array_info info;
-  (void) get_array_info (typeid, &info);
+  struct array_info info = { 0 };
+  if (!get_array_info (typeid, &info))
+    abort ();
   for (uint32_t i = 0; i < array_bound (&info, rank); i++)
   {
     if (rank + 1 < info.nbounds)
@@ -828,8 +830,9 @@ static void advance_array_rank (struct print_ctx *ctx, const unsigned char *obj,
 
 static dds_return_t print_array_json_rank (struct print_ctx *ctx, const unsigned char *obj, const DDS_XTypes_TypeIdentifier *typeid, uint32_t rank, size_t *off, const char *label)
 {
-  struct array_info info;
-  (void) get_array_info (typeid, &info);
+  struct array_info info = { 0 };
+  if (!get_array_info (typeid, &info))
+    abort ();
   const char *opened_xml_name;
   dds_return_t rc = begin_collection (ctx, label, &opened_xml_name);
   if (rc != DDS_RETCODE_OK)
@@ -870,8 +873,9 @@ static dds_return_t print_array_json_rank (struct print_ctx *ctx, const unsigned
 
 static dds_return_t print_array_xml_flat (struct print_ctx *ctx, const unsigned char *obj, const DDS_XTypes_TypeIdentifier *typeid, const char *label)
 {
-  struct array_info info;
-  (void) get_array_info (typeid, &info);
+  struct array_info info = { 0 };
+  if (!get_array_info (typeid, &info))
+    abort ();
   uint32_t n = 1;
   for (uint32_t i = 0; i < info.nbounds; i++)
     n *= array_bound (&info, i);
