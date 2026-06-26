@@ -199,7 +199,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
       (*keys_remaining)--;
     }
     else
-      ops = dds_stream_extract_key_from_data_skip_adr (&is1, ops, type);
+      ops = dds_stream_extract_key_from_data_skip_adr (&is1, ops, type, false);
   }
 
   if (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1 && op_type_optional (insn) && !mutable_member)
@@ -276,7 +276,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t *is, R
         /* Shouldn't be here if there is a key in this appendable struct, the non-optimized
         path should be used in that case. */
         assert (os == NULL);
-        ops = dds_stream_extract_key_from_data_skip_pl (is, ops);
+        ops = dds_stream_extract_key_from_data_skip_plc (is, ops + 1);
         break;
     }
   }

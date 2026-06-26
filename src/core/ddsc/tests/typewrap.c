@@ -1268,6 +1268,7 @@ static void check_union_typeobject (
     uint8_t discriminator_type,
     const struct union_member *members,
     uint32_t n_members,
+    uint16_t union_flags,
     dds_return_t expected_ret)
 {
   int32_t label_buf[5] = {0};
@@ -1291,7 +1292,7 @@ static void check_union_typeobject (
     ._u.complete = {
       ._d = DDS_XTypes_TK_UNION,
       ._u.union_type = {
-        .union_flags = DDS_XTypes_IS_FINAL,
+        .union_flags = union_flags,
         .discriminator = {
           .common = {
             .member_flags = DDS_XTypes_TRY_CONSTRUCT1,
@@ -1311,6 +1312,17 @@ static void check_union_typeobject (
       sizeof (typeobj._u.complete._u.union_type.header.detail.type_name));
 
   check_typeobject (&typeobj, expected_ret);
+}
+
+static void check_final_union_typeobject (
+    const char *name,
+    uint8_t discriminator_type,
+    const struct union_member *members,
+    uint32_t n_members,
+    dds_return_t expected_ret)
+{
+  check_union_typeobject (name, discriminator_type, members, n_members,
+      DDS_XTypes_IS_FINAL, expected_ret);
 }
 
 static void check_union_discriminator_typeobject (
@@ -1818,7 +1830,7 @@ CU_Test (ddsc_typewrap, invalid_union_typeobject, .init = typewrap_init, .fini =
     { "duplicate_adjacent_b", 1, 2 },
     { "duplicate_adjacent_c", 2, 3 }
   };
-  check_union_typeobject ("DuplicateAdjacentUnionMember", DDS_XTypes_TK_INT32, duplicate_adjacent,
+  check_final_union_typeobject ("DuplicateAdjacentUnionMember", DDS_XTypes_TK_INT32, duplicate_adjacent,
       sizeof (duplicate_adjacent) / sizeof (duplicate_adjacent[0]), DDS_RETCODE_BAD_PARAMETER);
 
   const struct union_member duplicate_unsorted[] = {
@@ -1827,7 +1839,7 @@ CU_Test (ddsc_typewrap, invalid_union_typeobject, .init = typewrap_init, .fini =
     { "duplicate_unsorted_c", 5, 3 },
     { "duplicate_unsorted_d", 2, 4 }
   };
-  check_union_typeobject ("DuplicateUnsortedUnionMember", DDS_XTypes_TK_INT32, duplicate_unsorted,
+  check_final_union_typeobject ("DuplicateUnsortedUnionMember", DDS_XTypes_TK_INT32, duplicate_unsorted,
       sizeof (duplicate_unsorted) / sizeof (duplicate_unsorted[0]), DDS_RETCODE_BAD_PARAMETER);
 
   const struct union_member duplicate_run[] = {
@@ -1837,7 +1849,7 @@ CU_Test (ddsc_typewrap, invalid_union_typeobject, .init = typewrap_init, .fini =
     { "duplicate_run_d", 5, 4 },
     { "duplicate_run_e", 2, 5 }
   };
-  check_union_typeobject ("DuplicateRunUnionMember", DDS_XTypes_TK_INT32, duplicate_run,
+  check_final_union_typeobject ("DuplicateRunUnionMember", DDS_XTypes_TK_INT32, duplicate_run,
       sizeof (duplicate_run) / sizeof (duplicate_run[0]), DDS_RETCODE_BAD_PARAMETER);
 
   const struct union_member overlapping_labels[] = {
@@ -1845,7 +1857,7 @@ CU_Test (ddsc_typewrap, invalid_union_typeobject, .init = typewrap_init, .fini =
     { "overlapping_label_b", 2, 1 },
     { "overlapping_label_c", 3, 3 }
   };
-  check_union_typeobject ("OverlappingUnionLabels", DDS_XTypes_TK_INT32, overlapping_labels,
+  check_final_union_typeobject ("OverlappingUnionLabels", DDS_XTypes_TK_INT32, overlapping_labels,
       sizeof (overlapping_labels) / sizeof (overlapping_labels[0]), DDS_RETCODE_BAD_PARAMETER);
 
   const struct union_member label_outside_discriminator_range[] = {
@@ -1853,7 +1865,7 @@ CU_Test (ddsc_typewrap, invalid_union_typeobject, .init = typewrap_init, .fini =
     { "label_range_b", 2, INT8_MAX },
     { "label_range_c", 3, (int32_t) INT8_MAX + 1 }
   };
-  check_union_typeobject ("LabelOutsideDiscriminatorRange", DDS_XTypes_TK_INT8, label_outside_discriminator_range,
+  check_final_union_typeobject ("LabelOutsideDiscriminatorRange", DDS_XTypes_TK_INT8, label_outside_discriminator_range,
       sizeof (label_outside_discriminator_range) / sizeof (label_outside_discriminator_range[0]), DDS_RETCODE_BAD_PARAMETER);
 
   const struct enum_literal sparse_enum[] = {
@@ -1943,6 +1955,17 @@ CU_Test (ddsc_typewrap, invalid_union_typeobject, .init = typewrap_init, .fini =
     { "valid_middle", 12, 2 },
     { "valid_last", 27, 3 }
   };
-  check_union_typeobject ("ValidUnionMemberIds", DDS_XTypes_TK_INT32, valid_member_ids,
+  check_final_union_typeobject ("ValidUnionMemberIds", DDS_XTypes_TK_INT32, valid_member_ids,
       sizeof (valid_member_ids) / sizeof (valid_member_ids[0]), DDS_RETCODE_OK);
+
+  const struct union_member legacy_zero_member_id[] = {
+    { "legacy_zero", 0, 1 },
+    { "legacy_next", 1, 2 }
+  };
+  check_union_typeobject ("FinalUnionMemberIdZero", DDS_XTypes_TK_INT32, legacy_zero_member_id,
+      sizeof (legacy_zero_member_id) / sizeof (legacy_zero_member_id[0]), DDS_XTypes_IS_FINAL, DDS_RETCODE_OK);
+  check_union_typeobject ("AppendableUnionMemberIdZero", DDS_XTypes_TK_INT32, legacy_zero_member_id,
+      sizeof (legacy_zero_member_id) / sizeof (legacy_zero_member_id[0]), DDS_XTypes_IS_APPENDABLE, DDS_RETCODE_OK);
+  check_union_typeobject ("MutableUnionMemberIdZero", DDS_XTypes_TK_INT32, legacy_zero_member_id,
+      sizeof (legacy_zero_member_id) / sizeof (legacy_zero_member_id[0]), DDS_XTypes_IS_MUTABLE, DDS_RETCODE_BAD_PARAMETER);
 }

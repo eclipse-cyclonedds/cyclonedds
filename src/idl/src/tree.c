@@ -1323,7 +1323,8 @@ static void
 assign_id(
   idl_declarator_t *declarator,
   const idl_declarator_t *last,
-  idl_autoid_t autoid)
+  idl_autoid_t autoid,
+  uint32_t first_sequential_id)
 {
   assert(declarator);
 
@@ -1339,7 +1340,7 @@ assign_id(
   else if (last) /* identifiers silently overflow */
     declarator->id.value = (last->id.value + 1) & IDL_FIELDID_MASK;
   else
-    declarator->id.value = 0u;
+    declarator->id.value = first_sequential_id;
 }
 
 static idl_declarator_t *
@@ -1410,13 +1411,20 @@ assign_field_ids(idl_pstate_t *pstate, void *node)
   idl_declarator_t *declarator = NULL, *last = NULL;
   idl_declarator_t **sorted = NULL; /* not "const" to silence MSVC */
   idl_declarator_t *(*iterate)(const void *, const idl_declarator_t *);
+  uint32_t first_sequential_id = 0u;
+  bool mutable_union = false;
   size_t length = 0;
 
   switch (idl_type(node)) {
-    case IDL_UNION:
-      autoid = ((const idl_union_t *)node)->autoid.value;
+    case IDL_UNION: {
+      const idl_union_t * const _union = node;
+      autoid = _union->autoid.value;
+      mutable_union = _union->extensibility.value == IDL_MUTABLE;
+      if (mutable_union || !pstate->config.legacy_union_member_ids)
+        first_sequential_id = 1u;
       iterate = &next_case;
       break;
+    }
     default:
       assert(idl_type(node) == IDL_STRUCT);
       /* structs without members are supported in IDL4 */
@@ -1431,7 +1439,7 @@ assign_field_ids(idl_pstate_t *pstate, void *node)
   while ((declarator = iterate(node, declarator))) {
     assert(declarator->node.parent);
     if (((const idl_node_t *)declarator->node.parent)->parent == node)
-      assign_id(declarator, last, autoid);
+      assign_id(declarator, last, autoid, first_sequential_id);
     last = declarator;
     length++;
   }
@@ -1449,6 +1457,14 @@ assign_field_ids(idl_pstate_t *pstate, void *node)
     sorted[count] = declarator;
   qsort(sorted, length, sizeof(*sorted), &compare_declarator);
 
+  if (mutable_union && sorted[0]->id.value == 0) {
+    idl_error(pstate, idl_location(sorted[0]),
+      "Field id '0x%.07x' is reserved for the union discriminator",
+      sorted[0]->id.value);
+    ret = IDL_RETCODE_SEMANTIC_ERROR;
+    goto done;
+  }
+
   for (size_t count=1; count < length; count++) {
     if (sorted[count-1]->id.value == sorted[count]->id.value) {
       idl_error(pstate, idl_location(sorted[count]),
@@ -1458,6 +1474,7 @@ assign_field_ids(idl_pstate_t *pstate, void *node)
     }
   }
 
+done:
   idl_free(sorted);
   return ret;
 }

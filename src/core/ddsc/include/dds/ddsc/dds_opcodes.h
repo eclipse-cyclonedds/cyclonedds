@@ -362,9 +362,11 @@ enum dds_stream_opcode {
   */
   DDS_SOP_DLC = DDS_OP_DLC,
 
-  /** XCDR2 parameter list CDR (inserts DHEADER before type and EMHEADER before each member)
+  /** Parameter-list CDR for mutable aggregates. For structures this is followed
+      by a list of PLM instructions. For unions this prefixes an ADR | UNI
+      instruction.
      [PLC, 0, 0]
-          followed by a list of JEQ instructions
+          followed by a list of PLM instructions or an ADR | UNI instruction
   */
   DDS_SOP_PLC = DDS_OP_PLC,
 

@@ -65,6 +65,7 @@ static struct {
   int case_sensitive;
   int default_extensibility;
   bool default_nested;
+  int legacy_union_member_ids;
   struct idlc_disable_warning_list disable_warnings;
   bool werror;
   int help;
@@ -363,6 +364,7 @@ static idl_retcode_t idlc_parse(const idl_builtin_annotation_t ** generator_anno
     pstate->config.flags |= IDL_WRITE;
     pstate->config.default_extensibility = config.default_extensibility;
     pstate->config.default_nested = config.default_nested;
+    pstate->config.legacy_union_member_ids = config.legacy_union_member_ids != 0;
     pstate->track_warning = &track_warning;
   }
 
@@ -595,6 +597,11 @@ static const idlc_option_t *compopts[] = {
     "Switch to case-sensitive mode of operation. e.g. to allow constructed "
     "entities to contain fields that differ only in case." },
   &(idlc_option_t){
+    IDLC_FLAG, { .flag = &config.legacy_union_member_ids }, 'f', "legacy-union-member-ids", "",
+    "Use legacy sequential union member id assignment, starting at 0 for "
+    "final and appendable unions. Mutable unions always reserve 0 for the "
+    "discriminator." },
+  &(idlc_option_t){
     IDLC_FLAG, { .flag = &config.help }, 'h', "", "",
     "Display available options." },
   &(idlc_option_t){
@@ -695,6 +702,7 @@ int main(int argc, char *argv[])
   config.preprocess = 1;
   config.default_extensibility = IDL_DEFAULT_EXTENSIBILITY_UNDEFINED;
   config.default_nested = false;
+  config.legacy_union_member_ids = 0;
   config.disable_warnings.list = NULL;
   config.disable_warnings.size = 0;
   config.disable_warnings.count = 0;

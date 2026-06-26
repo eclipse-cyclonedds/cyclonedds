@@ -80,6 +80,7 @@ struct idl_pstate {
     uint32_t flags; /**< processor options */
     int default_extensibility; /**< default extensibility for aggregated types */
     bool default_nested; /**< default nestedness for aggregated types */
+    bool legacy_union_member_ids; /**< start sequential union member ids at 0 */
   } config;
   track_warning_fn track_warning;
   idl_file_t *paths; /**< normalized paths used in include statements */

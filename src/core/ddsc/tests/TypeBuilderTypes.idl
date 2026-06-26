@@ -892,4 +892,43 @@ module TypeBuilderTypes {
   struct t70 {
     t70_s t1;
   };
+
+  @mutable
+  union t71 switch (long) {
+    case 1:
+    case 2:
+      @id(7) long u1;
+    case 3:
+      @id(8) short u2;
+    default:
+      @id(9) string<5> u3;
+  };
+
+  @nested @mutable
+  union t72_u switch (short) {
+    case 1:
+      @id(7) t1 u1;
+    case 2:
+      @id(8) sequence<long> u2;
+    case 3:
+      @id(9) tda1 u3;
+  };
+
+  @final
+  struct t72 {
+    t72_u u;
+  };
+
+  @nested @mutable
+  union t73_u switch (@key long) {
+    case 1:
+      @id(7) octet u1;
+    case 2:
+      @id(8) short u2;
+  };
+
+  @final
+  struct t73 {
+    @key t73_u u;
+  };
 };

@@ -1182,6 +1182,7 @@ static dds_return_t xt_valid_union_member_ids (struct ddsi_domaingv *gv, const s
     goto failed;
   }
 
+  const bool mutable_union = (t->_u.union_type.flags & DDS_XTypes_IS_MUTABLE) != 0;
   DDS_XTypes_MemberId *ids = ddsrt_malloc (cnt * sizeof (*ids));
   if (ids == NULL)
   {
@@ -1191,7 +1192,15 @@ static dds_return_t xt_valid_union_member_ids (struct ddsi_domaingv *gv, const s
   }
 
   for (uint32_t n = 0; n < cnt; n++)
+  {
+    if (mutable_union && t->_u.union_type.members.seq[n].id == 0)
+    {
+      GVTRACE ("member id 0 in mutable union is reserved for discriminator\n");
+      ret = DDS_RETCODE_BAD_PARAMETER;
+      goto failed_duplicate;
+    }
     ids[n] = t->_u.union_type.members.seq[n].id;
+  }
   qsort (ids, cnt, sizeof (*ids), xt_member_id_cmp);
   for (uint32_t n = 0; n < cnt - 1; n++)
   {
