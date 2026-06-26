@@ -2040,10 +2040,9 @@ emit_declarator(
     }
 
     /* Type spec in case of aggregated type needs to be visited, to generate
-       the serializer ops for these types. For bitmask type, also visit
-       the type-spec, so that emit function is triggered that checks for
-       unsupported extensibility. For enum types, the emit function is called
-       to check for non-consecutive values. */
+       the serializer ops for these types. Bitmask and enum type specs are also
+       revisited so descriptor generation consistently observes the referenced
+       concrete type. */
     if (idl_is_union(type_spec) || idl_is_struct(type_spec) || idl_is_bitmask(type_spec) || idl_is_enum(type_spec))
       return IDL_VISIT_TYPE_SPEC | IDL_VISIT_UNALIAS_TYPE_SPEC | IDL_VISIT_REVISIT;
 
