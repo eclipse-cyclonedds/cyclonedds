@@ -817,6 +817,13 @@ enum dds_stream_typecode_subtype {
 #define DDS_TOPIC_KEY_ARRAY_NONPRIM             (1u << 12)
 
 /**
+ * @anchor DDS_TOPIC_KEY_UNION
+ * @ingroup topic_flags
+ * @brief Set if any of the key fields of a type is a union type.
+ */
+#define DDS_TOPIC_KEY_UNION                     (1u << 13)
+
+/**
  * @anchor DDS_FIXED_KEY_MAX_SIZE
  * @ingroup topic_flags
  * @brief Max size of fixed key

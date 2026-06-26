@@ -74,8 +74,13 @@ static bool dds_stream_write_keyBO_impl (RESTRICT_OSTREAM_T *os, const struct dd
         return false;
       break;
     }
-    case DDS_SOP_VAL_UNI: case DDS_SOP_VAL_STU: {
-      // FIXME: implement support for unions as part of the key
+    case DDS_SOP_VAL_UNI: {
+      uint64_t disc;
+      if (!dds_stream_write_union_discriminantBO (os, allocator, mid_table, ops, insn, addr, &disc))
+        return false;
+      break;
+    }
+    case DDS_SOP_VAL_STU: {
       abort ();
       break;
     }
@@ -87,13 +92,12 @@ ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
 static bool dds_stream_write_keyBO_restrict (RESTRICT_OSTREAM_T *os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator *allocator, const char *sample, const struct dds_cdrstream_desc *desc)
 {
   const bool use_regular_sample_key_writer =
-    (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM)) ||
+    (desc->flagset & DDS_TOPIC_KEY_USE_REGULAR) ||
     desc->member_ids.enum_value_sets != NULL;
   if (use_regular_sample_key_writer && ser_kind == DDS_CDR_KEY_SERIALIZATION_SAMPLE)
   {
-    /* For types with key fields in aggregated types with appendable or mutable
-       extensibility or with enum value tables, write the key CDR using the
-       regular write functions. */
+    /* For key fields that need key-mode traversal, or with enum value tables,
+       write the key CDR using the regular write functions. */
     if (dds_stream_write_implBO (os, allocator, &desc->member_ids, sample, desc->ops.ops, false, CDR_KIND_KEY) == NULL)
       return false;
   }
@@ -288,13 +292,13 @@ static bool dds_stream_extract_keyBO_from_data_restrict (dds_istream_t *is, REST
     return ret;
 
   const bool use_regular_key_extraction =
-    (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM)) ||
+    (desc->flagset & DDS_TOPIC_KEY_USE_REGULAR) ||
     desc->member_ids.enum_value_sets != NULL;
   if (use_regular_key_extraction)
   {
-    /* In case key members exist in top-level type or any subtype has non-final extensibility,
-       or enum value tables are present, read the full sample and use the write function
-       to get the key CDR for this sample. */
+    /* In case key fields need key-mode traversal, or enum value tables are present,
+       read the full sample and use the write function to get the key CDR for this
+       sample. */
     void *sample = allocator->malloc (desc->size);
     memset (sample, 0, desc->size);
     (void) dds_stream_read_impl (is, sample, allocator, &desc->member_ids, desc->ops.ops, false, CDR_KIND_DATA, SAMPLE_DATA_INITIALIZED);
@@ -332,8 +336,7 @@ bool dds_stream_extract_keyBO_from_data (dds_istream_t *is, DDS_OSTREAM_T *os, c
 ddsrt_nonnull ((1, 4, 5))
 static void dds_stream_extract_keyBO_from_key_impl (dds_istream_t *is, RESTRICT_OSTREAM_T *os, enum dds_cdr_key_serialization_kind ser_kind, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc *desc)
 {
-  /* The type or any subtype has non-final extensibility, so read a key sample
-     and write the key-only CDR for this sample */
+  /* Read a key sample and write the key-only CDR for this sample. */
   void *sample = allocator->malloc (desc->size);
   memset (sample, 0, desc->size);
   (void) dds_stream_read_impl (is, sample, allocator, &desc->member_ids, desc->ops.ops, false, CDR_KIND_KEY, SAMPLE_DATA_INITIALIZED);
@@ -380,15 +383,15 @@ void dds_stream_extract_keyBO_from_key (dds_istream_t *is, DDS_OSTREAM_T *os, en
   assert (ser_kind == DDS_CDR_KEY_SERIALIZATION_SAMPLE || ser_kind == DDS_CDR_KEY_SERIALIZATION_KEYHASH);
 
   /* This assumes that the key fields in the input CDR are in definition order.
-     In case any key field is in an appendable or mutable type, or in case a serialized
-     key for a keyhash is required (in member-id order), or when enum value tables
-     are present, extract and write the key in two steps. Otherwise, extract the
-     output CDR in a single step. */
+     In case any key field needs key-mode traversal, or in case a serialized key
+     for a keyhash is required (in member-id order), or when enum value tables are
+     present, extract and write the key in two steps. Otherwise, extract the output
+     CDR in a single step. */
   RESTRICT_OSTREAM_T ros;
   memcpy (&ros, os, sizeof (*os));
   ros.x.m_align_off = 0;
   const bool use_regular_key_extraction =
-    (desc->flagset & (DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM)) ||
+    (desc->flagset & DDS_TOPIC_KEY_USE_REGULAR) ||
     desc->member_ids.enum_value_sets != NULL;
   if (use_regular_key_extraction || ser_kind == DDS_CDR_KEY_SERIALIZATION_KEYHASH)
     dds_stream_extract_keyBO_from_key_impl (is, &ros, ser_kind, allocator, desc);

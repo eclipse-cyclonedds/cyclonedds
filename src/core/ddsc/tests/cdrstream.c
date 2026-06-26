@@ -1531,6 +1531,9 @@ CU_Test(ddsc_cdrstream, key_size)
     { D(t44), false, false, VAR, VAR, false },
     { D(t45), false, false, VAR, VAR, false },
     { D(t46), false, false, VAR, VAR, false },
+
+    { D(t47), true, true, 4, 4, true },
+    { D(t48), true, true, 5, 5, true },
   };
 
   for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++) {
@@ -2410,6 +2413,117 @@ CU_Test (ddsc_cdrstream, write_enum_key_value_metadata)
 
   dds_ostreamBE_fini (&osbe, &dds_cdrstream_default_allocator);
   dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+}
+
+typedef bool (*check_key_sample_fn) (const void *sample);
+
+static bool check_t47_key_sample (const void *sample)
+{
+  const CdrStreamKeySize_t47 *s = sample;
+  return s->_d == 2;
+}
+
+static bool check_t48_key_sample (const void *sample)
+{
+  const CdrStreamKeySize_t48 *s = sample;
+  return s->t1.s1._d == 1 && s->t1.s2 == 7;
+}
+
+static void assert_union_key_cdr (const dds_topic_descriptor_t *tdesc, const void *sample, const uint8_t *key_cdr, size_t key_cdr_size, const uint8_t *keyhash_cdr, size_t keyhash_cdr_size, check_key_sample_fn check_key_sample)
+{
+  struct dds_cdrstream_desc desc;
+  dds_cdrstream_desc_from_topic_desc (&desc, tdesc);
+  CU_ASSERT_FATAL (desc.flagset & DDS_TOPIC_KEY_UNION);
+  CU_ASSERT_FATAL (desc.flagset & DDS_TOPIC_FIXED_KEY);
+  CU_ASSERT_FATAL (desc.flagset & DDS_TOPIC_FIXED_KEY_XCDR2);
+
+  ALIGNED_CDR_BUFFER (key_input, 16);
+  ALIGNED_CDR_BUFFER (key_copy, 16);
+  CU_ASSERT_FATAL (key_cdr_size <= sizeof (key_input.data));
+  memcpy (key_input.data, key_cdr, key_cdr_size);
+  const uint32_t key_cdr_size32 = (uint32_t) key_cdr_size;
+
+  const enum dds_cdr_enc_version versions[] = { DDSI_RTPS_CDR_ENC_VERSION_1, DDSI_RTPS_CDR_ENC_VERSION_2 };
+  for (uint32_t i = 0; i < sizeof (versions) / sizeof (versions[0]); i++)
+  {
+    const enum dds_cdr_enc_version version = versions[i];
+    CU_ASSERT_EQ_FATAL (dds_stream_getsize_key (sample, &desc, version), key_cdr_size);
+
+    dds_ostream_t osk;
+    dds_ostream_init (&osk, &dds_cdrstream_default_allocator, 0, version);
+    bool ret = dds_stream_write_key (&osk, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, sample, &desc);
+    CU_ASSERT_FATAL (ret);
+    CU_ASSERT_MEMEQ_FATAL (osk.m_buffer, osk.m_index, key_cdr, key_cdr_size);
+
+    memcpy (key_copy.data, key_cdr, key_cdr_size);
+    uint32_t actual_size = 0;
+    enum dds_stream_normalize_result nres = dds_stream_normalize (key_copy.data, key_cdr_size32, false, version, &desc, true, &actual_size);
+    CU_ASSERT_EQ_FATAL (nres, DDS_STREAM_NORMALIZE_SUCCESS);
+    CU_ASSERT_EQ_FATAL (actual_size, key_cdr_size);
+    CU_ASSERT_MEMEQ_FATAL (key_copy.data, actual_size, key_cdr, key_cdr_size);
+
+    dds_ostream_t osd;
+    dds_ostream_init (&osd, &dds_cdrstream_default_allocator, 0, version);
+    ret = dds_stream_write_sample (&osd, &dds_cdrstream_default_allocator, sample, &desc);
+    CU_ASSERT_FATAL (ret);
+    CU_ASSERT_FATAL (osd.m_index > key_cdr_size);
+
+    dds_istream_t is;
+    dds_istream_init (&is, osd.m_index, osd.m_buffer, osd.m_xcdr_version);
+    dds_ostream_t ose;
+    dds_ostream_init (&ose, &dds_cdrstream_default_allocator, 0, version);
+    ret = dds_stream_extract_key_from_data (&is, &ose, &dds_cdrstream_default_allocator, &desc);
+    CU_ASSERT_FATAL (ret);
+    CU_ASSERT_EQ_FATAL (is.m_index, is.m_size);
+    CU_ASSERT_MEMEQ_FATAL (ose.m_buffer, ose.m_index, key_cdr, key_cdr_size);
+    dds_ostream_fini (&ose, &dds_cdrstream_default_allocator);
+
+    dds_istream_init (&is, key_cdr_size32, key_input.data, version);
+    dds_ostream_init (&ose, &dds_cdrstream_default_allocator, 0, version);
+    dds_stream_extract_key_from_key (&is, &ose, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, &desc);
+    CU_ASSERT_EQ_FATAL (is.m_index, is.m_size);
+    CU_ASSERT_MEMEQ_FATAL (ose.m_buffer, ose.m_index, key_cdr, key_cdr_size);
+    dds_ostream_fini (&ose, &dds_cdrstream_default_allocator);
+
+    dds_istream_init (&is, key_cdr_size32, key_input.data, version);
+    dds_ostreamBE_t osbe;
+    dds_ostreamBE_init (&osbe, &dds_cdrstream_default_allocator, 0, version);
+    dds_stream_extract_keyBE_from_key (&is, &osbe, DDS_CDR_KEY_SERIALIZATION_KEYHASH, &dds_cdrstream_default_allocator, &desc);
+    CU_ASSERT_EQ_FATAL (is.m_index, is.m_size);
+    CU_ASSERT_MEMEQ_FATAL (osbe.x.m_buffer, osbe.x.m_index, keyhash_cdr, keyhash_cdr_size);
+    dds_ostreamBE_fini (&osbe, &dds_cdrstream_default_allocator);
+
+    void *key_sample = dds_alloc (desc.size);
+    memset (key_sample, 0, desc.size);
+    dds_istream_init (&is, key_cdr_size32, key_input.data, version);
+    dds_stream_read_key (&is, key_sample, &dds_cdrstream_default_allocator, &desc);
+    CU_ASSERT_EQ_FATAL (is.m_index, is.m_size);
+    CU_ASSERT_FATAL (check_key_sample (key_sample));
+    dds_free (key_sample);
+
+    char strbuf[128];
+    dds_istream_init (&is, key_cdr_size32, key_input.data, version);
+    dds_stream_print_key (&is, &desc, strbuf, sizeof (strbuf));
+    CU_ASSERT_EQ_FATAL (is.m_index, is.m_size);
+
+    dds_ostream_fini (&osd, &dds_cdrstream_default_allocator);
+    dds_ostream_fini (&osk, &dds_cdrstream_default_allocator);
+  }
+
+  dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+}
+
+CU_Test (ddsc_cdrstream, union_discriminator_key_cdr)
+{
+  const CdrStreamKeySize_t47 t47 = { ._d = 2, ._u = { .u2 = 11 } };
+  const uint8_t t47_key[] = { SER32 (2u) };
+  const uint8_t t47_keyhash[] = { SER32BE (2u) };
+  assert_union_key_cdr (&CdrStreamKeySize_t47_desc, &t47, t47_key, sizeof (t47_key), t47_keyhash, sizeof (t47_keyhash), check_t47_key_sample);
+
+  const CdrStreamKeySize_t48 t48 = { .t1 = { .s1 = { ._d = 1, ._u = { .u1 = 99 } }, .s2 = 7 } };
+  const uint8_t t48_key[] = { SER32 (1u), 7 };
+  const uint8_t t48_keyhash[] = { SER32BE (1u), 7 };
+  assert_union_key_cdr (&CdrStreamKeySize_t48_desc, &t48, t48_key, sizeof (t48_key), t48_keyhash, sizeof (t48_keyhash), check_t48_key_sample);
 }
 
 CU_Test (ddsc_cdrstream, extract_enum_key_default_metadata)
