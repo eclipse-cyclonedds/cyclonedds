@@ -1167,7 +1167,12 @@ dds_return_t ddsi_dynamic_type_member_set_try_construct (struct ddsi_type *type,
   else
   {
     if ((ret = find_union_member (type, member_id, &member_index)) == DDS_RETCODE_OK)
-      set_try_construct (&type->xt._u.union_type.members.seq[member_index].flags, try_construct);
+    {
+      uint16_t * const flags = (member_index == UINT32_MAX)
+        ? &type->xt._u.union_type.disc_flags
+        : &type->xt._u.union_type.members.seq[member_index].flags;
+      set_try_construct (flags, try_construct);
+    }
   }
   return ret;
 }

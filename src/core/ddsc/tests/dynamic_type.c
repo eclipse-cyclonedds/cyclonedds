@@ -549,9 +549,13 @@ CU_Test (ddsc_dynamic_type, union_member_prop, .init = dynamic_type_init, .fini 
   // Because of the set_hashid, from this point the member has a different id
   ret = dds_dynamic_member_set_external (&dunion, ddsi_dynamic_type_member_hashid ("m2_name"), true);
   CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_member_set_try_construct (&dunion, 0, DDS_DYNAMIC_MEMBER_TRY_CONSTRUCT_USE_DEFAULT);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
   struct ddsi_type *type = get_ddsi_type (&dunion);
   CU_ASSERT_EQ_FATAL (type->xt._u.union_type.members.length, 3);
+  CU_ASSERT_EQ_FATAL (type->xt._u.union_type.disc_flags & (DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_TRY_CONSTRUCT2), DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT);
+  CU_ASSERT_NEQ_FATAL (type->xt._u.union_type.disc_flags & DDS_XTypes_IS_MUST_UNDERSTAND, 0);
 
   CU_ASSERT_EQ_FATAL (type->xt._u.union_type.members.seq[0].id, ddsi_dynamic_type_member_hashid ("m1"));
   CU_ASSERT_FATAL (!(type->xt._u.union_type.members.seq[0].flags & DDS_XTypes_IS_EXTERNAL));
