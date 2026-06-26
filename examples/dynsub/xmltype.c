@@ -248,6 +248,11 @@ int main (int argc, char **argv)
 
       dds_qos_t *tpqos = dds_create_qos ();
       dds_qset_reliability (tpqos, DDS_RELIABILITY_RELIABLE, DDS_SECS (1));
+      if (xcdrv != 0) {
+        const dds_data_representation_id_t datarep =
+          (xcdrv == 1) ? DDS_DATA_REPRESENTATION_XCDR1 : DDS_DATA_REPRESENTATION_XCDR2;
+        dds_qset_data_representation (tpqos, 1, &datarep);
+      }
       dds_qos_t *epqos = dds_create_qos ();
       dds_qset_type_consistency (
               epqos, DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION,
@@ -256,11 +261,6 @@ int main (int argc, char **argv)
               (tce >> 2) & 1,
               (tce >> 1) & 1,
               tce & 1);
-      if (xcdrv != 0) {
-        const dds_data_representation_id_t datarep =
-          (xcdrv == 1) ? DDS_DATA_REPRESENTATION_XCDR1 : DDS_DATA_REPRESENTATION_XCDR2;
-        dds_qset_data_representation (epqos, 1, &datarep);
-      }
       if (partition) {
         dds_qset_partition1 (epqos, partition);
       }
