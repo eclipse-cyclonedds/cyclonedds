@@ -179,7 +179,7 @@ CU_Test(idl_annotation, idl_default)
     {"struct s { @default(123) boolean b; };",               IDL_RETCODE_ILLEGAL_EXPRESSION,  false, IDL_NULL,    NULL}, //parameter type mismatch (int vs bool)
     {"struct s { @default(-123) unsigned long l; };",        IDL_RETCODE_OUT_OF_RANGE,        false, IDL_NULL,    NULL}, //parameter type mismatch (unsigned vs signed)
     {"@default(e_0) enum e { e_0, e_1, e_2, e_3 };",         IDL_RETCODE_SEMANTIC_ERROR,      false, IDL_NULL,    NULL},  //setting default on enums is done through @default_literal
-    {"enum e { e_0, e_1, e_2, e_3 }; struct s { @default(e_1) e m_e; };", IDL_RETCODE_SEMANTIC_ERROR, false, IDL_NULL, NULL},  //setting enums default is not yet supported
+    {"enum e { e_0, e_1, e_2, e_3 }; struct s { @default(e_1) e m_e; };", IDL_RETCODE_SEMANTIC_ERROR, false, IDL_NULL, NULL},  //member @default on enum-typed fields is rejected
   };
 
   for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {

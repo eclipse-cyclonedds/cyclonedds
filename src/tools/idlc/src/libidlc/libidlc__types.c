@@ -542,7 +542,6 @@ emit_enum(
     if (IDL_PRINTA(&name, print_type, enumerator) < 0)
       return IDL_RETCODE_NO_MEMORY;
     value = enumerator->value.value;
-    /* FIXME: IDL 3.5 did not support fixed enumerator values */
     if (value == skip)
       fmt = "%s  %s";
     else
