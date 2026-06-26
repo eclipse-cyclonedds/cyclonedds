@@ -52,11 +52,11 @@ int ddsi_compare_locators (const ddsi_locator_t *a, const ddsi_locator_t *b)
 {
   int c;
   if (a->kind != b->kind)
-    return (int) (a->kind - b->kind);
+    return a->kind < b->kind ? -1 : 1;
   else if ((c = memcmp (a->address, b->address, sizeof (a->address))) != 0)
     return c;
   else if (a->port != b->port)
-    return (int) (a->port - b->port);
+    return a->port < b->port ? -1 : 1;
   else
     return 0;
 }
