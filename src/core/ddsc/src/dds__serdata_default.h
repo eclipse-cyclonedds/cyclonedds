@@ -147,7 +147,7 @@ struct dds_serdatapool * dds_serdatapool_new (void);
 void dds_serdatapool_free (struct dds_serdatapool * pool);
 
 /** @component typesupport_c */
-dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct dds_sertype_default *st, const dds_topic_descriptor_t *desc, enum dds_cdr_enc_version min_xcdrv, dds_data_representation_id_t data_representation);
+dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct dds_sertype_default *st, const dds_topic_descriptor_t *desc, dds_data_representation_id_t data_representation);
 
 #if defined (__cplusplus)
 }

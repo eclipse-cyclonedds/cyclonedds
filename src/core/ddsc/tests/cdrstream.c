@@ -1107,8 +1107,8 @@ CU_Test (ddsc_cdrstream, appendable_mutable, .init = cdrstream_init, .fini = cdr
 
         struct dds_cdrstream_desc desc_wr;
         dds_cdrstream_desc_from_topic_desc (&desc_wr, topic_desc_wr);
-        enum dds_cdr_enc_version min_xcdrv_wr = dds_stream_minimum_xcdr_version (desc_wr.ops.ops);
-        CU_ASSERT (x == 0 || min_xcdrv_wr == DDSI_RTPS_CDR_ENC_VERSION_1);
+        const uint32_t supported_representations_wr = dds_stream_supported_data_representations (desc_wr.ops.ops);
+        CU_ASSERT (x == 0 || (supported_representations_wr & DDS_DATA_REPRESENTATION_FLAG_XCDR1));
 
         void * msg_wr = t ? tests[i].i2 () : tests[i].i1 ();
         bool ret = dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, msg_wr, &desc_wr);
@@ -1123,8 +1123,8 @@ CU_Test (ddsc_cdrstream, appendable_mutable, .init = cdrstream_init, .fini = cdr
 
         struct dds_cdrstream_desc desc_rd;
         dds_cdrstream_desc_from_topic_desc (&desc_rd, topic_desc_rd);
-        enum dds_cdr_enc_version min_xcdrv_rd = dds_stream_minimum_xcdr_version (desc_wr.ops.ops);
-        CU_ASSERT (x == 0 || min_xcdrv_rd == DDSI_RTPS_CDR_ENC_VERSION_1);
+        const uint32_t supported_representations_rd = dds_stream_supported_data_representations (desc_rd.ops.ops);
+        CU_ASSERT (x == 0 || (supported_representations_rd & DDS_DATA_REPRESENTATION_FLAG_XCDR1));
 
         uint32_t act_size;
         void *cdr_copy = ddsrt_memdup (os.m_buffer, os.m_index);
@@ -1163,40 +1163,41 @@ CU_Test (ddsc_cdrstream, appendable_mutable, .init = cdrstream_init, .fini = cdr
 #undef F
 
 #define D(n) (&MinXcdrVersion_ ## n ## _desc)
-CU_Test (ddsc_cdrstream, min_xcdr_version)
+CU_Test (ddsc_cdrstream, supported_data_representations)
 {
+  enum { XCDR12_REP = DDS_DATA_REPRESENTATION_FLAG_XCDR1 | DDS_DATA_REPRESENTATION_FLAG_XCDR2 };
   static const struct {
     const dds_topic_descriptor_t *desc;
-    uint16_t min_xcdrv;
+    uint32_t supported_representations;
   } tests[] = {
-    { D(t), XCDR1 },
-    { D(t_nested), XCDR1 },
-    { D(t_inherit), XCDR1 },
-    { D(t_opt), XCDR1 },
-    { D(t_ext), XCDR1 },
-    { D(t_append), XCDR1 },
-    { D(t_append_u), XCDR1 },
-    { D(t_append_nested), XCDR2 },
-    { D(t_append_nested_opt), XCDR1 },
-    { D(t_u_nested_append), XCDR2 },
-    { D(t_append_nested_u), XCDR2 },
-    { D(t_append_opt), XCDR1 },
-    { D(t_append_opt_u), XCDR1 },
-    { D(t_append_seq), XCDR2 },
-    { D(t_append_bseq), XCDR2 },
-    { D(t_append_arr), XCDR2 },
-    { D(t_mut), XCDR1 },
-    { D(t_nested_mut), XCDR1 },
-    { D(t_nested_opt), XCDR1 }
+    { D(t), XCDR12_REP },
+    { D(t_nested), XCDR12_REP },
+    { D(t_inherit), XCDR12_REP },
+    { D(t_opt), XCDR12_REP },
+    { D(t_ext), XCDR12_REP },
+    { D(t_append), XCDR12_REP },
+    { D(t_append_u), XCDR12_REP },
+    { D(t_append_nested), DDS_DATA_REPRESENTATION_FLAG_XCDR2 },
+    { D(t_append_nested_opt), XCDR12_REP },
+    { D(t_u_nested_append), DDS_DATA_REPRESENTATION_FLAG_XCDR2 },
+    { D(t_append_nested_u), DDS_DATA_REPRESENTATION_FLAG_XCDR2 },
+    { D(t_append_opt), XCDR12_REP },
+    { D(t_append_opt_u), XCDR12_REP },
+    { D(t_append_seq), DDS_DATA_REPRESENTATION_FLAG_XCDR2 },
+    { D(t_append_bseq), DDS_DATA_REPRESENTATION_FLAG_XCDR2 },
+    { D(t_append_arr), DDS_DATA_REPRESENTATION_FLAG_XCDR2 },
+    { D(t_mut), XCDR12_REP },
+    { D(t_nested_mut), XCDR12_REP },
+    { D(t_nested_opt), XCDR12_REP }
   };
 
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
     tprintf("running test for desc: %s\n", tests[i].desc->m_typename);
     cdrstream_init ();
-    CU_ASSERT_EQ_FATAL (dds_stream_minimum_xcdr_version (tests[i].desc->m_ops), tests[i].min_xcdrv);
+    CU_ASSERT_EQ_FATAL (dds_stream_supported_data_representations (tests[i].desc->m_ops), tests[i].supported_representations);
 
-    entity_init (tests[i].desc, DDS_DATA_REPRESENTATION_XCDR1, tests[i].min_xcdrv != XCDR1);
+    entity_init (tests[i].desc, DDS_DATA_REPRESENTATION_XCDR1, !(tests[i].supported_representations & DDS_DATA_REPRESENTATION_FLAG_XCDR1));
     entity_init (tests[i].desc, DDS_DATA_REPRESENTATION_XCDR2, false);
     cdrstream_fini ();
   }
@@ -2156,13 +2157,12 @@ CU_Test (ddsc_cdrstream, read_appendable_enum_union_default_metadata)
 CU_Test (ddsc_cdrstream, union_discriminator_use_default_data_representations)
 {
   const uint32_t xcdr12 = DDS_DATA_REPRESENTATION_FLAG_XCDR1 | DDS_DATA_REPRESENTATION_FLAG_XCDR2;
-  CU_ASSERT_EQ_FATAL (dds_stream_allowed_data_representations (CdrStreamEnumUnionFinalDiscUseDefaultMeta_ops), xcdr12);
-  CU_ASSERT_EQ_FATAL (dds_stream_allowed_data_representations (CdrStreamFinalStructUnionLastDiscUseDefaultMeta_ops), xcdr12);
-  CU_ASSERT_EQ_FATAL (dds_stream_allowed_data_representations (CdrStreamFinalStructUnionThenMemberDiscUseDefaultMeta_ops), 0u);
-  CU_ASSERT_EQ_FATAL (dds_stream_allowed_data_representations (CdrStreamEnumUnionAppendableDefaultMeta_ops), xcdr12);
-  CU_ASSERT_EQ_FATAL (dds_stream_allowed_data_representations (CdrStreamAppendableStructUnionLastDiscUseDefaultMeta_ops), xcdr12);
-  CU_ASSERT_EQ_FATAL (dds_stream_allowed_data_representations (CdrStreamAppendableStructUnionThenMemberDiscUseDefaultMeta_ops), 0u);
-  CU_ASSERT_EQ_FATAL (dds_stream_minimum_xcdr_version (CdrStreamEnumUnionAppendableDefaultMeta_ops), XCDR1);
+  CU_ASSERT_EQ_FATAL (dds_stream_supported_data_representations (CdrStreamEnumUnionFinalDiscUseDefaultMeta_ops), xcdr12);
+  CU_ASSERT_EQ_FATAL (dds_stream_supported_data_representations (CdrStreamFinalStructUnionLastDiscUseDefaultMeta_ops), xcdr12);
+  CU_ASSERT_EQ_FATAL (dds_stream_supported_data_representations (CdrStreamFinalStructUnionThenMemberDiscUseDefaultMeta_ops), 0u);
+  CU_ASSERT_EQ_FATAL (dds_stream_supported_data_representations (CdrStreamEnumUnionAppendableDefaultMeta_ops), xcdr12);
+  CU_ASSERT_EQ_FATAL (dds_stream_supported_data_representations (CdrStreamAppendableStructUnionLastDiscUseDefaultMeta_ops), xcdr12);
+  CU_ASSERT_EQ_FATAL (dds_stream_supported_data_representations (CdrStreamAppendableStructUnionThenMemberDiscUseDefaultMeta_ops), 0u);
 }
 
 CU_Test (ddsc_cdrstream, normalize_read_union_discriminator_use_default)
