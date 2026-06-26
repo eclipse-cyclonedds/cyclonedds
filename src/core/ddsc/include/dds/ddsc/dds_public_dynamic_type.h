@@ -272,9 +272,9 @@ enum dds_dynamic_type_enum_value_kind {
 /**
  * @ingroup dynamic_type
  *
- * Dynamic Enumeration type literal value kind and value. Can be set to NEXT_AVAIL to indicate
- * that the current max value + 1 should be used for this member, or an explicit value can be
- * provided.
+ * Dynamic Enumeration type literal value kind and value. Explicit values are signed XTypes
+ * enum literal values. Can be set to NEXT_AVAIL to indicate that the current max value + 1
+ * should be used for this member, or an explicit value can be provided.
  */
 typedef struct dds_dynamic_enum_literal_value {
   enum dds_dynamic_type_enum_value_kind value_kind;

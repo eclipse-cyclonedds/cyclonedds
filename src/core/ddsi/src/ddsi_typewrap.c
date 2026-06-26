@@ -993,6 +993,16 @@ struct xt_union_label_range {
   uint64_t max;
 };
 
+static int32_t xt_enum_value_min (DDS_XTypes_BitBound bit_bound)
+{
+  return (bit_bound >= 32) ? INT32_MIN : -(int32_t) (UINT32_C (1) << (bit_bound - 1));
+}
+
+static int32_t xt_enum_value_max (DDS_XTypes_BitBound bit_bound)
+{
+  return (bit_bound >= 32) ? INT32_MAX : (int32_t) ((UINT32_C (1) << (bit_bound - 1)) - 1);
+}
+
 static dds_return_t xt_union_label_range (const struct xt_type *disc_type, struct xt_union_label_range *range)
 {
   if (ddsi_xt_missing_definition (disc_type))
@@ -1036,9 +1046,11 @@ static dds_return_t xt_union_label_range (const struct xt_type *disc_type, struc
       range->min = 0; range->max = UINT64_MAX;
       break;
     case DDS_XTypes_TK_ENUM: {
-      // Enum values are signed 32-bit integers in type objects, so the maximum value is INT32_MAX
+      /* Validation operates on XTypes semantic values. The unsigned holder-image
+         form is only a cdrstream descriptor detail. */
       const DDS_XTypes_BitBound bit_bound = dt->_u.enum_type.bit_bound;
-      range->min = 0; range->max = (bit_bound >= 31) ? INT32_MAX : ((1u << bit_bound) - 1);
+      range->min = xt_enum_value_min (bit_bound);
+      range->max = (uint64_t) xt_enum_value_max (bit_bound);
       break;
     }
     case DDS_XTypes_TK_BITMASK: {
@@ -1252,7 +1264,8 @@ static dds_return_t xt_valid_enum_values (struct ddsi_domaingv *gv, const struct
 {
   assert (ddsi_xt_has_definition (t) && t->_d == DDS_XTypes_TK_ENUM);
   dds_return_t ret = DDS_RETCODE_OK;
-  const int32_t max = (t->_u.enum_type.bit_bound >= 31) ? INT32_MAX : (int32_t) ((1u << t->_u.enum_type.bit_bound) - 1);
+  const int32_t min = xt_enum_value_min (t->_u.enum_type.bit_bound);
+  const int32_t max = xt_enum_value_max (t->_u.enum_type.bit_bound);
 
   uint32_t cnt = t->_u.enum_type.literals.length;
   if (cnt == 0)
@@ -1280,7 +1293,7 @@ static dds_return_t xt_valid_enum_values (struct ddsi_domaingv *gv, const struct
   for (uint32_t n = 0; n < cnt; n++)
   {
     const int32_t value = t->_u.enum_type.literals.seq[n].value;
-    if (value < 0 || value > max)
+    if (value < min || value > max)
     {
       GVTRACE ("enum value %"PRId32" cannot be represented by bit_bound %"PRIu16"\n", value, t->_u.enum_type.bit_bound);
       ret = DDS_RETCODE_BAD_PARAMETER;

@@ -204,7 +204,7 @@ annotate_value(
 {
   idl_type_t type;
   const idl_const_expr_t *const_expr;
-  uint32_t value;
+  int32_t value;
 
   assert(annotation_appl);
   assert(annotation_appl->parameters);
@@ -220,19 +220,19 @@ annotate_value(
   if (type == IDL_OCTET || (type & IDL_INTEGER_TYPE)) {
     idl_intval_t intval = idl_intval(const_expr);
 
-    if ((intval.type & IDL_UNSIGNED) && intval.value.ullng > UINT32_MAX) {
+    if ((intval.type & IDL_UNSIGNED) && intval.value.ullng > INT32_MAX) {
       idl_error(pstate, idl_location(annotation_appl),
         "@value(%" PRIu64 ") cannot be applied to '%s' element",
         intval.value.ullng, idl_construct(node));
       return IDL_RETCODE_SEMANTIC_ERROR;
-    } else if (!(intval.type & IDL_UNSIGNED) && intval.value.llng < 0) {
+    } else if (!(intval.type & IDL_UNSIGNED) && (intval.value.llng < INT32_MIN || intval.value.llng > INT32_MAX)) {
       idl_error(pstate, idl_location(annotation_appl),
         "@value(%" PRId64 ") cannot be applied to '%s' element",
         intval.value.llng, idl_construct(node));
       return IDL_RETCODE_SEMANTIC_ERROR;
     }
 
-    value = (uint32_t)intval.value.ullng;
+    value = (intval.type & IDL_UNSIGNED) ? (int32_t) intval.value.ullng : (int32_t) intval.value.llng;
   } else {
     idl_error(pstate, idl_location(annotation_appl),
       "@value with %s cannot be applied to '%s' element",

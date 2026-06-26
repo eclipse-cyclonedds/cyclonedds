@@ -870,37 +870,49 @@ dds_return_t ddsi_dynamic_type_add_union_member (struct ddsi_type *type, struct 
   return DDS_RETCODE_OK;
 }
 
+static int32_t dynamic_type_enum_value_min (uint16_t bit_bound)
+{
+  return (bit_bound >= 32) ? INT32_MIN : -(int32_t) (UINT32_C (1) << (bit_bound - 1));
+}
+
+static int32_t dynamic_type_enum_value_max (uint16_t bit_bound)
+{
+  return (bit_bound >= 32) ? INT32_MAX : (int32_t) ((UINT32_C (1) << (bit_bound - 1)) - 1);
+}
+
 dds_return_t ddsi_dynamic_type_add_enum_literal (struct ddsi_type *type, struct ddsi_dynamic_type_enum_literal_param params)
 {
   assert (type->state == DDSI_TYPE_CONSTRUCTING);
   assert (type->xt._d == DDS_XTypes_TK_ENUM);
 
-  /* Get maximum value for a literal in this enum. Type object has long type
-     to store the literal value, so limited to int32_max */
+  /* Dynamic enum literals are semantic signed Int32 values. Range checks use
+     @bit_bound; cdrstream image conversion happens later in typebuilder. */
   assert (type->xt._u.enum_type.bit_bound <= 32);
-  uint32_t max_literal_value = (uint32_t) (1ull << (uint64_t) type->xt._u.enum_type.bit_bound) - 1;
-  if (max_literal_value > INT32_MAX)
-    max_literal_value = INT32_MAX;
+  const int32_t min_literal_value = dynamic_type_enum_value_min (type->xt._u.enum_type.bit_bound);
+  const int32_t max_literal_value = dynamic_type_enum_value_max (type->xt._u.enum_type.bit_bound);
 
-  if (type->xt._u.enum_type.literals.length >= max_literal_value)
+  if (type->xt._u.enum_type.literals.length == UINT32_MAX)
     return DDS_RETCODE_BAD_PARAMETER;
 
   int32_t literal_value = 0;
   if (params.is_auto_value)
   {
-    for (uint32_t n = 0; n < type->xt._u.enum_type.literals.length; n++)
+    if (type->xt._u.enum_type.literals.length > 0)
     {
-      if (type->xt._u.enum_type.literals.seq[n].value >= (int32_t) literal_value)
+      int32_t max_value = type->xt._u.enum_type.literals.seq[0].value;
+      for (uint32_t n = 1; n < type->xt._u.enum_type.literals.length; n++)
       {
-        if (type->xt._u.enum_type.literals.seq[n].value == (int32_t) max_literal_value)
-          return DDS_RETCODE_BAD_PARAMETER;
-        literal_value = type->xt._u.enum_type.literals.seq[n].value + 1;
+        if (type->xt._u.enum_type.literals.seq[n].value > max_value)
+          max_value = type->xt._u.enum_type.literals.seq[n].value;
       }
+      if (max_value == max_literal_value)
+        return DDS_RETCODE_BAD_PARAMETER;
+      literal_value = max_value + 1;
     }
   }
   else
   {
-    if ((uint32_t) params.value > max_literal_value)
+    if (params.value < min_literal_value || params.value > max_literal_value)
       return DDS_RETCODE_BAD_PARAMETER;
     for (uint32_t n = 0; n < type->xt._u.enum_type.literals.length; n++)
       if (type->xt._u.enum_type.literals.seq[n].value == params.value)

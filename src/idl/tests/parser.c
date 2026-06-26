@@ -423,14 +423,16 @@ CU_Test(idl_parser, bit_bound_validation)
       {"@bit_bound(2) bitmask bm { @position(1) flag0 };", true},
       {"@bit_bound(2) bitmask bm { @position(1) flag0, flag1 };", false},
       {"@bit_bound(2) bitmask bm { @position(0) flag0, flag1 };", true},
-      //enums have an implicit bit bound of 32
-      {"enum e { @value(4294967295) e_0, e_1 };", false},
-      {"enum e { @value(4294967294) e_0, e_1 };", true},
-      {"enum e { e_0, @value(4294967295) e_1 };", true},
-      //enums with an explicitly set bit bound
+      //enums have signed literal values and an implicit bit bound of 32
+      {"enum e { @value(2147483647) e_0, e_1 };", false},
+      {"enum e { @value(-2147483647 - 1) e_0, e_1 };", true},
+      {"enum e { e_0, @value(2147483647) e_1 };", true},
+      //enums with an explicitly set bit bound use the corresponding signed range
       {"@bit_bound(2) enum e { @value(3) e_0, e_1 };", false},
-      {"@bit_bound(2) enum e { @value(2) e_0, e_1 };", true},
-      {"@bit_bound(2) enum e { e_0, @value(3) e_1 };", true},
+      {"@bit_bound(2) enum e { @value(2) e_0, e_1 };", false},
+      {"@bit_bound(2) enum e { e_0, @value(3) e_1 };", false},
+      {"@bit_bound(2) enum e { @value(-2) e_0, e_1 };", true},
+      {"@bit_bound(2) enum e { @value(-1) e_0, e_1 };", true},
     };
 
   for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++)

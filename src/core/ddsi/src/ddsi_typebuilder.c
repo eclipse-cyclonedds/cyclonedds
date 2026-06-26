@@ -168,6 +168,12 @@ static uint32_t union_case_label_to_disc_value (const struct typebuilder_type *d
       return (uint8_t) label;
     case DDS_OP_VAL_2BY:
       return (uint16_t) label;
+    case DDS_OP_VAL_ENU:
+      if (disc_type->args.enum_args.bit_bound <= 8)
+        return (uint8_t) label;
+      if (disc_type->args.enum_args.bit_bound <= 16)
+        return (uint16_t) label;
+      return (uint32_t) label;
     default:
       return (uint32_t) label;
   }
@@ -491,9 +497,18 @@ static int uint32_cmp (const void *va, const void *vb)
   return (a > b) - (a < b);
 }
 
-static bool typebuilder_enum_needs_value_metadata (uint32_t max, uint32_t nvalues, uint32_t default_value)
+static uint32_t typebuilder_enum_value_image (uint32_t bit_bound, int32_t value)
 {
-  return nvalues == 0 || default_value != 0 || max != nvalues - 1;
+  if (bit_bound <= 8)
+    return (uint8_t) value;
+  if (bit_bound <= 16)
+    return (uint16_t) value;
+  return (uint32_t) value;
+}
+
+static bool typebuilder_enum_needs_value_metadata (int32_t max, uint32_t nvalues, int32_t default_value)
+{
+  return nvalues == 0 || default_value != 0 || max < 0 || (uint32_t) max != nvalues - 1;
 }
 
 static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t *size, uint32_t *align, struct typebuilder_type *tb_type, const struct ddsi_type *type, bool is_ext, bool use_ext_type, enum typebuilder_try_construct tc)
@@ -581,8 +596,11 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
       break;
     }
     case DDS_XTypes_TK_ENUM: {
-      uint32_t max = 0;
-      uint32_t default_value = 0;
+      /* Keep signed literal semantics until descriptor emission. The descriptor's
+         value table uses holder images because cdrstream reads narrow enums as
+         unsigned bytes/words. */
+      int32_t max = INT32_MIN;
+      int32_t default_value = 0;
       const uint32_t nvalues = type->xt._u.enum_type.literals.length;
       uint32_t *values = nvalues ? ddsrt_calloc (nvalues, sizeof (*values)) : NULL;
       if (nvalues && values == NULL)
@@ -592,9 +610,8 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
       }
       for (uint32_t n = 0; n < type->xt._u.enum_type.literals.length; n++)
       {
-        assert (type->xt._u.enum_type.literals.seq[n].value >= 0);
-        const uint32_t value = (uint32_t) type->xt._u.enum_type.literals.seq[n].value;
-        values[n] = value;
+        const int32_t value = type->xt._u.enum_type.literals.seq[n].value;
+        values[n] = typebuilder_enum_value_image (type->xt._u.enum_type.bit_bound, value);
         if (value > max)
           max = value;
         if (n == 0 || (type->xt._u.enum_type.literals.seq[n].flags & DDS_XTypes_IS_DEFAULT))
@@ -603,8 +620,8 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
       if (nvalues > 1)
         qsort (values, nvalues, sizeof (*values), uint32_cmp);
       tb_type->type_code = DDS_OP_VAL_ENU;
-      tb_type->args.enum_args.max = max;
-      tb_type->args.enum_args.default_value = default_value;
+      tb_type->args.enum_args.max = (uint32_t) max;
+      tb_type->args.enum_args.default_value = (uint32_t) default_value;
       tb_type->args.enum_args.nvalues = nvalues;
       tb_type->args.enum_args.values = values;
       tb_type->args.enum_args.bit_bound = type->xt._u.enum_type.bit_bound;
@@ -2123,6 +2140,8 @@ static dds_return_t emit_enum_value_set (struct typebuilder_ops *ops, const stru
 {
   dds_return_t ret;
   assert (setid <= UINT16_MAX);
+  /* EVS default_value is the semantic int32 bit pattern for memory/defaulting.
+     EVS values are unsigned CDR holder images for membership tests. */
   PUSH_OP (DDS_OP_EVS | setid);
   PUSH_ARG (tb_type->args.enum_args.default_value);
   PUSH_ARG (tb_type->args.enum_args.nvalues);

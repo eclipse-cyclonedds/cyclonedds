@@ -1436,8 +1436,9 @@ emit_enumerator (
   memset (&c, 0, sizeof (c));
 
   const idl_enumerator_t *enumerator = (idl_enumerator_t *) node;
-  assert (enumerator->value.value <= INT32_MAX);
-  m.common.value = c.common.value = (int32_t) enumerator->value.value;
+  /* TypeObject stores the semantic signed literal value. Do not apply the
+     CDR holder-image conversion here. */
+  m.common.value = c.common.value = enumerator->value.value;
   get_namehash (m.detail.name_hash, idl_identifier (enumerator));
   m.common.flags = c.common.flags = get_enum_literal_flags (_enum, enumerator);
   if ((ret = get_complete_member_detail (node, &c.detail)) < 0)

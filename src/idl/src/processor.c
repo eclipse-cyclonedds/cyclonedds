@@ -428,11 +428,13 @@ check_bitbound(
   } else if (idl_is_enum(node)) {
     const idl_enum_t *_enum = node;
     const idl_enumerator_t *_e = NULL;
-    uint64_t max = (UINT64_C(0x1) << _enum->bit_bound.value);
+    const int32_t min = (_enum->bit_bound.value >= 32) ? INT32_MIN : -(int32_t) (UINT32_C(1) << (_enum->bit_bound.value - 1));
+    const int32_t max = (_enum->bit_bound.value >= 32) ? INT32_MAX : (int32_t) ((UINT32_C(1) << (_enum->bit_bound.value - 1)) - 1);
     IDL_FOREACH(_e, _enum->enumerators) {
-      if (_e->value.value >= max) {
+      if (_e->value.value < min || _e->value.value > max) {
         idl_error(pstate, idl_location(_e),
-          "Enumerator overflow for value '%s' (%u), max allowed value is %" PRIu64 " (bit_bound %hu)", idl_identifier(_e), _e->value.value, max-1, _enum->bit_bound.value);
+          "Enumerator overflow for value '%s' (%" PRId32 "), allowed range is %" PRId32 "..%" PRId32 " (bit_bound %hu)",
+          idl_identifier(_e), _e->value.value, min, max, _enum->bit_bound.value);
         return IDL_RETCODE_OUT_OF_RANGE;
       }
     }

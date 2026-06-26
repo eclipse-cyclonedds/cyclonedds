@@ -388,15 +388,15 @@ CU_Test (ddsc_dynamic_type, bitmask_field_invalid, .init = dynamic_type_init, .f
 CU_Test (ddsc_dynamic_type, enum_type, .init = dynamic_type_init, .fini = dynamic_type_fini)
 {
   dds_dynamic_type_t denum = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_ENUMERATION, .name = "e" });
-  dds_return_t ret = dds_dynamic_type_set_bit_bound (&denum, 31);
+  dds_return_t ret = dds_dynamic_type_set_bit_bound (&denum, 32);
   CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   dds_dynamic_type_add_enum_literal (&denum, "e_auto0", DDS_DYNAMIC_ENUM_LITERAL_VALUE_AUTO, false);
   dds_dynamic_type_add_enum_literal (&denum, "e_auto1", DDS_DYNAMIC_ENUM_LITERAL_VALUE_AUTO, true);
-  dds_dynamic_type_add_enum_literal (&denum, "e_31", DDS_DYNAMIC_ENUM_LITERAL_VALUE ((1u << 31) - 1), false);
+  dds_dynamic_type_add_enum_literal (&denum, "e_min", DDS_DYNAMIC_ENUM_LITERAL_VALUE (INT32_MIN), false);
   dds_dynamic_type_add_enum_literal (&denum, "e_2", DDS_DYNAMIC_ENUM_LITERAL_VALUE (2), false);
 
   struct ddsi_type *type = get_ddsi_type (&denum);
-  CU_ASSERT_EQ_FATAL (type->xt._u.bitmask.bit_bound, 31);
+  CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.bit_bound, 32);
   CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.length, 4);
 
   CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.seq[0].value, 0);
@@ -405,12 +405,62 @@ CU_Test (ddsc_dynamic_type, enum_type, .init = dynamic_type_init, .fini = dynami
   CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.seq[1].value, 1);
   CU_ASSERT_NEQ_FATAL (type->xt._u.enum_type.literals.seq[1].flags & DDS_XTypes_IS_DEFAULT, 0);
 
-  CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.seq[2].value, (1u << 31) - 1);
+  CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.seq[2].value, INT32_MIN);
   CU_ASSERT_FATAL (!(type->xt._u.enum_type.literals.seq[2].flags & DDS_XTypes_IS_DEFAULT));
 
   CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.seq[3].value, 2);
   CU_ASSERT_FATAL (!(type->xt._u.enum_type.literals.seq[3].flags & DDS_XTypes_IS_DEFAULT));
 
+  dds_dynamic_type_unref (&denum);
+}
+
+CU_Test (ddsc_dynamic_type, enum_literal_auto_after_negative, .init = dynamic_type_init, .fini = dynamic_type_fini)
+{
+  dds_dynamic_type_t denum = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_ENUMERATION, .name = "e" });
+  dds_return_t ret = dds_dynamic_type_set_bit_bound (&denum, 3);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_enum_literal (&denum, "e_min", DDS_DYNAMIC_ENUM_LITERAL_VALUE (-4), false);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_enum_literal (&denum, "e_auto", DDS_DYNAMIC_ENUM_LITERAL_VALUE_AUTO, false);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  struct ddsi_type *type = get_ddsi_type (&denum);
+  CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.length, 2);
+  CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.seq[0].value, -4);
+  CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.seq[1].value, -3);
+
+  dds_dynamic_type_unref (&denum);
+}
+
+CU_Test (ddsc_dynamic_type, enum_bit_bound_one, .init = dynamic_type_init, .fini = dynamic_type_fini)
+{
+  dds_dynamic_type_t denum = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_ENUMERATION, .name = "e" });
+  dds_return_t ret = dds_dynamic_type_set_bit_bound (&denum, 1);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_enum_literal (&denum, "e_neg1", DDS_DYNAMIC_ENUM_LITERAL_VALUE (-1), false);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_enum_literal (&denum, "e_auto0", DDS_DYNAMIC_ENUM_LITERAL_VALUE_AUTO, false);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  struct ddsi_type *type = get_ddsi_type (&denum);
+  CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.bit_bound, 1);
+  CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.length, 2);
+  CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.seq[0].value, -1);
+  CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.seq[1].value, 0);
+  dds_dynamic_type_unref (&denum);
+
+  denum = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_ENUMERATION, .name = "e" });
+  dds_dynamic_type_set_bit_bound (&denum, 1);
+  ret = dds_dynamic_type_add_enum_literal (&denum, "e1", DDS_DYNAMIC_ENUM_LITERAL_VALUE (1), false);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  dds_dynamic_type_unref (&denum);
+
+  denum = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_ENUMERATION, .name = "e" });
+  dds_dynamic_type_set_bit_bound (&denum, 1);
+  ret = dds_dynamic_type_add_enum_literal (&denum, "e_auto0", DDS_DYNAMIC_ENUM_LITERAL_VALUE_AUTO, false);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_enum_literal (&denum, "e_auto1", DDS_DYNAMIC_ENUM_LITERAL_VALUE_AUTO, false);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
   dds_dynamic_type_unref (&denum);
 }
 
@@ -452,6 +502,18 @@ CU_Test (ddsc_dynamic_type, enum_literal_invalid, .init = dynamic_type_init, .fi
   dds_dynamic_type_set_bit_bound (&denum, 2);
   ret = dds_dynamic_type_add_enum_literal (&denum, "e1", DDS_DYNAMIC_ENUM_LITERAL_VALUE (4), false);
   CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  dds_dynamic_type_unref (&denum);
+
+  denum = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_ENUMERATION, .name = "e" });
+  dds_dynamic_type_set_bit_bound (&denum, 2);
+  ret = dds_dynamic_type_add_enum_literal (&denum, "e1", DDS_DYNAMIC_ENUM_LITERAL_VALUE (2), false);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  dds_dynamic_type_unref (&denum);
+
+  denum = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_ENUMERATION, .name = "e" });
+  dds_dynamic_type_set_bit_bound (&denum, 2);
+  ret = dds_dynamic_type_add_enum_literal (&denum, "e_min", DDS_DYNAMIC_ENUM_LITERAL_VALUE (-2), false);
+  CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
   dds_dynamic_type_unref (&denum);
 }
 

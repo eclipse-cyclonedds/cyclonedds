@@ -191,7 +191,7 @@ CU_Test(idl_annotation, idl_default)
 typedef struct enum_default_test {
   const char *str;
   idl_retcode_t ret;
-  uint32_t default_index;
+  int32_t default_index;
   const char *default_name;
   uint32_t default_mask;
 } enum_default_test_t;
@@ -990,15 +990,17 @@ CU_Test(idl_annotation, bit_bound)
     { E("21"), true, 21 },
     { E("32"), true, 32 },
     { "enum MyEnum { ENUM1 };", true, 32 },
-    { "@bit_bound(1) enum MyEnum { ENUM1, ENUM2 };", true, 1 },
-    { "@bit_bound(3) enum MyEnum { ENUM1, @value (7) ENUM2 };", true, 3 },
+    { "@bit_bound(1) enum MyEnum { @value (-1) ENUM1, ENUM2 };", true, 1 },
+    { "@bit_bound(3) enum MyEnum { @value (-4) ENUM1, @value (3) ENUM2 };", true, 3 },
     /* invalid */
     { BM("0"), false, 0 },
     { BM("65"), false, 0 },
     { E("0"), false, 0 },
     { E("33"), false, 0 },
     { "@bit_bound(1) bitmask MyBitMask { flag0, flag1 };", false, 0 },
-    { "@bit_bound(1) enum MyEnum { ENUM1, ENUM2, ENUM3 };", false, 0 },
+    { "@bit_bound(1) enum MyEnum { ENUM1, ENUM2 };", false, 0 },
+    { "@bit_bound(3) enum MyEnum { ENUM1, @value (7) ENUM2 };", false, 0 },
+    { "@bit_bound(2) enum MyEnum { ENUM1, @value (2) ENUM2 };", false, 0 },
     { "@bit_bound(2) enum MyEnum { ENUM1, @value (4) ENUM2 };", false, 0 },
   };
   static const size_t n = sizeof(tests)/sizeof(tests[0]);

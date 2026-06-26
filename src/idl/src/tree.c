@@ -2831,7 +2831,6 @@ int64_t idl_case_label_intvalue(const void *ptr)
     return literal->value.uint8;
   } else if (type == IDL_ENUM) {
     idl_enumerator_t *enumerator = node->const_expr;
-    assert(enumerator->value.value <= INT32_MAX);
     return enumerator->value.value;
   } else if (type == IDL_BITMASK) {
     // FIXME: should allow (or require?) symbolic values
@@ -2864,8 +2863,8 @@ uint32_t idl_enum_max_value(const void *ptr)
   assert(idl_mask(node) & IDL_ENUM);
   uint32_t max = 0;
   for (idl_enumerator_t *e = node->enumerators; e; e = idl_next(e)) {
-    if (e->value.value > max)
-      max = e->value.value;
+    if (e->value.value > 0 && (uint32_t) e->value.value > max)
+      max = (uint32_t) e->value.value;
   }
   return max;
 }
@@ -2918,7 +2917,7 @@ idl_create_enum(
   static const struct methods methods = {
     delete_enum, iterate_enum, describe_enum };
   static const enum idl_declaration_kind kind = IDL_SPECIFIER_DECLARATION;
-  uint32_t value = UINT32_MAX;
+  int32_t value = -1;
 
   if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
     goto err_alloc;
@@ -2937,10 +2936,10 @@ idl_create_enum(
       //implicit value derived
 
       //check for possible wraparound
-      if (value == UINT32_MAX && idl_previous(e1)) {
+      if (value == INT32_MAX && idl_previous(e1)) {
         idl_error(pstate, idl_location(e1),
-          "Implicit value of enumerator '%s' will wrap around due to previous value being UINT32_MAX (%u).",
-          e1->name->identifier, UINT32_MAX);
+          "Implicit value of enumerator '%s' will wrap around due to previous value being INT32_MAX (%" PRId32 ").",
+          e1->name->identifier, INT32_MAX);
         ret = IDL_RETCODE_OUT_OF_RANGE;
         goto err_wraparound;
       }
