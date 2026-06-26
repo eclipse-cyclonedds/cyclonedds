@@ -107,6 +107,96 @@ static bool lookup_type_pair (struct dyntypelib *dtl, const char *names, struct 
   return res;
 }
 
+static void hexdump (const unsigned char *msg, const size_t len)
+{
+  for (size_t off16 = 0; off16 < len; off16 += 16)
+  {
+    printf ("%04" PRIxSIZE " ", off16);
+    size_t off1;
+    for (off1 = 0; off1 < 16 && off16 + off1 < len; off1++)
+      printf ("%s %02x", (off1 == 8) ? " " : "", msg[off16 + off1]);
+    for (; off1 < 16; off1++)
+      printf ("%s   ", (off1 == 8) ? " " : "");
+    printf ("  |");
+    for (off1 = 0; off1 < 16 && off16 + off1 < len; off1++)
+    {
+      unsigned char c = msg[off16 + off1];
+      printf ("%c", (c >= 32 && c < 127) ? c : '.');
+    }
+    printf ("|\n");
+  }
+  fflush (stdout);
+}
+
+static const char *encodingstr (const struct ddsi_serdata *sd)
+{
+  uint16_t encoding;
+  ddsi_serdata_to_ser (sd, 0, 2, &encoding);
+  switch (encoding)
+  {
+    case DDSI_RTPS_CDR_BE:
+    case DDSI_RTPS_CDR_LE:
+      return "CDR";
+    case DDSI_RTPS_PL_CDR_BE:
+    case DDSI_RTPS_PL_CDR_LE:
+      return "PL_CDR";
+    case DDSI_RTPS_CDR2_BE:
+    case DDSI_RTPS_CDR2_LE:
+      return "CDR2";
+    case DDSI_RTPS_D_CDR2_BE:
+    case DDSI_RTPS_D_CDR2_LE:
+      return "D_CDR2";
+    case DDSI_RTPS_PL_CDR2_BE:
+    case DDSI_RTPS_PL_CDR2_LE:
+      return "PL_CDR2";
+    default:
+      return "unknown";
+  }
+}
+
+static bool print_sample_cdr (dds_entity_t writer, const void *sample)
+{
+  // Note: doesn't print the exact CDR received, but the "normalised" one where byteswapping
+  // has been performed, booleans have been mapped to 0 or 1, and perhaps some other similar
+  // changes have been made.
+  const struct ddsi_sertype *st;
+  dds_get_entity_sertype (writer, &st);
+  struct ddsi_serdata *sd = ddsi_serdata_from_sample (st, SDK_DATA, sample);
+  if (sd == NULL)
+    return false;
+
+  printf ("encoding: %s\n", encodingstr (sd));
+  if (ddsi_serdata_size (sd) == 4)
+    printf ("(no payload)\n");
+  else
+  {
+    ddsrt_iovec_t iov;
+    struct ddsi_serdata *refsd;
+    refsd = ddsi_serdata_to_ser_ref (sd, 4, ddsi_serdata_size (sd) - 4, &iov);
+    hexdump (iov.iov_base, iov.iov_len);
+    ddsi_serdata_to_ser_unref (refsd, &iov);
+  }
+  ddsi_serdata_unref (sd);
+
+  struct ddsi_serdata *sdk = ddsi_serdata_from_sample (st, SDK_KEY, sample);
+  if (sdk == NULL)
+    return false;
+
+  printf ("key encoding: %s\n", encodingstr (sdk));
+  if (ddsi_serdata_size (sdk) == 4)
+    printf ("(no key payload)\n");
+  else
+  {
+    ddsrt_iovec_t iov;
+    struct ddsi_serdata *refsd;
+    refsd = ddsi_serdata_to_ser_ref (sdk, 4, ddsi_serdata_size (sdk) - 4, &iov);
+    hexdump (iov.iov_base, iov.iov_len);
+    ddsi_serdata_to_ser_unref (refsd, &iov);
+  }
+  ddsi_serdata_unref (sdk);
+  return true;
+}
+
 static bool doread (struct dyntypelib *dtl, const dds_entity_t ws, const dds_entity_t rd, DDS_XTypes_TypeObject const * const typeobj, bool exit_on_timeout)
 {
   dds_return_t rc;
@@ -120,7 +210,7 @@ static bool doread (struct dyntypelib *dtl, const dds_entity_t ws, const dds_ent
   while ((rc = dds_take (rd, &ptr, &si, 1, 1)) == 1)
   {
     if (!si.valid_data)
-      printf (output_format == DTL_SAMPLE_FORMAT_XML ? "<!-- invalid -->" : "[invalid] ");
+      printf (output_format == DTL_SAMPLE_FORMAT_XML ? "<!-- key -->" : "[key] ");
     print_sample (dtl, si.valid_data, ptr, &typeobj->_u.complete);
     dds_return_loan (rd, &ptr, 1);
   }
@@ -161,6 +251,7 @@ OPTIONS:\n\
                 - ignore member names\n\
                 - prevent type widening\n\
                 - force type validation\n\
+-C             print hexdump of CDR of sample/key before writing\n\
 -f FORMAT      print samples as json or xml\n\
 -x 0|1|2       force default (0) or XCDR version N\n\
 -i ID          use domain ID\n\
@@ -186,7 +277,8 @@ int main (int argc, char **argv)
   int xcdrv = 0;
   dds_domainid_t domainid = DDS_DOMAIN_DEFAULT;
   bool print_min_typeobj = false;
-  while ((opt = getopt (argc, argv, "c:f:i:MP:Rs:T:x:")) != EOF)
+  bool print_cdr = false;
+  while ((opt = getopt (argc, argv, "c:Cf:i:MP:Rs:T:x:")) != EOF)
   {
     switch (opt)
     {
@@ -198,6 +290,9 @@ int main (int argc, char **argv)
         tce = 0;
         for (const char *p = optarg; *p; p++)
           tce = (tce << 1) | (*p == '1');
+        break;
+      case 'C':
+        print_cdr = true;
         break;
       case 'f':
         if (!parse_sample_format (optarg, &output_format))
@@ -376,6 +471,8 @@ int main (int argc, char **argv)
       void *sample = dtl_scan_sample (dtl, input, &wrtype->typeobj->_u.complete, true, &err);
       if (sample == NULL)
         exitfmt ("%s: %s: can't convert to sample: %s\n", argv[0], argv[argi], err.errmsg);
+      if (print_cdr)
+        print_sample_cdr (wr, sample);
       if ((rc = dds_write (wr, sample)) != 0)
         exitfmt ("%s: %s: can't write: %s\n", argv[0], argv[argi], dds_strretcode (rc));
       const struct dds_cdrstream_allocator a = {
