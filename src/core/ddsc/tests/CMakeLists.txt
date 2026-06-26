@@ -40,7 +40,7 @@ idlc_generate(TARGET Array100 FILES Array100.idl WARNINGS no-implicit-extensibil
 idlc_generate(TARGET DynamicData FILES DynamicData.idl WARNINGS no-implicit-extensibility)
 if(ENABLE_TYPELIB)
   idlc_generate(TARGET SertypeData FILES SertypeData.idl)
-  idlc_generate(TARGET XSpace FILES XSpace.idl XSpaceEnum.idl XSpaceMustUnderstand.idl XSpaceTypeConsistencyEnforcement.idl WARNINGS no-implicit-extensibility no-inherit-appendable)
+  idlc_generate(TARGET XSpace FILES XSpace.idl XSpaceEnum.idl XSpaceEnumUnion.idl XSpaceMustUnderstand.idl XSpaceTypeConsistencyEnforcement.idl WARNINGS no-implicit-extensibility no-inherit-appendable)
   idlc_generate(TARGET XSpaceNoTypeInfo FILES XSpaceNoTypeInfo.idl NO_TYPE_INFO WARNINGS no-implicit-extensibility)
   idlc_generate(TARGET TypeBuilderTypes FILES TypeBuilderTypes.idl WARNINGS no-implicit-extensibility no-inherit-appendable)
   idlc_generate(TARGET DynamicTypeTypes FILES DynamicTypeTypes.idl)

@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
+#include "dds/ddsrt/attributes.h"
 #include "dds/features.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/hopscotch.h"
@@ -3436,6 +3437,244 @@ static bool xt_union_labels_match (const struct DDS_XTypes_UnionCaseLabelSeq *ls
 }
 
 ddsrt_nonnull_all
+static bool xt_union_label_seq_contains (const struct DDS_XTypes_UnionCaseLabelSeq *ls, int32_t label)
+{
+  /* UnionCaseLabelSeq is ordered by value (as noted in typeobject idl) */
+  uint32_t a = 0, b = ls->_length;
+  while (a < b)
+  {
+    const uint32_t m = a + (b - a) / 2;
+    const int32_t y = ls->_buffer[m];
+    if (y < label)
+      a = m + 1;
+    else
+      b = m;
+  }
+  return a < ls->_length && ls->_buffer[a] == label;
+}
+
+ddsrt_nonnull_all
+static const struct xt_union_member *xt_union_default_member (const struct xt_type *t)
+{
+  assert (t->_d == DDS_XTypes_TK_UNION);
+  for (uint32_t n = 0; n < t->_u.union_type.members.length; n++)
+    if (t->_u.union_type.members.seq[n].flags & DDS_XTypes_IS_DEFAULT)
+      return &t->_u.union_type.members.seq[n];
+  return NULL;
+}
+
+ddsrt_nonnull_all
+static const struct xt_union_member *xt_union_explicit_member_for_label (const struct xt_type *t, int32_t label)
+{
+  assert (t->_d == DDS_XTypes_TK_UNION);
+  for (uint32_t n = 0; n < t->_u.union_type.members.length; n++)
+    if (xt_union_label_seq_contains (&t->_u.union_type.members.seq[n].label_seq, label))
+      return &t->_u.union_type.members.seq[n];
+  return NULL;
+}
+
+ddsrt_nonnull ((1))
+static const struct xt_union_member *xt_union_selected_member (const struct xt_type *t, const struct xt_union_member *def_m, int32_t label)
+{
+  const struct xt_union_member *m = xt_union_explicit_member_for_label (t, label);
+  return m ? m : def_m;
+}
+
+ddsrt_nonnull_all
+static int32_t xt_enum_default_value (const struct xt_type *t)
+{
+  assert (t->_d == DDS_XTypes_TK_ENUM);
+  assert (t->_u.enum_type.literals.length > 0);
+  for (uint32_t i = 0; i < t->_u.enum_type.literals.length; i++)
+    if (t->_u.enum_type.literals.seq[i].flags & DDS_XTypes_IS_DEFAULT)
+      return t->_u.enum_type.literals.seq[i].value;
+  return t->_u.enum_type.literals.seq[0].value;
+}
+
+static bool xt_try_construct_is_use_default (uint16_t flags)
+{
+  const uint16_t tc = DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_TRY_CONSTRUCT2;
+  return (flags & tc) == DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+}
+
+struct xt_union_assignability_ctx {
+  const struct xt_type *t1, *t2;
+  const struct xt_type *t1_disc, *t2_disc;
+  const struct xt_union_member *t1_def_m, *t2_def_m;
+  const struct xt_union_member *t1_disc_def_m;
+  int32_t t1_disc_def_v;
+  bool t1_disc_use_def;
+};
+
+ddsrt_nonnull_all
+static bool xt_union_disc_value_valid (const struct xt_type *disc_type, int32_t label)
+{
+  switch (disc_type->_d)
+  {
+    case DDS_XTypes_TK_ENUM:
+      return xt_union_label_in_enum (disc_type, label);
+    case DDS_XTypes_TK_BITMASK:
+      return (((uint64_t) (uint32_t) label) & ~xt_union_label_bitmask_allowed_mask (disc_type)) == 0;
+    default:
+      return true;
+  }
+}
+
+static bool xt_type_is_uint (const struct xt_type *t)
+{
+  switch (t->_d)
+  {
+    case DDS_XTypes_TK_UINT8:
+    case DDS_XTypes_TK_UINT16:
+    case DDS_XTypes_TK_UINT32:
+    case DDS_XTypes_TK_UINT64:
+      return true;
+    default:
+      return false;
+  }
+}
+
+ddsrt_nonnull_all
+static uint64_t xt_uint_max (const struct xt_type *t)
+{
+  switch (t->_d)
+  {
+    case DDS_XTypes_TK_UINT8:
+      return UINT8_MAX;
+    case DDS_XTypes_TK_UINT16:
+      return UINT16_MAX;
+    case DDS_XTypes_TK_UINT32:
+      return UINT32_MAX;
+    case DDS_XTypes_TK_UINT64:
+      return UINT64_MAX;
+    default:
+      abort ();
+  }
+}
+
+static uint32_t xt_popcount64 (uint64_t x)
+{
+  uint32_t n = 0;
+  while (x != 0)
+  {
+    n += (uint32_t) (x & 1u);
+    x >>= 1;
+  }
+  return n;
+}
+
+static uint64_t xt_disc_value_count_from_bit_count (uint32_t bits)
+{
+  return (bits >= 64) ? UINT64_MAX : (UINT64_C (1) << bits);
+}
+
+ddsrt_nonnull_all
+static int32_t xt_union_disc_default_value (const struct xt_type *disc_type)
+{
+  if (disc_type->_d == DDS_XTypes_TK_ENUM)
+    return xt_enum_default_value (disc_type);
+  return 0;
+}
+
+ddsrt_nonnull_all
+static const struct xt_union_member *xt_union_selected_reader_member (const struct xt_union_assignability_ctx *uctx, int32_t label)
+{
+  if (uctx->t1_disc_use_def && !xt_union_disc_value_valid (uctx->t1_disc, label))
+    label = uctx->t1_disc_def_v;
+  if (label == uctx->t1_disc_def_v)
+    return uctx->t1_disc_def_m;
+  return xt_union_selected_member (uctx->t1, uctx->t1_def_m, label);
+}
+
+ddsrt_nonnull_all
+static uint64_t xt_union_writer_invalid_disc_value_count (const struct xt_union_assignability_ctx *uctx)
+{
+  /* Strong discriminator assignability is normally same-kind here, but bitmask is
+     special: xt_is_assignable_from_bitmask also accepts the matching unsigned integer
+     type (XTypes is such a mess ...)  A uint writer can produce values with bits outside
+     the reader bitmask, so those values follow the reader discriminator's
+     @try_construct(DEFAULT) path.  A uint reader, conversely, can represent all values
+     produced by a strongly-assignable bitmask writer. */
+  switch (uctx->t1_disc->_d)
+  {
+    case DDS_XTypes_TK_ENUM: {
+      uint64_t count = 0;
+      for (uint32_t n = 0; n < uctx->t2_disc->_u.enum_type.literals.length; n++)
+      {
+        const int32_t label = uctx->t2_disc->_u.enum_type.literals.seq[n].value;
+        if (!xt_union_label_in_enum (uctx->t1_disc, label))
+          count++;
+      }
+      return count;
+    }
+    case DDS_XTypes_TK_BITMASK: {
+      const uint64_t t1_mask = xt_union_label_bitmask_allowed_mask (uctx->t1_disc);
+      if (uctx->t2_disc->_d == DDS_XTypes_TK_BITMASK)
+      {
+        const uint64_t t2_mask = xt_union_label_bitmask_allowed_mask (uctx->t2_disc);
+        if ((t2_mask & ~t1_mask) == 0)
+          return 0;
+        const uint64_t all_t2_values = xt_disc_value_count_from_bit_count (xt_popcount64 (t2_mask));
+        const uint64_t valid_t1_values = xt_disc_value_count_from_bit_count (xt_popcount64 (t2_mask & t1_mask));
+        return (all_t2_values > valid_t1_values) ? (all_t2_values - valid_t1_values) : UINT64_MAX;
+      }
+      if (xt_type_is_uint (uctx->t2_disc))
+      {
+        const uint64_t t2_mask = xt_uint_max (uctx->t2_disc);
+        if ((t2_mask & ~t1_mask) == 0)
+          return 0;
+        const uint64_t all_t2_values = (t2_mask == UINT64_MAX) ? UINT64_MAX : t2_mask + 1;
+        const uint64_t valid_t1_values = xt_disc_value_count_from_bit_count (xt_popcount64 (t2_mask & t1_mask));
+        return (all_t2_values > valid_t1_values) ? (all_t2_values - valid_t1_values) : UINT64_MAX;
+      }
+      return 0;
+    }
+    default:
+      return 0;
+  }
+}
+
+ddsrt_nonnull ((1))
+static uint32_t xt_union_writer_explicit_invalid_disc_label_count (const struct xt_union_assignability_ctx *uctx)
+{
+  uint32_t count = 0;
+  for (uint32_t i2 = 0; i2 < uctx->t2->_u.union_type.members.length; i2++)
+  {
+    const struct xt_union_member *m2 = &uctx->t2->_u.union_type.members.seq[i2];
+    for (uint32_t l2 = 0; l2 < m2->label_seq._length; l2++)
+      if (!xt_union_disc_value_valid (uctx->t1_disc, m2->label_seq._buffer[l2]))
+        count++;
+  }
+  return count;
+}
+
+ddsrt_nonnull_all
+static bool xt_union_writer_unlabeled_invalid_disc_values_assignable (struct ddsi_domaingv *gv, struct xt_assignability_context *context, const struct xt_union_assignability_ctx *uctx, const dds_type_consistency_enforcement_qospolicy_t *tce, struct ddsi_non_assignability_reason *reason)
+{
+  /* This is for discriminator values that are valid for the writer, invalid for
+     the reader, and have no explicit writer case label.  The per-label loop
+     above never sees them, but the reader may still normalize the discriminator
+     to its default value and then expect a selected member payload. */
+  const uint64_t invalid_count = xt_union_writer_invalid_disc_value_count (uctx);
+  if (invalid_count <= xt_union_writer_explicit_invalid_disc_label_count (uctx))
+    return true;
+
+  const struct xt_union_member *m1 = uctx->t1_disc_def_m;
+  if (!uctx->t2_def_m)
+  {
+    if (!m1)
+      return true;
+    return xt_non_assignable (reason, DDSI_NONASSIGN_MISSING_CASE, uctx->t1, uctx->t2, m1->id);
+  }
+
+  if (!m1)
+    return xt_non_assignable (reason, DDSI_NONASSIGN_MISSING_CASE, uctx->t1, uctx->t2, uctx->t2_def_m->id);
+
+  const struct xt_type *m2t = ddsi_xt_unalias (&uctx->t2_def_m->type->xt);
+  return xt_is_assignable_from_impl (gv, context, ddsi_xt_unalias (&m1->type->xt), m2t, tce, reason);
+}
+
+ddsrt_nonnull_all
 static bool xt_is_assignable_from_enum (const struct xt_type *t1, const struct xt_type *t2, struct ddsi_non_assignability_reason *reason)
 {
   assert (t1->_d == DDS_XTypes_TK_ENUM);
@@ -3471,14 +3710,30 @@ static bool xt_is_assignable_from_enum (const struct xt_type *t1, const struct x
 ddsrt_nonnull_all
 static bool xt_is_assignable_from_union (struct ddsi_domaingv *gv, struct xt_assignability_context *context, const struct xt_type *t1, const struct xt_type *t2, const dds_type_consistency_enforcement_qospolicy_t *tce, struct ddsi_non_assignability_reason *reason)
 {
-  /* Note: T1 is the type of the writer, T2 is the type of the writer. These impractical names
-     are used because this is reader the definition of assignability in the specification. */
+  /* Note: T1 is the reader type, T2 is the writer type. These impractical names
+     are used because they follow the definition of assignability in the specification. */
   assert (t1->_d == DDS_XTypes_TK_UNION);
   assert (t2->_d == DDS_XTypes_TK_UNION);
   if (xt_get_extensibility (t1) != xt_get_extensibility (t2))
     return xt_non_assignable (reason, DDSI_NONASSIGN_DIFFERENT_EXTENSIBILITY, t1, t2, 0);
-  if (!xt_is_strongly_assignable_from (gv, context, ddsi_xt_unalias (&t1->_u.union_type.disc_type->xt), ddsi_xt_unalias (&t2->_u.union_type.disc_type->xt), tce, reason))
+  const struct xt_type *t1_disc = ddsi_xt_unalias (&t1->_u.union_type.disc_type->xt);
+  const struct xt_type *t2_disc = ddsi_xt_unalias (&t2->_u.union_type.disc_type->xt);
+  if (!xt_is_strongly_assignable_from (gv, context, t1_disc, t2_disc, tce, reason))
     return false;
+  const int32_t t1_disc_def_v = xt_union_disc_default_value (t1_disc);
+  const struct xt_union_member *t1_def_m = xt_union_default_member (t1);
+  const struct xt_union_member *t2_def_m = xt_union_default_member (t2);
+  const struct xt_union_assignability_ctx uctx = {
+    .t1 = t1,
+    .t2 = t2,
+    .t1_disc = t1_disc,
+    .t2_disc = t2_disc,
+    .t1_def_m = t1_def_m,
+    .t2_def_m = t2_def_m,
+    .t1_disc_def_m = xt_union_selected_member (t1, t1_def_m, t1_disc_def_v),
+    .t1_disc_def_v = t1_disc_def_v,
+    .t1_disc_use_def = xt_try_construct_is_use_default (t1->_u.union_type.disc_flags)
+  };
 
   /* Rule: Either the discriminators of both T1 and T2 are keys or neither are keys. */
   if ((t1->_u.union_type.disc_flags & DDS_XTypes_IS_KEY) != (t2->_u.union_type.disc_flags & DDS_XTypes_IS_KEY))
@@ -3497,7 +3752,6 @@ static bool xt_is_assignable_from_union (struct ddsi_domaingv *gv, struct xt_ass
     struct xt_union_member *m1 = &t1->_u.union_type.members.seq[i1];
     const struct xt_type *m1t = ddsi_xt_unalias (&m1->type->xt);
     bool m2_id_match = false, m2_labels_match = true, t1_selects_t2_member = false;
-    struct xt_union_member *def_m2 = NULL;
     /* Rule: Any members in T1 and T2 that have the same name also have the same ID and any members
        with the same ID also have the same name. */
     if (!tce->ignore_member_names)
@@ -3532,15 +3786,13 @@ static bool xt_is_assignable_from_union (struct ddsi_domaingv *gv, struct xt_ass
         m2_labels_match = false;
       if (xt_union_label_selects (&m1->label_seq, &m2->label_seq))
         t1_selects_t2_member = true;
-      if (m2->flags & DDS_XTypes_IS_DEFAULT)
-        def_m2 = m2;
     } /* loop T2 members */
 
     /* Rule: If any non-default labels in T1 that select the default member in T2, the type of the member in T1 is
       assignable from the type of the T2 default member. */
-    if (!(m1->flags & DDS_XTypes_IS_DEFAULT) && !t1_selects_t2_member && def_m2)
+    if (!(m1->flags & DDS_XTypes_IS_DEFAULT) && !t1_selects_t2_member && uctx.t2_def_m)
     {
-      if (!xt_is_assignable_from_impl (gv, context, m1t, ddsi_xt_unalias (&def_m2->type->xt), tce, reason))
+      if (!xt_is_assignable_from_impl (gv, context, m1t, ddsi_xt_unalias (&uctx.t2_def_m->type->xt), tce, reason))
         return false;
     }
 
@@ -3553,27 +3805,30 @@ static bool xt_is_assignable_from_union (struct ddsi_domaingv *gv, struct xt_ass
   } /* loop T1 members */
 
   /* Rule: For all non-default labels in T2 that select some member in T1 (including selecting the member in T1’s
-    default label), the type of the selected member in T1 is assignable from the type of the T2 member. */
+    default label), the type of the selected member in T1 is assignable from the type of the T2 member.  When
+    a T2 discriminator value is invalid in T1 and the T1 discriminator has @try_construct(DEFAULT), the selected
+    T1 member is the one selected by T1's discriminator default value. */
   for (uint32_t i2 = 0; i2 < i2_max; i2++)
   {
-    // FIXME: integrate this in the loop above to get better performance
     struct xt_union_member *m2 = &t2->_u.union_type.members.seq[i2];
     if (m2->flags & DDS_XTypes_IS_DEFAULT)
       continue;
-    struct xt_union_member *def_m1 = NULL, *sel_m1 = NULL;
-    for (uint32_t i1 = i2; i1 < i1_max + i2; i1++)
+    const struct xt_type *m2t = ddsi_xt_unalias (&m2->type->xt);
+    for (uint32_t l2 = 0; l2 < m2->label_seq._length; l2++)
     {
-      struct xt_union_member *m1 = &t1->_u.union_type.members.seq[i1 % i1_max];
-      if (xt_union_label_selects (&m2->label_seq, &m1->label_seq))
-        sel_m1 = m1;
-      if (m1->flags & DDS_XTypes_IS_DEFAULT)
-        def_m1 = m1;
+      const struct xt_union_member *m1 = xt_union_selected_reader_member (&uctx, m2->label_seq._buffer[l2]);
+      if (m1 && !xt_is_assignable_from_impl (gv, context, ddsi_xt_unalias (&m1->type->xt), m2t, tce, reason))
+        return false;
+      if (!m1 && tce->prevent_type_widening)
+        return xt_non_assignable (reason, DDSI_NONASSIGN_MISSING_CASE, t1, t2, m2->id);
     }
-    if ((sel_m1 || def_m1) && !xt_is_assignable_from_impl (gv, context, ddsi_xt_unalias (sel_m1 ? &sel_m1->type->xt : &def_m1->type->xt), ddsi_xt_unalias(&m2->type->xt), tce, reason))
-      return false;
-    if (!sel_m1 && tce->prevent_type_widening)
-      return xt_non_assignable (reason, DDSI_NONASSIGN_MISSING_CASE, t1, t2, m2->id);
   }
+
+  /* Discriminator values that are valid in T2 but invalid in T1 may have no explicit writer case labels.  They
+    need a separate check when the reader discriminator defaults, because the reader may then expect a selected
+    member payload that the writer did not serialize. */
+  if (uctx.t1_disc_use_def && !xt_union_writer_unlabeled_invalid_disc_values_assignable (gv, context, &uctx, tce, reason))
+    return false;
 
   /* Rule: [extensibility is final], otherwise, they have at least one common label other than the default label. */
   if (!any_match)
