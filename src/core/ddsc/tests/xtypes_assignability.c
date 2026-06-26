@@ -41,6 +41,7 @@
 
 #include "XSpace.h"
 #include "XSpaceEnum.h"
+#include "XSpaceEnumUnion.h"
 #include "XSpaceMustUnderstand.h"
 #include "XSpaceTypeConsistencyEnforcement.h"
 #include "XSpaceNoTypeInfo.h"
@@ -664,3 +665,69 @@ CU_Theory ((const dds_topic_descriptor_t *rd_desc, const dds_topic_descriptor_t 
 }
 
 #undef DB
+
+/* Union discriminator enum defaulting test cases */
+static void sample_init_enum_union_extra_explicit_long (void *ptr)
+{
+  XSpaceEnumUnionWr_extra_explicit_long *sample = (XSpaceEnumUnionWr_extra_explicit_long *) ptr;
+  sample->_d = XSpaceEnumUnionWr_C;
+  sample->_u.c = 42;
+}
+
+static void sample_check_enum_union_extra_explicit_long (void *wrptr, void *rdptr)
+{
+  XSpaceEnumUnionWr_extra_explicit_long *wr_sample = (XSpaceEnumUnionWr_extra_explicit_long *) wrptr;
+  XSpaceEnumUnionRd_explicit_default_string *rd_sample = (XSpaceEnumUnionRd_explicit_default_string *) rdptr;
+  CU_ASSERT_EQ_FATAL (wr_sample->_d, XSpaceEnumUnionWr_C);
+  CU_ASSERT_EQ_FATAL (rd_sample->_d, XSpaceEnumUnionRd_A);
+  CU_ASSERT_EQ_FATAL (rd_sample->_u.a, wr_sample->_u.c);
+}
+
+static void sample_init_enum_union_extra_default_long (void *ptr)
+{
+  XSpaceEnumUnionWr_extra_default_long *sample = (XSpaceEnumUnionWr_extra_default_long *) ptr;
+  sample->_d = XSpaceEnumUnionWr_C;
+  sample->_u.x = 73;
+}
+
+static void sample_check_enum_union_extra_default_long (void *wrptr, void *rdptr)
+{
+  XSpaceEnumUnionWr_extra_default_long *wr_sample = (XSpaceEnumUnionWr_extra_default_long *) wrptr;
+  XSpaceEnumUnionRd_explicit_long *rd_sample = (XSpaceEnumUnionRd_explicit_long *) rdptr;
+  CU_ASSERT_EQ_FATAL (wr_sample->_d, XSpaceEnumUnionWr_C);
+  CU_ASSERT_EQ_FATAL (rd_sample->_d, XSpaceEnumUnionRd_A);
+  CU_ASSERT_EQ_FATAL (rd_sample->_u.a, wr_sample->_u.x);
+}
+
+static void sample_init_bitmask_uint8_default_long (void *ptr)
+{
+  XSpaceEnumUnionWr_uint8_default_long *sample = (XSpaceEnumUnionWr_uint8_default_long *) ptr;
+  sample->_d = 4;
+  sample->_u.x = 91;
+}
+
+static void sample_check_bitmask_uint8_default_long (void *wrptr, void *rdptr)
+{
+  XSpaceEnumUnionWr_uint8_default_long *wr_sample = (XSpaceEnumUnionWr_uint8_default_long *) wrptr;
+  XSpaceEnumUnionRd_bitmask_uint_default_long *rd_sample = (XSpaceEnumUnionRd_bitmask_uint_default_long *) rdptr;
+  CU_ASSERT_EQ_FATAL (wr_sample->_d, 4);
+  CU_ASSERT_EQ_FATAL (rd_sample->_d, 0);
+  CU_ASSERT_EQ_FATAL (rd_sample->_u.z, wr_sample->_u.x);
+}
+
+CU_Test (ddsc_xtypes_assignability, enum_union_discriminator_try_construct_default, .init = xtypes_assignability_init, .fini = xtypes_assignability_fini)
+{
+  do_test (&XSpaceEnumUnionRd_explicit_default_string_desc, NULL, &XSpaceEnumUnionWr_extra_explicit_long_desc, NULL, true, sample_init_enum_union_extra_explicit_long, true, sample_check_enum_union_extra_explicit_long);
+  do_test (&XSpaceEnumUnionRd_explicit_long_desc, NULL, &XSpaceEnumUnionWr_extra_default_long_desc, NULL, true, sample_init_enum_union_extra_default_long, true, sample_check_enum_union_extra_default_long);
+  do_test (&XSpaceEnumUnionRd_explicit_default_string_desc, NULL, &XSpaceEnumUnionWr_extra_explicit_string_desc, NULL, false, 0, false, 0);
+  do_test (&XSpaceEnumUnionRd_explicit_long_desc, NULL, &XSpaceEnumUnionWr_extra_default_string_desc, NULL, false, 0, false, 0);
+  do_test (&XSpaceEnumUnionRd_explicit_long_desc, NULL, &XSpaceEnumUnionWr_extra_implicit_none_desc, NULL, false, 0, false, 0);
+}
+
+CU_Test (ddsc_xtypes_assignability, bitmask_uint_union_discriminator_try_construct_default, .init = xtypes_assignability_init, .fini = xtypes_assignability_fini)
+{
+  do_test (&XSpaceEnumUnionRd_bitmask_uint_default_long_desc, NULL, &XSpaceEnumUnionWr_uint8_default_long_desc, NULL, true, sample_init_bitmask_uint8_default_long, true, sample_check_bitmask_uint8_default_long);
+  do_test (&XSpaceEnumUnionRd_bitmask_uint_default_long_desc, NULL, &XSpaceEnumUnionWr_uint8_default_string_desc, NULL, false, 0, false, 0);
+  do_test (&XSpaceEnumUnionRd_bitmask_uint_default_long_desc, NULL, &XSpaceEnumUnionWr_bitmask_implicit_none_desc, NULL, false, 0, false, 0);
+  do_test (&XSpaceEnumUnionRd_bitmask_uint_default_long_desc, NULL, &XSpaceEnumUnionWr_uint8_implicit_none_desc, NULL, false, 0, false, 0);
+}
