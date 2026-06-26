@@ -54,6 +54,27 @@ struct dyntypelib_error {
   char errmsg[256];
 };
 
+enum dtl_sample_format {
+  DTL_SAMPLE_FORMAT_JSON,
+  DTL_SAMPLE_FORMAT_XML
+};
+
+typedef dds_return_t (*dtl_sample_write_fn) (void *state, const char *data, size_t size);
+
+struct dtl_sample_output {
+  dtl_sample_write_fn write;
+  void *state;
+};
+
+struct dtl_sample_print_options {
+  enum dtl_sample_format format;
+  size_t max_output_bytes;       /* 0 means unlimited */
+  size_t max_string_chars;       /* 0 means unlimited */
+  uint32_t max_collection_items; /* 0 means unlimited */
+  uint32_t collection_tail_items;
+  bool trailing_newline;
+};
+
 ddsrt_nonnull ((1, 3))
 ddsrt_attribute_format_printf (3, 4)
 dds_return_t dtl_set_error (struct dyntypelib_error *err, const struct elem *elem, const char *fmt, ...);
@@ -66,6 +87,10 @@ dds_return_t dtl_add_typeid (struct dyntypelib *dtl, const dds_typeinfo_t *typei
 struct dyntype *dtl_lookup_typename (struct dyntypelib *dtl, const char *name);
 
 void dtl_print_sample (struct dyntypelib *dtl, bool valid_data, const void *sample, const DDS_XTypes_CompleteTypeObject *typeobj);
+dds_return_t dtl_print_sample_to (struct dyntypelib *dtl, bool valid_data, const void *sample, const DDS_XTypes_CompleteTypeObject *typeobj, const struct dtl_sample_print_options *opts, const struct dtl_sample_output *out,
+  struct dyntypelib_error *err);
+dds_return_t dtl_print_sample_to_string (struct dyntypelib *dtl, bool valid_data, const void *sample, const DDS_XTypes_CompleteTypeObject *typeobj, const struct dtl_sample_print_options *opts, char **str, size_t *len,
+  struct dyntypelib_error *err);
 void *dtl_scan_sample (struct dyntypelib *dtl, const struct elem *input, const DDS_XTypes_CompleteTypeObject *typeobj, const bool ignore_unknown_members, struct dyntypelib_error *err);
 
 void dtl_free (struct dyntypelib *dtl);

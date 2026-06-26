@@ -29,6 +29,8 @@
 #include "dds__serdata_default.h"
 #endif
 
+static enum dtl_sample_format output_format = DTL_SAMPLE_FORMAT_JSON;
+
 ddsrt_nonnull_all
 ddsrt_attribute_noreturn
 ddsrt_attribute_format_printf (1, 2)
@@ -39,6 +41,36 @@ static void exitfmt (const char *fmt, ...)
   vfprintf (stderr, fmt, ap);
   va_end (ap);
   exit (1);
+}
+
+static bool parse_sample_format (const char *arg, enum dtl_sample_format *fmt)
+{
+  if (strcmp (arg, "json") == 0)
+  {
+    *fmt = DTL_SAMPLE_FORMAT_JSON;
+    return true;
+  }
+  if (strcmp (arg, "xml") == 0)
+  {
+    *fmt = DTL_SAMPLE_FORMAT_XML;
+    return true;
+  }
+  return false;
+}
+
+static void print_sample (struct dyntypelib *dtl, bool valid_data, const void *sample, const DDS_XTypes_CompleteTypeObject *typeobj)
+{
+  struct dyntypelib_error err = { .errmsg = "" };
+  char *str = NULL;
+  const struct dtl_sample_print_options opts = {
+    .format = output_format,
+    .trailing_newline = true
+  };
+  dds_return_t rc = dtl_print_sample_to_string (dtl, valid_data, sample, typeobj, &opts, &str, NULL, &err);
+  if (rc != DDS_RETCODE_OK)
+    exitfmt ("can't print sample: %s\n", err.errmsg);
+  (void) fputs (str, stdout);
+  ddsrt_free (str);
 }
 
 static bool lookup_type_pair (struct dyntypelib *dtl, const char *names, struct dyntype **wrtype, struct dyntype **rdtype)
@@ -88,8 +120,8 @@ static bool doread (struct dyntypelib *dtl, const dds_entity_t ws, const dds_ent
   while ((rc = dds_take (rd, &ptr, &si, 1, 1)) == 1)
   {
     if (!si.valid_data)
-      printf ("[invalid] ");
-    dtl_print_sample (dtl, si.valid_data, ptr, &typeobj->_u.complete);
+      printf (output_format == DTL_SAMPLE_FORMAT_XML ? "<!-- invalid -->" : "[invalid] ");
+    print_sample (dtl, si.valid_data, ptr, &typeobj->_u.complete);
     dds_return_loan (rd, &ptr, 1);
   }
   if (rc < 0)
@@ -129,6 +161,7 @@ OPTIONS:\n\
                 - ignore member names\n\
                 - prevent type widening\n\
                 - force type validation\n\
+-f FORMAT      print samples as json or xml\n\
 -x 0|1|2       force default (0) or XCDR version N\n\
 -i ID          use domain ID\n\
 -M             also print minimal type object\n\
@@ -153,7 +186,7 @@ int main (int argc, char **argv)
   int xcdrv = 0;
   dds_domainid_t domainid = DDS_DOMAIN_DEFAULT;
   bool print_min_typeobj = false;
-  while ((opt = getopt (argc, argv, "c:i:MP:Rs:T:x:")) != EOF)
+  while ((opt = getopt (argc, argv, "c:f:i:MP:Rs:T:x:")) != EOF)
   {
     switch (opt)
     {
@@ -165,6 +198,10 @@ int main (int argc, char **argv)
         tce = 0;
         for (const char *p = optarg; *p; p++)
           tce = (tce << 1) | (*p == '1');
+        break;
+      case 'f':
+        if (!parse_sample_format (optarg, &output_format))
+          exitfmt ("%s: %s is not a valid output format\n", argv[0], optarg);
         break;
       case 'i':
         domainid = (uint32_t) atoi (optarg);

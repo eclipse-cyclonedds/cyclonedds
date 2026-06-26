@@ -1,4 +1,4 @@
-// Copyright(c) 2022 to 2023 ZettaScale Technology and others
+// Copyright(c) 2022 to 2026 ZettaScale Technology and others
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License v. 2.0 which is available at
@@ -8,47 +8,56 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-// Printing JSON: the TypeObject/TypeIdentifier handling follows the pattern used for building the type cache,
-// except now it just looks up entries in the cache (that are always present).  We do pass a bit of context:
-// - whether the sample is a "valid sample", that is: whether all fields are valid, or only the key fields
-// - whether all fields in the path from the top-level had the "key" annotation set, because only in that case
-//   is the field actually a key field
-// The trouble with skipping non-key fields is that we still need to go over them to compute the offset of the
-// key fields that follow it.  Of course it would be possible to store more information in the type cache, but
-// that is left as an exercise to the reader.
-
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
-#include <assert.h>
 #include <wchar.h>
 
-#include "type_cache.h"
 #include "compare_samples.h"
+#include "dyntypelib.h"
+#include "size_and_align.h"
 
-struct context {
+struct compare_ctx {
+  struct type_cache *tc;
   bool valid_data;
-  bool key;
-  size_t offset;
-  size_t maxalign;
-  bool needs_comma;
+  bool equal;
+  struct dyntypelib_error *err;
 };
 
-static void finish_sequence_element (struct context *c)
+struct array_info {
+  const DDS_XTypes_TypeIdentifier *elem_type;
+  uint32_t nbounds;
+  bool small_bounds;
+  union {
+    const DDS_XTypes_SBound *small;
+    const DDS_XTypes_LBound *large;
+  } bounds;
+};
+
+ddsrt_attribute_format_printf (2, 3)
+static dds_return_t compare_error (struct compare_ctx *ctx, const char *fmt, ...)
 {
-  if (c->offset % c->maxalign)
-    c->offset += c->maxalign - (c->offset % c->maxalign);
+  if (ctx->err)
+  {
+    va_list ap;
+    va_start (ap, fmt);
+    (void) vsnprintf (ctx->err->errmsg, sizeof (ctx->err->errmsg), fmt, ap);
+    va_end (ap);
+  }
+  return DDS_RETCODE_ERROR;
 }
 
-static const void *align (const unsigned char *base, struct context *c, size_t align, size_t size)
+static bool visible (const struct compare_ctx *ctx, bool key_path)
 {
-  if (align > c->maxalign)
-    c->maxalign = align;
-  if (c->offset % align)
-    c->offset += align - (c->offset % align);
-  const size_t o = c->offset;
-  c->offset += size;
-  return base + o;
+  return ctx->valid_data || key_path;
+}
+
+static bool simple_kind (DDS_XTypes_TypeKind kind)
+{
+  size_t align, size;
+  return dtl_simple_alignof_sizeof (kind, &align, &size);
 }
 
 static bool is_indirect_member (DDS_XTypes_MemberFlag flags)
@@ -59,6 +68,78 @@ static bool is_indirect_member (DDS_XTypes_MemberFlag flags)
 static bool is_optional_member (DDS_XTypes_MemberFlag flags)
 {
   return (flags & DDS_XTypes_IS_OPTIONAL) != 0;
+}
+
+static bool strings_equal (const char *a, const char *b)
+{
+  return (a == NULL || b == NULL) ? (a == b) : strcmp (a, b) == 0;
+}
+
+static bool wstrings_equal (const wchar_t *a, const wchar_t *b)
+{
+  return (a == NULL || b == NULL) ? (a == b) : wcscmp (a, b) == 0;
+}
+
+static uint64_t read_bitmask_value (const void *p, uint16_t bit_bound)
+{
+  if (bit_bound > 32)
+    return *((const uint64_t *) p);
+  else if (bit_bound > 16)
+    return *((const uint32_t *) p);
+  else if (bit_bound > 8)
+    return *((const uint16_t *) p);
+  else
+    return *((const uint8_t *) p);
+}
+
+static const char *string8_value (const unsigned char *obj, const DDS_XTypes_TypeIdentifier *typeid, bool direct_string)
+{
+  if (dtl_is_bounded_string_ti (typeid) || direct_string)
+    return (const char *) obj;
+  return *((const char * const *) obj);
+}
+
+static const wchar_t *string16_value (const unsigned char *obj, const DDS_XTypes_TypeIdentifier *typeid, bool direct_string)
+{
+  if (dtl_is_bounded_string_ti (typeid) || direct_string)
+    return (const wchar_t *) obj;
+  return *((const wchar_t * const *) obj);
+}
+
+static const unsigned char *advance_ti (struct compare_ctx *ctx, const unsigned char *base, size_t *off, const DDS_XTypes_TypeIdentifier *typeid, bool indirect)
+{
+  if (indirect)
+    return dtl_align ((unsigned char *) base, off, _Alignof (void *), sizeof (void *));
+
+  size_t align, size;
+  type_cache_typeid_align_size (ctx->tc, typeid, &align, &size);
+  return dtl_align ((unsigned char *) base, off, align, size);
+}
+
+static bool typeobj_is_unbounded_string (struct compare_ctx *ctx, const DDS_XTypes_CompleteTypeObject *typeobj);
+
+static bool typeid_is_unbounded_string (struct compare_ctx *ctx, const DDS_XTypes_TypeIdentifier *typeid)
+{
+  if (dtl_is_unbounded_string_ti (typeid))
+    return true;
+  switch (typeid->_d)
+  {
+    case DDS_XTypes_EK_COMPLETE:
+    case DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT: {
+      struct typeinfo *info = type_cache_lookup_typeid (ctx->tc, typeid);
+      return typeobj_is_unbounded_string (ctx, info->typeobj);
+    }
+  }
+  return false;
+}
+
+static bool typeobj_is_unbounded_string (struct compare_ctx *ctx, const DDS_XTypes_CompleteTypeObject *typeobj)
+{
+  if (dtl_is_unbounded_string_to (typeobj))
+    return true;
+  if (typeobj->_d == DDS_XTypes_TK_ALIAS)
+    return typeid_is_unbounded_string (ctx, &typeobj->_u.alias_type.body.common.related_type);
+  return false;
 }
 
 static bool union_member_has_label (const DDS_XTypes_CompleteUnionMember *member, int32_t disc_value)
@@ -83,385 +164,369 @@ static const DDS_XTypes_CompleteUnionMember *find_union_member_for_disc (const D
   return default_member;
 }
 
-static uint64_t read_bitmask_value (const void *p, uint16_t bit_bound)
+static bool get_array_info (const DDS_XTypes_TypeIdentifier *typeid, struct array_info *info)
 {
-  if (bit_bound > 32)
-    return *((const uint64_t *) p);
-  else if (bit_bound > 16)
-    return *((const uint32_t *) p);
-  else if (bit_bound > 8)
-    return *((const uint16_t *) p);
-  else
-    return *((const uint8_t *) p);
-}
-
-static int samples_eq1_to (struct type_cache *tc, const unsigned char *sample1, const unsigned char *sample2, const DDS_XTypes_CompleteTypeObject *typeobj, struct context *c1, struct context *c2, const char *label, bool is_base_type, bool is_opt);
-
-static int samples_eq1_simple (const unsigned char *sample1, const unsigned char *sample2, const uint8_t disc, struct context *c1, struct context *c2, const char *label, int32_t *union_disc_value, bool is_opt)
-{
-  (void) label;
-  switch (disc)
-  {
-#define CASEI(disc, type, fmt) DDS_XTypes_TK_##disc: { \
-    const type *p1 = (const type *) align (sample1, c1, _Alignof(type), sizeof(type)); \
-    const type *p2 = (const type *) align (sample2, c2, _Alignof(type), sizeof(type)); \
-    if (union_disc_value) *union_disc_value = (int32_t) *p1; \
-    if ((c1->key || c1->valid_data) && (c2->key || c2->valid_data)) { return fmt; } \
-    return false; \
-  }
-#define CASE(disc, type, fmt) DDS_XTypes_TK_##disc: { \
-    const type *p1 = (const type *) align (sample1, c1, _Alignof(type), sizeof(type)); \
-    const type *p2 = (const type *) align (sample2, c2, _Alignof(type), sizeof(type)); \
-    if ((c1->key || c1->valid_data) && (c2->key || c2->valid_data)) { return fmt;} \
-    return false; \
-  }
-    case CASEI(BOOLEAN, uint8_t, *p1 == *p2);
-    case CASEI(CHAR8, int8_t, *p1 == *p2);
-    case CASEI(CHAR16, wchar_t, *p1 == *p2);
-    case CASEI(INT16, int16_t, *p1 == *p2);
-    case CASEI(INT32, int32_t, *p1 == *p2);
-    case CASEI(INT64, int64_t, *p1 == *p2);
-    case CASEI(BYTE, uint8_t, *p1 == *p2);
-    case CASEI(UINT8, uint8_t, *p1 == *p2);
-    case CASEI(UINT16, uint16_t, *p1 == *p2);
-    case CASEI(UINT32, uint32_t, *p1 == *p2);
-    case CASEI(UINT64, uint64_t, *p1 == *p2);
-    case CASE(FLOAT32, float, *p1 == *p2);
-    case CASE(FLOAT64, double, *p1 == *p2);
-#undef CASE
-    case DDS_XTypes_TK_STRING8: {
-      const void *p1 = align (sample1, c1, _Alignof (char *), sizeof (char *));
-      const void *p2 = align (sample2, c2, _Alignof (char *), sizeof (char *));
-      const char *s1 = is_opt ? p1 : *(const char * const *) p1;
-      const char *s2 = is_opt ? p2 : *(const char * const *) p2;
-      if ((c1->key || c1->valid_data) && (c2->key || c2->valid_data))
-        return (s1 == NULL || s2 == NULL) ? (s1 == s2) : (strcmp (s1, s2) == 0);
-      return false;
-    }
-    case DDS_XTypes_TK_STRING16: {
-      const void *p1 = align (sample1, c1, _Alignof (wchar_t *), sizeof (wchar_t *));
-      const void *p2 = align (sample2, c2, _Alignof (wchar_t *), sizeof (wchar_t *));
-      const wchar_t *s1 = is_opt ? p1 : *(const wchar_t * const *) p1;
-      const wchar_t *s2 = is_opt ? p2 : *(const wchar_t * const *) p2;
-      if ((c1->key || c1->valid_data) && (c2->key || c2->valid_data))
-        return (s1 == NULL || s2 == NULL) ? (s1 == s2) : (wcscmp (s1, s2) == 0);
-      return false;
-    }
-    case DDS_XTypes_TK_FLOAT128: { // FIXME
-      const unsigned char *p1 = align (sample1, c1, 8, 16);
-      const unsigned char *p2 = align (sample2, c2, 8, 16);
-      return memcmp(p1, p2, 16) == 0;
-    }
-  }
-  return -1;
-}
-
-static const char *get_string_pointer (const unsigned char *sample, const DDS_XTypes_TypeIdentifier *typeid, struct context *c, bool is_opt)
-{
-  uint32_t bound;
-  if (typeid->_d == DDS_XTypes_TI_STRING8_SMALL)
-    bound = typeid->_u.string_sdefn.bound;
-  else
-    bound = typeid->_u.string_ldefn.bound;
-  // must always call align for its side effects
-  if (bound != 0)
-  {
-    return align (sample, c, _Alignof (char), bound + 1);
-  }
-  else if (!is_opt)
-  {
-    // if not "valid_data" and not a key field, this'll be a null pointer
-    return *((const char **) align (sample, c, _Alignof (char *), sizeof (char *)));
-  }
-  else
-  {
-    return (const char *) sample;
-  }
-}
-
-static const wchar_t *get_wstring_pointer (const unsigned char *sample, const DDS_XTypes_TypeIdentifier *typeid, struct context *c, bool is_opt)
-{
-  uint32_t bound;
-  if (typeid->_d == DDS_XTypes_TI_STRING16_SMALL)
-    bound = typeid->_u.string_sdefn.bound;
-  else
-    bound = typeid->_u.string_ldefn.bound;
-  // must always call align for its side effects
-  if (bound != 0)
-  {
-    return align (sample, c, _Alignof (wchar_t), (bound + 1) * sizeof (wchar_t));
-  }
-  else if (!is_opt)
-  {
-    // if not "valid_data" and not a key field, this'll be a null pointer
-    return *((const wchar_t **) align (sample, c, _Alignof (wchar_t *), sizeof (wchar_t *)));
-  }
-  else
-  {
-    return (const wchar_t *) sample;
-  }
-}
-
-static int samples_eq1_ti (struct type_cache *tc, const unsigned char *sample1, const unsigned char *sample2, const DDS_XTypes_TypeIdentifier *typeid, uint32_t rank, struct context *c1, struct context *c2, const char *label, bool is_base_type, bool is_opt)
-{
-  int tmp = samples_eq1_simple(sample1, sample2, typeid->_d, c1, c2, label, NULL, is_opt);
-  if (tmp >= 0)
-    return tmp;
   switch (typeid->_d)
   {
-    case DDS_XTypes_TI_STRING8_SMALL:
-    case DDS_XTypes_TI_STRING8_LARGE: {
-      const char *p1 = get_string_pointer (sample1, typeid, c1, is_opt);
-      const char *p2 = get_string_pointer (sample2, typeid, c2, is_opt);
-      if ((c1->key || c1->valid_data) && (c2->key || c2->valid_data))
-      {
-        return strcmp(p1, p2) == 0;
-      }
-      return false;
+    case DDS_XTypes_TI_PLAIN_ARRAY_SMALL:
+      *info = (struct array_info){
+        .elem_type = typeid->_u.array_sdefn.element_identifier,
+        .nbounds = typeid->_u.array_sdefn.array_bound_seq._length,
+        .small_bounds = true,
+        .bounds.small = typeid->_u.array_sdefn.array_bound_seq._buffer
+      };
+      return true;
+    case DDS_XTypes_TI_PLAIN_ARRAY_LARGE:
+      *info = (struct array_info){
+        .elem_type = typeid->_u.array_ldefn.element_identifier,
+        .nbounds = typeid->_u.array_ldefn.array_bound_seq._length,
+        .small_bounds = false,
+        .bounds.large = typeid->_u.array_ldefn.array_bound_seq._buffer
+      };
+      return true;
+  }
+  return false;
+}
+
+static uint32_t array_bound (const struct array_info *info, uint32_t rank)
+{
+  return info->small_bounds ? info->bounds.small[rank] : info->bounds.large[rank];
+}
+
+static uint32_t array_nelem (const struct array_info *info)
+{
+  uint32_t n = 1;
+  for (uint32_t i = 0; i < info->nbounds; i++)
+    n *= array_bound (info, i);
+  return n;
+}
+
+static dds_return_t compare_ti (struct compare_ctx *ctx, const unsigned char *obj1, const unsigned char *obj2, const DDS_XTypes_TypeIdentifier *typeid, bool direct_string, bool key_path);
+static dds_return_t compare_to (struct compare_ctx *ctx, const unsigned char *obj1, const unsigned char *obj2, const DDS_XTypes_CompleteTypeObject *typeobj, bool direct_string, bool key_path);
+
+static dds_return_t compare_simple (struct compare_ctx *ctx, const unsigned char *obj1, const unsigned char *obj2, DDS_XTypes_TypeKind kind, bool direct_string)
+{
+  switch (kind)
+  {
+    case DDS_XTypes_TK_BOOLEAN:
+      ctx->equal = *((const uint8_t *) obj1) == *((const uint8_t *) obj2);
+      return DDS_RETCODE_OK;
+    case DDS_XTypes_TK_CHAR8:
+      ctx->equal = *((const int8_t *) obj1) == *((const int8_t *) obj2);
+      return DDS_RETCODE_OK;
+    case DDS_XTypes_TK_CHAR16:
+      ctx->equal = *((const wchar_t *) obj1) == *((const wchar_t *) obj2);
+      return DDS_RETCODE_OK;
+    case DDS_XTypes_TK_INT8:
+      ctx->equal = *((const int8_t *) obj1) == *((const int8_t *) obj2);
+      return DDS_RETCODE_OK;
+    case DDS_XTypes_TK_INT16:
+      ctx->equal = *((const int16_t *) obj1) == *((const int16_t *) obj2);
+      return DDS_RETCODE_OK;
+    case DDS_XTypes_TK_INT32:
+      ctx->equal = *((const int32_t *) obj1) == *((const int32_t *) obj2);
+      return DDS_RETCODE_OK;
+    case DDS_XTypes_TK_INT64:
+      ctx->equal = *((const int64_t *) obj1) == *((const int64_t *) obj2);
+      return DDS_RETCODE_OK;
+    case DDS_XTypes_TK_BYTE:
+    case DDS_XTypes_TK_UINT8:
+      ctx->equal = *((const uint8_t *) obj1) == *((const uint8_t *) obj2);
+      return DDS_RETCODE_OK;
+    case DDS_XTypes_TK_UINT16:
+      ctx->equal = *((const uint16_t *) obj1) == *((const uint16_t *) obj2);
+      return DDS_RETCODE_OK;
+    case DDS_XTypes_TK_UINT32:
+      ctx->equal = *((const uint32_t *) obj1) == *((const uint32_t *) obj2);
+      return DDS_RETCODE_OK;
+    case DDS_XTypes_TK_UINT64:
+      ctx->equal = *((const uint64_t *) obj1) == *((const uint64_t *) obj2);
+      return DDS_RETCODE_OK;
+    case DDS_XTypes_TK_FLOAT32:
+      ctx->equal = *((const float *) obj1) == *((const float *) obj2);
+      return DDS_RETCODE_OK;
+    case DDS_XTypes_TK_FLOAT64:
+      ctx->equal = *((const double *) obj1) == *((const double *) obj2);
+      return DDS_RETCODE_OK;
+    case DDS_XTypes_TK_FLOAT128:
+      ctx->equal = memcmp (obj1, obj2, 16) == 0;
+      return DDS_RETCODE_OK;
+    case DDS_XTypes_TK_STRING8: {
+      const char *s1 = direct_string ? (const char *) obj1 : *((const char * const *) obj1);
+      const char *s2 = direct_string ? (const char *) obj2 : *((const char * const *) obj2);
+      ctx->equal = strings_equal (s1, s2);
+      return DDS_RETCODE_OK;
     }
-    case DDS_XTypes_TI_STRING16_SMALL:
-    case DDS_XTypes_TI_STRING16_LARGE: {
-      const wchar_t *p1 = get_wstring_pointer (sample1, typeid, c1, is_opt);
-      const wchar_t *p2 = get_wstring_pointer (sample2, typeid, c2, is_opt);
-      if ((c1->key || c1->valid_data) && (c2->key || c2->valid_data))
-      {
-        return wcscmp(p1, p2) == 0;
-      }
-      return false;
+    case DDS_XTypes_TK_STRING16: {
+      const wchar_t *s1 = direct_string ? (const wchar_t *) obj1 : *((const wchar_t * const *) obj1);
+      const wchar_t *s2 = direct_string ? (const wchar_t *) obj2 : *((const wchar_t * const *) obj2);
+      ctx->equal = wstrings_equal (s1, s2);
+      return DDS_RETCODE_OK;
     }
-    case DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL:
-    case DDS_XTypes_TI_PLAIN_SEQUENCE_LARGE: {
-      const DDS_XTypes_TypeIdentifier *et = (typeid->_d == DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL) ? typeid->_u.seq_sdefn.element_identifier : typeid->_u.seq_ldefn.element_identifier;
-      const dds_sequence_t *p1 = align (sample1, c1, _Alignof (dds_sequence_t), sizeof (dds_sequence_t));
-      const dds_sequence_t *p2 = align (sample2, c2, _Alignof (dds_sequence_t), sizeof (dds_sequence_t));
-      if ((c1->key || c1->valid_data) && (c2->key || c2->valid_data))
+  }
+  return compare_error (ctx, "unsupported simple type discriminator %u", (unsigned) kind);
+}
+
+static dds_return_t compare_sequence (struct compare_ctx *ctx, const unsigned char *obj1, const unsigned char *obj2, const DDS_XTypes_TypeIdentifier *elem_type, bool key_path)
+{
+  const dds_sequence_t *seq1 = (const dds_sequence_t *) obj1;
+  const dds_sequence_t *seq2 = (const dds_sequence_t *) obj2;
+  if (seq1->_length != seq2->_length)
+  {
+    ctx->equal = false;
+    return DDS_RETCODE_OK;
+  }
+
+  size_t off1 = 0;
+  size_t off2 = 0;
+  for (uint32_t i = 0; ctx->equal && i < seq1->_length; i++)
+  {
+    const unsigned char *elem1 = advance_ti (ctx, seq1->_buffer, &off1, elem_type, false);
+    const unsigned char *elem2 = advance_ti (ctx, seq2->_buffer, &off2, elem_type, false);
+    dds_return_t rc = compare_ti (ctx, elem1, elem2, elem_type, false, key_path);
+    if (rc != DDS_RETCODE_OK)
+      return rc;
+  }
+  return DDS_RETCODE_OK;
+}
+
+static dds_return_t compare_array (struct compare_ctx *ctx, const unsigned char *obj1, const unsigned char *obj2, const DDS_XTypes_TypeIdentifier *typeid, bool key_path)
+{
+  struct array_info info;
+  if (!get_array_info (typeid, &info))
+    return compare_error (ctx, "unsupported array type discriminator %u", (unsigned) typeid->_d);
+
+  size_t off1 = 0;
+  size_t off2 = 0;
+  const uint32_t n = array_nelem (&info);
+  for (uint32_t i = 0; ctx->equal && i < n; i++)
+  {
+    const unsigned char *elem1 = advance_ti (ctx, obj1, &off1, info.elem_type, false);
+    const unsigned char *elem2 = advance_ti (ctx, obj2, &off2, info.elem_type, false);
+    dds_return_t rc = compare_ti (ctx, elem1, elem2, info.elem_type, false, key_path);
+    if (rc != DDS_RETCODE_OK)
+      return rc;
+  }
+  return DDS_RETCODE_OK;
+}
+
+static dds_return_t compare_indirect_ti (struct compare_ctx *ctx, const void * const *ptr1, const void * const *ptr2, const DDS_XTypes_TypeIdentifier *typeid, DDS_XTypes_MemberFlag flags, bool key_path)
+{
+  if (*ptr1 == NULL || *ptr2 == NULL)
+  {
+    ctx->equal = (*ptr1 == *ptr2);
+    return DDS_RETCODE_OK;
+  }
+
+  const bool child_key_path = key_path && !is_optional_member (flags);
+  const bool direct_string = typeid_is_unbounded_string (ctx, typeid);
+  return compare_ti (ctx, *ptr1, *ptr2, typeid, direct_string, child_key_path);
+}
+
+static dds_return_t compare_struct (struct compare_ctx *ctx, const unsigned char *obj1, const unsigned char *obj2, const DDS_XTypes_CompleteStructType *type, bool key_path)
+{
+  size_t off1 = 0;
+  size_t off2 = 0;
+
+  if (type->header.base_type._d != DDS_XTypes_TK_NONE)
+  {
+    const unsigned char *base1 = advance_ti (ctx, obj1, &off1, &type->header.base_type, false);
+    const unsigned char *base2 = advance_ti (ctx, obj2, &off2, &type->header.base_type, false);
+    dds_return_t rc = compare_ti (ctx, base1, base2, &type->header.base_type, false, key_path);
+    if (rc != DDS_RETCODE_OK || !ctx->equal)
+      return rc;
+  }
+
+  for (uint32_t i = 0; ctx->equal && i < type->member_seq._length; i++)
+  {
+    const DDS_XTypes_CompleteStructMember *m = &type->member_seq._buffer[i];
+    const bool indirect = is_indirect_member (m->common.member_flags);
+    const unsigned char *member1 = advance_ti (ctx, obj1, &off1, &m->common.member_type_id, indirect);
+    const unsigned char *member2 = advance_ti (ctx, obj2, &off2, &m->common.member_type_id, indirect);
+    const bool member_key_path = key_path && ((m->common.member_flags & DDS_XTypes_IS_KEY) != 0);
+    if (!visible (ctx, member_key_path))
+      continue;
+
+    dds_return_t rc;
+    if (indirect)
+      rc = compare_indirect_ti (ctx, (const void * const *) member1, (const void * const *) member2, &m->common.member_type_id, m->common.member_flags, member_key_path);
+    else
+      rc = compare_ti (ctx, member1, member2, &m->common.member_type_id, false, member_key_path);
+    if (rc != DDS_RETCODE_OK)
+      return rc;
+  }
+
+  return DDS_RETCODE_OK;
+}
+
+static bool read_discriminator (struct compare_ctx *ctx, const unsigned char *obj, const DDS_XTypes_TypeIdentifier *typeid, int32_t *value)
+{
+  switch (typeid->_d)
+  {
+    case DDS_XTypes_TK_BOOLEAN:
+    case DDS_XTypes_TK_BYTE:
+    case DDS_XTypes_TK_UINT8:
+      *value = (int32_t) *((const uint8_t *) obj);
+      return true;
+    case DDS_XTypes_TK_CHAR8:
+    case DDS_XTypes_TK_INT8:
+      *value = (int32_t) *((const int8_t *) obj);
+      return true;
+    case DDS_XTypes_TK_CHAR16:
+      *value = (int32_t) *((const wchar_t *) obj);
+      return true;
+    case DDS_XTypes_TK_INT16:
+      *value = (int32_t) *((const int16_t *) obj);
+      return true;
+    case DDS_XTypes_TK_INT32:
+      *value = *((const int32_t *) obj);
+      return true;
+    case DDS_XTypes_TK_UINT16:
+      *value = (int32_t) *((const uint16_t *) obj);
+      return true;
+    case DDS_XTypes_TK_UINT32:
+      *value = (int32_t) *((const uint32_t *) obj);
+      return true;
+    case DDS_XTypes_TK_INT64:
+      *value = (int32_t) *((const int64_t *) obj);
+      return true;
+    case DDS_XTypes_TK_UINT64:
+      *value = (int32_t) *((const uint64_t *) obj);
+      return true;
+    case DDS_XTypes_EK_COMPLETE:
+    case DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT: {
+      struct typeinfo *info = type_cache_lookup_typeid (ctx->tc, typeid);
+      if (info->typeobj->_d == DDS_XTypes_TK_ENUM)
       {
-        if (p1->_length != p2->_length)
-        {
-          return false;
-        }
-        struct context c1_1 = { .key = c1->key, .valid_data = c1->valid_data, .offset = 0, .maxalign = 1, .needs_comma = false };
-        struct context c2_1 = { .key = c2->key, .valid_data = c2->valid_data, .offset = 0, .maxalign = 1, .needs_comma = false };
-        for (uint32_t i = 0; i < p1->_length; i++)
-        {
-          int temp = samples_eq1_ti (tc, p1->_buffer, p2->_buffer, et, 0, &c1_1, &c2_1, NULL, false, false);
-          if(temp != 1) return temp;
-          finish_sequence_element (&c1_1);
-          finish_sequence_element (&c2_1);
-        }
+        *value = *((const int32_t *) obj);
+        return true;
+      }
+      if (info->typeobj->_d == DDS_XTypes_TK_BITMASK)
+      {
+        *value = (int32_t) read_bitmask_value (obj, info->typeobj->_u.bitmask_type.header.common.bit_bound);
         return true;
       }
       return false;
-      break;
     }
+  }
+  return false;
+}
+
+static dds_return_t compare_union (struct compare_ctx *ctx, const unsigned char *obj1, const unsigned char *obj2, const DDS_XTypes_CompleteUnionType *type, bool key_path)
+{
+  int32_t disc_value;
+  const DDS_XTypes_TypeIdentifier *disc_type = &type->discriminator.common.type_id;
+  dds_return_t rc = compare_ti (ctx, obj1, obj2, disc_type, false, key_path);
+  if (rc != DDS_RETCODE_OK || !ctx->equal)
+    return rc;
+  if (!read_discriminator (ctx, obj1, disc_type, &disc_value))
+    return compare_error (ctx, "unsupported union discriminator type %u", (unsigned) disc_type->_d);
+
+  const DDS_XTypes_CompleteUnionMember *m = find_union_member_for_disc (type, disc_value);
+  if (m == NULL)
+    return DDS_RETCODE_OK;
+
+  const unsigned char *data1 = obj1 + type_cache_union_data_offset (ctx->tc, type);
+  const unsigned char *data2 = obj2 + type_cache_union_data_offset (ctx->tc, type);
+  size_t off1 = 0;
+  size_t off2 = 0;
+  const bool indirect = is_indirect_member (m->common.member_flags);
+  const unsigned char *member1 = advance_ti (ctx, data1, &off1, &m->common.type_id, indirect);
+  const unsigned char *member2 = advance_ti (ctx, data2, &off2, &m->common.type_id, indirect);
+
+  if (indirect)
+    return compare_indirect_ti (ctx, (const void * const *) member1, (const void * const *) member2, &m->common.type_id, m->common.member_flags, key_path);
+  return compare_ti (ctx, member1, member2, &m->common.type_id, false, key_path);
+}
+
+static dds_return_t compare_ti (struct compare_ctx *ctx, const unsigned char *obj1, const unsigned char *obj2, const DDS_XTypes_TypeIdentifier *typeid, bool direct_string, bool key_path)
+{
+  if (!visible (ctx, key_path) || !ctx->equal)
+    return DDS_RETCODE_OK;
+
+  if (simple_kind (typeid->_d))
+    return compare_simple (ctx, obj1, obj2, typeid->_d, direct_string);
+
+  switch (typeid->_d)
+  {
+    case DDS_XTypes_TI_STRING8_SMALL:
+    case DDS_XTypes_TI_STRING8_LARGE:
+      ctx->equal = strings_equal (string8_value (obj1, typeid, direct_string), string8_value (obj2, typeid, direct_string));
+      return DDS_RETCODE_OK;
+    case DDS_XTypes_TI_STRING16_SMALL:
+    case DDS_XTypes_TI_STRING16_LARGE:
+      ctx->equal = wstrings_equal (string16_value (obj1, typeid, direct_string), string16_value (obj2, typeid, direct_string));
+      return DDS_RETCODE_OK;
+    case DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL:
+      return compare_sequence (ctx, obj1, obj2, typeid->_u.seq_sdefn.element_identifier, key_path);
+    case DDS_XTypes_TI_PLAIN_SEQUENCE_LARGE:
+      return compare_sequence (ctx, obj1, obj2, typeid->_u.seq_ldefn.element_identifier, key_path);
     case DDS_XTypes_TI_PLAIN_ARRAY_SMALL:
-    case DDS_XTypes_TI_PLAIN_ARRAY_LARGE: {
-      const DDS_XTypes_TypeIdentifier *et;
-      uint32_t m, n;
-      if (typeid->_d == DDS_XTypes_TI_PLAIN_ARRAY_SMALL) {
-        et = typeid->_u.array_sdefn.element_identifier;
-        m = typeid->_u.array_sdefn.array_bound_seq._length;
-        n = typeid->_u.array_sdefn.array_bound_seq._buffer[rank];
-      } else {
-        et = typeid->_u.array_ldefn.element_identifier;
-        m = typeid->_u.array_ldefn.array_bound_seq._length;
-        n = typeid->_u.array_ldefn.array_bound_seq._buffer[rank];
-      }
-      for (uint32_t i = 0; i < n; i++)
-      {
-        int temp = 0;
-        if (rank + 1 < m)
-          temp = samples_eq1_ti (tc, sample1, sample2, typeid, rank + 1, c1, c2, NULL, is_base_type, false);
-        else
-          temp = samples_eq1_ti (tc, sample1, sample2, et, 0, c1, c2, NULL, is_base_type, false);
-        if(temp != 1) return temp;
-      }
-      break;
-    }
+    case DDS_XTypes_TI_PLAIN_ARRAY_LARGE:
+      return compare_array (ctx, obj1, obj2, typeid, key_path);
     case DDS_XTypes_EK_COMPLETE:
     case DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT: {
-      struct typeinfo *info = type_cache_lookup_typeid (tc, typeid);
-      int temp = samples_eq1_to (tc, sample1, sample2, info->typeobj, c1, c2, label, is_base_type, is_opt);
-      if (temp != 1) return temp;
-      break;
+      struct typeinfo *info = type_cache_lookup_typeid (ctx->tc, typeid);
+      return compare_to (ctx, obj1, obj2, info->typeobj, direct_string, key_path);
     }
   }
-  return -1;
+
+  return compare_error (ctx, "unsupported type identifier discriminator %u", (unsigned) typeid->_d);
 }
 
-static int samples_eq1_to (struct type_cache *tc, const unsigned char *sample1, const unsigned char *sample2, const DDS_XTypes_CompleteTypeObject *typeobj, struct context *c1, struct context *c2, const char *label, bool is_base_type, bool is_opt)
+static dds_return_t compare_to (struct compare_ctx *ctx, const unsigned char *obj1, const unsigned char *obj2, const DDS_XTypes_CompleteTypeObject *typeobj, bool direct_string, bool key_path)
 {
-  (void) is_base_type;
-  int tmp = samples_eq1_simple(sample1, sample2, typeobj->_d, c1, c2, label, NULL, is_opt);
-  if (tmp >= 0)
-    return tmp;
+  if (!visible (ctx, key_path) || !ctx->equal)
+    return DDS_RETCODE_OK;
+
+  if (simple_kind (typeobj->_d))
+    return compare_simple (ctx, obj1, obj2, typeobj->_d, direct_string);
+
   switch (typeobj->_d)
   {
-    case DDS_XTypes_TK_ALIAS: {
-      int temp = samples_eq1_ti (tc, sample1, sample2, &typeobj->_u.alias_type.body.common.related_type, 0, c1, c2, label, false, is_opt);
-      if (temp != 1) return temp;
-      break;
-    }
-    case DDS_XTypes_TK_SEQUENCE: {
-      const DDS_XTypes_TypeIdentifier *et = &typeobj->_u.sequence_type.element.common.type;
-      const dds_sequence_t *p1 = align (sample1, c1, _Alignof (dds_sequence_t), sizeof (dds_sequence_t));
-      const dds_sequence_t *p2 = align (sample2, c2, _Alignof (dds_sequence_t), sizeof (dds_sequence_t));
-      struct context c1_1 = { .key = c1->key, .valid_data = c1->valid_data, .offset = 0, .maxalign = 1, .needs_comma = false };
-      struct context c2_1 = { .key = c2->key, .valid_data = c2->valid_data, .offset = 0, .maxalign = 1, .needs_comma = false };
-      if (p1->_length != p2->_length)
-      {
-        return 0;
-      }
-      for (uint32_t i = 0; i < p1->_length; i++)
-      {
-        int temp = samples_eq1_ti (tc, (const unsigned char *) p1->_buffer, (const unsigned char *) p2->_buffer, et, 0, &c1_1, &c2_1, NULL, false, false);
-        if (temp != 1) return temp;
-        finish_sequence_element (&c1_1);
-        finish_sequence_element (&c2_1);
-      }
-      break;
-    }
-    case DDS_XTypes_TK_STRUCTURE: {
-      struct typeinfo *info = type_cache_lookup_typeobj (tc, typeobj);
-      const DDS_XTypes_CompleteStructType *t = &typeobj->_u.struct_type;
-      const unsigned char *p1 = align (sample1, c1, info->align, info->size);
-      const unsigned char *p2 = align (sample2, c2, info->align, info->size);
-      struct context c1_1 = { .key = c1->key, .valid_data = c1->valid_data, .offset = 0, .maxalign = 1, .needs_comma = c1->needs_comma };
-      struct context c2_1 = { .key = c2->key, .valid_data = c2->valid_data, .offset = 0, .maxalign = 1, .needs_comma = c2->needs_comma };
-      if (t->header.base_type._d != DDS_XTypes_TK_NONE) {
-        int temp = samples_eq1_ti (tc, p1, p2, &t->header.base_type, 0, &c1_1, &c2_1, NULL, true, false);
-        if (temp != 1) return temp;
-      }
-      for (uint32_t i = 0; i < t->member_seq._length; i++)
-      {
-        const DDS_XTypes_CompleteStructMember *m = &t->member_seq._buffer[i];
-        c1_1.key = c1->key && (m->common.member_flags & DDS_XTypes_IS_KEY);
-        c2_1.key = c2->key && (m->common.member_flags & DDS_XTypes_IS_KEY);
-        if (!is_indirect_member (m->common.member_flags)) {
-          int temp = samples_eq1_ti (tc, p1, p2, &m->common.member_type_id, 0, &c1_1, &c2_1, *m->detail.name ? m->detail.name : NULL, false, false);
-          if (temp != 1) return temp;
-        } else {
-          void const * const *p1_1 = (const void *) align (p1, &c1_1, _Alignof (void *), sizeof (void *));
-          void const * const *p2_1 = (const void *) align (p2, &c2_1, _Alignof (void *), sizeof (void *));
-          if ((c1_1.key || c1_1.valid_data) && (c2_1.key || c2_1.valid_data)) {
-            if (*p1_1 == NULL && *p2_1 == NULL)
-              continue;
-            if (*p1_1 == NULL || *p2_1 == NULL)
-            {
-              return 0;
-            }
-            struct context c1_2 = {.key = c1_1.key && !is_optional_member (m->common.member_flags), .valid_data = c1_1.valid_data, .offset = 0, .maxalign = 1, .needs_comma = c1_1.needs_comma};
-            struct context c2_2 = {.key = c2_1.key && !is_optional_member (m->common.member_flags), .valid_data = c2_1.valid_data, .offset = 0, .maxalign = 1, .needs_comma = c2_1.needs_comma};
-            int temp = samples_eq1_ti(tc, *p1_1, *p2_1, &m->common.member_type_id, 0, &c1_2, &c2_2, *m->detail.name ? m->detail.name : NULL, false, true);
-            if (temp != 1) return temp;
-            c1_1.needs_comma = c1_2.needs_comma;
-            c2_1.needs_comma = c2_2.needs_comma;
-          }
-        }
-      }
-      c1->needs_comma = c1_1.needs_comma;
-      c2->needs_comma = c2_1.needs_comma;
-      break;
-    }
+    case DDS_XTypes_TK_ALIAS:
+      return compare_ti (ctx, obj1, obj2, &typeobj->_u.alias_type.body.common.related_type, direct_string, key_path);
+    case DDS_XTypes_TK_SEQUENCE:
+      return compare_sequence (ctx, obj1, obj2, &typeobj->_u.sequence_type.element.common.type, key_path);
+    case DDS_XTypes_TK_STRUCTURE:
+      return compare_struct (ctx, obj1, obj2, &typeobj->_u.struct_type, key_path);
     case DDS_XTypes_TK_ENUM: {
-      struct typeinfo *info = type_cache_lookup_typeobj (tc, typeobj);
-      const int *p1 = align (sample1, c1, info->align, info->size);
-      const int *p2 = align (sample2, c2, info->align, info->size);
-      return *p1 == *p2;
+      struct typeinfo *info = type_cache_lookup_typeobj (ctx->tc, typeobj);
+      ctx->equal = memcmp (obj1, obj2, info->size) == 0;
+      return DDS_RETCODE_OK;
     }
-    case DDS_XTypes_TK_BITMASK: {
-      struct typeinfo *info = type_cache_lookup_typeobj (tc, typeobj);
-      const DDS_XTypes_CompleteBitmaskType *t = &typeobj->_u.bitmask_type;
-      const void *p1 = align (sample1, c1, info->align, info->size);
-      const void *p2 = align (sample2, c2, info->align, info->size);
-      return read_bitmask_value (p1, t->header.common.bit_bound) == read_bitmask_value (p2, t->header.common.bit_bound);
-    }
-    case DDS_XTypes_TK_UNION: {
-      struct typeinfo *info = type_cache_lookup_typeobj (tc, typeobj);
-      const DDS_XTypes_CompleteUnionType *t = &typeobj->_u.union_type;
-      const unsigned char *p1 = align (sample1, c1, info->align, info->size);
-      const unsigned char *p2 = align (sample2, c2, info->align, info->size);
-      int32_t disc_value = 0;
-      struct context c1_1 = { .key = c1->key, .valid_data = c1->valid_data, .offset = 0, .maxalign = 1, .needs_comma = false };
-      struct context c2_1 = { .key = c2->key, .valid_data = c2->valid_data, .offset = 0, .maxalign = 1, .needs_comma = false };
-      if (t->discriminator.common.type_id._d == DDS_XTypes_EK_COMPLETE)
-      {
-        struct typeinfo *info_disc = type_cache_lookup_typeid (tc, &t->discriminator.common.type_id);
-        if (info_disc->typeobj->_d == DDS_XTypes_TK_ENUM)
-        {
-          if (*(int32_t *) p1 != *(int32_t *) p2)
-            return 0;
-          disc_value = * (int32_t *) p1;
-        }
-        else if (info_disc->typeobj->_d == DDS_XTypes_TK_BITMASK)
-        {
-          if (info_disc->typeobj->_u.bitmask_type.header.common.bit_bound > 32) {
-            if (*(int64_t *) p1 != *(int64_t *) p2)
-              return 0;
-            disc_value = (int32_t) (* (int64_t *) p1);
-          } else if (info_disc->typeobj->_u.bitmask_type.header.common.bit_bound > 16) {
-            if (*(int32_t *) p1 != *(int32_t *) p2)
-              return 0;
-            disc_value = * (int32_t *) p1;
-          } else if (info_disc->typeobj->_u.bitmask_type.header.common.bit_bound > 8) {
-            if (*(int16_t *) p1 != *(int16_t *) p2)
-              return 0;
-            disc_value = * (int16_t *) p1;
-          } else {
-            if (*(int8_t *) p1 != *(int8_t *) p2)
-              return 0;
-            disc_value = * (int8_t *) p1;
-          }
-        }
-        else
-        {
-          printf ("unsupported union discriminant value %u\n", info_disc->typeobj->_d);
-          abort ();
-        }
-        int temp = samples_eq1_to (tc, p1, p2, info_disc->typeobj, &c1_1, &c2_1, "_d", false, false);
-        if (temp != 1) return temp;
-      }
-      samples_eq1_simple (p1, p2, t->discriminator.common.type_id._d, &c1_1, &c2_1, "_d", &disc_value, false);
-      const DDS_XTypes_CompleteUnionMember *m = find_union_member_for_disc (t, disc_value);
-      if (m != NULL)
-      {
-        const unsigned char *data1 = p1 + type_cache_union_data_offset (tc, t);
-        const unsigned char *data2 = p2 + type_cache_union_data_offset (tc, t);
-        struct context c1_2 = { .key = c1_1.key, .valid_data = c1_1.valid_data, .offset = 0, .maxalign = 1, .needs_comma = c1_1.needs_comma };
-        struct context c2_2 = { .key = c2_1.key, .valid_data = c2_1.valid_data, .offset = 0, .maxalign = 1, .needs_comma = c2_1.needs_comma };
-        if (!is_indirect_member (m->common.member_flags))
-        {
-          int temp = samples_eq1_ti (tc, data1, data2, &m->common.type_id, 0, &c1_2, &c2_2, *m->detail.name ? m->detail.name : NULL, false, false);
-          if (temp != 1) return temp;
-        }
-        else
-        {
-          void const * const *p1_1 = (const void *) align (data1, &c1_2, _Alignof (void *), sizeof (void *));
-          void const * const *p2_1 = (const void *) align (data2, &c2_2, _Alignof (void *), sizeof (void *));
-          if ((c1_2.key || c1_2.valid_data) && (c2_2.key || c2_2.valid_data) && (*p1_1 != NULL || *p2_1 != NULL))
-          {
-            if (*p1_1 == NULL || *p2_1 == NULL)
-              return 0;
-            struct context c1_3 = { .key = c1_2.key && !is_optional_member (m->common.member_flags), .valid_data = c1_2.valid_data, .offset = 0, .maxalign = 1, .needs_comma = c1_2.needs_comma };
-            struct context c2_3 = { .key = c2_2.key && !is_optional_member (m->common.member_flags), .valid_data = c2_2.valid_data, .offset = 0, .maxalign = 1, .needs_comma = c2_2.needs_comma };
-            int temp = samples_eq1_ti (tc, *p1_1, *p2_1, &m->common.type_id, 0, &c1_3, &c2_3, *m->detail.name ? m->detail.name : NULL, false, true);
-            if (temp != 1) return temp;
-          }
-        }
-        c1_1.needs_comma = c1_2.needs_comma;
-        c2_1.needs_comma = c2_2.needs_comma;
-      }
-      c1->needs_comma = true;
-      c2->needs_comma = true;
-    }
+    case DDS_XTypes_TK_BITMASK:
+      ctx->equal = read_bitmask_value (obj1, typeobj->_u.bitmask_type.header.common.bit_bound) ==
+                   read_bitmask_value (obj2, typeobj->_u.bitmask_type.header.common.bit_bound);
+      return DDS_RETCODE_OK;
+    case DDS_XTypes_TK_UNION:
+      return compare_union (ctx, obj1, obj2, &typeobj->_u.union_type, key_path);
   }
-  return -1;
+
+  return compare_error (ctx, "unsupported type object discriminator %u", (unsigned) typeobj->_d);
 }
 
-// FIXME: Still requires support for mutable types when ordering of members may be different
-int compare_samples (struct type_cache *tc, bool valid_data, const void *sample1, const void* sample2, const DDS_XTypes_CompleteTypeObject *typeobj)
+dds_return_t compare_samples_equal (struct type_cache *tc, bool valid_data, const void *sample1, const void *sample2, const DDS_XTypes_CompleteTypeObject *typeobj, bool *equal, struct dyntypelib_error *err)
 {
-  struct context c1 = { .valid_data = valid_data, .key = true, .offset = 0, .maxalign = 1, .needs_comma = false };
-  struct context c2 = { .valid_data = valid_data, .key = true, .offset = 0, .maxalign = 1, .needs_comma = false };
-  return samples_eq1_to (tc, sample1, sample2, typeobj, &c1, &c2, NULL, false, false);
+  if (equal == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  struct compare_ctx ctx = {
+    .tc = tc,
+    .valid_data = valid_data,
+    .equal = true,
+    .err = err
+  };
+  dds_return_t rc = compare_to (&ctx, sample1, sample2, typeobj, false, true);
+  *equal = ctx.equal;
+  return rc;
+}
+
+int compare_samples (struct type_cache *tc, bool valid_data, const void *sample1, const void *sample2, const DDS_XTypes_CompleteTypeObject *typeobj)
+{
+  bool equal = false;
+  dds_return_t rc = compare_samples_equal (tc, valid_data, sample1, sample2, typeobj, &equal, NULL);
+  if (rc != DDS_RETCODE_OK)
+    return -1;
+  return equal ? 1 : 0;
 }
