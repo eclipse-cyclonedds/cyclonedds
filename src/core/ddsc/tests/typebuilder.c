@@ -142,7 +142,7 @@ CU_TheoryDataPoints (ddsc_typebuilder, topic_desc) = {
                  &D(t33), &D(t34), &D(t35), &D(t36), &D(t37), &D(t38), /* TODO &D(t39), */
                  &D(t40), &D(t41), &D(t42), &D(t43), &D(t44), &D(t45), &D(t46), &D(t47),
                  &D(t48), &D(t49), &D(t50), &D(t51), &D(t52), &D(t53), &D(t54), &D(t55),
-                 &D(t56), &D(t57), &D(t58) ),
+                 &D(t56), &D(t57), &D(t58), &D(t59), &D(t60), &D(t61), &D(t62) ),
 };
 #undef D
 
@@ -193,7 +193,7 @@ CU_Theory((const dds_topic_descriptor_t *desc), ddsc_typebuilder, topic_desc, .i
   uint32_t ops_cnt = dds_stream_countops (desc->m_ops, desc->m_nkeys, desc->m_keys);
   tprintf ("ops count: %u (%u)\n", ops_cnt_gen, ops_cnt);
   CU_ASSERT_EQ_FATAL (ops_cnt_gen, ops_cnt);
-  for (uint32_t n = 0; n < ops_cnt; n++)
+  for (uint32_t n = 0; n < desc->m_nops; n++)
   {
     if (desc->m_ops[n] != generated_desc->m_ops[n])
     {

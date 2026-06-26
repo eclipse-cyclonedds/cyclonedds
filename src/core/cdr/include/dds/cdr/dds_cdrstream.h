@@ -156,12 +156,23 @@ typedef struct dds_cdrstream_desc_op_seq {
 
 struct dds_cdrstream_desc_mid_table {
   struct ddsrt_hh *table;
+  struct ddsrt_hh *enum_value_sets;
   const uint32_t * op0;
+  bool has_special_defaults;
+};
+
+struct dds_cdrstream_desc_enum_value_set {
+  uint32_t setid;
+  uint32_t default_value;
+  uint32_t nvalues;
+  uint32_t max;
+  uint32_t *values;
 };
 
 struct dds_cdrstream_desc_mid {
   uint32_t adr_offs;
   uint32_t mid;
+  const struct dds_cdrstream_desc_enum_value_set *enum_value_set;
 };
 
 struct dds_cdrstream_desc {

@@ -758,9 +758,34 @@ shift_plm_list_offsets(struct constructed_type *ctype)
   }
 }
 
+static void
+shift_enum_metadata_offsets(struct descriptor *descriptor, const struct constructed_type *ctype, uint32_t offset, uint32_t shift)
+{
+  assert(offset <= INT16_MAX);
+  assert(shift <= INT16_MAX);
+  for (struct constructed_type_enummeta *em = descriptor->enum_metadata; em; em = em->next) {
+    if (em->ctype == ctype && em->rel_offs >= 0 && (uint32_t) em->rel_offs >= offset) {
+      assert(em->rel_offs <= INT16_MAX - (int16_t) shift);
+      em->rel_offs = (int16_t) (em->rel_offs + (int16_t) shift);
+    }
+  }
+}
+
+static void
+shift_enum_metadata_for_insert(
+  struct descriptor *descriptor,
+  const struct constructed_type *ctype,
+  const struct instructions *instructions,
+  uint32_t offset)
+{
+  if (offset < instructions->count)
+    shift_enum_metadata_offsets(descriptor, ctype, offset, 1);
+}
+
 static idl_retcode_t
 add_mutable_member_offset(
   const idl_pstate_t *pstate,
+  struct descriptor *descriptor,
   struct constructed_type *ctype,
   uint32_t id)
 {
@@ -774,10 +799,12 @@ add_mutable_member_offset(
       - ctype->pl_offset /* offset of first op after PLC */
       + 2 /* skip this JEQ and member id */
       + 1 /* skip RTS (of the PLC list) */);
+  const uint32_t insert_offset = ctype->pl_offset;
   if ((ret = stash_mutable_member_offset(pstate, &ctype->instructions, ctype->pl_offset++, opcode, addr_offs)) ||
       (ret = stash_single(pstate, &ctype->instructions, ctype->pl_offset++, id)))
     return ret;
 
+  shift_enum_metadata_offsets(descriptor, ctype, insert_offset, 2);
   shift_plm_list_offsets(ctype);
 
   return IDL_RETCODE_OK;
@@ -786,15 +813,18 @@ add_mutable_member_offset(
 static idl_retcode_t
 add_mutable_member_base(
   const idl_pstate_t *pstate,
+  struct descriptor *descriptor,
   struct constructed_type *ctype,
   const struct constructed_type *base_ctype)
 {
   idl_retcode_t ret;
   assert(idl_is_extensible(ctype->node, IDL_MUTABLE));
+  const uint32_t insert_offset = ctype->pl_offset;
   if ((ret = stash_base_members_offset(pstate, &ctype->instructions, ctype->pl_offset++, base_ctype->node)))
     return ret;
   if ((ret = stash_single(pstate, &ctype->instructions, ctype->pl_offset++, 0u)))
     return ret;
+  shift_enum_metadata_offsets(descriptor, ctype, insert_offset, 2);
   shift_plm_list_offsets(ctype);
   return IDL_RETCODE_OK;
 }
@@ -845,6 +875,186 @@ close_member_id_table(
   struct descriptor *descriptor)
 {
   return stash_opcode(pstate, &descriptor->member_ids, nop, DDS_OP_RTS, 0u);
+}
+
+static uint32_t idl_enum_default_value (const idl_enum_t *_enum)
+{
+  assert (_enum);
+  assert (_enum->default_enumerator);
+  return _enum->default_enumerator->value.value;
+}
+
+static bool idl_enum_needs_value_metadata (const idl_enum_t *_enum)
+{
+  uint32_t expected = 0;
+  for (const idl_enumerator_t *e = _enum->enumerators; e; e = idl_next (e), expected++)
+    if (e->value.value != expected)
+      return true;
+  return idl_enum_default_value (_enum) != 0;
+}
+
+static idl_retcode_t add_enum_metadata_use (const idl_pstate_t *pstate, struct descriptor *descriptor, const struct constructed_type *ctype, uint32_t rel_offs, const idl_type_spec_t *type_spec)
+{
+  const idl_enum_t *_enum = (const idl_enum_t *) type_spec;
+  assert (idl_is_enum (_enum));
+  if (!idl_enum_needs_value_metadata (_enum))
+    return IDL_RETCODE_OK;
+  assert (rel_offs <= INT16_MAX);
+  for (struct constructed_type_enummeta *em = descriptor->enum_metadata; em; em = em->next)
+    if (em->ctype == ctype && em->rel_offs == (int16_t) rel_offs)
+      return IDL_RETCODE_OK;
+  struct constructed_type_enummeta *em = idl_calloc (1, sizeof (*em));
+  if (em == NULL)
+    return IDL_RETCODE_NO_MEMORY;
+  em->ctype = ctype;
+  em->rel_offs = (int16_t) rel_offs;
+  em->type = _enum;
+  if (descriptor->enum_metadata == NULL)
+    descriptor->enum_metadata = em;
+  else
+  {
+    struct constructed_type_enummeta *last = descriptor->enum_metadata;
+    while (last->next)
+      last = last->next;
+    last->next = em;
+  }
+  (void) pstate;
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t stash_enum_max (const idl_pstate_t *pstate, struct descriptor *descriptor, struct constructed_type *ctype, struct instructions *instructions, uint32_t index, uint32_t rel_offs, const idl_type_spec_t *type_spec)
+{
+  const idl_enum_t *_enum = (const idl_enum_t *) type_spec;
+  assert (idl_is_enum (_enum));
+  idl_retcode_t ret;
+  if ((ret = add_enum_metadata_use (pstate, descriptor, ctype, rel_offs, type_spec)) < 0)
+    return ret;
+  return stash_single (pstate, instructions, index, idl_enum_needs_value_metadata (_enum) ? UINT32_MAX : idl_enum_max_value (_enum));
+}
+
+struct enum_value_set_id {
+  const idl_enum_t *type;
+  uint32_t setid;
+  struct enum_value_set_id *next;
+};
+
+static struct enum_value_set_id *find_enum_value_set_id (struct enum_value_set_id *sets, const idl_enum_t *type)
+{
+  while (sets)
+  {
+    if (sets->type == type)
+      return sets;
+    sets = sets->next;
+  }
+  return NULL;
+}
+
+static void free_enum_value_set_ids (struct enum_value_set_id *sets)
+{
+  while (sets)
+  {
+    struct enum_value_set_id *next = sets->next;
+    idl_free (sets);
+    sets = next;
+  }
+}
+
+static int uint32_cmp (const void *va, const void *vb)
+{
+  const uint32_t a = *((const uint32_t *) va);
+  const uint32_t b = *((const uint32_t *) vb);
+  return (a > b) - (a < b);
+}
+
+static idl_retcode_t emit_enum_value_set (const idl_pstate_t *pstate, struct descriptor *descriptor, const idl_enum_t *_enum, uint32_t setid)
+{
+  idl_retcode_t ret;
+  uint32_t nvalues = 0;
+  for (const idl_enumerator_t *e = _enum->enumerators; e; e = idl_next (e))
+    nvalues++;
+  uint32_t *values = nvalues ? idl_malloc (nvalues * sizeof (*values)) : NULL;
+  if (nvalues && values == NULL)
+    return IDL_RETCODE_NO_MEMORY;
+  uint32_t idx = 0;
+  for (const idl_enumerator_t *e = _enum->enumerators; e; e = idl_next (e))
+    values[idx++] = e->value.value;
+  if (nvalues > 1)
+    qsort (values, nvalues, sizeof (*values), uint32_cmp);
+  assert (setid <= UINT16_MAX);
+  if ((ret = stash_opcode (pstate, &descriptor->member_ids, nop, DDS_OP_EVS | setid, 0u)) < 0 ||
+      (ret = stash_single (pstate, &descriptor->member_ids, nop, idl_enum_default_value (_enum))) < 0 ||
+      (ret = stash_single (pstate, &descriptor->member_ids, nop, nvalues)) < 0)
+  {
+    idl_free (values);
+    return ret;
+  }
+  for (idx = 0; idx < nvalues; idx++)
+    if ((ret = stash_single (pstate, &descriptor->member_ids, nop, values[idx])) < 0)
+    {
+      idl_free (values);
+      return ret;
+    }
+  idl_free (values);
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t add_enum_metadata_entries (const idl_pstate_t *pstate, struct descriptor *descriptor)
+{
+  idl_retcode_t ret;
+  struct enum_value_set_id *sets = NULL;
+  uint32_t nsets = 0;
+
+  for (const struct constructed_type_enummeta *em = descriptor->enum_metadata; em; em = em->next)
+  {
+    if (find_enum_value_set_id (sets, em->type) == NULL)
+    {
+      struct enum_value_set_id *set = idl_calloc (1, sizeof (*set));
+      if (set == NULL)
+      {
+        free_enum_value_set_ids (sets);
+        return IDL_RETCODE_NO_MEMORY;
+      }
+      set->type = em->type;
+      set->setid = nsets++;
+      set->next = sets;
+      sets = set;
+      if ((ret = emit_enum_value_set (pstate, descriptor, em->type, set->setid)) < 0)
+      {
+        free_enum_value_set_ids (sets);
+        return ret;
+      }
+    }
+  }
+  if (sets != NULL && (ret = stash_opcode (pstate, &descriptor->member_ids, nop, DDS_OP_RTS, 0u)) < 0)
+  {
+    free_enum_value_set_ids (sets);
+    return ret;
+  }
+
+  for (const struct constructed_type_enummeta *em = descriptor->enum_metadata; em; em = em->next)
+  {
+    struct enum_value_set_id *set = find_enum_value_set_id (sets, em->type);
+    assert (set != NULL);
+    assert (em->ctype->offset <= INT32_MAX);
+    assert (em->ctype->offset < (uint32_t) (INT32_MAX - em->rel_offs));
+    const int32_t offs = (int32_t) em->ctype->offset + em->rel_offs;
+    assert (offs >= 0);
+    assert (offs <= UINT16_MAX);
+    if ((ret = stash_opcode (pstate, &descriptor->member_ids, nop, DDS_OP_EVM | (uint32_t) offs, 0u)) < 0 ||
+        (ret = stash_single (pstate, &descriptor->member_ids, nop, set->setid)) < 0)
+    {
+      free_enum_value_set_ids (sets);
+      return ret;
+    }
+  }
+  if (sets != NULL && (ret = stash_opcode (pstate, &descriptor->member_ids, nop, DDS_OP_RTS, 0u)) < 0)
+  {
+    free_enum_value_set_ids (sets);
+    return ret;
+  }
+
+  free_enum_value_set_ids (sets);
+  return IDL_RETCODE_OK;
 }
 
 
@@ -935,6 +1145,7 @@ emit_case(
       off = stype->offset + 2 + union_discr_extra + (stype->label * 4);
 
       bool has_size = false;
+      const uint32_t case_op_off = off;
       if (case_type == INLINE || case_type == IN_UNION) {
         uint32_t label_opcode = opcode;
         /* update offset to first instruction for in-union cases */
@@ -947,20 +1158,25 @@ emit_case(
           has_size = idl_is_array(type_spec) || idl_is_sequence(type_spec);
         }
         /* generate union case opcode */
+        shift_enum_metadata_for_insert(descriptor, ctype, &ctype->instructions, off);
         if ((ret = stash_opcode(pstate, &ctype->instructions, off++, label_opcode, 0u)))
           return ret;
       } else { /* EXTERNAL */
         assert(off <= INT16_MAX);
         if (idl_is_external(node))
           has_size = true;
-        stash_jeq_offset(pstate, &ctype->instructions, off, type_spec, opcode, (int16_t)off);
+        shift_enum_metadata_for_insert(descriptor, ctype, &ctype->instructions, off);
+        if ((ret = stash_jeq_offset(pstate, &ctype->instructions, off, type_spec, opcode, (int16_t)off)))
+          return ret;
         off++;
       }
+      shift_enum_metadata_for_insert(descriptor, ctype, &ctype->instructions, off);
       /* generate union case discriminator, use 0 for default case */
       if ((ret = stash_case_label32(pstate, &ctype->instructions, off++, idl_is_default_case_label(label) || idl_is_implicit_default_case_label(label) ? 0 : label->const_expr)))
         return ret;
       /* generate union case member (address) offset; use offset 0 for empty types,
          as these members are not generated and no offset can be calculated */
+      shift_enum_metadata_for_insert(descriptor, ctype, &ctype->instructions, off);
       if ((ret = stash_offset(pstate, &ctype->instructions, off++, idl_is_empty(type_spec) ? NULL : stype->fields)))
         return ret;
       /* For @external union members include the size of the member to allow the
@@ -969,13 +1185,16 @@ emit_case(
          instruction with parameters remains 4. */
       if (has_size) {
         assert (case_type != INLINE);
+        shift_enum_metadata_for_insert(descriptor, ctype, &ctype->instructions, off);
         if ((ret = stash_member_size(pstate, &ctype->instructions, off++, node, true)))
           return ret;
       } else if (idl_is_enum(type_spec) && case_type == INLINE) {
         // only add max for inline ENU, not for IN_UNION array of enum
-        if ((ret = stash_single(pstate, &ctype->instructions, off++, idl_enum_max_value(type_spec))))
+        shift_enum_metadata_for_insert(descriptor, ctype, &ctype->instructions, off);
+        if ((ret = stash_enum_max(pstate, descriptor, ctype, &ctype->instructions, off++, case_op_off, type_spec)))
           return ret;
       } else {
+        shift_enum_metadata_for_insert(descriptor, ctype, &ctype->instructions, off);
         if ((ret = stash_single(pstate, &ctype->instructions, off++, 0)))
           return ret;
       }
@@ -1033,12 +1252,13 @@ emit_switch_type_spec(
   }
   if (idl_is_default_case(idl_parent(union_spec->default_case)) && !idl_is_implicit_default_case(idl_parent(union_spec->default_case)))
     opcode |= DDS_OP_FLAG_DEF;
+  const uint32_t disc_op_off = ctype->instructions.count;
   if ((ret = stash_opcode(pstate, &ctype->instructions, nop, opcode, order)))
     return ret;
   if ((ret = stash_offset(pstate, &ctype->instructions, nop, field)))
     return ret;
   if (idl_is_enum(type_spec)) {
-    if ((ret = stash_single(pstate, &ctype->instructions, nop, idl_enum_max_value(type_spec))))
+    if ((ret = stash_enum_max(pstate, descriptor, ctype, &ctype->instructions, nop, disc_op_off, type_spec)))
       return ret;
   } else if (idl_is_bitmask(type_spec)) {
     if ((ret = stash_bitmask_bits(pstate, &ctype->instructions, nop, (const idl_bitmask_t *)(type_spec))))
@@ -1068,6 +1288,7 @@ emit_union(
     ctype = stype->ctype;
     assert(stype->label <= stype->labels);
     cnt = (ctype->instructions.count - stype->offset) + 2;
+    shift_enum_metadata_for_insert(descriptor, ctype, &ctype->instructions, stype->offset + 2);
     if ((ret = stash_single(pstate, &ctype->instructions, stype->offset + 2, stype->label)))  // not stype->labels, as labels with empty declarator type will be left out
       return ret;
     uint32_t enum_bitmask_extra = 0;
@@ -1075,6 +1296,7 @@ emit_union(
       enum_bitmask_extra = 1;
     else if (idl_is_bitmask(idl_type_spec(union_spec->switch_type_spec)))
       enum_bitmask_extra = 2;
+    shift_enum_metadata_for_insert(descriptor, ctype, &ctype->instructions, stype->offset + 3);
     if ((ret = stash_couple(pstate, &ctype->instructions, stype->offset + 3, (uint16_t)cnt, (uint16_t)(4u + enum_bitmask_extra))))
       return ret;
     if ((ret = stash_opcode(pstate, &ctype->instructions, nop, DDS_OP_RTS, 0u)))
@@ -1159,7 +1381,7 @@ emit_inherit_spec(
     assert(base_ctype);
 
     if (idl_is_extensible(ctype->node, IDL_MUTABLE)) {
-      if ((ret = add_mutable_member_base(pstate, ctype, base_ctype)))
+      if ((ret = add_mutable_member_base(pstate, descriptor, ctype, base_ctype)))
         return ret;
     } else {
       // final and appendable structs
@@ -1216,6 +1438,8 @@ emit_struct(
     uint32_t off = idl_is_extensible(node, IDL_MUTABLE) ? ctype->pl_offset : nop;
     if ((ret = stash_opcode(pstate, &ctype->instructions, off, DDS_OP_RTS, 0u)))
       return ret;
+    if (idl_is_extensible(node, IDL_MUTABLE))
+      shift_enum_metadata_offsets(descriptor, ctype, off, 1);
     pop_type(descriptor);
   } else {
     if (find_ctype(descriptor, node))
@@ -1291,6 +1515,7 @@ emit_sequence(
     uint16_t bound_op = idl_is_bounded(node) ? 1 : 0;
     off = stype->offset;
     cnt = ctype->instructions.count;
+    shift_enum_metadata_offsets(descriptor, ctype, off + 2u + bound_op, 2u);
     /* generate data field [elem-size] */
     if ((ret = stash_member_size(pstate, &ctype->instructions, off + 2 + bound_op, node, false)))
       return ret;
@@ -1401,7 +1626,7 @@ emit_sequence(
         return ret;
     }
     if (idl_is_enum(type_spec)) {
-      if ((ret = stash_single(pstate, &ctype->instructions, nop, idl_enum_max_value(type_spec))))
+      if ((ret = stash_enum_max(pstate, descriptor, ctype, &ctype->instructions, nop, off, type_spec)))
         return ret;
     } else if (idl_is_bitmask(type_spec)) {
       if ((ret = stash_bitmask_bits(pstate, &ctype->instructions, nop, (const idl_bitmask_t *)(type_spec))))
@@ -1469,6 +1694,7 @@ emit_array(
     uint32_t off, cnt;
     off = stype->offset;
     cnt = ctype->instructions.count;
+    shift_enum_metadata_offsets(descriptor, ctype, off + 3u, 2u);
     /* generate data field [next-insn, elem-insn] */
     if (idl_is_struct(type_spec) || idl_is_union(type_spec)) {
       assert(cnt <= INT16_MAX);
@@ -1567,7 +1793,7 @@ emit_array(
       return ret;
 
     if (idl_is_enum(type_spec)) {
-      if ((ret = stash_single(pstate, &ctype->instructions, nop, idl_enum_max_value(type_spec))))
+      if ((ret = stash_enum_max(pstate, descriptor, ctype, &ctype->instructions, nop, off, type_spec)))
         return ret;
     } else if (idl_is_bitmask(type_spec)) {
       if ((ret = stash_bitmask_bits(pstate, &ctype->instructions, nop, (const idl_bitmask_t *)(type_spec))))
@@ -1647,19 +1873,8 @@ emit_enum(
   (void)revisit;
   (void)path;
   (void)user_data;
-  const idl_enum_t *_enum = (const idl_enum_t *)node;
-  uint32_t value = 0, value_c = 0;
-  if (_enum->default_enumerator && idl_mask(_enum->default_enumerator) == IDL_DEFAULT_ENUMERATOR)
-    idl_warning(pstate, IDL_WARN_UNSUPPORTED_ANNOTATIONS, idl_location(node), "The @default_literal annotation is not supported yet in the C generator and will not be used");
-  for (idl_enumerator_t *e1 = _enum->enumerators; e1; e1 = idl_next(e1), value++) {
-    if (e1->value.annotation)
-      value = e1->value.value;
-    if (value != value_c++) {
-      idl_warning(pstate, IDL_WARN_ENUM_CONSECUTIVE, idl_location(e1),
-        "Warning: values for literals of this enumerator are not consecutive or not starting from zero. The serializer currently does not support checking for valid values for incoming and outgoing data for enums using non-consecutive literal values.");
-      break;
-    }
-  }
+  (void)pstate;
+  (void)node;
   return IDL_RETCODE_OK;
 }
 
@@ -1685,7 +1900,7 @@ emit_declarator(
   /* delegate array type specifiers or declarators */
   if (idl_is_array(node) || idl_is_array(type_spec)) {
     if (!revisit && mutable_aggr_type_member) {
-      if ((ret = add_mutable_member_offset(pstate, ctype, ((idl_declarator_t *)node)->id.value)))
+      if ((ret = add_mutable_member_offset(pstate, descriptor, ctype, ((idl_declarator_t *)node)->id.value)))
         return ret;
     }
 
@@ -1715,7 +1930,7 @@ emit_declarator(
     uint32_t order = 0;
     struct field *field = NULL;
 
-    if (mutable_aggr_type_member && (ret = add_mutable_member_offset(pstate, ctype, ((idl_declarator_t *)node)->id.value)))
+    if (mutable_aggr_type_member && (ret = add_mutable_member_offset(pstate, descriptor, ctype, ((idl_declarator_t *)node)->id.value)))
       return ret;
 
     if (!idl_is_alias(node) && idl_is_struct(stype->node)) {
@@ -1789,7 +2004,7 @@ emit_declarator(
       if ((ret = stash_single(pstate, &ctype->instructions, nop, idl_bound(type_spec)+1)))
         return ret;
     } else if (idl_is_enum(type_spec)) {
-      if ((ret = stash_single(pstate, &ctype->instructions, nop, idl_enum_max_value(type_spec))))
+      if ((ret = stash_enum_max(pstate, descriptor, ctype, &ctype->instructions, nop, (uint32_t) addr_offs, type_spec)))
         return ret;
     } else if (idl_is_bitmask(type_spec)) {
       if ((ret = stash_bitmask_bits(pstate, &ctype->instructions, nop, (const idl_bitmask_t *)(type_spec))))
@@ -1822,11 +2037,11 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
   char buf[32];
   const char *vec[20];
   size_t len = 0;
-  enum dds_stream_opcode opcode;
+  uint32_t opcode;
 
   assert(inst->type == OPCODE);
 
-  opcode = DDS_OP(inst->data.opcode.code);
+  opcode = inst->data.opcode.code & DDS_OP_MASK;
 
   switch (opcode) {
     case DDS_OP_DLC:
@@ -1851,6 +2066,12 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
       break;
     case DDS_OP_MID:
       vec[len++] = "DDS_OP_MID";
+      break;
+    case DDS_OP_EVS:
+      vec[len++] = "DDS_OP_EVS";
+      break;
+    case DDS_OP_EVM:
+      vec[len++] = "DDS_OP_EVM";
       break;
     default:
       assert(opcode == DDS_OP_ADR);
@@ -1907,6 +2128,9 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
   } else if (opcode == DDS_OP_MID) {
     /* lower 16 bits contain an offset */
     idl_snprintf(buf, sizeof(buf), " | %u", (uint16_t) DDS_OP_JUMP (inst->data.member_id.addr_offs));
+    vec[len++] = buf;
+  } else if (opcode == DDS_OP_EVS || opcode == DDS_OP_EVM) {
+    idl_snprintf(buf, sizeof(buf), " | %u", (uint16_t) DDS_OP_JUMP (inst->data.opcode.code));
     vec[len++] = buf;
   } else if (opcode == DDS_OP_JEQ4) {
     enum dds_stream_typecode type = DDS_OP_TYPE(inst->data.opcode.code);
@@ -2180,10 +2404,15 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
         break;
       }
       case OPCODE:
-        opcode = DDS_OP(inst->data.opcode.code);
-        assert (opcode == DDS_OP_RTS);
+        opcode = inst->data.opcode.code & DDS_OP_MASK;
         if (fputs(sep, fp) < 0 || print_opcode(fp, inst) < 0)
           return -1;
+        if (opcode == DDS_OP_EVS && op + 2 < descriptor->member_ids.count && descriptor->member_ids.table[op + 2].type == SINGLE)
+          brk = op + 3 + descriptor->member_ids.table[op + 2].data.single;
+        else if (opcode == DDS_OP_EVM)
+          brk = op + 2;
+        else if (opcode == DDS_OP_RTS)
+          brk = op + 1;
         break;
       default:
         return -1;
@@ -2209,10 +2438,15 @@ static int print_opcodes(FILE *fp, const struct descriptor *descriptor, uint32_t
           return -1;
         break;
       case OPCODE:
-        opcode = DDS_OP(inst->data.opcode.code);
-        assert (opcode == DDS_OP_RTS);
+        opcode = inst->data.opcode.code & DDS_OP_MASK;
         if (fputs(sep, fp) < 0 || print_opcode(fp, inst) < 0)
           return -1;
+        if (opcode == DDS_OP_EVS && op + 2 < descriptor->member_ids.count && descriptor->member_ids.table[op + 2].type == SINGLE)
+          brk = op + 3 + descriptor->member_ids.table[op + 2].data.single;
+        else if (opcode == DDS_OP_EVM)
+          brk = op + 2;
+        else if (opcode == DDS_OP_RTS)
+          brk = op + 1;
         break;
       default:
         return -1;
@@ -2599,6 +2833,16 @@ err_type:
 static void free_ctype_memberids(struct constructed_type_memberid *mids)
 {
   struct constructed_type_memberid *tmp = mids, *tmp1;
+  while (tmp) {
+    tmp1 = tmp;
+    tmp = tmp->next;
+    idl_free (tmp1);
+  }
+}
+
+static void free_ctype_enummetas(struct constructed_type_enummeta *ems)
+{
+  struct constructed_type_enummeta *tmp = ems, *tmp1;
   while (tmp) {
     tmp1 = tmp;
     tmp = tmp->next;
@@ -3038,6 +3282,7 @@ descriptor_fini(struct descriptor *descriptor)
     ctype = ctype1;
   }
   instructions_fini(&descriptor->key_offsets);
+  free_ctype_enummetas(descriptor->enum_metadata);
   descriptor_keys_free(descriptor->keys, descriptor->n_keys);
   idl_free (descriptor->key_offsets.table);
   idl_free (descriptor->member_ids.table);
@@ -3114,6 +3359,10 @@ generate_descriptor_impl(
     if ((ret = close_member_id_table (pstate, descriptor)) < 0)
       goto err;
   }
+  if ((ret = add_enum_metadata_entries (pstate, descriptor)) < 0)
+    goto err;
+  free_ctype_enummetas (descriptor->enum_metadata);
+  descriptor->enum_metadata = NULL;
   struct visited_ctype *vc = visited_ctypes.next;
   while (vc != NULL)
   {
