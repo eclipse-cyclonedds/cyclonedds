@@ -21,8 +21,6 @@
 extern "C" {
 #endif
 
-#define DDS_CDRSTREAM_MAX_NESTING_DEPTH 32  /* maximum level of nesting for key extraction */
-
 /*
   Encoding version to be used for serialization. Encoding version 1
   represents the XCDR1 format as defined in the DDS XTypes specification,
@@ -732,16 +730,6 @@ DDS_EXPORT size_t dds_stream_getsize_key (const char *sample, const struct dds_c
  * @returns    bitmask of DDS_DATA_REPRESENTATION_FLAG_XCDR1/XCDR2
  */
 uint32_t dds_stream_supported_data_representations (const uint32_t *ops)
-  ddsrt_nonnull_all;
-
-/**
- * @brief Determine the maximum type nesting depth in stream operations.
- * @component cdr_serializer
- *
- * @param ops  marshalling metadata to inspect
- * @returns    maximum nested aggregate depth
- */
-uint32_t dds_stream_type_nesting_depth (const uint32_t *ops)
   ddsrt_nonnull_all;
 
 /**
