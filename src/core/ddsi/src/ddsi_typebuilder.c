@@ -27,6 +27,7 @@
 #define XCDR1_MAX_ALIGN 8
 #define XCDR2_MAX_ALIGN 4
 #define STRUCT_BASE_MEMBER_NAME "parent"
+#define UNION_DISC_MEMBER_NAME "_d"
 #define KEY_NAME_SEP "."
 
 #define _PUSH(fn,val) do {                              \
@@ -154,6 +155,7 @@ struct typebuilder_union
 {
   struct typebuilder_type disc_type;
   uint32_t disc_size;
+  uint32_t disc_insn_offs;         // offset of the discriminator ADR instruction within its parent aggregated type
   bool disc_is_key;
   uint32_t member_offs;
   uint32_t n_cases;
@@ -205,12 +207,14 @@ struct typebuilder_aggregated_type
 typedef enum key_path_part_kind {
   KEY_PATH_PART_REGULAR,
   KEY_PATH_PART_INHERIT,
-  KEY_PATH_PART_INHERIT_MUTABLE
+  KEY_PATH_PART_INHERIT_MUTABLE,
+  KEY_PATH_PART_UNION_DISC
 } key_path_part_kind_t;
 
 struct typebuilder_key_path_part {
   key_path_part_kind_t kind;
   const struct typebuilder_struct_member *member;
+  const struct typebuilder_aggregated_type *aggrtype;
 };
 
 struct typebuilder_key_path {
@@ -777,6 +781,8 @@ static bool supported_key_type (const struct typebuilder_type *tb_type)
 {
   if (tb_type->type_code == DDS_OP_VAL_EXT || tb_type->type_code == DDS_OP_VAL_STU || tb_type->type_code == DDS_OP_VAL_STR || tb_type->type_code == DDS_OP_VAL_BST)
     return true;
+  if (tb_type->type_code == DDS_OP_VAL_UNI)
+    return true;
   if (tb_type->type_code <= DDS_OP_VAL_8BY || tb_type->type_code == DDS_OP_VAL_BLN || tb_type->type_code == DDS_OP_VAL_ENU || tb_type->type_code == DDS_OP_VAL_BMK)
     return true;
   if (tb_type->type_code == DDS_OP_VAL_ARR || tb_type->type_code == DDS_OP_VAL_SEQ || tb_type->type_code == DDS_OP_VAL_BSQ)
@@ -904,8 +910,7 @@ static dds_return_t typebuilder_add_union (struct typebuilder_data *tbd, struct 
     goto err;
   tb_aggrtype->detail._union.disc_size = disc_sz;
   tb_aggrtype->detail._union.disc_is_key = type->xt._u.union_type.disc_flags & DDS_XTypes_IS_KEY;
-  // TODO: support for union (discriminator) as part of a type's key
-  if (tb_aggrtype->detail._union.disc_is_key)
+  if (tb_aggrtype->detail._union.disc_is_key && !supported_key_type (&tb_aggrtype->detail._union.disc_type))
   {
     ret = DDS_RETCODE_UNSUPPORTED;
     goto err;
@@ -1418,7 +1423,7 @@ static dds_return_t get_ops_union_case (struct typebuilder_type *tb_type, uint32
   return ret;
 }
 
-static dds_return_t get_ops_union (const struct typebuilder_union *tb_union, uint16_t extensibility, struct typebuilder_ops *ops)
+static dds_return_t get_ops_union (struct typebuilder_union *tb_union, uint16_t extensibility, uint32_t parent_insn_offs, struct typebuilder_ops *ops)
 {
   dds_return_t ret;
   if (extensibility == DDS_XTypes_IS_MUTABLE)
@@ -1431,6 +1436,8 @@ static dds_return_t get_ops_union (const struct typebuilder_union *tb_union, uin
     assert (extensibility == DDS_XTypes_IS_FINAL);
 
   uint32_t flags = DDS_OP_FLAG_MU;
+  if (tb_union->disc_is_key)
+    flags |= DDS_OP_FLAG_KEY;
   switch (tb_union->disc_type.type_code)
   {
     case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
@@ -1454,6 +1461,7 @@ static dds_return_t get_ops_union (const struct typebuilder_union *tb_union, uin
   uint32_t next_insn_offs = ops->index;
   if (tb_union->disc_type.type_code == DDS_OP_VAL_ENU && (ret = typebuilder_add_enum_use (ops, &tb_union->disc_type, ops->index)) != DDS_RETCODE_OK)
     return ret;
+  tb_union->disc_insn_offs = ops->index - parent_insn_offs;
   PUSH_OP ((uint32_t) DDS_OP_ADR | (uint32_t) DDS_OP_TYPE_UNI | (uint32_t) (tb_union->disc_type.type_code << 8) | flags);
   PUSH_ARG (0u);
   PUSH_ARG (tb_union->n_cases);
@@ -1495,7 +1503,7 @@ static dds_return_t get_ops_aggrtype (struct typebuilder_aggregated_type *tb_agg
         return ret;
       break;
     case DDS_XTypes_TK_UNION:
-      if ((ret = get_ops_union (&tb_aggrtype->detail._union, tb_aggrtype->extensibility, ops)) != DDS_RETCODE_OK)
+      if ((ret = get_ops_union (&tb_aggrtype->detail._union, tb_aggrtype->extensibility, tb_aggrtype->insn_offs, ops)) != DDS_RETCODE_OK)
         return ret;
       break;
     default:
@@ -1650,7 +1658,7 @@ static void path_free (struct typebuilder_key_path *path)
   ddsrt_free (path);
 }
 
-static dds_return_t extend_path (struct typebuilder_key_path **dst, const struct typebuilder_key_path *path, const char *name, const struct typebuilder_struct_member *member, key_path_part_kind_t part_kind)
+static dds_return_t extend_path_impl (struct typebuilder_key_path **dst, const struct typebuilder_key_path *path, const char *name, const struct typebuilder_struct_member *member, const struct typebuilder_aggregated_type *aggrtype, key_path_part_kind_t part_kind)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   if (!(*dst = ddsrt_calloc (1, sizeof (**dst))))
@@ -1671,16 +1679,39 @@ static dds_return_t extend_path (struct typebuilder_key_path **dst, const struct
     {
       (*dst)->parts[n].kind = path->parts[n].kind;
       (*dst)->parts[n].member = path->parts[n].member;
+      (*dst)->parts[n].aggrtype = path->parts[n].aggrtype;
     }
     (*dst)->name_len = path->name_len;
   }
   if (name)
     (*dst)->name_len += strlen (name) + 1; // +1 for separator (parts 0..n-1) and \0 (part n)
   (*dst)->parts[(*dst)->n_parts - 1].member = member;
+  (*dst)->parts[(*dst)->n_parts - 1].aggrtype = aggrtype;
   (*dst)->parts[(*dst)->n_parts - 1].kind = part_kind;
 
 err:
   return ret;
+}
+
+static dds_return_t extend_path (struct typebuilder_key_path **dst, const struct typebuilder_key_path *path, const char *name, const struct typebuilder_struct_member *member, key_path_part_kind_t part_kind)
+{
+  return extend_path_impl (dst, path, name, member, NULL, part_kind);
+}
+
+static dds_return_t extend_path_union_disc (struct typebuilder_key_path **dst, const struct typebuilder_key_path *path, const struct typebuilder_aggregated_type *tb_aggrtype)
+{
+  return extend_path_impl (dst, path, UNION_DISC_MEMBER_NAME, NULL, tb_aggrtype, KEY_PATH_PART_UNION_DISC);
+}
+
+static dds_return_t add_key_path (struct typebuilder_data *tbd, struct typebuilder_key_path *path)
+{
+  struct typebuilder_key *tmp;
+  if (!(tmp = ddsrt_realloc (tbd->keys, (tbd->n_keys + 1) * sizeof (*tbd->keys))))
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  tbd->n_keys++;
+  tbd->keys = tmp;
+  tbd->keys[tbd->n_keys - 1].path = path;
+  return DDS_RETCODE_OK;
 }
 
 static dds_return_t get_keys_struct (struct typebuilder_data *tbd, struct typebuilder_key_path *path, const struct typebuilder_struct *tb_struct, bool has_explicit_keys, bool parent_is_key)
@@ -1704,16 +1735,11 @@ static dds_return_t get_keys_struct (struct typebuilder_data *tbd, struct typebu
       }
       else
       {
-        struct typebuilder_key *tmp;
-        if (!(tmp = ddsrt_realloc (tbd->keys, (tbd->n_keys + 1) * sizeof (*tbd->keys))))
+        if ((ret = add_key_path (tbd, member_path)) != DDS_RETCODE_OK)
         {
           path_free (member_path);
-          ret = DDS_RETCODE_OUT_OF_RESOURCES;
           goto err;
         }
-        tbd->n_keys++;
-        tbd->keys = tmp;
-        tbd->keys[tbd->n_keys - 1].path = member_path;
       }
     }
   }
@@ -1741,11 +1767,21 @@ static dds_return_t get_keys_aggrtype (struct typebuilder_data *tbd, struct type
       if ((ret = get_keys_struct (tbd, path, &tb_aggrtype->detail._struct, tb_aggrtype->has_explicit_key, parent_is_key)) != DDS_RETCODE_OK)
         return ret;
       break;
-    case DDS_XTypes_TK_UNION:
-      /* TODO: Support union types as key. The discriminator is the key in that case, and currently
-         this is rejected in typebuilder_add_union, so at this point a union has no key attribute set */
+    case DDS_XTypes_TK_UNION: {
+      if (parent_is_key || tb_aggrtype->detail._union.disc_is_key)
+      {
+        struct typebuilder_key_path *disc_path;
+        if ((ret = extend_path_union_disc (&disc_path, path, tb_aggrtype)) != DDS_RETCODE_OK)
+          return ret;
+        if ((ret = add_key_path (tbd, disc_path)) != DDS_RETCODE_OK)
+        {
+          path_free (disc_path);
+          return ret;
+        }
+      }
       ret = DDS_RETCODE_OK;
       break;
+    }
     default:
       abort ();
   }
@@ -1768,6 +1804,9 @@ static int key_id_cmp (const void *va, const void *vb)
         /* a derived type cannot add keys, so all keys must have an INHERIT_MUTABLE
            kind part at this index */
         assert ((*b)->path->parts[n].kind == (*a)->path->parts[n].kind);
+        break;
+      case KEY_PATH_PART_UNION_DISC:
+        assert ((*b)->path->parts[n].kind == KEY_PATH_PART_UNION_DISC);
         break;
       case KEY_PATH_PART_REGULAR:
         if ((*a)->path->parts[n].member->member_id != (*b)->path->parts[n].member->member_id)
@@ -1825,6 +1864,13 @@ static dds_return_t typebuilder_get_keys_push_ops (struct typebuilder_data *tbd,
         case KEY_PATH_PART_INHERIT_MUTABLE:
           inherit_mutable = true;
           break;
+        case KEY_PATH_PART_UNION_DISC:
+          assert (!inherit_mutable);
+          assert (key->path->parts[n].aggrtype->kind == DDS_XTypes_TK_UNION);
+          if ((ret = push_op_arg (ops, key->path->parts[n].aggrtype->detail._union.disc_insn_offs)) != DDS_RETCODE_OK)
+            goto err;
+          n_key_offs++;
+          break;
       }
     }
     OR_OP (key->kof_idx, n_key_offs);
@@ -1858,6 +1904,11 @@ static char *typebuilder_get_keys_make_name (const struct typebuilder_key *key)
     {
       (void) ddsrt_strlcpy (name + name_csr, key->path->parts[p].member->member_name, (key->path->name_len + 1) - name_csr);
       name_csr += strlen (key->path->parts[p].member->member_name);
+    }
+    else if (key->path->parts[p].kind == KEY_PATH_PART_UNION_DISC)
+    {
+      (void) ddsrt_strlcpy (name + name_csr, UNION_DISC_MEMBER_NAME, (key->path->name_len + 1) - name_csr);
+      name_csr += strlen (UNION_DISC_MEMBER_NAME);
     }
   }
   return name;
@@ -1911,6 +1962,7 @@ static void set_implicit_keys_collection (struct typebuilder_type *tb_collection
   switch (element_type->type_code)
   {
     case DDS_OP_VAL_STU:
+    case DDS_OP_VAL_UNI:
       set_implicit_keys_aggrtype (element_type->args.external_type_args.external_type.type, false, parent_is_key, visited_implicit_keys);
       break;
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR:
@@ -1951,7 +2003,8 @@ static void set_implicit_keys_aggrtype (struct typebuilder_aggregated_type *tb_a
       set_implicit_keys_struct (&tb_aggrtype->detail._struct, tb_aggrtype->has_explicit_key, is_toplevel, parent_is_key, &visited);
       break;
     case DDS_XTypes_TK_UNION:
-      // TODO: union discriminator can be implicit key
+      if (parent_is_key)
+        tb_aggrtype->detail._union.disc_is_key = true;
       break;
     default:
       abort ();
