@@ -182,7 +182,17 @@ function(IDLC_GENERATE_GENERIC)
     set(_dir ${CMAKE_CURRENT_BINARY_DIR})
   endif()
 
-  list(APPEND IDLC_ARGS "-o${_dir}")
+  # Keep generated source mtimes stable only for the in-tree shared build,
+  # where rebuilding idlc from core would otherwise force test IDL rebuilds.
+  # Static builds consume some generated files as ordinary sources, so use
+  # direct outputs there as for application builds.
+  if(CMAKE_PROJECT_NAME STREQUAL "CycloneDDS" AND BUILD_IDLC AND BUILD_SHARED_LIBS)
+    set(_stable_idlc_outputs ON)
+  else()
+    set(_stable_idlc_outputs OFF)
+    list(APPEND IDLC_ARGS "-o${_dir}")
+  endif()
+
   set(_target ${IDLC_TARGET})
   foreach(_file ${IDLC_FILES})
     get_filename_component(_path ${_file} ABSOLUTE)
@@ -194,6 +204,7 @@ function(IDLC_GENERATE_GENERIC)
     set(IDLC_SUFFIXES ".c" ".h")
   endif()
   set(_outputs "")
+  set(_stamps "")
   foreach(_file ${_files})
     get_filename_component(_name ${_file} NAME_WLE)
     get_filename_component(_name_ext ${_file} NAME)
@@ -209,24 +220,69 @@ function(IDLC_GENERATE_GENERIC)
       string(REGEX REPLACE "[\\/]$" "" _mid_dir_path "${_mid_dir_path}")
     endif()
 
+    if(_stable_idlc_outputs)
+      # Keep generated source mtimes stable when idlc output is unchanged.
+      string(MD5 _file_hash "${_file}")
+      set(_tmp_dir "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_target}_idlc/${_name}-${_file_hash}")
+      set(_stamp "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_target}_idlc/${_name}-${_file_hash}.stamp")
+    endif()
+
     set(_file_outputs "")
+    if(_stable_idlc_outputs)
+      set(_copy_commands "")
+      set(_make_dir_commands "")
+    endif()
     foreach(_suffix ${IDLC_SUFFIXES})
       if(IDLC_BASE_DIR)
-        list(APPEND _file_outputs "${_dir}/${_mid_dir_path}/${_name}${_suffix}")
+        set(_output "${_dir}/${_mid_dir_path}/${_name}${_suffix}")
+        if(_stable_idlc_outputs)
+          set(_tmp_output "${_tmp_dir}/${_mid_dir_path}/${_name}${_suffix}")
+        endif()
       else()
-        list(APPEND _file_outputs "${_dir}/${_name}${_suffix}")
+        set(_output "${_dir}/${_name}${_suffix}")
+        if(_stable_idlc_outputs)
+          set(_tmp_output "${_tmp_dir}/${_name}${_suffix}")
+        endif()
+      endif()
+      list(APPEND _file_outputs "${_output}")
+      if(_stable_idlc_outputs)
+        get_filename_component(_output_dir "${_output}" DIRECTORY)
+        list(APPEND _make_dir_commands
+          COMMAND "${CMAKE_COMMAND}" -E make_directory "${_output_dir}")
+        list(APPEND _copy_commands
+          COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${_tmp_output}" "${_output}")
       endif()
     endforeach()
 
     list(APPEND _outputs ${_file_outputs})
-    add_custom_command(
-      OUTPUT   ${_file_outputs}
-      COMMAND  ${_idlc_executable}
-      ARGS     ${_language} ${IDLC_ARGS} ${IDLC_INCLUDE_DIRS} ${_file}
-      DEPENDS  ${_files} ${_depends})
+    if(_stable_idlc_outputs)
+      list(APPEND _stamps "${_stamp}")
+      add_custom_command(
+        OUTPUT   "${_stamp}"
+        BYPRODUCTS ${_file_outputs}
+        COMMAND  "${CMAKE_COMMAND}" -E remove_directory "${_tmp_dir}"
+        COMMAND  "${CMAKE_COMMAND}" -E make_directory "${_tmp_dir}"
+        COMMAND  ${_idlc_executable}
+        ARGS     ${_language} ${IDLC_ARGS} "-o${_tmp_dir}" ${IDLC_INCLUDE_DIRS} ${_file}
+        ${_make_dir_commands}
+        ${_copy_commands}
+        COMMAND  "${CMAKE_COMMAND}" -E touch "${_stamp}"
+        DEPENDS  ${_files} ${_depends}
+        VERBATIM)
+    else()
+      add_custom_command(
+        OUTPUT   ${_file_outputs}
+        COMMAND  ${_idlc_executable}
+        ARGS     ${_language} ${IDLC_ARGS} ${IDLC_INCLUDE_DIRS} ${_file}
+        DEPENDS  ${_files} ${_depends})
+    endif()
   endforeach()
 
-  add_custom_target("${_target}_generate" DEPENDS "${_outputs}")
+  if(_stable_idlc_outputs)
+    add_custom_target("${_target}_generate" DEPENDS "${_stamps}")
+  else()
+    add_custom_target("${_target}_generate" DEPENDS "${_outputs}")
+  endif()
   if(${CMAKE_GENERATOR} MATCHES "Xcode")
     set_target_properties("${_target}_generate" PROPERTIES XCODE_GENERATE_SCHEME NO)
   endif()
