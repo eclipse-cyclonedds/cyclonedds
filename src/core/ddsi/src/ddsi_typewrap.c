@@ -3111,6 +3111,7 @@ static struct xt_type *xt_type_keyholder (struct ddsi_domaingv *gv, const struct
           /* Unref the member type for non-key fields for this copy of the type,
              because the member is removed */
           ddsi_type_unref_locked (gv, tkh->_u.structure.members.seq[i].type);
+          xt_applied_member_annotations_fini (&tkh->_u.structure.members.seq[i].detail.annotations);
 
           if (i < l - 1)
             memmove (&tkh->_u.structure.members.seq[i], &tkh->_u.structure.members.seq[i + 1], (l - i - 1) * sizeof (*tkh->_u.structure.members.seq));
@@ -3134,10 +3135,15 @@ static struct xt_type *xt_type_keyholder (struct ddsi_domaingv *gv, const struct
       {
         /* Unref type for members, because all members are removed from this copy of the type */
         for (uint32_t n = 0; n < tkh->_u.union_type.members.length; n++)
+        {
           ddsi_type_unref_locked (gv, tkh->_u.union_type.members.seq[n].type);
+          ddsrt_free (tkh->_u.union_type.members.seq[n].label_seq._buffer);
+          xt_applied_member_annotations_fini (&tkh->_u.union_type.members.seq[n].detail.annotations);
+        }
 
         tkh->_u.union_type.members.length = 0;
         ddsrt_free (tkh->_u.union_type.members.seq);
+        tkh->_u.union_type.members.seq = NULL;
       }
       return tkh;
     }

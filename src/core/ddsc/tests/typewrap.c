@@ -385,6 +385,82 @@ CU_Test (ddsc_typewrap, recursive_type_assignability, .init = typewrap_init, .fi
   CU_ASSERT_EQ (ddsi_xt_validate (gv, &wr_sequence_a), DDS_RETCODE_BAD_PARAMETER);
 }
 
+CU_Test (ddsc_typewrap, keyholder_releases_removed_member_annotations, .init = typewrap_init, .fini = typewrap_fini)
+{
+  struct ddsi_domaingv *gv = get_domaingv (participant);
+  struct ddsi_type int32_type = { .refc = 1 };
+  int32_type.xt._d = DDS_XTypes_TK_INT32;
+
+  struct DDS_XTypes_AnnotationParameterValue rd_min = {0}, rd_max = {0}, wr_min = {0}, wr_max = {0};
+  struct DDS_XTypes_AppliedBuiltinMemberAnnotations rd_nonkey_annotations = {
+    .unit = "rd",
+    .min = &rd_min,
+    .max = &rd_max,
+    .hash_id = "rd_hash"
+  };
+  struct DDS_XTypes_AppliedBuiltinMemberAnnotations wr_nonkey_annotations = {
+    .unit = "wr",
+    .min = &wr_min,
+    .max = &wr_max,
+    .hash_id = "wr_hash"
+  };
+
+  struct xt_struct_member rd_nested_members[] = {
+    { .id = 1, .flags = DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_IS_KEY, .type = &int32_type },
+    { .id = 2, .flags = DDS_XTypes_TRY_CONSTRUCT1, .type = &int32_type,
+      .detail = { .annotations = { .ann_builtin = &rd_nonkey_annotations } } }
+  };
+  struct xt_struct_member wr_nested_members[] = {
+    { .id = 1, .flags = DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_IS_KEY, .type = &int32_type },
+    { .id = 2, .flags = DDS_XTypes_TRY_CONSTRUCT1, .type = &int32_type,
+      .detail = { .annotations = { .ann_builtin = &wr_nonkey_annotations } } }
+  };
+  struct ddsi_type rd_nested = { .refc = 1 }, wr_nested = { .refc = 1 };
+  init_test_hash_id (&rd_nested.xt.id, 20);
+  rd_nested.xt.kind = DDSI_TYPEID_KIND_COMPLETE;
+  rd_nested.xt._d = DDS_XTypes_TK_STRUCTURE;
+  rd_nested.xt._u.structure.flags = DDS_XTypes_IS_MUTABLE;
+  rd_nested.xt._u.structure.members.length = 2;
+  rd_nested.xt._u.structure.members.seq = rd_nested_members;
+  init_test_hash_id (&wr_nested.xt.id, 21);
+  wr_nested.xt.kind = DDSI_TYPEID_KIND_COMPLETE;
+  wr_nested.xt._d = DDS_XTypes_TK_STRUCTURE;
+  wr_nested.xt._u.structure.flags = DDS_XTypes_IS_MUTABLE;
+  wr_nested.xt._u.structure.members.length = 2;
+  wr_nested.xt._u.structure.members.seq = wr_nested_members;
+
+  struct xt_struct_member rd_top_member = {
+    .id = 1,
+    .flags = DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_IS_KEY,
+    .type = &rd_nested
+  };
+  struct xt_struct_member wr_top_member = {
+    .id = 1,
+    .flags = DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_IS_KEY,
+    .type = &wr_nested
+  };
+  struct ddsi_type rd_top = { .refc = 1 }, wr_top = { .refc = 1 };
+  init_test_hash_id (&rd_top.xt.id, 22);
+  rd_top.xt.kind = DDSI_TYPEID_KIND_COMPLETE;
+  rd_top.xt._d = DDS_XTypes_TK_STRUCTURE;
+  rd_top.xt._u.structure.flags = DDS_XTypes_IS_MUTABLE;
+  rd_top.xt._u.structure.members.length = 1;
+  rd_top.xt._u.structure.members.seq = &rd_top_member;
+  init_test_hash_id (&wr_top.xt.id, 23);
+  wr_top.xt.kind = DDSI_TYPEID_KIND_COMPLETE;
+  wr_top.xt._d = DDS_XTypes_TK_STRUCTURE;
+  wr_top.xt._u.structure.flags = DDS_XTypes_IS_MUTABLE;
+  wr_top.xt._u.structure.members.length = 1;
+  wr_top.xt._u.structure.members.seq = &wr_top_member;
+
+  dds_type_consistency_enforcement_qospolicy_t tce = {
+    .kind = DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION,
+    .ignore_member_names = true
+  };
+  struct ddsi_non_assignability_reason reason;
+  CU_ASSERT (ddsi_xt_is_assignable_from (gv, &rd_top.xt, &wr_top.xt, &tce, &reason));
+}
+
 CU_Test (ddsc_typewrap, alias_base_validation, .init = typewrap_init, .fini = typewrap_fini)
 {
   struct ddsi_domaingv *gv = get_domaingv (participant);
