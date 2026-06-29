@@ -1473,7 +1473,7 @@ static dds_return_t xt_valid_type_flags (struct ddsi_domaingv *gv, uint16_t flag
       // spec says unused, but this flag is actually used for extensibility
       if (flags & ~(F|A))
         ret = DDS_RETCODE_BAD_PARAMETER;
-      if (!(flags & (F|A)))
+      if (!(flags & (F|A)) && !gv->config.allow_invalid_extensibility)
         ret = DDS_RETCODE_BAD_PARAMETER;
       break;
     case DDS_XTypes_TK_ANNOTATION:
@@ -3593,9 +3593,13 @@ static uint32_t xt_get_extensibility (const struct xt_type *t)
   {
     case DDS_XTypes_TK_ENUM:
       ext_flags = t->_u.enum_type.flags & XT_FLAG_EXTENSIBILITY_MASK;
+      if (ext_flags == 0)
+        ext_flags = DDS_XTypes_IS_APPENDABLE;
       break;
     case DDS_XTypes_TK_BITMASK:
       ext_flags = t->_u.bitmask.flags & XT_FLAG_EXTENSIBILITY_MASK;
+      if (ext_flags == 0)
+        ext_flags = DDS_XTypes_IS_APPENDABLE;
       break;
     case DDS_XTypes_TK_STRUCTURE:
       ext_flags = t->_u.structure.flags & XT_FLAG_EXTENSIBILITY_MASK;
