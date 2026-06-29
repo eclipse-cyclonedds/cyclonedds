@@ -2418,8 +2418,8 @@ static void DDS_XTypes_AppliedAnnotationParameterSeq_copy (struct DDS_XTypes_App
   if (src)
   {
     (*dst) = ddsrt_calloc (1, sizeof (**dst));
-    (*dst)->_maximum = src->_maximum;
     (*dst)->_length = src->_length;
+    (*dst)->_maximum = src->_length;
     (*dst)->_buffer = ddsrt_calloc (src->_length, sizeof (*(*dst)->_buffer));
     for (uint32_t n = 0; n < src->_length; n++)
       DDS_XTypes_AppliedAnnotationParameter_copy (&(*dst)->_buffer[n], &src->_buffer[n]);
@@ -2440,8 +2440,8 @@ static void DDS_XTypes_AppliedAnnotationSeq_copy (struct DDS_XTypes_AppliedAnnot
 {
   if (src)
   {
-    dst->_maximum = src->_maximum;
     dst->_length = src->_length;
+    dst->_maximum = src->_length;
     dst->_buffer = ddsrt_calloc (src->_length, sizeof (*dst->_buffer));
     for (uint32_t n = 0; n < src->_length; n++)
       DDS_XTypes_AppliedAnnotation_copy (&dst->_buffer[n], &src->_buffer[n]);
@@ -5097,7 +5097,7 @@ static void xt_typeid_gen_emit_typeobject (struct xt_typeid_gen_context *context
         if (xt->_u.structure.base_type)
           xt_typeid_gen_emit_typeid (context, &xt->_u.structure.base_type->xt, &mstruct->header.base_type, DDSI_TYPEID_KIND_MINIMAL);
         mstruct->member_seq._buffer = ddsrt_malloc (xt->_u.structure.members.length * sizeof (*mstruct->member_seq._buffer));
-        mstruct->member_seq._length = xt->_u.structure.members.length;
+        mstruct->member_seq._length = mstruct->member_seq._maximum = xt->_u.structure.members.length;
         mstruct->member_seq._release = true;
         for (uint32_t n = 0; n < xt->_u.structure.members.length; n++)
         {
@@ -5127,6 +5127,7 @@ static void xt_typeid_gen_emit_typeobject (struct xt_typeid_gen_context *context
             munion->member_seq._buffer[n].common.label_seq._buffer =
               ddsrt_memdup (xt->_u.union_type.members.seq[n].label_seq._buffer,
                             xt->_u.union_type.members.seq[n].label_seq._length * sizeof (*xt->_u.union_type.members.seq[n].label_seq._buffer));
+            munion->member_seq._buffer[n].common.label_seq._maximum = munion->member_seq._buffer[n].common.label_seq._length;
             munion->member_seq._buffer[n].common.label_seq._release = true;
           } else {
             munion->member_seq._buffer[n].common.label_seq._buffer = NULL;
@@ -5139,7 +5140,7 @@ static void xt_typeid_gen_emit_typeobject (struct xt_typeid_gen_context *context
       case DDS_XTypes_TK_BITSET:
       {
         struct DDS_XTypes_MinimalBitsetType *mbitset = &mto->_u.bitset_type;
-        mbitset->field_seq._length = xt->_u.bitset.fields.length;
+        mbitset->field_seq._length = mbitset->field_seq._maximum = xt->_u.bitset.fields.length;
         mbitset->field_seq._buffer = ddsrt_malloc (xt->_u.bitset.fields.length * sizeof (*mbitset->field_seq._buffer));
         mbitset->field_seq._release = true;
         for (uint32_t n = 0; n < xt->_u.bitset.fields.length; n++)
@@ -5175,7 +5176,7 @@ static void xt_typeid_gen_emit_typeobject (struct xt_typeid_gen_context *context
         struct DDS_XTypes_MinimalEnumeratedType *menum = &mto->_u.enumerated_type;
         menum->enum_flags = xt->_u.enum_type.flags;
         menum->header.common.bit_bound = xt->_u.enum_type.bit_bound;
-        menum->literal_seq._length = xt->_u.enum_type.literals.length;
+        menum->literal_seq._length = menum->literal_seq._maximum = xt->_u.enum_type.literals.length;
         menum->literal_seq._buffer = ddsrt_malloc (xt->_u.enum_type.literals.length * sizeof (*menum->literal_seq._buffer));
         menum->literal_seq._release = true;
         for (uint32_t n = 0; n < xt->_u.enum_type.literals.length; n++)
@@ -5191,7 +5192,7 @@ static void xt_typeid_gen_emit_typeobject (struct xt_typeid_gen_context *context
         struct DDS_XTypes_MinimalBitmaskType *mbitmask = &mto->_u.bitmask_type;
         mbitmask->bitmask_flags = xt->_u.bitmask.flags;
         mbitmask->header.common.bit_bound = xt->_u.bitmask.bit_bound;
-        mbitmask->flag_seq._length = xt->_u.bitmask.bitflags.length;
+        mbitmask->flag_seq._length = mbitmask->flag_seq._maximum = xt->_u.bitmask.bitflags.length;
         mbitmask->flag_seq._buffer = ddsrt_malloc (xt->_u.bitmask.bitflags.length * sizeof (*mbitmask->flag_seq._buffer));
         mbitmask->flag_seq._release = true;
         for (uint32_t n = 0; n < xt->_u.bitmask.bitflags.length; n++)
@@ -5236,7 +5237,7 @@ static void xt_typeid_gen_emit_typeobject (struct xt_typeid_gen_context *context
 
         get_type_detail (&cstruct->header.detail, &xt->_u.structure.detail);
         cstruct->member_seq._buffer = ddsrt_malloc (xt->_u.structure.members.length * sizeof (*cstruct->member_seq._buffer));
-        cstruct->member_seq._length = xt->_u.structure.members.length;
+        cstruct->member_seq._length = cstruct->member_seq._maximum = xt->_u.structure.members.length;
         cstruct->member_seq._release = true;
         for (uint32_t n = 0; n < xt->_u.structure.members.length; n++)
         {
@@ -5277,6 +5278,7 @@ static void xt_typeid_gen_emit_typeobject (struct xt_typeid_gen_context *context
             cunion->member_seq._buffer[n].common.label_seq._buffer =
               ddsrt_memdup (xt->_u.union_type.members.seq[n].label_seq._buffer,
                             xt->_u.union_type.members.seq[n].label_seq._length * sizeof (*xt->_u.union_type.members.seq[n].label_seq._buffer));
+            cunion->member_seq._buffer[n].common.label_seq._maximum = cunion->member_seq._buffer[n].common.label_seq._length;
             cunion->member_seq._buffer[n].common.label_seq._release = true;
           } else {
             cunion->member_seq._buffer[n].common.label_seq._buffer = NULL;
@@ -5291,7 +5293,7 @@ static void xt_typeid_gen_emit_typeobject (struct xt_typeid_gen_context *context
         struct DDS_XTypes_CompleteBitsetType *cbitset = &cto->_u.bitset_type;
         cbitset->bitset_flags = xt->_u.bitset.flags;
         get_type_detail (&cbitset->header.detail, &xt->_u.bitset.detail);
-        cbitset->field_seq._length = xt->_u.bitset.fields.length;
+        cbitset->field_seq._length = cbitset->field_seq._maximum = xt->_u.bitset.fields.length;
         cbitset->field_seq._buffer = ddsrt_malloc (xt->_u.bitset.fields.length * sizeof (*cbitset->field_seq._buffer));
         cbitset->field_seq._release = true;
         for (uint32_t n = 0; n < xt->_u.bitset.fields.length; n++)
@@ -5337,7 +5339,7 @@ static void xt_typeid_gen_emit_typeobject (struct xt_typeid_gen_context *context
         get_type_detail (&cenum->header.detail, &xt->_u.enum_type.detail);
         cenum->enum_flags = xt->_u.enum_type.flags;
         cenum->header.common.bit_bound = xt->_u.enum_type.bit_bound;
-        cenum->literal_seq._length = xt->_u.enum_type.literals.length;
+        cenum->literal_seq._length = cenum->literal_seq._maximum = xt->_u.enum_type.literals.length;
         cenum->literal_seq._buffer = ddsrt_malloc (xt->_u.enum_type.literals.length * sizeof (*cenum->literal_seq._buffer));
         cenum->literal_seq._release = true;
         for (uint32_t n = 0; n < xt->_u.enum_type.literals.length; n++)
@@ -5354,7 +5356,7 @@ static void xt_typeid_gen_emit_typeobject (struct xt_typeid_gen_context *context
         get_type_detail (&cbitmask->header.detail, &xt->_u.bitmask.detail);
         cbitmask->bitmask_flags = xt->_u.bitmask.flags;
         cbitmask->header.common.bit_bound = xt->_u.bitmask.bit_bound;
-        cbitmask->flag_seq._length = xt->_u.bitmask.bitflags.length;
+        cbitmask->flag_seq._length = cbitmask->flag_seq._maximum = xt->_u.bitmask.bitflags.length;
         cbitmask->flag_seq._buffer = ddsrt_malloc (xt->_u.bitmask.bitflags.length * sizeof (*cbitmask->flag_seq._buffer));
         cbitmask->flag_seq._release = true;
         for (uint32_t n = 0; n < xt->_u.bitmask.bitflags.length; n++)

@@ -461,6 +461,85 @@ CU_Test (ddsc_typewrap, keyholder_releases_removed_member_annotations, .init = t
   CU_ASSERT (ddsi_xt_is_assignable_from (gv, &rd_top.xt, &wr_top.xt, &tce, &reason));
 }
 
+CU_Test (ddsc_typewrap, typeobject_fini_walks_mutated_owned_sequences)
+{
+  struct DDS_XTypes_AnnotationParameterValue ann_min = { ._d = DDS_XTypes_TK_INT32 };
+  struct DDS_XTypes_AnnotationParameterValue ann_max = { ._d = DDS_XTypes_TK_INT32 };
+  struct DDS_XTypes_AppliedBuiltinMemberAnnotations ann_builtin = {
+    .unit = "octets",
+    .min = &ann_min,
+    .max = &ann_max,
+    .hash_id = "owned-seq"
+  };
+  struct DDS_XTypes_AppliedAnnotationParameter ann_param = {
+    .value = { ._d = DDS_XTypes_TK_INT32 }
+  };
+  struct DDS_XTypes_AppliedAnnotationParameterSeq ann_params = {
+    ._maximum = 1,
+    ._length = 1,
+    ._buffer = &ann_param,
+    ._release = false
+  };
+  struct DDS_XTypes_AppliedAnnotation ann_custom = {
+    .annotation_typeid = { ._d = DDS_XTypes_TK_INT32 },
+    .param_seq = &ann_params
+  };
+  struct DDS_XTypes_AppliedAnnotationSeq ann_custom_seq = {
+    ._maximum = 1,
+    ._length = 1,
+    ._buffer = &ann_custom,
+    ._release = false
+  };
+
+  struct xt_enum_literal enum_literal = {
+    .value = 0,
+    .detail = { .annotations = { .ann_builtin = &ann_builtin, .ann_custom = &ann_custom_seq } }
+  };
+  ddsrt_strlcpy (enum_literal.detail.name, "literal", sizeof (enum_literal.detail.name));
+  struct ddsi_type enum_type = { .refc = 1 };
+  enum_type.xt.kind = DDSI_TYPEID_KIND_COMPLETE;
+  enum_type.xt._d = DDS_XTypes_TK_ENUM;
+  enum_type.xt._u.enum_type.bit_bound = 32;
+  enum_type.xt._u.enum_type.literals.length = 1;
+  enum_type.xt._u.enum_type.literals.seq = &enum_literal;
+  ddsrt_strlcpy (enum_type.xt._u.enum_type.detail.type_name, "AnnotatedEnum", sizeof (enum_type.xt._u.enum_type.detail.type_name));
+
+  struct DDS_XTypes_TypeObject enum_object;
+  ddsi_xt_get_typeobject_kind_impl (&enum_type.xt, &enum_object, DDSI_TYPEID_KIND_COMPLETE);
+  DDS_XTypes_CompleteEnumeratedLiteralSeq *literal_seq = &enum_object._u.complete._u.enumerated_type.literal_seq;
+  CU_ASSERT_EQ_FATAL (literal_seq->_length, 1);
+  CU_ASSERT_EQ_FATAL (literal_seq->_maximum, literal_seq->_length);
+  CU_ASSERT_NEQ_FATAL (literal_seq->_buffer, NULL);
+  CU_ASSERT_NEQ_FATAL (literal_seq->_buffer[0].detail.ann_builtin, NULL);
+  CU_ASSERT_NEQ_FATAL (literal_seq->_buffer[0].detail.ann_custom, NULL);
+  literal_seq->_length = 0;
+  ddsi_typeobj_fini_impl (&enum_object);
+
+  struct xt_bitflag bitflag = {
+    .position = 0,
+    .detail = { .annotations = { .ann_builtin = &ann_builtin, .ann_custom = &ann_custom_seq } }
+  };
+  ddsrt_strlcpy (bitflag.detail.name, "flag", sizeof (bitflag.detail.name));
+  struct ddsi_type bitmask_type = { .refc = 1 };
+  bitmask_type.xt.kind = DDSI_TYPEID_KIND_COMPLETE;
+  bitmask_type.xt._d = DDS_XTypes_TK_BITMASK;
+  bitmask_type.xt._u.bitmask.bit_bound = 32;
+  bitmask_type.xt._u.bitmask.bitflags.length = 1;
+  bitmask_type.xt._u.bitmask.bitflags.seq = &bitflag;
+  ddsrt_strlcpy (bitmask_type.xt._u.bitmask.detail.type_name, "AnnotatedBitmask", sizeof (bitmask_type.xt._u.bitmask.detail.type_name));
+
+  struct DDS_XTypes_TypeObject bitmask_object;
+  ddsi_xt_get_typeobject_kind_impl (&bitmask_type.xt, &bitmask_object, DDSI_TYPEID_KIND_COMPLETE);
+  DDS_XTypes_CompleteBitflagSeq *flag_seq = &bitmask_object._u.complete._u.bitmask_type.flag_seq;
+  CU_ASSERT_EQ_FATAL (flag_seq->_length, 1);
+  CU_ASSERT_EQ_FATAL (flag_seq->_maximum, flag_seq->_length);
+  CU_ASSERT_NEQ_FATAL (flag_seq->_buffer, NULL);
+  CU_ASSERT_NEQ_FATAL (flag_seq->_buffer[0].detail.ann_builtin, NULL);
+  CU_ASSERT_NEQ_FATAL (flag_seq->_buffer[0].detail.ann_custom, NULL);
+  flag_seq->_length = 0;
+  ddsi_typeobj_fini_impl (&bitmask_object);
+}
+
 CU_Test (ddsc_typewrap, alias_base_validation, .init = typewrap_init, .fini = typewrap_fini)
 {
   struct ddsi_domaingv *gv = get_domaingv (participant);
