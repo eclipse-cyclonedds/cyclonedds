@@ -20,9 +20,17 @@ The default value is: `any`
 
 
 ### //CycloneDDS/Domain/Compatibility
-Children: [AllowInvalidTryConstruct](#cycloneddsdomaincompatibilityallowinvalidtryconstruct), [AllowRecursiveTypes](#cycloneddsdomaincompatibilityallowrecursivetypes), [AssumeRtiHasPmdEndpoints](#cycloneddsdomaincompatibilityassumertihaspmdendpoints), [ExplicitlyPublishQosSetToDefault](#cycloneddsdomaincompatibilityexplicitlypublishqossettodefault), [IgnoreTypeInformation](#cycloneddsdomaincompatibilityignoretypeinformation), [ManySocketsMode](#cycloneddsdomaincompatibilitymanysocketsmode), [ProtocolVersion](#cycloneddsdomaincompatibilityprotocolversion), [StandardsConformance](#cycloneddsdomaincompatibilitystandardsconformance)
+Children: [AllowInvalidExtensibility](#cycloneddsdomaincompatibilityallowinvalidextensibility), [AllowInvalidTryConstruct](#cycloneddsdomaincompatibilityallowinvalidtryconstruct), [AllowRecursiveTypes](#cycloneddsdomaincompatibilityallowrecursivetypes), [AssumeRtiHasPmdEndpoints](#cycloneddsdomaincompatibilityassumertihaspmdendpoints), [ExplicitlyPublishQosSetToDefault](#cycloneddsdomaincompatibilityexplicitlypublishqossettodefault), [IgnoreTypeInformation](#cycloneddsdomaincompatibilityignoretypeinformation), [ManySocketsMode](#cycloneddsdomaincompatibilitymanysocketsmode), [ProtocolVersion](#cycloneddsdomaincompatibilityprotocolversion), [StandardsConformance](#cycloneddsdomaincompatibilitystandardsconformance)
 
 The Compatibility element allows you to specify various settings related to compatibility with standards and with other DDSI implementations.
+
+
+#### //CycloneDDS/Domain/Compatibility/AllowInvalidExtensibility
+Boolean
+
+Setting option makes the TypeObject validation code accept enum/bitmask types with the extensibility flags all set to 0 and treats it as APPENDABLE instead.
+
+The default value is: `false`
 
 
 #### //CycloneDDS/Domain/Compatibility/AllowInvalidTryConstruct
@@ -2079,9 +2087,9 @@ While none prevents any message from being written to a DDSI2 log file.
 The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful verbosity levels are config, fine and finest.
 
 The default value is: `none`
-<!--- generated from ddsi_config.h[18465502f2ed9bae0ad3a4572f3e75c470240d17] -->
+<!--- generated from ddsi_config.h[d20ba2b2d6312b0de9fb2f7b249d9bb8b31d3d84] -->
 <!--- generated from ddsi_config.c[8eab3f5ade1a17f0d6930e7c595e62880349317f] -->
-<!--- generated from ddsi__cfgelems.h[43031decc265d13b2c20085217d1e360f299ac36] -->
+<!--- generated from ddsi__cfgelems.h[a56484871405405aebf74cb5cd570159b792439d] -->
 <!--- generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] -->
 <!--- generated from _confgen.h[bb9a0fc6ef1f7f7c46790ee00132e340e5fff36d] -->
 <!--- generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] -->

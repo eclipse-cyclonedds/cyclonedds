@@ -391,8 +391,11 @@ static void typebuilder_data_free (struct typebuilder_data *tbd)
   ddsrt_free (tbd);
 }
 
-static uint16_t get_extensibility (DDS_XTypes_TypeFlag flags)
+static uint16_t get_extensibility (struct ddsi_domaingv const * const gv, DDS_XTypes_TypeFlag flags)
 {
+  if (flags == 0 && gv->config.allow_invalid_extensibility)
+    return DDS_XTypes_IS_APPENDABLE;
+
   if (flags & DDS_XTypes_IS_MUTABLE)
     return DDS_XTypes_IS_MUTABLE;
   if (flags & DDS_XTypes_IS_APPENDABLE)
@@ -633,7 +636,7 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
       tb_type->args.enum_args.bit_bound = type->xt._u.enum_type.bit_bound;
       tb_type->args.enum_args.needs_value_metadata = typebuilder_enum_needs_value_metadata (max, nvalues, default_value);
       tb_type->args.enum_args.type = type;
-      if (type->xt._u.enum_type.flags & DDS_XTypes_IS_FINAL)
+      if (get_extensibility (tbd->gv, type->xt._u.enum_type.flags) == DDS_XTypes_IS_FINAL)
         tb_type->args.enum_args.tc = TYPEBUILDER_TC_REJECT;
       else
         tb_type->args.enum_args.tc = tc;
@@ -806,7 +809,7 @@ static dds_return_t typebuilder_add_struct (struct typebuilder_data *tbd, struct
     ret = DDS_RETCODE_OUT_OF_RESOURCES;
     goto err;
   }
-  tb_aggrtype->extensibility = get_extensibility (type->xt._u.structure.flags);
+  tb_aggrtype->extensibility = get_extensibility (tbd->gv, type->xt._u.structure.flags);
 
   if (type->xt._u.structure.base_type)
   {
@@ -905,7 +908,7 @@ static dds_return_t typebuilder_add_union (struct typebuilder_data *tbd, struct 
   assert (tbd);
   if (!(tb_aggrtype->type_name = ddsrt_strdup (type->xt._u.union_type.detail.type_name)))
     return DDS_RETCODE_OUT_OF_RESOURCES;
-  tb_aggrtype->extensibility = get_extensibility (type->xt._u.union_type.flags);
+  tb_aggrtype->extensibility = get_extensibility (tbd->gv, type->xt._u.union_type.flags);
 
   enum typebuilder_try_construct tc = get_tc (type->xt._u.union_type.disc_flags);
   if ((ret = typebuilder_add_type (tbd, &disc_sz, &disc_align, &tb_aggrtype->detail._union.disc_type, type->xt._u.union_type.disc_type, false, false, tc)) != DDS_RETCODE_OK)
