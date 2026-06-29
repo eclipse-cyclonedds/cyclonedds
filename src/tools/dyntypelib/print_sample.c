@@ -10,7 +10,6 @@
 
 #include <assert.h>
 #include <inttypes.h>
-#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,6 +19,7 @@
 #include "dds/ddsrt/heap.h"
 
 #include "dyntypelib.h"
+#include "float128_io.h"
 #include "size_and_align.h"
 
 #define PRINT_STACK_MAX 64
@@ -654,29 +654,6 @@ static uint64_t read_bitmask_value (const void *p, uint16_t bit_bound)
     return *((const uint8_t *) p);
 }
 
-static double read_float128_as_double (const unsigned char *p)
-{
-  uint64_t u;
-  double d;
-#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-  const bool sign = (p[15] & 0x80) != 0;
-  const int exp = (int) (((p[15] << 8) | p[14]) & ~0x8000) - 16383;
-  const unsigned char lsb = p[7];
-  memcpy (&u, p + 8, sizeof (u));
-#else
-  const bool sign = (p[0] & 0x80) != 0;
-  const int exp = (int) (((p[0] << 8) | p[1]) & ~0x8000) - 16383;
-  const unsigned char lsb = p[8];
-  memcpy (&u, p, sizeof (u));
-#endif
-  u = ((u << 4) | (lsb >> 4)) & (~(uint64_t)0 >> 12);
-  u |= (uint64_t)((exp + 1023) & 0x7ff) << 52;
-  if (sign)
-    u |= (uint64_t)1 << 63;
-  memcpy (&d, &u, sizeof (d));
-  return d;
-}
-
 static bool simple_kind (uint8_t disc)
 {
   switch (disc)
@@ -703,16 +680,38 @@ static bool simple_kind (uint8_t disc)
   return false;
 }
 
+static dds_return_t emit_float128 (struct print_ctx *ctx, const char *label, const unsigned char *v)
+{
+  dtl_float128_t f128;
+  char buf[DTL_FLOAT128_STRING_BUFSZ];
+  memcpy (&f128, v, sizeof (f128));
+  const dds_return_t rc = dtl_float128_to_string (buf, sizeof (buf), &f128);
+  if (rc != DDS_RETCODE_OK)
+    return rc;
+  if (is_json (ctx) && (strcmp (buf, "nan") == 0 || strcmp (buf, "inf") == 0 || strcmp (buf, "-inf") == 0))
+    return emit_string (ctx, label, buf);
+  return emit_raw_scalar (ctx, label, buf);
+}
+
+static dds_return_t emit_float32 (struct print_ctx *ctx, const char *label, float v)
+{
+  char buf[DTL_FLOAT128_STRING_BUFSZ];
+  const dds_return_t rc = dtl_float32_to_string (buf, sizeof (buf), v);
+  if (rc != DDS_RETCODE_OK)
+    return rc;
+  if (is_json (ctx) && (strcmp (buf, "nan") == 0 || strcmp (buf, "inf") == 0 || strcmp (buf, "-inf") == 0))
+    return emit_string (ctx, label, buf);
+  return emit_raw_scalar (ctx, label, buf);
+}
+
 static dds_return_t emit_float64 (struct print_ctx *ctx, const char *label, double v)
 {
-  char buf[64];
-  if (is_json (ctx) && !isfinite (v))
-  {
-    if (isnan (v))
-      return emit_string (ctx, label, "nan");
-    return emit_string (ctx, label, signbit (v) ? "-inf" : "inf");
-  }
-  (void) snprintf (buf, sizeof (buf), "%.17g", v);
+  char buf[DTL_FLOAT128_STRING_BUFSZ];
+  const dds_return_t rc = dtl_float64_to_string (buf, sizeof (buf), v);
+  if (rc != DDS_RETCODE_OK)
+    return rc;
+  if (is_json (ctx) && (strcmp (buf, "nan") == 0 || strcmp (buf, "inf") == 0 || strcmp (buf, "-inf") == 0))
+    return emit_string (ctx, label, buf);
   return emit_raw_scalar (ctx, label, buf);
 }
 
@@ -761,11 +760,11 @@ static dds_return_t print_simple (struct print_ctx *ctx, const unsigned char *ob
       (void) snprintf (buf, sizeof (buf), "%"PRIu64, *((const uint64_t *) obj));
       return emit_raw_scalar (ctx, label, buf);
     case DDS_XTypes_TK_FLOAT32:
-      return emit_float64 (ctx, label, (double) *((const float *) obj));
+      return emit_float32 (ctx, label, *((const float *) obj));
     case DDS_XTypes_TK_FLOAT64:
       return emit_float64 (ctx, label, *((const double *) obj));
     case DDS_XTypes_TK_FLOAT128:
-      return emit_float64 (ctx, label, read_float128_as_double (obj));
+      return emit_float128 (ctx, label, obj);
     case DDS_XTypes_TK_STRING8:
       return emit_string (ctx, label, direct_string ? (const char *) obj : *((const char * const *) obj));
     case DDS_XTypes_TK_STRING16:

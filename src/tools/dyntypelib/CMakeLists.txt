@@ -21,6 +21,8 @@ set(dyntypelib_sources
   compare_samples.c
   domtree.c
   dyntypelib.c
+  float128_io.c
+  float128_io.h
   print_sample.c
   print_type.c
   scan_sample.c
