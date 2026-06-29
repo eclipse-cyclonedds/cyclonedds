@@ -23,6 +23,7 @@
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
 
 #include "domtree.h"
+#include "float128_io.h"
 #include "type_cache.h"
 #include "dyntypelib.h"
 #include "size_and_align.h"
@@ -36,44 +37,21 @@ static bool getbool (const char *data, bool *v)
 
 static bool getfloat128 (const char *data, unsigned char *v)
 {
-  char *endp;
-  const double d = strtod (data, &endp);
-  if (!(*data && strspn (endp, " \t") == strlen (endp)))
+  dtl_float128_t f128;
+  if (!dtl_float128_from_string (data, &f128))
     return false;
-  memset (v, 0, 16);
-  uint64_t u;
-  memcpy (&u, &d, sizeof (u));
-  // no proper handling of NaN, Inf, subnormals, rounding
-  // double: sign (1) + exp (11) + mantissa (52 + 1 implicit), exp bias = 16383
-  // quad:   sign (1) + exp (15) + mantissa (112 + 1 implicit), exp bias = 1023
-  const int exp = (int) ((u >> 52) & 0x7ff) - 1023;
-  const uint64_t exp128 = (exp + 16383) & 0x7fff;
-  const uint64_t mant = (u & ~((uint64_t)0xfff << 52));
-  const uint64_t w = (u & (uint64_t)1 << 63) | (exp128 << 48) | (mant >> 4);
-#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-  memcpy (v + 8, &w, 8);
-  v[7] = (uint8_t) (mant << 4);
-#else
-  memcpy (v, &w, 8);
-  v[8] = (uint8_t) (mant << 4);
-#endif
+  memcpy (v, &f128, sizeof (f128));
   return true;
 }
 
 static bool getfloat64 (const char *data, double *v)
 {
-  char *endp;
-  *v = strtod (data, &endp);
-  return *data && strspn (endp, " \t") == strlen (endp);
+  return dtl_float64_from_string (data, v);
 }
 
 static bool getfloat32 (const char *data, float *v)
 {
-  double x;
-  if (!getfloat64 (data, &x))
-    return false;
-  *v = (float) x;
-  return true;
+  return dtl_float32_from_string (data, v);
 }
 
 static bool getint64 (const char *data, int64_t *v)
