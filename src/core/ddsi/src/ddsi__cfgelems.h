@@ -1154,6 +1154,13 @@ static struct cfgelem compatibility_cfgelems[] = {
       "types with the extensibility flags all set to 0 and treats it as APPENDABLE "
       "instead.</p>"
     )),
+  BOOL("AllowMismatchingTypeId", NULL, 1, "false",
+    MEMBER(allow_mismatching_typeid),
+    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
+    DESCRIPTION(
+      "<p>Setting option makes the type library accept a type id -> type objects "
+      "entry even when the id doesn't match the object.</p>"
+    )),
   BOOL("AllowRecursiveTypes", NULL, 1, "true",
     MEMBER(allow_recursive_types),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
