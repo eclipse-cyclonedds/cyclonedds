@@ -1539,7 +1539,7 @@ static dds_return_t ddsi_type_add_typeobj_impl_common (
     return ret;
   }
 
-  if (!type_id_matches_type_obj_id (&type->xt.id.x, &type_id))
+  if (!type_id_matches_type_obj_id (&type->xt.id.x, &type_id) && !gv->config.allow_mismatching_typeid)
   {
     /* In case the object does not match the type id, reset the type's state to
        unresolved so that it can de resolved in case the correct type object
