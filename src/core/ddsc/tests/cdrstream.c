@@ -1641,22 +1641,22 @@ static const uint32_t ExternMutStructSeq_ops [] =
 
 CU_Test(ddsc_cdrstream, init_sequence_in_external_struct)
 {
-  static uint8_t cdr[] = {
+  static ALIGNED_CDR_BUFFER_INIT (cdr,
     0x0d, 0x00, 0x00, 0x00, // 13 bytes follow for ExternMutStructSeq
     0x01, 0x00, 0x00, 0x00, // optional member present + 3x pad
     0x05, 0x00, 0x00, 0x00, // 5 bytes follow for MutStructSeq
     0x02, 0x00, 0x00, 0x00, // EM: id=2, length code 0 = 1B
     0x7b                    // 123: magic value for "c"
-  };
+  );
   struct dds_cdrstream_desc descr;
   memset (&descr, 0, sizeof (descr));
   dds_cdrstream_desc_init_with_nops (&descr, &dds_cdrstream_default_allocator, sizeof (ExternMutStructSeq), dds_alignof (ExternMutStructSeq), 0, ExternMutStructSeq_ops, sizeof (ExternMutStructSeq_ops) / sizeof (ExternMutStructSeq_ops[0]), NULL, 0);
   uint32_t actual_size;
   const bool byteswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
-  const enum dds_stream_normalize_result norm_ok = dds_stream_normalize (cdr, sizeof (cdr), byteswap, DDSI_RTPS_CDR_ENC_VERSION_2, &descr, false, &actual_size);
-  CU_ASSERT_FATAL (norm_ok == DDS_STREAM_NORMALIZE_SUCCESS && actual_size == sizeof (cdr));
+  const enum dds_stream_normalize_result norm_ok = dds_stream_normalize (cdr.data, sizeof (cdr.data), byteswap, DDSI_RTPS_CDR_ENC_VERSION_2, &descr, false, &actual_size);
+  CU_ASSERT_FATAL (norm_ok == DDS_STREAM_NORMALIZE_SUCCESS && actual_size == sizeof (cdr.data));
   dds_istream_t is;
-  dds_istream_init (&is, sizeof (cdr), cdr, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init (&is, sizeof (cdr.data), cdr.data, DDSI_RTPS_CDR_ENC_VERSION_2);
   ExternMutStructSeq * sample = ddsrt_calloc (1, sizeof (*sample));
   dds_stream_read_sample (&is, sample, &dds_cdrstream_default_allocator, &descr);
   dds_stream_free_sample (sample, &dds_cdrstream_default_allocator, descr.ops.ops);
