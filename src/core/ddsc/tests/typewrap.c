@@ -8,8 +8,12 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
+#include <string.h>
+#include <stdlib.h>
+
 #include "CUnit/Theory.h"
 #include "dds/dds.h"
+#include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__dynamic_type.h"
@@ -19,6 +23,49 @@
 #include "test_util.h"
 
 static dds_entity_t domain = 0, participant = 0;
+static bool fail_realloc_enabled = false;
+static size_t fail_realloc_size = 0;
+
+static void *test_malloc (size_t size)
+{
+  return malloc (size);
+}
+
+static void *test_calloc (size_t count, size_t size)
+{
+  return calloc (count, size);
+}
+
+static void *test_realloc (void *ptr, size_t size)
+{
+  if (fail_realloc_enabled && size == fail_realloc_size)
+    return NULL;
+  return realloc (ptr, size);
+}
+
+static void test_free (void *ptr)
+{
+  free (ptr);
+}
+
+static void install_realloc_failure (size_t size)
+{
+  fail_realloc_size = size;
+  fail_realloc_enabled = true;
+  ddsrt_set_allocator ((ddsrt_allocation_ops_t) {
+    .malloc = test_malloc,
+    .calloc = test_calloc,
+    .realloc = test_realloc,
+    .free = test_free
+  });
+}
+
+static void restore_allocator (void)
+{
+  ddsrt_set_allocator ((ddsrt_allocation_ops_t) { 0 });
+  fail_realloc_enabled = false;
+  fail_realloc_size = 0;
+}
 
 static void typewrap_init (void)
 {
@@ -670,6 +717,96 @@ static void fill_equivalence_hash (DDS_XTypes_EquivalenceHash hash, uint8_t seed
     hash[n] = (uint8_t) (seed + n);
 }
 
+struct scc_suffix_closure_case {
+  ddsi_typeid_t scc_typeid;
+  ddsi_typeid_t first_path_typeid;
+  ddsi_typeid_t missed_side_typeid;
+  struct DDS_XTypes_PlainCollectionHeader collection_header;
+  DDS_XTypes_SBound missed_side_bound;
+  struct DDS_XTypes_TypeIdentifier first_path_identifier;
+  struct DDS_XTypes_TypeIdentifier missed_side_identifier;
+  struct DDS_XTypes_TypeIdentifier branch_map_identifier;
+  ddsi_typeid_t member_typeid;
+  struct DDS_XTypes_CompleteStructMember member;
+  struct DDS_XTypes_TypeObject typeobj;
+  DDS_XTypes_TypeIdentifierTypeObjectPair pair;
+  dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair pairseq;
+};
+
+static void init_scc_suffix_closure_case (struct scc_suffix_closure_case *c)
+{
+  memset (c, 0, sizeof (*c));
+  init_scc_typeid (&c->scc_typeid, 1, 1);
+  memset (c->scc_typeid.x._u.sc_component_id.sc_component_id._u.hash, 0,
+          sizeof (c->scc_typeid.x._u.sc_component_id.sc_component_id._u.hash));
+
+  const uint16_t collection_flags = DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_IS_EXTERNAL;
+  c->collection_header = (struct DDS_XTypes_PlainCollectionHeader) {
+    .equiv_kind = DDS_XTypes_EK_COMPLETE,
+    .element_flags = collection_flags
+  };
+  c->first_path_identifier = (struct DDS_XTypes_TypeIdentifier) {
+    ._d = DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL,
+    ._u.seq_sdefn = {
+      .header = c->collection_header,
+      .bound = 1,
+      .element_identifier = &c->scc_typeid.x
+    }
+  };
+  c->first_path_typeid = (ddsi_typeid_t) { .x = c->first_path_identifier };
+  c->missed_side_bound = 1;
+  c->missed_side_identifier = (struct DDS_XTypes_TypeIdentifier) {
+    ._d = DDS_XTypes_TI_PLAIN_ARRAY_SMALL,
+    ._u.array_sdefn = {
+      .header = c->collection_header,
+      .array_bound_seq = {
+        ._maximum = 1,
+        ._length = 1,
+        ._buffer = &c->missed_side_bound,
+        ._release = false
+      },
+      .element_identifier = &c->scc_typeid.x
+    }
+  };
+  c->missed_side_typeid = (ddsi_typeid_t) { .x = c->missed_side_identifier };
+  c->branch_map_identifier = (struct DDS_XTypes_TypeIdentifier) {
+    ._d = DDS_XTypes_TI_PLAIN_MAP_LARGE,
+    ._u.map_ldefn = {
+      .header = c->collection_header,
+      .bound = 1,
+      .element_identifier = &c->first_path_identifier,
+      .key_flags = collection_flags,
+      .key_identifier = &c->missed_side_identifier
+    }
+  };
+  c->member_typeid = (ddsi_typeid_t) { .x = c->branch_map_identifier };
+
+  init_struct_dependency_typeobject (&c->typeobj, &c->member, "SccSuffixClosure", "value", 1, &c->member_typeid);
+
+  DDS_XTypes_EquivalenceHash hash;
+  dds_return_t ret = ddsi_typeobj_get_scc_hash (hash, &c->typeobj, 1);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  memcpy (c->scc_typeid.x._u.sc_component_id.sc_component_id._u.hash, hash, sizeof (hash));
+
+  c->pair = (DDS_XTypes_TypeIdentifierTypeObjectPair) {
+    .type_identifier = c->scc_typeid.x,
+    .type_object = c->typeobj
+  };
+  c->pairseq = (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair) {
+    ._maximum = 1,
+    ._length = 1,
+    ._buffer = &c->pair,
+    ._release = false
+  };
+}
+
+struct typeid_compare_case {
+  const char *name;
+  const ddsi_typeid_t *low;
+  const ddsi_typeid_t *mid;
+  const ddsi_typeid_t *high;
+};
+
 CU_Test (ddsc_typewrap, scc_identifier_hashes_slot_and_component_identity)
 {
   ddsi_typeid_t slot1, slot2, different_length, different_component;
@@ -801,6 +938,110 @@ CU_Test (ddsc_typewrap, scc_component_must_be_strongly_connected, .init = typewr
   CU_ASSERT (!complete);
   CU_ASSERT_EQ (ddsi_type_lookup_locked_impl (gv, &pairs[0].type_identifier), NULL);
   CU_ASSERT_EQ (ddsi_type_lookup_locked_impl (gv, &pairs[1].type_identifier), NULL);
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+}
+
+CU_Test (ddsc_typewrap, scc_import_closes_suffix_cycles, .init = typewrap_init, .fini = typewrap_fini)
+{
+  struct scc_suffix_closure_case c;
+  init_scc_suffix_closure_case (&c);
+
+  struct ddsi_domaingv *gv = get_domaingv (participant);
+  struct ddsi_type *type = NULL;
+  struct ddsi_type *first_path_type = NULL;
+  struct ddsi_type *missed_side_type = NULL;
+  bool complete = false;
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  dds_return_t ret = ddsi_type_ref_id_locked (gv, &type, &c.scc_typeid);
+  CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
+  CU_ASSERT_NEQ (type, NULL);
+  ret = ddsi_type_ref_id_locked (gv, &first_path_type, &c.first_path_typeid);
+  CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
+  CU_ASSERT_NEQ (first_path_type, NULL);
+  ret = ddsi_type_ref_id_locked (gv, &missed_side_type, &c.missed_side_typeid);
+  CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
+  CU_ASSERT_NEQ (missed_side_type, NULL);
+  if (first_path_type != NULL)
+  {
+    /* Pre-creating the side branches should only install branch -> SCC; if
+       either is already in the SCC, the import below no longer tests suffix
+       closure from the branch-map dependency. */
+    CU_ASSERT_EQ (first_path_type->scc, NULL);
+  }
+  if (missed_side_type != NULL)
+    CU_ASSERT_EQ (missed_side_type->scc, NULL);
+  if (type != NULL && first_path_type != NULL && missed_side_type != NULL)
+  {
+    ret = ddsi_type_add_scc_typeobjs_locked (gv, &c.pairseq, &c.pair.type_identifier, true, &complete);
+    CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
+    CU_ASSERT_EQ (complete, true);
+    CU_ASSERT_NEQ (type->scc, NULL);
+    if (type->scc != NULL)
+      CU_ASSERT_EQ (type->scc->n_types, 4u);
+  }
+  ddsi_type_unref_locked (gv, missed_side_type);
+  ddsi_type_unref_locked (gv, first_path_type);
+  ddsi_type_unref_locked (gv, type);
+  CU_ASSERT_EQ (ddsrt_avl_is_empty (&gv->typelib), true);
+  CU_ASSERT_EQ (ddsrt_avl_is_empty (&gv->typedeps), true);
+  CU_ASSERT_EQ (ddsrt_avl_is_empty (&gv->typedeps_reverse), true);
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+}
+
+CU_Test (ddsc_typewrap, scc_import_rolls_back_suffix_cycle_on_realloc_failure, .init = typewrap_init, .fini = typewrap_fini)
+{
+  struct scc_suffix_closure_case c;
+  init_scc_suffix_closure_case (&c);
+
+  struct ddsi_domaingv *gv = get_domaingv (participant);
+  struct ddsi_type *type = NULL;
+  struct ddsi_type *first_path_type = NULL;
+  struct ddsi_type *missed_side_type = NULL;
+  bool complete = false;
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  dds_return_t ret = ddsi_type_ref_id_locked (gv, &type, &c.scc_typeid);
+  CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
+  CU_ASSERT_NEQ (type, NULL);
+  ret = ddsi_type_ref_id_locked (gv, &first_path_type, &c.first_path_typeid);
+  CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
+  CU_ASSERT_NEQ (first_path_type, NULL);
+  ret = ddsi_type_ref_id_locked (gv, &missed_side_type, &c.missed_side_typeid);
+  CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
+  CU_ASSERT_NEQ (missed_side_type, NULL);
+  if (first_path_type != NULL)
+  {
+    /* Pre-creating the side branches should only install branch -> SCC; if
+       either is already in the SCC, the import below no longer tests suffix
+       closure from the branch-map dependency. */
+    CU_ASSERT_EQ (first_path_type->scc, NULL);
+  }
+  if (missed_side_type != NULL)
+    CU_ASSERT_EQ (missed_side_type->scc, NULL);
+  if (type != NULL && first_path_type != NULL && missed_side_type != NULL)
+  {
+    CU_ASSERT_NEQ (type->scc, NULL);
+    if (type->scc != NULL)
+      CU_ASSERT_EQ (type->scc->n_types, 1u);
+
+    install_realloc_failure (4 * sizeof (struct ddsi_type *));
+    ret = ddsi_type_add_scc_typeobjs_locked (gv, &c.pairseq, &c.pair.type_identifier, true, &complete);
+    restore_allocator ();
+
+    CU_ASSERT_EQ (ret, DDS_RETCODE_OUT_OF_RESOURCES);
+    CU_ASSERT_EQ (complete, true);
+    CU_ASSERT_NEQ (type->scc, NULL);
+    if (type->scc != NULL)
+    {
+      CU_ASSERT_EQ (type->scc->n_types, 1u);
+      CU_ASSERT_EQ (type->scc->types[0], type);
+    }
+  }
+  ddsi_type_unref_locked (gv, missed_side_type);
+  ddsi_type_unref_locked (gv, first_path_type);
+  ddsi_type_unref_locked (gv, type);
+  CU_ASSERT_EQ (ddsrt_avl_is_empty (&gv->typelib), true);
+  CU_ASSERT_EQ (ddsrt_avl_is_empty (&gv->typedeps), true);
+  CU_ASSERT_EQ (ddsrt_avl_is_empty (&gv->typedeps_reverse), true);
   ddsrt_mutex_unlock (&gv->typelib_lock);
 }
 

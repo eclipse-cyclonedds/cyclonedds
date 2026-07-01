@@ -862,6 +862,21 @@ static dds_return_t ddsi_type_scc_append_suffix_type (struct ddsi_type_scc *scc,
   return DDS_RETCODE_OK;
 }
 
+static void ddsi_type_scc_rollback_suffix_types (struct ddsi_type_scc *scc, uint32_t n_types)
+{
+  assert (!scc->active);
+  assert (n_types >= scc->n_wire_types);
+  assert (n_types <= scc->n_types);
+
+  while (scc->n_types > n_types)
+  {
+    struct ddsi_type *type = scc->types[--scc->n_types];
+    if (type != NULL && type->scc == scc)
+      type->scc = NULL;
+    scc->types[scc->n_types] = NULL;
+  }
+}
+
 static bool ddsi_type_scc_maybe_append_suffix_type (struct ddsi_type_scc *scc, struct ddsi_type *type, dds_return_t *ret)
 {
   assert (*ret == DDS_RETCODE_OK);
@@ -928,12 +943,46 @@ static bool ddsi_type_scc_attach_path_to_type_locked (struct ddsi_domaingv *gv, 
   return false;
 }
 
+static dds_return_t ddsi_type_scc_attach_reachable_suffixes_locked (struct ddsi_domaingv *gv, struct ddsi_type_scc *scc)
+{
+  if (scc == NULL || scc->active)
+    return DDS_RETCODE_OK;
+
+  dds_return_t ret = DDS_RETCODE_OK;
+  for (uint32_t n = 0; ret == DDS_RETCODE_OK && n < scc->n_types; n++)
+  {
+    struct ddsi_type *type = scc->types[n];
+    if (type == NULL)
+      continue;
+
+    struct ddsi_type_dep tmpl, *dep = &tmpl;
+    memset (&tmpl, 0, sizeof (tmpl));
+    ddsi_typeid_copy (&tmpl.src_type_id, &type->xt.id);
+    while ((dep = ddsrt_avl_lookup_succ (&ddsi_typedeps_treedef, &gv->typedeps, dep)) != NULL && !ddsi_typeid_compare (&type->xt.id, &dep->src_type_id))
+    {
+      struct ddsi_type *dep_type = ddsi_type_lookup_locked (gv, &dep->dep_type_id);
+      if (dep_type != NULL && dep_type->scc == NULL)
+      {
+        struct ddsrt_hh *visited = ddsi_type_visit_new ();
+        (void) ddsi_type_scc_attach_path_to_scc_locked (gv, scc, dep_type, visited, &ret);
+        ddsi_type_visit_free (visited);
+        if (ret != DDS_RETCODE_OK)
+          break;
+      }
+    }
+    ddsi_typeid_fini (&tmpl.src_type_id);
+  }
+  return ret;
+}
+
 static dds_return_t ddsi_type_scc_update_for_dep_locked (struct ddsi_domaingv *gv, struct ddsi_type *src_type, struct ddsi_type *dep_type)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   if (src_type == NULL || dep_type == NULL || src_type == dep_type)
     return ret;
 
+  struct ddsi_type_scc *scc = src_type->scc != NULL ? src_type->scc : dep_type->scc;
+  const uint32_t n_types = scc != NULL ? scc->n_types : 0;
   if (src_type->scc != NULL && dep_type->scc == NULL)
   {
     struct ddsrt_hh *visited = ddsi_type_visit_new ();
@@ -951,6 +1000,13 @@ static dds_return_t ddsi_type_scc_update_for_dep_locked (struct ddsi_domaingv *g
       ddsi_type_visit_free (visited);
     }
   }
+  if (ret == DDS_RETCODE_OK)
+  {
+    scc = src_type->scc != NULL ? src_type->scc : dep_type->scc;
+    ret = ddsi_type_scc_attach_reachable_suffixes_locked (gv, scc);
+  }
+  if (ret != DDS_RETCODE_OK && scc != NULL && !scc->active)
+    ddsi_type_scc_rollback_suffix_types (scc, n_types);
   return ret;
 }
 
@@ -1717,6 +1773,17 @@ dds_return_t ddsi_type_add_scc_typeobjs_locked (
     return ret;
   }
 
+  struct ddsi_type_scc *import_scc = NULL;
+  uint32_t import_scc_n_types = 0;
+  for (uint32_t n = 0; import_scc == NULL && n < nslots; n++)
+  {
+    if (import_slots[n].type != NULL && import_slots[n].type->scc != NULL)
+    {
+      import_scc = import_slots[n].type->scc;
+      import_scc_n_types = import_scc->n_types;
+    }
+  }
+
   for (uint32_t n = 0; ret == DDS_RETCODE_OK && n < nslots; n++)
   {
     const struct DDS_XTypes_TypeIdentifier *slot_type_id = &slots[n]->type_identifier;
@@ -1740,13 +1807,22 @@ dds_return_t ddsi_type_add_scc_typeobjs_locked (
       import_slots[n].touched = true;
       ret = ddsi_type_add_typeobj_impl_common (gv, slot_type, &slots[n]->type_object, true, false);
     }
+    if (ret == DDS_RETCODE_OK && import_scc == NULL && slot_type != NULL && slot_type->scc != NULL)
+    {
+      import_scc = slot_type->scc;
+      import_scc_n_types = import_scc->n_wire_types;
+    }
     TYPELIB_IMPORT_TRACE ("SCC import slot %"PRIu32"/%"PRIu32" %s ret=%d state=%s scc=%p materialized=%d\n",
                           n + 1, nslots, typelib_trace_make_typeid_str (&tistr, slot_type_id), ret,
                           slot_type ? type_state_str (slot_type->state) : "(none)",
                           slot_type ? (void *) slot_type->scc : NULL, ddsi_type_scc_materialized (slot_type));
   }
   if (ret != DDS_RETCODE_OK)
+  {
+    if (import_scc != NULL && !import_scc->active)
+      ddsi_type_scc_rollback_suffix_types (import_scc, import_scc_n_types);
     type_scc_import_rollback_locked (gv, import_slots, nslots);
+  }
   ddsrt_free (slots);
   return ret;
 }
