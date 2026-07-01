@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "idl/heap.h"
 #include "idl/string.h"
 #include "file.h"
 
@@ -40,7 +41,7 @@ CU_Init(idl_file)
 CU_Clean(idl_file)
 {
   if (prefix)
-    free(prefix);
+    idl_free(prefix);
   return 0;
 }
 
@@ -145,7 +146,7 @@ CU_Test(idl_file, untaint)
       fprintf(stderr, "output: '%s'\n", str);
       CU_ASSERT_STREQ (str, tests[i].output);
     }
-    free(str);
+    idl_free(str);
   }
 }
 
@@ -160,7 +161,7 @@ CU_Test(idl_file, normalize_empty)
   assert(prefix);
   fprintf(stderr, "path: %s\nexpect: %s\nnormalized: %s\n", prefix, prefix, norm);
   CU_ASSERT_STREQ (norm, prefix);
-  free(norm);
+  idl_free(norm);
 }
 
 CU_Test(idl_file, normalize_revert)
@@ -184,8 +185,8 @@ CU_Test(idl_file, normalize_revert)
   }
   fprintf(stderr, "expect: %s\nnormalized: %s\n", path, norm);
   CU_ASSERT_STREQ (path, norm);
-  free(path);
-  free(norm);
+  idl_free(path);
+  idl_free(norm);
 }
 
 CU_Test(idl_file, normalize_revert_too_many)
@@ -220,9 +221,9 @@ CU_Test(idl_file, normalize_revert_too_many)
   CU_ASSERT_EQ (ret, IDL_RETCODE_BAD_PARAMETER);
   CU_ASSERT_EQ (norm, NULL);
   free(revert);
-  free(path);
+  idl_free(path);
   if (norm)
-    free(norm);
+    idl_free(norm);
 }
 
 struct relative_test {
@@ -272,7 +273,7 @@ CU_Test(idl_file, relative_bad_params)
       // coverity[use_after_free:FALSE]
       CU_ASSERT_EQ (rel, NULL);
       if (rel)
-        free(rel);
+        idl_free(rel);
     }
   }
 }
@@ -318,7 +319,7 @@ CU_Test(idl_file, relative)
       CU_ASSERT_EQ (rel, NULL);
     }
     if (rel)
-      free(rel);
+      idl_free(rel);
   }
 }
 
@@ -344,7 +345,7 @@ static void test_out_file(const out_file_test_t test)
   }
 
   if (out)
-    free(out);
+    idl_free(out);
 }
 
 CU_Test(idl_file, out_file_generation)

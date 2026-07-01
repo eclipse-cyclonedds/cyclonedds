@@ -57,7 +57,7 @@ int LLVMFuzzerTestOneInput(
 
     char *str = NULL;
 
-    if ((str = (char *)malloc(size + 1)) == NULL)
+    if ((str = (char *)ddsrt_malloc_s(size + 1)) == NULL)
         return EXIT_FAILURE;
 
     memcpy(str, data, size);
@@ -65,11 +65,11 @@ int LLVMFuzzerTestOneInput(
 
     if ((cfgst = ddsi_config_init(str, &gv.config, 0)) == NULL)
     {
-        free(str);
+        ddsrt_free(str);
         return EXIT_FAILURE;
     }
 
-    free(str);
+    ddsrt_free(str);
     ddsi_config_fini(cfgst);
     return EXIT_SUCCESS;
 }

@@ -28,6 +28,8 @@
 #include <dds/security/core/dds_security_fsm.h>
 #include <dds/security/core/dds_security_utils.h>
 #include <dds/security/core/dds_security_serialize.h>
+#include <dds/ddsrt/heap.h>
+#include <dds/ddsrt/string.h>
 #include <common/test_identity.h>
 
 #include <openssl/pem.h>
@@ -191,7 +193,7 @@ void fuzz_handshake_reset(bool initiate_remote) {
     ddsi_plist_init_empty(&pplist);
     pplist.present |= PP_IDENTITY_TOKEN;
     ddsi_token_t identity_token = {
-        .class_id = strdup(DDS_SECURITY_AUTH_TOKEN_CLASS_ID),
+        .class_id = ddsrt_strdup(DDS_SECURITY_AUTH_TOKEN_CLASS_ID),
         .properties = {
             .n = 0,
             .props = NULL
@@ -287,16 +289,16 @@ void fuzz_handshake_handle_request(ddsi_dataholder_t *token) {
         dds_binaryproperty_t *binprop = &token->binary_properties.props[i];
         // To avoid fuzzing openssl, always use a valid certificate
         if (strcmp(binprop->name, "c.id") == 0) {
-            free(binprop->value.value);
+            ddsrt_free(binprop->value.value);
             binprop->value.length = strlen(TEST_IDENTITY3_CERTIFICATE);
-            binprop->value.value = (unsigned char *) strdup(TEST_IDENTITY3_CERTIFICATE);
+            binprop->value.value = (unsigned char *) ddsrt_strdup(TEST_IDENTITY3_CERTIFICATE);
         }
         // Provide a valid dh public key
         if (strcmp(binprop->name, "dh1") == 0) {
             unsigned char *data;
             uint32_t len;
             if (create_dh_key(1, &data, &len) == DDS_SECURITY_VALIDATION_OK) {
-                free(binprop->value.value);
+                ddsrt_free(binprop->value.value);
                 binprop->value.length = len;
                 binprop->value.value = data;
             }
@@ -314,7 +316,7 @@ static void create_signature(const DDS_Security_BinaryProperty_t **bprops, uint3
     DDS_Security_Serializer_buffer(serializer, &buffer, &size);
     DDS_Security_SecurityException ex;
     (void) create_validate_asymmetrical_signature_ptr(true, g_private_key, buffer, size, signature, signatureLen, &ex);
-    free(buffer);
+    ddsrt_free(buffer);
     DDS_Security_Serializer_free(serializer);
 }
 
@@ -340,12 +342,12 @@ static void create_hash(const DDS_Security_DataHolder *dh, DDS_Security_BinaryPr
     DDS_Security_Serialize_BinaryPropertySeq(serializer, &seq);
     DDS_Security_Serializer_buffer(serializer, &buffer, &size);
 
-    unsigned char *hash = malloc(SHA256_DIGEST_LENGTH);
+    unsigned char *hash = ddsrt_malloc(SHA256_DIGEST_LENGTH);
     SHA256(buffer, size, hash);
-    free(buffer);
+    ddsrt_free(buffer);
     DDS_Security_Serializer_free(serializer);
 
-    bprop->name = strdup(name);
+    bprop->name = ddsrt_strdup(name);
     bprop->value._length = SHA256_DIGEST_LENGTH;
     bprop->value._maximum = SHA256_DIGEST_LENGTH;
     bprop->value._buffer = hash;
@@ -378,14 +380,14 @@ void fuzz_handshake_handle_reply(ddsi_dataholder_t *token) {
         dds_binaryproperty_t *binprop = &token->binary_properties.props[i];
         // To avoid fuzzing openssl, always use a valid certificate
         if (strcmp(binprop->name, "c.id") == 0) {
-            free(binprop->value.value);
+            ddsrt_free(binprop->value.value);
             binprop->value.length = strlen(TEST_IDENTITY3_CERTIFICATE);
-            binprop->value.value = (unsigned char *) strdup(TEST_IDENTITY3_CERTIFICATE);
+            binprop->value.value = (unsigned char *) ddsrt_strdup(TEST_IDENTITY3_CERTIFICATE);
         }
         if ((strcmp(binprop->name, "challenge1") == 0) && c1) {
-            free(binprop->value.value);
+            ddsrt_free(binprop->value.value);
             binprop->value.length = DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE;
-            binprop->value.value = malloc(DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE);
+            binprop->value.value = ddsrt_malloc(DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE);
             memcpy(binprop->value.value, c1->value._buffer, DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE);
         }
         // Provide a valid dh public key
@@ -395,7 +397,7 @@ void fuzz_handshake_handle_reply(ddsi_dataholder_t *token) {
             unsigned char *data;
             uint32_t len;
             if (create_dh_key(algo, &data, &len) == DDS_SECURITY_VALIDATION_OK) {
-                free(binprop->value.value);
+                ddsrt_free(binprop->value.value);
                 binprop->value.length = len;
                 binprop->value.value = data;
             }
@@ -418,7 +420,7 @@ void fuzz_handshake_handle_reply(ddsi_dataholder_t *token) {
             size_t signatureLen;
             const DDS_Security_BinaryProperty_t *bprops[] = { &hash_c2, c2, dh2, c1, dh1, hash_c1};
             create_signature(bprops, 6, &signature, &signatureLen);
-            free(binprop->value.value);
+            ddsrt_free(binprop->value.value);
             binprop->value.length = (uint32_t) signatureLen;
             binprop->value.value = signature;
         }
@@ -456,15 +458,15 @@ void fuzz_handshake_handle_final(ddsi_dataholder_t *token) {
         dds_binaryproperty_t *binprop = &token->binary_properties.props[i];
         // Need to copy the correct values for challenge2 from the relation for the handshake to succeed
         if ((strcmp(binprop->name, "challenge1") == 0) && c1) {
-            free(binprop->value.value);
+            ddsrt_free(binprop->value.value);
             binprop->value.length = DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE;
-            binprop->value.value = malloc(DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE);
+            binprop->value.value = ddsrt_malloc(DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE);
             memcpy(binprop->value.value, c1->value._buffer, DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE);
         }
         if ((strcmp(binprop->name, "challenge2") == 0) && c2) {
-            free(binprop->value.value);
+            ddsrt_free(binprop->value.value);
             binprop->value.length = DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE;
-            binprop->value.value = malloc(DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE);
+            binprop->value.value = ddsrt_malloc(DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE);
             memcpy(binprop->value.value, c2->value._buffer, DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE);
         }
         // Need to provide a valid signature for the handshake to succeed
@@ -473,7 +475,7 @@ void fuzz_handshake_handle_final(ddsi_dataholder_t *token) {
             size_t signatureLen;
             const DDS_Security_BinaryProperty_t *bprops[] = { hash_c1, c1, dh1, c2, dh2, hash_c2 };
             create_signature(bprops, 6, &signature, &signatureLen);
-            free(binprop->value.value);
+            ddsrt_free(binprop->value.value);
             binprop->value.length = (uint32_t) signatureLen;
             binprop->value.value = signature;
         }

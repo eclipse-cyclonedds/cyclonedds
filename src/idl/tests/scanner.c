@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
+#include "idl/heap.h"
 #include "idl/processor.h"
 #include "scanner.h"
 #include "parser.h"
@@ -94,7 +95,7 @@ test_scanner(idl_pstate_t *pstate, idl_token_t *tokvec)
       case IDL_TOKEN_STRING_LITERAL:
       case IDL_TOKEN_LINE_COMMENT:
       case IDL_TOKEN_COMMENT:
-        free(tok.value.str);
+        idl_free(tok.value.str);
         break;
       default:
         break;

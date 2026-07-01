@@ -2590,7 +2590,7 @@ static struct ddsi_config_network_interface * network_interface_find_or_append(s
   if (iface) return &iface->cfg;
   if (!allow_append) return NULL;
 
-  iface = (struct ddsi_config_network_interface_listelem *) malloc(sizeof(*iface));
+  iface = ddsrt_malloc (sizeof (*iface));
   if (!iface) return NULL;
 
   iface->next = NULL;
@@ -2617,7 +2617,7 @@ static struct ddsi_config_psmx * psmx_append(struct ddsi_config *cfg, const char
   while (psmx && psmx->cfg.type && ddsrt_strcasecmp(psmx->cfg.type, name) != 0)
     return NULL;
 
-  psmx = (struct ddsi_config_psmx_listelem *) malloc(sizeof(*psmx));
+  psmx = ddsrt_malloc (sizeof (*psmx));
   if (!psmx) return NULL;
 
   psmx->next = NULL;
@@ -2688,7 +2688,7 @@ static int convert_networkinterfaceaddress (struct ddsi_config * const cfg)
       network_interface_find_or_append(cfg, true, addresses[i], NULL);
     }
   }
-  free(addresses);
+  ddsrt_free (addresses);
   return 1;
 }
 

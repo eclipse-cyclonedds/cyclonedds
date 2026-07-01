@@ -147,9 +147,9 @@ static void sertype_default_free (struct ddsi_sertype *tpcmn)
   struct dds_sertype_default *tp = (struct dds_sertype_default *) tpcmn;
   dds_cdrstream_desc_fini (&tp->type, &dds_cdrstream_default_allocator);
   if (tp->typeinfo_ser.data != NULL)
-    dds_free (tp->typeinfo_ser.data);
+    ddsrt_free (tp->typeinfo_ser.data);
   if (tp->typemap_ser.data != NULL)
-    dds_free (tp->typemap_ser.data);
+    ddsrt_free (tp->typemap_ser.data);
   ddsi_sertype_fini (&tp->c);
   ddsrt_free (tp);
 }
