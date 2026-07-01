@@ -2,30 +2,36 @@
 #include <src/libfuzzer/libfuzzer_macro.h>
 #include "fuzz_handshake_harness.h"
 
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/string.h"
+
 using fuzz_handshake::Event;
 
 void to_property(const fuzz_handshake::Property &in, dds_property_t &out) {
     out.propagate = in.propagate();
-    out.name = strdup(in.name().c_str());
-    out.value = strdup(in.value().c_str());
+    out.name = ddsrt_strdup(in.name().c_str());
+    out.value = ddsrt_strdup(in.value().c_str());
 }
 
 void to_binaryproperty(const fuzz_handshake::BinaryProperty &in, dds_binaryproperty_t &out) {
     out.propagate = in.propagate();
-    out.name = strdup(in.name().c_str());
+    out.name = ddsrt_strdup(in.name().c_str());
     out.value.length = (uint32_t) in.value().size();
-    out.value.value = (unsigned char *) malloc(out.value.length);
-    memcpy(out.value.value, in.value().data(), out.value.length);
+    out.value.value = out.value.length ? (unsigned char *) ddsrt_malloc(out.value.length) : NULL;
+    if (out.value.value)
+        memcpy(out.value.value, in.value().data(), out.value.length);
 }
 
 void to_dataholder(const fuzz_handshake::DataHolder &in, ddsi_dataholder_t &out) {
     out.properties.n = (uint32_t) in.properties().size();
-    out.properties.props = (dds_property_t *) calloc(out.properties.n, sizeof(dds_property_t));
+    out.properties.props = out.properties.n ?
+        (dds_property_t *) ddsrt_calloc(out.properties.n, sizeof(dds_property_t)) : NULL;
     for (int i = 0; i < in.properties().size(); i++) {
         to_property(in.properties().Get(i), out.properties.props[i]);
     }
     out.binary_properties.n = (uint32_t) in.binary_properties().size();
-    out.binary_properties.props = (dds_binaryproperty_t *) calloc(out.binary_properties.n, sizeof(dds_binaryproperty_t));
+    out.binary_properties.props = out.binary_properties.n ?
+        (dds_binaryproperty_t *) ddsrt_calloc(out.binary_properties.n, sizeof(dds_binaryproperty_t)) : NULL;
     for (int i = 0; i < in.binary_properties().size(); i++) {
         to_binaryproperty(in.binary_properties().Get(i), out.binary_properties.props[i]);
     }
@@ -33,15 +39,15 @@ void to_dataholder(const fuzz_handshake::DataHolder &in, ddsi_dataholder_t &out)
 
 void free_properties(ddsi_dataholder_t &dh) {
     for (uint32_t i = 0; i < dh.properties.n; i++) {
-        free(dh.properties.props[i].name);
-        free(dh.properties.props[i].value);
+        ddsrt_free(dh.properties.props[i].name);
+        ddsrt_free(dh.properties.props[i].value);
     }
-    free(dh.properties.props);
+    ddsrt_free(dh.properties.props);
     for (uint32_t i = 0; i < dh.binary_properties.n; i++) {
-        free(dh.binary_properties.props[i].name);
-        free(dh.binary_properties.props[i].value.value);
+        ddsrt_free(dh.binary_properties.props[i].name);
+        ddsrt_free(dh.binary_properties.props[i].value.value);
     }
-    free(dh.binary_properties.props);
+    ddsrt_free(dh.binary_properties.props);
 }
 
 static bool g_init = false;

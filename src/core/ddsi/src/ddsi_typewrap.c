@@ -2456,7 +2456,7 @@ static void DDS_XTypes_AppliedBuiltinTypeAnnotations_copy (struct DDS_XTypes_App
 {
   if (src)
   {
-    dst->verbatim = calloc (1, sizeof (*dst->verbatim));
+    dst->verbatim = ddsrt_calloc (1, sizeof (*dst->verbatim));
     DDS_XTypes_AppliedVerbatimAnnotation_copy (dst->verbatim, src->verbatim);
   }
 }
