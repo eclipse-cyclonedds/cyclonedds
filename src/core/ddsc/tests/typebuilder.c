@@ -416,6 +416,72 @@ CU_Test(ddsc_typebuilder, union_discriminator_key, .init = typebuilder_init, .fi
   dds_dynamic_type_unref (&dtype);
 }
 
+static uint32_t find_union_desc_offs (const dds_topic_descriptor_t *desc)
+{
+  for (uint32_t n = 0; n + 3 < desc->m_nops; n++)
+  {
+    const uint32_t op = desc->m_ops[n];
+    if (DDS_OP (op) == DDS_OP_ADR && DDS_OP_TYPE (op) == DDS_OP_VAL_UNI)
+      return n;
+  }
+  return UINT32_MAX;
+}
+
+static void assert_union_case_labels (const dds_topic_descriptor_t *desc, uint32_t nlabels, const uint32_t *labels)
+{
+  const uint32_t union_offs = find_union_desc_offs (desc);
+  CU_ASSERT_NEQ_FATAL (union_offs, UINT32_MAX);
+  CU_ASSERT_FATAL (desc->m_ops[union_offs] & DDS_OP_FLAG_DEF);
+  CU_ASSERT_EQ_FATAL (desc->m_ops[union_offs + 2], nlabels);
+
+  const int16_t case_jsr = DDS_OP_ADR_JSR (desc->m_ops[union_offs + 3]);
+  CU_ASSERT_FATAL (case_jsr > 0);
+  uint32_t case_offs = union_offs + (uint32_t) (uint16_t) case_jsr;
+  for (uint32_t n = 0; n < nlabels; n++)
+  {
+    CU_ASSERT_LT_FATAL (case_offs + 1, desc->m_nops);
+    CU_ASSERT_EQ_FATAL (DDS_OP (desc->m_ops[case_offs]), DDS_OP_JEQ4);
+    CU_ASSERT_EQ_FATAL (desc->m_ops[case_offs + 1], labels[n]);
+    case_offs += 4;
+  }
+}
+
+static void assert_dynamic_type_union_case_labels (dds_dynamic_type_t *dtype, uint32_t nlabels, const uint32_t *labels)
+{
+  dds_typeinfo_t *type_info;
+  dds_return_t ret = dds_dynamic_type_register (dtype, &type_info);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  dds_topic_descriptor_t *desc;
+  ret = dds_create_topic_descriptor (DDS_FIND_SCOPE_LOCAL_DOMAIN, g_participant, type_info, 0, &desc);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  assert_union_case_labels (desc, nlabels, labels);
+
+  dds_delete_topic_descriptor (desc);
+  dds_free_typeinfo (type_info);
+}
+
+CU_Test(ddsc_typebuilder, union_default_case_last, .init = typebuilder_init, .fini = typebuilder_fini)
+{
+  dds_dynamic_type_t dtype = dds_dynamic_type_create (g_participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_UNION,
+    .name = "default_case_last_union",
+    .discriminator_type = DDS_DYNAMIC_TYPE_SPEC_PRIM (DDS_DYNAMIC_INT32)
+  });
+  CU_ASSERT_EQ_FATAL (dtype.ret, DDS_RETCODE_OK);
+
+  dds_return_t ret = dds_dynamic_type_add_member (&dtype,
+      DDS_DYNAMIC_UNION_MEMBER_DEFAULT_PRIM (DDS_DYNAMIC_INT32, "d"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&dtype,
+      DDS_DYNAMIC_UNION_MEMBER_PRIM (DDS_DYNAMIC_INT32, "u1", 1, ((int32_t[]) { 1 })));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  assert_dynamic_type_union_case_labels (&dtype, 2, (uint32_t[]) { 1, 0 });
+  dds_dynamic_type_unref (&dtype);
+}
+
 static void assert_mutable_union_case_member_ids (const dds_topic_descriptor_t *desc, uint32_t n_cases, const uint32_t *member_ids)
 {
   uint32_t union_offs = UINT32_MAX;

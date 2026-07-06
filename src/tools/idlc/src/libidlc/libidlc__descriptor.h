@@ -150,6 +150,7 @@ struct stack_type {
   struct constructed_type *ctype;
   uint32_t offset;
   uint32_t label, labels;
+  uint32_t default_label, default_labels;
 };
 
 struct key_meta_data {
