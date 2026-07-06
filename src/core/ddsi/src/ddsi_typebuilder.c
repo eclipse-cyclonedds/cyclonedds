@@ -935,7 +935,8 @@ static dds_return_t typebuilder_add_union (struct typebuilder_data *tbd, struct 
     ret = DDS_RETCODE_OUT_OF_RESOURCES;
     goto err;
   }
-  for (uint32_t n = 0, c = 0; n < type->xt._u.union_type.members.length; n++)
+  uint32_t c = 0;
+  for (uint32_t n = 0; n < type->xt._u.union_type.members.length; n++)
   {
     uint32_t sz = 0, align = 0;
     bool is_ext = type->xt._u.union_type.members.seq[n].flags & DDS_XTypes_IS_EXTERNAL;
@@ -952,23 +953,32 @@ static dds_return_t typebuilder_add_union (struct typebuilder_data *tbd, struct 
         goto err;
       c++;
     }
-    if (is_default)
-    {
-      tb_aggrtype->detail._union.cases[c].member_id = type->xt._u.union_type.members.seq[n].id;
-      tb_aggrtype->detail._union.cases[c].is_external = is_ext;
-      tb_aggrtype->detail._union.cases[c].is_default = true;
-      tb_aggrtype->detail._union.cases[c].is_last_label = true;
-      tb_aggrtype->detail._union.cases[c].disc_value = 0;
-      if ((ret = typebuilder_add_type (tbd, &sz, &align, &tb_aggrtype->detail._union.cases[c].type, type->xt._u.union_type.members.seq[n].type, is_ext, false,
-          get_tc (type->xt._u.union_type.members.seq[n].flags))) != DDS_RETCODE_OK)
-        goto err;
-      c++;
-    }
     if (align > member_align)
       member_align = align;
     if (sz > member_sz)
       member_sz = sz;
   }
+  for (uint32_t n = 0; n < type->xt._u.union_type.members.length; n++)
+  {
+    if (!(type->xt._u.union_type.members.seq[n].flags & DDS_XTypes_IS_DEFAULT))
+      continue;
+    uint32_t sz = 0, align = 0;
+    bool is_ext = type->xt._u.union_type.members.seq[n].flags & DDS_XTypes_IS_EXTERNAL;
+    tb_aggrtype->detail._union.cases[c].member_id = type->xt._u.union_type.members.seq[n].id;
+    tb_aggrtype->detail._union.cases[c].is_external = is_ext;
+    tb_aggrtype->detail._union.cases[c].is_default = true;
+    tb_aggrtype->detail._union.cases[c].is_last_label = true;
+    tb_aggrtype->detail._union.cases[c].disc_value = 0;
+    if ((ret = typebuilder_add_type (tbd, &sz, &align, &tb_aggrtype->detail._union.cases[c].type, type->xt._u.union_type.members.seq[n].type, is_ext, false,
+        get_tc (type->xt._u.union_type.members.seq[n].flags))) != DDS_RETCODE_OK)
+      goto err;
+    c++;
+    if (align > member_align)
+      member_align = align;
+    if (sz > member_sz)
+      member_sz = sz;
+  }
+  assert (c == n_cases);
 
   // union size (size of c struct that has discriminator and c union)
   tb_aggrtype->size = disc_sz;

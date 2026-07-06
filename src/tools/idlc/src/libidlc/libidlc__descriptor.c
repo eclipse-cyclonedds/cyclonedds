@@ -1163,7 +1163,14 @@ emit_case(
        could be optimized to save some instructions in the descriptor. */
     cnt = ctype->instructions.count + (stype->labels - stype->label) * 4;
     for (label = _case->labels; label; label = idl_next(label)) {
-      off = stype->offset + 2 + union_discr_extra + (stype->label * 4);
+      const bool is_default_label = idl_is_default_case_label(label) || idl_is_implicit_default_case_label(label);
+      uint32_t label_idx;
+      /* The VM treats the final JEQ entry as the default when DEF is set. */
+      if (is_default_label)
+        label_idx = stype->labels - stype->default_labels + stype->default_label++;
+      else
+        label_idx = stype->label - stype->default_label;
+      off = stype->offset + 2 + union_discr_extra + (label_idx * 4);
 
       bool has_size = false;
       const uint32_t case_op_off = off;
@@ -1193,7 +1200,7 @@ emit_case(
       }
       shift_enum_metadata_for_insert(descriptor, ctype, &ctype->instructions, off);
       /* generate union case discriminator, use 0 for default case */
-      if ((ret = stash_case_label32(pstate, &ctype->instructions, off++, idl_type_spec(union_spec->switch_type_spec), idl_is_default_case_label(label) || idl_is_implicit_default_case_label(label) ? 0 : label->const_expr)))
+      if ((ret = stash_case_label32(pstate, &ctype->instructions, off++, idl_type_spec(union_spec->switch_type_spec), is_default_label ? 0 : label->const_expr)))
         return ret;
       /* generate union case member (address) offset; use offset 0 for empty types,
          as these members are not generated and no offset can be calculated */
@@ -1352,13 +1359,17 @@ emit_union(
 
     stype->offset = ctype->instructions.count;
     stype->labels = stype->label = 0;
+    stype->default_labels = stype->default_label = 0;
 
     /* determine total number of case labels as opcodes for complex elements
        are stored after case label opcodes */
     _case = union_spec->cases;
     for (; _case; _case = idl_next(_case)) {
-      for (label = _case->labels; label; label = idl_next(label))
+      for (label = _case->labels; label; label = idl_next(label)) {
         stype->labels++;
+        if (idl_is_default_case_label(label) || idl_is_implicit_default_case_label(label))
+          stype->default_labels++;
+      }
     }
 
     ret = IDL_VISIT_REVISIT;

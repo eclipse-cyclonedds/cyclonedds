@@ -331,6 +331,81 @@ CU_Test(idlc_descriptor, mutable_union_member_ids)
   idl_delete_pstate (pstate);
 }
 
+static void assert_union_case_labels (const char *idl, uint32_t nlabels, const char * const *labels)
+{
+  idl_retcode_t ret;
+  idl_pstate_t *pstate = NULL;
+  struct descriptor descriptor;
+  uint32_t flags = IDL_FLAG_EXTENDED_DATA_TYPES |
+                   IDL_FLAG_ANONYMOUS_TYPES |
+                   IDL_FLAG_ANNOTATIONS;
+
+  ret = idl_create_pstate (flags, NULL, &pstate);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+  memset (&descriptor, 0, sizeof (descriptor));
+  ret = generate_test_descriptor (pstate, idl, &descriptor);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+
+  const struct constructed_type *ctype = descriptor.constructed_types;
+  CU_ASSERT_FATAL (ctype != NULL);
+  CU_ASSERT_FATAL (ctype->instructions.table != NULL);
+
+  uint32_t union_offs = (uint32_t) -1;
+  for (uint32_t n = 0; n < ctype->instructions.count; n++)
+  {
+    const struct instruction *inst = &ctype->instructions.table[n];
+    if (inst->type == OPCODE &&
+        DDS_OP (inst->data.opcode.code) == DDS_OP_ADR &&
+        DDS_OP_TYPE (inst->data.opcode.code) == DDS_OP_VAL_UNI)
+    {
+      union_offs = n;
+      break;
+    }
+  }
+  CU_ASSERT_NEQ_FATAL (union_offs, (uint32_t) -1);
+  CU_ASSERT_EQ_FATAL (ctype->instructions.table[union_offs + 2].type, SINGLE);
+  CU_ASSERT_EQ_FATAL (ctype->instructions.table[union_offs + 2].data.single, nlabels);
+  CU_ASSERT_EQ_FATAL (ctype->instructions.table[union_offs + 3].type, COUPLE);
+
+  uint32_t jeq_offs = union_offs + ctype->instructions.table[union_offs + 3].data.couple.low;
+  for (uint32_t n = 0; n < nlabels; n++)
+  {
+    CU_ASSERT_LT_FATAL (jeq_offs + 3, ctype->instructions.count);
+    const struct instruction *jeq = &ctype->instructions.table[jeq_offs];
+    CU_ASSERT_FATAL ((jeq->type == OPCODE && DDS_OP (jeq->data.opcode.code) == DDS_OP_JEQ4) || jeq->type == JEQ_OFFSET);
+    CU_ASSERT_EQ_FATAL (ctype->instructions.table[jeq_offs + 1].type, CONSTANT);
+    const char *value = ctype->instructions.table[jeq_offs + 1].data.constant.value;
+    if (labels[n])
+      CU_ASSERT_STREQ_FATAL (value, labels[n]);
+    else
+      CU_ASSERT_EQ_FATAL (value, NULL);
+    jeq_offs += 4;
+  }
+
+  descriptor_fini (&descriptor);
+  idl_delete_pstate (pstate);
+}
+
+CU_Test(idlc_descriptor, union_default_case_last)
+{
+  static const char * const default_first[] = { "1", "2", NULL };
+  assert_union_case_labels (
+      "@topic union test switch(long) { "
+      "default: long d; "
+      "case 1: long a; "
+      "case 2: long b; "
+      "};",
+      3, default_first);
+
+  static const char * const default_with_explicit_label[] = { "10", "1", NULL };
+  assert_union_case_labels (
+      "@topic union test switch(long) { "
+      "case 10: default: sequence<long> d; "
+      "case 1: long a; "
+      "};",
+      3, default_with_explicit_label);
+}
+
 CU_Test(idlc_descriptor, key_valid_types)
 {
   static const struct {
