@@ -292,7 +292,7 @@ function(add_cunit_executable TARGET)
 
         set(decls "${decls}\nCU_TestDecl(${suite}, ${test});")
         set(defns "${defns}\nADD_TEST(${suite}, ${test}, ${enable});")
-        set(ctest "CUnit_${suite}_${test}")
+        set(ctest "${suite}_${test}")
 
         add_test(
           NAME ${ctest}
@@ -322,7 +322,7 @@ function(add_cunit_executable TARGET)
 
   add_executable(
     ${TARGET} "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.c" ${sources})
-  target_link_libraries(${TARGET} PRIVATE CycloneDDS::ucunit ddsrt-internal)
+  target_link_libraries(${TARGET} PRIVATE CycloneDDS::ucunit)
   if(MSVC)
     target_compile_definitions(${TARGET} PRIVATE _CRT_SECURE_NO_WARNINGS)
   endif()

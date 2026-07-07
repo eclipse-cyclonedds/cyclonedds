@@ -62,7 +62,7 @@ static void sync_reader_writer_impl (dds_entity_t participant_rd, dds_entity_t r
 void sync_reader_writer (dds_entity_t participant_rd, dds_entity_t reader, dds_entity_t participant_wr, dds_entity_t writer)
 {
   // Timing out after 1s would seem to be reasonable, but in reality seems to result in CI flakiness
-  // for some tests (e.g., CUnit_ddsc_xtypes_basic at the time of this comment).  A hypothesis is
+  // for some tests (e.g., ddsc_xtypes_basic at the time of this comment).  A hypothesis is
   // that some of the tests that happen to run in parallel cause so much load and network traffic
   // that there is the occasional bit of packet loss, and if that affects discovery packets, it could
   // plausibly make it take longer than 1s.

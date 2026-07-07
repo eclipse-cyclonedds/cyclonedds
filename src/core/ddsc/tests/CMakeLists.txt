@@ -223,31 +223,31 @@ if(ENABLE_TYPELIB)
 endif()
 
 # Setup environment for config-tests
-get_test_property(CUnit_ddsc_config_simple_udp ENVIRONMENT CUnit_ddsc_config_simple_udp_env)
+get_test_property(ddsc_config_simple_udp ENVIRONMENT ddsc_config_simple_udp_env)
 if(ENABLE_FAKEUDP)
-  set(CUnit_ddsc_config_simple_udp_file "${CMAKE_CURRENT_LIST_DIR}/config_simple_fakeudp.xml")
+  set(ddsc_config_simple_udp_file "${CMAKE_CURRENT_LIST_DIR}/config_simple_fakeudp.xml")
 else()
-  set(CUnit_ddsc_config_simple_udp_file "${CMAKE_CURRENT_LIST_DIR}/config_simple_udp.xml")
+  set(ddsc_config_simple_udp_file "${CMAKE_CURRENT_LIST_DIR}/config_simple_udp.xml")
 endif()
-set(CUnit_ddsc_config_simple_udp_uri "file://${CUnit_ddsc_config_simple_udp_file}")
-set(CUnit_ddsc_config_simple_udp_max_participants "0")
-set(CUnit_ddsc_config_simple_udp_env "CYCLONEDDS_URI=${CUnit_ddsc_config_simple_udp_uri};MAX_PARTICIPANTS=${CUnit_ddsc_config_simple_udp_max_participants};${CUnit_ddsc_config_simple_udp_env}")
+set(ddsc_config_simple_udp_uri "file://${ddsc_config_simple_udp_file}")
+set(ddsc_config_simple_udp_max_participants "0")
+set(ddsc_config_simple_udp_env "CYCLONEDDS_URI=${ddsc_config_simple_udp_uri};MAX_PARTICIPANTS=${ddsc_config_simple_udp_max_participants};${ddsc_config_simple_udp_env}")
 set_tests_properties(
-  CUnit_ddsc_config_simple_udp
+  ddsc_config_simple_udp
   PROPERTIES
-    REQUIRED_FILES ${CUnit_ddsc_config_simple_udp_file}
-    ENVIRONMENT "${CUnit_ddsc_config_simple_udp_env}")
+    REQUIRED_FILES ${ddsc_config_simple_udp_file}
+    ENVIRONMENT "${ddsc_config_simple_udp_env}")
 
 # Setup environment for sysdef-test
-get_test_property(CUnit_ddsc_qos_provider_read_sysdef ENVIRONMENT CUnit_ddsc_qos_provider_read_sysdef_env)
-set(CUnit_ddsc_qos_provider_read_sysdef_file "${CMAKE_CURRENT_LIST_DIR}/sysdef_qos_library.xml")
-set(CUnit_ddsc_qos_provider_read_sysdef_uri "file://${CUnit_ddsc_qos_provider_read_sysdef_file}")
-set(CUnit_ddsc_qos_provider_read_sysdef_env "CYCLONEDDS_SYSDEF_URI=${CUnit_ddsc_qos_provider_read_sysdef_uri};${CUnit_ddsc_qos_provider_read_sysdef_env}")
+get_test_property(ddsc_qos_provider_read_sysdef ENVIRONMENT ddsc_qos_provider_read_sysdef_env)
+set(ddsc_qos_provider_read_sysdef_file "${CMAKE_CURRENT_LIST_DIR}/sysdef_qos_library.xml")
+set(ddsc_qos_provider_read_sysdef_uri "file://${ddsc_qos_provider_read_sysdef_file}")
+set(ddsc_qos_provider_read_sysdef_env "CYCLONEDDS_SYSDEF_URI=${ddsc_qos_provider_read_sysdef_uri};${ddsc_qos_provider_read_sysdef_env}")
 set_tests_properties(
-  CUnit_ddsc_qos_provider_read_sysdef
+  ddsc_qos_provider_read_sysdef
   PROPERTIES
-    REQUIRED_FILES ${CUnit_ddsc_qos_provider_read_sysdef_file}
-    ENVIRONMENT "${CUnit_ddsc_qos_provider_read_sysdef_env}")
+    REQUIRED_FILES ${ddsc_qos_provider_read_sysdef_file}
+    ENVIRONMENT "${ddsc_qos_provider_read_sysdef_env}")
 
 configure_file("deadline_update.h.in" "deadline_update.h")
 configure_file("build_options.h.in" "build_options.h")
@@ -260,7 +260,7 @@ configure_file("config_env.h.in" "config_env.h" @ONLY)
 # communication and the deadline tests with their tight timing         #
 ########################################################################
 foreach(t async_one_unrel_sample relwr_unrelrd_network)
-  set_tests_properties(CUnit_ddsc_write_${t} PROPERTIES RUN_SERIAL TRUE)
+  set_tests_properties(ddsc_write_${t} PROPERTIES RUN_SERIAL TRUE)
 endforeach()
 if(ENABLE_DEADLINE_MISSED)
   foreach(t
@@ -268,7 +268,7 @@ if(ENABLE_DEADLINE_MISSED)
       instances
       update
       writer_types)
-    set_tests_properties(CUnit_ddsc_deadline_${t} PROPERTIES RUN_SERIAL TRUE)
+    set_tests_properties(ddsc_deadline_${t} PROPERTIES RUN_SERIAL TRUE)
   endforeach()
 endif()
 
@@ -357,13 +357,13 @@ endif()
 ################################################################################
 
 get_property(test_names DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY TESTS)
-list(FILTER test_names INCLUDE REGEX "^CUnit_ddsc_psmx_[A-Za-z_0-9]+$")
+list(FILTER test_names INCLUDE REGEX "^ddsc_psmx_[A-Za-z_0-9]+$")
 
 # Iceoryx2
 if(ENABLE_ICEORYX2 AND NOT DEFINED ENV{COLCON})
   if(BUILD_SHARED_LIBS)
     foreach(fullname ${test_names})
-      string(REGEX REPLACE "^CUnit_ddsc_psmx_(.*)" "\\1" shortname "${fullname}")
+      string(REGEX REPLACE "^ddsc_psmx_(.*)" "\\1" shortname "${fullname}")
       add_test(NAME ${fullname}_iox2 COMMAND cunit_ddsc -s ddsc_psmx -t ${shortname})
       set_tests_properties(${fullname}_iox2 PROPERTIES ENVIRONMENT "CDDS_PSMX_NAME=iox2;LD_LIBRARY_PATH=$<TARGET_FILE_DIR:psmx_iox2>:$ENV{LD_LIBRARY_PATH}")
     endforeach()
@@ -422,7 +422,7 @@ kill -0 `cat ctest_fixture_iox_roudi.pid`")
   # Iceoryx in a static build (because I don't know how to delete tests!)
   if(BUILD_SHARED_LIBS)
     foreach(fullname ${test_names})
-      string(REGEX REPLACE "^CUnit_ddsc_psmx_(.*)" "\\1" shortname "${fullname}")
+      string(REGEX REPLACE "^ddsc_psmx_(.*)" "\\1" shortname "${fullname}")
       add_test(NAME ${fullname}_iox COMMAND cunit_ddsc -s ddsc_psmx -t ${shortname})
       set_tests_properties(${fullname}_iox PROPERTIES FIXTURES_REQUIRED iox)
       set_tests_properties(${fullname}_iox PROPERTIES RESOURCE_LOCK iox_lock)
