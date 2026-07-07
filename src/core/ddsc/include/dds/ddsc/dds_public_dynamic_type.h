@@ -161,10 +161,19 @@ typedef enum dds_dynamic_type_kind
 #define DDS_DYNAMIC_UNION_MEMBER_PRIM(member_prim_type,member_name,member_num_labels,member_labels) \
     DDS_DYNAMIC_UNION_MEMBER_ID_PRIM((member_prim_type),(member_name),DDS_DYNAMIC_MEMBER_ID_INVALID,(member_num_labels),(member_labels))
 
+#define DDS_DYNAMIC_UNION_MEMBER_DEFAULT_LABELS_ID(member_type,member_name,member_id,member_num_labels,member_labels) \
+    DDS_DYNAMIC_UNION_MEMBER_(DDS_DYNAMIC_TYPE_SPEC((member_type)),(member_name),(member_id),DDS_DYNAMIC_MEMBER_INDEX_END,(member_num_labels),(member_labels),true)
+#define DDS_DYNAMIC_UNION_MEMBER_DEFAULT_LABELS_ID_PRIM(member_prim_type,member_name,member_id,member_num_labels,member_labels) \
+    DDS_DYNAMIC_UNION_MEMBER_(DDS_DYNAMIC_TYPE_SPEC_PRIM((member_prim_type)),(member_name),(member_id),DDS_DYNAMIC_MEMBER_INDEX_END,(member_num_labels),(member_labels),true)
+#define DDS_DYNAMIC_UNION_MEMBER_DEFAULT_LABELS(member_type,member_name,member_num_labels,member_labels) \
+    DDS_DYNAMIC_UNION_MEMBER_DEFAULT_LABELS_ID((member_type),(member_name),DDS_DYNAMIC_MEMBER_ID_INVALID,(member_num_labels),(member_labels))
+#define DDS_DYNAMIC_UNION_MEMBER_DEFAULT_LABELS_PRIM(member_prim_type,member_name,member_num_labels,member_labels) \
+    DDS_DYNAMIC_UNION_MEMBER_DEFAULT_LABELS_ID_PRIM((member_prim_type),(member_name),DDS_DYNAMIC_MEMBER_ID_INVALID,(member_num_labels),(member_labels))
+
 #define DDS_DYNAMIC_UNION_MEMBER_DEFAULT_ID(member_type,member_name,member_id) \
-    DDS_DYNAMIC_UNION_MEMBER_(DDS_DYNAMIC_TYPE_SPEC((member_type)),(member_name),(member_id),DDS_DYNAMIC_MEMBER_INDEX_END,0,NULL,true)
+    DDS_DYNAMIC_UNION_MEMBER_DEFAULT_LABELS_ID((member_type),(member_name),(member_id),0,NULL)
 #define DDS_DYNAMIC_UNION_MEMBER_DEFAULT_ID_PRIM(member_prim_type,member_name,member_id) \
-    DDS_DYNAMIC_UNION_MEMBER_(DDS_DYNAMIC_TYPE_SPEC_PRIM((member_prim_type)),(member_name),(member_id),DDS_DYNAMIC_MEMBER_INDEX_END,0,NULL,true)
+    DDS_DYNAMIC_UNION_MEMBER_DEFAULT_LABELS_ID_PRIM((member_prim_type),(member_name),(member_id),0,NULL)
 #define DDS_DYNAMIC_UNION_MEMBER_DEFAULT(member_type,member_name) \
     DDS_DYNAMIC_UNION_MEMBER_DEFAULT_ID((member_type),(member_name),DDS_DYNAMIC_MEMBER_ID_INVALID)
 #define DDS_DYNAMIC_UNION_MEMBER_DEFAULT_PRIM(member_prim_type,member_name) \
@@ -227,8 +236,8 @@ typedef struct dds_dynamic_member_descriptor {
   dds_dynamic_type_spec_t type; /**< Member type, required for struct and union members. */
   char *default_value; /**< Default value for the member */
   uint32_t index; /**< Member index, applicable for struct and union members. DDS_DYNAMIC_MEMBER_INDEX_START and DDS_DYNAMIC_MEMBER_INDEX_END can be used to add a member as first or last member in the parent type. */
-  uint32_t num_labels; /**< Number of labels, required for union members in case not default_label */
-  int32_t *labels; /**< Labels for a union member, 1..n required for union members in case not default_label */
+  uint32_t num_labels; /**< Number of explicit labels for union members, required when not default_label and optional when default_label */
+  int32_t *labels; /**< Explicit labels for a union member, 1..n required when not default_label and optional when default_label */
   bool default_label; /**< Is default union member */
 } dds_dynamic_member_descriptor_t;
 
