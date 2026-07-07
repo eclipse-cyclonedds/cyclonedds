@@ -1542,7 +1542,9 @@ CU_Test(ddsc_cdrstream, key_size)
     uint32_t keysz_xcdrv1 = 0, keysz_xcdrv2 = 0;
     struct dds_cdrstream_desc desc;
     dds_cdrstream_desc_from_topic_desc (&desc, tests[i].desc);
-    uint32_t key_flags = dds_stream_key_flags (&desc, &keysz_xcdrv1, &keysz_xcdrv2);
+    uint32_t key_flags = dds_stream_descriptor_flags (&desc, tests[i].desc->m_flagset, &keysz_xcdrv1,
+        &keysz_xcdrv2);
+    CU_ASSERT_EQ_FATAL (key_flags, desc.flagset);
     CU_ASSERT_EQ_FATAL ((key_flags & DDS_TOPIC_FIXED_KEY) != 0, tests[i].fixed_key_xcdr1);
     CU_ASSERT_EQ_FATAL ((key_flags & DDS_TOPIC_FIXED_KEY_XCDR2) != 0, tests[i].fixed_key_xcdr2);
     CU_ASSERT_EQ_FATAL (keysz_xcdrv1, tests[i].keysz_xcdr1);
@@ -1581,7 +1583,7 @@ CU_Test(ddsc_cdrstream, key_flags_ext)
     tprintf ("running test for type: %s\n", tests[i].desc->m_typename);
     struct dds_cdrstream_desc desc;
     dds_cdrstream_desc_from_topic_desc (&desc, tests[i].desc);
-    uint32_t key_flags = dds_stream_key_flags (&desc, NULL, NULL);
+    uint32_t key_flags = desc.flagset;
     CU_ASSERT_EQ_FATAL ((key_flags & DDS_TOPIC_KEY_APPENDABLE) != 0, tests[i].key_appendable);
     CU_ASSERT_EQ_FATAL ((key_flags & DDS_TOPIC_KEY_MUTABLE) != 0, tests[i].key_mutable);
     dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
@@ -1603,7 +1605,7 @@ CU_Test(ddsc_cdrstream, key_flags_various)
     tprintf ("running test for type: %s\n", tests[i].desc->m_typename);
     struct dds_cdrstream_desc desc;
     dds_cdrstream_desc_from_topic_desc (&desc, tests[i].desc);
-    uint32_t key_flags = dds_stream_key_flags (&desc, NULL, NULL);
+    uint32_t key_flags = desc.flagset;
     CU_ASSERT_EQ_FATAL ((key_flags & DDS_TOPIC_KEY_ARRAY_NONPRIM) != 0, tests[i].key_array_non_prim);
     dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
   }

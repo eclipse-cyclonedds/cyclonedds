@@ -185,6 +185,7 @@ struct dds_cdrstream_ops_info {
   const uint32_t *ops_end;
   dds_data_type_properties_t data_types;
   uint32_t supported_data_representations;
+  uint32_t descriptor_flags;
 };
 
 enum tryconstruct {
@@ -1016,6 +1017,7 @@ static const uint32_t *dds_stream_get_ops_info_seq (const uint32_t *ops, uint32_
       ops += 2 + bound_op;
       break;
     case DDS_SOP_VAL_STR: case DDS_SOP_VAL_WSTR:
+      info->descriptor_flags &= ~DDS_TOPIC_FIXED_SIZE;
       info->data_types &= ~DDS_DATA_TYPE_IS_MEMCPY_SAFE;
       ops += 2 + bound_op;
       break;
@@ -1026,6 +1028,7 @@ static const uint32_t *dds_stream_get_ops_info_seq (const uint32_t *ops, uint32_
       ops += 4 + bound_op;
       break;
     case DDS_SOP_VAL_SEQ: case DDS_SOP_VAL_BSQ:
+      info->descriptor_flags &= ~DDS_TOPIC_FIXED_SIZE;
       info->data_types &= ~DDS_DATA_TYPE_IS_MEMCPY_SAFE;
       /* fall through */
     case DDS_SOP_VAL_ARR: case DDS_SOP_VAL_UNI: case DDS_SOP_VAL_STU: {
@@ -1058,6 +1061,7 @@ static const uint32_t *dds_stream_get_ops_info_arr (const uint32_t *ops, uint32_
       ops += 3;
       break;
     case DDS_SOP_VAL_STR: case DDS_SOP_VAL_WSTR:
+      info->descriptor_flags &= ~DDS_TOPIC_FIXED_SIZE;
       info->data_types &= ~DDS_DATA_TYPE_IS_MEMCPY_SAFE;
       ops += 3;
       break;
@@ -1068,6 +1072,7 @@ static const uint32_t *dds_stream_get_ops_info_arr (const uint32_t *ops, uint32_
       ops += 5;
       break;
     case DDS_SOP_VAL_SEQ: case DDS_SOP_VAL_BSQ:
+      info->descriptor_flags &= ~DDS_TOPIC_FIXED_SIZE;
       info->data_types &= ~DDS_DATA_TYPE_IS_MEMCPY_SAFE;
       /* fall through */
     case DDS_SOP_VAL_ARR: case DDS_SOP_VAL_UNI: case DDS_SOP_VAL_STU: {
@@ -1111,16 +1116,21 @@ static const uint32_t *dds_stream_get_ops_info_uni (const uint32_t *ops, bool to
   {
     const enum dds_stream_typecode valtype = DDS_JEQ_TYPE (jeq_op[0]);
     if (op_type_external (jeq_op[0]) || op_type_optional (jeq_op[0]))
+    {
+      info->descriptor_flags &= ~DDS_TOPIC_FIXED_SIZE;
       info->data_types &= ~DDS_DATA_TYPE_IS_MEMCPY_SAFE;
+    }
     switch (valtype)
     {
       case DDS_SOP_VAL_BLN: case DDS_SOP_VAL_1BY: case DDS_SOP_VAL_2BY: case DDS_SOP_VAL_4BY: case DDS_SOP_VAL_8BY:
       case DDS_SOP_VAL_WCHAR: case DDS_SOP_VAL_ENU: case DDS_SOP_VAL_16BY:
         break;
       case DDS_SOP_VAL_STR: case DDS_SOP_VAL_WSTR:
+        info->descriptor_flags &= ~DDS_TOPIC_FIXED_SIZE;
         info->data_types &= ~DDS_DATA_TYPE_IS_MEMCPY_SAFE;
         break;
       case DDS_SOP_VAL_SEQ: case DDS_SOP_VAL_BSQ:
+        info->descriptor_flags &= ~DDS_TOPIC_FIXED_SIZE;
         info->data_types &= ~DDS_DATA_TYPE_IS_MEMCPY_SAFE;
         /* fall through */
       case DDS_SOP_VAL_STU: case DDS_SOP_VAL_BST: case DDS_SOP_VAL_BWSTR:
@@ -1201,7 +1211,10 @@ static void dds_stream_get_ops_info1 (const uint32_t *ops, bool top_level_key_sc
         if ((insn & DDS_OP_FLAG_KEY) && top_level_key_scope)
           info->data_types |= DDS_DATA_TYPE_CONTAINS_KEY;
         if (op_type_external (insn) || op_type_optional (insn))
+        {
+          info->descriptor_flags &= ~DDS_TOPIC_FIXED_SIZE;
           info->data_types &= ~DDS_DATA_TYPE_IS_MEMCPY_SAFE;
+        }
         const uint32_t adr_value_bound_xcdrv = value_bound_xcdrv | (op_type_optional (insn) ? XCDR1_REP : 0u);
         if (op_type_optional (insn))
         {
@@ -1214,6 +1227,7 @@ static void dds_stream_get_ops_info1 (const uint32_t *ops, bool top_level_key_sc
             ops += 2;
             break;
           case DDS_SOP_VAL_STR: case DDS_SOP_VAL_WSTR:
+            info->descriptor_flags &= ~DDS_TOPIC_FIXED_SIZE;
             info->data_types &= ~DDS_DATA_TYPE_IS_MEMCPY_SAFE;
             ops += 2;
             break;
@@ -1224,6 +1238,7 @@ static void dds_stream_get_ops_info1 (const uint32_t *ops, bool top_level_key_sc
             ops += 4;
             break;
           case DDS_SOP_VAL_SEQ: case DDS_SOP_VAL_BSQ:
+            info->descriptor_flags &= ~DDS_TOPIC_FIXED_SIZE;
             info->data_types &= ~DDS_DATA_TYPE_IS_MEMCPY_SAFE;
             ops = dds_stream_get_ops_info_seq (ops, insn, top_level_key_scope, info, in_recursive);
             break;
@@ -1308,6 +1323,7 @@ static void dds_stream_get_ops_info (const uint32_t *ops, struct dds_cdrstream_o
   info->ops_end = ops;
   info->data_types = DDS_DATA_TYPE_IS_MEMCPY_SAFE;
   info->supported_data_representations = XCDR12_REP;
+  info->descriptor_flags = DDS_TOPIC_FIXED_SIZE;
   dds_stream_get_ops_info1 (ops, true, info, true, 0, XCDR12_REP, false);
 }
 
@@ -8470,49 +8486,55 @@ static const uint32_t *dds_stream_key_size (const uint32_t *ops, struct key_prop
   return ops;
 }
 
-uint32_t dds_stream_key_flags (struct dds_cdrstream_desc *desc, uint32_t *keysz_xcdrv1, uint32_t *keysz_xcdrv2)
+uint32_t dds_stream_descriptor_flags (struct dds_cdrstream_desc *desc, uint32_t flagset, uint32_t *keysz_xcdrv1,
+    uint32_t *keysz_xcdrv2)
 {
-  uint32_t key_flags = 0u;
+  if (keysz_xcdrv1 != NULL)
+    *keysz_xcdrv1 = 0;
+  if (keysz_xcdrv2 != NULL)
+    *keysz_xcdrv2 = 0;
+
+  struct dds_cdrstream_ops_info info;
+  dds_stream_get_ops_info (desc->ops.ops, &info);
+
+  uint32_t descriptor_flags = flagset & DDS_CDR_DESCRIPTOR_PRESERVED_FLAGS;
+  descriptor_flags |= info.descriptor_flags & DDS_TOPIC_FIXED_SIZE;
+
   if (desc->keys.nkeys > 0)
   {
-    {
-      struct key_props key_properties = { 0 };
-      key_properties.supported_data_representations = dds_stream_supported_data_representations (desc->ops.ops);
-      (void) dds_stream_key_size (desc->ops.ops, &key_properties);
+    struct key_props key_properties = { 0 };
+    key_properties.supported_data_representations = info.supported_data_representations;
+    (void) dds_stream_key_size (desc->ops.ops, &key_properties);
 
-      if (key_props_supports_xcdr1 (&key_properties) && key_properties.sz_xcdrv1 <= DDS_FIXED_KEY_MAX_SIZE)
-        key_flags |= DDS_TOPIC_FIXED_KEY;
-      if (key_properties.sz_xcdrv2 <= DDS_FIXED_KEY_MAX_SIZE)
-        key_flags |= DDS_TOPIC_FIXED_KEY_XCDR2;
+    if (keysz_xcdrv1 != NULL)
+      *keysz_xcdrv1 = key_props_supports_xcdr1 (&key_properties) ? key_properties.sz_xcdrv1 : 0;
+    if (keysz_xcdrv2 != NULL)
+      *keysz_xcdrv2 = key_properties.sz_xcdrv2;
 
-      if (key_properties.is_mutable)
-        key_flags |= DDS_TOPIC_KEY_MUTABLE;
-      if (key_properties.is_appendable)
-        key_flags |= DDS_TOPIC_KEY_APPENDABLE;
-      if (key_properties.is_sequence)
-        key_flags |= DDS_TOPIC_KEY_SEQUENCE;
-      if (key_properties.is_array_nonprim)
-        key_flags |= DDS_TOPIC_KEY_ARRAY_NONPRIM;
-      if (key_properties.is_union)
-        key_flags |= DDS_TOPIC_KEY_UNION;
+    if (key_props_supports_xcdr1 (&key_properties) && key_properties.sz_xcdrv1 <= DDS_FIXED_KEY_MAX_SIZE)
+      descriptor_flags |= DDS_TOPIC_FIXED_KEY;
+    if (key_properties.sz_xcdrv2 <= DDS_FIXED_KEY_MAX_SIZE)
+      descriptor_flags |= DDS_TOPIC_FIXED_KEY_XCDR2;
 
-      if (keysz_xcdrv1 != NULL)
-        *keysz_xcdrv1 = key_props_supports_xcdr1 (&key_properties) ? key_properties.sz_xcdrv1 : 0;
-      if (keysz_xcdrv2 != NULL)
-        *keysz_xcdrv2 = key_properties.sz_xcdrv2;
-    }
+    if (key_properties.is_mutable)
+      descriptor_flags |= DDS_TOPIC_KEY_MUTABLE;
+    if (key_properties.is_appendable)
+      descriptor_flags |= DDS_TOPIC_KEY_APPENDABLE;
+    if (key_properties.is_sequence)
+      descriptor_flags |= DDS_TOPIC_KEY_SEQUENCE;
+    if (key_properties.is_array_nonprim)
+      descriptor_flags |= DDS_TOPIC_KEY_ARRAY_NONPRIM;
+    if (key_properties.is_union)
+      descriptor_flags |= DDS_TOPIC_KEY_UNION;
 
-    {
-      struct key_props hash_key_properties = { 0 };
-      dds_stream_key_size_keyhash (desc, &hash_key_properties);
+    struct key_props hash_key_properties = { 0 };
+    dds_stream_key_size_keyhash (desc, &hash_key_properties);
 
-      if (hash_key_properties.sz_xcdrv2 <= DDS_FIXED_KEY_MAX_SIZE)
-        key_flags |= DDS_TOPIC_FIXED_KEY_XCDR2_KEYHASH;
-    }
+    if (hash_key_properties.sz_xcdrv2 <= DDS_FIXED_KEY_MAX_SIZE)
+      descriptor_flags |= DDS_TOPIC_FIXED_KEY_XCDR2_KEYHASH;
   }
 
-  assert (!(key_flags & ~DDS_CDR_CALCULATED_FLAGS));
-  return key_flags;
+  return descriptor_flags;
 }
 
 static int key_cmp_idx (const void *va, const void *vb)
@@ -8740,10 +8762,9 @@ void dds_cdrstream_desc_init_with_nops (struct dds_cdrstream_desc *desc, const s
     }
   }
 
-  /* Get the flagset from the descriptor, except for the key related flags that are calculated
-     using the CDR stream serializer */
-  desc->flagset = flagset & ~DDS_CDR_CALCULATED_FLAGS;
-  desc->flagset |= dds_stream_key_flags (desc, NULL, NULL);
+  /* Get the flagset from the descriptor, except for flags that are calculated
+     using the CDR stream serializer. */
+  desc->flagset = dds_stream_descriptor_flags (desc, flagset, NULL, NULL);
 }
 
 void dds_cdrstream_desc_init (struct dds_cdrstream_desc *desc, const struct dds_cdrstream_allocator *allocator,

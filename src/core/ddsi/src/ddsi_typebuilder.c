@@ -253,7 +253,6 @@ struct typebuilder_data
   uint32_t n_keys;
   struct typebuilder_key *keys;
   struct typebuilder_enum_use *enum_uses;
-  bool fixed_size;
 };
 
 struct visited_aggrtype {
@@ -286,7 +285,6 @@ static struct typebuilder_data *typebuilder_data_new (struct ddsi_domaingv *gv, 
   tbd->gv = gv;
   tbd->type = type;
   typebuilder_dep_types_init (&tbd->dep_types);
-  tbd->fixed_size = true;
   return tbd;
 }
 
@@ -588,7 +586,6 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
         *size = tb_type->args.string_args.max_size * (uint32_t) sizeof (char);
       else
         *size = sizeof (char *);
-      tbd->fixed_size = false;
       break;
     }
     case DDS_XTypes_TK_STRING16: {
@@ -601,7 +598,6 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
         *size = tb_type->args.string_args.max_size * (uint32_t) sizeof (wchar_t);
       else
         *size = sizeof (wchar_t *);
-      tbd->fixed_size = false;
       break;
     }
     case DDS_XTypes_TK_ENUM: {
@@ -701,7 +697,6 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
       }
       *align = ALGN (dds_sequence_t, is_ext);
       *size = SZ (dds_sequence_t, is_ext);
-      tbd->fixed_size = false;
       break;
     }
     case DDS_XTypes_TK_ARRAY: {
@@ -2031,17 +2026,6 @@ static void set_implicit_keys_aggrtype (struct typebuilder_aggregated_type *tb_a
   }
 }
 
-static uint32_t get_descriptor_flagset (const struct typebuilder_data *tbd)
-{
-  uint32_t flags = 0u;
-  if (tbd->fixed_size)
-    flags |= DDS_TOPIC_FIXED_SIZE;
-  flags |= DDS_TOPIC_XTYPES_METADATA;
-  /* Flags for key characteristics are calculated in cdrstream */
-  return flags;
-}
-
-
 static dds_return_t add_memberids_aggrtype (struct typebuilder_data *tbd, struct typebuilder_ops *ops, const struct typebuilder_aggregated_type *tb_aggrtype, struct visited_aggrtype *visited_aggrtypes);
 static dds_return_t add_memberids_collection (struct typebuilder_data *tbd, struct typebuilder_ops *ops, const struct typebuilder_type *tb_collection, struct visited_aggrtype *visited_aggrtypes);
 
@@ -2331,7 +2315,7 @@ static dds_return_t get_topic_descriptor (dds_topic_descriptor_t *desc, struct t
        zero-sized and therefore don't affect enclosing layouts. */
     .m_size = tbd->toplevel_type.size == 0 ? 1 : (uint32_t) tbd->toplevel_type.size,
     .m_align = (uint32_t) tbd->toplevel_type.align,
-    .m_flagset = get_descriptor_flagset (tbd),
+    .m_flagset = DDS_TOPIC_XTYPES_METADATA,
     .m_typename = ddsrt_strdup (tbd->toplevel_type.type_name),
     .m_nkeys = tbd->n_keys,
     .m_keys = key_desc,
