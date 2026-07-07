@@ -500,6 +500,100 @@ static dds_return_t make_typedef (const struct make_context *ctxt, struct dyntyp
   return DDS_RETCODE_OK;
 }
 
+struct union_case_labels {
+  uint32_t length;
+  uint32_t capacity;
+  int32_t *values;
+};
+
+static void union_case_labels_fini (struct union_case_labels *labels)
+{
+  ddsrt_free (labels->values);
+}
+
+static dds_return_t union_case_labels_add (struct union_case_labels *labels, int32_t label, const struct elem *elem, struct dyntypelib_error *err)
+{
+  for (uint32_t n = 0; n < labels->length; n++)
+  {
+    if (labels->values[n] == label)
+      return dtl_set_error (err, elem, "duplicate caseDiscriminator label %d\n", (int) label);
+  }
+  if (labels->length == labels->capacity)
+  {
+    const uint32_t new_capacity = labels->capacity == 0 ? 4 : 2 * labels->capacity;
+    if (new_capacity <= labels->capacity)
+      return dtl_set_error (err, elem, "too many labels\n");
+    int32_t *values = ddsrt_realloc (labels->values, new_capacity * sizeof (*values));
+    if (values == NULL)
+    {
+      (void) dtl_set_error (err, elem, "out of memory while collecting union labels\n");
+      return DDS_RETCODE_OUT_OF_RESOURCES;
+    }
+    labels->values = values;
+    labels->capacity = new_capacity;
+  }
+  labels->values[labels->length++] = label;
+  return DDS_RETCODE_OK;
+}
+
+static dds_return_t collect_union_case_labels (const struct make_context *ctxt, const struct elem *case_elem, const struct elem *discriminator_elem,
+    const char *ns, struct union_case_labels *labels, bool *isdefault, struct dyntypelib_error *err)
+{
+  dds_return_t rc;
+  for (const struct elem *m = case_elem->children; m; m = m->next)
+  {
+    if (strcmp (m->name, "caseDiscriminator") != 0) // presumably "member"
+      continue;
+    const char *valstr = getattr (m, "value");
+    if (valstr == NULL)
+      return dtl_set_error (err, m, "no value in caseDiscriminator\n");
+    if (strcmp (valstr, "default") == 0)
+    {
+      if (*isdefault)
+        return dtl_set_error (err, m, "duplicate default caseDiscriminator\n");
+      *isdefault = true;
+    }
+    else if (*valstr == 0)
+    {
+      return dtl_set_error (err, m, "empty value in caseDiscriminator\n");
+    }
+    else
+    {
+      char *endptr;
+      int32_t label = (int32_t) strtol (valstr, &endptr, 0);
+      if (*endptr)
+      {
+        if (getattr (discriminator_elem, "type") == NULL ||
+            strcmp (getattr (discriminator_elem, "type"), "nonBasic") != 0 ||
+            getattr (discriminator_elem, "nonBasicTypeName") == NULL)
+          return dtl_set_error (err, m, "junk at end of value / non enum type for discriminator\n");
+        struct dyntype *d_enum = lookup_type (ctxt, ns, getattr (discriminator_elem, "nonBasicTypeName"));
+        if (d_enum == NULL)
+          return dtl_set_error (err, m, "Unknown enum type for literal values\n");
+        if ((rc = ensure_type_registered (ctxt, d_enum, err)) != DDS_RETCODE_OK)
+          return rc;
+        if (d_enum->typeobj->_u.complete._d != DDS_XTypes_TK_ENUM)
+          return dtl_set_error (err, m, "Non enum type for literal values\n");
+        const DDS_XTypes_CompleteEnumeratedType *c_enum = &d_enum->typeobj->_u.complete._u.enumerated_type;
+        bool enum_contains_value = false;
+        for (uint32_t i = 0; i < c_enum->literal_seq._length; i++)
+        {
+          if (strcmp (valstr, c_enum->literal_seq._buffer[i].detail.name) != 0)
+            continue;
+          enum_contains_value = true;
+          label = c_enum->literal_seq._buffer[i].common.value;
+          break;
+        }
+        if (!enum_contains_value)
+          return dtl_set_error (err, m, "Enum does not contain value\n");
+      }
+      if ((rc = union_case_labels_add (labels, label, m, err)) != DDS_RETCODE_OK)
+        return rc;
+    }
+  }
+  return DDS_RETCODE_OK;
+}
+
 static dds_return_t make_union (const struct make_context *ctxt, struct dyntype *t, const struct elem *elem, const char *ns, struct dyntypelib_error *err)
 {
   dds_return_t rc;
@@ -557,54 +651,12 @@ static dds_return_t make_union (const struct make_context *ctxt, struct dyntype 
     if (strcmp (c->name, "case") != 0)
       continue; // presumably "discriminator"
 
-    uint32_t nlabs = 0;
-    int32_t labs[10];
+    struct union_case_labels labels = { 0 };
     bool isdefault = false;
-
-    for (const struct elem *m = c->children; m; m = m->next)
+    if ((rc = collect_union_case_labels (ctxt, c, discriminator_elem, ns, &labels, &isdefault, err)) != DDS_RETCODE_OK)
     {
-      if (strcmp (m->name, "caseDiscriminator") != 0) // presumably "member"
-        continue;
-      const char *valstr = getattr (m, "value");
-      if (valstr == NULL)
-        return dtl_set_error (err, m, "no value in caseDiscriminator\n");
-      if (strcmp (valstr, "default") == 0)
-        isdefault = true;
-      else if (*valstr == 0)
-        return dtl_set_error (err, m, "empty value in caseDiscriminator\n");
-      else if (nlabs == sizeof (labs) / sizeof (labs[0]))
-        return dtl_set_error (err, m, "too many labels\n");
-      else
-      {
-        char *endptr;
-        labs[nlabs++] = (int32_t) strtol (valstr, &endptr, 0);
-        if (*endptr)
-        {
-          if (getattr(discriminator_elem, "type") == NULL ||
-              strcmp(getattr(discriminator_elem, "type"), "nonBasic") != 0 ||
-              getattr(discriminator_elem, "nonBasicTypeName") == NULL)
-            return dtl_set_error (err, m, "junk at end of value / non enum type for discriminator\n");
-          struct dyntype *d_enum = lookup_type(ctxt, ns, getattr(discriminator_elem, "nonBasicTypeName"));
-          if (d_enum == NULL)
-            return dtl_set_error (err, m, "Unknown enum type for literal values\n");
-          if ((rc = ensure_type_registered (ctxt, d_enum, err)) != DDS_RETCODE_OK)
-            return rc;
-          if (d_enum->typeobj->_u.complete._d != DDS_XTypes_TK_ENUM)
-            return dtl_set_error (err, m, "Non enum type for literal values\n");
-          const DDS_XTypes_CompleteEnumeratedType *c_enum = &d_enum->typeobj->_u.complete._u.enumerated_type;
-          bool enum_contains_value = false;
-          for (uint32_t i = 0; i < c_enum->literal_seq._length; i++)
-          {
-            if (strcmp(valstr, c_enum->literal_seq._buffer[i].detail.name) != 0)
-              continue;
-            enum_contains_value = true;
-            labs[nlabs - 1] = c_enum->literal_seq._buffer[i].common.value;
-            break;
-          }
-          if (!enum_contains_value)
-            return dtl_set_error (err, m, "Enum does not contain value\n");
-        }
-      }
+      union_case_labels_fini (&labels);
+      return rc;
     }
 
     const struct elem *m;
@@ -612,9 +664,16 @@ static dds_return_t make_union (const struct make_context *ctxt, struct dyntype 
       if (strcmp (m->name, "member") == 0)
         break;
     if (m == NULL)
+    {
+      union_case_labels_fini (&labels);
       return dtl_set_error (err, c, "member missing in case\n");
-    if ((rc = add_member (ctxt, t->dtype, m, ns, nlabs, labs, isdefault, err)) != 0)
+    }
+    if ((rc = add_member (ctxt, t->dtype, m, ns, labels.length, labels.values, isdefault, err)) != 0)
+    {
+      union_case_labels_fini (&labels);
       return rc;
+    }
+    union_case_labels_fini (&labels);
   }
 
   return DDS_RETCODE_OK;
