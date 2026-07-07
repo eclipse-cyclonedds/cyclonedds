@@ -634,6 +634,26 @@ CU_Test (ddsc_dynamic_type, union_member_prop, .init = dynamic_type_init, .fini 
   CU_ASSERT_NEQ_FATAL (type->xt._u.union_type.members.seq[2].flags & DDS_XTypes_IS_DEFAULT, 0);
 
   dds_dynamic_type_unref (&dunion);
+
+  dunion = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_UNION,
+    .name = "u_default_label",
+    .discriminator_type = DDS_DYNAMIC_TYPE_SPEC_PRIM(DDS_DYNAMIC_INT32)
+  });
+  ret = dds_dynamic_type_add_member (&dunion,
+      DDS_DYNAMIC_UNION_MEMBER_DEFAULT_LABELS_PRIM(DDS_DYNAMIC_INT32, "md", 2, ((int32_t[]) { 10, 3 })));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&dunion,
+      DDS_DYNAMIC_UNION_MEMBER_PRIM(DDS_DYNAMIC_INT32, "m1", 1, ((int32_t[]) { 1 })));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  type = get_ddsi_type (&dunion);
+  CU_ASSERT_EQ_FATAL (type->xt._u.union_type.members.length, 2);
+  CU_ASSERT_NEQ_FATAL (type->xt._u.union_type.members.seq[0].flags & DDS_XTypes_IS_DEFAULT, 0);
+  CU_ASSERT_EQ_FATAL (type->xt._u.union_type.members.seq[0].label_seq._length, 2);
+  CU_ASSERT_EQ_FATAL (type->xt._u.union_type.members.seq[0].label_seq._buffer[0], 3);
+  CU_ASSERT_EQ_FATAL (type->xt._u.union_type.members.seq[0].label_seq._buffer[1], 10);
+  dds_dynamic_type_unref (&dunion);
 }
 
 CU_Test (ddsc_dynamic_type, union_discriminator_member_id, .init = dynamic_type_init, .fini = dynamic_type_fini)
@@ -789,6 +809,33 @@ CU_Test (ddsc_dynamic_type, union_member_prop_invalid, .init = dynamic_type_init
   dunion = dds_dynamic_type_create (participant, desc);
   dds_dynamic_type_add_member (&dunion, DDS_DYNAMIC_UNION_MEMBER_DEFAULT_PRIM(DDS_DYNAMIC_INT32, "m1"));
   ret = dds_dynamic_type_add_member (&dunion, DDS_DYNAMIC_UNION_MEMBER_DEFAULT_PRIM(DDS_DYNAMIC_INT32, "m2"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  dds_dynamic_type_unref (&dunion);
+
+  // Default member with explicit labels requires a labels array
+  dunion = dds_dynamic_type_create (participant, desc);
+  ret = dds_dynamic_type_add_member (&dunion, (dds_dynamic_member_descriptor_t) {
+    .name = "m1",
+    .type = DDS_DYNAMIC_TYPE_SPEC_PRIM(DDS_DYNAMIC_INT32),
+    .default_label = true,
+    .num_labels = 1
+  });
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  dds_dynamic_type_unref (&dunion);
+
+  // Re-used label on default member
+  dunion = dds_dynamic_type_create (participant, desc);
+  ret = dds_dynamic_type_add_member (&dunion,
+      DDS_DYNAMIC_UNION_MEMBER_DEFAULT_LABELS_PRIM(DDS_DYNAMIC_INT32, "m1", 1, ((int32_t[]) { 1 })));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&dunion, DDS_DYNAMIC_UNION_MEMBER_PRIM(DDS_DYNAMIC_INT32, "m2", 1, ((int32_t[]) { 1 })));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  dds_dynamic_type_unref (&dunion);
+
+  // Duplicate labels within one member
+  dunion = dds_dynamic_type_create (participant, desc);
+  ret = dds_dynamic_type_add_member (&dunion,
+      DDS_DYNAMIC_UNION_MEMBER_DEFAULT_LABELS_PRIM(DDS_DYNAMIC_INT32, "m1", 2, ((int32_t[]) { 1, 1 })));
   CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
   dds_dynamic_type_unref (&dunion);
 

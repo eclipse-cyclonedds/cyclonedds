@@ -9,6 +9,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 #include <assert.h>
+#include <stdlib.h>
 #include <string.h>
 #include "dds/dds.h"
 #include "dds/ddsrt/heap.h"
@@ -787,11 +788,37 @@ dds_return_t ddsi_dynamic_type_add_struct_member (struct ddsi_type *type, struct
   return DDS_RETCODE_OK;
 }
 
+static int dynamic_type_union_label_cmp (const void *va, const void *vb)
+{
+  const int32_t a = *((const int32_t *) va);
+  const int32_t b = *((const int32_t *) vb);
+  return (a > b) - (a < b);
+}
+
+static dds_return_t dynamic_type_init_union_labels (struct DDS_XTypes_UnionCaseLabelSeq *dst, uint32_t n_labels, const int32_t *labels)
+{
+  memset (dst, 0, sizeof (*dst));
+  if (n_labels == 0)
+    return DDS_RETCODE_OK;
+
+  assert (labels != NULL);
+  assert (sizeof (*dst->_buffer) == sizeof (*labels));
+  dst->_buffer = ddsrt_malloc (n_labels * sizeof (*dst->_buffer));
+  if (dst->_buffer == NULL)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  dst->_maximum = dst->_length = n_labels;
+  dst->_release = true;
+  memcpy (dst->_buffer, labels, n_labels * sizeof (*dst->_buffer));
+  qsort (dst->_buffer, n_labels, sizeof (*dst->_buffer), dynamic_type_union_label_cmp);
+  return DDS_RETCODE_OK;
+}
+
 dds_return_t ddsi_dynamic_type_add_union_member (struct ddsi_type *type, struct ddsi_type **member_type, struct ddsi_dynamic_type_union_member_param params)
 {
   assert (type->state == DDSI_TYPE_CONSTRUCTING);
   assert (type->gv == (*member_type)->gv);
   assert (type->xt._d == DDS_XTypes_TK_UNION);
+  dds_return_t ret;
 
   // check member id or set to max+1
   uint32_t member_id = 1;
@@ -815,6 +842,16 @@ dds_return_t ddsi_dynamic_type_add_union_member (struct ddsi_type *type, struct 
   }
   if ((type->xt._u.union_type.flags & DDS_XTypes_IS_MUTABLE) && member_id == 0)
     return DDS_RETCODE_BAD_PARAMETER;
+  if (params.n_labels > 0 && params.labels == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+  for (uint32_t lp = 0; lp < params.n_labels; lp++)
+  {
+    for (uint32_t lq = lp + 1; lq < params.n_labels; lq++)
+    {
+      if (params.labels[lp] == params.labels[lq])
+        return DDS_RETCODE_BAD_PARAMETER;
+    }
+  }
 
   // Detect duplicate labels, duplicate member ids and multiple default members
   for (uint32_t n = 0; n < type->xt._u.union_type.members.length; n++)
@@ -833,21 +870,29 @@ dds_return_t ddsi_dynamic_type_add_union_member (struct ddsi_type *type, struct 
     }
   }
 
-  type->xt._u.union_type.members.length++;
+  struct DDS_XTypes_UnionCaseLabelSeq label_seq;
+  if ((ret = dynamic_type_init_union_labels (&label_seq, params.n_labels, params.labels)) != DDS_RETCODE_OK)
+    return ret;
+
+  const uint32_t length = type->xt._u.union_type.members.length;
   struct xt_union_member *tmp = ddsrt_realloc (type->xt._u.union_type.members.seq,
-      type->xt._u.union_type.members.length * sizeof (*type->xt._u.union_type.members.seq));
+      (length + 1) * sizeof (*type->xt._u.union_type.members.seq));
   if (tmp == NULL)
+  {
+    ddsrt_free (label_seq._buffer);
     return DDS_RETCODE_OUT_OF_RESOURCES;
+  }
   type->xt._u.union_type.members.seq = tmp;
+  type->xt._u.union_type.members.length = length + 1;
 
   /* Set max index and move current members if required */
   uint32_t member_index = params.index;
-  if (member_index > type->xt._u.union_type.members.length - 1)
-    member_index = type->xt._u.union_type.members.length - 1;
-  if (member_index < type->xt._u.union_type.members.length - 1)
+  if (member_index > length)
+    member_index = length;
+  if (member_index < length)
   {
     memmove (&type->xt._u.union_type.members.seq[member_index + 1], &type->xt._u.union_type.members.seq[member_index],
-        (type->xt._u.union_type.members.length - 1 - member_index) * sizeof (*type->xt._u.union_type.members.seq));
+        (length - member_index) * sizeof (*type->xt._u.union_type.members.seq));
   }
 
   struct xt_union_member *m = &type->xt._u.union_type.members.seq[member_index];
@@ -859,16 +904,7 @@ dds_return_t ddsi_dynamic_type_add_union_member (struct ddsi_type *type, struct 
   m->flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD;
   if (params.is_default)
     m->flags |= DDS_XTypes_IS_DEFAULT;
-  else
-  {
-    assert (sizeof (*m->label_seq._buffer) == sizeof (*params.labels));
-    m->label_seq._maximum = m->label_seq._length = params.n_labels;
-    m->label_seq._buffer = ddsrt_malloc (params.n_labels * sizeof (*m->label_seq._buffer));
-    if (m->label_seq._buffer == NULL)
-      return DDS_RETCODE_OUT_OF_RESOURCES;
-    m->label_seq._release = true;
-    memcpy (m->label_seq._buffer, params.labels, params.n_labels * sizeof (*m->label_seq._buffer));
-  }
+  m->label_seq = label_seq;
   return DDS_RETCODE_OK;
 }
 

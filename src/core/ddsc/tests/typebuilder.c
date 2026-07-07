@@ -480,6 +480,23 @@ CU_Test(ddsc_typebuilder, union_default_case_last, .init = typebuilder_init, .fi
 
   assert_dynamic_type_union_case_labels (&dtype, 2, (uint32_t[]) { 1, 0 });
   dds_dynamic_type_unref (&dtype);
+
+  dtype = dds_dynamic_type_create (g_participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_UNION,
+    .name = "default_explicit_case_last_union",
+    .discriminator_type = DDS_DYNAMIC_TYPE_SPEC_PRIM (DDS_DYNAMIC_INT32)
+  });
+  CU_ASSERT_EQ_FATAL (dtype.ret, DDS_RETCODE_OK);
+
+  ret = dds_dynamic_type_add_member (&dtype,
+      DDS_DYNAMIC_UNION_MEMBER_DEFAULT_LABELS_PRIM (DDS_DYNAMIC_INT32, "d", 1, ((int32_t[]) { 10 })));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&dtype,
+      DDS_DYNAMIC_UNION_MEMBER_PRIM (DDS_DYNAMIC_INT32, "u1", 1, ((int32_t[]) { 1 })));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  assert_dynamic_type_union_case_labels (&dtype, 3, (uint32_t[]) { 10, 1, 0 });
+  dds_dynamic_type_unref (&dtype);
 }
 
 static void assert_mutable_union_case_member_ids (const dds_topic_descriptor_t *desc, uint32_t n_cases, const uint32_t *member_ids)
