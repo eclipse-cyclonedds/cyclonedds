@@ -8,6 +8,7 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
+#include <stdint.h>
 #include <stdlib.h>
 
 #include "dds/dds.h"
@@ -15,6 +16,10 @@
 #include "config_env.h"
 #include "dds/version.h"
 #include "dds/ddsrt/environ.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/io.h"
+#include "dds/ddsrt/process.h"
+#include "test_util.h"
 
 
 CU_Test(ddsc_participant, create_and_delete) {
@@ -95,6 +100,37 @@ CU_Test(ddsc_participant, create_multiple_domains)
 
   dds_delete(participant1);
   dds_delete(participant2);
+}
+
+CU_Test(ddsc_participant, auto_participant_index_zero)
+{
+  dds_return_t status;
+  char *config = NULL;
+  const unsigned port_base = 20000u + (unsigned) ((uintptr_t) ddsrt_getpid () % 1000u) * 20u;
+
+  (void) ddsrt_asprintf (&config,
+    "<General>"
+    "  <AllowMulticast>false</AllowMulticast>"
+    "</General>"
+    "<Discovery>"
+    "  <ParticipantIndex>auto</ParticipantIndex>"
+    "  <MaxAutoParticipantIndex>0</MaxAutoParticipantIndex>"
+    "  <Ports>"
+    "    <Base>%u</Base>"
+    "  </Ports>"
+    "</Discovery>",
+    port_base);
+
+  dds_entity_t domain = dds_create_domain (0, config);
+  ddsrt_free (config);
+  CU_ASSERT_GT_FATAL (domain, 0);
+
+  const struct ddsi_domaingv *gv = get_domaingv (domain);
+  CU_ASSERT_NEQ_FATAL (gv, NULL);
+  CU_ASSERT_EQ_FATAL (gv->config.participantIndex, 0);
+
+  status = dds_delete (domain);
+  CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_OK);
 }
 
 
