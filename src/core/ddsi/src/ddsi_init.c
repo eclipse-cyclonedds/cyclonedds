@@ -1433,7 +1433,7 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
     {
       /* try to find a free one, and update gv->config.participantIndex */
       enum make_uc_sockets_ret musret = MUSRET_PORTS_IN_USE;
-      int ppid;
+      int ppid, selected_ppid = -1;
       GVLOG (DDS_LC_CONFIG, "rtps_init: trying to find a free participant index\n");
       for (ppid = 0; ppid <= gv->config.maxAutoParticipantIndex && musret == MUSRET_PORTS_IN_USE; ppid++)
       {
@@ -1441,6 +1441,7 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
         switch (musret)
         {
           case MUSRET_SUCCESS:
+            selected_ppid = ppid;
             break;
           case MUSRET_INVALID_PORTS:
             GVERROR ("Failed to create unicast sockets for domain %"PRIu32" participant index %d: resulting port numbers (%"PRIu32", %"PRIu32") are out of range\n",
@@ -1453,12 +1454,12 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
             goto err_unicast_sockets;
         }
       }
-      if (ppid > gv->config.maxAutoParticipantIndex)
+      if (selected_ppid < 0)
       {
         GVERROR ("Failed to find a free participant index for domain %"PRIu32"\n", gv->config.extDomainId.value);
         goto err_unicast_sockets;
       }
-      gv->config.participantIndex = ppid;
+      gv->config.participantIndex = selected_ppid;
     }
     else
     {
