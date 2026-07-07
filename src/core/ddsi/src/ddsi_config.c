@@ -1706,6 +1706,9 @@ static void pf_participantIndex (struct ddsi_cfgst *cfgst, void *parent, struct 
     case DDSI_PARTICIPANT_INDEX_AUTO:
       cfg_logelem (cfgst, sources, "auto");
       break;
+    case DDSI_PARTICIPANT_INDEX_DEFAULT:
+      cfg_logelem (cfgst, sources, "default");
+      break;
     default:
       cfg_logelem (cfgst, sources, "%d", *p);
       break;
