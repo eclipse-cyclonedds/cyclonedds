@@ -742,7 +742,9 @@ enum dds_stream_typecode_subtype {
 /**
  * @anchor DDS_TOPIC_FIXED_SIZE
  * @ingroup topic_flags
- * @brief The size in memory of a sample of this topic type is fully fixed.
+ * @brief The in-memory sample representation has no value-dependent storage.
+ * This is not a guarantee that the serialized CDR size is constant: unions
+ * and bounded strings can still produce different serialized sizes.
  */
 #define DDS_TOPIC_FIXED_SIZE                    (1u << 4)
 

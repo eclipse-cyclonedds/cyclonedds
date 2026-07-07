@@ -3081,32 +3081,6 @@ static int print_flags(FILE *fp, struct descriptor *descriptor, bool type_info)
   if (descriptor->flags & DDS_TOPIC_RESTRICT_DATA_REPRESENTATION)
     vec[len++] = "DDS_TOPIC_RESTRICT_DATA_REPRESENTATION";
 
-  bool fixed_size = true;
-  for (struct constructed_type *ctype = descriptor->constructed_types; ctype && fixed_size; ctype = ctype->next) {
-    for (uint32_t op = 0; op < ctype->instructions.count && fixed_size; op++) {
-      struct instruction i = ctype->instructions.table[op];
-      if (i.type != OPCODE)
-        continue;
-
-      uint32_t typecode = DDS_OP_TYPE(i.data.opcode.code);
-      if (typecode == DDS_OP_VAL_STR || typecode == DDS_OP_VAL_BST ||
-          typecode == DDS_OP_VAL_WSTR || typecode == DDS_OP_VAL_BWSTR ||
-          typecode == DDS_OP_VAL_SEQ || typecode == DDS_OP_VAL_BSQ)
-        fixed_size = false;
-      if (typecode == DDS_OP_VAL_ARR)
-      {
-        uint32_t subtypecode = DDS_OP_SUBTYPE(i.data.opcode.code);
-        if (subtypecode == DDS_OP_VAL_STR || subtypecode == DDS_OP_VAL_BST ||
-            subtypecode == DDS_OP_VAL_WSTR || subtypecode == DDS_OP_VAL_BWSTR ||
-            subtypecode == DDS_OP_VAL_SEQ || subtypecode == DDS_OP_VAL_BSQ)
-          fixed_size = false;
-      }
-    }
-  }
-
-  if (fixed_size)
-    vec[len++] = "DDS_TOPIC_FIXED_SIZE";
-
 #ifdef DDS_HAS_TYPELIB
   if (type_info)
     vec[len++] = "DDS_TOPIC_XTYPES_METADATA";

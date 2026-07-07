@@ -68,7 +68,8 @@ payload in order to reach the next 4-byte aligned offset. */
 #define DDS_XCDR1_PL_LONG_MID_MASK          (0x0fffffffu | DDS_XCDR1_PL_LONG_FLAG_IMPL_EXT)
 
 
-#define DDS_CDR_CALCULATED_FLAGS (DDS_TOPIC_FIXED_KEY | DDS_TOPIC_FIXED_KEY_XCDR2 | DDS_TOPIC_FIXED_KEY_XCDR2_KEYHASH | DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM | DDS_TOPIC_KEY_UNION)
+#define DDS_CDR_DESCRIPTOR_PRESERVED_FLAGS \
+  (DDS_TOPIC_XTYPES_METADATA | DDS_TOPIC_RESTRICT_DATA_REPRESENTATION)
 
 struct dds_cdr_header {
   unsigned short identifier;
@@ -733,17 +734,21 @@ uint32_t dds_stream_supported_data_representations (const uint32_t *ops)
   ddsrt_nonnull_all;
 
 /**
- * @brief Compute key-related topic flags and optional key sizes.
+ * @brief Compute descriptor flags derived from stream operations.
  * @component cdr_serializer
  *
- * The returned flags are limited to @ref DDS_CDR_CALCULATED_FLAGS.
+ * The returned flags preserve bits covered by @ref
+ * DDS_CDR_DESCRIPTOR_PRESERVED_FLAGS from @p flagset and set all other
+ * descriptor flags from @p desc. This function does not modify @p desc.
  *
  * @param desc           CDR stream descriptor to inspect
+ * @param flagset        input topic descriptor flags
  * @param keysz_xcdrv1   optional output for XCDR1 key size
  * @param keysz_xcdrv2   optional output for XCDR2 key size
- * @returns              calculated key flags
+ * @returns              descriptor flags with calculated bits updated
  */
-uint32_t dds_stream_key_flags (struct dds_cdrstream_desc *desc, uint32_t *keysz_xcdrv1, uint32_t *keysz_xcdrv2)
+uint32_t dds_stream_descriptor_flags (struct dds_cdrstream_desc *desc, uint32_t flagset, uint32_t *keysz_xcdrv1,
+    uint32_t *keysz_xcdrv2)
   ddsrt_nonnull ((1));
 
 /**
