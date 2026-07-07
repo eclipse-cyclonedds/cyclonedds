@@ -28,6 +28,7 @@ set(sources
   mh3.c
   hopscotch.c
   random.c
+  regex.c
   retcode.c
   strlcpy.c
   socket.c
@@ -110,7 +111,5 @@ if(HAVE_DYNLIB)
 endif()
 
 add_coverage(cunit_ddsrt)
-target_link_libraries(
-  cunit_ddsrt PRIVATE ddsrt-internal)
 target_include_directories(
   cunit_ddsrt PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")

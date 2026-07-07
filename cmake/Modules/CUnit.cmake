@@ -322,7 +322,7 @@ function(add_cunit_executable TARGET)
 
   add_executable(
     ${TARGET} "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.c" ${sources})
-  target_link_libraries(${TARGET} PRIVATE CycloneDDS::ucunit)
+  target_link_libraries(${TARGET} PRIVATE CycloneDDS::ucunit ddsrt-internal)
   if(MSVC)
     target_compile_definitions(${TARGET} PRIVATE _CRT_SECURE_NO_WARNINGS)
   endif()
