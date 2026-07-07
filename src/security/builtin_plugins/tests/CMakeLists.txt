@@ -91,6 +91,6 @@ if(CMAKE_GENERATOR MATCHES "Visual Studio")
   set_target_properties(cunit_security_plugins PROPERTIES LINK_FLAGS "/ignore:4099")
 endif()
 
-set(CUnit_builtin_plugins_tests_dir "${CMAKE_CURRENT_LIST_DIR}")
-set(CUnit_build_dir "${CMAKE_CURRENT_BINARY_DIR}")
+set(security_builtin_plugins_tests_dir "${CMAKE_CURRENT_LIST_DIR}")
+set(security_builtin_plugins_build_dir "${CMAKE_CURRENT_BINARY_DIR}")
 configure_file("config_env.h.in" "config_env.h")
