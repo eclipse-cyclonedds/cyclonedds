@@ -19,6 +19,7 @@
 #include <getopt.h>
 
 #include "dds/dds.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsrt/heap.h"
 
 #include "dyntypelib.h"
@@ -30,6 +31,15 @@
 #endif
 
 static enum dtl_sample_format output_format = DTL_SAMPLE_FORMAT_JSON;
+
+static void print_generated_descriptor (const char *role, const dds_topic_descriptor_t *topic_desc)
+{
+  struct dds_cdrstream_desc cdr_desc;
+  dds_cdrstream_desc_from_topic_desc (&cdr_desc, topic_desc);
+  printf ("%s descriptor typename=%s ", role, topic_desc->m_typename);
+  dtl_print_cdrstream_descriptor (&cdr_desc);
+  dds_cdrstream_desc_fini (&cdr_desc, &dds_cdrstream_default_allocator);
+}
 
 ddsrt_nonnull_all
 ddsrt_attribute_noreturn
@@ -252,6 +262,7 @@ OPTIONS:\n\
                 - prevent type widening\n\
                 - force type validation\n\
 -C             print hexdump of CDR of sample/key before writing\n\
+-CC            also print generated descriptor opcode disassembly\n\
 -f FORMAT      print samples as json or xml\n\
 -x 0|1|2       force default (0) or XCDR version N\n\
 -i ID          use domain ID\n\
@@ -277,7 +288,7 @@ int main (int argc, char **argv)
   int xcdrv = 0;
   dds_domainid_t domainid = DDS_DOMAIN_DEFAULT;
   bool print_min_typeobj = false;
-  bool print_cdr = false;
+  uint32_t print_cdr_level = 0;
   while ((opt = getopt (argc, argv, "c:Cf:i:MP:Rs:T:x:")) != EOF)
   {
     switch (opt)
@@ -292,7 +303,7 @@ int main (int argc, char **argv)
           tce = (tce << 1) | (*p == '1');
         break;
       case 'C':
-        print_cdr = true;
+        print_cdr_level++;
         break;
       case 'f':
         if (!parse_sample_format (optarg, &output_format))
@@ -445,6 +456,8 @@ int main (int argc, char **argv)
         ppc_print_to (dtl->typecache, &dtl->ppc, &wrtype->typeobj->_u.complete);
         if (print_min_typeobj)
           load_print_minimal_type (dtl, dp, "writer", wrtype);
+        if (print_cdr_level >= 2)
+          print_generated_descriptor ("writer", wrdescriptor);
       }
       if (rdtype)
       {
@@ -452,6 +465,8 @@ int main (int argc, char **argv)
         ppc_print_to (dtl->typecache, &dtl->ppc, &rdtype->typeobj->_u.complete);
         if (print_min_typeobj)
           load_print_minimal_type (dtl, dp, "reader", rdtype);
+        if (print_cdr_level >= 2)
+          print_generated_descriptor ("reader", rddescriptor);
       }
 
       // short sleep before writing so a remote reader is likely to have been discovered before the sample is written
@@ -471,7 +486,7 @@ int main (int argc, char **argv)
       void *sample = dtl_scan_sample (dtl, input, &wrtype->typeobj->_u.complete, true, &err);
       if (sample == NULL)
         exitfmt ("%s: %s: can't convert to sample: %s\n", argv[0], argv[argi], err.errmsg);
-      if (print_cdr)
+      if (print_cdr_level)
         print_sample_cdr (wr, sample);
       if ((rc = dds_write (wr, sample)) != 0)
         exitfmt ("%s: %s: can't write: %s\n", argv[0], argv[argi], dds_strretcode (rc));

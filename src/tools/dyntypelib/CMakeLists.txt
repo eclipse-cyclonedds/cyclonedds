@@ -19,6 +19,7 @@ set(dyntypelib_headers
 
 set(dyntypelib_sources
   compare_samples.c
+  disassemble.c
   domtree.c
   dyntypelib.c
   float128_io.c

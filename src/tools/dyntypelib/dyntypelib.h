@@ -98,6 +98,8 @@ void *dtl_scan_sample (struct dyntypelib *dtl, const struct elem *input, const D
 dds_return_t dtl_compare_samples_equal (struct dyntypelib *dtl, bool valid_data, const void *sample1, const void *sample2,
   const DDS_XTypes_CompleteTypeObject *typeobj, bool *equal, struct dyntypelib_error *err);
 int dtl_compare_samples (struct dyntypelib *dtl, bool valid_data, const void *sample1, const void *sample2, const DDS_XTypes_CompleteTypeObject *typeobj);
+struct dds_cdrstream_desc;
+void dtl_print_cdrstream_descriptor (const struct dds_cdrstream_desc *desc);
 
 void dtl_free (struct dyntypelib *dtl);
 

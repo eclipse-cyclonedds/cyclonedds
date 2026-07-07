@@ -317,8 +317,8 @@ enum dds_stream_opcode {
      [sbound]     = bounded sequence maximum number of elements
      [next-insn]  = (unsigned 16 bits) offset to instruction for next field,
                     from start of insn
-     [elem-insn]  = (unsigned 16 bits) offset to first instruction for element, from start of insn
-     [cases]      = (unsigned 16 bits) offset to first case label, from start of insn
+     [elem-insn]  = (signed 16 bits) offset to first instruction for element, from start of insn
+     [cases]      = (signed 16 bits) offset to first case label, from start of insn
    */
   DDS_SOP_ADR = DDS_OP_ADR,
 
@@ -345,8 +345,8 @@ enum dds_stream_opcode {
      s  = subtype other than {nBY,STR} for JEQ and {nBY,STR,ENU,EXT} for JEQ4 (note
           that BMK cannot be inline, because it needs 2 additional instructions for
           the bits that are identified in the bitmask type)
-     i  = (unsigned 16 bits) offset to first instruction for case, from start of insn
-          instruction sequence must end in RTS, at which point executes continues at
+     i  = (signed 16 bits) offset to first instruction for case, from start of insn
+          instruction sequence must end in RTS, at which point execution continues at
           the next field's instruction as specified by the union
      f  = size flags for ENU instruction
 
@@ -376,7 +376,7 @@ enum dds_stream_opcode {
        where
          f           = flags:
                        - jump to base type (DDS_OP_FLAG_BASE)
-         [elem-insn] = (unsigned 16 bits) offset to instruction for element, from start of insn
+         [elem-insn] = (signed 16 bits) offset to instruction for element, from start of insn
                         when FLAG_BASE is set, this is the offset of the PLM list of the base type
          [member id] = id for this member (0 in case FLAG_BASE is set)
   */
@@ -396,12 +396,12 @@ enum dds_stream_opcode {
   DDS_SOP_JEQ4 = DDS_OP_JEQ4,
 
   /**
-   * [MID, 0, elem-insn] [member id]
+   * [MID, 0, op-index] [member id]
        For members of aggregated final and appendable types. Currently only for optional members
        the member ID is included, to facilitate adding the parameter header in XCDR1 data
        representation.
        where
-         [elem-insn] = (unsigned 16 bits) offset to instruction for element, from start of insn
+         [op-index] = (unsigned 16 bits) index of the member instruction, from start of descriptor
          [member id] = id for this member
    */
   DDS_SOP_MID = DDS_OP_MID
@@ -413,7 +413,8 @@ enum dds_stream_opcode {
  *       where default value is the semantic signed Int32 enum value bit
  *       pattern for memory/defaulting, and values are unsigned CDR holder
  *       images sorted in ascending order for membership tests
- *   [EVM, 0, elem-insn] [set-id]
+ *   [EVM, 0, op-index] [set-id]
+ *       where op-index is the index of the enum instruction, from start of descriptor
  */
 
 #define DDS_OP_VAL_1BY   (0x01)
@@ -485,7 +486,7 @@ enum dds_stream_typecode {
 /**
  * @ingroup serialization
  * @brief primary type code for DDS_OP_ADR, DDS_OP_JEQ
- * Convinience pre-bitshifted values.
+ * Convenience pre-bitshifted values.
  */
 enum dds_stream_typecode_primary {
   DDS_SOP_TYPE_1BY   = DDS_OP_TYPE_1BY,   /**< one byte simple type (char, octet) */
@@ -511,7 +512,7 @@ enum dds_stream_typecode_primary {
 
 /**
  * @anchor DDS_OP_FLAG_TYPE_TC_DEF
- * @ingroup serializeation
+ * @ingroup serialization
  * @brief this flag indicates that the type has \@try_construct(USE_DEFAULT) in effect
  * (combining TC_DEF and TC_TRIM means an out-of-range input is considered erroneous)
  */
@@ -519,7 +520,7 @@ enum dds_stream_typecode_primary {
 
 /**
  * @anchor DDS_OP_FLAG_TYPE_TC_TRIM
- * @ingroup serializeation
+ * @ingroup serialization
  * @brief this flag indicates that the type has \@try_construct(TRIM) in effect
  * (combining TC_DEF and TC_TRIM means an out-of-range input is considered erroneous)
  */
@@ -561,7 +562,7 @@ enum dds_stream_typecode_primary {
  * @brief sub-type code
  *  - encodes element type for DDS_OP_TYPE_{SEQ,ARR},
  *  - discriminant type for DDS_OP_TYPE_UNI
- * Convinience pre-bitshifted values.
+ * Convenience pre-bitshifted values.
  */
 enum dds_stream_typecode_subtype {
   DDS_SOP_SUBTYPE_1BY   = DDS_OP_SUBTYPE_1BY,   /**< one byte simple type (char, octet) */
@@ -586,7 +587,7 @@ enum dds_stream_typecode_subtype {
 
 /**
  * @anchor DDS_OP_FLAG_SUBTYPE_TC_DEF
- * @ingroup serializeation
+ * @ingroup serialization
  * @brief this flag indicates that the subtype has \@try_construct(USE_DEFAULT) in effect
  * (combining TC_DEF and TC_TRIM means an out-of-range input is considered erroneous)
  */
@@ -594,8 +595,8 @@ enum dds_stream_typecode_subtype {
 
 /**
  * @anchor DDS_OP_FLAG_SUBTYPE_TC_TRIM
- * @ingroup serializeation
- * @brief this flag indicates that the subtype has \@try_construct(USE_DEFAULT) in effect
+ * @ingroup serialization
+ * @brief this flag indicates that the subtype has \@try_construct(TRIM) in effect
  * (combining TC_DEF and TC_TRIM means an out-of-range input is considered erroneous)
  */
 #define DDS_OP_FLAG_SUBTYPE_TC_TRIM (1u << 14)
@@ -637,7 +638,6 @@ enum dds_stream_typecode_subtype {
  * @ingroup serialization
  * @brief signed,
  * applicable to {1,2,4,8,16}BY and arrays, sequences of them
- * over
  */
 #define DDS_OP_FLAG_SGN  (1u << 2)
 
