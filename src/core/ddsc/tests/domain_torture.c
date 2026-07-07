@@ -82,21 +82,6 @@ static void participant_creation_torture(void)
 }
 
 
-/*
- * There are some issues when completely init/deinit the
- * library in a torturing way. We really just want to
- * check the domain creation/deletion. So, disable this
- * test for now.
- */
-CU_Test (ddsc_domain, torture_implicit, .disabled=true)
-{
-  /* No explicit domain creation, just start creating and
-   * deleting participants (that'll create and delete the
-   * domain implicitly) in a torturing manner. */
-  participant_creation_torture();
-}
-
-
 CU_Test (ddsc_domain, torture_explicit)
 {
   dds_return_t rc;
