@@ -525,6 +525,15 @@ format(
   return 0;
 }
 
+static char *confgen_strdup(const char *src)
+{
+  const size_t len = strlen(src) + 1;
+  char *dst = malloc(len);
+  if (dst)
+    memcpy(dst, src, len);
+  return dst;
+}
+
 #define DFLTFMT "<p>The default value is: <code>%s</code></p>"
 
 int makedescription(
@@ -540,7 +549,7 @@ int makedescription(
     const struct cfgunit *unit = NULL;
 
     if (isgroup(elem)) {
-      src = strdup(elem->description);
+      src = confgen_strdup(elem->description);
     } else {
       if (elem->value)
       {

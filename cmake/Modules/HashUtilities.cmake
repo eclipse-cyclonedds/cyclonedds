@@ -25,7 +25,7 @@ endfunction()
 
 function(hash_of_file OUTVAR HASH_FILE)
     # Hashing routine, remove \r to not get confused on windows if git changes the line endings.
-    file(READ "${_hash_file}" _hash_data)
+    file(READ "${HASH_FILE}" _hash_data)
     string(REPLACE "\r" "" _hash_data "${_hash_data}")
     string(SHA1 _hash "${_hash_data}")
     set(${OUTVAR} "${_hash}" PARENT_SCOPE)
@@ -34,7 +34,7 @@ endfunction()
 
 function(generate_hash_text OUTVAR HASH_FILE PREFIX POSTFIX)
     hash_of_file(_hash "${HASH_FILE}")
-    get_filename_component(_fname "${_hash_file}" NAME)
+    get_filename_component(_fname "${HASH_FILE}" NAME)
     if("${POSTFIX}" STREQUAL "")
         set(${OUTVAR} "${PREFIX} generated from ${_fname}[${_hash}]" PARENT_SCOPE)
     else()

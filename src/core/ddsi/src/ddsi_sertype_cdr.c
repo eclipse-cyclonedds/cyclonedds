@@ -62,7 +62,7 @@ static uint32_t sertype_cdr_hash (const struct ddsi_sertype *tpcmn)
 static void sertype_cdr_free (struct ddsi_sertype *tpcmn)
 {
   struct ddsi_sertype_cdr *tp = (struct ddsi_sertype_cdr *) tpcmn;
-  ddsrt_free (tp->type.ops.ops);
+  dds_cdrstream_desc_fini (&tp->type, &dds_cdrstream_default_allocator);
   ddsi_sertype_fini (&tp->c);
   ddsrt_free (tp);
 }
