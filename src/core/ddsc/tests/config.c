@@ -482,6 +482,73 @@ CU_Test(ddsc_config, multiple_domains, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_set_trace_sink (NULL, NULL);
 }
 
+CU_Test(ddsc_config, uri_fragment_separators, .init = ddsrt_init, .fini = ddsrt_fini)
+{
+  static const char *adjacent_config =
+    "<General>"
+    "  <Transport>none</Transport>"
+    "</General>"
+    "<Tracing>"
+    "  <Category>config</Category>"
+    "</Tracing>"
+    "<Discovery>"
+    "  <Tag>adjacent</Tag>"
+    "</Discovery>";
+  static const char *comma_config =
+    "<General>"
+    "  <Transport>none</Transport>"
+    "</General>,"
+    "<Tracing>"
+    "  <Category>config</Category>"
+    "</Tracing>,"
+    "<Discovery>"
+    "  <Tag>comma</Tag>"
+    "</Discovery>";
+  const char *adjacent_exp[] = {
+    "*config: Domain/General/Transport/#text: none {0}*",
+    "*config: Domain/Tracing/Category/#text: config {0}*",
+    "*config: Domain/Discovery/Tag/#text: adjacent {0}*",
+    NULL
+  };
+  const char *comma_exp[] = {
+    "*config: Domain/General/Transport/#text: none {0}*",
+    "*config: Domain/Tracing/Category/#text: config {1}*",
+    "*config: Domain/Discovery/Tag/#text: comma {2}*",
+    NULL
+  };
+
+  dds_set_log_mask (DDS_LC_FATAL|DDS_LC_ERROR|DDS_LC_WARNING|DDS_LC_CONFIG);
+
+  dds_set_log_sink (&logger, (void *) adjacent_exp);
+  dds_set_trace_sink (&logger, (void *) adjacent_exp);
+  found = 0;
+  dds_entity_t dom = dds_create_domain (58, adjacent_config);
+  CU_ASSERT_GT (dom, 0);
+  tprintf ("found = %d\n", found);
+  CU_ASSERT_EQ (found, 7);
+  if (dom > 0)
+  {
+    const dds_return_t rc = dds_delete (dom);
+    CU_ASSERT_EQ (rc, 0);
+  }
+
+  dds_set_log_sink (&logger, (void *) comma_exp);
+  dds_set_trace_sink (&logger, (void *) comma_exp);
+  found = 0;
+  dom = dds_create_domain (59, comma_config);
+  CU_ASSERT_GT (dom, 0);
+  tprintf ("found = %d\n", found);
+  CU_ASSERT_EQ (found, 7);
+  if (dom > 0)
+  {
+    const dds_return_t rc = dds_delete (dom);
+    CU_ASSERT_EQ (rc, 0);
+  }
+
+  dds_set_log_sink (NULL, NULL);
+  dds_set_trace_sink (NULL, NULL);
+}
+
 CU_Test(ddsc_config, bad_configs_listelems)
 {
   // The first one is thanks to OSS-Fuzz, the fact that it is so easy

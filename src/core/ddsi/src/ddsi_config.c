@@ -115,6 +115,12 @@ struct ddsi_cfgst {
      been inserted */
   enum implicit_toplevel implicit_toplevel;
 
+  /* Whether the next top-level input element starts a new source annotation.
+     This is set for the first input and after explicit comma separators in
+     CYCLONEDDS_URI, but not simply because the string XML parser stopped at
+     the end of a top-level element. */
+  bool new_input_source;
+
   /* Whether unique prefix matching on a name is allowed (again for environment
      variables) */
   bool partial_match_allowed;
@@ -561,6 +567,9 @@ static enum update_result cfg_error (struct ddsi_cfgst *cfgst, const char *fmt, 
   } while (bsz > 0);
   return URES_ERROR;
 }
+
+static void cfgst_advance_source (struct ddsi_cfgst *cfgst);
+static void cfgst_advance_input_source (struct ddsi_cfgst *cfgst);
 
 static void cfg_logelem (struct ddsi_cfgst *cfgst, uint32_t sources, const char *fmt, ...) ddsrt_attribute_format_printf(3, 4);
 
@@ -2267,8 +2276,7 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
         cfgst_push_nofail (cfgst, 0, &root_cfgelems[0], cfgst_parent (cfgst));
         cfgst->implicit_toplevel = ITL_INSERTED_2;
       }
-      cfgst->source = (cfgst->source == 0) ? 1 : cfgst->source << 1;
-      cfgst->first_data_in_source = true;
+      cfgst_advance_input_source (cfgst);
     }
   }
 
@@ -2311,13 +2319,12 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
 
     if (cfg_subelem == &cyclonedds_root_cfgelems[0])
     {
-      cfgst->source = (cfgst->source == 0) ? 1 : cfgst->source << 1;
-      cfgst->first_data_in_source = true;
+      cfgst_advance_input_source (cfgst);
     }
     else if (cfg_subelem >= &root_cfgelems[0] && cfg_subelem < &root_cfgelems[0] + sizeof (root_cfgelems) / sizeof (root_cfgelems[0]))
     {
       if (!cfgst->first_data_in_source)
-        cfgst->source = (cfgst->source == 0) ? 1 : cfgst->source << 1;
+        cfgst_advance_source (cfgst);
       cfgst->first_data_in_source = true;
     }
     return 1;
@@ -2439,9 +2446,34 @@ static void proc_error (void *varg, const char *msg, int line)
   (void) cfg_error (cfgst, "parser error %s at line %d", msg, line);
 }
 
+static void cfgst_advance_source (struct ddsi_cfgst *cfgst)
+{
+  cfgst->source = (cfgst->source == 0) ? 1 : cfgst->source << 1;
+  cfgst->first_data_in_source = true;
+  cfgst->new_input_source = false;
+}
+
+static void cfgst_advance_input_source (struct ddsi_cfgst *cfgst)
+{
+  if (cfgst->source == 0 || cfgst->new_input_source)
+    cfgst_advance_source (cfgst);
+}
+
 static int cfgst_node_cmp (const void *va, const void *vb)
 {
   return memcmp (va, vb, sizeof (struct ddsi_cfgst_nodekey));
+}
+
+static bool skip_config_separators (char **cursor)
+{
+  bool saw_comma = false;
+  while (**cursor && (isspace ((unsigned char) **cursor) || **cursor == ','))
+  {
+    if (**cursor == ',')
+      saw_comma = true;
+    (*cursor)++;
+  }
+  return saw_comma;
 }
 
 static FILE *config_open_file (char *tok, char **cursor, uint32_t domid)
@@ -2792,6 +2824,7 @@ struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg
   struct ddsi_cfgst *cfgst;
   char env_input[32];
   char *copy, *cursor;
+  bool new_input_source = true;
   struct ddsrt_xmlp_callbacks cb;
 
   memset (cfg, 0, sizeof (*cfg));
@@ -2802,6 +2835,7 @@ struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg
   cfgst->cfg = cfg;
   cfgst->error = 0;
   cfgst->source = 0;
+  cfgst->new_input_source = true;
   cfgst->logcfg = NULL;
   cfgst->first_data_in_source = true;
   cfgst->input = "init";
@@ -2821,13 +2855,13 @@ struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg
 
   copy = ddsrt_strdup (config);
   cursor = copy;
-  while (*cursor && (isspace ((unsigned char) *cursor) || *cursor == ','))
-    cursor++;
+  (void) skip_config_separators (&cursor);
   while (ok && cursor && cursor[0])
   {
     struct ddsrt_xmlp_state *qx;
     FILE *fp;
     char *tok;
+    bool comma_before_next = false;
     tok = cursor;
     if (tok[0] == '<')
     {
@@ -2846,6 +2880,7 @@ struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg
     }
     else
     {
+      comma_before_next = (cursor != NULL);
       qx = ddsrt_xmlp_new_file (fp, cfgst, &cb);
       cfgst->input = tok;
       cfgst->line = 1;
@@ -2853,7 +2888,9 @@ struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg
 
     cfgst->implicit_toplevel = (fp == NULL) ? ITL_ALLOWED : ITL_DISALLOWED;
     cfgst->partial_match_allowed = (fp == NULL);
-    cfgst->first_data_in_source = true;
+    cfgst->new_input_source = new_input_source;
+    if (new_input_source)
+      cfgst->first_data_in_source = true;
     // top-level entry must fit
     cfgst_push_nofail (cfgst, 0, &root_cfgelem, cfgst->cfg);
     ok = (ddsrt_xmlp_parse (qx) >= 0) && !cfgst->error;
@@ -2871,8 +2908,8 @@ struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg
     assert (fp == NULL || cfgst->implicit_toplevel <= ITL_ALLOWED);
     if (cursor)
     {
-      while (*cursor && (isspace ((unsigned char) cursor[0]) || cursor[0] == ','))
-        cursor++;
+      comma_before_next = skip_config_separators (&cursor) || comma_before_next;
+      new_input_source = comma_before_next;
     }
   }
   ddsrt_free (copy);
