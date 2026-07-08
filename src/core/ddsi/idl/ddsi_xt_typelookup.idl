@@ -86,6 +86,7 @@ struct TypeLookup_getTypes_Out {
     @hashid sequence<DDS::XTypes::TypeIdentifierPair> complete_to_minimal;
 };
 
+@appendable
 union TypeLookup_getTypes_Result switch(long) {
     case DDS_RETCODE_OK:
         TypeLookup_getTypes_Out result;
@@ -104,12 +105,14 @@ struct TypeLookup_getTypeDependencies_Out {
     @hashid sequence<octet, 32> continuation_point;
 };
 
+@appendable
 union TypeLookup_getTypeDependencies_Result switch(long){
     case DDS_RETCODE_OK:
         TypeLookup_getTypeDependencies_Out result;
 };
 
 // Service Request
+@appendable
 union TypeLookup_Call switch(long) {
     case TypeLookup_getTypes_HashId:
         TypeLookup_getTypes_In getTypes;
@@ -126,6 +129,7 @@ struct TypeLookup_Request {
 };
 
 // Service Reply
+@appendable
 union TypeLookup_Return switch(long) {
     case TypeLookup_getTypes_HashId:
         TypeLookup_getTypes_Result getType;

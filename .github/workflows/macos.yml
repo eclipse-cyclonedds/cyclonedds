@@ -115,6 +115,8 @@ jobs:
         name: configure
       - run: cmake --build ./build --config ${{ matrix.config.build_type || 'Release' }}
         name: build
+      - run: cmake --build ./build --config ${{ matrix.config.build_type || 'Release' }} --target check_generated_sources
+        name: check_generated_sources
       - run: sudo cmake --install ./build --config ${{ matrix.config.build_type || 'Release' }}
         name: install
       - run: |

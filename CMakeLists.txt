@@ -413,6 +413,13 @@ set(generated_defconfig_src  "${CMAKE_CURRENT_SOURCE_DIR}/src/core/ddsi/defconfi
 
 add_subdirectory(compat)
 add_subdirectory(src)
+add_custom_target(check_generated_sources)
+if(TARGET _confgen_check)
+  add_dependencies(check_generated_sources _confgen_check)
+endif()
+if(TARGET ddsi_xtypes_generated_check)
+  add_dependencies(check_generated_sources ddsi_xtypes_generated_check)
+endif()
 if(BUILD_EXAMPLES AND HAVE_IDLC)
   add_subdirectory(examples)
 endif()

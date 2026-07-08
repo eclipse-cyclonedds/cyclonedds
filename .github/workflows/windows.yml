@@ -137,6 +137,8 @@ jobs:
         name: configure
       - run: cmake --build ./build --config ${{ matrix.config.build_type || 'Release' }} --parallel
         name: build
+      - run: cmake --build ./build --config ${{ matrix.config.build_type || 'Release' }} --parallel --target check_generated_sources
+        name: check_generated_sources
       - run: cmake --install ./build --config ${{ matrix.config.build_type || 'Release' }}
         name: install
       - if: ${{ matrix.config.testing != false}}

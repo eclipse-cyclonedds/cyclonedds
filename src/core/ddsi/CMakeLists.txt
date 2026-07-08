@@ -305,6 +305,100 @@ target_sources(ddsc PRIVATE ${srcs_ddsi} ${generated_defconfig_src} ${hdrs_priva
 add_dependencies(ddsc _confgen)
 target_include_directories(ddsc PRIVATE "${CMAKE_CURRENT_LIST_DIR}/include")
 
+if(NOT CMAKE_CROSSCOMPILING AND TARGET idlc AND TARGET libidlc)
+  set(_ddsi_xtypes_idl_names
+    ddsi_xt_typeinfo
+    ddsi_xt_typemap
+    ddsi_xt_typelookup
+  )
+  set(_ddsi_xtypes_idl_files "")
+  foreach(_xtypes_idl_name ${_ddsi_xtypes_idl_names})
+    list(APPEND _ddsi_xtypes_idl_files
+      "${CMAKE_CURRENT_LIST_DIR}/idl/${_xtypes_idl_name}.idl")
+  endforeach()
+
+  set(_ddsi_xtypes_check_dir "${CMAKE_CURRENT_BINARY_DIR}/generated-source-check/xtypes")
+  set(_ddsi_xtypes_check_outputs "")
+  set(_ddsi_xtypes_check_commands "")
+  foreach(_xtypes_name ${_ddsi_xtypes_idl_names})
+    set(_xtypes_raw_dir "${_ddsi_xtypes_check_dir}/raw/${_xtypes_name}")
+    set(_xtypes_generated_src "${_ddsi_xtypes_check_dir}/src/${_xtypes_name}.c")
+    set(_xtypes_generated_hdr "${_ddsi_xtypes_check_dir}/include/dds/ddsi/${_xtypes_name}.h")
+    set(_xtypes_checked_in_src "${CMAKE_CURRENT_LIST_DIR}/src/${_xtypes_name}.c")
+    set(_xtypes_checked_in_hdr "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi/${_xtypes_name}.h")
+    set(_xtypes_copy_idl_commands "")
+    foreach(_xtypes_idl_file ${_ddsi_xtypes_idl_files})
+      get_filename_component(_xtypes_idl_file_name "${_xtypes_idl_file}" NAME)
+      list(APPEND _xtypes_copy_idl_commands
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${_xtypes_idl_file}"
+          "${_xtypes_raw_dir}/${_xtypes_idl_file_name}")
+    endforeach()
+    string(TOUPPER "${_xtypes_name}_H" _xtypes_header_guard)
+
+    add_custom_command(
+      OUTPUT
+        "${_xtypes_generated_src}"
+        "${_xtypes_generated_hdr}"
+      BYPRODUCTS
+        "${_xtypes_raw_dir}/${_xtypes_name}.c"
+        "${_xtypes_raw_dir}/${_xtypes_name}.h"
+      COMMAND ${CMAKE_COMMAND} -E remove_directory "${_xtypes_raw_dir}"
+      COMMAND ${CMAKE_COMMAND} -E make_directory
+        "${_xtypes_raw_dir}"
+        "${_ddsi_xtypes_check_dir}/src"
+        "${_ddsi_xtypes_check_dir}/include/dds/ddsi"
+      ${_xtypes_copy_idl_commands}
+      COMMAND ${CMAKE_COMMAND} -E chdir "${_xtypes_raw_dir}"
+        "$<TARGET_FILE:idlc>"
+        -l "$<TARGET_FILE:libidlc>"
+        -t
+        -fcdrstream-desc
+        -Wno-unsupported-annotations
+        -eDDS_EXPORT
+        "${_xtypes_name}.idl"
+      COMMAND ${CMAKE_COMMAND}
+        "-DINPUT=${_xtypes_raw_dir}/${_xtypes_name}.c"
+        "-DOUTPUT=${_xtypes_generated_src}"
+        "-DSOURCE=${CMAKE_CURRENT_LIST_DIR}/idl/${_xtypes_name}.idl"
+        "-DPUBLIC_INCLUDE_DIR=dds/ddsi"
+        -P ${CMAKE_SOURCE_DIR}/cmake/NormalizeIdlcGeneratedFile.cmake
+      COMMAND ${CMAKE_COMMAND}
+        "-DINPUT=${_xtypes_raw_dir}/${_xtypes_name}.h"
+        "-DOUTPUT=${_xtypes_generated_hdr}"
+        "-DSOURCE=${CMAKE_CURRENT_LIST_DIR}/idl/${_xtypes_name}.idl"
+        "-DPUBLIC_INCLUDE_DIR=dds/ddsi"
+        "-DHEADER_GUARD=${_xtypes_header_guard}"
+        -P ${CMAKE_SOURCE_DIR}/cmake/NormalizeIdlcGeneratedFile.cmake
+      DEPENDS
+        idlc
+        libidlc
+        ${_ddsi_xtypes_idl_files}
+        ${CMAKE_SOURCE_DIR}/cmake/NormalizeIdlcGeneratedFile.cmake
+      VERBATIM)
+
+    list(APPEND _ddsi_xtypes_check_outputs
+      "${_xtypes_generated_src}"
+      "${_xtypes_generated_hdr}")
+    list(APPEND _ddsi_xtypes_check_commands
+      COMMAND ${CMAKE_COMMAND}
+        "-DGENERATED_FILE=${_xtypes_generated_src}"
+        "-DCHECKED_IN_FILE=${_xtypes_checked_in_src}"
+        -P ${CMAKE_SOURCE_DIR}/cmake/CheckGeneratedFile.cmake
+      COMMAND ${CMAKE_COMMAND}
+        "-DGENERATED_FILE=${_xtypes_generated_hdr}"
+        "-DCHECKED_IN_FILE=${_xtypes_checked_in_hdr}"
+        -P ${CMAKE_SOURCE_DIR}/cmake/CheckGeneratedFile.cmake)
+  endforeach()
+
+  add_custom_target(
+    ddsi_xtypes_generated_check
+    ${_ddsi_xtypes_check_commands}
+    DEPENDS ${_ddsi_xtypes_check_outputs}
+    COMMENT "Checking checked-in XTypes IDLC output."
+    VERBATIM)
+endif()
+
 install(
   DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"

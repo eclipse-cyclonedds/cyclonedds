@@ -28,16 +28,14 @@ check_hashes(
     "${generated_defconfig_src}"
 )
 
-if (NOT ${_confgen_hash_correct})
-  if (CMAKE_CROSSCOMPILING)
-    message(FATAL_ERROR
-      "You are crosscompiling but files related to DDS config generation/parsing have been edited."
-      "Please rerun CMake in host mode to regenerate the files before attempting a crossbuild"
-    )
-  else()
-    message(STATUS "Building _confgen because configuration sources were updated.")
-  endif()
+if (NOT _confgen_hash_correct AND CMAKE_CROSSCOMPILING)
+  message(FATAL_ERROR
+    "You are crosscompiling but files related to DDS config generation/parsing have been edited."
+    "Please rerun CMake in host mode to regenerate the files before attempting a crossbuild"
+  )
+endif()
 
+if (NOT CMAKE_CROSSCOMPILING)
   add_executable(_confgen-exe
     _confgen.c generate_rnc.c generate_rst.c generate_md.c generate_xsd.c generate_defconfig.c
     ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/src/ddsi_config.c
@@ -60,57 +58,114 @@ if (NOT ${_confgen_hash_correct})
 
   list(JOIN confgen_hash_files "\;" out_confgen_hash_files)
 
+  function(add_confgen_generate_target target generated_defconfig generated_rnc generated_xsd generated_md generated_rst)
+    get_filename_component(_confgen_output_dir "${generated_defconfig}" DIRECTORY)
+    add_custom_target(
+      ${target}
+      COMMENT "Generating configuration-dependent files (defconfig.c, cyclonedds.rnc/xsd and markdown/rst documentation)."
+      COMMAND ${CMAKE_COMMAND} -E make_directory "${_confgen_output_dir}"
+      COMMAND "$<TARGET_FILE:_confgen-exe>" -f defconfig -o "${generated_defconfig}"
+      COMMAND "$<TARGET_FILE:_confgen-exe>" -f rnc -o "${generated_rnc}"
+      COMMAND "$<TARGET_FILE:_confgen-exe>" -f xsd -o "${generated_xsd}"
+      COMMAND "$<TARGET_FILE:_confgen-exe>" -f md -o "${generated_md}"
+      COMMAND "$<TARGET_FILE:_confgen-exe>" -f rst -o "${generated_rst}"
+      # Append hashes to defconfig.c
+      COMMAND ${CMAKE_COMMAND}
+        "-DPREFIX=/*"
+        "-DPOSTFIX=*/"
+        -DHASH_FILES=${out_confgen_hash_files}
+        -DAPPEND_FILES=${generated_defconfig}
+        -P ${CMAKE_SOURCE_DIR}/cmake/AppendHashScript.cmake
+      # Append hashes to rnc
+      COMMAND ${CMAKE_COMMAND}
+        "-DPREFIX=#"
+        "-DPOSTFIX="
+        -DHASH_FILES=${out_confgen_hash_files}
+        -DAPPEND_FILES=${generated_rnc}
+        -P ${CMAKE_SOURCE_DIR}/cmake/AppendHashScript.cmake
+      # Append hashes to xsd
+      COMMAND ${CMAKE_COMMAND}
+        "-DPREFIX=<!---"
+        "-DPOSTFIX=-->"
+        -DHASH_FILES=${out_confgen_hash_files}
+        -DAPPEND_FILES=${generated_xsd}
+        -P ${CMAKE_SOURCE_DIR}/cmake/AppendHashScript.cmake
+      # Append hashes to md
+      COMMAND ${CMAKE_COMMAND}
+        "-DPREFIX=<!---"
+        "-DPOSTFIX=-->"
+        -DHASH_FILES=${out_confgen_hash_files}
+        -DAPPEND_FILES=${generated_md}
+        -P ${CMAKE_SOURCE_DIR}/cmake/AppendHashScript.cmake
+      # Append hashes to rst
+      COMMAND ${CMAKE_COMMAND}
+        "-DBEFORE=.."
+        "-DPREFIX=  "
+        "-DPOSTFIX="
+        -DHASH_FILES=${out_confgen_hash_files}
+        -DAPPEND_FILES=${generated_rst}
+        -P ${CMAKE_SOURCE_DIR}/cmake/AppendHashScript.cmake
+      DEPENDS _confgen-exe
+      SOURCES ${confgen_hash_files}
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      VERBATIM
+    )
+  endfunction()
+
+  if (NOT _confgen_hash_correct)
+    message(STATUS "Building _confgen because configuration sources were updated.")
+    add_confgen_generate_target(
+      _confgen
+      "${generated_defconfig_src}"
+      "${generated_cyclonedds_rnc}"
+      "${generated_cyclonedds_xsd}"
+      "${generated_options_md}"
+      "${generated_options_rst}"
+    )
+  else()
+    add_custom_target(_confgen)
+  endif()
+
+  set(_confgen_check_dir "${CMAKE_CURRENT_BINARY_DIR}/generated-source-check/confgen")
+  set(_confgen_check_defconfig "${_confgen_check_dir}/defconfig.c")
+  set(_confgen_check_rnc "${_confgen_check_dir}/cyclonedds.rnc")
+  set(_confgen_check_xsd "${_confgen_check_dir}/cyclonedds.xsd")
+  set(_confgen_check_md "${_confgen_check_dir}/options.md")
+  set(_confgen_check_rst "${_confgen_check_dir}/config_file_reference.rst")
+  add_confgen_generate_target(
+    _confgen_check_generate
+    "${_confgen_check_defconfig}"
+    "${_confgen_check_rnc}"
+    "${_confgen_check_xsd}"
+    "${_confgen_check_md}"
+    "${_confgen_check_rst}"
+  )
   add_custom_target(
-    _confgen
-    COMMENT "Regenerating configuration-dependend files (defconfig.c, cyclonedds.rnc/xsd and markdown/rst documentation)."
-    COMMAND _confgen-exe -f defconfig -o "${generated_defconfig_src}"
-    COMMAND _confgen-exe -f rnc -o "${generated_cyclonedds_rnc}"
-    COMMAND _confgen-exe -f xsd -o "${generated_cyclonedds_xsd}"
-    COMMAND _confgen-exe -f md -o "${generated_options_md}"
-    COMMAND _confgen-exe -f rst -o "${generated_options_rst}"
-    # Append hashes to defconfig.c
+    _confgen_check
+    COMMENT "Checking checked-in configuration generator output."
     COMMAND ${CMAKE_COMMAND}
-      "-DPREFIX=/*"
-      "-DPOSTFIX=*/"
-      -DHASH_FILES=${out_confgen_hash_files}
-      -DAPPEND_FILES=${generated_defconfig_src}
-      -P ${CMAKE_SOURCE_DIR}/cmake/AppendHashScript.cmake
-    # Append hashes to rnc
+      "-DGENERATED_FILE=${_confgen_check_defconfig}"
+      "-DCHECKED_IN_FILE=${generated_defconfig_src}"
+      -P ${CMAKE_SOURCE_DIR}/cmake/CheckGeneratedFile.cmake
     COMMAND ${CMAKE_COMMAND}
-      "-DPREFIX=#"
-      "-DPOSTFIX="
-      -DHASH_FILES=${out_confgen_hash_files}
-      -DAPPEND_FILES=${generated_cyclonedds_rnc}
-      -P ${CMAKE_SOURCE_DIR}/cmake/AppendHashScript.cmake
-    # Append hashes to xsd
+      "-DGENERATED_FILE=${_confgen_check_rnc}"
+      "-DCHECKED_IN_FILE=${generated_cyclonedds_rnc}"
+      -P ${CMAKE_SOURCE_DIR}/cmake/CheckGeneratedFile.cmake
     COMMAND ${CMAKE_COMMAND}
-      "-DPREFIX=<!---"
-      "-DPOSTFIX=-->"
-      -DHASH_FILES=${out_confgen_hash_files}
-      -DAPPEND_FILES=${generated_cyclonedds_xsd}
-      -P ${CMAKE_SOURCE_DIR}/cmake/AppendHashScript.cmake
-    # Append hashes to md
+      "-DGENERATED_FILE=${_confgen_check_xsd}"
+      "-DCHECKED_IN_FILE=${generated_cyclonedds_xsd}"
+      -P ${CMAKE_SOURCE_DIR}/cmake/CheckGeneratedFile.cmake
     COMMAND ${CMAKE_COMMAND}
-      "-DPREFIX=<!---"
-      "-DPOSTFIX=-->"
-      -DHASH_FILES=${out_confgen_hash_files}
-      -DAPPEND_FILES=${generated_options_md}
-      -P ${CMAKE_SOURCE_DIR}/cmake/AppendHashScript.cmake
-    # Append hashes to rst
+      "-DGENERATED_FILE=${_confgen_check_md}"
+      "-DCHECKED_IN_FILE=${generated_options_md}"
+      -P ${CMAKE_SOURCE_DIR}/cmake/CheckGeneratedFile.cmake
     COMMAND ${CMAKE_COMMAND}
-      "-DBEFORE='..'"
-      "-DPREFIX='  '"
-      "-DPOSTFIX="
-      -DHASH_FILES=${out_confgen_hash_files}
-      -DAPPEND_FILES=${generated_options_rst}
-      -P ${CMAKE_SOURCE_DIR}/cmake/AppendHashScript.cmake
-    DEPENDS _confgen
-    SOURCES ${confgen_hash_files}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      "-DGENERATED_FILE=${_confgen_check_rst}"
+      "-DCHECKED_IN_FILE=${generated_options_rst}"
+      -P ${CMAKE_SOURCE_DIR}/cmake/CheckGeneratedFile.cmake
+    DEPENDS _confgen_check_generate
     VERBATIM
   )
 else()
-  add_custom_target(
-    _confgen
-  )
+  add_custom_target(_confgen)
 endif()
