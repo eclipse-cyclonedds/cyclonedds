@@ -103,6 +103,7 @@ static enum find_interface_result find_interface_by_address (const struct ddsi_d
 
 struct interface_priority {
   size_t match;
+  size_t order;
   int32_t priority;
 };
 
@@ -111,7 +112,9 @@ static int compare_interface_priority (const void *va, const void *vb)
   // compare function is used for sorting in descending priority order
   const struct interface_priority *a = va;
   const struct interface_priority *b = vb;
-  return (a->priority == b->priority) ? 0 : (a->priority < b->priority) ? 1 : -1;
+  if (a->priority != b->priority)
+    return (a->priority < b->priority) ? 1 : -1;
+  return (a->order == b->order) ? 0 : (a->order > b->order) ? 1 : -1;
 }
 
 ddsrt_nonnull ((1, 2))
@@ -423,6 +426,7 @@ static bool add_matching_interface (struct ddsi_domaingv *gv, struct interface_p
     return false;
   }
   matches[*num_matches].match = xx_idx;
+  matches[*num_matches].order = *num_matches;
   matches[*num_matches].priority = act_iface->priority;
   (*num_matches)++;
   return true;
