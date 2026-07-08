@@ -208,6 +208,15 @@ static const struct domain_case one_none_mode_no_mc = {
   .expect_mc = false
 };
 
+static const struct domain_case one_none_mode_asm_mc = {
+  .name = "one-none-mode-asm-mc",
+  .interfaces = intf_fake0,
+  .n_interfaces = 1,
+  .allow_multicast = "asm",
+  .participant_index = "none",
+  .many_sockets_mode = "none"
+};
+
 static const struct domain_case one_pi0_many_mc = {
   .name = "one-pi0-many-mc",
   .interfaces = intf_fake0,
@@ -406,8 +415,7 @@ CU_TheoryDataPoints(ddsc_fakeudp_ports, domain_ports) = {
     &two_pi0_single_mc,
     &two_none_single_mc,
     &two_auto_single_no_mc,
-    &one_none_mode_mc,
-    &one_none_mode_no_mc)
+    &one_none_mode_mc)
 };
 
 CU_Theory((const struct domain_case *tc), ddsc_fakeudp_ports, domain_ports)
@@ -421,6 +429,20 @@ CU_Theory((const struct domain_case *tc), ddsc_fakeudp_ports, domain_ports)
   assert_domain_ports (gv, tc);
 
   CU_ASSERT_EQ_FATAL (dds_delete (domain), DDS_RETCODE_OK);
+  ddsi_fakenet_clear ();
+}
+
+CU_TheoryDataPoints(ddsc_fakeudp_ports, domain_create_fails) = {
+  CU_DataPoints(const struct domain_case *,
+    &one_none_mode_no_mc,
+    &one_none_mode_asm_mc)
+};
+
+CU_Theory((const struct domain_case *tc), ddsc_fakeudp_ports, domain_create_fails)
+{
+  ddsi_fakenet_clear ();
+  dds_entity_t domain = create_domain (0, tc, -1);
+  CU_ASSERT_LT_FATAL (domain, 0);
   ddsi_fakenet_clear ();
 }
 

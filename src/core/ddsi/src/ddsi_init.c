@@ -1334,13 +1334,20 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
   if (gv->config.many_sockets_mode == DDSI_MSM_NO_UNICAST)
   {
     // only supported if there's at most a single real interface, otherwise it is too complicated for now
-    bool all_allow_mc = true, none_allow_mc = true;
+    bool all_allow_mc = true, none_allow_mc = true, any_allow_spdp_mc = false;
     for (int i = 0; i < gv->n_interfaces; i++)
     {
       if (gv->interfaces[i].allow_multicast)
         none_allow_mc = false;
       else
         all_allow_mc = false;
+      if (gv->interfaces[i].allow_multicast & DDSI_AMC_SPDP)
+        any_allow_spdp_mc = true;
+    }
+    if (transport_selector_is_udp_like (gv->config.transport_selector) && !any_allow_spdp_mc)
+    {
+      GVERROR ("ManySocketsMode \"none\" requires SPDP multicast; it is incompatible with multicast discovery disabled\n");
+      goto err_gather_nwif;
     }
     if (!(all_allow_mc || none_allow_mc))
     {
