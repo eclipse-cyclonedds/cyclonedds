@@ -28,6 +28,7 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/fibheap.h"
 #include "dds/ddsrt/random.h"
+#include "dds/ddsrt/regex.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/machineid.h"
@@ -1044,6 +1045,13 @@ int main (int argc, char **argv)
 
   // ddsrt/random.h
   ddsrt_random ();
+
+  // ddsrt/regex.h
+  ddsrt_regex_compile (ptr, ptr);
+  ddsrt_regex_compile_with_storage (ptr, ptr, ptr, 0);
+  ddsrt_regex_match (ptr, ptr);
+  ddsrt_regex_search (ptr, ptr);
+  ddsrt_regex_fini (ptr);
 
   // ddsrt/avl.h
   ddsrt_avl_treedef_init (ptr, 0, 0, ptr, ptr, 0);
