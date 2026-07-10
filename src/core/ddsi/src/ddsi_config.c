@@ -999,16 +999,89 @@ static const char *en_transport_selector_vs[] = {
 #ifdef DDS_HAS_TCP
   "tcp", "tcp6",
 #endif
-  "raweth", "none", NULL
+  "raweth", "none",
+#ifdef DDS_HAS_FAKEUDP
+  "fakeudp",
+#endif
+  NULL
 };
 static const enum ddsi_transport_selector en_transport_selector_ms[] = {
   DDSI_TRANS_DEFAULT, DDSI_TRANS_UDP, DDSI_TRANS_UDP6,
 #ifdef DDS_HAS_TCP
   DDSI_TRANS_TCP, DDSI_TRANS_TCP6,
 #endif
-  DDSI_TRANS_RAWETH, DDSI_TRANS_NONE, 0
+  DDSI_TRANS_RAWETH, DDSI_TRANS_NONE,
+#ifdef DDS_HAS_FAKEUDP
+  DDSI_TRANS_FAKEUDP,
+#endif
+  0
 };
-GENERIC_ENUM_CTYPE (transport_selector, enum ddsi_transport_selector)
+DDSRT_STATIC_ASSERT (sizeof (en_transport_selector_vs) / sizeof (*en_transport_selector_vs) ==
+                     sizeof (en_transport_selector_ms) / sizeof (*en_transport_selector_ms));
+
+static enum update_result uf_transport_selector (struct ddsi_cfgst *cfgst, void *parent, UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
+{
+  enum ddsi_transport_selector * const elem = cfg_address (cfgst, parent, cfgelem);
+#ifdef DDS_HAS_FAKEUDP
+  if (strncmp (value, "fakeudp:", strlen ("fakeudp:")) == 0)
+  {
+    const char *path = value + strlen ("fakeudp:");
+    if (*path == 0)
+      return cfg_error (cfgst, "'%s': missing fake network topology file", value);
+    ddsrt_free (cfgst->cfg->fake_network_topology_file);
+    cfgst->cfg->fake_network_topology_file = NULL;
+    if (ddsrt_strcasecmp (path, "real") == 0)
+      cfgst->cfg->fake_network_topology_kind = DDSI_FAKENET_TOPOLOGY_REAL;
+    else
+    {
+      cfgst->cfg->fake_network_topology_file = ddsrt_strdup (path);
+      if (cfgst->cfg->fake_network_topology_file == NULL)
+        return cfg_error (cfgst, "'%s': out of memory", value);
+      cfgst->cfg->fake_network_topology_kind = DDSI_FAKENET_TOPOLOGY_FILE;
+    }
+    *elem = DDSI_TRANS_FAKEUDP;
+    return URES_SUCCESS;
+  }
+  ddsrt_free (cfgst->cfg->fake_network_topology_file);
+  cfgst->cfg->fake_network_topology_file = NULL;
+  cfgst->cfg->fake_network_topology_kind = DDSI_FAKENET_TOPOLOGY_BUILTIN;
+#endif
+
+  const int idx = list_index (en_transport_selector_vs, value);
+  if (idx < 0 || idx >= (int) (sizeof (en_transport_selector_ms) / sizeof (en_transport_selector_ms[0])))
+    return cfg_error (cfgst, "'%s': undefined value", value);
+  *elem = en_transport_selector_ms[idx];
+  return URES_SUCCESS;
+}
+
+static void pf_transport_selector (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
+{
+  enum ddsi_transport_selector const * const p = cfg_address (cfgst, parent, cfgelem);
+#ifdef DDS_HAS_FAKEUDP
+  if (*p == DDSI_TRANS_FAKEUDP && cfgst->cfg->fake_network_topology_kind == DDSI_FAKENET_TOPOLOGY_REAL)
+  {
+    cfg_logelem (cfgst, sources, "fakeudp:real");
+    return;
+  }
+  if (*p == DDSI_TRANS_FAKEUDP &&
+      cfgst->cfg->fake_network_topology_kind == DDSI_FAKENET_TOPOLOGY_FILE &&
+      cfgst->cfg->fake_network_topology_file)
+  {
+    cfg_logelem (cfgst, sources, "fakeudp:%s", cfgst->cfg->fake_network_topology_file);
+    return;
+  }
+#endif
+  const char *str = "INVALID";
+  for (int i = 0; en_transport_selector_vs[i] != NULL && i < (int) (sizeof (en_transport_selector_ms) / sizeof (en_transport_selector_ms[0])); i++)
+  {
+    if (en_transport_selector_ms[i] == *p)
+    {
+      str = en_transport_selector_vs[i];
+      break;
+    }
+  }
+  cfg_logelem (cfgst, sources, "%s", str);
+}
 
 /* by putting the  "true" and "false" aliases at the end, they won't come out of the
    generic printing function */
@@ -2845,6 +2918,9 @@ struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg
         break;
       case DDSI_TRANS_RAWETH:
       case DDSI_TRANS_NONE:
+#ifdef DDS_HAS_FAKEUDP
+      case DDSI_TRANS_FAKEUDP:
+#endif
         ok1 = !(cfgst->cfg->compat_tcp_enable == DDSI_BOOLDEF_TRUE || cfgst->cfg->compat_use_ipv6 == DDSI_BOOLDEF_TRUE);
         break;
     }
@@ -2866,6 +2942,10 @@ struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg
   }
 
 error:
+#ifdef DDS_HAS_FAKEUDP
+  ddsrt_free (cfgst->cfg->fake_network_topology_file);
+  cfgst->cfg->fake_network_topology_file = NULL;
+#endif
   free_configured_elements (cfgst, cfgst->cfg, root_cfgelems);
   ddsrt_avl_free (&cfgst_found_treedef, &cfgst->found, ddsrt_free);
   ddsrt_free (cfgst);
@@ -2904,6 +2984,9 @@ void ddsi_config_fini (struct ddsi_cfgst *cfgst)
   assert (cfgst->cfg != NULL);
   assert (cfgst->cfg->valid);
 
+#ifdef DDS_HAS_FAKEUDP
+  ddsrt_free (cfgst->cfg->fake_network_topology_file);
+#endif
   free_all_elements (cfgst, cfgst->cfg, root_cfgelems);
   dds_set_log_file (stderr);
   dds_set_trace_file (stderr);

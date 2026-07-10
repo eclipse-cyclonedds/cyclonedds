@@ -51,6 +51,10 @@
 #include "ddsi__typelookup.h"
 #include "ddsi__tran.h"
 #include "ddsi__udp.h"
+#ifdef DDS_HAS_FAKEUDP
+#include "ddsi__fakeudp.h"
+#include "ddsi__fakenet.h"
+#endif
 #include "ddsi__tcp.h"
 #include "ddsi__raweth.h"
 #include "ddsi__vnet.h"
@@ -82,6 +86,15 @@ enum make_uc_sockets_ret {
   MUSRET_ERROR          /* generic error, no use continuing */
 };
 
+static bool transport_selector_is_udp_like (enum ddsi_transport_selector transport_selector)
+{
+  return transport_selector == DDSI_TRANS_UDP || transport_selector == DDSI_TRANS_UDP6
+#ifdef DDS_HAS_FAKEUDP
+    || transport_selector == DDSI_TRANS_FAKEUDP
+#endif
+    ;
+}
+
 static enum make_uc_sockets_ret make_uc_sockets (struct ddsi_domaingv *gv, uint32_t * pdisc, uint32_t * pdata, int ppid)
 {
   dds_return_t rc;
@@ -90,7 +103,7 @@ static enum make_uc_sockets_ret make_uc_sockets (struct ddsi_domaingv *gv, uint3
     if (ddsi_factory_supports (gv->m_factory, gv->interfaces[i].loc.kind))
       recv_uc_interface_count++;
   const bool per_interface_uc =
-    (gv->config.transport_selector == DDSI_TRANS_UDP || gv->config.transport_selector == DDSI_TRANS_UDP6) &&
+    transport_selector_is_udp_like (gv->config.transport_selector) &&
     recv_uc_interface_count > 1 &&
     gv->config.many_sockets_mode != DDSI_MSM_NO_UNICAST;
   const int n_uc_conns = per_interface_uc ? gv->n_interfaces : 1;
@@ -397,7 +410,11 @@ static int set_ext_address_and_mask (struct ddsi_domaingv *gv)
     gv->extmask.kind = DDSI_LOCATOR_KIND_INVALID;
     gv->extmask.port = DDSI_LOCATOR_PORT_INVALID;
   }
-  else if (gv->config.transport_selector != DDSI_TRANS_UDP)
+  else if (gv->config.transport_selector != DDSI_TRANS_UDP
+#ifdef DDS_HAS_FAKEUDP
+           && gv->config.transport_selector != DDSI_TRANS_FAKEUDP
+#endif
+  )
   {
     GVERROR ("external network masks only supported in IPv4 mode\n");
     return -1;
@@ -1226,6 +1243,44 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
         goto err_udp_tcp_init;
       gv->m_factory = ddsi_factory_find (gv, gv->config.transport_selector == DDSI_TRANS_UDP ? "udp" : "udp6");
       break;
+#ifdef DDS_HAS_FAKEUDP
+    case DDSI_TRANS_FAKEUDP:
+      gv->config.publish_uc_locators = 1;
+      gv->config.enable_uc_locators = 1;
+      switch (gv->config.fake_network_topology_kind)
+      {
+        case DDSI_FAKENET_TOPOLOGY_BUILTIN:
+          if (ddsi_fakenet_ensure_default () < 0)
+          {
+            GVERROR ("failed to load built-in fake network topology\n");
+            goto err_udp_tcp_init;
+          }
+          break;
+        case DDSI_FAKENET_TOPOLOGY_FILE:
+          if (gv->config.fake_network_topology_file == NULL)
+          {
+            GVERROR ("missing fake network topology file\n");
+            goto err_udp_tcp_init;
+          }
+          if (ddsi_fakenet_ensure_xml_file (gv->config.fake_network_topology_file) < 0)
+          {
+            GVERROR ("failed to load fake network topology %s\n", gv->config.fake_network_topology_file);
+            goto err_udp_tcp_init;
+          }
+          break;
+        case DDSI_FAKENET_TOPOLOGY_REAL:
+          if (ddsi_fakenet_ensure_real_interfaces () < 0)
+          {
+            GVERROR ("failed to load real interfaces into fake network topology\n");
+            goto err_udp_tcp_init;
+          }
+          break;
+      }
+      if (ddsi_fakeudp_init (gv) < 0)
+        goto err_udp_tcp_init;
+      gv->m_factory = ddsi_factory_find (gv, "udp");
+      break;
+#endif
     case DDSI_TRANS_TCP:
     case DDSI_TRANS_TCP6:
       gv->config.publish_uc_locators = (gv->config.tcp_port != -1);
@@ -1620,7 +1675,7 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
   }
   const bool use_udp_receive_for_xmit =
     gv->m_factory->m_connless &&
-    (gv->config.transport_selector == DDSI_TRANS_UDP || gv->config.transport_selector == DDSI_TRANS_UDP6);
+    transport_selector_is_udp_like (gv->config.transport_selector);
   dds_return_t rc;
   for (int i = 0; i < gv->n_interfaces; i++)
   {

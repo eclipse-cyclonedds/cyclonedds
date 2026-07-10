@@ -47,5 +47,8 @@
 /* Whether or not support for DDS-over-TCP is included */
 #cmakedefine DDS_HAS_TCP 1
 
+/* Whether or not support for the test-only fake UDP transport is included */
+#cmakedefine DDS_HAS_FAKEUDP 1
+
 
 #endif

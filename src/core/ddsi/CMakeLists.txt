@@ -286,6 +286,16 @@ if(ENABLE_SECURITY)
     ddsi__security_exchange.h
   )
 endif()
+if(ENABLE_FAKEUDP)
+  list(APPEND srcs_ddsi
+    ddsi_fakenet.c
+    ddsi_fakeudp.c
+  )
+  list(APPEND hdrs_private_ddsi
+    ddsi__fakenet.h
+    ddsi__fakeudp.h
+  )
+endif()
 
 prepend(hdrs_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi/" ${hdrs_ddsi})
 prepend(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/src/" ${hdrs_private_ddsi})

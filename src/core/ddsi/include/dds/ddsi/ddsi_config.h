@@ -168,7 +168,19 @@ enum ddsi_transport_selector {
   DDSI_TRANS_TCP6,
   DDSI_TRANS_RAWETH,
   DDSI_TRANS_NONE /* FIXME: see FIXME above ... :( */
+#ifdef DDS_HAS_FAKEUDP
+  ,
+  DDSI_TRANS_FAKEUDP
+#endif
 };
+
+#ifdef DDS_HAS_FAKEUDP
+enum ddsi_fake_network_topology_kind {
+  DDSI_FAKENET_TOPOLOGY_BUILTIN,
+  DDSI_FAKENET_TOPOLOGY_FILE,
+  DDSI_FAKENET_TOPOLOGY_REAL
+};
+#endif
 
 enum ddsi_many_sockets_mode {
   DDSI_MSM_NO_UNICAST,
@@ -304,6 +316,10 @@ struct ddsi_config
   char *tracefile;
   int tracingAppendToFile;
   enum ddsi_transport_selector transport_selector;
+#ifdef DDS_HAS_FAKEUDP
+  enum ddsi_fake_network_topology_kind fake_network_topology_kind;
+  char *fake_network_topology_file;
+#endif
   enum ddsi_boolean_default compat_use_ipv6;
   enum ddsi_boolean_default compat_tcp_enable;
   int dontRoute;

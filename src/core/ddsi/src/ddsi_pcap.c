@@ -10,6 +10,7 @@
 
 #include <stdio.h>
 #include <assert.h>
+#include <stdbool.h>
 
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsi/ddsi_log.h"
@@ -56,6 +57,15 @@ typedef struct udp_hdr_s {
   uint16_t length;
   uint16_t checksum;
 } udp_hdr_t;
+
+static bool pcap_transport_is_udp4 (const struct ddsi_domaingv *gv)
+{
+  return gv->config.transport_selector == DDSI_TRANS_UDP
+#ifdef DDS_HAS_FAKEUDP
+    || gv->config.transport_selector == DDSI_TRANS_FAKEUDP
+#endif
+    ;
+}
 
 static const ipv4_hdr_t ipv4_hdr_template = {
   (4 << 4) | 5, /* IPv4, minimum header length */
@@ -125,7 +135,7 @@ static uint16_t calc_ipv4_checksum (const uint16_t *x)
 
 void ddsi_write_pcap_received (struct ddsi_domaingv *gv, ddsrt_wctime_t tstamp, const struct sockaddr_storage *src, const struct sockaddr_storage *dst, unsigned char *buf, size_t sz)
 {
-  if (gv->config.transport_selector == DDSI_TRANS_UDP)
+  if (pcap_transport_is_udp4 (gv))
   {
     pcaprec_hdr_t pcap_hdr;
     union {
@@ -158,7 +168,7 @@ void ddsi_write_pcap_received (struct ddsi_domaingv *gv, ddsrt_wctime_t tstamp, 
 
 void ddsi_write_pcap_sent (struct ddsi_domaingv *gv, ddsrt_wctime_t tstamp, const struct sockaddr_storage *src, const ddsrt_msghdr_t *hdr, size_t sz)
 {
-  if (gv->config.transport_selector == DDSI_TRANS_UDP)
+  if (pcap_transport_is_udp4 (gv))
   {
     pcaprec_hdr_t pcap_hdr;
     union {

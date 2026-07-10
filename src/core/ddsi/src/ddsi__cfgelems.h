@@ -429,21 +429,45 @@ static struct cfgelem general_cfgelems[] = {
     DESCRIPTION("<p>Deprecated (use Transport instead)</p>"),
     VALUES("false","true","default")),
 #ifdef DDS_HAS_TCP
-  ENUM("Transport", NULL, 1, "default",
+#ifdef DDS_HAS_FAKEUDP
+  STRING("Transport", NULL, 1, "default",
     MEMBER(transport_selector),
     FUNCTIONS(0, uf_transport_selector, 0, pf_transport_selector),
     DESCRIPTION(
       "<p>This element allows selecting the transport to be used (udp, udp6, "
-      "tcp, tcp6, raweth)</p>"),
-    VALUES("default","udp","udp6","tcp","tcp6","raweth")),
+      "tcp, tcp6, raweth, fakeudp). The fakeudp transport is available only "
+      "when built with ENABLE_FAKEUDP and uses a built-in deterministic fake "
+      "network by default. It may also be written as fakeudp:<i>file</i> to "
+      "load the fake network topology from an XML file, or as fakeudp:real to "
+      "import the real interface list into the fake network.</p>")),
 #else
-  ENUM("Transport", NULL, 1, "default",
+  STRING("Transport", NULL, 1, "default",
     MEMBER(transport_selector),
     FUNCTIONS(0, uf_transport_selector, 0, pf_transport_selector),
     DESCRIPTION(
       "<p>This element allows selecting the transport to be used (udp, udp6, "
-      "raweth)</p>"),
-    VALUES("default","udp","udp6","raweth")),
+      "tcp, tcp6, raweth).</p>")),
+#endif
+#else
+#ifdef DDS_HAS_FAKEUDP
+  STRING("Transport", NULL, 1, "default",
+    MEMBER(transport_selector),
+    FUNCTIONS(0, uf_transport_selector, 0, pf_transport_selector),
+    DESCRIPTION(
+      "<p>This element allows selecting the transport to be used (udp, udp6, "
+      "raweth, fakeudp). The fakeudp transport is available only when built "
+      "with ENABLE_FAKEUDP and uses a built-in deterministic fake network by "
+      "default. It may also be written as fakeudp:<i>file</i> to load the fake "
+      "network topology from an XML file, or as fakeudp:real to import the "
+      "real interface list into the fake network.</p>")),
+#else
+  STRING("Transport", NULL, 1, "default",
+    MEMBER(transport_selector),
+    FUNCTIONS(0, uf_transport_selector, 0, pf_transport_selector),
+    DESCRIPTION(
+      "<p>This element allows selecting the transport to be used (udp, udp6, "
+      "raweth).</p>")),
+#endif
 #endif
   BOOL("EnableMulticastLoopback", NULL, 1, "true",
     MEMBER(enableMulticastLoopback),

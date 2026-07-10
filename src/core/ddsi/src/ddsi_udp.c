@@ -9,8 +9,12 @@
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 // The in6_pktinfo is somewhat fussy, but these seem to do the trick ...
+#ifndef __APPLE_USE_RFC_3542
 #define __APPLE_USE_RFC_3542
+#endif
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 
 #ifdef __APPLE__
 #include <AvailabilityMacros.h>
