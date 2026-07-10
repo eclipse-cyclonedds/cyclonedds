@@ -62,6 +62,7 @@ struct Handshake
 };
 
 void print_test_msg (const char *msg, ...);
+dds_entity_t create_domain_with_test_config (dds_domainid_t domain_id, const char *config);
 void validate_handshake (dds_domainid_t domain_id, bool exp_localid_fail, const char * exp_localid_msg, struct Handshake *hs_list[], int *nhs, dds_duration_t timeout);
 void validate_handshake_nofail (dds_domainid_t domain_id, dds_duration_t timeout);
 void validate_handshake_result (struct Handshake *hs, bool exp_fail_hs_req, const char * fail_hs_req_msg, bool exp_fail_hs_reply, const char * fail_hs_reply_msg);

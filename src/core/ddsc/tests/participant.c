@@ -48,28 +48,41 @@ CU_Test(ddsc_participant, create_with_no_conf_no_env)
 {
   dds_entity_t participant2, participant3;
   dds_return_t status;
-  dds_domainid_t domain_id;
   dds_domainid_t valid_domain=3;
+  dds_domainid_t domain_id2 = UINT32_MAX;
+  dds_domainid_t domain_id3 = UINT32_MAX;
+  dds_return_t status2 = DDS_RETCODE_ERROR;
+  dds_return_t status3 = DDS_RETCODE_ERROR;
+  struct test_saved_envvar saved_uri;
 
-  status = ddsrt_unsetenv("CYCLONEDDS_URI");
+  status = test_save_envvar (&saved_uri, "CYCLONEDDS_URI");
+  if (status == DDS_RETCODE_OK && !test_config_inherits_fakeudp ())
+    status = ddsrt_setenv("CYCLONEDDS_URI", "");
   CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_OK);
 
   //valid specific domain value
   participant2 = dds_create_participant (valid_domain, NULL, NULL);
-  CU_ASSERT_GT_FATAL (participant2, 0);
-  status = dds_get_domainid(participant2, &domain_id);
-  CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_OK);
-  CU_ASSERT_EQ_FATAL (domain_id, valid_domain);
+  if (participant2 > 0)
+    status2 = dds_get_domainid(participant2, &domain_id2);
 
   //DDS_DOMAIN_DEFAULT from user
   participant3 = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
-  CU_ASSERT_GT_FATAL (participant3, 0);
-  status = dds_get_domainid(participant3, &domain_id);
-  CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_OK);
-  CU_ASSERT_EQ_FATAL (domain_id, valid_domain);
+  if (participant3 > 0)
+    status3 = dds_get_domainid(participant3, &domain_id3);
 
-  dds_delete(participant2);
-  dds_delete(participant3);
+  if (participant2 > 0)
+    dds_delete(participant2);
+  if (participant3 > 0)
+    dds_delete(participant3);
+  const dds_return_t restore_status = test_restore_envvar (&saved_uri);
+
+  CU_ASSERT_EQ_FATAL (restore_status, DDS_RETCODE_OK);
+  CU_ASSERT_GT_FATAL (participant2, 0);
+  CU_ASSERT_EQ_FATAL (status2, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (domain_id2, valid_domain);
+  CU_ASSERT_GT_FATAL (participant3, 0);
+  CU_ASSERT_EQ_FATAL (status3, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (domain_id3, valid_domain);
 }
 
 
@@ -78,28 +91,47 @@ CU_Test(ddsc_participant, create_multiple_domains)
 {
   dds_entity_t participant1, participant2;
   dds_return_t status;
-  dds_domainid_t domain_id;
+  dds_domainid_t domain_id1 = UINT32_MAX;
+  dds_domainid_t domain_id2 = UINT32_MAX;
+  dds_return_t status1 = DDS_RETCODE_ERROR;
+  dds_return_t status2 = DDS_RETCODE_ERROR;
+  struct test_saved_envvar saved_uri;
 
-  ddsrt_setenv("CYCLONEDDS_URI", "<Tracing><Verbosity>finest</><OutputFile>multi-domain-1.log</></>");
+  status = test_save_envvar (&saved_uri, "CYCLONEDDS_URI");
+  CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_OK);
+  char *config = test_config_from_env ("<Tracing><Verbosity>finest</><OutputFile>multi-domain-1.log</></>", 1);
+  status = ddsrt_setenv("CYCLONEDDS_URI", config);
+  ddsrt_free (config);
 
   //valid specific domain value
-  participant1 = dds_create_participant (1, NULL, NULL);
-  CU_ASSERT_GT_FATAL (participant1, 0);
-  status = dds_get_domainid(participant1, &domain_id);
-  CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_OK);
-  CU_ASSERT_EQ_FATAL (domain_id, 1);
+  participant1 = status == DDS_RETCODE_OK ? dds_create_participant (1, NULL, NULL) : DDS_RETCODE_ERROR;
+  if (participant1 > 0)
+    status1 = dds_get_domainid(participant1, &domain_id1);
 
-  ddsrt_setenv("CYCLONEDDS_URI", "<Tracing><Verbosity>finest</><OutputFile>multi-domain-2.log</></>");
+  config = test_config_from_env ("<Tracing><Verbosity>finest</><OutputFile>multi-domain-2.log</></>", 2);
+  if (status == DDS_RETCODE_OK)
+    status = ddsrt_setenv("CYCLONEDDS_URI", config);
+  ddsrt_free (config);
 
   //DDS_DOMAIN_DEFAULT from user
-  participant2 = dds_create_participant (2, NULL, NULL);
-  CU_ASSERT_GT_FATAL (participant2, 0);
-  status = dds_get_domainid(participant2, &domain_id);
-  CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_OK);
-  CU_ASSERT_EQ_FATAL (domain_id, 2);
+  participant2 = status == DDS_RETCODE_OK ? dds_create_participant (2, NULL, NULL) : DDS_RETCODE_ERROR;
+  if (participant2 > 0)
+    status2 = dds_get_domainid(participant2, &domain_id2);
 
-  dds_delete(participant1);
-  dds_delete(participant2);
+  if (participant1 > 0)
+    dds_delete(participant1);
+  if (participant2 > 0)
+    dds_delete(participant2);
+  const dds_return_t restore_status = test_restore_envvar (&saved_uri);
+
+  CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (restore_status, DDS_RETCODE_OK);
+  CU_ASSERT_GT_FATAL (participant1, 0);
+  CU_ASSERT_EQ_FATAL (status1, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (domain_id1, 1);
+  CU_ASSERT_GT_FATAL (participant2, 0);
+  CU_ASSERT_EQ_FATAL (status2, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (domain_id2, 2);
 }
 
 CU_Test(ddsc_participant, auto_participant_index_zero)
@@ -121,8 +153,10 @@ CU_Test(ddsc_participant, auto_participant_index_zero)
     "</Discovery>",
     port_base);
 
-  dds_entity_t domain = dds_create_domain (0, config);
+  char *expanded = test_config_from_env (config, 0);
   ddsrt_free (config);
+  dds_entity_t domain = dds_create_domain (0, expanded);
+  ddsrt_free (expanded);
   CU_ASSERT_GT_FATAL (domain, 0);
 
   const struct ddsi_domaingv *gv = get_domaingv (domain);
@@ -140,33 +174,55 @@ CU_Test(ddsc_participant, auto_participant_index_zero)
 CU_Test(ddsc_participant, create_with_conf_no_env) {
     dds_entity_t participant2, participant3;
     dds_return_t status;
-    dds_domainid_t domain_id;
     dds_domainid_t valid_domain=3;
+    dds_domainid_t domain_id2 = UINT32_MAX;
+    dds_domainid_t domain_id3 = UINT32_MAX;
+    dds_return_t status2 = DDS_RETCODE_ERROR;
+    dds_return_t status3 = DDS_RETCODE_ERROR;
+    struct test_saved_envvar saved_uri, saved_max_participants;
 
-    ddsrt_setenv("CYCLONEDDS_URI", CONFIG_ENV_SIMPLE_UDP);
-    ddsrt_setenv("MAX_PARTICIPANTS", CONFIG_ENV_MAX_PARTICIPANTS);
+    status = test_save_envvar (&saved_uri, "CYCLONEDDS_URI");
+    CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_OK);
+    status = test_save_envvar (&saved_max_participants, "MAX_PARTICIPANTS");
+    CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_OK);
+    char *config = test_config_from_env (CONFIG_ENV_SIMPLE_UDP, valid_domain);
+    status = ddsrt_setenv("CYCLONEDDS_URI", config);
+    ddsrt_free (config);
+    if (status == DDS_RETCODE_OK)
+      status = ddsrt_setenv("MAX_PARTICIPANTS", CONFIG_ENV_MAX_PARTICIPANTS);
 
     const char * env_uri = NULL;
-    ddsrt_getenv("CYCLONEDDS_URI", &env_uri);
-    CU_ASSERT_NEQ_FATAL (env_uri, NULL);
+    if (status == DDS_RETCODE_OK)
+      ddsrt_getenv("CYCLONEDDS_URI", &env_uri);
 
     //valid specific domain value
-    participant2 = dds_create_participant (valid_domain, NULL, NULL);
-    CU_ASSERT_GT_FATAL (participant2, 0);
-    status = dds_get_domainid(participant2, &domain_id);
-    CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_OK);
-    CU_ASSERT_EQ_FATAL (domain_id, valid_domain);
+    participant2 = status == DDS_RETCODE_OK ? dds_create_participant (valid_domain, NULL, NULL) : DDS_RETCODE_ERROR;
+    if (participant2 > 0)
+      status2 = dds_get_domainid(participant2, &domain_id2);
 
 
     //DDS_DOMAIN_DEFAULT from the user
-    participant3 = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
-    CU_ASSERT_GT_FATAL (participant3, 0);
-    status = dds_get_domainid(participant3, &domain_id);
-    CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_OK);
-    CU_ASSERT_EQ_FATAL (domain_id, valid_domain);
+    participant3 = status == DDS_RETCODE_OK ? dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL) : DDS_RETCODE_ERROR;
+    if (participant3 > 0)
+      status3 = dds_get_domainid(participant3, &domain_id3);
 
-    dds_delete(participant2);
-    dds_delete(participant3);
+    if (participant2 > 0)
+      dds_delete(participant2);
+    if (participant3 > 0)
+      dds_delete(participant3);
+    const dds_return_t restore_max_participants_status = test_restore_envvar (&saved_max_participants);
+    const dds_return_t restore_uri_status = test_restore_envvar (&saved_uri);
+
+    CU_ASSERT_EQ_FATAL (status, DDS_RETCODE_OK);
+    CU_ASSERT_NEQ_FATAL (env_uri, NULL);
+    CU_ASSERT_EQ_FATAL (restore_max_participants_status, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (restore_uri_status, DDS_RETCODE_OK);
+    CU_ASSERT_GT_FATAL (participant2, 0);
+    CU_ASSERT_EQ_FATAL (status2, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (domain_id2, valid_domain);
+    CU_ASSERT_GT_FATAL (participant3, 0);
+    CU_ASSERT_EQ_FATAL (status3, DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (domain_id3, valid_domain);
 }
 
 CU_Test(ddsc_participant_lookup, one) {

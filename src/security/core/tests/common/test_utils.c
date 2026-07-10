@@ -13,10 +13,12 @@
 
 #include "CUnit/Test.h"
 #include "dds/dds.h"
+#include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/io.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_participant.h"
@@ -79,6 +81,21 @@ void print_test_msg (const char *msg, ...)
   vprintf (msg, args);
   va_end (args);
   fflush (stdout);
+}
+
+dds_entity_t create_domain_with_test_config (dds_domainid_t domain_id, const char *config)
+{
+  char *template = NULL;
+  char *expanded;
+  dds_entity_t domain;
+  const char *local_config = config ? config : "";
+
+  (void) ddsrt_asprintf (&template, "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}%s", local_config);
+  expanded = ddsrt_expand_envvars (template, domain_id);
+  ddsrt_free (template);
+  domain = dds_create_domain (domain_id, expanded);
+  ddsrt_free (expanded);
+  return domain;
 }
 
 static void add_local_identity (DDS_Security_IdentityHandle handle, DDS_Security_GUID_t *guid)

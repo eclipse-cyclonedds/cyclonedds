@@ -69,7 +69,9 @@ static void restore_allocator (void)
 
 static void typewrap_init (void)
 {
-  domain = dds_create_domain (0, NULL);
+  char *config = test_config_from_env (NULL, 0);
+  domain = dds_create_domain (0, config);
+  ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (domain, 0);
   participant = dds_create_participant (0, NULL, NULL);
   CU_ASSERT_GEQ_FATAL (participant, 0);
@@ -77,7 +79,9 @@ static void typewrap_init (void)
 
 static void typewrap_no_recursive_init (void)
 {
-  domain = dds_create_domain (0, "<Compatibility><AllowRecursiveTypes>false</AllowRecursiveTypes></Compatibility>");
+  char *config = test_config_from_env ("<Compatibility><AllowRecursiveTypes>false</AllowRecursiveTypes></Compatibility>", 0);
+  domain = dds_create_domain (0, config);
+  ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (domain, 0);
   participant = dds_create_participant (0, NULL, NULL);
   CU_ASSERT_GEQ_FATAL (participant, 0);
