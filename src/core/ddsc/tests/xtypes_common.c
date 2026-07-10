@@ -69,7 +69,7 @@ void test_proxy_rd_create (struct ddsi_domaingv *gv, const char *topic_name, DDS
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   ddsi_thread_state_awake (thrst, gv);
   struct ddsi_addrset *as = ddsi_new_addrset ();
-  ddsi_add_locator_to_addrset (gv, as, &gv->loc_default_uc);
+  ddsi_add_locator_to_addrset (gv, as, &gv->loc_default_uc, gv->xmit_conns_data);
   ddsi_ref_addrset (as); // increase refc to 2, new_proxy_participant does not add a ref
   struct ddsi_proxy_participant *proxy_participant;
   int rc = ddsi_new_proxy_participant (&proxy_participant, gv, pp_guid, 0, as, as, plist, DDS_INFINITY, DDSI_VENDORID_ECLIPSE, ddsrt_time_wallclock (), 1);

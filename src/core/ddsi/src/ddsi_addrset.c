@@ -213,7 +213,7 @@ void ddsi_add_xlocator_to_addrset (const struct ddsi_domaingv *gv, struct ddsi_a
   add_xlocator_to_addrset_impl (gv, as, loc);
 }
 
-void ddsi_add_locator_to_addrset (const struct ddsi_domaingv *gv, struct ddsi_addrset *as, const ddsi_locator_t *loc)
+void ddsi_add_locator_to_addrset (const struct ddsi_domaingv *gv, struct ddsi_addrset *as, const ddsi_locator_t *loc, struct ddsi_tran_conn * const *xmit_conns)
 {
   if (ddsi_is_unspec_locator (loc))
     return;
@@ -222,9 +222,10 @@ void ddsi_add_locator_to_addrset (const struct ddsi_domaingv *gv, struct ddsi_ad
     // multicast: use all transmit connections
     for (int i = 0; i < gv->n_interfaces; i++)
     {
-      if (ddsi_factory_supports (gv->xmit_conns[i]->m_factory, loc->kind))
+      assert (xmit_conns[i] != NULL);
+      if (ddsi_factory_supports (xmit_conns[i]->m_factory, loc->kind))
         add_xlocator_to_addrset_impl (gv, as, &(const ddsi_xlocator_t) {
-          .conn = gv->xmit_conns[i],
+          .conn = xmit_conns[i],
           .c = *loc });
     }
   }
@@ -235,7 +236,8 @@ void ddsi_add_locator_to_addrset (const struct ddsi_domaingv *gv, struct ddsi_ad
     int interf_idx = -1, fallback_interf_idx = -1;
     for (int i = 0; i < gv->n_interfaces && interf_idx < 0; i++)
     {
-      if (!ddsi_factory_supports (gv->xmit_conns[i]->m_factory, loc->kind))
+      assert (xmit_conns[i] != NULL);
+      if (!ddsi_factory_supports (xmit_conns[i]->m_factory, loc->kind))
         continue;
       switch (ddsi_is_nearby_address (gv, loc, (size_t) gv->n_interfaces, gv->interfaces, NULL))
       {
@@ -255,7 +257,7 @@ void ddsi_add_locator_to_addrset (const struct ddsi_domaingv *gv, struct ddsi_ad
     {
       const int i = (interf_idx >= 0) ? interf_idx : fallback_interf_idx;
       add_xlocator_to_addrset_impl (gv, as, &(const ddsi_xlocator_t) {
-        .conn = gv->xmit_conns[i],
+        .conn = xmit_conns[i],
         .c = *loc });
     }
   }

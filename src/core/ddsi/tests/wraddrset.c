@@ -201,8 +201,8 @@ static void ddsi_wraddrset_some_cases (int casenumber, int cost, bool wr_psmx, c
       struct ddsi_addrset *proxypp_as = ddsi_new_addrset ();
       struct ddsi_proxy_participant *proxy_participant;
       ddsi_locator_t loc = ucloc[i]; loc.port = 1000 + (unsigned) j;
-      ddsi_add_locator_to_addrset (&gv, proxypp_as, &loc);
-      ddsi_add_locator_to_addrset (&gv, proxypp_as, &mcloc);
+      ddsi_add_locator_to_addrset (&gv, proxypp_as, &loc, gv.xmit_conns_data);
+      ddsi_add_locator_to_addrset (&gv, proxypp_as, &mcloc, gv.xmit_conns_data);
       ddsi_new_proxy_participant (&proxy_participant, &gv, &rdppguid[i][j], 0, proxypp_as, ddsi_ref_addrset (proxypp_as), &plist_pp[i], DDS_INFINITY, DDSI_VENDORID_ECLIPSE, ddsrt_time_wallclock (), 1);
       assert (proxy_participant != NULL);
 
@@ -216,8 +216,8 @@ static void ddsi_wraddrset_some_cases (int casenumber, int cost, bool wr_psmx, c
       plist_rd.qos.topic_name = "Q";
       plist_rd.qos.type_name = "Q";
       struct ddsi_addrset *rd_as = ddsi_new_addrset ();
-      ddsi_add_locator_to_addrset (&gv, rd_as, &loc);
-      ddsi_add_locator_to_addrset (&gv, rd_as, &mcloc);
+      ddsi_add_locator_to_addrset (&gv, rd_as, &loc, gv.xmit_conns_data);
+      ddsi_add_locator_to_addrset (&gv, rd_as, &mcloc, gv.xmit_conns_data);
       if (i == 0)
       {
         // We haven't configured a fake interface for PSMX, which means add_locator can't map it

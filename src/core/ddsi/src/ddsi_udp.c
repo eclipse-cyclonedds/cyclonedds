@@ -368,7 +368,7 @@ static int ddsi_udp_conn_locator (struct ddsi_tran_factory * fact_cmn, struct dd
   {
     loc->kind = fact->m_kind;
     loc->port = conn->m_base.m_base.m_port;
-    memcpy (loc->address, conn->m_base.m_base.gv->interfaces[0].loc.address, sizeof (loc->address));
+    memcpy (loc->address, conn->m_base.m_interf->loc.address, sizeof (loc->address));
     ret = 0;
   }
   return ret;
@@ -603,33 +603,29 @@ static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, stru
 
   dds_return_t rc;
   ddsrt_socket_t sock;
-  bool reuse_addr = false, bind_to_any = false, ipv6 = false, set_mc_xmit_options = false;
+  bool reuse_addr = false, bind_to_any = qos->m_bind_to_any, ipv6 = false, set_mc_xmit_options = false;
   const char *purpose_str = NULL;
 
   switch (qos->m_purpose)
   {
     case DDSI_TRAN_QOS_XMIT_UC:
       reuse_addr = false;
-      bind_to_any = false;
       set_mc_xmit_options = false;
       purpose_str = "transmit(uc)";
       break;
     case DDSI_TRAN_QOS_XMIT_MC:
       reuse_addr = false;
-      bind_to_any = false;
       set_mc_xmit_options = true;
       purpose_str = "transmit(uc/mc)";
       break;
-    case DDSI_TRAN_QOS_RECV_UC:
+    case DDSI_TRAN_QOS_RECVXMIT_UC:
       reuse_addr = false;
-      bind_to_any = true;
-      set_mc_xmit_options = false;
-      purpose_str = "unicast";
+      set_mc_xmit_options = (intf->allow_multicast != 0);
+      purpose_str = bind_to_any ? "unicast" : "unicast(interface)";
       break;
     case DDSI_TRAN_QOS_RECV_MC:
       reuse_addr = true;
-      bind_to_any = true;
-      set_mc_xmit_options = false;
+      set_mc_xmit_options = true;
       purpose_str = "multicast";
       break;
   }

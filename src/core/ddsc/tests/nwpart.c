@@ -146,7 +146,8 @@ static void setup (struct ddsi_domaingv *gv, const struct ddsi_config *config, b
     fakeconn->m_factory = gv->m_factory;
     fakeconn->m_base.gv = gv;
     fakeconn->m_interf = &gv->interfaces[i];
-    gv->xmit_conns[i] = fakeconn;
+    gv->xmit_conns_meta[i] = fakeconn;
+    gv->xmit_conns_data[i] = fakeconn;
   }
 
   ddsi_config_prep (gv, NULL);
@@ -163,7 +164,7 @@ static void teardown (struct ddsi_domaingv *gv)
 #endif
   for (int i = 0; i < gv->n_interfaces; i++)
   {
-    ddsrt_free (gv->xmit_conns[i]);
+    ddsrt_free (gv->xmit_conns_data[i]);
     ddsrt_free (gv->interfaces[i].name);
   }
   while (gv->ddsi_tran_factories)
@@ -536,7 +537,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   for (int i = (same_machine ? 0 : 1); i < gv.n_interfaces; i++)
   {
     ddsi_xlocator_t xloc = {
-      .conn = gv.xmit_conns[i],
+      .conn = gv.xmit_conns_data[i],
       .c = gv.interfaces[i].extloc
     };
     xloc.c.port = 31416;
@@ -558,7 +559,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
     {
       if (gv.interfaces[i].mc_capable)
       {
-        ddsi_xlocator_t xloc = { .conn = gv.xmit_conns[i], .c = defmcloc };
+        ddsi_xlocator_t xloc = { .conn = gv.xmit_conns_data[i], .c = defmcloc };
         char buf[DDSI_LOCSTRLEN];
         tprintf ("  %s\n", ddsi_xlocator_to_string (buf, sizeof (buf), &xloc));
         ddsi_add_xlocator_to_addrset (&gv, as_default, &xloc);
@@ -621,7 +622,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   ddsi_set_unspec_locator (&pktinfo.src);
   pktinfo.if_index = 0;
   pktinfo.dst.kind = DDSI_LOCATOR_KIND_INVALID;
-  struct ddsi_addrset *as = ddsi_get_endpoint_addrset (&gv, &plist, as_default, &pktinfo, false, false);
+  struct ddsi_addrset *as = ddsi_get_endpoint_addrset (&gv, gv.xmit_conns_data, &plist, as_default, &pktinfo, false, false);
 
   int n = 0;
   while (expected[n])

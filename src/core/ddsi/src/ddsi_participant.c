@@ -783,7 +783,12 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
     ppconn = NULL;
   else
   {
-    const struct ddsi_tran_qos qos = { .m_purpose = DDSI_TRAN_QOS_RECV_UC, .m_diffserv = 0, .m_interface = NULL };
+    const struct ddsi_tran_qos qos = {
+      .m_purpose = DDSI_TRAN_QOS_RECVXMIT_UC,
+      .m_diffserv = 0,
+      .m_interface = &gv->interfaces[0],
+      .m_bind_to_any = true
+    };
     if (ddsi_factory_create_conn (&ppconn, gv->m_factory, 0, &qos) != DDS_RETCODE_OK)
     {
       GVERROR ("ddsi_new_participant("PGUIDFMT", %x) failed: could not create network endpoint\n", PGUID (*ppguid), flags);
