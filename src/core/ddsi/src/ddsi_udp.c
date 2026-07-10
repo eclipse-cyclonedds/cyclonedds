@@ -374,7 +374,7 @@ static int ddsi_udp_conn_locator (struct ddsi_tran_factory * fact_cmn, struct dd
   return ret;
 }
 
-static uint16_t get_socket_port (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock)
+static uint16_t get_socket_addr_port (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock, union addr *addr_out)
 {
   dds_return_t ret;
   union addr addr;
@@ -385,6 +385,7 @@ static uint16_t get_socket_port (struct ddsi_domaingv const * const gv, ddsrt_so
     GVERROR ("ddsi_udp_get_socket_port: getsockname returned %"PRId32"\n", ret);
     return 0;
   }
+  *addr_out = addr;
   return ddsrt_sockaddr_get_port (&addr.a);
 }
 
@@ -754,7 +755,7 @@ static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, stru
 #endif
 
   ddsi_factory_conn_init (&fact->fact, intf, &conn->m_base);
-  conn->m_base.m_base.m_port = get_socket_port (gv, sock);
+  conn->m_base.m_base.m_port = get_socket_addr_port (gv, sock, &conn->m_addr);
   conn->m_base.m_base.m_trantype = DDSI_TRAN_CONN;
   conn->m_base.m_base.m_multicast = (qos->m_purpose == DDSI_TRAN_QOS_RECV_MC);
   conn->m_base.m_base.m_handle_fn = ddsi_udp_conn_handle;
