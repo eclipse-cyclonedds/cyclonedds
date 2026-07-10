@@ -631,6 +631,15 @@ static void joinleave_spdp_defmcip_helper (const ddsi_xlocator_t *loc, void *var
   }
 }
 
+static void add_joinleave_mcaddr_to_addrset (
+    struct ddsi_domaingv *gv, struct ddsi_addrset *as, const ddsi_locator_t *loc)
+{
+  ddsi_locator_t group = *loc;
+  group.port = DDSI_LOCATOR_PORT_INVALID;
+  ddsi_add_xlocator_to_addrset (gv, as, &(const ddsi_xlocator_t) {
+    .conn = gv->disc_conn_mc, .c = group });
+}
+
 static int joinleave_spdp_defmcip (struct ddsi_domaingv *gv, int dojoin)
 {
   bool include_spdp = false, include_default = false;
@@ -652,14 +661,13 @@ static int joinleave_spdp_defmcip (struct ddsi_domaingv *gv, int dojoin)
   }
 
   struct joinleave_spdp_defmcip_helper_arg arg = { .gv = gv, .errcount = 0, .dojoin = dojoin };
-  /* Addrset provides an easy way to filter out duplicates */
+  /* Multicast group membership ignores ports; normalize them away so
+     the addrset filters out duplicate joins for the same group. */
   struct ddsi_addrset *as = ddsi_new_addrset ();
   if (include_spdp)
-    ddsi_add_xlocator_to_addrset (gv, as, &(const ddsi_xlocator_t) {
-      .conn = gv->disc_conn_mc, .c = gv->loc_spdp_mc });
+    add_joinleave_mcaddr_to_addrset (gv, as, &gv->loc_spdp_mc);
   if (include_default)
-    ddsi_add_xlocator_to_addrset (gv, as, &(const ddsi_xlocator_t) {
-      .conn = gv->disc_conn_mc, .c = gv->loc_default_mc });
+    add_joinleave_mcaddr_to_addrset (gv, as, &gv->loc_default_mc);
   ddsi_addrset_forall (as, joinleave_spdp_defmcip_helper, &arg);
   ddsi_unref_addrset (as);
   if (arg.errcount)
