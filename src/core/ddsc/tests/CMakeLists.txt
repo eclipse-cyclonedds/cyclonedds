@@ -134,6 +134,10 @@ if(ENABLE_DEADLINE_MISSED)
   list(APPEND ddsc_test_sources "deadline.c")
 endif()
 
+if(ENABLE_FAKEUDP)
+  list(APPEND ddsc_test_sources "fakeudp_ports.c")
+endif()
+
 if(ENABLE_TYPELIB)
   list(APPEND ddsc_test_sources
     "xtypes_common.c"
