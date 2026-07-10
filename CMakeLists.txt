@@ -308,6 +308,8 @@ if(NOT CYCLONEDDS_BUILD_TESTING STREQUAL "AUTO")
   endif()
 endif()
 
+option(ENABLE_FAKEUDP "Enable the in-process fake UDP transport for tests" ${BUILD_TESTING})
+
 # For special-purpose builds it can be useful to export all symbols from the library,
 # like we do when building the tests.
 option(EXPORT_ALL_SYMBOLS "Export all symbols from the library." OFF)
