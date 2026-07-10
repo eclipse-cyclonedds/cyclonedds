@@ -18,6 +18,7 @@
 #include "dds/version.h"
 #include "CUnit/Test.h"
 #include "config_env.h"
+#include "test_util.h"
 
 CU_Test(ddsc_domain, get_domainid)
 {
@@ -149,7 +150,7 @@ CU_Test(ddsc_domain_create, valid)
   dds_domainid_t did;
   dds_entity_t domain;
 
-  domain = dds_create_domain(1, "<CycloneDDS><Domain><Id>1</Id></Domain></CycloneDDS>");
+  domain = test_create_domain_from_env (1, "<CycloneDDS><Domain><Id>1</Id></Domain></CycloneDDS>");
   CU_ASSERT_GT_FATAL (domain, 0);
 
   ret = dds_get_domainid (domain, &did);
@@ -169,7 +170,7 @@ CU_Test(ddsc_domain_create, mismatch)
   dds_entity_t domain;
 
   /* The config should have been ignored. */
-  domain = dds_create_domain(2, "<CycloneDDS><Domain><Id>3</Id></Domain></CycloneDDS>");
+  domain = test_create_domain_from_env (2, "<CycloneDDS><Domain><Id>3</Id></Domain></CycloneDDS>");
   CU_ASSERT_GT_FATAL (domain, 0);
 
   ret = dds_get_domainid (domain, &did);
@@ -187,7 +188,7 @@ CU_Test(ddsc_domain_create, empty)
   dds_entity_t domain;
 
   /* This should create a domain with default settings. */
-  domain = dds_create_domain(3, "");
+  domain = test_create_domain_from_env (3, "");
   CU_ASSERT_GT_FATAL (domain, 0);
 
   ret = dds_get_domainid (domain, &did);
@@ -205,7 +206,7 @@ CU_Test(ddsc_domain_create, null)
   dds_entity_t domain;
 
   /* This should start create a domain with default settings. */
-  domain = dds_create_domain(5, NULL);
+  domain = test_create_domain_from_env (5, NULL);
   CU_ASSERT_GT_FATAL (domain, 0);
 
   ret = dds_get_domainid (domain, &did);
@@ -221,10 +222,10 @@ CU_Test(ddsc_domain_create, after_domain)
   dds_entity_t domain1;
   dds_entity_t domain2;
 
-  domain1 = dds_create_domain(4, "<CycloneDDS><Domain><Id>any</Id></Domain></CycloneDDS>");
+  domain1 = test_create_domain_from_env (4, "<CycloneDDS><Domain><Id>any</Id></Domain></CycloneDDS>");
   CU_ASSERT_GT_FATAL (domain1, 0);
 
-  domain2 = dds_create_domain(4, "<CycloneDDS><Domain><Id>any</Id></Domain></CycloneDDS>");
+  domain2 = test_create_domain_from_env (4, "<CycloneDDS><Domain><Id>any</Id></Domain></CycloneDDS>");
   CU_ASSERT_EQ_FATAL (domain2, DDS_RETCODE_PRECONDITION_NOT_MET);
 
   dds_delete(domain1);
@@ -238,7 +239,7 @@ CU_Test(ddsc_domain_create, after_participant)
   participant = dds_create_participant (5, NULL, NULL);
   CU_ASSERT_GT_FATAL (participant, 0);
 
-  domain = dds_create_domain(5, "<CycloneDDS><Domain><Id>any</Id></Domain></CycloneDDS>");
+  domain = test_create_domain_from_env (5, "<CycloneDDS><Domain><Id>any</Id></Domain></CycloneDDS>");
   CU_ASSERT_EQ_FATAL (domain, DDS_RETCODE_PRECONDITION_NOT_MET);
 
   dds_delete(participant);
@@ -251,10 +252,10 @@ CU_Test(ddsc_domain_create, diff)
   dds_entity_t domain1;
   dds_entity_t domain2;
 
-  domain1 = dds_create_domain(1, "<CycloneDDS><Domain><Id>any</Id></Domain></CycloneDDS>");
+  domain1 = test_create_domain_from_env (1, "<CycloneDDS><Domain><Id>any</Id></Domain></CycloneDDS>");
   CU_ASSERT_GT_FATAL (domain1, 0);
 
-  domain2 = dds_create_domain(2, "<CycloneDDS><Domain><Id>any</Id></Domain></CycloneDDS>");
+  domain2 = test_create_domain_from_env (2, "<CycloneDDS><Domain><Id>any</Id></Domain></CycloneDDS>");
   CU_ASSERT_GT_FATAL (domain2, 0);
 
   ret = dds_get_domainid (domain1, &did);
@@ -309,21 +310,18 @@ static void logsink (void *varg, const dds_log_data_t *msg)
     arg->buf = ddsrt_realloc (arg->buf, arg->capacity * sizeof (*arg->buf));
   }
   arg->buf[arg->size] = ddsrt_strdup (msg->message);
-  if (strstr (arg->buf[arg->size], "Domain/Tracing/Category"))
+  if (strstr (arg->buf[arg->size], "Domain/Tracing/Category") ||
+      strstr (arg->buf[arg->size], "Domain/General/Transport"))
   {
     // we set this one for the XML config for the purpose of this test, so the
     // tiny difference in the source information needs to be ignored, which we
-    // do by rewriting the {0} to {}
+    // do by rewriting the source set to {}
     char *p = strchr (arg->buf[arg->size], '{');
     CU_ASSERT_NEQ_FATAL (p, NULL);
     p++;
-    CU_ASSERT_FATAL (strcmp (p, "}\n") == 0 || strcmp (p, "0}\n") == 0);
-    if (*p == '0')
-    {
-      *p++ = '}';
-      *p++ = '\n';
-      *p++ = 0;
-    }
+    *p++ = '}';
+    *p++ = '\n';
+    *p++ = 0;
   }
   arg->size++;
 }
@@ -347,7 +345,12 @@ CU_Test(ddsc_domain_create, raw_config)
   struct logsink_arg arg_raw = { .buf = NULL, .capacity = 0, .size = 0 };
 
   dds_set_trace_sink (logsink, &arg_xml);
-  domain = dds_create_domain (1, "<Tracing><Category>config</Category></Tracing>");
+#if DDS_HAS_FAKEUDP
+  const char *xml_config = "<General><Transport>fakeudp</Transport></General><Tracing><Category>config</Category></Tracing>";
+#else
+  const char *xml_config = "<Tracing><Category>config</Category></Tracing>";
+#endif
+  domain = dds_create_domain (1, xml_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   dds_delete (domain);
 
@@ -357,6 +360,10 @@ CU_Test(ddsc_domain_create, raw_config)
      to automatically check all the others */
   CU_ASSERT_EQ (config.tracemask, 0);
   config.tracemask = DDS_LC_CONFIG;
+#ifdef DDS_HAS_FAKEUDP
+  config.transport_selector = DDSI_TRANS_FAKEUDP;
+  config.fake_network_topology_kind = DDSI_FAKENET_TOPOLOGY_BUILTIN;
+#endif
   dds_set_trace_sink (logsink, &arg_raw);
   domain = dds_create_domain_with_rawconfig (1, &config);
   CU_ASSERT_GT_FATAL (domain, 0);
@@ -392,4 +399,3 @@ CU_Test(ddsc_domain_create, raw_config)
     ddsrt_free (arg_raw.buf[i]);
   ddsrt_free (arg_raw.buf);
 }
-

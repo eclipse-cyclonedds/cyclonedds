@@ -10,6 +10,7 @@
 
 #include "CUnit/Theory.h"
 #include "dds/dds.h"
+#include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_typewrap.h"
 #include "test_common.h"
@@ -19,7 +20,9 @@
 CU_Test (ddsc_sertype_default, compare)
 {
   dds_return_t ret;
-  dds_entity_t domain = dds_create_domain (0, NULL);
+  char *config = test_config_from_env (NULL, 0);
+  dds_entity_t domain = dds_create_domain (0, config);
+  ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (domain, 0);
   dds_entity_t participant = dds_create_participant (0, NULL, NULL);
   CU_ASSERT_GEQ_FATAL (participant, 0);
@@ -74,4 +77,3 @@ CU_Test (ddsc_sertype_default, compare)
   dds_free_typeinfo (rd_type_info);
   dds_free_typeinfo (wr_type_info);
 }
-

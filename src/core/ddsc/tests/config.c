@@ -8,7 +8,9 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
+#include <ctype.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "dds/dds.h"
 #include "config_env.h"
@@ -26,7 +28,7 @@
 
 #define FORCE_ENV
 
-static void config__check_env (const char *env_variable, const char *expected_value)
+static dds_return_t config__check_env (const char *env_variable, const char *expected_value)
 {
   const char *env_uri = NULL;
   ddsrt_getenv (env_variable, &env_uri);
@@ -41,32 +43,44 @@ static void config__check_env (const char *env_variable, const char *expected_va
     else
       env_ok = true;
 
-    if (!env_ok)
-    {
-      dds_return_t r = ddsrt_setenv (env_variable, expected_value);
-      CU_ASSERT_EQ_FATAL (r, DDS_RETCODE_OK);
-    }
+    return env_ok ? DDS_RETCODE_OK : ddsrt_setenv (env_variable, expected_value);
   }
 #else
-  CU_ASSERT_NEQ_FATAL (env_uri, NULL)
-  CU_ASSERT_STREQ_FATAL (env_uri, expected_value);
+  return env_uri != NULL && strcmp (env_uri, expected_value) == 0 ? DDS_RETCODE_OK : DDS_RETCODE_ERROR;
 #endif /* FORCE_ENV */
 }
 
 CU_Test (ddsc_config, simple_udp, .init = ddsrt_init, .fini = ddsrt_fini)
 {
-  dds_entity_t participant;
-  config__check_env ("CYCLONEDDS_URI", CONFIG_ENV_SIMPLE_UDP);
-  config__check_env ("MAX_PARTICIPANTS", CONFIG_ENV_MAX_PARTICIPANTS);
-  participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+  struct test_saved_envvar saved_uri, saved_max_participants;
+  dds_return_t rc_uri = test_save_envvar (&saved_uri, "CYCLONEDDS_URI");
+  dds_return_t rc_max_participants = test_save_envvar (&saved_max_participants, "MAX_PARTICIPANTS");
+  dds_entity_t participant = DDS_RETCODE_ERROR;
+
+  if (rc_uri == DDS_RETCODE_OK && rc_max_participants == DDS_RETCODE_OK)
+  {
+    rc_uri = config__check_env ("CYCLONEDDS_URI", CONFIG_ENV_SIMPLE_UDP);
+    rc_max_participants = config__check_env ("MAX_PARTICIPANTS", CONFIG_ENV_MAX_PARTICIPANTS);
+    if (rc_uri == DDS_RETCODE_OK && rc_max_participants == DDS_RETCODE_OK)
+      participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+    if (participant > 0)
+      dds_delete (participant);
+  }
+
+  const dds_return_t rc_restore_max_participants = test_restore_envvar (&saved_max_participants);
+  const dds_return_t rc_restore_uri = test_restore_envvar (&saved_uri);
+
+  CU_ASSERT_EQ_FATAL (rc_uri, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc_max_participants, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc_restore_max_participants, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc_restore_uri, DDS_RETCODE_OK);
   CU_ASSERT_GT_FATAL (participant, 0);
-  dds_delete (participant);
 }
 
 CU_Test (ddsc_config, user_config, .init = ddsrt_init, .fini = ddsrt_fini)
 {
   dds_entity_t domain;
-  domain = dds_create_domain (1,
+  domain = test_create_domain_from_env (1,
                               "<CycloneDDS><Domain><Id>any</Id></Domain>"
                               "<DDSI2E><Internal><MaxParticipants>2</MaxParticipants></Internal></DDSI2E>"
                               "</CycloneDDS>");
@@ -290,7 +304,7 @@ CU_Test(ddsc_security_config, empty, .init = ddsrt_init, .fini = ddsrt_fini)
       NULL
   };
 
-  dds_entity_t participant;
+  dds_entity_t participant = DDS_RETCODE_ERROR;
 
   /* Set up the trace sinks to detect the config parsing. */
   dds_set_log_mask(DDS_LC_FATAL|DDS_LC_ERROR|DDS_LC_WARNING|DDS_LC_CONFIG);
@@ -299,9 +313,17 @@ CU_Test(ddsc_security_config, empty, .init = ddsrt_init, .fini = ddsrt_fini)
 
   /* Create participant with an empty security element. */
   found = 0;
-  ddsrt_setenv("CYCLONEDDS_URI", "<Security/>");
-  participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-  ddsrt_setenv("CYCLONEDDS_URI", "");
+  struct test_saved_envvar saved_uri;
+  dds_return_t rc = test_save_envvar (&saved_uri, "CYCLONEDDS_URI");
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
+  char *config = test_config_from_env ("<Security/>", DDS_DOMAIN_DEFAULT);
+  rc = ddsrt_setenv("CYCLONEDDS_URI", config);
+  ddsrt_free (config);
+  if (rc == DDS_RETCODE_OK)
+    participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
+  const dds_return_t rc_restore = test_restore_envvar (&saved_uri);
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (rc_restore, DDS_RETCODE_OK);
   CU_ASSERT_LT_FATAL (participant, 0);
   dds_set_log_sink(NULL, NULL);
   dds_set_trace_sink(NULL, NULL);
@@ -337,7 +359,7 @@ CU_Test(ddsc_security_qos, empty, .init = ddsrt_init, .fini = ddsrt_fini)
   found = 0;
   dds_qos_t *qos = dds_create_qos ();
   dds_qset_prop (qos, "dds.sec.nonsense", "");
-  dds_entity_t domain = dds_create_domain (0, "<Tracing><Category>trace</Category>");
+  dds_entity_t domain = test_create_domain_from_env (0, "<Tracing><Category>trace</Category>");
   CU_ASSERT_GT_FATAL (domain, 0);
   dds_entity_t participant = dds_create_participant (0, qos, NULL);
   dds_delete_qos (qos);
@@ -424,7 +446,7 @@ CU_Test(ddsc_config, multiple_domains, .init = ddsrt_init, .fini = ddsrt_fini)
   </Domain>\
 </CycloneDDS>\
 ";
-  const char *exp[][4] = {
+  const char *exp_strict[][4] = {
     {
       "*config: Domain/Discovery/Tag/#text: W {1}*",
       "*config: Domain/Compatibility/StandardsConformance/#text: strict {0}*",
@@ -444,6 +466,32 @@ CU_Test(ddsc_config, multiple_domains, .init = ddsrt_init, .fini = ddsrt_fini)
       NULL
     }
   };
+  const char *exp_uripresent[][4] = {
+    {
+      "*config: Domain/Discovery/Tag/#text: W {*}*",
+      "*config: Domain/Compatibility/StandardsConformance/#text: strict {*}*",
+      "*config: Domain[@Id]: 53 {*}*",
+      NULL
+    },
+    {
+      "*config: Domain/Discovery/Tag/#text:  {}*",
+      "*config: Domain/Compatibility/StandardsConformance/#text: strict {*}*",
+      "*config: Domain[@Id]: 54 {*}*",
+      NULL
+    },
+    {
+      "*config: Domain/Discovery/Tag/#text: A {*}*",
+      "*config: Domain/Compatibility/StandardsConformance/#text: strict {*}*",
+      "*config: Domain[@Id]: 57 {*}*",
+      NULL
+    }
+  };
+  const char *uri = "";
+  if (ddsrt_getenv("CYCLONEDDS_URI", &uri) != DDS_RETCODE_OK)
+    uri = "";
+  while (*uri && isspace ((unsigned char) *uri))
+    uri++;
+  const char *(*exp)[4] = (uri && *uri) ? exp_uripresent : exp_strict;
   dds_entity_t doms[3];
 
   dds_set_log_mask (DDS_LC_FATAL|DDS_LC_ERROR|DDS_LC_WARNING|DDS_LC_CONFIG);
@@ -451,7 +499,7 @@ CU_Test(ddsc_config, multiple_domains, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_set_log_sink (&logger, (void *) exp[0]);
   dds_set_trace_sink (&logger, (void *) exp[0]);
   found = 0;
-  doms[0] = dds_create_domain (53, config);
+  doms[0] = test_create_domain_from_env (53, config);
   CU_ASSERT_GT_FATAL (doms[0], 0);
   tprintf ("found = %d\n", found);
   CU_ASSERT_EQ_FATAL (found, 7);
@@ -459,7 +507,7 @@ CU_Test(ddsc_config, multiple_domains, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_set_log_sink (&logger, (void *) exp[1]);
   dds_set_trace_sink (&logger, (void *) exp[1]);
   found = 0;
-  doms[1] = dds_create_domain (54, config);
+  doms[1] = test_create_domain_from_env (54, config);
   CU_ASSERT_FATAL (doms[1] > 0 && doms[1] != doms[0]);
   tprintf ("found = %d\n", found);
   CU_ASSERT_EQ_FATAL (found, 7);
@@ -467,7 +515,7 @@ CU_Test(ddsc_config, multiple_domains, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_set_log_sink (&logger, (void *) exp[2]);
   dds_set_trace_sink (&logger, (void *) exp[2]);
   found = 0;
-  doms[2] = dds_create_domain (57, config);
+  doms[2] = test_create_domain_from_env (57, config);
   CU_ASSERT_FATAL (doms[2] > 0 && doms[2] != doms[1] && doms[2] != doms[0]);
   tprintf ("found = %d\n", found);
   CU_ASSERT_EQ_FATAL (found, 7);

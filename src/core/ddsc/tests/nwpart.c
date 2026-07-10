@@ -664,18 +664,28 @@ CU_Theory ((const char *pistr, const char *msmstr), ddsc_nwpart, full_stack_init
   CU_PASS ("no network partitions in build");
 #else
   dds_return_t rc;
-  // start up domain with default config to discover the interface name
-  // use a high value for "max auto participant index" to avoid spurious
-  // failures caused by running several tests in parallel (using a unique
-  // domain id would help, too, but where to find a unique id?)
-  dds_entity_t eh = dds_create_domain (0, NULL);
+  const char *transport = test_config_inherits_fakeudp () ? "<Transport>fakeudp</Transport>" : "";
+  char *config = NULL;
+
+  // Start up a domain to discover the interface name.  Do not inherit the
+  // full CYCLONEDDS_URI here: the test constructs an explicit interface
+  // selection below, and inheriting one from the environment as well can select
+  // the same interface twice.  Preserve the fakeudp transport choice because
+  // the test suite may be running with fake network topologies.
+  (void) ddsrt_asprintf (&config, "<General>%s</General>", transport);
+  dds_entity_t eh = dds_create_domain (0, config);
+  ddsrt_free (config);
   CU_ASSERT_GT_FATAL (eh, 0);
   const struct ddsi_domaingv *gv = get_domaingv (eh);
   CU_ASSERT_NEQ_FATAL (gv, NULL);
-  // construct a configuration using this interface
-  char *config = NULL;
+  // Construct a configuration using this interface.  Use a high value for
+  // "max auto participant index" to avoid spurious failures caused by running
+  // several tests in parallel (using a unique domain id would help, too, but
+  // where to find a unique id?)
+  config = NULL;
   (void) ddsrt_asprintf (&config,
     "<General>"
+    "  %s"
     "  <Interfaces>"
     "    <NetworkInterface name=\"%s\"/>"
     "  </Interfaces>"
@@ -692,6 +702,7 @@ CU_Theory ((const char *pistr, const char *msmstr), ddsc_nwpart, full_stack_init
     "    <NetworkPartition name=\"part\" address=\"239.255.0.13\" interface=\"%s\"/>"
     "  </NetworkPartitions>"
     "</Partitioning>",
+    transport,
     gv->interfaces[0].name,
     pistr,
     msmstr,

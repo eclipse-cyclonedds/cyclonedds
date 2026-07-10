@@ -18,6 +18,7 @@
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/time.h"
+#include "test_util.h"
 
 
 #define N_THREADS (10)
@@ -102,7 +103,7 @@ CU_Test (ddsc_domain, torture_explicit)
   dds_entity_t domain;
 
   /* Create domain explicitly. */
-  domain = dds_create_domain(1, "");
+  domain = test_create_domain_from_env (1, "");
   CU_ASSERT_GT_FATAL (domain, 0);
 
   /* Start creating and deleting participants on the

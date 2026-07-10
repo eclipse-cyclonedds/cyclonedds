@@ -24,7 +24,9 @@ static dds_entity_t domain = 0, participant = 0;
 
 static void dynamic_type_init(void)
 {
-  domain = dds_create_domain (0, NULL);
+  char *config = test_config_from_env (NULL, 0);
+  domain = dds_create_domain (0, config);
+  ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (domain, 0);
   participant = dds_create_participant (0, NULL, NULL);
   CU_ASSERT_GEQ_FATAL (participant, 0);
@@ -32,7 +34,9 @@ static void dynamic_type_init(void)
 
 static void dynamic_type_no_recursive_init(void)
 {
-  domain = dds_create_domain (0, "<Compatibility><AllowRecursiveTypes>false</AllowRecursiveTypes></Compatibility>");
+  char *config = test_config_from_env ("<Compatibility><AllowRecursiveTypes>false</AllowRecursiveTypes></Compatibility>", 0);
+  domain = dds_create_domain (0, config);
+  ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (domain, 0);
   participant = dds_create_participant (0, NULL, NULL);
   CU_ASSERT_GEQ_FATAL (participant, 0);
@@ -678,7 +682,9 @@ CU_Test (ddsc_dynamic_type, existing, .init = dynamic_type_init, .fini = dynamic
   create_unique_topic_name ("ddsc_dynamic_type", topic_name, sizeof (topic_name));
 
   // Create participant2 with writer
-  dds_entity_t domain2 = dds_create_domain (1, "<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>");
+  char *config = test_config_from_env ("<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>", 1);
+  dds_entity_t domain2 = dds_create_domain (1, config);
+  ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (domain2, 0);
   dds_entity_t participant2 = dds_create_participant (1, NULL, NULL);
   CU_ASSERT_GEQ_FATAL (participant2, 0);
@@ -879,7 +885,9 @@ CU_Test (ddsc_dynamic_type, recursive_struct_disabled_nested_cycle, .init = dyna
 
 static void recursive_import_expect (const ddsi_typeinfo_t *type_info, const ddsi_typemap_t *type_map, dds_domainid_t domainid, dds_return_t expected)
 {
-  dds_entity_t import_domain = dds_create_domain (domainid, NULL);
+  char *config = test_config_from_env (NULL, domainid);
+  dds_entity_t import_domain = dds_create_domain (domainid, config);
+  ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (import_domain, 0);
   dds_entity_t import_participant = dds_create_participant (domainid, NULL, NULL);
   CU_ASSERT_GEQ_FATAL (import_participant, 0);
@@ -1046,7 +1054,9 @@ CU_Test (ddsc_dynamic_type, recursive_struct, .init = dynamic_type_init, .fini =
   ddsi_typemap_t *type_map = ddsi_typemap_deser (typemap_ser, typemap_ser_sz);
   CU_ASSERT_NEQ_FATAL (type_map, NULL);
 
-  dds_entity_t import_domain = dds_create_domain (1, NULL);
+  char *config = test_config_from_env (NULL, 1);
+  dds_entity_t import_domain = dds_create_domain (1, config);
+  ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (import_domain, 0);
   dds_entity_t import_participant = dds_create_participant (1, NULL, NULL);
   CU_ASSERT_GEQ_FATAL (import_participant, 0);
