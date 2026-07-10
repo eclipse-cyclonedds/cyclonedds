@@ -194,7 +194,7 @@ static void create_fake_proxy_participant (void)
     SENTINEL
   };
   struct ddsi_network_packet_info pktinfo;
-  ddsi_conn_locator (gv.xmit_conns[0], &pktinfo.src);
+  ddsi_conn_locator (gv.xmit_conns_meta[0], &pktinfo.src);
   pktinfo.src.port = xport;
   pktinfo.dst.kind = DDSI_LOCATOR_KIND_INVALID;
   pktinfo.if_index = 0;
@@ -212,7 +212,7 @@ static void create_fake_proxy_participant (void)
   memcpy (buf, spdp_pkt, sizeof (spdp_pkt));
   size += sizeof (spdp_pkt);
   ddsi_rmsg_setsize (rmsg, (uint32_t) size);
-  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, size, &pktinfo);
+  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc[0], NULL, rbufpool, rmsg, size, &pktinfo);
   ddsi_rmsg_commit (rmsg);
   // wait until SPDP message has been processed
   wait_for_dqueue ();
@@ -293,7 +293,7 @@ static void send_pmd_message (uint32_t seqlo, uint16_t encoding, uint16_t option
   // over the network.  Stack is deaf (and mute), so there is no risk that the
   // message gets dropped because some buffer is full
   struct ddsi_network_packet_info pktinfo;
-  ddsi_conn_locator (gv.xmit_conns[0], &pktinfo.src);
+  ddsi_conn_locator (gv.xmit_conns_meta[0], &pktinfo.src);
   pktinfo.dst.kind = DDSI_LOCATOR_KIND_INVALID;
   pktinfo.if_index = 0;
   struct ddsi_rmsg *rmsg = ddsi_rmsg_new (rbufpool);
@@ -302,7 +302,7 @@ static void send_pmd_message (uint32_t seqlo, uint16_t encoding, uint16_t option
   memcpy (buf, pmd_pkt, sizeof (pmd_pkt));
   size += sizeof (pmd_pkt) - 24 + act_payload_size;
   ddsi_rmsg_setsize (rmsg, (uint32_t) size);
-  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, size, &pktinfo);
+  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc[0], NULL, rbufpool, rmsg, size, &pktinfo);
   ddsi_rmsg_commit (rmsg);
   // wait until PMD message has been processed
   wait_for_dqueue ();

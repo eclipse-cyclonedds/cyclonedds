@@ -832,7 +832,7 @@ int main (int argc, char **argv)
   (void) ddsi_ref_addrset (ptr);
   ddsi_unref_addrset (ptr);
   (void) ddsi_new_addrset ();
-  ddsi_add_locator_to_addrset (ptr, ptr2, ptr3);
+  ddsi_add_locator_to_addrset (ptr, ptr2, ptr3, ptr4);
 
   // ddsi/ddsi_tran.h
   (void) ddsi_locator_to_string (ptr, 0, ptr2);

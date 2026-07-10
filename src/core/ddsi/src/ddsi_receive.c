@@ -3563,7 +3563,7 @@ void ddsi_trigger_recv_threads (const struct ddsi_domaingv *gv)
         DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR(msgfrags, ((ddsrt_iovec_t){ .iov_base = &dummy, .iov_len = 1 }));
         GVTRACE ("ddsi_trigger_recv_threads: %"PRIu32" single %s\n", i, ddsi_locator_to_string (buf, sizeof (buf), dst));
         // all sockets listen on at least the interfaces used for transmitting (at least for now)
-        ddsi_conn_write (gv->xmit_conns[0], dst, msgfrags, 0, NULL);
+        ddsi_conn_write (gv->xmit_conns_data[0], dst, msgfrags, 0, NULL);
         break;
       }
       case DDSI_RTM_MANY: {
@@ -3603,12 +3603,21 @@ uint32_t ddsi_recv_thread (void *vrecv_thread_arg)
     if (gv->m_factory->m_connless)
     {
       int rc;
-      if ((rc = recv_thread_waitset_add_conn (waitset, gv->disc_conn_uc)) < 0)
-        DDS_FATAL("recv_thread: failed to add disc_conn_uc to waitset\n");
-      num_fixed_uc += (unsigned)rc;
-      if ((rc = recv_thread_waitset_add_conn (waitset, gv->data_conn_uc)) < 0)
-        DDS_FATAL("recv_thread: failed to add data_conn_uc to waitset\n");
-      num_fixed_uc += (unsigned)rc;
+      for (int i = 0; i < gv->n_interfaces; i++)
+      {
+        if (gv->disc_conn_uc[i])
+        {
+          if ((rc = recv_thread_waitset_add_conn (waitset, gv->disc_conn_uc[i])) < 0)
+            DDS_FATAL("recv_thread: failed to add disc_conn_uc[%d] to waitset\n", i);
+          num_fixed_uc += (unsigned)rc;
+        }
+        if (gv->data_conn_uc[i])
+        {
+          if ((rc = recv_thread_waitset_add_conn (waitset, gv->data_conn_uc[i])) < 0)
+            DDS_FATAL("recv_thread: failed to add data_conn_uc[%d] to waitset\n", i);
+          num_fixed_uc += (unsigned)rc;
+        }
+      }
       num_fixed += num_fixed_uc;
       if ((rc = recv_thread_waitset_add_conn (waitset, gv->disc_conn_mc)) < 0)
         DDS_FATAL("recv_thread: failed to add disc_conn_mc to waitset\n");
@@ -3623,9 +3632,9 @@ uint32_t ddsi_recv_thread (void *vrecv_thread_arg)
       {
         // Iceoryx gets added as a pseudo-interface but there's no socket to wait
         // for input on
-        if (ddsi_conn_handle (gv->xmit_conns[i]) == DDSRT_INVALID_SOCKET)
+        if (ddsi_conn_handle (gv->xmit_conns_data[i]) == DDSRT_INVALID_SOCKET)
           continue;
-        if ((rc = recv_thread_waitset_add_conn (waitset, gv->xmit_conns[i])) < 0)
+        if ((rc = recv_thread_waitset_add_conn (waitset, gv->xmit_conns_data[i])) < 0)
           DDS_FATAL("recv_thread: failed to add transmit_conn[%d] to waitset\n", i);
         num_fixed += (unsigned)rc;
       }

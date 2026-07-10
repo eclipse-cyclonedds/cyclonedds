@@ -114,6 +114,8 @@ struct ddsi_domaingv {
   struct ddsi_tran_factory *ddsi_tran_factories;
   struct ddsi_tran_factory *m_factory;
 
+#define MAX_XMIT_CONNS 4
+
   /* Connections for multicast discovery & data, and those that correspond
      to the one DDSI participant index that the DDSI service uses. The
      DCPS participant of DDSI itself will be mirrored in a DDSI
@@ -121,10 +123,13 @@ struct ddsi_domaingv {
      socket. */
   struct ddsi_tran_conn * disc_conn_mc;
   struct ddsi_tran_conn * data_conn_mc;
-  struct ddsi_tran_conn * disc_conn_uc;
-  struct ddsi_tran_conn * data_conn_uc;
+  struct ddsi_tran_conn * disc_conn_uc[MAX_XMIT_CONNS];
+  struct ddsi_tran_conn * data_conn_uc[MAX_XMIT_CONNS];
 
-  /* Connection used for all output (for connectionless transports), this
+  /* Connections used for output (for connectionless transports), split
+     between metatraffic and user data so the source port can follow the
+     corresponding well-known unicast receive port.  The arrays may alias
+     other connections, including the receive connections above.  This
      used to simply be data_conn_uc, but:
 
      - Windows has a quirk that makes multicast delivery within a machine
@@ -147,8 +152,8 @@ struct ddsi_domaingv {
      The only work around is to use a separate socket for sending.  It is
      rather sad that Cyclone needs to work around the bugs of the others,
      but it seems the only way to get the users what they expect. */
-#define MAX_XMIT_CONNS 4
-  struct ddsi_tran_conn * xmit_conns[MAX_XMIT_CONNS];
+  struct ddsi_tran_conn * xmit_conns_meta[MAX_XMIT_CONNS];
+  struct ddsi_tran_conn * xmit_conns_data[MAX_XMIT_CONNS];
   ddsi_xlocator_t intf_xlocators[MAX_XMIT_CONNS];
 
   /* TCP listener */

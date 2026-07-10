@@ -229,7 +229,7 @@ void fuzz_handshake_reset(bool initiate_remote) {
       .kind = 2147483647, .address = {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}, .port = 0
     };
     struct ddsi_addrset *as = ddsi_new_addrset();
-    ddsi_add_locator_to_addrset(&gv,as, &loc);
+    ddsi_add_locator_to_addrset(&gv,as, &loc, gv.xmit_conns_data);
     assert(!ddsi_addrset_empty_uc(as));
 
     ddsi_thread_state_awake(ddsi_lookup_thread_state(), &gv);

@@ -85,6 +85,15 @@ enum make_uc_sockets_ret {
 static enum make_uc_sockets_ret make_uc_sockets (struct ddsi_domaingv *gv, uint32_t * pdisc, uint32_t * pdata, int ppid)
 {
   dds_return_t rc;
+  int recv_uc_interface_count = 0;
+  for (int i = 0; i < gv->n_interfaces; i++)
+    if (ddsi_factory_supports (gv->m_factory, gv->interfaces[i].loc.kind))
+      recv_uc_interface_count++;
+  const bool per_interface_uc =
+    (gv->config.transport_selector == DDSI_TRANS_UDP || gv->config.transport_selector == DDSI_TRANS_UDP6) &&
+    recv_uc_interface_count > 1 &&
+    gv->config.many_sockets_mode != DDSI_MSM_NO_UNICAST;
+  const int n_uc_conns = per_interface_uc ? gv->n_interfaces : 1;
 
   if (gv->config.many_sockets_mode == DDSI_MSM_NO_UNICAST)
   {
@@ -109,29 +118,58 @@ static enum make_uc_sockets_ret make_uc_sockets (struct ddsi_domaingv *gv, uint3
   if (*pdata != DDSI_TRAN_RANDOM_PORT_NUMBER && !ddsi_is_valid_port (gv->m_factory, *pdata))
     return MUSRET_INVALID_PORTS;
 
-  const struct ddsi_tran_qos qos = { .m_purpose = DDSI_TRAN_QOS_RECV_UC, .m_diffserv = 0, .m_interface = NULL };
-  rc = ddsi_factory_create_conn (&gv->disc_conn_uc, gv->m_factory, *pdisc, &qos);
-  if (rc != DDS_RETCODE_OK)
-    goto fail_disc;
-
-  if (*pdata == 0 || *pdata == *pdisc)
-    gv->data_conn_uc = gv->disc_conn_uc;
-  else
+  const bool random_disc_port = (*pdisc == DDSI_TRAN_RANDOM_PORT_NUMBER);
+  for (int i = 0; i < n_uc_conns; i++)
   {
-    rc = ddsi_factory_create_conn (&gv->data_conn_uc, gv->m_factory, *pdata, &qos);
+    if (per_interface_uc && !ddsi_factory_supports (gv->m_factory, gv->interfaces[i].loc.kind))
+      continue;
+
+    const struct ddsi_tran_qos qos = {
+      .m_purpose = DDSI_TRAN_QOS_RECVXMIT_UC,
+      .m_diffserv = 0,
+      .m_interface = &gv->interfaces[i],
+      .m_bind_to_any = !per_interface_uc
+    };
+    rc = ddsi_factory_create_conn (&gv->disc_conn_uc[i], gv->m_factory, *pdisc, &qos);
     if (rc != DDS_RETCODE_OK)
-      goto fail_data;
+      goto fail;
+    if (random_disc_port && *pdisc == DDSI_TRAN_RANDOM_PORT_NUMBER)
+      *pdisc = ddsi_conn_port (gv->disc_conn_uc[i]);
+
+    if (*pdata == 0 || *pdata == *pdisc)
+    {
+      gv->data_conn_uc[i] = gv->disc_conn_uc[i];
+      if (*pdata == DDSI_TRAN_RANDOM_PORT_NUMBER)
+        *pdata = *pdisc;
+    }
+    else
+    {
+      rc = ddsi_factory_create_conn (&gv->data_conn_uc[i], gv->m_factory, *pdata, &qos);
+      if (rc != DDS_RETCODE_OK)
+        goto fail;
+    }
   }
-  ddsi_conn_locator (gv->disc_conn_uc, &gv->loc_meta_uc);
-  ddsi_conn_locator (gv->data_conn_uc, &gv->loc_default_uc);
+  ddsi_conn_locator (gv->disc_conn_uc[0], &gv->loc_meta_uc);
+  ddsi_conn_locator (gv->data_conn_uc[0], &gv->loc_default_uc);
   *pdisc = gv->loc_meta_uc.port;
   *pdata = gv->loc_default_uc.port;
   return MUSRET_SUCCESS;
 
-fail_data:
-  ddsi_conn_free (gv->disc_conn_uc);
-  gv->disc_conn_uc = NULL;
-fail_disc:
+fail:
+  for (int i = 0; i < n_uc_conns; i++)
+  {
+    if (gv->data_conn_uc[i] && gv->data_conn_uc[i] != gv->disc_conn_uc[i])
+    {
+      ddsi_conn_free (gv->data_conn_uc[i]);
+      gv->data_conn_uc[i] = NULL;
+    }
+    if (gv->disc_conn_uc[i])
+    {
+      ddsi_conn_free (gv->disc_conn_uc[i]);
+      gv->disc_conn_uc[i] = NULL;
+    }
+    gv->data_conn_uc[i] = NULL;
+  }
   if (rc == DDS_RETCODE_PRECONDITION_NOT_MET)
     return MUSRET_PORTS_IN_USE;
   return MUSRET_ERROR;
@@ -617,9 +655,11 @@ static int joinleave_spdp_defmcip (struct ddsi_domaingv *gv, int dojoin)
   /* Addrset provides an easy way to filter out duplicates */
   struct ddsi_addrset *as = ddsi_new_addrset ();
   if (include_spdp)
-    ddsi_add_locator_to_addrset (gv, as, &gv->loc_spdp_mc);
+    ddsi_add_xlocator_to_addrset (gv, as, &(const ddsi_xlocator_t) {
+      .conn = gv->disc_conn_mc, .c = gv->loc_spdp_mc });
   if (include_default)
-    ddsi_add_locator_to_addrset (gv, as, &gv->loc_default_mc);
+    ddsi_add_xlocator_to_addrset (gv, as, &(const ddsi_xlocator_t) {
+      .conn = gv->disc_conn_mc, .c = gv->loc_default_mc });
   ddsi_addrset_forall (as, joinleave_spdp_defmcip_helper, &arg);
   ddsi_unref_addrset (as);
   if (arg.errcount)
@@ -632,7 +672,12 @@ static int joinleave_spdp_defmcip (struct ddsi_domaingv *gv, int dojoin)
 
 static int create_multicast_sockets (struct ddsi_domaingv *gv)
 {
-  const struct ddsi_tran_qos qos = { .m_purpose = DDSI_TRAN_QOS_RECV_MC, .m_diffserv = 0, .m_interface = NULL };
+  const struct ddsi_tran_qos qos = {
+    .m_purpose = DDSI_TRAN_QOS_RECV_MC,
+    .m_diffserv = 0,
+    .m_interface = NULL,
+    .m_bind_to_any = true
+  };
   struct ddsi_tran_conn * disc, * data;
   uint32_t port;
 
@@ -896,14 +941,18 @@ static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
       ddsi_conn_disable_multiplexing (gv->data_conn_mc);
       gv->n_recv_threads++;
     }
-    if (gv->config.many_sockets_mode == DDSI_MSM_SINGLE_UNICAST)
+    bool single_data_uc = (gv->data_conn_uc[0] != NULL);
+    for (int i = 1; i < gv->n_interfaces && single_data_uc; i++)
+      if (gv->data_conn_uc[i] != NULL && gv->data_conn_uc[i] != gv->data_conn_uc[0])
+        single_data_uc = false;
+    if (gv->config.many_sockets_mode == DDSI_MSM_SINGLE_UNICAST && single_data_uc)
     {
       /* No per-participant sockets => handle data unicasts on a separate thread as well */
       gv->recv_threads[gv->n_recv_threads].name = "recvUC";
       gv->recv_threads[gv->n_recv_threads].arg.mode = DDSI_RTM_SINGLE;
-      gv->recv_threads[gv->n_recv_threads].arg.u.single.conn = gv->data_conn_uc;
+      gv->recv_threads[gv->n_recv_threads].arg.u.single.conn = gv->data_conn_uc[0];
       gv->recv_threads[gv->n_recv_threads].arg.u.single.loc = &gv->loc_default_uc;
-      ddsi_conn_disable_multiplexing (gv->data_conn_uc);
+      ddsi_conn_disable_multiplexing (gv->data_conn_uc[0]);
       gv->n_recv_threads++;
     }
   }
@@ -997,9 +1046,14 @@ static void free_conns (struct ddsi_domaingv *gv)
 {
   // Depending on settings, various "conn"s can alias others, this makes sure we free each one only once
   // FIXME: perhaps store them in a table instead?
-  struct ddsi_tran_conn * cs[4 + MAX_XMIT_CONNS] = { gv->disc_conn_mc, gv->data_conn_mc, gv->disc_conn_uc, gv->data_conn_uc };
+  struct ddsi_tran_conn * cs[2 + 4 * MAX_XMIT_CONNS] = { gv->disc_conn_mc, gv->data_conn_mc };
   for (size_t i = 0; i < MAX_XMIT_CONNS; i++)
-    cs[4 + i] = gv->xmit_conns[i];
+  {
+    cs[2 + i] = gv->disc_conn_uc[i];
+    cs[2 + MAX_XMIT_CONNS + i] = gv->data_conn_uc[i];
+    cs[2 + 2 * MAX_XMIT_CONNS + i] = gv->xmit_conns_meta[i];
+    cs[2 + 3 * MAX_XMIT_CONNS + i] = gv->xmit_conns_data[i];
+  }
   for (size_t i = 0; i < sizeof (cs) / sizeof (cs[0]); i++)
   {
     if (cs[i] == NULL)
@@ -1118,12 +1172,15 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
 
   ddsi_plist_init_tables ();
 
-  gv->disc_conn_uc = NULL;
-  gv->data_conn_uc = NULL;
   gv->disc_conn_mc = NULL;
   gv->data_conn_mc = NULL;
   for (size_t i = 0; i < MAX_XMIT_CONNS; i++)
-    gv->xmit_conns[i] = NULL;
+  {
+    gv->disc_conn_uc[i] = NULL;
+    gv->data_conn_uc[i] = NULL;
+    gv->xmit_conns_meta[i] = NULL;
+    gv->xmit_conns_data[i] = NULL;
+  }
   gv->listener = NULL;
   gv->debmon = NULL;
   gv->n_recv_threads = 0;
@@ -1491,7 +1548,7 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
         allow_multicast = true;
 
     if (!(gv->config.many_sockets_mode == DDSI_MSM_NO_UNICAST && allow_multicast))
-      GVLOG (DDS_LC_CONFIG, "Unicast Ports: discovery %"PRIu32" data %"PRIu32"\n", ddsi_conn_port (gv->disc_conn_uc), ddsi_conn_port (gv->data_conn_uc));
+      GVLOG (DDS_LC_CONFIG, "Unicast Ports: discovery %"PRIu32" data %"PRIu32"\n", ddsi_conn_port (gv->disc_conn_uc[0]), ddsi_conn_port (gv->data_conn_uc[0]));
 
     if (allow_multicast)
     {
@@ -1500,11 +1557,14 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
 
       if (gv->config.many_sockets_mode == DDSI_MSM_NO_UNICAST)
       {
-        gv->data_conn_uc = gv->data_conn_mc;
-        gv->disc_conn_uc = gv->disc_conn_mc;
+        for (int i = 0; i < gv->n_interfaces; i++)
+        {
+          gv->data_conn_uc[i] = gv->data_conn_mc;
+          gv->disc_conn_uc[i] = gv->disc_conn_mc;
+        }
         // FIXME: uc locators get set by make_uc_sockets for all cases but MSM_NO_UNICAST but we need them
-        ddsi_conn_locator (gv->disc_conn_uc, &gv->loc_meta_uc);
-        ddsi_conn_locator (gv->data_conn_uc, &gv->loc_default_uc);
+        ddsi_conn_locator (gv->disc_conn_uc[0], &gv->loc_meta_uc);
+        ddsi_conn_locator (gv->data_conn_uc[0], &gv->loc_default_uc);
       }
 
       /* Set multicast locators */
@@ -1546,37 +1606,51 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
 
   /* Create transmit connections */
   for (size_t i = 0; i < MAX_XMIT_CONNS; i++)
-    gv->xmit_conns[i] = NULL;
-  if (gv->config.many_sockets_mode == DDSI_MSM_NO_UNICAST)
   {
-    gv->xmit_conns[0] = gv->data_conn_uc;
+    gv->xmit_conns_meta[i] = NULL;
+    gv->xmit_conns_data[i] = NULL;
   }
-  else
+  const bool use_udp_receive_for_xmit =
+    gv->m_factory->m_connless &&
+    (gv->config.transport_selector == DDSI_TRANS_UDP || gv->config.transport_selector == DDSI_TRANS_UDP6);
+  dds_return_t rc;
+  for (int i = 0; i < gv->n_interfaces; i++)
   {
-    dds_return_t rc;
-    for (int i = 0; i < gv->n_interfaces; i++)
+    if (use_udp_receive_for_xmit && ddsi_factory_supports (gv->m_factory, gv->interfaces[i].loc.kind))
     {
-      const struct ddsi_tran_qos qos = {
-        .m_purpose = (gv->interfaces[i].allow_multicast ? DDSI_TRAN_QOS_XMIT_MC : DDSI_TRAN_QOS_XMIT_UC),
-        .m_diffserv = 0,
-        .m_interface = &gv->interfaces[i]
-      };
-      // FIXME: looking up the factory here is a hack to support PSMX in addition to (e.g.) UDP
-      struct ddsi_tran_factory * fact = ddsi_factory_find_supported_kind (gv, gv->interfaces[i].loc.kind);
-      rc = ddsi_factory_create_conn (&gv->xmit_conns[i], fact, 0, &qos);
-      if (rc != DDS_RETCODE_OK)
-        goto err_mc_conn;
+      const int j = gv->disc_conn_uc[i] ? i : 0;
+      gv->xmit_conns_meta[i] = gv->disc_conn_uc[j];
+      gv->xmit_conns_data[i] = gv->data_conn_uc[j];
+      continue;
     }
+
+    const struct ddsi_tran_qos qos = {
+      .m_purpose = (gv->interfaces[i].allow_multicast ? DDSI_TRAN_QOS_XMIT_MC : DDSI_TRAN_QOS_XMIT_UC),
+      .m_diffserv = 0,
+      .m_interface = &gv->interfaces[i],
+      .m_bind_to_any = false
+    };
+    // FIXME: looking up the factory here is a hack to support PSMX in addition to (e.g.) UDP
+    struct ddsi_tran_factory * fact = ddsi_factory_find_supported_kind (gv, gv->interfaces[i].loc.kind);
+    assert (fact != NULL);
+    struct ddsi_tran_conn *xmit_conn;
+    rc = ddsi_factory_create_conn (&xmit_conn, fact, 0, &qos);
+    if (rc != DDS_RETCODE_OK)
+      goto err_mc_conn;
+    gv->xmit_conns_meta[i] = xmit_conn;
+    gv->xmit_conns_data[i] = xmit_conn;
   }
   for (int i = 0; i < gv->n_interfaces; i++)
   {
-    GVLOG (DDS_LC_CONFIG, "interface %s: transmit port %d\n", gv->interfaces[i].name, (int) ddsi_conn_port (gv->xmit_conns[i]));
-    gv->intf_xlocators[i].conn = gv->xmit_conns[i];
+    assert (gv->xmit_conns_meta[i] != NULL);
+    assert (gv->xmit_conns_data[i] != NULL);
+    GVLOG (DDS_LC_CONFIG, "interface %s: transmit ports meta %d data %d\n", gv->interfaces[i].name, (int) ddsi_conn_port (gv->xmit_conns_meta[i]), (int) ddsi_conn_port (gv->xmit_conns_data[i]));
+    gv->intf_xlocators[i].conn = gv->xmit_conns_meta[i];
     gv->intf_xlocators[i].c = gv->interfaces[i].loc;
-    gv->intf_xlocators[i].c.port = ddsi_conn_port (gv->xmit_conns[i]);
+    gv->intf_xlocators[i].c.port = ddsi_conn_port (gv->xmit_conns_meta[i]);
   }
 
-  // Now that we know the interfaces and xmit_conns, we can convert the strings in the
+  // Now that we know the interfaces and transmit connections, we can convert the strings in the
   // network partition configuration to something useful.  Addresses must go first to
   // satisfy some assertions
   if (ddsi_convert_nwpart_config (gv, port_data_uc) < 0)

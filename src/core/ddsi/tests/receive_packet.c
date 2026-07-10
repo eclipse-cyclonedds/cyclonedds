@@ -339,8 +339,8 @@ static void receive_packet_init (ddsi_guid_t *rdguid, ddsi_guid_t *wrguid, bool 
   struct ddsi_addrset *proxypp_as = ddsi_new_addrset ();
   struct ddsi_proxy_participant *proxy_participant;
   ddsi_locator_t loc = ucloc[1]; loc.port = 1000;
-  ddsi_add_locator_to_addrset (&gv, proxypp_as, &loc);
-  ddsi_add_locator_to_addrset (&gv, proxypp_as, &mcloc);
+  ddsi_add_locator_to_addrset (&gv, proxypp_as, &loc, gv.xmit_conns_data);
+  ddsi_add_locator_to_addrset (&gv, proxypp_as, &mcloc, gv.xmit_conns_data);
   const uint32_t bes = 0
   | DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER;
   ddsi_new_proxy_participant (&proxy_participant, &gv, &wrppguid, bes, proxypp_as, ddsi_ref_addrset (proxypp_as), &plist_pp[1], DDS_INFINITY, DDSI_VENDORID_ECLIPSE, ddsrt_time_wallclock (), 1);
@@ -369,8 +369,8 @@ static void receive_packet_init (ddsi_guid_t *rdguid, ddsi_guid_t *wrguid, bool 
     plist_wr.qos.topic_name = "Q";
     plist_wr.qos.type_name = "Q";
     struct ddsi_addrset *wr_as = ddsi_new_addrset ();
-    ddsi_add_locator_to_addrset (&gv, wr_as, &loc);
-    ddsi_add_locator_to_addrset (&gv, wr_as, &mcloc);
+    ddsi_add_locator_to_addrset (&gv, wr_as, &loc, gv.xmit_conns_data);
+    ddsi_add_locator_to_addrset (&gv, wr_as, &mcloc, gv.xmit_conns_data);
     //int ddsi_new_proxy_writer (struct ddsi_proxy_writer **proxy_writer, struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const ddsi_plist_t *plist, struct ddsi_dqueue *dqueue, struct ddsi_xeventq *evq, ddsrt_wctime_t timestamp, ddsi_seqno_t seq)
     ddsi_new_proxy_writer (&pwr, &gv, &wrppguid, wrguid, wr_as, &plist_wr, gv.user_dqueue, gv.xevents, ddsrt_time_wallclock (), 1);
     ddsi_unref_addrset (wr_as);
@@ -381,7 +381,7 @@ static void receive_packet_init (ddsi_guid_t *rdguid, ddsi_guid_t *wrguid, bool 
   // pretend we have received a heartbeat and that the next_seqno
   // is the next expected sequence number
   struct ddsi_network_packet_info pktinfo;
-  ddsi_conn_locator (gv.xmit_conns[0], &pktinfo.src);
+  ddsi_conn_locator (gv.xmit_conns_meta[0], &pktinfo.src);
   pktinfo.dst.kind = DDSI_LOCATOR_KIND_INVALID;
   pktinfo.if_index = 0;
 
@@ -412,7 +412,7 @@ static void receive_packet_init (ddsi_guid_t *rdguid, ddsi_guid_t *wrguid, bool 
   memcpy (buf, rtps_message, sizeof (rtps_message));
   ddsi_rmsg_setsize (rmsg, (uint32_t) sizeof (rtps_message));
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
-  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, (uint32_t) sizeof (rtps_message), &pktinfo);
+  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc[0], NULL, rbufpool, rmsg, (uint32_t) sizeof (rtps_message), &pktinfo);
   ddsi_rmsg_commit (rmsg);
 }
 
@@ -481,7 +481,7 @@ CU_Test (ddsi_receive_packet, rti_dispose_with_key)
   receive_packet_init (&rdguid, &wrguid, true, 32);
 
   struct ddsi_network_packet_info pktinfo;
-  ddsi_conn_locator (gv.xmit_conns[0], &pktinfo.src);
+  ddsi_conn_locator (gv.xmit_conns_meta[0], &pktinfo.src);
   pktinfo.dst.kind = DDSI_LOCATOR_KIND_INVALID;
   pktinfo.if_index = 0;
 
@@ -494,7 +494,7 @@ CU_Test (ddsi_receive_packet, rti_dispose_with_key)
   ddsi_rmsg_setsize (rmsg, (uint32_t) sizeof (rtps_message));
 
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
-  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, (uint32_t) sizeof (rtps_message), &pktinfo);
+  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc[0], NULL, rbufpool, rmsg, (uint32_t) sizeof (rtps_message), &pktinfo);
   ddsi_rmsg_commit (rmsg);
 
   receive_packet_fini ();
@@ -544,7 +544,7 @@ CU_Test (ddsi_receive_packet, data_with_bad_octetsToInlineQos)
   receive_packet_init (&rdguid, &wrguid, true, seqno);
 
   struct ddsi_network_packet_info pktinfo;
-  ddsi_conn_locator (gv.xmit_conns[0], &pktinfo.src);
+  ddsi_conn_locator (gv.xmit_conns_meta[0], &pktinfo.src);
   pktinfo.dst.kind = DDSI_LOCATOR_KIND_INVALID;
   pktinfo.if_index = 0;
 
@@ -557,7 +557,7 @@ CU_Test (ddsi_receive_packet, data_with_bad_octetsToInlineQos)
   ddsi_rmsg_setsize (rmsg, (uint32_t) sizeof (rtps_message));
 
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
-  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, (uint32_t) sizeof (rtps_message), &pktinfo);
+  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc[0], NULL, rbufpool, rmsg, (uint32_t) sizeof (rtps_message), &pktinfo);
   ddsi_rmsg_commit (rmsg);
 
   receive_packet_fini ();
