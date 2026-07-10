@@ -388,6 +388,21 @@ static uint16_t get_socket_port (struct ddsi_domaingv const * const gv, ddsrt_so
   return ddsrt_sockaddr_get_port (&addr.a);
 }
 
+static char *udp_bind_address_to_string (
+    char *buf, size_t bufsz, bool bind_to_any,
+    const struct ddsi_network_interface *intf, uint32_t port)
+{
+  if (bind_to_any)
+    snprintf (buf, bufsz, "ANY:%"PRIu32, port);
+  else
+  {
+    ddsi_locator_t loc = intf->loc;
+    loc.port = port;
+    ddsi_ipaddr_to_string (buf, bufsz, &loc, 1, intf);
+  }
+  return buf;
+}
+
 static dds_return_t set_dont_route (struct ddsi_domaingv const * const gv, ddsrt_socket_t socket, bool ipv6)
 {
   dds_return_t rc;
@@ -621,7 +636,7 @@ static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, stru
     case DDSI_TRAN_QOS_RECVXMIT_UC:
       reuse_addr = false;
       set_mc_xmit_options = (intf->allow_multicast != 0);
-      purpose_str = bind_to_any ? "unicast" : "unicast(interface)";
+      purpose_str = "unicast";
       break;
     case DDSI_TRAN_QOS_RECV_MC:
       reuse_addr = true;
@@ -715,11 +730,8 @@ static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, stru
       goto fail_addrinuse;
 
     char buf[DDSI_LOCSTRLEN];
-    if (bind_to_any)
-      snprintf (buf, sizeof (buf), "ANY:%"PRIu32, port);
-    else
-      ddsi_locator_to_string (buf, sizeof (buf), &ownloc_w_port);
-    GVERROR ("ddsi_udp_create_conn: failed to bind to %s: %s\n", buf,
+    GVERROR ("ddsi_udp_create_conn: failed to bind to %s: %s\n",
+             udp_bind_address_to_string (buf, sizeof (buf), bind_to_any, intf, port),
              (rc == DDS_RETCODE_PRECONDITION_NOT_MET) ? "address in use" : dds_strretcode (rc));
     goto fail_w_socket;
   }
@@ -752,7 +764,11 @@ static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, stru
   conn->m_base.m_disable_multiplexing_fn = ddsi_udp_disable_multiplexing;
   conn->m_base.m_locator_fn = ddsi_udp_conn_locator;
 
-  GVTRACE ("ddsi_udp_create_conn %s socket %"PRIdSOCK" port %"PRIu32"\n", purpose_str, conn->m_sockext.sock, conn->m_base.m_base.m_port);
+  char bindaddr[DDSI_LOCSTRLEN];
+  GVTRACE ("ddsi_udp_create_conn %s conn %p socket %"PRIdSOCK" bound to %s\n",
+           purpose_str, (void *) conn, conn->m_sockext.sock,
+           udp_bind_address_to_string (bindaddr, sizeof (bindaddr), bind_to_any, intf,
+                                       conn->m_base.m_base.m_port));
 
   if (fact->ownaddrs)
   {
