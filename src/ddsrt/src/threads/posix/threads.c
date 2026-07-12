@@ -471,6 +471,9 @@ ddsrt_thread_create (
   return DDS_RETCODE_OK;
 
 err_create:
+#if !defined(__ZEPHYR__)
+  sigprocmask (SIG_SETMASK, &oset, NULL);
+#endif
   ddsrt_free (ctx->name);
   ddsrt_free (ctx);
 err:
