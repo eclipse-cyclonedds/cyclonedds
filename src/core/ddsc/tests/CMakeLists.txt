@@ -177,7 +177,7 @@ endif()
 
 target_include_directories(
   cunit_ddsc PRIVATE
-  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src/include/>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
@@ -283,7 +283,7 @@ add_executable(oneliner
   "test_util.h")
 target_include_directories(
   oneliner PRIVATE
-  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src/include/>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/src>"
@@ -318,8 +318,8 @@ if(BUILD_SHARED_LIBS)
   add_library(psmx_dummy_v0 SHARED ${psmx_dummy_v0_sources})
 else()
   list(APPEND psmx_includes
-    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/ddsrt/include>"
-    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../../../ddsrt/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../ddsrt/include>")
   add_library(psmx_cdds OBJECT ${psmx_cdds_sources} psmx_cdds_data.c)
