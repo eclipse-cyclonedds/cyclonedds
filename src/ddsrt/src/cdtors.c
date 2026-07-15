@@ -215,15 +215,15 @@ DDSRT_WARNING_CLANG_ON(missing-prototypes)
   PIMAGE_TLS_CALLBACK __crt_xl_tls_callback__ __attribute__ ((section(".CRT$XLY"))) = ddsrt_cdtor;
 #elif _WIN64
   #pragma comment (linker, "/INCLUDE:_tls_used")
-  #pragma comment (linker, "/INCLUDE:tls_callback_func")
+  #pragma comment (linker, "/INCLUDE:tls_callback_func_ddsrt")
   #pragma const_seg(".CRT$XLY")
-  EXTERN_C const PIMAGE_TLS_CALLBACK tls_callback_func = ddsrt_cdtor;
+  EXTERN_C const PIMAGE_TLS_CALLBACK tls_callback_func_ddsrt = ddsrt_cdtor;
   #pragma const_seg()
 #else
   #pragma comment (linker, "/INCLUDE:__tls_used")
-  #pragma comment (linker, "/INCLUDE:_tls_callback_func")
+  #pragma comment (linker, "/INCLUDE:_tls_callback_func_ddsrt")
   #pragma data_seg(".CRT$XLY")
-  EXTERN_C PIMAGE_TLS_CALLBACK tls_callback_func = ddsrt_cdtor;
+  EXTERN_C PIMAGE_TLS_CALLBACK tls_callback_func_ddsrt = ddsrt_cdtor;
   #pragma data_seg()
  #endif
 #else /* _WIN32 */
