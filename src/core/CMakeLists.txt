@@ -58,9 +58,9 @@ if(ENABLE_SECURITY)
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>)
 endif()
 
-include(cdr/CMakeLists.txt)
-include(ddsi/CMakeLists.txt)
-include(ddsc/CMakeLists.txt)
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/cdr")
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/ddsi")
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/ddsc")
 
 # The not-so-elegant inclusion of all configured plug-ins for static builds.  At least it
 # keeps most of the dirty things in one place.
