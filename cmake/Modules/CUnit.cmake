@@ -23,7 +23,7 @@ function(get_cunit_header_file SOURCE_FILE HEADER_FILE)
   file(RELATIVE_PATH SOURCE_FILE "${PROJECT_SOURCE_DIR}" "${SOURCE_FILE}")
   get_filename_component(basename "${SOURCE_FILE}" NAME_WE)
   get_filename_component(dir "${SOURCE_FILE}" DIRECTORY)
-  set(${HEADER_FILE} "${CMAKE_BINARY_DIR}/${dir}/${basename}.h" PARENT_SCOPE)
+  set(${HEADER_FILE} "${CMAKE_CURRENT_BINARY_DIR}/${dir}/${basename}.h" PARENT_SCOPE)
 endfunction()
 
 function(parse_cunit_fixtures INPUT TEST_DISABLED TEST_TIMEOUT)

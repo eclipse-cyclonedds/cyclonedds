@@ -35,10 +35,10 @@
 
 
 # configuration
-set(LCOV_DATA_PATH "${CMAKE_BINARY_DIR}/lcov/data")
+set(LCOV_DATA_PATH "${CMAKE_CURRENT_BINARY_DIR}/lcov/data")
 set(LCOV_DATA_PATH_INIT "${LCOV_DATA_PATH}/init")
 set(LCOV_DATA_PATH_CAPTURE "${LCOV_DATA_PATH}/capture")
-set(LCOV_HTML_PATH "${CMAKE_BINARY_DIR}/lcov/html")
+set(LCOV_HTML_PATH "${CMAKE_CURRENT_BINARY_DIR}/lcov/html")
 
 
 
@@ -123,7 +123,7 @@ function (lcov_merge_files OUTFILE ...)
 	list(REMOVE_AT ARGV 0)
 
 	# Generate merged file.
-	string(REPLACE "${CMAKE_BINARY_DIR}/" "" FILE_REL "${OUTFILE}")
+	string(REPLACE "${CMAKE_CURRENT_BINARY_DIR}/" "" FILE_REL "${OUTFILE}")
 	add_custom_command(OUTPUT "${OUTFILE}.raw"
 		COMMAND cat ${ARGV} > ${OUTFILE}.raw
 		DEPENDS ${ARGV}
