@@ -75,28 +75,28 @@ if (NOT CMAKE_CROSSCOMPILING)
         "-DPOSTFIX=*/"
         -DHASH_FILES=${out_confgen_hash_files}
         -DAPPEND_FILES=${generated_defconfig}
-        -P ${CMAKE_SOURCE_DIR}/cmake/AppendHashScript.cmake
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake/AppendHashScript.cmake
       # Append hashes to rnc
       COMMAND ${CMAKE_COMMAND}
         "-DPREFIX=#"
         "-DPOSTFIX="
         -DHASH_FILES=${out_confgen_hash_files}
         -DAPPEND_FILES=${generated_rnc}
-        -P ${CMAKE_SOURCE_DIR}/cmake/AppendHashScript.cmake
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake/AppendHashScript.cmake
       # Append hashes to xsd
       COMMAND ${CMAKE_COMMAND}
         "-DPREFIX=<!---"
         "-DPOSTFIX=-->"
         -DHASH_FILES=${out_confgen_hash_files}
         -DAPPEND_FILES=${generated_xsd}
-        -P ${CMAKE_SOURCE_DIR}/cmake/AppendHashScript.cmake
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake/AppendHashScript.cmake
       # Append hashes to md
       COMMAND ${CMAKE_COMMAND}
         "-DPREFIX=<!---"
         "-DPOSTFIX=-->"
         -DHASH_FILES=${out_confgen_hash_files}
         -DAPPEND_FILES=${generated_md}
-        -P ${CMAKE_SOURCE_DIR}/cmake/AppendHashScript.cmake
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake/AppendHashScript.cmake
       # Append hashes to rst
       COMMAND ${CMAKE_COMMAND}
         "-DBEFORE=.."
@@ -104,7 +104,7 @@ if (NOT CMAKE_CROSSCOMPILING)
         "-DPOSTFIX="
         -DHASH_FILES=${out_confgen_hash_files}
         -DAPPEND_FILES=${generated_rst}
-        -P ${CMAKE_SOURCE_DIR}/cmake/AppendHashScript.cmake
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake/AppendHashScript.cmake
       DEPENDS _confgen-exe
       SOURCES ${confgen_hash_files}
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -146,23 +146,23 @@ if (NOT CMAKE_CROSSCOMPILING)
     COMMAND ${CMAKE_COMMAND}
       "-DGENERATED_FILE=${_confgen_check_defconfig}"
       "-DCHECKED_IN_FILE=${generated_defconfig_src}"
-      -P ${CMAKE_SOURCE_DIR}/cmake/CheckGeneratedFile.cmake
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake/CheckGeneratedFile.cmake
     COMMAND ${CMAKE_COMMAND}
       "-DGENERATED_FILE=${_confgen_check_rnc}"
       "-DCHECKED_IN_FILE=${generated_cyclonedds_rnc}"
-      -P ${CMAKE_SOURCE_DIR}/cmake/CheckGeneratedFile.cmake
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake/CheckGeneratedFile.cmake
     COMMAND ${CMAKE_COMMAND}
       "-DGENERATED_FILE=${_confgen_check_xsd}"
       "-DCHECKED_IN_FILE=${generated_cyclonedds_xsd}"
-      -P ${CMAKE_SOURCE_DIR}/cmake/CheckGeneratedFile.cmake
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake/CheckGeneratedFile.cmake
     COMMAND ${CMAKE_COMMAND}
       "-DGENERATED_FILE=${_confgen_check_md}"
       "-DCHECKED_IN_FILE=${generated_options_md}"
-      -P ${CMAKE_SOURCE_DIR}/cmake/CheckGeneratedFile.cmake
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake/CheckGeneratedFile.cmake
     COMMAND ${CMAKE_COMMAND}
       "-DGENERATED_FILE=${_confgen_check_rst}"
       "-DCHECKED_IN_FILE=${generated_options_rst}"
-      -P ${CMAKE_SOURCE_DIR}/cmake/CheckGeneratedFile.cmake
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake/CheckGeneratedFile.cmake
     DEPENDS _confgen_check_generate
     VERBATIM
   )
