@@ -143,7 +143,7 @@ endif()
 
 target_include_directories(
   cunit_security_core PRIVATE
-        "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src/include/>"
         "$<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>"
         "$<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsc,INTERFACE_INCLUDE_DIRECTORIES>>"
         "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_core,INTERFACE_INCLUDE_DIRECTORIES>>"

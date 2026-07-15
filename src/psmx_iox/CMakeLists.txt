@@ -29,8 +29,8 @@ if(ENABLE_ICEORYX2)
   generate_export_header(psmx_iox2 BASE_NAME DDS_PSMX_IOX2 EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/psmx_iox2_export.h")
 
   target_include_directories(psmx_iox2 PRIVATE
-    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/ddsrt/include>"
-    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../ddsrt/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../core/ddsc/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../ddsrt/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../core/ddsc/include>"
@@ -78,8 +78,8 @@ if(ENABLE_ICEORYX)
   generate_export_header(psmx_iox BASE_NAME DDS_PSMX_IOX EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/psmx_iox_export.h")
 
   target_include_directories(psmx_iox PRIVATE
-    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/ddsrt/include>"
-    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../ddsrt/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../core/ddsc/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../ddsrt/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../core/ddsc/include>"
