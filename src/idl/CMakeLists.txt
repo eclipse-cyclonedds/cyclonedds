@@ -153,6 +153,7 @@ foreach(source ${templates})
 endforeach()
 
 add_library(idl SHARED ${headers} ${sources})
+add_library(${PROJECT_NAME}::idl ALIAS idl)
 
 if(MSVC)
   # ignore warning 5286 and 5287 about enum type conversion
