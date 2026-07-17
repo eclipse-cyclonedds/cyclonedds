@@ -12,7 +12,7 @@
 
 function(IDLC_GENERATE)
   set(options NO_TYPE_INFO WERROR DEFAULT_NON_NESTED)
-  set(one_value_keywords TARGET DEFAULT_EXTENSIBILITY BASE_DIR OUTPUT_DIR)
+  set(one_value_keywords TARGET DEFAULT_EXTENSIBILITY BASE_DIR OUTPUT_DIR IDL_LIBRARY_TYPE)
   set(multi_value_keywords FILES FEATURES INCLUDES WARNINGS DEFINES)
   cmake_parse_arguments(
     IDLC "${options}" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
@@ -54,7 +54,8 @@ function(IDLC_GENERATE)
     OUTPUT_DIR ${IDLC_OUTPUT_DIR}
     DEFAULT_EXTENSIBILITY ${IDLC_DEFAULT_EXTENSIBILITY}
     DEFINES ${IDLC_DEFINES}
-    DEPENDS ${_idlc_depends})
+    DEPENDS ${_idlc_depends}
+    IDL_LIBRARY_TYPE ${IDLC_IDL_LIBRARY_TYPE})
 
   if(${IDLC_NO_TYPE_INFO})
     list(APPEND gen_args NO_TYPE_INFO)
@@ -73,7 +74,7 @@ endfunction()
 
 function(IDLC_GENERATE_GENERIC)
   set(options NO_TYPE_INFO WERROR DEFAULT_NON_NESTED)
-  set(one_value_keywords TARGET BACKEND DEFAULT_EXTENSIBILITY BASE_DIR OUTPUT_DIR)
+  set(one_value_keywords TARGET BACKEND DEFAULT_EXTENSIBILITY BASE_DIR OUTPUT_DIR IDL_LIBRARY_TYPE)
   set(multi_value_keywords FILES FEATURES INCLUDES WARNINGS SUFFIXES DEFINES DEPENDS)
   cmake_parse_arguments(
     IDLC "${options}" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
@@ -231,9 +232,16 @@ function(IDLC_GENERATE_GENERIC)
     set_target_properties("${_target}_generate" PROPERTIES XCODE_GENERATE_SCHEME NO)
   endif()
 
-  add_library(${_target} INTERFACE)
-  target_sources(${_target} INTERFACE ${_outputs})
-  target_include_directories(${_target} INTERFACE "${_dir}")
+  # With `IDL_LIBRARY_TYPE` not set fallback to `INTERFACE` library for compatibility
+  if(NOT IDLC_IDL_LIBRARY_TYPE OR IDLC_IDL_LIBRARY_TYPE STREQUAL "INTERFACE")
+    add_library(${_target} INTERFACE)
+    target_sources(${_target} INTERFACE ${_outputs})
+    target_include_directories(${_target} INTERFACE "${_dir}")
+  else()
+    add_library(${_target} ${IDLC_IDL_LIBRARY_TYPE} ${_outputs})
+    target_include_directories(${_target} PUBLIC "${_dir}")
+  endif()
+
   add_dependencies(${_target} "${_target}_generate")
   if(${CMAKE_GENERATOR} MATCHES "Xcode")
     set_target_properties("${_target}" PROPERTIES XCODE_GENERATE_SCHEME NO)
