@@ -19,7 +19,7 @@ set(hdrs_private_cdr
   "${CMAKE_CURRENT_LIST_DIR}/include/dds/cdr/dds_cdrstream.h")
 
 target_sources(ddsc PRIVATE ${srcs_cdr} ${hdrs_private_cdr})
-target_include_directories(ddsc PRIVATE "${CMAKE_CURRENT_LIST_DIR}/include")
+target_include_directories(ddsc PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>")
 
 install(
   DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/"
