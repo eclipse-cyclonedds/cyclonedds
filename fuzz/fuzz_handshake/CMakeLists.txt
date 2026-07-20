@@ -27,8 +27,8 @@ find_package(OpenSSL REQUIRED)
 add_library(fuzz_handshake_harness fuzz_handshake_harness.c)
 target_include_directories(
   fuzz_handshake_harness PRIVATE
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src/ddsrt/include>"
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src/core/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../../src/ddsrt/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../../src/core/ddsc/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsc/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsc/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsi/src>"
