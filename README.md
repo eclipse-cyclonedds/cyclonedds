@@ -188,6 +188,52 @@ At this point you are ready to use Eclipse Cyclone DDS in your own projects.
 
 Note that the default build type is a release build with debug information included (RelWithDebInfo), which is generally the most convenient type of build to use from applications because of a good mix between performance and still being able to debug things.  If you'd rather have a Debug or pure Release build, set `CMAKE_BUILD_TYPE` accordingly.
 
+### Third party library
+
+It is also possible to build CycloneDDS as part of your project by treating it as a third party library.  
+Following is an example *CMakeLists.txt* using [FetchContent_Declare](https://cmake.org/cmake/help/latest/module/FetchContent.html) to put CycloneDDS into scope.
+
+```cmake
+cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
+project(
+    MyProject 
+    LANGUAGES C CXX
+)
+
+include(FetchContent)
+FetchContent_Declare(
+  cyclonedds
+  GIT_REPOSITORY https://github.com/eclipse-cyclonedds/cyclonedds.git
+  GIT_TAG        master # Or any other branch/tag
+)
+FetchContent_MakeAvailable(cyclonedds)
+
+# CycloneDDS exports its Generate.cmake script
+# thus it is possible to directly call the IDL compiler
+idlc_generate(
+    TARGET my_idl_lib
+    FILES my_project.idl
+)
+
+add_executable(${PROJECT_NAME} main.cpp)
+target_link_libraries(${PROJECT_NAME} PUBLIC
+    CycloneDDS::ddsc    # DDS definitions
+    my_idl_lib          # Compiled IDL library
+)
+
+# Copy ddsc.dll into target binary folder to allow direct execution
+if(WIN32 AND BUILD_SHARED_LIBS)
+    add_custom_command(
+        TARGET ${PROJECT_NAME}
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different 
+            $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}>
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>
+    )
+endif()
+
+```
+
 ### Contributing to Eclipse Cyclone DDS
 
 We very much welcome all contributions to the project, whether that is questions, examples, bug
