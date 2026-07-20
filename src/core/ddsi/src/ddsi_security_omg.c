@@ -882,10 +882,9 @@ static bool pp_expired_by_perm (const struct ddsi_participant * pp, DDS_Security
 static bool proxypp_expired_by_perm (const struct ddsi_proxy_participant * proxypp, DDS_Security_Handle handle)
 {
   bool result = false;
-  uint32_t i = 0;
   ddsrt_avl_iter_t it;
   ddsrt_mutex_lock (&proxypp->sec_attr->lock);
-  for (struct ddsi_proxypp_pp_match *ppm = ddsrt_avl_iter_first (&proxypp_pp_treedef, &proxypp->sec_attr->participants, &it); ppm; ppm = ddsrt_avl_iter_next (&it), i++)
+  for (struct ddsi_proxypp_pp_match *ppm = ddsrt_avl_iter_first (&proxypp_pp_treedef, &proxypp->sec_attr->participants, &it); ppm; ppm = ddsrt_avl_iter_next (&it))
   {
     if (ppm->permissions_handle == handle)
     {
