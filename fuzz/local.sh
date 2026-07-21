@@ -87,7 +87,6 @@ export PATH="$(dirname "$PYTHON"):$PATH"
 
 # Use current git HEAD hash as seed
 [ -z "$SEED" ] && SEED=$(git ls-remote https://github.com/eclipse-cyclonedds/cyclonedds HEAD |cut -f1)
-"$PYTHON" "../fuzz/fuzz_sample_deser/generate_idl.py" $SEED "../fuzz/fuzz_sample_deser"
 
 cmake -G Ninja \
       -DSANITIZER=address,undefined,fuzzer \
@@ -99,6 +98,8 @@ cmake -G Ninja \
       -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_IDLC=NO \
       -DBUILD_DDSPERF=NO \
+      -DPython3_EXECUTABLE="$PYTHON" \
+      -DFUZZ_SAMPLE_DESER_SEED="$SEED" \
       -DCMAKE_BUILD_TYPE=Debug \
       -DCMAKE_PREFIX_PATH=$PWD/host_install \
       -DCMAKE_INSTALL_PREFIX=$PWD/install ..
