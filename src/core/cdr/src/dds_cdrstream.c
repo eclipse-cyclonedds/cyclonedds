@@ -3137,6 +3137,25 @@ static bool stream_is_member_present (dds_istream_t *is, uint32_t *param_len)
   }
 }
 
+ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
+static bool stream_is_xcdr1_optional_member_present (dds_istream_t *is, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, uint32_t *param_len)
+{
+  uint32_t param_mid, adr_mid;
+  if (!stream_read_xcdr1_paramheader (is, &param_mid, param_len))
+  {
+    *param_len = 0;
+    return false;
+  }
+  if (*param_len == 0)
+    return false;
+  /* The MID table was introduced for XCDR1 optional members.  A descriptor
+     without one is older than XCDR1 optional support, so it cannot match an
+     optional parameter header. */
+  if (mid_table->op0 == NULL)
+    return false;
+  return find_member_id (mid_table, ops, &adr_mid) && adr_mid == param_mid;
+}
+
 ddsrt_nonnull_all
 static void initialize_sequence (dds_sequence_t *seq, enum sample_data_state sample_state)
 {
@@ -3617,7 +3636,10 @@ static inline const uint32_t *dds_stream_read_adr (uint32_t insn, dds_istream_t 
   uint32_t param_len = 0;
   if (op_type_optional (insn) && !is_mutable_member)
   {
-    if (!stream_is_member_present (&is1, &param_len))
+    const bool member_present = (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
+      ? stream_is_xcdr1_optional_member_present (&is1, mid_table, ops, &param_len)
+      : stream_is_member_present (&is1, &param_len);
+    if (!member_present)
     {
       is->m_index = is1.m_index + param_len; // param_len is 0 for XCDR2
       return stream_skip_member_insns (insn, data, addr, allocator, ops, sample_state);
@@ -3979,6 +4001,9 @@ static const uint32_t *dds_stream_read_xcdr1_pl (dds_istream_t *is, char * restr
   uint32_t param_mid, param_len;
   while (stream_read_xcdr1_paramheader (is, &param_mid, &param_len))
   {
+    if (param_len == 0)
+      continue;
+
     // Move buffer in temporary istream `is1` to start of parameter value and
     // set size to param length, so that alignment is reset to 0
     dds_istream_t is1 = *is;
