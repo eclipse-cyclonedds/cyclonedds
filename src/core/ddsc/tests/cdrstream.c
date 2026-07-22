@@ -3933,58 +3933,95 @@ CU_Test (ddsc_cdrstream, check_xcdr1_optional_valid)
 }
 #undef D
 
-CU_Test (ddsc_cdrstream, check_xcdr1_optional_unknown_header_read)
+CU_Test (ddsc_cdrstream, check_xcdr1_optional_trusted_read_without_mid_table)
 {
   const struct {
+    bool present;
     uint32_t cdrsize;
     const uint8_t *cdr;
-  } test = { CDR(PHDR(0, 1), 8, 11, PAD3, 32, 2) };
-  struct dds_cdrstream_desc desc;
-  dds_cdrstream_desc_init (&desc, &dds_cdrstream_default_allocator,
+  } tests[] = {
+    { true,  CDR(PHDR(0, 4), 32, 11, 32, 2) },
+    { false, CDR(PHDR(0, 0), 32, 2) }
+  };
+
+  struct dds_cdrstream_desc desc_norm, desc_read;
+  dds_cdrstream_desc_from_topic_desc (&desc_norm, &CdrStreamXcdr1Optional_t1_desc);
+  dds_cdrstream_desc_init (&desc_read, &dds_cdrstream_default_allocator,
       CdrStreamXcdr1Optional_t1_desc.m_size, CdrStreamXcdr1Optional_t1_desc.m_align,
       CdrStreamXcdr1Optional_t1_desc.m_flagset, CdrStreamXcdr1Optional_t1_desc.m_ops,
       NULL, 0);
-  uint32_t actual_size;
-  void *cdr = ddsrt_memdup (test.cdr, test.cdrsize);
-  const enum dds_stream_normalize_result norm_res = dds_stream_normalize (cdr, test.cdrsize, false, DDSI_RTPS_CDR_ENC_VERSION_1, &desc, false, &actual_size);
-  CU_ASSERT_EQ_FATAL (norm_res, DDS_STREAM_NORMALIZE_SUCCESS);
 
-  CdrStreamXcdr1Optional_t1 sample = { 0 };
-  dds_istream_t is;
-  dds_istream_init (&is, actual_size, cdr, DDSI_RTPS_CDR_ENC_VERSION_1);
-  dds_stream_read_sample (&is, &sample, &dds_cdrstream_default_allocator, &desc);
-  CU_ASSERT_FATAL (sample.f1 == NULL);
-  CU_ASSERT_EQ_FATAL (sample.k, 2);
-  CU_ASSERT_EQ_FATAL (is.m_index, actual_size);
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    void *cdr = ddsrt_memdup (tests[i].cdr, tests[i].cdrsize);
+    uint32_t actual_size = 0;
 
-  dds_stream_free_sample (&sample, &dds_cdrstream_default_allocator, desc.ops.ops);
-  ddsrt_free (cdr);
-  dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+    void *legacy_cdr = ddsrt_memdup (tests[i].cdr, tests[i].cdrsize);
+    enum dds_stream_normalize_result norm_res = dds_stream_normalize (legacy_cdr, tests[i].cdrsize, false, DDSI_RTPS_CDR_ENC_VERSION_1, &desc_read, false, &actual_size);
+    CU_ASSERT_EQ_FATAL (norm_res, DDS_STREAM_NORMALIZE_ERROR);
+    ddsrt_free (legacy_cdr);
+
+    norm_res = dds_stream_normalize (cdr, tests[i].cdrsize, false, DDSI_RTPS_CDR_ENC_VERSION_1, &desc_norm, false, &actual_size);
+    CU_ASSERT_EQ_FATAL (norm_res, DDS_STREAM_NORMALIZE_SUCCESS);
+    CU_ASSERT_EQ_FATAL (actual_size, tests[i].cdrsize);
+
+    CdrStreamXcdr1Optional_t1 sample = { 0 };
+    dds_istream_t is;
+    dds_istream_init (&is, actual_size, cdr, DDSI_RTPS_CDR_ENC_VERSION_1);
+    dds_stream_read_sample (&is, &sample, &dds_cdrstream_default_allocator, &desc_read);
+    CU_ASSERT_EQ_FATAL (sample.f1 != NULL, tests[i].present);
+    if (sample.f1)
+      CU_ASSERT_EQ_FATAL (*sample.f1, 11);
+    CU_ASSERT_EQ_FATAL (sample.k, 2);
+    CU_ASSERT_EQ_FATAL (is.m_index, actual_size);
+
+    dds_stream_free_sample (&sample, &dds_cdrstream_default_allocator, desc_read.ops.ops);
+    ddsrt_free (cdr);
+  }
+
+  dds_cdrstream_desc_fini (&desc_read, &dds_cdrstream_default_allocator);
+  dds_cdrstream_desc_fini (&desc_norm, &dds_cdrstream_default_allocator);
 }
 
-CU_Test (ddsc_cdrstream, check_xcdr1_mutable_not_present_member_read)
+CU_Test (ddsc_cdrstream, check_xcdr1_mutable_zero_length_member_normalize)
 {
   const struct {
+    const char *name;
+    enum dds_stream_normalize_result result;
+    uint32_t f1;
     uint32_t cdrsize;
     const uint8_t *cdr;
-  } test = { CDR(PHDR(1, 0), PHDR(DDS_XCDR1_PL_SHORT_PID_LIST_END, 0)) };
+  } tests[] = {
+    { "unknown-zero-length", DDS_STREAM_NORMALIZE_SUCCESS, 0, CDR(PHDR(3, 0), PHDR(DDS_XCDR1_PL_SHORT_PID_LIST_END, 0)) },
+    { "unknown-zero-length-mu", DDS_STREAM_NORMALIZE_ERROR, 0, CDR(PHDR(DDS_XCDR1_PL_SHORT_FLAG_MU | 3, 0), PHDR(DDS_XCDR1_PL_SHORT_PID_LIST_END, 0)) },
+    { "known-uint32-zero-length", DDS_STREAM_NORMALIZE_ERROR, 0, CDR(PHDR(1, 0), PHDR(DDS_XCDR1_PL_SHORT_PID_LIST_END, 0)) },
+    { "known-sequence-zero-length", DDS_STREAM_NORMALIZE_ERROR, 0, CDR(PHDR(2, 0), PHDR(DDS_XCDR1_PL_SHORT_PID_LIST_END, 0)) },
+    { "known-uint32-present", DDS_STREAM_NORMALIZE_SUCCESS, 7, CDR(PHDR(1, 4), 32, 7, PHDR(DDS_XCDR1_PL_SHORT_PID_LIST_END, 0)) }
+  };
   struct dds_cdrstream_desc desc;
   dds_cdrstream_desc_from_topic_desc (&desc, &CdrStreamMutable_t1_desc);
-  uint32_t actual_size;
-  void *cdr = ddsrt_memdup (test.cdr, test.cdrsize);
-  const enum dds_stream_normalize_result norm_res = dds_stream_normalize (cdr, test.cdrsize, false, DDSI_RTPS_CDR_ENC_VERSION_1, &desc, false, &actual_size);
-  CU_ASSERT_EQ_FATAL (norm_res, DDS_STREAM_NORMALIZE_SUCCESS);
 
-  CdrStreamMutable_t1 sample = { 0 };
-  dds_istream_t is;
-  dds_istream_init (&is, actual_size, cdr, DDSI_RTPS_CDR_ENC_VERSION_1);
-  dds_stream_read_sample (&is, &sample, &dds_cdrstream_default_allocator, &desc);
-  CU_ASSERT_EQ_FATAL (sample.f1, 0);
-  CU_ASSERT_EQ_FATAL (sample.f2._length, 0);
-  CU_ASSERT_EQ_FATAL (is.m_index, actual_size);
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    tprintf ("running test %s\n", tests[i].name);
+    uint32_t actual_size = 0;
+    void *cdr = ddsrt_memdup (tests[i].cdr, tests[i].cdrsize);
+    const enum dds_stream_normalize_result norm_res = dds_stream_normalize (cdr, tests[i].cdrsize, false, DDSI_RTPS_CDR_ENC_VERSION_1, &desc, false, &actual_size);
+    CU_ASSERT_EQ_FATAL (norm_res, tests[i].result);
+    if (norm_res == DDS_STREAM_NORMALIZE_SUCCESS)
+    {
+      CdrStreamMutable_t1 sample = { 0 };
+      dds_istream_t is;
+      dds_istream_init (&is, actual_size, cdr, DDSI_RTPS_CDR_ENC_VERSION_1);
+      dds_stream_read_sample (&is, &sample, &dds_cdrstream_default_allocator, &desc);
+      CU_ASSERT_EQ_FATAL (sample.f1, tests[i].f1);
+      CU_ASSERT_EQ_FATAL (sample.f2._length, 0);
+      CU_ASSERT_EQ_FATAL (is.m_index, actual_size);
+      dds_stream_free_sample (&sample, &dds_cdrstream_default_allocator, desc.ops.ops);
+    }
+    ddsrt_free (cdr);
+  }
 
-  dds_stream_free_sample (&sample, &dds_cdrstream_default_allocator, desc.ops.ops);
-  ddsrt_free (cdr);
   dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
 }
 
