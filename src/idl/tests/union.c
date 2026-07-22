@@ -568,6 +568,51 @@ CU_Test(idl_union, default_discriminator_enum)
   idl_delete_pstate(pstate);
 }
 
+CU_Test(idl_union, default_discriminator_bitmask)
+{
+  idl_retcode_t ret;
+  idl_pstate_t *pstate = NULL;
+  const idl_bitmask_t *bm;
+  const idl_union_t *u;
+  const idl_literal_t *literal;
+  const char *idl;
+
+  idl = "bitmask bm { B0, B1 };\n"
+        "union u switch(bm) { case B0: char c; default: long l; };";
+  ret = parse_string(idl, &pstate);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+  CU_ASSERT_NEQ_FATAL (pstate, NULL);
+  bm = (const idl_bitmask_t *)pstate->root;
+  CU_ASSERT_FATAL (idl_is_bitmask(bm));
+  u = idl_next(bm);
+  CU_ASSERT_FATAL (idl_is_union(u));
+  CU_ASSERT_EQ_FATAL (idl_mask(u->default_case), IDL_DEFAULT_CASE_LABEL);
+  CU_ASSERT_FATAL (u->default_case && u->default_case->const_expr);
+  literal = u->default_case->const_expr;
+  CU_ASSERT_FATAL (idl_is_literal(literal));
+  CU_ASSERT_EQ_FATAL (idl_type(literal), IDL_BITMASK);
+  CU_ASSERT_EQ (literal->value.uint64, 0u);
+  idl_delete_pstate(pstate);
+
+  idl = "bitmask bm { B0, B1 };\n"
+        "union u switch(bm) { case 0: char z; case B0: char c; };";
+  pstate = NULL;
+  ret = parse_string(idl, &pstate);
+  CU_ASSERT_EQ_FATAL (ret, IDL_RETCODE_OK);
+  CU_ASSERT_NEQ_FATAL (pstate, NULL);
+  bm = (const idl_bitmask_t *)pstate->root;
+  CU_ASSERT_FATAL (idl_is_bitmask(bm));
+  u = idl_next(bm);
+  CU_ASSERT_FATAL (idl_is_union(u));
+  CU_ASSERT_EQ_FATAL (idl_mask(u->default_case), IDL_IMPLICIT_DEFAULT_CASE_LABEL);
+  CU_ASSERT_FATAL (u->default_case && u->default_case->const_expr);
+  literal = u->default_case->const_expr;
+  CU_ASSERT_FATAL (idl_is_literal(literal));
+  CU_ASSERT_EQ_FATAL (idl_type(literal), IDL_BITMASK);
+  CU_ASSERT_EQ (literal->value.uint64, 2u);
+  idl_delete_pstate(pstate);
+}
+
 CU_Test(idl_union, two_unions_one_enum)
 {
   idl_retcode_t ret;

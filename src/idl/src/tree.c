@@ -2286,6 +2286,9 @@ static void increment_literal(idl_literal_t *literal)
     case IDL_UINT64:
       literal->value.uint64++;
       break;
+    case IDL_BITMASK:
+      literal->value.uint64++;
+      break;
     default:
       abort();
   }
