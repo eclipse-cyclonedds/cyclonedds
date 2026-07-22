@@ -330,12 +330,17 @@ static void dds_cdr_resize (restrict_ostream_base_t *os, const struct dds_cdrstr
     dds_ostream_grow (os, allocator, l);
 }
 
-void dds_istream_init (dds_istream_t *is, uint32_t size, const void *input, enum dds_cdr_enc_version xcdr_version)
+void dds_istream_init_well_formed (dds_istream_t *is, uint32_t size, const void *input, enum dds_cdr_enc_version xcdr_version)
 {
   is->m_buffer = input;
   is->m_size = size;
   is->m_index = 0;
   is->m_xcdr_version = xcdr_version;
+}
+
+void dds_istream_init (dds_istream_t *is, uint32_t size, const void *input, enum dds_cdr_enc_version xcdr_version)
+{
+  dds_istream_init_well_formed (is, size, input, xcdr_version);
 }
 
 void dds_ostream_init (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t size, enum dds_cdr_enc_version xcdr_version)

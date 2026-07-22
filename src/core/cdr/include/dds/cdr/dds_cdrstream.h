@@ -204,7 +204,7 @@ uint32_t dds_cdr_alignto4_clear_and_resize (dds_ostream_t *os, const struct dds_
   ddsrt_nonnull_all;
 
 /**
- * @brief Initialize an input CDR stream over an existing buffer.
+ * @brief Initialize an input CDR stream over a well-formed existing buffer.
  * @component cdr_serializer
  *
  * The input buffer remains owned by the caller and must stay valid while the
@@ -218,7 +218,24 @@ uint32_t dds_cdr_alignto4_clear_and_resize (dds_ostream_t *os, const struct dds_
  * @param input         serialized CDR payload buffer
  * @param xcdr_version  XCDR version of the serialized payload
  */
-DDS_EXPORT void dds_istream_init (dds_istream_t *is, uint32_t size, const void *input, enum dds_cdr_enc_version xcdr_version)
+DDS_EXPORT void dds_istream_init_well_formed (dds_istream_t *is, uint32_t size, const void *input, enum dds_cdr_enc_version xcdr_version)
+  ddsrt_nonnull_all;
+
+/**
+ * @brief Initialize an input CDR stream over an existing buffer.
+ * @component cdr_serializer
+ *
+ * @deprecated Use @ref dds_istream_init_well_formed.
+ *
+ * This is a compatibility alias for @ref dds_istream_init_well_formed. The
+ * input buffer has the same well-formed native-endian CDR precondition.
+ *
+ * @param is            input stream to initialize
+ * @param size          size of @p input in bytes
+ * @param input         serialized CDR payload buffer
+ * @param xcdr_version  XCDR version of the serialized payload
+ */
+DDS_DEPRECATED_EXPORT void dds_istream_init (dds_istream_t *is, uint32_t size, const void *input, enum dds_cdr_enc_version xcdr_version)
   ddsrt_nonnull_all;
 
 /**
