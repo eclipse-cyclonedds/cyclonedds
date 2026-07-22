@@ -55,6 +55,7 @@ extern int idl_yydebug;
 /* "%code requires" blocks.  */
 #line 87 "src/parser.y"
 
+#include "parser_tokens.h"
 #include "tree.h"
 
 /* make yytoknum available */
@@ -66,7 +67,7 @@ typedef struct idl_location IDL_YYLTYPE;
 #define LOC(first, last) \
   &(IDL_YYLTYPE){ first, last }
 
-#line 70 "parser.h"
+#line 71 "parser.h"
 
 /* Token kinds.  */
 #ifndef IDL_YYTOKENTYPE
@@ -183,7 +184,7 @@ union IDL_YYSTYPE
   unsigned long long ullng;
   long double ldbl;
 
-#line 187 "parser.h"
+#line 188 "parser.h"
 
 };
 typedef union IDL_YYSTYPE IDL_YYSTYPE;
@@ -223,12 +224,11 @@ idl_yypstate *idl_yypstate_new (void);
 void idl_yypstate_delete (idl_yypstate *ps);
 
 /* "%code provides" blocks.  */
-#line 100 "src/parser.y"
+#line 101 "src/parser.y"
 
-int idl_iskeyword(idl_pstate_t *pstate, const char *str, int nc);
 void idl_yypstate_delete_stack(idl_yypstate *yyps);
 
 #line 232 "parser.h"
 
 #endif /* !YY_IDL_YY_PARSER_H_INCLUDED  */
-/* generated from parser.y[05514fab388744043025b328dbb394f3a64f95e3] */
+/* generated from parser.y[8081c20904fa6d8a218bedbd4956260e45cd09ca] */

@@ -17,7 +17,6 @@
 #include "idl/heap.h"
 #include "idl/processor.h"
 #include "scanner.h"
-#include "parser.h"
 
 #include "CUnit/Theory.h"
 

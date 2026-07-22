@@ -30,8 +30,12 @@ check_hashes(
     ${CMAKE_CURRENT_LIST_DIR}/src/parser.h
 )
 
+find_package(BISON 3.0.4 QUIET)
+
 if(NOT ${_bison_hash_correct})
-  find_package(BISON 3.0.4)
+  if(NOT BISON_FOUND)
+    find_package(BISON 3.0.4)
+  endif()
 
   if(BISON_FOUND)
     message(STATUS "Running Bison, parser.y was updated.")
@@ -63,6 +67,50 @@ else()
   file(COPY ${source_dir}/src/parser.h DESTINATION ${binary_dir}/src)
 endif()
 
+set(_parser_tokens_check_dir "${binary_dir}/generated-source-check/parser_tokens")
+set(_parser_tokens_check_stamp "${_parser_tokens_check_dir}/parser_tokens.ok")
+if(BISON_FOUND)
+  set(_parser_tokens_check_parser_c "${_parser_tokens_check_dir}/parser.c")
+  set(_parser_tokens_check_parser_h "${_parser_tokens_check_dir}/parser.h")
+  add_custom_command(
+    OUTPUT "${_parser_tokens_check_stamp}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${_parser_tokens_check_dir}"
+    COMMAND "${BISON_EXECUTABLE}"
+      "--defines=${_parser_tokens_check_parser_h}"
+      -o "${_parser_tokens_check_parser_c}"
+      "${source_dir}/src/parser.y"
+    COMMAND ${CMAKE_COMMAND}
+      "-DHAND_WRITTEN_HEADER=${source_dir}/src/parser_tokens.h"
+      "-DBISON_HEADER=${_parser_tokens_check_parser_h}"
+      -P "${CMAKE_SOURCE_DIR}/cmake/CheckBisonTokenIds.cmake"
+    COMMAND ${CMAKE_COMMAND} -E touch "${_parser_tokens_check_stamp}"
+    DEPENDS
+      "${source_dir}/src/parser.y"
+      "${source_dir}/src/parser_tokens.h"
+      "${CMAKE_SOURCE_DIR}/cmake/CheckBisonTokenIds.cmake"
+    VERBATIM)
+else()
+  add_custom_command(
+    OUTPUT "${_parser_tokens_check_stamp}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${_parser_tokens_check_dir}"
+    COMMAND ${CMAKE_COMMAND} -E echo
+      "Bison not found; comparing parser_tokens.h with checked-in parser.h."
+    COMMAND ${CMAKE_COMMAND}
+      "-DHAND_WRITTEN_HEADER=${source_dir}/src/parser_tokens.h"
+      "-DBISON_HEADER=${source_dir}/src/parser.h"
+      -P "${CMAKE_SOURCE_DIR}/cmake/CheckBisonTokenIds.cmake"
+    COMMAND ${CMAKE_COMMAND} -E touch "${_parser_tokens_check_stamp}"
+    DEPENDS
+      "${source_dir}/src/parser.h"
+      "${source_dir}/src/parser_tokens.h"
+      "${CMAKE_SOURCE_DIR}/cmake/CheckBisonTokenIds.cmake"
+    VERBATIM)
+endif()
+add_custom_target(
+  idl_parser_tokens_check
+  DEPENDS "${_parser_tokens_check_stamp}"
+  COMMENT "Checking handwritten IDL parser token IDs against Bison output.")
+
 set_source_files_properties(${binary_dir}/src/parser.c ${binary_dir}/src/parser.h PROPERTIES GENERATED TRUE)
 
 set(headers
@@ -87,6 +135,7 @@ set(sources
   src/expression.c
   src/file.c
   src/processor.c
+  src/parser_tokens.c
   src/scanner.c
   src/string.c
   src/annotation.c
@@ -107,6 +156,7 @@ set(sources
   src/file.h
   src/hashid.h
   src/parser.h
+  src/parser_tokens.h
   src/scanner.h
   src/parser_impl.h
   src/scope.h

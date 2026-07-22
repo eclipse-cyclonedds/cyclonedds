@@ -25,7 +25,6 @@
 #include "tree.h"
 #include "scope.h"
 #include "directive.h"
-#include "parser.h"
 
 struct directive {
   enum {

@@ -22,7 +22,6 @@
 #include "directive.h"
 #include "expression.h"
 #include "parser_impl.h"
-#include "parser.h"
 #include "scanner.h"
 #include "scope.h"
 #include "symbol.h"
@@ -785,6 +784,7 @@ parse_string_literal_expr(
   char *value = NULL;
   idl_retcode_t ret;
 
+  (void) last;
   assert(stream->token.code == IDL_TOKEN_STRING_LITERAL);
   do {
     const char *part = stream->token.value.str;
@@ -1732,6 +1732,7 @@ parse_struct_common(
         pstate, &location, strct, members)) != IDL_RETCODE_OK)
     goto err;
   entered_scope = false;
+  (void) entered_scope;
   members = NULL;
 
   *nodep = strct;
@@ -2056,6 +2057,7 @@ parse_union_common(
         pstate, &location, union_node, cases)) != IDL_RETCODE_OK)
     goto err;
   entered_scope = false;
+  (void) entered_scope;
   cases = NULL;
 
   *nodep = union_node;
@@ -2929,6 +2931,7 @@ parse_module(idl_parser_stream_t *stream, void **nodep)
         pstate, &location, module, definitions)) != IDL_RETCODE_OK)
     goto err;
   entered_scope = false;
+  (void) entered_scope;
   definitions = NULL;
 
   *nodep = module;
