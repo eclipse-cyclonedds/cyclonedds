@@ -22,22 +22,22 @@ static void exercise_trusted_consumers(const struct dds_cdrstream_desc *desc, vo
     char printbuf[65536];
 
     void *sample = ddsrt_calloc(1, desc->size);
-    dds_istream_init(&is, size, data, FUZZ_SAMPLE_DESER_XCDR_VERSION);
+    dds_istream_init_well_formed (&is, size, data, FUZZ_SAMPLE_DESER_XCDR_VERSION);
     dds_stream_read_sample(&is, sample, &dds_cdrstream_default_allocator, desc);
     dds_stream_free_sample(sample, &dds_cdrstream_default_allocator, desc->ops.ops);
     ddsrt_free(sample);
 
-    dds_istream_init(&is, size, data, FUZZ_SAMPLE_DESER_XCDR_VERSION);
+    dds_istream_init_well_formed (&is, size, data, FUZZ_SAMPLE_DESER_XCDR_VERSION);
     (void) dds_stream_print_sample(&is, desc, printbuf, sizeof(printbuf));
 
     if (desc->keys.nkeys > 0) {
         dds_ostream_t key_os;
         dds_ostream_init(&key_os, &dds_cdrstream_default_allocator, 0, FUZZ_SAMPLE_DESER_XCDR_VERSION);
 
-        dds_istream_init(&is, size, data, FUZZ_SAMPLE_DESER_XCDR_VERSION);
+        dds_istream_init_well_formed (&is, size, data, FUZZ_SAMPLE_DESER_XCDR_VERSION);
         if (dds_stream_extract_key_from_data(&is, &key_os, &dds_cdrstream_default_allocator, desc)) {
             dds_istream_t key_is;
-            dds_istream_init(&key_is, key_os.m_index, key_os.m_buffer, FUZZ_SAMPLE_DESER_XCDR_VERSION);
+            dds_istream_init_well_formed (&key_is, key_os.m_index, key_os.m_buffer, FUZZ_SAMPLE_DESER_XCDR_VERSION);
             (void) dds_stream_print_key(&key_is, desc, printbuf, sizeof(printbuf));
         }
 

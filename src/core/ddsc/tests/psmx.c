@@ -1408,7 +1408,7 @@ static void deepcopy_sample_contents (const dds_topic_descriptor_t *tpdesc, void
   if (!dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, input, &desc))
     abort ();
   struct dds_istream is;
-  dds_istream_init (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
+  dds_istream_init_well_formed (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
   memset (output, 0, desc.size);
   dds_stream_read_sample (&is, output, &dds_cdrstream_default_allocator, &desc);
   dds_istream_fini (&is);
