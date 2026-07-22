@@ -927,6 +927,462 @@ err:
 }
 
 static idl_retcode_t
+parse_switch_header(
+  idl_parser_stream_t *stream,
+  idl_switch_type_spec_t **switch_type_specp,
+  idl_location_t *locationp)
+{
+  idl_pstate_t *pstate = stream->pstate;
+  idl_position_t first = stream->token.location.first;
+  idl_location_t type_location;
+  idl_location_t rparen_location;
+  idl_type_spec_t *type_spec = NULL;
+  idl_switch_type_spec_t *switch_type_spec = NULL;
+  idl_retcode_t ret;
+
+  assert(stream->token.code == IDL_TOKEN_SWITCH);
+  if ((ret = stream_advance(stream)) != IDL_RETCODE_OK)
+    return ret;
+  if ((ret = expect(stream, '(', NULL)) != IDL_RETCODE_OK)
+    return ret;
+  if ((ret = parse_type_spec(stream, &type_spec)) != IDL_RETCODE_OK)
+    return ret;
+  type_location = *idl_location(type_spec);
+  if ((ret = expect(stream, ')', &rparen_location)) != IDL_RETCODE_OK)
+    goto err;
+
+  ret = idl_create_switch_type_spec(
+    pstate, &type_location, type_spec, &switch_type_spec);
+  if (ret != IDL_RETCODE_OK)
+    goto err;
+
+  *switch_type_specp = switch_type_spec;
+  *locationp = location_span(first, rparen_location.last);
+  return IDL_RETCODE_OK;
+err:
+  idl_delete_node(type_spec);
+  return ret;
+}
+
+static idl_retcode_t
+parse_case_label(
+  idl_parser_stream_t *stream,
+  idl_case_label_t **case_labelp)
+{
+  idl_pstate_t *pstate = stream->pstate;
+  idl_position_t first = stream->token.location.first;
+  idl_location_t location;
+  idl_const_expr_t *const_expr = NULL;
+  idl_literal_t *literal = NULL;
+  idl_case_label_t *case_label = NULL;
+  idl_retcode_t ret;
+
+  if (stream->token.code == IDL_TOKEN_DEFAULT) {
+    location = stream->token.location;
+    if ((ret = stream_advance(stream)) != IDL_RETCODE_OK)
+      return ret;
+    if ((ret = expect(stream, ':', NULL)) != IDL_RETCODE_OK)
+      return ret;
+    return idl_create_case_label(pstate, &location, NULL, case_labelp);
+  }
+
+  if (stream->token.code != IDL_TOKEN_CASE)
+    return syntax_error(stream);
+  if ((ret = stream_advance(stream)) != IDL_RETCODE_OK)
+    return ret;
+  if ((ret = parse_positive_int_literal(stream, &literal)) != IDL_RETCODE_OK)
+    return ret;
+  const_expr = (idl_const_expr_t *) literal;
+  location = location_span(first, idl_location(const_expr)->last);
+  if ((ret = expect(stream, ':', NULL)) != IDL_RETCODE_OK)
+    goto err;
+  ret = idl_create_case_label(pstate, &location, const_expr, &case_label);
+  if (ret != IDL_RETCODE_OK)
+    goto err;
+
+  *case_labelp = case_label;
+  return IDL_RETCODE_OK;
+err:
+  idl_delete_node(const_expr);
+  return ret;
+}
+
+static idl_retcode_t
+parse_case_labels(
+  idl_parser_stream_t *stream,
+  idl_case_label_t **case_labelsp)
+{
+  idl_case_label_t *case_labels = NULL;
+  idl_retcode_t ret;
+
+  if ((ret = parse_case_label(stream, &case_labels)) != IDL_RETCODE_OK)
+    return ret;
+
+  while (stream->token.code == IDL_TOKEN_CASE ||
+         stream->token.code == IDL_TOKEN_DEFAULT) {
+    idl_case_label_t *case_label = NULL;
+
+    if ((ret = parse_case_label(stream, &case_label)) != IDL_RETCODE_OK)
+      goto err;
+    case_labels = idl_push_node(case_labels, case_label);
+  }
+
+  *case_labelsp = case_labels;
+  return IDL_RETCODE_OK;
+err:
+  idl_delete_node(case_labels);
+  return ret;
+}
+
+static idl_retcode_t
+parse_element_spec(
+  idl_parser_stream_t *stream,
+  idl_case_t **casep,
+  idl_location_t *locationp)
+{
+  idl_pstate_t *pstate = stream->pstate;
+  idl_position_t first = stream->token.location.first;
+  idl_location_t location;
+  idl_type_spec_t *type_spec = NULL;
+  idl_declarator_t *declarator = NULL;
+  idl_case_t *case_node = NULL;
+  idl_retcode_t ret;
+
+  if ((ret = parse_type_spec(stream, &type_spec)) != IDL_RETCODE_OK)
+    return ret;
+  if ((ret = parse_declarator(stream, &declarator)) != IDL_RETCODE_OK)
+    goto err;
+
+  location = location_span(first, idl_location(declarator)->last);
+  ret = idl_create_case(
+    pstate, &location, type_spec, declarator, &case_node);
+  if (ret != IDL_RETCODE_OK)
+    goto err;
+
+  *casep = case_node;
+  *locationp = location;
+  return IDL_RETCODE_OK;
+err:
+  idl_delete_node(declarator);
+  idl_delete_node(type_spec);
+  return ret;
+}
+
+static idl_retcode_t
+parse_case(idl_parser_stream_t *stream, idl_case_t **casep)
+{
+  idl_location_t element_location;
+  idl_case_label_t *case_labels = NULL;
+  idl_case_t *case_node = NULL;
+  idl_retcode_t ret;
+
+  if ((ret = parse_case_labels(stream, &case_labels)) != IDL_RETCODE_OK)
+    return ret;
+  if ((ret = parse_element_spec(
+        stream, &case_node, &element_location)) != IDL_RETCODE_OK)
+    goto err;
+  if ((ret = expect(stream, ';', NULL)) != IDL_RETCODE_OK)
+    goto err;
+  if ((ret = idl_finalize_case(
+        stream->pstate, &element_location, case_node, case_labels)) !=
+      IDL_RETCODE_OK)
+    goto err;
+  case_labels = NULL;
+
+  *casep = case_node;
+  return IDL_RETCODE_OK;
+err:
+  idl_delete_node(case_labels);
+  idl_delete_node(case_node);
+  return ret;
+}
+
+static idl_retcode_t
+parse_cases(idl_parser_stream_t *stream, idl_case_t **casesp)
+{
+  idl_case_t *cases = NULL;
+  idl_retcode_t ret;
+
+  while (stream->token.code != '}') {
+    idl_case_t *case_node = NULL;
+
+    if (stream->token.code == '\0') {
+      ret = syntax_error(stream);
+      goto err;
+    }
+
+    if ((ret = parse_case(stream, &case_node)) != IDL_RETCODE_OK)
+      goto err;
+    cases = idl_push_node(cases, case_node);
+  }
+
+  if (!cases) {
+    ret = syntax_error(stream);
+    goto err;
+  }
+
+  *casesp = cases;
+  return IDL_RETCODE_OK;
+err:
+  idl_delete_node(cases);
+  return ret;
+}
+
+static idl_retcode_t
+parse_union(idl_parser_stream_t *stream, void **nodep)
+{
+  idl_pstate_t *pstate = stream->pstate;
+  idl_position_t first = stream->token.location.first;
+  idl_location_t keyword_location = stream->token.location;
+  idl_location_t header_location;
+  idl_location_t location;
+  idl_location_t rbrace_location;
+  idl_switch_type_spec_t *switch_type_spec = NULL;
+  idl_union_t *union_node = NULL;
+  idl_case_t *cases = NULL;
+  idl_name_t *name = NULL;
+  bool entered_scope = false;
+  idl_retcode_t ret;
+
+  assert(stream->token.code == IDL_TOKEN_UNION);
+  if ((ret = stream_advance(stream)) != IDL_RETCODE_OK)
+    return ret;
+  if ((ret = parse_identifier(stream, &name)) != IDL_RETCODE_OK)
+    return ret;
+
+  if (stream->token.code == ';') {
+    ret = idl_create_forward(pstate, &keyword_location, name, IDL_UNION, nodep);
+    if (ret != IDL_RETCODE_OK)
+      idl_delete_name(name);
+    return ret;
+  }
+
+  if (stream->token.code != IDL_TOKEN_SWITCH) {
+    idl_delete_name(name);
+    return syntax_error(stream);
+  }
+
+  if ((ret = parse_switch_header(
+        stream, &switch_type_spec, &header_location)) != IDL_RETCODE_OK) {
+    idl_delete_name(name);
+    return ret;
+  }
+
+  location = location_span(first, header_location.last);
+  ret = idl_create_union(
+    pstate, &location, name, switch_type_spec, &union_node);
+  if (ret != IDL_RETCODE_OK) {
+    idl_delete_node(switch_type_spec);
+    idl_delete_name(name);
+    return ret;
+  }
+  name = NULL;
+  switch_type_spec = NULL;
+  entered_scope = true;
+
+  if ((ret = expect(stream, '{', NULL)) != IDL_RETCODE_OK)
+    goto err;
+  if ((ret = parse_cases(stream, &cases)) != IDL_RETCODE_OK)
+    goto err;
+  if ((ret = expect(stream, '}', &rbrace_location)) != IDL_RETCODE_OK)
+    goto err;
+
+  location = location_span(first, rbrace_location.last);
+  if ((ret = idl_finalize_union(
+        pstate, &location, union_node, cases)) != IDL_RETCODE_OK)
+    goto err;
+  entered_scope = false;
+  cases = NULL;
+
+  *nodep = union_node;
+  return IDL_RETCODE_OK;
+err:
+  if (entered_scope)
+    idl_exit_scope(pstate);
+  idl_delete_node(cases);
+  idl_delete_node(union_node);
+  return ret;
+}
+
+static idl_retcode_t
+parse_enumerator(
+  idl_parser_stream_t *stream,
+  idl_enumerator_t **enumeratorp)
+{
+  idl_pstate_t *pstate = stream->pstate;
+  idl_enumerator_t *enumerator = NULL;
+  idl_name_t *name = NULL;
+  idl_location_t location;
+  idl_retcode_t ret;
+
+  if ((ret = parse_identifier(stream, &name)) != IDL_RETCODE_OK)
+    return ret;
+  location = name->symbol.location;
+  ret = idl_create_enumerator(pstate, &location, name, &enumerator);
+  if (ret != IDL_RETCODE_OK) {
+    idl_delete_name(name);
+    return ret;
+  }
+
+  *enumeratorp = enumerator;
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+parse_enumerators(
+  idl_parser_stream_t *stream,
+  idl_enumerator_t **enumeratorsp)
+{
+  idl_enumerator_t *enumerators = NULL;
+  idl_retcode_t ret;
+
+  if ((ret = parse_enumerator(stream, &enumerators)) != IDL_RETCODE_OK)
+    return ret;
+
+  while (stream->token.code == ',') {
+    idl_enumerator_t *enumerator = NULL;
+
+    if ((ret = stream_advance(stream)) != IDL_RETCODE_OK)
+      goto err;
+    if ((ret = parse_enumerator(stream, &enumerator)) != IDL_RETCODE_OK)
+      goto err;
+    enumerators = idl_push_node(enumerators, enumerator);
+  }
+
+  *enumeratorsp = enumerators;
+  return IDL_RETCODE_OK;
+err:
+  idl_delete_node(enumerators);
+  return ret;
+}
+
+static idl_retcode_t
+parse_enum(idl_parser_stream_t *stream, void **nodep)
+{
+  idl_pstate_t *pstate = stream->pstate;
+  idl_position_t first = stream->token.location.first;
+  idl_location_t rbrace_location;
+  idl_location_t location;
+  idl_enum_t *enum_node = NULL;
+  idl_enumerator_t *enumerators = NULL;
+  idl_name_t *name = NULL;
+  idl_retcode_t ret;
+
+  assert(stream->token.code == IDL_TOKEN_ENUM);
+  if ((ret = stream_advance(stream)) != IDL_RETCODE_OK)
+    return ret;
+  if ((ret = parse_identifier(stream, &name)) != IDL_RETCODE_OK)
+    return ret;
+  if ((ret = expect(stream, '{', NULL)) != IDL_RETCODE_OK)
+    goto err;
+  if ((ret = parse_enumerators(stream, &enumerators)) != IDL_RETCODE_OK)
+    goto err;
+  if ((ret = expect(stream, '}', &rbrace_location)) != IDL_RETCODE_OK)
+    goto err;
+
+  location = location_span(first, rbrace_location.last);
+  ret = idl_create_enum(pstate, &location, name, enumerators, &enum_node);
+  if (ret != IDL_RETCODE_OK)
+    goto err;
+
+  *nodep = enum_node;
+  return IDL_RETCODE_OK;
+err:
+  idl_delete_node(enumerators);
+  idl_delete_name(name);
+  return ret;
+}
+
+static idl_retcode_t
+parse_bit_value(
+  idl_parser_stream_t *stream,
+  idl_bit_value_t **bit_valuep)
+{
+  idl_pstate_t *pstate = stream->pstate;
+  idl_bit_value_t *bit_value = NULL;
+  idl_name_t *name = NULL;
+  idl_location_t location;
+  idl_retcode_t ret;
+
+  if ((ret = parse_identifier(stream, &name)) != IDL_RETCODE_OK)
+    return ret;
+  location = name->symbol.location;
+  ret = idl_create_bit_value(pstate, &location, name, &bit_value);
+  if (ret != IDL_RETCODE_OK) {
+    idl_delete_name(name);
+    return ret;
+  }
+
+  *bit_valuep = bit_value;
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+parse_bit_values(
+  idl_parser_stream_t *stream,
+  idl_bit_value_t **bit_valuesp)
+{
+  idl_bit_value_t *bit_values = NULL;
+  idl_retcode_t ret;
+
+  if ((ret = parse_bit_value(stream, &bit_values)) != IDL_RETCODE_OK)
+    return ret;
+
+  while (stream->token.code == ',') {
+    idl_bit_value_t *bit_value = NULL;
+
+    if ((ret = stream_advance(stream)) != IDL_RETCODE_OK)
+      goto err;
+    if ((ret = parse_bit_value(stream, &bit_value)) != IDL_RETCODE_OK)
+      goto err;
+    bit_values = idl_push_node(bit_values, bit_value);
+  }
+
+  *bit_valuesp = bit_values;
+  return IDL_RETCODE_OK;
+err:
+  idl_delete_node(bit_values);
+  return ret;
+}
+
+static idl_retcode_t
+parse_bitmask(idl_parser_stream_t *stream, void **nodep)
+{
+  idl_pstate_t *pstate = stream->pstate;
+  idl_position_t first = stream->token.location.first;
+  idl_location_t rbrace_location;
+  idl_location_t location;
+  idl_bitmask_t *bitmask = NULL;
+  idl_bit_value_t *bit_values = NULL;
+  idl_name_t *name = NULL;
+  idl_retcode_t ret;
+
+  assert(stream->token.code == IDL_TOKEN_BITMASK);
+  if ((ret = stream_advance(stream)) != IDL_RETCODE_OK)
+    return ret;
+  if ((ret = parse_identifier(stream, &name)) != IDL_RETCODE_OK)
+    return ret;
+  if ((ret = expect(stream, '{', NULL)) != IDL_RETCODE_OK)
+    goto err;
+  if ((ret = parse_bit_values(stream, &bit_values)) != IDL_RETCODE_OK)
+    goto err;
+  if ((ret = expect(stream, '}', &rbrace_location)) != IDL_RETCODE_OK)
+    goto err;
+
+  location = location_span(first, rbrace_location.last);
+  ret = idl_create_bitmask(pstate, &location, name, bit_values, &bitmask);
+  if (ret != IDL_RETCODE_OK)
+    goto err;
+
+  *nodep = bitmask;
+  return IDL_RETCODE_OK;
+err:
+  idl_delete_node(bit_values);
+  idl_delete_name(name);
+  return ret;
+}
+
+static idl_retcode_t
 parse_module(idl_parser_stream_t *stream, void **nodep)
 {
   idl_pstate_t *pstate = stream->pstate;
@@ -992,8 +1448,17 @@ parse_definition(idl_parser_stream_t *stream, void **nodep)
     case IDL_TOKEN_STRUCT:
       ret = parse_struct(stream, &node);
       break;
+    case IDL_TOKEN_UNION:
+      ret = parse_union(stream, &node);
+      break;
     case IDL_TOKEN_TYPEDEF:
       ret = parse_typedef(stream, &node);
+      break;
+    case IDL_TOKEN_ENUM:
+      ret = parse_enum(stream, &node);
+      break;
+    case IDL_TOKEN_BITMASK:
+      ret = parse_bitmask(stream, &node);
       break;
     default:
       return syntax_error(stream);

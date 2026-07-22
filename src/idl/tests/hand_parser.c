@@ -392,6 +392,102 @@ CU_Test(idl_hand_parser, repeated_struct_forward_declarations)
   idl_delete_pstate(pstate);
 }
 
+CU_Test(idl_hand_parser, union_forward_declaration)
+{
+  expect_parse_ret("union Choice;", IDL_RETCODE_SEMANTIC_ERROR);
+}
+
+CU_Test(idl_hand_parser, repeated_union_forward_declarations)
+{
+  expect_parse_ret("union Choice; union Choice;", IDL_RETCODE_SEMANTIC_ERROR);
+}
+
+CU_Test(idl_hand_parser, union_with_single_case)
+{
+  idl_pstate_t *pstate;
+  idl_union_t *union_node;
+  idl_case_t *case_node;
+  idl_case_label_t *case_label;
+
+  pstate = parse_string("union Choice switch(long) { case 1: char c; };");
+  union_node = (idl_union_t *) pstate->root;
+  CU_ASSERT_NEQ_FATAL(union_node, NULL);
+  CU_ASSERT_FATAL(idl_is_union(union_node));
+  CU_ASSERT_STREQ(idl_identifier(union_node), "Choice");
+  CU_ASSERT_EQ(idl_type(union_node->switch_type_spec->type_spec), IDL_LONG);
+  CU_ASSERT_EQ(idl_parent(union_node->switch_type_spec), union_node);
+
+  case_node = union_node->cases;
+  CU_ASSERT_NEQ_FATAL(case_node, NULL);
+  CU_ASSERT_FATAL(idl_is_case(case_node));
+  CU_ASSERT_EQ(idl_parent(case_node), union_node);
+  case_label = case_node->labels;
+  CU_ASSERT_NEQ_FATAL(case_label, NULL);
+  CU_ASSERT_FATAL(idl_is_case_label(case_label));
+  CU_ASSERT_NEQ(case_label->const_expr, NULL);
+  CU_ASSERT_EQ(idl_next(case_label), NULL);
+  CU_ASSERT_EQ(idl_type(case_node->type_spec), IDL_CHAR);
+  CU_ASSERT_FATAL(idl_is_declarator(case_node->declarator));
+  CU_ASSERT_STREQ(idl_identifier(case_node->declarator), "c");
+  CU_ASSERT_EQ(idl_next(case_node), NULL);
+
+  idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_hand_parser, union_with_default_case)
+{
+  idl_pstate_t *pstate;
+  idl_union_t *union_node;
+  idl_case_t *case_node;
+
+  pstate = parse_string("union Choice switch(char) { default: long value; };");
+  union_node = (idl_union_t *) pstate->root;
+  CU_ASSERT_NEQ_FATAL(union_node, NULL);
+  CU_ASSERT_FATAL(idl_is_union(union_node));
+  CU_ASSERT_EQ(idl_type(union_node->switch_type_spec->type_spec), IDL_CHAR);
+
+  case_node = union_node->cases;
+  CU_ASSERT_NEQ_FATAL(case_node, NULL);
+  CU_ASSERT_FATAL(idl_is_case(case_node));
+  CU_ASSERT_FATAL(idl_is_default_case(case_node));
+  CU_ASSERT_EQ(union_node->default_case, case_node->labels);
+  CU_ASSERT_EQ(idl_type(case_node->type_spec), IDL_LONG);
+  CU_ASSERT_STREQ(idl_identifier(case_node->declarator), "value");
+  CU_ASSERT_EQ(idl_next(case_node), NULL);
+
+  idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_hand_parser, union_forward_declaration_linked_to_definition)
+{
+  idl_pstate_t *pstate;
+  idl_forward_t *forward;
+  idl_union_t *union_node;
+
+  pstate = parse_string(
+    "union Choice; union Choice switch(long) { case 1: char c; };");
+  forward = (idl_forward_t *) pstate->root;
+  CU_ASSERT_NEQ_FATAL(forward, NULL);
+  CU_ASSERT_FATAL(idl_is_forward(forward));
+  CU_ASSERT_EQ(idl_mask(forward), IDL_UNION | IDL_FORWARD);
+  CU_ASSERT_STREQ(idl_identifier(forward), "Choice");
+
+  union_node = idl_next(forward);
+  CU_ASSERT_NEQ_FATAL(union_node, NULL);
+  CU_ASSERT_FATAL(idl_is_union(union_node));
+  CU_ASSERT_STREQ(idl_identifier(union_node), "Choice");
+  CU_ASSERT_EQ(forward->type_spec, (idl_type_spec_t *) union_node);
+  CU_ASSERT_EQ(idl_next(union_node), NULL);
+
+  idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_hand_parser, union_rejects_empty_body)
+{
+  expect_parse_ret(
+    "union Choice switch(long) { };", IDL_RETCODE_SYNTAX_ERROR);
+}
+
 CU_Test(idl_hand_parser, struct_inheritance)
 {
   idl_pstate_t *pstate;
@@ -691,4 +787,139 @@ CU_Test(idl_hand_parser, string_type_rejects_uint32_max_bound)
   expect_parse_ret(
     "struct Sample { string<4294967295> value; };",
     IDL_RETCODE_UNSUPPORTED);
+}
+
+CU_Test(idl_hand_parser, enum_with_enumerators)
+{
+  idl_pstate_t *pstate;
+  idl_enum_t *enum_node;
+  idl_enumerator_t *enumerator;
+  idl_struct_t *strct;
+  idl_member_t *member;
+  const char str[] =
+    "enum Color { RED, GREEN, BLUE };"
+    "struct Pixel { Color color; };";
+
+  pstate = parse_string(str);
+  enum_node = (idl_enum_t *) pstate->root;
+  CU_ASSERT_NEQ_FATAL(enum_node, NULL);
+  CU_ASSERT_FATAL(idl_is_enum(enum_node));
+  CU_ASSERT_STREQ(idl_identifier(enum_node), "Color");
+  CU_ASSERT_EQ(idl_parent(enum_node), NULL);
+
+  enumerator = enum_node->enumerators;
+  CU_ASSERT_NEQ_FATAL(enumerator, NULL);
+  CU_ASSERT_FATAL(idl_is_enumerator(enumerator));
+  CU_ASSERT_STREQ(idl_identifier(enumerator), "RED");
+  CU_ASSERT_EQ(enumerator->value.value, 0);
+  CU_ASSERT_EQ(idl_parent(enumerator), enum_node);
+  CU_ASSERT_EQ(enum_node->default_enumerator, enumerator);
+
+  enumerator = idl_next(enumerator);
+  CU_ASSERT_NEQ_FATAL(enumerator, NULL);
+  CU_ASSERT_FATAL(idl_is_enumerator(enumerator));
+  CU_ASSERT_STREQ(idl_identifier(enumerator), "GREEN");
+  CU_ASSERT_EQ(enumerator->value.value, 1);
+  CU_ASSERT_EQ(idl_parent(enumerator), enum_node);
+
+  enumerator = idl_next(enumerator);
+  CU_ASSERT_NEQ_FATAL(enumerator, NULL);
+  CU_ASSERT_FATAL(idl_is_enumerator(enumerator));
+  CU_ASSERT_STREQ(idl_identifier(enumerator), "BLUE");
+  CU_ASSERT_EQ(enumerator->value.value, 2);
+  CU_ASSERT_EQ(idl_parent(enumerator), enum_node);
+  CU_ASSERT_EQ(idl_next(enumerator), NULL);
+
+  strct = idl_next(enum_node);
+  CU_ASSERT_NEQ_FATAL(strct, NULL);
+  CU_ASSERT_FATAL(idl_is_struct(strct));
+  member = strct->members;
+  CU_ASSERT_NEQ_FATAL(member, NULL);
+  CU_ASSERT_EQ(member->type_spec, enum_node);
+  CU_ASSERT_STREQ(idl_identifier(member->declarators), "color");
+
+  idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_hand_parser, enum_rejects_empty_body)
+{
+  expect_parse_ret("enum Empty { };", IDL_RETCODE_SYNTAX_ERROR);
+}
+
+CU_Test(idl_hand_parser, enum_rejects_duplicate_enumerators)
+{
+  expect_parse_ret("enum Color { RED, RED };", IDL_RETCODE_SEMANTIC_ERROR);
+}
+
+CU_Test(idl_hand_parser, enum_rejects_enumerator_matching_enum)
+{
+  expect_parse_ret("enum Color { Color };", IDL_RETCODE_SEMANTIC_ERROR);
+}
+
+CU_Test(idl_hand_parser, bitmask_with_bit_values)
+{
+  idl_pstate_t *pstate;
+  idl_bitmask_t *bitmask;
+  idl_bit_value_t *bit_value;
+  idl_struct_t *strct;
+  idl_member_t *member;
+  const char str[] =
+    "bitmask Permissions { READ, WRITE, EXECUTE };"
+    "struct Access { Permissions permissions; };";
+
+  pstate = parse_string(str);
+  bitmask = (idl_bitmask_t *) pstate->root;
+  CU_ASSERT_NEQ_FATAL(bitmask, NULL);
+  CU_ASSERT_FATAL(idl_is_bitmask(bitmask));
+  CU_ASSERT_STREQ(idl_identifier(bitmask), "Permissions");
+  CU_ASSERT_EQ(bitmask->bit_bound.value, 32u);
+
+  bit_value = bitmask->bit_values;
+  CU_ASSERT_NEQ_FATAL(bit_value, NULL);
+  CU_ASSERT_FATAL(idl_is_bit_value(bit_value));
+  CU_ASSERT_STREQ(idl_identifier(bit_value), "READ");
+  CU_ASSERT_EQ(bit_value->position.value, 0u);
+  CU_ASSERT_EQ(idl_parent(bit_value), bitmask);
+
+  bit_value = idl_next(bit_value);
+  CU_ASSERT_NEQ_FATAL(bit_value, NULL);
+  CU_ASSERT_FATAL(idl_is_bit_value(bit_value));
+  CU_ASSERT_STREQ(idl_identifier(bit_value), "WRITE");
+  CU_ASSERT_EQ(bit_value->position.value, 1u);
+  CU_ASSERT_EQ(idl_parent(bit_value), bitmask);
+
+  bit_value = idl_next(bit_value);
+  CU_ASSERT_NEQ_FATAL(bit_value, NULL);
+  CU_ASSERT_FATAL(idl_is_bit_value(bit_value));
+  CU_ASSERT_STREQ(idl_identifier(bit_value), "EXECUTE");
+  CU_ASSERT_EQ(bit_value->position.value, 2u);
+  CU_ASSERT_EQ(idl_parent(bit_value), bitmask);
+  CU_ASSERT_EQ(idl_next(bit_value), NULL);
+
+  strct = idl_next(bitmask);
+  CU_ASSERT_NEQ_FATAL(strct, NULL);
+  CU_ASSERT_FATAL(idl_is_struct(strct));
+  member = strct->members;
+  CU_ASSERT_NEQ_FATAL(member, NULL);
+  CU_ASSERT_EQ(member->type_spec, bitmask);
+  CU_ASSERT_STREQ(idl_identifier(member->declarators), "permissions");
+
+  idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_hand_parser, bitmask_rejects_empty_body)
+{
+  expect_parse_ret("bitmask Empty { };", IDL_RETCODE_SYNTAX_ERROR);
+}
+
+CU_Test(idl_hand_parser, bitmask_rejects_duplicate_bit_values)
+{
+  expect_parse_ret(
+    "bitmask Permissions { READ, READ };", IDL_RETCODE_SEMANTIC_ERROR);
+}
+
+CU_Test(idl_hand_parser, bitmask_rejects_bit_value_matching_bitmask)
+{
+  expect_parse_ret(
+    "bitmask Permissions { Permissions };", IDL_RETCODE_SEMANTIC_ERROR);
 }
