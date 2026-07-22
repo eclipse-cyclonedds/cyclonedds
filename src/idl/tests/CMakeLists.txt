@@ -11,7 +11,7 @@
 #
 include(CUnit)
 
-add_cunit_executable(cunit_idl
+set(idl_test_sources
   file.c
   scanner.c
   annotation.c
@@ -25,5 +25,11 @@ add_cunit_executable(cunit_idl
   module.c
   forward.c
   functions.c)
+
+if(ENABLE_IDL_HAND_PARSER)
+  list(APPEND idl_test_sources hand_parser.c)
+endif()
+
+add_cunit_executable(cunit_idl ${idl_test_sources})
 
 target_link_libraries(cunit_idl PRIVATE idl)
