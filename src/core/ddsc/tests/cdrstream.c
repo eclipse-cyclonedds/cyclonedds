@@ -1658,7 +1658,7 @@ CU_Test(ddsc_cdrstream, init_sequence_in_external_struct)
   const enum dds_stream_normalize_result norm_ok = dds_stream_normalize (cdr.data, sizeof (cdr.data), byteswap, DDSI_RTPS_CDR_ENC_VERSION_2, &descr, false, &actual_size);
   CU_ASSERT_FATAL (norm_ok == DDS_STREAM_NORMALIZE_SUCCESS && actual_size == sizeof (cdr.data));
   dds_istream_t is;
-  dds_istream_init (&is, sizeof (cdr.data), cdr.data, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init_well_formed (&is, sizeof (cdr.data), cdr.data, DDSI_RTPS_CDR_ENC_VERSION_2);
   ExternMutStructSeq * sample = ddsrt_calloc (1, sizeof (*sample));
   dds_stream_read_sample (&is, sample, &dds_cdrstream_default_allocator, &descr);
   dds_stream_free_sample (sample, &dds_cdrstream_default_allocator, descr.ops.ops);
@@ -2343,7 +2343,7 @@ CU_Test (ddsc_cdrstream, read_enum_value_metadata_8bit_signed)
   ALIGNED_CDR_BUFFER_INIT (cdr, 0xffu);
   CdrStreamEnumMeta sample = { .e = 0u };
   dds_istream_t is;
-  dds_istream_init (&is, sizeof (cdr.data), cdr.data, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init_well_formed (&is, sizeof (cdr.data), cdr.data, DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_stream_read_sample (&is, &sample, &dds_cdrstream_default_allocator, &desc);
 
   CU_ASSERT_EQ_FATAL (is.m_index, sizeof (cdr.data));
@@ -2361,7 +2361,7 @@ CU_Test (ddsc_cdrstream, extract_enum_key_metadata_8bit_signed)
   const uint8_t expected[] = { 0xffu };
   dds_istream_t is;
   dds_ostream_t os;
-  dds_istream_init (&is, sizeof (cdr.data), cdr.data, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init_well_formed (&is, sizeof (cdr.data), cdr.data, DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_ostream_init (&os, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
   bool ret = dds_stream_extract_key_from_data (&is, &os, &dds_cdrstream_default_allocator, &desc);
   CU_ASSERT_FATAL (ret);
@@ -2370,7 +2370,7 @@ CU_Test (ddsc_cdrstream, extract_enum_key_metadata_8bit_signed)
   dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
 
   dds_ostreamBE_t osbe;
-  dds_istream_init (&is, sizeof (cdr.data), cdr.data, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init_well_formed (&is, sizeof (cdr.data), cdr.data, DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_ostreamBE_init (&osbe, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
   ret = dds_stream_extract_keyBE_from_data (&is, &osbe, &dds_cdrstream_default_allocator, &desc);
   CU_ASSERT_FATAL (ret);
@@ -2476,7 +2476,7 @@ CU_Test (ddsc_cdrstream, write_enum_key_value_metadata)
 
   dds_istream_t is;
   dds_ostream_t osk;
-  dds_istream_init (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
+  dds_istream_init_well_formed (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
   dds_ostream_init (&osk, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
   ret = dds_stream_extract_key_from_data (&is, &osk, &dds_cdrstream_default_allocator, &desc);
   CU_ASSERT_FATAL (ret);
@@ -2484,7 +2484,7 @@ CU_Test (ddsc_cdrstream, write_enum_key_value_metadata)
   CU_ASSERT_MEMEQ_FATAL (osk.m_buffer, osk.m_index, expected, sizeof (expected));
   dds_ostream_fini (&osk, &dds_cdrstream_default_allocator);
 
-  dds_istream_init (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
+  dds_istream_init_well_formed (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
   dds_ostream_init (&osk, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_stream_extract_key_from_key (&is, &osk, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, &desc);
   CU_ASSERT_EQ_FATAL (is.m_index, is.m_size);
@@ -2570,7 +2570,7 @@ static void assert_union_key_cdr (const dds_topic_descriptor_t *tdesc, const voi
     CU_ASSERT_FATAL (osd.m_index > key_cdr_size);
 
     dds_istream_t is;
-    dds_istream_init (&is, osd.m_index, osd.m_buffer, osd.m_xcdr_version);
+    dds_istream_init_well_formed (&is, osd.m_index, osd.m_buffer, osd.m_xcdr_version);
     dds_ostream_t ose;
     dds_ostream_init (&ose, &dds_cdrstream_default_allocator, 0, version);
     ret = dds_stream_extract_key_from_data (&is, &ose, &dds_cdrstream_default_allocator, &desc);
@@ -2579,14 +2579,14 @@ static void assert_union_key_cdr (const dds_topic_descriptor_t *tdesc, const voi
     CU_ASSERT_MEMEQ_FATAL (ose.m_buffer, ose.m_index, key_cdr, key_cdr_size);
     dds_ostream_fini (&ose, &dds_cdrstream_default_allocator);
 
-    dds_istream_init (&is, key_cdr_size32, key_input.data, version);
+    dds_istream_init_well_formed (&is, key_cdr_size32, key_input.data, version);
     dds_ostream_init (&ose, &dds_cdrstream_default_allocator, 0, version);
     dds_stream_extract_key_from_key (&is, &ose, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, &desc);
     CU_ASSERT_EQ_FATAL (is.m_index, is.m_size);
     CU_ASSERT_MEMEQ_FATAL (ose.m_buffer, ose.m_index, key_cdr, key_cdr_size);
     dds_ostream_fini (&ose, &dds_cdrstream_default_allocator);
 
-    dds_istream_init (&is, key_cdr_size32, key_input.data, version);
+    dds_istream_init_well_formed (&is, key_cdr_size32, key_input.data, version);
     dds_ostreamBE_t osbe;
     dds_ostreamBE_init (&osbe, &dds_cdrstream_default_allocator, 0, version);
     dds_stream_extract_keyBE_from_key (&is, &osbe, DDS_CDR_KEY_SERIALIZATION_KEYHASH, &dds_cdrstream_default_allocator, &desc);
@@ -2596,14 +2596,14 @@ static void assert_union_key_cdr (const dds_topic_descriptor_t *tdesc, const voi
 
     void *key_sample = dds_alloc (desc.size);
     memset (key_sample, 0, desc.size);
-    dds_istream_init (&is, key_cdr_size32, key_input.data, version);
+    dds_istream_init_well_formed (&is, key_cdr_size32, key_input.data, version);
     dds_stream_read_key (&is, key_sample, &dds_cdrstream_default_allocator, &desc);
     CU_ASSERT_EQ_FATAL (is.m_index, is.m_size);
     CU_ASSERT_FATAL (check_key_sample (key_sample));
     dds_free (key_sample);
 
     char strbuf[128];
-    dds_istream_init (&is, key_cdr_size32, key_input.data, version);
+    dds_istream_init_well_formed (&is, key_cdr_size32, key_input.data, version);
     dds_stream_print_key (&is, &desc, strbuf, sizeof (strbuf));
     CU_ASSERT_EQ_FATAL (is.m_index, is.m_size);
 
@@ -2670,7 +2670,7 @@ CU_Test (ddsc_cdrstream, extract_enum_key_default_metadata)
 
     dds_istream_t is;
     dds_ostream_t os;
-    dds_istream_init (&is, cdrsize, tests[i].cdr.data, DDSI_RTPS_CDR_ENC_VERSION_2);
+    dds_istream_init_well_formed (&is, cdrsize, tests[i].cdr.data, DDSI_RTPS_CDR_ENC_VERSION_2);
     dds_ostream_init (&os, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
     bool ret = dds_stream_extract_key_from_data (&is, &os, &dds_cdrstream_default_allocator, &desc);
     CU_ASSERT_FATAL (ret);
@@ -2679,7 +2679,7 @@ CU_Test (ddsc_cdrstream, extract_enum_key_default_metadata)
     dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
 
     dds_ostreamBE_t osbe;
-    dds_istream_init (&is, cdrsize, tests[i].cdr.data, DDSI_RTPS_CDR_ENC_VERSION_2);
+    dds_istream_init_well_formed (&is, cdrsize, tests[i].cdr.data, DDSI_RTPS_CDR_ENC_VERSION_2);
     dds_ostreamBE_init (&osbe, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
     ret = dds_stream_extract_keyBE_from_data (&is, &osbe, &dds_cdrstream_default_allocator, &desc);
     CU_ASSERT_FATAL (ret);
@@ -2758,14 +2758,14 @@ CU_Test (ddsc_cdrstream, mutable_union_value_metadata)
 
   CdrStreamEnumUnionDefaultMeta sample_rd = { .d = 1u, .u = { .e = 99u } };
   dds_istream_t is;
-  dds_istream_init (&is, sizeof (cdr_xcdr2.data), cdr_xcdr2.data, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init_well_formed (&is, sizeof (cdr_xcdr2.data), cdr_xcdr2.data, DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_stream_read_sample (&is, &sample_rd, &dds_cdrstream_default_allocator, &desc);
   CU_ASSERT_EQ_FATAL (is.m_index, sizeof (cdr_xcdr2.data));
   CU_ASSERT_EQ_FATAL (sample_rd.d, 3u);
   CU_ASSERT_EQ_FATAL (sample_rd.u.e, 3u);
 
   char strbuf[64];
-  dds_istream_init (&is, sizeof (cdr_xcdr2.data), cdr_xcdr2.data, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init_well_formed (&is, sizeof (cdr_xcdr2.data), cdr_xcdr2.data, DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_stream_print_sample (&is, &desc, strbuf, sizeof (strbuf));
   CU_ASSERT_EQ_FATAL (is.m_index, sizeof (cdr_xcdr2.data));
   CU_ASSERT_FATAL (strcmp (strbuf, "{3:3}") == 0);
@@ -2777,7 +2777,7 @@ CU_Test (ddsc_cdrstream, mutable_union_value_metadata)
   CU_ASSERT_EQ_FATAL (actual_size, sizeof (absent_xcdr2.data));
 
   sample_rd = (CdrStreamEnumUnionDefaultMeta) { .d = 1u, .u = { .e = 99u } };
-  dds_istream_init (&is, sizeof (absent_xcdr2.data), absent_xcdr2.data, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init_well_formed (&is, sizeof (absent_xcdr2.data), absent_xcdr2.data, DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_stream_read_sample (&is, &sample_rd, &dds_cdrstream_default_allocator, &desc);
   CU_ASSERT_EQ_FATAL (is.m_index, sizeof (absent_xcdr2.data));
   CU_ASSERT_EQ_FATAL (sample_rd.d, 3u);
@@ -2797,13 +2797,13 @@ CU_Test (ddsc_cdrstream, mutable_union_value_metadata)
   CU_ASSERT_EQ_FATAL (actual_size, sizeof (cdr_xcdr1.data));
 
   sample_rd = (CdrStreamEnumUnionDefaultMeta) { .d = 1u, .u = { .e = 99u } };
-  dds_istream_init (&is, sizeof (cdr_xcdr1.data), cdr_xcdr1.data, DDSI_RTPS_CDR_ENC_VERSION_1);
+  dds_istream_init_well_formed (&is, sizeof (cdr_xcdr1.data), cdr_xcdr1.data, DDSI_RTPS_CDR_ENC_VERSION_1);
   dds_stream_read_sample (&is, &sample_rd, &dds_cdrstream_default_allocator, &desc);
   CU_ASSERT_EQ_FATAL (is.m_index, sizeof (cdr_xcdr1.data));
   CU_ASSERT_EQ_FATAL (sample_rd.d, 3u);
   CU_ASSERT_EQ_FATAL (sample_rd.u.e, 3u);
 
-  dds_istream_init (&is, sizeof (cdr_xcdr1.data), cdr_xcdr1.data, DDSI_RTPS_CDR_ENC_VERSION_1);
+  dds_istream_init_well_formed (&is, sizeof (cdr_xcdr1.data), cdr_xcdr1.data, DDSI_RTPS_CDR_ENC_VERSION_1);
   dds_stream_print_sample (&is, &desc, strbuf, sizeof (strbuf));
   CU_ASSERT_EQ_FATAL (is.m_index, sizeof (cdr_xcdr1.data));
   CU_ASSERT_FATAL (strcmp (strbuf, "{3:3}") == 0);
@@ -2818,7 +2818,7 @@ CU_Test (ddsc_cdrstream, mutable_union_value_metadata)
   CU_ASSERT_EQ_FATAL (actual_size, sizeof (absent_xcdr1.data));
 
   sample_rd = (CdrStreamEnumUnionDefaultMeta) { .d = 1u, .u = { .e = 99u } };
-  dds_istream_init (&is, sizeof (absent_xcdr1.data), absent_xcdr1.data, DDSI_RTPS_CDR_ENC_VERSION_1);
+  dds_istream_init_well_formed (&is, sizeof (absent_xcdr1.data), absent_xcdr1.data, DDSI_RTPS_CDR_ENC_VERSION_1);
   dds_stream_read_sample (&is, &sample_rd, &dds_cdrstream_default_allocator, &desc);
   CU_ASSERT_EQ_FATAL (is.m_index, sizeof (absent_xcdr1.data));
   CU_ASSERT_EQ_FATAL (sample_rd.d, 3u);
@@ -2844,7 +2844,7 @@ CU_Test (ddsc_cdrstream, extract_key_skips_mutable_union)
 
     dds_istream_t is;
     dds_ostream_t osk;
-    dds_istream_init (&is, os.m_index, os.m_buffer, version);
+    dds_istream_init_well_formed (&is, os.m_index, os.m_buffer, version);
     dds_ostream_init (&osk, &dds_cdrstream_default_allocator, 0, version);
     ret = dds_stream_extract_key_from_data (&is, &osk, &dds_cdrstream_default_allocator, &desc);
     CU_ASSERT_FATAL (ret);
@@ -2899,14 +2899,14 @@ CU_Test (ddsc_cdrstream, mutable_union_key_struct_type_widening)
 
   CdrStreamMutableStructUnionKeyMeta sample_rd = { 0 };
   dds_istream_t is;
-  dds_istream_init (&is, actual_size, cdr_xcdr2.data, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init_well_formed (&is, actual_size, cdr_xcdr2.data, DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_stream_read_sample (&is, &sample_rd, &dds_cdrstream_default_allocator, &desc_rd);
   CU_ASSERT_EQ_FATAL (is.m_index, actual_size);
   CU_ASSERT_EQ_FATAL (sample_rd.x1.d, 1u);
   CU_ASSERT_EQ_FATAL (sample_rd.x1.u.i16, 1234);
 
   dds_ostream_t osk;
-  dds_istream_init (&is, actual_size, cdr_xcdr2.data, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init_well_formed (&is, actual_size, cdr_xcdr2.data, DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_ostream_init (&osk, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
   ret = dds_stream_extract_key_from_data (&is, &osk, &dds_cdrstream_default_allocator, &desc_rd);
   CU_ASSERT_FATAL (ret);
@@ -2933,13 +2933,13 @@ CU_Test (ddsc_cdrstream, mutable_union_key_struct_type_widening)
   CU_ASSERT_EQ_FATAL (actual_size, os.m_index);
 
   sample_rd = (CdrStreamMutableStructUnionKeyMeta) { 0 };
-  dds_istream_init (&is, actual_size, cdr_xcdr1.data, DDSI_RTPS_CDR_ENC_VERSION_1);
+  dds_istream_init_well_formed (&is, actual_size, cdr_xcdr1.data, DDSI_RTPS_CDR_ENC_VERSION_1);
   dds_stream_read_sample (&is, &sample_rd, &dds_cdrstream_default_allocator, &desc_rd);
   CU_ASSERT_EQ_FATAL (is.m_index, actual_size);
   CU_ASSERT_EQ_FATAL (sample_rd.x1.d, 1u);
   CU_ASSERT_EQ_FATAL (sample_rd.x1.u.i16, 1234);
 
-  dds_istream_init (&is, actual_size, cdr_xcdr1.data, DDSI_RTPS_CDR_ENC_VERSION_1);
+  dds_istream_init_well_formed (&is, actual_size, cdr_xcdr1.data, DDSI_RTPS_CDR_ENC_VERSION_1);
   dds_ostream_init (&osk, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_1);
   ret = dds_stream_extract_key_from_data (&is, &osk, &dds_cdrstream_default_allocator, &desc_rd);
   CU_ASSERT_FATAL (ret);
@@ -2952,7 +2952,7 @@ CU_Test (ddsc_cdrstream, mutable_union_key_struct_type_widening)
   CU_ASSERT_EQ_FATAL (nres, DDS_STREAM_NORMALIZE_SUCCESS);
   CU_ASSERT_EQ_FATAL (actual_size, osk.m_index);
   CdrStreamMutableStructUnionKeyMeta key_sample = { 0 };
-  dds_istream_init (&is, actual_size, key_xcdr1.data, DDSI_RTPS_CDR_ENC_VERSION_1);
+  dds_istream_init_well_formed (&is, actual_size, key_xcdr1.data, DDSI_RTPS_CDR_ENC_VERSION_1);
   dds_stream_read_key (&is, (char *) &key_sample, &dds_cdrstream_default_allocator, &desc_rd);
   CU_ASSERT_EQ_FATAL (is.m_index, actual_size);
   CU_ASSERT_EQ_FATAL (key_sample.x1.d, 1u);
@@ -2972,7 +2972,7 @@ CU_Test (ddsc_cdrstream, read_appendable_enum_default_metadata)
   uint32_t cdr[] = { 4u, 11u };
   CdrStreamEnumAppendableDefaultMeta sample = { .a = 0xaaau, .e = 99u };
   dds_istream_t is;
-  dds_istream_init (&is, sizeof (cdr), cdr, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init_well_formed (&is, sizeof (cdr), cdr, DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_stream_read_sample (&is, &sample, &dds_cdrstream_default_allocator, &desc);
 
   CU_ASSERT_EQ_FATAL (is.m_index, sizeof (cdr));
@@ -2991,7 +2991,7 @@ CU_Test (ddsc_cdrstream, read_appendable_enum_array_default_metadata)
   uint32_t cdr[] = { 0u };
   CdrStreamEnumArrayMeta sample = { .e = { 99u, 99u, 99u } };
   dds_istream_t is;
-  dds_istream_init (&is, sizeof (cdr), cdr, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init_well_formed (&is, sizeof (cdr), cdr, DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_stream_read_sample (&is, &sample, &dds_cdrstream_default_allocator, &desc);
 
   CU_ASSERT_EQ_FATAL (is.m_index, sizeof (cdr));
@@ -3011,7 +3011,7 @@ CU_Test (ddsc_cdrstream, read_mutable_enum_default_metadata)
   uint32_t cdr[] = { 0u };
   CdrStreamEnumMeta sample = { .e = 99u };
   dds_istream_t is;
-  dds_istream_init (&is, sizeof (cdr), cdr, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init_well_formed (&is, sizeof (cdr), cdr, DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_stream_read_sample (&is, &sample, &dds_cdrstream_default_allocator, &desc);
 
   CU_ASSERT_EQ_FATAL (is.m_index, sizeof (cdr));
@@ -3029,7 +3029,7 @@ CU_Test (ddsc_cdrstream, read_appendable_enum_union_default_metadata)
   uint32_t cdr[] = { 0u };
   CdrStreamEnumUnionDefaultMeta sample = { .d = 1u, .u = { .e = 99u } };
   dds_istream_t is;
-  dds_istream_init (&is, sizeof (cdr), cdr, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init_well_formed (&is, sizeof (cdr), cdr, DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_stream_read_sample (&is, &sample, &dds_cdrstream_default_allocator, &desc);
 
   CU_ASSERT_EQ_FATAL (is.m_index, sizeof (cdr));
@@ -3066,7 +3066,7 @@ CU_Test (ddsc_cdrstream, normalize_read_union_discriminator_use_default)
 
   CdrStreamEnumUnionDefaultMeta sample = { .d = 1u, .u = { .e = 99u } };
   dds_istream_t is;
-  dds_istream_init (&is, sizeof (cdr), cdr, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init_well_formed (&is, sizeof (cdr), cdr, DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_stream_read_sample (&is, &sample, &dds_cdrstream_default_allocator, &desc);
 
   CU_ASSERT_EQ_FATAL (is.m_index, sizeof (cdr));
@@ -3087,7 +3087,7 @@ CU_Test (ddsc_cdrstream, normalize_read_union_discriminator_use_default)
   CU_ASSERT_EQ_FATAL (final_cdr[1], 1u);
 
   sample = (CdrStreamEnumUnionDefaultMeta) { .d = 1u, .u = { .e = 99u } };
-  dds_istream_init (&is, sizeof (final_cdr), final_cdr, DDSI_RTPS_CDR_ENC_VERSION_1);
+  dds_istream_init_well_formed (&is, sizeof (final_cdr), final_cdr, DDSI_RTPS_CDR_ENC_VERSION_1);
   dds_stream_read_sample (&is, &sample, &dds_cdrstream_default_allocator, &desc);
 
   CU_ASSERT_EQ_FATAL (is.m_index, sizeof (final_cdr));
@@ -3113,7 +3113,7 @@ CU_Test (ddsc_cdrstream, normalize_read_union_negative_enum_discriminator_use_de
 
   CdrStreamEnumUnionDefaultMeta sample = { .d = 1u, .u = { .e = 99u } };
   dds_istream_t is;
-  dds_istream_init (&is, sizeof (cdr.data), cdr.data, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init_well_formed (&is, sizeof (cdr.data), cdr.data, DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_stream_read_sample (&is, &sample, &dds_cdrstream_default_allocator, &desc);
 
   CU_ASSERT_EQ_FATAL (is.m_index, sizeof (cdr.data));
@@ -3209,7 +3209,7 @@ static void test_cdr (const struct test_cdr_params *test)
   if (desc.keys.nkeys > 0)
   {
     dds_ostream_t osk;
-    dds_istream_init (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
+    dds_istream_init_well_formed (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
     dds_ostream_init (&osk, &dds_cdrstream_default_allocator, 0, test->xcdr_version);
     const bool kok = dds_stream_extract_key_from_data (&is, &osk, &dds_cdrstream_default_allocator, &desc);
     CU_ASSERT (kok);
@@ -3219,7 +3219,7 @@ static void test_cdr (const struct test_cdr_params *test)
     dds_ostream_fini (&osk, &dds_cdrstream_default_allocator);
   }
 
-  dds_istream_init (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
+  dds_istream_init_well_formed (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
   void *data = dds_alloc (desc.size);
   dds_stream_read_sample (&is, data, &dds_cdrstream_default_allocator, &desc);
   CU_ASSERT_EQ (is.m_index, is.m_size);
@@ -3227,7 +3227,7 @@ static void test_cdr (const struct test_cdr_params *test)
   dds_stream_free_sample (data, &dds_cdrstream_default_allocator, desc.ops.ops);
   dds_free (data);
 
-  dds_istream_init (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
+  dds_istream_init_well_formed (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
   char strbuf[1024];
   dds_stream_print_sample (&is, &desc, strbuf, sizeof (strbuf));
   tprintf ("print: %s\n", strbuf);
@@ -3268,7 +3268,7 @@ static void test_cdr_key (const struct test_cdr_params *test)
   CU_ASSERT_MEMEQ (os.m_buffer, act_size, test->cdr_key, test->cdrsize_key); // nothing should've changed
 
   dds_istream_t is;
-  dds_istream_init (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
+  dds_istream_init_well_formed (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
   void *data = dds_alloc (desc.size);
   dds_stream_read_key (&is, data, &dds_cdrstream_default_allocator, &desc);
   CU_ASSERT_EQ (is.m_index, is.m_size);
@@ -3276,7 +3276,7 @@ static void test_cdr_key (const struct test_cdr_params *test)
   dds_stream_free_sample (data, &dds_cdrstream_default_allocator, desc.ops.ops);
   dds_free (data);
 
-  dds_istream_init (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
+  dds_istream_init_well_formed (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
   char strbuf[1024];
   dds_stream_print_key (&is, &desc, strbuf, sizeof (strbuf));
   tprintf ("print: %s\n", strbuf);
@@ -3808,7 +3808,7 @@ CU_Test (ddsc_cdrstream, sequence_string_wstring_free_contents_release_false)
   };
 
   dds_istream_t is;
-  dds_istream_init (&is, os1.m_index, os1.m_buffer, os1.m_xcdr_version);
+  dds_istream_init_well_formed (&is, os1.m_index, os1.m_buffer, os1.m_xcdr_version);
   dds_stream_read_sample (&is, &sample_rd, &dds_cdrstream_default_allocator, &desc);
   CU_ASSERT_EQ_FATAL (is.m_index, is.m_size);
   CU_ASSERT_FATAL (strcmp (sample_rd.ss._buffer[0], "abc") == 0);
@@ -3821,7 +3821,7 @@ CU_Test (ddsc_cdrstream, sequence_string_wstring_free_contents_release_false)
   CU_ASSERT_FATAL (sample_rd.ss._buffer[0] != NULL);
   CU_ASSERT_FATAL (sample_rd.ws._buffer[0] != NULL);
 
-  dds_istream_init (&is, os2.m_index, os2.m_buffer, os2.m_xcdr_version);
+  dds_istream_init_well_formed (&is, os2.m_index, os2.m_buffer, os2.m_xcdr_version);
   dds_stream_read_sample (&is, &sample_rd, &dds_cdrstream_default_allocator, &desc);
   CU_ASSERT_EQ_FATAL (is.m_index, is.m_size);
   CU_ASSERT_FATAL (strcmp (sample_rd.ss._buffer[0], "") == 0);
@@ -3967,7 +3967,7 @@ CU_Test (ddsc_cdrstream, check_xcdr1_optional_trusted_read_without_mid_table)
 
     CdrStreamXcdr1Optional_t1 sample = { 0 };
     dds_istream_t is;
-    dds_istream_init (&is, actual_size, cdr, DDSI_RTPS_CDR_ENC_VERSION_1);
+    dds_istream_init_well_formed (&is, actual_size, cdr, DDSI_RTPS_CDR_ENC_VERSION_1);
     dds_stream_read_sample (&is, &sample, &dds_cdrstream_default_allocator, &desc_read);
     CU_ASSERT_EQ_FATAL (sample.f1 != NULL, tests[i].present);
     if (sample.f1)
@@ -4012,7 +4012,7 @@ CU_Test (ddsc_cdrstream, check_xcdr1_mutable_zero_length_member_normalize)
     {
       CdrStreamMutable_t1 sample = { 0 };
       dds_istream_t is;
-      dds_istream_init (&is, actual_size, cdr, DDSI_RTPS_CDR_ENC_VERSION_1);
+      dds_istream_init_well_formed (&is, actual_size, cdr, DDSI_RTPS_CDR_ENC_VERSION_1);
       dds_stream_read_sample (&is, &sample, &dds_cdrstream_default_allocator, &desc);
       CU_ASSERT_EQ_FATAL (sample.f1, tests[i].f1);
       CU_ASSERT_EQ_FATAL (sample.f2._length, 0);
@@ -4378,7 +4378,7 @@ CU_Test (ddsc_cdrstream, tryconstruct)
       CU_ASSERT_EQ_FATAL (norm_res, DDS_STREAM_NORMALIZE_SUCCESS);
 
       dds_istream_t is;
-      dds_istream_init (&is, act_size, xcdr2, XCDR2);
+      dds_istream_init_well_formed (&is, act_size, xcdr2, XCDR2);
 
       void * const data = dds_alloc (desc.size);
       dds_stream_read (&is, data, &dds_cdrstream_default_allocator, desc.ops.ops);
@@ -4387,7 +4387,7 @@ CU_Test (ddsc_cdrstream, tryconstruct)
       dds_stream_free_sample (data, &dds_cdrstream_default_allocator, desc.ops.ops);
       dds_free (data);
 
-      dds_istream_init (&is, act_size, xcdr2, XCDR2);
+      dds_istream_init_well_formed (&is, act_size, xcdr2, XCDR2);
       char strbuf[1024];
       dds_stream_print_sample (&is, &desc, strbuf, sizeof (strbuf));
       tprintf ("print: %s\n", strbuf);
@@ -4545,7 +4545,7 @@ CU_Test (ddsc_cdrstream, tryconstruct_nested_seq)
 
             struct CdrStreamTryconstruct_t7 ard = {0};
             dds_istream_t is;
-            dds_istream_init (&is, act_size, cdr, xcdrv);
+            dds_istream_init_well_formed (&is, act_size, cdr, xcdrv);
             dds_stream_read (&is, (char *) &ard, &dds_cdrstream_default_allocator, desc.ops.ops);
 
             CU_ASSERT_FATAL (eq_CdrStreamTryconstruct_t7 (&ard, &acmp));

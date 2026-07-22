@@ -416,7 +416,7 @@ static enum from_ser_result serdata_default_from_ser_common (const struct ddsi_s
   }
 
   dds_istream_t is;
-  dds_istream_init (&is, actual_size, d->data, xcdr_version);
+  dds_istream_init_well_formed (&is, actual_size, d->data, xcdr_version);
   if (!gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY))
     goto err;
   *sd_out = d;
@@ -480,7 +480,7 @@ static enum from_ser_result serdata_default_from_ser_iov_common (const struct dd
   }
 
   dds_istream_t is;
-  dds_istream_init (&is, actual_size, d->data, xcdr_version);
+  dds_istream_init_well_formed (&is, actual_size, d->data, xcdr_version);
   if (!gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY))
     goto err;
   *sd_out = d;
@@ -829,7 +829,7 @@ static bool serdata_default_untyped_to_sample_cdr (const struct ddsi_sertype *se
   assert (d->c.ops == sertype_common->serdata_ops);
   assert (DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier));
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
-  dds_istream_init (&is, d->key.keysize, serdata_default_keybuf (d), DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init_well_formed (&is, d->key.keysize, serdata_default_keybuf (d), DDSI_RTPS_CDR_ENC_VERSION_2);
   dds_stream_read_key (&is, sample, &dds_cdrstream_default_allocator, &tp->type);
   return true; /* FIXME: can't conversion to sample fail? */
 }
@@ -882,7 +882,7 @@ static void serdata_default_get_keyhash (const struct ddsi_serdata *serdata_comm
   /* serdata has a XCDR2 serialized key, so initializer the istream with this version
      and with the size of that key (d->key.keysize) */
   dds_istream_t is;
-  dds_istream_init (&is, d->key.keysize, serdata_default_keybuf(d), DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init_well_formed (&is, d->key.keysize, serdata_default_keybuf(d), DDSI_RTPS_CDR_ENC_VERSION_2);
 
   /* The output stream uses the XCDR version from the serdata, so that the keyhash in
      ostream is calculated using this CDR representation (XTypes spec 7.6.8, RTPS spec 9.6.3.8) */
@@ -1040,7 +1040,7 @@ static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertyp
       }
       serdata_default_append_blob (&d, md->sample_size, loaned_sample->sample_ptr);
       dds_istream_t is;
-      dds_istream_init (&is, actual_size, d->data, xcdr_version);
+      dds_istream_init_well_formed (&is, actual_size, d->data, xcdr_version);
       if (!gen_serdata_key_from_cdr (&is, &d->key, tp, just_key))
       {
         ddsi_serdata_unref (&d->c);

@@ -181,7 +181,7 @@ static struct ddsi_serdata_cdr *serdata_cdr_from_ser_common (const struct ddsi_s
     goto err;
 
   dds_istream_t is;
-  dds_istream_init (&is, actual_size, d->data, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_istream_init_well_formed (&is, actual_size, d->data, DDSI_RTPS_CDR_ENC_VERSION_2);
   return d;
 
 err:
