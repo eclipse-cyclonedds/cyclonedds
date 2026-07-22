@@ -35,18 +35,24 @@ parse_string(const char *str)
 }
 
 static void
-expect_parse_ret(const char *str, idl_retcode_t expected)
+expect_parse_ret_flags(uint32_t flags, const char *str, idl_retcode_t expected)
 {
   idl_pstate_t *pstate = NULL;
   idl_retcode_t ret;
 
-  ret = idl_create_pstate(0u, NULL, &pstate);
+  ret = idl_create_pstate(flags, NULL, &pstate);
   CU_ASSERT_EQ_FATAL(ret, IDL_RETCODE_OK);
   CU_ASSERT_NEQ_FATAL(pstate, NULL);
 
   ret = idl_parse_string(pstate, str);
   CU_ASSERT_EQ(ret, expected);
   idl_delete_pstate(pstate);
+}
+
+static void
+expect_parse_ret(const char *str, idl_retcode_t expected)
+{
+  expect_parse_ret_flags(0u, str, expected);
 }
 
 CU_Test(idl_hand_parser, module_with_empty_struct)
@@ -1344,6 +1350,691 @@ CU_Test(idl_hand_parser, const_declaration_with_bitmask_constant)
   CU_ASSERT_STREQ(idl_identifier(case_node->declarator), "both");
 
   idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_hand_parser, annotation_declaration_with_members)
+{
+  idl_pstate_t *pstate;
+  idl_annotation_t *marker;
+  idl_annotation_t *tuned;
+  idl_annotation_member_t *member;
+  idl_typedef_t *alias;
+  idl_const_t *limit;
+  idl_enum_t *mode;
+  idl_bitmask_t *bits;
+  const idl_literal_t *literal;
+  const char str[] =
+    "@annotation marker { };"
+    "@annotation tuned {"
+    "  long value default 7;"
+    "  string label default \"fast\";"
+    "  typedef long Alias;"
+    "  const Alias LIMIT = 9;"
+    "  enum Mode { OFF, ON };"
+    "  bitmask Bits { A, B };"
+    "};";
+
+  pstate = parse_string_flags(IDL_FLAG_ANNOTATIONS, str);
+  marker = (idl_annotation_t *) pstate->root;
+  CU_ASSERT_NEQ_FATAL(marker, NULL);
+  CU_ASSERT_EQ(idl_mask(marker), IDL_ANNOTATION);
+  CU_ASSERT_STREQ(idl_identifier(marker), "marker");
+  CU_ASSERT_EQ(marker->definitions, NULL);
+
+  tuned = idl_next(marker);
+  CU_ASSERT_NEQ_FATAL(tuned, NULL);
+  CU_ASSERT_EQ(idl_mask(tuned), IDL_ANNOTATION);
+  CU_ASSERT_STREQ(idl_identifier(tuned), "tuned");
+
+  member = (idl_annotation_member_t *) tuned->definitions;
+  CU_ASSERT_NEQ_FATAL(member, NULL);
+  CU_ASSERT_FATAL(idl_is_annotation_member(member));
+  CU_ASSERT_STREQ(idl_identifier(member->declarator), "value");
+  CU_ASSERT_EQ(idl_type(member->type_spec), IDL_LONG);
+  literal = (const idl_literal_t *) member->const_expr;
+  CU_ASSERT_EQ(idl_type(literal), IDL_LONG);
+  CU_ASSERT_EQ(literal->value.int32, 7);
+
+  member = idl_next(member);
+  CU_ASSERT_NEQ_FATAL(member, NULL);
+  CU_ASSERT_FATAL(idl_is_annotation_member(member));
+  CU_ASSERT_STREQ(idl_identifier(member->declarator), "label");
+  CU_ASSERT_EQ(idl_type(member->type_spec), IDL_STRING);
+  literal = (const idl_literal_t *) member->const_expr;
+  CU_ASSERT_EQ(idl_type(literal), IDL_STRING);
+  CU_ASSERT_STREQ(literal->value.str, "fast");
+
+  alias = idl_next(member);
+  CU_ASSERT_NEQ_FATAL(alias, NULL);
+  CU_ASSERT_FATAL(idl_is_typedef(alias));
+  CU_ASSERT_STREQ(idl_identifier(alias->declarators), "Alias");
+
+  limit = idl_next(alias);
+  CU_ASSERT_NEQ_FATAL(limit, NULL);
+  CU_ASSERT_FATAL(idl_is_const(limit));
+  CU_ASSERT_STREQ(idl_identifier(limit), "LIMIT");
+  CU_ASSERT_EQ(idl_type(limit->const_expr), IDL_LONG);
+
+  mode = idl_next(limit);
+  CU_ASSERT_NEQ_FATAL(mode, NULL);
+  CU_ASSERT_FATAL(idl_is_enum(mode));
+  CU_ASSERT_STREQ(idl_identifier(mode), "Mode");
+
+  bits = idl_next(mode);
+  CU_ASSERT_NEQ_FATAL(bits, NULL);
+  CU_ASSERT_FATAL(idl_is_bitmask(bits));
+  CU_ASSERT_STREQ(idl_identifier(bits), "Bits");
+  CU_ASSERT_EQ(idl_next(bits), NULL);
+  CU_ASSERT_EQ(idl_next(tuned), NULL);
+
+  idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_hand_parser, annotation_application_without_parameters)
+{
+  idl_pstate_t *pstate;
+  idl_annotation_t *marker;
+  idl_struct_t *strct;
+  idl_annotation_appl_t *appl;
+  idl_member_t *member;
+  const char str[] =
+    "@annotation marker { };"
+    "@marker struct Sample {"
+    "  @key @marker long id;"
+    "  long value;"
+    "};";
+
+  pstate = parse_string_flags(IDL_FLAG_ANNOTATIONS, str);
+  marker = (idl_annotation_t *) pstate->root;
+  CU_ASSERT_NEQ_FATAL(marker, NULL);
+  CU_ASSERT_EQ(idl_mask(marker), IDL_ANNOTATION);
+  CU_ASSERT_STREQ(idl_identifier(marker), "marker");
+
+  strct = idl_next(marker);
+  CU_ASSERT_NEQ_FATAL(strct, NULL);
+  CU_ASSERT_FATAL(idl_is_struct(strct));
+  appl = strct->node.annotations;
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_FATAL(idl_is_annotation_appl(appl));
+  CU_ASSERT_EQ(appl->annotation, marker);
+  CU_ASSERT_EQ(appl->parameters, NULL);
+  CU_ASSERT_EQ(idl_next(appl), NULL);
+
+  member = strct->members;
+  CU_ASSERT_NEQ_FATAL(member, NULL);
+  CU_ASSERT_FATAL(idl_is_member(member));
+  CU_ASSERT(member->key.value);
+  CU_ASSERT_NEQ(member->key.annotation, NULL);
+  appl = member->node.annotations;
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_FATAL(idl_is_annotation_appl(appl));
+  CU_ASSERT_STREQ(idl_identifier(appl->annotation), "key");
+  CU_ASSERT_EQ(appl->parameters, NULL);
+  appl = idl_next(appl);
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_FATAL(idl_is_annotation_appl(appl));
+  CU_ASSERT_EQ(appl->annotation, marker);
+  CU_ASSERT_EQ(appl->parameters, NULL);
+  CU_ASSERT_EQ(idl_next(appl), NULL);
+
+  member = idl_next(member);
+  CU_ASSERT_NEQ_FATAL(member, NULL);
+  CU_ASSERT_FATAL(idl_is_member(member));
+  CU_ASSERT(!member->key.value);
+  CU_ASSERT_EQ(member->node.annotations, NULL);
+  CU_ASSERT_EQ(idl_next(member), NULL);
+  CU_ASSERT_EQ(idl_next(strct), NULL);
+
+  idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_hand_parser, annotation_application_on_type_positions)
+{
+  idl_pstate_t *pstate;
+  idl_annotation_t *marker;
+  idl_struct_t *holder;
+  idl_member_t *member;
+  idl_sequence_t *sequence;
+  idl_union_t *choice;
+  idl_switch_type_spec_t *switch_type_spec;
+  idl_case_t *case_node;
+  idl_annotation_appl_t *appl;
+  const char str[] =
+    "@annotation marker { };"
+    "struct Holder { sequence<@marker long> values; };"
+    "@marker union Choice switch (@key @marker long) {"
+    "  case 0: @marker sequence<@marker long> branch;"
+    "};";
+
+  pstate = parse_string_flags(IDL_FLAG_ANNOTATIONS, str);
+  marker = (idl_annotation_t *) pstate->root;
+  CU_ASSERT_NEQ_FATAL(marker, NULL);
+  CU_ASSERT_EQ(idl_mask(marker), IDL_ANNOTATION);
+
+  holder = idl_next(marker);
+  CU_ASSERT_NEQ_FATAL(holder, NULL);
+  CU_ASSERT_FATAL(idl_is_struct(holder));
+  member = holder->members;
+  CU_ASSERT_NEQ_FATAL(member, NULL);
+  CU_ASSERT_FATAL(idl_is_sequence(member->type_spec));
+  sequence = (idl_sequence_t *) member->type_spec;
+  appl = sequence->node.annotations;
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_FATAL(idl_is_annotation_appl(appl));
+  CU_ASSERT_EQ(appl->annotation, marker);
+  CU_ASSERT_EQ(idl_next(appl), NULL);
+
+  choice = idl_next(holder);
+  CU_ASSERT_NEQ_FATAL(choice, NULL);
+  CU_ASSERT_FATAL(idl_is_union(choice));
+  appl = choice->node.annotations;
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_EQ(appl->annotation, marker);
+  CU_ASSERT_EQ(idl_next(appl), NULL);
+
+  switch_type_spec = choice->switch_type_spec;
+  CU_ASSERT_NEQ_FATAL(switch_type_spec, NULL);
+  CU_ASSERT(switch_type_spec->key.value);
+  CU_ASSERT_NEQ(switch_type_spec->key.annotation, NULL);
+  appl = switch_type_spec->node.annotations;
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_STREQ(idl_identifier(appl->annotation), "key");
+  appl = idl_next(appl);
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_EQ(appl->annotation, marker);
+  CU_ASSERT_EQ(idl_next(appl), NULL);
+
+  case_node = choice->cases;
+  CU_ASSERT_NEQ_FATAL(case_node, NULL);
+  CU_ASSERT_FATAL(idl_is_case(case_node));
+  appl = case_node->node.annotations;
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_EQ(appl->annotation, marker);
+  CU_ASSERT_EQ(idl_next(appl), NULL);
+  CU_ASSERT_FATAL(idl_is_sequence(case_node->type_spec));
+  sequence = (idl_sequence_t *) case_node->type_spec;
+  appl = sequence->node.annotations;
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_EQ(appl->annotation, marker);
+  CU_ASSERT_EQ(idl_next(appl), NULL);
+  CU_ASSERT_EQ(idl_next(case_node), NULL);
+  CU_ASSERT_EQ(idl_next(choice), NULL);
+
+  idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_hand_parser, annotation_application_on_enum_and_bit_values)
+{
+  idl_pstate_t *pstate;
+  idl_annotation_t *marker;
+  idl_annotation_t *catalog;
+  idl_enum_t *mode;
+  idl_enumerator_t *enumerator;
+  idl_bitmask_t *bits;
+  idl_bit_value_t *bit_value;
+  idl_typedef_t *alias;
+  idl_sequence_t *sequence;
+  idl_annotation_appl_t *appl;
+  const char str[] =
+    "@annotation marker { };"
+    "@annotation catalog {"
+    "  enum Mode { @marker OFF, @marker ON };"
+    "  bitmask Bits { @marker A, @marker B };"
+    "  typedef sequence<@marker long> Seq;"
+    "};";
+
+  pstate = parse_string_flags(IDL_FLAG_ANNOTATIONS, str);
+  marker = (idl_annotation_t *) pstate->root;
+  CU_ASSERT_NEQ_FATAL(marker, NULL);
+  CU_ASSERT_EQ(idl_mask(marker), IDL_ANNOTATION);
+
+  catalog = idl_next(marker);
+  CU_ASSERT_NEQ_FATAL(catalog, NULL);
+  CU_ASSERT_EQ(idl_mask(catalog), IDL_ANNOTATION);
+
+  mode = (idl_enum_t *) catalog->definitions;
+  CU_ASSERT_NEQ_FATAL(mode, NULL);
+  CU_ASSERT_FATAL(idl_is_enum(mode));
+  enumerator = mode->enumerators;
+  CU_ASSERT_NEQ_FATAL(enumerator, NULL);
+  CU_ASSERT_STREQ(idl_identifier(enumerator), "OFF");
+  appl = enumerator->node.annotations;
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_EQ(appl->annotation, marker);
+  CU_ASSERT_EQ(idl_next(appl), NULL);
+  enumerator = idl_next(enumerator);
+  CU_ASSERT_NEQ_FATAL(enumerator, NULL);
+  CU_ASSERT_STREQ(idl_identifier(enumerator), "ON");
+  appl = enumerator->node.annotations;
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_EQ(appl->annotation, marker);
+  CU_ASSERT_EQ(idl_next(appl), NULL);
+  CU_ASSERT_EQ(idl_next(enumerator), NULL);
+
+  bits = idl_next(mode);
+  CU_ASSERT_NEQ_FATAL(bits, NULL);
+  CU_ASSERT_FATAL(idl_is_bitmask(bits));
+  bit_value = bits->bit_values;
+  CU_ASSERT_NEQ_FATAL(bit_value, NULL);
+  CU_ASSERT_STREQ(idl_identifier(bit_value), "A");
+  appl = bit_value->node.annotations;
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_EQ(appl->annotation, marker);
+  CU_ASSERT_EQ(idl_next(appl), NULL);
+  bit_value = idl_next(bit_value);
+  CU_ASSERT_NEQ_FATAL(bit_value, NULL);
+  CU_ASSERT_STREQ(idl_identifier(bit_value), "B");
+  appl = bit_value->node.annotations;
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_EQ(appl->annotation, marker);
+  CU_ASSERT_EQ(idl_next(appl), NULL);
+  CU_ASSERT_EQ(idl_next(bit_value), NULL);
+
+  alias = idl_next(bits);
+  CU_ASSERT_NEQ_FATAL(alias, NULL);
+  CU_ASSERT_FATAL(idl_is_typedef(alias));
+  CU_ASSERT_FATAL(idl_is_sequence(alias->type_spec));
+  sequence = (idl_sequence_t *) alias->type_spec;
+  appl = sequence->node.annotations;
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_EQ(appl->annotation, marker);
+  CU_ASSERT_EQ(idl_next(appl), NULL);
+  CU_ASSERT_EQ(idl_next(alias), NULL);
+  CU_ASSERT_EQ(idl_next(catalog), NULL);
+
+  idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_hand_parser, annotation_application_positional_parameters)
+{
+  idl_pstate_t *pstate;
+  idl_annotation_t *marker;
+  idl_annotation_member_t *annotation_member;
+  idl_struct_t *sample;
+  idl_struct_t *ordered;
+  idl_bitmask_t *bits;
+  idl_enum_t *mode;
+  idl_member_t *member;
+  idl_declarator_t *declarator;
+  idl_sequence_t *sequence;
+  idl_bit_value_t *bit_value;
+  idl_enumerator_t *enumerator;
+  idl_annotation_appl_t *appl;
+  idl_annotation_appl_param_t *param;
+  idl_literal_t *literal;
+  const char str[] =
+    "@annotation marker { long value; };"
+    "@marker(42) struct Sample {"
+    "  @key(false) @hashid(\"wire\") long id;"
+    "  sequence<@try_construct(TRIM) string<5> > names;"
+    "};"
+    "@autoid(SEQUENTIAL) struct Ordered { long a; long b; };"
+    "@bit_bound(8) bitmask Bits { @position(3) A, B };"
+    "enum Mode { @value(5) OFF, ON };";
+
+  pstate = parse_string_flags(IDL_FLAG_ANNOTATIONS, str);
+  marker = (idl_annotation_t *) pstate->root;
+  CU_ASSERT_NEQ_FATAL(marker, NULL);
+  CU_ASSERT_EQ(idl_mask(marker), IDL_ANNOTATION);
+  annotation_member = (idl_annotation_member_t *) marker->definitions;
+  CU_ASSERT_NEQ_FATAL(annotation_member, NULL);
+  CU_ASSERT_FATAL(idl_is_annotation_member(annotation_member));
+
+  sample = idl_next(marker);
+  CU_ASSERT_NEQ_FATAL(sample, NULL);
+  CU_ASSERT_FATAL(idl_is_struct(sample));
+  appl = sample->node.annotations;
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_EQ(appl->annotation, marker);
+  param = appl->parameters;
+  CU_ASSERT_NEQ_FATAL(param, NULL);
+  CU_ASSERT_EQ(param->member, annotation_member);
+  CU_ASSERT_EQ(idl_next(param), NULL);
+  literal = (idl_literal_t *) param->const_expr;
+  CU_ASSERT_EQ(idl_type(literal), IDL_LONG);
+  CU_ASSERT_EQ(literal->value.int32, 42);
+
+  member = sample->members;
+  CU_ASSERT_NEQ_FATAL(member, NULL);
+  CU_ASSERT(!member->key.value);
+  CU_ASSERT_NEQ(member->key.annotation, NULL);
+  declarator = member->declarators;
+  CU_ASSERT_NEQ_FATAL(declarator, NULL);
+  CU_ASSERT_NEQ(declarator->id.annotation, NULL);
+  CU_ASSERT_NEQ(declarator->id.value, 0u);
+  appl = member->node.annotations;
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_STREQ(idl_identifier(appl->annotation), "key");
+  param = appl->parameters;
+  CU_ASSERT_NEQ_FATAL(param, NULL);
+  literal = (idl_literal_t *) param->const_expr;
+  CU_ASSERT_EQ(idl_type(literal), IDL_BOOL);
+  CU_ASSERT(!literal->value.bln);
+  appl = idl_next(appl);
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_STREQ(idl_identifier(appl->annotation), "hashid");
+  param = appl->parameters;
+  CU_ASSERT_NEQ_FATAL(param, NULL);
+  literal = (idl_literal_t *) param->const_expr;
+  CU_ASSERT_EQ(idl_type(literal), IDL_STRING);
+  CU_ASSERT_STREQ(literal->value.str, "wire");
+  CU_ASSERT_EQ(idl_next(appl), NULL);
+
+  member = idl_next(member);
+  CU_ASSERT_NEQ_FATAL(member, NULL);
+  CU_ASSERT_FATAL(idl_is_sequence(member->type_spec));
+  sequence = (idl_sequence_t *) member->type_spec;
+  CU_ASSERT_EQ(sequence->elem_try_construct.value, IDL_TRIM);
+  CU_ASSERT_NEQ(sequence->elem_try_construct.annotation, NULL);
+  appl = sequence->node.annotations;
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_STREQ(idl_identifier(appl->annotation), "try_construct");
+  param = appl->parameters;
+  CU_ASSERT_NEQ_FATAL(param, NULL);
+  CU_ASSERT_STREQ(idl_identifier(param->const_expr), "TRIM");
+  CU_ASSERT_EQ(idl_next(member), NULL);
+
+  ordered = idl_next(sample);
+  CU_ASSERT_NEQ_FATAL(ordered, NULL);
+  CU_ASSERT_FATAL(idl_is_struct(ordered));
+  CU_ASSERT_EQ(ordered->autoid.value, IDL_SEQUENTIAL);
+  CU_ASSERT_NEQ(ordered->autoid.annotation, NULL);
+
+  bits = idl_next(ordered);
+  CU_ASSERT_NEQ_FATAL(bits, NULL);
+  CU_ASSERT_FATAL(idl_is_bitmask(bits));
+  CU_ASSERT_EQ(bits->bit_bound.value, 8);
+  CU_ASSERT_NEQ(bits->bit_bound.annotation, NULL);
+  bit_value = bits->bit_values;
+  CU_ASSERT_NEQ_FATAL(bit_value, NULL);
+  CU_ASSERT_EQ(bit_value->position.value, 3);
+  CU_ASSERT_NEQ(bit_value->position.annotation, NULL);
+  bit_value = idl_next(bit_value);
+  CU_ASSERT_NEQ_FATAL(bit_value, NULL);
+  CU_ASSERT_EQ(bit_value->position.value, 4);
+  CU_ASSERT_EQ(idl_next(bit_value), NULL);
+
+  mode = idl_next(bits);
+  CU_ASSERT_NEQ_FATAL(mode, NULL);
+  CU_ASSERT_FATAL(idl_is_enum(mode));
+  enumerator = mode->enumerators;
+  CU_ASSERT_NEQ_FATAL(enumerator, NULL);
+  CU_ASSERT_EQ(enumerator->value.value, 5);
+  CU_ASSERT_NEQ(enumerator->value.annotation, NULL);
+  enumerator = idl_next(enumerator);
+  CU_ASSERT_NEQ_FATAL(enumerator, NULL);
+  CU_ASSERT_EQ(enumerator->value.value, 6);
+  CU_ASSERT_EQ(idl_next(enumerator), NULL);
+  CU_ASSERT_EQ(idl_next(mode), NULL);
+
+  idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_hand_parser, unknown_annotation_positional_parameter)
+{
+  idl_pstate_t *pstate;
+  idl_struct_t *strct;
+  const char str[] =
+    "@unknown(foo + 1) struct Loose { };";
+
+  pstate = parse_string_flags(IDL_FLAG_ANNOTATIONS, str);
+  strct = (idl_struct_t *) pstate->root;
+  CU_ASSERT_NEQ_FATAL(strct, NULL);
+  CU_ASSERT_FATAL(idl_is_struct(strct));
+  CU_ASSERT_EQ(strct->node.annotations, NULL);
+  CU_ASSERT_EQ(idl_next(strct), NULL);
+
+  idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_hand_parser, annotation_application_keyword_parameters)
+{
+  idl_pstate_t *pstate;
+  idl_annotation_t *knobs;
+  idl_annotation_member_t *low;
+  idl_annotation_member_t *high;
+  idl_struct_t *window;
+  idl_member_t *member;
+  idl_annotation_appl_t *appl;
+  idl_annotation_appl_param_t *param;
+  idl_literal_t *literal;
+  const char str[] =
+    "@annotation knobs {"
+    "  long low;"
+    "  long high;"
+    "  string label default \"steady\";"
+    "};"
+    "@knobs(high = 9, low = 2) struct Window {"
+    "  @range(min = 1, max = 10) long value;"
+    "};";
+
+  pstate = parse_string_flags(IDL_FLAG_ANNOTATIONS, str);
+  knobs = (idl_annotation_t *) pstate->root;
+  CU_ASSERT_NEQ_FATAL(knobs, NULL);
+  CU_ASSERT_EQ(idl_mask(knobs), IDL_ANNOTATION);
+  low = (idl_annotation_member_t *) knobs->definitions;
+  CU_ASSERT_NEQ_FATAL(low, NULL);
+  CU_ASSERT_FATAL(idl_is_annotation_member(low));
+  high = idl_next(low);
+  CU_ASSERT_NEQ_FATAL(high, NULL);
+  CU_ASSERT_FATAL(idl_is_annotation_member(high));
+
+  window = idl_next(knobs);
+  CU_ASSERT_NEQ_FATAL(window, NULL);
+  CU_ASSERT_FATAL(idl_is_struct(window));
+  appl = window->node.annotations;
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_EQ(appl->annotation, knobs);
+  param = appl->parameters;
+  CU_ASSERT_NEQ_FATAL(param, NULL);
+  CU_ASSERT_EQ(param->member, high);
+  literal = (idl_literal_t *) param->const_expr;
+  CU_ASSERT_EQ(idl_type(literal), IDL_LONG);
+  CU_ASSERT_EQ(literal->value.int32, 9);
+  param = idl_next(param);
+  CU_ASSERT_NEQ_FATAL(param, NULL);
+  CU_ASSERT_EQ(param->member, low);
+  literal = (idl_literal_t *) param->const_expr;
+  CU_ASSERT_EQ(idl_type(literal), IDL_LONG);
+  CU_ASSERT_EQ(literal->value.int32, 2);
+  CU_ASSERT_EQ(idl_next(param), NULL);
+  CU_ASSERT_EQ(idl_next(appl), NULL);
+
+  member = window->members;
+  CU_ASSERT_NEQ_FATAL(member, NULL);
+  CU_ASSERT_NEQ(member->min.annotation, NULL);
+  literal = (idl_literal_t *) member->min.value;
+  CU_ASSERT_EQ(idl_type(literal), IDL_LONG);
+  CU_ASSERT_EQ(literal->value.int32, 1);
+  CU_ASSERT_NEQ(member->max.annotation, NULL);
+  literal = (idl_literal_t *) member->max.value;
+  CU_ASSERT_EQ(idl_type(literal), IDL_LONG);
+  CU_ASSERT_EQ(literal->value.int32, 10);
+  appl = member->node.annotations;
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_STREQ(idl_identifier(appl->annotation), "range");
+  param = appl->parameters;
+  CU_ASSERT_NEQ_FATAL(param, NULL);
+  CU_ASSERT_STREQ(idl_identifier(param->member->declarator), "min");
+  param = idl_next(param);
+  CU_ASSERT_NEQ_FATAL(param, NULL);
+  CU_ASSERT_STREQ(idl_identifier(param->member->declarator), "max");
+  CU_ASSERT_EQ(idl_next(param), NULL);
+  CU_ASSERT_EQ(idl_next(member), NULL);
+  CU_ASSERT_EQ(idl_next(window), NULL);
+
+  idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_hand_parser, unknown_annotation_keyword_parameters)
+{
+  idl_pstate_t *pstate;
+  idl_struct_t *strct;
+  const char str[] =
+    "@unknown(foo = bar + 1, baz = \"x\") struct LooseKeywords { };";
+
+  pstate = parse_string_flags(IDL_FLAG_ANNOTATIONS, str);
+  strct = (idl_struct_t *) pstate->root;
+  CU_ASSERT_NEQ_FATAL(strct, NULL);
+  CU_ASSERT_FATAL(idl_is_struct(strct));
+  CU_ASSERT_EQ(strct->node.annotations, NULL);
+  CU_ASSERT_EQ(idl_next(strct), NULL);
+
+  idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_hand_parser, annotation_application_parameter_scope)
+{
+  idl_pstate_t *pstate;
+  idl_const_t *global;
+  idl_module_t *outer;
+  idl_const_t *local;
+  idl_annotation_t *mark;
+  idl_struct_t *positional;
+  idl_struct_t *keyword;
+  idl_annotation_appl_t *appl;
+  idl_annotation_appl_param_t *param;
+  const idl_literal_t *literal;
+  const char str[] =
+    "const long GLOBAL = 1;"
+    "module outer {"
+    "  const long LOCAL = 2;"
+    "  @annotation mark { long value; };"
+    "  @mark(LOCAL) struct Positional { long f; };"
+    "  @mark(value = ::GLOBAL) struct Keyword { long f; };"
+    "};";
+
+  pstate = parse_string_flags(IDL_FLAG_ANNOTATIONS, str);
+  global = (idl_const_t *) pstate->root;
+  CU_ASSERT_NEQ_FATAL(global, NULL);
+  CU_ASSERT_FATAL(idl_is_const(global));
+
+  outer = idl_next(global);
+  CU_ASSERT_NEQ_FATAL(outer, NULL);
+  CU_ASSERT_FATAL(idl_is_module(outer));
+  local = (idl_const_t *) outer->definitions;
+  CU_ASSERT_NEQ_FATAL(local, NULL);
+  CU_ASSERT_FATAL(idl_is_const(local));
+  mark = idl_next(local);
+  CU_ASSERT_NEQ_FATAL(mark, NULL);
+  CU_ASSERT_EQ(idl_mask(mark), IDL_ANNOTATION);
+
+  positional = idl_next(mark);
+  CU_ASSERT_NEQ_FATAL(positional, NULL);
+  CU_ASSERT_FATAL(idl_is_struct(positional));
+  appl = positional->node.annotations;
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_EQ(appl->annotation, mark);
+  param = appl->parameters;
+  CU_ASSERT_NEQ_FATAL(param, NULL);
+  literal = (const idl_literal_t *) param->const_expr;
+  CU_ASSERT_EQ(idl_type(literal), IDL_LONG);
+  CU_ASSERT_EQ(literal->value.int32, 2);
+
+  keyword = idl_next(positional);
+  CU_ASSERT_NEQ_FATAL(keyword, NULL);
+  CU_ASSERT_FATAL(idl_is_struct(keyword));
+  appl = keyword->node.annotations;
+  CU_ASSERT_NEQ_FATAL(appl, NULL);
+  CU_ASSERT_EQ(appl->annotation, mark);
+  param = appl->parameters;
+  CU_ASSERT_NEQ_FATAL(param, NULL);
+  CU_ASSERT_STREQ(idl_identifier(param->member->declarator), "value");
+  literal = (const idl_literal_t *) param->const_expr;
+  CU_ASSERT_EQ(idl_type(literal), IDL_LONG);
+  CU_ASSERT_EQ(literal->value.int32, 1);
+  CU_ASSERT_EQ(idl_next(param), NULL);
+  CU_ASSERT_EQ(idl_next(keyword), NULL);
+  CU_ASSERT_EQ(idl_next(outer), NULL);
+
+  idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_hand_parser, annotation_application_rejects_parameter_on_empty_annotation)
+{
+  expect_parse_ret_flags(
+    IDL_FLAG_ANNOTATIONS,
+    "@annotation marker { };"
+    "@marker(1) struct Sample { };",
+    IDL_RETCODE_SEMANTIC_ERROR);
+}
+
+CU_Test(idl_hand_parser, annotation_application_rejects_empty_parameter_list)
+{
+  expect_parse_ret_flags(
+    IDL_FLAG_ANNOTATIONS,
+    "@annotation marker { long value; };"
+    "@marker() struct Sample { };",
+    IDL_RETCODE_SYNTAX_ERROR);
+}
+
+CU_Test(idl_hand_parser, annotation_application_rejects_keyword_then_positional_parameter)
+{
+  expect_parse_ret_flags(
+    IDL_FLAG_ANNOTATIONS,
+    "@annotation marker { long value; };"
+    "@marker(value = 1, 2) struct Sample { };",
+    IDL_RETCODE_SYNTAX_ERROR);
+}
+
+CU_Test(idl_hand_parser, annotation_application_rejects_trailing_keyword_name)
+{
+  expect_parse_ret_flags(
+    IDL_FLAG_ANNOTATIONS,
+    "@annotation marker { long value; };"
+    "@marker(value = 1, extra) struct Sample { };",
+    IDL_RETCODE_SEMANTIC_ERROR);
+}
+
+CU_Test(idl_hand_parser, annotation_application_rejects_unknown_keyword_member)
+{
+  expect_parse_ret_flags(
+    IDL_FLAG_ANNOTATIONS,
+    "@annotation marker { long value; };"
+    "@marker(missing = 1) struct Sample { };",
+    IDL_RETCODE_SEMANTIC_ERROR);
+}
+
+CU_Test(idl_hand_parser, annotation_application_rejects_missing_keyword_value)
+{
+  expect_parse_ret_flags(
+    IDL_FLAG_ANNOTATIONS,
+    "@annotation marker { long value; };"
+    "@marker(value = ) struct Sample { };",
+    IDL_RETCODE_SYNTAX_ERROR);
+}
+
+CU_Test(idl_hand_parser, annotation_application_rejects_positional_then_keyword_parameter)
+{
+  expect_parse_ret_flags(
+    IDL_FLAG_ANNOTATIONS,
+    "@annotation marker { long value; };"
+    "@marker(1, value = 2) struct Sample { };",
+    IDL_RETCODE_SYNTAX_ERROR);
+}
+
+CU_Test(idl_hand_parser, unknown_annotation_rejects_missing_keyword_value)
+{
+  expect_parse_ret_flags(
+    IDL_FLAG_ANNOTATIONS,
+    "@unknown(foo =) struct Loose { };",
+    IDL_RETCODE_SYNTAX_ERROR);
+}
+
+CU_Test(idl_hand_parser, unknown_annotation_rejects_incomplete_expression)
+{
+  expect_parse_ret_flags(
+    IDL_FLAG_ANNOTATIONS,
+    "@unknown(foo = bar +) struct Loose { };",
+    IDL_RETCODE_SYNTAX_ERROR);
+}
+
+CU_Test(idl_hand_parser, unknown_annotation_rejects_bad_positional_start)
+{
+  expect_parse_ret_flags(
+    IDL_FLAG_ANNOTATIONS,
+    "@unknown(,) struct Loose { };",
+    IDL_RETCODE_SYNTAX_ERROR);
 }
 
 CU_Test(idl_hand_parser, struct_with_sequence_members)

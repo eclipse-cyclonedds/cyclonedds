@@ -3097,8 +3097,9 @@ bool idl_is_bitmask(const void *ptr)
     return false;
   /* a bitmask must have a name */
   assert(node->name && node->name->identifier);
-  /* an bitmask must have no parent or a module parent */
-  assert(!node->node.parent || (idl_mask(node->node.parent) & IDL_MODULE));
+  /* an bitmask must have no parent or a module or annotation parent */
+  assert(!node->node.parent ||
+         (idl_mask(node->node.parent) & (IDL_MODULE | IDL_ANNOTATION)));
   /* an bitmask must have at least one bit value */
   assert(node->bit_values && (idl_mask(node->bit_values) & IDL_BIT_VALUE));
   return true;
@@ -3277,8 +3278,9 @@ bool idl_is_typedef(const void *ptr)
     return false;
   /* a typedef must have a type specifier */
   assert(node->type_spec);
-  /* a typedef must have no parent or a module parent */
-  assert(!node->node.parent || (idl_mask(node->node.parent) & IDL_MODULE));
+  /* a typedef must have no parent or a module or annotation parent */
+  assert(!node->node.parent ||
+         (idl_mask(node->node.parent) & (IDL_MODULE | IDL_ANNOTATION)));
   /* a typedef must have at least one declarator */
   assert(idl_mask(node->declarators) & IDL_DECLARATOR);
   return true;
@@ -3811,6 +3813,8 @@ idl_create_annotation_appl_param(
          (idl_mask(const_expr) & IDL_ENUMERATOR) ||
          (idl_mask(const_expr) & IDL_BIT_VALUE));
   node->const_expr = const_expr;
+  if (!idl_scope(const_expr))
+    ((idl_node_t *)const_expr)->parent = (idl_node_t *)node;
   *((idl_annotation_appl_param_t **)nodep) = node;
   return ret;
 }
@@ -3819,10 +3823,15 @@ bool idl_is_annotation_appl(const void *ptr)
 {
 #if !defined(NDEBUG)
   static const idl_mask_t mask = IDL_MODULE |
+                                 IDL_CONST | IDL_TYPEDEF |
                                  IDL_ENUM |
+                                 IDL_ENUMERATOR |
                                  IDL_STRUCT | IDL_MEMBER |
+                                 IDL_FORWARD |
                                  IDL_UNION | IDL_SWITCH_TYPE_SPEC |
-                                 IDL_BITMASK;
+                                 IDL_CASE |
+                                 IDL_SEQUENCE |
+                                 IDL_BITMASK | IDL_BIT_VALUE;
 #endif
   const idl_annotation_appl_t *node = ptr;
 

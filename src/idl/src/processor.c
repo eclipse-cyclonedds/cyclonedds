@@ -529,6 +529,13 @@ idl_retcode_t idl_parse(idl_pstate_t *pstate)
   idl_retcode_t ret;
 
 #if IDL_USE_HAND_WRITTEN_PARSER
+  {
+    idl_token_t tok;
+    memset(&tok, 0, sizeof(tok));
+    if ((ret = parse_grammar(pstate, &tok)) != IDL_RETCODE_OK)
+      goto err;
+    pstate->builtin_root = pstate->root;
+  }
   if ((ret = idl_parse_hand_written(pstate)) != IDL_RETCODE_OK)
     goto err;
 #else
