@@ -3137,25 +3137,6 @@ static bool stream_is_member_present (dds_istream_t *is, uint32_t *param_len)
   }
 }
 
-ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
-static bool stream_is_xcdr1_optional_member_present (dds_istream_t *is, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, uint32_t *param_len)
-{
-  uint32_t param_mid, adr_mid;
-  if (!stream_read_xcdr1_paramheader (is, &param_mid, param_len))
-  {
-    *param_len = 0;
-    return false;
-  }
-  if (*param_len == 0)
-    return false;
-  /* The MID table was introduced for XCDR1 optional members.  A descriptor
-     without one is older than XCDR1 optional support, so it cannot match an
-     optional parameter header. */
-  if (mid_table->op0 == NULL)
-    return false;
-  return find_member_id (mid_table, ops, &adr_mid) && adr_mid == param_mid;
-}
-
 ddsrt_nonnull_all
 static void initialize_sequence (dds_sequence_t *seq, enum sample_data_state sample_state)
 {
@@ -3636,10 +3617,7 @@ static inline const uint32_t *dds_stream_read_adr (uint32_t insn, dds_istream_t 
   uint32_t param_len = 0;
   if (op_type_optional (insn) && !is_mutable_member)
   {
-    const bool member_present = (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
-      ? stream_is_xcdr1_optional_member_present (&is1, mid_table, ops, &param_len)
-      : stream_is_member_present (&is1, &param_len);
-    if (!member_present)
+    if (!stream_is_member_present (&is1, &param_len))
     {
       is->m_index = is1.m_index + param_len; // param_len is 0 for XCDR2
       return stream_skip_member_insns (insn, data, addr, allocator, ops, sample_state);
@@ -5341,8 +5319,8 @@ static enum dds_stream_normalize_result normalize_uni (struct normalize_state co
 
 enum normalize_xcdr1_paramheader_result {
   NPHR1_NOT_FOUND,   // unknown memberid, param_length and must_understand set
-  NPHR1_NOT_PRESENT, // known memberid, param_length = 0, must_understand set
-  NPHR1_PRESENT,     // known memberid, param_length != 0, must_understand set
+  NPHR1_NOT_PRESENT, // parameter length = 0, phdr_mid and must_understand set
+  NPHR1_PRESENT,     // parameter length != 0, phdr_mid and must_understand set
   NPHR1_LIST_END,    // list-end found; param_length and must_understand undefined
   NPHR1_ERROR        // normalization failed; param_length and must_understand undefined
 };
@@ -5781,12 +5759,8 @@ static enum dds_stream_normalize_result stream_normalize_adr (struct normalize_s
     {
       case NPHR1_ERROR:
       case NPHR1_LIST_END:
-        return normalize_error ();
       case NPHR1_NOT_FOUND:
-        if (must_understand) // must_understand and unknown means we have to reject the input
-          return normalize_error ();
-        *off += param_length;
-        /* fall through */
+        return normalize_error ();
       case NPHR1_NOT_PRESENT:
         *ops = dds_stream_skip_adr_insns (**ops, *ops);
         break;
@@ -5932,12 +5906,14 @@ static enum dds_stream_normalize_result stream_normalize_xcdr1_pl (struct normal
         paramlist_end = true;
         break;
       case NPHR1_NOT_FOUND:
-      case NPHR1_NOT_PRESENT:
         if (must_understand) // must_understand and unknown means we have to reject the input
           return normalize_error ();
         *off += param_length;
         break;
+      case NPHR1_NOT_PRESENT:
       case NPHR1_PRESENT: {
+        // In a mutable parameter list, a zero-length parameter is still a present
+        // member.  Optional absence is encoded by omitting the member entirely.
         // see remark on XCDR1 parameter alignment rules above
         const uint32_t input_offset = *off;
 
