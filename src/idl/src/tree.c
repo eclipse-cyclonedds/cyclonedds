@@ -633,20 +633,32 @@ err_node:
 bool idl_is_const(const void *ptr)
 {
 #if !defined(NDEBUG)
-  static const idl_mask_t mask =
-    IDL_BASE_TYPE | IDL_STRING | IDL_ENUMERATOR;
-#endif
   const idl_const_t *node = ptr;
+  const idl_type_spec_t *type_spec;
+  static const idl_mask_t type_mask =
+    IDL_BASE_TYPE | IDL_STRING | IDL_ENUM | IDL_BITMASK;
+  static const idl_mask_t value_mask =
+    IDL_LITERAL | IDL_ENUMERATOR;
+#else
+  const idl_const_t *node = ptr;
+#endif
 
   if (!(idl_mask(node) & IDL_CONST))
     return false;
+#if !defined(NDEBUG)
+  type_spec = idl_unalias(node->type_spec);
   /* a constant must have a name */
   assert(node->name && node->name->identifier);
   /* a constant must have a type specifier */
-  assert(idl_mask(node->type_spec) & mask);
+  assert(idl_is_type_spec(node->type_spec));
+  assert(idl_mask(type_spec) & type_mask);
   /* a constant must have a constant value */
-  assert(idl_mask(node->const_expr) & IDL_LITERAL);
-  assert(idl_mask(node->const_expr) & mask);
+  assert(idl_mask(node->const_expr) & value_mask);
+  if (idl_type(type_spec) == IDL_ENUM)
+    assert(idl_mask(node->const_expr) & IDL_ENUMERATOR);
+  else
+    assert(idl_mask(node->const_expr) & IDL_LITERAL);
+#endif
   return true;
 }
 
@@ -699,7 +711,7 @@ idl_create_const(
   /* type specifier can be a type definition */
   alias = type_spec;
   type_spec = idl_unalias(type_spec);
-  assert(idl_mask(type_spec) & (IDL_BASE_TYPE|IDL_STRING|IDL_ENUM));
+  assert(idl_mask(type_spec) & (IDL_BASE_TYPE|IDL_STRING|IDL_ENUM|IDL_BITMASK));
   node->type_spec = alias;
   if (!idl_scope(alias))
     ((idl_node_t *)alias)->parent = (idl_node_t*)node;
@@ -759,6 +771,8 @@ static const char *describe_literal(const void *ptr)
     return "integer literal";
   if (type & IDL_FLOATING_PT_TYPE)
     return "floating point literal";
+  if (type == IDL_BITMASK)
+    return "bitmask literal";
   assert(type == IDL_STRING);
   return "string literal";
 }

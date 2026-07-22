@@ -464,7 +464,8 @@ eval_int_expr(
   } else if (mask & IDL_UNARY_OPERATOR) {
     return eval_unary_int_expr(pstate, const_expr, type, valp);
   } else if ((mask & (IDL_LITERAL|IDL_OCTET)) == (IDL_LITERAL|IDL_OCTET) ||
-             (mask & (IDL_LITERAL|IDL_INTEGER_TYPE)) == (IDL_LITERAL|IDL_INTEGER_TYPE))
+             (mask & (IDL_LITERAL|IDL_INTEGER_TYPE)) == (IDL_LITERAL|IDL_INTEGER_TYPE) ||
+             (mask & (IDL_LITERAL|IDL_BITMASK)) == (IDL_LITERAL|IDL_BITMASK))
   {
     *valp = intval(const_expr);
     return IDL_RETCODE_OK;
@@ -746,12 +747,21 @@ idl_evaluate(
 
   /* enumerators are referenced */
   if (implicit == IDL_ENUM) {
+    idl_const_expr_t *expr = const_expr;
     const char *constr = idl_construct(const_expr);
-    if (!(idl_mask(const_expr) & IDL_ENUMERATOR)) {
+
+    if (idl_mask(expr) & IDL_CONST)
+      expr = ((idl_const_t *)expr)->const_expr;
+    if (!(idl_mask(expr) & IDL_ENUMERATOR)) {
       idl_error(pstate, idl_location(const_expr), fmt, constr, "enumerator");
       return IDL_RETCODE_ILLEGAL_EXPRESSION;
     }
-    *((idl_enumerator_t **)nodep) = const_expr;
+    if (expr == const_expr) {
+      *((idl_enumerator_t **)nodep) = expr;
+    } else {
+      *((idl_enumerator_t **)nodep) = idl_reference_node(expr);
+      idl_unreference_node(const_expr);
+    }
     return IDL_RETCODE_OK;
   } else if (implicit == IDL_BITMASK) {
     if ((ret = eval_bitmask(pstate, const_expr, type, nodep)))
@@ -1094,6 +1104,8 @@ idl_compare(const void *lhs, const void *rhs)
     return compare_bool(lhs, rhs);
   else if (ltype == IDL_ENUM)
     return compare_enum(lhs, rhs);
+  else if (ltype == IDL_BITMASK)
+    return compare_int(lhs, rhs);
   else if (ltype == IDL_STRING)
     return compare_string(lhs, rhs);
 
