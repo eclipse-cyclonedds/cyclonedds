@@ -504,6 +504,7 @@ int main (int argc, char **argv)
 
   // dds_cdrstream.h
   bool ret_cdrs;
+  dds_istream_init_well_formed (ptr, 0, ptr2, 0);
   dds_istream_init (ptr, 0, ptr2, 0);
   dds_istream_fini (ptr);
   dds_ostream_init (ptr, ptr2, 0, 0);
