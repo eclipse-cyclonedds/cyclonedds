@@ -14,8 +14,6 @@ include(HashUtilities)
 
 find_package(Threads QUIET REQUIRED)
 
-option(ENABLE_IDL_HAND_PARSER "Use the in-progress hand-written IDL parser" OFF)
-
 set(binary_dir "${CMAKE_CURRENT_BINARY_DIR}")
 set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
