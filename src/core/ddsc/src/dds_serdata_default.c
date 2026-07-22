@@ -401,10 +401,11 @@ static enum from_ser_result serdata_default_from_ser_common (const struct ddsi_s
 
   enum dds_stream_normalize_result nres;
   uint32_t actual_size = 0;
+  dds_istream_t is;
   if (d->pos < pad)
     nres = DDS_STREAM_NORMALIZE_ERROR;
   else
-    nres = dds_stream_normalize (d->data, d->pos - pad, needs_bswap, xcdr_version, &tp->type, kind == SDK_KEY, &actual_size);
+    nres = dds_stream_normalize_to_istream (&is, d->data, d->pos - pad, needs_bswap, xcdr_version, &tp->type, kind == SDK_KEY, &actual_size);
   switch (nres)
   {
     case DDS_STREAM_NORMALIZE_SUCCESS:
@@ -415,8 +416,6 @@ static enum from_ser_result serdata_default_from_ser_common (const struct ddsi_s
       goto err;
   }
 
-  dds_istream_t is;
-  dds_istream_init_well_formed (&is, actual_size, d->data, xcdr_version);
   if (!gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY))
     goto err;
   *sd_out = d;
@@ -465,10 +464,11 @@ static enum from_ser_result serdata_default_from_ser_iov_common (const struct dd
 
   enum dds_stream_normalize_result nres;
   uint32_t actual_size = 0;
+  dds_istream_t is;
   if (d->pos < pad)
     nres = DDS_STREAM_NORMALIZE_ERROR;
   else
-    nres = dds_stream_normalize (d->data, d->pos - pad, needs_bswap, xcdr_version, &tp->type, kind == SDK_KEY, &actual_size);
+    nres = dds_stream_normalize_to_istream (&is, d->data, d->pos - pad, needs_bswap, xcdr_version, &tp->type, kind == SDK_KEY, &actual_size);
   switch (nres)
   {
     case DDS_STREAM_NORMALIZE_SUCCESS:
@@ -479,8 +479,6 @@ static enum from_ser_result serdata_default_from_ser_iov_common (const struct dd
       goto err;
   }
 
-  dds_istream_t is;
-  dds_istream_init_well_formed (&is, actual_size, d->data, xcdr_version);
   if (!gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY))
     goto err;
   *sd_out = d;
@@ -1022,11 +1020,13 @@ static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertyp
     case DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY:
     case DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA: {
       const bool just_key = (md->sample_state == DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY);
-      uint32_t actual_size;
-
       // FIXME: how much do we trust PSMX-provided data? If we *really* trust it, we can skip this
-      const enum dds_stream_normalize_result nres =
-        dds_stream_normalize (loaned_sample->sample_ptr, md->sample_size - pad, false, xcdr_version, &tp->type, just_key, &actual_size);
+      serdata_default_append_blob (&d, md->sample_size, loaned_sample->sample_ptr);
+      uint32_t actual_size;
+      dds_istream_t is;
+      const enum dds_stream_normalize_result nres = (md->sample_size < pad)
+        ? DDS_STREAM_NORMALIZE_ERROR
+        : dds_stream_normalize_to_istream (&is, d->data, md->sample_size - pad, false, xcdr_version, &tp->type, just_key, &actual_size);
       switch (nres)
       {
         case DDS_STREAM_NORMALIZE_SUCCESS:
@@ -1035,12 +1035,9 @@ static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertyp
           ddsi_serdata_unref (&d->c);
           return DDSI_SERDATA_FROM_SER_DISCARD;
         case DDS_STREAM_NORMALIZE_ERROR:
-        ddsi_serdata_unref (&d->c);
+          ddsi_serdata_unref (&d->c);
           return NULL;
       }
-      serdata_default_append_blob (&d, md->sample_size, loaned_sample->sample_ptr);
-      dds_istream_t is;
-      dds_istream_init_well_formed (&is, actual_size, d->data, xcdr_version);
       if (!gen_serdata_key_from_cdr (&is, &d->key, tp, just_key))
       {
         ddsi_serdata_unref (&d->c);
