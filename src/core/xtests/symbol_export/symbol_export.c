@@ -517,6 +517,8 @@ int main (int argc, char **argv)
   ret_cdrs = dds_stream_normalize (ptr, 0, 0, 0, ptr2, 0, ptr3);
   (void) ret_cdrs;
   (void) dds_stream_normalize_xcdr2_data (ptr, ptr2, 0, 0, ptr3);
+  (void) dds_stream_normalize_to_istream (ptr, ptr2, 0, 0, 0, ptr3, 0, ptr4);
+  (void) dds_stream_normalize_xcdr2_data_to_istream (ptr, ptr2, ptr3, 0, 0, ptr4);
 
   dds_stream_write (ptr, ptr2, ptr3, ptr4);
   dds_stream_writeLE (ptr, ptr2, ptr3, ptr4);

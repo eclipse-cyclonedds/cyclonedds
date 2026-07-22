@@ -343,6 +343,14 @@ void dds_istream_init (dds_istream_t *is, uint32_t size, const void *input, enum
   dds_istream_init_well_formed (is, size, input, xcdr_version);
 }
 
+static void dds_istream_reset_empty (dds_istream_t *is, enum dds_cdr_enc_version xcdr_version)
+{
+  is->m_buffer = NULL;
+  is->m_size = 0;
+  is->m_index = 0;
+  is->m_xcdr_version = xcdr_version;
+}
+
 void dds_ostream_init (dds_ostream_t *os, const struct dds_cdrstream_allocator *allocator, uint32_t size, enum dds_cdr_enc_version xcdr_version)
 {
   os->m_buffer = size ? allocator->malloc (size) : NULL;
@@ -6278,6 +6286,35 @@ enum dds_stream_normalize_result dds_stream_normalize (void *data, uint32_t size
     }
     return DDS_STREAM_NORMALIZE_ERROR;
   }
+}
+
+enum dds_stream_normalize_result dds_stream_normalize_to_istream (dds_istream_t *is, void *data, uint32_t size, bool bswap, enum dds_cdr_enc_version xcdr_version, const struct dds_cdrstream_desc *desc, bool just_key, uint32_t *actual_size)
+{
+  const enum dds_stream_normalize_result res =
+    dds_stream_normalize (data, size, bswap, xcdr_version, desc, just_key, actual_size);
+  if (res == DDS_STREAM_NORMALIZE_SUCCESS)
+    dds_istream_init_well_formed (is, *actual_size, data, xcdr_version);
+  else
+  {
+    *actual_size = 0;
+    dds_istream_reset_empty (is, xcdr_version);
+  }
+  return res;
+}
+
+enum dds_stream_normalize_result dds_stream_normalize_xcdr2_data_to_istream (dds_istream_t *is, char *data, uint32_t *off, uint32_t size, bool bswap, const uint32_t *ops)
+{
+  const uint32_t start = *off;
+  const enum dds_stream_normalize_result res =
+    dds_stream_normalize_xcdr2_data (data, off, size, bswap, ops);
+  if (res == DDS_STREAM_NORMALIZE_SUCCESS)
+    dds_istream_init_well_formed (is, *off - start, data + start, DDSI_RTPS_CDR_ENC_VERSION_2);
+  else
+  {
+    *off = start;
+    dds_istream_reset_empty (is, DDSI_RTPS_CDR_ENC_VERSION_2);
+  }
+  return res;
 }
 
 /*******************************************************************************************

@@ -4253,6 +4253,43 @@ static bool eq_CdrStreamTryconstruct_t8 (const void *va, const void *vb)
 #define E1a CdrStreamTryconstruct_E1a
 #define E2a CdrStreamTryconstruct_E2a
 typedef char str3[4];
+
+static dds_istream_t normalize_to_istream_poison_stream (void)
+{
+  static const unsigned char sentinel;
+  return (dds_istream_t) {
+    .m_buffer = &sentinel,
+    .m_size = UINT32_MAX,
+    .m_index = UINT32_MAX,
+    .m_xcdr_version = XCDR1
+  };
+}
+
+static void assert_normalize_to_istream_empty_stream (const dds_istream_t *is, enum dds_cdr_enc_version xcdr_version)
+{
+  CU_ASSERT_FATAL (is->m_buffer == NULL);
+  CU_ASSERT_EQ_FATAL (is->m_size, 0);
+  CU_ASSERT_EQ_FATAL (is->m_index, 0);
+  CU_ASSERT_EQ_FATAL (is->m_xcdr_version, xcdr_version);
+}
+
+static void assert_normalize_to_istream_t1_xcdr (dds_istream_t *is, const unsigned char *buffer, uint32_t size, const struct dds_cdrstream_desc *desc)
+{
+  CU_ASSERT_FATAL (is->m_buffer == buffer);
+  CU_ASSERT_EQ_FATAL (is->m_size, size);
+  CU_ASSERT_EQ_FATAL (is->m_index, 0);
+  CU_ASSERT_EQ_FATAL (is->m_xcdr_version, XCDR2);
+
+  CdrStreamTryconstruct_t1 sample = { 0 };
+  dds_stream_read_sample (is, &sample, &dds_cdrstream_default_allocator, desc);
+  CU_ASSERT_EQ_FATAL (is->m_index, is->m_size);
+  CU_ASSERT_EQ_FATAL (sample.f1, CdrStreamTryconstruct_E1f);
+  CU_ASSERT_EQ_FATAL (sample.f2, CdrStreamTryconstruct_E1a);
+  CU_ASSERT_EQ_FATAL (sample.f3, CdrStreamTryconstruct_E1a);
+  CU_ASSERT_FATAL (strcmp (sample.f4, "1a") == 0);
+  dds_stream_free_sample (&sample, &dds_cdrstream_default_allocator, desc->ops.ops);
+}
+
 CU_Test (ddsc_cdrstream, tryconstruct)
 {
   const struct test {
@@ -4395,6 +4432,93 @@ CU_Test (ddsc_cdrstream, tryconstruct)
 
     ddsrt_free (xcdr2);
     dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+  }
+}
+
+CU_Test (ddsc_cdrstream, normalize_to_istream)
+{
+  const struct test {
+    enum dds_stream_normalize_result expected;
+    uint32_t xcdr2size;
+    const uint8_t *xcdr2;
+  } tests[] = {
+    { DDS_STREAM_NORMALIZE_SUCCESS, CDR(32,0, 32,0, 32,0, STR('1','a')) },
+    { DDS_STREAM_NORMALIZE_ERROR, CDR(32,2, 32,0, 32,0, STR('1','b')) },
+    { DDS_STREAM_NORMALIZE_DISCARD, CDR(32,0, 32,2, 32,0, STR('1','c')) },
+  };
+
+  struct dds_cdrstream_desc desc;
+  dds_cdrstream_desc_from_topic_desc (&desc, &CdrStreamTryconstruct_t1_desc);
+  assert (desc.ops.ops);
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    struct test const * const test = &tests[i];
+    unsigned char * const xcdr2 = ddsrt_memdup (test->xcdr2, test->xcdr2size);
+    uint32_t act_size = UINT32_MAX;
+    dds_istream_t is = normalize_to_istream_poison_stream ();
+
+    const enum dds_stream_normalize_result norm_res =
+      dds_stream_normalize_to_istream (&is, xcdr2, test->xcdr2size, false, XCDR2, &desc, false, &act_size);
+    CU_ASSERT_EQ_FATAL (norm_res, test->expected);
+    if (test->expected == DDS_STREAM_NORMALIZE_SUCCESS)
+    {
+      CU_ASSERT_EQ_FATAL (act_size, test->xcdr2size);
+      assert_normalize_to_istream_t1_xcdr (&is, xcdr2, test->xcdr2size, &desc);
+    }
+    else
+    {
+      CU_ASSERT_EQ_FATAL (act_size, 0);
+      assert_normalize_to_istream_empty_stream (&is, XCDR2);
+    }
+    ddsrt_free (xcdr2);
+  }
+
+  dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+}
+
+CU_Test (ddsc_cdrstream, normalize_xcdr2_data_to_istream)
+{
+  const struct test {
+    enum dds_stream_normalize_result expected;
+    uint32_t xcdr2size;
+    const uint8_t *xcdr2;
+  } tests[] = {
+    { DDS_STREAM_NORMALIZE_SUCCESS, CDR(32,0, 32,0, 32,0, STR('1','a')) },
+    { DDS_STREAM_NORMALIZE_ERROR, CDR(32,2, 32,0, 32,0, STR('1','b')) },
+    { DDS_STREAM_NORMALIZE_DISCARD, CDR(32,0, 32,2, 32,0, STR('1','c')) },
+  };
+  const uint32_t fragment_offset = 4;
+  const uint32_t suffix_size = 3;
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    struct test const * const test = &tests[i];
+    const uint32_t buf_size = fragment_offset + test->xcdr2size + suffix_size;
+    unsigned char * const buf = ddsrt_calloc (1, buf_size);
+    memcpy (buf + fragment_offset, test->xcdr2, test->xcdr2size);
+    uint32_t off = fragment_offset;
+    dds_istream_t is = normalize_to_istream_poison_stream ();
+
+    const enum dds_stream_normalize_result norm_res =
+      dds_stream_normalize_xcdr2_data_to_istream (&is, (char *) buf, &off, buf_size, false, CdrStreamTryconstruct_t1_desc.m_ops);
+    CU_ASSERT_EQ_FATAL (norm_res, test->expected);
+    if (test->expected == DDS_STREAM_NORMALIZE_SUCCESS)
+    {
+      struct dds_cdrstream_desc desc;
+      dds_cdrstream_desc_from_topic_desc (&desc, &CdrStreamTryconstruct_t1_desc);
+      assert (desc.ops.ops);
+
+      CU_ASSERT_EQ_FATAL (off, fragment_offset + test->xcdr2size);
+      assert_normalize_to_istream_t1_xcdr (&is, buf + fragment_offset, test->xcdr2size, &desc);
+      dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+    }
+    else
+    {
+      CU_ASSERT_EQ_FATAL (off, fragment_offset);
+      assert_normalize_to_istream_empty_stream (&is, XCDR2);
+    }
+    ddsrt_free (buf);
   }
 }
 

@@ -343,15 +343,15 @@ dds_ostream_t dds_ostream_from_buffer (void *buffer, size_t size, enum dds_cdr_e
  * @brief Normalize and validate CDR data.
  * @component cdr_serializer
  *
- * @param data          data sample
- * @param size          size of the data
+ * @param data          serialized sample or key CDR buffer, normalized in place
+ * @param size          size of @p data in bytes
  * @param bswap         byte-swapping required
  * @param xcdr_version  XCDR version of the CDR data
  * @param desc          type descriptor
- * @param just_key      indicates if the data is a serialized key or a complete sample
- * @param actual_size   is set to the actual size of the data (*actual_size <= size) on successful return, undefined on failure
+ * @param just_key      indicates if @p data is a serialized key or complete serialized data
+ * @param actual_size   is set to the actual size of the CDR payload (*actual_size <= size) on successful return, undefined on failure
  * @returns             DDS_STREAM_NORMALIZE_SUCCESS when validation and normalization succeeded;
- *                      DDS_STREAM_NORMALIZE_DISCARD when the sample is well-formed but must be
+ *                      DDS_STREAM_NORMALIZE_DISCARD when the CDR payload is well-formed but must be
  *                      discarded because try-construct handling rejects it; DDS_STREAM_NORMALIZE_ERROR
  *                      when validation failed or normalization could not be completed.
  */
@@ -371,11 +371,60 @@ DDS_EXPORT enum dds_stream_normalize_result dds_stream_normalize (void *data, ui
  * @param bswap  byte-swapping required
  * @param ops    marshalling metadata for the data type
  * @returns      DDS_STREAM_NORMALIZE_SUCCESS when validation and normalization succeeded;
- *               DDS_STREAM_NORMALIZE_DISCARD when the sample is well-formed but must be
+ *               DDS_STREAM_NORMALIZE_DISCARD when the CDR payload is well-formed but must be
  *               discarded because try-construct handling rejects it; DDS_STREAM_NORMALIZE_ERROR
  *               when validation failed or normalization could not be completed.
  */
 DDS_EXPORT enum dds_stream_normalize_result dds_stream_normalize_xcdr2_data (char *data, uint32_t *off, uint32_t size, bool bswap, const uint32_t *ops)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+
+/**
+ * @brief Normalize CDR data and initialize a trusted input stream on success.
+ * @component cdr_serializer
+ *
+ * This helper normalizes @p data in place using @ref dds_stream_normalize. On
+ * success, @p is is initialized over the accepted native-endian byte range and
+ * @p actual_size is set to that range size. On error or discard, @p is is reset
+ * to an empty stream and @p actual_size is set to 0.
+ *
+ * @param is            input stream to initialize on success
+ * @param data          serialized sample or key CDR buffer, normalized in place
+ * @param size          size of @p data in bytes
+ * @param bswap         byte-swapping required
+ * @param xcdr_version  XCDR version of the CDR data
+ * @param desc          type descriptor
+ * @param just_key      indicates if @p data is a serialized key or complete serialized data
+ * @param actual_size   set to the stream size on success, 0 otherwise
+ * @returns             DDS_STREAM_NORMALIZE_SUCCESS when validation and normalization succeeded;
+ *                      DDS_STREAM_NORMALIZE_DISCARD when the CDR payload is well-formed but must be
+ *                      discarded because try-construct handling rejects it; DDS_STREAM_NORMALIZE_ERROR
+ *                      when validation failed or normalization could not be completed.
+ */
+DDS_EXPORT enum dds_stream_normalize_result dds_stream_normalize_to_istream (dds_istream_t *is, void *data, uint32_t size, bool bswap, enum dds_cdr_enc_version xcdr_version, const struct dds_cdrstream_desc *desc, bool just_key, uint32_t *actual_size)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+
+/**
+ * @brief Normalize an XCDR2 data fragment and initialize a trusted input stream on success.
+ * @component cdr_serializer
+ *
+ * This helper normalizes @p data in place starting at @p off. On success, @p off
+ * is advanced past the normalized fragment and @p is is initialized with index
+ * 0 over the normalized range `data + old_off` through `data + *off`. On error
+ * or discard, @p off is restored to its original value and @p is is reset to an
+ * empty stream.
+ *
+ * @param is     input stream to initialize on success
+ * @param data   serialized XCDR2 payload buffer
+ * @param off    offset at which to start normalizing, updated on success
+ * @param size   size of @p data in bytes
+ * @param bswap  byte-swapping required
+ * @param ops    marshalling metadata for the data type
+ * @returns      DDS_STREAM_NORMALIZE_SUCCESS when validation and normalization succeeded;
+ *               DDS_STREAM_NORMALIZE_DISCARD when the CDR payload is well-formed but must be
+ *               discarded because try-construct handling rejects it; DDS_STREAM_NORMALIZE_ERROR
+ *               when validation failed or normalization could not be completed.
+ */
+DDS_EXPORT enum dds_stream_normalize_result dds_stream_normalize_xcdr2_data_to_istream (dds_istream_t *is, char *data, uint32_t *off, uint32_t size, bool bswap, const uint32_t *ops)
   ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 /**
