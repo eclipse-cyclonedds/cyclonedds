@@ -85,12 +85,6 @@ stream_scan_token(idl_parser_stream_t *stream, idl_token_t *token)
     if (ret < 0)
       return ret;
 
-    if (token->code == '\n') {
-      pstate->scanner.state = IDL_SCAN;
-      token_fini(token);
-      continue;
-    }
-
     if (token->code == IDL_TOKEN_COMMENT ||
         token->code == IDL_TOKEN_LINE_COMMENT) {
       token_fini(token);
@@ -98,12 +92,24 @@ stream_scan_token(idl_parser_stream_t *stream, idl_token_t *token)
     }
 
     if ((unsigned)pstate->scanner.state & (unsigned)IDL_SCAN_DIRECTIVE) {
+      bool end_of_directive = token->code == '\n';
       ret = idl_parse_directive(pstate, token);
+      if (end_of_directive)
+        pstate->scanner.state = IDL_SCAN;
       if (token->code == '\0' &&
-          (ret == IDL_RETCODE_OK || ret == IDL_RETCODE_PUSH_MORE))
+          (ret == IDL_RETCODE_OK || ret == IDL_RETCODE_PUSH_MORE)) {
+        token_fini(token);
+        token->code = '\0';
         return IDL_RETCODE_OK;
+      }
+      token_fini(token);
       if (ret != IDL_RETCODE_OK && ret != IDL_RETCODE_PUSH_MORE)
         return ret;
+      continue;
+    }
+
+    if (token->code == '\n') {
+      pstate->scanner.state = IDL_SCAN;
       token_fini(token);
       continue;
     }

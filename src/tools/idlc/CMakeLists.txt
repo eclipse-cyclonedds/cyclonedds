@@ -22,6 +22,12 @@ set(sources
 
 add_executable(idlc ${sources} ${headers})
 
+if(ENABLE_IDL_HAND_PARSER)
+  target_compile_definitions(idlc PRIVATE IDL_USE_HAND_WRITTEN_PARSER=1)
+else()
+  target_compile_definitions(idlc PRIVATE IDL_USE_HAND_WRITTEN_PARSER=0)
+endif()
+
 if(MSVC)
   # ignore warnings C6255 and 6263 about _alloca
   # and 5286 and 5287 about enum type conversion
