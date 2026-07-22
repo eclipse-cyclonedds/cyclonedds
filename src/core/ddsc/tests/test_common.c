@@ -98,6 +98,7 @@ void xcdr2_deser (const unsigned char *buf, uint32_t sz, void **obj, const dds_t
 {
   unsigned char *data;
   uint32_t srcoff = 0;
+  dds_istream_t is;
   DDSRT_WARNING_MSVC_OFF(6326)
   bool bswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
   DDSRT_WARNING_MSVC_ON(6326)
@@ -105,13 +106,16 @@ void xcdr2_deser (const unsigned char *buf, uint32_t sz, void **obj, const dds_t
   {
     data = ddsrt_malloc (sz);
     memcpy (data, buf, sz);
-    enum dds_stream_normalize_result ret = dds_stream_normalize_xcdr2_data ((char *) data, &srcoff, sz, bswap, desc->m_ops);
+    enum dds_stream_normalize_result ret =
+      dds_stream_normalize_xcdr2_data_to_istream (&is, (char *) data, &srcoff, sz, bswap, desc->m_ops);
     CU_ASSERT_EQ_FATAL (ret, DDS_STREAM_NORMALIZE_SUCCESS);
   }
   else
+  {
     data = (void *) buf;
+    dds_istream_init_well_formed (&is, sz, data, DDSI_RTPS_CDR_ENC_VERSION_2);
+  }
 
-  dds_istream_t is = { .m_buffer = data, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   *obj = ddsrt_calloc (1, desc->m_size);
   dds_stream_read (&is, (void *) *obj, &dds_cdrstream_default_allocator, desc->m_ops);
   if (bswap)

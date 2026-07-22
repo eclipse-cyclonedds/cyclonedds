@@ -237,13 +237,13 @@ ddsi_typeinfo_t *ddsi_typeinfo_deser (const unsigned char *data, uint32_t sz)
   bool bswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
   DDSRT_WARNING_MSVC_ON(6326)
   data_norm = ddsrt_memdup (data, sz);
-  if (dds_stream_normalize_xcdr2_data ((char *) data_norm, &srcoff, sz, bswap, DDS_XTypes_TypeInformation_desc.m_ops) != DDS_STREAM_NORMALIZE_SUCCESS)
+  dds_istream_t is;
+  if (dds_stream_normalize_xcdr2_data_to_istream (&is, (char *) data_norm, &srcoff, sz, bswap, DDS_XTypes_TypeInformation_desc.m_ops) != DDS_STREAM_NORMALIZE_SUCCESS)
   {
     ddsrt_free (data_norm);
     return NULL;
   }
 
-  dds_istream_t is = { .m_buffer = data_norm, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   ddsi_typeinfo_t *typeinfo = ddsrt_calloc (1, sizeof (*typeinfo));
   dds_stream_read (&is, (void *) typeinfo, &dds_cdrstream_default_allocator, DDS_XTypes_TypeInformation_desc.m_ops);
   ddsrt_free (data_norm);
@@ -381,13 +381,13 @@ ddsi_typemap_t *ddsi_typemap_deser (const unsigned char *data, uint32_t sz)
   bool bswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
   DDSRT_WARNING_MSVC_ON(6326)
   data_norm = ddsrt_memdup (data, sz);
-  if (dds_stream_normalize_xcdr2_data ((char *) data_norm, &srcoff, sz, bswap, DDS_XTypes_TypeMapping_desc.m_ops) != DDS_STREAM_NORMALIZE_SUCCESS)
+  dds_istream_t is;
+  if (dds_stream_normalize_xcdr2_data_to_istream (&is, (char *) data_norm, &srcoff, sz, bswap, DDS_XTypes_TypeMapping_desc.m_ops) != DDS_STREAM_NORMALIZE_SUCCESS)
   {
     ddsrt_free (data_norm);
     return NULL;
   }
 
-  dds_istream_t is = { .m_buffer = data_norm, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   ddsi_typemap_t *typemap = ddsrt_calloc (1, sizeof (*typemap));
   dds_stream_read (&is, (void *) typemap, &dds_cdrstream_default_allocator, DDS_XTypes_TypeMapping_desc.m_ops);
   ddsrt_free (data_norm);
