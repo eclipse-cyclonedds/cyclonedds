@@ -14,6 +14,8 @@ include(HashUtilities)
 
 find_package(Threads QUIET REQUIRED)
 
+option(ENABLE_IDL_HAND_PARSER "Use the in-progress hand-written IDL parser" OFF)
+
 set(binary_dir "${CMAKE_CURRENT_BINARY_DIR}")
 set(source_dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -98,6 +100,7 @@ set(sources
   src/hashid.c
   src/parser.c
   src/heap.c
+  src/parser_impl.c
   src/annotation.h
   src/directive.h
   src/expression.h
@@ -105,6 +108,7 @@ set(sources
   src/hashid.h
   src/parser.h
   src/scanner.h
+  src/parser_impl.h
   src/scope.h
   src/symbol.h
   src/tree.h
@@ -158,6 +162,12 @@ add_library(${PROJECT_NAME}::idl ALIAS idl)
 if(MSVC)
   # ignore warning 5286 and 5287 about enum type conversion
   target_compile_options(idl PRIVATE /wd5286 /wd5287)
+endif()
+
+if(ENABLE_IDL_HAND_PARSER)
+  target_compile_definitions(idl PRIVATE IDL_USE_HAND_WRITTEN_PARSER=1)
+else()
+  target_compile_definitions(idl PRIVATE IDL_USE_HAND_WRITTEN_PARSER=0)
 endif()
 
 set_target_properties(

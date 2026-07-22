@@ -27,7 +27,12 @@
 #include "scope.h"
 #include "keylist.h"
 
+#include "parser_impl.h"
 #include "parser.h"
+
+#ifndef IDL_USE_HAND_WRITTEN_PARSER
+#define IDL_USE_HAND_WRITTEN_PARSER 0
+#endif
 
 static const idl_file_t builtin_file =
   { NULL, "<builtin>" };
@@ -522,6 +527,11 @@ static idl_retcode_t set_type_extensibility(idl_pstate_t *pstate)
 idl_retcode_t idl_parse(idl_pstate_t *pstate)
 {
   idl_retcode_t ret;
+
+#if IDL_USE_HAND_WRITTEN_PARSER
+  if ((ret = idl_parse_hand_written(pstate)) != IDL_RETCODE_OK)
+    goto err;
+#else
   idl_token_t tok;
   memset(&tok, 0, sizeof(tok));
 
@@ -560,6 +570,7 @@ grammar:
            (ret == IDL_RETCODE_OK || ret == IDL_RETCODE_PUSH_MORE));
   if (ret != IDL_RETCODE_OK)
     goto err;
+#endif
 
   pstate->builtin_root = pstate->root;
   for (idl_node_t *node = pstate->root; node; node = node->next) {
