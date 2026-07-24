@@ -451,9 +451,14 @@ static void print_decoded_op (const uint32_t *ops, uint32_t nops, uint32_t idx, 
   switch (op)
   {
     case DDS_SOP_RTS:
-    case DDS_SOP_DLC:
     case DDS_SOP_PLC:
       break;
+    case DDS_SOP_DLC: {
+      const uint16_t required_prefix = DDS_OP_DLC_REQUIRED_PREFIX (insn);
+      if (required_prefix != 0)
+        printf (" required-prefix=%"PRIu16, required_prefix);
+      break;
+    }
     case DDS_SOP_ADR:
       print_adr (ops, idx);
       break;
