@@ -4,8 +4,8 @@
 
 .. _key_steps:
 
-HelloWorld keys steps
-=====================
+HelloWorld key steps
+====================
 
 The **Hello World!** example has a minimal 'data layer' with a data
 model made of one data type ``Msg`` that represents keyed messages.
