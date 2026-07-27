@@ -15,6 +15,8 @@
 #include <string.h>
 #include <dds/dds.h>
 
+#include "../fuzz_common.h"
+
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "ddsi__thread.h"

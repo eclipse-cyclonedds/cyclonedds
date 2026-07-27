@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "../fuzz_common.h"
+
 #include <fuzz_samples.h>
 
 #ifndef FUZZ_SAMPLE_DESER_XCDR_VERSION
@@ -45,9 +47,7 @@ static void exercise_trusted_consumers(const struct dds_cdrstream_desc *desc, vo
     }
 }
 
-int LLVMFuzzerTestOneInput(void *data, size_t size);
-
-int LLVMFuzzerTestOneInput(void *data, size_t size)
+int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
     uint32_t actual_size;
 

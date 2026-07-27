@@ -15,6 +15,8 @@
 #include <string.h>
 #include <dds/dds.h>
 
+#include "../fuzz_common.h"
+
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "ddsi__thread.h"
@@ -39,7 +41,6 @@
 
 static struct ddsi_cfgst *cfgst;
 static struct ddsi_domaingv gv;
-static struct ddsi_config cfg;
 static struct ddsi_tran_conn * fakeconn;
 static struct ddsi_tran_factory * fakenet;
 static struct ddsi_thread_state *thrst;
