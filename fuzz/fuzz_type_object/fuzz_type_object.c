@@ -15,6 +15,8 @@
 #include <string.h>
 #include <dds/dds.h>
 
+#include "../fuzz_common.h"
+
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -88,8 +90,10 @@ int LLVMFuzzerTestOneInput(
         dds_return_t ret = ddsi_type_ref_proxy (&gv, &type, &type_info, DDSI_TYPEID_KIND_COMPLETE, NULL);
         if (ret == DDS_RETCODE_OK)
         {
+          dds_return_t add_ret;
           assert (type != NULL);
-          ddsi_type_add_typeobj (&gv, type, &type_object_complete->x);
+          add_ret = ddsi_type_add_typeobj (&gv, type, &type_object_complete->x);
+          (void) add_ret;
           ddsi_type_unref (&gv, type);
         }
         ddsi_typeinfo_fini (&type_info);

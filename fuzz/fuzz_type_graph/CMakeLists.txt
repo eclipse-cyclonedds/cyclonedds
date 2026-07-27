@@ -8,15 +8,15 @@ endif()
 
 # This follows fuzz_handshake: local.sh and oss-fuzz prepare LPM next to the
 # build directory.
-set(PROTOBUF_ROOT "${CMAKE_CURRENT_BINARY_DIR}/../LPM/external.protobuf")
+set(fuzz_protobuf_root "${CMAKE_CURRENT_SOURCE_DIR}/../../LPM/external.protobuf")
 
-set(absl_DIR "${PROTOBUF_ROOT}/lib/cmake/absl")
+set(absl_DIR "${fuzz_protobuf_root}/lib/cmake/absl")
 find_package(absl REQUIRED CONFIG)
 
-set(utf8_range_DIR "${PROTOBUF_ROOT}/lib/cmake/utf8_range")
+set(utf8_range_DIR "${fuzz_protobuf_root}/lib/cmake/utf8_range")
 find_package(utf8_range REQUIRED CONFIG)
 
-set(protobuf_DIR "${PROTOBUF_ROOT}/lib/cmake/protobuf")
+set(protobuf_DIR "${fuzz_protobuf_root}/lib/cmake/protobuf")
 set(Protobuf_USE_STATIC_LIBS ON)
 find_package(protobuf REQUIRED CONFIG)
 
@@ -25,8 +25,8 @@ protobuf_generate(TARGET fuzz_type_graph LANGUAGE cpp PROTOS "${CMAKE_CURRENT_SO
 target_include_directories(
   fuzz_type_graph PRIVATE
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src/ddsrt/include>"
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../libprotobuf-mutator>"
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../LPM/external.protobuf/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../libprotobuf-mutator>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../LPM/external.protobuf/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsc/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsc/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/cdr/include>"
@@ -36,9 +36,8 @@ target_include_directories(
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>")
 
 target_link_libraries(fuzz_type_graph
-    ${CMAKE_CURRENT_BINARY_DIR}/../LPM/src/libfuzzer/libprotobuf-mutator-libfuzzer.a
-    ${CMAKE_CURRENT_BINARY_DIR}/../LPM/src/libprotobuf-mutator.a
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../LPM/src/libfuzzer/libprotobuf-mutator-libfuzzer.a
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../LPM/src/libprotobuf-mutator.a
     protobuf::libprotobuf
     CycloneDDS::ddsc
-    $ENV{LIB_FUZZING_ENGINE}
-    stdc++)
+    $ENV{LIB_FUZZING_ENGINE})
