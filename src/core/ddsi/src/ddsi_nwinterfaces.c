@@ -43,14 +43,25 @@ enum find_interface_result {
 
 static enum find_interface_result find_interface_by_name (const char *reqname, size_t n_interfaces, const struct ddsi_network_interface *interfaces, size_t *match)
 {
-  // see if there's an interface with this name
-  for (size_t k = 0; k < n_interfaces; k++)
+  // split reqname at | symbols so we can have a single config that works for "lo" (Linux)
+  // and "lo0" (macOS)
+  const char *cur = reqname;
+  while (*cur)
   {
-    if (strcmp (reqname, interfaces[k].name) == 0)
+    const char *end = strchr (cur, '|');
+    if (end == NULL)
+      end = cur + strlen (cur);
+    const size_t len = (size_t) (end - cur);
+    // see if there's an interface with this name
+    for (size_t k = 0; k < n_interfaces; k++)
     {
-      *match = k;
-      return FIR_OK;
+      if (strncmp (cur, interfaces[k].name, len) == 0 && interfaces[k].name[len] == 0)
+      {
+        *match = k;
+        return FIR_OK;
+      }
     }
+    cur += len + (size_t) (*end == '|');
   }
   return FIR_NOTFOUND;
 }

@@ -77,6 +77,58 @@ CU_Test (ddsc_config, simple_udp, .init = ddsrt_init, .fini = ddsrt_fini)
   CU_ASSERT_GT_FATAL (participant, 0);
 }
 
+CU_Test (ddsc_config, fakeudp_alternate_interface_names, .init = ddsrt_init, .fini = ddsrt_fini)
+{
+#ifndef DDS_HAS_FAKEUDP
+  CU_PASS ("fakeudp not included in build");
+#else
+  static const struct {
+    const char *config;
+    const char *expected_name;
+  } cases[] = {
+    {
+      "<General>"
+      "  <Transport>fakeudp</Transport>"
+      "  <Interfaces>"
+      "    <NetworkInterface name=\"lo|missing0|missing1\"/>"
+      "  </Interfaces>"
+      "</General>",
+      "lo"
+    },
+    {
+      "<General>"
+      "  <Transport>fakeudp</Transport>"
+      "  <Interfaces>"
+      "    <NetworkInterface name=\"missing0|fake0|missing1\"/>"
+      "  </Interfaces>"
+      "</General>",
+      "fake0"
+    },
+    {
+      "<General>"
+      "  <Transport>fakeudp</Transport>"
+      "  <Interfaces>"
+      "    <NetworkInterface name=\"missing0|missing1|fake1\"/>"
+      "  </Interfaces>"
+      "</General>",
+      "fake1"
+    }
+  };
+
+  for (uint32_t i = 0; i < sizeof (cases) / sizeof (cases[0]); i++)
+  {
+    dds_entity_t domain = dds_create_domain (60 + i, cases[i].config);
+    CU_ASSERT_GT_FATAL (domain, 0);
+    const struct ddsi_domaingv *gv = get_domaingv (domain);
+    CU_ASSERT_NEQ_FATAL (gv, NULL);
+    CU_ASSERT_EQ_FATAL (gv->n_interfaces, 1);
+    CU_ASSERT_STREQ (gv->interfaces[0].name, cases[i].expected_name);
+    if (domain > 0)
+      CU_ASSERT_EQ (dds_delete (domain), DDS_RETCODE_OK);
+  }
+#endif
+}
+
 CU_Test (ddsc_config, user_config, .init = ddsrt_init, .fini = ddsrt_fini)
 {
   dds_entity_t domain;
