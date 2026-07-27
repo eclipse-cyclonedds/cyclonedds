@@ -4070,6 +4070,50 @@ CU_Test (ddsc_cdrstream, check_mutable_required_members_normalize)
   }
 }
 
+CU_Test (ddsc_cdrstream, check_mutable_prevent_type_widening_normalize)
+{
+  const struct {
+    const char *name;
+    const dds_topic_descriptor_t *topic_desc;
+    enum dds_cdr_enc_version xcdr_version;
+    enum dds_stream_normalize_result normal_result;
+    enum dds_stream_normalize_result strict_result;
+    uint32_t cdrsize;
+    const uint8_t *cdr;
+  } tests[] = {
+    { "xcdr1-empty", &CdrStreamMutable_t1_desc, XCDR1, DDS_STREAM_NORMALIZE_SUCCESS, DDS_STREAM_NORMALIZE_ERROR, CDR(PHDR(DDS_XCDR1_PL_SHORT_PID_LIST_END, 0)) },
+    { "xcdr1-f1-only", &CdrStreamMutable_t1_desc, XCDR1, DDS_STREAM_NORMALIZE_SUCCESS, DDS_STREAM_NORMALIZE_ERROR, CDR(PHDR(1, 4), 32, 7, PHDR(DDS_XCDR1_PL_SHORT_PID_LIST_END, 0)) },
+    { "xcdr1-complete", &CdrStreamMutable_t1_desc, XCDR1, DDS_STREAM_NORMALIZE_SUCCESS, DDS_STREAM_NORMALIZE_SUCCESS, CDR(PHDR(1, 4), 32, 7, PHDR(2, 4), 32, 0, PHDR(DDS_XCDR1_PL_SHORT_PID_LIST_END, 0)) },
+    { "xcdr1-optional-tail-missing", &CdrStreamMutable_optional_mu_tail_desc, XCDR1, DDS_STREAM_NORMALIZE_SUCCESS, DDS_STREAM_NORMALIZE_SUCCESS, CDR(PHDR(1, 4), 32, 7, PHDR(DDS_XCDR1_PL_SHORT_PID_LIST_END, 0)) },
+
+    { "xcdr2-empty", &CdrStreamMutable_t1_desc, XCDR2, DDS_STREAM_NORMALIZE_SUCCESS, DDS_STREAM_NORMALIZE_ERROR, CDR(32, 0) },
+    { "xcdr2-f1-only", &CdrStreamMutable_t1_desc, XCDR2, DDS_STREAM_NORMALIZE_SUCCESS, DDS_STREAM_NORMALIZE_ERROR, CDR(DHDR(32, 0x20000001, 32, 7)) },
+    { "xcdr2-complete", &CdrStreamMutable_t1_desc, XCDR2, DDS_STREAM_NORMALIZE_SUCCESS, DDS_STREAM_NORMALIZE_SUCCESS, CDR(DHDR(32, 0x20000001, 32, 7, 32, 0x60000002, 32, 0)) },
+    { "xcdr2-optional-tail-missing", &CdrStreamMutable_optional_mu_tail_desc, XCDR2, DDS_STREAM_NORMALIZE_SUCCESS, DDS_STREAM_NORMALIZE_SUCCESS, CDR(DHDR(32, 0x20000001, 32, 7)) }
+  };
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    tprintf ("running test %s\n", tests[i].name);
+    struct dds_cdrstream_desc desc;
+    CU_ASSERT_EQ_FATAL (dds_cdrstream_desc_from_topic_desc (&desc, tests[i].topic_desc), DDS_RETCODE_OK);
+
+    uint32_t actual_size = 0;
+    void *cdr = ddsrt_memdup (tests[i].cdr, tests[i].cdrsize);
+    enum dds_stream_normalize_result norm_res = dds_stream_normalize (cdr, tests[i].cdrsize, false, tests[i].xcdr_version, &desc, false, &actual_size);
+    CU_ASSERT_EQ_FATAL (norm_res, tests[i].normal_result);
+    ddsrt_free (cdr);
+
+    actual_size = 0;
+    cdr = ddsrt_memdup (tests[i].cdr, tests[i].cdrsize);
+    norm_res = dds_stream_normalize_with_flags (cdr, tests[i].cdrsize, false, tests[i].xcdr_version, &desc, false, DDS_STREAM_NORMALIZE_FLAG_PREVENT_TYPE_WIDENING, &actual_size);
+    CU_ASSERT_EQ_FATAL (norm_res, tests[i].strict_result);
+    ddsrt_free (cdr);
+
+    dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+  }
+}
+
 CU_Test (ddsc_cdrstream, check_mutable_member_limit_descriptor_init)
 {
   const uint32_t nmembers = 513;
@@ -4134,7 +4178,7 @@ CU_Test (ddsc_cdrstream, check_wstring_normalize)
 
 static void run_test_normalize (
     const dds_topic_descriptor_t *tdesc, const uint8_t *cdr, uint32_t cdrsize,
-    enum dds_cdr_enc_version xcdr_version, bool valid, uint32_t *act_size)
+    enum dds_cdr_enc_version xcdr_version, bool valid, uint32_t flags, uint32_t *act_size)
 {
   struct dds_cdrstream_desc desc;
   CU_ASSERT_EQ_FATAL (dds_cdrstream_desc_from_topic_desc (&desc, tdesc), DDS_RETCODE_OK);
@@ -4142,7 +4186,7 @@ static void run_test_normalize (
   uint8_t empty = 0;
   void *cdr_copy = cdrsize ? ddsrt_memdup (cdr, cdrsize) : &empty;
   const enum dds_stream_normalize_result norm_res =
-    dds_stream_normalize (cdr_copy, cdrsize, false, xcdr_version, &desc, false, act_size);
+    dds_stream_normalize_with_flags (cdr_copy, cdrsize, false, xcdr_version, &desc, false, flags, act_size);
   const bool res = norm_res == DDS_STREAM_NORMALIZE_SUCCESS;
   CU_ASSERT_EQ_FATAL (res, valid);
   if (cdrsize)
@@ -4152,12 +4196,12 @@ static void run_test_normalize (
 
 static void run_test_xcdr1_normalize (const dds_topic_descriptor_t *tdesc, const uint8_t *cdr, uint32_t cdrsize, bool valid, uint32_t *act_size)
 {
-  run_test_normalize (tdesc, cdr, cdrsize, DDSI_RTPS_CDR_ENC_VERSION_1, valid, act_size);
+  run_test_normalize (tdesc, cdr, cdrsize, DDSI_RTPS_CDR_ENC_VERSION_1, valid, DDS_STREAM_NORMALIZE_FLAG_NONE, act_size);
 }
 
 static void run_test_xcdr2_normalize (const dds_topic_descriptor_t *tdesc, const uint8_t *cdr, uint32_t cdrsize, bool valid, uint32_t *act_size)
 {
-  run_test_normalize (tdesc, cdr, cdrsize, DDSI_RTPS_CDR_ENC_VERSION_2, valid, act_size);
+  run_test_normalize (tdesc, cdr, cdrsize, DDSI_RTPS_CDR_ENC_VERSION_2, valid, DDS_STREAM_NORMALIZE_FLAG_NONE, act_size);
 }
 
 #define D(n) (&CdrStreamParamHeader_ ## n ## _desc)
@@ -4297,6 +4341,36 @@ CU_Test (ddsc_cdrstream, check_xcdr2_appendable_normalize)
     run_test_xcdr2_normalize (tests[i].desc, tests[i].cdr, tests[i].cdrsize, tests[i].normalize_valid, &act_size);
     if (tests[i].normalize_valid)
       CU_ASSERT_EQ_FATAL (tests[i].cdrsize, act_size);
+  }
+}
+#undef D
+
+#define D(n) (&CdrStreamAppendable_ ## n ## _desc)
+CU_Test (ddsc_cdrstream, check_appendable_prevent_type_widening_normalize)
+{
+  const struct {
+    const char *name;
+    const dds_topic_descriptor_t *desc;
+    enum dds_cdr_enc_version xcdr_version;
+    bool normal_valid;
+    bool strict_valid;
+    uint32_t cdrsize;
+    const uint8_t *cdr;
+  } tests[] = {
+    { "xcdr1-wide-missing-tail", D(wide), XCDR1, true, false, CDR(32,1) },
+    { "xcdr1-wide-complete", D(wide), XCDR1, true, true, CDR(32,1, 32,2) },
+    { "xcdr1-optional-missing", D(a2), XCDR1, true, false, CDR(32,1) },
+    { "xcdr1-optional-absent", D(a2), XCDR1, true, true, CDR(32,1, PHDR(1, 0)) },
+    { "xcdr2-wide-missing-tail", D(wide), XCDR2, true, false, CDR(DHDR(32,1)) },
+    { "xcdr2-wide-complete", D(wide), XCDR2, true, true, CDR(DHDR(32,1, 32,2)) }
+  };
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    uint32_t act_size;
+    tprintf ("running test %s for type %s\n", tests[i].name, tests[i].desc->m_typename);
+    run_test_normalize (tests[i].desc, tests[i].cdr, tests[i].cdrsize, tests[i].xcdr_version, tests[i].normal_valid, DDS_STREAM_NORMALIZE_FLAG_NONE, &act_size);
+    run_test_normalize (tests[i].desc, tests[i].cdr, tests[i].cdrsize, tests[i].xcdr_version, tests[i].strict_valid, DDS_STREAM_NORMALIZE_FLAG_PREVENT_TYPE_WIDENING, &act_size);
   }
 }
 #undef D

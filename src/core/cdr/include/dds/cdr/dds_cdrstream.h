@@ -107,6 +107,15 @@ enum dds_stream_normalize_result {
   DDS_STREAM_NORMALIZE_DISCARD  ///< Sample is well-formed but must be discarded by try-construct handling.
 };
 
+/**
+ * @brief Options controlling serialized CDR normalization.
+ * @component cdr_serializer
+ */
+enum dds_stream_normalize_flags {
+  DDS_STREAM_NORMALIZE_FLAG_NONE = 0u,
+  DDS_STREAM_NORMALIZE_FLAG_PREVENT_TYPE_WIDENING = 1u << 0
+};
+
 typedef struct dds_istream {
   const unsigned char *m_buffer;
   uint32_t m_size;          /* Buffer size */
@@ -359,6 +368,16 @@ DDS_EXPORT enum dds_stream_normalize_result dds_stream_normalize (void *data, ui
   ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 /**
+ * @brief Normalize and validate CDR data with normalization options.
+ * @component cdr_serializer
+ *
+ * This is equivalent to @ref dds_stream_normalize, except that @p flags
+ * controls additional validation rules.
+ */
+DDS_EXPORT enum dds_stream_normalize_result dds_stream_normalize_with_flags (void *data, uint32_t size, bool bswap, enum dds_cdr_enc_version xcdr_version, const struct dds_cdrstream_desc *desc, bool just_key, uint32_t flags, uint32_t *actual_size)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+
+/**
  * @brief Normalize and validate an XCDR2 data fragment.
  * @component cdr_serializer
  *
@@ -401,6 +420,17 @@ DDS_EXPORT enum dds_stream_normalize_result dds_stream_normalize_xcdr2_data (cha
  *                      when validation failed or normalization could not be completed.
  */
 DDS_EXPORT enum dds_stream_normalize_result dds_stream_normalize_to_istream (dds_istream_t *is, void *data, uint32_t size, bool bswap, enum dds_cdr_enc_version xcdr_version, const struct dds_cdrstream_desc *desc, bool just_key, uint32_t *actual_size)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+
+/**
+ * @brief Normalize CDR data with normalization options and initialize a trusted
+ *        input stream on success.
+ * @component cdr_serializer
+ *
+ * This is equivalent to @ref dds_stream_normalize_to_istream, except
+ * that @p flags controls additional validation rules.
+ */
+DDS_EXPORT enum dds_stream_normalize_result dds_stream_normalize_to_istream_with_flags (dds_istream_t *is, void *data, uint32_t size, bool bswap, enum dds_cdr_enc_version xcdr_version, const struct dds_cdrstream_desc *desc, bool just_key, uint32_t flags, uint32_t *actual_size)
   ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 /**

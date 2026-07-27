@@ -209,6 +209,7 @@ struct normalize_state {
   uint32_t max_align_lg2;         // lg2 of max align in stream (3 for XCDR1, 2 for XCDR2)
   enum dds_cdr_enc_version xcdr_version; // CDR version (XCDR1 or XCDR2)
   enum cdr_data_kind cdr_kind;    // key or data
+  uint32_t normalize_flags;
   const struct dds_cdrstream_desc_mid_table *mid_table;
 #ifndef NDEBUG
   const void *stack_witness;
@@ -5878,10 +5879,8 @@ static enum dds_stream_normalize_result stream_normalize_delimited_impl (struct 
 
   if (insn != DDS_OP_RTS)
   {
-#if 0 // FIXME: need to deal with type coercion flags
-    if (!type_widening_allowed)
-      return NULL;
-#endif
+    if (st->normalize_flags & DDS_STREAM_NORMALIZE_FLAG_PREVENT_TYPE_WIDENING)
+      return normalize_error ();
     if (required_prefix && *ops < required_end)
       return normalize_error ();
     /* skip fields that are not in serialized data for appendable type */
@@ -5934,12 +5933,15 @@ static bool mutable_member_mask_nonzero (const uint32_t mask[MUTABLE_MEMBER_MASK
   return false;
 }
 
-static bool mutable_member_is_required (uint32_t insn)
+static bool mutable_member_is_required (uint32_t insn, uint32_t normalize_flags)
 {
-  return (insn & DDS_OP_FLAG_KEY) || ((insn & DDS_OP_FLAG_MU) && !op_type_optional (insn));
+  if (normalize_flags & DDS_STREAM_NORMALIZE_FLAG_PREVENT_TYPE_WIDENING)
+    return (insn & DDS_OP_FLAG_KEY) || !op_type_optional (insn);
+  else
+    return (insn & DDS_OP_FLAG_KEY) || ((insn & DDS_OP_FLAG_MU) && !op_type_optional (insn));
 }
 
-static bool dds_stream_pl_required_mask (const uint32_t *ops, uint32_t *slot, uint32_t missing[MUTABLE_MEMBER_MASK_WORDS])
+static bool dds_stream_pl_required_mask (const uint32_t *ops, uint32_t *slot, uint32_t missing[MUTABLE_MEMBER_MASK_WORDS], uint32_t normalize_flags)
 {
   uint32_t insn, ops_csr = 0;
   while ((insn = ops[ops_csr]) != DDS_OP_RTS)
@@ -5949,14 +5951,14 @@ static bool dds_stream_pl_required_mask (const uint32_t *ops, uint32_t *slot, ui
     if (DDS_PLM_FLAGS (insn) & DDS_OP_FLAG_BASE)
     {
       assert (DDS_OP (plm_ops[0]) == DDS_OP_PLC);
-      if (!dds_stream_pl_required_mask (plm_ops + 1, slot, missing))
+      if (!dds_stream_pl_required_mask (plm_ops + 1, slot, missing, normalize_flags))
         return false;
     }
     else
     {
       if (*slot >= MUTABLE_MEMBER_LIMIT)
         return false;
-      if (mutable_member_is_required (*plm_ops))
+      if (mutable_member_is_required (*plm_ops, normalize_flags))
         mutable_member_mask_set (missing, *slot);
       (*slot)++;
     }
@@ -6018,7 +6020,7 @@ static enum dds_stream_normalize_result stream_normalize_xcdr1_pl (struct normal
 {
   uint32_t missing[MUTABLE_MEMBER_MASK_WORDS] = { 0 };
   uint32_t required_slot = 0;
-  if (!dds_stream_pl_required_mask (*ops, &required_slot, missing))
+  if (!dds_stream_pl_required_mask (*ops, &required_slot, missing, st->normalize_flags))
     return normalize_error ();
 
   bool paramlist_end = false;
@@ -6106,7 +6108,7 @@ static enum dds_stream_normalize_result stream_normalize_xcdr2_pl (struct normal
 {
   uint32_t missing[MUTABLE_MEMBER_MASK_WORDS] = { 0 };
   uint32_t required_slot = 0;
-  if (!dds_stream_pl_required_mask (*ops, &required_slot, missing))
+  if (!dds_stream_pl_required_mask (*ops, &required_slot, missing, st->normalize_flags))
     return normalize_error ();
 
   /* normalize DHEADER */
@@ -6377,7 +6379,7 @@ static enum dds_stream_normalize_result stream_normalize_key (struct normalize_s
   return normalize_success ();
 }
 
-enum dds_stream_normalize_result dds_stream_normalize (void *data, uint32_t size, bool bswap, enum dds_cdr_enc_version xcdr_version, const struct dds_cdrstream_desc *desc, bool just_key, uint32_t *actual_size)
+enum dds_stream_normalize_result dds_stream_normalize_with_flags (void *data, uint32_t size, bool bswap, enum dds_cdr_enc_version xcdr_version, const struct dds_cdrstream_desc *desc, bool just_key, uint32_t flags, uint32_t *actual_size)
 {
   if (size > CDR_SIZE_MAX)
     return normalize_error ();
@@ -6390,6 +6392,7 @@ enum dds_stream_normalize_result dds_stream_normalize (void *data, uint32_t size
     .max_align_lg2 = (xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1) ? 3 : 2,
     .xcdr_version = xcdr_version,
     .cdr_kind = just_key ? CDR_KIND_KEY : CDR_KIND_DATA,
+    .normalize_flags = flags,
     .mid_table = &desc->member_ids
 #ifndef NDEBUG
   , .stack_witness = &st
@@ -6418,10 +6421,15 @@ enum dds_stream_normalize_result dds_stream_normalize (void *data, uint32_t size
   }
 }
 
-enum dds_stream_normalize_result dds_stream_normalize_to_istream (dds_istream_t *is, void *data, uint32_t size, bool bswap, enum dds_cdr_enc_version xcdr_version, const struct dds_cdrstream_desc *desc, bool just_key, uint32_t *actual_size)
+enum dds_stream_normalize_result dds_stream_normalize (void *data, uint32_t size, bool bswap, enum dds_cdr_enc_version xcdr_version, const struct dds_cdrstream_desc *desc, bool just_key, uint32_t *actual_size)
+{
+  return dds_stream_normalize_with_flags (data, size, bswap, xcdr_version, desc, just_key, DDS_STREAM_NORMALIZE_FLAG_NONE, actual_size);
+}
+
+enum dds_stream_normalize_result dds_stream_normalize_to_istream_with_flags (dds_istream_t *is, void *data, uint32_t size, bool bswap, enum dds_cdr_enc_version xcdr_version, const struct dds_cdrstream_desc *desc, bool just_key, uint32_t flags, uint32_t *actual_size)
 {
   const enum dds_stream_normalize_result res =
-    dds_stream_normalize (data, size, bswap, xcdr_version, desc, just_key, actual_size);
+    dds_stream_normalize_with_flags (data, size, bswap, xcdr_version, desc, just_key, flags, actual_size);
   if (res == DDS_STREAM_NORMALIZE_SUCCESS)
     dds_istream_init_well_formed (is, *actual_size, data, xcdr_version);
   else
@@ -6430,6 +6438,11 @@ enum dds_stream_normalize_result dds_stream_normalize_to_istream (dds_istream_t 
     dds_istream_reset_empty (is, xcdr_version);
   }
   return res;
+}
+
+enum dds_stream_normalize_result dds_stream_normalize_to_istream (dds_istream_t *is, void *data, uint32_t size, bool bswap, enum dds_cdr_enc_version xcdr_version, const struct dds_cdrstream_desc *desc, bool just_key, uint32_t *actual_size)
+{
+  return dds_stream_normalize_to_istream_with_flags (is, data, size, bswap, xcdr_version, desc, just_key, DDS_STREAM_NORMALIZE_FLAG_NONE, actual_size);
 }
 
 enum dds_stream_normalize_result dds_stream_normalize_xcdr2_data_to_istream (dds_istream_t *is, char *data, uint32_t *off, uint32_t size, bool bswap, const uint32_t *ops)

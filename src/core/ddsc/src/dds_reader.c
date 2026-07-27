@@ -83,6 +83,7 @@ static dds_return_t dds_reader_delete (dds_entity *e)
   dds_loan_pool_free (rd->m_heap_loan_cache);
   dds_loan_pool_free (rd->m_loans);
   dds_endpoint_remove_psmx_endpoints (&rd->m_endpoint);
+  ddsi_sertype_unref (rd->m_stype);
 
   dds_entity_drop_ref (&rd->m_topic->m_entity);
   return ret;
@@ -618,7 +619,13 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   ddsrt_atomic_or32 (&rd->m_entity.m_status.m_status_and_mask, DDS_DATA_ON_READERS_STATUS << SAM_ENABLED_SHIFT);
   rd->m_sample_rejected_status.last_reason = DDS_NOT_REJECTED;
   rd->m_topic = tp;
-  rd->m_rhc = rhc ? rhc : dds_rhc_default_new (gv, tp->m_stype, rd->m_entity.m_qos);
+  rd->m_stype = ddsi_sertype_derive_sertype (tp->m_stype, rqos->data_representation.value.ids[0],
+    rqos->present & DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT
+      ? rqos->type_consistency : ddsi_default_qos_reader.type_consistency);
+  if (!rd->m_stype)
+    rd->m_stype = tp->m_stype;
+  ddsi_sertype_ref (rd->m_stype);
+  rd->m_rhc = rhc ? rhc : dds_rhc_default_new (gv, rd->m_stype, rd->m_entity.m_qos);
   rc = dds_loan_pool_create (&rd->m_loans, 0);
   assert (rc == DDS_RETCODE_OK); // FIXME: can be out of resources
   rc = dds_loan_pool_create (&rd->m_heap_loan_cache, 0);
@@ -645,7 +652,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     rd->m_entity.m_guid = dds_guid_to_ddsi_guid (*guid);
   else
   {
-    rc = ddsi_generate_reader_guid (&rd->m_entity.m_guid, pp, tp->m_stype);
+    rc = ddsi_generate_reader_guid (&rd->m_entity.m_guid, pp, rd->m_stype);
     if (rc != DDS_RETCODE_OK)
     {
       ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
@@ -655,9 +662,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
   struct ddsi_psmx_locators_set *vl_set = dds_get_psmx_locators_set (rqos, &rd->m_entity.m_domain->psmx_instances);
 
-  /* Reader gets the sertype from the topic, as the serdata functions the reader uses are
-     not specific for a data representation (the representation can be retrieved from the cdr header) */
-  rc = ddsi_new_reader (&rd->m_rd, &rd->m_entity.m_guid, NULL, pp, tp->m_name, tp->m_stype, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd, vl_set);
+  rc = ddsi_new_reader (&rd->m_rd, &rd->m_entity.m_guid, NULL, pp, tp->m_name, rd->m_stype, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd, vl_set);
   if (rc != DDS_RETCODE_OK)
   {
     /* FIXME: can be out-of-resources at the very least; would leak allocated entity id */
