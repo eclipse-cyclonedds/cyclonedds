@@ -1246,6 +1246,7 @@ int main (int argc, char **argv)
   dds_entity_lock (0, 0, ptr);
   dds_entity_unlock (ptr);
 
+#ifdef DDS_HAS_QOS_PROVIDER
   // dds__sysdef_parser.h
   dds_sysdef_init_sysdef (ptr, ptr2, 0);
   dds_sysdef_init_sysdef_str (ptr, ptr2, 0);
@@ -1253,6 +1254,7 @@ int main (int argc, char **argv)
   dds_sysdef_init_data_types (ptr, ptr2);
   dds_sysdef_init_data_types_str (ptr, ptr2);
   dds_sysdef_fini_data_types (ptr);
+#endif
 
   // deprecated functions from v0.1
   dds_fail_set (0);
