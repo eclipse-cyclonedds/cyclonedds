@@ -48,6 +48,7 @@ prepend(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds_psmx.c
   dds_guid.c
   dds_err_check.c
+  dds_sysdef_parser.c
 )
 
 if(ENABLE_TYPELIB)
@@ -55,7 +56,6 @@ if(ENABLE_TYPELIB)
 endif()
 if(ENABLE_QOS_PROVIDER)
   list(APPEND srcs_ddsc
-    "${CMAKE_CURRENT_LIST_DIR}/src/dds_sysdef_parser.c"
     "${CMAKE_CURRENT_LIST_DIR}/src/dds_sysdef_validation.c"
     "${CMAKE_CURRENT_LIST_DIR}/src/dds_qos_provider.c")
 endif()

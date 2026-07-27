@@ -143,6 +143,7 @@ if(ENABLE_TYPELIB)
     "typebuilder.c"
     "dynamic_type.c"
     "typewrap.c"
+    "sysdef_parser.c"
   )
 endif()
 
@@ -160,8 +161,7 @@ endif()
 
 if(ENABLE_QOS_PROVIDER)
   list(APPEND ddsc_test_sources
-    "qos_provider.c"
-    "sysdef_parser.c")
+    "qos_provider.c")
 endif()
 
 add_cunit_executable(cunit_ddsc ${ddsc_test_sources})
@@ -230,6 +230,7 @@ set_tests_properties(
 		REQUIRED_FILES ${CUnit_ddsc_config_simple_udp_file}
 		ENVIRONMENT "${CUnit_ddsc_config_simple_udp_env}")
 
+if(ENABLE_QOS_PROVIDER)
 # Setup environment for sysdef-test
 get_test_property(CUnit_ddsc_qos_provider_read_sysdef ENVIRONMENT CUnit_ddsc_qos_provider_read_sysdef_env)
 set(CUnit_ddsc_qos_provider_read_sysdef_file "${CMAKE_CURRENT_LIST_DIR}/sysdef_qos_library.xml")
@@ -240,6 +241,7 @@ set_tests_properties(
   PROPERTIES
     REQUIRED_FILES ${CUnit_ddsc_qos_provider_read_sysdef_file}
     ENVIRONMENT "${CUnit_ddsc_qos_provider_read_sysdef_env}")
+endif()
 
 configure_file("deadline_update.h.in" "deadline_update.h")
 configure_file("build_options.h.in" "build_options.h")
