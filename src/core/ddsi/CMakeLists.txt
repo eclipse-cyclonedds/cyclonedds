@@ -293,7 +293,7 @@ prepend(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src/" ${srcs_ddsi})
 
 target_sources(ddsc PRIVATE ${srcs_ddsi} ${generated_defconfig_src} ${hdrs_private_ddsi} ${hdrs_ddsi})
 add_dependencies(ddsc _confgen)
-target_include_directories(ddsc PRIVATE "${CMAKE_CURRENT_LIST_DIR}/include")
+target_include_directories(ddsc PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>")
 
 install(
   DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/"
