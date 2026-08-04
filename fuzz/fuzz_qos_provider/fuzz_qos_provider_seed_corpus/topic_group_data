@@ -1,0 +1,1 @@
+<dds><qos_library name="L"><qos_profile name="P"><topic_qos><topic_data><value>QUJD</value></topic_data></topic_qos><publisher_qos><group_data><value>RUZHSA==</value></group_data></publisher_qos></qos_profile></qos_library></dds>
