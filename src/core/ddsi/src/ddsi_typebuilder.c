@@ -1892,8 +1892,10 @@ static dds_return_t add_memberids_struct (struct typebuilder_data *tbd, struct t
     struct typebuilder_struct_member *member = &tb_struct->members[n];
     if (member->is_optional && !is_mutable_struct)
     {
-      PUSH_OP (DDS_OP_MID);
-      PUSH_ARG (member->insn_offs);
+      const uint32_t insn_offs = member->parent->insn_offs + member->insn_offs;
+      assert (insn_offs <= DDS_KOF_OFFSET_MASK);
+      PUSH_OP (DDS_OP_MID | insn_offs);
+      PUSH_ARG (member->member_id);
     }
     switch (member->type.type_code)
     {
