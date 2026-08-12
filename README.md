@@ -194,7 +194,7 @@ It is also possible to build CycloneDDS as part of your project by treating it a
 Following is an example *CMakeLists.txt* using [FetchContent_Declare](https://cmake.org/cmake/help/latest/module/FetchContent.html) to put CycloneDDS into scope.
 
 ```cmake
-cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
 project(
     MyProject 
     LANGUAGES C CXX
