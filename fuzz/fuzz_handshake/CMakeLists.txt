@@ -10,7 +10,7 @@ endif()
 # dependencies are not yet tracked by every cmake distribution. This makes it
 # necessary to source the cmake configuration files from the build directories
 # of protobuf (using the CONFIG argument to find_package)...
-set(PROTOBUF_ROOT "${CMAKE_CURRENT_BINARY_DIR}/../LPM/external.protobuf")
+set(PROTOBUF_ROOT "${CMAKE_BINARY_DIR}/../LPM/external.protobuf")
 
 set(absl_DIR "${PROTOBUF_ROOT}/lib/cmake/absl")
 find_package(absl REQUIRED CONFIG)
