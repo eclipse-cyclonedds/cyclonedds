@@ -83,7 +83,10 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 add_coverage(ddsc)
-target_link_libraries(ddsc PRIVATE "$<BUILD_INTERFACE:ddsrt>")
+target_link_libraries(ddsc
+  PRIVATE "$<BUILD_INTERFACE:ddsrt>"
+  PUBLIC $<$<NOT:$<STREQUAL:"${CMAKE_PROJECT_NAME}","CycloneDDS">>:${PROJECT_NAME}::cdr>
+)
 target_compile_definitions(
   ddsc PUBLIC
   $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_COMPILE_DEFINITIONS>>)

@@ -18,11 +18,50 @@ set(srcs_cdr
 set(hdrs_private_cdr
   "${CMAKE_CURRENT_LIST_DIR}/include/dds/cdr/dds_cdrstream.h")
 
-target_sources(ddsc PRIVATE ${srcs_cdr} ${hdrs_private_cdr})
-target_include_directories(ddsc PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>")
+if(${CMAKE_PROJECT_NAME} STREQUAL "CycloneDDS")
+  target_sources(ddsc PRIVATE ${srcs_cdr} ${hdrs_private_cdr})
+  target_include_directories(ddsc PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>")
 
-install(
-  DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/"
-  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-  COMPONENT dev
-)
+  install(
+    DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    COMPONENT dev
+  )
+else()
+  set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../../../cmake/Modules")
+  include(Generate)
+  include(GenerateExportHeader)
+
+  # Generate CDR library as a standalone library
+  add_library(cdr)
+  add_library(${PROJECT_NAME}::cdr ALIAS cdr)
+
+  target_sources(cdr PRIVATE ${srcs_cdr} ${hdrs_private_cdr} ${CMAKE_CURRENT_LIST_DIR}/../../ddsrt/src/bswap.c)
+  target_include_directories(cdr PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include"
+                                         "${CMAKE_CURRENT_LIST_DIR}/../../ddsrt/include"
+                                         "${CMAKE_CURRENT_LIST_DIR}/../ddsc/include"
+                                         "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")                                
+
+  configure_file(${CMAKE_CURRENT_LIST_DIR}/../../ddsrt/include/dds/config.h.in include/dds/config.h)
+  configure_file(${CMAKE_CURRENT_LIST_DIR}/../../ddsrt/include/dds/features.h.in include/dds/features.h)
+  configure_file(${CMAKE_CURRENT_LIST_DIR}/../../ddsrt/include/dds/version.h.in include/dds/version.h)
+
+  generate_export_header(cdr BASE_NAME DDS EXPORT_FILE_NAME include/dds/export.h)
+
+  install(
+    TARGETS cdr
+    EXPORT "${PROJECT_NAME}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT lib
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
+  )
+
+  install(
+    DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/include/"
+              "${PROJECT_BINARY_DIR}/include/"
+              "${CMAKE_CURRENT_LIST_DIR}/../../ddsrt/include/"
+              "${CMAKE_CURRENT_LIST_DIR}/../ddsc/include/"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    COMPONENT dev
+  )
+endif()
