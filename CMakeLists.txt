@@ -424,7 +424,7 @@ if(BUILD_EXAMPLES AND HAVE_IDLC)
   add_subdirectory(examples)
 endif()
 
-if(DEFINED ENV{LIB_FUZZING_ENGINE})
+if(DEFINED ENV{LIB_FUZZING_ENGINE} AND ${CMAKE_PROJECT_NAME} STREQUAL "CycloneDDS")
   add_subdirectory(fuzz)
 endif()
 
