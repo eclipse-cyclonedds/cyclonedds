@@ -3778,60 +3778,10 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps)
     }
 }
 
-int idl_iskeyword(idl_pstate_t *pstate, const char *str, int nc)
-{
-  int toknum = 0;
-  int(*cmp)(const char *s1, const char *s2, size_t n);
-
-  assert(str != NULL);
-
-  cmp = (nc ? &idl_strncasecmp : strncmp);
-
-  for (size_t i = 0, n = strlen(str); i < YYNTOKENS && !toknum; i++) {
-    if (yytname[i] != 0
-        && yytname[i][    0] == '"'
-        && cmp(yytname[i] + 1, str, n) == 0
-        && yytname[i][n + 1] == '"'
-        && yytname[i][n + 2] == '\0') {
-#if YYBISON >= 30800
-      // "yytname" is long deprecated and "yytokname" has been removed in bison 3.8.
-      // This hack seems to be enough to buy us some time to rewrite the keyword
-      // recognition to not rely on anything deprecated
-      toknum = (int) (255 + i);
-#else
-      toknum = yytoknum[i];
-#endif
-    }
-  }
-
-  switch (toknum) {
-    case IDL_TOKEN_ANNOTATION:
-      return 0;
-    case IDL_TOKEN_INT8:
-    case IDL_TOKEN_INT16:
-    case IDL_TOKEN_INT32:
-    case IDL_TOKEN_INT64:
-    case IDL_TOKEN_UINT8:
-    case IDL_TOKEN_UINT16:
-    case IDL_TOKEN_UINT32:
-    case IDL_TOKEN_UINT64:
-    case IDL_TOKEN_MAP:
-      /* intX and uintX are considered keywords if and only if building block
-         extended data-types is enabled */
-      if (!(pstate->config.flags & IDL_FLAG_EXTENDED_DATA_TYPES))
-        return 0;
-      break;
-    default:
-      break;
-  };
-
-  return toknum;
-}
-
 static void
 yyerror(idl_location_t *loc, idl_pstate_t *pstate, idl_retcode_t *result, const char *str)
 {
   idl_error(pstate, loc, "%s", str);
   *result = IDL_RETCODE_SYNTAX_ERROR;
 }
-/* generated from parser.y[05514fab388744043025b328dbb394f3a64f95e3] */
+/* generated from parser.y[8081c20904fa6d8a218bedbd4956260e45cd09ca] */

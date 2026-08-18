@@ -12,6 +12,7 @@
 #define SCANNER_H
 
 #include "idl/processor.h"
+#include "parser_tokens.h"
 
 typedef struct idl_lexeme idl_lexeme_t;
 struct idl_lexeme {

@@ -40,6 +40,10 @@
 #endif
 #include "file.h"
 
+#ifndef IDL_USE_HAND_WRITTEN_PARSER
+#define IDL_USE_HAND_WRITTEN_PARSER 0
+#endif
+
 #if 0
 #define IDLC_DEBUG_PREPROCESSOR (1u<<2)
 #define IDLC_DEBUG_SCANNER (1u<<3)
@@ -96,6 +100,7 @@ static int idlc_putn(const char *str, size_t len)
 {
   assert(pstate->config.flags & IDL_WRITE);
 
+#if !IDL_USE_HAND_WRITTEN_PARSER
   /* tokenize to free up space */
   if (pstate->buffer.data && (pstate->buffer.size - pstate->buffer.used) <= len) {
     if ((retcode = idl_parse(pstate)) == IDL_RETCODE_NEED_REFILL)
@@ -107,6 +112,7 @@ static int idlc_putn(const char *str, size_t len)
     pstate->scanner.cursor = pstate->buffer.data;
     pstate->scanner.limit = pstate->scanner.cursor + pstate->buffer.used;
   }
+#endif
 
   if (retcode != IDL_RETCODE_OK)
     return -1;

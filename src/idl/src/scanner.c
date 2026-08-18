@@ -20,7 +20,6 @@
 #include "idl/processor.h"
 #include "idl/string.h"
 #include "scanner.h"
-#include "parser.h"
 
 /* treat every cr+lf, lf+cr, cr, lf sequence as a single newline */
 static int32_t

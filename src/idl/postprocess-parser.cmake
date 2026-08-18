@@ -29,6 +29,16 @@ filter_files(
     ${binary_dir}/parser.h
 )
 
+foreach(_parser_file ${binary_dir}/parser.c ${binary_dir}/parser.h)
+  file(READ "${_parser_file}" _parser_file_data)
+  string(REGEX REPLACE
+    "\n?/\\* generated from parser\\.y\\[[0-9a-fA-F]+\\] \\*/\n?"
+    "\n"
+    _parser_file_data
+    "${_parser_file_data}")
+  file(WRITE "${_parser_file}" "${_parser_file_data}")
+endforeach()
+
 append_hashes(
     PREFIX "/*"
     POSTFIX "*/"
