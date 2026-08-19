@@ -47,6 +47,40 @@ module CdrStreamAppendable {
   };
 
   @appendable
+  struct a1_key {
+    @key long m1;
+  };
+
+  @appendable
+  struct narrow {
+    long m1;
+  };
+
+  @appendable
+  struct wide {
+    long m1;
+    long m2;
+  };
+
+  @appendable
+  struct key_tail {
+    long m1;
+    @key long m2;
+  };
+
+  @appendable
+  struct mu_tail {
+    long m1;
+    @must_understand long m2;
+  };
+
+  @appendable
+  struct optional_mu_tail {
+    long m1;
+    @optional @must_understand long m2;
+  };
+
+  @appendable
   struct a2 {
     long m1;
     @optional long m2;

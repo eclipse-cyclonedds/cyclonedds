@@ -4062,19 +4062,32 @@ CU_Test (ddsc_cdrstream, check_wstring_normalize)
   }
 }
 
-static void run_test_xcdr1_normalize (const dds_topic_descriptor_t *tdesc, const uint8_t *cdr, uint32_t cdrsize, bool valid, uint32_t *act_size)
+static void run_test_normalize (
+    const dds_topic_descriptor_t *tdesc, const uint8_t *cdr, uint32_t cdrsize,
+    enum dds_cdr_enc_version xcdr_version, bool valid, uint32_t *act_size)
 {
   struct dds_cdrstream_desc desc;
   dds_cdrstream_desc_from_topic_desc (&desc, tdesc);
   assert (desc.ops.ops);
-  dds_ostream_t os;
-  dds_ostream_init (&os, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_1);
-  void *cdr_copy = ddsrt_memdup (cdr, cdrsize);
-  const enum dds_stream_normalize_result norm_res = dds_stream_normalize (cdr_copy, cdrsize, false, DDSI_RTPS_CDR_ENC_VERSION_1, &desc, false, act_size);
+  uint8_t empty = 0;
+  void *cdr_copy = cdrsize ? ddsrt_memdup (cdr, cdrsize) : &empty;
+  const enum dds_stream_normalize_result norm_res =
+    dds_stream_normalize (cdr_copy, cdrsize, false, xcdr_version, &desc, false, act_size);
   const bool res = norm_res == DDS_STREAM_NORMALIZE_SUCCESS;
   CU_ASSERT_EQ_FATAL (res, valid);
-  ddsrt_free (cdr_copy);
+  if (cdrsize)
+    ddsrt_free (cdr_copy);
   dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+}
+
+static void run_test_xcdr1_normalize (const dds_topic_descriptor_t *tdesc, const uint8_t *cdr, uint32_t cdrsize, bool valid, uint32_t *act_size)
+{
+  run_test_normalize (tdesc, cdr, cdrsize, DDSI_RTPS_CDR_ENC_VERSION_1, valid, act_size);
+}
+
+static void run_test_xcdr2_normalize (const dds_topic_descriptor_t *tdesc, const uint8_t *cdr, uint32_t cdrsize, bool valid, uint32_t *act_size)
+{
+  run_test_normalize (tdesc, cdr, cdrsize, DDSI_RTPS_CDR_ENC_VERSION_2, valid, act_size);
 }
 
 #define D(n) (&CdrStreamParamHeader_ ## n ## _desc)
@@ -4127,6 +4140,7 @@ CU_Test (ddsc_cdrstream, check_xcdr1_param_normalize)
 #define D(n) (&CdrStreamAppendable_ ## n ## _desc)
 CU_Test (ddsc_cdrstream, check_xcdr1_appendable_normalize)
 {
+  static const uint8_t empty_cdr[] = { 0 };
   const struct {
     const dds_topic_descriptor_t *desc;
     bool normalize_valid;
@@ -4137,6 +4151,17 @@ CU_Test (ddsc_cdrstream, check_xcdr1_appendable_normalize)
     { D(a1), true, 0,  CDR(32,1, 32,2) },         // valid
     { D(a1), true, 0,  CDR(32,1, 32,2, 32,3) },   // valid, 1 extra member in CDR
     { D(a1), true, 0,  CDR(32,1) },               // valid, 1 member missing in CDR
+    { D(a1), false, 0, 0, empty_cdr },             // invalid, no members consumed
+    { D(a1_key), true, 0, CDR(32,1) },             // valid, keyed member present
+    { D(a1_key), false, 0, 0, empty_cdr },         // invalid, no keyed member consumed
+    { D(narrow), true, 0, CDR(32,1) },             // valid, narrow type
+    { D(wide), true, 0, CDR(32,1) },               // valid, narrow type widened to wide
+    { D(key_tail), false, 0, CDR(32,1) },           // invalid, key member missing in CDR
+    { D(key_tail), true, 0, CDR(32,1, 32,2) },      // valid, key member present
+    { D(mu_tail), false, 0, CDR(32,1) },            // invalid, non-optional must-understand member missing in CDR
+    { D(mu_tail), true, 0, CDR(32,1, 32,2) },       // valid, must-understand member present
+    { D(optional_mu_tail), false, 0, 0, empty_cdr }, // invalid, no members consumed
+    { D(optional_mu_tail), true, 0, CDR(32,1) },    // valid, optional must-understand member missing in CDR
 
     { D(f1), true,  0, CDR(32,1, 32,2) },         // valid
     { D(f1), true,  4, CDR(32,1, 32,2, 32,3) },   // too much data in CDR, normalize succeeds, but actual size differs from CDR size
@@ -4164,6 +4189,44 @@ CU_Test (ddsc_cdrstream, check_xcdr1_appendable_normalize)
     run_test_xcdr1_normalize (tests[i].desc, tests[i].cdr, tests[i].cdrsize, tests[i].normalize_valid, &act_size);
     if (tests[i].normalize_valid)
       CU_ASSERT_EQ_FATAL (tests[i].cdrsize, (uint32_t) ((int32_t) act_size + tests[i].dsize));
+  }
+}
+#undef D
+
+#define D(n) (&CdrStreamAppendable_ ## n ## _desc)
+CU_Test (ddsc_cdrstream, check_xcdr2_appendable_normalize)
+{
+  static const uint8_t empty_cdr[] = { 0 };
+  const struct {
+    const dds_topic_descriptor_t *desc;
+    bool normalize_valid;
+    uint32_t cdrsize;
+    const uint8_t *cdr;
+  } tests[] = {
+    { D(a1), false, 0, empty_cdr },                   // invalid, missing DHEADER
+    { D(a1), false, CDR(32,0) },                      // invalid, zero DHEADER and no members consumed
+    { D(a1_key), false, CDR(32,0) },                  // invalid, zero DHEADER and no keyed member consumed
+    { D(a1_key), true, CDR(DHDR(32,1)) },             // valid, keyed member present
+    { D(narrow), true, CDR(DHDR(32,1)) },             // valid, narrow type
+    { D(wide), true, CDR(DHDR(32,1)) },               // valid, narrow type widened to wide
+    { D(key_tail), false, CDR(DHDR(32,1)) },           // invalid, key member missing in CDR
+    { D(key_tail), true, CDR(DHDR(32,1, 32,2)) },      // valid, key member present
+    { D(mu_tail), false, CDR(DHDR(32,1)) },            // invalid, non-optional must-understand member missing in CDR
+    { D(mu_tail), true, CDR(DHDR(32,1, 32,2)) },       // valid, must-understand member present
+    { D(optional_mu_tail), false, CDR(32,0) },         // invalid, zero DHEADER and no members consumed
+    { D(optional_mu_tail), true, CDR(DHDR(32,1)) },    // valid, optional must-understand member missing in CDR
+    { D(a1), true, CDR(DHDR(32,1)) },                 // valid, 1 member missing in CDR
+    { D(a1), true, CDR(DHDR(32,1, 32,2)) },           // valid
+    { D(a1), true, CDR(DHDR(32,1, 32,2, 32,3)) }      // valid, 1 extra member in CDR
+  };
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    uint32_t act_size;
+    tprintf("running test %"PRIu32" for type %s\n", i, tests[i].desc->m_typename);
+    run_test_xcdr2_normalize (tests[i].desc, tests[i].cdr, tests[i].cdrsize, tests[i].normalize_valid, &act_size);
+    if (tests[i].normalize_valid)
+      CU_ASSERT_EQ_FATAL (tests[i].cdrsize, act_size);
   }
 }
 #undef D

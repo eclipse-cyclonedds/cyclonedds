@@ -5813,10 +5813,14 @@ static enum dds_stream_normalize_result stream_normalize_delimited_impl (struct 
   struct normalize_state st1 = shorten_normalize_state (st, *off + delimited_sz);
   assert (st1.size <= st->size);
 
+  const uint32_t *dlc_ops = *ops;
+  const uint16_t required_prefix = DDS_OP_DLC_REQUIRED_PREFIX (*dlc_ops);
+  const uint32_t *required_end = dlc_ops + required_prefix;
   (*ops)++; /* skip DLC op */
   uint32_t insn;
-  while ((insn = **ops) != DDS_OP_RTS && *off < st1.size)
+  while ((insn = **ops) != DDS_OP_RTS && (*off < st1.size || (required_prefix && *ops < required_end)))
   {
+    const uint32_t *ops0 = *ops;
     switch (DDS_OP (insn))
     {
       case DDS_SOP_ADR:
@@ -5836,6 +5840,8 @@ static enum dds_stream_normalize_result stream_normalize_delimited_impl (struct 
         abort ();
         break;
     }
+    if (*ops == ops0)
+      return normalize_error ();
   }
 
   if (insn != DDS_OP_RTS)
@@ -5844,6 +5850,8 @@ static enum dds_stream_normalize_result stream_normalize_delimited_impl (struct 
     if (!type_widening_allowed)
       return NULL;
 #endif
+    if (required_prefix && *ops < required_end)
+      return normalize_error ();
     /* skip fields that are not in serialized data for appendable type */
     while ((insn = **ops) != DDS_OP_RTS)
       *ops = dds_stream_skip_adr_insns (insn, *ops);
