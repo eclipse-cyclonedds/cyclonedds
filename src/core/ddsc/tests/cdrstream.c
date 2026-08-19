@@ -4025,6 +4025,76 @@ CU_Test (ddsc_cdrstream, check_xcdr1_mutable_zero_length_member_normalize)
   dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
 }
 
+CU_Test (ddsc_cdrstream, check_mutable_required_members_normalize)
+{
+  const struct {
+    const char *name;
+    const dds_topic_descriptor_t *topic_desc;
+    enum dds_cdr_enc_version xcdr_version;
+    enum dds_stream_normalize_result result;
+    uint32_t cdrsize;
+    const uint8_t *cdr;
+  } tests[] = {
+    { "key-xcdr1-empty", &CdrStreamMutable_key_tail_desc, XCDR1, DDS_STREAM_NORMALIZE_ERROR, CDR(PHDR(DDS_XCDR1_PL_SHORT_PID_LIST_END, 0)) },
+    { "key-xcdr1-f1-only", &CdrStreamMutable_key_tail_desc, XCDR1, DDS_STREAM_NORMALIZE_ERROR, CDR(PHDR(1, 4), 32, 7, PHDR(DDS_XCDR1_PL_SHORT_PID_LIST_END, 0)) },
+    { "key-xcdr1-f2-present", &CdrStreamMutable_key_tail_desc, XCDR1, DDS_STREAM_NORMALIZE_SUCCESS, CDR(PHDR(2, 4), 32, 9, PHDR(DDS_XCDR1_PL_SHORT_PID_LIST_END, 0)) },
+    { "mu-xcdr1-empty", &CdrStreamMutable_mu_tail_desc, XCDR1, DDS_STREAM_NORMALIZE_ERROR, CDR(PHDR(DDS_XCDR1_PL_SHORT_PID_LIST_END, 0)) },
+    { "mu-xcdr1-f1-only", &CdrStreamMutable_mu_tail_desc, XCDR1, DDS_STREAM_NORMALIZE_ERROR, CDR(PHDR(1, 4), 32, 7, PHDR(DDS_XCDR1_PL_SHORT_PID_LIST_END, 0)) },
+    { "mu-xcdr1-f2-present", &CdrStreamMutable_mu_tail_desc, XCDR1, DDS_STREAM_NORMALIZE_SUCCESS, CDR(PHDR(2, 4), 32, 9, PHDR(DDS_XCDR1_PL_SHORT_PID_LIST_END, 0)) },
+    { "optional-mu-xcdr1-empty", &CdrStreamMutable_optional_mu_tail_desc, XCDR1, DDS_STREAM_NORMALIZE_SUCCESS, CDR(PHDR(DDS_XCDR1_PL_SHORT_PID_LIST_END, 0)) },
+    { "optional-mu-xcdr1-f1-only", &CdrStreamMutable_optional_mu_tail_desc, XCDR1, DDS_STREAM_NORMALIZE_SUCCESS, CDR(PHDR(1, 4), 32, 7, PHDR(DDS_XCDR1_PL_SHORT_PID_LIST_END, 0)) },
+
+    { "key-xcdr2-empty", &CdrStreamMutable_key_tail_desc, XCDR2, DDS_STREAM_NORMALIZE_ERROR, CDR(32, 0) },
+    { "key-xcdr2-f1-only", &CdrStreamMutable_key_tail_desc, XCDR2, DDS_STREAM_NORMALIZE_ERROR, CDR(DHDR(32, 0x20000001, 32, 7)) },
+    { "key-xcdr2-f2-present", &CdrStreamMutable_key_tail_desc, XCDR2, DDS_STREAM_NORMALIZE_SUCCESS, CDR(DHDR(32, 0x20000002, 32, 9)) },
+    { "mu-xcdr2-empty", &CdrStreamMutable_mu_tail_desc, XCDR2, DDS_STREAM_NORMALIZE_ERROR, CDR(32, 0) },
+    { "mu-xcdr2-f1-only", &CdrStreamMutable_mu_tail_desc, XCDR2, DDS_STREAM_NORMALIZE_ERROR, CDR(DHDR(32, 0x20000001, 32, 7)) },
+    { "mu-xcdr2-f2-present", &CdrStreamMutable_mu_tail_desc, XCDR2, DDS_STREAM_NORMALIZE_SUCCESS, CDR(DHDR(32, 0x20000002, 32, 9)) },
+    { "optional-mu-xcdr2-empty", &CdrStreamMutable_optional_mu_tail_desc, XCDR2, DDS_STREAM_NORMALIZE_SUCCESS, CDR(32, 0) },
+    { "optional-mu-xcdr2-f1-only", &CdrStreamMutable_optional_mu_tail_desc, XCDR2, DDS_STREAM_NORMALIZE_SUCCESS, CDR(DHDR(32, 0x20000001, 32, 7)) }
+  };
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    tprintf ("running test %s\n", tests[i].name);
+    struct dds_cdrstream_desc desc;
+    CU_ASSERT_EQ_FATAL (dds_cdrstream_desc_from_topic_desc (&desc, tests[i].topic_desc), DDS_RETCODE_OK);
+    uint32_t actual_size = 0;
+    void *cdr = ddsrt_memdup (tests[i].cdr, tests[i].cdrsize);
+    const enum dds_stream_normalize_result norm_res = dds_stream_normalize (cdr, tests[i].cdrsize, false, tests[i].xcdr_version, &desc, false, &actual_size);
+    CU_ASSERT_EQ_FATAL (norm_res, tests[i].result);
+    if (norm_res == DDS_STREAM_NORMALIZE_SUCCESS)
+      CU_ASSERT_EQ_FATAL (actual_size, tests[i].cdrsize);
+    ddsrt_free (cdr);
+    dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+  }
+}
+
+CU_Test (ddsc_cdrstream, check_mutable_member_limit_descriptor_init)
+{
+  const uint32_t nmembers = 513;
+  const uint32_t member_ops = 1 + 2 * nmembers + 1;
+  const uint32_t nops = member_ops + 3 * nmembers;
+  uint32_t *ops = ddsrt_calloc (nops, sizeof (*ops));
+  ops[0] = DDS_OP_PLC;
+  for (uint32_t n = 0; n < nmembers; n++)
+  {
+    const uint32_t plm_idx = 1 + 2 * n;
+    const uint32_t adr_idx = member_ops + 3 * n;
+    ops[plm_idx] = DDS_OP_PLM | (adr_idx - plm_idx);
+    ops[2 + 2 * n] = n;
+    ops[adr_idx] = DDS_OP_ADR | DDS_OP_TYPE_4BY;
+    ops[adr_idx + 1] = 0;
+    ops[adr_idx + 2] = DDS_OP_RTS;
+  }
+  ops[member_ops - 1] = DDS_OP_RTS;
+
+  struct dds_cdrstream_desc desc;
+  const dds_return_t ret = dds_cdrstream_desc_init_with_nops (&desc, &dds_cdrstream_default_allocator, 0, 1, 0, ops, nops, NULL, 0);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  ddsrt_free (ops);
+}
+
 
 CU_Test (ddsc_cdrstream, check_wstring_normalize)
 {
@@ -4067,7 +4137,7 @@ static void run_test_normalize (
     enum dds_cdr_enc_version xcdr_version, bool valid, uint32_t *act_size)
 {
   struct dds_cdrstream_desc desc;
-  dds_cdrstream_desc_from_topic_desc (&desc, tdesc);
+  CU_ASSERT_EQ_FATAL (dds_cdrstream_desc_from_topic_desc (&desc, tdesc), DDS_RETCODE_OK);
   assert (desc.ops.ops);
   uint8_t empty = 0;
   void *cdr_copy = cdrsize ? ddsrt_memdup (cdr, cdrsize) : &empty;

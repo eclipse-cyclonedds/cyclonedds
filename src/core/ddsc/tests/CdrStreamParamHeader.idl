@@ -105,4 +105,22 @@ module CdrStreamMutable {
     @id(1) uint32 f1;
     @id(2) sequence<uint32> f2;
   };
+
+  @mutable
+  struct key_tail {
+    @id(1) uint32 f1;
+    @id(2) @key uint32 f2;
+  };
+
+  @mutable
+  struct mu_tail {
+    @id(1) uint32 f1;
+    @id(2) @must_understand uint32 f2;
+  };
+
+  @mutable
+  struct optional_mu_tail {
+    @id(1) uint32 f1;
+    @id(2) @optional @must_understand uint32 f2;
+  };
 };

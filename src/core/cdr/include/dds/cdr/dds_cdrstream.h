@@ -858,8 +858,10 @@ dds_data_type_properties_t dds_stream_data_types (const uint32_t *ops)
  * @param nops       number of operation words supplied
  * @param keys       key descriptors, or NULL when @p nkeys is zero
  * @param nkeys      number of key descriptors
+ * @returns          DDS_RETCODE_OK when @p desc was initialized; DDS_RETCODE_BAD_PARAMETER
+ *                   when the stream descriptor cannot be supported
  */
-DDS_EXPORT void dds_cdrstream_desc_init_with_nops (struct dds_cdrstream_desc *desc, const struct dds_cdrstream_allocator *allocator,
+DDS_EXPORT dds_return_t dds_cdrstream_desc_init_with_nops (struct dds_cdrstream_desc *desc, const struct dds_cdrstream_allocator *allocator,
     uint32_t size, uint32_t align, uint32_t flagset, const uint32_t *ops, uint32_t nops, const dds_key_descriptor_t *keys, uint32_t nkeys)
   ddsrt_nonnull ((1, 2, 6));
 
@@ -883,8 +885,10 @@ DDS_EXPORT void dds_cdrstream_desc_init_with_nops (struct dds_cdrstream_desc *de
  * @param ops        marshalling metadata to copy
  * @param keys       key descriptors, or NULL when @p nkeys is zero
  * @param nkeys      number of key descriptors
+ * @returns          DDS_RETCODE_OK when @p desc was initialized; DDS_RETCODE_BAD_PARAMETER
+ *                   when the stream descriptor cannot be supported
  */
-DDS_EXPORT void dds_cdrstream_desc_init (struct dds_cdrstream_desc *desc, const struct dds_cdrstream_allocator *allocator,
+DDS_EXPORT dds_return_t dds_cdrstream_desc_init (struct dds_cdrstream_desc *desc, const struct dds_cdrstream_allocator *allocator,
     uint32_t size, uint32_t align, uint32_t flagset, const uint32_t *ops, const dds_key_descriptor_t *keys, uint32_t nkeys)
   ddsrt_nonnull ((1, 2, 6));
 
@@ -911,8 +915,10 @@ DDS_EXPORT void dds_cdrstream_desc_fini (struct dds_cdrstream_desc *desc, const 
  *
  * @param desc        descriptor to initialize
  * @param topic_desc  topic descriptor containing serialization metadata
+ * @returns           DDS_RETCODE_OK when @p desc was initialized; DDS_RETCODE_BAD_PARAMETER
+ *                    when the stream descriptor cannot be supported
  */
-DDS_EXPORT void dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc)
+DDS_EXPORT dds_return_t dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc)
   ddsrt_nonnull_all;
 
 
