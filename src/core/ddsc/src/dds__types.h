@@ -400,6 +400,7 @@ typedef struct dds_reader {
   struct dds_entity m_entity;
   struct dds_endpoint m_endpoint;
   struct dds_topic *m_topic; /* refc'd, constant, lock(rd) -> lock(tp) allowed */
+  struct ddsi_sertype *m_stype; /* refc'd, constant, borrowed by the RHC */
   struct dds_rhc *m_rhc; /* aliases m_rd->rhc with a wider interface, FIXME: but m_rd owns it for resource management */
   struct ddsi_reader *m_rd;
   struct dds_loan_pool *m_loans; /* administration of outstanding loans */

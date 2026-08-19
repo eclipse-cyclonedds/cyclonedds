@@ -151,11 +151,12 @@ dds_return_t ddsi_sertype_cdr_init (const struct ddsi_domaingv *gv, struct ddsi_
   if (!dds_stream_extensibility (desc->m_ops, &type_ext))
     return DDS_RETCODE_BAD_PARAMETER;
 
+  dds_return_t ret = dds_cdrstream_desc_init_with_nops (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_nops, desc->m_keys, desc->m_nkeys);
+  if (ret != DDS_RETCODE_OK)
+    return ret;
+
   ddsi_sertype_init_props (&st->c, desc->m_typename, &ddsi_sertype_ops_cdr, &ddsi_serdata_ops_cdr, desc->m_size, dds_stream_data_types (desc->m_ops), DDS_DATA_REPRESENTATION_FLAG_XCDR2, 0);
-
   st->encoding_format = ddsi_sertype_extensibility_enc_format (type_ext);
-
-  dds_cdrstream_desc_init_with_nops (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_nops, desc->m_keys, desc->m_nkeys);
 
   st->type.opt_size_xcdr2 = dds_stream_check_optimize (&st->type, DDSI_RTPS_CDR_ENC_VERSION_2);
   if (st->type.opt_size_xcdr2 > 0)

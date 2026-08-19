@@ -1165,9 +1165,9 @@ dds_return_t dds_delete_topic_descriptor (dds_topic_descriptor_t *descriptor)
 
 #endif /* DDS_HAS_TYPELIB */
 
-void dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc)
+dds_return_t dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc)
 {
   memset (desc, 0, sizeof (*desc));
-  dds_cdrstream_desc_init_with_nops (desc, &dds_cdrstream_default_allocator, topic_desc->m_size, topic_desc->m_align, topic_desc->m_flagset,
+  return dds_cdrstream_desc_init_with_nops (desc, &dds_cdrstream_default_allocator, topic_desc->m_size, topic_desc->m_align, topic_desc->m_flagset,
       topic_desc->m_ops, topic_desc->m_nops, topic_desc->m_keys, topic_desc->m_nkeys);
 }

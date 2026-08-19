@@ -181,7 +181,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
 
     /* skip DLC instruction for base type, handle as if it is final because the base type's
         members follow the derived types members without an extra DHEADER */
-    if (op_type_base (insn) && jsr_ops[0] == DDS_OP_DLC)
+    if (op_type_base (insn) && op_is_dlc (jsr_ops[0]))
       jsr_ops++;
 
     /* only in case the ADR|EXT has the key flag set, pass the actual ostream, otherwise skip the EXT type by passing NULL for ostream */

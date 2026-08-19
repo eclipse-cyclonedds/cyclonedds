@@ -35,7 +35,11 @@ static enum dtl_sample_format output_format = DTL_SAMPLE_FORMAT_JSON;
 static void print_generated_descriptor (const char *role, const dds_topic_descriptor_t *topic_desc)
 {
   struct dds_cdrstream_desc cdr_desc;
-  dds_cdrstream_desc_from_topic_desc (&cdr_desc, topic_desc);
+  if (dds_cdrstream_desc_from_topic_desc (&cdr_desc, topic_desc) != DDS_RETCODE_OK)
+  {
+    fprintf (stderr, "invalid generated descriptor for %s type %s\n", role, topic_desc->m_typename);
+    exit (1);
+  }
   printf ("%s descriptor typename=%s ", role, topic_desc->m_typename);
   dtl_print_cdrstream_descriptor (&cdr_desc);
   dds_cdrstream_desc_fini (&cdr_desc, &dds_cdrstream_default_allocator);

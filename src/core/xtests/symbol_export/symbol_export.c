@@ -503,7 +503,6 @@ int main (int argc, char **argv)
   dds_lookup_statistic (ptr, ptr);
 
   // dds_cdrstream.h
-  bool ret_cdrs;
   dds_istream_init_well_formed (ptr, 0, ptr2, 0);
   dds_istream_init (ptr, 0, ptr2, 0);
   dds_istream_fini (ptr);
@@ -514,10 +513,11 @@ int main (int argc, char **argv)
   dds_ostreamBE_init (ptr, ptr2, 0, 0);
   dds_ostreamBE_fini (ptr, ptr2);
 
-  ret_cdrs = dds_stream_normalize (ptr, 0, 0, 0, ptr2, 0, ptr3);
-  (void) ret_cdrs;
+  (void) dds_stream_normalize (ptr, 0, 0, 0, ptr2, 0, ptr3);
+  (void) dds_stream_normalize_with_flags (ptr, 0, 0, 0, ptr2, 0, 0, ptr3);
   (void) dds_stream_normalize_xcdr2_data (ptr, ptr2, 0, 0, ptr3);
   (void) dds_stream_normalize_to_istream (ptr, ptr2, 0, 0, 0, ptr3, 0, ptr4);
+  (void) dds_stream_normalize_to_istream_with_flags (ptr, ptr2, 0, 0, 0, ptr3, 0, 0, ptr4);
   (void) dds_stream_normalize_xcdr2_data_to_istream (ptr, ptr2, ptr3, 0, 0, ptr4);
 
   dds_stream_write (ptr, ptr2, ptr3, ptr4);

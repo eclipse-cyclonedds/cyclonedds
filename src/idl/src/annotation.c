@@ -356,10 +356,6 @@ annotate_key(
         idl_error(pstate, idl_location(annotation_appl),
           "@key cannot be set to true on optional members");
         return IDL_RETCODE_SEMANTIC_ERROR;
-      } else if (mem->must_understand.annotation && !mem->must_understand.value) {
-        idl_error(pstate, idl_location(annotation_appl),
-          "@key cannot be set to true on members with must_understand set to false");
-        return IDL_RETCODE_SEMANTIC_ERROR;
       }
     }
     mem->key.annotation = annotation_appl;
@@ -505,10 +501,6 @@ annotate_must_understand(
   if (!idl_is_member(node)) {
     idl_error(pstate, idl_location(annotation_appl),
       "@must_understand can only be assigned to members");
-    return IDL_RETCODE_SEMANTIC_ERROR;
-  }else if (!must_understand && mem->key.value) {
-    idl_error(pstate, idl_location(annotation_appl),
-      "@must_understand can not be set to false on key members");
     return IDL_RETCODE_SEMANTIC_ERROR;
   }
 

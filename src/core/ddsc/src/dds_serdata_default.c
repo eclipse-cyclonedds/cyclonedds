@@ -405,7 +405,8 @@ static enum from_ser_result serdata_default_from_ser_common (const struct ddsi_s
   if (d->pos < pad)
     nres = DDS_STREAM_NORMALIZE_ERROR;
   else
-    nres = dds_stream_normalize_to_istream (&is, d->data, d->pos - pad, needs_bswap, xcdr_version, &tp->type, kind == SDK_KEY, &actual_size);
+    nres = dds_stream_normalize_to_istream_with_flags (&is, d->data, d->pos - pad, needs_bswap, xcdr_version,
+      &tp->type, kind == SDK_KEY, tp->normalize_flags, &actual_size);
   switch (nres)
   {
     case DDS_STREAM_NORMALIZE_SUCCESS:
@@ -468,7 +469,8 @@ static enum from_ser_result serdata_default_from_ser_iov_common (const struct dd
   if (d->pos < pad)
     nres = DDS_STREAM_NORMALIZE_ERROR;
   else
-    nres = dds_stream_normalize_to_istream (&is, d->data, d->pos - pad, needs_bswap, xcdr_version, &tp->type, kind == SDK_KEY, &actual_size);
+    nres = dds_stream_normalize_to_istream_with_flags (&is, d->data, d->pos - pad, needs_bswap, xcdr_version,
+      &tp->type, kind == SDK_KEY, tp->normalize_flags, &actual_size);
   switch (nres)
   {
     case DDS_STREAM_NORMALIZE_SUCCESS:
@@ -1026,7 +1028,8 @@ static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertyp
       dds_istream_t is;
       const enum dds_stream_normalize_result nres = (md->sample_size < pad)
         ? DDS_STREAM_NORMALIZE_ERROR
-        : dds_stream_normalize_to_istream (&is, d->data, md->sample_size - pad, false, xcdr_version, &tp->type, just_key, &actual_size);
+        : dds_stream_normalize_to_istream_with_flags (&is, d->data, md->sample_size - pad, false, xcdr_version,
+          &tp->type, just_key, tp->normalize_flags, &actual_size);
       switch (nres)
       {
         case DDS_STREAM_NORMALIZE_SUCCESS:

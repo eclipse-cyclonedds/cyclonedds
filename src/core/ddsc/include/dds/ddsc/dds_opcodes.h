@@ -170,6 +170,18 @@ extern "C" {
 #define DDS_OP_LENGTH(o)      ((uint16_t) ((o) & DDS_OP_JMP_MASK))
 
 /**
+ * @anchor DDS_OP_DLC_REQUIRED_PREFIX
+ * @ingroup serialization
+ * @brief Extract the offset past the required appendable prefix
+ *
+ * For DLC instructions, this is an unsigned offset from the DLC instruction to
+ * the first instruction past the required prefix in the delimited scope. This
+ * prefix covers the first member, if any, and all key or non-optional
+ * must-understand members. A value of 0 means there is no required prefix.
+ */
+#define DDS_OP_DLC_REQUIRED_PREFIX(o) ((uint16_t) ((o) & DDS_OP_JMP_MASK))
+
+/**
  * @anchor DDS_OP_JUMP
  * @ingroup serialization
  * @brief Extract the JUMP from a uint32
@@ -357,8 +369,14 @@ enum dds_stream_opcode {
   */
   DDS_SOP_JEQ = DDS_OP_JEQ,
 
-  /** XCDR2 delimited CDR (inserts DHEADER before type)
-    [DLC, 0, 0]
+  /** delimited CDR (inserts DHEADER before type for XCDR2)
+    [DLC, 0, e]
+     where
+       e = (unsigned 16 bits) offset to first instruction past the required
+           prefix in the delimited scope, from the start of the DLC instruction.
+           The prefix covers the first member, if any, and all key or
+           non-optional must-understand members. A value of 0 means there is no
+           required prefix.
   */
   DDS_SOP_DLC = DDS_OP_DLC,
 

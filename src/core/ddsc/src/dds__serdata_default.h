@@ -126,6 +126,7 @@ struct dds_sertype_default {
   struct ddsi_sertype c;
   enum dds_cdr_enc_format encoding_format; /* DDSI_RTPS_CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) - CDR encoding format for the top-level type in this sertype */
   enum dds_cdr_enc_version xcdr_version; /* DDSI_RTPS_CDR_ENC_VERSION_(1|2) - CDR encoding version used for writing data using this sertype */
+  uint32_t normalize_flags;
   struct dds_serdatapool *serpool;
   struct dds_cdrstream_desc type;
   struct dds_sertype_default_cdr_data typeinfo_ser;
