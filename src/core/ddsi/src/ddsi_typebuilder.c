@@ -273,6 +273,7 @@ DDSI_LIST_CODE_TMPL(static, typebuilder_dep_types, struct typebuilder_aggregated
 static dds_return_t typebuilder_add_aggrtype (struct typebuilder_data *tbd, struct typebuilder_aggregated_type *tb_aggrtype, const struct ddsi_type *type);
 static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t *size, uint32_t *align, struct typebuilder_type *tb_type, const struct ddsi_type *type, bool is_ext, bool use_ext_type, enum typebuilder_try_construct tc);
 static dds_return_t resolve_ops_offsets_aggrtype (const struct typebuilder_aggregated_type *tb_aggrtype, struct typebuilder_ops *ops, struct visited_aggrtype *visited_aggrtypes);
+static dds_return_t typebuilder_set_dlc_required_prefixes (struct typebuilder_data *tbd, struct typebuilder_ops *ops);
 static dds_return_t get_keys_aggrtype (struct typebuilder_data *tbd, struct typebuilder_key_path *path, const struct typebuilder_aggregated_type *tb_aggrtype, bool parent_key);
 static void set_implicit_keys_aggrtype (struct typebuilder_aggregated_type *tb_aggrtype, bool is_toplevel, bool parent_is_key, struct visited_implicit_keys *visited_implicit_keys);
 
@@ -1667,6 +1668,152 @@ static dds_return_t typebuilder_resolve_ops_offsets (const struct typebuilder_da
   return resolve_ops_offsets_aggrtype (&tbd->toplevel_type, ops, NULL);
 }
 
+static uint32_t typebuilder_skip_sequence_insns (const uint32_t *ops)
+{
+  const uint32_t bound_op = DDS_OP_TYPE (*ops) == DDS_SOP_VAL_BSQ ? 1 : 0;
+  switch (DDS_OP_SUBTYPE (*ops))
+  {
+    case DDS_SOP_VAL_BLN: case DDS_SOP_VAL_1BY: case DDS_SOP_VAL_2BY: case DDS_SOP_VAL_4BY: case DDS_SOP_VAL_8BY:
+    case DDS_SOP_VAL_STR: case DDS_SOP_VAL_WSTR: case DDS_SOP_VAL_WCHAR: case DDS_SOP_VAL_16BY:
+      return 2 + bound_op;
+    case DDS_SOP_VAL_BST: case DDS_SOP_VAL_BWSTR: case DDS_SOP_VAL_ENU:
+      return 3 + bound_op;
+    case DDS_SOP_VAL_BMK:
+      return 4 + bound_op;
+    case DDS_SOP_VAL_SEQ: case DDS_SOP_VAL_BSQ: case DDS_SOP_VAL_ARR: case DDS_SOP_VAL_UNI: case DDS_SOP_VAL_STU: {
+      const uint32_t jmp = DDS_OP_ADR_JMP (ops[3 + bound_op]);
+      return jmp ? jmp : 4 + bound_op;
+    }
+    case DDS_SOP_VAL_EXT:
+      abort ();
+      break;
+  }
+  return 0;
+}
+
+static uint32_t typebuilder_skip_array_insns (const uint32_t *ops)
+{
+  assert (DDS_OP_TYPE (*ops) == DDS_SOP_VAL_ARR);
+  switch (DDS_OP_SUBTYPE (*ops))
+  {
+    case DDS_SOP_VAL_BLN: case DDS_SOP_VAL_1BY: case DDS_SOP_VAL_2BY: case DDS_SOP_VAL_4BY: case DDS_SOP_VAL_8BY:
+    case DDS_SOP_VAL_STR: case DDS_SOP_VAL_WSTR: case DDS_SOP_VAL_WCHAR: case DDS_SOP_VAL_16BY:
+      return 3;
+    case DDS_SOP_VAL_ENU:
+      return 4;
+    case DDS_SOP_VAL_BST: case DDS_SOP_VAL_BWSTR: case DDS_SOP_VAL_BMK:
+      return 5;
+    case DDS_SOP_VAL_SEQ: case DDS_SOP_VAL_BSQ: case DDS_SOP_VAL_ARR: case DDS_SOP_VAL_UNI: case DDS_SOP_VAL_STU: {
+      const uint32_t jmp = DDS_OP_ADR_JMP (ops[3]);
+      return jmp ? jmp : 5;
+    }
+    case DDS_SOP_VAL_EXT:
+      abort ();
+      break;
+  }
+  return 0;
+}
+
+static uint32_t typebuilder_skip_adr_insns (const uint32_t *ops)
+{
+  assert (DDS_OP (ops[0]) == DDS_OP_ADR);
+  switch (DDS_OP_TYPE (ops[0]))
+  {
+    case DDS_SOP_VAL_BLN: case DDS_SOP_VAL_1BY: case DDS_SOP_VAL_2BY: case DDS_SOP_VAL_4BY: case DDS_SOP_VAL_8BY:
+    case DDS_SOP_VAL_STR: case DDS_SOP_VAL_WSTR: case DDS_SOP_VAL_WCHAR: case DDS_SOP_VAL_16BY:
+      return 2;
+    case DDS_SOP_VAL_BST:
+    case DDS_SOP_VAL_BWSTR:
+    case DDS_SOP_VAL_ENU:
+      return 3;
+    case DDS_SOP_VAL_BMK:
+      return 4;
+    case DDS_SOP_VAL_SEQ:
+    case DDS_SOP_VAL_BSQ:
+      return typebuilder_skip_sequence_insns (ops);
+    case DDS_SOP_VAL_ARR:
+      return typebuilder_skip_array_insns (ops);
+    case DDS_SOP_VAL_UNI: {
+      const uint32_t jmp = DDS_OP_ADR_JMP (ops[3]);
+      return jmp ? jmp : 4;
+    }
+    case DDS_SOP_VAL_EXT: {
+      const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
+      return jmp ? jmp : 3;
+    }
+    case DDS_SOP_VAL_STU:
+      abort ();
+      break;
+  }
+  return 0;
+}
+
+static dds_return_t typebuilder_set_dlc_required_prefix_aggrtype (struct typebuilder_aggregated_type *tb_aggrtype, struct typebuilder_ops *ops)
+{
+  dds_return_t ret;
+  if (tb_aggrtype->extensibility != DDS_XTypes_IS_APPENDABLE)
+    return DDS_RETCODE_OK;
+
+  const uint32_t parent_insn_offs = tb_aggrtype->insn_offs;
+  assert (DDS_OP (ops->ops[parent_insn_offs]) == DDS_OP_DLC);
+
+  uint32_t required_prefix = 0;
+  bool seen_member = false;
+  switch (tb_aggrtype->kind)
+  {
+    case DDS_XTypes_TK_STRUCTURE: {
+      const struct typebuilder_struct *tb_struct = &tb_aggrtype->detail._struct;
+      if (tb_aggrtype->base_type)
+      {
+        struct typebuilder_aggregated_type *base_aggrtype = tb_aggrtype->base_type->args.external_type_args.external_type.type;
+        assert (base_aggrtype);
+        if ((ret = typebuilder_set_dlc_required_prefix_aggrtype (base_aggrtype, ops)) != DDS_RETCODE_OK)
+          return ret;
+        const uint32_t adr_insn_offs = parent_insn_offs + 1;
+        required_prefix = adr_insn_offs + typebuilder_skip_adr_insns (&ops->ops[adr_insn_offs]) - parent_insn_offs;
+        seen_member = true;
+      }
+      for (uint32_t m = 0; m < tb_struct->n_members; m++)
+      {
+        const struct typebuilder_struct_member *mem = &tb_struct->members[m];
+        const uint32_t adr_insn_offs = parent_insn_offs + mem->insn_offs;
+        const uint32_t next_insn_offs = adr_insn_offs + typebuilder_skip_adr_insns (&ops->ops[adr_insn_offs]);
+        if (!seen_member || mem->is_key || (mem->is_must_understand && !mem->is_optional))
+          required_prefix = next_insn_offs - parent_insn_offs;
+        seen_member = true;
+      }
+      break;
+    }
+    case DDS_XTypes_TK_UNION: {
+      const struct typebuilder_union *tb_union = &tb_aggrtype->detail._union;
+      const uint32_t adr_insn_offs = parent_insn_offs + tb_union->disc_insn_offs;
+      required_prefix = adr_insn_offs + typebuilder_skip_adr_insns (&ops->ops[adr_insn_offs]) - parent_insn_offs;
+      break;
+    }
+    default:
+      abort ();
+  }
+
+  assert (required_prefix <= UINT16_MAX);
+  if (required_prefix > UINT16_MAX)
+    return DDS_RETCODE_BAD_PARAMETER;
+  ops->ops[parent_insn_offs] = DDS_OP_DLC | required_prefix;
+  return DDS_RETCODE_OK;
+}
+
+static dds_return_t typebuilder_set_dlc_required_prefixes (struct typebuilder_data *tbd, struct typebuilder_ops *ops)
+{
+  dds_return_t ret;
+  if ((ret = typebuilder_set_dlc_required_prefix_aggrtype (&tbd->toplevel_type, ops)) != DDS_RETCODE_OK)
+    return ret;
+
+  struct typebuilder_dep_types_iter it;
+  for (struct typebuilder_aggregated_type *tb_aggrtype = typebuilder_dep_types_iter_first (&tbd->dep_types, &it); tb_aggrtype; tb_aggrtype = typebuilder_dep_types_iter_next (&it))
+    if ((ret = typebuilder_set_dlc_required_prefix_aggrtype (tb_aggrtype, ops)) != DDS_RETCODE_OK)
+      return ret;
+  return DDS_RETCODE_OK;
+}
+
 static void path_free (struct typebuilder_key_path *path)
 {
   ddsrt_free (path->parts);
@@ -2298,7 +2445,8 @@ static dds_return_t get_topic_descriptor (dds_topic_descriptor_t *desc, struct t
     goto err;
 
   if ((ret = typebuilder_get_ops (tbd, &ops)) != DDS_RETCODE_OK
-      || (ret = typebuilder_resolve_ops_offsets (tbd, &ops)) != DDS_RETCODE_OK)
+      || (ret = typebuilder_resolve_ops_offsets (tbd, &ops)) != DDS_RETCODE_OK
+      || (ret = typebuilder_set_dlc_required_prefixes (tbd, &ops)) != DDS_RETCODE_OK)
     goto err;
 
   struct dds_key_descriptor *key_desc = NULL;

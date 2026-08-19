@@ -894,6 +894,11 @@ static inline bool op_type_base (const uint32_t insn)
   return (opflags & DDS_OP_FLAG_BASE);
 }
 
+static inline bool op_is_dlc (const uint32_t insn)
+{
+  return DDS_OP (insn) == DDS_OP_DLC;
+}
+
 static inline bool op_is_union_adr (const uint32_t insn)
 {
   return DDS_OP (insn) == DDS_OP_ADR && DDS_OP_TYPE (insn) == DDS_SOP_VAL_UNI;
@@ -2685,7 +2690,7 @@ static const uint32_t *dds_stream_getsize_adr (uint32_t insn, struct getsize_sta
 
       /* skip DLC instruction for base type, so that the DHEADER is not
           serialized for base types */
-      if (op_type_base (insn) && jsr_ops[0] == DDS_OP_DLC)
+      if (op_type_base (insn) && op_is_dlc (jsr_ops[0]))
         jsr_ops++;
 
       /* don't forward is_mutable_member, subtype can have other extensibility */
@@ -3695,7 +3700,7 @@ static inline const uint32_t *dds_stream_read_adr (uint32_t insn, dds_istream_t 
 
       /* skip DLC instruction for base type, handle as if it is final because the base type's
          members follow the derived types members without an extra DHEADER */
-      if (op_type_base (insn) && jsr_ops[0] == DDS_OP_DLC)
+      if (op_type_base (insn) && op_is_dlc (jsr_ops[0]))
         jsr_ops++;
 
       (void) dds_stream_read_impl (&is1, addr, allocator, mid_table, jsr_ops, false, cdr_kind, sample_state);
@@ -5711,7 +5716,7 @@ static enum dds_stream_normalize_result stream_normalize_adr_impl (struct normal
       {
         const uint32_t *jsr_ops = *ops + DDS_OP_ADR_JSR ((*ops)[2]);
         /* skip DLC instruction for base type, the base type members are not preceded by a DHEADER */
-        if (op_type_base (**ops) && jsr_ops[0] == DDS_OP_DLC)
+        if (op_type_base (**ops) && op_is_dlc (jsr_ops[0]))
           jsr_ops++;
         *ops += jmp ? jmp : 3;
         return stream_normalize_data_impl (st, off, &jsr_ops, false);
@@ -5723,7 +5728,7 @@ static enum dds_stream_normalize_result stream_normalize_adr_impl (struct normal
         const struct normalize_state st1 = nested_normalize_state (st);
         const uint32_t *jsr_ops = *ops + DDS_OP_ADR_JSR ((*ops)[2]);
         /* skip DLC instruction for base type, the base type members are not preceded by a DHEADER */
-        if (op_type_base (**ops) && jsr_ops[0] == DDS_OP_DLC)
+        if (op_type_base (**ops) && op_is_dlc (jsr_ops[0]))
           jsr_ops++;
         *ops += jmp ? jmp : 3;
         return stream_normalize_data_impl (&st1, off, &jsr_ops, false);
@@ -7764,7 +7769,7 @@ static const uint32_t * dds_stream_print_adr (char **buf, size_t *bufsize, uint3
       const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
       const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
       /* skip DLC instruction for base type, DHEADER is not in the data for base types */
-      if (op_type_base (insn) && jsr_ops[0] == DDS_OP_DLC)
+      if (op_type_base (insn) && op_is_dlc (jsr_ops[0]))
         jsr_ops++;
       if (dds_stream_print_sample1 (buf, bufsize, &is1, jsr_ops, true, false, cdr_kind) == NULL)
         return NULL;
@@ -8325,7 +8330,7 @@ static const uint32_t *dds_stream_key_size_adr (const uint32_t *ops, uint32_t in
 
       /* skip DLC instruction for base type, handle as if it is final because the base type's
          members follow the derived types members without an extra DHEADER */
-      if (op_type_base (insn) && jsr_ops[0] == DDS_OP_DLC)
+      if (op_type_base (insn) && op_is_dlc (jsr_ops[0]))
         jsr_ops++;
 
       (void) dds_stream_key_size (jsr_ops, k);

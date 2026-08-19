@@ -165,10 +165,11 @@ CU_Test(idlc_descriptor, default_extensibility)
     const bool is_union = idl_is_union (descriptor.constructed_types->node);
     switch (tests[i].exp_ext) {
       case IDL_FINAL:
-        CU_ASSERT_FATAL (instr1 != DDS_OP_DLC && instr1 != DDS_OP_PLC);
+        CU_ASSERT_FATAL (DDS_OP (instr1) != DDS_OP_DLC && DDS_OP (instr1) != DDS_OP_PLC);
         break;
       case IDL_APPENDABLE:
-        CU_ASSERT_EQ_FATAL (instr1, DDS_OP_DLC);
+        CU_ASSERT_EQ_FATAL (DDS_OP (instr1), DDS_OP_DLC);
+        CU_ASSERT_FATAL (DDS_OP_DLC_REQUIRED_PREFIX (instr1) != 0);
         break;
       case IDL_MUTABLE:
         CU_ASSERT_EQ_FATAL (instr1, DDS_OP_PLC);

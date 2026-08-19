@@ -738,6 +738,201 @@ find_ctype(const struct descriptor *descriptor, const void *node)
   return ctype;
 }
 
+static idl_retcode_t set_ctype_dlc_required_prefix (const struct descriptor *descriptor, struct constructed_type *ctype);
+
+static uint32_t
+instruction_high_arg (const struct instruction *inst)
+{
+  switch (inst->type) {
+    case COUPLE:
+      return inst->data.couple.high;
+    case ELEM_OFFSET:
+      return inst->data.inst_offset.inst.high;
+    default:
+      abort ();
+  }
+}
+
+static uint32_t
+skip_sequence_instructions (const struct instructions *instructions, uint32_t offs)
+{
+  const uint32_t insn = instructions->table[offs].data.opcode.code;
+  const uint32_t bound_op = DDS_OP_TYPE (insn) == DDS_SOP_VAL_BSQ ? 1 : 0;
+  switch (DDS_OP_SUBTYPE (insn))
+  {
+    case DDS_SOP_VAL_BLN: case DDS_SOP_VAL_1BY: case DDS_SOP_VAL_2BY: case DDS_SOP_VAL_4BY: case DDS_SOP_VAL_8BY:
+    case DDS_SOP_VAL_STR: case DDS_SOP_VAL_WSTR: case DDS_SOP_VAL_WCHAR: case DDS_SOP_VAL_16BY:
+      return offs + 2 + bound_op;
+    case DDS_SOP_VAL_BST: case DDS_SOP_VAL_BWSTR: case DDS_SOP_VAL_ENU:
+      return offs + 3 + bound_op;
+    case DDS_SOP_VAL_BMK:
+      return offs + 4 + bound_op;
+    case DDS_SOP_VAL_SEQ: case DDS_SOP_VAL_BSQ: case DDS_SOP_VAL_ARR: case DDS_SOP_VAL_UNI: case DDS_SOP_VAL_STU: {
+      const uint32_t jmp = instruction_high_arg (&instructions->table[offs + 3 + bound_op]);
+      return offs + (jmp ? jmp : 4 + bound_op);
+    }
+    case DDS_SOP_VAL_EXT:
+      abort ();
+      break;
+  }
+  return 0;
+}
+
+static uint32_t
+skip_array_instructions (const struct instructions *instructions, uint32_t offs)
+{
+  const uint32_t insn = instructions->table[offs].data.opcode.code;
+  assert (DDS_OP_TYPE (insn) == DDS_SOP_VAL_ARR);
+  switch (DDS_OP_SUBTYPE (insn))
+  {
+    case DDS_SOP_VAL_BLN: case DDS_SOP_VAL_1BY: case DDS_SOP_VAL_2BY: case DDS_SOP_VAL_4BY: case DDS_SOP_VAL_8BY:
+    case DDS_SOP_VAL_STR: case DDS_SOP_VAL_WSTR: case DDS_SOP_VAL_WCHAR: case DDS_SOP_VAL_16BY:
+      return offs + 3;
+    case DDS_SOP_VAL_ENU:
+      return offs + 4;
+    case DDS_SOP_VAL_BST: case DDS_SOP_VAL_BWSTR: case DDS_SOP_VAL_BMK:
+      return offs + 5;
+    case DDS_SOP_VAL_SEQ: case DDS_SOP_VAL_BSQ: case DDS_SOP_VAL_ARR: case DDS_SOP_VAL_UNI: case DDS_SOP_VAL_STU: {
+      const uint32_t jmp = instruction_high_arg (&instructions->table[offs + 3]);
+      return offs + (jmp ? jmp : 5);
+    }
+    case DDS_SOP_VAL_EXT:
+      abort ();
+      break;
+  }
+  return 0;
+}
+
+static uint32_t
+skip_adr_instructions (const struct instructions *instructions, uint32_t offs)
+{
+  const uint32_t insn = instructions->table[offs].data.opcode.code;
+  assert (DDS_OP (insn) == DDS_OP_ADR);
+  switch (DDS_OP_TYPE (insn))
+  {
+    case DDS_SOP_VAL_BLN: case DDS_SOP_VAL_1BY: case DDS_SOP_VAL_2BY: case DDS_SOP_VAL_4BY: case DDS_SOP_VAL_8BY:
+    case DDS_SOP_VAL_STR: case DDS_SOP_VAL_WSTR: case DDS_SOP_VAL_WCHAR: case DDS_SOP_VAL_16BY:
+      return offs + 2;
+    case DDS_SOP_VAL_BST:
+    case DDS_SOP_VAL_BWSTR:
+    case DDS_SOP_VAL_ENU:
+      return offs + 3;
+    case DDS_SOP_VAL_BMK:
+      return offs + 4;
+    case DDS_SOP_VAL_SEQ:
+    case DDS_SOP_VAL_BSQ:
+      return skip_sequence_instructions (instructions, offs);
+    case DDS_SOP_VAL_ARR:
+      return skip_array_instructions (instructions, offs);
+    case DDS_SOP_VAL_UNI: {
+      const uint32_t jmp = instruction_high_arg (&instructions->table[offs + 3]);
+      return offs + (jmp ? jmp : 4);
+    }
+    case DDS_SOP_VAL_EXT: {
+      const uint32_t jmp = instruction_high_arg (&instructions->table[offs + 2]);
+      return offs + (jmp ? jmp : 3);
+    }
+    case DDS_SOP_VAL_STU:
+      abort ();
+      break;
+  }
+  return 0;
+}
+
+static bool
+ctype_dlc_has_required_prefix (const struct constructed_type *ctype)
+{
+  if (ctype->instructions.count == 0 || ctype->instructions.table[0].type != OPCODE)
+    return false;
+  const uint32_t insn = ctype->instructions.table[0].data.opcode.code;
+  return DDS_OP (insn) == DDS_OP_DLC && DDS_OP_DLC_REQUIRED_PREFIX (insn) != 0;
+}
+
+static idl_retcode_t
+appendable_member_is_required (const struct descriptor *descriptor, struct constructed_type *ctype, uint32_t offs, uint32_t insn, bool *required)
+{
+  if ((insn & DDS_OP_FLAG_KEY) || ((insn & DDS_OP_FLAG_MU) && !(insn & DDS_OP_FLAG_OPT)))
+  {
+    *required = true;
+    return IDL_RETCODE_OK;
+  }
+
+  if ((insn & DDS_OP_FLAG_BASE) && DDS_OP_TYPE (insn) == DDS_SOP_VAL_EXT)
+  {
+    assert (ctype->instructions.table[offs + 2].type == ELEM_OFFSET);
+    struct constructed_type *base_ctype = find_ctype (descriptor, ctype->instructions.table[offs + 2].data.inst_offset.node);
+    assert (base_ctype);
+    idl_retcode_t ret;
+    if ((ret = set_ctype_dlc_required_prefix (descriptor, base_ctype)) != IDL_RETCODE_OK)
+      return ret;
+    *required = ctype_dlc_has_required_prefix (base_ctype);
+    return IDL_RETCODE_OK;
+  }
+
+  *required = false;
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
+set_ctype_dlc_required_prefix (const struct descriptor *descriptor, struct constructed_type *ctype)
+{
+  if (ctype->instructions.count == 0 || ctype->instructions.table[0].type != OPCODE)
+    return IDL_RETCODE_OK;
+
+  struct instruction *dlc = &ctype->instructions.table[0];
+  if (DDS_OP (dlc->data.opcode.code) != DDS_OP_DLC)
+    return IDL_RETCODE_OK;
+
+  bool seen_member = false;
+  uint32_t required_prefix = 0;
+  for (uint32_t offs = 1; offs < ctype->instructions.count; )
+  {
+    struct instruction *inst = &ctype->instructions.table[offs];
+    if (inst->type != OPCODE)
+      abort ();
+
+    const uint32_t insn = inst->data.opcode.code;
+    switch (DDS_OP (insn))
+    {
+      case DDS_SOP_ADR: {
+        const uint32_t next_offs = skip_adr_instructions (&ctype->instructions, offs);
+        bool required;
+        idl_retcode_t ret;
+        if (!seen_member)
+          required = true;
+        else if ((ret = appendable_member_is_required (descriptor, ctype, offs, insn, &required)) != IDL_RETCODE_OK)
+          return ret;
+        if (required)
+          required_prefix = next_offs;
+        seen_member = true;
+        offs = next_offs;
+        break;
+      }
+      case DDS_SOP_JSR:
+        offs++;
+        break;
+      case DDS_SOP_RTS:
+        dlc->data.opcode.code = DDS_OP_DLC | required_prefix;
+        return IDL_RETCODE_OK;
+      case DDS_SOP_JEQ: case DDS_SOP_JEQ4: case DDS_SOP_KOF: case DDS_SOP_DLC: case DDS_SOP_PLC: case DDS_SOP_PLM: case DDS_SOP_MID:
+        abort ();
+        break;
+    }
+  }
+  abort ();
+  return IDL_RETCODE_BAD_PARAMETER;
+}
+
+static idl_retcode_t
+set_dlc_required_prefixes (const struct descriptor *descriptor)
+{
+  idl_retcode_t ret;
+  for (struct constructed_type *ctype = descriptor->constructed_types; ctype; ctype = ctype->next)
+    if ((ret = set_ctype_dlc_required_prefix (descriptor, ctype)) != IDL_RETCODE_OK)
+      return ret;
+  return IDL_RETCODE_OK;
+}
+
 static idl_retcode_t
 add_ctype(struct descriptor *descriptor, const idl_scope_t *scope, const void *node, struct constructed_type **ctype)
 {
@@ -2082,6 +2277,10 @@ static int print_opcode(FILE *fp, const struct instruction *inst)
   switch (opcode) {
     case DDS_OP_DLC:
       vec[len++] = "DDS_OP_DLC";
+      if (DDS_OP_DLC_REQUIRED_PREFIX (inst->data.opcode.code) != 0) {
+        idl_snprintf(buf, sizeof(buf), " | %u", DDS_OP_DLC_REQUIRED_PREFIX (inst->data.opcode.code));
+        vec[len++] = buf;
+      }
       break;
     case DDS_OP_PLC:
       vec[len++] = "DDS_OP_PLC";
@@ -3364,6 +3563,8 @@ generate_descriptor_impl(
     goto err;
   }
   if ((ret = resolve_offsets(descriptor)) < 0)
+    goto err;
+  if ((ret = set_dlc_required_prefixes(descriptor)) < 0)
     goto err;
 
   struct constructed_type_key *ctype_keys;

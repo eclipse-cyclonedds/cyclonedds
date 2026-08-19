@@ -374,36 +374,6 @@ static idl_retcode_t validate_forwards(idl_pstate_t *pstate, void *root)
   return IDL_RETCODE_OK;
 }
 
-static idl_retcode_t validate_must_understand(idl_pstate_t *pstate, void *root)
-{
-  for (void *node = root; node; node = idl_next(node))
-  {
-    if (idl_mask(node) == IDL_MODULE) {
-      idl_retcode_t ret;
-      if ((ret = validate_must_understand(pstate, ((idl_module_t *)node)->definitions)))
-        return ret;
-    } else if (idl_mask(node) == IDL_STRUCT) {
-      idl_member_t *member;
-      IDL_FOREACH(member, ((idl_struct_t *)node)->members) {
-        /* Because the delimited-CDR data representation does not have a flag for
-        must understand defined in the XTypes specification, the reader has no means to find
-        out if, in case data is received after the data for members that are known to the reader,
-        the additional members have the must-understand flag set (and the sample should be
-        discarded). Note that this only applies to optional must-understand members, because
-        non-optional must-understand members should exist in both types for the the types
-        to be assignable. For this reason, using the @must_understand annotation on appendable
-        types is currently not supported.  */
-        if (idl_is_must_understand(&member->node) && !idl_is_extensible(node, IDL_MUTABLE)) {
-          idl_error(pstate, idl_location(member),
-            "@must_understand can only be set to true on members of a mutable type");
-          return IDL_RETCODE_SEMANTIC_ERROR;
-        }
-      }
-    }
-  }
-  return IDL_RETCODE_OK;
-}
-
 static idl_retcode_t
 check_bitbound(
   const idl_pstate_t *pstate,
@@ -588,8 +558,6 @@ grammar:
   if ((ret = set_type_extensibility(pstate)) != IDL_RETCODE_OK)
     goto err;
   if ((ret = validate_forwards(pstate, pstate->root)))
-    goto err;
-  if ((ret = validate_must_understand(pstate, pstate->root)))
     goto err;
   if ((ret = validate_bitbound(pstate)))
     goto err;

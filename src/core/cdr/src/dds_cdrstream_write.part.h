@@ -861,7 +861,7 @@ static const uint32_t *dds_stream_write_adrBO (uint32_t insn, RESTRICT_OSTREAM_T
 
       /* skip DLC instruction for base type, so that the DHEADER is not
           serialized for base types */
-      if (op_type_base (insn) && jsr_ops[0] == DDS_OP_DLC)
+      if (op_type_base (insn) && op_is_dlc (jsr_ops[0]))
         jsr_ops++;
 
       /* don't forward is_mutable_member, subtype can have other extensibility */
