@@ -1475,3 +1475,18 @@ CU_Test(ddsc_qos_provider, read_sysdef)
 
   dds_delete_qos_provider(provider);
 }
+
+CU_Test(ddsc_qos_provider, base64_short_input)
+{
+  const char *configuration =
+    "<dds><qos_library name=\"L\"><qos_profile name=\"P\">"
+    "<domain_participant_qos><user_data><value>AB</value></user_data>"
+    "</domain_participant_qos></qos_profile></qos_library></dds>";
+  dds_qos_provider_t *provider = NULL;
+
+  const dds_return_t ret = dds_create_qos_provider(configuration, &provider);
+
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_NEQ_FATAL (provider, NULL);
+  dds_delete_qos_provider(provider);
+}

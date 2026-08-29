@@ -1897,10 +1897,13 @@ static uint32_t b64_decode (const unsigned char *text, const uint32_t sz, unsign
   for (size_t i = 0, j = 0; i < sz && j < buff_len; i+=4, j+=3)
   {
     unsigned char chunk[3] = {0x00, 0x00, 0x00};
-    uint32_t tmp = (uint32_t)(base64_dtable[text[i]] << 0x06U) | base64_dtable[text[i+1]];
+    const unsigned char c1 = (i + 1 < sz) ? text[i+1] : (unsigned char) 0;
+    const unsigned char c2 = (i + 2 < sz) ? text[i+2] : (unsigned char) 0;
+    const unsigned char c3 = (i + 3 < sz) ? text[i+3] : (unsigned char) 0;
+    uint32_t tmp = (uint32_t)(base64_dtable[text[i]] << 0x06U) | base64_dtable[c1];
     uint32_t safe = tmp & 0x0FU;
     chunk[0] = (unsigned char)(tmp >> 0x04U);
-    tmp = (safe << 0x0CU) | ((uint32_t)(base64_dtable[text[i+2]] << 0x06U) | base64_dtable[text[i+3]]);
+    tmp = (safe << 0x0CU) | ((uint32_t)(base64_dtable[c2] << 0x06U) | base64_dtable[c3]);
     chunk[2] = (unsigned char)(tmp & 0xFFU);
     chunk[1] = (unsigned char)(tmp >> 0x08U);
     size_t cp_sz = (buff_len - j) < 3? buff_len - j: 3;
