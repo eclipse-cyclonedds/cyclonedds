@@ -48,6 +48,9 @@
 CU_TheoryDataPoints(ddsc_qos_provider, create) = {
   // The various of sysdef configuration files
   CU_DataPoints(char *,
+    "<!-- only a comment -->",
+    "<?xml version=\"1.0\"?>",
+    "<dds/>",
     DEF(LIB(lib0,PRO(pro0,ENT("",datareader)ENT("",datawriter)
                           ENT("",publisher)ENT("",subscriber)
                           ENT("",domain_participant)ENT("",topic)))),
@@ -85,6 +88,9 @@ CU_TheoryDataPoints(ddsc_qos_provider, create) = {
   ),
   // Expected retcodes
   CU_DataPoints(int32_t,
+    DDS_RETCODE_ERROR,
+    DDS_RETCODE_ERROR,
+    DDS_RETCODE_OK,
     DDS_RETCODE_OK,
     DDS_RETCODE_OK,
     DDS_RETCODE_BAD_PARAMETER,

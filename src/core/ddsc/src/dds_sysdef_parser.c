@@ -3144,6 +3144,11 @@ static dds_return_t sysdef_parse(struct ddsrt_xmlp_state *xmlps, struct parse_sy
     if (pstate->sysdef != NULL)
       dds_sysdef_fini_sysdef (pstate->sysdef);
   }
+  else if (pstate->sysdef == NULL)
+  {
+    SYSDEF_ERROR ("No system definition root element found\n");
+    ret = DDS_RETCODE_ERROR;
+  }
   else
   {
     *sysdef = pstate->sysdef;
