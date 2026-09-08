@@ -509,6 +509,17 @@ emit_typedef(
           "((%1$s*) dds_alloc (sizeof (%1$s)));\n\n";
     if (idl_fprintf(gen->header.handle, fmt, name) < 0)
       return IDL_RETCODE_NO_MEMORY;
+
+    const void *base_type = idl_strip(declarator, IDL_STRIP_ALIASES | IDL_STRIP_FORWARD);
+    if (base_type && idl_is_topic(base_type, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0) && !idl_is_empty(base_type)) {
+      char *base_name;
+      if (IDL_PRINTA(&base_name, print_type, base_type) < 0)
+        return IDL_RETCODE_NO_MEMORY;
+      fmt = "#define %1$s_free(d,o) \\\n"
+            "%2$s_free ((d), (o))\n\n";
+      if (idl_fprintf(gen->header.handle, fmt, name, base_name) < 0)
+        return IDL_RETCODE_NO_MEMORY;
+    }
   }
 
   return IDL_VISIT_DONT_RECURSE;

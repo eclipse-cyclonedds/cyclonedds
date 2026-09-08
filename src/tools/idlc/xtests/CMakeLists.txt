@@ -12,6 +12,7 @@
 
 set(_sources
   test_alias.idl
+  test_typedef_free.idl
   test_basic.idl
   test_union.idl
   test_typedef_member.idl
