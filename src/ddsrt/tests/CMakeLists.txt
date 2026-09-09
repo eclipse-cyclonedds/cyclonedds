@@ -16,6 +16,7 @@ set(sources
   bswap.c
   bits.c
   environ.c
+  filesystem.c
   heap.c
   ifaddrs.c
   sync.c
@@ -25,6 +26,7 @@ set(sources
   thread_cleanup.c
   string.c
   log.c
+  log_file.c
   mh3.c
   hopscotch.c
   random.c

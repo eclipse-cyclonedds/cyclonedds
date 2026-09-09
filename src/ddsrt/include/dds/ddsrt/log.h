@@ -20,15 +20,33 @@
 #define DDS_LOG_H
 
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 
 #include "dds/export.h"
 #include "dds/ddsrt/attributes.h"
+#include "dds/ddsrt/retcode.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
+
+/** @brief Acquire a shared log file opened in append mode.
+ *
+ * The first successful acquisition of a filename clears existing contents
+ * unless append is true. Later acquisitions preserve contents, even after all
+ * previous users have released the file. History lasts until runtime shutdown.
+ * Names are made absolute where DDSRT_HAVE_FILESYSTEM is available; otherwise
+ * they are compared as supplied. No filesystem alias detection is guaranteed.
+ * On error, *fp is NULL. Each successful acquisition must be released with
+ * ddsrt_log_file_close, after the caller has stopped writing to the stream.
+ * The special tracing names stdout and stderr are handled by the caller.
+ */
+DDS_EXPORT dds_return_t ddsrt_log_file_open (const char *name, bool append, FILE **fp);
+
+/** @brief Release a shared log file, closing it after its last user. */
+DDS_EXPORT dds_return_t ddsrt_log_file_close (FILE *fp);
 
 /** @defgroup log_categories Convenience log category definitions.
  *

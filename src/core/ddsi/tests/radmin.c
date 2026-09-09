@@ -45,7 +45,7 @@ static void setup (void)
   ddsi_config_init_default (&gv.config);
   gv.config.transport_selector = DDSI_TRANS_NONE;
 
-  ddsi_config_prep (&gv, NULL);
+  ddsi_config_domain_init (&gv, NULL);
   dds_set_log_sink (null_log_sink, NULL);
   dds_set_trace_sink (null_log_sink, NULL);
 
@@ -58,6 +58,7 @@ static void teardown (void)
 {
   ddsi_fini (&gv);
   ddsi_rbufpool_free (rbpool);
+  ddsi_config_domain_fini (&gv, NULL);
 
   // On shutdown, there is an expectation that the thread was discovered dynamically.
   // We overrode it in the setup code, we undo it now.

@@ -61,7 +61,7 @@ static void setup (void)
   (void) ddsrt_getenv ("CYCLONEDDS_URI", &config);
   cfgst = ddsi_config_init (config, &gv.config, 0);
   assert (cfgst != NULL);
-  ddsi_config_prep (&gv, cfgst);
+  ddsi_config_domain_init (&gv, cfgst);
   // with just one receive thread we don't need to send anything during shutdown and can remain deaf/mute
   gv.config.multiple_recv_threads = false;
   ddsi_init (&gv, NULL);
@@ -72,7 +72,7 @@ static void teardown (void)
 {
   ddsi_fini (&gv);
   ddsi_rbufpool_free (rbufpool);
-  ddsi_config_fini (cfgst);
+  ddsi_config_domain_fini (&gv, cfgst);
   ddsi_iid_fini ();
   ddsi_thread_states_fini ();
   ddsrt_fini ();

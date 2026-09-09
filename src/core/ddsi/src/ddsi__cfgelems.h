@@ -2333,9 +2333,16 @@ static struct cfgelem tracing_cfgelems[] = {
     MEMBER(tracingAppendToFile),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
     DESCRIPTION(
-      "<p>This option specifies whether the output should be appended to an "
-      "existing log file. The default is to create a new log file each time, "
-      "which is generally the best option if a detailed log is generated.</p>"
+      "<p>This option specifies whether existing contents are preserved when "
+      "this process first opens the output file. The default is to clear the "
+      "file on first use. Subsequent domains using the same output filename "
+      "always append, even after all earlier domains have been deleted. The "
+      "first successful opener determines whether existing contents are "
+      "preserved when domains specify different values for this option.</p>"
+      "<p>Filenames are compared as absolute paths where supported, and "
+      "otherwise as configured. Filesystem aliases are not detected. This "
+      "history is retained until the runtime is unloaded or the process "
+      "exits. This option has no effect on stdout or stderr.</p>"
     )),
   STRING("PacketCaptureFile", NULL, 1, "",
     MEMBER(pcap_file),

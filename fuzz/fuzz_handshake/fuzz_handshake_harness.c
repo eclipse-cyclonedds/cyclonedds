@@ -109,7 +109,7 @@ bool fuzz_handshake_init()
     memset(&gv, 0, sizeof(gv));
     ddsi_config_init_default(&gv.config);
     gv.config.transport_selector = DDSI_TRANS_NONE;
-    ddsi_config_prep(&gv, NULL);
+    ddsi_config_domain_init(&gv, NULL);
     ddsi_init(&gv, NULL);
     gv.handshake_include_optional = true;
     g_cfgst = ddsi_config_init(sec_config, &gv.config, 1);

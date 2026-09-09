@@ -3032,9 +3032,6 @@ void ddsi_config_fini (struct ddsi_cfgst *cfgst)
   free_all_elements (cfgst, cfgst->cfg, root_cfgelems);
   dds_set_log_file (stderr);
   dds_set_trace_file (stderr);
-  if (cfgst->cfg->tracefp && cfgst->cfg->tracefp != stdout && cfgst->cfg->tracefp != stderr) {
-    fclose(cfgst->cfg->tracefp);
-  }
   memset (cfgst->cfg, 0, sizeof (*cfgst->cfg));
   ddsrt_avl_free (&cfgst_found_treedef, &cfgst->found, ddsrt_free);
   ddsrt_free (cfgst);
