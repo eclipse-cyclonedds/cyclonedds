@@ -118,3 +118,31 @@ const char *ddsrt_file_sep(void)
 {
     return "\\";
 }
+
+dds_return_t ddsrt_file_abspath(const char *name, char **abspath)
+{
+  if (abspath == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+  *abspath = NULL;
+  if (name == NULL || *name == 0)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  /* Match the narrow-character filenames accepted by fopen. Let Windows
+     interpret drive-relative names, UNC paths and dot components. */
+  DWORD size = GetFullPathNameA (name, 0, NULL, NULL);
+  while (size != 0)
+  {
+    char *path = ddsrt_malloc_s (size);
+    if (path == NULL)
+      return DDS_RETCODE_OUT_OF_RESOURCES;
+    const DWORD len = GetFullPathNameA (name, size, path, NULL);
+    if (len != 0 && len < size)
+    {
+      *abspath = path;
+      return DDS_RETCODE_OK;
+    }
+    ddsrt_free (path);
+    size = len;
+  }
+  return DDS_RETCODE_ERROR;
+}

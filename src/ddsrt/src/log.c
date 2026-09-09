@@ -15,9 +15,13 @@
 #include <string.h>
 
 #include "dds/ddsrt/log.h"
+#include "dds/ddsrt/filesystem.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/static_assert.h"
+#include "log_priv.h"
 
 #define MAX_ID_LEN (10)
 #define MAX_TIMESTAMP_LEN (10 + 1 + 6)
@@ -41,6 +45,140 @@ static ddsrt_thread_local log_buffer_t log_buffer;
 
 static ddsrt_once_t lock_inited = DDSRT_ONCE_INIT;
 static ddsrt_rwlock_t lock;
+
+struct log_file {
+  struct log_file *next;
+  char *name;
+  FILE *fp;
+  size_t refs;
+};
+
+static ddsrt_once_t file_lock_inited = DDSRT_ONCE_INIT;
+static ddsrt_mutex_t file_lock;
+static struct log_file *files;
+
+static void init_file_lock (void)
+{
+  ddsrt_mutex_init (&file_lock);
+}
+
+dds_return_t ddsrt_log_file_open (const char *name, bool append, FILE **fp)
+{
+  if (fp == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+  *fp = NULL;
+  if (name == NULL || *name == 0)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  char *abspath;
+#if DDSRT_HAVE_FILESYSTEM
+  const dds_return_t ret = ddsrt_file_abspath (name, &abspath);
+  if (ret != DDS_RETCODE_OK)
+    return ret;
+#else
+  const size_t size = strlen (name) + 1;
+  if ((abspath = ddsrt_malloc_s (size)) == NULL)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  memcpy (abspath, name, size);
+#endif
+  ddsrt_once (&file_lock_inited, init_file_lock);
+  ddsrt_mutex_lock (&file_lock);
+  struct log_file *file;
+  for (file = files; file != NULL; file = file->next)
+    if (strcmp (file->name, abspath) == 0)
+      break;
+
+  const bool first = file == NULL;
+  if (first)
+  {
+    if ((file = ddsrt_malloc_s (sizeof (*file))) == NULL)
+    {
+      ddsrt_mutex_unlock (&file_lock);
+      ddsrt_free (abspath);
+      return DDS_RETCODE_OUT_OF_RESOURCES;
+    }
+    *file = (struct log_file) { .name = abspath };
+  }
+  else
+    ddsrt_free (abspath);
+
+  DDSRT_WARNING_MSVC_OFF(4996);
+  if (file->fp == NULL)
+  {
+    /* Use portable stdio for truncation, then perform all writes in append
+       mode. The entry is published only after opening succeeds. */
+    if (first && !append)
+    {
+      FILE *truncate = fopen (file->name, "w");
+      if (truncate == NULL || fclose (truncate) != 0)
+        goto fail;
+    }
+    if ((file->fp = fopen (file->name, "a")) == NULL)
+      goto fail;
+  }
+  DDSRT_WARNING_MSVC_ON(4996);
+  if (first)
+  {
+    file->next = files;
+    files = file;
+  }
+  file->refs++;
+  *fp = file->fp;
+  ddsrt_mutex_unlock (&file_lock);
+  return DDS_RETCODE_OK;
+
+fail:
+  if (first)
+  {
+    ddsrt_free (file->name);
+    ddsrt_free (file);
+  }
+  ddsrt_mutex_unlock (&file_lock);
+  return DDS_RETCODE_ERROR;
+}
+
+dds_return_t ddsrt_log_file_close (FILE *fp)
+{
+  if (fp == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+  ddsrt_once (&file_lock_inited, init_file_lock);
+  ddsrt_mutex_lock (&file_lock);
+  struct log_file *file;
+  for (file = files; file != NULL; file = file->next)
+    if (file->fp == fp)
+      break;
+  dds_return_t ret = DDS_RETCODE_BAD_PARAMETER;
+  if (file != NULL)
+  {
+    assert (file->refs > 0);
+    ret = DDS_RETCODE_OK;
+    if (--file->refs == 0)
+    {
+      if (fclose (file->fp) != 0)
+        ret = DDS_RETCODE_ERROR;
+      /* Retain the name so later domains cannot erase earlier traces. */
+      file->fp = NULL;
+    }
+  }
+  ddsrt_mutex_unlock (&file_lock);
+  return ret;
+}
+
+void ddsrt_log_file_fini (void)
+{
+  ddsrt_once (&file_lock_inited, init_file_lock);
+  ddsrt_mutex_lock (&file_lock);
+  while (files != NULL)
+  {
+    struct log_file *file = files;
+    files = file->next;
+    if (file->fp != NULL)
+      fclose (file->fp);
+    ddsrt_free (file->name);
+    ddsrt_free (file);
+  }
+  ddsrt_mutex_unlock (&file_lock);
+}
 
 struct ddsrt_log_cfg_impl {
   struct ddsrt_log_cfg_common c;

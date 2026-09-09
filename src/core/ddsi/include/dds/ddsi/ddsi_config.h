@@ -495,7 +495,10 @@ public:
 /** @component config */
 struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg, uint32_t domid) ddsrt_nonnull((1,2));
 
-/** @component config */
+/** @component config
+ * Release a parsed configuration used without ddsi_config_domain_init.
+ * Domain configurations are released by ddsi_config_domain_fini instead.
+ */
 DDS_EXPORT void ddsi_config_fini (struct ddsi_cfgst *cfgst);
 
 #if defined (__cplusplus)

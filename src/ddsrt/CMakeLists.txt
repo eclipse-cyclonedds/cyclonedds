@@ -40,6 +40,7 @@ set(headers
   "${source_dir}/include/dds/ddsrt/fibheap.h"
   "${source_dir}/include/dds/ddsrt/hopscotch.h"
   "${source_dir}/include/dds/ddsrt/log.h"
+  "${source_dir}/src/log_priv.h"
   "${source_dir}/include/dds/ddsrt/retcode.h"
   "${source_dir}/include/dds/ddsrt/attributes.h"
   "${source_dir}/include/dds/ddsrt/endian.h"

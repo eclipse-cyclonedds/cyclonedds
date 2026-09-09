@@ -103,6 +103,7 @@ set(ddsc_test_sources
     "time_based_filter.c"
     "topic.c"
     "topic_find_local.c"
+    "trace.c"
     "transientlocal.c"
     "types.c"
     "uninitialized.c"

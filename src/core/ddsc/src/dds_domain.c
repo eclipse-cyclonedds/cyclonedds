@@ -118,7 +118,7 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   }
   domain->m_id = domain->gv.config.domainId;
 
-  if (ddsi_config_prep (&domain->gv, domain->cfgst) != 0)
+  if (ddsi_config_domain_init (&domain->gv, domain->cfgst) != 0)
   {
     DDS_ILOG (DDS_LC_CONFIG, domain->m_id, "Failed to configure RTPS\n");
     ret = DDS_RETCODE_ERROR;
@@ -207,8 +207,7 @@ fail_ddsi_init:
 fail_psmx_init:
   dds_pubsub_message_exchange_fini(domain);
 fail_ddsi_config:
-  if (domain->cfgst)
-    ddsi_config_fini (domain->cfgst);
+  ddsi_config_domain_fini (&domain->gv, domain->cfgst);
 fail_config:
   dds_handle_delete (&domain->m_entity.m_hdllink);
   return ret;
@@ -349,8 +348,7 @@ static dds_return_t dds_domain_free (dds_entity *vdomain)
 
   ddsrt_avl_delete (&dds_domaintree_def, &dds_global.m_domains, domain);
   dds_entity_final_deinit_before_free (vdomain);
-  if (domain->cfgst)
-    ddsi_config_fini (domain->cfgst);
+  ddsi_config_domain_fini (&domain->gv, domain->cfgst);
   dds_free (vdomain);
   ddsrt_cond_broadcast (&dds_global.m_cond);
   ddsrt_mutex_unlock (&dds_global.m_mutex);

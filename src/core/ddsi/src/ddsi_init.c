@@ -500,7 +500,7 @@ static int ddsi_config_open_trace (struct ddsi_domaingv *gv)
     gv->config.tracefp = stderr;
     status = 1;
   }
-  else if ((gv->config.tracefp = fopen (gv->config.tracefile, gv->config.tracingAppendToFile ? "a" : "w")) == NULL)
+  else if (ddsrt_log_file_open (gv->config.tracefile, gv->config.tracingAppendToFile, &gv->config.tracefp) != DDS_RETCODE_OK)
   {
     DDS_ILOG (DDS_LC_ERROR, gv->config.domainId, "%s: cannot open for writing\n", gv->config.tracefile);
     status = 0;
@@ -515,8 +515,22 @@ static int ddsi_config_open_trace (struct ddsi_domaingv *gv)
   DDSRT_WARNING_MSVC_ON(4996);
 }
 
-int ddsi_config_prep (struct ddsi_domaingv *gv, struct ddsi_cfgst *cfgst)
+void ddsi_config_domain_fini (struct ddsi_domaingv *gv, struct ddsi_cfgst *cfgst)
 {
+  FILE *fp = gv->config.tracefp;
+  gv->config.tracefp = NULL;
+  dds_log_cfg_init (&gv->logconfig, gv->config.domainId, 0, stderr, NULL);
+  if (fp != NULL && fp != stdout && fp != stderr)
+    if (ddsrt_log_file_close (fp) != DDS_RETCODE_OK)
+      DDS_ILOG (DDS_LC_ERROR, gv->config.domainId, "%s: cannot close trace file\n", gv->config.tracefile);
+  if (cfgst != NULL)
+    ddsi_config_fini (cfgst);
+}
+
+int ddsi_config_domain_init (struct ddsi_domaingv *gv, struct ddsi_cfgst *cfgst)
+{
+  /* Also initialize this for failures preceding trace setup and raw configs. */
+  gv->config.tracefp = NULL;
   /* advertised domain id defaults to the real domain id; clear "isdefault" so the config
      dump includes the actually used value rather than "default" */
   if (gv->config.extDomainId.isdefault)

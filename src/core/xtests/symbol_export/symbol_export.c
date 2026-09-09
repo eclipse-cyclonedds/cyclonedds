@@ -1175,6 +1175,8 @@ int main (int argc, char **argv)
   dds_get_log_mask ();
   dds_set_log_sink (ptr, ptr);
   dds_set_trace_sink (ptr, ptr);
+  ddsrt_log_file_open (ptr, true, ptr);
+  ddsrt_log_file_close (ptr);
 
   // ddsrt/sockets.h
 #if DDSRT_HAVE_GETHOSTNAME
@@ -1229,6 +1231,7 @@ int main (int argc, char **argv)
   ddsrt_readdir (ptr, ptr);
   ddsrt_stat (ptr, ptr);
   ddsrt_file_normalize (ptr);
+  ddsrt_file_abspath (ptr, ptr);
   ddsrt_file_sep ();
 #endif
 

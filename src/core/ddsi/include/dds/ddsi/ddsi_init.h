@@ -22,8 +22,18 @@ extern "C" {
 struct ddsi_cfgst;
 struct ddsi_domaingv;
 
-/** @component ddsi_init */
-int ddsi_config_prep (struct ddsi_domaingv *gv, struct ddsi_cfgst *cfgst);
+/** @component ddsi_init
+ * Complete the domain configuration and set up tracing. cfgst is NULL for a
+ * raw configuration. A call to this function, including a failed call, must
+ * be paired with ddsi_config_domain_fini after the last domain log message.
+ */
+int ddsi_config_domain_init (struct ddsi_domaingv *gv, struct ddsi_cfgst *cfgst);
+
+/** @component ddsi_init
+ * Release tracing and the parsed configuration, if any. This is also valid
+ * after ddsi_config_domain_init fails.
+ */
+void ddsi_config_domain_fini (struct ddsi_domaingv *gv, struct ddsi_cfgst *cfgst);
 
 /** @component ddsi_init */
 int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psmx_locators);

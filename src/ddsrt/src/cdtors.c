@@ -14,6 +14,7 @@
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/random.h"
 #include "dds/ddsrt/misc.h"
+#include "log_priv.h"
 
 #if _WIN32
 /* Sockets API initialization is only necessary on Microsoft Windows. The
@@ -45,6 +46,7 @@ static void ddsrt_init_impl (void)
 
 static void ddsrt_fini_impl (void)
 {
+  ddsrt_log_file_fini ();
   ddsrt_cond_destroy (&init_cond);
   ddsrt_mutex_destroy (&init_mutex);
   ddsrt_random_fini ();
