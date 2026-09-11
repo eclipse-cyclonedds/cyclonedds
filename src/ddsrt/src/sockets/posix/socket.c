@@ -274,14 +274,6 @@ ddsrt_getsockopt(
   void *optval,
   socklen_t *optlen)
 {
-#if defined(__ZEPHYR__)
-  if (optname == IP_ADD_MEMBERSHIP || optname == IP_DROP_MEMBERSHIP)
-  {
-    /* note ddsrt_getsockopt never called with this optname */
-    return DDS_RETCODE_UNSUPPORTED;
-  }
-#endif
-
   if (getsockopt(sock, level, optname, optval, optlen) == 0)
     return DDS_RETCODE_OK;
 
