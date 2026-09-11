@@ -58,7 +58,12 @@ DDSRT_STATIC_ASSERT (DDSI_LOCATOR_UDPv4MCGEN_INDEX_MASK_BITS <= 32 - UDP_MC_ADDR
 #  if defined (__MINGW32__) && !defined (CMSG_SPACE)
 #    define PACKET_DESTINATION_INFO 0
 #  endif
-#  if defined CMSG_SPACE && (defined IP_PKTINFO || (DDSRT_HAVE_IPV6 && defined IPV6_PKTINFO))
+#  if defined(__ZEPHYR__)
+     /* Zephyr has no IP_PKTINFO/IPV6_PKTINFO support on sockets: requesting the
+        packet destination address cannot work, leaving every received packet
+        without a usable destination address. Do not even try. */
+#    define PACKET_DESTINATION_INFO 0
+#  elif defined CMSG_SPACE && (defined IP_PKTINFO || (DDSRT_HAVE_IPV6 && defined IPV6_PKTINFO))
 #    define PACKET_DESTINATION_INFO 1
 #  else
 #    define PACKET_DESTINATION_INFO 0
