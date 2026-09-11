@@ -2,52 +2,50 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <dds/dds.h>
-#include <dds/ddsrt/heap.h>
-#include <dds/ddsi/ddsi_config.h>
 #include "HelloWorldData.h"
+#include "helloworld_config.h"
 
-void init_config(struct ddsi_config *cfg)
-{
-  ddsi_config_init_default (cfg);
-  cfg->rbuf_size = 40 * 1024;
-  cfg->rmsg_chunk_size = 20 * 1024;
-  //cfg->tracemask = DDS_LC_ALL;
-  cfg->tracemask = DDS_LC_INFO | DDS_LC_CONFIG;
-  cfg->tracefile = "stderr";
-  cfg->tracefp = NULL;
-  cfg->multiple_recv_threads = DDSI_BOOLDEF_FALSE;
-  //cfg->max_msg_size = 1452;
-  cfg->retransmit_merging = DDSI_REXMIT_MERGE_ALWAYS;
-  //cfg->transport_selector = DDSI_TRANS_UDP6;
-  //cfg->defaultMulticastAddressString = "239.255.0.2";
+/* cdds_xml_config[] is generated from config.xml by GENERATE_CDDS_CONF and holds
+ * the NUL-terminated string "CYCLONEDDS_URI=<CycloneDDS>...</CycloneDDS>".
+ */
+#define CDDS_URI_PREFIX "CYCLONEDDS_URI="
+#define CDDS_GENERAL    "<General>"
 
-  struct ddsi_config_network_interface_listelem *ifcfg = ddsrt_malloc (sizeof (*ifcfg));
-  memset(ifcfg, 0, sizeof *ifcfg);
-  ifcfg->next = NULL;
-  ifcfg->cfg.prefer_multicast = true;
+/* Boards on which the DDS interface has to be selected explicitly. */
 #if defined(CONFIG_BOARD_QEMU_X86)
-  ifcfg->cfg.name = "eth0";
+#define CDDS_NETIF "eth0"
 #elif defined(CONFIG_BOARD_S32Z270DC2_RTU0_R52)
-  ifcfg->cfg.name = "ethernet@74b00000";
+#define CDDS_NETIF "ethernet@74b00000"
 #endif
-  cfg->network_interfaces = ifcfg;
-  
-#if defined(CONFIG_NET_CONFIG_PEER_IPV6_ADDR)
-  if (strlen(CONFIG_NET_CONFIG_PEER_IPV6_ADDR) > 0) {
-    struct ddsi_config_peer_listelem *peer = ddsrt_malloc (sizeof (*peer));
-    peer->next = NULL;
-    peer->peer = CONFIG_NET_CONFIG_PEER_IPV6_ADDR;
-    cfg->peers = peer;
-  }
-#elif defined(CONFIG_NET_CONFIG_PEER_IPV4_ADDR)
-  if (strlen(CONFIG_NET_CONFIG_PEER_IPV4_ADDR) > 0) {
-    struct ddsi_config_peer_listelem *peer = ddsrt_malloc (sizeof (*peer));
-    peer->next = NULL;
-    peer->peer = CONFIG_NET_CONFIG_PEER_IPV4_ADDR;
-    cfg->peers = peer;
+
+static void set_cyclonedds_uri(void)
+{
+  const char *xml = (const char *)cdds_xml_config + strlen(CDDS_URI_PREFIX);
+
+#ifdef CDDS_NETIF
+  /* Inject <Interfaces> into <General> so that the network interface is chosen
+     explicitly, like the raw-config based version of this example did. */
+  static const char iface[] =
+    "<Interfaces><NetworkInterface name=\"" CDDS_NETIF "\"/></Interfaces>";
+  static char buf[sizeof(cdds_xml_config) + sizeof(iface)];
+  const char *general = strstr(xml, CDDS_GENERAL);
+
+  if (general != NULL) {
+    size_t head = (size_t)(general - xml) + strlen(CDDS_GENERAL);
+
+    memcpy(buf, xml, head);
+    memcpy(&buf[head], iface, sizeof(iface) - 1);
+    strcpy(&buf[head + sizeof(iface) - 1], general + strlen(CDDS_GENERAL));
+    xml = buf;
   }
 #endif
+
+  /* Publish the configuration through the environment; the POSIX layer owns
+     the environ block, so no application-side environ definition is needed. */
+  if (setenv("CYCLONEDDS_URI", xml, 1) != 0)
+    printf("Failed to set CYCLONEDDS_URI\n");
 }
 
 void helloworld_publisher()
@@ -58,10 +56,6 @@ void helloworld_publisher()
   dds_return_t rc;
   HelloWorldData_Msg msg;
   uint32_t status = 0;
-  struct ddsi_config config;
-
-  init_config(&config);
-  dds_entity_t domain = dds_create_domain_with_rawconfig (1, &config);
 
   /* Create a Participant. */
   participant = dds_create_participant (1, NULL, NULL);
@@ -112,10 +106,6 @@ void helloworld_publisher()
   rc = dds_delete (participant);
   if (rc != DDS_RETCODE_OK)
     DDS_FATAL("dds_delete: %s\n", dds_strretcode(-rc));
-
-  rc = dds_delete (domain);
-  if (rc != DDS_RETCODE_OK)
-    DDS_FATAL("dds_delete (domain): %s\n", dds_strretcode(-rc));
 }
 
 #define MAX_SAMPLES 1
@@ -130,12 +120,6 @@ void helloworld_subscriber()
   dds_sample_info_t infos[MAX_SAMPLES];
   dds_return_t rc;
   dds_qos_t *qos;
-  struct ddsi_config config;
-
-  init_config(&config);
-  dds_entity_t domain = dds_create_domain_with_rawconfig (1, &config);
-  if (domain < 0)
-      DDS_FATAL("dds_create_domain_with_rawconfig: %s\n", dds_strretcode(-domain));
 
   /* Create a Participant. */
   participant = dds_create_participant (1, NULL, NULL);
@@ -197,15 +181,12 @@ void helloworld_subscriber()
   rc = dds_delete (participant);
   if (rc != DDS_RETCODE_OK)
     DDS_FATAL("dds_delete (participant): %s\n", dds_strretcode(-rc));
-
-  rc = dds_delete (domain);
-  if (rc != DDS_RETCODE_OK)
-    DDS_FATAL("dds_delete (domain): %s\n", dds_strretcode(-rc));
 }
 
 int main(void)
 {
     printf("CycloneDDS Hello World! %s\n", CONFIG_BOARD);
+    set_cyclonedds_uri();
 #if BUILD_HELLOWORLD_PUB
     helloworld_publisher();
 #else

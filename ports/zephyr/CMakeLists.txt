@@ -127,6 +127,9 @@ elseif(BUILD_THROUGHPUT_PUB OR BUILD_THROUGHPUT_SUB)
     src/subscriber.c src/publisher.c)
 
 elseif(BUILD_HELLOWORLD_PUB OR BUILD_HELLOWORLD_SUB)
+  # Absolute path: GENERATE_CDDS_CONF feeds the file to the xxd subprocess,
+  # which resolves relative paths against the build directory.
+  GENERATE_CDDS_CONF("${CMAKE_CURRENT_SOURCE_DIR}/config.xml" "${CDDS_INCLUDE_DIR}/helloworld_config.h")
   target_compile_definitions(app
     PRIVATE
     BUILD_HELLOWORLD_PUB=${BUILD_HELLOWORLD_PUB}
