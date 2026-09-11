@@ -41,7 +41,7 @@ void init_config(struct ddsi_config *cfg)
     cfg->peers = peer;
   }
 #elif defined(CONFIG_NET_CONFIG_PEER_IPV4_ADDR)
-  if (strlen(CONFIG_NET_CONFIG_PEER_IPV4_ADDR) > 0)) {
+  if (strlen(CONFIG_NET_CONFIG_PEER_IPV4_ADDR) > 0) {
     struct ddsi_config_peer_listelem *peer = ddsrt_malloc (sizeof (*peer));
     peer->next = NULL;
     peer->peer = CONFIG_NET_CONFIG_PEER_IPV4_ADDR;
