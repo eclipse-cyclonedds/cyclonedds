@@ -600,8 +600,13 @@ static dds_return_t set_mc_options_transmit_ipv4_if (struct ddsi_domaingv const 
 
 static dds_return_t set_mc_options_transmit_ipv4 (struct ddsi_domaingv const * const gv, struct ddsi_network_interface const * const intf, ddsrt_socket_t sock)
 {
+#if defined(__ZEPHYR__)
+  const unsigned int ttl = (unsigned int) gv->config.multicast_ttl;
+  const unsigned int loop = (unsigned int) !!gv->config.enableMulticastLoopback;
+#else /*!__ZEPHYR__*/
   const unsigned char ttl = (unsigned char) gv->config.multicast_ttl;
   const unsigned char loop = (unsigned char) !!gv->config.enableMulticastLoopback;
+#endif /*__ZEPHYR__*/
   dds_return_t rc;
   if ((rc = set_mc_options_transmit_ipv4_if (gv, intf, sock)) != DDS_RETCODE_OK) {
     GVERROR ("ddsi_udp_create_conn: set IP_MULTICAST_IF failed: %s\n", dds_strretcode (rc));
