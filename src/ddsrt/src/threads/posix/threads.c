@@ -77,11 +77,6 @@ typedef struct {
 #define MAXTHREADNAMESIZE (CONFIG_THREAD_MAX_NAME_LEN - 1)
 #endif /* __APPLE__ */
 
-#if defined(__ZEPHYR__) && !defined(CONFIG_FILE_SYSTEM)
-int _open(const char *name, int mode);
-int _open(const char *name, int mode) { return -1; }
-#endif
-
 size_t
 ddsrt_thread_getname(char *name, size_t size)
 {
