@@ -401,13 +401,11 @@ ddsrt_thread_create (
       goto err;
     }
 
-#if !defined(__ZEPHYR__)
     if ((result = pthread_attr_setinheritsched (&pattr, PTHREAD_EXPLICIT_SCHED)) != 0)
     {
       DDS_ERROR("ddsrt_thread_create(%s): pthread_attr_setinheritsched(EXPLICIT) failed with error %d\n", name, result);
       goto err;
     }
-#endif
   }
 
   if (tattr.schedAffinityN > 0)
