@@ -243,8 +243,8 @@ static void *os_startRoutineWrapper (void *threadContext)
 #define CYCLONEDDS_THREAD_STACK_SIZE 32768
 #endif
 
-#if (CYCLONEDDS_THREAD_COUNT > CONFIG_MAX_PTHREAD_COUNT)
-#error "CONFIG_MAX_PTHREAD_COUNT is insufficient to run CycloneDDS"
+#if (CYCLONEDDS_THREAD_COUNT > CONFIG_POSIX_THREAD_THREADS_MAX)
+#error "CONFIG_POSIX_THREAD_THREADS_MAX is insufficient to run CycloneDDS"
 #endif
 
 static int currThrIdx = 0;
@@ -759,7 +759,7 @@ dds_return_t ddsrt_thread_cleanup_push (void (*routine) (void * p), void *arg)
   assert(routine != NULL);
 
 #if defined(__ZEPHYR__)
-  if (pthread_self() >= CONFIG_MAX_PTHREAD_COUNT) {
+  if (pthread_self() >= CONFIG_POSIX_THREAD_THREADS_MAX) {
     /* Not a pthread */
     return DDS_RETCODE_UNSUPPORTED;
   }
@@ -787,7 +787,7 @@ dds_return_t ddsrt_thread_cleanup_pop (int execute)
   thread_cleanup_t *tail;
 
 #if defined(__ZEPHYR__)
-  if (pthread_self() >= CONFIG_MAX_PTHREAD_COUNT) {
+  if (pthread_self() >= CONFIG_POSIX_THREAD_THREADS_MAX) {
     /* Not a pthread */
     return DDS_RETCODE_UNSUPPORTED;
   }
