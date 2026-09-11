@@ -426,7 +426,7 @@ ddsrt_recv(
   return recv_error_to_retcode(errno);
 }
 
-#if (LWIP_SOCKET && !defined(recvmsg)) || defined(__ZEPHYR__)
+#if (LWIP_SOCKET && !defined(recvmsg))
 static ssize_t recvmsg(int sockfd, struct msghdr *msg, int flags)
 {
   assert(msg->msg_iovlen == 1);
