@@ -137,6 +137,8 @@ elseif(BUILD_HELLOWORLD_PUB OR BUILD_HELLOWORLD_SUB)
   target_sources(app
     PRIVATE
     src/helloworld_main.c
+    src/helloworld_pub.c
+    src/helloworld_sub.c
     src/HelloWorldData.c
     src/HelloWorldData.h
   )
