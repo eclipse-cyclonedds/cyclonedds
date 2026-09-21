@@ -317,7 +317,7 @@ static DDS_Security_boolean create_certificate_from_csr(const char* csr, long va
     EVP_PKEY *ca_privkey, *req_pubkey;
     EVP_MD const *digest = NULL;
     X509 *newcert, *cacert;
-    X509_NAME *name;
+    const X509_NAME *name;
     X509V3_CTX ctx;
     BIO *fp;
     BIO *reqbio = NULL;
@@ -949,7 +949,7 @@ get_adjusted_participant_guid(
     unsigned char high[SHA256_DIGEST_LENGTH], low[SHA256_DIGEST_LENGTH];
     unsigned char *subject;
     DDS_Security_octet hb = 0x80;
-    X509_NAME *name;
+    const X509_NAME *name;
     unsigned char *tmp = NULL;
     int i;
     int sz;

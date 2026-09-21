@@ -715,7 +715,7 @@ get_adjusted_participant_guid(
     unsigned char high[SHA256_DIGEST_LENGTH], low[SHA256_DIGEST_LENGTH];
     unsigned char *subject;
     DDS_Security_octet hb = 0x80;
-    X509_NAME *name;
+    const X509_NAME *name;
     unsigned char *tmp = NULL;
     int i, sz;
 

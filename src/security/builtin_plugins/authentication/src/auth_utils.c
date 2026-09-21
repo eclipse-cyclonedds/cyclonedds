@@ -58,7 +58,7 @@ static char *get_openssl_error_message(void)
 
 char *get_certificate_subject_name(X509 *cert, DDS_Security_SecurityException *ex)
 {
-  X509_NAME *name;
+  const X509_NAME *name;
   assert(cert);
   if (!(name = X509_get_subject_name(cert)))
   {
@@ -98,7 +98,7 @@ DDS_Security_ValidationResult_t get_subject_name_DER_encoded(const X509 *cert, u
 {
   unsigned char *tmp = NULL;
   int32_t sz;
-  X509_NAME *name;
+  const X509_NAME *name;
 
   assert(cert);
   assert(buffer);

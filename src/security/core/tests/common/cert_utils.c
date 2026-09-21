@@ -29,11 +29,14 @@ static X509 * get_x509(int not_valid_before, int not_valid_after, const char * c
   X509_gmtime_adj (X509_getm_notBefore (cert), not_valid_before);
   X509_gmtime_adj (X509_getm_notAfter (cert), not_valid_after);
 
-  X509_NAME * name = X509_get_subject_name (cert);
+  X509_NAME * name = X509_NAME_new ();
   X509_NAME_add_entry_by_txt (name, "C",  MBSTRING_ASC, (unsigned char *) "NL", -1, -1, 0);
   X509_NAME_add_entry_by_txt (name, "O",  MBSTRING_ASC, (unsigned char *) "Example Organization", -1, -1, 0);
   X509_NAME_add_entry_by_txt (name, "CN", MBSTRING_ASC, (unsigned char *) cn, -1, -1, 0);
   X509_NAME_add_entry_by_txt (name, "emailAddress", MBSTRING_ASC, (unsigned char *) email, -1, -1, 0);
+  if (!X509_set_subject_name (cert, name))
+    abort (); // test code
+  X509_NAME_free (name);
   return cert;
 }
 
@@ -121,7 +124,7 @@ static char * generate_identity_internal(const char * ca_cert_str, EVP_PKEY * ca
 
   if (subject)
   {
-    X509_NAME *subj_name = X509_get_subject_name (cert);
+    const X509_NAME *subj_name = X509_get_subject_name (cert);
     char * subj_openssl = X509_NAME_oneline (subj_name, NULL, 0);
     *subject = ddsrt_strdup (subj_openssl);
     OPENSSL_free (subj_openssl);
