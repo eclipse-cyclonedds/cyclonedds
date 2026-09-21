@@ -441,3 +441,31 @@ CU_Test (ddsc_sysdef_parser, invalid_cases)
   assert_parse_result ("<dds><node_library name=\"N\"><node name=\"NodeA\"><mac_address>01:02:03:04:05:zz</mac_address></node></node_library></dds>", DDS_RETCODE_ERROR);
   assert_parse_result ("<dds><domain_library name=\"D\"><domain name=\"DomainA\" domain_id=\"1\"><topic name=\"T\" register_type_ref=\"Missing\"/></domain></domain_library></dds>", DDS_RETCODE_ERROR);
 }
+
+static void assert_data_types_result (const char *xml, dds_return_t expected)
+{
+  struct dds_sysdef_type_metadata_admin *types = NULL;
+  const dds_return_t ret = dds_sysdef_init_data_types_str (xml, &types);
+  CU_ASSERT_EQ_FATAL (ret, expected);
+  if (ret == DDS_RETCODE_OK)
+  {
+    CU_ASSERT_NEQ_FATAL (types, NULL);
+    dds_sysdef_fini_data_types (types);
+  }
+}
+
+CU_Test (ddsc_sysdef_parser, invalid_type_hex)
+{
+  assert_data_types_result (
+    "<types><type name=\"Foo\"><type_info>00ff</type_info><type_map>00</type_map></type></types>",
+    DDS_RETCODE_OK);
+  assert_data_types_result (
+    "<types><type name=\"Foo\"><type_info>00f</type_info><type_map>00</type_map></type></types>",
+    DDS_RETCODE_ERROR);
+  assert_data_types_result (
+    "<types><type name=\"Foo\"><type_info>00gg</type_info><type_map>00</type_map></type></types>",
+    DDS_RETCODE_ERROR);
+  assert_data_types_result (
+    "<types><type name=\"Foo\"><type_info>00ff</type_info><type_map>0</type_map></type></types>",
+    DDS_RETCODE_ERROR);
+}
