@@ -233,7 +233,7 @@ bool ac_X509_certificate_read(const char *data, X509 **x509Cert, DDS_Security_Se
 
 char *ac_get_certificate_subject_name(X509 *cert, DDS_Security_SecurityException *ex)
 {
-  X509_NAME *name;
+  const X509_NAME *name;
   BIO *bio;
   char *subject = NULL;
   char *pmem;
