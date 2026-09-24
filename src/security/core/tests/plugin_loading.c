@@ -18,6 +18,7 @@
 #include "dds/security/dds_security_api_defs.h"
 #include "common/config_env.h"
 #include "common/test_identity.h"
+#include "common/test_utils.h"
 
 static uint32_t found;
 
@@ -91,7 +92,7 @@ CU_Test(ddssec_security_plugin_loading, all_ok, .init = ddsrt_init, .fini = ddsr
       "</Domain>";
 
   set_logger_exp(log_expected);
-  domain = dds_create_domain(0, sec_config);
+  domain = create_domain_with_test_config(0, sec_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, NULL, NULL);
   CU_ASSERT_GT_FATAL (participant, 0);
@@ -138,7 +139,7 @@ CU_Test(ddssec_security_plugin_loading, missing_finalize, .init = ddsrt_init, .f
       "</Domain>";
 
   set_logger_exp(log_expected);
-  domain = dds_create_domain(0, sec_config);
+  domain = create_domain_with_test_config(0, sec_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, NULL, NULL);
   CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
@@ -184,7 +185,7 @@ CU_Test(ddssec_security_plugin_loading, authentication_missing_function, .init =
       "</Domain>";
 
   set_logger_exp(log_expected);
-  domain = dds_create_domain(0, sec_config);
+  domain = create_domain_with_test_config(0, sec_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, NULL, NULL);
   CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
@@ -230,7 +231,7 @@ CU_Test(ddssec_security_plugin_loading, access_control_missing_function, .init =
       "</Domain>";
 
   set_logger_exp(log_expected);
-  domain = dds_create_domain(0, sec_config);
+  domain = create_domain_with_test_config(0, sec_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, NULL, NULL);
   CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
@@ -276,7 +277,7 @@ CU_Test(ddssec_security_plugin_loading, cryptography_missing_function, .init = d
       "</Domain>";
 
   set_logger_exp(log_expected);
-  domain = dds_create_domain(0, sec_config);
+  domain = create_domain_with_test_config(0, sec_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, NULL, NULL);
   CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
@@ -325,7 +326,7 @@ CU_Test(ddssec_security_plugin_loading, no_library_in_path, .init = ddsrt_init, 
       "</Domain>";
 
   set_logger_exp(log_expected);
-  domain = dds_create_domain(0, sec_config);
+  domain = create_domain_with_test_config(0, sec_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, NULL, NULL);
   CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
@@ -372,7 +373,7 @@ CU_Test(ddssec_security_plugin_loading, init_error, .init = ddsrt_init, .fini = 
       "</Domain>";
 
   set_logger_exp(log_expected);
-  domain = dds_create_domain(0, sec_config);
+  domain = create_domain_with_test_config(0, sec_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, NULL, NULL);
   CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
@@ -417,7 +418,7 @@ CU_Test(ddssec_security_plugin_loading, all_ok_with_props, .init = ddsrt_init, .
   dds_qset_bprop(qos, "test.bprop1", bvalue, 3);
 
   set_logger_exp(log_expected);
-  domain = dds_create_domain(0, default_config);
+  domain = create_domain_with_test_config(0, default_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, qos, NULL);
   CU_ASSERT_GT_FATAL (participant, 0);
@@ -465,7 +466,7 @@ CU_Test(ddssec_security_plugin_loading, missing_plugin_property_with_props, .ini
   dds_qset_bprop(qos, "test.bprop1", bvalue, 3);
 
   set_logger_exp(log_expected);
-  domain = dds_create_domain(0, default_config);
+  domain = create_domain_with_test_config(0, default_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, qos, NULL);
   CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
@@ -512,7 +513,7 @@ CU_Test(ddssec_security_plugin_loading, empty_plugin_property_with_props, .init 
   dds_qset_bprop(qos, "test.bprop1", bvalue, 3);
 
   set_logger_exp(log_expected);
-  domain = dds_create_domain(0, default_config);
+  domain = create_domain_with_test_config(0, default_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(DDS_DOMAIN_DEFAULT, qos, NULL);
   CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
@@ -559,7 +560,7 @@ CU_Test(ddssec_security_plugin_loading, missing_security_property_with_props, .i
   dds_qset_bprop(qos, "test.bprop1", bvalue, 3);
 
   set_logger_exp(log_expected);
-  domain = dds_create_domain(0, default_config);
+  domain = create_domain_with_test_config(0, default_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(DDS_DOMAIN_DEFAULT, qos, NULL);
   CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
@@ -635,9 +636,9 @@ CU_Test(ddssec_security_plugin_loading, multiple_domains_different_config, .init
 
   set_logger_exp(log_expected);
 
-  domain1 = dds_create_domain(1, sec_config);
+  domain1 = create_domain_with_test_config(1, sec_config);
   CU_ASSERT_GT_FATAL (domain1, 0);
-  domain2 = dds_create_domain(2, sec_config);
+  domain2 = create_domain_with_test_config(2, sec_config);
   CU_ASSERT_GT_FATAL (domain2, 0);
 
   /* Create the qos */

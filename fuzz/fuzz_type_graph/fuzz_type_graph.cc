@@ -401,7 +401,7 @@ public:
     ddsi_config_init_default(&gv_.config);
     gv_.config.transport_selector = DDSI_TRANS_NONE;
     gv_.config.allow_recursive_types = allow_recursive_types;
-    ddsi_config_prep(&gv_, g_cfgst);
+    ddsi_config_domain_init(&gv_, g_cfgst);
     dds_set_log_sink(null_log_sink, nullptr);
     dds_set_trace_sink(null_log_sink, nullptr);
 
@@ -411,6 +411,7 @@ public:
   ~Runtime()
   {
     ddsi_fini(&gv_);
+    ddsi_config_domain_fini(&gv_, g_cfgst);
     thrst_->state = DDSI_THREAD_STATE_LAZILY_CREATED;
     ddsi_thread_states_fini();
     ddsi_iid_fini();
@@ -2853,7 +2854,7 @@ static void run_assignability(Runtime &runtime, TypeGraph &graph, uint32_t root,
 
   dds_type_consistency_enforcement_qospolicy_t tce = type_consistency(flags);
   ddsi_non_assignability_reason reason;
-  (void) ddsi_xt_is_assignable_from(rd_type->gv, &rd_type->xt, &wr_type->xt, &tce, &reason);
+  (void) ddsi_xt_is_assignable_from(rd_type->gv, &rd_type->xt, &wr_type->xt, &tce, &reason, 0);
 
   ImportedTypePair rd_pair{};
   ImportedTypePair wr_pair{};

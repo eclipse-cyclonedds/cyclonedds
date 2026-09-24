@@ -28,6 +28,7 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/fibheap.h"
 #include "dds/ddsrt/random.h"
+#include "dds/ddsrt/regex.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/machineid.h"
@@ -502,7 +503,7 @@ int main (int argc, char **argv)
   dds_lookup_statistic (ptr, ptr);
 
   // dds_cdrstream.h
-  bool ret_cdrs;
+  dds_istream_init_well_formed (ptr, 0, ptr2, 0);
   dds_istream_init (ptr, 0, ptr2, 0);
   dds_istream_fini (ptr);
   dds_ostream_init (ptr, ptr2, 0, 0);
@@ -512,9 +513,12 @@ int main (int argc, char **argv)
   dds_ostreamBE_init (ptr, ptr2, 0, 0);
   dds_ostreamBE_fini (ptr, ptr2);
 
-  ret_cdrs = dds_stream_normalize (ptr, 0, 0, 0, ptr2, 0, ptr3);
-  (void) ret_cdrs;
+  (void) dds_stream_normalize (ptr, 0, 0, 0, ptr2, 0, ptr3);
+  (void) dds_stream_normalize_with_flags (ptr, 0, 0, 0, ptr2, 0, 0, ptr3);
   (void) dds_stream_normalize_xcdr2_data (ptr, ptr2, 0, 0, ptr3);
+  (void) dds_stream_normalize_to_istream (ptr, ptr2, 0, 0, 0, ptr3, 0, ptr4);
+  (void) dds_stream_normalize_to_istream_with_flags (ptr, ptr2, 0, 0, 0, ptr3, 0, 0, ptr4);
+  (void) dds_stream_normalize_xcdr2_data_to_istream (ptr, ptr2, ptr3, 0, 0, ptr4);
 
   dds_stream_write (ptr, ptr2, ptr3, ptr4);
   dds_stream_writeLE (ptr, ptr2, ptr3, ptr4);
@@ -832,7 +836,7 @@ int main (int argc, char **argv)
   (void) ddsi_ref_addrset (ptr);
   ddsi_unref_addrset (ptr);
   (void) ddsi_new_addrset ();
-  ddsi_add_locator_to_addrset (ptr, ptr2, ptr3);
+  ddsi_add_locator_to_addrset (ptr, ptr2, ptr3, ptr4);
 
   // ddsi/ddsi_tran.h
   (void) ddsi_locator_to_string (ptr, 0, ptr2);
@@ -1045,6 +1049,13 @@ int main (int argc, char **argv)
   // ddsrt/random.h
   ddsrt_random ();
 
+  // ddsrt/regex.h
+  ddsrt_regex_compile (ptr, ptr);
+  ddsrt_regex_compile_with_storage (ptr, ptr, ptr, 0);
+  ddsrt_regex_match (ptr, ptr);
+  ddsrt_regex_search (ptr, ptr);
+  ddsrt_regex_fini (ptr);
+
   // ddsrt/avl.h
   ddsrt_avl_treedef_init (ptr, 0, 0, ptr, ptr, 0);
   ddsrt_avl_treedef_init_r (ptr, 0, 0, ptr, ptr, ptr, 0);
@@ -1164,6 +1175,8 @@ int main (int argc, char **argv)
   dds_get_log_mask ();
   dds_set_log_sink (ptr, ptr);
   dds_set_trace_sink (ptr, ptr);
+  ddsrt_log_file_open (ptr, true, ptr);
+  ddsrt_log_file_close (ptr);
 
   // ddsrt/sockets.h
 #if DDSRT_HAVE_GETHOSTNAME
@@ -1218,6 +1231,7 @@ int main (int argc, char **argv)
   ddsrt_readdir (ptr, ptr);
   ddsrt_stat (ptr, ptr);
   ddsrt_file_normalize (ptr);
+  ddsrt_file_abspath (ptr, ptr);
   ddsrt_file_sep ();
 #endif
 
@@ -1246,6 +1260,7 @@ int main (int argc, char **argv)
   dds_entity_lock (0, 0, ptr);
   dds_entity_unlock (ptr);
 
+#ifdef DDS_HAS_QOS_PROVIDER
   // dds__sysdef_parser.h
   dds_sysdef_init_sysdef (ptr, ptr2, 0);
   dds_sysdef_init_sysdef_str (ptr, ptr2, 0);
@@ -1253,6 +1268,7 @@ int main (int argc, char **argv)
   dds_sysdef_init_data_types (ptr, ptr2);
   dds_sysdef_init_data_types_str (ptr, ptr2);
   dds_sysdef_fini_data_types (ptr);
+#endif
 
   // deprecated functions from v0.1
   dds_fail_set (0);

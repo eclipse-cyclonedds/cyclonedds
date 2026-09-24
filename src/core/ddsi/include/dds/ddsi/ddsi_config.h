@@ -168,12 +168,30 @@ enum ddsi_transport_selector {
   DDSI_TRANS_TCP6,
   DDSI_TRANS_RAWETH,
   DDSI_TRANS_NONE /* FIXME: see FIXME above ... :( */
+#ifdef DDS_HAS_FAKEUDP
+  ,
+  DDSI_TRANS_FAKEUDP
+#endif
 };
+
+#ifdef DDS_HAS_FAKEUDP
+enum ddsi_fake_network_topology_kind {
+  DDSI_FAKENET_TOPOLOGY_BUILTIN,
+  DDSI_FAKENET_TOPOLOGY_FILE,
+  DDSI_FAKENET_TOPOLOGY_REAL
+};
+#endif
 
 enum ddsi_many_sockets_mode {
   DDSI_MSM_NO_UNICAST,
   DDSI_MSM_SINGLE_UNICAST,
   DDSI_MSM_MANY_UNICAST
+};
+
+enum ddsi_interface_filtering {
+  DDSI_INTERFACE_FILTERING_OFF,
+  DDSI_INTERFACE_FILTERING_NORMAL,
+  DDSI_INTERFACE_FILTERING_STRICT
 };
 
 #ifdef DDS_HAS_SECURITY
@@ -304,6 +322,10 @@ struct ddsi_config
   char *tracefile;
   int tracingAppendToFile;
   enum ddsi_transport_selector transport_selector;
+#ifdef DDS_HAS_FAKEUDP
+  enum ddsi_fake_network_topology_kind fake_network_topology_kind;
+  char *fake_network_topology_file;
+#endif
   enum ddsi_boolean_default compat_use_ipv6;
   enum ddsi_boolean_default compat_tcp_enable;
   int dontRoute;
@@ -421,6 +443,7 @@ struct ddsi_config
   int generate_keyhash;
   uint32_t max_sample_size;
   enum ddsi_boolean_default extended_packet_info;
+  enum ddsi_interface_filtering interface_filtering;
 
   /* compability options */
   enum ddsi_standards_conformance standards_conformance;
@@ -429,6 +452,8 @@ struct ddsi_config
   int assume_rti_has_pmd_endpoints;
   ddsi_protocol_version_t protocol_version;
   int allow_invalid_try_construct;
+  int allow_invalid_extensibility;
+  int allow_mismatching_typeid;
   int allow_recursive_types;
   uint32_t ignore_type_information; // bitmask, vendor id 1.N maps to 1<<(N-1)
 
@@ -470,7 +495,10 @@ public:
 /** @component config */
 struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg, uint32_t domid) ddsrt_nonnull((1,2));
 
-/** @component config */
+/** @component config
+ * Release a parsed configuration used without ddsi_config_domain_init.
+ * Domain configurations are released by ddsi_config_domain_fini instead.
+ */
 DDS_EXPORT void ddsi_config_fini (struct ddsi_cfgst *cfgst);
 
 #if defined (__cplusplus)

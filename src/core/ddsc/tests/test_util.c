@@ -9,9 +9,14 @@
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 #include <stdarg.h>
+#include <string.h>
 #include "dds/dds.h"
 #include "dds/ddsrt/atomics.h"
+#include "dds/ddsrt/environ.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/io.h"
 #include "dds/ddsrt/process.h"
+#include "dds/ddsrt/string.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds__entity.h"
@@ -36,6 +41,60 @@ char *create_unique_topic_name (const char *prefix, char *name, size_t size)
   const uint32_t nr = ddsrt_atomic_inc32_nv (&count);
   (void) snprintf (name, size, "%s%"PRIu32"_pid%" PRIdPID "_tid%" PRIdTID "", prefix, nr, pid, tid);
   return name;
+}
+
+char *test_config_from_env (const char *config, dds_domainid_t domain_id)
+{
+  char *template = NULL;
+  char *expanded;
+  const char *local_config = config ? config : "";
+
+  (void) ddsrt_asprintf (&template, "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}%s", local_config);
+  expanded = ddsrt_expand_envvars (template, domain_id);
+  ddsrt_free (template);
+  return expanded;
+}
+
+dds_entity_t test_create_domain_from_env (dds_domainid_t domain_id, const char *config)
+{
+  char *expanded = test_config_from_env (config, domain_id);
+  dds_entity_t domain = dds_create_domain (domain_id, expanded);
+  ddsrt_free (expanded);
+  return domain;
+}
+
+bool test_config_inherits_fakeudp (void)
+{
+#ifdef DDS_HAS_FAKEUDP
+  const char *env_uri;
+  return ddsrt_getenv ("CYCLONEDDS_URI", &env_uri) == DDS_RETCODE_OK &&
+         env_uri != NULL && strstr (env_uri, "fakeudp") != NULL;
+#else
+  return false;
+#endif
+}
+
+dds_return_t test_save_envvar (struct test_saved_envvar *saved, const char *name)
+{
+  const char *value;
+  const dds_return_t rc = ddsrt_getenv (name, &value);
+  saved->name = name;
+  saved->value = NULL;
+  if (rc == DDS_RETCODE_OK)
+  {
+    saved->value = ddsrt_strdup (value);
+    return saved->value != NULL ? DDS_RETCODE_OK : DDS_RETCODE_OUT_OF_RESOURCES;
+  }
+  return rc == DDS_RETCODE_NOT_FOUND ? DDS_RETCODE_OK : rc;
+}
+
+dds_return_t test_restore_envvar (struct test_saved_envvar *saved)
+{
+  const dds_return_t rc = ddsrt_setenv (saved->name, saved->value ? saved->value : "");
+  ddsrt_free (saved->value);
+  saved->name = NULL;
+  saved->value = NULL;
+  return rc;
 }
 
 struct ddsi_domaingv *get_domaingv (dds_entity_t handle)

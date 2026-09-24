@@ -90,11 +90,14 @@ prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds__heap_loan.h
   dds__psmx.h
   dds__sysdef_model.h
-  dds__sysdef_parser.h
-  dds__sysdef_validation.h
-  dds__qos_provider.h
   dds__guid.h
 )
+if(ENABLE_QOS_PROVIDER)
+  list(APPEND hdrs_private_ddsc
+    "${CMAKE_CURRENT_LIST_DIR}/src/dds__sysdef_parser.h"
+    "${CMAKE_CURRENT_LIST_DIR}/src/dds__sysdef_validation.h"
+    "${CMAKE_CURRENT_LIST_DIR}/src/dds__qos_provider.h")
+endif()
 
 prepend(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>/dds/"
   dds.h

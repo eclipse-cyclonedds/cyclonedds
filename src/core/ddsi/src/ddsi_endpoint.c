@@ -900,9 +900,9 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
       wr->ssm_as = ddsi_new_addrset ();
       for (int i = 0; i < gv->n_interfaces; i++)
       {
-        if ((gv->interfaces[i].allow_multicast & DDSI_AMC_SSM) && ddsi_factory_supports(gv->xmit_conns[i]->m_factory, base_ssm_loc->kind))
+        if ((gv->interfaces[i].allow_multicast & DDSI_AMC_SSM) && ddsi_factory_supports(gv->xmit_conns_data[i]->m_factory, base_ssm_loc->kind))
         {
-          ddsi_xlocator_t loc = { .conn = gv->xmit_conns[i], .c = *base_ssm_loc };
+          ddsi_xlocator_t loc = { .conn = gv->xmit_conns_data[i], .c = *base_ssm_loc };
           ddsi_add_xlocator_to_addrset (gv, wr->ssm_as, &loc);
         }
       }

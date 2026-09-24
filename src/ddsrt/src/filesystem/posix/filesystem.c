@@ -9,6 +9,10 @@
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 #include <string.h>
+#include <errno.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <unistd.h>
 
 #include "dds/ddsrt/filesystem.h"
 #include "dds/ddsrt/string.h"
@@ -110,4 +114,88 @@ char * ddsrt_file_normalize(const char *filepath)
 const char *ddsrt_file_sep(void)
 {
     return "/";
+}
+
+dds_return_t ddsrt_file_abspath(const char *name, char **abspath)
+{
+  if (abspath == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+  *abspath = NULL;
+  if (name == NULL || *name == 0)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  char *cwd = NULL;
+  size_t cwdlen = 0;
+  if (*name != '/')
+  {
+    size_t size = 128;
+    for (;;)
+    {
+      if ((cwd = ddsrt_malloc_s (size)) == NULL)
+        return DDS_RETCODE_OUT_OF_RESOURCES;
+      if (getcwd (cwd, size) != NULL)
+        break;
+      const int err = errno;
+      ddsrt_free (cwd);
+      if (err != ERANGE)
+        return DDS_RETCODE_ERROR;
+      if (size > SIZE_MAX / 2)
+        return DDS_RETCODE_OUT_OF_RESOURCES;
+      size *= 2;
+    }
+    cwdlen = strlen (cwd);
+  }
+  const size_t namelen = strlen (name);
+  if (namelen > SIZE_MAX - cwdlen - 2)
+  {
+    ddsrt_free (cwd);
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  }
+  char *path = ddsrt_malloc_s (cwdlen + namelen + 2);
+  if (path == NULL)
+  {
+    ddsrt_free (cwd);
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  }
+  if (cwd != NULL)
+  {
+    memcpy (path, cwd, cwdlen);
+    if (cwdlen == 0 || cwd[cwdlen - 1] != '/')
+      path[cwdlen++] = '/';
+    ddsrt_free (cwd);
+  }
+  memcpy (path + cwdlen, name, namelen + 1);
+
+  /* Exactly two leading slashes may have a platform-specific meaning. Leave
+     '..' components intact: removing them can change the meaning at a symlink.
+     Retain a trailing slash (including a final '/.') to require a directory. */
+  char *src = path;
+  while (*src == '/')
+    src++;
+  char *dst = path + ((src - path == 2) ? 2 : 1);
+  bool trailing_slash = false;
+  while (*src)
+  {
+    char *end = src;
+    while (*end && *end != '/')
+      end++;
+    const size_t len = (size_t) (end - src);
+    const bool dot = len == 1 && *src == '.';
+    trailing_slash = *end == '/' || dot;
+    if (!dot)
+    {
+      if (dst[-1] != '/')
+        *dst++ = '/';
+      memmove (dst, src, len);
+      dst += len;
+    }
+    src = end;
+    while (*src == '/')
+      src++;
+  }
+  if (trailing_slash && dst[-1] != '/')
+    *dst++ = '/';
+  *dst = 0;
+  *abspath = path;
+  return DDS_RETCODE_OK;
 }

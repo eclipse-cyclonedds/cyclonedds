@@ -146,10 +146,11 @@ static void setup (struct ddsi_domaingv *gv, const struct ddsi_config *config, b
     fakeconn->m_factory = gv->m_factory;
     fakeconn->m_base.gv = gv;
     fakeconn->m_interf = &gv->interfaces[i];
-    gv->xmit_conns[i] = fakeconn;
+    gv->xmit_conns_meta[i] = fakeconn;
+    gv->xmit_conns_data[i] = fakeconn;
   }
 
-  ddsi_config_prep (gv, NULL);
+  ddsi_config_domain_init (gv, NULL);
   dds_set_log_sink (null_log_sink, &errcount);
   dds_set_trace_sink (null_log_sink, &errcount);
   gv->logconfig.c.tracemask = gv->logconfig.c.mask = UINT32_MAX;
@@ -157,13 +158,14 @@ static void setup (struct ddsi_domaingv *gv, const struct ddsi_config *config, b
 
 static void teardown (struct ddsi_domaingv *gv)
 {
+  ddsi_config_domain_fini (gv, NULL);
   // for some reason, GCC 12's analyzer thinks some of this is uninitialised
 #if __GNUC__ >= 12
   DDSRT_WARNING_GNUC_OFF(analyzer-use-of-uninitialized-value)
 #endif
   for (int i = 0; i < gv->n_interfaces; i++)
   {
-    ddsrt_free (gv->xmit_conns[i]);
+    ddsrt_free (gv->xmit_conns_data[i]);
     ddsrt_free (gv->interfaces[i].name);
   }
   while (gv->ddsi_tran_factories)
@@ -536,7 +538,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   for (int i = (same_machine ? 0 : 1); i < gv.n_interfaces; i++)
   {
     ddsi_xlocator_t xloc = {
-      .conn = gv.xmit_conns[i],
+      .conn = gv.xmit_conns_data[i],
       .c = gv.interfaces[i].extloc
     };
     xloc.c.port = 31416;
@@ -558,7 +560,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
     {
       if (gv.interfaces[i].mc_capable)
       {
-        ddsi_xlocator_t xloc = { .conn = gv.xmit_conns[i], .c = defmcloc };
+        ddsi_xlocator_t xloc = { .conn = gv.xmit_conns_data[i], .c = defmcloc };
         char buf[DDSI_LOCSTRLEN];
         tprintf ("  %s\n", ddsi_xlocator_to_string (buf, sizeof (buf), &xloc));
         ddsi_add_xlocator_to_addrset (&gv, as_default, &xloc);
@@ -621,7 +623,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   ddsi_set_unspec_locator (&pktinfo.src);
   pktinfo.if_index = 0;
   pktinfo.dst.kind = DDSI_LOCATOR_KIND_INVALID;
-  struct ddsi_addrset *as = ddsi_get_endpoint_addrset (&gv, &plist, as_default, &pktinfo, false, false);
+  struct ddsi_addrset *as = ddsi_get_endpoint_addrset (&gv, gv.xmit_conns_data, &plist, as_default, &pktinfo, false, false);
 
   int n = 0;
   while (expected[n])
@@ -663,18 +665,28 @@ CU_Theory ((const char *pistr, const char *msmstr), ddsc_nwpart, full_stack_init
   CU_PASS ("no network partitions in build");
 #else
   dds_return_t rc;
-  // start up domain with default config to discover the interface name
-  // use a high value for "max auto participant index" to avoid spurious
-  // failures caused by running several tests in parallel (using a unique
-  // domain id would help, too, but where to find a unique id?)
-  dds_entity_t eh = dds_create_domain (0, NULL);
+  const char *transport = test_config_inherits_fakeudp () ? "<Transport>fakeudp</Transport>" : "";
+  char *config = NULL;
+
+  // Start up a domain to discover the interface name.  Do not inherit the
+  // full CYCLONEDDS_URI here: the test constructs an explicit interface
+  // selection below, and inheriting one from the environment as well can select
+  // the same interface twice.  Preserve the fakeudp transport choice because
+  // the test suite may be running with fake network topologies.
+  (void) ddsrt_asprintf (&config, "<General>%s</General>", transport);
+  dds_entity_t eh = dds_create_domain (0, config);
+  ddsrt_free (config);
   CU_ASSERT_GT_FATAL (eh, 0);
   const struct ddsi_domaingv *gv = get_domaingv (eh);
   CU_ASSERT_NEQ_FATAL (gv, NULL);
-  // construct a configuration using this interface
-  char *config = NULL;
+  // Construct a configuration using this interface.  Use a high value for
+  // "max auto participant index" to avoid spurious failures caused by running
+  // several tests in parallel (using a unique domain id would help, too, but
+  // where to find a unique id?)
+  config = NULL;
   (void) ddsrt_asprintf (&config,
     "<General>"
+    "  %s"
     "  <Interfaces>"
     "    <NetworkInterface name=\"%s\"/>"
     "  </Interfaces>"
@@ -691,6 +703,7 @@ CU_Theory ((const char *pistr, const char *msmstr), ddsc_nwpart, full_stack_init
     "    <NetworkPartition name=\"part\" address=\"239.255.0.13\" interface=\"%s\"/>"
     "  </NetworkPartitions>"
     "</Partitioning>",
+    transport,
     gv->interfaces[0].name,
     pistr,
     msmstr,

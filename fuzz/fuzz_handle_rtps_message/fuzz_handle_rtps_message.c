@@ -15,6 +15,8 @@
 #include <string.h>
 #include <dds/dds.h>
 
+#include "../fuzz_common.h"
+
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "ddsi__thread.h"
@@ -39,7 +41,6 @@
 
 static struct ddsi_cfgst *cfgst;
 static struct ddsi_domaingv gv;
-static struct ddsi_config cfg;
 static struct ddsi_tran_conn * fakeconn;
 static struct ddsi_tran_factory * fakenet;
 static struct ddsi_thread_state *thrst;
@@ -73,7 +74,7 @@ int LLVMFuzzerTestOneInput(
   ddsi_config_init_default(&gv.config);
   gv.config.transport_selector = DDSI_TRANS_NONE;
 
-  ddsi_config_prep(&gv, cfgst);
+  ddsi_config_domain_init(&gv, cfgst);
   dds_set_log_sink(null_log_sink, NULL);
   dds_set_trace_sink(null_log_sink, NULL);
 
@@ -98,6 +99,7 @@ int LLVMFuzzerTestOneInput(
   ddsi_fini(&gv);
   ddsi_rbufpool_free(rbpool);
   ddsrt_free (fakeconn);
+  ddsi_config_domain_fini(&gv, cfgst);
 
   // On shutdown there is an expectation that the thread was discovered dynamically.
   // We overrode it in the setup code, we undo it now.

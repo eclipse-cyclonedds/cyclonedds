@@ -57,13 +57,17 @@ DDS_EXPORT extern const struct dds_cdrstream_allocator dds_cdrstream_default_all
 /**
  * @brief Freeing operation type
  * @ingroup alloc
- * What part of a sample to free
+ *
+ * Selects which parts of a sample are freed by @ref dds_sample_free and by the
+ * generated type-specific free macros.  The selected fields are freed according
+ * to the C binding ownership model.  In particular, ownership of IDL sequence
+ * buffers is controlled by @ref dds_sequence_t and its `_release` flag.
  */
 typedef enum
 {
-  DDS_FREE_ALL = DDS_FREE_KEY_BIT | DDS_FREE_CONTENTS_BIT | DDS_FREE_ALL_BIT, /**< free full sample */
-  DDS_FREE_CONTENTS = DDS_FREE_KEY_BIT | DDS_FREE_CONTENTS_BIT, /**< free all sample contents, but leave sample pointer intact */
-  DDS_FREE_KEY = DDS_FREE_KEY_BIT /**< free only the keyfields in a sample */
+  DDS_FREE_ALL = DDS_FREE_KEY_BIT | DDS_FREE_CONTENTS_BIT | DDS_FREE_ALL_BIT, /**< Free owned contents and the sample object itself. */
+  DDS_FREE_CONTENTS = DDS_FREE_KEY_BIT | DDS_FREE_CONTENTS_BIT, /**< Free owned key and non-key contents, but leave the sample object intact. */
+  DDS_FREE_KEY = DDS_FREE_KEY_BIT /**< Free only owned key fields in the sample. */
 }
 dds_free_op_t;
 
@@ -152,6 +156,29 @@ DDS_EXPORT void dds_string_free (char * str);
 /**
  * @brief Free (parts of) a sample according to the \ref dds_free_op_t
  * @component memory_alloc
+ *
+ * Frees the parts of `sample` selected by `op`.  The IDL compiler generates a
+ * type-specific `<type>_free(d,o)` macro for each topic type; these generated
+ * macros call `dds_sample_free(d, &<type>_desc, o)` and follow the same rules.
+ *
+ * The selected fields are freed according to the generated C binding ownership
+ * model.  Non-null strings, external members, optional members and recursively
+ * contained complex members are treated as sample-owned and freed as described
+ * by the type descriptor.  For IDL sequence fields, ownership of the sequence
+ * buffer is controlled by the `_release` flag of @ref dds_sequence_t: if it is
+ * true, the sequence buffer is freed; if it is false, the buffer is left for
+ * the application to manage.
+ *
+ * For `sequence<string>` and `sequence<wstring>`, `_release` also controls the
+ * strings stored in the sequence buffer.  If `_release` is false, both the
+ * buffer and the pointed-to strings are left untouched.  For sequences of
+ * complex elements, the elements are stored in the sequence buffer, but their
+ * owned contents are freed recursively even if the containing sequence buffer
+ * itself is application-owned.
+ *
+ * Memory released by this function must have been allocated with the Cyclone
+ * DDS allocator, for example by a read operation, by `dds_alloc` or by one of
+ * the generated allocation helpers.
  *
  * @param[in] sample sample to free
  * @param[in] desc topic descriptor of the type this sample was created from.

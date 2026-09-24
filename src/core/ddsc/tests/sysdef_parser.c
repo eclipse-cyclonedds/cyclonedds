@@ -162,6 +162,25 @@ static void assert_mac_addr (const struct dds_sysdef_mac_addr *addr, const uint8
   CU_ASSERT_MEMEQ (addr->addr, sizeof (addr->addr), expected, 6);
 }
 
+CU_Test (ddsc_sysdef_parser, missing_root)
+{
+  assert_parse_result ("", DDS_RETCODE_ERROR);
+  assert_parse_result (" \t\n", DDS_RETCODE_ERROR);
+  assert_parse_result ("<!-- only a comment -->", DDS_RETCODE_ERROR);
+  assert_parse_result ("<?xml version=\"1.0\"?>", DDS_RETCODE_ERROR);
+}
+
+CU_Test (ddsc_sysdef_parser, empty_file)
+{
+  FILE *fp = tmpfile ();
+  CU_ASSERT_NEQ_FATAL (fp, NULL);
+  struct dds_sysdef_system *sysdef = NULL;
+  const dds_return_t ret = dds_sysdef_init_sysdef (fp, &sysdef, SYSDEF_SCOPE_ALL_LIB);
+  fclose (fp);
+  CU_ASSERT_EQ (ret, DDS_RETCODE_ERROR);
+  CU_ASSERT_EQ (sysdef, NULL);
+}
+
 CU_Test (ddsc_sysdef_parser, all_constructs)
 {
   assert_parse_result (sysdef_all_constructs, DDS_RETCODE_OK);

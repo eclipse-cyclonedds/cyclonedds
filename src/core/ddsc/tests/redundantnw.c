@@ -147,7 +147,7 @@ CU_Test (ddsc_redundant_networking, uc_data_on_all_intfs)
   // use a high value for "max auto participant index" to avoid spurious
   // failures caused by running several tests in parallel (using a unique
   // domain id would help, too, but where to find a unique id?)
-  dds_entity_t dom_pub = dds_create_domain (0, "<General/>");
+  dds_entity_t dom_pub = test_create_domain_from_env (0, "<General/>");
   CU_ASSERT_GT_FATAL (dom_pub, 0);
   struct ddsi_domaingv *gv_pub = get_domaingv (dom_pub);
   CU_ASSERT_NEQ_FATAL (gv_pub, NULL);
@@ -185,15 +185,17 @@ CU_Test (ddsc_redundant_networking, uc_data_on_all_intfs)
 
   // Start up a new domain with this new configuration, get gv pointer (if only
   // to avoid a dangling pointer)
-  dom_pub = dds_create_domain (0, config);
+  char *expanded = test_config_from_env (config, 0);
+  ddsrt_free (config);
+  dom_pub = dds_create_domain (0, expanded);
   CU_ASSERT_GT_FATAL (dom_pub, 0);
   gv_pub = get_domaingv (dom_pub);
   CU_ASSERT_NEQ_FATAL (gv_pub, NULL);
-  const dds_entity_t dom_sub = dds_create_domain (1, config);
+  const dds_entity_t dom_sub = dds_create_domain (1, expanded);
   CU_ASSERT_GT_FATAL (dom_sub, 0);
   struct ddsi_domaingv * const gv_sub = get_domaingv (dom_sub);
   CU_ASSERT_NEQ_FATAL (gv_sub, NULL);
-  ddsrt_free (config);
+  ddsrt_free (expanded);
   
   // Redundant logic networking treats loopback specially because that one is
   // not subject to the types of failure that redundancy is used for.  Here

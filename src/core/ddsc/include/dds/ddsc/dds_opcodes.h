@@ -170,6 +170,18 @@ extern "C" {
 #define DDS_OP_LENGTH(o)      ((uint16_t) ((o) & DDS_OP_JMP_MASK))
 
 /**
+ * @anchor DDS_OP_DLC_REQUIRED_PREFIX
+ * @ingroup serialization
+ * @brief Extract the offset past the required appendable prefix
+ *
+ * For DLC instructions, this is an unsigned offset from the DLC instruction to
+ * the first instruction past the required prefix in the delimited scope. This
+ * prefix covers the first member, if any, and all key or non-optional
+ * must-understand members. A value of 0 means there is no required prefix.
+ */
+#define DDS_OP_DLC_REQUIRED_PREFIX(o) ((uint16_t) ((o) & DDS_OP_JMP_MASK))
+
+/**
  * @anchor DDS_OP_JUMP
  * @ingroup serialization
  * @brief Extract the JUMP from a uint32
@@ -220,6 +232,8 @@ extern "C" {
 #define DDS_OP_KOF  (0x07 << 24)
 #define DDS_OP_JEQ4 (0x08 << 24)
 #define DDS_OP_MID  (0x09 << 24)
+#define DDS_OP_EVS  (0x0a << 24)
+#define DDS_OP_EVM  (0x0b << 24)
 
 /**
  * @ingroup serialization
@@ -315,8 +329,8 @@ enum dds_stream_opcode {
      [sbound]     = bounded sequence maximum number of elements
      [next-insn]  = (unsigned 16 bits) offset to instruction for next field,
                     from start of insn
-     [elem-insn]  = (unsigned 16 bits) offset to first instruction for element, from start of insn
-     [cases]      = (unsigned 16 bits) offset to first case label, from start of insn
+     [elem-insn]  = (signed 16 bits) offset to first instruction for element, from start of insn
+     [cases]      = (signed 16 bits) offset to first case label, from start of insn
    */
   DDS_SOP_ADR = DDS_OP_ADR,
 
@@ -343,8 +357,8 @@ enum dds_stream_opcode {
      s  = subtype other than {nBY,STR} for JEQ and {nBY,STR,ENU,EXT} for JEQ4 (note
           that BMK cannot be inline, because it needs 2 additional instructions for
           the bits that are identified in the bitmask type)
-     i  = (unsigned 16 bits) offset to first instruction for case, from start of insn
-          instruction sequence must end in RTS, at which point executes continues at
+     i  = (signed 16 bits) offset to first instruction for case, from start of insn
+          instruction sequence must end in RTS, at which point execution continues at
           the next field's instruction as specified by the union
      f  = size flags for ENU instruction
 
@@ -355,14 +369,22 @@ enum dds_stream_opcode {
   */
   DDS_SOP_JEQ = DDS_OP_JEQ,
 
-  /** XCDR2 delimited CDR (inserts DHEADER before type)
-    [DLC, 0, 0]
+  /** delimited CDR (inserts DHEADER before type for XCDR2)
+    [DLC, 0, e]
+     where
+       e = (unsigned 16 bits) offset to first instruction past the required
+           prefix in the delimited scope, from the start of the DLC instruction.
+           The prefix covers the first member, if any, and all key or
+           non-optional must-understand members. A value of 0 means there is no
+           required prefix.
   */
   DDS_SOP_DLC = DDS_OP_DLC,
 
-  /** XCDR2 parameter list CDR (inserts DHEADER before type and EMHEADER before each member)
+  /** Parameter-list CDR for mutable aggregates. For structures this is followed
+      by a list of PLM instructions. For unions this prefixes an ADR | UNI
+      instruction.
      [PLC, 0, 0]
-          followed by a list of JEQ instructions
+          followed by a list of PLM instructions or an ADR | UNI instruction
   */
   DDS_SOP_PLC = DDS_OP_PLC,
 
@@ -372,7 +394,7 @@ enum dds_stream_opcode {
        where
          f           = flags:
                        - jump to base type (DDS_OP_FLAG_BASE)
-         [elem-insn] = (unsigned 16 bits) offset to instruction for element, from start of insn
+         [elem-insn] = (signed 16 bits) offset to instruction for element, from start of insn
                         when FLAG_BASE is set, this is the offset of the PLM list of the base type
          [member id] = id for this member (0 in case FLAG_BASE is set)
   */
@@ -392,16 +414,26 @@ enum dds_stream_opcode {
   DDS_SOP_JEQ4 = DDS_OP_JEQ4,
 
   /**
-   * [MID, 0, elem-insn] [member id]
+   * [MID, 0, op-index] [member id]
        For members of aggregated final and appendable types. Currently only for optional members
        the member ID is included, to facilitate adding the parameter header in XCDR1 data
        representation.
        where
-         [elem-insn] = (unsigned 16 bits) offset to instruction for element, from start of insn
+         [op-index] = (unsigned 16 bits) index of the member instruction, from start of descriptor
          [member id] = id for this member
    */
   DDS_SOP_MID = DDS_OP_MID
 };
+
+/**
+ * Trailing metadata records, not part of the serialization VM instruction set:
+ *   [EVS, 0, set-id] [default value] [nvalues] [value-0] ... [value-n-1]
+ *       where default value is the semantic signed Int32 enum value bit
+ *       pattern for memory/defaulting, and values are unsigned CDR holder
+ *       images sorted in ascending order for membership tests
+ *   [EVM, 0, op-index] [set-id]
+ *       where op-index is the index of the enum instruction, from start of descriptor
+ */
 
 #define DDS_OP_VAL_1BY   (0x01)
 #define DDS_OP_VAL_2BY   (0x02)
@@ -472,7 +504,7 @@ enum dds_stream_typecode {
 /**
  * @ingroup serialization
  * @brief primary type code for DDS_OP_ADR, DDS_OP_JEQ
- * Convinience pre-bitshifted values.
+ * Convenience pre-bitshifted values.
  */
 enum dds_stream_typecode_primary {
   DDS_SOP_TYPE_1BY   = DDS_OP_TYPE_1BY,   /**< one byte simple type (char, octet) */
@@ -498,7 +530,7 @@ enum dds_stream_typecode_primary {
 
 /**
  * @anchor DDS_OP_FLAG_TYPE_TC_DEF
- * @ingroup serializeation
+ * @ingroup serialization
  * @brief this flag indicates that the type has \@try_construct(USE_DEFAULT) in effect
  * (combining TC_DEF and TC_TRIM means an out-of-range input is considered erroneous)
  */
@@ -506,7 +538,7 @@ enum dds_stream_typecode_primary {
 
 /**
  * @anchor DDS_OP_FLAG_TYPE_TC_TRIM
- * @ingroup serializeation
+ * @ingroup serialization
  * @brief this flag indicates that the type has \@try_construct(TRIM) in effect
  * (combining TC_DEF and TC_TRIM means an out-of-range input is considered erroneous)
  */
@@ -548,7 +580,7 @@ enum dds_stream_typecode_primary {
  * @brief sub-type code
  *  - encodes element type for DDS_OP_TYPE_{SEQ,ARR},
  *  - discriminant type for DDS_OP_TYPE_UNI
- * Convinience pre-bitshifted values.
+ * Convenience pre-bitshifted values.
  */
 enum dds_stream_typecode_subtype {
   DDS_SOP_SUBTYPE_1BY   = DDS_OP_SUBTYPE_1BY,   /**< one byte simple type (char, octet) */
@@ -573,7 +605,7 @@ enum dds_stream_typecode_subtype {
 
 /**
  * @anchor DDS_OP_FLAG_SUBTYPE_TC_DEF
- * @ingroup serializeation
+ * @ingroup serialization
  * @brief this flag indicates that the subtype has \@try_construct(USE_DEFAULT) in effect
  * (combining TC_DEF and TC_TRIM means an out-of-range input is considered erroneous)
  */
@@ -581,8 +613,8 @@ enum dds_stream_typecode_subtype {
 
 /**
  * @anchor DDS_OP_FLAG_SUBTYPE_TC_TRIM
- * @ingroup serializeation
- * @brief this flag indicates that the subtype has \@try_construct(USE_DEFAULT) in effect
+ * @ingroup serialization
+ * @brief this flag indicates that the subtype has \@try_construct(TRIM) in effect
  * (combining TC_DEF and TC_TRIM means an out-of-range input is considered erroneous)
  */
 #define DDS_OP_FLAG_SUBTYPE_TC_TRIM (1u << 14)
@@ -624,7 +656,6 @@ enum dds_stream_typecode_subtype {
  * @ingroup serialization
  * @brief signed,
  * applicable to {1,2,4,8,16}BY and arrays, sequences of them
- * over
  */
 #define DDS_OP_FLAG_SGN  (1u << 2)
 
@@ -729,7 +760,9 @@ enum dds_stream_typecode_subtype {
 /**
  * @anchor DDS_TOPIC_FIXED_SIZE
  * @ingroup topic_flags
- * @brief The size in memory of a sample of this topic type is fully fixed.
+ * @brief The in-memory sample representation has no value-dependent storage.
+ * This is not a guarantee that the serialized CDR size is constant: unions
+ * and bounded strings can still produce different serialized sizes.
  */
 #define DDS_TOPIC_FIXED_SIZE                    (1u << 4)
 
@@ -804,6 +837,13 @@ enum dds_stream_typecode_subtype {
  * element type that is not a primitive, bitmask or enum.
  */
 #define DDS_TOPIC_KEY_ARRAY_NONPRIM             (1u << 12)
+
+/**
+ * @anchor DDS_TOPIC_KEY_UNION
+ * @ingroup topic_flags
+ * @brief Set if any of the key fields of a type is a union type.
+ */
+#define DDS_TOPIC_KEY_UNION                     (1u << 13)
 
 /**
  * @anchor DDS_FIXED_KEY_MAX_SIZE

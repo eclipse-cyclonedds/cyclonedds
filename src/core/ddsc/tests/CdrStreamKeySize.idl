@@ -63,4 +63,20 @@ module CdrStreamKeySize {
   @topic @final struct t44 { @key octet a[9999999]; };
   @topic @final struct t45 { @key string<9999> a[9999]; };
   @topic @final struct t46 { @key wstring<9999> a[9999]; };
+
+  // unions
+  @final union t47 switch (@key long) {
+    case 1: octet u1;
+    case 2: octet u2;
+  };
+  @nested @final union t48_u switch (@key long) {
+    case 1: octet u1;
+  };
+  @nested @final struct nested48 {
+    t48_u s1;
+    octet s2;
+  };
+  @topic @final struct t48 {
+    @key nested48 t1;
+  };
 };

@@ -58,9 +58,9 @@ if(ENABLE_SECURITY)
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>)
 endif()
 
-include(cdr/CMakeLists.txt)
-include(ddsi/CMakeLists.txt)
-include(ddsc/CMakeLists.txt)
+add_subdirectory("cdr")
+add_subdirectory("ddsi")
+add_subdirectory("ddsc")
 
 # The not-so-elegant inclusion of all configured plug-ins for static builds.  At least it
 # keeps most of the dirty things in one place.
@@ -83,7 +83,11 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 add_coverage(ddsc)
-target_link_libraries(ddsc PRIVATE "$<BUILD_INTERFACE:ddsrt>")
+target_link_libraries(ddsc
+  PRIVATE "$<BUILD_INTERFACE:ddsrt>")
+if(TARGET ${PROJECT_NAME}::cdr)
+  target_link_libraries(ddsc PUBLIC ${PROJECT_NAME}::cdr)
+endif()
 target_compile_definitions(
   ddsc PUBLIC
   $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_COMPILE_DEFINITIONS>>)

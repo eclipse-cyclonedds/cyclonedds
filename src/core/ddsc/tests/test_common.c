@@ -62,7 +62,7 @@ static void sync_reader_writer_impl (dds_entity_t participant_rd, dds_entity_t r
 void sync_reader_writer (dds_entity_t participant_rd, dds_entity_t reader, dds_entity_t participant_wr, dds_entity_t writer)
 {
   // Timing out after 1s would seem to be reasonable, but in reality seems to result in CI flakiness
-  // for some tests (e.g., CUnit_ddsc_xtypes_basic at the time of this comment).  A hypothesis is
+  // for some tests (e.g., ddsc_xtypes_basic at the time of this comment).  A hypothesis is
   // that some of the tests that happen to run in parallel cause so much load and network traffic
   // that there is the occasional bit of packet loss, and if that affects discovery packets, it could
   // plausibly make it take longer than 1s.
@@ -98,6 +98,7 @@ void xcdr2_deser (const unsigned char *buf, uint32_t sz, void **obj, const dds_t
 {
   unsigned char *data;
   uint32_t srcoff = 0;
+  dds_istream_t is;
   DDSRT_WARNING_MSVC_OFF(6326)
   bool bswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
   DDSRT_WARNING_MSVC_ON(6326)
@@ -105,13 +106,16 @@ void xcdr2_deser (const unsigned char *buf, uint32_t sz, void **obj, const dds_t
   {
     data = ddsrt_malloc (sz);
     memcpy (data, buf, sz);
-    enum dds_stream_normalize_result ret = dds_stream_normalize_xcdr2_data ((char *) data, &srcoff, sz, bswap, desc->m_ops);
+    enum dds_stream_normalize_result ret =
+      dds_stream_normalize_xcdr2_data_to_istream (&is, (char *) data, &srcoff, sz, bswap, desc->m_ops);
     CU_ASSERT_EQ_FATAL (ret, DDS_STREAM_NORMALIZE_SUCCESS);
   }
   else
+  {
     data = (void *) buf;
+    dds_istream_init_well_formed (&is, sz, data, DDSI_RTPS_CDR_ENC_VERSION_2);
+  }
 
-  dds_istream_t is = { .m_buffer = data, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   *obj = ddsrt_calloc (1, desc->m_size);
   dds_stream_read (&is, (void *) *obj, &dds_cdrstream_default_allocator, desc->m_ops);
   if (bswap)

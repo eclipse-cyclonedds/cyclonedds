@@ -43,14 +43,25 @@ enum find_interface_result {
 
 static enum find_interface_result find_interface_by_name (const char *reqname, size_t n_interfaces, const struct ddsi_network_interface *interfaces, size_t *match)
 {
-  // see if there's an interface with this name
-  for (size_t k = 0; k < n_interfaces; k++)
+  // split reqname at | symbols so we can have a single config that works for "lo" (Linux)
+  // and "lo0" (macOS)
+  const char *cur = reqname;
+  while (*cur)
   {
-    if (strcmp (reqname, interfaces[k].name) == 0)
+    const char *end = strchr (cur, '|');
+    if (end == NULL)
+      end = cur + strlen (cur);
+    const size_t len = (size_t) (end - cur);
+    // see if there's an interface with this name
+    for (size_t k = 0; k < n_interfaces; k++)
     {
-      *match = k;
-      return FIR_OK;
+      if (strncmp (cur, interfaces[k].name, len) == 0 && interfaces[k].name[len] == 0)
+      {
+        *match = k;
+        return FIR_OK;
+      }
     }
+    cur += len + (size_t) (*end == '|');
   }
   return FIR_NOTFOUND;
 }
@@ -103,6 +114,7 @@ static enum find_interface_result find_interface_by_address (const struct ddsi_d
 
 struct interface_priority {
   size_t match;
+  size_t order;
   int32_t priority;
 };
 
@@ -111,7 +123,9 @@ static int compare_interface_priority (const void *va, const void *vb)
   // compare function is used for sorting in descending priority order
   const struct interface_priority *a = va;
   const struct interface_priority *b = vb;
-  return (a->priority == b->priority) ? 0 : (a->priority < b->priority) ? 1 : -1;
+  if (a->priority != b->priority)
+    return (a->priority < b->priority) ? 1 : -1;
+  return (a->order == b->order) ? 0 : (a->order > b->order) ? 1 : -1;
 }
 
 ddsrt_nonnull ((1, 2))
@@ -177,7 +191,7 @@ static enum maybe_add_interface_result maybe_add_interface (struct ddsi_domaingv
   if (ddsi_locator_from_sockaddr (gv->m_factory, &dst->loc, ifa->addr) < 0)
     return MAI_IGNORED;
   ddsi_locator_to_string_no_port(addrbuf, sizeof(addrbuf), &dst->loc);
-  GVLOG (DDS_LC_CONFIG, " %s(", addrbuf);
+  GVLOG (DDS_LC_CONFIG, " %s@%"PRIu32"(", addrbuf, ifa->index);
 
   bool link_local = false;
   bool loopback = false;
@@ -423,6 +437,7 @@ static bool add_matching_interface (struct ddsi_domaingv *gv, struct interface_p
     return false;
   }
   matches[*num_matches].match = xx_idx;
+  matches[*num_matches].order = *num_matches;
   matches[*num_matches].priority = act_iface->priority;
   (*num_matches)++;
   return true;
@@ -513,6 +528,14 @@ int ddsi_gather_network_interfaces (struct ddsi_domaingv *gv)
   for (size_t i = 0; i < maxq_count; i++)
     assert (maxq_list[i] < n_interfaces);
 #endif
+
+  gv->loopback_if_index = 0;
+  for (size_t i = 0; i < n_interfaces; i++) {
+    if (interfaces[i].loopback) {
+      gv->loopback_if_index = interfaces[i].if_index;
+      break;
+    }
+  }
 
   bool ok = true;
   gv->n_interfaces = 0;

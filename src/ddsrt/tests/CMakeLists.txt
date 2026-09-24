@@ -16,6 +16,7 @@ set(sources
   bswap.c
   bits.c
   environ.c
+  filesystem.c
   heap.c
   ifaddrs.c
   sync.c
@@ -25,9 +26,11 @@ set(sources
   thread_cleanup.c
   string.c
   log.c
+  log_file.c
   mh3.c
   hopscotch.c
   random.c
+  regex.c
   retcode.c
   strlcpy.c
   socket.c
@@ -87,6 +90,7 @@ if(HAVE_DYNLIB)
 endif()
 
 add_cunit_executable(cunit_ddsrt ${sources})
+target_link_libraries(cunit_ddsrt PRIVATE ddsrt-internal)
 
 # Ensure the directory containing the test library for the dlopen tests is in
 # PATH/LD_LIBRARY_PATH (macOS is fine by virtue of rpath) so that the tests that do not
@@ -100,7 +104,7 @@ if(HAVE_DYNLIB)
     string(REPLACE ":" ";" libtest ${libtest})
     list(GET libtest 0 suite)
     list(GET libtest 1 test)
-    set(libtestname "CUnit_${suite}_${test}")
+    set(libtestname "${suite}_${test}")
     if("${CMAKE_HOST_SYSTEM}" MATCHES ".*Windows.*")
       set_property(TEST ${libtestname} APPEND PROPERTY ENVIRONMENT "${test_lib_dir}")
     else()
@@ -110,7 +114,5 @@ if(HAVE_DYNLIB)
 endif()
 
 add_coverage(cunit_ddsrt)
-target_link_libraries(
-  cunit_ddsrt PRIVATE ddsrt-internal)
 target_include_directories(
   cunit_ddsrt PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")

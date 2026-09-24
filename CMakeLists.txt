@@ -63,9 +63,12 @@ endif()
 option(WERROR "Treat compiler warnings as errors" OFF)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
+set(CycloneDDS_IDLC_GENERATE_CMAKE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/tools/idlc/cmake/Generate.cmake")
 
-option(BUILD_IDLC "Build IDL preprocessor" ${not_crosscompiling})
+option(BUILD_IDLC "Build IDL compiler" ${not_crosscompiling})
 option(BUILD_DDSPERF "Build ddsperf tool" ${not_crosscompiling})
+option(INSTALL_XMLTYPE "Install xmltype tool" OFF)
 
 option(WITH_ZEPHYR "Build for Zephyr RTOS" OFF)
 
@@ -98,26 +101,6 @@ if(${CMAKE_C_COMPILER_ID} STREQUAL "SunPro")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m64")
   set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -m64")
-endif()
-
-# Homebrew
-if(APPLE)
-  # Hint Homebrew prefixes to find_* commands. Use of CMAKE_PREFIX_PATH is
-  # required because full signature mode for find_package implies Config mode.
-  find_program(brew NAMES brew)
-  if (brew)
-    foreach(formula bison)
-      execute_process(
-        COMMAND ${brew} --prefix ${formula}
-        OUTPUT_VARIABLE prefix
-        ERROR_QUIET)
-      string(STRIP "${prefix}" prefix)
-      if(EXISTS "${prefix}")
-        # Append to ensure user specified paths come first.
-        set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${prefix}")
-      endif()
-    endforeach()
-  endif()
 endif()
 
 # Set reasonably strict warning options for clang, gcc, msvc
@@ -308,6 +291,8 @@ if(NOT CYCLONEDDS_BUILD_TESTING STREQUAL "AUTO")
   endif()
 endif()
 
+option(ENABLE_FAKEUDP "Enable the in-process fake UDP transport for tests" ${BUILD_TESTING})
+
 # For special-purpose builds it can be useful to export all symbols from the library,
 # like we do when building the tests.
 option(EXPORT_ALL_SYMBOLS "Export all symbols from the library." OFF)
@@ -330,9 +315,9 @@ if(MSVC)
 endif()
 
 # Build all executables and libraries into the top-level /bin and /lib folders.
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/lib")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/lib")
 
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
@@ -395,7 +380,7 @@ install(
   COMPONENT dev
 )
 install(
-  FILES "${CycloneDDS_SOURCE_DIR}/cmake/Modules/Generate.cmake"
+  FILES "${CycloneDDS_IDLC_GENERATE_CMAKE}"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}/idlc"
   COMPONENT dev)
 
@@ -410,11 +395,18 @@ set(generated_defconfig_src  "${CMAKE_CURRENT_SOURCE_DIR}/src/core/ddsi/defconfi
 
 add_subdirectory(compat)
 add_subdirectory(src)
+add_custom_target(check_generated_sources)
+if(TARGET _confgen_check)
+  add_dependencies(check_generated_sources _confgen_check)
+endif()
+if(TARGET ddsi_xtypes_generated_check)
+  add_dependencies(check_generated_sources ddsi_xtypes_generated_check)
+endif()
 if(BUILD_EXAMPLES AND HAVE_IDLC)
   add_subdirectory(examples)
 endif()
 
-if(DEFINED ENV{LIB_FUZZING_ENGINE})
+if(DEFINED ENV{LIB_FUZZING_ENGINE} AND ${CMAKE_PROJECT_NAME} STREQUAL "CycloneDDS")
   add_subdirectory(fuzz)
 endif()
 

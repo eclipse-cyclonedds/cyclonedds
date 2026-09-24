@@ -18,14 +18,15 @@
 dynsub
 ======
 
-The dynsub example is a :term:`PoC` for a C-based JSON printer of arbitrary data. It assumes
+The dynsub example is a :term:`PoC` for a C-based printer of arbitrary data. It assumes
 that topic discovery is enabled, but doesn't require it.
 
 Running the example
 *******************
 
-Pass the name of a topic to dynsub and it waits for a writer of that topic to show up. When it 
-finds one in the DCPSPublication topic, it tries to subscribe and print the received samples as JSON.
+Pass the name of a topic to dynsub and it waits for a writer of that topic to show up. When it
+finds one in the DCPSPublication topic, it tries to subscribe and print the received samples as JSON
+by default. Pass ``-f xml`` to print samples as XML instead.
 
 For example: Start the ``HelloworldPublisher`` in one shell:
 

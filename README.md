@@ -116,10 +116,6 @@ In order to build Cyclone DDS you need a Linux, Mac or Windows 10 machine (or, w
   * [CMake](https://cmake.org/download/), version 3.16 or later;
   * Optionally [OpenSSL](https://www.openssl.org/), we recommend a fully patched and supported version but 1.1.1 will still work;
   * Optionally [Eclipse Iceoryx](https://iceoryx.io) version 2.0 for shared memory and zero-copy support;
-  * Optionally [Bison](https://www.gnu.org/software/bison/) parser generator. A cached source is checked into the repository.
-
-If you want to play around with the parser you will need to install the bison parser generator. On Ubuntu `apt install bison` should do the trick for getting it installed.
-On Windows, installing chocolatey and `choco install winflexbison3` should get you a long way.  On macOS, `brew install bison` is easiest.
 
 To obtain Eclipse Cyclone DDS, do
 
@@ -187,6 +183,52 @@ Depending on the installation location you may need administrator privileges.
 At this point you are ready to use Eclipse Cyclone DDS in your own projects.
 
 Note that the default build type is a release build with debug information included (RelWithDebInfo), which is generally the most convenient type of build to use from applications because of a good mix between performance and still being able to debug things.  If you'd rather have a Debug or pure Release build, set `CMAKE_BUILD_TYPE` accordingly.
+
+### Third party library
+
+It is also possible to build CycloneDDS as part of your project by treating it as a third party library.  
+Following is an example *CMakeLists.txt* using [FetchContent_Declare](https://cmake.org/cmake/help/latest/module/FetchContent.html) to put CycloneDDS into scope.
+
+```cmake
+cmake_minimum_required(VERSION 3.21 FATAL_ERROR)
+project(
+    MyProject 
+    LANGUAGES C CXX
+)
+
+include(FetchContent)
+FetchContent_Declare(
+  cyclonedds
+  GIT_REPOSITORY https://github.com/eclipse-cyclonedds/cyclonedds.git
+  GIT_TAG        master # Or any other branch/tag
+)
+FetchContent_MakeAvailable(cyclonedds)
+
+# CycloneDDS exports its Generate.cmake script
+# thus it is possible to directly call the IDL compiler
+idlc_generate(
+    TARGET my_idl_lib
+    FILES my_project.idl
+)
+
+add_executable(${PROJECT_NAME} main.cpp)
+target_link_libraries(${PROJECT_NAME} PUBLIC
+    CycloneDDS::ddsc    # DDS definitions
+    my_idl_lib          # Compiled IDL library
+)
+
+# Copy ddsc.dll into target binary folder to allow direct execution
+if(WIN32 AND BUILD_SHARED_LIBS)
+    add_custom_command(
+        TARGET ${PROJECT_NAME}
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different 
+            $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}>
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>
+    )
+endif()
+
+```
 
 ### Contributing to Eclipse Cyclone DDS
 

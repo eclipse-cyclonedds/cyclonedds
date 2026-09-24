@@ -5,6 +5,23 @@ Changelog for Eclipse Cyclone DDS
 `Unreleased <https://github.com/eclipse-cyclonedds/cyclonedds/compare/0.7.0...master>`_
 ---------------------------------------------------------------------------------------
 
+.......................................
+Limitations on backwards compatibility:
+.......................................
+
+* The numeric value of ``DDS_DYNAMIC_MEMBER_ID_AUTO`` and
+  ``DDS_DYNAMIC_MEMBER_ID_INVALID`` has changed from ``0x0f000000`` to
+  ``0xf0000000``. The old value was a valid XTypes member id, contrary to the
+  API documentation. Applications that used the numeric literal instead of the
+  macro must update it; ``0x0f000000`` is now treated as an ordinary explicit
+  member id.
+* The Dynamic Type API now defines
+  ``DDS_DYNAMIC_MEMBER_ID_DISCRIMINATOR`` for selecting a union discriminator
+  in member property setters. Passing member id ``0`` for a union now selects
+  an actual member with id ``0`` if one exists; otherwise it still selects the
+  discriminator for compatibility with existing discriminator configuration
+  code.
+
 `V0.7.0 (2020-08-06) <https://github.com/eclipse-cyclonedds/cyclonedds/compare/V0.6.0...0.7.0>`_
 -----------------------------------------------------------------------------------------------
 

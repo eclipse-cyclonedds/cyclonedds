@@ -46,7 +46,7 @@ else()
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../core/ddsc/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../core/ddsi/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../../ddsrt/include>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../../core/include>")
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../../core/ddsc/include>")
   target_link_libraries(security_openssl PUBLIC OpenSSL::SSL)
   install(
     TARGETS security_openssl

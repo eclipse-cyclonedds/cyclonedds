@@ -115,6 +115,12 @@ struct ddsi_cfgst {
      been inserted */
   enum implicit_toplevel implicit_toplevel;
 
+  /* Whether the next top-level input element starts a new source annotation.
+     This is set for the first input and after explicit comma separators in
+     CYCLONEDDS_URI, but not simply because the string XML parser stopped at
+     the end of a top-level element. */
+  bool new_input_source;
+
   /* Whether unique prefix matching on a name is allowed (again for environment
      variables) */
   bool partial_match_allowed;
@@ -192,6 +198,7 @@ DUPF(maybe_int32);
 DUPF(domainId);
 DUPF(transport_selector);
 DUPF(many_sockets_mode);
+DUPF(interface_filtering);
 DU(deaf_mute);
 #ifdef DDS_HAS_TCP_TLS
 DUPF(min_tls_version);
@@ -561,6 +568,9 @@ static enum update_result cfg_error (struct ddsi_cfgst *cfgst, const char *fmt, 
   } while (bsz > 0);
   return URES_ERROR;
 }
+
+static void cfgst_advance_source (struct ddsi_cfgst *cfgst);
+static void cfgst_advance_input_source (struct ddsi_cfgst *cfgst);
 
 static void cfg_logelem (struct ddsi_cfgst *cfgst, uint32_t sources, const char *fmt, ...) ddsrt_attribute_format_printf(3, 4);
 
@@ -999,16 +1009,89 @@ static const char *en_transport_selector_vs[] = {
 #ifdef DDS_HAS_TCP
   "tcp", "tcp6",
 #endif
-  "raweth", "none", NULL
+  "raweth", "none",
+#ifdef DDS_HAS_FAKEUDP
+  "fakeudp",
+#endif
+  NULL
 };
 static const enum ddsi_transport_selector en_transport_selector_ms[] = {
   DDSI_TRANS_DEFAULT, DDSI_TRANS_UDP, DDSI_TRANS_UDP6,
 #ifdef DDS_HAS_TCP
   DDSI_TRANS_TCP, DDSI_TRANS_TCP6,
 #endif
-  DDSI_TRANS_RAWETH, DDSI_TRANS_NONE, 0
+  DDSI_TRANS_RAWETH, DDSI_TRANS_NONE,
+#ifdef DDS_HAS_FAKEUDP
+  DDSI_TRANS_FAKEUDP,
+#endif
+  0
 };
-GENERIC_ENUM_CTYPE (transport_selector, enum ddsi_transport_selector)
+DDSRT_STATIC_ASSERT (sizeof (en_transport_selector_vs) / sizeof (*en_transport_selector_vs) ==
+                     sizeof (en_transport_selector_ms) / sizeof (*en_transport_selector_ms));
+
+static enum update_result uf_transport_selector (struct ddsi_cfgst *cfgst, void *parent, UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
+{
+  enum ddsi_transport_selector * const elem = cfg_address (cfgst, parent, cfgelem);
+#ifdef DDS_HAS_FAKEUDP
+  if (strncmp (value, "fakeudp:", strlen ("fakeudp:")) == 0)
+  {
+    const char *path = value + strlen ("fakeudp:");
+    if (*path == 0)
+      return cfg_error (cfgst, "'%s': missing fake network topology file", value);
+    ddsrt_free (cfgst->cfg->fake_network_topology_file);
+    cfgst->cfg->fake_network_topology_file = NULL;
+    if (ddsrt_strcasecmp (path, "real") == 0)
+      cfgst->cfg->fake_network_topology_kind = DDSI_FAKENET_TOPOLOGY_REAL;
+    else
+    {
+      cfgst->cfg->fake_network_topology_file = ddsrt_strdup (path);
+      if (cfgst->cfg->fake_network_topology_file == NULL)
+        return cfg_error (cfgst, "'%s': out of memory", value);
+      cfgst->cfg->fake_network_topology_kind = DDSI_FAKENET_TOPOLOGY_FILE;
+    }
+    *elem = DDSI_TRANS_FAKEUDP;
+    return URES_SUCCESS;
+  }
+  ddsrt_free (cfgst->cfg->fake_network_topology_file);
+  cfgst->cfg->fake_network_topology_file = NULL;
+  cfgst->cfg->fake_network_topology_kind = DDSI_FAKENET_TOPOLOGY_BUILTIN;
+#endif
+
+  const int idx = list_index (en_transport_selector_vs, value);
+  if (idx < 0 || idx >= (int) (sizeof (en_transport_selector_ms) / sizeof (en_transport_selector_ms[0])))
+    return cfg_error (cfgst, "'%s': undefined value", value);
+  *elem = en_transport_selector_ms[idx];
+  return URES_SUCCESS;
+}
+
+static void pf_transport_selector (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
+{
+  enum ddsi_transport_selector const * const p = cfg_address (cfgst, parent, cfgelem);
+#ifdef DDS_HAS_FAKEUDP
+  if (*p == DDSI_TRANS_FAKEUDP && cfgst->cfg->fake_network_topology_kind == DDSI_FAKENET_TOPOLOGY_REAL)
+  {
+    cfg_logelem (cfgst, sources, "fakeudp:real");
+    return;
+  }
+  if (*p == DDSI_TRANS_FAKEUDP &&
+      cfgst->cfg->fake_network_topology_kind == DDSI_FAKENET_TOPOLOGY_FILE &&
+      cfgst->cfg->fake_network_topology_file)
+  {
+    cfg_logelem (cfgst, sources, "fakeudp:%s", cfgst->cfg->fake_network_topology_file);
+    return;
+  }
+#endif
+  const char *str = "INVALID";
+  for (int i = 0; en_transport_selector_vs[i] != NULL && i < (int) (sizeof (en_transport_selector_ms) / sizeof (en_transport_selector_ms[0])); i++)
+  {
+    if (en_transport_selector_ms[i] == *p)
+    {
+      str = en_transport_selector_vs[i];
+      break;
+    }
+  }
+  cfg_logelem (cfgst, sources, "%s", str);
+}
 
 /* by putting the  "true" and "false" aliases at the end, they won't come out of the
    generic printing function */
@@ -1036,6 +1119,10 @@ static const char *tracemask_names[] = {
 static const uint32_t tracemask_codes[] = {
   DDS_LC_FATAL, DDS_LC_ERROR, DDS_LC_WARNING, DDS_LC_INFO, DDS_LC_CONFIG, DDS_LC_DISCOVERY, DDS_LC_DATA, DDS_LC_RADMIN, DDS_LC_TIMING, DDS_LC_TRAFFIC, DDS_LC_TOPIC, DDS_LC_TCP, DDS_LC_PLIST, DDS_LC_WHC, DDS_LC_THROTTLE, DDS_LC_RHC, DDS_LC_CONTENT, DDS_LC_MALFORMED, DDS_LC_TYPELIB, DDS_LC_USER1, DDS_LC_USER2, DDS_LC_USER3, DDS_LC_USER, DDS_LC_ALL
 };
+
+static const char *en_interface_filtering_vs[] = { "off", "normal", "strict", NULL };
+static const enum ddsi_interface_filtering en_interface_filtering_ms[] = { DDSI_INTERFACE_FILTERING_OFF, DDSI_INTERFACE_FILTERING_NORMAL, DDSI_INTERFACE_FILTERING_STRICT, 0 };
+GENERIC_ENUM_CTYPE (interface_filtering, enum ddsi_interface_filtering)
 
 static enum update_result uf_tracemask (struct ddsi_cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
 {
@@ -1706,6 +1793,9 @@ static void pf_participantIndex (struct ddsi_cfgst *cfgst, void *parent, struct 
     case DDSI_PARTICIPANT_INDEX_AUTO:
       cfg_logelem (cfgst, sources, "auto");
       break;
+    case DDSI_PARTICIPANT_INDEX_DEFAULT:
+      cfg_logelem (cfgst, sources, "default");
+      break;
     default:
       cfg_logelem (cfgst, sources, "%d", *p);
       break;
@@ -2191,8 +2281,7 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
         cfgst_push_nofail (cfgst, 0, &root_cfgelems[0], cfgst_parent (cfgst));
         cfgst->implicit_toplevel = ITL_INSERTED_2;
       }
-      cfgst->source = (cfgst->source == 0) ? 1 : cfgst->source << 1;
-      cfgst->first_data_in_source = true;
+      cfgst_advance_input_source (cfgst);
     }
   }
 
@@ -2235,13 +2324,12 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
 
     if (cfg_subelem == &cyclonedds_root_cfgelems[0])
     {
-      cfgst->source = (cfgst->source == 0) ? 1 : cfgst->source << 1;
-      cfgst->first_data_in_source = true;
+      cfgst_advance_input_source (cfgst);
     }
     else if (cfg_subelem >= &root_cfgelems[0] && cfg_subelem < &root_cfgelems[0] + sizeof (root_cfgelems) / sizeof (root_cfgelems[0]))
     {
       if (!cfgst->first_data_in_source)
-        cfgst->source = (cfgst->source == 0) ? 1 : cfgst->source << 1;
+        cfgst_advance_source (cfgst);
       cfgst->first_data_in_source = true;
     }
     return 1;
@@ -2363,9 +2451,34 @@ static void proc_error (void *varg, const char *msg, int line)
   (void) cfg_error (cfgst, "parser error %s at line %d", msg, line);
 }
 
+static void cfgst_advance_source (struct ddsi_cfgst *cfgst)
+{
+  cfgst->source = (cfgst->source == 0) ? 1 : cfgst->source << 1;
+  cfgst->first_data_in_source = true;
+  cfgst->new_input_source = false;
+}
+
+static void cfgst_advance_input_source (struct ddsi_cfgst *cfgst)
+{
+  if (cfgst->source == 0 || cfgst->new_input_source)
+    cfgst_advance_source (cfgst);
+}
+
 static int cfgst_node_cmp (const void *va, const void *vb)
 {
   return memcmp (va, vb, sizeof (struct ddsi_cfgst_nodekey));
+}
+
+static bool skip_config_separators (char **cursor)
+{
+  bool saw_comma = false;
+  while (**cursor && (isspace ((unsigned char) **cursor) || **cursor == ','))
+  {
+    if (**cursor == ',')
+      saw_comma = true;
+    (*cursor)++;
+  }
+  return saw_comma;
 }
 
 static FILE *config_open_file (char *tok, char **cursor, uint32_t domid)
@@ -2482,7 +2595,7 @@ static struct ddsi_config_network_interface * network_interface_find_or_append(s
   if (iface) return &iface->cfg;
   if (!allow_append) return NULL;
 
-  iface = (struct ddsi_config_network_interface_listelem *) malloc(sizeof(*iface));
+  iface = ddsrt_malloc (sizeof (*iface));
   if (!iface) return NULL;
 
   iface->next = NULL;
@@ -2509,7 +2622,7 @@ static struct ddsi_config_psmx * psmx_append(struct ddsi_config *cfg, const char
   while (psmx && psmx->cfg.type && ddsrt_strcasecmp(psmx->cfg.type, name) != 0)
     return NULL;
 
-  psmx = (struct ddsi_config_psmx_listelem *) malloc(sizeof(*psmx));
+  psmx = ddsrt_malloc (sizeof (*psmx));
   if (!psmx) return NULL;
 
   psmx->next = NULL;
@@ -2580,7 +2693,7 @@ static int convert_networkinterfaceaddress (struct ddsi_config * const cfg)
       network_interface_find_or_append(cfg, true, addresses[i], NULL);
     }
   }
-  free(addresses);
+  ddsrt_free (addresses);
   return 1;
 }
 
@@ -2716,6 +2829,7 @@ struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg
   struct ddsi_cfgst *cfgst;
   char env_input[32];
   char *copy, *cursor;
+  bool new_input_source = true;
   struct ddsrt_xmlp_callbacks cb;
 
   memset (cfg, 0, sizeof (*cfg));
@@ -2726,6 +2840,7 @@ struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg
   cfgst->cfg = cfg;
   cfgst->error = 0;
   cfgst->source = 0;
+  cfgst->new_input_source = true;
   cfgst->logcfg = NULL;
   cfgst->first_data_in_source = true;
   cfgst->input = "init";
@@ -2745,13 +2860,13 @@ struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg
 
   copy = ddsrt_strdup (config);
   cursor = copy;
-  while (*cursor && (isspace ((unsigned char) *cursor) || *cursor == ','))
-    cursor++;
+  (void) skip_config_separators (&cursor);
   while (ok && cursor && cursor[0])
   {
     struct ddsrt_xmlp_state *qx;
     FILE *fp;
     char *tok;
+    bool comma_before_next = false;
     tok = cursor;
     if (tok[0] == '<')
     {
@@ -2770,6 +2885,7 @@ struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg
     }
     else
     {
+      comma_before_next = (cursor != NULL);
       qx = ddsrt_xmlp_new_file (fp, cfgst, &cb);
       cfgst->input = tok;
       cfgst->line = 1;
@@ -2777,7 +2893,9 @@ struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg
 
     cfgst->implicit_toplevel = (fp == NULL) ? ITL_ALLOWED : ITL_DISALLOWED;
     cfgst->partial_match_allowed = (fp == NULL);
-    cfgst->first_data_in_source = true;
+    cfgst->new_input_source = new_input_source;
+    if (new_input_source)
+      cfgst->first_data_in_source = true;
     // top-level entry must fit
     cfgst_push_nofail (cfgst, 0, &root_cfgelem, cfgst->cfg);
     ok = (ddsrt_xmlp_parse (qx) >= 0) && !cfgst->error;
@@ -2795,8 +2913,8 @@ struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg
     assert (fp == NULL || cfgst->implicit_toplevel <= ITL_ALLOWED);
     if (cursor)
     {
-      while (*cursor && (isspace ((unsigned char) cursor[0]) || cursor[0] == ','))
-        cursor++;
+      comma_before_next = skip_config_separators (&cursor) || comma_before_next;
+      new_input_source = comma_before_next;
     }
   }
   ddsrt_free (copy);
@@ -2842,6 +2960,9 @@ struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg
         break;
       case DDSI_TRANS_RAWETH:
       case DDSI_TRANS_NONE:
+#ifdef DDS_HAS_FAKEUDP
+      case DDSI_TRANS_FAKEUDP:
+#endif
         ok1 = !(cfgst->cfg->compat_tcp_enable == DDSI_BOOLDEF_TRUE || cfgst->cfg->compat_use_ipv6 == DDSI_BOOLDEF_TRUE);
         break;
     }
@@ -2863,6 +2984,10 @@ struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg
   }
 
 error:
+#ifdef DDS_HAS_FAKEUDP
+  ddsrt_free (cfgst->cfg->fake_network_topology_file);
+  cfgst->cfg->fake_network_topology_file = NULL;
+#endif
   free_configured_elements (cfgst, cfgst->cfg, root_cfgelems);
   ddsrt_avl_free (&cfgst_found_treedef, &cfgst->found, ddsrt_free);
   ddsrt_free (cfgst);
@@ -2901,12 +3026,12 @@ void ddsi_config_fini (struct ddsi_cfgst *cfgst)
   assert (cfgst->cfg != NULL);
   assert (cfgst->cfg->valid);
 
+#ifdef DDS_HAS_FAKEUDP
+  ddsrt_free (cfgst->cfg->fake_network_topology_file);
+#endif
   free_all_elements (cfgst, cfgst->cfg, root_cfgelems);
   dds_set_log_file (stderr);
   dds_set_trace_file (stderr);
-  if (cfgst->cfg->tracefp && cfgst->cfg->tracefp != stdout && cfgst->cfg->tracefp != stderr) {
-    fclose(cfgst->cfg->tracefp);
-  }
   memset (cfgst->cfg, 0, sizeof (*cfgst->cfg));
   ddsrt_avl_free (&cfgst_found_treedef, &cfgst->found, ddsrt_free);
   ddsrt_free (cfgst);

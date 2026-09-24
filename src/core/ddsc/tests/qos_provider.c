@@ -48,6 +48,9 @@
 CU_TheoryDataPoints(ddsc_qos_provider, create) = {
   // The various of sysdef configuration files
   CU_DataPoints(char *,
+    "<!-- only a comment -->",
+    "<?xml version=\"1.0\"?>",
+    "<dds/>",
     DEF(LIB(lib0,PRO(pro0,ENT("",datareader)ENT("",datawriter)
                           ENT("",publisher)ENT("",subscriber)
                           ENT("",domain_participant)ENT("",topic)))),
@@ -85,6 +88,9 @@ CU_TheoryDataPoints(ddsc_qos_provider, create) = {
   ),
   // Expected retcodes
   CU_DataPoints(int32_t,
+    DDS_RETCODE_ERROR,
+    DDS_RETCODE_ERROR,
+    DDS_RETCODE_OK,
     DDS_RETCODE_OK,
     DDS_RETCODE_OK,
     DDS_RETCODE_BAD_PARAMETER,
@@ -1473,5 +1479,20 @@ CU_Test(ddsc_qos_provider, read_sysdef)
   CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   CU_ASSERT_NEQ (provider, NULL);
 
+  dds_delete_qos_provider(provider);
+}
+
+CU_Test(ddsc_qos_provider, base64_short_input)
+{
+  const char *configuration =
+    "<dds><qos_library name=\"L\"><qos_profile name=\"P\">"
+    "<domain_participant_qos><user_data><value>AB</value></user_data>"
+    "</domain_participant_qos></qos_profile></qos_library></dds>";
+  dds_qos_provider_t *provider = NULL;
+
+  const dds_return_t ret = dds_create_qos_provider(configuration, &provider);
+
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_NEQ_FATAL (provider, NULL);
   dds_delete_qos_provider(provider);
 }

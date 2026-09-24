@@ -54,6 +54,7 @@ void gendef_pf_transport_selector (FILE *fp, void *parent, struct cfgelem const 
 void gendef_pf_many_sockets_mode (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_standards_conformance (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_shm_loglevel (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_interface_filtering (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_uint32_array (FILE *out, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_vendorid_list (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 

@@ -20,15 +20,31 @@ The default value is: `any`
 
 
 ### //CycloneDDS/Domain/Compatibility
-Children: [AllowInvalidTryConstruct](#cycloneddsdomaincompatibilityallowinvalidtryconstruct), [AllowRecursiveTypes](#cycloneddsdomaincompatibilityallowrecursivetypes), [AssumeRtiHasPmdEndpoints](#cycloneddsdomaincompatibilityassumertihaspmdendpoints), [ExplicitlyPublishQosSetToDefault](#cycloneddsdomaincompatibilityexplicitlypublishqossettodefault), [IgnoreTypeInformation](#cycloneddsdomaincompatibilityignoretypeinformation), [ManySocketsMode](#cycloneddsdomaincompatibilitymanysocketsmode), [ProtocolVersion](#cycloneddsdomaincompatibilityprotocolversion), [StandardsConformance](#cycloneddsdomaincompatibilitystandardsconformance)
+Children: [AllowInvalidExtensibility](#cycloneddsdomaincompatibilityallowinvalidextensibility), [AllowInvalidTryConstruct](#cycloneddsdomaincompatibilityallowinvalidtryconstruct), [AllowMismatchingTypeId](#cycloneddsdomaincompatibilityallowmismatchingtypeid), [AllowRecursiveTypes](#cycloneddsdomaincompatibilityallowrecursivetypes), [AssumeRtiHasPmdEndpoints](#cycloneddsdomaincompatibilityassumertihaspmdendpoints), [ExplicitlyPublishQosSetToDefault](#cycloneddsdomaincompatibilityexplicitlypublishqossettodefault), [IgnoreTypeInformation](#cycloneddsdomaincompatibilityignoretypeinformation), [ManySocketsMode](#cycloneddsdomaincompatibilitymanysocketsmode), [ProtocolVersion](#cycloneddsdomaincompatibilityprotocolversion), [StandardsConformance](#cycloneddsdomaincompatibilitystandardsconformance)
 
 The Compatibility element allows you to specify various settings related to compatibility with standards and with other DDSI implementations.
+
+
+#### //CycloneDDS/Domain/Compatibility/AllowInvalidExtensibility
+Boolean
+
+Setting option makes the TypeObject validation code accept enum/bitmask types with the extensibility flags all set to 0 and treats it as APPENDABLE instead.
+
+The default value is: `false`
 
 
 #### //CycloneDDS/Domain/Compatibility/AllowInvalidTryConstruct
 Boolean
 
 Setting option makes the TypeObject validation code accept types with the two "try construct" bits both set to 0, which is explicitly noted as an invalid setting in the spec.
+
+The default value is: `false`
+
+
+#### //CycloneDDS/Domain/Compatibility/AllowMismatchingTypeId
+Boolean
+
+Setting option makes the type library accept a type id -> type objects entry even when the id doesn't match the object.
 
 The default value is: `false`
 
@@ -103,7 +119,7 @@ The default value is: `lax`
 
 
 ### //CycloneDDS/Domain/Discovery
-Children: [DSGracePeriod](#cycloneddsdomaindiscoverydsgraceperiod), [DefaultMulticastAddress](#cycloneddsdomaindiscoverydefaultmulticastaddress), [DiscoveredLocatorPruneDelay](#cycloneddsdomaindiscoverydiscoveredlocatorprunedelay), [EnableTopicDiscoveryEndpoints](#cycloneddsdomaindiscoveryenabletopicdiscoveryendpoints), [ExternalDomainId](#cycloneddsdomaindiscoveryexternaldomainid), [InitialLocatorPruneDelay](#cycloneddsdomaindiscoveryinitiallocatorprunedelay), [LeaseDuration](#cycloneddsdomaindiscoveryleaseduration), [MaxAutoParticipantIndex](#cycloneddsdomaindiscoverymaxautoparticipantindex), [ParticipantIndex](#cycloneddsdomaindiscoveryparticipantindex), [Peers](#cycloneddsdomaindiscoverypeers), [Ports](#cycloneddsdomaindiscoveryports), [SPDPInterval](#cycloneddsdomaindiscoveryspdpinterval), [SPDPMulticastAddress](#cycloneddsdomaindiscoveryspdpmulticastaddress), [Tag](#cycloneddsdomaindiscoverytag)
+Children: [DSGracePeriod](#cycloneddsdomaindiscoverydsgraceperiod), [DefaultMulticastAddress](#cycloneddsdomaindiscoverydefaultmulticastaddress), [DiscoveredLocatorPruneDelay](#cycloneddsdomaindiscoverydiscoveredlocatorprunedelay), [EnableTopicDiscoveryEndpoints](#cycloneddsdomaindiscoveryenabletopicdiscoveryendpoints), [ExternalDomainId](#cycloneddsdomaindiscoveryexternaldomainid), [InitialLocatorPruneDelay](#cycloneddsdomaindiscoveryinitiallocatorprunedelay), [InterfaceFiltering](#cycloneddsdomaindiscoveryinterfacefiltering), [LeaseDuration](#cycloneddsdomaindiscoveryleaseduration), [MaxAutoParticipantIndex](#cycloneddsdomaindiscoverymaxautoparticipantindex), [ParticipantIndex](#cycloneddsdomaindiscoveryparticipantindex), [Peers](#cycloneddsdomaindiscoverypeers), [Ports](#cycloneddsdomaindiscoveryports), [SPDPInterval](#cycloneddsdomaindiscoveryspdpinterval), [SPDPMulticastAddress](#cycloneddsdomaindiscoveryspdpmulticastaddress), [Tag](#cycloneddsdomaindiscoverytag)
 
 The Discovery element allows you to specify various parameters related to the discovery of peers.
 
@@ -160,6 +176,22 @@ This element specifies the default time for configured peer locators are initial
 Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
 
 The default value is: `30s`
+
+
+#### //CycloneDDS/Domain/Discovery/InterfaceFiltering
+One of: off, strict, normal
+
+This element decides how strictly the participant discovery filters 
+on reception interface (requires extended packet info to be enabled, see 
+Internal/ExtendedPacketInfo:
+ * off: no filtering
+
+ * normal: only the configured interfaces and loopback
+
+ * strict: only the configured interfaces
+
+
+The default value is: `normal`
 
 
 #### //CycloneDDS/Domain/Discovery/LeaseDuration
@@ -711,9 +743,9 @@ The default value is: `false`
 
 
 #### //CycloneDDS/Domain/General/Transport
-One of: default, udp, udp6, tcp, tcp6, raweth
+Text
 
-This element allows selecting the transport to be used (udp, udp6, tcp, tcp6, raweth)
+This element allows selecting the transport to be used (udp, udp6, tcp, tcp6, raweth, fakeudp). The fakeudp transport is available only when built with ENABLE\_FAKEUDP and uses a built-in deterministic fake network by default. It may also be written as fakeudp:file to load the fake network topology from an XML file, or as fakeudp:real to import the real interface list into the fake network.
 
 The default value is: `default`
 
@@ -1973,7 +2005,9 @@ The Tracing element controls the amount and type of information that is written 
 #### //CycloneDDS/Domain/Tracing/AppendToFile
 Boolean
 
-This option specifies whether the output should be appended to an existing log file. The default is to create a new log file each time, which is generally the best option if a detailed log is generated.
+This option specifies whether existing contents are preserved when this process first opens the output file. The default is to clear the file on first use. Subsequent domains using the same output filename always append, even after all earlier domains have been deleted. The first successful opener determines whether existing contents are preserved when domains specify different values for this option.
+
+Filenames are compared as absolute paths where supported, and otherwise as configured. Filesystem aliases are not detected. This history is retained until the runtime is unloaded or the process exits. This option has no effect on stdout or stderr.
 
 The default value is: `false`
 
@@ -2079,14 +2113,14 @@ While none prevents any message from being written to a DDSI2 log file.
 The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful verbosity levels are config, fine and finest.
 
 The default value is: `none`
-<!--- generated from ddsi_config.h[fa9f0e6c47e2cd035bc7d5a0949caff291f77019] -->
-<!--- generated from ddsi_config.c[2bfa6f856d7398a905922d140943b27328d265f1] -->
-<!--- generated from ddsi__cfgelems.h[b79c157f81518771ebd4ea7ca37a347b73008a9f] -->
+<!--- generated from ddsi_config.h[158c45a21ff482bdf9363c12efc5e5e96d0c9827] -->
+<!--- generated from ddsi_config.c[7966a1299fb24d205f99f242ee09bf48824daadb] -->
+<!--- generated from ddsi__cfgelems.h[3383bfd0af910c73f41bed190f7d377c98cc125c] -->
 <!--- generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] -->
-<!--- generated from _confgen.h[bb9a0fc6ef1f7f7c46790ee00132e340e5fff36d] -->
-<!--- generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] -->
+<!--- generated from _confgen.h[e0b7a072621df43c0e7419d52359ddf4b98b202f] -->
+<!--- generated from _confgen.c[500178f92fc0791a8de2234cea5b277820e6b40b] -->
 <!--- generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] -->
 <!--- generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] -->
 <!--- generated from generate_rst.c[3c4b523fbb57c8e4a7e247379d06a8021ccc21c4] -->
 <!--- generated from generate_xsd.c[9bb91084fff7495aee9c025db3108549a0141957] -->
-<!--- generated from generate_defconfig.c[02afff6935d72b7f04dc64c8a649b09f9f6143ac] -->
+<!--- generated from generate_defconfig.c[ab6586fcd43cc01814507db687575914686943dc] -->

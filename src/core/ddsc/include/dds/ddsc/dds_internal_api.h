@@ -36,7 +36,7 @@ extern "C" {
  * @param[in] topic_desc The source topic descriptor
  *
 */
-DDS_EXPORT void
+DDS_EXPORT dds_return_t
 dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc);
 
 /**

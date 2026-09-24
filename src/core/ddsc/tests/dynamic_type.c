@@ -24,7 +24,9 @@ static dds_entity_t domain = 0, participant = 0;
 
 static void dynamic_type_init(void)
 {
-  domain = dds_create_domain (0, NULL);
+  char *config = test_config_from_env (NULL, 0);
+  domain = dds_create_domain (0, config);
+  ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (domain, 0);
   participant = dds_create_participant (0, NULL, NULL);
   CU_ASSERT_GEQ_FATAL (participant, 0);
@@ -32,7 +34,9 @@ static void dynamic_type_init(void)
 
 static void dynamic_type_no_recursive_init(void)
 {
-  domain = dds_create_domain (0, "<Compatibility><AllowRecursiveTypes>false</AllowRecursiveTypes></Compatibility>");
+  char *config = test_config_from_env ("<Compatibility><AllowRecursiveTypes>false</AllowRecursiveTypes></Compatibility>", 0);
+  domain = dds_create_domain (0, config);
+  ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (domain, 0);
   participant = dds_create_participant (0, NULL, NULL);
   CU_ASSERT_GEQ_FATAL (participant, 0);
@@ -206,6 +210,7 @@ CU_Test (ddsc_dynamic_type, struct_member_id, .init = dynamic_type_init, .fini =
   dds_dynamic_type_set_autoid (&dstruct, DDS_DYNAMIC_TYPE_AUTOID_HASH);
   dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_UINT16, "m1"));
   dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER_ID_PRIM(DDS_DYNAMIC_UINT16, "m2", 123));
+  dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER_ID_PRIM(DDS_DYNAMIC_UINT16, "m2a", 0x0f000000u));
   dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_UINT16, "m3"));
   dds_dynamic_type_add_member (&dstruct, ((dds_dynamic_member_descriptor_t) {
       .type = DDS_DYNAMIC_TYPE_SPEC_PRIM(DDS_DYNAMIC_UINT16),
@@ -215,11 +220,12 @@ CU_Test (ddsc_dynamic_type, struct_member_id, .init = dynamic_type_init, .fini =
   }));
 
   struct ddsi_type *type = get_ddsi_type (&dstruct);
-  CU_ASSERT_EQ_FATAL (type->xt._u.structure.members.length, 4);
+  CU_ASSERT_EQ_FATAL (type->xt._u.structure.members.length, 5);
   CU_ASSERT_EQ_FATAL (type->xt._u.structure.members.seq[0].id, ddsi_dynamic_type_member_hashid ("m0"));
   CU_ASSERT_EQ_FATAL (type->xt._u.structure.members.seq[1].id, ddsi_dynamic_type_member_hashid ("m1"));
   CU_ASSERT_EQ_FATAL (type->xt._u.structure.members.seq[2].id, 123);
-  CU_ASSERT_EQ_FATAL (type->xt._u.structure.members.seq[3].id, ddsi_dynamic_type_member_hashid ("m3"));
+  CU_ASSERT_EQ_FATAL (type->xt._u.structure.members.seq[3].id, 0x0f000000u);
+  CU_ASSERT_EQ_FATAL (type->xt._u.structure.members.seq[4].id, ddsi_dynamic_type_member_hashid ("m3"));
 
   dds_dynamic_type_unref (&dstruct);
 }
@@ -384,15 +390,15 @@ CU_Test (ddsc_dynamic_type, bitmask_field_invalid, .init = dynamic_type_init, .f
 CU_Test (ddsc_dynamic_type, enum_type, .init = dynamic_type_init, .fini = dynamic_type_fini)
 {
   dds_dynamic_type_t denum = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_ENUMERATION, .name = "e" });
-  dds_return_t ret = dds_dynamic_type_set_bit_bound (&denum, 31);
+  dds_return_t ret = dds_dynamic_type_set_bit_bound (&denum, 32);
   CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   dds_dynamic_type_add_enum_literal (&denum, "e_auto0", DDS_DYNAMIC_ENUM_LITERAL_VALUE_AUTO, false);
   dds_dynamic_type_add_enum_literal (&denum, "e_auto1", DDS_DYNAMIC_ENUM_LITERAL_VALUE_AUTO, true);
-  dds_dynamic_type_add_enum_literal (&denum, "e_31", DDS_DYNAMIC_ENUM_LITERAL_VALUE ((1u << 31) - 1), false);
+  dds_dynamic_type_add_enum_literal (&denum, "e_min", DDS_DYNAMIC_ENUM_LITERAL_VALUE (INT32_MIN), false);
   dds_dynamic_type_add_enum_literal (&denum, "e_2", DDS_DYNAMIC_ENUM_LITERAL_VALUE (2), false);
 
   struct ddsi_type *type = get_ddsi_type (&denum);
-  CU_ASSERT_EQ_FATAL (type->xt._u.bitmask.bit_bound, 31);
+  CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.bit_bound, 32);
   CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.length, 4);
 
   CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.seq[0].value, 0);
@@ -401,12 +407,62 @@ CU_Test (ddsc_dynamic_type, enum_type, .init = dynamic_type_init, .fini = dynami
   CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.seq[1].value, 1);
   CU_ASSERT_NEQ_FATAL (type->xt._u.enum_type.literals.seq[1].flags & DDS_XTypes_IS_DEFAULT, 0);
 
-  CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.seq[2].value, (1u << 31) - 1);
+  CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.seq[2].value, INT32_MIN);
   CU_ASSERT_FATAL (!(type->xt._u.enum_type.literals.seq[2].flags & DDS_XTypes_IS_DEFAULT));
 
   CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.seq[3].value, 2);
   CU_ASSERT_FATAL (!(type->xt._u.enum_type.literals.seq[3].flags & DDS_XTypes_IS_DEFAULT));
 
+  dds_dynamic_type_unref (&denum);
+}
+
+CU_Test (ddsc_dynamic_type, enum_literal_auto_after_negative, .init = dynamic_type_init, .fini = dynamic_type_fini)
+{
+  dds_dynamic_type_t denum = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_ENUMERATION, .name = "e" });
+  dds_return_t ret = dds_dynamic_type_set_bit_bound (&denum, 3);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_enum_literal (&denum, "e_min", DDS_DYNAMIC_ENUM_LITERAL_VALUE (-4), false);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_enum_literal (&denum, "e_auto", DDS_DYNAMIC_ENUM_LITERAL_VALUE_AUTO, false);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  struct ddsi_type *type = get_ddsi_type (&denum);
+  CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.length, 2);
+  CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.seq[0].value, -4);
+  CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.seq[1].value, -3);
+
+  dds_dynamic_type_unref (&denum);
+}
+
+CU_Test (ddsc_dynamic_type, enum_bit_bound_one, .init = dynamic_type_init, .fini = dynamic_type_fini)
+{
+  dds_dynamic_type_t denum = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_ENUMERATION, .name = "e" });
+  dds_return_t ret = dds_dynamic_type_set_bit_bound (&denum, 1);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_enum_literal (&denum, "e_neg1", DDS_DYNAMIC_ENUM_LITERAL_VALUE (-1), false);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_enum_literal (&denum, "e_auto0", DDS_DYNAMIC_ENUM_LITERAL_VALUE_AUTO, false);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  struct ddsi_type *type = get_ddsi_type (&denum);
+  CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.bit_bound, 1);
+  CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.length, 2);
+  CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.seq[0].value, -1);
+  CU_ASSERT_EQ_FATAL (type->xt._u.enum_type.literals.seq[1].value, 0);
+  dds_dynamic_type_unref (&denum);
+
+  denum = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_ENUMERATION, .name = "e" });
+  dds_dynamic_type_set_bit_bound (&denum, 1);
+  ret = dds_dynamic_type_add_enum_literal (&denum, "e1", DDS_DYNAMIC_ENUM_LITERAL_VALUE (1), false);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  dds_dynamic_type_unref (&denum);
+
+  denum = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_ENUMERATION, .name = "e" });
+  dds_dynamic_type_set_bit_bound (&denum, 1);
+  ret = dds_dynamic_type_add_enum_literal (&denum, "e_auto0", DDS_DYNAMIC_ENUM_LITERAL_VALUE_AUTO, false);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_enum_literal (&denum, "e_auto1", DDS_DYNAMIC_ENUM_LITERAL_VALUE_AUTO, false);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
   dds_dynamic_type_unref (&denum);
 }
 
@@ -448,6 +504,18 @@ CU_Test (ddsc_dynamic_type, enum_literal_invalid, .init = dynamic_type_init, .fi
   dds_dynamic_type_set_bit_bound (&denum, 2);
   ret = dds_dynamic_type_add_enum_literal (&denum, "e1", DDS_DYNAMIC_ENUM_LITERAL_VALUE (4), false);
   CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  dds_dynamic_type_unref (&denum);
+
+  denum = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_ENUMERATION, .name = "e" });
+  dds_dynamic_type_set_bit_bound (&denum, 2);
+  ret = dds_dynamic_type_add_enum_literal (&denum, "e1", DDS_DYNAMIC_ENUM_LITERAL_VALUE (2), false);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  dds_dynamic_type_unref (&denum);
+
+  denum = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_ENUMERATION, .name = "e" });
+  dds_dynamic_type_set_bit_bound (&denum, 2);
+  ret = dds_dynamic_type_add_enum_literal (&denum, "e_min", DDS_DYNAMIC_ENUM_LITERAL_VALUE (-2), false);
+  CU_ASSERT_EQ (ret, DDS_RETCODE_OK);
   dds_dynamic_type_unref (&denum);
 }
 
@@ -545,9 +613,13 @@ CU_Test (ddsc_dynamic_type, union_member_prop, .init = dynamic_type_init, .fini 
   // Because of the set_hashid, from this point the member has a different id
   ret = dds_dynamic_member_set_external (&dunion, ddsi_dynamic_type_member_hashid ("m2_name"), true);
   CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_member_set_try_construct (&dunion, DDS_DYNAMIC_MEMBER_ID_DISCRIMINATOR, DDS_DYNAMIC_MEMBER_TRY_CONSTRUCT_USE_DEFAULT);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
 
   struct ddsi_type *type = get_ddsi_type (&dunion);
   CU_ASSERT_EQ_FATAL (type->xt._u.union_type.members.length, 3);
+  CU_ASSERT_EQ_FATAL (type->xt._u.union_type.disc_flags & (DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_TRY_CONSTRUCT2), DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT);
+  CU_ASSERT_NEQ_FATAL (type->xt._u.union_type.disc_flags & DDS_XTypes_IS_MUST_UNDERSTAND, 0);
 
   CU_ASSERT_EQ_FATAL (type->xt._u.union_type.members.seq[0].id, ddsi_dynamic_type_member_hashid ("m1"));
   CU_ASSERT_FATAL (!(type->xt._u.union_type.members.seq[0].flags & DDS_XTypes_IS_EXTERNAL));
@@ -561,6 +633,149 @@ CU_Test (ddsc_dynamic_type, union_member_prop, .init = dynamic_type_init, .fini 
   CU_ASSERT_FATAL (!(type->xt._u.union_type.members.seq[2].flags & DDS_XTypes_IS_EXTERNAL));
   CU_ASSERT_NEQ_FATAL (type->xt._u.union_type.members.seq[2].flags & DDS_XTypes_IS_DEFAULT, 0);
 
+  dds_dynamic_type_unref (&dunion);
+
+  dunion = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_UNION,
+    .name = "u_default_label",
+    .discriminator_type = DDS_DYNAMIC_TYPE_SPEC_PRIM(DDS_DYNAMIC_INT32)
+  });
+  ret = dds_dynamic_type_add_member (&dunion,
+      DDS_DYNAMIC_UNION_MEMBER_DEFAULT_LABELS_PRIM(DDS_DYNAMIC_INT32, "md", 2, ((int32_t[]) { 10, 3 })));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&dunion,
+      DDS_DYNAMIC_UNION_MEMBER_PRIM(DDS_DYNAMIC_INT32, "m1", 1, ((int32_t[]) { 1 })));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  type = get_ddsi_type (&dunion);
+  CU_ASSERT_EQ_FATAL (type->xt._u.union_type.members.length, 2);
+  CU_ASSERT_NEQ_FATAL (type->xt._u.union_type.members.seq[0].flags & DDS_XTypes_IS_DEFAULT, 0);
+  CU_ASSERT_EQ_FATAL (type->xt._u.union_type.members.seq[0].label_seq._length, 2);
+  CU_ASSERT_EQ_FATAL (type->xt._u.union_type.members.seq[0].label_seq._buffer[0], 3);
+  CU_ASSERT_EQ_FATAL (type->xt._u.union_type.members.seq[0].label_seq._buffer[1], 10);
+  dds_dynamic_type_unref (&dunion);
+}
+
+CU_Test (ddsc_dynamic_type, union_discriminator_member_id, .init = dynamic_type_init, .fini = dynamic_type_fini)
+{
+  CU_ASSERT_EQ_FATAL (DDS_DYNAMIC_MEMBER_ID_DISCRIMINATOR, DDS_DYNAMIC_MEMBER_ID_AUTO + 1u);
+  CU_ASSERT_FATAL ((DDS_DYNAMIC_MEMBER_ID_DISCRIMINATOR & ~DDSI_DYNAMIC_TYPE_MEMBERID_MASK) != 0);
+
+  dds_dynamic_type_descriptor_t desc = {
+    .kind = DDS_DYNAMIC_UNION,
+    .name = "u",
+    .discriminator_type = DDS_DYNAMIC_TYPE_SPEC_PRIM(DDS_DYNAMIC_INT32)
+  };
+
+  dds_dynamic_type_t dunion = dds_dynamic_type_create (participant, desc);
+  dds_return_t ret = dds_dynamic_member_set_try_construct (&dunion, 0, DDS_DYNAMIC_MEMBER_TRY_CONSTRUCT_USE_DEFAULT);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_member_set_key (&dunion, 0, true);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&dunion,
+      DDS_DYNAMIC_UNION_MEMBER_ID_PRIM(DDS_DYNAMIC_INT32, "m0", 0, 1, ((int32_t[]) { 1 })));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_member_set_try_construct (&dunion, 0, DDS_DYNAMIC_MEMBER_TRY_CONSTRUCT_TRIM);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_member_set_try_construct (&dunion, DDS_DYNAMIC_MEMBER_ID_DISCRIMINATOR, DDS_DYNAMIC_MEMBER_TRY_CONSTRUCT_DISCARD);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_member_set_external (&dunion, 0, true);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_member_set_key (&dunion, DDS_DYNAMIC_MEMBER_ID_DISCRIMINATOR, true);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  struct ddsi_type *type = get_ddsi_type (&dunion);
+  CU_ASSERT_EQ_FATAL (type->xt._u.union_type.disc_flags & (DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_TRY_CONSTRUCT2), DDS_XTypes_TRY_CONSTRUCT_DISCARD);
+  CU_ASSERT_NEQ_FATAL (type->xt._u.union_type.disc_flags & DDS_XTypes_IS_KEY, 0);
+  CU_ASSERT_EQ_FATAL (type->xt._u.union_type.members.seq[0].flags & (DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_TRY_CONSTRUCT2), DDS_XTypes_TRY_CONSTRUCT_TRIM);
+  CU_ASSERT_NEQ_FATAL (type->xt._u.union_type.members.seq[0].flags & DDS_XTypes_IS_EXTERNAL, 0);
+  dds_dynamic_type_unref (&dunion);
+
+  dunion = dds_dynamic_type_create (participant, desc);
+  ret = dds_dynamic_type_add_member (&dunion,
+      DDS_DYNAMIC_UNION_MEMBER_ID_PRIM(DDS_DYNAMIC_INT32, "m0", 0, 1, ((int32_t[]) { 1 })));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_member_set_key (&dunion, 0, true);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  dds_dynamic_type_unref (&dunion);
+
+  dunion = dds_dynamic_type_create (participant, desc);
+  ret = dds_dynamic_member_set_external (&dunion, DDS_DYNAMIC_MEMBER_ID_DISCRIMINATOR, true);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  dds_dynamic_type_unref (&dunion);
+
+  dunion = dds_dynamic_type_create (participant, desc);
+  ret = dds_dynamic_member_set_external (&dunion, 0, true);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  dds_dynamic_type_unref (&dunion);
+
+  dunion = dds_dynamic_type_create (participant, desc);
+  ret = dds_dynamic_type_set_autoid (&dunion, DDS_DYNAMIC_TYPE_AUTOID_HASH);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&dunion,
+      DDS_DYNAMIC_UNION_MEMBER_ID_PRIM(DDS_DYNAMIC_INT32, "m0", 0, 1, ((int32_t[]) { 1 })));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_member_set_hashid (&dunion, 0, "m0_hash");
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  type = get_ddsi_type (&dunion);
+  CU_ASSERT_EQ_FATAL (type->xt._u.union_type.members.seq[0].id, ddsi_dynamic_type_member_hashid ("m0_hash"));
+  dds_dynamic_type_unref (&dunion);
+
+  dunion = dds_dynamic_type_create (participant, desc);
+  ret = dds_dynamic_type_set_autoid (&dunion, DDS_DYNAMIC_TYPE_AUTOID_HASH);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_member_set_hashid (&dunion, DDS_DYNAMIC_MEMBER_ID_AUTO, "m0_hash");
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  dds_dynamic_type_unref (&dunion);
+
+  dunion = dds_dynamic_type_create (participant, desc);
+  ret = dds_dynamic_member_set_try_construct (&dunion, DDS_DYNAMIC_MEMBER_ID_AUTO, DDS_DYNAMIC_MEMBER_TRY_CONSTRUCT_DISCARD);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  dds_dynamic_type_unref (&dunion);
+}
+
+CU_Test (ddsc_dynamic_type, union_member_id_zero, .init = dynamic_type_init, .fini = dynamic_type_fini)
+{
+  dds_dynamic_type_descriptor_t desc = {
+    .kind = DDS_DYNAMIC_UNION,
+    .name = "u",
+    .discriminator_type = DDS_DYNAMIC_TYPE_SPEC_PRIM(DDS_DYNAMIC_INT32)
+  };
+
+  dds_dynamic_type_t dunion = dds_dynamic_type_create (participant, desc);
+  dds_return_t ret = dds_dynamic_type_add_member (&dunion,
+      DDS_DYNAMIC_UNION_MEMBER_PRIM(DDS_DYNAMIC_INT32, "m1", 1, ((int32_t[]) { 1 })));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&dunion,
+      DDS_DYNAMIC_UNION_MEMBER_PRIM(DDS_DYNAMIC_INT32, "m2", 1, ((int32_t[]) { 2 })));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  struct ddsi_type *type = get_ddsi_type (&dunion);
+  CU_ASSERT_EQ_FATAL (type->xt._u.union_type.members.length, 2);
+  CU_ASSERT_EQ_FATAL (type->xt._u.union_type.members.seq[0].id, 1);
+  CU_ASSERT_EQ_FATAL (type->xt._u.union_type.members.seq[1].id, 2);
+  dds_dynamic_type_unref (&dunion);
+
+  dunion = dds_dynamic_type_create (participant, desc);
+  ret = dds_dynamic_type_add_member (&dunion,
+      DDS_DYNAMIC_UNION_MEMBER_ID_PRIM(DDS_DYNAMIC_INT32, "m1", 0, 1, ((int32_t[]) { 1 })));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  dds_dynamic_type_unref (&dunion);
+
+  dunion = dds_dynamic_type_create (participant, desc);
+  ret = dds_dynamic_type_add_member (&dunion,
+      DDS_DYNAMIC_UNION_MEMBER_ID_PRIM(DDS_DYNAMIC_INT32, "m1", 0x0f000000u, 1, ((int32_t[]) { 1 })));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  type = get_ddsi_type (&dunion);
+  CU_ASSERT_EQ_FATAL (type->xt._u.union_type.members.length, 1);
+  CU_ASSERT_EQ_FATAL (type->xt._u.union_type.members.seq[0].id, 0x0f000000u);
+  dds_dynamic_type_unref (&dunion);
+
+  dunion = dds_dynamic_type_create (participant, desc);
+  ret = dds_dynamic_type_set_extensibility (&dunion, DDS_DYNAMIC_TYPE_EXT_MUTABLE);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&dunion,
+      DDS_DYNAMIC_UNION_MEMBER_ID_PRIM(DDS_DYNAMIC_INT32, "m1", 0, 1, ((int32_t[]) { 1 })));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
   dds_dynamic_type_unref (&dunion);
 }
 
@@ -594,6 +809,33 @@ CU_Test (ddsc_dynamic_type, union_member_prop_invalid, .init = dynamic_type_init
   dunion = dds_dynamic_type_create (participant, desc);
   dds_dynamic_type_add_member (&dunion, DDS_DYNAMIC_UNION_MEMBER_DEFAULT_PRIM(DDS_DYNAMIC_INT32, "m1"));
   ret = dds_dynamic_type_add_member (&dunion, DDS_DYNAMIC_UNION_MEMBER_DEFAULT_PRIM(DDS_DYNAMIC_INT32, "m2"));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  dds_dynamic_type_unref (&dunion);
+
+  // Default member with explicit labels requires a labels array
+  dunion = dds_dynamic_type_create (participant, desc);
+  ret = dds_dynamic_type_add_member (&dunion, (dds_dynamic_member_descriptor_t) {
+    .name = "m1",
+    .type = DDS_DYNAMIC_TYPE_SPEC_PRIM(DDS_DYNAMIC_INT32),
+    .default_label = true,
+    .num_labels = 1
+  });
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  dds_dynamic_type_unref (&dunion);
+
+  // Re-used label on default member
+  dunion = dds_dynamic_type_create (participant, desc);
+  ret = dds_dynamic_type_add_member (&dunion,
+      DDS_DYNAMIC_UNION_MEMBER_DEFAULT_LABELS_PRIM(DDS_DYNAMIC_INT32, "m1", 1, ((int32_t[]) { 1 })));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_dynamic_type_add_member (&dunion, DDS_DYNAMIC_UNION_MEMBER_PRIM(DDS_DYNAMIC_INT32, "m2", 1, ((int32_t[]) { 1 })));
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  dds_dynamic_type_unref (&dunion);
+
+  // Duplicate labels within one member
+  dunion = dds_dynamic_type_create (participant, desc);
+  ret = dds_dynamic_type_add_member (&dunion,
+      DDS_DYNAMIC_UNION_MEMBER_DEFAULT_LABELS_PRIM(DDS_DYNAMIC_INT32, "m1", 2, ((int32_t[]) { 1, 1 })));
   CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
   dds_dynamic_type_unref (&dunion);
 
@@ -678,7 +920,9 @@ CU_Test (ddsc_dynamic_type, existing, .init = dynamic_type_init, .fini = dynamic
   create_unique_topic_name ("ddsc_dynamic_type", topic_name, sizeof (topic_name));
 
   // Create participant2 with writer
-  dds_entity_t domain2 = dds_create_domain (1, "<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>");
+  char *config = test_config_from_env ("<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>", 1);
+  dds_entity_t domain2 = dds_create_domain (1, config);
+  ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (domain2, 0);
   dds_entity_t participant2 = dds_create_participant (1, NULL, NULL);
   CU_ASSERT_GEQ_FATAL (participant2, 0);
@@ -879,7 +1123,9 @@ CU_Test (ddsc_dynamic_type, recursive_struct_disabled_nested_cycle, .init = dyna
 
 static void recursive_import_expect (const ddsi_typeinfo_t *type_info, const ddsi_typemap_t *type_map, dds_domainid_t domainid, dds_return_t expected)
 {
-  dds_entity_t import_domain = dds_create_domain (domainid, NULL);
+  char *config = test_config_from_env (NULL, domainid);
+  dds_entity_t import_domain = dds_create_domain (domainid, config);
+  ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (import_domain, 0);
   dds_entity_t import_participant = dds_create_participant (domainid, NULL, NULL);
   CU_ASSERT_GEQ_FATAL (import_participant, 0);
@@ -1046,7 +1292,9 @@ CU_Test (ddsc_dynamic_type, recursive_struct, .init = dynamic_type_init, .fini =
   ddsi_typemap_t *type_map = ddsi_typemap_deser (typemap_ser, typemap_ser_sz);
   CU_ASSERT_NEQ_FATAL (type_map, NULL);
 
-  dds_entity_t import_domain = dds_create_domain (1, NULL);
+  char *config = test_config_from_env (NULL, 1);
+  dds_entity_t import_domain = dds_create_domain (1, config);
+  ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (import_domain, 0);
   dds_entity_t import_participant = dds_create_participant (1, NULL, NULL);
   CU_ASSERT_GEQ_FATAL (import_participant, 0);

@@ -34,6 +34,8 @@ static bool sertype_default_equal (const struct ddsi_sertype *acmn, const struct
   const struct dds_sertype_default *b = (struct dds_sertype_default *) bcmn;
   if (a->encoding_format != b->encoding_format)
     return false;
+  if (a->normalize_flags != b->normalize_flags)
+    return false;
   if (a->type.size != b->type.size)
     return false;
   if (a->type.align != b->type.align)
@@ -129,6 +131,7 @@ static uint32_t sertype_default_hash (const struct ddsi_sertype *tpcmn)
   ddsrt_md5_init (&md5st);
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) tp->c.type_name, (uint32_t) strlen (tp->c.type_name));
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &tp->encoding_format, sizeof (tp->encoding_format));
+  ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &tp->normalize_flags, sizeof (tp->normalize_flags));
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &tp->type.size, sizeof (tp->type.size));
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &tp->type.align, sizeof (tp->type.align));
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &tp->type.flagset, sizeof (tp->type.flagset));
@@ -147,9 +150,9 @@ static void sertype_default_free (struct ddsi_sertype *tpcmn)
   struct dds_sertype_default *tp = (struct dds_sertype_default *) tpcmn;
   dds_cdrstream_desc_fini (&tp->type, &dds_cdrstream_default_allocator);
   if (tp->typeinfo_ser.data != NULL)
-    dds_free (tp->typeinfo_ser.data);
+    ddsrt_free (tp->typeinfo_ser.data);
   if (tp->typemap_ser.data != NULL)
-    dds_free (tp->typemap_ser.data);
+    ddsrt_free (tp->typemap_ser.data);
   ddsi_sertype_fini (&tp->c);
   ddsrt_free (tp);
 }
@@ -216,11 +219,10 @@ static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_s
   const struct dds_sertype_default *base_sertype_default = (const struct dds_sertype_default *) base_sertype;
   struct dds_sertype_default *derived_sertype = NULL;
   const struct ddsi_serdata_ops *required_ops;
+  const uint32_t required_normalize_flags = tce_qos.prevent_type_widening
+    ? DDS_STREAM_NORMALIZE_FLAG_PREVENT_TYPE_WIDENING : DDS_STREAM_NORMALIZE_FLAG_NONE;
 
   assert (base_sertype);
-
-  // FIXME: implement using options from the type consistency enforcement qos policy in (de)serializer
-  (void) tce_qos;
 
   if (data_representation == DDS_DATA_REPRESENTATION_XCDR1)
     required_ops = base_sertype->has_key ? &dds_serdata_ops_cdr : &dds_serdata_ops_cdr_nokey;
@@ -229,7 +231,8 @@ static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_s
   else
     abort ();
 
-  if (base_sertype->serdata_ops == required_ops)
+  if (base_sertype->serdata_ops == required_ops &&
+      base_sertype_default->normalize_flags == required_normalize_flags)
     derived_sertype = (struct dds_sertype_default *) base_sertype_default;
   else
   {
@@ -238,6 +241,7 @@ static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_s
     ddsrt_atomic_st32 (&derived_sertype->c.flags_refc, refc & ~DDSI_SERTYPE_REFC_MASK);
     derived_sertype->c.base_sertype = ddsi_sertype_ref (base_sertype);
     derived_sertype->c.serdata_ops = required_ops;
+    derived_sertype->normalize_flags = required_normalize_flags;
     derived_sertype->xcdr_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? DDSI_RTPS_CDR_ENC_VERSION_1 : DDSI_RTPS_CDR_ENC_VERSION_2;
   }
 
@@ -296,7 +300,7 @@ const struct ddsi_sertype_ops dds_sertype_ops_default = {
   .serialize_into = sertype_default_serialize_into
 };
 
-dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct dds_sertype_default *st, const dds_topic_descriptor_t *desc, enum dds_cdr_enc_version min_xcdrv, dds_data_representation_id_t data_representation)
+dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct dds_sertype_default *st, const dds_topic_descriptor_t *desc, dds_data_representation_id_t data_representation)
 {
   const struct ddsi_domaingv *gv = &domain->gv;
   const struct ddsi_serdata_ops *serdata_ops;
@@ -322,24 +326,20 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
 
   uint32_t allowed_data_representation = desc->m_flagset & DDS_TOPIC_RESTRICT_DATA_REPRESENTATION ?
       desc->restrict_data_representation : DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT;
-  if (min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
-    allowed_data_representation &= ~DDS_DATA_REPRESENTATION_FLAG_XCDR1;
+  const uint32_t supported_data_representations = dds_stream_supported_data_representations (desc->m_ops);
+  allowed_data_representation &= supported_data_representations;
+
+  dds_return_t ret = dds_cdrstream_desc_init_with_nops (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_nops, desc->m_keys, desc->m_nkeys);
+  if (ret != DDS_RETCODE_OK)
+    return ret;
 
   ddsi_sertype_init_props (&st->c, desc->m_typename, &dds_sertype_ops_default, serdata_ops, desc->m_size, dds_stream_data_types (desc->m_ops), allowed_data_representation, 0);
   st->encoding_format = ddsi_sertype_extensibility_enc_format (type_ext);
   /* Store the encoding version used for writing data using this sertype. When reading data,
      the encoding version from the encapsulation header in the CDR is used */
   st->xcdr_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? DDSI_RTPS_CDR_ENC_VERSION_1 : DDSI_RTPS_CDR_ENC_VERSION_2;
+  st->normalize_flags = DDS_STREAM_NORMALIZE_FLAG_NONE;
   st->serpool = domain->serpool;
-
-  dds_cdrstream_desc_init_with_nops (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_nops, desc->m_keys, desc->m_nkeys);
-
-  if (min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2 && dds_stream_type_nesting_depth (desc->m_ops) > DDS_CDRSTREAM_MAX_NESTING_DEPTH)
-  {
-    ddsi_sertype_unref (&st->c);
-    GVTRACE ("Serializer ops for type %s has unsupported nesting depth (max %u)\n", desc->m_typename, DDS_CDRSTREAM_MAX_NESTING_DEPTH);
-    return DDS_RETCODE_BAD_PARAMETER;
-  }
 
   if (desc->m_flagset & DDS_TOPIC_XTYPES_METADATA)
   {

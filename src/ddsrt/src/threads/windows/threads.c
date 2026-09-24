@@ -389,11 +389,11 @@ ddsrt_thread_setname(
   if (SetThreadDescription_ptr != SetThreadDescription_dummy)
   {
     size_t size = strlen (name) + 1;
-    wchar_t *wname = malloc (size * sizeof (*wname));
+    wchar_t *wname = ddsrt_malloc (size * sizeof (*wname));
     size_t cnt = 0;
     mbstowcs_s (&cnt, wname, size, name, _TRUNCATE);
     SetThreadDescription_ptr (GetCurrentThread (), wname);
-    free (wname);
+    ddsrt_free (wname);
   }
 #ifndef __MINGW32__
   else

@@ -13,6 +13,12 @@
 #include "dds/ddsrt/threads.h"
 #include "CUnit/Theory.h"
 
+#if (defined (__unix__) || defined (__APPLE__)) && !LWIP_SOCKET
+#define DDSRT_TEST_HAVE_SOCKETPAIR 1
+#else
+#define DDSRT_TEST_HAVE_SOCKETPAIR 0
+#endif
+
 CU_Init(ddsrt_select)
 {
   ddsrt_init();
@@ -117,6 +123,13 @@ sockets_pipe(ddsrt_socket_t socks[2])
 {
   dds_return_t rc;
   ddsrt_socket_t sock;
+
+#if DDSRT_TEST_HAVE_SOCKETPAIR
+  fprintf (stderr, "sockets_pipe ... socketpair\n");
+  CU_ASSERT_NEQ_FATAL (socks, NULL);
+  CU_ASSERT_EQ_FATAL (socketpair (AF_UNIX, SOCK_STREAM, 0, socks), 0);
+  return;
+#endif
 
   socklen_t addrlen;
   struct sockaddr_in addr;

@@ -12,6 +12,7 @@
 
 set(_sources
   test_alias.idl
+  test_typedef_free.idl
   test_basic.idl
   test_union.idl
   test_typedef_member.idl
@@ -36,12 +37,12 @@ set(_sources
   test_key_seq.idl
 )
 
-set(_includes "${_includes}\\;${CMAKE_SOURCE_DIR}/src/core/cdr/include")
-set(_includes "${_includes}\\;${CMAKE_SOURCE_DIR}/src/core/ddsc/include")
-set(_includes "${_includes}\\;${CMAKE_SOURCE_DIR}/src/core/ddsi/include")
-set(_includes "${_includes}\\;${CMAKE_SOURCE_DIR}/src/ddsrt/include")
-set(_includes "${_includes}\\;${CMAKE_BINARY_DIR}/src/ddsrt/include")
-set(_includes "${_includes}\\;${CMAKE_BINARY_DIR}/src/core/include")
+set(_includes "${_includes}\\;${CMAKE_CURRENT_SOURCE_DIR}/../../../core/cdr/include")
+set(_includes "${_includes}\\;${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsc/include")
+set(_includes "${_includes}\\;${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsi/include")
+set(_includes "${_includes}\\;${CMAKE_CURRENT_SOURCE_DIR}/../../../ddsrt/include")
+set(_includes "${_includes}\\;${CMAKE_CURRENT_BINARY_DIR}/../../../ddsrt/include")
+set(_includes "${_includes}\\;${CMAKE_CURRENT_BINARY_DIR}/../../../core/ddsc/include")
 set(_includes "${_includes}\\;${CMAKE_CURRENT_SOURCE_DIR}")
 
 set(CMAKE_VERBOSE_MAKEFILE ON)

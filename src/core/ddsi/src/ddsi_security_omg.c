@@ -882,10 +882,9 @@ static bool pp_expired_by_perm (const struct ddsi_participant * pp, DDS_Security
 static bool proxypp_expired_by_perm (const struct ddsi_proxy_participant * proxypp, DDS_Security_Handle handle)
 {
   bool result = false;
-  uint32_t i = 0;
   ddsrt_avl_iter_t it;
   ddsrt_mutex_lock (&proxypp->sec_attr->lock);
-  for (struct ddsi_proxypp_pp_match *ppm = ddsrt_avl_iter_first (&proxypp_pp_treedef, &proxypp->sec_attr->participants, &it); ppm; ppm = ddsrt_avl_iter_next (&it), i++)
+  for (struct ddsi_proxypp_pp_match *ppm = ddsrt_avl_iter_first (&proxypp_pp_treedef, &proxypp->sec_attr->participants, &it); ppm; ppm = ddsrt_avl_iter_next (&it))
   {
     if (ppm->permissions_handle == handle)
     {
@@ -3677,9 +3676,11 @@ bool ddsi_security_decode_sec_prefix (const struct ddsi_receiver_state *rst, uns
   return result;
 }
 
-static ddsi_rtps_msg_state_t check_rtps_message_is_secure (struct ddsi_domaingv *gv, ddsi_rtps_header_t *hdr, const unsigned char *buff, bool isstream, struct ddsi_proxy_participant **proxypp)
+static ddsi_rtps_msg_state_t check_rtps_message_is_secure (struct ddsi_domaingv *gv, ddsi_rtps_header_t *hdr, const unsigned char *buff, size_t sz, bool isstream, struct ddsi_proxy_participant **proxypp)
 {
   const uint32_t offset = DDSI_RTPS_MESSAGE_HEADER_SIZE + (isstream ? sizeof (ddsi_rtps_msg_len_t) : 0);
+  if (sz < offset + DDSI_RTPS_SUBMESSAGE_HEADER_SIZE)
+    return DDSI_RTPS_MSG_STATE_PLAIN;
   const ddsi_rtps_submessage_header_t *submsg = (const ddsi_rtps_submessage_header_t *) (buff + offset);
   if (submsg->submessageId != DDSI_RTPS_SMID_SRTPS_PREFIX)
     return DDSI_RTPS_MSG_STATE_PLAIN;
@@ -3773,7 +3774,7 @@ ddsi_security_decode_rtps_message (
   struct ddsi_proxy_participant *proxypp;
   ddsi_rtps_msg_state_t ret;
   ddsi_thread_state_awake_fixed_domain (thrst);
-  ret = check_rtps_message_is_secure (gv, *hdr, *buff, isstream, &proxypp);
+  ret = check_rtps_message_is_secure (gv, *hdr, *buff, *sz, isstream, &proxypp);
   if (ret == DDSI_RTPS_MSG_STATE_ENCODED)
     ret = decode_rtps_message_awake (rmsg, hdr, buff, sz, rbpool, isstream, proxypp);
   ddsi_thread_state_asleep (thrst);

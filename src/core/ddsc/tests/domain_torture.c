@@ -18,6 +18,7 @@
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/time.h"
+#include "test_util.h"
 
 
 #define N_THREADS (10)
@@ -81,28 +82,13 @@ static void participant_creation_torture(void)
 }
 
 
-/*
- * There are some issues when completely init/deinit the
- * library in a torturing way. We really just want to
- * check the domain creation/deletion. So, disable this
- * test for now.
- */
-CU_Test (ddsc_domain, torture_implicit, .disabled=true)
-{
-  /* No explicit domain creation, just start creating and
-   * deleting participants (that'll create and delete the
-   * domain implicitly) in a torturing manner. */
-  participant_creation_torture();
-}
-
-
 CU_Test (ddsc_domain, torture_explicit)
 {
   dds_return_t rc;
   dds_entity_t domain;
 
   /* Create domain explicitly. */
-  domain = dds_create_domain(1, "");
+  domain = test_create_domain_from_env (1, "");
   CU_ASSERT_GT_FATAL (domain, 0);
 
   /* Start creating and deleting participants on the

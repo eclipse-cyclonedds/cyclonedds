@@ -110,7 +110,7 @@ endif()
 ##
 ## Create a temporary script that runs the RTX64 StampTool on the target file.
 ##
-set(STAMPTOOL_WRAPPER "${CMAKE_BINARY_DIR}/run_stamptool.bat")
+set(STAMPTOOL_WRAPPER "${CMAKE_CURRENT_BINARY_DIR}/run_stamptool.bat")
 file(WRITE "${STAMPTOOL_WRAPPER}" 
 "@echo off
 \"%RTX64Common%\\bin\\StampTool.exe\" %*

@@ -11,6 +11,7 @@
 #ifndef _TEST_UTIL_H_
 #define _TEST_UTIL_H_
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -28,6 +29,19 @@ void no_sync_reader_writer (dds_entity_t participant_rd, dds_entity_t reader, dd
 /* Print message preceded by time stamp */
 void tprintf (const char *msg, ...)
   ddsrt_attribute_format_printf (1, 2);
+
+/* Combine the inherited test URI with a per-test configuration fragment. */
+char *test_config_from_env (const char *config, dds_domainid_t domain_id);
+dds_entity_t test_create_domain_from_env (dds_domainid_t domain_id, const char *config);
+bool test_config_inherits_fakeudp (void);
+
+struct test_saved_envvar {
+  const char *name;
+  char *value;
+};
+
+dds_return_t test_save_envvar (struct test_saved_envvar *saved, const char *name);
+dds_return_t test_restore_envvar (struct test_saved_envvar *saved);
 
 /* Get gv from the provided entity */
 struct ddsi_domaingv *get_domaingv (dds_entity_t handle);

@@ -306,6 +306,12 @@ static struct debmon_entities create_entities (dds_domainid_t domainid, const ch
 
 CU_Test (ddsc_debmon, smell)
 {
+  if (test_config_inherits_fakeudp ())
+  {
+    CU_PASS ("debug monitor uses a host TCP listener, not fakeudp");
+    return;
+  }
+
   char topic_name[100];
   create_unique_topic_name ("ddsc_debmon_smell", topic_name, sizeof (topic_name));
 

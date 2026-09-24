@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_serdata.h"
@@ -31,7 +32,7 @@ static void free_sample (void *s)
 static void init_desc (struct dds_cdrstream_desc *cdrstream_desc)
 {
   memset (cdrstream_desc, 0, sizeof (*cdrstream_desc));
-  dds_cdrstream_desc_init_with_nops (cdrstream_desc, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_nops, desc->m_keys, desc->m_nkeys);
+  assert (dds_cdrstream_desc_init_with_nops (cdrstream_desc, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_nops, desc->m_keys, desc->m_nkeys) == DDS_RETCODE_OK);
 }
 
 static void print_raw_cdr (dds_ostream_t *os)
@@ -81,10 +82,20 @@ int main(int argc, char **argv)
   init_desc (&cdrstream_desc);
 
   enum byte_order { LE, BE } test_bo[2] = { LE, BE };
-  uint16_t min_xcdrv = dds_stream_minimum_xcdr_version (cdrstream_desc.ops.ops);
-
-  for (uint32_t xcdrv = min_xcdrv; xcdrv <= DDSI_RTPS_CDR_ENC_VERSION_2; xcdrv++)
+  const uint32_t supported_representations = dds_stream_supported_data_representations (cdrstream_desc.ops.ops);
+  if (supported_representations == 0)
   {
+    printf("type supports no data representations\n");
+    dds_cdrstream_desc_fini (&cdrstream_desc, &dds_cdrstream_default_allocator);
+    return 1;
+  }
+
+  for (uint32_t xcdrv = DDSI_RTPS_CDR_ENC_VERSION_1; xcdrv <= DDSI_RTPS_CDR_ENC_VERSION_2; xcdrv++)
+  {
+    const uint32_t representation_flag = (xcdrv == DDSI_RTPS_CDR_ENC_VERSION_1) ? DDS_DATA_REPRESENTATION_FLAG_XCDR1 : DDS_DATA_REPRESENTATION_FLAG_XCDR2;
+    if (!(supported_representations & representation_flag))
+      continue;
+
     for (size_t b = 0; b < sizeof (test_bo) / sizeof (test_bo[0]); b++)
     {
       enum byte_order bo = test_bo[b];

@@ -429,21 +429,45 @@ static struct cfgelem general_cfgelems[] = {
     DESCRIPTION("<p>Deprecated (use Transport instead)</p>"),
     VALUES("false","true","default")),
 #ifdef DDS_HAS_TCP
-  ENUM("Transport", NULL, 1, "default",
+#ifdef DDS_HAS_FAKEUDP
+  STRING("Transport", NULL, 1, "default",
     MEMBER(transport_selector),
     FUNCTIONS(0, uf_transport_selector, 0, pf_transport_selector),
     DESCRIPTION(
       "<p>This element allows selecting the transport to be used (udp, udp6, "
-      "tcp, tcp6, raweth)</p>"),
-    VALUES("default","udp","udp6","tcp","tcp6","raweth")),
+      "tcp, tcp6, raweth, fakeudp). The fakeudp transport is available only "
+      "when built with ENABLE_FAKEUDP and uses a built-in deterministic fake "
+      "network by default. It may also be written as fakeudp:<i>file</i> to "
+      "load the fake network topology from an XML file, or as fakeudp:real to "
+      "import the real interface list into the fake network.</p>")),
 #else
-  ENUM("Transport", NULL, 1, "default",
+  STRING("Transport", NULL, 1, "default",
     MEMBER(transport_selector),
     FUNCTIONS(0, uf_transport_selector, 0, pf_transport_selector),
     DESCRIPTION(
       "<p>This element allows selecting the transport to be used (udp, udp6, "
-      "raweth)</p>"),
-    VALUES("default","udp","udp6","raweth")),
+      "tcp, tcp6, raweth).</p>")),
+#endif
+#else
+#ifdef DDS_HAS_FAKEUDP
+  STRING("Transport", NULL, 1, "default",
+    MEMBER(transport_selector),
+    FUNCTIONS(0, uf_transport_selector, 0, pf_transport_selector),
+    DESCRIPTION(
+      "<p>This element allows selecting the transport to be used (udp, udp6, "
+      "raweth, fakeudp). The fakeudp transport is available only when built "
+      "with ENABLE_FAKEUDP and uses a built-in deterministic fake network by "
+      "default. It may also be written as fakeudp:<i>file</i> to load the fake "
+      "network topology from an XML file, or as fakeudp:real to import the "
+      "real interface list into the fake network.</p>")),
+#else
+  STRING("Transport", NULL, 1, "default",
+    MEMBER(transport_selector),
+    FUNCTIONS(0, uf_transport_selector, 0, pf_transport_selector),
+    DESCRIPTION(
+      "<p>This element allows selecting the transport to be used (udp, udp6, "
+      "raweth).</p>")),
+#endif
 #endif
   BOOL("EnableMulticastLoopback", NULL, 1, "true",
     MEMBER(enableMulticastLoopback),
@@ -1121,6 +1145,21 @@ static struct cfgelem compatibility_cfgelems[] = {
       "<p>Setting option makes the TypeObject validation code accept types with "
       "the two \"try construct\" bits both set to 0, which is explicitly noted "
       "as an invalid setting in the spec.</p>"
+    )),
+  BOOL("AllowInvalidExtensibility", NULL, 1, "false",
+    MEMBER(allow_invalid_extensibility),
+    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
+    DESCRIPTION(
+      "<p>Setting option makes the TypeObject validation code accept enum/bitmask "
+      "types with the extensibility flags all set to 0 and treats it as APPENDABLE "
+      "instead.</p>"
+    )),
+  BOOL("AllowMismatchingTypeId", NULL, 1, "false",
+    MEMBER(allow_mismatching_typeid),
+    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
+    DESCRIPTION(
+      "<p>Setting option makes the type library accept a type id -> type objects "
+      "entry even when the id doesn't match the object.</p>"
     )),
   BOOL("AllowRecursiveTypes", NULL, 1, "true",
     MEMBER(allow_recursive_types),
@@ -2192,6 +2231,17 @@ static struct cfgelem discovery_cfgelems[] = {
     DESCRIPTION(
       "<p>This setting controls the default participant lease duration.<p>"),
     UNIT("duration")),
+  ENUM("InterfaceFiltering", NULL, 1, "normal",
+    MEMBER(interface_filtering),
+    FUNCTIONS(0, uf_interface_filtering, 0, pf_interface_filtering),
+    DESCRIPTION(
+      "<p>This element decides how strictly the participant discovery filters \n"
+      "on reception interface (requires extended packet info to be enabled, see \n"
+      "Internal/ExtendedPacketInfo:</p>\n"
+      "<ul><li><i>off</i>: no filtering</li>\n"
+      "<li><i>normal</i>: only the configured interfaces and loopback</li>\n"
+      "<li><i>strict</i>: only the configured interfaces</li></ul>\n"),
+    VALUES("off","strict","normal")),
   END_MARKER
 };
 
@@ -2283,9 +2333,16 @@ static struct cfgelem tracing_cfgelems[] = {
     MEMBER(tracingAppendToFile),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
     DESCRIPTION(
-      "<p>This option specifies whether the output should be appended to an "
-      "existing log file. The default is to create a new log file each time, "
-      "which is generally the best option if a detailed log is generated.</p>"
+      "<p>This option specifies whether existing contents are preserved when "
+      "this process first opens the output file. The default is to clear the "
+      "file on first use. Subsequent domains using the same output filename "
+      "always append, even after all earlier domains have been deleted. The "
+      "first successful opener determines whether existing contents are "
+      "preserved when domains specify different values for this option.</p>"
+      "<p>Filenames are compared as absolute paths where supported, and "
+      "otherwise as configured. Filesystem aliases are not detected. This "
+      "history is retained until the runtime is unloaded or the process "
+      "exits. This option has no effect on stdout or stderr.</p>"
     )),
   STRING("PacketCaptureFile", NULL, 1, "",
     MEMBER(pcap_file),

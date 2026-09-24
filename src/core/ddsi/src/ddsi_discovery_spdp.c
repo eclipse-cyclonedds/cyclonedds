@@ -106,7 +106,7 @@ void ddsi_get_participant_builtin_topic_data (const struct ddsi_participant *pp,
     struct locators_builder meta_uni = locators_builder_init (&dst->metatraffic_unicast_locators, locs->meta_uni, MAX_XMIT_CONNS);
     for (int i = 0; i < gv->n_interfaces; i++)
     {
-      if (!gv->xmit_conns[i]->m_factory->m_enable_spdp)
+      if (!gv->xmit_conns_meta[i]->m_factory->m_enable_spdp)
         continue;
 
 #ifndef NDEBUG
@@ -367,7 +367,7 @@ static enum find_internal_interface_index_result find_internal_interface_index (
 
 static enum find_internal_interface_index_result find_internal_interface_index (const struct ddsi_domaingv *gv, uint32_t nwstack_if_index, int *internal_if_index)
 {
-  if (nwstack_if_index == 0)
+  if (nwstack_if_index == 0 || gv->config.interface_filtering == DDSI_INTERFACE_FILTERING_OFF)
     return FIIIR_NO_INFO;
   for (int i = 0; i < gv->n_interfaces; i++)
   {
@@ -376,6 +376,12 @@ static enum find_internal_interface_index_result find_internal_interface_index (
       *internal_if_index = i;
       return FIIIR_MATCH;
     }
+  }
+  if (gv->config.interface_filtering == DDSI_INTERFACE_FILTERING_NORMAL &&
+      nwstack_if_index == gv->loopback_if_index)
+  {
+    // not matched against one of ours, but we accept it nonetheless */
+    return FIIIR_NO_INFO;
   }
   return FIIIR_NO_MATCH;
 }
@@ -510,7 +516,7 @@ static bool get_locators (const struct ddsi_receiver_state *rst, const ddsi_plis
     uc = &emptyset; // force use of source locator
   allow_srcloc = (uc == &emptyset) && !ddsi_is_unspec_locator (&rst->pktinfo.src);
   ddsi_interface_set_init (&inherited_intfs);
-  *as_default = ddsi_addrset_from_locatorlists (gv, uc, mc, &rst->pktinfo, allow_srcloc, &inherited_intfs);
+  *as_default = ddsi_addrset_from_locatorlists (gv, gv->xmit_conns_data, uc, mc, &rst->pktinfo, allow_srcloc, &inherited_intfs);
 
   uc = (datap->present & PP_METATRAFFIC_UNICAST_LOCATOR) ? &datap->metatraffic_unicast_locators : &emptyset;
   mc = (datap->present & PP_METATRAFFIC_MULTICAST_LOCATOR) ? &datap->metatraffic_multicast_locators : &emptyset;
@@ -518,7 +524,7 @@ static bool get_locators (const struct ddsi_receiver_state *rst, const ddsi_plis
     uc = &emptyset; // force use of source locator
   allow_srcloc = (uc == &emptyset) && !ddsi_is_unspec_locator (&rst->pktinfo.src);
   ddsi_interface_set_init (&inherited_intfs);
-  *as_meta = ddsi_addrset_from_locatorlists (gv, uc, mc, &rst->pktinfo, allow_srcloc, &inherited_intfs);
+  *as_meta = ddsi_addrset_from_locatorlists (gv, gv->xmit_conns_meta, uc, mc, &rst->pktinfo, allow_srcloc, &inherited_intfs);
 
   ddsi_log_addrset (gv, DDS_LC_DISCOVERY, " (data", *as_default);
   ddsi_log_addrset (gv, DDS_LC_DISCOVERY, " meta", *as_meta);

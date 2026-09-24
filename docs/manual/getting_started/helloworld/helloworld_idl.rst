@@ -172,7 +172,7 @@ Generated files with the IDL compiler
 
     .. group-tab:: C++
 
-        The IDL compiler is a bison-based parser written in pure C and should be
+        The IDL compiler contains a parser written in pure C and should be
         fast and portable. It loads dynamic libraries to support different output
         languages, but this is seldom relevant to you as a user. You can use
         ``CMake`` recipes as described above or invoke directly:

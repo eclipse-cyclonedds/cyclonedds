@@ -3230,7 +3230,7 @@ static bool test_long_2_eq_2 (const void *vsample)
 
 static void do_readtake_sample_rank (const char *opname_past_tense, dds_return_t (*op) (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs, uint32_t mask), bool verbose)
 {
-  const dds_entity_t dom = dds_create_domain (0, "<Discovery><Tag>readtake_sample_rank_${CYCLONEDDS_PID}</Tag></Discovery>");
+  const dds_entity_t dom = test_create_domain_from_env (0, "<Discovery><Tag>readtake_sample_rank_${CYCLONEDDS_PID}</Tag></Discovery>");
   CU_ASSERT_GT_FATAL (dom, 0);
   const dds_entity_t dp = dds_create_participant (0, NULL, NULL);
   CU_ASSERT_GT_FATAL (dp, 0);

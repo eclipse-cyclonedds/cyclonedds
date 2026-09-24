@@ -40,6 +40,7 @@ set(headers
   "${source_dir}/include/dds/ddsrt/fibheap.h"
   "${source_dir}/include/dds/ddsrt/hopscotch.h"
   "${source_dir}/include/dds/ddsrt/log.h"
+  "${source_dir}/src/log_priv.h"
   "${source_dir}/include/dds/ddsrt/retcode.h"
   "${source_dir}/include/dds/ddsrt/attributes.h"
   "${source_dir}/include/dds/ddsrt/endian.h"
@@ -75,6 +76,7 @@ set(headers
   "${source_dir}/src/threads_priv.h"
   "${source_dir}/include/dds/ddsrt/cdtors.h"
   "${source_dir}/include/dds/ddsrt/random.h"
+  "${source_dir}/include/dds/ddsrt/regex.h"
   "${source_dir}/include/dds/ddsrt/align.h")
 
 set(sources
@@ -103,6 +105,7 @@ set(sources
   "${source_dir}/src/ifaddrs.c"
   "${source_dir}/src/cdtors.c"
   "${source_dir}/src/random.c"
+  "${source_dir}/src/regex.c"
   "${source_dir}/src/time.c")
 
 # Not every target offers the same set of features. For embedded targets the
@@ -384,7 +387,7 @@ set(DDSRT_WITH_LWIP ${WITH_LWIP})
 set(DDSRT_WITH_FREERTOS ${WITH_FREERTOS})
 
 foreach(feature TCP_TLS SECURITY LIFESPAN DEADLINE_MISSED NETWORK_PARTITIONS
-                TYPELIB TYPE_DISCOVERY TOPIC_DISCOVERY QOS_PROVIDER TCP)
+                TYPELIB TYPE_DISCOVERY TOPIC_DISCOVERY QOS_PROVIDER TCP FAKEUDP)
   set(DDS_HAS_${feature} ${ENABLE_${feature}})
 endforeach()
 

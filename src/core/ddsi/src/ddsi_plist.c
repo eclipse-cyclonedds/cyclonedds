@@ -805,13 +805,13 @@ static dds_return_t deser_type_information (void * restrict dst, struct flagset 
   dds_return_t ret = 0;
 
   buf = ddsrt_memdup (dd->buf, dd->bufsz);
-  if (dds_stream_normalize_xcdr2_data ((char *) buf, &srcoff, (uint32_t) dd->bufsz, dd->bswap, DDS_XTypes_TypeInformation_desc.m_ops) != DDS_STREAM_NORMALIZE_SUCCESS)
+  dds_istream_t is;
+  if (dds_stream_normalize_xcdr2_data_to_istream (&is, (char *) buf, &srcoff, (uint32_t) dd->bufsz, dd->bswap, DDS_XTypes_TypeInformation_desc.m_ops) != DDS_STREAM_NORMALIZE_SUCCESS)
   {
     ret = DDS_RETCODE_BAD_PARAMETER;
     goto err_normalize;
   }
 
-  dds_istream_t is = { .m_buffer = buf, .m_index = 0, .m_size = (uint32_t) dd->bufsz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   ddsi_typeinfo_t const ** x = deser_generic_dst (dst, &dstoff, plist_alignof (ddsi_typeinfo_t *));
   *x = ddsrt_calloc (1, DDS_XTypes_TypeInformation_desc.m_size);
   dds_stream_read (&is, (void *) *x, &dds_cdrstream_default_allocator, DDS_XTypes_TypeInformation_desc.m_ops);

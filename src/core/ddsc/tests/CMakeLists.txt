@@ -10,7 +10,7 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 include(CUnit)
-include(Generate)
+include("${CycloneDDS_IDLC_GENERATE_CMAKE}")
 
 idlc_generate(TARGET RoundTrip FILES RoundTrip.idl)
 idlc_generate(TARGET Space FILES Space.idl WARNINGS no-implicit-extensibility)
@@ -40,7 +40,7 @@ idlc_generate(TARGET Array100 FILES Array100.idl WARNINGS no-implicit-extensibil
 idlc_generate(TARGET DynamicData FILES DynamicData.idl WARNINGS no-implicit-extensibility)
 if(ENABLE_TYPELIB)
   idlc_generate(TARGET SertypeData FILES SertypeData.idl)
-  idlc_generate(TARGET XSpace FILES XSpace.idl XSpaceEnum.idl XSpaceMustUnderstand.idl XSpaceTypeConsistencyEnforcement.idl WARNINGS no-implicit-extensibility no-inherit-appendable)
+  idlc_generate(TARGET XSpace FILES XSpace.idl XSpaceEnum.idl XSpaceEnumUnion.idl XSpaceMustUnderstand.idl XSpaceTypeConsistencyEnforcement.idl WARNINGS no-implicit-extensibility no-inherit-appendable)
   idlc_generate(TARGET XSpaceNoTypeInfo FILES XSpaceNoTypeInfo.idl NO_TYPE_INFO WARNINGS no-implicit-extensibility)
   idlc_generate(TARGET TypeBuilderTypes FILES TypeBuilderTypes.idl WARNINGS no-implicit-extensibility no-inherit-appendable)
   idlc_generate(TARGET DynamicTypeTypes FILES DynamicTypeTypes.idl)
@@ -103,6 +103,7 @@ set(ddsc_test_sources
     "time_based_filter.c"
     "topic.c"
     "topic_find_local.c"
+    "trace.c"
     "transientlocal.c"
     "types.c"
     "uninitialized.c"
@@ -132,6 +133,10 @@ endif()
 
 if(ENABLE_DEADLINE_MISSED)
   list(APPEND ddsc_test_sources "deadline.c")
+endif()
+
+if(ENABLE_FAKEUDP)
+  list(APPEND ddsc_test_sources "fakeudp_ports.c")
 endif()
 
 if(ENABLE_TYPELIB)
@@ -173,7 +178,7 @@ endif()
 
 target_include_directories(
   cunit_ddsc PRIVATE
-  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src/include/>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
@@ -219,27 +224,31 @@ if(ENABLE_TYPELIB)
 endif()
 
 # Setup environment for config-tests
-get_test_property(CUnit_ddsc_config_simple_udp ENVIRONMENT CUnit_ddsc_config_simple_udp_env)
-set(CUnit_ddsc_config_simple_udp_file "${CMAKE_CURRENT_LIST_DIR}/config_simple_udp.xml")
-set(CUnit_ddsc_config_simple_udp_uri "file://${CUnit_ddsc_config_simple_udp_file}")
-set(CUnit_ddsc_config_simple_udp_max_participants "0")
-set(CUnit_ddsc_config_simple_udp_env "CYCLONEDDS_URI=${CUnit_ddsc_config_simple_udp_uri};MAX_PARTICIPANTS=${CUnit_ddsc_config_simple_udp_max_participants};${CUnit_ddsc_config_simple_udp_env}")
+get_test_property(ddsc_config_simple_udp ENVIRONMENT ddsc_config_simple_udp_env)
+if(ENABLE_FAKEUDP)
+  set(ddsc_config_simple_udp_file "${CMAKE_CURRENT_LIST_DIR}/config_simple_fakeudp.xml")
+else()
+  set(ddsc_config_simple_udp_file "${CMAKE_CURRENT_LIST_DIR}/config_simple_udp.xml")
+endif()
+set(ddsc_config_simple_udp_uri "file://${ddsc_config_simple_udp_file}")
+set(ddsc_config_simple_udp_max_participants "0")
+set(ddsc_config_simple_udp_env "CYCLONEDDS_URI=${ddsc_config_simple_udp_uri};MAX_PARTICIPANTS=${ddsc_config_simple_udp_max_participants};${ddsc_config_simple_udp_env}")
 set_tests_properties(
-	CUnit_ddsc_config_simple_udp
-	PROPERTIES
-		REQUIRED_FILES ${CUnit_ddsc_config_simple_udp_file}
-		ENVIRONMENT "${CUnit_ddsc_config_simple_udp_env}")
+  ddsc_config_simple_udp
+  PROPERTIES
+    REQUIRED_FILES ${ddsc_config_simple_udp_file}
+    ENVIRONMENT "${ddsc_config_simple_udp_env}")
 
 # Setup environment for sysdef-test
-get_test_property(CUnit_ddsc_qos_provider_read_sysdef ENVIRONMENT CUnit_ddsc_qos_provider_read_sysdef_env)
-set(CUnit_ddsc_qos_provider_read_sysdef_file "${CMAKE_CURRENT_LIST_DIR}/sysdef_qos_library.xml")
-set(CUnit_ddsc_qos_provider_read_sysdef_uri "file://${CUnit_ddsc_qos_provider_read_sysdef_file}")
-set(CUnit_ddsc_qos_provider_read_sysdef_env "CYCLONEDDS_SYSDEF_URI=${CUnit_ddsc_qos_provider_read_sysdef_uri};${CUnit_ddsc_qos_provider_read_sysdef_env}")
+get_test_property(ddsc_qos_provider_read_sysdef ENVIRONMENT ddsc_qos_provider_read_sysdef_env)
+set(ddsc_qos_provider_read_sysdef_file "${CMAKE_CURRENT_LIST_DIR}/sysdef_qos_library.xml")
+set(ddsc_qos_provider_read_sysdef_uri "file://${ddsc_qos_provider_read_sysdef_file}")
+set(ddsc_qos_provider_read_sysdef_env "CYCLONEDDS_SYSDEF_URI=${ddsc_qos_provider_read_sysdef_uri};${ddsc_qos_provider_read_sysdef_env}")
 set_tests_properties(
-  CUnit_ddsc_qos_provider_read_sysdef
+  ddsc_qos_provider_read_sysdef
   PROPERTIES
-    REQUIRED_FILES ${CUnit_ddsc_qos_provider_read_sysdef_file}
-    ENVIRONMENT "${CUnit_ddsc_qos_provider_read_sysdef_env}")
+    REQUIRED_FILES ${ddsc_qos_provider_read_sysdef_file}
+    ENVIRONMENT "${ddsc_qos_provider_read_sysdef_env}")
 
 configure_file("deadline_update.h.in" "deadline_update.h")
 configure_file("build_options.h.in" "build_options.h")
@@ -252,7 +261,7 @@ configure_file("config_env.h.in" "config_env.h" @ONLY)
 # communication and the deadline tests with their tight timing         #
 ########################################################################
 foreach(t async_one_unrel_sample relwr_unrelrd_network)
-  set_tests_properties(CUnit_ddsc_write_${t} PROPERTIES RUN_SERIAL TRUE)
+  set_tests_properties(ddsc_write_${t} PROPERTIES RUN_SERIAL TRUE)
 endforeach()
 if(ENABLE_DEADLINE_MISSED)
   foreach(t
@@ -260,7 +269,7 @@ if(ENABLE_DEADLINE_MISSED)
       instances
       update
       writer_types)
-    set_tests_properties(CUnit_ddsc_deadline_${t} PROPERTIES RUN_SERIAL TRUE)
+    set_tests_properties(ddsc_deadline_${t} PROPERTIES RUN_SERIAL TRUE)
   endforeach()
 endif()
 
@@ -275,7 +284,7 @@ add_executable(oneliner
   "test_util.h")
 target_include_directories(
   oneliner PRIVATE
-  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src/include/>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/src>"
@@ -310,8 +319,8 @@ if(BUILD_SHARED_LIBS)
   add_library(psmx_dummy_v0 SHARED ${psmx_dummy_v0_sources})
 else()
   list(APPEND psmx_includes
-    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/ddsrt/include>"
-    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../../../ddsrt/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../ddsrt/include>")
   add_library(psmx_cdds OBJECT ${psmx_cdds_sources} psmx_cdds_data.c)
@@ -349,13 +358,13 @@ endif()
 ################################################################################
 
 get_property(test_names DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY TESTS)
-list(FILTER test_names INCLUDE REGEX "^CUnit_ddsc_psmx_[A-Za-z_0-9]+$")
+list(FILTER test_names INCLUDE REGEX "^ddsc_psmx_[A-Za-z_0-9]+$")
 
 # Iceoryx2
 if(ENABLE_ICEORYX2 AND NOT DEFINED ENV{COLCON})
   if(BUILD_SHARED_LIBS)
     foreach(fullname ${test_names})
-      string(REGEX REPLACE "^CUnit_ddsc_psmx_(.*)" "\\1" shortname "${fullname}")
+      string(REGEX REPLACE "^ddsc_psmx_(.*)" "\\1" shortname "${fullname}")
       add_test(NAME ${fullname}_iox2 COMMAND cunit_ddsc -s ddsc_psmx -t ${shortname})
       set_tests_properties(${fullname}_iox2 PROPERTIES ENVIRONMENT "CDDS_PSMX_NAME=iox2;LD_LIBRARY_PATH=$<TARGET_FILE_DIR:psmx_iox2>:$ENV{LD_LIBRARY_PATH}")
     endforeach()
@@ -414,7 +423,7 @@ kill -0 `cat ctest_fixture_iox_roudi.pid`")
   # Iceoryx in a static build (because I don't know how to delete tests!)
   if(BUILD_SHARED_LIBS)
     foreach(fullname ${test_names})
-      string(REGEX REPLACE "^CUnit_ddsc_psmx_(.*)" "\\1" shortname "${fullname}")
+      string(REGEX REPLACE "^ddsc_psmx_(.*)" "\\1" shortname "${fullname}")
       add_test(NAME ${fullname}_iox COMMAND cunit_ddsc -s ddsc_psmx -t ${shortname})
       set_tests_properties(${fullname}_iox PROPERTIES FIXTURES_REQUIRED iox)
       set_tests_properties(${fullname}_iox PROPERTIES RESOURCE_LOCK iox_lock)

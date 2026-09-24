@@ -19,7 +19,7 @@ if [ -z "$CYCLONEDDS_PYTHON" -o ! -d "$CYCLONEDDS_PYTHON/tests/support_modules/f
 fi
 [ -n "$err" ] && exit 1
 
-set -ex
+set -e
 
 if [ -z "${CC:-}" ] && [ -x /opt/homebrew/opt/llvm/bin/clang ] ; then
     export CC=/opt/homebrew/opt/llvm/bin/clang
@@ -41,10 +41,17 @@ fi
 # we can keep populate it to match oss-fuzz here and not have to deal with
 # absl/utf8_range/protobuf horrors any more than this
 if [ ! -d ../LPM ] ; then
-    [ ! -d ../libprotobuf-mutator ] && \
-         git clone --depth 1 https://github.com/google/libprotobuf-mutator.git ../libprotobuf-mutator
+    echo "Preparing libprotobuf-mutator in ../LPM"
+    if [ ! -d ../libprotobuf-mutator ] ; then
+        echo "Cloning libprotobuf-mutator into ../libprotobuf-mutator"
+        git clone --depth 1 https://github.com/google/libprotobuf-mutator.git ../libprotobuf-mutator
+    else
+        echo "Using existing libprotobuf-mutator checkout in ../libprotobuf-mutator"
+    fi
+    echo "Patching libprotobuf-mutator"
     python3 ../fuzz/fuzz_handshake/patch_lpm.py ../libprotobuf-mutator
     mkdir ../LPM
+    echo "Building libprotobuf-mutator"
     (cd ../LPM && \
          cmake ../libprotobuf-mutator -GNinja \
                -DLIB_PROTO_MUTATOR_DOWNLOAD_PROTOBUF=ON \
@@ -52,6 +59,8 @@ if [ ! -d ../LPM ] ; then
                -DLIB_PROTO_MUTATOR_EXAMPLES=OFF \
                -DCMAKE_BUILD_TYPE=Release && \
          ninja)
+else
+    echo "Using existing libprotobuf-mutator build in ../LPM"
 fi
 
 export PATH="$CYCLONEDDS_HOME/bin:$PATH"
@@ -87,20 +96,25 @@ export PATH="$(dirname "$PYTHON"):$PATH"
 
 # Use current git HEAD hash as seed
 [ -z "$SEED" ] && SEED=$(git ls-remote https://github.com/eclipse-cyclonedds/cyclonedds HEAD |cut -f1)
-"$PYTHON" "../fuzz/fuzz_sample_deser/generate_idl.py" $SEED "../fuzz/fuzz_sample_deser"
 
+echo "Configuring Cyclone DDS fuzzers"
 cmake -G Ninja \
       -DSANITIZER=address,undefined,fuzzer \
       -DEXPORT_ALL_SYMBOLS=ON \
       -DBUILD_SHARED_LIBS=OFF \
+      -DCMAKE_CROSSCOMPILING=1 \
+      -DCMAKE_SYSTEM_NAME="$(uname -s)" \
       -DBUILD_EXAMPLES=NO \
       -DENABLE_SECURITY=ON \
       -DENABLE_SSL=ON \
       -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
       -DBUILD_IDLC=NO \
       -DBUILD_DDSPERF=NO \
+      -DPython3_EXECUTABLE="$PYTHON" \
+      -DFUZZ_SAMPLE_DESER_SEED="$SEED" \
       -DCMAKE_BUILD_TYPE=Debug \
       -DCMAKE_PREFIX_PATH=$PWD/host_install \
       -DCMAKE_INSTALL_PREFIX=$PWD/install ..
 
+echo "Building Cyclone DDS fuzzers"
 cmake --build .

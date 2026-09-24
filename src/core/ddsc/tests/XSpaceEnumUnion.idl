@@ -1,0 +1,81 @@
+// Copyright(c) 2006 to 2026 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
+module XSpaceEnumUnionRd {
+  @appendable enum e { A, B };
+  @bit_bound(8) bitmask bm { B0, B1 };
+
+  @appendable union explicit_default_string switch (@try_construct(USE_DEFAULT) e) {
+    case A: @id(0) long a;
+    default: @id(20) string s;
+  };
+
+  @appendable union explicit_long switch (@try_construct(USE_DEFAULT) e) {
+    case A: @id(0) long a;
+    case B: @id(1) long b;
+  };
+
+  @appendable union bitmask_uint_default_long switch (@try_construct(USE_DEFAULT) bm) {
+    case 0: @id(0) long z;
+    case B0: @id(1) long a;
+  };
+};
+
+module XSpaceEnumUnionWr {
+  @appendable enum e { A, B, C };
+  @bit_bound(8) bitmask bm { B0, B1, B2 };
+
+  @appendable union extra_explicit_long switch (e) {
+    case A: @id(0) long a;
+    case C: @id(10) long c;
+  };
+
+  @appendable union extra_explicit_string switch (e) {
+    case A: @id(0) long a;
+    case C: @id(10) string c;
+  };
+
+  @appendable union extra_implicit_none switch (e) {
+    case A: @id(0) long a;
+  };
+
+  @appendable union extra_default_long switch (e) {
+    case A: @id(0) long a;
+    default: @id(10) long x;
+  };
+
+  @appendable union extra_default_string switch (e) {
+    case A: @id(0) long a;
+    case B: @id(1) long b;
+    default: @id(10) string x;
+  };
+
+  @appendable union uint8_default_long switch (uint8) {
+    case 0: @id(0) long z;
+    case 1: @id(1) long a;
+    default: @id(10) long x;
+  };
+
+  @appendable union uint8_default_string switch (uint8) {
+    case 0: @id(0) long z;
+    case 1: @id(1) long a;
+    default: @id(10) string x;
+  };
+
+  @appendable union bitmask_implicit_none switch (bm) {
+    case 0: @id(0) long z;
+    case B0: @id(1) long a;
+  };
+
+  @appendable union uint8_implicit_none switch (uint8) {
+    case 0: @id(0) long z;
+    case 1: @id(1) long a;
+  };
+};

@@ -69,7 +69,9 @@ static void restore_allocator (void)
 
 static void typewrap_init (void)
 {
-  domain = dds_create_domain (0, NULL);
+  char *config = test_config_from_env (NULL, 0);
+  domain = dds_create_domain (0, config);
+  ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (domain, 0);
   participant = dds_create_participant (0, NULL, NULL);
   CU_ASSERT_GEQ_FATAL (participant, 0);
@@ -77,7 +79,9 @@ static void typewrap_init (void)
 
 static void typewrap_no_recursive_init (void)
 {
-  domain = dds_create_domain (0, "<Compatibility><AllowRecursiveTypes>false</AllowRecursiveTypes></Compatibility>");
+  char *config = test_config_from_env ("<Compatibility><AllowRecursiveTypes>false</AllowRecursiveTypes></Compatibility>", 0);
+  domain = dds_create_domain (0, config);
+  ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (domain, 0);
   participant = dds_create_participant (0, NULL, NULL);
   CU_ASSERT_GEQ_FATAL (participant, 0);
@@ -403,7 +407,7 @@ CU_Test (ddsc_typewrap, recursive_type_assignability, .init = typewrap_init, .fi
   struct ddsi_non_assignability_reason reason;
   CU_ASSERT_EQ_FATAL (ddsi_xt_validate (gv, &rd_struct), DDS_RETCODE_OK);
   CU_ASSERT_EQ_FATAL (ddsi_xt_validate (gv, &wr_struct), DDS_RETCODE_OK);
-  CU_ASSERT (ddsi_xt_is_assignable_from (gv, &rd_struct.xt, &wr_struct.xt, &tce, &reason));
+  CU_ASSERT (ddsi_xt_is_assignable_from (gv, &rd_struct.xt, &wr_struct.xt, &tce, &reason, 0));
 
   struct ddsi_type rd_sequence_a = {0}, rd_sequence_b = {0}, wr_sequence_a = {0}, wr_sequence_b = {0};
   init_test_hash_id (&rd_sequence_a.xt.id, 14);
@@ -505,7 +509,7 @@ CU_Test (ddsc_typewrap, keyholder_releases_removed_member_annotations, .init = t
     .ignore_member_names = true
   };
   struct ddsi_non_assignability_reason reason;
-  CU_ASSERT (ddsi_xt_is_assignable_from (gv, &rd_top.xt, &wr_top.xt, &tce, &reason));
+  CU_ASSERT (ddsi_xt_is_assignable_from (gv, &rd_top.xt, &wr_top.xt, &tce, &reason, 0));
 }
 
 CU_Test (ddsc_typewrap, typeobject_fini_walks_mutated_owned_sequences)
@@ -585,6 +589,65 @@ CU_Test (ddsc_typewrap, typeobject_fini_walks_mutated_owned_sequences)
   CU_ASSERT_NEQ_FATAL (flag_seq->_buffer[0].detail.ann_custom, NULL);
   flag_seq->_length = 0;
   ddsi_typeobj_fini_impl (&bitmask_object);
+}
+
+CU_Test (ddsc_typewrap, non_assignability_reason_member_path, .init = typewrap_init, .fini = typewrap_fini)
+{
+  struct ddsi_domaingv *gv = get_domaingv (participant);
+
+  struct ddsi_type rd_string = {0}, wr_string = {0};
+  rd_string.xt.id.x._d = DDS_XTypes_TI_STRING8_SMALL;
+  rd_string.xt.id.x._u.string_sdefn.bound = 4;
+  rd_string.xt.kind = DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE;
+  rd_string.xt._d = DDS_XTypes_TK_STRING8;
+  rd_string.xt._u.str8.bound = 4;
+  wr_string.xt.id.x._d = DDS_XTypes_TI_STRING8_SMALL;
+  wr_string.xt.id.x._u.string_sdefn.bound = 8;
+  wr_string.xt.kind = DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE;
+  wr_string.xt._d = DDS_XTypes_TK_STRING8;
+  wr_string.xt._u.str8.bound = 8;
+
+  struct xt_struct_member rd_member = {
+    .id = 1,
+    .flags = DDS_XTypes_TRY_CONSTRUCT1,
+    .type = &rd_string
+  };
+  struct xt_struct_member wr_member = {
+    .id = 1,
+    .flags = DDS_XTypes_TRY_CONSTRUCT1,
+    .type = &wr_string
+  };
+  ddsrt_strlcpy (rd_member.detail.name, "payload", sizeof (rd_member.detail.name));
+  ddsi_xt_get_namehash (rd_member.detail.name_hash, rd_member.detail.name);
+  ddsrt_strlcpy (wr_member.detail.name, "payload", sizeof (wr_member.detail.name));
+  ddsi_xt_get_namehash (wr_member.detail.name_hash, wr_member.detail.name);
+
+  struct ddsi_type rd_struct = {0}, wr_struct = {0};
+  init_test_hash_id (&rd_struct.xt.id, 18);
+  rd_struct.xt.kind = DDSI_TYPEID_KIND_COMPLETE;
+  rd_struct.xt._d = DDS_XTypes_TK_STRUCTURE;
+  rd_struct.xt._u.structure.flags = DDS_XTypes_IS_MUTABLE;
+  rd_struct.xt._u.structure.members.length = 1;
+  rd_struct.xt._u.structure.members.seq = &rd_member;
+  init_test_hash_id (&wr_struct.xt.id, 19);
+  wr_struct.xt.kind = DDSI_TYPEID_KIND_COMPLETE;
+  wr_struct.xt._d = DDS_XTypes_TK_STRUCTURE;
+  wr_struct.xt._u.structure.flags = DDS_XTypes_IS_MUTABLE;
+  wr_struct.xt._u.structure.members.length = 1;
+  wr_struct.xt._u.structure.members.seq = &wr_member;
+
+  dds_type_consistency_enforcement_qospolicy_t tce = {
+    .kind = DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION
+  };
+  struct ddsi_non_assignability_reason reason;
+  CU_ASSERT (!ddsi_xt_is_assignable_from (gv, &rd_struct.xt, &wr_struct.xt, &tce, &reason, DDSI_NONASSIGN_REASON_DETAIL_PATH));
+  CU_ASSERT_EQ (reason.code, DDSI_NONASSIGN_BOUND);
+  CU_ASSERT (reason.detailed);
+  CU_ASSERT (!reason.path_truncated);
+  CU_ASSERT (strstr (reason.detail, "bounds are incompatible") != NULL);
+  CU_ASSERT (strstr (reason.detail, "reader member payload[id=1]") != NULL);
+  CU_ASSERT (strstr (reason.detail, "writer member payload[id=1]") != NULL);
+  CU_ASSERT (strstr (reason.path, "reader .payload[id=1] <= writer .payload[id=1]") != NULL);
 }
 
 CU_Test (ddsc_typewrap, alias_base_validation, .init = typewrap_init, .fini = typewrap_fini)
@@ -806,6 +869,34 @@ struct typeid_compare_case {
   const ddsi_typeid_t *mid;
   const ddsi_typeid_t *high;
 };
+
+static int cmp_sign (int cmp)
+{
+  return (cmp > 0) - (cmp < 0);
+}
+
+static void assert_cmp_sign (const char *name, int actual, int expected)
+{
+  const int actual_sign = cmp_sign (actual);
+  if (actual_sign != expected)
+    tprintf ("typeid compare law %s: got sign %d from %d, expected %d\n",
+             name, actual_sign, actual, expected);
+  CU_ASSERT_EQ (actual_sign, expected);
+}
+
+static void assert_typeid_compare_laws (const struct typeid_compare_case *c)
+{
+  assert_cmp_sign (c->name, ddsi_typeid_compare (c->low, c->low), 0);
+  assert_cmp_sign (c->name, ddsi_typeid_compare (c->mid, c->mid), 0);
+  assert_cmp_sign (c->name, ddsi_typeid_compare (c->high, c->high), 0);
+
+  assert_cmp_sign (c->name, ddsi_typeid_compare (c->low, c->mid), -1);
+  assert_cmp_sign (c->name, ddsi_typeid_compare (c->mid, c->low), 1);
+  assert_cmp_sign (c->name, ddsi_typeid_compare (c->mid, c->high), -1);
+  assert_cmp_sign (c->name, ddsi_typeid_compare (c->high, c->mid), 1);
+  assert_cmp_sign (c->name, ddsi_typeid_compare (c->low, c->high), -1);
+  assert_cmp_sign (c->name, ddsi_typeid_compare (c->high, c->low), 1);
+}
 
 CU_Test (ddsc_typewrap, scc_identifier_hashes_slot_and_component_identity)
 {
@@ -1068,6 +1159,293 @@ CU_Test (ddsc_typewrap, small_map_key_flags_compare_orders)
   CU_ASSERT (ddsi_typeid_compare (&map_b, &map_a) > 0);
 }
 
+CU_Test (ddsc_typewrap, typeid_compare_laws)
+{
+  struct DDS_XTypes_TypeIdentifier tid_i16 = { ._d = DDS_XTypes_TK_INT16 };
+  struct DDS_XTypes_TypeIdentifier tid_i32 = { ._d = DDS_XTypes_TK_INT32 };
+  struct DDS_XTypes_TypeIdentifier tid_i64 = { ._d = DDS_XTypes_TK_INT64 };
+
+  ddsi_typeid_t prim_low = { .x = { ._d = DDS_XTypes_TK_BOOLEAN } };
+  ddsi_typeid_t prim_mid = { .x = { ._d = DDS_XTypes_TK_INT32 } };
+  ddsi_typeid_t prim_high = { .x = { ._d = DDS_XTypes_TK_INT64 } };
+
+  ddsi_typeid_t str8s_low = { .x = { ._d = DDS_XTypes_TI_STRING8_SMALL, ._u.string_sdefn = { .bound = 1 } } };
+  ddsi_typeid_t str8s_mid = str8s_low, str8s_high = str8s_low;
+  str8s_mid.x._u.string_sdefn.bound = 2;
+  str8s_high.x._u.string_sdefn.bound = 3;
+
+  ddsi_typeid_t str8l_low = { .x = { ._d = DDS_XTypes_TI_STRING8_LARGE, ._u.string_ldefn = { .bound = 1 } } };
+  ddsi_typeid_t str8l_mid = str8l_low, str8l_high = str8l_low;
+  str8l_mid.x._u.string_ldefn.bound = 2;
+  str8l_high.x._u.string_ldefn.bound = 3;
+
+  ddsi_typeid_t str16s_low = { .x = { ._d = DDS_XTypes_TI_STRING16_SMALL, ._u.string_sdefn = { .bound = 1 } } };
+  ddsi_typeid_t str16s_mid = str16s_low, str16s_high = str16s_low;
+  str16s_mid.x._u.string_sdefn.bound = 2;
+  str16s_high.x._u.string_sdefn.bound = 3;
+
+  ddsi_typeid_t str16l_low = { .x = { ._d = DDS_XTypes_TI_STRING16_LARGE, ._u.string_ldefn = { .bound = 1 } } };
+  ddsi_typeid_t str16l_mid = str16l_low, str16l_high = str16l_low;
+  str16l_mid.x._u.string_ldefn.bound = 2;
+  str16l_high.x._u.string_ldefn.bound = 3;
+
+  ddsi_typeid_t hash_low = { .x = { ._d = DDS_XTypes_EK_MINIMAL } };
+  ddsi_typeid_t hash_mid = hash_low, hash_high = hash_low;
+  fill_equivalence_hash (hash_low.x._u.equivalence_hash, 0x10);
+  fill_equivalence_hash (hash_mid.x._u.equivalence_hash, 0x20);
+  fill_equivalence_hash (hash_high.x._u.equivalence_hash, 0x30);
+
+  ddsi_typeid_t equiv_kind_low = hash_low;
+  ddsi_typeid_t equiv_kind_mid = hash_low;
+  ddsi_typeid_t equiv_kind_high = hash_mid;
+  equiv_kind_mid.x._d = DDS_XTypes_EK_COMPLETE;
+  equiv_kind_high.x._d = DDS_XTypes_EK_COMPLETE;
+
+  ddsi_typeid_t scc_len_low, scc_len_mid, scc_len_high;
+  init_scc_typeid (&scc_len_low, 1, 1);
+  init_scc_typeid (&scc_len_mid, 2, 1);
+  init_scc_typeid (&scc_len_high, 3, 1);
+
+  ddsi_typeid_t scc_index_low, scc_index_mid, scc_index_high;
+  init_scc_typeid (&scc_index_low, 3, 1);
+  init_scc_typeid (&scc_index_mid, 3, 2);
+  init_scc_typeid (&scc_index_high, 3, 3);
+
+  ddsi_typeid_t scc_hash_low, scc_hash_mid, scc_hash_high;
+  init_scc_typeid (&scc_hash_low, 3, 1);
+  init_scc_typeid (&scc_hash_mid, 3, 1);
+  init_scc_typeid (&scc_hash_high, 3, 1);
+  fill_equivalence_hash (scc_hash_low.x._u.sc_component_id.sc_component_id._u.hash, 0x10);
+  fill_equivalence_hash (scc_hash_mid.x._u.sc_component_id.sc_component_id._u.hash, 0x20);
+  fill_equivalence_hash (scc_hash_high.x._u.sc_component_id.sc_component_id._u.hash, 0x30);
+
+  ddsi_typeid_t scc_kind_low = scc_hash_low;
+  ddsi_typeid_t scc_kind_mid = scc_hash_low;
+  ddsi_typeid_t scc_kind_high = scc_hash_mid;
+  scc_kind_low.x._u.sc_component_id.sc_component_id._d = DDS_XTypes_EK_MINIMAL;
+  scc_kind_mid.x._u.sc_component_id.sc_component_id._d = DDS_XTypes_EK_COMPLETE;
+  scc_kind_high.x._u.sc_component_id.sc_component_id._d = DDS_XTypes_EK_COMPLETE;
+
+  ddsi_typeid_t seq_s_base = {
+    .x = {
+      ._d = DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL,
+      ._u.seq_sdefn = {
+        .header = { .equiv_kind = DDS_XTypes_EK_COMPLETE, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
+        .bound = 1,
+        .element_identifier = &tid_i32
+      }
+    }
+  };
+  ddsi_typeid_t seq_s_header_kind_low = seq_s_base, seq_s_header_kind_mid = seq_s_base, seq_s_header_kind_high = seq_s_base;
+  seq_s_header_kind_low.x._u.seq_sdefn.header.equiv_kind = DDS_XTypes_EK_MINIMAL;
+  seq_s_header_kind_high.x._u.seq_sdefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  ddsi_typeid_t seq_s_header_flags_low = seq_s_base, seq_s_header_flags_mid = seq_s_base, seq_s_header_flags_high = seq_s_base;
+  seq_s_header_flags_mid.x._u.seq_sdefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  seq_s_header_flags_high.x._u.seq_sdefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_TRIM;
+  ddsi_typeid_t seq_s_element_low = seq_s_base, seq_s_element_mid = seq_s_base, seq_s_element_high = seq_s_base;
+  seq_s_element_low.x._u.seq_sdefn.element_identifier = &tid_i16;
+  seq_s_element_high.x._u.seq_sdefn.element_identifier = &tid_i64;
+  ddsi_typeid_t seq_s_bound_low = seq_s_base, seq_s_bound_mid = seq_s_base, seq_s_bound_high = seq_s_base;
+  seq_s_bound_mid.x._u.seq_sdefn.bound = 2;
+  seq_s_bound_high.x._u.seq_sdefn.bound = 3;
+
+  ddsi_typeid_t seq_l_base = {
+    .x = {
+      ._d = DDS_XTypes_TI_PLAIN_SEQUENCE_LARGE,
+      ._u.seq_ldefn = {
+        .header = { .equiv_kind = DDS_XTypes_EK_COMPLETE, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
+        .bound = 1,
+        .element_identifier = &tid_i32
+      }
+    }
+  };
+  ddsi_typeid_t seq_l_header_kind_low = seq_l_base, seq_l_header_kind_mid = seq_l_base, seq_l_header_kind_high = seq_l_base;
+  seq_l_header_kind_low.x._u.seq_ldefn.header.equiv_kind = DDS_XTypes_EK_MINIMAL;
+  seq_l_header_kind_high.x._u.seq_ldefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  ddsi_typeid_t seq_l_header_flags_low = seq_l_base, seq_l_header_flags_mid = seq_l_base, seq_l_header_flags_high = seq_l_base;
+  seq_l_header_flags_mid.x._u.seq_ldefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  seq_l_header_flags_high.x._u.seq_ldefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_TRIM;
+  ddsi_typeid_t seq_l_element_low = seq_l_base, seq_l_element_mid = seq_l_base, seq_l_element_high = seq_l_base;
+  seq_l_element_low.x._u.seq_ldefn.element_identifier = &tid_i16;
+  seq_l_element_high.x._u.seq_ldefn.element_identifier = &tid_i64;
+  ddsi_typeid_t seq_l_bound_low = seq_l_base, seq_l_bound_mid = seq_l_base, seq_l_bound_high = seq_l_base;
+  seq_l_bound_mid.x._u.seq_ldefn.bound = 2;
+  seq_l_bound_high.x._u.seq_ldefn.bound = 3;
+
+  DDS_XTypes_SBound sbounds_1[] = { 1 };
+  DDS_XTypes_SBound sbounds_2[] = { 2 };
+  DDS_XTypes_SBound sbounds_3[] = { 3 };
+  DDS_XTypes_SBound sbounds_len2[] = { 1, 1 };
+  DDS_XTypes_SBound sbounds_len3[] = { 1, 1, 1 };
+  DDS_XTypes_LBound lbounds_1[] = { 1 };
+  DDS_XTypes_LBound lbounds_2[] = { 2 };
+  DDS_XTypes_LBound lbounds_3[] = { 3 };
+  DDS_XTypes_LBound lbounds_len2[] = { 1, 1 };
+  DDS_XTypes_LBound lbounds_len3[] = { 1, 1, 1 };
+
+  ddsi_typeid_t array_s_base = {
+    .x = {
+      ._d = DDS_XTypes_TI_PLAIN_ARRAY_SMALL,
+      ._u.array_sdefn = {
+        .header = { .equiv_kind = DDS_XTypes_EK_COMPLETE, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
+        .array_bound_seq = { ._maximum = 1, ._length = 1, ._buffer = sbounds_1, ._release = false },
+        .element_identifier = &tid_i32
+      }
+    }
+  };
+  ddsi_typeid_t array_s_header_kind_low = array_s_base, array_s_header_kind_mid = array_s_base, array_s_header_kind_high = array_s_base;
+  array_s_header_kind_low.x._u.array_sdefn.header.equiv_kind = DDS_XTypes_EK_MINIMAL;
+  array_s_header_kind_high.x._u.array_sdefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  ddsi_typeid_t array_s_header_flags_low = array_s_base, array_s_header_flags_mid = array_s_base, array_s_header_flags_high = array_s_base;
+  array_s_header_flags_mid.x._u.array_sdefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  array_s_header_flags_high.x._u.array_sdefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_TRIM;
+  ddsi_typeid_t array_s_len_low = array_s_base, array_s_len_mid = array_s_base, array_s_len_high = array_s_base;
+  array_s_len_mid.x._u.array_sdefn.array_bound_seq = (DDS_XTypes_SBoundSeq) { ._maximum = 2, ._length = 2, ._buffer = sbounds_len2, ._release = false };
+  array_s_len_high.x._u.array_sdefn.array_bound_seq = (DDS_XTypes_SBoundSeq) { ._maximum = 3, ._length = 3, ._buffer = sbounds_len3, ._release = false };
+  ddsi_typeid_t array_s_bound_low = array_s_base, array_s_bound_mid = array_s_base, array_s_bound_high = array_s_base;
+  array_s_bound_mid.x._u.array_sdefn.array_bound_seq._buffer = sbounds_2;
+  array_s_bound_high.x._u.array_sdefn.array_bound_seq._buffer = sbounds_3;
+  ddsi_typeid_t array_s_element_low = array_s_base, array_s_element_mid = array_s_base, array_s_element_high = array_s_base;
+  array_s_element_low.x._u.array_sdefn.element_identifier = &tid_i16;
+  array_s_element_high.x._u.array_sdefn.element_identifier = &tid_i64;
+
+  ddsi_typeid_t array_l_base = {
+    .x = {
+      ._d = DDS_XTypes_TI_PLAIN_ARRAY_LARGE,
+      ._u.array_ldefn = {
+        .header = { .equiv_kind = DDS_XTypes_EK_COMPLETE, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
+        .array_bound_seq = { ._maximum = 1, ._length = 1, ._buffer = lbounds_1, ._release = false },
+        .element_identifier = &tid_i32
+      }
+    }
+  };
+  ddsi_typeid_t array_l_header_kind_low = array_l_base, array_l_header_kind_mid = array_l_base, array_l_header_kind_high = array_l_base;
+  array_l_header_kind_low.x._u.array_ldefn.header.equiv_kind = DDS_XTypes_EK_MINIMAL;
+  array_l_header_kind_high.x._u.array_ldefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  ddsi_typeid_t array_l_header_flags_low = array_l_base, array_l_header_flags_mid = array_l_base, array_l_header_flags_high = array_l_base;
+  array_l_header_flags_mid.x._u.array_ldefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  array_l_header_flags_high.x._u.array_ldefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_TRIM;
+  ddsi_typeid_t array_l_len_low = array_l_base, array_l_len_mid = array_l_base, array_l_len_high = array_l_base;
+  array_l_len_mid.x._u.array_ldefn.array_bound_seq = (DDS_XTypes_LBoundSeq) { ._maximum = 2, ._length = 2, ._buffer = lbounds_len2, ._release = false };
+  array_l_len_high.x._u.array_ldefn.array_bound_seq = (DDS_XTypes_LBoundSeq) { ._maximum = 3, ._length = 3, ._buffer = lbounds_len3, ._release = false };
+  ddsi_typeid_t array_l_bound_low = array_l_base, array_l_bound_mid = array_l_base, array_l_bound_high = array_l_base;
+  array_l_bound_mid.x._u.array_ldefn.array_bound_seq._buffer = lbounds_2;
+  array_l_bound_high.x._u.array_ldefn.array_bound_seq._buffer = lbounds_3;
+  ddsi_typeid_t array_l_element_low = array_l_base, array_l_element_mid = array_l_base, array_l_element_high = array_l_base;
+  array_l_element_low.x._u.array_ldefn.element_identifier = &tid_i16;
+  array_l_element_high.x._u.array_ldefn.element_identifier = &tid_i64;
+
+  ddsi_typeid_t map_s_base = {
+    .x = {
+      ._d = DDS_XTypes_TI_PLAIN_MAP_SMALL,
+      ._u.map_sdefn = {
+        .header = { .equiv_kind = DDS_XTypes_EK_COMPLETE, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
+        .bound = 1,
+        .element_identifier = &tid_i32,
+        .key_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD,
+        .key_identifier = &tid_i32
+      }
+    }
+  };
+  ddsi_typeid_t map_s_header_low = map_s_base, map_s_header_mid = map_s_base, map_s_header_high = map_s_base;
+  map_s_header_low.x._u.map_sdefn.header.equiv_kind = DDS_XTypes_EK_MINIMAL;
+  map_s_header_high.x._u.map_sdefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  ddsi_typeid_t map_s_bound_low = map_s_base, map_s_bound_mid = map_s_base, map_s_bound_high = map_s_base;
+  map_s_bound_mid.x._u.map_sdefn.bound = 2;
+  map_s_bound_high.x._u.map_sdefn.bound = 3;
+  ddsi_typeid_t map_s_element_low = map_s_base, map_s_element_mid = map_s_base, map_s_element_high = map_s_base;
+  map_s_element_low.x._u.map_sdefn.element_identifier = &tid_i16;
+  map_s_element_high.x._u.map_sdefn.element_identifier = &tid_i64;
+  ddsi_typeid_t map_s_key_flags_low = map_s_base, map_s_key_flags_mid = map_s_base, map_s_key_flags_high = map_s_base;
+  map_s_key_flags_mid.x._u.map_sdefn.key_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  map_s_key_flags_high.x._u.map_sdefn.key_flags = DDS_XTypes_TRY_CONSTRUCT_TRIM;
+  ddsi_typeid_t map_s_key_low = map_s_base, map_s_key_mid = map_s_base, map_s_key_high = map_s_base;
+  map_s_key_low.x._u.map_sdefn.key_identifier = &tid_i16;
+  map_s_key_high.x._u.map_sdefn.key_identifier = &tid_i64;
+
+  ddsi_typeid_t map_l_base = {
+    .x = {
+      ._d = DDS_XTypes_TI_PLAIN_MAP_LARGE,
+      ._u.map_ldefn = {
+        .header = { .equiv_kind = DDS_XTypes_EK_COMPLETE, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
+        .bound = 1,
+        .element_identifier = &tid_i32,
+        .key_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD,
+        .key_identifier = &tid_i32
+      }
+    }
+  };
+  ddsi_typeid_t map_l_header_low = map_l_base, map_l_header_mid = map_l_base, map_l_header_high = map_l_base;
+  map_l_header_low.x._u.map_ldefn.header.equiv_kind = DDS_XTypes_EK_MINIMAL;
+  map_l_header_high.x._u.map_ldefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  ddsi_typeid_t map_l_bound_low = map_l_base, map_l_bound_mid = map_l_base, map_l_bound_high = map_l_base;
+  map_l_bound_mid.x._u.map_ldefn.bound = 2;
+  map_l_bound_high.x._u.map_ldefn.bound = 3;
+  ddsi_typeid_t map_l_element_low = map_l_base, map_l_element_mid = map_l_base, map_l_element_high = map_l_base;
+  map_l_element_low.x._u.map_ldefn.element_identifier = &tid_i16;
+  map_l_element_high.x._u.map_ldefn.element_identifier = &tid_i64;
+  ddsi_typeid_t map_l_key_flags_low = map_l_base, map_l_key_flags_mid = map_l_base, map_l_key_flags_high = map_l_base;
+  map_l_key_flags_mid.x._u.map_ldefn.key_flags = DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+  map_l_key_flags_high.x._u.map_ldefn.key_flags = DDS_XTypes_TRY_CONSTRUCT_TRIM;
+  ddsi_typeid_t map_l_key_low = map_l_base, map_l_key_mid = map_l_base, map_l_key_high = map_l_base;
+  map_l_key_low.x._u.map_ldefn.key_identifier = &tid_i16;
+  map_l_key_high.x._u.map_ldefn.key_identifier = &tid_i64;
+
+  const struct typeid_compare_case cases[] = {
+    { "primitive kind", &prim_low, &prim_mid, &prim_high },
+    { "string8 small bound", &str8s_low, &str8s_mid, &str8s_high },
+    { "string8 large bound", &str8l_low, &str8l_mid, &str8l_high },
+    { "string16 small bound", &str16s_low, &str16s_mid, &str16s_high },
+    { "string16 large bound", &str16l_low, &str16l_mid, &str16l_high },
+    { "equivalence kind", &equiv_kind_low, &equiv_kind_mid, &equiv_kind_high },
+    { "equivalence hash", &hash_low, &hash_mid, &hash_high },
+    { "scc kind", &scc_kind_low, &scc_kind_mid, &scc_kind_high },
+    { "scc length", &scc_len_low, &scc_len_mid, &scc_len_high },
+    { "scc index", &scc_index_low, &scc_index_mid, &scc_index_high },
+    { "scc hash", &scc_hash_low, &scc_hash_mid, &scc_hash_high },
+    { "sequence small header kind", &seq_s_header_kind_low, &seq_s_header_kind_mid, &seq_s_header_kind_high },
+    { "sequence small header flags", &seq_s_header_flags_low, &seq_s_header_flags_mid, &seq_s_header_flags_high },
+    { "sequence small element", &seq_s_element_low, &seq_s_element_mid, &seq_s_element_high },
+    { "sequence small bound", &seq_s_bound_low, &seq_s_bound_mid, &seq_s_bound_high },
+    { "sequence large header kind", &seq_l_header_kind_low, &seq_l_header_kind_mid, &seq_l_header_kind_high },
+    { "sequence large header flags", &seq_l_header_flags_low, &seq_l_header_flags_mid, &seq_l_header_flags_high },
+    { "sequence large element", &seq_l_element_low, &seq_l_element_mid, &seq_l_element_high },
+    { "sequence large bound", &seq_l_bound_low, &seq_l_bound_mid, &seq_l_bound_high },
+    { "array small header kind", &array_s_header_kind_low, &array_s_header_kind_mid, &array_s_header_kind_high },
+    { "array small header flags", &array_s_header_flags_low, &array_s_header_flags_mid, &array_s_header_flags_high },
+    { "array small length", &array_s_len_low, &array_s_len_mid, &array_s_len_high },
+    { "array small bound", &array_s_bound_low, &array_s_bound_mid, &array_s_bound_high },
+    { "array small element", &array_s_element_low, &array_s_element_mid, &array_s_element_high },
+    { "array large header kind", &array_l_header_kind_low, &array_l_header_kind_mid, &array_l_header_kind_high },
+    { "array large header flags", &array_l_header_flags_low, &array_l_header_flags_mid, &array_l_header_flags_high },
+    { "array large length", &array_l_len_low, &array_l_len_mid, &array_l_len_high },
+    { "array large bound", &array_l_bound_low, &array_l_bound_mid, &array_l_bound_high },
+    { "array large element", &array_l_element_low, &array_l_element_mid, &array_l_element_high },
+    { "map small header", &map_s_header_low, &map_s_header_mid, &map_s_header_high },
+    { "map small bound", &map_s_bound_low, &map_s_bound_mid, &map_s_bound_high },
+    { "map small element", &map_s_element_low, &map_s_element_mid, &map_s_element_high },
+    { "map small key flags", &map_s_key_flags_low, &map_s_key_flags_mid, &map_s_key_flags_high },
+    { "map small key", &map_s_key_low, &map_s_key_mid, &map_s_key_high },
+    { "map large header", &map_l_header_low, &map_l_header_mid, &map_l_header_high },
+    { "map large bound", &map_l_bound_low, &map_l_bound_mid, &map_l_bound_high },
+    { "map large element", &map_l_element_low, &map_l_element_mid, &map_l_element_high },
+    { "map large key flags", &map_l_key_flags_low, &map_l_key_flags_mid, &map_l_key_flags_high },
+    { "map large key", &map_l_key_low, &map_l_key_mid, &map_l_key_high }
+  };
+
+  for (size_t n = 0; n < sizeof (cases) / sizeof (cases[0]); n++)
+    assert_typeid_compare_laws (&cases[n]);
+}
+
+CU_Test (ddsc_typewrap, typeid_compare_impl_orders_null)
+{
+  struct DDS_XTypes_TypeIdentifier tid = { ._d = DDS_XTypes_TK_INT32 };
+
+  assert_cmp_sign ("null/null", ddsi_typeid_compare_impl (NULL, NULL), 0);
+  assert_cmp_sign ("null/non-null", ddsi_typeid_compare_impl (NULL, &tid), -1);
+  assert_cmp_sign ("non-null/null", ddsi_typeid_compare_impl (&tid, NULL), 1);
+}
+
 CU_Test (ddsc_typewrap, large_map_kind_uses_key_identifier)
 {
   struct DDS_XTypes_TypeIdentifier key_typeid = {
@@ -1205,6 +1583,7 @@ static void check_union_typeobject (
     uint8_t discriminator_type,
     const struct union_member *members,
     uint32_t n_members,
+    uint16_t union_flags,
     dds_return_t expected_ret)
 {
   int32_t label_buf[5] = {0};
@@ -1228,7 +1607,7 @@ static void check_union_typeobject (
     ._u.complete = {
       ._d = DDS_XTypes_TK_UNION,
       ._u.union_type = {
-        .union_flags = DDS_XTypes_IS_FINAL,
+        .union_flags = union_flags,
         .discriminator = {
           .common = {
             .member_flags = DDS_XTypes_TRY_CONSTRUCT1,
@@ -1248,6 +1627,17 @@ static void check_union_typeobject (
       sizeof (typeobj._u.complete._u.union_type.header.detail.type_name));
 
   check_typeobject (&typeobj, expected_ret);
+}
+
+static void check_final_union_typeobject (
+    const char *name,
+    uint8_t discriminator_type,
+    const struct union_member *members,
+    uint32_t n_members,
+    dds_return_t expected_ret)
+{
+  check_union_typeobject (name, discriminator_type, members, n_members,
+      DDS_XTypes_IS_FINAL, expected_ret);
 }
 
 static void check_union_discriminator_typeobject (
@@ -1591,17 +1981,17 @@ CU_Test (ddsc_typewrap, invalid_enum_typeobject, .init = typewrap_init, .fini = 
       sizeof (duplicate_name_run) / sizeof (duplicate_name_run[0]), DDS_RETCODE_BAD_PARAMETER);
 
   const struct enum_literal too_large_two_bits[] = {
-    { "TwoBitsMin", 0 },
-    { "TwoBitsMax", 3 },
-    { "TwoBitsTooLarge", 4 }
+    { "TwoBitsMin", -2 },
+    { "TwoBitsMax", 1 },
+    { "TwoBitsTooLarge", 2 }
   };
   check_enum_typeobject ("TooLargeForTwoBits", 2, too_large_two_bits,
       sizeof (too_large_two_bits) / sizeof (too_large_two_bits[0]), DDS_RETCODE_BAD_PARAMETER);
 
   const struct enum_literal too_large_eight_bits[] = {
-    { "EightBitsMin", 0 },
-    { "EightBitsMax", 255 },
-    { "EightBitsTooLarge", 256 }
+    { "EightBitsMin", -128 },
+    { "EightBitsMax", 127 },
+    { "EightBitsTooLarge", 128 }
   };
   check_enum_typeobject ("TooLargeForEightBits", 8, too_large_eight_bits,
       sizeof (too_large_eight_bits) / sizeof (too_large_eight_bits[0]), DDS_RETCODE_BAD_PARAMETER);
@@ -1613,7 +2003,7 @@ CU_Test (ddsc_typewrap, invalid_enum_typeobject, .init = typewrap_init, .fini = 
     { "NegativeMid", 0 }
   };
   check_enum_typeobject ("NegativeValues", 1, negative_values,
-      sizeof (negative_values) / sizeof (negative_values[0]), DDS_RETCODE_BAD_PARAMETER);
+      sizeof (negative_values) / sizeof (negative_values[0]), DDS_RETCODE_OK);
 }
 
 CU_Test (ddsc_typewrap, invalid_bitmask_typeobject, .init = typewrap_init, .fini = typewrap_fini)
@@ -1755,7 +2145,7 @@ CU_Test (ddsc_typewrap, invalid_union_typeobject, .init = typewrap_init, .fini =
     { "duplicate_adjacent_b", 1, 2 },
     { "duplicate_adjacent_c", 2, 3 }
   };
-  check_union_typeobject ("DuplicateAdjacentUnionMember", DDS_XTypes_TK_INT32, duplicate_adjacent,
+  check_final_union_typeobject ("DuplicateAdjacentUnionMember", DDS_XTypes_TK_INT32, duplicate_adjacent,
       sizeof (duplicate_adjacent) / sizeof (duplicate_adjacent[0]), DDS_RETCODE_BAD_PARAMETER);
 
   const struct union_member duplicate_unsorted[] = {
@@ -1764,7 +2154,7 @@ CU_Test (ddsc_typewrap, invalid_union_typeobject, .init = typewrap_init, .fini =
     { "duplicate_unsorted_c", 5, 3 },
     { "duplicate_unsorted_d", 2, 4 }
   };
-  check_union_typeobject ("DuplicateUnsortedUnionMember", DDS_XTypes_TK_INT32, duplicate_unsorted,
+  check_final_union_typeobject ("DuplicateUnsortedUnionMember", DDS_XTypes_TK_INT32, duplicate_unsorted,
       sizeof (duplicate_unsorted) / sizeof (duplicate_unsorted[0]), DDS_RETCODE_BAD_PARAMETER);
 
   const struct union_member duplicate_run[] = {
@@ -1774,7 +2164,7 @@ CU_Test (ddsc_typewrap, invalid_union_typeobject, .init = typewrap_init, .fini =
     { "duplicate_run_d", 5, 4 },
     { "duplicate_run_e", 2, 5 }
   };
-  check_union_typeobject ("DuplicateRunUnionMember", DDS_XTypes_TK_INT32, duplicate_run,
+  check_final_union_typeobject ("DuplicateRunUnionMember", DDS_XTypes_TK_INT32, duplicate_run,
       sizeof (duplicate_run) / sizeof (duplicate_run[0]), DDS_RETCODE_BAD_PARAMETER);
 
   const struct union_member overlapping_labels[] = {
@@ -1782,7 +2172,7 @@ CU_Test (ddsc_typewrap, invalid_union_typeobject, .init = typewrap_init, .fini =
     { "overlapping_label_b", 2, 1 },
     { "overlapping_label_c", 3, 3 }
   };
-  check_union_typeobject ("OverlappingUnionLabels", DDS_XTypes_TK_INT32, overlapping_labels,
+  check_final_union_typeobject ("OverlappingUnionLabels", DDS_XTypes_TK_INT32, overlapping_labels,
       sizeof (overlapping_labels) / sizeof (overlapping_labels[0]), DDS_RETCODE_BAD_PARAMETER);
 
   const struct union_member label_outside_discriminator_range[] = {
@@ -1790,7 +2180,7 @@ CU_Test (ddsc_typewrap, invalid_union_typeobject, .init = typewrap_init, .fini =
     { "label_range_b", 2, INT8_MAX },
     { "label_range_c", 3, (int32_t) INT8_MAX + 1 }
   };
-  check_union_typeobject ("LabelOutsideDiscriminatorRange", DDS_XTypes_TK_INT8, label_outside_discriminator_range,
+  check_final_union_typeobject ("LabelOutsideDiscriminatorRange", DDS_XTypes_TK_INT8, label_outside_discriminator_range,
       sizeof (label_outside_discriminator_range) / sizeof (label_outside_discriminator_range[0]), DDS_RETCODE_BAD_PARAMETER);
 
   const struct enum_literal sparse_enum[] = {
@@ -1880,6 +2270,17 @@ CU_Test (ddsc_typewrap, invalid_union_typeobject, .init = typewrap_init, .fini =
     { "valid_middle", 12, 2 },
     { "valid_last", 27, 3 }
   };
-  check_union_typeobject ("ValidUnionMemberIds", DDS_XTypes_TK_INT32, valid_member_ids,
+  check_final_union_typeobject ("ValidUnionMemberIds", DDS_XTypes_TK_INT32, valid_member_ids,
       sizeof (valid_member_ids) / sizeof (valid_member_ids[0]), DDS_RETCODE_OK);
+
+  const struct union_member legacy_zero_member_id[] = {
+    { "legacy_zero", 0, 1 },
+    { "legacy_next", 1, 2 }
+  };
+  check_union_typeobject ("FinalUnionMemberIdZero", DDS_XTypes_TK_INT32, legacy_zero_member_id,
+      sizeof (legacy_zero_member_id) / sizeof (legacy_zero_member_id[0]), DDS_XTypes_IS_FINAL, DDS_RETCODE_OK);
+  check_union_typeobject ("AppendableUnionMemberIdZero", DDS_XTypes_TK_INT32, legacy_zero_member_id,
+      sizeof (legacy_zero_member_id) / sizeof (legacy_zero_member_id[0]), DDS_XTypes_IS_APPENDABLE, DDS_RETCODE_OK);
+  check_union_typeobject ("MutableUnionMemberIdZero", DDS_XTypes_TK_INT32, legacy_zero_member_id,
+      sizeof (legacy_zero_member_id) / sizeof (legacy_zero_member_id[0]), DDS_XTypes_IS_MUTABLE, DDS_RETCODE_BAD_PARAMETER);
 }

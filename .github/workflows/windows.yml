@@ -137,12 +137,14 @@ jobs:
         name: configure
       - run: cmake --build ./build --config ${{ matrix.config.build_type || 'Release' }} --parallel
         name: build
+      - run: cmake --build ./build --config ${{ matrix.config.build_type || 'Release' }} --parallel --target check_generated_sources
+        name: check_generated_sources
       - run: cmake --install ./build --config ${{ matrix.config.build_type || 'Release' }}
         name: install
       - if: ${{ matrix.config.testing != false}}
         run: |
           set -e -x
-          ctest --repeat after-timeout:3 --test-dir ./build -j --output-on-failure -T test -E '^CUnit_ddsrt_random_default_random$' -C ${{ matrix.config.build_type || 'Release' }}
+          ctest --repeat after-timeout:3 --test-dir ./build -j --output-on-failure -T test -E '^ddsrt_random_default_random$' -C ${{ matrix.config.build_type || 'Release' }}
         shell: bash
         env:
           UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1

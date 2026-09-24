@@ -21,6 +21,7 @@
 #include "dds/security/dds_security_api_defs.h"
 #include "common/config_env.h"
 #include "common/test_identity.h"
+#include "common/test_utils.h"
 
 #define BUILTIN_PROPS \
   "1:\"__ProcessName\":\"*\"," \
@@ -153,7 +154,7 @@ CU_Test(ddssec_config, empty, .init = ddsrt_init, .fini = ddsrt_fini)
     "</Domain>";
 
   set_logger_exp(log_expected, NULL);
-  domain = dds_create_domain(0, sec_config);
+  domain = create_domain_with_test_config(0, sec_config);
   CU_ASSERT_EQ_FATAL (domain, DDS_RETCODE_ERROR);
   reset_logger();
 
@@ -172,7 +173,7 @@ CU_Test(ddssec_config, non, .init = ddsrt_init, .fini = ddsrt_fini)
   };
 
   set_logger_exp(log_expected, NULL);
-  domain = dds_create_domain(0, default_config);
+  domain = create_domain_with_test_config(0, default_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   dds_delete(domain);
   reset_logger();
@@ -210,7 +211,7 @@ CU_Test(ddssec_config, missing, .init = ddsrt_init, .fini = ddsrt_fini)
     "</Domain>";
 
   set_logger_exp(log_expected, NULL);
-  domain = dds_create_domain(0, sec_config);
+  domain = create_domain_with_test_config(0, sec_config);
   CU_ASSERT_EQ_FATAL (domain, DDS_RETCODE_ERROR);
   reset_logger();
 
@@ -284,7 +285,7 @@ CU_Test(ddssec_config, all, .init = ddsrt_init, .fini = ddsrt_fini)
   };
 
   set_logger_exp(log_expected, PARTICIPANT_PROPERTY_LINE);
-  domain = dds_create_domain(0, sec_config);
+  domain = create_domain_with_test_config(0, sec_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, NULL, NULL);
   CU_ASSERT_GT_FATAL (participant, 0);
@@ -368,7 +369,7 @@ CU_Test(ddssec_config, security, .init = ddsrt_init, .fini = ddsrt_fini)
   };
 
   set_logger_exp(log_expected, PARTICIPANT_PROPERTY_LINE);
-  domain = dds_create_domain(0, sec_config);
+  domain = create_domain_with_test_config(0, sec_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, NULL, NULL);
   CU_ASSERT_GT_FATAL (participant, 0);
@@ -453,7 +454,7 @@ CU_Test(ddssec_config, deprecated, .init = ddsrt_init, .fini = ddsrt_fini)
   };
 
   set_logger_exp(log_expected, PARTICIPANT_PROPERTY_LINE);
-  domain = dds_create_domain(0, sec_config);
+  domain = create_domain_with_test_config(0, sec_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, NULL, NULL);
   CU_ASSERT_GT_FATAL (participant, 0);
@@ -512,7 +513,7 @@ CU_Test(ddssec_config, qos, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qset_prop(qos, ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL, "file:/test/crl");
 
   set_logger_exp(log_expected, NULL);
-  domain = dds_create_domain(0, default_config);
+  domain = create_domain_with_test_config(0, default_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, qos, NULL);
   CU_ASSERT_GT_FATAL (participant, 0);
@@ -570,7 +571,7 @@ CU_Test(ddssec_config, qos_props, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qset_bprop(qos, "test.bprop1", bvalue, 3);
 
   set_logger_exp(log_expected, NULL);
-  domain = dds_create_domain(0, default_config);
+  domain = create_domain_with_test_config(0, default_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, qos, NULL);
   CU_ASSERT_GT_FATAL (participant, 0);
@@ -637,7 +638,7 @@ CU_Test(ddssec_config, config_qos, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_PERMISSIONS, "file:QOS_Permissions.p7s");
 
   set_logger_exp(log_expected, NULL);
-  domain = dds_create_domain(0, sec_config);
+  domain = create_domain_with_test_config(0, sec_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, qos, NULL);
   CU_ASSERT_GT_FATAL (participant, 0);
@@ -700,7 +701,7 @@ CU_Test(ddssec_config, other_prop, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qset_prop(qos, "test.dds.sec.prop1", "testtext_value1_testtext");
 
   set_logger_exp(log_expected, NULL);
-  domain = dds_create_domain(0, sec_config);
+  domain = create_domain_with_test_config(0, sec_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, qos, NULL);
   CU_ASSERT_GT_FATAL (participant, 0);
@@ -765,7 +766,7 @@ CU_Test(ddssec_config, qos_invalid, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qset_prop(qos, DDS_SEC_PROP_PREFIX "dummy", "testtext_dummy_testtext");
 
   /* Create participant with security config in qos. */
-  domain = dds_create_domain(0, sec_config);
+  domain = create_domain_with_test_config(0, sec_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, qos, NULL);
   CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
@@ -829,7 +830,7 @@ CU_Test(ddssec_config, qos_invalid_proprietary, .init = ddsrt_init, .fini = ddsr
   dds_qset_prop(qos, "org.eclipse.cyclonedds.sec.dummy", "testtext_dummy_testtext");
 
   /* Create participant with security config in qos. */
-  domain = dds_create_domain(0, sec_config);
+  domain = create_domain_with_test_config(0, sec_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, qos, NULL);
   CU_ASSERT_EQ_FATAL (participant, DDS_RETCODE_ERROR);
@@ -891,7 +892,7 @@ CU_Test(ddssec_config, config_qos_missing_crl, .init = ddsrt_init, .fini = ddsrt
   dds_qset_prop(qos, DDS_SEC_PROP_ACCESS_PERMISSIONS, "file:QOS_Permissions.p7s");
 
   set_logger_exp(log_expected, NULL);
-  domain = dds_create_domain(0, sec_config);
+  domain = create_domain_with_test_config(0, sec_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, qos, NULL);
   CU_ASSERT_LT_FATAL (participant, 0);
@@ -984,7 +985,7 @@ CU_Test(ddssec_config, config_qos_override_crl, .init = ddsrt_init, .fini = ddsr
   dds_qset_prop(qos, ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL, "");
 
   set_logger_exp(log_expected, NULL);
-  domain = dds_create_domain(0, sec_config);
+  domain = create_domain_with_test_config(0, sec_config);
   CU_ASSERT_GT_FATAL (domain, 0);
   participant = dds_create_participant(0, qos, NULL);
   CU_ASSERT_GT_FATAL (participant, 0);

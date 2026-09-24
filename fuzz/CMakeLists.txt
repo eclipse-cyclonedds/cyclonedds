@@ -12,7 +12,7 @@
 
 set(CMAKE_INSTALL_EXAMPLESDIR "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/fuzz")
 
-include("${CMAKE_SOURCE_DIR}/cmake/Modules/Generate.cmake")
+include("${CycloneDDS_IDLC_GENERATE_CMAKE}")
 
 add_subdirectory(fuzz_config_init)
 add_subdirectory(fuzz_handle_rtps_message)

@@ -9,8 +9,12 @@
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 // The in6_pktinfo is somewhat fussy, but these seem to do the trick ...
+#ifndef __APPLE_USE_RFC_3542
 #define __APPLE_USE_RFC_3542
+#endif
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 
 #ifdef __APPLE__
 #include <AvailabilityMacros.h>
@@ -368,13 +372,13 @@ static int ddsi_udp_conn_locator (struct ddsi_tran_factory * fact_cmn, struct dd
   {
     loc->kind = fact->m_kind;
     loc->port = conn->m_base.m_base.m_port;
-    memcpy (loc->address, conn->m_base.m_base.gv->interfaces[0].loc.address, sizeof (loc->address));
+    memcpy (loc->address, conn->m_base.m_interf->loc.address, sizeof (loc->address));
     ret = 0;
   }
   return ret;
 }
 
-static uint16_t get_socket_port (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock)
+static uint16_t get_socket_addr_port (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock, union addr *addr_out)
 {
   dds_return_t ret;
   union addr addr;
@@ -385,7 +389,23 @@ static uint16_t get_socket_port (struct ddsi_domaingv const * const gv, ddsrt_so
     GVERROR ("ddsi_udp_get_socket_port: getsockname returned %"PRId32"\n", ret);
     return 0;
   }
+  *addr_out = addr;
   return ddsrt_sockaddr_get_port (&addr.a);
+}
+
+static char *udp_bind_address_to_string (
+    char *buf, size_t bufsz, bool bind_to_any,
+    const struct ddsi_network_interface *intf, uint32_t port)
+{
+  if (bind_to_any)
+    snprintf (buf, bufsz, "ANY:%"PRIu32, port);
+  else
+  {
+    ddsi_locator_t loc = intf->loc;
+    loc.port = port;
+    ddsi_ipaddr_to_string (buf, bufsz, &loc, 1, intf);
+  }
+  return buf;
 }
 
 static dds_return_t set_dont_route (struct ddsi_domaingv const * const gv, ddsrt_socket_t socket, bool ipv6)
@@ -603,33 +623,29 @@ static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, stru
 
   dds_return_t rc;
   ddsrt_socket_t sock;
-  bool reuse_addr = false, bind_to_any = false, ipv6 = false, set_mc_xmit_options = false;
+  bool reuse_addr = false, bind_to_any = qos->m_bind_to_any, ipv6 = false, set_mc_xmit_options = false;
   const char *purpose_str = NULL;
 
   switch (qos->m_purpose)
   {
     case DDSI_TRAN_QOS_XMIT_UC:
       reuse_addr = false;
-      bind_to_any = false;
       set_mc_xmit_options = false;
       purpose_str = "transmit(uc)";
       break;
     case DDSI_TRAN_QOS_XMIT_MC:
       reuse_addr = false;
-      bind_to_any = false;
       set_mc_xmit_options = true;
       purpose_str = "transmit(uc/mc)";
       break;
-    case DDSI_TRAN_QOS_RECV_UC:
+    case DDSI_TRAN_QOS_RECVXMIT_UC:
       reuse_addr = false;
-      bind_to_any = true;
-      set_mc_xmit_options = false;
+      set_mc_xmit_options = (intf->allow_multicast != 0);
       purpose_str = "unicast";
       break;
     case DDSI_TRAN_QOS_RECV_MC:
       reuse_addr = true;
-      bind_to_any = true;
-      set_mc_xmit_options = false;
+      set_mc_xmit_options = true;
       purpose_str = "multicast";
       break;
   }
@@ -719,11 +735,8 @@ static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, stru
       goto fail_addrinuse;
 
     char buf[DDSI_LOCSTRLEN];
-    if (bind_to_any)
-      snprintf (buf, sizeof (buf), "ANY:%"PRIu32, port);
-    else
-      ddsi_locator_to_string (buf, sizeof (buf), &ownloc_w_port);
-    GVERROR ("ddsi_udp_create_conn: failed to bind to %s: %s\n", buf,
+    GVERROR ("ddsi_udp_create_conn: failed to bind to %s: %s\n",
+             udp_bind_address_to_string (buf, sizeof (buf), bind_to_any, intf, port),
              (rc == DDS_RETCODE_PRECONDITION_NOT_MET) ? "address in use" : dds_strretcode (rc));
     goto fail_w_socket;
   }
@@ -746,7 +759,7 @@ static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, stru
 #endif
 
   ddsi_factory_conn_init (&fact->fact, intf, &conn->m_base);
-  conn->m_base.m_base.m_port = get_socket_port (gv, sock);
+  conn->m_base.m_base.m_port = get_socket_addr_port (gv, sock, &conn->m_addr);
   conn->m_base.m_base.m_trantype = DDSI_TRAN_CONN;
   conn->m_base.m_base.m_multicast = (qos->m_purpose == DDSI_TRAN_QOS_RECV_MC);
   conn->m_base.m_base.m_handle_fn = ddsi_udp_conn_handle;
@@ -756,7 +769,11 @@ static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, stru
   conn->m_base.m_disable_multiplexing_fn = ddsi_udp_disable_multiplexing;
   conn->m_base.m_locator_fn = ddsi_udp_conn_locator;
 
-  GVTRACE ("ddsi_udp_create_conn %s socket %"PRIdSOCK" port %"PRIu32"\n", purpose_str, conn->m_sockext.sock, conn->m_base.m_base.m_port);
+  char bindaddr[DDSI_LOCSTRLEN];
+  GVTRACE ("ddsi_udp_create_conn %s conn %p socket %"PRIdSOCK" bound to %s\n",
+           purpose_str, (void *) conn, conn->m_sockext.sock,
+           udp_bind_address_to_string (bindaddr, sizeof (bindaddr), bind_to_any, intf,
+                                       conn->m_base.m_base.m_port));
 
   if (fact->ownaddrs)
   {

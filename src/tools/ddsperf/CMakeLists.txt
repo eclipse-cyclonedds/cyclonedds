@@ -11,7 +11,7 @@
 #
 
 if (BUILD_DDSPERF)
-  include(Generate)
+  include("${CycloneDDS_IDLC_GENERATE_CMAKE}")
 
   idlc_generate(TARGET ddsperf_types FILES ddsperf_types.idl WARNINGS no-implicit-extensibility)
   add_executable(ddsperf

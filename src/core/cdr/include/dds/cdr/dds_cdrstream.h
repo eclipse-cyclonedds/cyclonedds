@@ -21,8 +21,6 @@
 extern "C" {
 #endif
 
-#define DDS_CDRSTREAM_MAX_NESTING_DEPTH 32  /* maximum level of nesting for key extraction */
-
 /*
   Encoding version to be used for serialization. Encoding version 1
   represents the XCDR1 format as defined in the DDS XTypes specification,
@@ -70,7 +68,8 @@ payload in order to reach the next 4-byte aligned offset. */
 #define DDS_XCDR1_PL_LONG_MID_MASK          (0x0fffffffu | DDS_XCDR1_PL_LONG_FLAG_IMPL_EXT)
 
 
-#define DDS_CDR_CALCULATED_FLAGS (DDS_TOPIC_FIXED_KEY | DDS_TOPIC_FIXED_KEY_XCDR2 | DDS_TOPIC_FIXED_KEY_XCDR2_KEYHASH | DDS_TOPIC_KEY_APPENDABLE | DDS_TOPIC_KEY_MUTABLE | DDS_TOPIC_KEY_SEQUENCE | DDS_TOPIC_KEY_ARRAY_NONPRIM)
+#define DDS_CDR_DESCRIPTOR_PRESERVED_FLAGS \
+  (DDS_TOPIC_XTYPES_METADATA | DDS_TOPIC_RESTRICT_DATA_REPRESENTATION)
 
 struct dds_cdr_header {
   unsigned short identifier;
@@ -106,6 +105,15 @@ enum dds_stream_normalize_result {
   DDS_STREAM_NORMALIZE_ERROR,   ///< Validation failed or normalization could not be completed.
   DDS_STREAM_NORMALIZE_SUCCESS, ///< Validation and normalization succeeded.
   DDS_STREAM_NORMALIZE_DISCARD  ///< Sample is well-formed but must be discarded by try-construct handling.
+};
+
+/**
+ * @brief Options controlling serialized CDR normalization.
+ * @component cdr_serializer
+ */
+enum dds_stream_normalize_flags {
+  DDS_STREAM_NORMALIZE_FLAG_NONE = 0u,
+  DDS_STREAM_NORMALIZE_FLAG_PREVENT_TYPE_WIDENING = 1u << 0
 };
 
 typedef struct dds_istream {
@@ -156,12 +164,23 @@ typedef struct dds_cdrstream_desc_op_seq {
 
 struct dds_cdrstream_desc_mid_table {
   struct ddsrt_hh *table;
+  struct ddsrt_hh *enum_value_sets;
   const uint32_t * op0;
+  bool has_special_defaults;
+};
+
+struct dds_cdrstream_desc_enum_value_set {
+  uint32_t setid;
+  uint32_t default_value;
+  uint32_t nvalues;
+  uint32_t max;
+  uint32_t *values;
 };
 
 struct dds_cdrstream_desc_mid {
   uint32_t adr_offs;
   uint32_t mid;
+  const struct dds_cdrstream_desc_enum_value_set *enum_value_set;
 };
 
 struct dds_cdrstream_desc {
@@ -194,7 +213,7 @@ uint32_t dds_cdr_alignto4_clear_and_resize (dds_ostream_t *os, const struct dds_
   ddsrt_nonnull_all;
 
 /**
- * @brief Initialize an input CDR stream over an existing buffer.
+ * @brief Initialize an input CDR stream over a well-formed existing buffer.
  * @component cdr_serializer
  *
  * The input buffer remains owned by the caller and must stay valid while the
@@ -208,7 +227,24 @@ uint32_t dds_cdr_alignto4_clear_and_resize (dds_ostream_t *os, const struct dds_
  * @param input         serialized CDR payload buffer
  * @param xcdr_version  XCDR version of the serialized payload
  */
-DDS_EXPORT void dds_istream_init (dds_istream_t *is, uint32_t size, const void *input, enum dds_cdr_enc_version xcdr_version)
+DDS_EXPORT void dds_istream_init_well_formed (dds_istream_t *is, uint32_t size, const void *input, enum dds_cdr_enc_version xcdr_version)
+  ddsrt_nonnull_all;
+
+/**
+ * @brief Initialize an input CDR stream over an existing buffer.
+ * @component cdr_serializer
+ *
+ * @deprecated Use @ref dds_istream_init_well_formed.
+ *
+ * This is a compatibility alias for @ref dds_istream_init_well_formed. The
+ * input buffer has the same well-formed native-endian CDR precondition.
+ *
+ * @param is            input stream to initialize
+ * @param size          size of @p input in bytes
+ * @param input         serialized CDR payload buffer
+ * @param xcdr_version  XCDR version of the serialized payload
+ */
+DDS_DEPRECATED_EXPORT void dds_istream_init (dds_istream_t *is, uint32_t size, const void *input, enum dds_cdr_enc_version xcdr_version)
   ddsrt_nonnull_all;
 
 /**
@@ -316,19 +352,29 @@ dds_ostream_t dds_ostream_from_buffer (void *buffer, size_t size, enum dds_cdr_e
  * @brief Normalize and validate CDR data.
  * @component cdr_serializer
  *
- * @param data          data sample
- * @param size          size of the data
+ * @param data          serialized sample or key CDR buffer, normalized in place
+ * @param size          size of @p data in bytes
  * @param bswap         byte-swapping required
  * @param xcdr_version  XCDR version of the CDR data
  * @param desc          type descriptor
- * @param just_key      indicates if the data is a serialized key or a complete sample
- * @param actual_size   is set to the actual size of the data (*actual_size <= size) on successful return, undefined on failure
+ * @param just_key      indicates if @p data is a serialized key or complete serialized data
+ * @param actual_size   is set to the actual size of the CDR payload (*actual_size <= size) on successful return, undefined on failure
  * @returns             DDS_STREAM_NORMALIZE_SUCCESS when validation and normalization succeeded;
- *                      DDS_STREAM_NORMALIZE_DISCARD when the sample is well-formed but must be
+ *                      DDS_STREAM_NORMALIZE_DISCARD when the CDR payload is well-formed but must be
  *                      discarded because try-construct handling rejects it; DDS_STREAM_NORMALIZE_ERROR
  *                      when validation failed or normalization could not be completed.
  */
 DDS_EXPORT enum dds_stream_normalize_result dds_stream_normalize (void *data, uint32_t size, bool bswap, enum dds_cdr_enc_version xcdr_version, const struct dds_cdrstream_desc *desc, bool just_key, uint32_t *actual_size)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+
+/**
+ * @brief Normalize and validate CDR data with normalization options.
+ * @component cdr_serializer
+ *
+ * This is equivalent to @ref dds_stream_normalize, except that @p flags
+ * controls additional validation rules.
+ */
+DDS_EXPORT enum dds_stream_normalize_result dds_stream_normalize_with_flags (void *data, uint32_t size, bool bswap, enum dds_cdr_enc_version xcdr_version, const struct dds_cdrstream_desc *desc, bool just_key, uint32_t flags, uint32_t *actual_size)
   ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 /**
@@ -344,11 +390,71 @@ DDS_EXPORT enum dds_stream_normalize_result dds_stream_normalize (void *data, ui
  * @param bswap  byte-swapping required
  * @param ops    marshalling metadata for the data type
  * @returns      DDS_STREAM_NORMALIZE_SUCCESS when validation and normalization succeeded;
- *               DDS_STREAM_NORMALIZE_DISCARD when the sample is well-formed but must be
+ *               DDS_STREAM_NORMALIZE_DISCARD when the CDR payload is well-formed but must be
  *               discarded because try-construct handling rejects it; DDS_STREAM_NORMALIZE_ERROR
  *               when validation failed or normalization could not be completed.
  */
 DDS_EXPORT enum dds_stream_normalize_result dds_stream_normalize_xcdr2_data (char *data, uint32_t *off, uint32_t size, bool bswap, const uint32_t *ops)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+
+/**
+ * @brief Normalize CDR data and initialize a trusted input stream on success.
+ * @component cdr_serializer
+ *
+ * This helper normalizes @p data in place using @ref dds_stream_normalize. On
+ * success, @p is is initialized over the accepted native-endian byte range and
+ * @p actual_size is set to that range size. On error or discard, @p is is reset
+ * to an empty stream and @p actual_size is set to 0.
+ *
+ * @param is            input stream to initialize on success
+ * @param data          serialized sample or key CDR buffer, normalized in place
+ * @param size          size of @p data in bytes
+ * @param bswap         byte-swapping required
+ * @param xcdr_version  XCDR version of the CDR data
+ * @param desc          type descriptor
+ * @param just_key      indicates if @p data is a serialized key or complete serialized data
+ * @param actual_size   set to the stream size on success, 0 otherwise
+ * @returns             DDS_STREAM_NORMALIZE_SUCCESS when validation and normalization succeeded;
+ *                      DDS_STREAM_NORMALIZE_DISCARD when the CDR payload is well-formed but must be
+ *                      discarded because try-construct handling rejects it; DDS_STREAM_NORMALIZE_ERROR
+ *                      when validation failed or normalization could not be completed.
+ */
+DDS_EXPORT enum dds_stream_normalize_result dds_stream_normalize_to_istream (dds_istream_t *is, void *data, uint32_t size, bool bswap, enum dds_cdr_enc_version xcdr_version, const struct dds_cdrstream_desc *desc, bool just_key, uint32_t *actual_size)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+
+/**
+ * @brief Normalize CDR data with normalization options and initialize a trusted
+ *        input stream on success.
+ * @component cdr_serializer
+ *
+ * This is equivalent to @ref dds_stream_normalize_to_istream, except
+ * that @p flags controls additional validation rules.
+ */
+DDS_EXPORT enum dds_stream_normalize_result dds_stream_normalize_to_istream_with_flags (dds_istream_t *is, void *data, uint32_t size, bool bswap, enum dds_cdr_enc_version xcdr_version, const struct dds_cdrstream_desc *desc, bool just_key, uint32_t flags, uint32_t *actual_size)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+
+/**
+ * @brief Normalize an XCDR2 data fragment and initialize a trusted input stream on success.
+ * @component cdr_serializer
+ *
+ * This helper normalizes @p data in place starting at @p off. On success, @p off
+ * is advanced past the normalized fragment and @p is is initialized with index
+ * 0 over the normalized range `data + old_off` through `data + *off`. On error
+ * or discard, @p off is restored to its original value and @p is is reset to an
+ * empty stream.
+ *
+ * @param is     input stream to initialize on success
+ * @param data   serialized XCDR2 payload buffer
+ * @param off    offset at which to start normalizing, updated on success
+ * @param size   size of @p data in bytes
+ * @param bswap  byte-swapping required
+ * @param ops    marshalling metadata for the data type
+ * @returns      DDS_STREAM_NORMALIZE_SUCCESS when validation and normalization succeeded;
+ *               DDS_STREAM_NORMALIZE_DISCARD when the CDR payload is well-formed but must be
+ *               discarded because try-construct handling rejects it; DDS_STREAM_NORMALIZE_ERROR
+ *               when validation failed or normalization could not be completed.
+ */
+DDS_EXPORT enum dds_stream_normalize_result dds_stream_normalize_xcdr2_data_to_istream (dds_istream_t *is, char *data, uint32_t *off, uint32_t size, bool bswap, const uint32_t *ops)
   ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 /**
@@ -714,37 +820,31 @@ DDS_EXPORT size_t dds_stream_getsize_key (const char *sample, const struct dds_c
   ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 /**
- * @brief Determine the minimum XCDR version required by stream operations.
+ * @brief Determine the data representations supported by stream operations.
  * @component cdr_serializer
  *
  * @param ops  marshalling metadata to inspect
- * @returns    minimum required XCDR version
+ * @returns    bitmask of DDS_DATA_REPRESENTATION_FLAG_XCDR1/XCDR2
  */
-enum dds_cdr_enc_version dds_stream_minimum_xcdr_version (const uint32_t *ops)
+uint32_t dds_stream_supported_data_representations (const uint32_t *ops)
   ddsrt_nonnull_all;
 
 /**
- * @brief Determine the maximum type nesting depth in stream operations.
+ * @brief Compute descriptor flags derived from stream operations.
  * @component cdr_serializer
  *
- * @param ops  marshalling metadata to inspect
- * @returns    maximum nested aggregate depth
- */
-uint32_t dds_stream_type_nesting_depth (const uint32_t *ops)
-  ddsrt_nonnull_all;
-
-/**
- * @brief Compute key-related topic flags and optional key sizes.
- * @component cdr_serializer
- *
- * The returned flags are limited to @ref DDS_CDR_CALCULATED_FLAGS.
+ * The returned flags preserve bits covered by @ref
+ * DDS_CDR_DESCRIPTOR_PRESERVED_FLAGS from @p flagset and set all other
+ * descriptor flags from @p desc. This function does not modify @p desc.
  *
  * @param desc           CDR stream descriptor to inspect
+ * @param flagset        input topic descriptor flags
  * @param keysz_xcdrv1   optional output for XCDR1 key size
  * @param keysz_xcdrv2   optional output for XCDR2 key size
- * @returns              calculated key flags
+ * @returns              descriptor flags with calculated bits updated
  */
-uint32_t dds_stream_key_flags (struct dds_cdrstream_desc *desc, uint32_t *keysz_xcdrv1, uint32_t *keysz_xcdrv2)
+uint32_t dds_stream_descriptor_flags (struct dds_cdrstream_desc *desc, uint32_t flagset, uint32_t *keysz_xcdrv1,
+    uint32_t *keysz_xcdrv2)
   ddsrt_nonnull ((1));
 
 /**
@@ -788,8 +888,10 @@ dds_data_type_properties_t dds_stream_data_types (const uint32_t *ops)
  * @param nops       number of operation words supplied
  * @param keys       key descriptors, or NULL when @p nkeys is zero
  * @param nkeys      number of key descriptors
+ * @returns          DDS_RETCODE_OK when @p desc was initialized; DDS_RETCODE_BAD_PARAMETER
+ *                   when the stream descriptor cannot be supported
  */
-DDS_EXPORT void dds_cdrstream_desc_init_with_nops (struct dds_cdrstream_desc *desc, const struct dds_cdrstream_allocator *allocator,
+DDS_EXPORT dds_return_t dds_cdrstream_desc_init_with_nops (struct dds_cdrstream_desc *desc, const struct dds_cdrstream_allocator *allocator,
     uint32_t size, uint32_t align, uint32_t flagset, const uint32_t *ops, uint32_t nops, const dds_key_descriptor_t *keys, uint32_t nkeys)
   ddsrt_nonnull ((1, 2, 6));
 
@@ -813,8 +915,10 @@ DDS_EXPORT void dds_cdrstream_desc_init_with_nops (struct dds_cdrstream_desc *de
  * @param ops        marshalling metadata to copy
  * @param keys       key descriptors, or NULL when @p nkeys is zero
  * @param nkeys      number of key descriptors
+ * @returns          DDS_RETCODE_OK when @p desc was initialized; DDS_RETCODE_BAD_PARAMETER
+ *                   when the stream descriptor cannot be supported
  */
-DDS_EXPORT void dds_cdrstream_desc_init (struct dds_cdrstream_desc *desc, const struct dds_cdrstream_allocator *allocator,
+DDS_EXPORT dds_return_t dds_cdrstream_desc_init (struct dds_cdrstream_desc *desc, const struct dds_cdrstream_allocator *allocator,
     uint32_t size, uint32_t align, uint32_t flagset, const uint32_t *ops, const dds_key_descriptor_t *keys, uint32_t nkeys)
   ddsrt_nonnull ((1, 2, 6));
 
@@ -841,8 +945,10 @@ DDS_EXPORT void dds_cdrstream_desc_fini (struct dds_cdrstream_desc *desc, const 
  *
  * @param desc        descriptor to initialize
  * @param topic_desc  topic descriptor containing serialization metadata
+ * @returns           DDS_RETCODE_OK when @p desc was initialized; DDS_RETCODE_BAD_PARAMETER
+ *                    when the stream descriptor cannot be supported
  */
-DDS_EXPORT void dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc)
+DDS_EXPORT dds_return_t dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc)
   ddsrt_nonnull_all;
 
 

@@ -421,7 +421,8 @@ no_readers:
 static bool isloopback (struct ddsi_domaingv const * const gv, const ddsi_xlocator_t *loc)
 {
   for (int k = 0; k < gv->n_interfaces; k++)
-    if (loc->conn == gv->xmit_conns[k] && gv->interfaces[k].loopback)
+    if ((loc->conn == gv->xmit_conns_meta[k] || loc->conn == gv->xmit_conns_data[k]) &&
+        gv->interfaces[k].loopback)
       return true;
   return false;
 }

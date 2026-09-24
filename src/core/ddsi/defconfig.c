@@ -53,6 +53,7 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 #endif /* DDS_HAS_TOPIC_DISCOVERY */
   cfg->lease_duration = INT64_C (10000000000);
+  cfg->interface_filtering = INT32_C (1);
   cfg->tracefile = "cyclonedds.log";
   cfg->pcap_file = "";
   cfg->delivery_queue_maxsamples = UINT32_C (256);
@@ -108,14 +109,14 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->ssl_min_version.minor = 3;
 #endif /* DDS_HAS_TCP_TLS */
 }
-/* generated from ddsi_config.h[fa9f0e6c47e2cd035bc7d5a0949caff291f77019] */
-/* generated from ddsi_config.c[2bfa6f856d7398a905922d140943b27328d265f1] */
-/* generated from ddsi__cfgelems.h[b79c157f81518771ebd4ea7ca37a347b73008a9f] */
+/* generated from ddsi_config.h[158c45a21ff482bdf9363c12efc5e5e96d0c9827] */
+/* generated from ddsi_config.c[7966a1299fb24d205f99f242ee09bf48824daadb] */
+/* generated from ddsi__cfgelems.h[3383bfd0af910c73f41bed190f7d377c98cc125c] */
 /* generated from cfgunits.h[05f093223fce107d24dd157ebaafa351dc9df752] */
-/* generated from _confgen.h[bb9a0fc6ef1f7f7c46790ee00132e340e5fff36d] */
-/* generated from _confgen.c[0d833a6f2c98902f1249e63aed03a6164f0791d6] */
+/* generated from _confgen.h[e0b7a072621df43c0e7419d52359ddf4b98b202f] */
+/* generated from _confgen.c[500178f92fc0791a8de2234cea5b277820e6b40b] */
 /* generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] */
 /* generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] */
 /* generated from generate_rst.c[3c4b523fbb57c8e4a7e247379d06a8021ccc21c4] */
 /* generated from generate_xsd.c[9bb91084fff7495aee9c025db3108549a0141957] */
-/* generated from generate_defconfig.c[02afff6935d72b7f04dc64c8a649b09f9f6143ac] */
+/* generated from generate_defconfig.c[ab6586fcd43cc01814507db687575914686943dc] */

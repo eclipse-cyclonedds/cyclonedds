@@ -19,6 +19,9 @@ addition to the standard options such as ``CMAKE_BUILD_TYPE``):
       - Build the included examples
     * - ``-DBUILD_TESTING=ON``
       - Build the test suite (forces exporting all symbols from the library)
+    * - ``-DENABLE_FAKEUDP=ON``
+      - Include the in-process fake UDP transport used for tests (defaults to the value
+        of ``BUILD_TESTING``)
     * - ``-DBUILD_IDLC=NO``
       - Disable building the IDL compiler (affects building examples, tests and ``ddsperf``)
     * - ``-DBUILD_DDSPERF=NO``

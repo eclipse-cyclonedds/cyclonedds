@@ -3204,7 +3204,9 @@ dds_waitset_wait_until(
  * - If `buf[0]` on entry is any other address, then:
  *   - all of `buf[0]` .. `buf[bufsz-1]` must point to memory suitable for storing samples; and
  *   - the C binding requires that this memory must be initialized such that all embedded strings, externals,
- *     optionals and sequences are initialized (null pointers are ok, sequences may also be all-0)
+ *     optionals and sequences are initialized (null pointers are ok, sequences may also be all-0); and
+ *   - for the C binding, @ref dds_sequence_t and @ref dds_sample_free describe the ownership rules for
+ *     sequence fields when application-owned sample buffers are used.
  *
  * The loans returned by `dds_peek` operation are potentially shared copies of the data and the contents
  * may not be modified. If a private copy is required, pass in non-null pointers to memory as in the third case
@@ -3522,7 +3524,9 @@ dds_peek_next(
  * - If `buf[0]` on entry is any other address, then:
  *   - all of `buf[0]` .. `buf[bufsz-1]` must point to memory suitable for storing samples; and
  *   - the C binding requires that this memory must be initialized such that all embedded strings, externals,
- *     optionals and sequences are initialized (null pointers are ok, sequences may also be all-0)
+ *     optionals and sequences are initialized (null pointers are ok, sequences may also be all-0); and
+ *   - for the C binding, @ref dds_sequence_t and @ref dds_sample_free describe the ownership rules for
+ *     sequence fields when application-owned sample buffers are used.
  *
  * The loans returned by `dds_read` operation are potentially shared copies of the data and the contents
  * may not be modified. If a private copy is required, pass in non-null pointers to memory as in the third case
@@ -4008,7 +4012,9 @@ dds_read_next_wl(
  * - If `buf[0]` on entry is any other address, then:
  *   - all of `buf[0]` .. `buf[bufsz-1]` must point to memory suitable for storing samples; and
  *   - the C binding requires that this memory must be initialized such that all embedded strings, externals,
- *     optionals and sequences are initialized (null pointers are ok, sequences may also be all-0)
+ *     optionals and sequences are initialized (null pointers are ok, sequences may also be all-0); and
+ *   - for the C binding, @ref dds_sequence_t and @ref dds_sample_free describe the ownership rules for
+ *     sequence fields when application-owned sample buffers are used.
  *
  * The loans returned by `dds_take` operation are potentially shared copies of the data and the contents
  * may not be modified. If a private copy is required, pass in non-null pointers to memory as in the third case

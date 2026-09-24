@@ -62,7 +62,7 @@ static uint32_t sertype_cdr_hash (const struct ddsi_sertype *tpcmn)
 static void sertype_cdr_free (struct ddsi_sertype *tpcmn)
 {
   struct ddsi_sertype_cdr *tp = (struct ddsi_sertype_cdr *) tpcmn;
-  ddsrt_free (tp->type.ops.ops);
+  dds_cdrstream_desc_fini (&tp->type, &dds_cdrstream_default_allocator);
   ddsi_sertype_fini (&tp->c);
   ddsrt_free (tp);
 }
@@ -151,18 +151,12 @@ dds_return_t ddsi_sertype_cdr_init (const struct ddsi_domaingv *gv, struct ddsi_
   if (!dds_stream_extensibility (desc->m_ops, &type_ext))
     return DDS_RETCODE_BAD_PARAMETER;
 
+  dds_return_t ret = dds_cdrstream_desc_init_with_nops (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_nops, desc->m_keys, desc->m_nkeys);
+  if (ret != DDS_RETCODE_OK)
+    return ret;
+
   ddsi_sertype_init_props (&st->c, desc->m_typename, &ddsi_sertype_ops_cdr, &ddsi_serdata_ops_cdr, desc->m_size, dds_stream_data_types (desc->m_ops), DDS_DATA_REPRESENTATION_FLAG_XCDR2, 0);
-
   st->encoding_format = ddsi_sertype_extensibility_enc_format (type_ext);
-
-  dds_cdrstream_desc_init_with_nops (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_nops, desc->m_keys, desc->m_nkeys);
-
-  if (dds_stream_type_nesting_depth (desc->m_ops) > DDS_CDRSTREAM_MAX_NESTING_DEPTH)
-  {
-    ddsi_sertype_unref (&st->c);
-    GVTRACE ("Serializer ops for type %s has unsupported nesting depth (max %u)\n", desc->m_typename, DDS_CDRSTREAM_MAX_NESTING_DEPTH);
-    return DDS_RETCODE_BAD_PARAMETER;
-  }
 
   st->type.opt_size_xcdr2 = dds_stream_check_optimize (&st->type, DDSI_RTPS_CDR_ENC_VERSION_2);
   if (st->type.opt_size_xcdr2 > 0)

@@ -72,4 +72,22 @@ module CdrStreamTryconstruct {
     @try_construct(USE_DEFAULT) sequence<@try_construct(USE_DEFAULT) sequence<unsigned long, 3>, 3> f9;
     string f10;
   };
+
+  @final @bit_bound(8) bitmask bmf {
+    BMF0,
+    BMF1
+  };
+
+  @appendable @bit_bound(8) bitmask bma {
+    BMA0,
+    BMA1
+  };
+
+  @final struct t8 {
+    @try_construct(DISCARD) bmf f1;
+    @try_construct(USE_DEFAULT) bmf f2;
+    @try_construct(DISCARD) bma f3;
+    @try_construct(USE_DEFAULT) bma f4;
+    string f5;
+  };
 };

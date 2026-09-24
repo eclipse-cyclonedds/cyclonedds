@@ -220,7 +220,7 @@ static int sedp_write_endpoint_impl
           // FIXME: same as what SPDP uses, should be refactored, now more than ever
           for (int i = 0; i < epcommon->pp->e.gv->n_interfaces; i++)
           {
-            if (!epcommon->pp->e.gv->xmit_conns[i]->m_factory->m_enable_spdp)
+            if (!epcommon->pp->e.gv->xmit_conns_data[i]->m_factory->m_enable_spdp)
             {
               // skip any interfaces where the address kind doesn't match the selected transport
               // as a reasonablish way of not advertising PSMX locators here
@@ -293,16 +293,20 @@ int ddsi_sedp_write_reader (struct ddsi_reader *rd)
   {
     // FIXME: do this without first creating a temporary addrset
     as = ddsi_new_addrset ();
-    // use a placeholder connection to avoid exploding the multicast addreses to multiple
+    // use a placeholder connection to avoid exploding the multicast addresses to multiple
     // interfaces
+    //
+    // These locators describe where the remote peer should send user data for
+    // this endpoint.  Use the data transmit connection array for the address
+    // set identity even though the SEDP announcement itself is metatraffic.
     for (const struct ddsi_networkpartition_address *a = rd->uc_as; a != NULL; a = a->next)
       ddsi_add_xlocator_to_addrset(rd->e.gv, as, &(const ddsi_xlocator_t) {
         .c = a->loc,
-        .conn = rd->e.gv->xmit_conns[0] });
+        .conn = rd->e.gv->xmit_conns_data[0] });
     for (const struct ddsi_networkpartition_address *a = rd->mc_as; a != NULL; a = a->next)
       ddsi_add_xlocator_to_addrset(rd->e.gv, as, &(const ddsi_xlocator_t) {
         .c = a->loc,
-        .conn = rd->e.gv->xmit_conns[0] });
+        .conn = rd->e.gv->xmit_conns_data[0] });
   }
 #endif
 #ifdef DDS_HAS_SECURITY
@@ -357,6 +361,7 @@ static const char *durability_to_string (dds_durability_kind_t k)
 
 struct ddsi_addrset_from_locatorlists_collect_interfaces_arg {
   const struct ddsi_domaingv *gv;
+  struct ddsi_tran_conn * const *xmit_conns;
   ddsi_interface_set_t *intfs;
 };
 
@@ -373,8 +378,8 @@ static void addrset_from_locatorlists_collect_interfaces (const ddsi_xlocator_t 
   struct ddsi_domaingv const * const gv = arg->gv;
   for (int i = 0; i < gv->n_interfaces; i++)
   {
-    //GVTRACE(" {%p,%p}", loc->conn, gv->xmit_conns[i]);
-    if (loc->conn == gv->xmit_conns[i])
+    //GVTRACE(" {%p,%p}", loc->conn, arg->xmit_conns[i]);
+    if (loc->conn == arg->xmit_conns[i])
     {
       arg->intfs->xs[i] = true;
       break;
@@ -382,7 +387,7 @@ static void addrset_from_locatorlists_collect_interfaces (const ddsi_xlocator_t 
   }
 }
 
-struct ddsi_addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, const ddsi_plist_t *datap, struct ddsi_addrset *proxypp_as_default, const struct ddsi_network_packet_info *pktinfo, bool allow_srcloc, bool force_srcloc)
+struct ddsi_addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, struct ddsi_tran_conn * const *xmit_conns, const ddsi_plist_t *datap, struct ddsi_addrset *proxypp_as_default, const struct ddsi_network_packet_info *pktinfo, bool allow_srcloc, bool force_srcloc)
 {
   const ddsi_locators_t emptyset = { .n = 0, .first = NULL, .last = NULL };
   const ddsi_locators_t *uc = (datap->present & PP_UNICAST_LOCATOR) ? &datap->unicast_locators : &emptyset;
@@ -392,14 +397,17 @@ struct ddsi_addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, 
   if (force_srcloc)
     uc = &emptyset;
 
-  // any interface that works for the participant is presumed ok
+  // Any interface that works for the participant is presumed ok for the
+  // endpoint.  The caller chooses which transmit connection array to use:
+  // endpoint addrsets are used for data delivery, so SEDP endpoint processing
+  // normally passes xmit_conns_data even though SEDP itself is metatraffic.
   ddsi_interface_set_t intfs;
   ddsi_interface_set_init (&intfs);
   ddsi_addrset_forall (proxypp_as_default, addrset_from_locatorlists_collect_interfaces, &(struct ddsi_addrset_from_locatorlists_collect_interfaces_arg){
-    .gv = gv, .intfs = &intfs
+    .gv = gv, .xmit_conns = xmit_conns, .intfs = &intfs
   });
   //GVTRACE(" {%d%d%d%d}", intfs.xs[0], intfs.xs[1], intfs.xs[2], intfs.xs[3]);
-  struct ddsi_addrset *as = ddsi_addrset_from_locatorlists (gv, uc, mc, pktinfo, allow_srcloc, &intfs);
+  struct ddsi_addrset *as = ddsi_addrset_from_locatorlists (gv, xmit_conns, uc, mc, pktinfo, allow_srcloc, &intfs);
   // if SEDP gives:
   // - no addresses, use ppant uni- and multicast addresses
   // - only multicast, use those for multicast and use ppant address for unicast
@@ -492,7 +500,11 @@ void ddsi_handle_sedp_alive_endpoint (const struct ddsi_receiver_state *rst, dds
   // in favour of inheriting addresses from participant
   const bool allow_srcloc = gv->config.tcp_use_peeraddr_for_unicast && !ddsi_is_unspec_locator (&rst->pktinfo.src);
   const bool force_srcloc = allow_srcloc;
-  as = ddsi_get_endpoint_addrset (gv, datap, proxypp->as_default, &rst->pktinfo, allow_srcloc, force_srcloc);
+  // Endpoint addrsets are attached to proxy readers/writers and are used when
+  // sending user data to those endpoints.  Therefore use data transmit
+  // connections here; the fact that we learned the locators from SEDP does not
+  // make the resulting endpoint addrset metatraffic.
+  as = ddsi_get_endpoint_addrset (gv, gv->xmit_conns_data, datap, proxypp->as_default, &rst->pktinfo, allow_srcloc, force_srcloc);
   if (ddsi_addrset_empty (as) || !ddsi_addrset_contains_non_psmx_uc (as))
   {
     ddsi_unref_addrset (as);

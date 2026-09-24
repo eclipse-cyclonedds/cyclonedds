@@ -2,19 +2,6 @@ repos:
 - repo: local
   hooks:
   - id: must-match-hash
-    name: bison-parser-hashcheck
-    language: python
-    always_run: true
-    entry: python hooks/must-match-hash.py
-    args: [
-      '--hash-files',
-        'src/idl/src/parser.y',
-      '--append-files',
-        'src/idl/src/parser.h',
-        'src/idl/src/parser.c'
-    ]
-    pass_filenames: false
-  - id: must-match-hash
     name: confgen-hashcheck
     language: python
     always_run: true

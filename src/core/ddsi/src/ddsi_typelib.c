@@ -237,13 +237,13 @@ ddsi_typeinfo_t *ddsi_typeinfo_deser (const unsigned char *data, uint32_t sz)
   bool bswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
   DDSRT_WARNING_MSVC_ON(6326)
   data_norm = ddsrt_memdup (data, sz);
-  if (dds_stream_normalize_xcdr2_data ((char *) data_norm, &srcoff, sz, bswap, DDS_XTypes_TypeInformation_desc.m_ops) != DDS_STREAM_NORMALIZE_SUCCESS)
+  dds_istream_t is;
+  if (dds_stream_normalize_xcdr2_data_to_istream (&is, (char *) data_norm, &srcoff, sz, bswap, DDS_XTypes_TypeInformation_desc.m_ops) != DDS_STREAM_NORMALIZE_SUCCESS)
   {
     ddsrt_free (data_norm);
     return NULL;
   }
 
-  dds_istream_t is = { .m_buffer = data_norm, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   ddsi_typeinfo_t *typeinfo = ddsrt_calloc (1, sizeof (*typeinfo));
   dds_stream_read (&is, (void *) typeinfo, &dds_cdrstream_default_allocator, DDS_XTypes_TypeInformation_desc.m_ops);
   ddsrt_free (data_norm);
@@ -381,13 +381,13 @@ ddsi_typemap_t *ddsi_typemap_deser (const unsigned char *data, uint32_t sz)
   bool bswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
   DDSRT_WARNING_MSVC_ON(6326)
   data_norm = ddsrt_memdup (data, sz);
-  if (dds_stream_normalize_xcdr2_data ((char *) data_norm, &srcoff, sz, bswap, DDS_XTypes_TypeMapping_desc.m_ops) != DDS_STREAM_NORMALIZE_SUCCESS)
+  dds_istream_t is;
+  if (dds_stream_normalize_xcdr2_data_to_istream (&is, (char *) data_norm, &srcoff, sz, bswap, DDS_XTypes_TypeMapping_desc.m_ops) != DDS_STREAM_NORMALIZE_SUCCESS)
   {
     ddsrt_free (data_norm);
     return NULL;
   }
 
-  dds_istream_t is = { .m_buffer = data_norm, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   ddsi_typemap_t *typemap = ddsrt_calloc (1, sizeof (*typemap));
   dds_stream_read (&is, (void *) typemap, &dds_cdrstream_default_allocator, DDS_XTypes_TypeMapping_desc.m_ops);
   ddsrt_free (data_norm);
@@ -1539,7 +1539,7 @@ static dds_return_t ddsi_type_add_typeobj_impl_common (
     return ret;
   }
 
-  if (!type_id_matches_type_obj_id (&type->xt.id.x, &type_id))
+  if (!type_id_matches_type_obj_id (&type->xt.id.x, &type_id) && !gv->config.allow_mismatching_typeid)
   {
     /* In case the object does not match the type id, reset the type's state to
        unresolved so that it can de resolved in case the correct type object
@@ -3537,7 +3537,8 @@ bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type_p
     *rd_xt = (rd_resolved == DDS_XTypes_EK_BOTH || rd_resolved == DDS_XTypes_EK_MINIMAL) ? &rd_type_pair->minimal->xt : &rd_type_pair->complete->xt,
     *wr_xt = (wr_resolved == DDS_XTypes_EK_BOTH || wr_resolved == DDS_XTypes_EK_MINIMAL) ? &wr_type_pair->minimal->xt : &wr_type_pair->complete->xt;
   struct ddsi_non_assignability_reason reason;
-  bool assignable = ddsi_xt_is_assignable_from (gv, rd_xt, wr_xt, tce, &reason);
+  const uint32_t reason_flags = (gv->logconfig.c.mask & DDS_LC_DISCOVERY) ? DDSI_NONASSIGN_REASON_DETAIL_PATH : 0;
+  bool assignable = ddsi_xt_is_assignable_from (gv, rd_xt, wr_xt, tce, &reason, reason_flags);
   ddsrt_mutex_unlock (&gv->typelib_lock);
 
   if (!assignable)
@@ -3546,14 +3547,17 @@ bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type_p
     struct typelib_trace_typeid_str t1str, t2str;
     // not supposed to perform an assignability check while there are still unresolved types involved
     const uint32_t lc_cat = DDS_LC_DISCOVERY | (reason.code == DDSI_NONASSIGN_TYPE_UNRESOLVED ? DDS_LC_WARNING : 0);
-    GVLOG (lc_cat, "assignability check failed: rd type %s wr type %s, t1=%s (%s) t2=%s (%s) id %"PRIu32": %s\n",
+    GVLOG (lc_cat, "assignability check failed: rd type %s wr type %s, t1=%s (%s) t2=%s (%s) id %"PRIu32": %s%s%s%s%s%s\n",
            typelib_trace_make_typeid_str (&trdstr, &rd_xt->id.x),
            typelib_trace_make_typeid_str (&twrstr, &wr_xt->id.x),
            reason.t1_id._d != DDS_XTypes_TK_NONE ? typelib_trace_make_typeid_str (&t1str, &reason.t1_id) : "(none)",
            reason.t1_typekind ? ddsi_typekind_descr (reason.t1_typekind) : "",
            reason.t2_id._d != DDS_XTypes_TK_NONE ? typelib_trace_make_typeid_str (&t2str, &reason.t2_id) : "(none)",
            reason.t2_typekind ? ddsi_typekind_descr (reason.t2_typekind) : "",
-           reason.id, ddsi_non_assignability_code_str (reason.code));
+           reason.id, ddsi_non_assignability_code_str (reason.code),
+           reason.detail[0] ? ": " : "", reason.detail,
+           reason.path[0] ? ", path " : "", reason.path,
+           reason.path_truncated ? " (truncated)" : "");
   }
   return assignable;
 }

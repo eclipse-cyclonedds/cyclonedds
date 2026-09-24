@@ -17,7 +17,7 @@ find_package(CycloneDDS REQUIRED)
 find_package(OpenSplice COMPONENTS kernel sac REQUIRED)
 find_package(Perl REQUIRED)
 
-set(PERL_SCRIPT ${CMAKE_SOURCE_DIR}/cdrtest.pl)
+set(PERL_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/cdrtest.pl)
 set(TEST_MAIN ${CMAKE_CURRENT_BINARY_DIR}/cdrtest-main.c)
 set(TEST_IDL ${CMAKE_CURRENT_BINARY_DIR}/cdrtest.idl)
 
@@ -43,14 +43,14 @@ set(OSPL_TYPES_H ${CMAKE_CURRENT_BINARY_DIR}/cdrtestSplDcps_s.h)
 add_custom_command(
     OUTPUT  ${OSPL_TYPES_C}
     COMMAND ${PERL_EXECUTABLE}
-    ARGS    ${CMAKE_SOURCE_DIR}/ospl_output_transform_c.pl ${CMAKE_CURRENT_BINARY_DIR}/ospl/cdrtestSplDcps.c > ${OSPL_TYPES_C}
-    DEPENDS ospl_type_lib ${CMAKE_SOURCE_DIR}/ospl_output_transform_c.pl)
+    ARGS    ${CMAKE_CURRENT_SOURCE_DIR}/ospl_output_transform_c.pl ${CMAKE_CURRENT_BINARY_DIR}/ospl/cdrtestSplDcps.c > ${OSPL_TYPES_C}
+    DEPENDS ospl_type_lib ${CMAKE_CURRENT_SOURCE_DIR}/ospl_output_transform_c.pl)
 
 add_custom_command(
     OUTPUT  ${OSPL_TYPES_H}
     COMMAND ${PERL_EXECUTABLE}
-    ARGS    ${CMAKE_SOURCE_DIR}/ospl_output_transform_h.pl ${CMAKE_CURRENT_BINARY_DIR}/ospl/cdrtestSplDcps.h > ${OSPL_TYPES_H}
-    DEPENDS ospl_type_lib ${CMAKE_SOURCE_DIR}/ospl_output_transform_h.pl)
+    ARGS    ${CMAKE_CURRENT_SOURCE_DIR}/ospl_output_transform_h.pl ${CMAKE_CURRENT_BINARY_DIR}/ospl/cdrtestSplDcps.h > ${OSPL_TYPES_H}
+    DEPENDS ospl_type_lib ${CMAKE_CURRENT_SOURCE_DIR}/ospl_output_transform_h.pl)
 
 add_custom_target(ospl_types DEPENDS ${OSPL_TYPES_C} ${OSPL_TYPES_H})
 

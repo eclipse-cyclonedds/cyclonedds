@@ -67,8 +67,8 @@ DDS_EXPORT bool ddsi_include_multicast_locator_in_discovery (const struct ddsi_d
  * @param[in,out] inherited_intfs set of applicable interfaces, may be NULL
  *
  * @return new addrset, possibly empty */
-struct ddsi_addrset *ddsi_addrset_from_locatorlists (const struct ddsi_domaingv *gv, const ddsi_locators_t *uc, const ddsi_locators_t *mc, const struct ddsi_network_packet_info *pktinfo, bool allow_srcloc, const ddsi_interface_set_t *inherited_intfs)
-  ddsrt_attribute_warn_unused_result ddsrt_nonnull((1,2,3,4));
+struct ddsi_addrset *ddsi_addrset_from_locatorlists (const struct ddsi_domaingv *gv, struct ddsi_tran_conn * const *xmit_conns, const ddsi_locators_t *uc, const ddsi_locators_t *mc, const struct ddsi_network_packet_info *pktinfo, bool allow_srcloc, const ddsi_interface_set_t *inherited_intfs)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull((1,2,3,4,5));
 
 #if defined (__cplusplus)
 }

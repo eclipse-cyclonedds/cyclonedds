@@ -5,7 +5,6 @@
 - The following data types are not supported: map, bitset, wide-strings, char16, float128
 - For the C language binding, additionally the following types are not supported as part of a type’s key: union, sequence
 - Union types:
-    - Using bitmask type as discriminator is not supported
     - Inheritance (7.2.2.4.5) is not supported
     - Extensibility `mutable` for unions is not supported
 - The Dynamic Language Binding (7.5.2) is not supported (7.6.6, DynamicData and DynamicType API). Note: the Python API supports dynamic types without requiring a separate API.
@@ -14,7 +13,6 @@
 - In case a union has a default case, the C (de)serializer requires that the default case comes last because of a limitation of the IDL compiler.
 - The C deserializer does not support explicit defaults for members of an aggregated type (`default` annotation)
 - External (7.3.1.2.1.4) collections element types not supported (e.g. `sequence<@external b>`)
-- Using `default_literal` (7.3.1.2.1.10) to set the default for enumerated types is not supported
 - Default extensibility is `final` rather than `appendable` to maintain backwards compatibility with DDS implementations that do not support XTypes (including Cyclone DDS versions prior to 0.9.0). The IDL compiler has command-line option to select a different default.
 
 ## Type Representation

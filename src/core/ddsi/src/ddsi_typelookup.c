@@ -299,6 +299,13 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
     return false;
   }
 
+  if (type->state == DDSI_TYPE_INVALID)
+  {
+    GVTRACE ("%s is invalid\n", ddsi_make_typeid_str (&tidstr, type_id));
+    ddsrt_mutex_unlock (&gv->typelib_lock);
+    return false;
+  }
+
   if (deps != DDSI_TYPE_INCLUDE_DEPS && (type->state == DDSI_TYPE_REQUESTED || ddsi_type_resolved_locked (gv, type, DDSI_TYPE_IGNORE_DEPS)))
   {
     // type lookup is pending or the type is already resolved, so we'll return true

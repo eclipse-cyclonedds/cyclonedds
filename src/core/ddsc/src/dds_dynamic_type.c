@@ -317,7 +317,8 @@ dds_return_t dds_dynamic_type_add_member (dds_dynamic_type_t *type, dds_dynamic_
       break;
     case DDS_DYNAMIC_UNION: {
       if (!typespec_valid (member_descriptor.type, false) ||
-        (!member_descriptor.default_label && (member_descriptor.num_labels == 0 || member_descriptor.labels == NULL)))
+        (!member_descriptor.default_label && member_descriptor.num_labels == 0) ||
+        (member_descriptor.num_labels > 0 && member_descriptor.labels == NULL))
       {
         type->ret = DDS_RETCODE_BAD_PARAMETER;
         goto err;

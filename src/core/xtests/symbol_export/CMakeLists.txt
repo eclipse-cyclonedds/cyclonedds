@@ -15,7 +15,7 @@ add_executable(symbol_export_test symbol_export.c)
 target_link_libraries(symbol_export_test PRIVATE ddsc)
 target_include_directories(symbol_export_test PRIVATE
     "$<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>"
-    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src/include/>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/src>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"

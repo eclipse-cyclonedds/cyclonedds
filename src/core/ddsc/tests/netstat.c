@@ -18,6 +18,12 @@
 CU_Test(ddsc_netstat, get)
 {
 #if DDSRT_HAVE_NETSTAT
+  if (test_config_inherits_fakeudp ())
+  {
+    CU_PASS ("netstat uses host interfaces, not the fakeudp interface table");
+    return;
+  }
+
   dds_entity_t participant;
   dds_return_t ret;
   dds_entity *entity;

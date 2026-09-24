@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <dds/dds.h>
+#include <dds/ddsrt/heap.h>
 #include <dds/ddsi/ddsi_config.h>
 #include "HelloWorldData.h"
 
@@ -21,7 +22,7 @@ void init_config(struct ddsi_config *cfg)
   //cfg->transport_selector = DDSI_TRANS_UDP6;
   //cfg->defaultMulticastAddressString = "239.255.0.2";
 
-  struct ddsi_config_network_interface_listelem *ifcfg = malloc(sizeof *ifcfg);
+  struct ddsi_config_network_interface_listelem *ifcfg = ddsrt_malloc (sizeof (*ifcfg));
   memset(ifcfg, 0, sizeof *ifcfg);
   ifcfg->next = NULL;
   ifcfg->cfg.prefer_multicast = true;
@@ -34,14 +35,14 @@ void init_config(struct ddsi_config *cfg)
   
 #if defined(CONFIG_NET_CONFIG_PEER_IPV6_ADDR)
   if (strlen(CONFIG_NET_CONFIG_PEER_IPV6_ADDR) > 0) {
-    struct ddsi_config_peer_listelem *peer = malloc(sizeof *peer);
+    struct ddsi_config_peer_listelem *peer = ddsrt_malloc (sizeof (*peer));
     peer->next = NULL;
     peer->peer = CONFIG_NET_CONFIG_PEER_IPV6_ADDR;
     cfg->peers = peer;
   }
 #elif defined(CONFIG_NET_CONFIG_PEER_IPV4_ADDR)
   if (strlen(CONFIG_NET_CONFIG_PEER_IPV4_ADDR) > 0)) {
-    struct ddsi_config_peer_listelem *peer = malloc(sizeof *peer);
+    struct ddsi_config_peer_listelem *peer = ddsrt_malloc (sizeof (*peer));
     peer->next = NULL;
     peer->peer = CONFIG_NET_CONFIG_PEER_IPV4_ADDR;
     cfg->peers = peer;

@@ -92,7 +92,20 @@ static int add_entry_locked (struct ddsi_sock_waitset * ws, struct ddsi_tran_con
   if (fidx == UINT32_MAX)
   {
     const uint32_t newsz = ddsrt_atomic_add32_nv (&ws->sz, WAITSET_DELTA);
+    struct entry * const old_entries = ws->entries;
     ws->entries = ddsrt_realloc (ws->entries, newsz * sizeof (*ws->entries));
+    if (ws->entries != old_entries)
+    {
+      /* kqueue user data points into ws->entries; refresh it after realloc. */
+      for (idx = 0; idx < sz; idx++)
+      {
+        if (ws->entries[idx].fd == -1)
+          continue;
+        EV_SET (&kev, (unsigned)ws->entries[idx].fd, EVFILT_READ, EV_ADD, 0, 0, &ws->entries[idx]);
+        if (kevent(ws->kqueue, &kev, 1, NULL, 0, NULL) == -1)
+          return -1;
+      }
+    }
     for (idx = sz; idx < newsz; idx++)
       ws->entries[idx].fd = -1;
     fidx = sz;
@@ -334,7 +347,21 @@ static int add_entry_locked (struct ddsi_sock_waitset * ws, struct ddsi_tran_con
   if (fidx == UINT32_MAX)
   {
     const uint32_t newsz = ddsrt_atomic_add32_nv (&ws->sz, WAITSET_DELTA);
+    struct entry * const old_entries = ws->entries;
     ws->entries = ddsrt_realloc (ws->entries, newsz * sizeof (*ws->entries));
+    if (ws->entries != old_entries)
+    {
+      /* epoll user data points into ws->entries; refresh it after realloc. */
+      for (idx = 0; idx < sz; idx++)
+      {
+        if (ws->entries[idx].fd == -1)
+          continue;
+        ev.events = EPOLLIN;
+        ev.data.ptr = &ws->entries[idx];
+        if (epoll_ctl (ws->epfd, EPOLL_CTL_MOD, ws->entries[idx].fd, &ev) == -1)
+          return -1;
+      }
+    }
     for (idx = sz; idx < newsz; idx++)
       ws->entries[idx].fd = -1;
     fidx = sz;

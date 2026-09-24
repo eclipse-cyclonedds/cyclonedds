@@ -130,7 +130,10 @@ static int unreg_group_membership (struct ddsi_mcgroup_membership *mship, struct
   return mustdel;
 }
 
-static char *make_joinleave_msg (char *buf, size_t bufsz, struct ddsi_tran_conn * conn, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf, int err)
+static char *make_joinleave_msg (
+    char *buf, size_t bufsz, struct ddsi_tran_conn * conn, int join,
+    const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc,
+    const struct ddsi_network_interface *interf, int with_interf, int err)
 {
   char mcstr[DDSI_LOCSTRLEN], interfstr[DDSI_LOCSTRLEN];
   char srcstr[DDSI_LOCSTRLEN] = { '*', '\0' };
@@ -143,13 +146,24 @@ static char *make_joinleave_msg (char *buf, size_t bufsz, struct ddsi_tran_conn 
   DDSRT_UNUSED_ARG (srcloc);
 #endif
   ddsi_locator_to_string_no_port (mcstr, sizeof(mcstr), mcloc);
-  if (interf)
-    ddsi_locator_to_string_no_port(interfstr, sizeof(interfstr), &interf->loc);
-  else
-    (void) snprintf (interfstr, sizeof (interfstr), "(default)");
+  if (with_interf)
+  {
+    if (interf)
+      ddsi_locator_to_string_no_port(interfstr, sizeof(interfstr), &interf->loc);
+    else
+      (void) snprintf (interfstr, sizeof (interfstr), "(default)");
+  }
   n = err ? snprintf (buf, bufsz, "error %d in ", err) : 0;
   if ((size_t) n  < bufsz)
-    (void) snprintf (buf + n, bufsz - (size_t) n, "%s conn %p for (%s, %s) interface %s", join ? "join" : "leave", (void *) conn, mcstr, srcstr, interfstr);
+  {
+    const char *op = join ? "join" : "leave";
+    if (with_interf)
+      (void) snprintf (buf + n, bufsz - (size_t) n, "%s conn %p for (%s, %s) interface %s",
+                       op, (void *) conn, mcstr, srcstr, interfstr);
+    else
+      (void) snprintf (buf + n, bufsz - (size_t) n, "%s conn %p for (%s, %s)",
+                       op, (void *) conn, mcstr, srcstr);
+  }
   return buf;
 }
 
@@ -167,13 +181,15 @@ static int joinleave_mcgroup (struct ddsi_tran_conn * conn, int join, const ddsi
   {
     char buf[256];
     int err;
-    DDS_CTRACE(&conn->m_base.gv->logconfig, "%s\n", make_joinleave_msg (buf, sizeof(buf), conn, join, srcloc, mcloc, interf, 0));
+    DDS_CTRACE(&conn->m_base.gv->logconfig, "%s\n",
+               make_joinleave_msg (buf, sizeof(buf), conn, join, srcloc, mcloc, interf, 1, 0));
     if (join)
       err = ddsi_conn_join_mc(conn, srcloc, mcloc, interf);
     else
       err = ddsi_conn_leave_mc(conn, srcloc, mcloc, interf);
     if (err)
-      DDS_CWARNING(&conn->m_base.gv->logconfig, "%s\n", make_joinleave_msg (buf, sizeof(buf), conn, join, srcloc, mcloc, interf, err));
+      DDS_CWARNING(&conn->m_base.gv->logconfig, "%s\n",
+                   make_joinleave_msg (buf, sizeof(buf), conn, join, srcloc, mcloc, interf, 1, err));
     return err ? -1 : 0;
   }
 }
@@ -243,7 +259,7 @@ int ddsi_join_mc (const struct ddsi_domaingv *gv, struct ddsi_mcgroup_membership
   if (!reg_group_membership (mship, conn, srcloc, mcloc))
   {
     char buf[256];
-    GVTRACE("%s: already joined\n", make_joinleave_msg (buf, sizeof(buf), conn, 1, srcloc, mcloc, NULL, 0));
+    GVTRACE("%s: already joined\n", make_joinleave_msg (buf, sizeof(buf), conn, 1, srcloc, mcloc, NULL, 0, 0));
     ret = 0;
   }
   else
@@ -261,7 +277,7 @@ int ddsi_leave_mc (const struct ddsi_domaingv *gv, struct ddsi_mcgroup_membershi
   if (!unreg_group_membership (mship, conn, srcloc, mcloc))
   {
     char buf[256];
-    GVTRACE("%s: not leaving yet\n", make_joinleave_msg (buf, sizeof(buf), conn, 0, srcloc, mcloc, NULL, 0));
+    GVTRACE("%s: not leaving yet\n", make_joinleave_msg (buf, sizeof(buf), conn, 0, srcloc, mcloc, NULL, 0, 0));
     ret = 0;
   }
   else
@@ -271,4 +287,3 @@ int ddsi_leave_mc (const struct ddsi_domaingv *gv, struct ddsi_mcgroup_membershi
   ddsrt_mutex_unlock (&mship->lock);
   return ret;
 }
-

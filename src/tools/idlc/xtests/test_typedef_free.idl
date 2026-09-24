@@ -1,0 +1,84 @@
+// Copyright(c) 2026 Sungwon Woo
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
+#if defined(__IDLC__)
+
+module FreeAlias {
+  struct Message;
+  typedef Message ForwardAlias;
+
+  @topic @final
+  struct Message {
+    string text;
+  };
+  typedef Message MessageAlias, MessageArray[2];
+  typedef MessageAlias ChainedAlias;
+  typedef MessageArray ArrayAlias;
+
+  @topic @final
+  union Choice switch (short) {
+    case 1: string text;
+  };
+  typedef Choice ChoiceAlias;
+
+  @nested
+  struct Nested {
+    string text;
+  };
+  typedef Nested NestedAlias;
+};
+
+#else
+
+#include <assert.h>
+#include "dds/dds.h"
+#include "test_typedef_free.h"
+#include "common.h"
+
+#if defined(FreeAlias_MessageArray_free) || defined(FreeAlias_ArrayAlias_free) || defined(FreeAlias_NestedAlias_free)
+#error Only aliases of topic types have a sample free macro
+#endif
+
+const dds_topic_descriptor_t *desc = &FreeAlias_Message_desc;
+
+void init_sample (void *s)
+{
+  FreeAlias_MessageAlias *sample = s;
+  sample->text = dds_string_dup ("typedef sample");
+
+  FreeAlias_MessageAlias stack_sample = { dds_string_dup ("contents only") };
+  FreeAlias_MessageAlias_free (&stack_sample, DDS_FREE_CONTENTS);
+  assert (stack_sample.text == NULL);
+
+  FreeAlias_ChainedAlias *chained = FreeAlias_ChainedAlias__alloc ();
+  chained->text = dds_string_dup ("chained alias");
+  FreeAlias_ChainedAlias_free (chained, DDS_FREE_ALL);
+
+  FreeAlias_ForwardAlias *forward = FreeAlias_ForwardAlias__alloc ();
+  forward->text = dds_string_dup ("forward alias");
+  FreeAlias_ForwardAlias_free (forward, DDS_FREE_ALL);
+
+  FreeAlias_ChoiceAlias *choice = FreeAlias_ChoiceAlias__alloc ();
+  choice->_d = 1;
+  choice->_u.text = dds_string_dup ("union alias");
+  FreeAlias_ChoiceAlias_free (choice, DDS_FREE_ALL);
+}
+
+int cmp_sample (const void *sa, const void *sb)
+{
+  const FreeAlias_MessageAlias *a = sa;
+  const FreeAlias_MessageAlias *b = sb;
+  CMPSTR (a, b, text, "typedef sample");
+  return 0;
+}
+
+NO_KEY_CMP
+
+#endif

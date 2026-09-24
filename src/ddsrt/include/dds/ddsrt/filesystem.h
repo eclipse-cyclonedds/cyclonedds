@@ -110,6 +110,16 @@ DDS_EXPORT dds_return_t ddsrt_stat(const char *path, struct ddsrt_stat *buf);
  */
 DDS_EXPORT char* ddsrt_file_normalize(const char *filepath);
 
+/** @brief Convert a pathname to an allocated absolute pathname.
+ *
+ * The file need not exist. Relative names use the current directory at the
+ * time of this call. Redundant separators and dot components are normalized
+ * according to platform rules; filesystem aliases need not compare equal.
+ * The caller must free the result using ddsrt_free. On error, *abspath is NULL.
+ * An empty name is invalid.
+ */
+DDS_EXPORT dds_return_t ddsrt_file_abspath(const char *name, char **abspath);
+
 /** \brief Get file seperator
  *
  * Possible Results:
