@@ -267,7 +267,7 @@ elseif(WITH_ZEPHYR)
     "${source_dir}/include/dds/ddsrt/threads/posix.h"
     "${source_dir}/include/dds/ddsrt/types/posix.h")
   list(APPEND sources
-    "${source_dir}/src/environ/zephyr/environ.c"
+    "${source_dir}/src/environ/posix/environ.c"
     "${source_dir}/src/heap/posix/heap.c"
     "${source_dir}/src/process/posix/process.c"
     "${source_dir}/src/random/posix/random.c"
