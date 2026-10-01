@@ -1,0 +1,1 @@
+<dds><qos_library name="L"><qos_profile name="P"><datareader_qos><history><kind>KEEP_LAST_HISTORY_QOS</kind><depth>7</depth></history></datareader_qos></qos_profile></qos_library></dds>
