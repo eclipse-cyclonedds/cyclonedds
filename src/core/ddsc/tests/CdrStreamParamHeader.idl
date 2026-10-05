@@ -123,4 +123,32 @@ module CdrStreamMutable {
     @id(1) uint32 f1;
     @id(2) @optional @must_understand uint32 f2;
   };
+
+  // Two inheritance levels exercise the flattened mutable member list.
+  @mutable struct allocation_base {
+    @id(1) @key string text;
+    @id(2) @key @external long number;
+    @id(5) @key wstring wide;
+    @id(6) @key sequence<string> strings;
+  };
+  @mutable struct allocation_middle : allocation_base {
+    @id(3) @optional short optional_values[2][2];
+    @id(4) long defaulted;
+  };
+  @mutable struct allocation_derived : allocation_middle {
+    @id(7) @optional long absent;
+    @id(8) string derived_text;
+  };
+  @final struct allocation_sample {
+    @external allocation_derived values[2];
+    @key sequence<long> key;
+  };
+  @final struct allocation_optional_sample {
+    @optional allocation_derived values[2];
+    // Force extraction through a temporary sample, including non-key values.
+    @key sequence<long> key;
+  };
+  @final struct allocation_key_sample {
+    @key @external allocation_base values[2];
+  };
 };
