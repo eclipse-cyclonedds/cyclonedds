@@ -4339,7 +4339,7 @@ static void check_mutable_allocations (enum dds_cdr_enc_version version, bool sw
   struct mutable_test_cdr cdr = { .swap = swap };
   mutable_test_input (&cdr, version, optional, key, duplicate);
   uint32_t actual_size = 0;
-  const enum dds_stream_normalize_result expected = DDS_STREAM_NORMALIZE_SUCCESS;
+  const enum dds_stream_normalize_result expected = duplicate != 0 && duplicate != 99 ? DDS_STREAM_NORMALIZE_ERROR : DDS_STREAM_NORMALIZE_SUCCESS;
   const enum dds_stream_normalize_result result = dds_stream_normalize (cdr.data, cdr.size, swap, version, &desc, key, &actual_size);
   CU_ASSERT_EQ_FATAL (result, expected);
   if (result != DDS_STREAM_NORMALIZE_SUCCESS)
@@ -4519,7 +4519,7 @@ CU_Test (ddsc_cdrstream, check_mutable_member_limit_descriptor_init)
                 else
                   mutable_test_delimiter (&cdr, 0);
                 uint32_t actual_size;
-                const enum dds_stream_normalize_result expected = DDS_STREAM_NORMALIZE_SUCCESS;
+                const enum dds_stream_normalize_result expected = repeat ? DDS_STREAM_NORMALIZE_ERROR : DDS_STREAM_NORMALIZE_SUCCESS;
                 CU_ASSERT_EQ_FATAL (dds_stream_normalize (cdr.data, cdr.size, false, versions[v], &desc, false, &actual_size), expected);
               }
           dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);

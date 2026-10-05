@@ -197,6 +197,8 @@ enum tryconstruct {
 };
 
 #define NORMALIZE_MAX_DEPTH 100   // max nesting for recursive types in normalize (also limits TypeObject nesting)
+/* Descriptor initialization bounds each mutable type, including inherited
+   members, so its required-member and duplicate-detection masks always fit. */
 #define MUTABLE_MEMBER_LIMIT 512
 #define MUTABLE_MEMBER_MASK_WORDS ((MUTABLE_MEMBER_LIMIT + 31) / 32)
 
@@ -1198,6 +1200,7 @@ static const uint32_t *dds_stream_get_ops_info_plc_members (const uint32_t *ops,
         if (flags & DDS_OP_FLAG_BASE)
         {
           assert (DDS_OP (plm_ops[0]) == DDS_OP_PLC);
+          /* Inherited members share the derived type's normalization masks. */
           (void) dds_stream_get_ops_info_plc_members (plm_ops + 1, top_level_key_scope, info, in_xcdr1_delimited_scope, value_bound_xcdrv, tail_bound_xcdrv, in_recursive, mutable_member_count);
         }
         else
@@ -5948,6 +5951,11 @@ static inline void mutable_member_mask_clear (uint32_t mask[MUTABLE_MEMBER_MASK_
   mask[slot / 32] &= ~(1u << (slot % 32));
 }
 
+static inline bool mutable_member_mask_test (const uint32_t mask[MUTABLE_MEMBER_MASK_WORDS], uint32_t slot)
+{
+  return (mask[slot / 32] & (1u << (slot % 32))) != 0;
+}
+
 static bool mutable_member_mask_nonzero (const uint32_t mask[MUTABLE_MEMBER_MASK_WORDS])
 {
   for (uint32_t n = 0; n < MUTABLE_MEMBER_MASK_WORDS; n++)
@@ -5993,7 +6001,7 @@ static bool dds_stream_pl_required_mask (const uint32_t *ops, uint32_t *slot, ui
 }
 
 ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
-static enum normalize_pl_member_result dds_stream_normalize_pl_member (struct normalize_state const * const st, uint32_t * restrict const off, const uint32_t m_id, const uint32_t *ops, uint32_t *slot, uint32_t missing[MUTABLE_MEMBER_MASK_WORDS])
+static enum normalize_pl_member_result dds_stream_normalize_pl_member (struct normalize_state const * const st, uint32_t * restrict const off, const uint32_t m_id, const uint32_t *ops, uint32_t *slot, uint32_t missing[MUTABLE_MEMBER_MASK_WORDS], uint32_t seen[MUTABLE_MEMBER_MASK_WORDS])
 {
   uint32_t insn, ops_csr = 0;
   enum normalize_pl_member_result result = NPMR_NOT_FOUND;
@@ -6006,13 +6014,14 @@ static enum normalize_pl_member_result dds_stream_normalize_pl_member (struct no
     {
       assert (DDS_OP (plm_ops[0]) == DDS_OP_PLC);
       plm_ops++; /* skip PLC to go to first PLM from base type */
-      result = dds_stream_normalize_pl_member (st, off, m_id, plm_ops, slot, missing);
+      result = dds_stream_normalize_pl_member (st, off, m_id, plm_ops, slot, missing, seen);
     }
     else if (ops[ops_csr + 1] == m_id)
     {
-      if (*slot >= MUTABLE_MEMBER_LIMIT)
+      if (*slot >= MUTABLE_MEMBER_LIMIT || mutable_member_mask_test (seen, *slot))
         return NPMR_ERROR;
       const uint32_t matched_slot = *slot;
+      mutable_member_mask_set (seen, matched_slot);
       enum dds_stream_normalize_result nres = stream_normalize_data_impl (st, off, &plm_ops, true);
       switch (nres)
       {
@@ -6044,6 +6053,7 @@ ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
 static enum dds_stream_normalize_result stream_normalize_xcdr1_pl (struct normalize_state const * const st, uint32_t * restrict const off, uint32_t const * * const ops)
 {
   uint32_t missing[MUTABLE_MEMBER_MASK_WORDS] = { 0 };
+  uint32_t seen[MUTABLE_MEMBER_MASK_WORDS] = { 0 };
   uint32_t required_slot = 0;
   if (!dds_stream_pl_required_mask (*ops, &required_slot, missing, st->normalize_flags))
     return normalize_error ();
@@ -6080,7 +6090,7 @@ static enum dds_stream_normalize_result stream_normalize_xcdr1_pl (struct normal
         const struct normalize_state st1 = offset_and_shorten_normalize_state (st, input_offset, param_length);
         uint32_t off1 = 0;
         uint32_t slot = 0;
-        switch (dds_stream_normalize_pl_member (&st1, &off1, phdr_mid, *ops, &slot, missing))
+        switch (dds_stream_normalize_pl_member (&st1, &off1, phdr_mid, *ops, &slot, missing, seen))
         {
           case NPMR_NOT_FOUND: // FIXME: can now fix this FIXME!
             /* FIXME: the caller should be able to differentiate between a sample that
@@ -6132,6 +6142,7 @@ ddsrt_attribute_warn_unused_result ddsrt_nonnull_all
 static enum dds_stream_normalize_result stream_normalize_xcdr2_pl (struct normalize_state const * const st, uint32_t * restrict const off, uint32_t const * * const ops)
 {
   uint32_t missing[MUTABLE_MEMBER_MASK_WORDS] = { 0 };
+  uint32_t seen[MUTABLE_MEMBER_MASK_WORDS] = { 0 };
   uint32_t required_slot = 0;
   if (!dds_stream_pl_required_mask (*ops, &required_slot, missing, st->normalize_flags))
     return normalize_error ();
@@ -6192,7 +6203,7 @@ static enum dds_stream_normalize_result stream_normalize_xcdr2_pl (struct normal
     // don't allow member values that exceed its declared size
     const struct normalize_state st2 = shorten_normalize_state (&st1, *off + msz);
     uint32_t slot = 0;
-    switch (dds_stream_normalize_pl_member (&st2, off, m_id, *ops, &slot, missing))
+    switch (dds_stream_normalize_pl_member (&st2, off, m_id, *ops, &slot, missing, seen))
     {
       case NPMR_NOT_FOUND:
         /* FIXME: the caller should be able to differentiate between a sample that
