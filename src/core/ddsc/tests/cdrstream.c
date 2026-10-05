@@ -15,6 +15,7 @@
 #include "CUnit/Theory.h"
 #include "dds/dds.h"
 #include "dds/ddsrt/environ.h"
+#include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/random.h"
@@ -4168,29 +4169,363 @@ CU_Test (ddsc_cdrstream, check_mutable_prevent_type_widening_normalize)
   }
 }
 
+/* Construct parameter lists independently of the writer so they can contain
+   repeated and reordered members, including members inherited through two bases. */
+struct mutable_test_cdr {
+  uint32_t data[256];
+  uint32_t size;
+  bool swap;
+};
+
+static void mutable_test_append (struct mutable_test_cdr *cdr, const void *data, uint32_t size)
+{
+  CU_ASSERT_FATAL (cdr->size + size <= sizeof (cdr->data));
+  memcpy ((char *) cdr->data + cdr->size, data, size);
+  cdr->size += size;
+}
+
+static void mutable_test_u32 (struct mutable_test_cdr *cdr, uint32_t value)
+{
+  if (cdr->swap)
+    value = ddsrt_bswap4u (value);
+  mutable_test_append (cdr, &value, sizeof (value));
+}
+
+static void mutable_test_u16 (struct mutable_test_cdr *cdr, uint16_t value)
+{
+  if (cdr->swap)
+    value = ddsrt_bswap2u (value);
+  mutable_test_append (cdr, &value, sizeof (value));
+}
+
+static void mutable_test_delimiter (struct mutable_test_cdr *cdr, uint32_t offset)
+{
+  uint32_t size = cdr->size - offset - 4;
+  cdr->data[offset / 4] = cdr->swap ? ddsrt_bswap4u (size) : size;
+}
+
+static void mutable_test_parameter (struct mutable_test_cdr *cdr, enum dds_cdr_enc_version version, uint32_t id)
+{
+  struct mutable_test_cdr value = { .swap = cdr->swap };
+  switch (id)
+  {
+    case 1: case 8:
+      mutable_test_u32 (&value, 4);
+      mutable_test_append (&value, "abc", 4);
+      break;
+    case 2: case 99:
+      mutable_test_u32 (&value, 42);
+      break;
+    case 3:
+      for (uint16_t n = 1; n <= 4; n++)
+        mutable_test_u16 (&value, n);
+      break;
+    case 5:
+      mutable_test_u32 (&value, 4);
+      mutable_test_u16 (&value, 'a');
+      mutable_test_u16 (&value, 'b');
+      break;
+    case 6:
+      if (version == XCDR2)
+        mutable_test_u32 (&value, 20); // sequence of strings DHEADER
+      mutable_test_u32 (&value, 2);
+      mutable_test_u32 (&value, 4);
+      mutable_test_append (&value, "abc", 4);
+      mutable_test_u32 (&value, 4);
+      mutable_test_append (&value, "def", 4);
+      break;
+    default:
+      abort ();
+  }
+  if (version == XCDR1)
+  {
+    // Use extended headers, as in the OSS-Fuzz reproducer.
+    mutable_test_u16 (cdr, DDS_XCDR1_PL_SHORT_PID_EXTENDED);
+    mutable_test_u16 (cdr, 8);
+    mutable_test_u32 (cdr, id);
+    mutable_test_u32 (cdr, value.size);
+  }
+  else
+  {
+    mutable_test_u32 (cdr, 0x40000000u | id); // NEXTINT
+    mutable_test_u32 (cdr, value.size);
+  }
+  mutable_test_append (cdr, value.data, value.size);
+}
+
+static void mutable_test_input (struct mutable_test_cdr *cdr, enum dds_cdr_enc_version version, bool optional, bool key, uint32_t duplicate)
+{
+  struct mutable_test_cdr array = { .swap = cdr->swap };
+  if (version == XCDR2)
+    mutable_test_u32 (&array, 0); // array DHEADER
+  for (uint32_t i = 0; i < 2; i++)
+  {
+    const uint32_t start = array.size;
+    if (version == XCDR2)
+      mutable_test_u32 (&array, 0); // mutable object DHEADER
+    const uint32_t ids[] = { 8, 3, 6, 2, 99, 1, 5 };
+    for (uint32_t n = 0; n < sizeof (ids) / sizeof (ids[0]); n++)
+      if (!key || (ids[n] != 3 && ids[n] != 8))
+        mutable_test_parameter (&array, version, ids[n]);
+    // Only repeat within the first object. The same IDs in the second object
+    // must remain valid, even when duplicate detection is enabled.
+    if (i == 0 && duplicate)
+      mutable_test_parameter (&array, version, duplicate);
+    if (version == XCDR1)
+    {
+      mutable_test_u16 (&array, DDS_XCDR1_PL_SHORT_PID_LIST_END);
+      mutable_test_u16 (&array, 0);
+    }
+    else
+      mutable_test_delimiter (&array, start);
+  }
+  if (version == XCDR2)
+    mutable_test_delimiter (&array, 0);
+  if (optional)
+  {
+    if (version == XCDR1)
+    {
+      mutable_test_u16 (cdr, 0);
+      mutable_test_u16 (cdr, (uint16_t) array.size);
+    }
+    else
+    {
+      const uint8_t present[4] = { 1, 0, 0, 0 }; // presence flag and alignment
+      mutable_test_append (cdr, present, sizeof (present));
+    }
+  }
+  mutable_test_append (cdr, array.data, array.size);
+  if (!key)
+    mutable_test_u32 (cdr, 0); // empty sequence key
+}
+
+static size_t mutable_test_allocations;
+
+static void *mutable_test_malloc (size_t size)
+{
+  mutable_test_allocations++;
+  return ddsrt_malloc (size);
+}
+
+static void *mutable_test_realloc (void *ptr, size_t size)
+{
+  CU_ASSERT_FATAL (size > 0);
+  if (ptr == NULL)
+    mutable_test_allocations++;
+  return ddsrt_realloc (ptr, size);
+}
+
+static void mutable_test_free (void *ptr)
+{
+  if (ptr != NULL)
+  {
+    CU_ASSERT_FATAL (mutable_test_allocations > 0);
+    mutable_test_allocations--;
+  }
+  ddsrt_free (ptr);
+}
+
+static const struct dds_cdrstream_allocator mutable_test_allocator = {
+  .malloc = mutable_test_malloc, .realloc = mutable_test_realloc, .free = mutable_test_free
+};
+
+static void check_mutable_allocations (enum dds_cdr_enc_version version, bool swap, bool optional, bool key, uint32_t duplicate)
+{
+  tprintf ("XCDR%u swap=%d optional=%d key=%d duplicate=%u\n", version, swap, optional, key, duplicate);
+  const dds_topic_descriptor_t *topic = key ? &CdrStreamMutable_allocation_key_sample_desc :
+    optional ? &CdrStreamMutable_allocation_optional_sample_desc : &CdrStreamMutable_allocation_sample_desc;
+  struct dds_cdrstream_desc desc;
+  CU_ASSERT_EQ_FATAL (dds_cdrstream_desc_from_topic_desc (&desc, topic), DDS_RETCODE_OK);
+  struct mutable_test_cdr cdr = { .swap = swap };
+  mutable_test_input (&cdr, version, optional, key, duplicate);
+  uint32_t actual_size = 0;
+  const enum dds_stream_normalize_result expected = DDS_STREAM_NORMALIZE_SUCCESS;
+  const enum dds_stream_normalize_result result = dds_stream_normalize (cdr.data, cdr.size, swap, version, &desc, key, &actual_size);
+  CU_ASSERT_EQ_FATAL (result, expected);
+  if (result != DDS_STREAM_NORMALIZE_SUCCESS)
+  {
+    dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+    return;
+  }
+  CU_ASSERT_EQ_FATAL (actual_size, cdr.size);
+
+  // Re-read into populated storage as well as into freshly allocated storage.
+  void *sample = ddsrt_calloc (1, desc.size);
+  for (uint32_t pass = 0; pass < 2; pass++)
+  {
+    dds_istream_t is;
+    dds_istream_init_well_formed (&is, actual_size, cdr.data, version);
+    if (key)
+      dds_stream_read_key (&is, sample, &mutable_test_allocator, &desc);
+    else
+      dds_stream_read_sample (&is, sample, &mutable_test_allocator, &desc);
+    CU_ASSERT_EQ_FATAL (is.m_index, actual_size);
+    for (uint32_t i = 0; i < 2; i++)
+    {
+      const CdrStreamMutable_allocation_base *base;
+      if (key)
+        base = &(*((CdrStreamMutable_allocation_key_sample *) sample)->values)[i];
+      else
+      {
+        CdrStreamMutable_allocation_derived *derived = optional ?
+          &(*((CdrStreamMutable_allocation_optional_sample *) sample)->values)[i] :
+          &(*((CdrStreamMutable_allocation_sample *) sample)->values)[i];
+        base = &derived->parent.parent;
+        CU_ASSERT_EQ_FATAL (derived->parent.defaulted, 0);
+        CU_ASSERT_FATAL (derived->absent == NULL);
+        CU_ASSERT_STREQ_FATAL (derived->derived_text, "abc");
+        CU_ASSERT_FATAL (derived->parent.optional_values != NULL);
+        for (uint32_t j = 0; j < 4; j++)
+          CU_ASSERT_EQ_FATAL ((*derived->parent.optional_values)[j / 2][j % 2], (int16_t) (j + 1));
+        if (pass == 0)
+        {
+          // The next read must restore the default and free the absent optional.
+          derived->parent.defaulted = 99;
+          derived->absent = mutable_test_malloc (sizeof (*derived->absent));
+          *derived->absent = 99;
+        }
+      }
+      CU_ASSERT_STREQ_FATAL (base->text, "abc");
+      CU_ASSERT_FATAL (base->number != NULL);
+      CU_ASSERT_EQ_FATAL (*base->number, 42);
+      CU_ASSERT_EQ_FATAL (wcscmp (base->wide, L"ab"), 0);
+      CU_ASSERT_EQ_FATAL (base->strings._length, 2);
+      CU_ASSERT_STREQ_FATAL (base->strings._buffer[0], "abc");
+      CU_ASSERT_STREQ_FATAL (base->strings._buffer[1], "def");
+    }
+  }
+
+  // Compare each extraction path with serialization of the checked sample.
+  dds_ostream_t expected_key;
+  dds_ostream_init (&expected_key, &dds_cdrstream_default_allocator, 0, version);
+  CU_ASSERT_FATAL (dds_stream_write_key (&expected_key, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, sample, &desc));
+  dds_ostreamBE_t expected_be;
+  dds_ostreamBE_init (&expected_be, &dds_cdrstream_default_allocator, 0, version);
+  CU_ASSERT_FATAL (dds_stream_write_keyBE (&expected_be, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, sample, &desc));
+  dds_stream_free_sample (sample, &mutable_test_allocator, desc.ops.ops);
+  ddsrt_free (sample);
+  CU_ASSERT_EQ_FATAL (mutable_test_allocations, 0);
+
+  for (uint32_t be = 0; be < 2; be++)
+  {
+    dds_istream_t is;
+    dds_istream_init_well_formed (&is, actual_size, cdr.data, version);
+    dds_ostreamBE_t os;
+    dds_ostreamBE_init (&os, &mutable_test_allocator, 0, version);
+    if (key && be)
+      dds_stream_extract_keyBE_from_key (&is, &os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &mutable_test_allocator, &desc);
+    else if (key)
+      dds_stream_extract_key_from_key (&is, &os.x, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &mutable_test_allocator, &desc);
+    else if (be)
+      CU_ASSERT_FATAL (dds_stream_extract_keyBE_from_data (&is, &os, &mutable_test_allocator, &desc));
+    else
+      CU_ASSERT_FATAL (dds_stream_extract_key_from_data (&is, &os.x, &mutable_test_allocator, &desc));
+    CU_ASSERT_EQ_FATAL (is.m_index, actual_size);
+    const dds_ostream_t *ref = be ? &expected_be.x : &expected_key;
+    CU_ASSERT_MEMEQ_FATAL (os.x.m_buffer, os.x.m_index, ref->m_buffer, ref->m_index);
+    dds_ostreamBE_fini (&os, &mutable_test_allocator);
+    CU_ASSERT_EQ_FATAL (mutable_test_allocations, 0);
+  }
+  dds_ostreamBE_fini (&expected_be, &dds_cdrstream_default_allocator);
+  dds_ostream_fini (&expected_key, &dds_cdrstream_default_allocator);
+  dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+}
+
+CU_Test (ddsc_cdrstream, mutable_member_allocations)
+{
+  const uint32_t duplicates[] = { 0, 1, 2, 3, 5, 6, 8, 99 };
+  const enum dds_cdr_enc_version versions[] = { XCDR1, XCDR2 };
+  for (uint32_t v = 0; v < 2; v++)
+    for (uint32_t swap = 0; swap < 2; swap++)
+      for (uint32_t kind = 0; kind < 3; kind++)
+        for (uint32_t d = 0; d < sizeof (duplicates) / sizeof (duplicates[0]); d++)
+          if (kind != 2 || (duplicates[d] != 3 && duplicates[d] != 8))
+            check_mutable_allocations (versions[v], swap != 0, kind == 1, kind == 2, duplicates[d]);
+}
+
 CU_Test (ddsc_cdrstream, check_mutable_member_limit_descriptor_init)
 {
-  const uint32_t nmembers = 513;
-  const uint32_t member_ops = 1 + 2 * nmembers + 1;
-  const uint32_t nops = member_ops + 3 * nmembers;
-  uint32_t *ops = ddsrt_calloc (nops, sizeof (*ops));
-  ops[0] = DDS_OP_PLC;
-  for (uint32_t n = 0; n < nmembers; n++)
-  {
-    const uint32_t plm_idx = 1 + 2 * n;
-    const uint32_t adr_idx = member_ops + 3 * n;
-    ops[plm_idx] = DDS_OP_PLM | (adr_idx - plm_idx);
-    ops[2 + 2 * n] = n;
-    ops[adr_idx] = DDS_OP_ADR | DDS_OP_TYPE_4BY;
-    ops[adr_idx + 1] = 0;
-    ops[adr_idx + 2] = DDS_OP_RTS;
-  }
-  ops[member_ops - 1] = DDS_OP_RTS;
-
-  struct dds_cdrstream_desc desc;
-  const dds_return_t ret = dds_cdrstream_desc_init_with_nops (&desc, &dds_cdrstream_default_allocator, 0, 1, 0, ops, nops, NULL, 0);
-  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
-  ddsrt_free (ops);
+  // Check the last bitmap bit and rejection one past it, also when the count
+  // is split across a base and a derived type or reached in a nested type.
+  for (uint32_t nmembers = 512; nmembers <= 513; nmembers++)
+    for (uint32_t inherited = 0; inherited < 2; inherited++)
+      for (uint32_t nested = 0; nested < 2; nested++)
+      {
+        const uint32_t nbase = inherited ? 256 : 0;
+        const uint32_t nderived = nmembers - nbase;
+        const uint32_t root = nested ? 5 : 0;
+        const uint32_t base = root + 2 + 2 * (nderived + inherited);
+        const uint32_t members = base + (inherited ? 2 + 2 * nbase : 0);
+        const uint32_t nops = members + 3 * nmembers;
+        uint32_t *ops = ddsrt_calloc (nops, sizeof (*ops));
+        if (nested)
+        {
+          ops[0] = DDS_OP_ADR | DDS_OP_FLAG_EXT | DDS_OP_TYPE_EXT;
+          ops[2] = (4u << 16) | root;
+          ops[3] = nmembers * sizeof (uint32_t);
+          ops[4] = DDS_OP_RTS;
+        }
+        ops[root] = DDS_OP_PLC;
+        if (inherited)
+        {
+          ops[root + 1] = DDS_OP_PLM | (DDS_OP_FLAG_BASE << 16) | (base - root - 1);
+          ops[base] = DDS_OP_PLC;
+          ops[base + 1 + 2 * nbase] = DDS_OP_RTS;
+        }
+        ops[root + 1 + 2 * (nderived + inherited)] = DDS_OP_RTS;
+        for (uint32_t n = 0; n < nmembers; n++)
+        {
+          const uint32_t plm = n < nbase ? base + 1 + 2 * n : root + 1 + 2 * (inherited + n - nbase);
+          const uint32_t adr = members + 3 * n;
+          ops[plm] = DDS_OP_PLM | (adr - plm);
+          ops[plm + 1] = 0x10000u + n;
+          ops[adr] = DDS_OP_ADR | DDS_OP_TYPE_4BY;
+          ops[adr + 1] = n * sizeof (uint32_t);
+          ops[adr + 2] = DDS_OP_RTS;
+        }
+        struct dds_cdrstream_desc desc;
+        const dds_return_t ret = dds_cdrstream_desc_init_with_nops (&desc, &dds_cdrstream_default_allocator,
+          nested ? sizeof (void *) : nmembers * sizeof (uint32_t), nested ? dds_alignof (void *) : dds_alignof (uint32_t), 0, ops, nops, NULL, 0);
+        CU_ASSERT_EQ_FATAL (ret, nmembers == 512 ? DDS_RETCODE_OK : DDS_RETCODE_BAD_PARAMETER);
+        if (ret == DDS_RETCODE_OK)
+        {
+          const uint32_t slots[] = { 31, 32, 255, 256, 511 };
+          const enum dds_cdr_enc_version versions[] = { XCDR1, XCDR2 };
+          for (uint32_t v = 0; v < 2; v++)
+            for (uint32_t s = 0; s < sizeof (slots) / sizeof (slots[0]); s++)
+              for (uint32_t repeat = 0; repeat < 2; repeat++)
+              {
+                struct mutable_test_cdr cdr = { 0 };
+                if (versions[v] == XCDR2)
+                  mutable_test_u32 (&cdr, 0);
+                for (uint32_t i = 0; i <= repeat; i++)
+                {
+                  if (versions[v] == XCDR1)
+                  {
+                    mutable_test_u16 (&cdr, DDS_XCDR1_PL_SHORT_PID_EXTENDED);
+                    mutable_test_u16 (&cdr, 8);
+                    mutable_test_u32 (&cdr, 0x10000u + slots[s]);
+                    mutable_test_u32 (&cdr, 4);
+                  }
+                  else
+                    mutable_test_u32 (&cdr, 0x20010000u + slots[s]);
+                  mutable_test_u32 (&cdr, 42);
+                }
+                if (versions[v] == XCDR1)
+                {
+                  mutable_test_u16 (&cdr, DDS_XCDR1_PL_SHORT_PID_LIST_END);
+                  mutable_test_u16 (&cdr, 0);
+                }
+                else
+                  mutable_test_delimiter (&cdr, 0);
+                uint32_t actual_size;
+                const enum dds_stream_normalize_result expected = DDS_STREAM_NORMALIZE_SUCCESS;
+                CU_ASSERT_EQ_FATAL (dds_stream_normalize (cdr.data, cdr.size, false, versions[v], &desc, false, &actual_size), expected);
+              }
+          dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+        }
+        ddsrt_free (ops);
+      }
 }
 
 

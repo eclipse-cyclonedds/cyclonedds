@@ -4034,6 +4034,9 @@ static const uint32_t *dds_stream_read_xcdr1_pl (dds_istream_t *is, char * restr
       FIXME: optimize so that only members not in received data are initialized */
   dds_stream_skip_pl_memberlist_insns_default (data, allocator, mid_table, ops, sample_state);
 
+  /* Defaulting initialized all members, including any allocated storage. */
+  sample_state = SAMPLE_DATA_INITIALIZED;
+
   uint32_t param_mid, param_len;
   while (stream_read_xcdr1_paramheader (is, &param_mid, &param_len))
   {
@@ -4067,6 +4070,9 @@ static const uint32_t *dds_stream_read_xcdr2_pl (dds_istream_t *is, char * restr
   /* default-initialize all members
       FIXME: optimize so that only members not in received data are initialized */
   dds_stream_skip_pl_memberlist_insns_default (data, allocator, mid_table, ops, sample_state);
+
+  /* Defaulting initialized all members, including any allocated storage. */
+  sample_state = SAMPLE_DATA_INITIALIZED;
 
   /* read DHEADER */
   uint32_t pl_sz = dds_is_get4 (is), pl_offs = is->m_index;
