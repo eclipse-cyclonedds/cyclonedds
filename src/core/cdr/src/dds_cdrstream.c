@@ -759,7 +759,11 @@ static uint32_t get_collection_elem_size (uint32_t insn, const uint32_t *ops)
       return sizeof (wchar_t *);
     case DDS_SOP_VAL_WCHAR:
       return sizeof (wchar_t);
-    case DDS_SOP_VAL_BST: case DDS_SOP_VAL_BWSTR:
+    case DDS_SOP_VAL_BWSTR:
+      if (DDS_OP_TYPE (insn) == DDS_SOP_VAL_ARR)
+        return ops[4] * (uint32_t) sizeof (wchar_t);
+      break;
+    case DDS_SOP_VAL_BST:
     case DDS_SOP_VAL_SEQ: case DDS_SOP_VAL_BSQ: case DDS_SOP_VAL_ARR: case DDS_SOP_VAL_UNI: case DDS_SOP_VAL_STU:
       if (DDS_OP_TYPE (insn) == DDS_SOP_VAL_ARR)
         return ops[4];
@@ -795,8 +799,11 @@ static uint32_t get_adr_type_size (uint32_t insn, const uint32_t *ops)
     case DDS_SOP_VAL_WCHAR:
       sz = sizeof (wchar_t);
       break;
-    case DDS_SOP_VAL_BST: case DDS_SOP_VAL_BWSTR:
+    case DDS_SOP_VAL_BST:
       sz = ops[2];
+      break;
+    case DDS_SOP_VAL_BWSTR:
+      sz = ops[2] * (uint32_t) sizeof (wchar_t);
       break;
     case DDS_SOP_VAL_ARR:
     {
@@ -1736,7 +1743,8 @@ static const uint32_t *skip_array_insns_default (uint32_t insn, char * restrict 
   switch (subtype)
   {
     case DDS_SOP_VAL_BLN: case DDS_SOP_VAL_1BY: case DDS_SOP_VAL_2BY: case DDS_SOP_VAL_4BY: case DDS_SOP_VAL_8BY: case DDS_SOP_VAL_WCHAR: case DDS_SOP_VAL_16BY: {
-      const uint32_t elem_size = get_primitive_size (subtype);
+      /* Default native storage, whose wchar_t width can differ from CDR. */
+      const uint32_t elem_size = get_collection_elem_size (insn, ops);
       memset (data, 0, num * elem_size);
       return ops + 3;
     }
@@ -3865,38 +3873,6 @@ static const uint32_t *dds_stream_skip_delimited_insns_default (char * restrict 
 }
 
 ddsrt_nonnull_all
-static void dds_stream_skip_pl_member_insns_default (char * restrict data, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops, enum sample_data_state sample_state)
-{
-  if (DDS_OP (ops[0]) == DDS_OP_PLC && op_is_union_adr (ops[1]))
-  {
-    const uint32_t * const next_ops = dds_stream_skip_adr_insns_default (ops[1], data, allocator, mid_table, ops + 1, sample_state);
-    assert (next_ops != NULL);
-    (void) next_ops;
-    return;
-  }
-
-  uint32_t insn;
-  while ((insn = *ops) != DDS_OP_RTS)
-  {
-    switch (DDS_OP (insn))
-    {
-      case DDS_SOP_ADR: {
-        ops = dds_stream_skip_insns_default (data, allocator, mid_table, ops, sample_state);
-        break;
-      }
-      case DDS_SOP_JSR:
-        dds_stream_skip_pl_member_insns_default (data, allocator, mid_table, ops + DDS_OP_JUMP (insn), sample_state);
-        ops++;
-        break;
-      case DDS_SOP_RTS: case DDS_SOP_JEQ: case DDS_SOP_JEQ4: case DDS_SOP_KOF:
-      case DDS_SOP_DLC: case DDS_SOP_PLC: case DDS_SOP_PLM: case DDS_SOP_MID:
-        abort ();
-        break;
-    }
-  }
-}
-
-ddsrt_nonnull_all
 static const uint32_t *dds_stream_skip_pl_memberlist_insns_default (char * restrict data, const struct dds_cdrstream_allocator *allocator, const struct dds_cdrstream_desc_mid_table *mid_table, const uint32_t *ops0, enum sample_data_state sample_state)
 {
   const uint32_t *ops = ops0;
@@ -3916,7 +3892,7 @@ static const uint32_t *dds_stream_skip_pl_memberlist_insns_default (char * restr
         }
         else
         {
-          dds_stream_skip_pl_member_insns_default (data, allocator, mid_table, plm_ops, sample_state);
+          (void) dds_stream_skip_insns_default (data, allocator, mid_table, plm_ops, sample_state);
         }
         ops += 2;
         break;

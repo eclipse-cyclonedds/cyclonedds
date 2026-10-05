@@ -41,4 +41,17 @@ module CdrStreamSkipDefault {
   @appendable @nested struct t5_sub1 { long s1; t5_sub2 s2; };
   @mutable struct t5_sub { long f1; t5_sub1 f2; };
 
+  @mutable @nested union wide_union switch (long) {
+    case 0: @external wstring<1> text;
+    case 1: @external wstring<1> texts[2];
+  };
+  @mutable struct wide_defaults {
+    long f1;
+    wchar chars[3];
+    @external wchar ext_chars[3];
+    @external wstring<1> text;
+    @external wstring<1> texts[2];
+    wide_union choice;
+  };
+
 };
