@@ -1471,6 +1471,83 @@ CU_Test (ddsc_cdrstream, skip_default)
 }
 #undef D
 
+CU_Test (ddsc_cdrstream, wide_default_storage)
+{
+  struct dds_cdrstream_desc desc, desc_short;
+  CU_ASSERT_EQ_FATAL (dds_cdrstream_desc_from_topic_desc (&desc, &CdrStreamSkipDefault_wide_defaults_desc), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_cdrstream_desc_from_topic_desc (&desc_short, &CdrStreamSkipDefault_t3_pub_desc), DDS_RETCODE_OK);
+
+  wchar_t ext_chars[3] = { L'x', L'y', L'z' };
+  wchar_t text[2] = L"a";
+  wchar_t texts[2][2] = { L"b", L"c" };
+  CdrStreamSkipDefault_wide_defaults sample = {
+    .f1 = 42, .chars = { L'd', L'e', L'f' }, .ext_chars = &ext_chars,
+    .text = &text, .texts = &texts
+  };
+  const CdrStreamSkipDefault_t3_pub sample_short = { .f1 = 42 };
+
+  for (uint32_t version = XCDR1; version <= XCDR2; version++)
+  {
+    CdrStreamSkipDefault_wide_defaults sample_rd = { 0 };
+    // Defaulting must clear every wchar_t, including storage past the CDR width.
+    for (uint32_t i = 0; i < 3; i++)
+      sample_rd.chars[i] = L'!';
+
+    // Default fresh storage, read both union cases, then default populated storage.
+    for (uint32_t pass = 0; pass < 4; pass++)
+    {
+      const bool defaults = (pass == 0 || pass == 3);
+      sample.choice._d = (pass == 2) ? 1 : 0;
+      if (sample.choice._d == 0)
+        sample.choice._u.text = &text;
+      else
+        sample.choice._u.texts = &texts;
+
+      dds_ostream_t os;
+      dds_ostream_init (&os, &dds_cdrstream_default_allocator, 0, version);
+      CU_ASSERT_FATAL (dds_stream_write_sample (&os, &dds_cdrstream_default_allocator,
+        defaults ? (const void *) &sample_short : (const void *) &sample, defaults ? &desc_short : &desc));
+      uint32_t actual_size = 0;
+      CU_ASSERT_EQ_FATAL (dds_stream_normalize (os.m_buffer, os.m_index, false, version, &desc, false, &actual_size), DDS_STREAM_NORMALIZE_SUCCESS);
+      CU_ASSERT_EQ_FATAL (actual_size, os.m_index);
+      dds_istream_t is;
+      dds_istream_init_well_formed (&is, actual_size, os.m_buffer, version);
+      dds_stream_read_sample (&is, &sample_rd, &dds_cdrstream_default_allocator, &desc);
+      CU_ASSERT_EQ_FATAL (is.m_index, actual_size);
+
+      CU_ASSERT_EQ_FATAL (sample_rd.f1, 42);
+      CU_ASSERT_NEQ_FATAL (sample_rd.ext_chars, NULL);
+      CU_ASSERT_NEQ_FATAL (sample_rd.text, NULL);
+      CU_ASSERT_NEQ_FATAL (sample_rd.texts, NULL);
+      for (uint32_t i = 0; i < 3; i++)
+      {
+        CU_ASSERT_EQ_FATAL (sample_rd.chars[i], defaults ? L'\0' : sample.chars[i]);
+        CU_ASSERT_EQ_FATAL ((*sample_rd.ext_chars)[i], defaults ? L'\0' : ext_chars[i]);
+      }
+      CU_ASSERT_EQ_FATAL (wcscmp (*sample_rd.text, defaults ? L"" : text), 0);
+      for (uint32_t i = 0; i < 2; i++)
+        CU_ASSERT_EQ_FATAL (wcscmp ((*sample_rd.texts)[i], defaults ? L"" : texts[i]), 0);
+
+      CU_ASSERT_EQ_FATAL (sample_rd.choice._d, defaults ? 0 : sample.choice._d);
+      if (sample_rd.choice._d == 0)
+      {
+        CU_ASSERT_NEQ_FATAL (sample_rd.choice._u.text, NULL);
+        CU_ASSERT_EQ_FATAL (wcscmp (*sample_rd.choice._u.text, defaults ? L"" : text), 0);
+      }
+      else
+      {
+        CU_ASSERT_NEQ_FATAL (sample_rd.choice._u.texts, NULL);
+        for (uint32_t i = 0; i < 2; i++)
+          CU_ASSERT_EQ_FATAL (wcscmp ((*sample_rd.choice._u.texts)[i], texts[i]), 0);
+      }
+      dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
+    }
+    dds_stream_free_sample (&sample_rd, &dds_cdrstream_default_allocator, desc.ops.ops);
+  }
+  dds_cdrstream_desc_fini (&desc_short, &dds_cdrstream_default_allocator);
+  dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+}
+
 #define VAR (DDS_FIXED_KEY_MAX_SIZE + 1)
 #define D(n) (&CdrStreamKeySize_ ## n ## _desc)
 CU_Test(ddsc_cdrstream, key_size)
