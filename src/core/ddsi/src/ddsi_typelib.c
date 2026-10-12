@@ -1383,6 +1383,8 @@ void ddsi_type_update_state_locked (struct ddsi_domaingv *gv, struct ddsi_type *
 static dds_return_t ddsi_type_new_impl (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct DDS_XTypes_TypeIdentifier *type_id, const struct DDS_XTypes_TypeObject *type_obj, bool scc_component_verified)
   ddsrt_attribute_warn_unused_result ddsrt_nonnull((1,2,3));
 
+static void ddsi_type_remove_typeobj_deps_locked (struct ddsi_domaingv *gv, const struct ddsi_type *type);
+
 static bool type_id_matches_type_obj_id (const struct DDS_XTypes_TypeIdentifier *type_id, const ddsi_typeid_t *type_obj_id)
 {
   if (!ddsi_typeid_compare_impl (&type_obj_id->x, type_id))
@@ -1451,16 +1453,31 @@ static dds_return_t ddsi_type_new_impl (struct ddsi_domaingv *gv, struct ddsi_ty
   }
   ddsrt_avl_insert (&ddsi_typelib_treedef, &gv->typelib, *type);
 
+  /* Initialization and its error paths can release dependencies that refer back
+     to this object. Keep a construction reference until its contents are either
+     committed or completely unwound. CONSTRUCTING prevents SCC activation, so
+     these references remain ordinary per-type references throughout rollback. */
+  ddsi_type_ref_locked (gv, NULL, *type);
   TYPELIB_TRACE (" new %p", *type);
   if ((ret = ddsi_xt_type_init_impl (gv, *type, type_id, type_obj)) != DDS_RETCODE_OK)
   {
+    assert ((*type)->scc == NULL || !(*type)->scc->active);
     ddsrt_avl_delete (&ddsi_typelib_treedef, &gv->typelib, *type);
-    ddsi_type_free (*type);
+    (*type)->state = DDSI_TYPE_INVALID;
+    ddsi_type_remove_typeobj_deps_locked (gv, *type);
+    ddsi_xt_type_fini_owned (gv, *type, &(*type)->xt, false);
+    /* Back-references have been released without re-entering finalization.
+       Let the last reference free the record and detach it from its SCC. */
+    ddsi_type_unref_locked (gv, *type);
     *type = NULL;
     return ret;
   }
-  /* inserted with refc 0 (set by calloc), refc is increased in
-     ddsi_type_ref_* functions */
+  /* Return the borrowed construction result as before: the caller takes its
+     own reference. Drop the construction reference before activating the SCC,
+     without freeing a successfully initialized type with no dependencies. */
+  assert ((*type)->scc == NULL || !(*type)->scc->active);
+  assert ((*type)->refc > 0);
+  (*type)->refc--;
   (*type)->state = DDSI_TYPE_UNRESOLVED;
   ddsi_type_update_state_locked (gv, *type);
   return DDS_RETCODE_OK;
@@ -1507,8 +1524,6 @@ static dds_return_t validate_type (struct ddsi_domaingv *gv, struct ddsi_type *t
     set_type_invalid (gv, type);
   return ret;
 }
-
-static void ddsi_type_remove_typeobj_deps_locked (struct ddsi_domaingv *gv, const struct ddsi_type *type);
 
 static dds_return_t ddsi_type_add_typeobj_impl_common (
     struct ddsi_domaingv *gv,

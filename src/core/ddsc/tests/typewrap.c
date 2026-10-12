@@ -8,6 +8,7 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -21,6 +22,9 @@
 #include "ddsi__typewrap.h"
 #include "ddsi__xt_impl.h"
 #include "test_util.h"
+
+/* Run in isolation so we can check the type library state in the test. */
+#define DDS_CONFIG "<Discovery><Tag>ddsc_typewrap_${CYCLONEDDS_PID}</Tag></Discovery>"
 
 static dds_entity_t domain = 0, participant = 0;
 static bool fail_realloc_enabled = false;
@@ -69,7 +73,7 @@ static void restore_allocator (void)
 
 static void typewrap_init (void)
 {
-  char *config = test_config_from_env (NULL, 0);
+  char *config = test_config_from_env (DDS_CONFIG, 0);
   domain = dds_create_domain (0, config);
   ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (domain, 0);
@@ -79,7 +83,7 @@ static void typewrap_init (void)
 
 static void typewrap_no_recursive_init (void)
 {
-  char *config = test_config_from_env ("<Compatibility><AllowRecursiveTypes>false</AllowRecursiveTypes></Compatibility>", 0);
+  char *config = test_config_from_env (DDS_CONFIG ",<Compatibility><AllowRecursiveTypes>false</AllowRecursiveTypes></Compatibility>", 0);
   domain = dds_create_domain (0, config);
   ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (domain, 0);
@@ -1133,6 +1137,131 @@ CU_Test (ddsc_typewrap, scc_import_rolls_back_suffix_cycle_on_realloc_failure, .
   CU_ASSERT_EQ (ddsrt_avl_is_empty (&gv->typelib), true);
   CU_ASSERT_EQ (ddsrt_avl_is_empty (&gv->typedeps), true);
   CU_ASSERT_EQ (ddsrt_avl_is_empty (&gv->typedeps_reverse), true);
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+}
+
+CU_TheoryDataPoints (ddsc_typewrap, scc_new_type_failure) = {
+  CU_DataPoints (uint8_t, DDS_XTypes_EK_MINIMAL, DDS_XTypes_EK_COMPLETE),
+  CU_DataPoints (bool, false, true),
+  CU_DataPoints (bool, false, true)
+};
+
+CU_Theory ((uint8_t kind, bool fail_registration, bool keep_sibling), ddsc_typewrap, scc_new_type_failure,
+    .init = typewrap_init, .fini = typewrap_fini)
+{
+  /* Reproduce failed construction after installing both an ordinary dependency
+     and a map back to the new type. Finalizing the map must not recursively
+     finalize the owner and release its earlier members a second time. */
+  const uint32_t nslots = keep_sibling ? 2 : 1;
+  ddsi_typeid_t ids[2];
+  for (uint32_t n = 0; n < nslots; n++)
+  {
+    init_scc_typeid (&ids[n], (int32_t) nslots, (int32_t) n + 1);
+    ids[n].x._u.sc_component_id.sc_component_id._d = kind;
+    memset (ids[n].x._u.sc_component_id.sc_component_id._u.hash, 0, sizeof (DDS_XTypes_EquivalenceHash));
+  }
+  struct DDS_XTypes_TypeIdentifier int32_id = { ._d = DDS_XTypes_TK_INT32 };
+  struct DDS_XTypes_TypeIdentifier map_id = {
+    ._d = DDS_XTypes_TI_PLAIN_MAP_SMALL,
+    ._u.map_sdefn = {
+      .header = { .equiv_kind = kind, .element_flags = DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_IS_EXTERNAL },
+      .bound = 1,
+      .element_identifier = &ids[0].x,
+      .key_flags = DDS_XTypes_TRY_CONSTRUCT1,
+      .key_identifier = &int32_id
+    }
+  };
+  struct DDS_XTypes_TypeObject objects[2] = { 0 };
+  struct DDS_XTypes_CompleteStructMember complete_members[2][4] = { 0 };
+  struct DDS_XTypes_MinimalStructMember minimal_members[2][4] = { 0 };
+  for (uint32_t n = 0; n < nslots; n++)
+  {
+    const uint32_t nmembers = n == 0 ? 4 : 1;
+    for (uint32_t m = 0; m < nmembers; m++)
+    {
+      struct DDS_XTypes_CommonStructMember common = {
+        .member_id = m,
+        .member_flags = DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_IS_EXTERNAL,
+        .member_type_id = { ._d = DDS_XTypes_TK_INT64 }
+      };
+      if (n == 1 || m == 1)
+        common.member_type_id = map_id;
+      else if (m == 2 && keep_sibling)
+        common.member_type_id = ids[1].x;
+      else if (m == 3)
+      {
+        if (fail_registration)
+          common.member_type_id._d = DDS_XTypes_TK_NONE;
+        else
+          common.member_id = 0; /* Reject only after all dependencies are installed. */
+      }
+      complete_members[n][m].common = common;
+      snprintf (complete_members[n][m].detail.name, sizeof (complete_members[n][m].detail.name), "m%u", m);
+      minimal_members[n][m].common = common;
+      ddsi_xt_get_namehash (minimal_members[n][m].detail.name_hash, complete_members[n][m].detail.name);
+    }
+    objects[n]._d = kind;
+    if (kind == DDS_XTypes_EK_COMPLETE)
+    {
+      objects[n]._u.complete._d = DDS_XTypes_TK_STRUCTURE;
+      objects[n]._u.complete._u.struct_type.struct_flags = DDS_XTypes_IS_FINAL;
+      objects[n]._u.complete._u.struct_type.member_seq._length = nmembers;
+      objects[n]._u.complete._u.struct_type.member_seq._buffer = complete_members[n];
+    }
+    else
+    {
+      objects[n]._u.minimal._d = DDS_XTypes_TK_STRUCTURE;
+      objects[n]._u.minimal._u.struct_type.struct_flags = DDS_XTypes_IS_FINAL;
+      objects[n]._u.minimal._u.struct_type.member_seq._length = nmembers;
+      objects[n]._u.minimal._u.struct_type.member_seq._buffer = minimal_members[n];
+    }
+  }
+  DDS_XTypes_EquivalenceHash hash;
+  CU_ASSERT_EQ_FATAL (ddsi_typeobj_get_scc_hash (hash, objects, nslots), DDS_RETCODE_OK);
+  DDS_XTypes_TypeIdentifierTypeObjectPair pairs[2];
+  for (uint32_t n = 0; n < nslots; n++)
+  {
+    memcpy (ids[n].x._u.sc_component_id.sc_component_id._u.hash, hash, sizeof (hash));
+    pairs[n] = (DDS_XTypes_TypeIdentifierTypeObjectPair) { .type_identifier = ids[n].x, .type_object = objects[n] };
+  }
+  if (keep_sibling)
+  {
+    complete_members[0][2].common.member_type_id = ids[1].x;
+    minimal_members[0][2].common.member_type_id = ids[1].x;
+  }
+  dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair pairseq = { ._length = nslots, ._buffer = pairs };
+  struct ddsi_domaingv *gv = get_domaingv (participant);
+  struct ddsi_type *sibling = NULL;
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  if (keep_sibling)
+    CU_ASSERT_EQ_FATAL (ddsi_type_ref_id_locked (gv, &sibling, &ids[1]), DDS_RETCODE_OK);
+  CU_ASSERT_FATAL (sibling == NULL || sibling->scc != NULL);
+  struct ddsi_type_scc *scc = sibling ? sibling->scc : NULL;
+  for (uint32_t attempt = 0; attempt < 2; attempt++)
+  {
+    bool complete = false;
+    CU_ASSERT_EQ (ddsi_type_add_scc_typeobjs_locked (gv, &pairseq, &ids[0].x, true, &complete), DDS_RETCODE_BAD_PARAMETER);
+    CU_ASSERT (complete);
+    CU_ASSERT_EQ (ddsi_type_lookup_locked (gv, &ids[0]), NULL);
+    CU_ASSERT (ddsrt_avl_is_empty (&gv->typedeps));
+    CU_ASSERT (ddsrt_avl_is_empty (&gv->typedeps_reverse));
+    if (sibling != NULL)
+    {
+      CU_ASSERT_EQ (ddsi_type_lookup_locked (gv, &ids[1]), sibling);
+      CU_ASSERT_EQ (sibling->refc, 1);
+      CU_ASSERT_EQ (sibling->state, DDSI_TYPE_UNRESOLVED);
+      CU_ASSERT_EQ (sibling->scc, scc);
+      CU_ASSERT_NEQ_FATAL (scc, NULL);
+      CU_ASSERT (!scc->active);
+      CU_ASSERT_EQ (scc->n_types, nslots);
+      CU_ASSERT_EQ (scc->types[0], NULL);
+      CU_ASSERT_EQ (scc->types[1], sibling);
+    }
+    else
+      CU_ASSERT (ddsrt_avl_is_empty (&gv->typelib));
+  }
+  ddsi_type_unref_locked (gv, sibling);
+  CU_ASSERT (ddsrt_avl_is_empty (&gv->typelib));
   ddsrt_mutex_unlock (&gv->typelib_lock);
 }
 
