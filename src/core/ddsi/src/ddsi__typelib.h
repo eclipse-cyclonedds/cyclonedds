@@ -104,7 +104,12 @@ dds_return_t ddsi_type_ref_proxy (struct ddsi_domaingv *gv, struct ddsi_type **t
 dds_return_t ddsi_type_add_typeobj (struct ddsi_domaingv *gv, struct ddsi_type *type, const struct DDS_XTypes_TypeObject *type_obj)
   ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
-/** @component type_system */
+/**
+ * Installs verified SCC TypeObjects without acquiring a reference for the caller.
+ * The caller must retain a reference keeping the component alive if it needs to
+ * use the installed types after this call.
+ * @component type_system
+ */
 dds_return_t ddsi_type_add_scc_typeobjs_locked (
     struct ddsi_domaingv *gv,
     const dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *pairs,

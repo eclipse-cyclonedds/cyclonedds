@@ -1380,6 +1380,7 @@ void ddsi_type_update_state_locked (struct ddsi_domaingv *gv, struct ddsi_type *
   ddsi_type_visit_free (visited);
 }
 
+/* On success, *type owns one reference; on failure, *type is NULL. */
 static dds_return_t ddsi_type_new_impl (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct DDS_XTypes_TypeIdentifier *type_id, const struct DDS_XTypes_TypeObject *type_obj, bool scc_component_verified)
   ddsrt_attribute_warn_unused_result ddsrt_nonnull((1,2,3));
 
@@ -1472,12 +1473,8 @@ static dds_return_t ddsi_type_new_impl (struct ddsi_domaingv *gv, struct ddsi_ty
     *type = NULL;
     return ret;
   }
-  /* Return the borrowed construction result as before: the caller takes its
-     own reference. Drop the construction reference before activating the SCC,
-     without freeing a successfully initialized type with no dependencies. */
-  assert ((*type)->scc == NULL || !(*type)->scc->active);
-  assert ((*type)->refc > 0);
-  (*type)->refc--;
+  /* Transfer the construction reference to the caller. If updating the state
+     activates an SCC, this becomes an external reference to the component. */
   (*type)->state = DDSI_TYPE_UNRESOLVED;
   ddsi_type_update_state_locked (gv, *type);
   return DDS_RETCODE_OK;
@@ -1717,14 +1714,8 @@ static void type_scc_import_rollback_locked (
     struct type_scc_import_slot *import_slots,
     uint32_t nslots)
 {
-  /* Slot TypeObjects can reference one another.  Hold temporary references so
-     finalizing one slot cannot free another slot still scheduled for cleanup. */
-  for (uint32_t n = 0; n < nslots; n++)
-  {
-    if (import_slots[n].touched && import_slots[n].type != NULL)
-      ddsi_type_ref_locked (gv, NULL, import_slots[n].type);
-  }
-
+  /* The import owns a reference to every touched slot, so finalizing one slot
+     cannot free another slot still scheduled for cleanup. */
   for (uint32_t n = 0; n < nslots; n++)
   {
     struct ddsi_type *type = import_slots[n].type;
@@ -1751,12 +1742,6 @@ static void type_scc_import_rollback_locked (
     if (!ddsi_typeid_is_none (&type->xt.id) && ddsi_type_lookup_locked (gv, &type->xt.id) == type)
       ddsrt_avl_delete (&ddsi_typelib_treedef, &gv->typelib, type);
     ddsi_type_scc_detach (type);
-  }
-
-  for (uint32_t n = 0; n < nslots; n++)
-  {
-    if (import_slots[n].touched && import_slots[n].type != NULL)
-      ddsi_type_unref_locked (gv, import_slots[n].type);
   }
 }
 
@@ -1802,7 +1787,9 @@ dds_return_t ddsi_type_add_scc_typeobjs_locked (
   for (uint32_t n = 0; ret == DDS_RETCODE_OK && n < nslots; n++)
   {
     const struct DDS_XTypes_TypeIdentifier *slot_type_id = &slots[n]->type_identifier;
-    struct ddsi_type *slot_type = import_slots[n].type;
+    /* Earlier slots can create unresolved dependencies for later slots. */
+    struct ddsi_type *slot_type = ddsi_type_lookup_locked_impl (gv, slot_type_id);
+    import_slots[n].created = import_slots[n].type == NULL;
     TYPELIB_IMPORT_TRACE ("SCC import slot %"PRIu32"/%"PRIu32" %s existing=%p state=%s scc=%p materialized=%d\n",
                           n + 1, nslots, typelib_trace_make_typeid_str (&tistr, slot_type_id),
                           (void *) slot_type, slot_type ? type_state_str (slot_type->state) : "(new)",
@@ -1814,11 +1801,11 @@ dds_return_t ddsi_type_add_scc_typeobjs_locked (
       {
         import_slots[n].type = slot_type;
         import_slots[n].touched = true;
-        import_slots[n].created = true;
       }
     }
     else
     {
+      ddsi_type_ref_locked (gv, &import_slots[n].type, slot_type);
       import_slots[n].touched = true;
       ret = ddsi_type_add_typeobj_impl_common (gv, slot_type, &slots[n]->type_object, true, false);
     }
@@ -1837,6 +1824,11 @@ dds_return_t ddsi_type_add_scc_typeobjs_locked (
     if (import_scc != NULL && !import_scc->active)
       ddsi_type_scc_rollback_suffix_types (import_scc, import_scc_n_types);
     type_scc_import_rollback_locked (gv, import_slots, nslots);
+  }
+  for (uint32_t n = 0; n < nslots; n++)
+  {
+    if (import_slots[n].touched)
+      ddsi_type_unref_locked (gv, import_slots[n].type);
   }
   ddsrt_free (slots);
   return ret;
@@ -2194,13 +2186,12 @@ dds_return_t ddsi_type_ref_id_locked_impl (struct ddsi_domaingv *gv, struct ddsi
 
   TYPELIB_TRACE ("ref ddsi_type type-id %s", typelib_trace_make_typeid_str (&tistr, type_id));
   struct ddsi_type *t = ddsi_type_lookup_locked_impl (gv, type_id);
-  if (!t && (ret = ddsi_type_new (gv, &t, type_id, NULL)) != DDS_RETCODE_OK)
-  {
-    if (type)
-      *type = NULL;
-    return ret;
-  }
-  ddsi_type_ref_locked (gv, type, t);
+  if (t != NULL)
+    ddsi_type_ref_locked (gv, NULL, t);
+  else
+    ret = ddsi_type_new (gv, &t, type_id, NULL);
+  if (type)
+    *type = t;
   return ret;
 }
 
@@ -2303,14 +2294,19 @@ static dds_return_t type_add_ref_impl (struct ddsi_domaingv *gv, struct ddsi_typ
     ret = ddsi_type_new (gv, &t, type_id, type_obj);
     resolved = true;
   }
-  else if (type_obj)
+  else
   {
-    enum ddsi_type_state s = t->state;
-    ret = ddsi_type_add_typeobj (gv, t, type_obj);
-    resolved = (t->state == DDSI_TYPE_RESOLVED && t->state != s);
-    TYPELIB_IMPORT_TRACE ("add top-level TypeObject %s ret=%d state %s -> %s materialized=%d\n",
-                          typelib_trace_make_typeid_str (&tistr, type_id), ret,
-                          type_state_str (s), type_state_str (t->state), ddsi_type_scc_materialized (t));
+    if (type_obj)
+    {
+      enum ddsi_type_state s = t->state;
+      ret = ddsi_type_add_typeobj (gv, t, type_obj);
+      resolved = (t->state == DDSI_TYPE_RESOLVED && t->state != s);
+      TYPELIB_IMPORT_TRACE ("add top-level TypeObject %s ret=%d state %s -> %s materialized=%d\n",
+                            typelib_trace_make_typeid_str (&tistr, type_id), ret,
+                            type_state_str (s), type_state_str (t->state), ddsi_type_scc_materialized (t));
+    }
+    if (ret == DDS_RETCODE_OK)
+      ddsi_type_ref_locked (gv, NULL, t);
   }
   if (ret != DDS_RETCODE_OK)
   {
@@ -2319,7 +2315,6 @@ static dds_return_t type_add_ref_impl (struct ddsi_domaingv *gv, struct ddsi_typ
     goto err;
   }
 
-  ddsi_type_ref_locked (gv, NULL, t);
   type_unref_many_locked (gv, scc_import_refs, n_scc_import_refs);
   scc_import_refs = NULL;
   n_scc_import_refs = 0;
@@ -2432,10 +2427,9 @@ dds_return_t ddsi_type_ref_proxy (struct ddsi_domaingv *gv, struct ddsi_type **t
   ddsrt_mutex_lock (&gv->typelib_lock);
 
   TYPELIB_TRACE ("ref ddsi_type proxy id %s", typelib_trace_make_typeid_str (&tistr, type_id));
-  struct ddsi_type *t = ddsi_type_lookup_locked_impl (gv, type_id);
-  if (!t && (ret = ddsi_type_new (gv, &t, type_id, NULL)) != DDS_RETCODE_OK)
+  struct ddsi_type *t;
+  if ((ret = ddsi_type_ref_id_locked_impl (gv, &t, type_id)) != DDS_RETCODE_OK)
     goto err;
-  ddsi_type_ref_locked (gv, NULL, t);
   if (!valid_top_level_type (t))
   {
     ret = DDS_RETCODE_BAD_PARAMETER;
@@ -2586,16 +2580,27 @@ static dds_return_t ddsi_type_materialize_minimal_scc_locked (struct ddsi_domain
       ddsi_type_scc_materialized (scc_c->generated_minimal_ref) ? DDS_RETCODE_OK : DDS_RETCODE_BAD_PARAMETER;
 
   const uint32_t scc_length = (uint32_t) type_id_m->_u.sc_component_id.scc_length;
-  bool seen[DDSI_TYPE_SCC_MAX_WIRE_TYPES] = { false };
-  struct ddsi_type *slot_types_m[DDSI_TYPE_SCC_MAX_WIRE_TYPES] = { NULL };
+  dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair pairs = {
+    ._maximum = scc_length,
+    ._length = scc_length,
+    ._buffer = ddsrt_calloc_s (scc_length, sizeof (*pairs._buffer)),
+    ._release = false
+  };
+  if (pairs._buffer == NULL)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
   uint32_t nseen = 0;
   dds_return_t ret = DDS_RETCODE_OK;
 
+  /* Generate the whole component before importing any of its TypeObjects, so
+     the transactional importer can roll back all slots if a later one fails. */
   for (uint32_t n = 0; ret == DDS_RETCODE_OK && n < scc_c->n_wire_types; n++)
   {
     const struct ddsi_type *slot_type_c = scc_c->types[n];
     if (slot_type_c == NULL)
-      return DDS_RETCODE_BAD_PARAMETER;
+    {
+      ret = DDS_RETCODE_BAD_PARAMETER;
+      break;
+    }
 
     struct DDS_XTypes_TypeIdentifier slot_type_id_m;
     ddsi_xt_get_typeid_impl (&slot_type_c->xt, &slot_type_id_m, DDSI_TYPEID_KIND_MINIMAL);
@@ -2609,87 +2614,97 @@ static dds_return_t ddsi_type_materialize_minimal_scc_locked (struct ddsi_domain
         const uint32_t index = (uint32_t) slot_type_id_m._u.sc_component_id.scc_index - 1;
         if (index >= scc_length)
           ret = DDS_RETCODE_BAD_PARAMETER;
-        else
+        else if (pairs._buffer[index].type_identifier._d == DDS_XTypes_TK_NONE)
         {
-          if (!seen[index])
-          {
-            seen[index] = true;
-            nseen++;
-          }
-
-          struct DDS_XTypes_TypeObject slot_type_obj_m;
-          ddsi_xt_get_typeobject_kind_impl (&slot_type_c->xt, &slot_type_obj_m, DDSI_TYPEID_KIND_MINIMAL);
-          struct ddsi_type *slot_type_m = ddsi_type_lookup_locked_impl (gv, &slot_type_id_m);
-          if (slot_type_m == NULL)
-            ret = ddsi_type_new_impl (gv, &slot_type_m, &slot_type_id_m, &slot_type_obj_m, true);
-          else
-            ret = ddsi_type_add_typeobj_impl (gv, slot_type_m, &slot_type_obj_m, true);
-          if (ret == DDS_RETCODE_OK)
-          {
-            assert (slot_type_m != NULL);
-            slot_types_m[index] = slot_type_m;
-          }
-          ddsi_typeobj_fini_impl (&slot_type_obj_m);
+          pairs._buffer[index].type_identifier = slot_type_id_m;
+          memset (&slot_type_id_m, 0, sizeof (slot_type_id_m));
+          ddsi_xt_get_typeobject_kind_impl (&slot_type_c->xt, &pairs._buffer[index].type_object, DDSI_TYPEID_KIND_MINIMAL);
+          nseen++;
         }
       }
     }
     ddsi_typeid_fini_impl (&slot_type_id_m);
   }
 
-  if (ret != DDS_RETCODE_OK)
-    return ret;
-  if (nseen != scc_length)
-    return DDS_RETCODE_BAD_PARAMETER;
-
+  struct ddsi_type *type_m = NULL;
+  if (ret == DDS_RETCODE_OK && nseen != scc_length)
+    ret = DDS_RETCODE_BAD_PARAMETER;
+  if (ret == DDS_RETCODE_OK)
+  {
+    /* Keep one representative alive while the importer releases its temporary
+       slot references. Only a successful import transfers it to the cache. */
+    ret = ddsi_type_ref_id_locked_impl (gv, &type_m, &pairs._buffer[0].type_identifier);
+    if (ret == DDS_RETCODE_OK)
+    {
+      bool complete;
+      ret = ddsi_type_add_scc_typeobjs_locked (gv, &pairs, &pairs._buffer[0].type_identifier, true, &complete);
+      if (ret == DDS_RETCODE_OK)
+      {
+        assert (complete && ddsi_type_scc_materialized (type_m));
+        scc_c->generated_minimal_ref = type_m;
+        type_m = NULL;
+      }
+    }
+  }
+  ddsi_type_unref_locked (gv, type_m);
   for (uint32_t n = 0; n < scc_length; n++)
   {
-    if (slot_types_m[n] == NULL)
-      return DDS_RETCODE_BAD_PARAMETER;
+    ddsi_typeid_fini_impl (&pairs._buffer[n].type_identifier);
+    ddsi_typeobj_fini_impl (&pairs._buffer[n].type_object);
   }
-
-  /* Keep one representative of the generated minimal SCC alive.  Once an SCC
-     is active, any member reference owns the whole component; before activation,
-     the verified SCC member references keep the generated component internally
-     connected. */
-  if (!ddsi_type_scc_materialized (slot_types_m[0]))
-    return DDS_RETCODE_BAD_PARAMETER;
-  ddsi_type_ref_locked (gv, &scc_c->generated_minimal_ref, slot_types_m[0]);
-  return DDS_RETCODE_OK;
+  ddsrt_free (pairs._buffer);
+  return ret;
 }
 
-static dds_return_t ddsi_type_materialize_minimal_type_locked (
+/* Materialize the minimal type and return one owned reference. */
+static dds_return_t ddsi_type_ref_minimal_locked (
     struct ddsi_domaingv *gv,
+    struct ddsi_type **type_m,
     struct ddsi_type *type_c,
     const struct DDS_XTypes_TypeIdentifier *type_id_m,
     const struct DDS_XTypes_TypeObject *type_obj_m)
 {
+  dds_return_t ret;
+  *type_m = NULL;
   if (type_id_m->_d == DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT)
-    return ddsi_type_materialize_minimal_scc_locked (gv, type_c, type_id_m);
+  {
+    if ((ret = ddsi_type_materialize_minimal_scc_locked (gv, type_c, type_id_m)) != DDS_RETCODE_OK)
+      return ret;
+    struct ddsi_type *t = ddsi_type_lookup_locked_impl (gv, type_id_m);
+    if (t == NULL)
+      return DDS_RETCODE_ERROR;
+    ddsi_type_ref_locked (gv, type_m, t);
+    return DDS_RETCODE_OK;
+  }
 
-  struct ddsi_type *type_m = ddsi_type_lookup_locked_impl (gv, type_id_m);
-  if (type_m == NULL)
-    return ddsi_type_new (gv, &type_m, type_id_m, type_obj_m);
-  else
-    return ddsi_type_add_typeobj (gv, type_m, type_obj_m);
+  struct ddsi_type *t = ddsi_type_lookup_locked_impl (gv, type_id_m);
+  if (t == NULL)
+    return ddsi_type_new (gv, type_m, type_id_m, type_obj_m);
+  if ((ret = ddsi_type_add_typeobj (gv, t, type_obj_m)) != DDS_RETCODE_OK)
+    return ret;
+  ddsi_type_ref_locked (gv, type_m, t);
+  return DDS_RETCODE_OK;
 }
 
-static dds_return_t ddsi_typeinfo_deps_append (struct ddsi_domaingv *gv, struct ddsi_typeinfo *type_info, const ddsi_typeid_t *dep_type_id)
+/* On success, return one owned minimal reference for the dependency traversal. */
+static dds_return_t ddsi_typeinfo_deps_append (struct ddsi_domaingv *gv, struct ddsi_typeinfo *type_info, const ddsi_typeid_t *dep_type_id, struct ddsi_type **dep_type_m)
   ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
-static dds_return_t ddsi_typeinfo_deps_append (struct ddsi_domaingv *gv, struct ddsi_typeinfo *type_info, const ddsi_typeid_t *dep_type_id)
+static dds_return_t ddsi_typeinfo_deps_append (struct ddsi_domaingv *gv, struct ddsi_typeinfo *type_info, const ddsi_typeid_t *dep_type_id, struct ddsi_type **dep_type_m)
 {
   struct ddsi_type * const dep_type_c = ddsi_type_lookup_locked (gv, dep_type_id);
   DDS_XTypes_TypeObject to_dep_m, to_dep_c;
   ddsi_typeid_t ti_dep_m;
   dds_return_t ret;
 
+  *dep_type_m = NULL;
   if (dep_type_c == NULL)
     return DDS_RETCODE_ERROR;
 
   ddsi_xt_get_typeobject_kind_impl (&dep_type_c->xt, &to_dep_m, DDSI_TYPEID_KIND_MINIMAL);
   ddsi_xt_get_typeid_impl (&dep_type_c->xt, &ti_dep_m.x, DDSI_TYPEID_KIND_MINIMAL);
 
-  if ((ret = ddsi_type_materialize_minimal_type_locked (gv, dep_type_c, &ti_dep_m.x, &to_dep_m)) != DDS_RETCODE_OK)
+  if ((ret = ddsi_type_ref_minimal_locked (gv, dep_type_m, dep_type_c, &ti_dep_m.x, &to_dep_m)) != DDS_RETCODE_OK)
     goto err_dep_type_m;
 
   ddsi_xt_get_typeobject_kind_impl (&dep_type_c->xt, &to_dep_c, DDSI_TYPEID_KIND_COMPLETE);
@@ -2701,6 +2716,11 @@ static dds_return_t ddsi_typeinfo_deps_append (struct ddsi_domaingv *gv, struct 
 
   ddsi_typeobj_fini_impl (&to_dep_c);
 err_dep_type_m:
+  if (ret != DDS_RETCODE_OK)
+  {
+    ddsi_type_unref_locked (gv, *dep_type_m);
+    *dep_type_m = NULL;
+  }
   ddsi_typeid_fini (&ti_dep_m);
   ddsi_typeobj_fini_impl (&to_dep_m);
   return ret;
@@ -2731,16 +2751,8 @@ static dds_return_t ddsi_type_get_typeinfo_toplevel (struct ddsi_domaingv *gv, s
   ddsi_xt_get_typeobject_kind_impl (&type_c->xt, &to_m, DDSI_TYPEID_KIND_MINIMAL);
   ddsi_xt_get_typeid_impl (&type_c->xt, &ti_m.x, DDSI_TYPEID_KIND_MINIMAL);
 
-  if ((ret = ddsi_type_materialize_minimal_type_locked (gv, type_c, &ti_m.x, &to_m)) != DDS_RETCODE_OK)
+  if ((ret = ddsi_type_ref_minimal_locked (gv, type_m, type_c, &ti_m.x, &to_m)) != DDS_RETCODE_OK)
     goto err_type_new;
-
-  *type_m = ddsi_type_lookup_locked_impl (gv, &ti_m.x);
-  if (*type_m == NULL)
-  {
-    ret = DDS_RETCODE_ERROR;
-    goto err_type_new;
-  }
-  ddsi_type_ref_locked (gv, NULL, *type_m);
 
   ddsi_type_ref_locked (gv, NULL, type_c);
 
@@ -3005,7 +3017,8 @@ static uint32_t get_type_ndeps_hash_r (struct ddsi_domaingv *gv, const ddsi_type
   return n_deps;
 }
 
-static dds_return_t add_type_info_hash_deps_r (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id_c, struct ddsi_typeinfo *type_info, struct ddsrt_hh *visited, bool include_self)
+ddsrt_nonnull_all
+static dds_return_t add_type_info_hash_deps_r (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id_c, struct ddsi_typeinfo *type_info, struct ddsrt_hh *visited, bool include_self, struct ddsi_type **minimal_deps, uint32_t *n_minimal_deps)
 {
   // appends dependencies to type_info, on error leaves it in well-formed state containing fewer dependencies than exist
   dds_return_t ret = DDS_RETCODE_OK;
@@ -3029,12 +3042,12 @@ static dds_return_t add_type_info_hash_deps_r (struct ddsi_domaingv *gv, const d
     {
       case DDSI_TYPEID_KIND_PLAIN_COLLECTION_MINIMAL:
       case DDSI_TYPEID_KIND_PLAIN_COLLECTION_COMPLETE:
-        ret = add_type_info_hash_deps_r (gv, &dep_c->dep_type_id, type_info, visited, false);
+        ret = add_type_info_hash_deps_r (gv, &dep_c->dep_type_id, type_info, visited, false, minimal_deps, n_minimal_deps);
         break;
 
       case DDSI_TYPEID_KIND_MINIMAL:
       case DDSI_TYPEID_KIND_COMPLETE:
-        ret = add_type_info_hash_deps_r (gv, &dep_c->dep_type_id, type_info, visited, true);
+        ret = add_type_info_hash_deps_r (gv, &dep_c->dep_type_id, type_info, visited, true, minimal_deps, n_minimal_deps);
         break;
 
       case DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE:
@@ -3047,7 +3060,12 @@ static dds_return_t add_type_info_hash_deps_r (struct ddsi_domaingv *gv, const d
   }
   ddsi_typeid_fini (&tmpl.src_type_id);
   if (ret == DDS_RETCODE_OK && include_self && type_id_kind_is_hash_dependency (ddsi_typeid_kind (type_id_c)))
-    ret = ddsi_typeinfo_deps_append (gv, type_info, type_id_c);
+  {
+    assert (*n_minimal_deps < type_info->x.complete.dependent_typeids._maximum);
+    ret = ddsi_typeinfo_deps_append (gv, type_info, type_id_c, &minimal_deps[*n_minimal_deps]);
+    if (ret == DDS_RETCODE_OK)
+      (*n_minimal_deps)++;
+  }
   return ret;
 }
 
@@ -3070,9 +3088,23 @@ dds_return_t ddsi_type_get_typeinfo_locked (struct ddsi_domaingv *gv, struct dds
     goto err_toplevel;
   }
 
+  /* Dependencies are materialized before their parents. Keep each minimal type
+     alive until its parents have acquired their references, including when two
+     complete dependencies map to the same minimal type. */
+  struct ddsi_type *minimal_deps_dummy = NULL;
+  struct ddsi_type **minimal_deps = n_deps ? ddsrt_calloc (n_deps, sizeof (*minimal_deps)) : &minimal_deps_dummy;
+  if (minimal_deps == NULL)
+  {
+    ret = DDS_RETCODE_OUT_OF_RESOURCES;
+    ddsi_typeinfo_deps_fini (type_info);
+    goto err_toplevel;
+  }
+  uint32_t n_minimal_deps = 0;
   visited = ddsi_type_visit_new ();
-  ret = add_type_info_hash_deps_r (gv, &type_c->xt.id, type_info, visited, false);
+  ret = add_type_info_hash_deps_r (gv, &type_c->xt.id, type_info, visited, false, minimal_deps, &n_minimal_deps);
   ddsi_type_visit_free (visited);
+  if (minimal_deps != &minimal_deps_dummy)
+    type_unref_many_locked (gv, minimal_deps, n_minimal_deps);
 #ifndef NDEBUG
   if (ret == DDS_RETCODE_OK)
     debug_typeinfo_assert_minimal_closure (gv, type_c, type_info);

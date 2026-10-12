@@ -506,6 +506,25 @@ void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
 
 void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_Reply *reply, struct ddsi_generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd)
 {
+  const dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *pairs =
+    (const dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *) &reply->return_data._u.getType._u.result.types;
+  uint32_t n_scc_pairs = 0;
+  if (gv->config.allow_recursive_types)
+  {
+    for (uint32_t n = 0; n < pairs->_length; n++)
+      if (pairs->_buffer[n].type_identifier._d == DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT)
+        n_scc_pairs++;
+  }
+  /* Reserve ownership storage before changing the library. Imported SCCs must
+     survive until later TypeObjects in this reply acquire their dependencies,
+     even when allocating an optional import-cache entry fails. */
+  struct ddsi_type **scc_refs = n_scc_pairs ? ddsrt_calloc_s (n_scc_pairs, sizeof (*scc_refs)) : NULL;
+  if (n_scc_pairs > 0 && scc_refs == NULL)
+  {
+    GVTRACE ("tl-reply-add-types: could not allocate SCC references\n");
+    return;
+  }
+  uint32_t n_scc_refs = 0;
   bool resolved = false;
   struct ddsrt_hh *scc_import_cache = NULL;
   ddsrt_mutex_lock (&gv->typelib_lock);
@@ -513,11 +532,11 @@ void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_R
      that was sent, because the reply itself contains the type-id to type object mapping
      and we're not interested in what specific reply results in resolving a type */
   GVTRACE ("tl-reply-add-types wr "PGUIDFMT " seqnr %"PRIu64" ntypeids %"PRIu32"\n", PGUID (from_guid (&reply->header.relatedRequestId.writer_guid)),
-      from_seqno (&reply->header.relatedRequestId.sequence_number), reply->return_data._u.getType._u.result.types._length);
-  for (uint32_t n = 0; n < reply->return_data._u.getType._u.result.types._length; n++)
+      from_seqno (&reply->header.relatedRequestId.sequence_number), pairs->_length);
+  for (uint32_t n = 0; n < pairs->_length; n++)
   {
     struct ddsi_typeid_str str;
-    DDS_XTypes_TypeIdentifierTypeObjectPair r = reply->return_data._u.getType._u.result.types._buffer[n];
+    DDS_XTypes_TypeIdentifierTypeObjectPair r = pairs->_buffer[n];
     GVTRACE (" type %s", ddsi_make_typeid_str_impl (&str, &r.type_identifier));
     if (!gv->config.allow_recursive_types && ddsi_typeid_contains_scc_impl (&r.type_identifier))
     {
@@ -541,10 +560,13 @@ void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_R
     {
       dds_return_t ret;
       bool complete;
+      /* Unresolved TypeInformation dependencies can keep an SCC alive after
+         its endpoints disappear. Importing its TypeObjects removes those
+         internal references, so retain successful imports until the end of
+         this reply. */
+      ddsi_type_ref_locked (gv, NULL, type);
       struct tl_scc_import_cache_entry *cache_entry =
         tl_scc_import_cache_lookup (scc_import_cache, &r.type_identifier._u.sc_component_id);
-      const dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *pairs =
-        (const dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *) &reply->return_data._u.getType._u.result.types;
       if (cache_entry != NULL)
       {
         ret = cache_entry->ret;
@@ -571,11 +593,14 @@ void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_R
       {
         GVTRACE (" resolved SCC type %s\n", ddsi_make_typeid_str_impl (&str, &r.type_identifier));
         ddsi_type_get_gpe_matches (gv, type, gpe_match_upd, n_match_upd);
+        assert (n_scc_refs < n_scc_pairs);
+        scc_refs[n_scc_refs++] = type;
         resolved = true;
       }
       else
       {
         GVTRACE (" incomplete or invalid SCC component\n");
+        ddsi_type_unref_locked (gv, type);
       }
     }
     else if (ddsi_type_add_typeobj (gv, type, &r.type_object) == DDS_RETCODE_OK)
@@ -598,9 +623,12 @@ void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_R
       GVTRACE (" failed to add typeobj\n");
     }
   }
+  for (uint32_t n = 0; n < n_scc_refs; n++)
+    ddsi_type_unref_locked (gv, scc_refs[n]);
   if (resolved)
     ddsrt_cond_etime_broadcast (&gv->typelib_resolved_cond);
   ddsrt_mutex_unlock (&gv->typelib_lock);
+  ddsrt_free (scc_refs);
   tl_scc_import_cache_free (scc_import_cache);
 }
 
