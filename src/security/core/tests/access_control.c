@@ -26,7 +26,11 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_participant.h"
+#include "dds/ddsi/ddsi_entity_index.h"
+#include "dds/ddsi/ddsi_proxy_participant.h"
 #include "ddsi__misc.h"
+#include "ddsi__plist.h"
+#include "ddsi__security_omg.h"
 #include "dds__entity.h"
 
 #include "dds/security/dds_security_api.h"
@@ -843,6 +847,175 @@ CU_Test(ddssec_access_control, readwrite_protection, .timeout=60)
                 test_readwrite_protection (allow_pub, allow_sub, deny_pub, deny_sub, write_ac, read_ac,
                   exp_pp_fail, exp_tp_fail, exp_wr_fail, exp_pp_fail, exp_tp_fail, exp_rd_fail, exp_sync_fail, default_deny ? "DENY" : "ALLOW");
               }
+}
+
+static void check_remote_permissions_with_security_info (
+  dds_entity_t local_writer, dds_entity_t local_reader,
+  dds_entity_t remote_writer, dds_entity_t remote_reader,
+  bool read_ac, bool write_ac, bool remote_allowed)
+{
+  struct dds_entity *entities[4];
+  const dds_entity_t handles[] = { local_writer, local_reader, remote_writer, remote_reader };
+  for (size_t i = 0; i < 4; i++)
+    CU_ASSERT_EQ_FATAL (dds_entity_pin (handles[i], &entities[i]), DDS_RETCODE_OK);
+  struct ddsi_domaingv *gv = &entities[0]->m_domain->gv;
+  struct ddsi_thread_state *thrst = ddsi_lookup_thread_state ();
+  struct ddsi_proxy_writer *discovered_writer;
+  struct ddsi_proxy_reader *discovered_reader;
+  const dds_time_t deadline = dds_time () + DDS_SECS (5);
+  ddsi_thread_state_awake (thrst, gv);
+  while (true)
+  {
+    discovered_writer = ddsi_entidx_lookup_proxy_writer_guid (gv->entity_index, &entities[2]->m_guid);
+    discovered_reader = ddsi_entidx_lookup_proxy_reader_guid (gv->entity_index, &entities[3]->m_guid);
+    if ((discovered_writer && discovered_reader) || dds_time () >= deadline)
+      break;
+    ddsi_thread_state_asleep (thrst);
+    dds_sleepfor (DDS_MSECS (10));
+    ddsi_thread_state_awake (thrst, gv);
+  }
+  CU_ASSERT_NEQ_FATAL (discovered_writer, NULL);
+  CU_ASSERT_NEQ_FATAL (discovered_reader, NULL);
+  CU_ASSERT_FATAL (ddsi_omg_proxy_participant_is_secure (discovered_writer->c.proxypp));
+  CU_ASSERT_FATAL (ddsi_omg_proxy_participant_is_secure (discovered_reader->c.proxypp));
+  struct ddsi_writer *wr = ddsi_entidx_lookup_writer_guid (gv->entity_index, &entities[0]->m_guid);
+  struct ddsi_reader *rd = ddsi_entidx_lookup_reader_guid (gv->entity_index, &entities[1]->m_guid);
+  CU_ASSERT_NEQ_FATAL (wr, NULL);
+  CU_ASSERT_NEQ_FATAL (rd, NULL);
+  CU_ASSERT_EQ_FATAL (wr->sec_attr->attr.is_read_protected, read_ac);
+  CU_ASSERT_EQ_FATAL (rd->sec_attr->attr.is_write_protected, write_ac);
+
+  /* Exercise the authorization boundary with real authenticated peers and signed
+     permissions. Only these isolated views have altered discovery attributes;
+     the live proxy endpoints and their matching/crypto state are unchanged. */
+  struct ddsi_proxy_writer pwr = {
+    .e = { .guid = discovered_writer->e.guid, .gv = gv },
+    .c = { .proxypp = discovered_writer->c.proxypp, .xqos = discovered_writer->c.xqos }
+  };
+  struct ddsi_proxy_reader prd = {
+    .e = { .guid = discovered_reader->e.guid, .gv = gv },
+    .c = { .proxypp = discovered_reader->c.proxypp, .xqos = discovered_reader->c.xqos }
+  };
+  const uint32_t valid = DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
+  const uint32_t access = DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_READ_PROTECTED |
+    DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_WRITE_PROTECTED;
+  const struct {
+    bool present;
+    uint32_t attributes;
+  } cases[] = {
+    { false, 0 },                  /* omitted EndpointSecurityInfo */
+    { true, 0 },                   /* explicitly zero/invalid attributes */
+    { true, access },              /* access bits without IS_VALID */
+    { true, valid },               /* valid, access bits cleared */
+    { true, valid | access }       /* valid, access bits set */
+  };
+  for (size_t i = 0; i < sizeof (cases) / sizeof (cases[0]); i++)
+  {
+    ddsi_plist_t plist;
+    ddsi_plist_init_empty (&plist);
+    if (cases[i].present)
+    {
+      plist.present = PP_ENDPOINT_SECURITY_INFO;
+      plist.endpoint_security_info.security_attributes = cases[i].attributes;
+      plist.endpoint_security_info.plugin_security_attributes = 0;
+    }
+    ddsi_omg_get_proxy_endpoint_security_info (&pwr.e, &pwr.c.proxypp->security_info, &plist, &pwr.c.security_info);
+    ddsi_omg_get_proxy_endpoint_security_info (&prd.e, &prd.c.proxypp->security_info, &plist, &prd.c.security_info);
+    print_test_msg ("remote permissions: read_ac=%d write_ac=%d allowed=%d security_info=%zu\n",
+      read_ac, write_ac, remote_allowed, i);
+    CU_ASSERT_EQ (ddsi_omg_security_check_remote_writer_permissions (&pwr, rd), !write_ac || remote_allowed);
+    bool relay_only = true;
+    CU_ASSERT_EQ (ddsi_omg_security_check_remote_reader_permissions (&prd, wr, &relay_only), !read_ac || remote_allowed);
+    CU_ASSERT_EQ (relay_only, false);
+    ddsi_plist_fini (&plist);
+  }
+  /* A domain can load security after an existing endpoint was created without
+     security attributes. Such an endpoint retains its nonsecure behavior. */
+  const struct ddsi_reader unsecured_rd = { .c = { .pp = rd->c.pp } };
+  const struct ddsi_writer unsecured_wr = { .c = { .pp = wr->c.pp } };
+  CU_ASSERT (ddsi_omg_security_check_remote_writer_permissions (&pwr, &unsecured_rd));
+  bool relay_only = true;
+  CU_ASSERT (ddsi_omg_security_check_remote_reader_permissions (&prd, &unsecured_wr, &relay_only));
+  CU_ASSERT_EQ (relay_only, false);
+  ddsi_thread_state_asleep (thrst);
+  for (size_t i = 0; i < 4; i++)
+    dds_entity_unpin (entities[i]);
+}
+
+CU_TheoryDataPoints(ddssec_access_control, remote_permissions_local_policy) = {
+  CU_DataPoints(bool, false, true)
+};
+
+/* Peer-advertised access flags must not decide whether local governance is
+   enforced. Test both directions, including asymmetric read/write policy,
+   independently of whether data is cryptographically protected. */
+CU_Theory((bool encrypt), ddssec_access_control, remote_permissions_local_policy, .timeout=60)
+{
+  char topics[8][100], control_topic[100];
+  create_topic_name ("ddssec_access_control_allowed_control_", g_topic_nr++, control_topic, sizeof (control_topic));
+  const DDS_Security_ProtectionKind metadata_protection = encrypt ? PK_E : PK_N;
+  const DDS_Security_BasicProtectionKind payload_protection = encrypt ? BPK_E : BPK_N;
+  char *local_rules = get_governance_topic_rule (control_topic, true, false, true, true, metadata_protection, payload_protection);
+  char *remote_control_rule = get_governance_topic_rule (control_topic, true, false, true, true, metadata_protection, payload_protection);
+  char *remote_other_rule = get_governance_topic_rule ("*", true, false, false, false, metadata_protection, payload_protection);
+  char *remote_rules;
+  ddsrt_asprintf (&remote_rules, "%s%s", remote_control_rule, remote_other_rule);
+  for (unsigned i = 0; i < 8; i++)
+  {
+    create_topic_name (i & 4 ? "ddssec_access_control_allowed_" : "ddssec_access_control_denied_",
+      g_topic_nr++, topics[i], sizeof (topics[i]));
+    char *rule = get_governance_topic_rule (topics[i], true, false, (i & 1) != 0, (i & 2) != 0, metadata_protection, payload_protection);
+    char *combined;
+    ddsrt_asprintf (&combined, "%s%s", local_rules, rule);
+    ddsrt_free (local_rules);
+    ddsrt_free (rule);
+    local_rules = combined;
+  }
+  char *gov_local = get_governance_config (false, true, PK_E, PK_N, PK_N, local_rules, true);
+  char *gov_remote = get_governance_config (false, true, PK_E, PK_N, PK_N, remote_rules, true);
+  char *ca = generate_ca ("ca1", TEST_IDENTITY_CA1_PRIVATE_KEY, 0, 3600);
+  char *subjects[2];
+  char *identities[] = {
+    generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id1", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &subjects[0]),
+    generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id2", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &subjects[1])
+  };
+  char *permission_rules[] = {
+    get_permissions_rules (NULL, "*", "*", NULL, NULL),
+    get_permissions_rules (NULL, "ddssec_access_control_allowed_*", "ddssec_access_control_allowed_*", NULL, NULL)
+  };
+  const dds_time_t now = dds_time ();
+  char *grants[] = {
+    get_permissions_grant ("local", subjects[0], now, now + DDS_SECS (3600), permission_rules[0], "DENY"),
+    get_permissions_grant ("remote", subjects[1], now, now + DDS_SECS (3600), permission_rules[1], "DENY")
+  };
+  char *permissions = get_permissions_config (grants, 2, true);
+  const char *perm_ca = PF_F COMMON_ETC_PATH("default_permissions_ca.pem");
+  access_control_init (2,
+    (const char *[]) { identities[0], identities[1] },
+    (const char *[]) { TEST_IDENTITY1_PRIVATE_KEY, TEST_IDENTITY1_PRIVATE_KEY },
+    (const char *[]) { ca, ca }, (bool []) { false, false }, NULL, NULL,
+    (bool []) { true, true }, (const char *[]) { gov_local, gov_remote },
+    (bool []) { true, true }, (const char *[]) { permissions, permissions },
+    (bool []) { true, true }, (const char *[]) { perm_ca, perm_ca });
+
+  /* A normally matched, protected control topic proves the handshake, builtin
+     discovery, and remote permissions handles are ready before negative cases. */
+  dds_entity_t pub, sub, pub_tp, sub_tp, wr, rd;
+  rd_wr_init (g_participant[0], &pub, &pub_tp, &wr, g_participant[1], &sub, &sub_tp, &rd, control_topic);
+  sync_writer_to_readers (g_participant[0], wr, 1, dds_time () + DDS_SECS (5));
+  write_read_for (wr, g_participant[1], rd, DDS_MSECS (10), false, false);
+  for (unsigned i = 0; i < 8; i++)
+  {
+    dds_entity_t lwr, lrd, rwr, rrd;
+    rd_wr_init (g_participant[0], &pub, &pub_tp, &lwr, g_participant[1], &sub, &sub_tp, &rrd, topics[i]);
+    rd_wr_init (g_participant[1], &pub, &pub_tp, &rwr, g_participant[0], &sub, &sub_tp, &lrd, topics[i]);
+    check_remote_permissions_with_security_info (lwr, lrd, rwr, rrd, (i & 1) != 0, (i & 2) != 0, (i & 4) != 0);
+  }
+  access_control_fini (2, (void *[]) {
+    local_rules, remote_control_rule, remote_other_rule, remote_rules, gov_local, gov_remote, ca,
+    subjects[0], subjects[1], identities[0], identities[1], permission_rules[0], permission_rules[1],
+    grants[0], grants[1], permissions
+  }, 16);
 }
 
 /* Check that communication for a topic that is allowed in the permissions config

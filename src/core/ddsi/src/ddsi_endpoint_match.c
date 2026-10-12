@@ -289,7 +289,7 @@ static void connect_writer_with_proxy_reader (struct ddsi_writer *wr, struct dds
     return;
   }
 
-  if (!ddsi_omg_security_check_remote_reader_permissions (prd, wr->e.gv->config.domainId, wr->c.pp, &relay_only))
+  if (!ddsi_omg_security_check_remote_reader_permissions (prd, wr, &relay_only))
   {
     GVLOGDISC ("connect_writer_with_proxy_reader (wr "PGUIDFMT") with (prd "PGUIDFMT") not allowed by security\n", PGUID (wr->e.guid), PGUID (prd->e.guid));
   }
@@ -331,7 +331,7 @@ static void connect_proxy_writer_with_reader (struct ddsi_proxy_writer *pwr, str
     return;
   }
 
-  if (!ddsi_omg_security_check_remote_writer_permissions (pwr, rd->e.gv->config.domainId, rd->c.pp))
+  if (!ddsi_omg_security_check_remote_writer_permissions (pwr, rd))
   {
     EELOGDISC (&rd->e, "connect_proxy_writer_with_reader (pwr "PGUIDFMT") with (rd "PGUIDFMT") not allowed by security\n",
         PGUID (pwr->e.guid), PGUID (rd->e.guid));

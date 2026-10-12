@@ -360,6 +360,65 @@ CU_Test(ddssec_authentication, unauthenticated_pp)
   print_test_msg ("done\n");
 }
 
+CU_TheoryDataPoints(ddssec_authentication, unauthenticated_access_control) = {
+  CU_DataPoints(bool, false, false, true, true),
+  CU_DataPoints(bool, false, true, false, true)
+};
+
+/* Access control alone must exclude unauthenticated peers when either local
+   access flag is set, including the flag for the opposite endpoint direction. */
+CU_Theory((bool read_ac, bool write_ac), ddssec_authentication, unauthenticated_access_control, .timeout=30)
+{
+  char *ca = generate_ca ("ca1", TEST_IDENTITY_CA1_PRIVATE_KEY, 0, 3600);
+  char *subject;
+  char *identity = generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id1", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &subject);
+  char *grant = get_permissions_default_grant ("id1", subject, "*");
+  char *permissions = get_permissions_config (&grant, 1, true);
+  char *control_rule = get_governance_topic_rule ("ddssec_authentication_unauth_control_*", false, false, false, false, PK_N, BPK_N);
+  char *topic_rule = get_governance_topic_rule ("*", false, false, read_ac, write_ac, PK_N, BPK_N);
+  char *topic_rules;
+  ddsrt_asprintf (&topic_rules, "%s%s", control_rule, topic_rule);
+  char *governance = get_governance_config (true, true, PK_N, PK_N, PK_N, topic_rules, true);
+  authentication_init (
+    true, identity, TEST_IDENTITY1_PRIVATE_KEY, ca, false, governance, permissions,
+    false, NULL, NULL, NULL, false, NULL, NULL, NULL, NULL);
+
+  /* Establish discovery and communication in both directions before negative
+     checks, so broken discovery cannot masquerade as access-control denial. */
+  for (unsigned direction = 0; direction < 2; direction++)
+  {
+    char topic_name[100];
+    create_topic_name ("ddssec_authentication_unauth_control_", g_topic_nr++, topic_name, sizeof (topic_name));
+    const dds_entity_t writer_pp = direction == 0 ? g_participant1 : g_participant2;
+    const dds_entity_t reader_pp = direction == 0 ? g_participant2 : g_participant1;
+    dds_entity_t pub, sub, pub_tp, sub_tp, wr, rd;
+    rd_wr_init (writer_pp, &pub, &pub_tp, &wr, reader_pp, &sub, &sub_tp, &rd, topic_name);
+    sync_writer_to_readers (writer_pp, wr, 1, dds_time () + DDS_SECS (2));
+    sync_reader_to_writers (reader_pp, rd, 1, dds_time () + DDS_SECS (2));
+    write_read_for (wr, reader_pp, rd, DDS_MSECS (10), false, false);
+  }
+
+  for (unsigned direction = 0; direction < 2; direction++)
+  {
+    char topic_name[100];
+    create_topic_name ("ddssec_authentication_unauth_ac_", g_topic_nr++, topic_name, sizeof (topic_name));
+    const dds_entity_t writer_pp = direction == 0 ? g_participant1 : g_participant2;
+    const dds_entity_t reader_pp = direction == 0 ? g_participant2 : g_participant1;
+    const bool denied = read_ac || write_ac;
+    dds_entity_t pub, sub, pub_tp, sub_tp, wr, rd;
+    rd_wr_init (writer_pp, &pub, &pub_tp, &wr, reader_pp, &sub, &sub_tp, &rd, topic_name);
+    if (direction == 0)
+      sync_writer_to_readers (writer_pp, wr, denied ? 0 : 1, dds_time () + DDS_SECS (2));
+    else
+      sync_reader_to_writers (reader_pp, rd, denied ? 0 : 1, dds_time () + DDS_SECS (2));
+    write_read_for (wr, reader_pp, rd, DDS_MSECS (10), false, denied);
+  }
+
+  authentication_fini (true, true, (void *[]) {
+    ca, subject, identity, grant, permissions, control_rule, topic_rule, topic_rules, governance
+  }, 9);
+}
+
 CU_TheoryDataPoints(ddssec_authentication, crl) = {
     CU_DataPoints(const char *, "",    "/nonexisting", TEST_CRL, NULL),
     CU_DataPoints(bool,         false, true,           true,     false),
