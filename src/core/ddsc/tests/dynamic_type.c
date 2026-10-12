@@ -20,11 +20,14 @@
 #include "Space.h"
 #include "DynamicTypeTypes.h"
 
+/* Run in isolation so we can check the type library state in the test. */
+#define DDS_CONFIG "<Discovery><Tag>ddsc_dynamic_type_${CYCLONEDDS_PID}</Tag></Discovery>"
+
 static dds_entity_t domain = 0, participant = 0;
 
 static void dynamic_type_init(void)
 {
-  char *config = test_config_from_env (NULL, 0);
+  char *config = test_config_from_env (DDS_CONFIG, 0);
   domain = dds_create_domain (0, config);
   ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (domain, 0);
@@ -34,7 +37,7 @@ static void dynamic_type_init(void)
 
 static void dynamic_type_no_recursive_init(void)
 {
-  char *config = test_config_from_env ("<Compatibility><AllowRecursiveTypes>false</AllowRecursiveTypes></Compatibility>", 0);
+  char *config = test_config_from_env (DDS_CONFIG ",<Compatibility><AllowRecursiveTypes>false</AllowRecursiveTypes></Compatibility>", 0);
   domain = dds_create_domain (0, config);
   ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (domain, 0);
@@ -920,7 +923,7 @@ CU_Test (ddsc_dynamic_type, existing, .init = dynamic_type_init, .fini = dynamic
   create_unique_topic_name ("ddsc_dynamic_type", topic_name, sizeof (topic_name));
 
   // Create participant2 with writer
-  char *config = test_config_from_env ("<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>", 1);
+  char *config = test_config_from_env (DDS_CONFIG ",<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>", 1);
   dds_entity_t domain2 = dds_create_domain (1, config);
   ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (domain2, 0);
@@ -1049,6 +1052,57 @@ CU_Test (ddsc_dynamic_type, existing_nested_constructing, .init = dynamic_type_i
   dds_dynamic_type_unref (&dstruct_nested);
 }
 
+CU_Test (ddsc_dynamic_type, nested_minimal_dependencies, .init = dynamic_type_init, .fini = dynamic_type_fini)
+{
+  dds_dynamic_type_t leaf = dds_dynamic_type_create (participant,
+      (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "MinimalDependencyLeaf" });
+  CU_ASSERT_EQ_FATAL (leaf.ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&leaf, DDS_DYNAMIC_MEMBER_PRIM (DDS_DYNAMIC_UINT32, "value")), DDS_RETCODE_OK);
+
+  dds_dynamic_type_t middle = dds_dynamic_type_create (participant,
+      (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "MinimalDependencyMiddle" });
+  CU_ASSERT_EQ_FATAL (middle.ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&middle, DDS_DYNAMIC_MEMBER (leaf, "leaf")), DDS_RETCODE_OK);
+
+  dds_dynamic_type_t top = dds_dynamic_type_create (participant,
+      (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "MinimalDependencyTop" });
+  CU_ASSERT_EQ_FATAL (top.ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&top, DDS_DYNAMIC_MEMBER (middle, "middle")), DDS_RETCODE_OK);
+
+  /* Register only the root. The leaf's minimal TypeObject is generated before
+     the middle type can acquire a reference to it. */
+  dds_typeinfo_t *type_info;
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_register (&top, &type_info), DDS_RETCODE_OK);
+  struct ddsi_domaingv *gv = get_domaingv (participant);
+  CU_ASSERT_FATAL (ddsi_type_resolved (gv, top.x[0], DDSI_TYPE_INCLUDE_DEPS));
+  CU_ASSERT (ddsi_type_resolved (gv, top.x[1], DDSI_TYPE_INCLUDE_DEPS));
+  CU_ASSERT_EQ_FATAL (type_info->x.minimal.dependent_typeids._length, 2);
+  /* Inspect the local library directly: the public TypeObject lookup requires
+     type discovery, which is optional for dynamic types. */
+  for (uint32_t n = 0; n < type_info->x.minimal.dependent_typeids._length; n++)
+  {
+    const ddsi_typeid_t *type_id = (const ddsi_typeid_t *) &type_info->x.minimal.dependent_typeids._buffer[n].type_id;
+    ddsrt_mutex_lock (&gv->typelib_lock);
+    struct ddsi_type *type = ddsi_type_lookup_locked (gv, type_id);
+    ddsi_typeobj_t *type_obj = type ? ddsi_type_get_typeobj (gv, type) : NULL;
+    ddsrt_mutex_unlock (&gv->typelib_lock);
+    CU_ASSERT_NEQ (type_obj, NULL);
+    if (type_obj != NULL)
+    {
+      ddsi_typeobj_fini (type_obj);
+      ddsrt_free (type_obj);
+    }
+  }
+
+  dds_free_typeinfo (type_info);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_unref (&top), DDS_RETCODE_OK);
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  CU_ASSERT (ddsrt_avl_is_empty (&gv->typelib));
+  CU_ASSERT (ddsrt_avl_is_empty (&gv->typedeps));
+  CU_ASSERT (ddsrt_avl_is_empty (&gv->typedeps_reverse));
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+}
+
 CU_Test (ddsc_dynamic_type, recursive_struct_disabled, .init = dynamic_type_no_recursive_init, .fini = dynamic_type_fini)
 {
   struct ddsi_domaingv *gv = get_domaingv (participant);
@@ -1123,7 +1177,7 @@ CU_Test (ddsc_dynamic_type, recursive_struct_disabled_nested_cycle, .init = dyna
 
 static void recursive_import_expect (const ddsi_typeinfo_t *type_info, const ddsi_typemap_t *type_map, dds_domainid_t domainid, dds_return_t expected)
 {
-  char *config = test_config_from_env (NULL, domainid);
+  char *config = test_config_from_env (DDS_CONFIG, domainid);
   dds_entity_t import_domain = dds_create_domain (domainid, config);
   ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (import_domain, 0);
@@ -1292,7 +1346,7 @@ CU_Test (ddsc_dynamic_type, recursive_struct, .init = dynamic_type_init, .fini =
   ddsi_typemap_t *type_map = ddsi_typemap_deser (typemap_ser, typemap_ser_sz);
   CU_ASSERT_NEQ_FATAL (type_map, NULL);
 
-  char *config = test_config_from_env (NULL, 1);
+  char *config = test_config_from_env (DDS_CONFIG, 1);
   dds_entity_t import_domain = dds_create_domain (1, config);
   ddsrt_free (config);
   CU_ASSERT_GEQ_FATAL (import_domain, 0);

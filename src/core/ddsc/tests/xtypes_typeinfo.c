@@ -49,7 +49,10 @@
 
 #define DDS_DOMAINID_PUB 0
 #define DDS_DOMAINID_SUB 1
-#define DDS_CONFIG "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>"
+/* Isolate discovery so other processes cannot populate the type library. */
+#define DDS_CONFIG "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}" \
+  "<Discovery><ExternalDomainId>0</ExternalDomainId>" \
+  "<Tag>ddsc_xtypes_typeinfo_${CYCLONEDDS_PID}</Tag></Discovery>"
 
 static dds_entity_t g_domain1 = 0;
 static dds_entity_t g_participant1 = 0;
