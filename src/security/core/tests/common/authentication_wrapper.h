@@ -35,4 +35,12 @@ SECURITY_EXPORT int finalize_test_authentication_init_error(void *context);
 SECURITY_EXPORT enum take_message_result test_authentication_plugin_take_msg(dds_domainid_t domain_id, message_kind_t kind, DDS_Security_IdentityHandle lidHandle, DDS_Security_IdentityHandle ridHandle, DDS_Security_IdentityHandle hsHandle, ddsrt_mtime_t abstimeout, struct message **msg);
 SECURITY_EXPORT void test_authentication_plugin_release_msg(struct message *msg);
 
+/* Wrapper-only participant property: "pending" pauses handshake initiation;
+   "failed" rejects remote identity validation for this local identity. */
+#define TEST_AUTH_HANDSHAKE_CONTROL_PROPERTY "dds.sec.auth.test_handshake"
+struct dds_security_authentication_impl;
+/* VALIDATION_OK restores normal builtin-plugin behavior. */
+SECURITY_EXPORT void test_authentication_set_handshake_result(struct dds_security_authentication_impl *impl, DDS_Security_ValidationResult_t result);
+SECURITY_EXPORT bool test_authentication_wait_handshake_override(struct dds_security_authentication_impl *impl, ddsrt_mtime_t deadline);
+
 #endif /* SECURITY_CORE_TEST_AUTHENTICATION_WRAPPER_H_ */

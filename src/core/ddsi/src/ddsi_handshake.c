@@ -555,6 +555,7 @@ static DDS_Security_ValidationResult_t validate_remote_identity_impl(struct ddsi
       auth, &remote_identity_handle, &handshake->local_auth_request_token, handshake->remote_auth_request_token,
       pp->sec_attr->local_identity_handle, &remote_identity_token, (DDS_Security_GUID_t *)&remote_guid, &exception);
   ddsrt_mutex_unlock(&handshake->lock);
+  DDS_Security_DataHolder_deinit(&remote_identity_token);
 
   /* Trace a failed handshake. */
   if ((ret != DDS_SECURITY_VALIDATION_OK                       ) &&
@@ -571,8 +572,6 @@ static DDS_Security_ValidationResult_t validate_remote_identity_impl(struct ddsi
 
   assert(proxypp->sec_attr->remote_identity_handle == 0 || proxypp->sec_attr->remote_identity_handle == remote_identity_handle);
   proxypp->sec_attr->remote_identity_handle = remote_identity_handle;
-
-  DDS_Security_DataHolder_deinit(&remote_identity_token);
 
   /* When validate_remote_identity returns a local_auth_request_token
    * which does not equal TOKEN_NIL then an AUTH_REQUEST message has

@@ -486,6 +486,7 @@ static struct ddsi_pp_proxypp_match * ddsi_pp_proxypp_match_new(struct ddsi_prox
   pm = ddsrt_malloc(sizeof(*pm));
   pm->proxypp_guid = proxypp->e.guid;
   pm->proxypp_crypto_handle = proxypp_crypto_handle;
+  pm->authenticated = false;
 
   return pm;
 }
@@ -1878,6 +1879,19 @@ static bool proxypp_is_authenticated(const struct ddsi_proxy_participant *proxyp
   return authenticated;
 }
 
+static bool proxypp_is_authenticated_with (const struct ddsi_proxy_participant *proxypp, const struct ddsi_participant *pp)
+{
+  assert (pp->sec_attr != NULL);
+
+  /* Use the local association: the remote security attributes can disappear
+   * when a failed handshake downgrades the proxy participant to nonsecure. */
+  ddsrt_mutex_lock (&pp->sec_attr->lock);
+  const struct ddsi_pp_proxypp_match *pm = ddsrt_avl_clookup (&pp_proxypp_treedef, &pp->sec_attr->proxy_participants, &proxypp->e.guid);
+  const bool authenticated = pm != NULL && pm->authenticated;
+  ddsrt_mutex_unlock (&pp->sec_attr->lock);
+  return authenticated;
+}
+
 static void match_proxypp_pp(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, DDS_Security_PermissionsHandle permissions_handle, DDS_Security_SharedSecretHandle shared_secret_handle)
 {
   struct ddsi_proxypp_pp_match *pm;
@@ -1960,11 +1974,23 @@ void ddsi_omg_security_set_remote_participant_authenticated (struct ddsi_partici
 {
   struct ddsi_proxypp_pp_match *pm;
 
+  /* Association creation, downgrade and this function run on the domain's
+   * single handshake FSM worker. The worker remains awake throughout this
+   * call, preventing deferred participant destruction from removing the
+   * associations. These guarantees prevent removal and recreation between
+   * the two lock acquisitions; the separate locks alone do not prevent it. */
   ddsrt_mutex_lock(&proxypp->sec_attr->lock);
   pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp->sec_attr->crypto_handle);
   if (pm)
     pm->authenticated = true;
+  const bool authenticated = pm != NULL;
   ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
+
+  ddsrt_mutex_lock (&pp->sec_attr->lock);
+  struct ddsi_pp_proxypp_match *pc = ddsrt_avl_clookup (&pp_proxypp_treedef, &pp->sec_attr->proxy_participants, &proxypp->e.guid);
+  if (pc)
+    pc->authenticated = authenticated;
+  ddsrt_mutex_unlock (&pp->sec_attr->lock);
 }
 
 static bool is_volatile_secure_endpoint(ddsi_entityid_t entityid)
@@ -2196,6 +2222,15 @@ bool ddsi_omg_security_check_remote_writer_permissions (const struct ddsi_proxy_
       GVWARNING("Non secure remote writer "PGUIDFMT" is not allowed.", PGUID(pwr->e.guid));
       return false;
     }
+  }
+
+  /* Discovery can precede authentication, but user endpoints must wait for
+   * admission by their own local participant, even on unprotected topics. */
+  if (!ddsi_is_builtin_entityid (rd->e.guid.entityid, DDSI_VENDORID_ECLIPSE) &&
+      !proxypp_is_authenticated_with (pwr->c.proxypp, pp))
+  {
+    GVTRACE ("Remote writer "PGUIDFMT" is not authenticated with participant "PGUIDFMT" yet\n", PGUID (pwr->e.guid), PGUID (pp->e.guid));
+    return false;
   }
 
   /* The local policy determines whether to check permissions, even when the
@@ -2442,6 +2477,15 @@ bool ddsi_omg_security_check_remote_reader_permissions (const struct ddsi_proxy_
       GVWARNING("Non secure remote reader "PGUIDFMT" is not allowed.", PGUID(prd->e.guid));
       return false;
     }
+  }
+
+  /* Discovery can precede authentication, but user endpoints must wait for
+   * admission by their own local participant, even on unprotected topics. */
+  if (!ddsi_is_builtin_entityid (wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE) &&
+      !proxypp_is_authenticated_with (prd->c.proxypp, pp))
+  {
+    GVTRACE ("Remote reader "PGUIDFMT" is not authenticated with participant "PGUIDFMT" yet\n", PGUID (prd->e.guid), PGUID (pp->e.guid));
+    return false;
   }
 
   /* The local policy determines whether to check permissions, even when the

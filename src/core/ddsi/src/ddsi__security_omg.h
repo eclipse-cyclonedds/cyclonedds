@@ -57,6 +57,7 @@ struct ddsi_pp_proxypp_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t proxypp_guid;
   DDS_Security_ParticipantCryptoHandle proxypp_crypto_handle;
+  bool authenticated;
 };
 
 struct ddsi_proxypp_pp_match {
@@ -638,6 +639,8 @@ bool ddsi_omg_writer_is_payload_protected (const struct ddsi_writer *wr);
  *
  * The local reader's security attributes determine whether to check the remote
  * writer's permissions with the access control plugin.
+ * A secure remote participant's user endpoints must first be authenticated and
+ * admitted by the local reader's participant, even on unprotected topics.
  *
  * @param[in] pwr       The remote writer.
  * @param[in] rd        The local reader.
@@ -737,6 +740,8 @@ bool ddsi_omg_reader_is_submessage_protected (const struct ddsi_reader *rd);
  *
  * The local writer's security attributes determine whether to check the remote
  * reader's permissions with the access control plugin.
+ * A secure remote participant's user endpoints must first be authenticated and
+ * admitted by the local writer's participant, even on unprotected topics.
  *
  * @param[in] prd         The remote reader.
  * @param[in] wr          The local writer.

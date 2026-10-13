@@ -33,6 +33,7 @@
 #include "common/security_config_test_utils.h"
 #include "common/test_identity.h"
 #include "common/cert_utils.h"
+#include "SecurityCoreTests.h"
 
 #define ID1 TEST_IDENTITY1_CERTIFICATE
 #define ID1K TEST_IDENTITY1_PRIVATE_KEY
@@ -105,7 +106,7 @@ static uint32_t g_topic_nr = 0;
 
 static void init_domain_pp (bool pp_secure, bool exp_pp_fail,
     dds_domainid_t domain_id, const char * id_cert, const char * id_key, const char * id_ca, const char * gov_config, const char * perm_config, const char * trusted_ca_dir, const char * crl,
-    dds_entity_t * domain, dds_entity_t * pp)
+    const dds_qos_t *participant_qos, dds_entity_t * domain, dds_entity_t * pp)
 {
   char *conf;
   if (pp_secure)
@@ -131,7 +132,7 @@ static void init_domain_pp (bool pp_secure, bool exp_pp_fail,
     CU_ASSERT_EQ_FATAL (expand_lookup_unmatched (config_vars), 0);
   }
   *domain = dds_create_domain (domain_id, conf);
-  *pp = dds_create_participant (domain_id, NULL, NULL);
+  *pp = dds_create_participant (domain_id, participant_qos, NULL);
   CU_ASSERT_EQ_FATAL (exp_pp_fail, *pp <= 0);
   ddsrt_free (conf);
 }
@@ -141,8 +142,8 @@ static void authentication_init(
     bool pp2_secure, const char * id2_cert, const char * id2_key, const char * id2_ca, bool exp_pp2_fail, const char * gov_conf2, const char * perm_conf2,
     const char * trusted_ca_dir, const char * crl)
 {
-  init_domain_pp (pp1_secure, exp_pp1_fail, DDS_DOMAINID1, id1_cert, id1_key, id1_ca, gov_conf1, perm_conf1, trusted_ca_dir, crl, &g_domain1, &g_participant1);
-  init_domain_pp (pp2_secure, exp_pp2_fail, DDS_DOMAINID2, id2_cert, id2_key, id2_ca, gov_conf2, perm_conf2, trusted_ca_dir, crl, &g_domain2, &g_participant2);
+  init_domain_pp (pp1_secure, exp_pp1_fail, DDS_DOMAINID1, id1_cert, id1_key, id1_ca, gov_conf1, perm_conf1, trusted_ca_dir, crl, NULL, &g_domain1, &g_participant1);
+  init_domain_pp (pp2_secure, exp_pp2_fail, DDS_DOMAINID2, id2_cert, id2_key, id2_ca, gov_conf2, perm_conf2, trusted_ca_dir, crl, NULL, &g_domain2, &g_participant2);
 }
 
 static void authentication_fini(bool delete_pp1, bool delete_pp2, void * res[], size_t nres)
@@ -417,6 +418,193 @@ CU_Theory((bool read_ac, bool write_ac), ddssec_authentication, unauthenticated_
   authentication_fini (true, true, (void *[]) {
     ca, subject, identity, grant, permissions, control_rule, topic_rule, topic_rules, governance
   }, 9);
+}
+
+static void wait_discovered_endpoint (dds_entity_t participant, dds_entity_t endpoint, bool writer)
+{
+  dds_guid_t guid;
+  CU_ASSERT_EQ_FATAL (dds_get_guid (endpoint, &guid), DDS_RETCODE_OK);
+  dds_entity_t rd = dds_create_reader (participant,
+    writer ? DDS_BUILTIN_TOPIC_DCPSPUBLICATION : DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, NULL, NULL);
+  CU_ASSERT_GT_FATAL (rd, 0);
+  dds_entity_t condition = dds_create_readcondition (rd, DDS_ANY_STATE);
+  CU_ASSERT_GT_FATAL (condition, 0);
+  dds_entity_t ws = dds_create_waitset (participant);
+  CU_ASSERT_GT_FATAL (ws, 0);
+  CU_ASSERT_EQ_FATAL (dds_waitset_attach (ws, condition, condition), DDS_RETCODE_OK);
+  const dds_time_t deadline = dds_time () + DDS_SECS (5);
+  bool found = false;
+  while (!found)
+  {
+    void *samples[16] = { NULL };
+    dds_sample_info_t info[16];
+    dds_return_t n = dds_take (rd, samples, info, 16, 16);
+    CU_ASSERT_GEQ_FATAL (n, 0);
+    for (dds_return_t i = 0; i < n; i++)
+    {
+      const dds_builtintopic_endpoint_t *data = samples[i];
+      if (info[i].valid_data && memcmp (&data->key, &guid, sizeof (guid)) == 0)
+        found = true;
+    }
+    if (n > 0)
+      CU_ASSERT_EQ_FATAL (dds_return_loan (rd, samples, n), DDS_RETCODE_OK);
+    if (!found)
+      CU_ASSERT_GT_FATAL (dds_waitset_wait_until (ws, NULL, 0, deadline), 0);
+  }
+  CU_ASSERT_EQ_FATAL (dds_delete (ws), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_delete (rd), DDS_RETCODE_OK);
+}
+
+static void check_unauthenticated_endpoints (
+  dds_entity_t local_pp, dds_entity_t local_wr, dds_entity_t local_rd,
+  dds_entity_t remote_pp, dds_entity_t remote_wr, dds_entity_t remote_rd)
+{
+  sync_writer_to_readers (local_pp, local_wr, 0, dds_time () + DDS_SECS (1));
+  sync_reader_to_writers (local_pp, local_rd, 0, dds_time () + DDS_SECS (1));
+  write_read_for (local_wr, remote_pp, remote_rd, DDS_MSECS (10), false, true);
+  write_read_for (remote_wr, local_pp, local_rd, DDS_MSECS (10), false, true);
+}
+
+CU_TheoryDataPoints(ddssec_authentication, endpoint_authentication) = {
+  CU_DataPoints(bool, false, true, true),  /* fail authentication */
+  CU_DataPoints(bool, false, false, true)  /* allow unauthenticated fallback */
+};
+
+/* Endpoint ACL and all cryptographic protection are disabled. Authentication
+   must independently gate each local/remote participant pair, even after the
+   same remote participant has authenticated with another local participant. */
+CU_Theory((bool fail, bool allow_unauthenticated), ddssec_authentication, endpoint_authentication, .timeout=60)
+{
+  char *ca = generate_ca ("ca1", TEST_IDENTITY_CA1_PRIVATE_KEY, 0, 3600);
+  char *subjects[2];
+  char *identities[] = {
+    generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id1", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &subjects[0]),
+    generate_identity (ca, TEST_IDENTITY_CA1_PRIVATE_KEY, "id2", TEST_IDENTITY1_PRIVATE_KEY, 0, 3600, &subjects[1])
+  };
+  char *grants[] = {
+    get_permissions_default_grant ("local", subjects[0], "*"),
+    get_permissions_default_grant ("remote", subjects[1], "*")
+  };
+  char *permissions = get_permissions_config (grants, 2, true);
+  char *topic_rule = get_governance_topic_rule ("*", false, false, false, false, PK_N, BPK_N);
+  char *governance = get_governance_config (allow_unauthenticated, true, PK_N, PK_N, PK_N, topic_rule, true);
+  dds_qos_t *controlled_qos = dds_create_qos ();
+  /* An explicit Property QoS replaces the complete configured policy. */
+  dds_qset_prop (controlled_qos, DDS_SEC_PROP_AUTH_LIBRARY_PATH, WRAPPERLIB_PATH("dds_security_authentication_wrapper"));
+  dds_qset_prop (controlled_qos, DDS_SEC_PROP_AUTH_LIBRARY_INIT, "init_test_authentication_wrapped");
+  dds_qset_prop (controlled_qos, DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE, "finalize_test_authentication_wrapped");
+  dds_qset_prop (controlled_qos, DDS_SEC_PROP_ACCESS_LIBRARY_PATH, "dds_security_ac");
+  dds_qset_prop (controlled_qos, DDS_SEC_PROP_ACCESS_LIBRARY_INIT, "init_access_control");
+  dds_qset_prop (controlled_qos, DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE, "finalize_access_control");
+  dds_qset_prop (controlled_qos, DDS_SEC_PROP_CRYPTO_LIBRARY_PATH, "dds_security_crypto");
+  dds_qset_prop (controlled_qos, DDS_SEC_PROP_CRYPTO_LIBRARY_INIT, "init_crypto");
+  dds_qset_prop (controlled_qos, DDS_SEC_PROP_CRYPTO_LIBRARY_FINALIZE, "finalize_crypto");
+  dds_qset_prop (controlled_qos, DDS_SEC_PROP_ACCESS_PERMISSIONS_CA, "file:" COMMON_ETC_PATH("default_permissions_ca.pem"));
+  dds_qset_prop (controlled_qos, DDS_SEC_PROP_ACCESS_PERMISSIONS, permissions);
+  dds_qset_prop (controlled_qos, DDS_SEC_PROP_ACCESS_GOVERNANCE, governance);
+  const char *identity_properties[] = { DDS_SEC_PROP_AUTH_IDENTITY_CERT, DDS_SEC_PROP_AUTH_PRIV_KEY, DDS_SEC_PROP_AUTH_IDENTITY_CA };
+  const char *identity_values[] = { identities[0], TEST_IDENTITY1_PRIVATE_KEY, ca };
+  for (size_t i = 0; i < sizeof (identity_properties) / sizeof (identity_properties[0]); i++)
+  {
+    char *value;
+    ddsrt_asprintf (&value, "data:,%s", identity_values[i]);
+    dds_qset_prop (controlled_qos, identity_properties[i], value);
+    ddsrt_free (value);
+  }
+  dds_qset_prop (controlled_qos, TEST_AUTH_HANDSHAKE_CONTROL_PROPERTY, allow_unauthenticated ? "failed" : "pending");
+
+  /* Install the override during local identity validation, before discovery
+     can start a handshake. The unrestricted local is created first. */
+  init_domain_pp (true, false, DDS_DOMAINID1, identities[0], TEST_IDENTITY1_PRIVATE_KEY, ca,
+    governance, permissions, NULL, NULL, allow_unauthenticated ? controlled_qos : NULL, &g_domain1, &g_participant1);
+  dds_entity_t controlled_pp = allow_unauthenticated ? g_participant1 :
+    dds_create_participant (DDS_DOMAINID1, controlled_qos, NULL);
+  CU_ASSERT_GT_FATAL (controlled_pp, 0);
+  struct dds_security_authentication_impl *local_auth = get_authentication_context (controlled_pp);
+  char *remote_identity;
+  ddsrt_asprintf (&remote_identity, "data:,%s", identities[1]);
+  dds_qset_prop (controlled_qos, DDS_SEC_PROP_AUTH_IDENTITY_CERT, remote_identity);
+  ddsrt_free (remote_identity);
+  init_domain_pp (true, false, DDS_DOMAINID2, identities[1], TEST_IDENTITY1_PRIVATE_KEY, ca,
+    governance, permissions, NULL, NULL, allow_unauthenticated ? controlled_qos : NULL, &g_domain2, &g_participant2);
+  dds_delete_qos (controlled_qos);
+
+  char outgoing[100], incoming[100];
+  create_topic_name ("ddssec_authentication_outgoing_", g_topic_nr++, outgoing, sizeof (outgoing));
+  create_topic_name ("ddssec_authentication_incoming_", g_topic_nr++, incoming, sizeof (incoming));
+  dds_entity_t pub, sub, pub_tp, sub_tp, local_wr, local_rd, remote_wr, remote_rd;
+  const dds_entity_t initial_pp = allow_unauthenticated ? controlled_pp : g_participant1;
+  rd_wr_init (initial_pp, &pub, &pub_tp, &local_wr, g_participant2, &sub, &sub_tp, &remote_rd, outgoing);
+  rd_wr_init (g_participant2, &pub, &pub_tp, &remote_wr, initial_pp, &sub, &sub_tp, &local_rd, incoming);
+
+  CU_ASSERT_FATAL (test_authentication_wait_handshake_override (local_auth,
+    ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_SECS (5))));
+  wait_discovered_endpoint (controlled_pp, remote_wr, true);
+  wait_discovered_endpoint (controlled_pp, remote_rd, false);
+
+  if (!allow_unauthenticated)
+  {
+    const dds_entity_t admitted_wr = local_wr, admitted_rd = local_rd;
+    sync_writer_to_readers (g_participant1, admitted_wr, 1, dds_time () + DDS_SECS (5));
+    sync_reader_to_writers (g_participant1, admitted_rd, 1, dds_time () + DDS_SECS (5));
+    write_read_for (admitted_wr, g_participant2, remote_rd, DDS_MSECS (10), false, false);
+    write_read_for (remote_wr, g_participant1, admitted_rd, DDS_MSECS (10), false, false);
+
+    /* Create the controlled endpoints only after the remote participant has
+       authenticated with the first local participant. This forces matching
+       against the same remote proxies while this local pair is still pending. */
+    dds_qos_t *qos = get_default_test_qos ();
+    pub_tp = dds_create_topic (controlled_pp, &SecurityCoreTests_Type1_desc, outgoing, NULL, NULL);
+    sub_tp = dds_create_topic (controlled_pp, &SecurityCoreTests_Type1_desc, incoming, NULL, NULL);
+    CU_ASSERT_GT_FATAL (pub_tp, 0);
+    CU_ASSERT_GT_FATAL (sub_tp, 0);
+    local_wr = dds_create_writer (controlled_pp, pub_tp, qos, NULL);
+    local_rd = dds_create_reader (controlled_pp, sub_tp, qos, NULL);
+    CU_ASSERT_GT_FATAL (local_wr, 0);
+    CU_ASSERT_GT_FATAL (local_rd, 0);
+    dds_delete_qos (qos);
+    CU_ASSERT_EQ_FATAL (dds_set_status_mask (local_wr, DDS_PUBLICATION_MATCHED_STATUS), DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (dds_set_status_mask (local_rd, DDS_SUBSCRIPTION_MATCHED_STATUS), DDS_RETCODE_OK);
+
+    check_unauthenticated_endpoints (controlled_pp, local_wr, local_rd, g_participant2, remote_wr, remote_rd);
+    test_authentication_set_handshake_result (local_auth, fail ? DDS_SECURITY_VALIDATION_FAILED : DDS_SECURITY_VALIDATION_OK);
+    if (fail)
+    {
+      CU_ASSERT_FATAL (test_authentication_wait_handshake_override (local_auth,
+        ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_SECS (5))));
+      check_unauthenticated_endpoints (controlled_pp, local_wr, local_rd, g_participant2, remote_wr, remote_rd);
+      /* Rejecting this pair must not disrupt the already admitted pair. */
+      write_read_for (admitted_wr, g_participant2, remote_rd, DDS_MSECS (10), false, false);
+      /* Earlier negative checks also publish to the admitted reader. */
+      SecurityCoreTests_Type1 old_sample;
+      void *samples[] = { &old_sample };
+      dds_sample_info_t info;
+      dds_return_t n;
+      while ((n = dds_take (admitted_rd, samples, &info, 1, 1)) > 0)
+        ;
+      CU_ASSERT_EQ_FATAL (n, 0);
+      write_read_for (remote_wr, g_participant1, admitted_rd, DDS_MSECS (10), false, false);
+    }
+  }
+  else
+  {
+    struct dds_security_authentication_impl *remote_auth = get_authentication_context (g_participant2);
+    CU_ASSERT_FATAL (test_authentication_wait_handshake_override (remote_auth,
+      ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_SECS (5))));
+  }
+
+  if (!fail || allow_unauthenticated)
+  {
+    CU_ASSERT_EQ_FATAL (dds_set_status_mask (local_rd, DDS_SUBSCRIPTION_MATCHED_STATUS), DDS_RETCODE_OK);
+    sync_writer_to_readers (controlled_pp, local_wr, 1, dds_time () + DDS_SECS (5));
+    sync_reader_to_writers (controlled_pp, local_rd, 1, dds_time () + DDS_SECS (5));
+    write_read_for (local_wr, g_participant2, remote_rd, DDS_MSECS (10), false, false);
+    write_read_for (remote_wr, controlled_pp, local_rd, DDS_MSECS (10), false, false);
+  }
+
+  authentication_fini (true, true, (void *[]) {
+    ca, subjects[0], subjects[1], identities[0], identities[1], grants[0], grants[1], permissions, topic_rule, governance
+  }, 10);
 }
 
 CU_TheoryDataPoints(ddssec_authentication, crl) = {

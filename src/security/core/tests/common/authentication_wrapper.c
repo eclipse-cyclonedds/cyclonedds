@@ -41,6 +41,11 @@ struct dds_security_authentication_impl
   dds_security_authentication *instance;
   struct message_queue msg_queue;
   enum auth_plugin_mode mode;
+  ddsrt_mutex_t handshake_control_lock;
+  ddsrt_cond_mtime_t handshake_control_cond;
+  DDS_Security_IdentityHandle controlled_identity;
+  DDS_Security_ValidationResult_t handshake_result;
+  bool handshake_override_seen;
 };
 
 static struct dds_security_authentication_impl **auth_impl;
@@ -50,6 +55,10 @@ static size_t auth_impl_use = 0;
 static const char *test_identity_certificate = TEST_IDENTITY_CERTIFICATE_DUMMY;
 static const char *test_private_key          = TEST_IDENTITY_PRIVATE_KEY_DUMMY;
 static const char *test_ca_certificate       = TEST_IDENTITY_CA_CERTIFICATE_DUMMY;
+
+static bool override_handshake_result (
+  struct dds_security_authentication_impl *impl, DDS_Security_IdentityHandle local_identity,
+  bool failed_only, DDS_Security_ValidationResult_t *result, DDS_Security_SecurityException *ex);
 
 static DDS_Security_ValidationResult_t test_validate_local_identity_all_ok(
     DDS_Security_GUID_t *adjusted_participant_guid,
@@ -118,6 +127,23 @@ static DDS_Security_ValidationResult_t test_validate_local_identity(
     {
       DDS_Security_ValidationResult_t result = impl->instance->validate_local_identity(
           impl->instance, local_identity_handle, adjusted_participant_guid, domain_id, participant_qos, candidate_participant_guid, ex);
+      if (result == DDS_SECURITY_VALIDATION_OK)
+      {
+        for (uint32_t i = 0; i < participant_qos->property.value._length; i++)
+        {
+          const DDS_Security_Property_t *p = &participant_qos->property.value._buffer[i];
+          if (strcmp (p->name, TEST_AUTH_HANDSHAKE_CONTROL_PROPERTY) == 0)
+          {
+            ddsrt_mutex_lock (&impl->handshake_control_lock);
+            assert (impl->controlled_identity == 0);
+            assert (strcmp (p->value, "pending") == 0 || strcmp (p->value, "failed") == 0);
+            impl->controlled_identity = *local_identity_handle;
+            impl->handshake_result = strcmp (p->value, "pending") == 0 ?
+              DDS_SECURITY_VALIDATION_PENDING_RETRY : DDS_SECURITY_VALIDATION_FAILED;
+            ddsrt_mutex_unlock (&impl->handshake_control_lock);
+          }
+        }
+      }
       add_message(&impl->msg_queue, MESSAGE_KIND_VALIDATE_LOCAL_IDENTITY, *local_identity_handle,
           0, 0, adjusted_participant_guid, NULL, result, ex ? ex->message : "", NULL, instance);
       return result;
@@ -199,9 +225,13 @@ static DDS_Security_ValidationResult_t test_validate_remote_identity(
   {
     case PLUGIN_MODE_WRAPPED:
     {
-      DDS_Security_ValidationResult_t result = impl->instance->validate_remote_identity(
-        impl->instance, remote_identity_handle, local_auth_request_token, remote_auth_request_token,
-        local_identity_handle, remote_identity_token, remote_participant_guid, ex);
+      DDS_Security_ValidationResult_t result;
+      if (override_handshake_result (impl, local_identity_handle, true, &result, ex))
+        *remote_identity_handle = 0;
+      else
+        result = impl->instance->validate_remote_identity(
+          impl->instance, remote_identity_handle, local_auth_request_token, remote_auth_request_token,
+          local_identity_handle, remote_identity_token, remote_participant_guid, ex);
       add_message(&impl->msg_queue, MESSAGE_KIND_VALIDATE_REMOTE_IDENTITY, local_identity_handle,
           *remote_identity_handle, 0, NULL, remote_participant_guid, result, ex ? ex->message : "", local_auth_request_token, instance);
       return result;
@@ -211,6 +241,54 @@ static DDS_Security_ValidationResult_t test_validate_remote_identity(
     default:
       return DDS_SECURITY_VALIDATION_OK;
   }
+}
+
+static bool override_handshake_result (
+  struct dds_security_authentication_impl *impl, DDS_Security_IdentityHandle local_identity,
+  bool failed_only, DDS_Security_ValidationResult_t *result, DDS_Security_SecurityException *ex)
+{
+  ddsrt_mutex_lock (&impl->handshake_control_lock);
+  const bool override = impl->controlled_identity == local_identity &&
+    impl->handshake_result != DDS_SECURITY_VALIDATION_OK &&
+    (!failed_only || impl->handshake_result == DDS_SECURITY_VALIDATION_FAILED);
+  if (override)
+  {
+    *result = impl->handshake_result;
+    impl->handshake_override_seen = true;
+    ddsrt_cond_mtime_broadcast (&impl->handshake_control_cond);
+  }
+  ddsrt_mutex_unlock (&impl->handshake_control_lock);
+  if (override && *result == DDS_SECURITY_VALIDATION_FAILED && ex)
+  {
+    ex->code = 1;
+    ex->message = ddsrt_strdup ("test-controlled handshake failure");
+  }
+  return override;
+}
+
+void test_authentication_set_handshake_result (
+  struct dds_security_authentication_impl *impl, DDS_Security_ValidationResult_t result)
+{
+  assert (impl->mode == PLUGIN_MODE_WRAPPED);
+  assert (result == DDS_SECURITY_VALIDATION_OK || result == DDS_SECURITY_VALIDATION_FAILED ||
+    result == DDS_SECURITY_VALIDATION_PENDING_RETRY);
+  ddsrt_mutex_lock (&impl->handshake_control_lock);
+  assert (impl->controlled_identity != 0);
+  impl->handshake_result = result;
+  impl->handshake_override_seen = false;
+  ddsrt_mutex_unlock (&impl->handshake_control_lock);
+}
+
+bool test_authentication_wait_handshake_override (
+  struct dds_security_authentication_impl *impl, ddsrt_mtime_t deadline)
+{
+  ddsrt_mutex_lock (&impl->handshake_control_lock);
+  while (!impl->handshake_override_seen)
+    if (!ddsrt_cond_mtime_waituntil (&impl->handshake_control_cond, &impl->handshake_control_lock, deadline))
+      break;
+  const bool seen = impl->handshake_override_seen;
+  ddsrt_mutex_unlock (&impl->handshake_control_lock);
+  return seen;
 }
 
 static DDS_Security_ValidationResult_t test_begin_handshake_request(
@@ -227,9 +305,11 @@ static DDS_Security_ValidationResult_t test_begin_handshake_request(
   {
     case PLUGIN_MODE_WRAPPED:
     {
-      DDS_Security_ValidationResult_t result = impl->instance->begin_handshake_request(
-        impl->instance, handshake_handle, handshake_message, initiator_identity_handle,
-        replier_identity_handle, serialized_local_participant_data, ex);
+      DDS_Security_ValidationResult_t result;
+      if (!override_handshake_result (impl, initiator_identity_handle, false, &result, ex))
+        result = impl->instance->begin_handshake_request(
+          impl->instance, handshake_handle, handshake_message, initiator_identity_handle,
+          replier_identity_handle, serialized_local_participant_data, ex);
       add_message(&impl->msg_queue, MESSAGE_KIND_BEGIN_HANDSHAKE_REQUEST, initiator_identity_handle,
           replier_identity_handle, *handshake_handle, NULL, NULL, result, ex ? ex->message : "", handshake_message, instance);
       return result;
@@ -256,9 +336,11 @@ static DDS_Security_ValidationResult_t test_begin_handshake_reply(
   {
     case PLUGIN_MODE_WRAPPED:
     {
-      DDS_Security_ValidationResult_t result = impl->instance->begin_handshake_reply(
-        impl->instance, handshake_handle, handshake_message_out, handshake_message_in,
-        initiator_identity_handle, replier_identity_handle, serialized_local_participant_data, ex);
+      DDS_Security_ValidationResult_t result;
+      if (!override_handshake_result (impl, replier_identity_handle, false, &result, ex))
+        result = impl->instance->begin_handshake_reply(
+          impl->instance, handshake_handle, handshake_message_out, handshake_message_in,
+          initiator_identity_handle, replier_identity_handle, serialized_local_participant_data, ex);
       add_message(&impl->msg_queue, MESSAGE_KIND_BEGIN_HANDSHAKE_REPLY, replier_identity_handle,
           initiator_identity_handle, *handshake_handle, NULL, NULL, result, ex ? ex->message : "", handshake_message_out, instance);
       return result;
@@ -547,6 +629,9 @@ int init_test_authentication_wrapped(const char *argument, void **context, struc
   impl->mode = PLUGIN_MODE_WRAPPED;
 
   init_message_queue(&impl->msg_queue);
+  ddsrt_mutex_init (&impl->handshake_control_lock);
+  ddsrt_cond_mtime_init (&impl->handshake_control_cond);
+  impl->handshake_result = DDS_SECURITY_VALIDATION_OK;
   ret = init_authentication(argument, (void **)&impl->instance, gv);
   auth_impl_idx++;
   auth_impl = ddsrt_realloc(auth_impl, auth_impl_idx * sizeof(*auth_impl));
@@ -562,6 +647,8 @@ int finalize_test_authentication_wrapped(void *context)
   struct dds_security_authentication_impl *impl = context;
   assert(impl->mode == PLUGIN_MODE_WRAPPED);
   deinit_message_queue(&impl->msg_queue);
+  ddsrt_cond_mtime_destroy (&impl->handshake_control_cond);
+  ddsrt_mutex_destroy (&impl->handshake_control_lock);
   ret = finalize_authentication(impl->instance);
 
   size_t idx;
