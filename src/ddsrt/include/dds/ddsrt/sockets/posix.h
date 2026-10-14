@@ -59,10 +59,12 @@ typedef struct ddsrt_socket_ext {
 # define INADDR_LOOPBACK 0x7f000001 /* 127.0.0.1 */
 # define IN_MULTICAST(a) ((((long int) (a)) & 0xf0000000) == 0xe0000000)
 
-/* Ignored socket options */
+/* Ignored socket options (defined by Zephyr itself since 4.x) */
+#ifndef IP_MULTICAST_IF
 # define IP_MULTICAST_IF    32
 # define IP_MULTICAST_TTL   33
 # define IP_MULTICAST_LOOP  34
+#endif
 
 /* for ddsrt_getifaddrs */
 # define IFF_UP              0x1
@@ -71,12 +73,20 @@ typedef struct ddsrt_socket_ext {
 # define IFF_POINTOPOINT    0x10
 # define IFF_MULTICAST    0x1000
 
+/* Zephyr defines these too, but before 4.3 its versions call functions that take a
+   non-const pointer, which fails to compile with const addresses under -Werror. */
 #if DDSRT_HAVE_IPV6
+# undef IN6_IS_ADDR_UNSPECIFIED
+# undef IN6_IS_ADDR_LOOPBACK
+# undef IN6_IS_ADDR_LINKLOCAL
+# undef IN6_IS_ADDR_MULTICAST
 # define IN6_IS_ADDR_UNSPECIFIED(a) (!((a)->s6_addr32[0] | (a)->s6_addr32[1] | (a)->s6_addr32[2] | (a)->s6_addr32[3]))
-# define IN6_IS_ADDR_LOOPBACK(a)    (((a)->s6_addr[15]) == 1 && !memcmp((a)->s6_addr, &in6addr_loopback, sizeof(struct in6_addr)))
+# define IN6_IS_ADDR_LOOPBACK(a)    (!((a)->s6_addr32[0] | (a)->s6_addr32[1] | (a)->s6_addr32[2]) && \
+                                     (a)->s6_addr[12] == 0 && (a)->s6_addr[13] == 0 && (a)->s6_addr[14] == 0 && (a)->s6_addr[15] == 1)
 # define IN6_IS_ADDR_LINKLOCAL(a)   (((a)->s6_addr[0] & 0xff) == 0xfe && ((a)->s6_addr[1] & 0xc0) == 0x80)
 # define IN6_IS_ADDR_MULTICAST(a)   (((a)->s6_addr[0] & 0xff) == 0xff)
-
+#endif
+#if DDSRT_HAVE_IPV6 && !defined(IPV6_JOIN_GROUP)
 /* socket options */
 # define IPV6_JOIN_GROUP        91
 # define IPV6_LEAVE_GROUP       92

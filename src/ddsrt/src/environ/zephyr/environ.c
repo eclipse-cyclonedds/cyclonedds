@@ -38,7 +38,7 @@ ddsrt_getenv(const char *name, const char **value)
   
   /* poor mans getenv, good enough for CYCLONEDDS_URI */
   name_len = strlen(name);
-  for (ep = environ; *ep != NULL; ep++)
+  for (ep = environ; ep != NULL && *ep != NULL; ep++)
   {
     if (!strncmp(*ep, name, name_len) && (*ep)[name_len] == '=') {
       *value = *ep + name_len + 1;
