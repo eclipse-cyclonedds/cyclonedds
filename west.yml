@@ -1,0 +1,14 @@
+# West manifest for building the Zephyr port standalone (used by CI); from an
+# empty workspace directory containing this checkout:
+#   west init -l cyclonedds && west update
+manifest:
+  remotes:
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
+  projects:
+    - name: zephyr
+      remote: zephyrproject-rtos
+      revision: v4.4.2
+      import:
+        name-allowlist:
+          - picolibc
