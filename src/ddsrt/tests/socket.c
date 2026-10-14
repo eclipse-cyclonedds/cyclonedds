@@ -16,6 +16,10 @@
 #include "dds/ddsrt/string.h"
 #include "CUnit/Theory.h"
 
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -155,6 +159,19 @@ CU_Test(ddsrt_sockets, gethostname)
   rc = ddsrt_gethostname(buf, sizeof(buf));
   CU_ASSERT_EQ (rc, DDS_RETCODE_OK);
 
+#if ((defined(__APPLE__) && TARGET_OS_IOS) || defined(__ANDROID__)) && !LWIP_SOCKET
+  CU_ASSERT_FATAL (buf[0] != '\0');
+  rc = ddsrt_gethostname(sysbuf, strlen(buf) + 1);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_OK);
+  CU_ASSERT_STREQ (buf, sysbuf);
+  rc = ddsrt_gethostname(sysbuf, 1);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_NOT_ENOUGH_SPACE);
+  CU_ASSERT_EQ (sysbuf[0], '\0');
+  sysbuf[0] = 'x';
+  rc = ddsrt_gethostname(sysbuf, 0);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_NOT_ENOUGH_SPACE);
+  CU_ASSERT_EQ (sysbuf[0], 'x');
+#else
   sysbuf[0] = '\0';
 #if LWIP_SOCKET
   (void) ddsrt_strlcpy(sysbuf, "localhost", sizeof(sysbuf));
@@ -163,6 +180,7 @@ CU_Test(ddsrt_sockets, gethostname)
   CU_ASSERT_EQ (ret, 0);
 #endif
   CU_ASSERT_STREQ (buf, sysbuf);
+#endif
 
   rc = ddsrt_gethostname(buf, strlen(buf) - 1);
   CU_ASSERT_EQ (rc, DDS_RETCODE_NOT_ENOUGH_SPACE);
