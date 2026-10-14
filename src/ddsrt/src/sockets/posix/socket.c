@@ -274,14 +274,6 @@ ddsrt_getsockopt(
   void *optval,
   socklen_t *optlen)
 {
-#if defined(__ZEPHYR__)
-  if (optname == IP_ADD_MEMBERSHIP || optname == IP_DROP_MEMBERSHIP)
-  {
-    /* note ddsrt_getsockopt never called with this optname */
-    return DDS_RETCODE_UNSUPPORTED;
-  }
-#endif
-
   if (getsockopt(sock, level, optname, optval, optlen) == 0)
     return DDS_RETCODE_OK;
 
@@ -322,29 +314,13 @@ ddsrt_setsockopt(
   }
 
 #if defined(__ZEPHYR__)
-  switch (optname) {
-#if defined(DDSRT_HAVE_IPV6)
-    case IPV6_MULTICAST_IF:
-    case IPV6_MULTICAST_HOPS:
-    case IPV6_MULTICAST_LOOP:
-    case IPV6_UNICAST_HOPS:
-      /* ignored */
-      return DDS_RETCODE_OK;
-    case IPV6_JOIN_GROUP:
-      optname = IPV6_ADD_MEMBERSHIP;
-      break;
-    case IPV6_LEAVE_GROUP:
-      optname = IPV6_DROP_MEMBERSHIP;
-      break;
-#endif /* DDSRT_HAVE_IPV6 */
-    case IP_PKTINFO:
-    case IP_MULTICAST_IF:
-    case IP_MULTICAST_TTL:
-    case IP_MULTICAST_LOOP:
-      /* ignored */
-      return DDS_RETCODE_OK;
-  }
-#endif /* __ZEPHYR__ */
+  /* Zephyr does not support selecting the outgoing multicast interface: it
+     rejects the ip_mreqn form of IP_MULTICAST_IF, and the failed/partial set
+     leaves the socket unable to receive multicast. The transmit interface is
+     taken from the routing table instead, so just report success. */
+  if (optname == IP_MULTICAST_IF)
+    return DDS_RETCODE_OK;
+#endif
 
   if (setsockopt(sock, level, optname, optval, optlen) == 0)
     return DDS_RETCODE_OK;
@@ -450,7 +426,7 @@ ddsrt_recv(
   return recv_error_to_retcode(errno);
 }
 
-#if (LWIP_SOCKET && !defined(recvmsg)) || defined(__ZEPHYR__)
+#if (LWIP_SOCKET && !defined(recvmsg))
 static ssize_t recvmsg(int sockfd, struct msghdr *msg, int flags)
 {
   assert(msg->msg_iovlen == 1);

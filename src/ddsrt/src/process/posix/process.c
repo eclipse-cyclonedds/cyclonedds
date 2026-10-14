@@ -46,7 +46,7 @@ ddsrt_getprocessname(void)
 #elif defined(_GNU_SOURCE)
   const char * appname = program_invocation_name;
 #elif defined(__ZEPHYR__)
-  const char * appname = NULL; /* CONFIG_KERNEL_BIN_NAME? */
+  const char * appname = CONFIG_KERNEL_BIN_NAME;
 #else
   const char * appname = NULL;
 

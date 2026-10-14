@@ -77,11 +77,6 @@ typedef struct {
 #define MAXTHREADNAMESIZE (CONFIG_THREAD_MAX_NAME_LEN - 1)
 #endif /* __APPLE__ */
 
-#if defined(__ZEPHYR__) && !defined(CONFIG_FILE_SYSTEM)
-int _open(const char *name, int mode);
-int _open(const char *name, int mode) { return -1; }
-#endif
-
 size_t
 ddsrt_thread_getname(char *name, size_t size)
 {
@@ -243,8 +238,8 @@ static void *os_startRoutineWrapper (void *threadContext)
 #define CYCLONEDDS_THREAD_STACK_SIZE 32768
 #endif
 
-#if (CYCLONEDDS_THREAD_COUNT > CONFIG_MAX_PTHREAD_COUNT)
-#error "CONFIG_MAX_PTHREAD_COUNT is insufficient to run CycloneDDS"
+#if (CYCLONEDDS_THREAD_COUNT > CONFIG_POSIX_THREAD_THREADS_MAX)
+#error "CONFIG_POSIX_THREAD_THREADS_MAX is insufficient to run CycloneDDS"
 #endif
 
 static int currThrIdx = 0;
@@ -406,13 +401,11 @@ ddsrt_thread_create (
       goto err;
     }
 
-#if !defined(__ZEPHYR__)
     if ((result = pthread_attr_setinheritsched (&pattr, PTHREAD_EXPLICIT_SCHED)) != 0)
     {
       DDS_ERROR("ddsrt_thread_create(%s): pthread_attr_setinheritsched(EXPLICIT) failed with error %d\n", name, result);
       goto err;
     }
-#endif
   }
 
   if (tattr.schedAffinityN > 0)
@@ -759,7 +752,7 @@ dds_return_t ddsrt_thread_cleanup_push (void (*routine) (void * p), void *arg)
   assert(routine != NULL);
 
 #if defined(__ZEPHYR__)
-  if (pthread_self() >= CONFIG_MAX_PTHREAD_COUNT) {
+  if (pthread_self() >= CONFIG_POSIX_THREAD_THREADS_MAX) {
     /* Not a pthread */
     return DDS_RETCODE_UNSUPPORTED;
   }
@@ -787,7 +780,7 @@ dds_return_t ddsrt_thread_cleanup_pop (int execute)
   thread_cleanup_t *tail;
 
 #if defined(__ZEPHYR__)
-  if (pthread_self() >= CONFIG_MAX_PTHREAD_COUNT) {
+  if (pthread_self() >= CONFIG_POSIX_THREAD_THREADS_MAX) {
     /* Not a pthread */
     return DDS_RETCODE_UNSUPPORTED;
   }

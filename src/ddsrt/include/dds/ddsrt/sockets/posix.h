@@ -59,11 +59,6 @@ typedef struct ddsrt_socket_ext {
 # define INADDR_LOOPBACK 0x7f000001 /* 127.0.0.1 */
 # define IN_MULTICAST(a) ((((long int) (a)) & 0xf0000000) == 0xe0000000)
 
-/* Ignored socket options */
-# define IP_MULTICAST_IF    32
-# define IP_MULTICAST_TTL   33
-# define IP_MULTICAST_LOOP  34
-
 /* for ddsrt_getifaddrs */
 # define IFF_UP              0x1
 # define IFF_BROADCAST       0x2
