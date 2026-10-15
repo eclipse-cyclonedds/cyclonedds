@@ -2576,7 +2576,6 @@ parse_annotation_appl_name(
       goto err;
     ret = idl_push_scoped_name(pstate, scoped_name, name);
     if (ret != IDL_RETCODE_OK) {
-      idl_delete_name(name);
       goto err;
     }
     name = NULL;
