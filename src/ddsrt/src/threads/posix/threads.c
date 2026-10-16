@@ -243,12 +243,19 @@ static void *os_startRoutineWrapper (void *threadContext)
 #define CYCLONEDDS_THREAD_STACK_SIZE 32768
 #endif
 
-#if (CYCLONEDDS_THREAD_COUNT > CONFIG_MAX_PTHREAD_COUNT)
-#error "CONFIG_MAX_PTHREAD_COUNT is insufficient to run CycloneDDS"
+#if (CYCLONEDDS_THREAD_COUNT > CONFIG_POSIX_THREAD_THREADS_MAX)
+#error "CONFIG_POSIX_THREAD_THREADS_MAX is insufficient to run CycloneDDS"
 #endif
 
 static int currThrIdx = 0;
 K_THREAD_STACK_ARRAY_DEFINE(zephyr_stacks, CYCLONEDDS_THREAD_COUNT, CYCLONEDDS_THREAD_STACK_SIZE);
+
+/* Zephyr stores the pool index in pthread_t with the MSB set; for a thread not created by
+   pthread_create() (e.g. the main thread) pthread_self() yields an index outside the pool. */
+static bool is_pthread (void)
+{
+  return (pthread_self () & 0x7fffffffu) < CONFIG_POSIX_THREAD_THREADS_MAX;
+}
 
 #endif
 
@@ -305,12 +312,12 @@ ddsrt_thread_create (
 
   if (tattr.stackSize != 0)
   {
+#if !defined(__ZEPHYR__) /* stacks are statically allocated on Zephyr, see below */
 #ifdef PTHREAD_STACK_MIN
     if (tattr.stackSize < (uint32_t)PTHREAD_STACK_MIN)
       tattr.stackSize = (uint32_t)PTHREAD_STACK_MIN;
 #endif
 
-#if !defined(__ZEPHYR__)
     if ((result = pthread_attr_setstacksize (&pattr, tattr.stackSize)) != 0)
     {
       DDS_ERROR ("ddsrt_thread_create(%s): pthread_attr_setstacksize(%"PRIu32") failed with error %d\n", name, tattr.stackSize, result);
@@ -759,7 +766,7 @@ dds_return_t ddsrt_thread_cleanup_push (void (*routine) (void * p), void *arg)
   assert(routine != NULL);
 
 #if defined(__ZEPHYR__)
-  if (pthread_self() >= CONFIG_MAX_PTHREAD_COUNT) {
+  if (!is_pthread ()) {
     /* Not a pthread */
     return DDS_RETCODE_UNSUPPORTED;
   }
@@ -787,7 +794,7 @@ dds_return_t ddsrt_thread_cleanup_pop (int execute)
   thread_cleanup_t *tail;
 
 #if defined(__ZEPHYR__)
-  if (pthread_self() >= CONFIG_MAX_PTHREAD_COUNT) {
+  if (!is_pthread ()) {
     /* Not a pthread */
     return DDS_RETCODE_UNSUPPORTED;
   }

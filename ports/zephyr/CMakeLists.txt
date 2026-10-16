@@ -1,16 +1,24 @@
-cmake_minimum_required(VERSION 3.25.0)
+# Copyright(c) 2026 ZettaScale Technology and others
+#
+# This program and the accompanying materials are made available under the
+# terms of the Eclipse Public License v. 2.0 which is available at
+# http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+# v. 1.0 which is available at
+# http://www.eclipse.org/org/documents/edl-v10.php.
+#
+# SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-# Uncomment for (gdbserver) debugging
-if(BOARD MATCHES "qemu_.*")
-  list(APPEND QEMU_EXTRA_FLAGS -serial tcp:127.0.0.1:5678,server)
-endif()
+cmake_minimum_required(VERSION 3.20.0)
+
+# Use the Cyclone DDS checkout this sample lives in as Zephyr module, so the
+# sample also builds when Cyclone DDS is not part of the west manifest.
+cmake_path(SET cyclonedds_dir NORMALIZE ${CMAKE_CURRENT_SOURCE_DIR}/../..)
+list(APPEND ZEPHYR_EXTRA_MODULES ${cyclonedds_dir})
 
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
-project(dds_examples)
+project(cyclonedds_samples)
 
-include(ExternalProject)
-include(CMakePrintHelpers)
-
+# Without any of these the self-test in src/main.c is built.
 set(BUILD_DDSPERF_PING 0 CACHE BOOL "Build the CycloneDDS DDSPerf tool (ping mode)")
 set(BUILD_DDSPERF_PONG 0 CACHE BOOL "Build the CycloneDDS DDSPerf tool (pong mode)")
 set(BUILD_ROUNDTRIP_PING 0 CACHE BOOL "Build the CycloneDDS Roundtrip Ping example")
@@ -20,15 +28,8 @@ set(BUILD_THROUGHPUT_SUB 0 CACHE BOOL "Build the CycloneDDS Throughput Subscribe
 set(BUILD_HELLOWORLD_PUB 0 CACHE BOOL "Build the CycloneDDS Hello World Publisher example")
 set(BUILD_HELLOWORLD_SUB 0 CACHE BOOL "Build the CycloneDDS Hello World Subscriber example")
 
-function(GENERATE_CDDS_CONF XML_FILE OUTPUT_FILE)
-  message("Generate static CycloneDDS config (${XML_FILE} -> ${OUTPUT_FILE})")
-
-  # Strip one-line comments, newlines, whitespace
-  #file(READ ${XML_FILE} xmlout)
-  #string(REGEX REPLACE "<!--[^\r\n]*-->" "" xmlout ${xmlout})
-  #string(REGEX REPLACE "(\r?\n)+" "" xmlout ${xmlout})
-  #string(REGEX REPLACE ">[ ]+<" "" xmlout ${xmlout})
-
+# Converts an XML configuration file into a "CYCLONEDDS_URI=<xml>" C array.
+function(generate_cdds_conf XML_FILE OUTPUT_FILE)
   find_program(xxd xxd REQUIRED)
   execute_process(
     COMMAND ${xxd} -i
@@ -36,14 +37,10 @@ function(GENERATE_CDDS_CONF XML_FILE OUTPUT_FILE)
     OUTPUT_VARIABLE conf_data
     OUTPUT_STRIP_TRAILING_WHITESPACE
     COMMAND_ERROR_IS_FATAL ANY)
-
-  # Convert the string "CYCLONEDDS_URI=" to C array of bytes
   string(HEX "CYCLONEDDS_URI=" conf_prefix)
   string(REGEX MATCHALL "([A-Fa-f0-9][A-Fa-f0-9])" conf_prefix ${conf_prefix})
   list(JOIN conf_prefix ", 0x" conf_prefix)
   string(PREPEND conf_prefix "  0x")
-
-  # Write to output file
   file(WRITE ${OUTPUT_FILE}
     "unsigned char cdds_xml_config[] = {\n"
     ${conf_prefix} ",\n"
@@ -51,41 +48,11 @@ function(GENERATE_CDDS_CONF XML_FILE OUTPUT_FILE)
     " };\n")
 endfunction()
 
-zephyr_get_system_include_directories_for_lang_as_string(C ext_system_includes)
-zephyr_get_include_directories_for_lang_as_string(C ext_includes)
-zephyr_get_compile_definitions_for_lang_as_string(C ext_defs)
-zephyr_get_compile_options_for_lang_as_String(C ext_opts)
-set(CDDS_CFLAGS
-    "${ext_defs} -D_POSIX_C_SOURCE=200809L ${ext_system_includes} ${ext_includes} ${ext_opts}"
-)
+set(generated_dir ${CMAKE_CURRENT_BINARY_DIR}/generated)
+target_include_directories(app PRIVATE ${generated_dir})
 
-set(CDDS_LIB_DIR ${CMAKE_CURRENT_BINARY_DIR}/cyclonedds-prefix/lib)
-set(CDDS_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/cyclonedds-prefix/include)
-
-ExternalProject_Add(cyclonedds
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../
-  BUILD_COMMAND ${CMAKE_COMMAND} --build .
-  CMAKE_ARGS
-  -DBUILD_SHARED_LIBS=0 -DENABLE_SECURITY=0 -DENABLE_SSL=0 -DENABLE_SOURCE_SPECIFIC_MULTICAST=0 -DENABLE_IPV6=1 -DENABLE_ICEORYX=0 -DWITH_ZEPHYR=1
-    -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
-    -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
-    -DCMAKE_VERBOSE_MAKEFILE=1
-    -DCMAKE_C_FLAGS=${CDDS_CFLAGS}
-    -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
-    -DCMAKE_SYSTEM_NAME=Generic
-    -DCMAKE_BUILD_TYPE=Debug
-  DEPENDS zephyr_interface
-  BUILD_BYPRODUCTS ${CDDS_LIB_DIR}/libddsc.a
-)
-add_library(cdds_lib STATIC IMPORTED GLOBAL)
-add_dependencies(cdds_lib cyclonedds)
-set_target_properties(cdds_lib PROPERTIES IMPORTED_LOCATION ${CDDS_LIB_DIR}/libddsc.a)
-
-target_include_directories(app PUBLIC ${CDDS_INCLUDE_DIR})
-target_link_libraries(app PUBLIC cdds_lib)
-
-if (BUILD_DDSPERF_PING OR BUILD_DDSPERF_PONG)
-  GENERATE_CDDS_CONF("config.xml" "${CDDS_INCLUDE_DIR}/ddsperf_config.h")
+if(BUILD_DDSPERF_PING OR BUILD_DDSPERF_PONG)
+  generate_cdds_conf("config.xml" "${generated_dir}/ddsperf_config.h")
   target_compile_definitions(app
     PRIVATE
     BUILD_DDSPERF_PING=${BUILD_DDSPERF_PING}
@@ -100,7 +67,7 @@ if (BUILD_DDSPERF_PING OR BUILD_DDSPERF_PONG)
     src/async_listener.c src/async_listener.h
   )
 elseif(BUILD_ROUNDTRIP_PING OR BUILD_ROUNDTRIP_PONG)
-  GENERATE_CDDS_CONF("config.xml" "${CDDS_INCLUDE_DIR}/roundtrip_config.h")
+  generate_cdds_conf("config.xml" "${generated_dir}/roundtrip_config.h")
   target_compile_definitions(app
     PRIVATE
     BUILD_ROUNDTRIP_PING=${BUILD_ROUNDTRIP_PING}
@@ -111,7 +78,7 @@ elseif(BUILD_ROUNDTRIP_PING OR BUILD_ROUNDTRIP_PONG)
     src/RoundTrip.c src/RoundTrip.h
     src/ping.c src/pong.c)
 elseif(BUILD_THROUGHPUT_PUB OR BUILD_THROUGHPUT_SUB)
-  GENERATE_CDDS_CONF("config.xml" "${CDDS_INCLUDE_DIR}/throughput_config.h")
+  generate_cdds_conf("config.xml" "${generated_dir}/throughput_config.h")
   target_compile_definitions(app
     PRIVATE
     BUILD_THROUGHPUT_PUB=${BUILD_THROUGHPUT_PUB}
@@ -121,7 +88,6 @@ elseif(BUILD_THROUGHPUT_PUB OR BUILD_THROUGHPUT_SUB)
     src/throughput_main.c
     src/Throughput.c src/Throughput.h
     src/subscriber.c src/publisher.c)
-
 elseif(BUILD_HELLOWORLD_PUB OR BUILD_HELLOWORLD_SUB)
   target_compile_definitions(app
     PRIVATE
@@ -129,8 +95,10 @@ elseif(BUILD_HELLOWORLD_PUB OR BUILD_HELLOWORLD_SUB)
     BUILD_HELLOWORLD_SUB=${BUILD_HELLOWORLD_SUB})
   target_sources(app
     PRIVATE
-    src/main.c
+    src/helloworld_main.c
     src/HelloWorldData.c
     src/HelloWorldData.h
   )
+else()
+  target_sources(app PRIVATE src/main.c)
 endif()

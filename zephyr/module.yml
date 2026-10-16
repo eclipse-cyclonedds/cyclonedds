@@ -1,0 +1,6 @@
+name: cyclonedds
+build:
+  cmake: zephyr
+  kconfig: zephyr/Kconfig
+samples:
+  - ports/zephyr

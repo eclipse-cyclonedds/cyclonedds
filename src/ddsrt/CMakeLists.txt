@@ -270,7 +270,7 @@ elseif(WITH_ZEPHYR)
     "${source_dir}/src/environ/zephyr/environ.c"
     "${source_dir}/src/heap/posix/heap.c"
     "${source_dir}/src/process/posix/process.c"
-    "${source_dir}/src/random/posix/random.c"
+    "${source_dir}/src/random/zephyr/random.c"
     "${source_dir}/src/sync/posix/sync.c"
     "${source_dir}/src/threads/posix/threads.c"
     "${source_dir}/src/time/posix/time.c")

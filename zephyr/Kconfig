@@ -1,0 +1,47 @@
+# Copyright(c) 2026 ZettaScale Technology and others
+#
+# This program and the accompanying materials are made available under the
+# terms of the Eclipse Public License v. 2.0 which is available at
+# http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+# v. 1.0 which is available at
+# http://www.eclipse.org/org/documents/edl-v10.php.
+#
+# SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
+menuconfig CYCLONEDDS
+	bool "Eclipse Cyclone DDS"
+	depends on NETWORKING
+	select POSIX_API
+	select POSIX_PRIORITY_SCHEDULING
+	select NET_SOCKETPAIR
+	select REQUIRES_FULL_LIBC
+	# ddsrt initialises itself from a GNU constructor (src/ddsrt/src/cdtors.c)
+	select STATIC_INIT_GNU if TOOLCHAIN_SUPPORTS_STATIC_INIT_GNU && !CMAKE_LINKER_GENERATOR
+	select THREAD_LOCAL_STORAGE if ARCH_HAS_THREAD_LOCAL_STORAGE && \
+					TOOLCHAIN_SUPPORTS_THREAD_LOCAL_STORAGE
+	help
+	  Build the Cyclone DDS library (ddsc) into the Zephyr image. The IDL
+	  compiler is a host tool and must be built separately, see
+	  ports/zephyr/README.rst in the Cyclone DDS tree.
+
+if CYCLONEDDS
+
+config CYCLONEDDS_THREAD_COUNT
+	int "Maximum number of Cyclone DDS threads"
+	default 10
+	help
+	  Cyclone DDS threads run on statically allocated stacks. One domain
+	  with a single receive thread needs at least 6 threads. Must not exceed
+	  POSIX_THREAD_THREADS_MAX.
+
+config CYCLONEDDS_THREAD_STACK_SIZE
+	int "Stack size of Cyclone DDS threads"
+	default 32768
+
+# With thread-local storage every thread stack carries a copy of the TLS block,
+# which is over 2 KiB because of the ddsrt log buffer alone; Zephyr's default
+# idle stack is far too small for that and would be overrun during boot.
+configdefault IDLE_STACK_SIZE
+	default 4096 if THREAD_LOCAL_STORAGE
+
+endif # CYCLONEDDS

@@ -149,7 +149,7 @@ static bool membername_valid (const char *name)
 dds_dynamic_type_t dds_dynamic_type_create (dds_entity_t entity, dds_dynamic_type_descriptor_t descriptor)
 {
   dds_dynamic_type_t type = { 0 };
-  struct ddsi_domaingv *gv;
+  struct ddsi_domaingv *gv = NULL;
   if ((type.ret = get_entity_gv (entity, &gv)) != DDS_RETCODE_OK)
     goto err;
 

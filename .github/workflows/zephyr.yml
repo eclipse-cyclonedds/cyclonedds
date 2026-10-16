@@ -1,0 +1,22 @@
+name: Zephyr
+on:
+  push:
+    branches: "*"
+  workflow_dispatch:
+
+jobs:
+  native_sim:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          path: cyclonedds
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: zephyrproject-rtos/action-zephyr-setup@v1
+        with:
+          app-path: cyclonedds
+          toolchains: x86_64-zephyr-elf
+      - name: Build and run the self-test on native_sim
+        run: west twister -T cyclonedds/ports/zephyr -p native_sim/native/64 -v --inline-logs
