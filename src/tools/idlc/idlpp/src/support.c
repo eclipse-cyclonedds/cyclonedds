@@ -185,8 +185,14 @@ static char *   append_to_buffer(
     size_t      length
 )
 {
+    if (length == (size_t) -1)
+        cfatal( "Output buffer too large", NULL, 0L, NULL);
     if (mem_buf_p->bytes_avail < length + 1) {  /* Need to allocate more memory */
-        size_t size = MAX( BUF_INCR_SIZE, length);
+        size_t size = MAX( BUF_INCR_SIZE, length + 1);
+                            /* Keep space for the terminating NUL. */
+
+        if (size > (size_t) -1 - mem_buf_p->size)
+            cfatal( "Output buffer too large", NULL, 0L, NULL);
 
         if (mem_buf_p->buffer == NULL) {            /* 1st append   */
             mem_buf_p->size = size;
@@ -868,6 +874,7 @@ chk_limit:
                         , out, 0L, skip);
             }
             out_p = NULL;
+            goto  done;
         } else if (delim == '\'' && out_p - out <= 2) {
             if (mcpp_mode != POST_STD && option_flags.lang_asm) {
                 /* STD, KR      */
@@ -2523,7 +2530,8 @@ static void do_msg(
 #endif
                 break;
             case '\n':
-                *tp++ = ' ';            /* Convert '\n' to a space  */
+                if (*sp != EOS)         /* Drop only a final newline */
+                    *tp++ = ' ';        /* Convert other '\n' to a space */
                 break;
             default:
                 *tp++ = (char)c;
@@ -2531,8 +2539,6 @@ static void do_msg(
             }
         }
 
-        if (*(sp - 2) == '\n')
-            tp--;
         *tp = EOS;
     }
 

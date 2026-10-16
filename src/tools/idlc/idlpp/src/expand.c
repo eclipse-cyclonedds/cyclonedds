@@ -240,7 +240,8 @@ static struct {
 } replacing[ RESCAN_LIMIT];         /* Macros currently replacing   */
 static int      has_pragma = FALSE;     /* Flag of _Pragma() operator       */
 
-static int      print_macro_inf( int c, char ** cpp, char ** opp);
+static int      print_macro_inf( int c, char ** cpp, char ** opp
+        , const char * out);
                 /* Embed macro infs into comments   */
 static char *   print_macro_arg( char *out, MACRO_INF * m_inf, int argn
         , int real_arg, int start);
@@ -354,6 +355,7 @@ static char *   expand_std(
                         || (*cp == MAC_INF && *(cp + 1) == MAC_CALL_END)
                         || (!option_flags.v && c1 == MAC_CALL_END)
                         || (option_flags.v
+                            && cp - macrobuf >= MAC_E_LEN_V + 1
                             && *(cp - MAC_E_LEN_V - 1) == MAC_INF
                             && *(cp - MAC_E_LEN_V) == MAC_CALL_END))
                     continue;
@@ -367,7 +369,7 @@ static char *   expand_std(
             } else if (trace_macro && (c == MAC_INF)) {
                 /* Embed macro expansion informations into comments */
                 c = *cp++;
-                c1 = print_macro_inf( c, &cp, &out_p);
+                c1 = print_macro_inf( c, &cp, &out_p, out);
                 if (out_end <= out_p) {
                     cerror( macbuf_overflow, macro_name, 0, out);
                     macro_line = MACRO_ERROR;
@@ -405,7 +407,8 @@ exp_end:
 static int  print_macro_inf(
     int     c,
     char ** cpp,                    /* Magic character sequence     */
-    char ** opp                     /* Output for macro information */
+    char ** opp,                    /* Output for macro information */
+    const char * out                /* Start of the output buffer   */
 )
 /*
  * Embed macro expansion information into comments.
@@ -417,10 +420,13 @@ static int  print_macro_inf(
     int     num_args;   /* Number of actual args (maybe less than expected) */
     int     i;
 
-    if (*((*opp) - 1) == '/' && *((*opp) - 2) != '*')
+    const size_t out_len = (size_t)(*opp - out);
+    if (out_len == 0 || (out[out_len - 1] == '/'
+            && (out_len < 2 || out[out_len - 2] != '*')))
                     /* Immediately preceding token is '/' (not '*' and '/') */
         *((*opp)++) = ' ';
                 /* Insert a space to separate with following '/' and '*'    */
+                /* The caller may also have a '/' before the output buffer. */
     if (option_flags.v || c == MAC_CALL_START || c == MAC_ARG_START) {
         num = ((*(*cpp)++ & UCHARMAX) - 1) * UCHARMAX;
         num += (*(*cpp)++ & UCHARMAX) - 1;
@@ -521,41 +527,68 @@ static char *   chk_magic_balance(
     int     mac, arg;
     int     mac_s_n, mac_e_n, arg_s_n, arg_e_n;
     char *  buf_p = buf;        /* Save 'buf' for debugging purpose */
+    const int verbose = option_flags.v;
 
     mac = arg = 0;
 
     while (buf_p < buf_end) {
+        int     c;
+        size_t  magic_len;
         if (*buf_p++ != MAC_INF)
             continue;
-        switch (*buf_p++) {
+        if (buf_p == buf_end)
+            goto truncated;
+        c = *buf_p++;
+        switch (c) {
+        case MAC_CALL_START : magic_len = MAC_S_LEN; break;
+        case MAC_ARG_START  : magic_len = ARG_S_LEN; break;
+        case MAC_CALL_END   : magic_len = verbose ? MAC_E_LEN_V : MAC_E_LEN; break;
+        case MAC_ARG_END    : magic_len = verbose ? ARG_E_LEN_V : ARG_E_LEN; break;
+        default            : continue;
+        }
+        if ((size_t)(buf_end - buf_p) < magic_len - 2)
+            goto truncated;
+        switch (c) {
         case MAC_CALL_START :
-            if (option_flags.v) {
+            if (mac == MAX_NEST_MAGICS) {
+                if (diag)
+                    cwarn( "Too many nested %s tracing comments (maximum %ld)"
+                            , "macro", (long) MAX_NEST_MAGICS, NULL);
+                return buf;
+            }
+            if (verbose) {
 #if 0
                 mac_loc[ mac] = buf_p - 2;
 #endif
-                MSC_PRAGMA(warning(suppress: 6385))
                 memcpy( mac_id[ mac], buf_p, MAC_S_LEN - 2);
             }
             mac++;
             buf_p += MAC_S_LEN - 2;
             break;
         case MAC_ARG_START  :
-            if (option_flags.v) {
-                MSC_PRAGMA(warning(suppress: 6386))
+            if (arg == MAX_NEST_MAGICS) {
+                if (diag)
+                    cwarn( "Too many nested %s tracing comments (maximum %ld)"
+                            , "argument", (long) MAX_NEST_MAGICS, NULL);
+                return buf;
+            }
+            if (verbose) {
                 arg_loc[ arg] = buf_p - 2;
-                MSC_PRAGMA(warning(suppress: 6385))
                 memcpy( arg_id[ arg], buf_p, ARG_S_LEN - 2);
             }
             arg++;
             buf_p += ARG_S_LEN - 2;
             break;
         case MAC_ARG_END    :
+            if (arg == 0) {             /* Perhaps moved magic      */
+                if (verbose && diag)
+                    cwarn( mesg, "Redundant", 1L, "argument");
+                buf_p += magic_len - 2;
+                break;
+            }
             arg--;
-            if (option_flags.v) {
-                if (arg < 0) {          /* Perhaps moved magic  */
-                    if (diag)
-                        cwarn( mesg, "Redundant", (long) -arg, "argument");
-                } else if (memcmp( arg_id[ arg], buf_p, ARG_E_LEN_V - 2) != 0)
+            if (verbose) {
+                if (memcmp( arg_id[ arg], buf_p, ARG_E_LEN_V - 2) != 0)
                 {
                     char *      to_be_edge = NULL;
                     char *      cur_edge = NULL;
@@ -622,12 +655,15 @@ static char *   chk_magic_balance(
             }
             break;
         case MAC_CALL_END   :
+            if (mac == 0) {
+                if (verbose && diag)
+                    cwarn( mesg, "Redundant", 1L, "macro");
+                buf_p += magic_len - 2;
+                break;
+            }
             mac--;
-            if (option_flags.v) {
-                if (mac < 0) {
-                    if (diag)
-                        cwarn( mesg, "Redundant", (long) -mac, "macro");
-                } else if (memcmp( mac_id[ mac], buf_p, MAC_E_LEN_V - 2) != 0)
+            if (verbose) {
+                if (memcmp( mac_id[ mac], buf_p, MAC_E_LEN_V - 2) != 0)
                 {
                     char *      mac_p = mac_id[ mac];
                     mac_s_n = ((mac_p[ 0] & UCHARMAX) - 1) * UCHARMAX;
@@ -657,6 +693,11 @@ static char *   chk_magic_balance(
                     , MCPP_DBG);
     }
 
+    return  buf;
+
+truncated:
+    if (diag)
+        cwarn( "Truncated tracing comment sequence", NULL, 0L, NULL);
     return  buf;
 }
 
