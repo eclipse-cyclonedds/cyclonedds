@@ -89,20 +89,20 @@ CU_Test(idl_forward, aliases)
     ret = parse_string(tests[i].idl, &pstate);
     CU_ASSERT_EQ (ret, tests[i].retcode);
     if (ret == IDL_RETCODE_OK) {
-      idl_forward_t *forward[2];
+      idl_forward_t *forward = NULL;
       idl_typedef_t *alias;
       idl_type_spec_t *type_spec;
-      size_t n = tests[i].forwards - 1;
       for (size_t j = 0; j < tests[i].forwards; j++) {
-        forward[j] = j ? idl_next(forward[j - 1]) : (idl_forward_t *)pstate->root;
-        CU_ASSERT_FATAL (idl_is_forward(forward[j]));
+        forward = j ? idl_next(forward) : (idl_forward_t *)pstate->root;
+        CU_ASSERT_FATAL (idl_is_forward(forward));
       }
-      alias = idl_next(forward[n]);
+      CU_ASSERT_NEQ_FATAL (forward, NULL);
+      alias = idl_next(forward);
       CU_ASSERT_FATAL (idl_is_typedef(alias));
       type_spec = idl_next(alias);
       CU_ASSERT_EQ_FATAL (idl_type(type_spec), tests[i].type);
-      CU_ASSERT_EQ (forward[n]->type_spec, type_spec);
-      CU_ASSERT_EQ (alias->type_spec, forward[n]);
+      CU_ASSERT_EQ (forward->type_spec, type_spec);
+      CU_ASSERT_EQ (alias->type_spec, forward);
     }
     idl_delete_pstate(pstate);
   }
@@ -129,19 +129,19 @@ CU_Test(idl_forward, backwards_aliases)
     ret = parse_string(tests[i].idl, &pstate);
     CU_ASSERT_EQ (ret, tests[i].retcode);
     if (ret == IDL_RETCODE_OK) {
-      idl_forward_t *forward[2];
+      idl_forward_t *forward = NULL;
       idl_typedef_t *alias;
       idl_type_spec_t *type_spec;
-      size_t n = tests[i].forwards - 1;
       type_spec = (idl_type_spec_t *)pstate->root;
       CU_ASSERT_EQ_FATAL (idl_type(type_spec), tests[i].type);
       for (size_t j = 0; j < tests[i].forwards; j++) {
-        forward[j] = j ? idl_next(forward[j - 1]) : idl_next(type_spec);
-        CU_ASSERT_FATAL (idl_is_forward(forward[j]));
+        forward = j ? idl_next(forward) : idl_next(type_spec);
+        CU_ASSERT_FATAL (idl_is_forward(forward));
       }
-      alias = idl_next(forward[n]);
+      CU_ASSERT_NEQ_FATAL (forward, NULL);
+      alias = idl_next(forward);
       CU_ASSERT_FATAL (idl_is_typedef(alias));
-      CU_ASSERT_EQ (forward[n]->type_spec, type_spec);
+      CU_ASSERT_EQ (forward->type_spec, type_spec);
       CU_ASSERT_EQ (alias->type_spec, type_spec);
     }
     idl_delete_pstate(pstate);
