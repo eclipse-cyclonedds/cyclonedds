@@ -3183,7 +3183,7 @@ static dds_return_t init_one_parameter (ddsi_plist_t *plist, ddsi_ipaddress_para
     ret = entry->deser_validate_xform (dst, dd);
   if (ret < 0)
   {
-    char tmp[256], *ptmp = tmp;
+    char tmp[256] = "", *ptmp = tmp;
     size_t tmpsize = sizeof (tmp);
     (void) prtf_octetseq (&ptmp, &tmpsize, (uint32_t) dd->bufsz, dd->buf);
     GVWARNING ("invalid parameter list (vendor %u.%u, version %u.%u): pid %"PRIx16" (%s) invalid, input = %s\n",
@@ -3423,7 +3423,7 @@ dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist,
 
     if (gv->logconfig.c.mask & DDS_LC_PLIST)
     {
-      char tmp[256], *ptmp = tmp;
+      char tmp[256] = "", *ptmp = tmp;
       size_t tmpsize = sizeof (tmp);
       (void) prtf_octetseq (&ptmp, &tmpsize, length, (const unsigned char *) (par + 1));
       GVLOG (DDS_LC_PLIST, "%4"PRIx32" PID %"PRIx16" len %"PRIu16" %s\n", (uint32_t) (pl - src->buf), pid, length, tmp);
