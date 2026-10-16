@@ -335,7 +335,7 @@ static int generate_enum_pattern(struct cfgelem *elem)
     cnt++;
     size += strlen(*vals) + 2;
   }
-  size += (cnt - 1) + 2 + 1;
+  size += (cnt ? cnt - 1 : 0) + 2 + 1;
   if (!(pat = malloc(size)))
     return -1;
   pat[pos++] = '(';
@@ -366,7 +366,7 @@ static int generate_list_pattern(struct cfgelem *elem)
     cnt++;
     size += strlen(*vals);
   }
-  size += (cnt - 1) + 2 + 1;
+  size += (cnt ? cnt - 1 : 0) + 2 + 1;
   if (!(lst = malloc(size)))
     return -1;
   lst[pos++] = '(';
