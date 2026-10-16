@@ -36,10 +36,11 @@ if (NOT _confgen_hash_correct AND CMAKE_CROSSCOMPILING)
 endif()
 
 if (NOT CMAKE_CROSSCOMPILING)
-  add_executable(_confgen-exe
-    _confgen.c generate_rnc.c generate_rst.c generate_md.c generate_xsd.c generate_defconfig.c
+  set(_confgen_support_sources
+    generate_rnc.c generate_rst.c generate_md.c generate_xsd.c generate_defconfig.c
     ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/src/ddsi_config.c
   )
+  add_executable(_confgen-exe _confgen.c ${_confgen_support_sources})
 
   get_cmake_property(_variableNames VARIABLES)
   foreach (_variableName ${_variableNames})
@@ -55,6 +56,15 @@ if (NOT CMAKE_CROSSCOMPILING)
     "${CMAKE_CURRENT_LIST_DIR}/../../core/ddsc/include"
     "${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/include"
     "${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/src")
+
+  if(BUILD_TESTING)
+    include(CUnit)
+    add_cunit_executable(cunit_confgen tests/pattern.c)
+    target_sources(cunit_confgen PRIVATE ${_confgen_support_sources})
+    target_link_libraries(cunit_confgen PRIVATE ddsrt-internal compat)
+    target_include_directories(cunit_confgen PRIVATE $<TARGET_PROPERTY:_confgen-exe,INCLUDE_DIRECTORIES>)
+    target_compile_definitions(cunit_confgen PRIVATE $<TARGET_PROPERTY:_confgen-exe,COMPILE_DEFINITIONS>)
+  endif()
 
   list(JOIN confgen_hash_files "\;" out_confgen_hash_files)
 
