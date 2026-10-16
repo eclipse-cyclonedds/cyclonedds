@@ -398,6 +398,43 @@ CU_Test(ddssec_builtin_set_remote_datawriter_crypto_tokens, single_token, .init 
   reset_exception(&exception);
 }
 
+CU_Test(ddssec_builtin_set_remote_datawriter_crypto_tokens, invalid_first_of_two_tokens, .init = suite_set_remote_datawriter_crypto_tokens_init, .fini = suite_set_remote_datawriter_crypto_tokens_fini)
+{
+  DDS_Security_boolean result;
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+  DDS_Security_DatawriterCryptoTokenSeq tokens;
+  DDS_Security_KeyMaterial_AES_GCM_GMAC keymat;
+
+  CU_ASSERT_NEQ_FATAL (crypto, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_exchange, NULL);
+  CU_ASSERT_NEQ_FATAL (crypto->crypto_key_exchange->set_remote_datawriter_crypto_tokens, NULL);
+  memset(&tokens, 0, sizeof(tokens));
+  create_writer_tokens(&tokens, 2);
+
+  /* first token has a master salt of the wrong size, second token is valid */
+  DDS_Security_OctetSeq_deinit(&tokens._buffer[0].binary_properties._buffer[0].value);
+  init_key_material(&keymat, false);
+  keymat.master_salt._length = 16;
+  serialize_key_material(&tokens._buffer[0].binary_properties._buffer[0].value, &keymat);
+  deinit_key_material(&keymat);
+
+  result = crypto->crypto_key_exchange->set_remote_datawriter_crypto_tokens(
+      crypto->crypto_key_exchange,
+      local_reader_crypto,
+      remote_writer_crypto,
+      &tokens,
+      &exception);
+
+  if (!result)
+    printf("set_remote_datawriter_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+
+  DDS_Security_DataHolderSeq_deinit(&tokens);
+  CU_ASSERT (!result);
+  CU_ASSERT_NEQ (exception.code, 0);
+  CU_ASSERT_NEQ (exception.message, NULL);
+  reset_exception(&exception);
+}
+
 CU_Test(ddssec_builtin_set_remote_datawriter_crypto_tokens, invalid_args, .init = suite_set_remote_datawriter_crypto_tokens_init, .fini = suite_set_remote_datawriter_crypto_tokens_fini)
 {
   DDS_Security_boolean result;
