@@ -65,8 +65,8 @@ struct ddsi_sertype_plist {
   ddsi_parameterid_t keyparam;
 };
 
-extern const struct ddsi_sertype_ops ddsi_sertype_ops_plist;
-extern const struct ddsi_serdata_ops ddsi_serdata_ops_plist;
+DDS_EXPORT extern const struct ddsi_sertype_ops ddsi_sertype_ops_plist;
+DDS_EXPORT extern const struct ddsi_serdata_ops ddsi_serdata_ops_plist;
 
 #if defined (__cplusplus)
 }

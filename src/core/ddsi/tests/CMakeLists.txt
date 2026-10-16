@@ -22,6 +22,7 @@ set(ddsi_test_sources
     "pmd_message.c"
     "radmin.c"
     "receive_packet.c"
+    "serdata.c"
     "sysdeps.c"
     "wraddrset.c")
 
