@@ -303,6 +303,36 @@ static void teardown (struct ddsi_domaingv *gv)
   }
 }
 
+CU_Test (ddsi_plist, type_information_empty, .init = ddsi_plist_init_tables)
+{
+#ifdef DDS_HAS_TYPELIB
+  const unsigned char data[] = {
+    HDR (DDSI_PID_TYPE_INFORMATION, 0),
+    HDR (DDSI_PID_SENTINEL, 0)
+  };
+  const ddsi_plist_src_t src = {
+    .protocol_version = { 2, 5 },
+    .vendorid = DDSI_VENDORID_ECLIPSE,
+    .encoding = DDSI_RTPS_PL_CDR_BE,
+    .buf = data,
+    .bufsz = sizeof (data),
+    .strict = false
+  };
+  struct ddsi_domaingv gv;
+  setup (&gv, 0);
+  ddsi_plist_t plist;
+  char *nextafter = NULL;
+  // Reject before copying the empty payload: memdup would return NULL, which
+  // violates the stream normalizer's non-null buffer contract (checked by UBSan).
+  const dds_return_t rc = ddsi_plist_init_frommsg (&plist, &nextafter, ~(uint64_t)0, ~(uint64_t)0, &src, &gv, DDSI_PLIST_CONTEXT_PARTICIPANT);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ (nextafter, NULL);
+  if (rc == DDS_RETCODE_OK)
+    ddsi_plist_fini (&plist);
+  teardown (&gv);
+#endif
+}
+
 CU_Test (ddsi_plist, locator_lists_reject)
 {
   static const uint32_t enabled_kinds[] = {

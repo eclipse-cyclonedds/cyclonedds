@@ -804,6 +804,9 @@ static dds_return_t deser_type_information (void * restrict dst, struct flagset 
   unsigned char *buf;
   dds_return_t ret = 0;
 
+  if (dd->bufsz == 0)
+    return DDS_RETCODE_BAD_PARAMETER;
+
   buf = ddsrt_memdup (dd->buf, dd->bufsz);
   dds_istream_t is;
   if (dds_stream_normalize_xcdr2_data_to_istream (&is, (char *) buf, &srcoff, (uint32_t) dd->bufsz, dd->bswap, DDS_XTypes_TypeInformation_desc.m_ops) != DDS_STREAM_NORMALIZE_SUCCESS)
