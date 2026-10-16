@@ -333,6 +333,59 @@ CU_Test (ddsi_plist, type_information_empty, .init = ddsi_plist_init_tables)
 #endif
 }
 
+static void empty_parameter_logger (void *arg, const dds_log_data_t *data)
+{
+  unsigned int *seen = arg;
+  const char *p;
+  if ((p = strstr (data->message, "PID 1234 len 4 ")) != NULL)
+  {
+    CU_ASSERT_STREQ (p, "PID 1234 len 4 \"abcd\"\n");
+    *seen |= 1;
+  }
+  else if ((p = strstr (data->message, "PID 15 len 0 ")) != NULL)
+  {
+    CU_ASSERT_STREQ (p, "PID 15 len 0 \n");
+    *seen |= 2;
+  }
+  else if ((p = strstr (data->message, "invalid, input = ")) != NULL)
+  {
+    CU_ASSERT_STREQ (p, "invalid, input = \n");
+    *seen |= 4;
+  }
+}
+
+CU_Test (ddsi_plist, empty_parameter_logging, .init = ddsi_plist_init_tables)
+{
+  const unsigned char data[] = {
+    // Print nonempty input first so the empty trace must not reuse its text.
+    HDR (0x1234, 4), 'a', 'b', 'c', 'd',
+    HDR (DDSI_PID_PROTOCOL_VERSION, 0),
+    HDR (DDSI_PID_SENTINEL, 0)
+  };
+  const ddsi_plist_src_t src = {
+    .protocol_version = { 2, 5 },
+    .vendorid = DDSI_VENDORID_ECLIPSE,
+    .encoding = DDSI_RTPS_PL_CDR_BE,
+    .buf = data,
+    .bufsz = sizeof (data),
+    .strict = false
+  };
+  struct ddsi_domaingv gv;
+  setup (&gv, 0);
+  unsigned int seen = 0;
+  dds_set_log_sink (empty_parameter_logger, &seen);
+  dds_set_trace_sink (empty_parameter_logger, &seen);
+  ddsi_plist_t plist;
+  const dds_return_t rc = ddsi_plist_init_frommsg (&plist, NULL, ~(uint64_t)0, ~(uint64_t)0, &src, &gv, DDSI_PLIST_CONTEXT_PARTICIPANT);
+  dds_set_log_sink (NULL, NULL);
+  dds_set_trace_sink (NULL, NULL);
+  CU_ASSERT_EQ (rc, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ (seen, 7);
+  if (rc == DDS_RETCODE_OK)
+    ddsi_plist_fini (&plist);
+  teardown (&gv);
+}
+
 CU_Test (ddsi_plist, locator_lists_reject)
 {
   static const uint32_t enabled_kinds[] = {
