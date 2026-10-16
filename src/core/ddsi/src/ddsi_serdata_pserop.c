@@ -62,8 +62,9 @@ static struct ddsi_serdata_pserop *serdata_pserop_new (const struct ddsi_sertype
   assert (kind != SDK_EMPTY);
   if (size < 4 || size > UINT32_MAX - offsetof (struct ddsi_serdata_pserop, identifier))
     return NULL;
-  const uint16_t *hdrsrc = cdr_header;
-  if (hdrsrc[0] != DDSI_RTPS_CDR_LE && hdrsrc[0] != DDSI_RTPS_CDR_BE)
+  struct dds_cdr_header hdr;
+  memcpy (&hdr, cdr_header, sizeof (hdr));
+  if (hdr.identifier != DDSI_RTPS_CDR_LE && hdr.identifier != DDSI_RTPS_CDR_BE)
     return NULL;
   struct ddsi_serdata_pserop *d = ddsrt_malloc (sizeof (*d) + size);
   if (d == NULL)
@@ -72,8 +73,8 @@ static struct ddsi_serdata_pserop *serdata_pserop_new (const struct ddsi_sertype
   d->keyless = (tp->ops_key == NULL);
   d->pos = 0;
   d->size = (uint32_t) size;
-  d->identifier = hdrsrc[0];
-  d->options = hdrsrc[1];
+  d->identifier = hdr.identifier;
+  d->options = hdr.options;
   if (kind == SDK_KEY && d->keyless)
     d->sample = NULL;
   else if ((d->sample = ddsrt_malloc ((kind == SDK_DATA) ? tp->memsize : 16)) == NULL)
@@ -188,13 +189,13 @@ static bool serdata_pserop_to_sample (const struct ddsi_serdata *serdata_common,
 static void serdata_pserop_to_ser (const struct ddsi_serdata *serdata_common, size_t off, size_t sz, void *buf)
 {
   const struct ddsi_serdata_pserop *d = (const struct ddsi_serdata_pserop *)serdata_common;
-  memcpy (buf, (char *) &d->identifier + off, sz);
+  memcpy (buf, (const char *) d + offsetof (struct ddsi_serdata_pserop, identifier) + off, sz);
 }
 
 static struct ddsi_serdata *serdata_pserop_to_ser_ref (const struct ddsi_serdata *serdata_common, size_t off, size_t sz, ddsrt_iovec_t *ref)
 {
   const struct ddsi_serdata_pserop *d = (const struct ddsi_serdata_pserop *)serdata_common;
-  ref->iov_base = (char *) &d->identifier + off;
+  ref->iov_base = (char *) d + offsetof (struct ddsi_serdata_pserop, identifier) + off;
   ref->iov_len = (ddsrt_iov_len_t) sz;
   return ddsi_serdata_ref (serdata_common);
 }
@@ -242,7 +243,8 @@ static struct ddsi_serdata *serdata_pserop_to_untyped (const struct ddsi_serdata
 {
   const struct ddsi_serdata_pserop *d = (const struct ddsi_serdata_pserop *)serdata_common;
   const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *)d->c.type;
-  ddsrt_iovec_t iov = { .iov_base = (char *) &d->identifier, .iov_len = (ddsrt_iov_len_t) (4 + d->pos) };
+  // The byte span includes the header and data, so base it on the enclosing object.
+  ddsrt_iovec_t iov = { .iov_base = (char *) d + offsetof (struct ddsi_serdata_pserop, identifier), .iov_len = (ddsrt_iov_len_t) (4 + d->pos) };
   struct ddsi_serdata *dcmn_tl = serdata_pserop_from_ser_iov (&tp->c, SDK_KEY, 1, &iov, iov.iov_len);
   assert (dcmn_tl != NULL);
   dcmn_tl->type = NULL;

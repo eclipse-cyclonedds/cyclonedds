@@ -67,9 +67,10 @@ static struct ddsi_serdata_plist *serdata_plist_new (const struct ddsi_sertype_p
   d->vendorid = DDSI_VENDORID_UNKNOWN;
   d->protoversion.major = DDSI_RTPS_MAJOR;
   d->protoversion.minor = DDSI_RTPS_MINOR_LATEST;
-  const uint16_t *hdrsrc = cdr_header;
-  d->identifier = hdrsrc[0];
-  d->options = hdrsrc[1];
+  struct dds_cdr_header hdr;
+  memcpy (&hdr, cdr_header, sizeof (hdr));
+  d->identifier = hdr.identifier;
+  d->options = hdr.options;
   if (d->identifier != DDSI_RTPS_PL_CDR_LE && d->identifier != DDSI_RTPS_PL_CDR_BE)
   {
     ddsrt_free (d);
@@ -220,13 +221,13 @@ static bool serdata_plist_to_sample (const struct ddsi_serdata *serdata_common, 
 static void serdata_plist_to_ser (const struct ddsi_serdata *serdata_common, size_t off, size_t sz, void *buf)
 {
   const struct ddsi_serdata_plist *d = (const struct ddsi_serdata_plist *)serdata_common;
-  memcpy (buf, (char *) &d->identifier + off, sz);
+  memcpy (buf, (const char *) d + offsetof (struct ddsi_serdata_plist, identifier) + off, sz);
 }
 
 static struct ddsi_serdata *serdata_plist_to_ser_ref (const struct ddsi_serdata *serdata_common, size_t off, size_t sz, ddsrt_iovec_t *ref)
 {
   const struct ddsi_serdata_plist *d = (const struct ddsi_serdata_plist *)serdata_common;
-  ref->iov_base = (char *) &d->identifier + off;
+  ref->iov_base = (char *) d + offsetof (struct ddsi_serdata_plist, identifier) + off;
   ref->iov_len = (ddsrt_iov_len_t) sz;
   return ddsi_serdata_ref (serdata_common);
 }
@@ -273,7 +274,8 @@ static struct ddsi_serdata *serdata_plist_to_untyped (const struct ddsi_serdata 
 {
   const struct ddsi_serdata_plist *d = (const struct ddsi_serdata_plist *) serdata_common;
   const struct ddsi_sertype_plist *tp = (const struct ddsi_sertype_plist *) d->c.type;
-  ddsrt_iovec_t iov = { .iov_base = (char *) &d->identifier, .iov_len = 4 + d->pos };
+  // The byte span includes the header and data, so base it on the enclosing object.
+  ddsrt_iovec_t iov = { .iov_base = (char *) d + offsetof (struct ddsi_serdata_plist, identifier), .iov_len = 4 + d->pos };
   struct ddsi_serdata *dcmn_tl = serdata_plist_from_ser_iov (&tp->c, SDK_KEY, 1, &iov, d->pos);
   assert (dcmn_tl != NULL);
   dcmn_tl->type = NULL;

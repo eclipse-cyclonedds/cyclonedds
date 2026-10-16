@@ -67,8 +67,8 @@ struct ddsi_sertype_pserop {
   const enum ddsi_pserop *ops_key; /* NULL <=> no key; != NULL <=> 16-byte key at offset 0 */
 };
 
-extern const struct ddsi_sertype_ops ddsi_sertype_ops_pserop;
-extern const struct ddsi_serdata_ops ddsi_serdata_ops_pserop;
+DDS_EXPORT extern const struct ddsi_sertype_ops ddsi_sertype_ops_pserop;
+DDS_EXPORT extern const struct ddsi_serdata_ops ddsi_serdata_ops_pserop;
 
 #if defined (__cplusplus)
 }
