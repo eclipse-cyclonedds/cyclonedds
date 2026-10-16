@@ -149,15 +149,18 @@ target_compile_definitions(
 if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
   target_compile_definitions(idlpp PRIVATE _CRT_SECURE_NO_WARNINGS)
 endif()
-if("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" AND ${WERROR} AND CMAKE_C_COMPILER_VERSION VERSION_LESS 15.0)
-  if(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 11.0)
-    set(no_error stringop-overflow array-bounds stringop-overread format-overflow nonnull)
-    foreach(ne ${no_error})
-      target_compile_options(idlpp PRIVATE -Wno-error=${ne})
-      target_link_options(idlpp PRIVATE -Wno-error=${ne})
-    endforeach()
+function(idlpp_set_warning_options target)
+  if("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" AND ${WERROR} AND CMAKE_C_COMPILER_VERSION VERSION_LESS 15.0)
+    if(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 11.0)
+      set(no_error stringop-overflow array-bounds stringop-overread format-overflow nonnull)
+      foreach(ne ${no_error})
+        target_compile_options(${target} PRIVATE -Wno-error=${ne})
+        target_link_options(${target} PRIVATE -Wno-error=${ne})
+      endforeach()
+    endif()
   endif()
-endif()
+endfunction()
+idlpp_set_warning_options(idlpp)
 set_target_properties(idlpp PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 set_target_properties(idlpp PROPERTIES OUTPUT_NAME idlpp)
 
@@ -166,4 +169,8 @@ generate_export_header(
   BASE_NAME mcpp
   EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/src/mcpp_export.h"
 )
+
+if(BUILD_TESTING)
+  add_subdirectory(tests)
+endif()
 
