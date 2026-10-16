@@ -913,6 +913,7 @@ static const char *getentname (entname_t *name, int ent)
   } else {
     name->n[0] = knownentities[ent % 9];
     const int dom = ent / 9;
+    assert (dom >= 0 && dom < (int) MAXDOMS);
     int i;
     for (i = 1; i <= dom; i++)
       name->n[i] = '\'';
