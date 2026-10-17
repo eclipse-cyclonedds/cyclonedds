@@ -1117,12 +1117,9 @@ static int is_complete (const struct ddsi_rsample_defrag *sample)
   assert (iv != NULL);
   if (iv->min == 0 && iv->maxp1 >= sample->sampleinfo->size)
   {
-    /* Accept fragments containing data beyond the end of the sample,
-       only to filter them out (or not, as the case may be) at a later
-       stage. Dropping them before the defragmeter leaves us with
-       samples that will never be completed; dropping them in the
-       defragmenter would be feasible by discarding all fragments of
-       that sample collected so far. */
+    /* add_fragment only accepts fragments with the sample size of the
+       sample, and their end is clamped to that size */
+    assert (iv->maxp1 == sample->sampleinfo->size);
     assert (ddsrt_avl_is_singleton (&sample->fragtree));
     return 1;
   }
@@ -1177,6 +1174,18 @@ static struct ddsi_rsample *defrag_add_fragment (struct ddsi_defrag *defrag, str
   assert (dfsample->lastfrag == ddsrt_avl_find_max (&rsample_defrag_fragtree_treedef, &dfsample->fragtree));
 
   TRACE (defrag, "  lastfrag %p [%"PRIu32"..%"PRIu32")\n", (void *) dfsample->lastfrag, dfsample->lastfrag->min, dfsample->lastfrag->maxp1);
+
+  /* All fragments of a sample must agree on the sample size and the
+     fragment size: the fragment bounds were checked against this
+     fragment's sample size only, and the fragment chain handed to
+     from_ser must lie within the size of the sample */
+  if (sampleinfo->size != dfsample->sampleinfo->size || sampleinfo->fragsize != dfsample->sampleinfo->fragsize)
+  {
+    TRACE (defrag, "  size %"PRIu32"/%"PRIu32" inconsistent with sample %"PRIu32"/%"PRIu32"\n",
+           sampleinfo->size, sampleinfo->fragsize, dfsample->sampleinfo->size, dfsample->sampleinfo->fragsize);
+    defrag->discarded_bytes += maxp1 - min;
+    return NULL;
+  }
 
   /* Interval tree is sorted on min offset; each key is unique:
      otherwise one would be wholly contained in another. */

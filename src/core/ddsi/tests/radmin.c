@@ -160,3 +160,68 @@ CU_Test (ddsi_radmin, drop_gap_at_end, .init = setup, .fini = teardown)
   ddsi_reorder_free (reorder);
   ddsi_defrag_free (defrag);
 }
+
+static struct ddsi_rsample *add_fragment (struct ddsi_defrag *defrag, struct ddsi_rmsg *rmsg, struct ddsi_receiver_state *rst, ddsi_seqno_t seq, uint32_t min, uint32_t maxp1, uint32_t size, uint32_t fragsize)
+{
+  struct ddsi_rsample_info *si = ddsi_rmsg_alloc (rmsg, sizeof (*si));
+  CU_ASSERT_NEQ_FATAL (si, NULL);
+  memset (si, 0, sizeof (*si));
+  si->rst = rst;
+  si->size = size;
+  si->fragsize = fragsize;
+  si->seq = seq;
+  struct ddsi_rdata *rdata = ddsi_rdata_new (rmsg, min, maxp1, 0, 0, 0);
+  return ddsi_defrag_rsample (defrag, rdata, si);
+}
+
+static void check_fragchain_within_size (struct ddsi_rsample *rsample, uint32_t size)
+{
+  uint32_t maxp1 = 0;
+  for (struct ddsi_rdata *frag = ddsi_rsample_fragchain (rsample); frag; frag = frag->nextfrag)
+  {
+    CU_ASSERT_LEQ_FATAL (frag->min, maxp1);
+    CU_ASSERT_LEQ_FATAL (frag->maxp1, size);
+    if (frag->maxp1 > maxp1)
+      maxp1 = frag->maxp1;
+  }
+  CU_ASSERT_EQ_FATAL (maxp1, size);
+}
+
+CU_Test (ddsi_radmin, defrag_rejects_inconsistent_sample_size, .init = setup, .fini = teardown)
+{
+  struct ddsi_defrag *defrag = ddsi_defrag_new (&gv.logconfig, DDSI_DEFRAG_DROP_LATEST, 2);
+  struct ddsi_rmsg *rmsg = ddsi_rmsg_new (rbpool);
+  ddsi_rmsg_setsize (rmsg, 0);
+  struct ddsi_receiver_state *rst = ddsi_rmsg_alloc (rmsg, sizeof (*rst));
+  memset (rst, 0, sizeof (*rst));
+  uint64_t discarded_bytes;
+
+  // seq 1: first fragment sets the size, a fragment with a different sample size is rejected
+  CU_ASSERT_EQ_FATAL (add_fragment (defrag, rmsg, rst, 1, 0, 4, 8, 4), NULL);
+  CU_ASSERT_EQ_FATAL (add_fragment (defrag, rmsg, rst, 1, 4, 12, 12, 4), NULL);
+  ddsi_defrag_stats (defrag, &discarded_bytes);
+  CU_ASSERT_EQ_FATAL (discarded_bytes, 8);
+  // a fragment with a different fragment size is rejected as well
+  CU_ASSERT_EQ_FATAL (add_fragment (defrag, rmsg, rst, 1, 4, 8, 8, 2), NULL);
+  ddsi_defrag_stats (defrag, &discarded_bytes);
+  CU_ASSERT_EQ_FATAL (discarded_bytes, 12);
+  // a consistent fragment completes it
+  struct ddsi_rsample *rsample = add_fragment (defrag, rmsg, rst, 1, 4, 8, 8, 4);
+  CU_ASSERT_NEQ_FATAL (rsample, NULL);
+  check_fragchain_within_size (rsample, 8);
+  ddsi_fragchain_adjust_refcount (ddsi_rsample_fragchain (rsample), 0);
+
+  // seq 2: same when the first fragment to arrive is not the one at offset 0
+  CU_ASSERT_EQ_FATAL (add_fragment (defrag, rmsg, rst, 2, 4, 8, 8, 4), NULL);
+  CU_ASSERT_EQ_FATAL (add_fragment (defrag, rmsg, rst, 2, 0, 4, 6, 4), NULL);
+  CU_ASSERT_EQ_FATAL (add_fragment (defrag, rmsg, rst, 2, 0, 12, 16, 4), NULL);
+  ddsi_defrag_stats (defrag, &discarded_bytes);
+  CU_ASSERT_EQ_FATAL (discarded_bytes, 28);
+  rsample = add_fragment (defrag, rmsg, rst, 2, 0, 4, 8, 4);
+  CU_ASSERT_NEQ_FATAL (rsample, NULL);
+  check_fragchain_within_size (rsample, 8);
+  ddsi_fragchain_adjust_refcount (ddsi_rsample_fragchain (rsample), 0);
+
+  ddsi_rmsg_commit (rmsg);
+  ddsi_defrag_free (defrag);
+}
