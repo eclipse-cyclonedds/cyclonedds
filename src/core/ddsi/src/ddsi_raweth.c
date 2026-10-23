@@ -20,7 +20,11 @@
 #include "ddsi__mcgroup.h"
 #include "ddsi__pcap.h"
 
-#if (defined(__linux) || defined(__FreeBSD__) || defined(__QNXNTO__) || defined(__APPLE__)) && !LWIP_SOCKET
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
+#if (defined(__linux) || defined(__FreeBSD__) || defined(__QNXNTO__) || (defined(__APPLE__) && TARGET_OS_OSX)) && !LWIP_SOCKET
 #include <sys/types.h>
 #include <string.h>
 
