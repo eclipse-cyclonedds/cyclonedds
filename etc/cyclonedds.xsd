@@ -103,12 +103,17 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;The default value is: &lt;code&gt;false&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
-  <xs:element name="IgnoreTypeInformation" type="xs:boolean">
+  <xs:element name="IgnoreTypeInformation">
     <xs:annotation>
       <xs:documentation>
 &lt;p&gt;Setting option causes type information included in discovery messages from the listed vendor ids to be ignored. This reduces the type assignability check to a check of the type names. This may cause readers/writers to match when they shouldn't or not to match when they should. Use with care.&lt;/p&gt;&lt;p&gt;The vendor ids are specified using a comma-separated list of two decimal integers separated by a dot. E.g., to ignore them from Cyclone and RTI Connext set it to "1.1,1.16". Order doesn't matter.&lt;/p&gt;&lt;p&gt;The current implementation restricts them to the form 1.N, where 1&lt;N&lt;=32. This covers all vendor ids currently allocated by the OMG.&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;&amp;lt;empty&amp;gt;&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
+    <xs:simpleType>
+      <xs:restriction base="xs:string">
+        <xs:pattern value="1\.([0-9]|[12][0-9]|3[0-2])(,1\.([0-9]|[12][0-9]|3[0-2]))*"/>
+      </xs:restriction>
+    </xs:simpleType>
   </xs:element>
   <xs:element name="ManySocketsMode">
     <xs:annotation>
