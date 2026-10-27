@@ -74,12 +74,12 @@ static void netif_callback(struct net_if *iface, void *cb_data)
 
   if (data->getv4 && iface->config.ip.ipv4) {
     struct net_if_ipv4 *cfg = iface->config.ip.ipv4;
-    struct net_if_addr *addr = NULL;
+    struct net_if_addr_ipv4 *addr = NULL;
     int i;
     for (i = 0; i < NET_IF_MAX_IPV4_ADDR && !addr; i++) {
-      if (cfg->unicast[i].is_used &&
-          cfg->unicast[i].addr_state == NET_ADDR_PREFERRED &&
-          cfg->unicast[i].address.family == AF_INET) {
+      if (cfg->unicast[i].ipv4.is_used &&
+          cfg->unicast[i].ipv4.addr_state == NET_ADDR_PREFERRED &&
+          cfg->unicast[i].ipv4.address.family == AF_INET) {
         addr = &cfg->unicast[i];
       }
     }
@@ -102,10 +102,10 @@ static void netif_callback(struct net_if *iface, void *cb_data)
         ifa->index = net_if_get_by_iface(iface);
 
         if (addr) {
-          net_ipaddr_copy(&(net_sin(ifa->addr)->sin_addr), &(addr->address.in_addr));
+          net_ipaddr_copy(&(net_sin(ifa->addr)->sin_addr), &(addr->ipv4.address.in_addr));
           ifa->addr->sa_family = AF_INET;
 
-          net_ipaddr_copy(&(net_sin(ifa->netmask)->sin_addr), &(cfg->netmask));
+          net_ipaddr_copy(&(net_sin(ifa->netmask)->sin_addr), &(addr->netmask));
           ifa->netmask->sa_family = AF_INET;
 
           ((struct sockaddr_in*)ifa->broadaddr)->sin_addr.s_addr = (net_sin(ifa->addr)->sin_addr.s_addr & net_sin(ifa->netmask)->sin_addr.s_addr) | ~net_sin(ifa->netmask)->sin_addr.s_addr;

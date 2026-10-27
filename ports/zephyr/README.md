@@ -35,5 +35,6 @@ The CycloneDDS configuration in `config.xml` is automatically converted to a cha
 Alternatively, [dds_create_domain_with_rawconfig](https://cyclonedds.io/docs/cyclonedds/latest/api/domain.html?#c.dds_create_domain_with_rawconfig) can be used without XML configuration data.
 
 ## Zephyr versions
-At the time of writing, CycloneDDS has been tested on Zephyr [v3.6.0](https://github.com/zephyrproject-rtos/zephyr/releases/tag/v3.6.0)
-To use CycloneDDS with the current (draft) V3.7.0 release, please replace `src/ddsrt/src/ifaddrs/zephyr/ifaddrs.c` with `ifaddrs-v3.7pre.c` which is compatible with the updated (IPv4) Networking APIs in Zephyr (though this code is in flux so YMMV).
+The Zephyr port targets Zephyr v4.3+ and relies on the POSIX layer for sockets,
+threads and the environment. Older Zephyr releases (v3.6/v3.7) are no longer
+supported; use an older CycloneDDS release for those.
