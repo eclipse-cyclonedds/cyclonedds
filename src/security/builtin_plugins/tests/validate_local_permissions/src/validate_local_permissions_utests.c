@@ -384,6 +384,46 @@ static void qos_init_type(DDS_Security_Qos *participant_qos, const char *certifi
   ddsrt_free(governance_uri);
 }
 
+/* Sign the given document with the permissions CA and return it as an S/MIME data uri. */
+static char *create_signed_uri_data(const char *document)
+{
+  const int flags = PKCS7_DETACHED | PKCS7_STREAM | PKCS7_TEXT;
+  char *ca_path = combine_strings(g_path_to_etc_dir, "Test_Permissions_ca.pem");
+  char *key_path = combine_strings(g_path_to_etc_dir, "Test_Permissions_ca_key.pem");
+  BIO *ca_bio = NULL, *key_bio = NULL, *in = NULL, *out = NULL;
+  X509 *ca_cert = NULL;
+  EVP_PKEY *ca_key = NULL;
+  PKCS7 *p7 = NULL;
+  char *buf;
+  long len;
+  char *uri = NULL;
+
+  if ((ca_bio = BIO_new_file(ca_path, "r")) == NULL || (ca_cert = PEM_read_bio_X509(ca_bio, NULL, NULL, NULL)) == NULL)
+    goto fail;
+  if ((key_bio = BIO_new_file(key_path, "r")) == NULL || (ca_key = PEM_read_bio_PrivateKey(key_bio, NULL, NULL, NULL)) == NULL)
+    goto fail;
+  if ((in = BIO_new_mem_buf(document, -1)) == NULL || (p7 = PKCS7_sign(ca_cert, ca_key, NULL, in, flags)) == NULL)
+    goto fail;
+  if ((out = BIO_new(BIO_s_mem())) == NULL || !SMIME_write_PKCS7(out, p7, in, flags))
+    goto fail;
+  len = BIO_get_mem_data(out, &buf);
+  ddsrt_asprintf(&uri, "data:,%.*s", (int)len, buf);
+
+fail:
+  if (uri == NULL)
+    ERR_print_errors_fp(stderr);
+  PKCS7_free(p7);
+  EVP_PKEY_free(ca_key);
+  X509_free(ca_cert);
+  BIO_free(out);
+  BIO_free(in);
+  BIO_free(key_bio);
+  BIO_free(ca_bio);
+  ddsrt_free(key_path);
+  ddsrt_free(ca_path);
+  return uri;
+}
+
 /* Initialize the participant QoS with security related properties.
  * Allow NULL as property value.*/
 static void qos_init_null(DDS_Security_Qos *participant_qos, const char *certificate_filename, const char *permission_filename, const char *governance_filename)
@@ -647,6 +687,111 @@ CU_Test(ddssec_builtin_validate_local_permissions, valid_file, .init = suite_val
   }
   else
   {
+    g_access_control->return_permissions_handle(g_access_control, result, &exception);
+  }
+  reset_exception(&exception);
+
+  test_teardown(local_id_hdl);
+  qos_deinit(&participant_qos);
+}
+
+/* Domain ids are not limited to 230: the valid range depends on the port mapping
+ * and transport, not on the governance and permissions documents. */
+CU_Test(ddssec_builtin_validate_local_permissions, domain_id_above_230, .init = suite_validate_local_permissions_init, .fini = suite_validate_local_permissions_fini)
+{
+  static const char *governance_xml =
+    "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+    "<dds xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"https://www.omg.org/spec/DDS-SECURITY/20170901/omg_shared_ca_governance.xsd\">"
+    "  <domain_access_rules>"
+    "    <domain_rule>"
+    "      <domains><id>232</id></domains>"
+    "      <allow_unauthenticated_participants>false</allow_unauthenticated_participants>"
+    "      <enable_join_access_control>true</enable_join_access_control>"
+    "      <discovery_protection_kind>NONE</discovery_protection_kind>"
+    "      <liveliness_protection_kind>NONE</liveliness_protection_kind>"
+    "      <rtps_protection_kind>NONE</rtps_protection_kind>"
+    "      <topic_access_rules>"
+    "        <topic_rule>"
+    "          <topic_expression>*</topic_expression>"
+    "          <enable_discovery_protection>false</enable_discovery_protection>"
+    "          <enable_liveliness_protection>false</enable_liveliness_protection>"
+    "          <enable_read_access_control>false</enable_read_access_control>"
+    "          <enable_write_access_control>false</enable_write_access_control>"
+    "          <metadata_protection_kind>NONE</metadata_protection_kind>"
+    "          <data_protection_kind>NONE</data_protection_kind>"
+    "        </topic_rule>"
+    "      </topic_access_rules>"
+    "    </domain_rule>"
+    "  </domain_access_rules>"
+    "</dds>";
+  static const char *permissions_xml =
+    "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
+    "<dds xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"https://www.omg.org/spec/DDS-SECURITY/20170901/omg_shared_ca_permissions.xsd\">"
+    "  <permissions>"
+    "    <grant name=\"DomainId232Permissions\">"
+    "      <subject_name>CN=CHAM500 cert,O=Internet Widgits Pty Ltd,ST=Some-State,C=NL</subject_name>"
+    "      <validity><not_before>2015-09-15T01:00:00</not_before><not_after>2115-09-15T01:00:00</not_after></validity>"
+    "      <allow_rule>"
+    "        <domains><id>232</id></domains>"
+    "        <publish><topics><topic>*</topic></topics></publish>"
+    "        <subscribe><topics><topic>*</topic></topics></subscribe>"
+    "      </allow_rule>"
+    "      <default>DENY</default>"
+    "    </grant>"
+    "  </permissions>"
+    "</dds>";
+  const DDS_Security_DomainId domain_id = 232;
+  DDS_Security_IdentityHandle local_id_hdl = DDS_SECURITY_HANDLE_NIL;
+  DDS_Security_PermissionsHandle result;
+  DDS_Security_boolean allowed;
+  DDS_Security_Qos participant_qos;
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+  char *permission_ca;
+  char *permission_uri;
+  char *governance_uri;
+
+  permission_ca = create_uri_data("Test_Permissions_ca.pem");
+  permission_uri = create_signed_uri_data(permissions_xml);
+  governance_uri = create_signed_uri_data(governance_xml);
+  CU_ASSERT_NEQ_FATAL (permission_ca, NULL);
+  CU_ASSERT_NEQ_FATAL (permission_uri, NULL);
+  CU_ASSERT_NEQ_FATAL (governance_uri, NULL);
+  memset(&participant_qos, 0, sizeof(participant_qos));
+  fill_property_policy(&participant_qos.property, permission_ca, permission_uri, governance_uri);
+  ddsrt_free(permission_ca);
+  ddsrt_free(permission_uri);
+  ddsrt_free(governance_uri);
+
+  local_id_hdl = test_setup(&participant_qos);
+  CU_ASSERT_NEQ_FATAL (local_id_hdl, DDS_SECURITY_HANDLE_NIL);
+
+  result = g_access_control->validate_local_permissions(
+      g_access_control,
+      g_auth,
+      local_id_hdl,
+      domain_id,
+      &participant_qos,
+      &exception);
+  CU_ASSERT_NEQ (result, 0);
+  if (result == 0)
+  {
+    printf("validate_local_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
+  }
+  else
+  {
+    reset_exception(&exception);
+    allowed = g_access_control->check_create_participant(
+        g_access_control,
+        result,
+        domain_id,
+        &participant_qos,
+        &exception);
+    CU_ASSERT (allowed);
+    if (!allowed)
+    {
+      printf("check_create_participant failed: %s\n", exception.message ? exception.message : "Error message missing");
+    }
+    reset_exception(&exception);
     g_access_control->return_permissions_handle(g_access_control, result, &exception);
   }
   reset_exception(&exception);
