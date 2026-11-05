@@ -616,9 +616,9 @@ static bool str_to_intvalue(const char *image, int32_t *value)
   int64_t l;
   if (ddsrt_strtoint64(image, &endptr, 0, &l) != DDS_RETCODE_OK)
     return false;
-  *value = (int32_t)l;
-  if (*endptr != '\0')
+  if (*endptr != '\0' || l < INT32_MIN || l > INT32_MAX)
     return false;
+  *value = (int32_t)l;
   return true;
 }
 
@@ -642,7 +642,7 @@ static int governance_element_data_cb(void *varg, uintptr_t eleminfo, const char
     struct integer_value *value = (struct integer_value *)parser->current;
     if (str_to_intvalue(data, &value->value))
     {
-      if (value->value < 0 || value->value > 230)
+      if (value->value < 0)
         return -1;
     }
     else
@@ -1005,7 +1005,7 @@ static int permissions_element_data_cb(void *varg, uintptr_t eleminfo, const cha
     struct integer_value *value = (struct integer_value *)parser->current;
     if (str_to_intvalue(data, &value->value))
     {
-      if (value->value < 0 || value->value > 230)
+      if (value->value < 0)
         return -1;
     }
     else
