@@ -655,6 +655,59 @@ CU_Test(ddssec_builtin_validate_local_permissions, valid_file, .init = suite_val
   qos_deinit(&participant_qos);
 }
 
+/* Domain ids are not limited to 230: the valid range depends on the port mapping
+ * and transport, not on the governance and permissions documents. */
+CU_Test(ddssec_builtin_validate_local_permissions, domain_id_above_230, .init = suite_validate_local_permissions_init, .fini = suite_validate_local_permissions_fini)
+{
+  const DDS_Security_DomainId domain_id = 232;
+  DDS_Security_IdentityHandle local_id_hdl = DDS_SECURITY_HANDLE_NIL;
+  DDS_Security_PermissionsHandle result;
+  DDS_Security_boolean allowed;
+  DDS_Security_Qos participant_qos;
+  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
+
+  qos_init_file(&participant_qos,
+                "Test_Permissions_ca.pem",
+                "Test_Permissions_domain_id_232.p7s",
+                "Test_Governance_domain_id_232.p7s");
+  local_id_hdl = test_setup(&participant_qos);
+  CU_ASSERT_NEQ_FATAL (local_id_hdl, DDS_SECURITY_HANDLE_NIL);
+
+  result = g_access_control->validate_local_permissions(
+      g_access_control,
+      g_auth,
+      local_id_hdl,
+      domain_id,
+      &participant_qos,
+      &exception);
+  CU_ASSERT_NEQ (result, 0);
+  if (result == 0)
+  {
+    printf("validate_local_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
+  }
+  else
+  {
+    reset_exception(&exception);
+    allowed = g_access_control->check_create_participant(
+        g_access_control,
+        result,
+        domain_id,
+        &participant_qos,
+        &exception);
+    CU_ASSERT (allowed);
+    if (!allowed)
+    {
+      printf("check_create_participant failed: %s\n", exception.message ? exception.message : "Error message missing");
+    }
+    reset_exception(&exception);
+    g_access_control->return_permissions_handle(g_access_control, result, &exception);
+  }
+  reset_exception(&exception);
+
+  test_teardown(local_id_hdl);
+  qos_deinit(&participant_qos);
+}
+
 /* Supplying proper data should pass the local permissions check */
 CU_Test(ddssec_builtin_validate_local_permissions, valid_data, .init = suite_validate_local_permissions_init, .fini = suite_validate_local_permissions_fini)
 {
