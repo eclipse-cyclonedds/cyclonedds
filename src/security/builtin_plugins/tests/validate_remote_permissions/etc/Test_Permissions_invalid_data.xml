@@ -13,7 +13,7 @@
                 <domains>
                     <id_range>
                         <min>0</min>
-                        <max>430</max>
+                        <max>4294967296</max>
                     </id_range>
                 </domains>
                 <publish>

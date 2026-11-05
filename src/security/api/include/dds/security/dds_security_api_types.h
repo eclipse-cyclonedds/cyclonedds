@@ -77,7 +77,7 @@ typedef DDS_Security_long_long DDS_Security_DatareaderCryptoHandle;
 
 typedef DDS_Security_long DDS_Security_DynamicData;
 
-typedef DDS_Security_long DDS_Security_DomainId;  /* Valid values 0 <= id <= 230 */
+typedef DDS_Security_long DDS_Security_DomainId;
 
 typedef DDS_Security_long DDS_Security_Entity;
 
