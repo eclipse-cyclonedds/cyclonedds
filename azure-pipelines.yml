@@ -57,6 +57,18 @@ jobs:
         sanitizer: undefined
         cc: gcc-14
         cxx: g++-14
+      'Android (Rel, arm64-v8a, build only)':
+        image: ubuntu-24.04
+        build_type: Release
+        arch: arm64-v8a
+        android_abi: arm64-v8a
+        android_platform: android-28 # pthread_attr_setinheritsched requires API 28
+        ssl: off
+        testing: off
+        idlc_xtests: off
+        ddsperf: off
+        examples: off
+        werror: off # Existing NDK signedness warnings remain non-fatal
       'Ub 24.04 + GCC 12 (Deb, x86_64, security only)':
         image: ubuntu-24.04
         sanitizer: address,undefined
