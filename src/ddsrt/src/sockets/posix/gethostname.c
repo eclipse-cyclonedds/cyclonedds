@@ -16,6 +16,10 @@
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/string.h"
 
+#if defined(__ANDROID__) && !LWIP_SOCKET
+#include <sys/system_properties.h>
+#endif
+
 #if !LWIP_SOCKET
 #include <errno.h>
 #endif
@@ -46,6 +50,28 @@ ddsrt_gethostname(
   char *hostname,
   size_t buffersize)
 {
+#if defined(__ANDROID__) && !LWIP_SOCKET
+  char manufacturer[PROP_VALUE_MAX] = { 0 };
+  char model[PROP_VALUE_MAX] = { 0 };
+  char device_name[2 * PROP_VALUE_MAX];
+
+  (void) __system_property_get("ro.product.manufacturer", manufacturer);
+  (void) __system_property_get("ro.product.model", model);
+  (void) ddsrt_strlcpy(device_name, manufacturer, sizeof(device_name));
+  if (model[0] != '\0')
+  {
+    if (device_name[0] != '\0')
+    {
+      (void) ddsrt_strlcat(device_name, " ", sizeof(device_name));
+    }
+    (void) ddsrt_strlcat(device_name, model, sizeof(device_name));
+  }
+  if (device_name[0] != '\0')
+  {
+    return ddsrt_strlcpy(hostname, device_name, buffersize) >= buffersize
+      ? DDS_RETCODE_NOT_ENOUGH_SPACE : DDS_RETCODE_OK;
+  }
+#endif
   char buf[HOST_NAME_MAX + 1 /* '\0' */];
 
   memset(buf, 0, sizeof(buf));

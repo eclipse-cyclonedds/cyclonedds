@@ -12,6 +12,10 @@
 cmake_minimum_required(VERSION 3.16)
 project(CycloneDDS VERSION 11.0.1 LANGUAGES C)
 
+if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+  enable_language(OBJC)
+endif()
+
 # Set a default build type if none was specified
 set(default_build_type "RelWithDebInfo")
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)

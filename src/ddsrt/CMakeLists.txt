@@ -158,8 +158,13 @@ else()
     list(APPEND headers
       "${source_dir}/include/dds/ddsrt/sockets/posix.h")
     list(APPEND sources
-      "${source_dir}/src/sockets/posix/socket.c"
-      "${source_dir}/src/sockets/posix/gethostname.c")
+      "${source_dir}/src/sockets/posix/socket.c")
+    if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+      list(APPEND sources "${source_dir}/src/sockets/ios/gethostname.m")
+      target_link_libraries(ddsrt INTERFACE "-framework UIKit" objc)
+    else()
+      list(APPEND sources "${source_dir}/src/sockets/posix/gethostname.c")
+    endif()
     if(WITH_ZEPHYR)
       list(APPEND sources
         "${source_dir}/src/ifaddrs/zephyr/ifaddrs.c")
