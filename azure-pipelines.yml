@@ -63,6 +63,7 @@ jobs:
         arch: arm64-v8a
         android_abi: arm64-v8a
         android_platform: android-28 # pthread_attr_setinheritsched requires API 28
+        build_only: on
         ssl: off
         testing: off
         idlc_xtests: off
@@ -113,6 +114,20 @@ jobs:
         sanitizer: undefined
         deadline_update_skip: on
         cc: clang
+      'iOS (Rel, arm64, build only)':
+        image: macos-15
+        build_type: Release
+        arch: arm64
+        system_name: iOS
+        osx_deployment_target: '15.0'
+        build_only: on
+        cc: clang
+        ssl: off
+        testing: off
+        idlc_xtests: off
+        ddsperf: off
+        examples: off
+        werror: off # Existing iOS unused-parameter warnings remain non-fatal
       'macOS 14 + GCC 14 (Deb, analyzer, x86_64)':
         image: macos-14
         cc: gcc-14
