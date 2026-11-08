@@ -2062,14 +2062,25 @@ bool ddsi_is_proxy_participant_deletion_allowed (struct ddsi_domaingv * const gv
   assert (gv);
   assert (guid);
 
-  /* TODO: Check if the proxy writer guid prefix matches that of the proxy
-   *       participant. Deletion is not allowed when they're not equal. */
-
-  /* Always allow deletion from a secure proxy writer. */
+  /* A dispose that claims to originate from the secure SPDP writer may only be
+   * trusted when it actually arrived through a matched secure SPDP proxy writer
+   * that is bound (by GUID prefix) to the participant being deleted AND is
+   * submessage-protected. That is precisely the condition the receive path
+   * (ddsi_security_validate_msg_decoding) uses to reject an unprotected sample,
+   * so it guarantees this dispose was decrypted/validated. A bare plaintext
+   * packet that merely spoofs the secure-writer entity id (e.g. when discovery
+   * protection is NONE, where there is no protected secure SPDP proxy writer and
+   * participants are torn down via lease expiry) must not be allowed to delete
+   * an authenticated proxy participant. */
   if (pwr_entityid.u == DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER)
-    return true;
+  {
+    const ddsi_guid_t pwr_guid = { .prefix = guid->prefix, .entityid = pwr_entityid };
+    const struct ddsi_proxy_writer *pwr = ddsi_entidx_lookup_proxy_writer_guid (gv->entity_index, &pwr_guid);
+    if (pwr != NULL && (pwr->c.security_info.security_attributes & DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED))
+      return true;
+  }
 
-  /* Not from a secure proxy writer.
+  /* Not a (validated) secure proxy writer.
    * Only allow deletion when proxy participant is not authenticated. */
   proxypp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, guid);
   if (!proxypp)
