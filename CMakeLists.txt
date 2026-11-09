@@ -10,7 +10,7 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 cmake_minimum_required(VERSION 3.16)
-project(CycloneDDS VERSION 11.0.1 LANGUAGES C)
+project(CycloneDDS VERSION 11.1.0 LANGUAGES C)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
   enable_language(OBJC)
