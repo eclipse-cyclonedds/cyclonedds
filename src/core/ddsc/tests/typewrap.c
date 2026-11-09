@@ -16,6 +16,7 @@
 #include "dds/dds.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsrt/threads.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__dynamic_type.h"
 #include "ddsi__typelib.h"
@@ -402,6 +403,9 @@ CU_Test (ddsc_typewrap, recursive_type_assignability, .init = typewrap_init, .fi
   wr_sequence.xt._d = DDS_XTypes_TK_SEQUENCE;
   wr_sequence.xt._u.seq.c.element_flags = DDS_XTypes_TRY_CONSTRUCT1;
   wr_sequence.xt._u.seq.c.element_type = &wr_struct;
+  /* The reader accepts this bound. The different minimal definitions still
+     require structural comparison around the recursion. */
+  wr_sequence.xt._u.seq.bound = 1;
 
   dds_type_consistency_enforcement_qospolicy_t tce = {
     .kind = DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION,
@@ -466,7 +470,9 @@ CU_Test (ddsc_typewrap, keyholder_releases_removed_member_annotations, .init = t
       .detail = { .annotations = { .ann_builtin = &rd_nonkey_annotations } } }
   };
   struct xt_struct_member wr_nested_members[] = {
-    { .id = 1, .flags = DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_IS_KEY, .type = &int32_type },
+    /* A distinct try-construct setting on the retained key keeps the
+       nested definitions distinct through both key projections. */
+    { .id = 1, .flags = DDS_XTypes_TRY_CONSTRUCT2 | DDS_XTypes_IS_KEY, .type = &int32_type },
     { .id = 2, .flags = DDS_XTypes_TRY_CONSTRUCT1, .type = &int32_type,
       .detail = { .annotations = { .ann_builtin = &wr_nonkey_annotations } } }
   };
@@ -514,6 +520,220 @@ CU_Test (ddsc_typewrap, keyholder_releases_removed_member_annotations, .init = t
   };
   struct ddsi_non_assignability_reason reason;
   CU_ASSERT (ddsi_xt_is_assignable_from (gv, &rd_top.xt, &wr_top.xt, &tce, &reason, 0));
+}
+
+static void init_assignability_struct (struct ddsi_type *type, uint8_t id, DDS_XTypes_StructTypeFlag flags,
+    uint32_t n_members, struct xt_struct_member *members)
+{
+  *type = (struct ddsi_type) {
+    .refc = 1,
+    .xt = { .kind = DDSI_TYPEID_KIND_COMPLETE, ._d = DDS_XTypes_TK_STRUCTURE,
+      ._u.structure = { .flags = flags, .members = { .length = n_members, .seq = members } } }
+  };
+  init_test_hash_id (&type->xt.id, id);
+}
+
+static void init_assignability_sequence (struct ddsi_type *seq, struct ddsi_type *element, uint8_t bound, bool minimal)
+{
+  const DDS_XTypes_EquivalenceKind ek = minimal ? DDS_XTypes_EK_MINIMAL : DDS_XTypes_EK_COMPLETE;
+  *seq = (struct ddsi_type) {
+    .refc = 1,
+    .xt = { .kind = minimal ? DDSI_TYPEID_KIND_PLAIN_COLLECTION_MINIMAL : DDSI_TYPEID_KIND_PLAIN_COLLECTION_COMPLETE,
+      ._d = DDS_XTypes_TK_SEQUENCE, ._u.seq = { .bound = bound,
+        .c = { .ek = ek, .element_flags = DDS_XTypes_TRY_CONSTRUCT1, .element_type = element } },
+      .id.x = { ._d = DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL, ._u.seq_sdefn = { .bound = bound,
+        .header = { .equiv_kind = ek, .element_flags = DDS_XTypes_TRY_CONSTRUCT1 }, .element_identifier = &element->xt.id.x } } }
+  };
+}
+
+CU_TheoryDataPoints (ddsc_typewrap, strong_assignability_minimal_equivalence) = {
+  CU_DataPoints (bool, false, true), /* recursive */
+  CU_DataPoints (bool, false, true), /* equal minimal definitions */
+  CU_DataPoints (bool, false, true), /* minimal reader */
+  CU_DataPoints (bool, false, true)  /* minimal writer */
+};
+
+CU_Theory ((bool recursive, bool equivalent, bool minimal_reader, bool minimal_writer), ddsc_typewrap,
+    strong_assignability_minimal_equivalence, .init = typewrap_init, .fini = typewrap_fini)
+{
+  struct ddsi_domaingv *gv = get_domaingv (participant);
+  struct ddsi_type integer = { .refc = 1, .xt = { .kind = DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE,
+    ._d = DDS_XTypes_TK_INT32, .id.x._d = DDS_XTypes_TK_INT32 } };
+  struct ddsi_type payload[2], strings[2], children[2], outer[2];
+  struct xt_union_member cases[2][2];
+  struct DDS_XTypes_TypeIdentifier minimal_id[2] = {0}, complete_id[2] = {0};
+  int32_t labels[] = { 0, 1 };
+  const bool minimal[] = { minimal_reader, minimal_writer };
+
+  for (uint8_t i = 0; i < 2; i++)
+  {
+    /* Reader bound 8 accepts both writer bounds. The qualified type names
+       differ in every case and appear only in the complete definition. */
+    const uint8_t bound = equivalent || i == 0 ? 8 : 4;
+    strings[i] = (struct ddsi_type) { .refc = 1, .xt = { .kind = DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE,
+      ._d = DDS_XTypes_TK_STRING8, ._u.str8.bound = bound,
+      .id.x = { ._d = DDS_XTypes_TI_STRING8_SMALL, ._u.string_sdefn.bound = bound } } };
+    init_assignability_sequence (&children[i], &payload[i], 0, false);
+    for (uint8_t j = 0; j < 2; j++)
+    {
+      cases[i][j] = (struct xt_union_member) { .id = j, .flags = DDS_XTypes_TRY_CONSTRUCT1,
+        .label_seq = { ._length = 1, ._maximum = 1, ._buffer = &labels[j] }, .type = j == 0 ? &strings[i] : &children[i] };
+      ddsrt_strlcpy (cases[i][j].detail.name, j == 0 ? "value" : "next", sizeof (cases[i][j].detail.name));
+      ddsi_xt_get_namehash (cases[i][j].detail.name_hash, cases[i][j].detail.name);
+    }
+    payload[i] = (struct ddsi_type) { .refc = 1, .xt = { .kind = DDSI_TYPEID_KIND_COMPLETE,
+      ._d = DDS_XTypes_TK_UNION, ._u.union_type = { .flags = DDS_XTypes_IS_FINAL,
+        .disc_type = &integer, .disc_flags = DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_IS_KEY,
+        .members = { .length = recursive ? 2u : 1u, .seq = cases[i] } } } };
+    struct xt_type_detail *detail = &payload[i].xt._u.union_type.detail;
+    ddsrt_strlcpy (detail->type_name, i == 0 ? "ReaderPayload" : "WriterPayload", sizeof (detail->type_name));
+    ddsi_xt_get_typeid_impl (&payload[i].xt, &complete_id[i], DDSI_TYPEID_KIND_COMPLETE);
+    ddsi_xt_get_typeid_impl (&payload[i].xt, &minimal_id[i], DDSI_TYPEID_KIND_MINIMAL);
+    CU_ASSERT_EQ (minimal_id[i]._d, recursive ? DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT : DDS_XTypes_EK_MINIMAL);
+
+    if (minimal[i])
+    {
+      payload[i].xt.kind = DDSI_TYPEID_KIND_MINIMAL;
+      detail->type_name[0] = 0;
+      cases[i][0].detail.name[0] = cases[i][1].detail.name[0] = 0;
+      init_assignability_sequence (&children[i], &payload[i], 0, true);
+    }
+    payload[i].xt.id.x = minimal[i] ? minimal_id[i] : complete_id[i];
+    /* Different outer bounds require the sequence to check its element types. */
+    init_assignability_sequence (&outer[i], &payload[i], i == 0 ? 8 : 4, minimal[i]);
+  }
+  CU_ASSERT_NEQ (ddsi_typeid_compare_impl (&complete_id[0], &complete_id[1]), 0);
+  CU_ASSERT_EQ (ddsi_typeid_compare_impl (&minimal_id[0], &minimal_id[1]) == 0, equivalent);
+
+  const dds_type_consistency_enforcement_qospolicy_t tce = { .kind = DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION };
+  struct ddsi_non_assignability_reason reason;
+  /* Direct ordinary comparison reaches the same strong check through the
+     'next' case of a recursive union. Being active cannot grant equivalence. */
+  CU_ASSERT_EQ (ddsi_xt_is_assignable_from (gv, &payload[0].xt, &payload[1].xt, &tce, &reason,
+      DDSI_NONASSIGN_REASON_DETAIL_PATH), !recursive || equivalent);
+  if (recursive && !equivalent)
+  {
+    CU_ASSERT_EQ (reason.code, DDSI_NONASSIGN_WR_TYPE_NOT_DELIMITED);
+    CU_ASSERT (strstr (reason.path, "[] <= writer ") != NULL);
+  }
+
+  CU_ASSERT_EQ (ddsi_xt_is_assignable_from (gv, &outer[0].xt, &outer[1].xt, &tce, &reason,
+      DDSI_NONASSIGN_REASON_DETAIL_PATH), equivalent);
+  CU_ASSERT_EQ (reason.code, equivalent ? DDSI_NONASSIGN_ASSIGNABLE : DDSI_NONASSIGN_WR_TYPE_NOT_DELIMITED);
+  if (!equivalent)
+  {
+    CU_ASSERT_EQ (reason.t1_typekind, DDS_XTypes_TK_UNION);
+    CU_ASSERT_EQ (reason.t2_typekind, DDS_XTypes_TK_UNION);
+    CU_ASSERT_EQ (strcmp (reason.path, "reader [] <= writer []"), 0);
+  }
+
+  if (!recursive && !equivalent)
+  {
+    /* With a key discriminator, KeyHolder drops every union case. The
+       resulting unions are minimally equivalent even though the originals
+       have distinct string bounds. */
+    struct ddsi_type keyed[2];
+    struct xt_struct_member field[2];
+    for (uint8_t i = 0; i < 2; i++)
+    {
+      field[i] = (struct xt_struct_member) { .id = 1,
+        .flags = DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_IS_KEY, .type = &payload[i] };
+      init_assignability_struct (&keyed[i], (uint8_t) (1 + i), DDS_XTypes_IS_MUTABLE, 1, &field[i]);
+      keyed[i].xt.kind = minimal[i] ? DDSI_TYPEID_KIND_MINIMAL : DDSI_TYPEID_KIND_COMPLETE;
+      ddsi_xt_get_typeid_impl (&keyed[i].xt, &keyed[i].xt.id.x, keyed[i].xt.kind);
+    }
+    CU_ASSERT (ddsi_xt_is_assignable_from (gv, &keyed[0].xt, &keyed[1].xt, &tce, &reason, 0));
+  }
+}
+
+static ddsrt_thread_local size_t assignability_callocs;
+
+static void *count_assignability_calloc (size_t count, size_t size)
+{
+  assignability_callocs++;
+  return calloc (count, size);
+}
+
+static void counting_typewrap_init (void)
+{
+  ddsrt_set_allocator ((ddsrt_allocation_ops_t) { .calloc = count_assignability_calloc });
+  typewrap_init ();
+}
+
+static void counting_typewrap_fini (void)
+{
+  typewrap_fini ();
+  restore_allocator ();
+}
+
+static void refresh_minimal_struct_id (struct ddsi_type *type)
+{
+  struct DDS_XTypes_TypeIdentifier id = {0};
+  ddsi_xt_get_typeid_impl (&type->xt, &id, DDSI_TYPEID_KIND_MINIMAL);
+  CU_ASSERT_EQ_FATAL (id._d, DDS_XTypes_EK_MINIMAL);
+  type->xt.kind = DDSI_TYPEID_KIND_MINIMAL;
+  type->xt.id.x = id;
+}
+
+CU_Test (ddsc_typewrap, shared_key_member_assignability, .init = counting_typewrap_init, .fini = counting_typewrap_fini)
+{
+  struct ddsi_domaingv *gv = get_domaingv (participant);
+  struct ddsi_type strings[2], nested[2], second[2], outer[2];
+  struct xt_struct_member key[2], fields[2][2];
+  for (uint8_t i = 0; i < 2; i++)
+  {
+    /* Compatible, distinct bounds keep both aggregates from taking the
+       minimal-equivalence shortcut before their members are compared. */
+    const uint8_t bound = i == 0 ? 8 : 4;
+    strings[i] = (struct ddsi_type) { .refc = 1, .xt = { .kind = DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE,
+      ._d = DDS_XTypes_TK_STRING8, .id.x = { ._d = DDS_XTypes_TI_STRING8_SMALL, ._u.string_sdefn.bound = bound },
+      ._u.str8.bound = bound } };
+    key[i] = (struct xt_struct_member) { .id = 1, .flags = DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_IS_KEY, .type = &strings[i] };
+    init_assignability_struct (&nested[i], (uint8_t) (1 + i), DDS_XTypes_IS_MUTABLE, 1, &key[i]);
+    refresh_minimal_struct_id (&nested[i]);
+    second[i] = nested[i];
+    for (uint8_t j = 0; j < 2; j++)
+      fields[i][j] = (struct xt_struct_member) { .id = j, .flags = DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_IS_KEY, .type = &nested[i] };
+    init_assignability_struct (&outer[i], (uint8_t) (5 + i), DDS_XTypes_IS_MUTABLE, 2, fields[i]);
+    refresh_minimal_struct_id (&outer[i]);
+  }
+  const dds_type_consistency_enforcement_qospolicy_t tce = {
+    .kind = DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION, .ignore_string_bounds = true, .ignore_member_names = true
+  };
+  struct ddsi_non_assignability_reason reason;
+  /* All minimal IDs are stored. Replacing the second field's type with an
+     identical copy changes only whether its type pair was visited before. */
+  assignability_callocs = 0;
+  const bool shared = ddsi_xt_is_assignable_from (gv, &outer[0].xt, &outer[1].xt, &tce, &reason, 0);
+  const size_t n_shared = assignability_callocs;
+  fields[0][1].type = &second[0];
+  fields[1][1].type = &second[1];
+  assignability_callocs = 0;
+  const bool separate = ddsi_xt_is_assignable_from (gv, &outer[0].xt, &outer[1].xt, &tce, &reason, 0);
+  const size_t n_separate = assignability_callocs;
+  CU_ASSERT (shared && separate);
+  CU_ASSERT_LT (n_shared, n_separate);
+
+  /* The same nested pair passes KeyErased with bounds ignored. KeyHolder
+     must still enforce the bound on its string key. */
+  strings[1].xt.id.x._u.string_sdefn.bound = 16;
+  strings[1].xt._u.str8.bound = 16;
+  refresh_minimal_struct_id (&nested[1]);
+  second[1] = nested[1];
+  for (uint8_t i = 0; i < 2; i++)
+  {
+    outer[i].xt._u.structure.members.length = 1;
+    fields[i][0].flags = DDS_XTypes_TRY_CONSTRUCT1;
+    refresh_minimal_struct_id (&outer[i]);
+  }
+  CU_ASSERT (ddsi_xt_is_assignable_from (gv, &outer[0].xt, &outer[1].xt, &tce, &reason, 0));
+  for (uint8_t i = 0; i < 2; i++)
+  {
+    fields[i][0].flags = DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_IS_KEY;
+    refresh_minimal_struct_id (&outer[i]);
+  }
+  CU_ASSERT (!ddsi_xt_is_assignable_from (gv, &outer[0].xt, &outer[1].xt, &tce, &reason, 0));
+  CU_ASSERT_EQ (reason.code, DDSI_NONASSIGN_KEY_INCOMPATIBLE);
 }
 
 CU_Test (ddsc_typewrap, typeobject_fini_walks_mutated_owned_sequences)
@@ -2574,4 +2794,56 @@ CU_Test (ddsc_typewrap, invalid_union_typeobject, .init = typewrap_init, .fini =
       sizeof (legacy_zero_member_id) / sizeof (legacy_zero_member_id[0]), DDS_XTypes_IS_APPENDABLE, DDS_RETCODE_OK);
   check_union_typeobject ("MutableUnionMemberIdZero", DDS_XTypes_TK_INT32, legacy_zero_member_id,
       sizeof (legacy_zero_member_id) / sizeof (legacy_zero_member_id[0]), DDS_XTypes_IS_MUTABLE, DDS_RETCODE_BAD_PARAMETER);
+}
+
+CU_Test (ddsc_typewrap, strong_assignability_hash_identified_sequence, .init = typewrap_init, .fini = typewrap_fini)
+{
+  struct ddsi_domaingv *gv = get_domaingv (participant);
+  struct ddsi_type integer = { .refc = 1, .xt = { .kind = DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE,
+    ._d = DDS_XTypes_TK_INT32, .id.x._d = DDS_XTypes_TK_INT32 } };
+  struct xt_struct_member value = { .id = 1, .flags = DDS_XTypes_TRY_CONSTRUCT1, .type = &integer };
+  struct ddsi_type element[2], sequence[2], outer[2];
+  ddsi_xt_get_namehash (value.detail.name_hash, "value");
+  ddsrt_strlcpy (value.detail.name, "value", sizeof (value.detail.name));
+
+  for (uint8_t i = 0; i < 2; i++)
+  {
+    const bool minimal = i == 0;
+    const ddsi_typeid_kind_t kind = minimal ? DDSI_TYPEID_KIND_MINIMAL : DDSI_TYPEID_KIND_COMPLETE;
+    init_assignability_struct (&element[i], i, DDS_XTypes_IS_FINAL, 1, &value);
+    ddsi_xt_get_typeid_impl (&element[i].xt, &element[i].xt.id.x, kind);
+    element[i].xt.kind = kind;
+
+    /* The collection's TypeObject determines its hash identifier. Ordinary
+       element flags are also legal on a hash-identified collection. */
+    struct DDS_XTypes_TypeObject object = {0};
+    const DDS_XTypes_CommonCollectionElement common = {
+      .element_flags = DDS_XTypes_TRY_CONSTRUCT1, .type = element[i].xt.id.x
+    };
+    if (minimal)
+    {
+      object._d = DDS_XTypes_EK_MINIMAL;
+      object._u.minimal._d = DDS_XTypes_TK_SEQUENCE;
+      object._u.minimal._u.sequence_type.element.common = common;
+    }
+    else
+    {
+      object._d = DDS_XTypes_EK_COMPLETE;
+      object._u.complete._d = DDS_XTypes_TK_SEQUENCE;
+      object._u.complete._u.sequence_type.element.common = common;
+    }
+    sequence[i] = (struct ddsi_type) { .refc = 1, .xt = { .kind = kind, ._d = DDS_XTypes_TK_SEQUENCE,
+      ._u.seq.c = { .element_flags = common.element_flags, .element_type = &element[i] } } };
+    CU_ASSERT_EQ_FATAL (ddsi_typeobj_get_hash_id (&object, &sequence[i].xt.id), DDS_RETCODE_OK);
+    init_assignability_sequence (&outer[i], &sequence[i], (uint8_t) (i + 1), minimal);
+  }
+
+  /* Different outer bounds force a strong check of the inner sequences.
+     Their final element makes both non-delimited, so minimal equivalence
+     is the only way either comparison can succeed. */
+  const dds_type_consistency_enforcement_qospolicy_t tce = { .kind = DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION,
+    .ignore_sequence_bounds = true };
+  struct ddsi_non_assignability_reason reason;
+  CU_ASSERT (ddsi_xt_is_assignable_from (gv, &outer[0].xt, &outer[1].xt, &tce, &reason, 0));
+  CU_ASSERT (ddsi_xt_is_assignable_from (gv, &outer[1].xt, &outer[0].xt, &tce, &reason, 0));
 }
