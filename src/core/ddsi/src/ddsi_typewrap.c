@@ -88,9 +88,16 @@ struct xt_validate_context {
   bool allow_recursive_types;
 };
 
+enum xt_assignability_view {
+  XT_ASSIGN_ORDINARY,
+  XT_ASSIGN_KEY_ERASED,
+  XT_ASSIGN_KEY_HOLDER
+};
+
 struct xt_assignability_node {
   const struct xt_type *rd_type;
   const struct xt_type *wr_type;
+  enum xt_assignability_view view;
 };
 
 enum xt_nonassign_path_kind {
@@ -117,13 +124,6 @@ struct xt_nonassign_path {
   struct xt_nonassign_member_ref rd;
   struct xt_nonassign_member_ref wr;
   int32_t label;
-};
-
-struct xt_assignability_context {
-  struct ddsrt_hh *type_pairs;
-  const struct xt_nonassign_path *path;
-  struct ddsi_non_assignability_reason *reason;
-  bool collect_reason_detail;
 };
 
 struct xt_typeid_gen_node;
@@ -191,8 +191,26 @@ struct xt_typeid_gen_context {
   uint32_t scc_work_size;
   /* Whether this run emits minimal or complete identifiers/objects. */
   ddsi_typeid_kind_t kind;
+  /* An assignability check can use minimal identifiers already present on
+     its operands, including identifiers for types without a definition. */
+  bool reuse_minimal_ids;
   /* Next Tarjan discovery index. */
   uint32_t next_index;
+};
+
+struct xt_assignability_ids {
+  /* Generate minimal identifiers for this graph on first use. */
+  const struct xt_type *root;
+  struct xt_typeid_gen_context gen;
+  bool available;
+};
+
+struct xt_assignability_context {
+  struct ddsrt_hh *type_pairs;
+  struct xt_assignability_ids rd_ids, wr_ids;
+  const struct xt_nonassign_path *path;
+  struct ddsi_non_assignability_reason *reason;
+  bool collect_reason_detail;
 };
 
 ddsrt_nonnull_all
@@ -3540,19 +3558,6 @@ static bool xt_is_plain_collection_fully_descriptive_typeid (const struct xt_typ
   return xt_is_plain_collection_equiv_kind (t, DDS_XTypes_EK_BOTH);
 }
 
-static bool xt_is_equiv_kind_hash_typeid (const struct xt_type *t, DDS_XTypes_EquivalenceKind ek)
-{
-  return (ek == DDS_XTypes_EK_MINIMAL && t->kind == DDSI_TYPEID_KIND_MINIMAL)
-    || (ek == DDS_XTypes_EK_COMPLETE && t->kind == DDSI_TYPEID_KIND_COMPLETE)
-    || (t->_d == DDS_XTypes_TI_STRONGLY_CONNECTED_COMPONENT && t->sc_component_id.sc_component_id._d == ek)
-    || xt_is_plain_collection_equiv_kind (t, ek);
-}
-
-static bool xt_is_minimal_hash_typeid (const struct xt_type *t)
-{
-  return xt_is_equiv_kind_hash_typeid (t, DDS_XTypes_EK_MINIMAL);
-}
-
 static bool xt_is_primitive (const struct xt_type *t)
 {
   return t->_d > DDS_XTypes_TK_NONE && t->_d <= DDS_XTypes_TK_CHAR16;
@@ -3656,15 +3661,29 @@ static bool xt_is_delimited (struct ddsi_domaingv *gv, const struct xt_type *t)
   return xt_is_delimited_impl (gv, t, NULL);
 }
 
-static bool xt_is_equivalent_minimal (const struct xt_type *t1, const struct xt_type *t2, bool is_assignability_check)
+static bool xt_has_minimal_id (const struct xt_type *xt);
+static const struct DDS_XTypes_TypeIdentifier *xt_assignability_minimal_id (struct xt_assignability_ids *ids, const struct xt_type *xt, struct DDS_XTypes_TypeIdentifier *scratch);
+static void xt_typeid_gen_context_fini (struct xt_typeid_gen_context *context);
+
+static bool xt_is_equivalent_minimal (struct xt_assignability_context *context, const struct xt_type *t1, const struct xt_type *t2)
 {
-  // Minimal equivalence relation (XTypes spec v1.3 section 7.3.4.7)
-  if (xt_is_fully_descriptive (t1) || xt_is_minimal_hash_typeid (t1))
-  {
-    if (!ddsi_typeid_compare_acflag (&t1->id.x, &t2->id.x, is_assignability_check))
-      return true;
-  }
-  return false;
+  /* Equal complete identifiers also imply minimal equivalence (XTypes 1.3, 7.3.4.7). */
+  if (t1 == t2 || (!ddsi_typeid_is_none (&t1->id) && ddsi_typeid_compare_assignability_check (&t1->id, &t2->id) == 0))
+    return true;
+  if (t1->_d != t2->_d && t1->_d != DDS_XTypes_TK_NONE && t2->_d != DDS_XTypes_TK_NONE)
+    return false;
+  if (xt_has_minimal_id (t1) && xt_has_minimal_id (t2))
+    return false;
+
+  struct DDS_XTypes_TypeIdentifier s1 = {0}, s2 = {0};
+  const struct DDS_XTypes_TypeIdentifier *id1 = xt_assignability_minimal_id (&context->rd_ids, t1, &s1);
+  const struct DDS_XTypes_TypeIdentifier *id2 = xt_assignability_minimal_id (&context->wr_ids, t2, &s2);
+  const bool equivalent = id1 && id2 && ddsi_typeid_compare_acflag (id1, id2, true) == 0;
+  if (id1 == &s1)
+    ddsi_typeid_fini_impl (&s1);
+  if (id2 == &s2)
+    ddsi_typeid_fini_impl (&s2);
+  return equivalent;
 }
 
 static uint32_t xt_assignability_node_hash (const void *vnode)
@@ -3672,14 +3691,14 @@ static uint32_t xt_assignability_node_hash (const void *vnode)
   const struct xt_assignability_node *node = vnode;
   const uintptr_t rd = (uintptr_t) node->rd_type;
   const uintptr_t wr = (uintptr_t) node->wr_type;
-  return ddsrt_mh3 (&wr, sizeof (wr), ddsrt_mh3 (&rd, sizeof (rd), 0));
+  return ddsrt_mh3 (&wr, sizeof (wr), ddsrt_mh3 (&rd, sizeof (rd), (uint32_t) node->view));
 }
 
 static bool xt_assignability_node_equal (const void *vnode_a, const void *vnode_b)
 {
   const struct xt_assignability_node *a = vnode_a;
   const struct xt_assignability_node *b = vnode_b;
-  return a->rd_type == b->rd_type && a->wr_type == b->wr_type;
+  return a->rd_type == b->rd_type && a->wr_type == b->wr_type && a->view == b->view;
 }
 
 static void xt_assignability_node_free (void *vnode, void *arg)
@@ -3702,22 +3721,22 @@ static void xt_assignability_context_fini (struct xt_assignability_context *cont
 {
   ddsrt_hh_enum (context->type_pairs, xt_assignability_node_free, NULL);
   ddsrt_hh_free (context->type_pairs);
+  xt_typeid_gen_context_fini (&context->rd_ids.gen);
+  xt_typeid_gen_context_fini (&context->wr_ids.gen);
 }
 
-static bool xt_assignability_seen (struct xt_assignability_context *context, const struct xt_type *rd_type, const struct xt_type *wr_type)
+static bool xt_assignability_seen (struct xt_assignability_context *context, const struct xt_assignability_node *key)
 {
-  const struct xt_assignability_node templ = { .rd_type = rd_type, .wr_type = wr_type };
-  return ddsrt_hh_lookup (context->type_pairs, &templ) != NULL;
+  return ddsrt_hh_lookup (context->type_pairs, key) != NULL;
 }
 
-static dds_return_t xt_assignability_enter (struct xt_assignability_context *context, const struct xt_type *rd_type, const struct xt_type *wr_type, struct xt_assignability_node **node)
+static dds_return_t xt_assignability_enter (struct xt_assignability_context *context, const struct xt_assignability_node *key, struct xt_assignability_node **node)
 {
-  assert (!xt_assignability_seen (context, rd_type, wr_type));
+  assert (!xt_assignability_seen (context, key));
 
   if ((*node = ddsrt_calloc (1, sizeof (**node))) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
-  (*node)->rd_type = rd_type;
-  (*node)->wr_type = wr_type;
+  **node = *key;
   ddsrt_hh_add_absent (context->type_pairs, *node);
   return DDS_RETCODE_OK;
 }
@@ -3729,13 +3748,18 @@ static void xt_assignability_leave (struct xt_assignability_context *context, st
 }
 
 ddsrt_nonnull_all
-static bool xt_is_assignable_from_impl (struct ddsi_domaingv *gv, struct xt_assignability_context *context, const struct xt_type *rd_xt, const struct xt_type *wr_xt, const dds_type_consistency_enforcement_qospolicy_t *tce);
+static bool xt_is_assignable_from_view (struct ddsi_domaingv *gv, struct xt_assignability_context *context, const struct xt_type *rd_xt, const struct xt_type *wr_xt, const dds_type_consistency_enforcement_qospolicy_t *tce, enum xt_assignability_view view);
+
+static bool xt_is_assignable_from_impl (struct ddsi_domaingv *gv, struct xt_assignability_context *context, const struct xt_type *rd_xt, const struct xt_type *wr_xt, const dds_type_consistency_enforcement_qospolicy_t *tce)
+{
+  return xt_is_assignable_from_view (gv, context, rd_xt, wr_xt, tce, XT_ASSIGN_ORDINARY);
+}
 
 ddsrt_nonnull_all
 static bool xt_is_strongly_assignable_from (struct ddsi_domaingv *gv, struct xt_assignability_context *context, const struct xt_type *t1a, const struct xt_type *t2a, const dds_type_consistency_enforcement_qospolicy_t *tce)
 {
   const struct xt_type *t1 = ddsi_xt_unalias (t1a), *t2 = ddsi_xt_unalias (t2a);
-  if (xt_is_equivalent_minimal (t1, t2, true) || xt_assignability_seen (context, t1, t2))
+  if (xt_is_equivalent_minimal (context, t1, t2))
     return true;
   struct xt_nonassign_path path;
   xt_nonassign_path_push (context, &path, XT_NONASSIGN_PATH_STRONG, xt_nonassign_no_member (), xt_nonassign_no_member (), 0);
@@ -4333,18 +4357,12 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, struct xt_as
 
         /* Rule: "For any member m2 in T2, if there is a member m1 in T1 with the same member ID, then the type
             KeyErased(m1.type) is-assignable from the type KeyErased(m2.type) */
-        struct xt_type *m1_ke = xt_type_key_erased (gv, m1t),
-          *m2_ke = xt_type_key_erased (gv, m2t);
         struct xt_nonassign_path key_erased_member_path;
         xt_nonassign_path_push (context, &key_erased_member_path, XT_NONASSIGN_PATH_STRUCT_MEMBER,
                                 xt_nonassign_member_ref (&m1->detail, m1->id, i1),
                                 xt_nonassign_member_ref (&m2->detail, m2->id, i2 % i2_max), 0);
-        bool ke_assignable = xt_is_assignable_from_impl (gv, context, m1_ke, m2_ke, tce);
+        bool ke_assignable = xt_is_assignable_from_view (gv, context, m1t, m2t, tce, XT_ASSIGN_KEY_ERASED);
         xt_nonassign_path_pop (context, &key_erased_member_path);
-        ddsi_xt_type_fini (gv, m1_ke, true);
-        ddsrt_free (m1_ke);
-        ddsi_xt_type_fini (gv, m2_ke, true);
-        ddsrt_free (m2_ke);
         if (!ke_assignable)
           goto struct_failed;
 
@@ -4390,18 +4408,12 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, struct xt_as
             isassignable-from KeyHolder(m2.type)." */
         if (m2_k && (m2t->_d == DDS_XTypes_TK_STRUCTURE || m2t->_d == DDS_XTypes_TK_UNION))
         {
-          struct xt_type *m1_kh = xt_type_keyholder (gv, m1t),
-            *m2_kh = xt_type_keyholder (gv, m2t);
           struct xt_nonassign_path key_holder_member_path;
           xt_nonassign_path_push (context, &key_holder_member_path, XT_NONASSIGN_PATH_STRUCT_MEMBER,
                                   xt_nonassign_member_ref (&m1->detail, m1->id, i1),
                                   xt_nonassign_member_ref (&m2->detail, m2->id, i2 % i2_max), 0);
-          bool kh_assignable = xt_is_assignable_from_impl (gv, context, m1_kh, m2_kh, tce);
+          bool kh_assignable = xt_is_assignable_from_view (gv, context, m1t, m2t, tce, XT_ASSIGN_KEY_HOLDER);
           xt_nonassign_path_pop (context, &key_holder_member_path);
-          ddsi_xt_type_fini (gv, m1_kh, true);
-          ddsrt_free (m1_kh);
-          ddsi_xt_type_fini (gv, m2_kh, true);
-          ddsrt_free (m2_kh);
           if (!kh_assignable)
             goto struct_failed;
         }
@@ -4436,15 +4448,9 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, struct xt_as
                   xt_nonassign_path_pop (context, &union_key_member_path);
                   goto struct_failed;
                 }
-                struct xt_type *km1_kh = xt_type_keyholder (gv, km1_t),
-                  *km2_kh = xt_type_keyholder (gv, km2_t);
-                bool kh_assignable = xt_is_assignable_from_impl (gv, context, km1_kh, km2_kh, tce);
+                bool kh_assignable = xt_is_assignable_from_view (gv, context, km1_t, km2_t, tce, XT_ASSIGN_KEY_HOLDER);
                 xt_nonassign_path_pop (context, &union_key_path);
                 xt_nonassign_path_pop (context, &union_key_member_path);
-                ddsi_xt_type_fini (gv, km1_kh, true);
-                ddsrt_free (km1_kh);
-                ddsi_xt_type_fini (gv, km2_kh, true);
-                ddsrt_free (km2_kh);
                 if (!kh_assignable)
                   goto struct_failed;
               }
@@ -4653,21 +4659,49 @@ static bool xt_is_assignable_from_impl_body (struct ddsi_domaingv *gv, struct xt
   return xt_non_assignable (context, DDSI_NONASSIGN_INCOMPATIBLE_TYPE, t1, t2, 0);
 }
 
-static bool xt_is_assignable_from_impl (struct ddsi_domaingv *gv, struct xt_assignability_context *context, const struct xt_type *rd_xt, const struct xt_type *wr_xt, const dds_type_consistency_enforcement_qospolicy_t *tce)
+static bool xt_is_assignable_from_view (struct ddsi_domaingv *gv, struct xt_assignability_context *context, const struct xt_type *rd_xt, const struct xt_type *wr_xt, const dds_type_consistency_enforcement_qospolicy_t *tce, enum xt_assignability_view view)
 {
   const struct xt_type *t1 = ddsi_xt_unalias (rd_xt), *t2 = ddsi_xt_unalias (wr_xt);
-  struct xt_assignability_node *node;
   if (!xt_is_assignable_check_has_definition (context, t1, NULL, 0) || !xt_is_assignable_check_has_definition (context, t2, NULL, 0))
     return false;
 
-  if (xt_is_equivalent_minimal (t1, t2, true) || xt_assignability_seen (context, t1, t2))
+  /* KeyErased and KeyHolder can affect the result only for two aggregates
+     of the same kind. */
+  if (t1->_d != t2->_d || (t1->_d != DDS_XTypes_TK_STRUCTURE && t1->_d != DDS_XTypes_TK_UNION))
+    view = XT_ASSIGN_ORDINARY;
+
+  /* Projection changes only the aggregate itself. Its member types still
+     point into the original graph, so the pair and view identify the check. */
+  const struct xt_assignability_node key = { .rd_type = t1, .wr_type = t2, .view = view };
+  if (xt_assignability_seen (context, &key) || xt_is_equivalent_minimal (context, t1, t2))
     return true;
-  if (xt_assignability_enter (context, t1, t2, &node) != DDS_RETCODE_OK)
+
+  /* With a key discriminator, KeyHolder removes every case. Only the
+     union flags and discriminator remain in the minimal definition. */
+  if (view == XT_ASSIGN_KEY_HOLDER && t1->_d == DDS_XTypes_TK_UNION && t2->_d == DDS_XTypes_TK_UNION &&
+      (t1->_u.union_type.disc_flags & DDS_XTypes_IS_KEY) &&
+      t1->_u.union_type.flags == t2->_u.union_type.flags && t1->_u.union_type.disc_flags == t2->_u.union_type.disc_flags &&
+      xt_is_equivalent_minimal (context, &t1->_u.union_type.disc_type->xt, &t2->_u.union_type.disc_type->xt))
+    return true;
+
+  struct xt_assignability_node *node;
+  if (xt_assignability_enter (context, &key, &node) != DDS_RETCODE_OK)
     return xt_non_assignable (context, DDSI_NONASSIGN_UNKNOWN, t1, t2, 0);
 
-  const bool assignable = xt_is_assignable_from_impl_body (gv, context, t1, t2, tce);
-  /* The context is a recursion stack, not a cache: some checks use temporary
-     key-erased/key-holder types, so their raw pointers must not outlive this call. */
+  bool assignable;
+  if (view == XT_ASSIGN_ORDINARY)
+    assignable = xt_is_assignable_from_impl_body (gv, context, t1, t2, tce);
+  else
+  {
+    struct xt_type * (*project) (struct ddsi_domaingv *, const struct xt_type *) =
+      view == XT_ASSIGN_KEY_ERASED ? xt_type_key_erased : xt_type_keyholder;
+    struct xt_type *p1 = project (gv, t1), *p2 = project (gv, t2);
+    assignable = xt_is_assignable_from_impl_body (gv, context, p1, p2, tce);
+    ddsi_xt_type_fini (gv, p1, true);
+    ddsrt_free (p1);
+    ddsi_xt_type_fini (gv, p2, true);
+    ddsrt_free (p2);
+  }
   xt_assignability_leave (context, node);
   return assignable;
 }
@@ -4817,7 +4851,6 @@ bool ddsi_typeid_contains_scc_impl (const struct DDS_XTypes_TypeIdentifier *type
 
 bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type *rd_xt, const struct xt_type *wr_xt, const dds_type_consistency_enforcement_qospolicy_t *tce, struct ddsi_non_assignability_reason *reason, uint32_t reason_flags)
 {
-  struct xt_assignability_context context;
   reason->code = DDSI_NONASSIGN_ASSIGNABLE;
   reason->t1_id._d = DDS_XTypes_TK_NONE;
   reason->t2_id._d = DDS_XTypes_TK_NONE;
@@ -4828,6 +4861,9 @@ bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type 
   reason->path_truncated = false;
   reason->path[0] = 0;
   reason->detail[0] = 0;
+  struct xt_assignability_context context = {
+    .rd_ids.root = ddsi_xt_unalias (rd_xt), .wr_ids.root = ddsi_xt_unalias (wr_xt)
+  };
   if (xt_assignability_context_init (&context, reason, reason_flags) != DDS_RETCODE_OK)
     return xt_non_assignable_reason (NULL, reason, DDSI_NONASSIGN_UNKNOWN, rd_xt, wr_xt, 0);
   const bool assignable = xt_is_assignable_from_impl (gv, &context, rd_xt, wr_xt, tce);
@@ -4847,6 +4883,24 @@ ddsi_typeid_kind_t ddsi_typeid_kind (const ddsi_typeid_t *type_id)
 static bool xt_is_non_hash (const struct xt_type *xt)
 {
   return xt_is_fully_descriptive (xt) || xt_is_plain_collection (xt);
+}
+
+static bool xt_typeid_gen_is_non_hash (const struct xt_typeid_gen_context *context, const struct xt_type *xt)
+{
+  /* A received collection may have a TypeObject because of an annotation,
+     even when its element flags alone would allow a plain identifier. */
+  if (context->reuse_minimal_ids && xt->kind == DDSI_TYPEID_KIND_COMPLETE && ddsi_typeid_is_hash (&xt->id))
+    return false;
+  return xt_is_non_hash (xt);
+}
+
+static bool xt_has_minimal_id (const struct xt_type *xt)
+{
+  if (ddsi_typeid_is_none (&xt->id))
+    return false;
+  const ddsi_typeid_kind_t kind = ddsi_typeid_kind_impl (&xt->id.x);
+  return kind == DDSI_TYPEID_KIND_MINIMAL || kind == DDSI_TYPEID_KIND_PLAIN_COLLECTION_MINIMAL ||
+    kind == DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE;
 }
 
 static uint32_t xt_typeid_gen_node_hash (const void *vnode)
@@ -5002,7 +5056,7 @@ static dds_return_t xt_typeid_gen_add_dep (struct xt_typeid_gen_context *context
 
 static dds_return_t xt_typeid_gen_add_dep_non_hash (struct xt_typeid_gen_context *context, struct xt_typeid_gen_node *src, const struct xt_type *dep)
 {
-  assert (xt_is_non_hash (dep));
+  assert (xt_typeid_gen_is_non_hash (context, dep));
   /* Plain collections and fully descriptive types have TypeIdentifiers without
      generated TypeObjects, so they are not SCC nodes. Collection dependencies
      are forwarded to their hash-identified element/key types; this can turn,
@@ -5058,7 +5112,13 @@ static dds_return_t xt_typeid_gen_node_add_deps (struct xt_typeid_gen_context *c
       if ((ret = xt_typeid_gen_add_dep (context, node, &node->type->_u.map.key_type->xt)) == DDS_RETCODE_OK)
         ret = xt_typeid_gen_add_dep (context, node, &node->type->_u.map.c.element_type->xt);
       break;
+    case DDS_XTypes_TK_ENUM:
+    case DDS_XTypes_TK_BITMASK:
+    case DDS_XTypes_TK_BITSET:
+      break;
     default:
+      if (context->reuse_minimal_ids)
+        ret = DDS_RETCODE_UNSUPPORTED;
       break;
   }
   return ret;
@@ -5066,9 +5126,11 @@ static dds_return_t xt_typeid_gen_node_add_deps (struct xt_typeid_gen_context *c
 
 static dds_return_t xt_typeid_gen_add_dep (struct xt_typeid_gen_context *context, struct xt_typeid_gen_node *src, const struct xt_type *dep)
 {
-  if (ddsi_xt_missing_definition (dep))
+  if (context->reuse_minimal_ids && xt_has_minimal_id (dep))
     return DDS_RETCODE_OK;
-  if (xt_is_non_hash (dep))
+  if (ddsi_xt_missing_definition (dep))
+    return context->reuse_minimal_ids ? DDS_RETCODE_BAD_PARAMETER : DDS_RETCODE_OK;
+  if (xt_typeid_gen_is_non_hash (context, dep))
     return xt_typeid_gen_add_dep_non_hash (context, src, dep);
 
   struct xt_typeid_gen_node *dep_node;
@@ -5189,22 +5251,17 @@ static dds_return_t xt_typeid_gen_schedule_sccs (struct xt_typeid_gen_context *c
   return ret;
 }
 
-static dds_return_t xt_typeid_gen_context_init (struct xt_typeid_gen_context *context, const struct xt_type *root, ddsi_typeid_kind_t kind)
+static dds_return_t xt_typeid_gen_context_init (struct xt_typeid_gen_context *context, const struct xt_type *root, ddsi_typeid_kind_t kind, bool reuse_minimal_ids)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   memset (context, 0, sizeof (*context));
   context->kind = kind == DDSI_TYPEID_KIND_MINIMAL || kind == DDSI_TYPEID_KIND_PLAIN_COLLECTION_MINIMAL
     ? DDSI_TYPEID_KIND_MINIMAL : DDSI_TYPEID_KIND_COMPLETE;
+  context->reuse_minimal_ids = reuse_minimal_ids;
   if ((context->nodes = ddsrt_hh_new (1, xt_typeid_gen_node_hash, xt_typeid_gen_node_equal)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
 
-  if (ddsi_xt_has_definition (root))
-  {
-    if (xt_is_non_hash (root))
-      ret = xt_typeid_gen_add_dep_non_hash (context, NULL, root);
-    else
-      ret = xt_typeid_gen_add_dep (context, NULL, root);
-  }
+  ret = xt_typeid_gen_add_dep (context, NULL, root);
   /* Find SCCs after all reachable hash TypeObjects have been added. Recursive
      SCCs are the points where XTypes requires SCC TypeIdentifiers instead of
      ordinary hash identifiers. */
@@ -5562,37 +5619,31 @@ dds_return_t ddsi_typeobj_scc_verify_strongly_connected (
   return DDS_RETCODE_OK;
 }
 
-static void xt_typeid_gen_hash_scc_typeobjects (DDS_XTypes_EquivalenceHash hash, const struct DDS_XTypes_TypeObject *type_objects, uint32_t n_type_objects)
+static dds_return_t xt_typeid_gen_finalize_node (struct xt_typeid_gen_context *context, struct xt_typeid_gen_node *node)
 {
-  if (ddsi_typeobj_get_scc_hash (hash, type_objects, n_type_objects) != DDS_RETCODE_OK)
-    abort ();
-}
-
-static void xt_typeid_gen_finalize_node (struct xt_typeid_gen_context *context, struct xt_typeid_gen_node *node)
-{
-  if (node->type_id_valid)
-    return;
+  assert (!node->type_id_valid);
 
   struct DDS_XTypes_TypeObject type_object;
   xt_typeid_gen_emit_typeobject (context, node->type, &type_object, context->kind);
-  ddsi_typeobj_get_hash_id_impl (&type_object, &node->type_id);
+  const dds_return_t ret = ddsi_typeobj_get_hash_id_impl1 (&type_object, &node->type_id);
   ddsi_typeobj_fini_impl (&type_object);
-  node->type_id_valid = true;
+  node->type_id_valid = ret == DDS_RETCODE_OK;
+  return ret;
 }
 
-static void xt_typeid_gen_finalize_recursive_scc (struct xt_typeid_gen_context *context, struct xt_typeid_gen_scc *scc)
+static dds_return_t xt_typeid_gen_finalize_recursive_scc (struct xt_typeid_gen_context *context, struct xt_typeid_gen_scc *scc)
 {
   assert (scc->recursive);
   assert (scc->n_nodes <= INT32_MAX);
-  if (xt_typeid_gen_finalize_runtime_scc (context, scc))
-    return;
+  if (!context->reuse_minimal_ids && xt_typeid_gen_finalize_runtime_scc (context, scc))
+    return DDS_RETCODE_OK;
   qsort (scc->nodes, scc->n_nodes, sizeof (*scc->nodes), xt_typeid_gen_node_name_cmp);
 
   const int32_t scc_length = (int32_t) scc->n_nodes;
   const DDS_XTypes_EquivalenceKind equiv_kind = xt_typeid_gen_equiv_kind (context->kind);
-  struct DDS_XTypes_TypeObject *type_objects = ddsrt_calloc (scc->n_nodes, sizeof (*type_objects));
+  struct DDS_XTypes_TypeObject *type_objects = ddsrt_calloc_s (scc->n_nodes, sizeof (*type_objects));
   if (type_objects == NULL)
-    abort ();
+    return DDS_RETCODE_OUT_OF_RESOURCES;
 
   /* SCC identifiers include the hash of the ordered TypeObject list, but those
      TypeObjects themselves contain SCC references for edges within the same
@@ -5604,25 +5655,29 @@ static void xt_typeid_gen_finalize_recursive_scc (struct xt_typeid_gen_context *
     xt_typeid_gen_emit_typeobject (context, scc->nodes[n]->type, &type_objects[n], context->kind);
 
   DDS_XTypes_EquivalenceHash hash;
-  xt_typeid_gen_hash_scc_typeobjects (hash, type_objects, scc->n_nodes);
-  for (int32_t n = 0; n < scc_length; n++)
-    xt_typeid_gen_set_scc_id (scc->nodes[n], equiv_kind, scc_length, n + 1, &hash);
+  const dds_return_t ret = ddsi_typeobj_get_scc_hash (hash, type_objects, scc->n_nodes);
+  if (ret == DDS_RETCODE_OK)
+    for (int32_t n = 0; n < scc_length; n++)
+      xt_typeid_gen_set_scc_id (scc->nodes[n], equiv_kind, scc_length, n + 1, &hash);
 
   for (uint32_t n = 0; n < scc->n_nodes; n++)
     ddsi_typeobj_fini_impl (&type_objects[n]);
   ddsrt_free (type_objects);
+  return ret;
 }
 
-static void xt_typeid_gen_finalize_sccs (struct xt_typeid_gen_context *context)
+static dds_return_t xt_typeid_gen_finalize_sccs (struct xt_typeid_gen_context *context)
 {
-  for (uint32_t n = 0; n < context->n_scc_work; n++)
+  dds_return_t ret = DDS_RETCODE_OK;
+  for (uint32_t n = 0; ret == DDS_RETCODE_OK && n < context->n_scc_work; n++)
   {
     struct xt_typeid_gen_scc *scc = context->scc_work[n];
     if (scc->recursive)
-      xt_typeid_gen_finalize_recursive_scc (context, scc);
+      ret = xt_typeid_gen_finalize_recursive_scc (context, scc);
     else
-      xt_typeid_gen_finalize_node (context, scc->nodes[0]);
+      ret = xt_typeid_gen_finalize_node (context, scc->nodes[0]);
   }
+  return ret;
 }
 
 static void get_plain_collection_element_id (struct xt_typeid_gen_context *context, const struct xt_type *xt_el, struct DDS_XTypes_TypeIdentifier *ti, DDS_XTypes_EquivalenceKind *equiv_kind, ddsi_typeid_kind_t kind)
@@ -5648,7 +5703,7 @@ static DDS_XTypes_EquivalenceKind map_plain_collection_equiv_kind (DDS_XTypes_Eq
 ddsrt_nonnull_all
 static void ddsi_xt_get_non_hash_id (struct xt_typeid_gen_context *context, const struct xt_type *xt, struct DDS_XTypes_TypeIdentifier *ti, ddsi_typeid_kind_t kind)
 {
-  assert (xt_is_non_hash (xt));
+  assert (xt_typeid_gen_is_non_hash (context, xt));
 
   memset (ti, 0, sizeof (*ti));
   if (xt->_d <= DDS_XTypes_TK_CHAR16)
@@ -5759,7 +5814,9 @@ static void ddsi_xt_get_non_hash_id (struct xt_typeid_gen_context *context, cons
 ddsrt_nonnull_all
 static void xt_typeid_gen_emit_typeid (struct xt_typeid_gen_context *context, const struct xt_type *xt, struct DDS_XTypes_TypeIdentifier *ti, ddsi_typeid_kind_t kind)
 {
-  if (xt_is_non_hash (xt))
+  if (context->reuse_minimal_ids && xt_has_minimal_id (xt))
+    ddsi_typeid_copy_to_impl (ti, &xt->id);
+  else if (xt_typeid_gen_is_non_hash (context, xt))
   {
     /* Get the non hash type ID: plain collection or fully descriptive */
     ddsi_xt_get_non_hash_id (context, xt, ti, kind);
@@ -5789,12 +5846,37 @@ static void xt_typeid_gen_emit_typeid (struct xt_typeid_gen_context *context, co
   }
 }
 
+/* Borrow stored minimal identities (including their SCC slot), or derive
+   them once for all hash-identified types in this graph. Only a generated
+   plain or fully descriptive identifier uses the caller's scratch space. */
+static const struct DDS_XTypes_TypeIdentifier *xt_assignability_minimal_id (struct xt_assignability_ids *ids, const struct xt_type *xt, struct DDS_XTypes_TypeIdentifier *scratch)
+{
+  if (xt_has_minimal_id (xt))
+    return &xt->id.x;
+  if (ids->root != NULL)
+  {
+    ids->available = xt_typeid_gen_context_init (&ids->gen, ids->root, DDSI_TYPEID_KIND_MINIMAL, true) == DDS_RETCODE_OK &&
+      xt_typeid_gen_finalize_sccs (&ids->gen) == DDS_RETCODE_OK;
+    ids->root = NULL;
+  }
+  if (!ids->available)
+    return NULL;
+  if (xt_typeid_gen_is_non_hash (&ids->gen, xt))
+  {
+    ddsi_xt_get_non_hash_id (&ids->gen, xt, scratch, DDSI_TYPEID_KIND_MINIMAL);
+    return scratch;
+  }
+  const struct xt_typeid_gen_node *node = xt_typeid_gen_node_lookup (&ids->gen, xt);
+  return node && node->type_id_valid ? &node->type_id : NULL;
+}
+
 ddsrt_nonnull_all
 void ddsi_xt_get_typeid_impl (const struct xt_type *xt, struct DDS_XTypes_TypeIdentifier *ti, ddsi_typeid_kind_t kind)
 {
   struct xt_typeid_gen_context context;
-  if (xt_typeid_gen_context_init (&context, xt, kind) == DDS_RETCODE_OK)
-    xt_typeid_gen_finalize_sccs (&context);
+  if (xt_typeid_gen_context_init (&context, xt, kind, false) == DDS_RETCODE_OK &&
+      xt_typeid_gen_finalize_sccs (&context) != DDS_RETCODE_OK)
+    abort ();
   xt_typeid_gen_emit_typeid (&context, xt, ti, kind);
   xt_typeid_gen_context_fini (&context);
 }
@@ -5803,7 +5885,7 @@ ddsrt_nonnull_all
 static void xt_typeid_gen_emit_typeobject (struct xt_typeid_gen_context *context, const struct xt_type *xt, struct DDS_XTypes_TypeObject *to, ddsi_typeid_kind_t kind)
 {
   assert (ddsi_xt_has_definition (xt));
-  assert (!xt_is_non_hash (xt));
+  assert (!xt_typeid_gen_is_non_hash (context, xt));
 
   memset (to, 0, sizeof (*to));
   if (kind == DDSI_TYPEID_KIND_MINIMAL)
@@ -5816,6 +5898,7 @@ static void xt_typeid_gen_emit_typeobject (struct xt_typeid_gen_context *context
       case DDS_XTypes_TK_ALIAS:
       {
         struct DDS_XTypes_MinimalAliasType *malias = &mto->_u.alias_type;
+        malias->alias_flags = xt->_u.alias.flags;
         xt_typeid_gen_emit_typeid (context, &xt->_u.alias.related_type->xt, &malias->body.common.related_type, DDSI_TYPEID_KIND_MINIMAL);
         malias->body.common.related_flags = xt->_u.alias.related_flags;
         break;
@@ -5873,6 +5956,7 @@ static void xt_typeid_gen_emit_typeobject (struct xt_typeid_gen_context *context
       case DDS_XTypes_TK_BITSET:
       {
         struct DDS_XTypes_MinimalBitsetType *mbitset = &mto->_u.bitset_type;
+        mbitset->bitset_flags = xt->_u.bitset.flags;
         mbitset->field_seq._length = mbitset->field_seq._maximum = xt->_u.bitset.fields.length;
         mbitset->field_seq._buffer = ddsrt_malloc (xt->_u.bitset.fields.length * sizeof (*mbitset->field_seq._buffer));
         mbitset->field_seq._release = true;
@@ -5894,11 +5978,13 @@ static void xt_typeid_gen_emit_typeobject (struct xt_typeid_gen_context *context
         break;
       case DDS_XTypes_TK_ARRAY:
         xt_typeid_gen_emit_typeid (context, &xt->_u.array.c.element_type->xt, &mto->_u.array_type.element.common.type, DDSI_TYPEID_KIND_MINIMAL);
+        mto->_u.array_type.collection_flag = xt->_u.array.c.flags;
         mto->_u.array_type.element.common.element_flags = xt->_u.array.c.element_flags;
         xt_lbounds_dup (&mto->_u.array_type.header.common.bound_seq, &xt->_u.array.bounds);
         break;
       case DDS_XTypes_TK_MAP:
         xt_typeid_gen_emit_typeid (context, &xt->_u.map.c.element_type->xt, &mto->_u.map_type.element.common.type, DDSI_TYPEID_KIND_MINIMAL);
+        mto->_u.map_type.collection_flag = xt->_u.map.c.flags;
         mto->_u.map_type.element.common.element_flags = xt->_u.map.c.element_flags;
         xt_typeid_gen_emit_typeid (context, &xt->_u.map.key_type->xt, &mto->_u.map_type.key.common.type, DDSI_TYPEID_KIND_MINIMAL);
         mto->_u.map_type.key.common.element_flags = xt->_u.map.key_flags;
@@ -6111,8 +6197,9 @@ ddsrt_nonnull_all
 void ddsi_xt_get_typeobject_kind_impl (const struct xt_type *xt, struct DDS_XTypes_TypeObject *to, ddsi_typeid_kind_t kind)
 {
   struct xt_typeid_gen_context context;
-  if (xt_typeid_gen_context_init (&context, xt, kind) == DDS_RETCODE_OK)
-    xt_typeid_gen_finalize_sccs (&context);
+  if (xt_typeid_gen_context_init (&context, xt, kind, false) == DDS_RETCODE_OK &&
+      xt_typeid_gen_finalize_sccs (&context) != DDS_RETCODE_OK)
+    abort ();
   xt_typeid_gen_emit_typeobject (&context, xt, to, kind);
   xt_typeid_gen_context_fini (&context);
 }
