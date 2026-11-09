@@ -206,7 +206,7 @@ struct xt_assignability_ids {
 };
 
 struct xt_assignability_context {
-  struct ddsrt_hh *type_pairs;
+  struct ddsrt_ehh *visited;
   struct xt_assignability_ids rd_ids, wr_ids;
   const struct xt_nonassign_path *path;
   struct ddsi_non_assignability_reason *reason;
@@ -3701,52 +3701,6 @@ static bool xt_assignability_node_equal (const void *vnode_a, const void *vnode_
   return a->rd_type == b->rd_type && a->wr_type == b->wr_type && a->view == b->view;
 }
 
-static void xt_assignability_node_free (void *vnode, void *arg)
-{
-  (void) arg;
-  ddsrt_free (vnode);
-}
-
-static dds_return_t xt_assignability_context_init (struct xt_assignability_context *context, struct ddsi_non_assignability_reason *reason, uint32_t reason_flags)
-{
-  context->path = NULL;
-  context->reason = reason;
-  context->collect_reason_detail = (reason_flags & DDSI_NONASSIGN_REASON_DETAIL_PATH) != 0;
-  if ((context->type_pairs = ddsrt_hh_new (1, xt_assignability_node_hash, xt_assignability_node_equal)) == NULL)
-    return DDS_RETCODE_OUT_OF_RESOURCES;
-  return DDS_RETCODE_OK;
-}
-
-static void xt_assignability_context_fini (struct xt_assignability_context *context)
-{
-  ddsrt_hh_enum (context->type_pairs, xt_assignability_node_free, NULL);
-  ddsrt_hh_free (context->type_pairs);
-  xt_typeid_gen_context_fini (&context->rd_ids.gen);
-  xt_typeid_gen_context_fini (&context->wr_ids.gen);
-}
-
-static bool xt_assignability_seen (struct xt_assignability_context *context, const struct xt_assignability_node *key)
-{
-  return ddsrt_hh_lookup (context->type_pairs, key) != NULL;
-}
-
-static dds_return_t xt_assignability_enter (struct xt_assignability_context *context, const struct xt_assignability_node *key, struct xt_assignability_node **node)
-{
-  assert (!xt_assignability_seen (context, key));
-
-  if ((*node = ddsrt_calloc (1, sizeof (**node))) == NULL)
-    return DDS_RETCODE_OUT_OF_RESOURCES;
-  **node = *key;
-  ddsrt_hh_add_absent (context->type_pairs, *node);
-  return DDS_RETCODE_OK;
-}
-
-static void xt_assignability_leave (struct xt_assignability_context *context, struct xt_assignability_node *node)
-{
-  ddsrt_hh_remove_present (context->type_pairs, node);
-  ddsrt_free (node);
-}
-
 ddsrt_nonnull_all
 static bool xt_is_assignable_from_view (struct ddsi_domaingv *gv, struct xt_assignability_context *context, const struct xt_type *rd_xt, const struct xt_type *wr_xt, const dds_type_consistency_enforcement_qospolicy_t *tce, enum xt_assignability_view view);
 
@@ -4671,10 +4625,14 @@ static bool xt_is_assignable_from_view (struct ddsi_domaingv *gv, struct xt_assi
     view = XT_ASSIGN_ORDINARY;
 
   /* Projection changes only the aggregate itself. Its member types still
-     point into the original graph, so the pair and view identify the check. */
+     point into the original graph, so the pair and view identify the check.
+     Every failed obligation returns to the caller immediately. */
   const struct xt_assignability_node key = { .rd_type = t1, .wr_type = t2, .view = view };
-  if (xt_assignability_seen (context, &key) || xt_is_equivalent_minimal (context, t1, t2))
+  if (!ddsrt_ehh_add (context->visited, &key) || xt_is_equivalent_minimal (context, t1, t2))
     return true;
+
+  if (view == XT_ASSIGN_ORDINARY)
+    return xt_is_assignable_from_impl_body (gv, context, t1, t2, tce);
 
   /* With a key discriminator, KeyHolder removes every case. Only the
      union flags and discriminator remain in the minimal definition. */
@@ -4684,25 +4642,14 @@ static bool xt_is_assignable_from_view (struct ddsi_domaingv *gv, struct xt_assi
       xt_is_equivalent_minimal (context, &t1->_u.union_type.disc_type->xt, &t2->_u.union_type.disc_type->xt))
     return true;
 
-  struct xt_assignability_node *node;
-  if (xt_assignability_enter (context, &key, &node) != DDS_RETCODE_OK)
-    return xt_non_assignable (context, DDSI_NONASSIGN_UNKNOWN, t1, t2, 0);
-
-  bool assignable;
-  if (view == XT_ASSIGN_ORDINARY)
-    assignable = xt_is_assignable_from_impl_body (gv, context, t1, t2, tce);
-  else
-  {
-    struct xt_type * (*project) (struct ddsi_domaingv *, const struct xt_type *) =
-      view == XT_ASSIGN_KEY_ERASED ? xt_type_key_erased : xt_type_keyholder;
-    struct xt_type *p1 = project (gv, t1), *p2 = project (gv, t2);
-    assignable = xt_is_assignable_from_impl_body (gv, context, p1, p2, tce);
-    ddsi_xt_type_fini (gv, p1, true);
-    ddsrt_free (p1);
-    ddsi_xt_type_fini (gv, p2, true);
-    ddsrt_free (p2);
-  }
-  xt_assignability_leave (context, node);
+  struct xt_type * (*project) (struct ddsi_domaingv *, const struct xt_type *) =
+    view == XT_ASSIGN_KEY_ERASED ? xt_type_key_erased : xt_type_keyholder;
+  struct xt_type *p1 = project (gv, t1), *p2 = project (gv, t2);
+  const bool assignable = xt_is_assignable_from_impl_body (gv, context, p1, p2, tce);
+  ddsi_xt_type_fini (gv, p1, true);
+  ddsrt_free (p1);
+  ddsi_xt_type_fini (gv, p2, true);
+  ddsrt_free (p2);
   return assignable;
 }
 
@@ -4862,12 +4809,14 @@ bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type 
   reason->path[0] = 0;
   reason->detail[0] = 0;
   struct xt_assignability_context context = {
-    .rd_ids.root = ddsi_xt_unalias (rd_xt), .wr_ids.root = ddsi_xt_unalias (wr_xt)
+    .visited = ddsrt_ehh_new (sizeof (struct xt_assignability_node), 1, xt_assignability_node_hash, xt_assignability_node_equal),
+    .rd_ids.root = ddsi_xt_unalias (rd_xt), .wr_ids.root = ddsi_xt_unalias (wr_xt),
+    .reason = reason, .collect_reason_detail = (reason_flags & DDSI_NONASSIGN_REASON_DETAIL_PATH) != 0
   };
-  if (xt_assignability_context_init (&context, reason, reason_flags) != DDS_RETCODE_OK)
-    return xt_non_assignable_reason (NULL, reason, DDSI_NONASSIGN_UNKNOWN, rd_xt, wr_xt, 0);
   const bool assignable = xt_is_assignable_from_impl (gv, &context, rd_xt, wr_xt, tce);
-  xt_assignability_context_fini (&context);
+  ddsrt_ehh_free (context.visited);
+  xt_typeid_gen_context_fini (&context.rd_ids.gen);
+  xt_typeid_gen_context_fini (&context.wr_ids.gen);
   if (assignable)
     return true;
   if (reason->code == DDSI_NONASSIGN_ASSIGNABLE)

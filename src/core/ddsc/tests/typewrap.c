@@ -16,6 +16,7 @@
 #include "dds/dds.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsrt/threads.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__dynamic_type.h"
 #include "ddsi__typelib.h"
@@ -643,6 +644,96 @@ CU_Theory ((bool recursive, bool equivalent, bool minimal_reader, bool minimal_w
     }
     CU_ASSERT (ddsi_xt_is_assignable_from (gv, &keyed[0].xt, &keyed[1].xt, &tce, &reason, 0));
   }
+}
+
+static ddsrt_thread_local size_t assignability_callocs;
+
+static void *count_assignability_calloc (size_t count, size_t size)
+{
+  assignability_callocs++;
+  return calloc (count, size);
+}
+
+static void counting_typewrap_init (void)
+{
+  ddsrt_set_allocator ((ddsrt_allocation_ops_t) { .calloc = count_assignability_calloc });
+  typewrap_init ();
+}
+
+static void counting_typewrap_fini (void)
+{
+  typewrap_fini ();
+  restore_allocator ();
+}
+
+static void refresh_minimal_struct_id (struct ddsi_type *type)
+{
+  struct DDS_XTypes_TypeIdentifier id = {0};
+  ddsi_xt_get_typeid_impl (&type->xt, &id, DDSI_TYPEID_KIND_MINIMAL);
+  CU_ASSERT_EQ_FATAL (id._d, DDS_XTypes_EK_MINIMAL);
+  type->xt.kind = DDSI_TYPEID_KIND_MINIMAL;
+  type->xt.id.x = id;
+}
+
+CU_Test (ddsc_typewrap, shared_key_member_assignability, .init = counting_typewrap_init, .fini = counting_typewrap_fini)
+{
+  struct ddsi_domaingv *gv = get_domaingv (participant);
+  struct ddsi_type strings[2], nested[2], second[2], outer[2];
+  struct xt_struct_member key[2], fields[2][2];
+  for (uint8_t i = 0; i < 2; i++)
+  {
+    /* Compatible, distinct bounds keep both aggregates from taking the
+       minimal-equivalence shortcut before their members are compared. */
+    const uint8_t bound = i == 0 ? 8 : 4;
+    strings[i] = (struct ddsi_type) { .refc = 1, .xt = { .kind = DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE,
+      ._d = DDS_XTypes_TK_STRING8, .id.x = { ._d = DDS_XTypes_TI_STRING8_SMALL, ._u.string_sdefn.bound = bound },
+      ._u.str8.bound = bound } };
+    key[i] = (struct xt_struct_member) { .id = 1, .flags = DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_IS_KEY, .type = &strings[i] };
+    init_assignability_struct (&nested[i], (uint8_t) (1 + i), DDS_XTypes_IS_MUTABLE, 1, &key[i]);
+    refresh_minimal_struct_id (&nested[i]);
+    second[i] = nested[i];
+    for (uint8_t j = 0; j < 2; j++)
+      fields[i][j] = (struct xt_struct_member) { .id = j, .flags = DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_IS_KEY, .type = &nested[i] };
+    init_assignability_struct (&outer[i], (uint8_t) (5 + i), DDS_XTypes_IS_MUTABLE, 2, fields[i]);
+    refresh_minimal_struct_id (&outer[i]);
+  }
+  const dds_type_consistency_enforcement_qospolicy_t tce = {
+    .kind = DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION, .ignore_string_bounds = true, .ignore_member_names = true
+  };
+  struct ddsi_non_assignability_reason reason;
+  /* All minimal IDs are stored. Replacing the second field's type with an
+     identical copy changes only whether its type pair was visited before. */
+  assignability_callocs = 0;
+  const bool shared = ddsi_xt_is_assignable_from (gv, &outer[0].xt, &outer[1].xt, &tce, &reason, 0);
+  const size_t n_shared = assignability_callocs;
+  fields[0][1].type = &second[0];
+  fields[1][1].type = &second[1];
+  assignability_callocs = 0;
+  const bool separate = ddsi_xt_is_assignable_from (gv, &outer[0].xt, &outer[1].xt, &tce, &reason, 0);
+  const size_t n_separate = assignability_callocs;
+  CU_ASSERT (shared && separate);
+  CU_ASSERT_LT (n_shared, n_separate);
+
+  /* The same nested pair passes KeyErased with bounds ignored. KeyHolder
+     must still enforce the bound on its string key. */
+  strings[1].xt.id.x._u.string_sdefn.bound = 16;
+  strings[1].xt._u.str8.bound = 16;
+  refresh_minimal_struct_id (&nested[1]);
+  second[1] = nested[1];
+  for (uint8_t i = 0; i < 2; i++)
+  {
+    outer[i].xt._u.structure.members.length = 1;
+    fields[i][0].flags = DDS_XTypes_TRY_CONSTRUCT1;
+    refresh_minimal_struct_id (&outer[i]);
+  }
+  CU_ASSERT (ddsi_xt_is_assignable_from (gv, &outer[0].xt, &outer[1].xt, &tce, &reason, 0));
+  for (uint8_t i = 0; i < 2; i++)
+  {
+    fields[i][0].flags = DDS_XTypes_TRY_CONSTRUCT1 | DDS_XTypes_IS_KEY;
+    refresh_minimal_struct_id (&outer[i]);
+  }
+  CU_ASSERT (!ddsi_xt_is_assignable_from (gv, &outer[0].xt, &outer[1].xt, &tce, &reason, 0));
+  CU_ASSERT_EQ (reason.code, DDSI_NONASSIGN_KEY_INCOMPATIBLE);
 }
 
 CU_Test (ddsc_typewrap, typeobject_fini_walks_mutated_owned_sequences)
