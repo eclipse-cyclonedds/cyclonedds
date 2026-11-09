@@ -259,6 +259,7 @@ set_remote_participant_crypto_tokens(
 
   tdata = &tokens->_buffer[0].binary_properties._buffer[0].value;
 
+  memset (&remote_key_mat, 0, sizeof (remote_key_mat));
   deserializer = DDS_Security_Deserializer_new(tdata->_buffer, tdata->_length);
   if (!deserializer)
   {
@@ -282,8 +283,9 @@ set_remote_participant_crypto_tokens(
   {
     factory = cryptography_get_crypto_key_factory(impl->crypto);
     result = crypto_factory_set_participant_crypto_tokens(factory, local_id, remote_id, &remote_key_mat, ex);
-    DDS_Security_KeyMaterial_AES_GCM_GMAC_deinit(&remote_key_mat);
   }
+
+  DDS_Security_KeyMaterial_AES_GCM_GMAC_deinit(&remote_key_mat);
 
   DDS_Security_Deserializer_free(deserializer);
 
@@ -378,6 +380,8 @@ set_remote_datawriter_crypto_tokens(
     return false;
   }
 
+  /* all entries are deinitialized at the end, including those not reached if an earlier token is rejected */
+  memset (remote_key_mat, 0, sizeof (remote_key_mat));
   for (i = 0; result && (i < tokens->_length); i++)
   {
     const DDS_Security_OctetSeq *tdata = &tokens->_buffer[i].binary_properties._buffer[0].value;
@@ -504,6 +508,7 @@ set_remote_datareader_crypto_tokens(
 
   tdata = &tokens->_buffer[0].binary_properties._buffer[0].value;
 
+  memset (&remote_key_mat, 0, sizeof (remote_key_mat));
   deserializer = DDS_Security_Deserializer_new(tdata->_buffer, tdata->_length);
   if (!deserializer)
   {
