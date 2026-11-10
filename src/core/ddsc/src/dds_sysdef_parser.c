@@ -3371,12 +3371,26 @@ static int proc_type_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), con
     case PARSE_TYPE_SCOPE_TYPE_INFO:
       pstate->current->type_info_cdr_sz = strlen (value) / 2;
       pstate->current->type_info_cdr = ddsrt_malloc (pstate->current->type_info_cdr_sz);
-      dds_sysdef_parse_hex (value, pstate->current->type_info_cdr);
+      if (dds_sysdef_parse_hex (value, pstate->current->type_info_cdr) != SD_PARSE_RESULT_OK)
+      {
+        PARSER_ERROR (pstate, line, "Invalid type_info hex");
+        ddsrt_free (pstate->current->type_info_cdr);
+        pstate->current->type_info_cdr = NULL;
+        pstate->current->type_info_cdr_sz = 0;
+        ret = SD_PARSE_RESULT_ERR;
+      }
       break;
     case PARSE_TYPE_SCOPE_TYPE_MAP:
       pstate->current->type_map_cdr_sz = strlen (value) / 2;
       pstate->current->type_map_cdr = ddsrt_malloc (pstate->current->type_map_cdr_sz);
-      dds_sysdef_parse_hex (value, pstate->current->type_map_cdr);
+      if (dds_sysdef_parse_hex (value, pstate->current->type_map_cdr) != SD_PARSE_RESULT_OK)
+      {
+        PARSER_ERROR (pstate, line, "Invalid type_map hex");
+        ddsrt_free (pstate->current->type_map_cdr);
+        pstate->current->type_map_cdr = NULL;
+        pstate->current->type_map_cdr_sz = 0;
+        ret = SD_PARSE_RESULT_ERR;
+      }
       break;
     default:
       PARSER_ERROR (pstate, line, "Unexpected data");
