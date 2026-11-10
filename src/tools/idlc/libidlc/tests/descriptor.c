@@ -49,6 +49,15 @@ CU_Test(idlc_descriptor, keys_nested)
     { "@nested struct inner { char i1; @key char i2; }; struct outer { @key @id(3) inner o1; @key @id(2) short o2; }; ",
       2, 5, false, { { 2 }, { 3, 1 } }, { "o2", "o1.i2" }, { 1, 0 } },
 
+    // Visit inner through a non-key member before reusing it as a key.
+    { "@nested struct inner { @key @id(7) sequence<long> s; @key @id(3) long a[2]; }; "
+      "struct outer { inner plain; @key inner k; };",
+      2, 6, false, { { 1, 3 }, { 1, 7 } }, { "k.a", "k.s" }, { 1, 0 } },
+    { "typedef sequence<long> seq; typedef long arr[2]; "
+      "@nested struct inner { @id(7) seq s; @id(3) arr a; }; "
+      "struct outer { inner plain; @key inner k; };",
+      2, 6, false, { { 1, 3 }, { 1, 7 } }, { "k.a", "k.s" }, { 1, 0 } },
+
     { "struct test { long a; short b; }; \n#pragma keylist test a",
       1, 2, true, { { 0 } }, { "a" }, { 0 } },
     { "struct test { long a; short b; }; \n#pragma keylist test a b",
