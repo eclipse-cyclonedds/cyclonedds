@@ -1770,7 +1770,7 @@ emit_sequence(
   } else {
     uint32_t off;
     uint32_t opcode = DDS_OP_ADR;
-    uint32_t order;
+    uint32_t order = 0;
     struct field *field = NULL;
 
     opcode |= idl_is_bounded(node) ? DDS_OP_TYPE_BSQ : DDS_OP_TYPE_SEQ;
@@ -1791,6 +1791,8 @@ emit_sequence(
 
     if (idl_is_struct(stype->node)) {
       field = stype->fields;
+      /* The same struct may also be reached through a non-key member. */
+      order = ((const idl_declarator_t *)field->node)->id.value;
 
       /* Determine if the member is external: use field->node and not the parent of the current node,
          because the latter could be a typedef in case of an aliased type */
@@ -1956,7 +1958,7 @@ emit_array(
   } else {
     uint32_t off;
     uint32_t opcode = DDS_OP_ADR | DDS_OP_TYPE_ARR;
-    uint32_t order;
+    uint32_t order = 0;
     idl_try_construct_t tc = IDL_DISCARD;
     struct field *field = NULL;
 
@@ -1984,6 +1986,7 @@ emit_array(
     if (idl_is_struct(stype->node)) {
       idl_node_t *parent = idl_parent(node);
       assert(idl_is_member(parent));
+      order = ((const idl_declarator_t *)node)->id.value;
 
       if (idl_is_external(parent))
         opcode |= DDS_OP_FLAG_EXT;

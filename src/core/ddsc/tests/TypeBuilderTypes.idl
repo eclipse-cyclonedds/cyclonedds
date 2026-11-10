@@ -931,4 +931,19 @@ module TypeBuilderTypes {
   struct t73 {
     @key t73_u u;
   };
+
+  /* First visit the nested type through a non-key field. Both collections
+     must still sort after the scalar when the same type is used as a key. */
+  @nested @final
+  struct t74_s {
+    @key @id(7) sequence<long> s;
+    @key @id(3) long v;
+    @key @id(5) long a[2];
+  };
+
+  @final
+  struct t74 {
+    t74_s plain;
+    @key t74_s k;
+  };
 };
