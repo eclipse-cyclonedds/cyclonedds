@@ -219,7 +219,7 @@ static dds_return_t dds_readcdr_impl (enum dds_read_impl_common_oper oper, dds_e
   return ret;
 }
 
-static dds_return_t return_reader_loan_locked (dds_reader *rd, void **buf, int32_t bufsz)
+static dds_return_t return_reader_loan_locked (dds_reader *rd, void **buf, size_t bufsz)
   ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 static dds_return_t dds_read_impl (enum dds_read_impl_common_oper oper, dds_entity_t reader_or_condition, void **buf, size_t bufsz, uint32_t maxs, dds_sample_info_t *si, uint32_t mask, dds_instance_handle_t hand, bool only_reader)
@@ -250,7 +250,7 @@ static dds_return_t dds_read_impl (enum dds_read_impl_common_oper oper, dds_enti
   // - A loan followed by a non-loan: these we can detect and report an error, after which
   //   memory leaks become quite likely.  At least we *did* report API abuse as soon as
   //   detected it ...
-  if (buf[0] != NULL && (ret = return_reader_loan_locked (rd, buf, (int32_t) bufsz)) < 0)
+  if (buf[0] != NULL && (ret = return_reader_loan_locked (rd, buf, bufsz)) < 0)
     goto err_return_reader_loan_locked;
 
   struct dds_read_collect_sample_arg collect_arg;
@@ -530,13 +530,13 @@ static void return_reader_loan_locked_onesample (dds_reader *rd, dds_loaned_samp
   }
 }
 
-static dds_return_t return_reader_loan_locked_loop (dds_reader *rd, void **buf, int32_t first, int32_t bufsz, bool reset)
+static dds_return_t return_reader_loan_locked_loop (dds_reader *rd, void **buf, size_t bufsz, bool reset)
   ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
-static dds_return_t return_reader_loan_locked_loop (dds_reader *rd, void **buf, int32_t first, int32_t bufsz, bool reset)
+static dds_return_t return_reader_loan_locked_loop (dds_reader *rd, void **buf, size_t bufsz, bool reset)
 {
   dds_return_t rc = DDS_RETCODE_OK;
-  for (int32_t s = first; s < bufsz && buf[s] != NULL; s++)
+  for (size_t s = 1; s < bufsz && buf[s] != NULL; s++)
   {
     dds_loaned_sample_t *loan;
     if ((loan = dds_loan_pool_find_and_remove_loan (rd->m_loans, buf[s])) == NULL)
@@ -554,7 +554,7 @@ static dds_return_t return_reader_loan_locked_loop (dds_reader *rd, void **buf, 
   return rc;
 }
 
-static dds_return_t return_reader_loan_locked (dds_reader *rd, void **buf, int32_t bufsz)
+static dds_return_t return_reader_loan_locked (dds_reader *rd, void **buf, size_t bufsz)
 {
   dds_loaned_sample_t *loan;
   if ((loan = dds_loan_pool_find_and_remove_loan (rd->m_loans, buf[0])) == NULL)
@@ -566,7 +566,7 @@ static dds_return_t return_reader_loan_locked (dds_reader *rd, void **buf, int32
   {
     buf[0] = NULL;
     return_reader_loan_locked_onesample (rd, loan, false);
-    return return_reader_loan_locked_loop (rd, buf, 1, bufsz, false);
+    return return_reader_loan_locked_loop (rd, buf, bufsz, false);
   }
 }
 
@@ -598,7 +598,7 @@ dds_return_t dds_return_reader_loan (dds_reader *rd, void **buf, int32_t bufsz)
   {
     buf[0] = NULL;
     return_reader_loan_locked_onesample (rd, loan, false);
-    ret = return_reader_loan_locked_loop (rd, buf, 1, bufsz, false);
+    ret = return_reader_loan_locked_loop (rd, buf, (size_t) bufsz, false);
   }
   ddsrt_mutex_unlock (&rd->m_entity.m_mutex);
   return ret;
