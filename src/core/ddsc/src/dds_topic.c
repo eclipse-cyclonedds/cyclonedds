@@ -653,6 +653,11 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
 
   if ((ret = dds_entity_pin (participant, &ppent)) < 0)
     return ret;
+  if (dds_entity_kind (ppent) != DDS_KIND_PARTICIPANT)
+  {
+    dds_entity_unpin (ppent);
+    return DDS_RETCODE_ILLEGAL_OPERATION;
+  }
 
   dds_qos_t *tpqos = dds_create_qos ();
   if (qos)
