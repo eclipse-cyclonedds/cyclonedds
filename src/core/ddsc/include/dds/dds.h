@@ -3866,9 +3866,7 @@ dds_takecdr_instance (
 /**
  * @defgroup instance_handle (Instance Handles)
  * @ingroup dds
- * Instance handle <=> key value mapping.
- * Functions exactly as read w.r.t. treatment of data
- * parameter. On output, only key values set.
+ * Map between instance handles and key values.
  * @code{c}
  * T x = { ... };
  * T y;
@@ -3879,38 +3877,38 @@ dds_takecdr_instance (
 */
 
 /**
- * @brief This operation takes a sample and returns an instance handle to be used for subsequent operations.
+ * @brief Look up an instance handle by key in the entity's domain.
  * @ingroup instance_handle
  * @component data_instance
  *
- * @param[in]  entity Reader or Writer entity.
- * @param[in]  data   Sample with a key fields set.
+ * @param[in] entity Reader or writer that supplies the key type and domain.
+ * @param[in] data Sample with its key fields set.
  *
- * @returns instance handle or DDS_HANDLE_NIL if instance could not be found from key.
+ * @returns The instance handle if found. `DDS_HANDLE_NIL` means that the key
+ *          was unknown, `data` was null, the reader or writer handle was invalid,
+ *          the entity had the wrong kind, or the key could not be serialized.
  */
 DDS_EXPORT dds_instance_handle_t
 dds_lookup_instance(dds_entity_t entity, const void *data);
 
 /**
- * @brief This operation takes an instance handle and return a key-value corresponding to it.
+ * @brief Copy the key of a known instance into a sample.
  * @ingroup instance_handle
  * @component data_instance
  *
- * @param[in]  entity Reader, writer, readcondition or querycondition entity.
- * @param[in]  ih     Instance handle.
- * @param[out] data   pointer to an instance, to which the key ID corresponding to the instance handle will be
- *    returned, the sample in the instance should be ignored.
+ * The instance handle and the output sample must be compatible with the entity's
+ * type. Once the instance is found, the operation zeroes the destination before
+ * converting the key. Release any dynamically allocated contents of a reused
+ * sample before calling. A conversion failure may modify the destination.
  *
- * @returns A dds_return_t indicating success or failure.
+ * @param[in] entity Reader, writer, read condition or query condition.
+ * @param[in] ih Instance handle to look up in the entity's domain.
+ * @param[out] data Storage for a sample of the entity's type.
  *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             One of the parameters was invalid or the topic does not exist.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- *
- * DOC_TODO: Check return codes for completeness
+ * @retval DDS_RETCODE_OK The key was copied into the sample.
+ * @retval DDS_RETCODE_BAD_PARAMETER `data` is null or the domain's key map has no such handle.
+ * @retval DDS_RETCODE_ERROR The key could not be converted to the sample representation.
+ * @see @ref entity_handle_errors for errors looking up the entity.
  */
 DDS_EXPORT dds_return_t
 dds_instance_get_key(

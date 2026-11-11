@@ -20,6 +20,7 @@
 
 #include "dds/dds.h"
 #include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_tkmap.h"
 #include "ddsi__radmin.h"
 #include "dds__entity.h"
 
@@ -906,17 +907,17 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
  *
  *----------------------------------------------------------------*/
 
-static struct ddsi_sertype *make_sertype (const char *typename)
+static struct ddsi_sertype *make_sertype (const char *typename, const struct ddsi_serdata_ops *serdata_ops)
 {
   struct stp *stp = malloc (sizeof (*stp));
   assert(stp);
-  ddsi_sertype_init_flags (&stp->c, typename, &stp_ops, &sd_ops, DDSI_SERTYPE_FLAG_REQUEST_KEYHASH);
+  ddsi_sertype_init_flags (&stp->c, typename, &stp_ops, serdata_ops, DDSI_SERTYPE_FLAG_REQUEST_KEYHASH);
   return &stp->c;
 }
 
 static struct tw make_topic (dds_entity_t pp, const char *topicname, const char *typename, const dds_qos_t *qos)
 {
-  struct ddsi_sertype *st = make_sertype (typename);
+  struct ddsi_sertype *st = make_sertype (typename, &sd_ops);
   dds_entity_t tp = dds_create_topic_sertype (pp, topicname, &st, qos, NULL, NULL);
   CU_ASSERT_GT_FATAL (tp, 0);
   return ((struct tw) { .tp = tp, .st = st });
@@ -957,6 +958,55 @@ CU_Test(ddsc_cdr, invalid_data)
 CU_Test(ddsc_cdr, timeout)
 {
   cdr_timeout (&gops);
+}
+
+static bool reject_key_conversion (const struct ddsi_sertype *type, const struct ddsi_serdata *sd, void *sample, void **bufptr, void *buflim)
+{
+  (void) type;
+  (void) sd;
+  (void) sample;
+  (void) bufptr;
+  (void) buflim;
+  return false;
+}
+
+CU_Test(ddsc_cdr, instance_key_conversion_error)
+{
+  const dds_entity_t pp = dds_create_participant (0, NULL, NULL);
+  CU_ASSERT_GT_FATAL (pp, 0);
+  static struct ddsi_serdata_ops rejecting_ops;
+  rejecting_ops = sd_ops;
+  rejecting_ops.untyped_to_sample = reject_key_conversion;
+  struct ddsi_sertype *st = make_sertype ("reject_key", &rejecting_ops);
+  char topicname[100];
+  create_unique_topic_name ("get_key_conversion_error", topicname, sizeof topicname);
+  const dds_entity_t tp = dds_create_topic_sertype (pp, topicname, &st, NULL, NULL, NULL);
+  CU_ASSERT_GT_FATAL (tp, 0);
+  const dds_entity_t wr = dds_create_writer (pp, tp, NULL, NULL);
+  CU_ASSERT_GT_FATAL (wr, 0);
+
+  const struct sampletype input = { .key = "aap" };
+  struct ddsi_serdata *sd = sd_from_sample (st, SDK_KEY, &input);
+  CU_ASSERT_NEQ_FATAL (sd, NULL);
+  struct ddsi_domaingv *gv = ddsrt_atomic_ldvoidp (&st->gv);
+  struct ddsi_thread_state *thrst = ddsi_lookup_thread_state ();
+  ddsi_thread_state_awake (thrst, gv);
+  struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, sd);
+  CU_ASSERT_NEQ_FATAL (tk, NULL);
+  ddsi_serdata_unref (sd);
+
+  struct sampletype output;
+  const uint32_t refc = ddsrt_atomic_ld32 (&tk->m_refc);
+  CU_ASSERT_EQ (dds_instance_get_key (wr, tk->m_iid, &output), DDS_RETCODE_ERROR);
+  CU_ASSERT_EQ (ddsrt_atomic_ld32 (&tk->m_refc), refc);
+  CU_ASSERT_EQ (dds_unregister_instance_ih (wr, tk->m_iid), DDS_RETCODE_ERROR);
+  CU_ASSERT_EQ (ddsrt_atomic_ld32 (&tk->m_refc), refc);
+  CU_ASSERT_EQ (dds_dispose_ih (wr, tk->m_iid), DDS_RETCODE_ERROR);
+  CU_ASSERT_EQ (ddsrt_atomic_ld32 (&tk->m_refc), refc);
+  ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
+  ddsi_thread_state_asleep (thrst);
+  CU_ASSERT_EQ (dds_lookup_instance (wr, &input), DDS_HANDLE_NIL);
+  CU_ASSERT_EQ (dds_delete (pp), DDS_RETCODE_OK);
 }
 
 static bool accept_all_samples (const void *sample, void *arg)
@@ -1036,7 +1086,7 @@ CU_Test(ddsc_cdr, forward_conv_serdata)
   char topicname[100];
   create_unique_topic_name ("ddsc_cdr_forward_conv_serdata", topicname, sizeof topicname);
   struct tw tw = make_topic (pp, topicname, "x", NULL);
-  struct ddsi_sertype *st1 = make_sertype ("x");
+  struct ddsi_sertype *st1 = make_sertype ("x", &sd_ops);
 
   const dds_entity_t wr = dds_create_writer (pp, tw.tp, NULL, NULL);
   CU_ASSERT_GT_FATAL (wr, 0);
