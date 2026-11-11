@@ -42,6 +42,9 @@ addition to the standard options such as ``CMAKE_BUILD_TYPE``):
     * - ``-DINSTALL_XMLTYPE=ON``
       - Install the XML type tool (default is ``OFF``). Requires ``BUILD_XMLTYPE`` and,
         for shared library builds, ``INSTALL_DYNTYPELIB``.
+    * - ``-DINSTALL_SYSTEM_RUNTIME_LIBRARIES=NO``
+      - Disable installing Windows system runtime DLLs, including the Universal CRT
+        (default is ``ON`` on Windows). Cyclone DDS libraries are still installed.
     * - ``-DENABLE_SSL=NO``
       - Do not look for OpenSSL, remove TLS/TCP support and avoid building the plugins that
         implement authentication and encryption (default is ``AUTO`` to enable them if OpenSSL is found)
