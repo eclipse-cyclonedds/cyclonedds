@@ -125,8 +125,8 @@ DDS_XTypes_TypeKind ddsi_type_get_kind (const struct ddsi_type *type);
  * @brief Waits for the provided type to be resolved
  * @component type_system
  *
- * In case the type is succesfully resolved (or was already resolved), this
- * function increases the refcount for this type. Caller should do the unref.
+ * On success, @p type receives a reference to the resolved type for the
+ * caller to release. On error, @p type retains its previous value.
  */
 dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, dds_duration_t timeout, struct ddsi_type **type, enum ddsi_type_include_deps resolved_kind, ddsi_type_request_t request);
 

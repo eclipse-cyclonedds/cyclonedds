@@ -161,6 +161,13 @@ CU_Test(ddsc_typebuilder, create_descriptor_error_preserves_output, .init = type
   dds_return_t ret = dds_create_topic_descriptor (DDS_FIND_SCOPE_LOCAL_DOMAIN, domain, type_info, 0, &desc);
   CU_ASSERT_EQ (ret, DDS_RETCODE_BAD_PARAMETER);
   CU_ASSERT_EQ (desc, &original);
+
+  dds_entity_t topic = dds_create_topic (g_participant, &original, "TypebuilderTimeout", NULL, NULL);
+  CU_ASSERT_GT_FATAL (topic, 0);
+  ret = dds_create_topic_descriptor (DDS_FIND_SCOPE_LOCAL_DOMAIN, g_participant, type_info, -1, &desc);
+  CU_ASSERT_EQ (ret, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ (desc, &original);
+  CU_ASSERT_EQ_FATAL (dds_delete (topic), DDS_RETCODE_OK);
   dds_free_typeinfo (type_info);
 }
 
