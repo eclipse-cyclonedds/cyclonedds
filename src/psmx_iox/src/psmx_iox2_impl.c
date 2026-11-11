@@ -1394,7 +1394,7 @@ err_instance_name:
   iox2_config_drop (config);
   ddsrt_free (instance_name);
 err_config_from_ptr:
-  ddsrt_free (psmx);
+  ddsrt_free (psmx_iox2);
 err_trivial:
   return DDS_RETCODE_ERROR;
 }
