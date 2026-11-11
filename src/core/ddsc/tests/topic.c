@@ -85,6 +85,8 @@ CU_Test(ddsc_topic_create, non_participants, .init = ddsc_topic_init, .fini = dd
 {
   dds_entity_t topic = dds_create_topic(g_topic_rtmdt, &RoundTripModule_DataType_desc, "non_participant", NULL, NULL);
   CU_ASSERT_EQ_FATAL (topic, DDS_RETCODE_ILLEGAL_OPERATION);
+  topic = dds_create_topic (DDS_CYCLONEDDS_HANDLE, &RoundTripModule_DataType_desc, "library", NULL, NULL);
+  CU_ASSERT_EQ (topic, DDS_RETCODE_ILLEGAL_OPERATION);
 }
 
 CU_Test(ddsc_topic_create, duplicate, .init = ddsc_topic_init, .fini = ddsc_topic_fini)
@@ -125,6 +127,19 @@ CU_Test(ddsc_topic_create, desc_null, .init = ddsc_topic_init, .fini = ddsc_topi
   dds_entity_t topic = dds_create_topic(g_participant, NULL, "desc_null", NULL, NULL);
   DDSRT_WARNING_MSVC_ON(6387);
   CU_ASSERT_EQ_FATAL (topic, DDS_RETCODE_BAD_PARAMETER);
+}
+
+CU_Test(ddsc_topic_create, incomplete_metadata, .init = ddsc_topic_init, .fini = ddsc_topic_fini)
+{
+  const dds_topic_descriptor_t desc = {
+    .m_size = RoundTripModule_DataType_desc.m_size,
+    .m_align = RoundTripModule_DataType_desc.m_align,
+    .m_flagset = DDS_TOPIC_XTYPES_METADATA,
+    .m_typename = RoundTripModule_DataType_desc.m_typename,
+    .m_ops = RoundTripModule_DataType_desc.m_ops,
+    .m_nops = RoundTripModule_DataType_desc.m_nops
+  };
+  CU_ASSERT_EQ (dds_create_topic (g_participant, &desc, "incomplete", NULL, NULL), DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_TheoryDataPoints(ddsc_topic_create, invalid_names) = {

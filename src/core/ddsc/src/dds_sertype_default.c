@@ -316,6 +316,14 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
       abort ();
   }
 
+  if ((desc->m_flagset & DDS_TOPIC_XTYPES_METADATA) &&
+      (desc->type_information.sz == 0 || desc->type_information.data == NULL ||
+       desc->type_mapping.sz == 0 || desc->type_mapping.data == NULL))
+  {
+    GVTRACE ("Missing type metadata in descriptor for %s\n", desc->m_typename);
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
+
   /* Get the extensility of the outermost object in the type used for the topic. Note that the
      outermost type can have a different extensibility than nested types used in this type;
      the extensibility that is returned here is used to set the CDR encapsulation identifier,
@@ -343,13 +351,6 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
 
   if (desc->m_flagset & DDS_TOPIC_XTYPES_METADATA)
   {
-    if (desc->type_information.sz == 0 || desc->type_information.data == NULL
-      || desc->type_mapping.sz == 0 || desc->type_mapping.data == NULL)
-    {
-      ddsi_sertype_unref (&st->c);
-      GVTRACE ("Flag DDS_TOPIC_XTYPES_METADATA set for type %s but topic descriptor does not contains type information\n", desc->m_typename);
-      return DDS_RETCODE_BAD_PARAMETER;
-    }
     st->typeinfo_ser.data = ddsrt_memdup (desc->type_information.data, desc->type_information.sz);
     st->typeinfo_ser.sz = desc->type_information.sz;
     st->typemap_ser.data = ddsrt_memdup (desc->type_mapping.data, desc->type_mapping.sz);
