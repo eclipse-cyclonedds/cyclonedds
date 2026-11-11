@@ -405,7 +405,10 @@ static iox2_callback_progression_e on_event (iox2_waitset_attachment_id_h attach
 
 #if USE_LISTENER_THREAD_STATE
   if (ddsrt_atomic_ld32 (&part_topic->listener_thread_state) == LISTENER_THREAD_STOPREQ)
+  {
+    iox2_waitset_attachment_id_drop (attachment_id);
     return iox2_callback_progression_e_STOP;
+  }
 #endif
 
   iox2_callback_progression_e retval = iox2_callback_progression_e_CONTINUE;
