@@ -1061,7 +1061,6 @@ dds_return_t dds_get_name (dds_entity_t topic, char *name, size_t size)
   dds_return_t ret;
   if (size <= 0 || name == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
-  name[0] = '\0';
 
   const char *bname;
   if (dds__get_builtin_topic_name_typename (topic, &bname, NULL) == DDS_RETCODE_OK)
@@ -1080,7 +1079,6 @@ dds_return_t dds_get_type_name (dds_entity_t topic, char *name, size_t size)
   dds_return_t ret;
   if (size <= 0 || name == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
-  name[0] = '\0';
 
   const char *bname;
   if (dds__get_builtin_topic_name_typename (topic, NULL, &bname) == DDS_RETCODE_OK)
