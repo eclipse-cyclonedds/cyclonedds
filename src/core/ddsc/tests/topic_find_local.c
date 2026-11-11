@@ -134,6 +134,13 @@ CU_Test(ddsc_topic_find_local, non_participants, .init = topic_find_local_init, 
   CU_ASSERT_EQ_FATAL (topic, DDS_RETCODE_BAD_PARAMETER);
 }
 
+CU_Test(ddsc_topic_find_local, invalid_scope, .init = topic_find_local_init, .fini = topic_find_local_fini)
+{
+  // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange) - exercise rejection of an invalid scope
+  dds_entity_t topic = dds_find_topic ((dds_find_scope_t) 99, g_participant1, g_topic_name_local, NULL, 0);
+  CU_ASSERT_EQ (topic, DDS_RETCODE_BAD_PARAMETER);
+}
+
 CU_Test(ddsc_topic_find_local, null, .init = topic_find_local_init, .fini = topic_find_local_fini)
 {
   DDSRT_WARNING_MSVC_OFF (6387); /* Disable SAL warning on intentional misuse of the API */
@@ -146,6 +153,8 @@ CU_Test(ddsc_topic_find_local, unknown, .init = topic_find_local_init, .fini = t
 {
   dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_PARTICIPANT, g_participant1, "unknown", g_type_info, 0);
   CU_ASSERT_EQ_FATAL (topic, 0);
+  topic = dds_find_topic (DDS_FIND_SCOPE_PARTICIPANT, g_participant1, "unknown", g_type_info, DDS_MSECS (1));
+  CU_ASSERT_EQ_FATAL (topic, DDS_RETCODE_TIMEOUT);
 }
 
 CU_Test(ddsc_topic_find_local, deleted, .init = topic_find_local_init, .fini = topic_find_local_fini)

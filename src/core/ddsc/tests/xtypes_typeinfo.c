@@ -462,3 +462,25 @@ CU_Test (ddsc_xtypes_typeinfo, get_type_info_not_found, .init = xtypes_typeinfo_
     CU_ASSERT_EQ (type_info, &sentinel);
   }
 }
+
+CU_Test (ddsc_xtypes_typeinfo, find_topic_without_type_info, .init = xtypes_typeinfo_init, .fini = xtypes_typeinfo_fini)
+{
+  char name[100];
+  create_unique_topic_name ("find_topic_without_type_info", name, sizeof (name));
+  const dds_entity_t topic = dds_create_topic (g_participant1, &XSpaceNoTypeInfo_t1_desc, name, NULL, NULL);
+  CU_ASSERT_GT_FATAL (topic, 0);
+
+  const dds_entity_t found = dds_find_topic (DDS_FIND_SCOPE_PARTICIPANT, g_participant1, name, NULL, 0);
+  CU_ASSERT_GT_FATAL (found, 0);
+  CU_ASSERT_NEQ (found, topic);
+  dds_typeinfo_t *type_info;
+  CU_ASSERT_EQ (dds_get_typeinfo (found, &type_info), DDS_RETCODE_NOT_FOUND);
+  CU_ASSERT_EQ (dds_delete (found), DDS_RETCODE_OK);
+
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+  type_info = ddsi_typeinfo_deser (XSpace_XType1_desc.type_information.data, XSpace_XType1_desc.type_information.sz);
+  CU_ASSERT_NEQ_FATAL (type_info, NULL);
+  CU_ASSERT_EQ (dds_find_topic (DDS_FIND_SCOPE_PARTICIPANT, g_participant1, name, type_info, 0), 0);
+  dds_free_typeinfo (type_info);
+#endif
+}

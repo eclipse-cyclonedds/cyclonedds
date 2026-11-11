@@ -67,8 +67,14 @@ void ddsi_update_topic_qos (struct ddsi_topic *tp, const dds_qos_t *xqos);
 /** @component ddsi_topic */
 dds_return_t ddsi_delete_topic (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
 
-/** @component ddsi_topic */
-dds_return_t ddsi_lookup_topic_definition (struct ddsi_domaingv *gv, const char * topic_name, const ddsi_typeid_t *type_id, struct ddsi_topic_definition **tpd);
+/** @component ddsi_topic
+ * If type_id is none, select the first definition named topic_name. Otherwise
+ * its TypeInformation must also match the requested complete type ID.
+ * Return a copy of the QoS and store the definition's complete type ID in
+ * *matched_type_id (NULL if unknown). The caller owns both copies.
+ * If no definition matches, return NULL and leave *matched_type_id unchanged.
+ */
+dds_qos_t *ddsi_lookup_topic_definition_qos (struct ddsi_domaingv *gv, const char *topic_name, const ddsi_typeid_t *type_id, ddsi_typeid_t **matched_type_id);
 
 #endif /* DDS_HAS_TOPIC_DISCOVERY */
 

@@ -1107,78 +1107,61 @@ dds_create_topic_sertype (
   const struct ddsi_plist *sedp_plist);
 
 /**
- * @brief Finds a locally created or discovered remote topic by topic name and type information
+ * @brief Find a topic by name and optional type information.
  * @ingroup topic
  * @component topic
  *
- * Finds a locally created topic or a discovered remote topic based on the topic
- * name and type. In case the topic is not found, this function will wait for
- * the topic to become available until the provided time out.
+ * Searches the given participant, all local participants in its domain, or
+ * the local domain and discovered remote topics, according to @p scope.
+ * Local searches do not send type lookup requests. A global search can
+ * request the selected remote type and its dependencies. If @p type_info
+ * is NULL, any matching definition may be selected.
  *
- * When using the scope DDS_FIND_SCOPE_LOCAL_DOMAIN, there will be no requests sent
- * over the network for resolving the type in case it is unresolved. This also applies
- * to dependent types: in case a dependency of the provided type is unresolved, no
- * requests will be sent for resolving the type when using LOCAL_DOMAIN scope.
+ * On success, the caller owns a new topic handle in @p participant and must
+ * release it with @ref dds_delete. Errors from creating that topic or
+ * resolving its descriptor are passed through.
  *
- * In case the scope is DDS_FIND_SCOPE_GLOBAL, for unresolved types (or dependencies)
- * a type lookup request will be sent.
+ * @param[in] scope       DDS_FIND_SCOPE_PARTICIPANT, DDS_FIND_SCOPE_LOCAL_DOMAIN
+ *                        or DDS_FIND_SCOPE_GLOBAL.
+ * @param[in] participant Participant in which to create the found topic.
+ * @param[in] name        Name of the topic to find.
+ * @param[in] type_info   Type to match, or NULL for a name-only search.
+ * @param[in] timeout     Maximum duration to wait for the topic and its type.
+ *                        Pass zero to poll or DDS_INFINITY to wait indefinitely.
  *
- * In case no type information is provided and multiple (discovered) topics exist
- * with the provided name, an arbitrary topic with that name will be returned.
- * In this scenario, it would be better to read DCPSTopic data and use that to
- * get the required topic meta-data.
- *
- * The returned topic should be released with dds_delete.
- *
- * @param[in]  scope        The scope used to find the topic. In case topic discovery is not enabled in the build, SCOPE_GLOBAL cannot be used.
- * @param[in]  participant  The handle of the participant the found topic will be created in
- * @param[in]  name         The name of the topic to find.
- * @param[in]  type_info    The type information of the topic to find. Optional, and should not be provided in case topic discovery is not enabled in the build.
- * @param[in]  timeout      The timeout for waiting for the topic to become available
- *
- * @returns A valid topic handle or an error code.
- *
- * @retval >0
- *             A valid topic handle.
- * @retval 0
- *             No topic of this name exists
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             Participant or type information was invalid.
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             The provided type could not be found.
+ * @retval >0 The new topic handle.
+ * @retval 0 A zero-timeout search found no matching topic definition.
+ * @retval DDS_RETCODE_TIMEOUT The wait expired, or a zero-timeout search
+ *         found a remote topic whose type was still unresolved.
+ * @retval DDS_RETCODE_BAD_PARAMETER The name, scope or type information is
+ *         invalid, the entity is not a participant, or the timeout is negative.
+ *         Global scope and non-NULL type information require topic discovery
+ *         support in the build.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET The selected remote definition has
+ *         no complete type ID, its type is no longer known, or a type lookup
+ *         request could not be sent.
+ * @see @ref entity_handle_errors, @ref dds_create_topic, @ref dds_create_topic_descriptor
  */
 DDS_EXPORT dds_entity_t
 dds_find_topic (dds_find_scope_t scope, dds_entity_t participant, const char *name, const dds_typeinfo_t *type_info, dds_duration_t timeout);
 
 /**
+ * @brief Find a topic by name.
  * @component topic
- * @deprecated Finds a locally created or discovered remote topic by topic name
  * @ingroup deprecated
- * Use @ref dds_find_topic instead.
+ * @deprecated Use @ref dds_find_topic with NULL type information.
  *
- * Finds a locally created topic or a discovered remote topic based on the topic
- * name. In case the topic is not found, this function will wait for the topic
- * to become available until the provided time out.
+ * Equivalent to calling @ref dds_find_topic with the same scope, participant,
+ * name and timeout, and NULL for the type information. It has the same return
+ * codes and transfers the same ownership of the returned topic handle.
  *
- * In case multiple (discovered) topics exist with the provided name, this function
- * will return randomly one of these topic. The caller can decide to read DCPSTopic
- * data and select one of the topic definitions to create the topic.
+ * @param[in] scope       Participant, local-domain or global search scope.
+ * @param[in] participant Participant in which to create the found topic.
+ * @param[in] name        Name of the topic to find.
+ * @param[in] timeout     Maximum duration to wait, or zero to poll.
  *
- * The returned topic should be released with dds_delete.
- *
- * @param[in]  scope        The scope used to find the topic
- * @param[in]  participant  The handle of the participant the found topic will be created in
- * @param[in]  name         The name of the topic to find.
- * @param[in]  timeout      The timeout for waiting for the topic to become available
- *
- * @returns A valid topic handle or an error code.
- *
- * @retval >0
- *             A valid topic handle.
- * @retval 0
- *             No topic of this name existed yet
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             Participant handle or scope invalid
+ * @returns A new topic handle, zero for a poll with no match, or a negative
+ *          error code as described by @ref dds_find_topic.
  */
 DDS_DEPRECATED_EXPORT dds_entity_t
 dds_find_topic_scoped (dds_find_scope_t scope, dds_entity_t participant, const char *name, dds_duration_t timeout);
