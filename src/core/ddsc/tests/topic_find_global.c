@@ -16,8 +16,11 @@
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_topic.h"
+#include "ddsi__typelib.h"
 #include "ddsi__whc.h"
 #include "dds__entity.h"
 
@@ -104,6 +107,55 @@ static dds_typeinfo_t *get_desc_typeinfo (const dds_topic_descriptor_t *desc)
   ddsi_typeinfo_t *type_info = ddsi_typeinfo_deser (desc->type_information.data, desc->type_information.sz);
   CU_ASSERT_NEQ_FATAL (type_info, NULL);
   return (dds_typeinfo_t *) type_info;
+}
+
+CU_TheoryDataPoints (ddsc_topic_find_global, definition_without_type_information) = {
+  CU_DataPoints (bool, false, true)
+};
+
+CU_Theory ((bool has_complete_id), ddsc_topic_find_global, definition_without_type_information)
+{
+  const dds_entity_t domain = test_create_domain_from_env (0, "<Discovery><Tag>lookup_no_typeinfo_${CYCLONEDDS_PID}</Tag></Discovery>");
+  CU_ASSERT_GT_FATAL (domain, 0);
+  const dds_entity_t pp = dds_create_participant (0, NULL, NULL);
+  CU_ASSERT_GT_FATAL (pp, 0);
+  struct ddsi_domaingv *gv = get_domaingv (pp);
+  const dds_entity_t local = dds_create_topic (pp, &Space_Type1_desc, "known_type", NULL, NULL);
+  CU_ASSERT_GT_FATAL (local, 0);
+  ddsi_typeinfo_t *info;
+  CU_ASSERT_EQ_FATAL (dds_get_typeinfo (local, &info), DDS_RETCODE_OK);
+  const ddsi_typeid_t *id = ddsi_typeinfo_complete_typeid (info);
+  char name[] = "no_type_information";
+
+  /* Current discovery requires TypeInformation, so supply the definition
+     directly. Leave a matching ID behind the unset QoS presence bit. */
+  dds_qos_t qos = {
+    .present = DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME,
+    .aliased = DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME,
+    .topic_name = name, .type_name = "Space::Type1", .type_information = info
+  };
+  struct ddsi_topic_definition definition = {
+    .xqos = &qos, .type_pair = ddsi_type_pair_init (NULL, has_complete_id ? id : NULL), .refc = 1, .gv = gv
+  };
+  ddsrt_mutex_lock (&gv->topic_defs_lock);
+  ddsrt_hh_add_absent (gv->topic_defs, &definition);
+  ddsrt_mutex_unlock (&gv->topic_defs_lock);
+
+  const dds_entity_t by_type = dds_find_topic (DDS_FIND_SCOPE_GLOBAL, pp, name, info, 0);
+  const dds_entity_t by_name = dds_find_topic (DDS_FIND_SCOPE_GLOBAL, pp, name, NULL, 0);
+
+  ddsrt_mutex_lock (&gv->topic_defs_lock);
+  ddsrt_hh_remove_present (gv->topic_defs, &definition);
+  ddsrt_mutex_unlock (&gv->topic_defs_lock);
+  ddsi_type_pair_free (definition.type_pair);
+
+  CU_ASSERT_EQ (by_type, 0);
+  if (has_complete_id)
+    CU_ASSERT_GT (by_name, 0);
+  else
+    CU_ASSERT_EQ (by_name, DDS_RETCODE_PRECONDITION_NOT_MET);
+  dds_free_typeinfo (info);
+  CU_ASSERT_EQ (dds_delete (domain), DDS_RETCODE_OK);
 }
 
 CU_Test(ddsc_topic_find_global, domain, .init = topic_find_global_init, .fini = topic_find_global_fini)
@@ -314,6 +366,17 @@ CU_Test (ddsc_topic_find_global, same_name, .init = topic_find_global_init, .fin
   CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_get_typeinfo (topic_remote2, &typeinfo2);
   CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  /* Neither definition has been created locally yet. A name-only lookup
+     must use the type information from whichever remote definition it finds. */
+  dds_entity_t any_topic = dds_find_topic (DDS_FIND_SCOPE_GLOBAL, g_participant1, topic_name, NULL, DDS_SECS (5));
+  CU_ASSERT_GT_FATAL (any_topic, 0);
+  ddsi_typeinfo_t *any_typeinfo;
+  CU_ASSERT_EQ_FATAL (dds_get_typeinfo (any_topic, &any_typeinfo), DDS_RETCODE_OK);
+  CU_ASSERT (ddsi_typeinfo_equal (any_typeinfo, typeinfo1, DDSI_TYPE_IGNORE_DEPS) ||
+             ddsi_typeinfo_equal (any_typeinfo, typeinfo2, DDSI_TYPE_IGNORE_DEPS));
+  dds_free_typeinfo (any_typeinfo);
+  CU_ASSERT_EQ_FATAL (dds_delete (any_topic), DDS_RETCODE_OK);
 
   dds_entity_t topic1 = dds_find_topic (DDS_FIND_SCOPE_GLOBAL, g_participant1, topic_name, typeinfo1, DDS_SECS (5));
   CU_ASSERT_GT_FATAL (topic1, 0);
