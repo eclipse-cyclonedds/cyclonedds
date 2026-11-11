@@ -359,6 +359,8 @@ dds_return_t dds_domain_set_deafmute (dds_entity_t entity, bool deaf, bool mute,
 {
   struct dds_entity *e;
   dds_return_t rc;
+  if (reset_after < 0)
+    return DDS_RETCODE_BAD_PARAMETER;
   if ((rc = dds_entity_pin (entity, &e)) < 0)
     return rc;
   if (e->m_domain == NULL)
