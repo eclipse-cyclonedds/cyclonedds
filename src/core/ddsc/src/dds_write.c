@@ -113,46 +113,53 @@ dds_return_t dds_write (dds_entity_t writer, const void *data)
   return ret;
 }
 
-dds_return_t dds_writecdr (dds_entity_t writer, struct ddsi_serdata *serdata)
+enum writecdr_metadata_action {
+  WRITECDR_OVERWRITE_TIMESTAMP_AND_STATUSINFO,
+  WRITECDR_PRESERVE_TIMESTAMP_AND_STATUSINFO
+};
+
+static dds_return_t writecdr (dds_entity_t writer, struct ddsi_serdata *serdata, enum writecdr_metadata_action metadata_action)
 {
   dds_return_t ret;
   dds_writer *wr;
 
   if (serdata == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
+  if (serdata->type == NULL)
+  {
+    ddsi_serdata_unref (serdata);
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
 
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
+  {
+    ddsi_serdata_unref (serdata);
     return ret;
+  }
   if (wr->m_topic->m_filter.mode != DDS_TOPIC_FILTER_NONE)
   {
     dds_writer_unlock (wr);
+    ddsi_serdata_unref (serdata);
     return DDS_RETCODE_ERROR;
   }
-  serdata->statusinfo = 0;
-  serdata->timestamp.v = dds_time ();
+  if (metadata_action == WRITECDR_OVERWRITE_TIMESTAMP_AND_STATUSINFO)
+  {
+    serdata->statusinfo = 0;
+    serdata->timestamp.v = dds_time ();
+  }
   ret = dds_writecdr_impl (wr, wr->m_xp, serdata, !wr->whc_batch);
   dds_writer_unlock (wr);
   return ret;
 }
 
+dds_return_t dds_writecdr (dds_entity_t writer, struct ddsi_serdata *serdata)
+{
+  return writecdr (writer, serdata, WRITECDR_OVERWRITE_TIMESTAMP_AND_STATUSINFO);
+}
+
 dds_return_t dds_forwardcdr (dds_entity_t writer, struct ddsi_serdata *serdata)
 {
-  dds_return_t ret;
-  dds_writer *wr;
-
-  if (serdata == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
-    return ret;
-  if (wr->m_topic->m_filter.mode != DDS_TOPIC_FILTER_NONE)
-  {
-    dds_writer_unlock (wr);
-    return DDS_RETCODE_ERROR;
-  }
-  ret = dds_writecdr_impl (wr, wr->m_xp, serdata, !wr->whc_batch);
-  dds_writer_unlock (wr);
-  return ret;
+  return writecdr (writer, serdata, WRITECDR_PRESERVE_TIMESTAMP_AND_STATUSINFO);
 }
 
 dds_return_t dds_write_ts (dds_entity_t writer, const void *data, dds_time_t timestamp)

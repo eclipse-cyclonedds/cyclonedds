@@ -2561,9 +2561,10 @@ dds_write_flush(dds_entity_t entity);
  * current time and 0 (indicating a regular write), respectively.
  *
  * @param[in]  writer The writer entity.
- * @param[in]  serdata Serialized value to be written.
+ * @param[in]  serdata Serialized value to be written. Its type pointer must be non-null.
+ *             If non-null, the call consumes one reference on both success and error.
  *
- * @returns A dds_return_t indicating success or failure. On error, some writers failed to flush buffered messages.
+ * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             The writer successfully wrote the serialized value.
@@ -2590,7 +2591,8 @@ dds_writecdr(dds_entity_t writer, struct ddsi_serdata *serdata);
  * in the serdata argument.  Timestamp and statusinfo are used as is.
  *
  * @param[in]  writer The writer entity.
- * @param[in]  serdata Serialized value to be written.
+ * @param[in]  serdata Serialized value to be written. Its type pointer must be non-null.
+ *             If non-null, the call consumes one reference on both success and error.
  *
  * @returns A dds_return_t indicating success or failure.
  *

@@ -143,9 +143,11 @@ CU_Test (ddsc_uninitialized, various)
   check (dds_dispose_ih_ts (1, 1, 1));
   check (dds_write (1, &data));
   dds_write_flush (1);
-  struct ddsi_serdata serdata = { 0 };
-  check (dds_writecdr (1, &serdata));
-  check (dds_forwardcdr (1, &serdata));
+  struct ddsi_serdata serdata = { .refc = DDSRT_ATOMIC_UINT32_INIT (1) };
+  check (dds_writecdr (1, ddsi_serdata_ref (&serdata)));
+  CU_ASSERT_EQ (ddsrt_atomic_ld32 (&serdata.refc), 1);
+  check (dds_forwardcdr (1, ddsi_serdata_ref (&serdata)));
+  CU_ASSERT_EQ (ddsrt_atomic_ld32 (&serdata.refc), 1);
   check (dds_write_ts (1, &data, 1));
 
   check (dds_create_readcondition (1, DDS_ANY_STATE));
