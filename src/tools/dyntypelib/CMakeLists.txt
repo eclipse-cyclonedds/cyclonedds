@@ -51,21 +51,23 @@ target_include_directories(dyntypelib
 
 target_link_libraries(dyntypelib PUBLIC ddsc)
 
-install(
-  TARGETS dyntypelib
-  EXPORT "${PROJECT_NAME}"
-  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT lib
-  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
-  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib)
+if(INSTALL_DYNTYPELIB)
+  install(
+    TARGETS dyntypelib
+    EXPORT "${PROJECT_NAME}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT lib
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib)
 
-install(
-  FILES ${dyntypelib_headers}
-  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/dds/dyntypelib"
-  COMPONENT dev)
+  install(
+    FILES ${dyntypelib_headers}
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/dds/dyntypelib"
+    COMPONENT dev)
 
-if(INSTALL_PDB)
-  install(FILES $<TARGET_PDB_FILE:dyntypelib>
-    DESTINATION "${CMAKE_INSTALL_BINDIR}"
-    COMPONENT dev
-    OPTIONAL)
+  if(INSTALL_PDB)
+    install(FILES $<TARGET_PDB_FILE:dyntypelib>
+      DESTINATION "${CMAKE_INSTALL_BINDIR}"
+      COMPONENT dev
+      OPTIONAL)
+  endif()
 endif()
