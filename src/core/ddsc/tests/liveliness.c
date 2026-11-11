@@ -713,6 +713,32 @@ CU_Test(ddsc_liveliness, status_counts, .init = liveliness_init, .fini = livelin
   test_status_counts(true);
 }
 
+CU_Test(ddsc_liveliness, assert_missing_writer, .timeout = 5)
+{
+  const dds_entity_t pp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+  CU_ASSERT_GT_FATAL (pp, 0);
+  char name[100];
+  create_unique_topic_name ("missing_liveliness_writer", name, sizeof name);
+  const dds_entity_t tp = dds_create_topic (pp, &Space_Type1_desc, name, NULL, NULL);
+  CU_ASSERT_GT_FATAL (tp, 0);
+  const dds_entity_t wr = dds_create_writer (pp, tp, NULL, NULL);
+  CU_ASSERT_GT_FATAL (wr, 0);
+
+  // Keep the writer handle valid while making its DDSI lookup fail.
+  struct dds_entity *e;
+  CU_ASSERT_EQ_FATAL (dds_entity_lock (wr, DDS_KIND_WRITER, &e), DDS_RETCODE_OK);
+  const ddsi_guid_prefix_t prefix = e->m_guid.prefix;
+  e->m_guid.prefix = (ddsi_guid_prefix_t) { .u = { 0 } };
+  dds_entity_unlock (e);
+  CU_ASSERT_EQ (dds_assert_liveliness (wr), DDS_RETCODE_PRECONDITION_NOT_MET);
+  CU_ASSERT_EQ (ddsrt_atomic_ld32 (&ddsi_lookup_thread_state ()->vtime) & DDSI_VTIME_NEST_MASK, 0);
+
+  CU_ASSERT_EQ_FATAL (dds_entity_lock (wr, DDS_KIND_WRITER, &e), DDS_RETCODE_OK);
+  e->m_guid.prefix = prefix;
+  dds_entity_unlock (e);
+  CU_ASSERT_EQ (dds_delete (pp), DDS_RETCODE_OK);
+}
+
 /**
  * Test that dds_assert_liveliness works as expected for liveliness
  * kinds manual-by-participant and manual-by-topic.

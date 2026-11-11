@@ -1560,11 +1560,11 @@ dds_return_t dds_assert_liveliness (dds_entity_t entity)
       break;
     }
     case DDS_KIND_WRITER: {
-      if ((rc = dds_entity_lock (entity, DDS_KIND_WRITER, &ewr)) != DDS_RETCODE_OK)
-        return rc;
-      if ((rc = ddsi_write_hb_liveliness (&e->m_domain->gv, &e->m_guid, ((struct dds_writer *)ewr)->m_xp)) != DDS_RETCODE_OK)
-        return rc;
-      dds_entity_unlock (e);
+      if ((rc = dds_entity_lock (entity, DDS_KIND_WRITER, &ewr)) == DDS_RETCODE_OK)
+      {
+        rc = ddsi_write_hb_liveliness (&e->m_domain->gv, &e->m_guid, ((struct dds_writer *) ewr)->m_xp);
+        dds_entity_unlock (ewr);
+      }
       break;
     }
     default: {
