@@ -68,6 +68,13 @@ if(ENABLE_ICEORYX2)
     EXPORT "${PROJECT_NAME}"
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+  if(BUILD_TESTING)
+    include(CUnit)
+    add_cunit_executable(cunit_psmx_iox2 tests/psmx_iox2.c)
+    target_include_directories(cunit_psmx_iox2 PRIVATE include "${CMAKE_CURRENT_BINARY_DIR}/include")
+    target_link_libraries(cunit_psmx_iox2 PRIVATE psmx_iox2 ddsc)
+  endif()
 endif()
 
 if(ENABLE_ICEORYX)
