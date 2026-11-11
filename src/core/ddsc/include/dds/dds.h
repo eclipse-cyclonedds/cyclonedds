@@ -1750,35 +1750,49 @@ dds_create_writer(
 /**
  * @defgroup writing (Writing data)
  * @ingroup writer
- * Writing data (and variants of it) is straightforward. The first set
- * is equivalent to the second set with -1 passed for "timestamp",
- * meaning, substitute the result of a call to time(). The dispose
- * and unregister operations take an object of the topic's type, but
- * only touch the key fields; the remained may be undefined.
-*/
+ *
+ * @anchor write_source_timestamp
+ * Operations without an explicit source timestamp use `dds_time`. A
+ * timestamped operation accepts DDS_TIME_INVALID or a nonnegative time in
+ * nanoseconds since the Unix epoch. The largest representable time is one
+ * nanosecond before 2^31 seconds for RTPS 2.2 and earlier, or one nanosecond
+ * before 2^32 seconds for RTPS 2.3 and later. Passing -1 returns
+ * DDS_RETCODE_BAD_PARAMETER.
+ *
+ * @anchor write_sample_loan
+ * When the sample is an outstanding loan from this writer, a write,
+ * write-dispose, dispose or unregister operation takes ownership after
+ * validating the writer and source timestamp. A rejected timestamp leaves
+ * the loan with the caller. A topic filter discarding the sample, or a later
+ * serialization or delivery failure, consumes the loan. Caller-owned samples
+ * remain the caller's responsibility.
+ *
+ * @anchor write_delivery_errors
+ * A write or instance lifecycle update may block while waiting for space in
+ * the writer history or in a local reader's history. DDS_RETCODE_TIMEOUT
+ * indicates that the write exceeded the reliability QoS max_blocking_time.
+ * Failure to obtain a required PSMX loan can return DDS_RETCODE_OUT_OF_RESOURCES.
+ * Other delivery failures can return DDS_RETCODE_ERROR or an error from
+ * a PSMX endpoint. A destination may already have accepted the update when
+ * another destination fails.
+ */
 
 /**
- * @brief Registers an instance
+ * @brief Registers an instance and returns its handle.
  * @ingroup writing
  * @component data_instance
  *
- * This operation registers an instance with a key value to the data writer and
- * returns an instance handle that could be used for successive write & dispose
- * operations. When the handle is not allocated, the function will return an
- * error and the handle will be un-touched.
+ * The instance is identified by its key fields. Use the handle with
+ * @ref dds_dispose_ih or @ref dds_unregister_instance_ih.
  *
- * @param[in]  writer  The writer to which instance has be associated.
- * @param[out] handle  The instance handle.
- * @param[in]  data    The instance with the key value.
+ * @param[in] writer The writer.
+ * @param[out] handle Receives the instance handle on success. Preserved on error.
+ * @param[in] data A sample containing the key.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *            The operation was successful.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *            One of the given arguments is not valid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *            The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_OK  The instance handle was stored.
+ * @retval DDS_RETCODE_BAD_PARAMETER  A pointer is null, the key could not be
+ *         registered, or the writer handle is invalid.
+ * @see @ref entity_handle_errors for errors validating the writer handle.
  */
 DDS_EXPORT dds_return_t
 dds_register_instance(
@@ -1787,72 +1801,64 @@ dds_register_instance(
   const void *data);
 
 /**
- * @brief Unregisters an instance by instance
+ * @brief Unregisters the instance identified by a sample using the current time.
  * @ingroup writing
  * @component data_instance
  *
- * This operation reverses the action of register instance, removes all information regarding
- * the instance and unregisters an instance with a key value from the data writer.
+ * The writer sends a key-only unregister update, bypassing its topic filter.
+ * If the writer data lifecycle QoS enables autodispose, the update also
+ * disposes the instance.
  *
- * @param[in]  writer  The writer to which instance is associated.
- * @param[in]  data    The instance with the key value.
+ * @param[in] writer The writer.
+ * @param[in] data A sample containing the key. See @ref write_sample_loan "Writer loan ownership".
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             One of the given arguments is not valid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_OK  The writer accepted the unregister update.
+ * @retval DDS_RETCODE_BAD_PARAMETER  The writer handle is invalid, @p data is
+ *         null, or the sample could not be serialized.
+ * @retval DDS_RETCODE_TIMEOUT  The write exceeded max_blocking_time.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES  A required PSMX loan was unavailable.
+ * @retval DDS_RETCODE_ERROR  Delivery failed.
+ * @see @ref write_delivery_errors "Delivery errors" and @ref entity_handle_errors.
  */
 DDS_EXPORT dds_return_t
 dds_unregister_instance(dds_entity_t writer, const void *data);
 
 /**
- * @brief Unregisters an instance by instance handle
+ * @brief Unregisters an instance by handle using the current time.
  * @ingroup writing
  * @component data_instance
  *
- * This operation unregisters the instance which is identified by the key fields of the given
- * typed instance handle.
+ * The writer looks up the handle in its domain and sends a key-only unregister
+ * update, bypassing the topic filter. If the writer data lifecycle QoS enables
+ * autodispose, the update also disposes the instance.
  *
- * @param[in]  writer  The writer to which instance is associated.
- * @param[in]  handle  The instance handle.
+ * @param[in] writer The writer.
+ * @param[in] handle An instance handle for the writer's topic.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             One of the given arguments is not valid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_OK  The writer accepted the update.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET  The instance handle is unknown in this domain.
+ * @retval DDS_RETCODE_BAD_PARAMETER  The writer handle is invalid or the key could not be serialized.
+ * @retval DDS_RETCODE_ERROR  The key could not be reconstructed or delivery failed.
+ * @retval DDS_RETCODE_TIMEOUT  The write exceeded max_blocking_time.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES  A required PSMX loan was unavailable.
+ * @see @ref write_delivery_errors "Delivery errors" and @ref entity_handle_errors.
  */
 DDS_EXPORT dds_return_t
 dds_unregister_instance_ih(dds_entity_t writer, dds_instance_handle_t handle);
 
 /**
- * @brief Unregisters an instance by instance with timestamp
+ * @brief Unregisters the instance identified by a sample using a supplied timestamp.
  * @ingroup writing
  * @component data_instance
  *
- * This operation reverses the action of register instance, removes all information regarding
- * the instance and unregisters an instance with a key value from the data writer. It also
- * provides a value for the timestamp explicitly.
+ * The operation, loan ownership and return values follow @ref dds_unregister_instance.
  *
- * @param[in]  writer    The writer to which instance is associated.
- * @param[in]  data      The instance with the key value.
- * @param[in]  timestamp The timestamp for the unregistration (>= 0).
+ * @param[in] writer The writer.
+ * @param[in] data A sample containing the key. See @ref write_sample_loan "Writer loan ownership".
+ * @param[in] timestamp Source timestamp. See @ref write_source_timestamp "Source timestamps".
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             One of the given arguments is not valid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
+ * @returns The result of the write, as for @ref dds_unregister_instance.
+ * @retval DDS_RETCODE_BAD_PARAMETER  The source timestamp is outside the supported range.
  */
 DDS_EXPORT dds_return_t
 dds_unregister_instance_ts(
@@ -1861,26 +1867,18 @@ dds_unregister_instance_ts(
   dds_time_t timestamp);
 
 /**
- * @brief Unregisters an instance by instance handle with timestamp
+ * @brief Unregisters an instance by handle using a supplied timestamp.
  * @ingroup writing
  * @component data_instance
  *
- * This operation unregisters an instance with a key value from the handle. Instance can be identified
- * from instance handle. If an unregistered key ID is passed as an instance data, an error is logged and
- * not flagged as return value.
+ * The operation and return values follow @ref dds_unregister_instance_ih.
  *
- * @param[in]  writer    The writer to which instance is associated.
- * @param[in]  handle    The instance handle.
- * @param[in]  timestamp The timestamp for the unregistration (>= 0).
+ * @param[in] writer The writer.
+ * @param[in] handle An instance handle for the writer's topic.
+ * @param[in] timestamp Source timestamp. See @ref write_source_timestamp "Source timestamps".
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The operation was successful
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             One of the given arguments is not valid
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object
+ * @returns The result of the lifecycle update, as for @ref dds_unregister_instance_ih.
+ * @retval DDS_RETCODE_BAD_PARAMETER  The source timestamp is outside the supported range.
  */
 DDS_EXPORT dds_return_t
 dds_unregister_instance_ih_ts(
@@ -1889,94 +1887,40 @@ dds_unregister_instance_ih_ts(
   dds_time_t timestamp);
 
 /**
- * @brief This operation modifies and disposes a data instance.
+ * @brief Writes a data sample and disposes the instance using the current time.
  * @ingroup writing
  * @component write_data
  *
- * This operation requests the Data Distribution Service to modify the instance and
- * mark it for deletion. Copies of the instance and its corresponding samples, which are
- * stored in every connected reader and, dependent on the QoS policy settings (also in
- * the Transient and Persistent stores) will be modified and marked for deletion by
- * setting their dds_instance_state_t to DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE.
+ * The writer sends the complete sample with the disposed instance state.
+ * If its topic filter rejects the sample, the writer also skips the dispose.
  *
- * @par Blocking
- * If the history QoS policy is set to DDS_HISTORY_KEEP_ALL, the
- * dds_writedispose operation on the writer may block if the modification
- * would cause data to be lost because one of the limits, specified in the
- * resource_limits QoS policy, to be exceeded. In case the synchronous
- * attribute value of the reliability Qos policy is set to true for
- * communicating writers and readers then the writer will wait until
- * all synchronous readers have acknowledged the data. Under these
- * circumstances, the max_blocking_time attribute of the reliability
- * QoS policy configures the maximum time the dds_writedispose operation
- * may block.
- * If max_blocking_time elapses before the writer is able to store the
- * modification without exceeding the limits and all expected acknowledgements
- * are received, the dds_writedispose operation will fail and returns
- * DDS_RETCODE_TIMEOUT.
+ * @param[in] writer The writer.
+ * @param[in] data The sample to write and dispose. See @ref write_sample_loan "Writer loan ownership".
  *
- * @param[in]  writer The writer to dispose the data instance from.
- * @param[in]  data   The data to be written and disposed.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The sample is written and the instance is marked for deletion.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             At least one of the arguments is invalid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- * @retval DDS_RETCODE_TIMEOUT
- *             Either the current action overflowed the available resources as
- *             specified by the combination of the reliability QoS policy,
- *             history QoS policy and resource_limits QoS policy, or the
- *             current action was waiting for data delivery acknowledgement
- *             by synchronous readers. This caused blocking of this operation,
- *             which could not be resolved before max_blocking_time of the
- *             reliability QoS policy elapsed.
+ * @retval DDS_RETCODE_OK  The writer accepted the update or its topic filter discarded it.
+ * @retval DDS_RETCODE_BAD_PARAMETER  The writer handle is invalid, @p data is
+ *         null, or the sample could not be serialized.
+ * @retval DDS_RETCODE_TIMEOUT  The write exceeded max_blocking_time.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES  A required PSMX loan was unavailable.
+ * @retval DDS_RETCODE_ERROR  Delivery failed.
+ * @see @ref write_delivery_errors "Delivery errors" and @ref entity_handle_errors.
  */
 DDS_EXPORT dds_return_t
 dds_writedispose(dds_entity_t writer, const void *data);
 
 /**
- * @brief This operation modifies and disposes a data instance with a specific
- *        timestamp.
+ * @brief Writes a data sample and disposes the instance using a supplied timestamp.
  * @ingroup writing
  * @component write_data
  *
- * This operation performs the same functions as dds_writedispose() except that
- * the application provides the value for the source_timestamp that is made
- * available to connected reader objects. This timestamp is important for the
- * interpretation of the destination_order QoS policy.
+ * The operation, loan ownership and return values follow @ref dds_writedispose.
  *
- * @param[in]  writer    The writer to dispose the data instance from.
- * @param[in]  data      The data to be written and disposed.
- * @param[in]  timestamp The timestamp used as source timestamp (>= 0).
+ * @param[in] writer The writer.
+ * @param[in] data The sample to write and dispose. See @ref write_sample_loan "Writer loan ownership".
+ * @param[in] timestamp Source timestamp. See @ref write_source_timestamp "Source timestamps".
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The sample is written and the instance is marked for deletion.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             At least one of the arguments is invalid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- * @retval DDS_RETCODE_TIMEOUT
- *             Either the current action overflowed the available resources as
- *             specified by the combination of the reliability QoS policy,
- *             history QoS policy and resource_limits QoS policy, or the
- *             current action was waiting for data delivery acknowledgement
- *             by synchronous readers. This caused blocking of this operation,
- *             which could not be resolved before max_blocking_time of the
- *             reliability QoS policy elapsed.
+ * @returns The result of the write, as for @ref dds_writedispose.
+ * @retval DDS_RETCODE_BAD_PARAMETER  The source timestamp is outside the supported range.
  */
 DDS_EXPORT dds_return_t
 dds_writedispose_ts(
@@ -1985,95 +1929,40 @@ dds_writedispose_ts(
   dds_time_t timestamp);
 
 /**
- * @brief This operation disposes an instance, identified by the data sample.
+ * @brief Disposes the instance identified by a sample using the current time.
  * @ingroup writing
  * @component write_data
  *
- * This operation requests the Data Distribution Service to modify the instance and
- * mark it for deletion. Copies of the instance and its corresponding samples, which are
- * stored in every connected reader and, dependent on the QoS policy settings (also in
- * the Transient and Persistent stores) will be modified and marked for deletion by
- * setting their dds_instance_state_t to DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE.
+ * The writer sends a key-only dispose update, bypassing its topic filter.
+ * Readers use this update to mark the instance as disposed.
  *
- * @par Blocking
- * If the history QoS policy is set to DDS_HISTORY_KEEP_ALL, the
- * dds_writedispose operation on the writer may block if the modification
- * would cause data to be lost because one of the limits, specified in the
- * resource_limits QoS policy, to be exceeded. In case the synchronous
- * attribute value of the reliability Qos policy is set to true for
- * communicating writers and readers then the writer will wait until
- * all synchronous readers have acknowledged the data. Under these
- * circumstances, the max_blocking_time attribute of the reliability
- * QoS policy configures the maximum time the dds_writedispose operation
- * may block.
- * If max_blocking_time elapses before the writer is able to store the
- * modification without exceeding the limits and all expected acknowledgements
- * are received, the dds_writedispose operation will fail and returns
- * DDS_RETCODE_TIMEOUT.
+ * @param[in] writer The writer.
+ * @param[in] data A sample containing the key. See @ref write_sample_loan "Writer loan ownership".
  *
- * @param[in]  writer The writer to dispose the data instance from.
- * @param[in]  data   The data sample that identifies the instance
- *                    to be disposed.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The sample is written and the instance is marked for deletion.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             At least one of the arguments is invalid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- * @retval DDS_RETCODE_TIMEOUT
- *             Either the current action overflowed the available resources as
- *             specified by the combination of the reliability QoS policy,
- *             history QoS policy and resource_limits QoS policy, or the
- *             current action was waiting for data delivery acknowledgement
- *             by synchronous readers. This caused blocking of this operation,
- *             which could not be resolved before max_blocking_time of the
- *             reliability QoS policy elapsed.
+ * @retval DDS_RETCODE_OK  The writer accepted the dispose update.
+ * @retval DDS_RETCODE_BAD_PARAMETER  The writer handle is invalid, @p data is
+ *         null, or the sample could not be serialized.
+ * @retval DDS_RETCODE_TIMEOUT  The write exceeded max_blocking_time.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES  A required PSMX loan was unavailable.
+ * @retval DDS_RETCODE_ERROR  Delivery failed.
+ * @see @ref write_delivery_errors "Delivery errors" and @ref entity_handle_errors.
  */
 DDS_EXPORT dds_return_t
 dds_dispose(dds_entity_t writer, const void *data);
 
 /**
- * @brief This operation disposes an instance with a specific timestamp, identified by the data sample.
+ * @brief Disposes the instance identified by a sample using a supplied timestamp.
  * @ingroup writing
  * @component write_data
  *
- * This operation performs the same functions as dds_dispose() except that
- * the application provides the value for the source_timestamp that is made
- * available to connected reader objects. This timestamp is important for the
- * interpretation of the destination_order QoS policy.
+ * The operation, loan ownership and return values follow @ref dds_dispose.
  *
- * @param[in]  writer    The writer to dispose the data instance from.
- * @param[in]  data      The data sample that identifies the instance
- *                       to be disposed.
- * @param[in]  timestamp The timestamp used as source timestamp (>= 0).
+ * @param[in] writer The writer.
+ * @param[in] data A sample containing the key. See @ref write_sample_loan "Writer loan ownership".
+ * @param[in] timestamp Source timestamp. See @ref write_source_timestamp "Source timestamps".
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The sample is written and the instance is marked for deletion
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             At least one of the arguments is invalid
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted
- * @retval DDS_RETCODE_TIMEOUT
- *             Either the current action overflowed the available resources as
- *             specified by the combination of the reliability QoS policy,
- *             history QoS policy and resource_limits QoS policy, or the
- *             current action was waiting for data delivery acknowledgment
- *             by synchronous readers. This caused blocking of this operation,
- *             which could not be resolved before max_blocking_time of the
- *             reliability QoS policy elapsed.
+ * @returns The result of the write, as for @ref dds_dispose.
+ * @retval DDS_RETCODE_BAD_PARAMETER  The source timestamp is outside the supported range.
  */
 DDS_EXPORT dds_return_t
 dds_dispose_ts(
@@ -2082,70 +1971,40 @@ dds_dispose_ts(
   dds_time_t timestamp);
 
 /**
- * @brief This operation disposes an instance, identified by the instance handle.
+ * @brief Disposes an instance by handle using the current time.
  * @ingroup writing
  * @component write_data
  *
- * This operation requests the Data Distribution Service to modify the instance and
- * mark it for deletion. Copies of the instance and its corresponding samples, which are
- * stored in every connected reader and, dependent on the QoS policy settings (also in
- * the Transient and Persistent stores) will be modified and marked for deletion by
- * setting their dds_instance_state_t to DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE.
+ * The writer looks up the handle in its domain and sends a key-only dispose
+ * update, bypassing the topic filter.
  *
- * @par Instance Handle
- * The given instance handle must correspond to the value that was returned by either
- * the dds_register_instance operation, dds_register_instance_ts or dds_lookup_instance.
- * If there is no correspondence, then the result of the operation is unspecified.
+ * @param[in] writer The writer.
+ * @param[in] handle An instance handle for the writer's topic.
  *
- * @param[in]  writer The writer to dispose the data instance from.
- * @param[in]  handle The handle to identify an instance.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The sample is written and the instance is marked for deletion.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             At least one of the arguments is invalid
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             The instance handle has not been registered with this writer
+ * @retval DDS_RETCODE_OK  The writer accepted the update.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET  The instance handle is unknown in this domain.
+ * @retval DDS_RETCODE_BAD_PARAMETER  The writer handle is invalid or the key could not be serialized.
+ * @retval DDS_RETCODE_ERROR  The key could not be reconstructed or delivery failed.
+ * @retval DDS_RETCODE_TIMEOUT  The write exceeded max_blocking_time.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES  A required PSMX loan was unavailable.
+ * @see @ref write_delivery_errors "Delivery errors" and @ref entity_handle_errors.
  */
 DDS_EXPORT dds_return_t
 dds_dispose_ih(dds_entity_t writer, dds_instance_handle_t handle);
 
 /**
- * @brief This operation disposes an instance with a specific timestamp, identified by the instance handle.
+ * @brief Disposes an instance by handle using a supplied timestamp.
  * @ingroup writing
  * @component write_data
  *
- * This operation performs the same functions as dds_dispose_ih() except that
- * the application provides the value for the source_timestamp that is made
- * available to connected reader objects. This timestamp is important for the
- * interpretation of the destination_order QoS policy.
+ * The operation and return values follow @ref dds_dispose_ih.
  *
- * @param[in]  writer    The writer to dispose the data instance from.
- * @param[in]  handle    The handle to identify an instance.
- * @param[in]  timestamp The timestamp used as source timestamp (>= 0).
+ * @param[in] writer The writer.
+ * @param[in] handle An instance handle for the writer's topic.
+ * @param[in] timestamp Source timestamp. See @ref write_source_timestamp "Source timestamps".
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The sample is written and the instance is marked for deletion.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             At least one of the arguments is invalid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             The instance handle has not been registered with this writer.
+ * @returns The result of the lifecycle update, as for @ref dds_dispose_ih.
+ * @retval DDS_RETCODE_BAD_PARAMETER  The source timestamp is outside the supported range.
  */
 DDS_EXPORT dds_return_t
 dds_dispose_ih_ts(
@@ -2154,118 +2013,112 @@ dds_dispose_ih_ts(
   dds_time_t timestamp);
 
 /**
- * @brief Write the value of a data instance
+ * @brief Writes a data sample using the current time.
  * @ingroup writing
  * @component write_data
  *
- * With this API, the value of the source timestamp is automatically made
- * available to the data reader by the service.
+ * The writer applies its topic filter before publishing the sample.
  *
- * @param[in]  writer The writer entity.
- * @param[in]  data Value to be written.
+ * @param[in] writer The writer.
+ * @param[in] data The sample to write. See @ref write_sample_loan "Writer loan ownership".
  *
- * @returns dds_return_t indicating success or failure.
+ * @retval DDS_RETCODE_OK  The writer accepted the sample or its topic filter discarded it.
+ * @retval DDS_RETCODE_BAD_PARAMETER  The writer handle is invalid, @p data is
+ *         null, or the sample could not be serialized.
+ * @retval DDS_RETCODE_TIMEOUT  The write exceeded max_blocking_time.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES  A required PSMX loan was unavailable.
+ * @retval DDS_RETCODE_ERROR  Delivery failed.
+ * @see @ref write_delivery_errors "Delivery errors" and @ref entity_handle_errors.
  */
 DDS_EXPORT dds_return_t
 dds_write(dds_entity_t writer, const void *data);
 
 /**
- * @brief Flush a writers batched writes
+ * @brief Flushes batched network writes.
  * @ingroup writing
  * @component write_data
  *
- * When using write batching you can manually batch small writes into larger
- * datapackets for network efficiency. The normal `dds_write()` no longer
- * guarantee that data is sent on the network automatically.
+ * A writer flushes its current batch. For a publisher, participant or domain,
+ * the call flushes its descendant writers.
  *
- * @param[in]  entity The writer entity.
-
- * @returns A dds_return_t indicating success or failure.
- * @retval DDS_RETCODE_OK
- *             The writer successfully forwarded to the network.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             One of the given arguments is not valid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @param[in] entity A writer, publisher, participant or domain.
+ *
+ * @retval DDS_RETCODE_OK  The flush request completed, including when there
+ *         were no batched writes. Individual network send results are not reported.
+ * @see @ref entity_handle_errors for errors validating the entity handle.
  */
 DDS_EXPORT dds_return_t
 dds_write_flush(dds_entity_t entity);
 
 /**
- * @brief Write a serialized value of a data instance
+ * @brief Writes a serialized sample using the current time.
  * @ingroup writing
  * @component write_data
  *
- * This call causes the writer to write the serialized value that is provided
- * in the serdata argument.  Timestamp and statusinfo fields are set to the
- * current time and 0 (indicating a regular write), respectively.
+ * After validating the serdata type and writer and checking for a topic
+ * filter, this call sets the timestamp in @p serdata to the current time and
+ * its statusinfo to zero. Other references see these values even if a
+ * subsequent step fails.
  *
- * @param[in]  writer The writer entity.
- * @param[in]  serdata Serialized value to be written. Its type pointer must be non-null.
- *             If non-null, the call consumes one reference on both success and error.
+ * @param[in] writer The writer.
+ * @param[in] serdata Serialized data with a non-null type pointer.
+ *            If @p serdata is non-null, the call consumes one reference on
+ *            every return path.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The writer successfully wrote the serialized value.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             One of the given arguments is not valid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- * @retval DDS_RETCODE_TIMEOUT
- *             The writer failed to write the serialized value reliably within the specified max_blocking_time.
+ * @retval DDS_RETCODE_OK  The writer accepted the serialized data.
+ * @retval DDS_RETCODE_BAD_PARAMETER  The writer handle is invalid, @p serdata
+ *         or its type pointer is null, the source timestamp is outside the
+ *         supported range, or an attached PSMX loan has incompatible origin
+ *         or metadata.
+ * @retval DDS_RETCODE_ERROR  The writer's topic has a configured filter,
+ *         conversion to the writer's serialized type failed, or delivery failed.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES  A required PSMX loan was unavailable.
+ * @retval DDS_RETCODE_TIMEOUT  The write exceeded max_blocking_time.
+ * @see @ref write_delivery_errors "Delivery errors" and @ref entity_handle_errors.
  */
 DDS_EXPORT dds_return_t
 dds_writecdr(dds_entity_t writer, struct ddsi_serdata *serdata);
 
 /**
- * @brief Write a serialized value of a data instance
+ * @brief Forwards serialized data with its source timestamp and statusinfo.
  * @ingroup writing
  * @component write_data
  *
- * This call causes the writer to write the serialized value that is provided
- * in the serdata argument.  Timestamp and statusinfo are used as is.
+ * The writer preserves the timestamp and statusinfo from @p serdata. The
+ * timestamp must satisfy the @ref write_source_timestamp "source timestamp limits".
  *
- * @param[in]  writer The writer entity.
- * @param[in]  serdata Serialized value to be written. Its type pointer must be non-null.
- *             If non-null, the call consumes one reference on both success and error.
+ * @param[in] writer The writer.
+ * @param[in] serdata Serialized data with a non-null type pointer.
+ *            If @p serdata is non-null, the call consumes one reference on
+ *            every return path.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The writer successfully wrote the serialized value.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             One of the given arguments is not valid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- * @retval DDS_RETCODE_TIMEOUT
- *             The writer failed to write the serialized value reliably within the specified max_blocking_time.
+ * @retval DDS_RETCODE_OK  The writer accepted the serialized data.
+ * @retval DDS_RETCODE_BAD_PARAMETER  The writer handle is invalid, @p serdata
+ *         or its type pointer is null, the source timestamp is outside the
+ *         supported range, or an attached PSMX loan has incompatible origin
+ *         or metadata.
+ * @retval DDS_RETCODE_ERROR  The writer's topic has a configured filter,
+ *         conversion to the writer's serialized type failed, or delivery failed.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES  A required PSMX loan was unavailable.
+ * @retval DDS_RETCODE_TIMEOUT  The write exceeded max_blocking_time.
+ * @see @ref write_delivery_errors "Delivery errors" and @ref entity_handle_errors.
  */
 DDS_EXPORT dds_return_t
 dds_forwardcdr(dds_entity_t writer, struct ddsi_serdata *serdata);
 
 /**
- * @brief Write the value of a data instance along with the source timestamp passed.
+ * @brief Writes a data sample using a supplied timestamp.
  * @ingroup writing
  * @component write_data
  *
- * @param[in]  writer The writer entity.
- * @param[in]  data Value to be written.
- * @param[in]  timestamp Source timestamp (>= 0).
+ * The operation, loan ownership and return values follow @ref dds_write.
  *
- * @returns A dds_return_t indicating success or failure.
+ * @param[in] writer The writer.
+ * @param[in] data The sample to write. See @ref write_sample_loan "Writer loan ownership".
+ * @param[in] timestamp Source timestamp. See @ref write_source_timestamp "Source timestamps".
+ *
+ * @returns The result of the write, as for @ref dds_write.
+ * @retval DDS_RETCODE_BAD_PARAMETER  The source timestamp is outside the supported range.
  */
 DDS_EXPORT dds_return_t
 dds_write_ts(
