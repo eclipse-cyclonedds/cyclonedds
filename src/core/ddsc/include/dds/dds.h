@@ -1025,32 +1025,28 @@ dds_lookup_participant(
  */
 
 /**
- * @brief Creates a new topic with default type handling.
+ * @brief Creates a topic using an IDL-generated descriptor.
  * @ingroup topic
  * @component topic
  *
- * The type name for the topic is taken from the generated descriptor. Topic
- * matching is done on a combination of topic name and type name. Each successful
- * call to dds_create_topic creates a new topic entity sharing the same QoS
- * settings with all other topics of the same name.
+ * Topics of the same name in one participant share QoS and may have different types.
+ * Each successful call creates a distinct topic handle.
  *
- * @param[in]  participant  Participant on which to create the topic.
- * @param[in]  descriptor   An IDL generated topic descriptor.
- * @param[in]  name         Name of the topic.
- * @param[in]  qos          QoS to set on the new topic (can be NULL).
- * @param[in]  listener     Any listener functions associated with the new topic (can be NULL).
+ * @param[in] participant Participant in which to create the topic.
+ * @param[in] descriptor Topic descriptor supplying the type name and serialization metadata.
+ * @param[in] name Topic name.
+ * @param[in] qos Topic QoS, or NULL for defaults.
+ * @param[in] listener Listener, or NULL.
  *
- * @returns A valid, unique topic handle or an error code.
- *
- * @retval >=0
- *             A valid unique topic handle.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             Either participant, descriptor, name or qos is invalid.
- * @retval DDS_RETCODE_INCONSISTENT_POLICY
- *             QoS mismatch between qos and an existing topic's QoS.
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             Mismatch between type name in descriptor and pre-existing
- *             topic's type name.
+ * @retval >0 A new topic handle.
+ * @retval DDS_RETCODE_BAD_PARAMETER Invalid name, type description or QoS policy value,
+ *         including an invalid data representation.
+ * @retval DDS_RETCODE_INCONSISTENT_POLICY Inconsistent policies, or different QoS
+ *         on an existing topic of the same name in this participant.
+ * @retval DDS_RETCODE_UNSUPPORTED XML data representation was requested.
+ * @retval DDS_RETCODE_NOT_ALLOWED_BY_SECURITY Access control denied topic creation.
+ * @retval DDS_RETCODE_ERROR A PSMX instance failed to create the topic.
+ * @return Entity lookup errors as described in @ref entity_handle_errors.
  */
 DDS_EXPORT dds_entity_t
 dds_create_topic(
@@ -1070,39 +1066,36 @@ dds_create_topic(
 #define DDS_HAS_CREATE_TOPIC_SERTYPE 1
 
 /**
- * @brief Creates a new topic with provided type handling.
+ * @brief Creates a topic using a caller-supplied serialization type.
  * @ingroup topic
  * @component topic
  *
- * The name for the type is taken from the provided "sertype" object. Type
- * matching is done on a combination of topic name and type name. Each successful
- * call to dds_create_topic creates a new topic entity sharing the same QoS
- * settings with all other topics of the same name.
+ * On success this function consumes one reference to the supplied sertype and
+ * sets `*sertype` to the type used by the topic. This is a borrowed pointer,
+ * valid while the topic exists. It can point to an equivalent type already
+ * registered in the domain. On error the caller keeps its reference and
+ * `*sertype` is unchanged. A late failure can leave the supplied type
+ * registered in this domain. Retry in the same domain or release the
+ * reference before deleting the domain.
  *
- * In case this function returns a valid handle, the ownership of the provided
- * sertype is handed over to Cyclone. On return, the caller gets in the sertype parameter a
- * pointer to the sertype that is actually used by the topic. This can be the provided sertype
- * (if this sertype was not yet known in the domain), or a sertype thas was
- * already known in the domain.
+ * Topics of the same name in one participant share QoS and may have different types.
  *
- * @param[in]     participant  Participant on which to create the topic.
- * @param[in]     name         Topic name
- * @param[in,out] sertype      Internal description of the type . On return, the sertype parameter is set to the actual sertype that is used by the topic.
- * @param[in]     qos          QoS to set on the new topic (can be NULL).
- * @param[in]     listener     Any listener functions associated with the new topic (can be NULL).
- * @param[in]     sedp_plist   Ignored (should be NULL, may be enforced in the future).
+ * @param[in] participant Participant in which to create the topic.
+ * @param[in] name Topic name.
+ * @param[in,out] sertype Reference to the supplied serialization type.
+ * @param[in] qos Topic QoS, or NULL for defaults.
+ * @param[in] listener Listener, or NULL.
+ * @param[in] sedp_plist Reserved. Pass NULL.
  *
- * @returns A valid, unique topic handle or an error code. Iff a valid handle, the domain takes ownership of provided serdata.
- *
- * @retval >=0
- *             A valid unique topic handle.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             Either participant, descriptor, name or qos is invalid.
- * @retval DDS_RETCODE_INCONSISTENT_POLICY
- *             QoS mismatch between qos and an existing topic's QoS.
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             Mismatch between type name in sertype and pre-existing
- *             topic's type name.
+ * @retval >0 A new topic handle.
+ * @retval DDS_RETCODE_BAD_PARAMETER Invalid name, type description or QoS policy value,
+ *         including an invalid data representation.
+ * @retval DDS_RETCODE_INCONSISTENT_POLICY Inconsistent policies, or different QoS
+ *         on an existing topic of the same name in this participant.
+ * @retval DDS_RETCODE_UNSUPPORTED XML data representation was requested.
+ * @retval DDS_RETCODE_NOT_ALLOWED_BY_SECURITY Access control denied topic creation.
+ * @retval DDS_RETCODE_ERROR A PSMX instance failed to create the topic.
+ * @return Entity lookup errors as described in @ref entity_handle_errors.
  */
 DDS_EXPORT dds_entity_t
 dds_create_topic_sertype (
