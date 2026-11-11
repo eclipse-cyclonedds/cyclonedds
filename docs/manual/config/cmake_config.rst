@@ -24,8 +24,27 @@ addition to the standard options such as ``CMAKE_BUILD_TYPE``):
         of ``BUILD_TESTING``)
     * - ``-DBUILD_IDLC=NO``
       - Disable building the IDL compiler (affects building examples, tests and ``ddsperf``)
+    * - ``-DINSTALL_IDLC=NO``
+      - Build the IDL compiler and its libraries without installing them (default is ``ON``).
     * - ``-DBUILD_DDSPERF=NO``
       - Disable building the :ref:`dsperf_tool` (|url::ddsperf_github|) tool for performance measurement.
+    * - ``-DINSTALL_DDSPERF=NO``
+      - Build ``ddsperf`` without installing it (default is ``ON``).
+    * - ``-DBUILD_DYNTYPELIB=NO``
+      - Disable building the dynamic type library and, by default, ``xmltype``.
+        Building these requires ``ENABLE_TYPELIB`` (default is ``ON``).
+    * - ``-DINSTALL_DYNTYPELIB=NO``
+      - Build the dynamic type library without installing its library, headers or CMake target
+        (default is ``ON``).
+    * - ``-DBUILD_XMLTYPE=NO``
+      - Disable building the XML type tool. Defaults to ``BUILD_DYNTYPELIB`` and requires
+        both ``BUILD_DYNTYPELIB`` and ``ENABLE_TYPELIB``.
+    * - ``-DINSTALL_XMLTYPE=ON``
+      - Install the XML type tool (default is ``OFF``). Requires ``BUILD_XMLTYPE`` and,
+        for shared library builds, ``INSTALL_DYNTYPELIB``.
+    * - ``-DINSTALL_SYSTEM_RUNTIME_LIBRARIES=NO``
+      - Disable installing Windows system runtime DLLs, including the Universal CRT
+        (default is ``ON`` on Windows). Cyclone DDS libraries are still installed.
     * - ``-DENABLE_SSL=NO``
       - Do not look for OpenSSL, remove TLS/TCP support and avoid building the plugins that
         implement authentication and encryption (default is ``AUTO`` to enable them if OpenSSL is found)
@@ -60,3 +79,9 @@ addition to the standard options such as ``CMAKE_BUILD_TYPE``):
         an IDL file at (test) runtime, and use the C compiler to build a test
         application for the generated types, that is executed to do the actual testing
         (not supported on Windows)
+
+Disabling installation leaves the tools available for use within the build tree.
+``INSTALL_IDLC``, ``INSTALL_DDSPERF`` and ``INSTALL_DYNTYPELIB`` have no effect when
+building the corresponding tool is disabled. When changing an
+existing build directory, also set ``BUILD_XMLTYPE=NO`` if it was previously enabled and
+``BUILD_DYNTYPELIB`` is being disabled.

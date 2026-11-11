@@ -76,8 +76,11 @@ if((WIN32 OR RTX64) AND NOT UNIX)
   # when updating the version number also generate a new GUID
 	set(CPACK_WIX_UPGRADE_GUID "f619c294-0696-4f04-98ed-4cfa6ebba6a5")
 
-  include(InstallRequiredSystemLibraries)
-  set(CMAKE_INSTALL_UCRT_LIBRARIES TRUE)
+  option(INSTALL_SYSTEM_RUNTIME_LIBRARIES "Install Windows system runtime libraries" ON)
+  if(INSTALL_SYSTEM_RUNTIME_LIBRARIES)
+    set(CMAKE_INSTALL_UCRT_LIBRARIES TRUE)
+    include(InstallRequiredSystemLibraries)
+  endif()
 
 elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
   set(CPACK_COMPONENTS_GROUPING "IGNORE")

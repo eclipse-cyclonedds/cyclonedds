@@ -25,16 +25,18 @@ if (BUILD_DDSPERF)
     target_compile_definitions(ddsperf PRIVATE _CRT_SECURE_NO_WARNINGS)
   endif()
 
-  install(
-    TARGETS ddsperf
-    DESTINATION "${CMAKE_INSTALL_BINDIR}"
-    COMPONENT dev
-  )
-  if (INSTALL_PDB)
-    install(FILES $<TARGET_PDB_FILE:ddsperf>
+  if(INSTALL_DDSPERF)
+    install(
+      TARGETS ddsperf
       DESTINATION "${CMAKE_INSTALL_BINDIR}"
       COMPONENT dev
-      OPTIONAL
     )
+    if (INSTALL_PDB)
+      install(FILES $<TARGET_PDB_FILE:ddsperf>
+        DESTINATION "${CMAKE_INSTALL_BINDIR}"
+        COMPONENT dev
+        OPTIONAL
+      )
+    endif()
   endif()
 endif ()

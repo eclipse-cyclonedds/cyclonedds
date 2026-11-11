@@ -142,26 +142,28 @@ target_include_directories(
 
 target_link_libraries(idl PRIVATE Threads::Threads)
 
-install(
-  DIRECTORY
-    "${source_dir}/include/idl"
-    "${binary_dir}/include/idl"
-  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-  COMPONENT dev
-  FILES_MATCHING PATTERN "*.h")
-
-install(
-  TARGETS idl
-  EXPORT "${PROJECT_NAME}"
-  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT lib
-  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
-  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib)
-
-if (INSTALL_PDB)
-  install(FILES $<TARGET_PDB_FILE:idl>
-    DESTINATION "${CMAKE_INSTALL_BINDIR}"
+if(INSTALL_IDLC)
+  install(
+    DIRECTORY
+      "${source_dir}/include/idl"
+      "${binary_dir}/include/idl"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
     COMPONENT dev
-    OPTIONAL)
+    FILES_MATCHING PATTERN "*.h")
+
+  install(
+    TARGETS idl
+    EXPORT "${PROJECT_NAME}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT lib
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib)
+
+  if (INSTALL_PDB)
+    install(FILES $<TARGET_PDB_FILE:idl>
+      DESTINATION "${CMAKE_INSTALL_BINDIR}"
+      COMPONENT dev
+      OPTIONAL)
+  endif()
 endif()
 
 if(BUILD_TESTING)
