@@ -277,6 +277,35 @@ CU_Test(ddsc_participant_lookup, multiple) {
   dds_delete (participant);
 }
 
+CU_Test(ddsc_participant_lookup, domain_children)
+{
+  dds_entity_t pp1 = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+  CU_ASSERT_GT_FATAL (pp1, 0);
+  dds_entity_t domain = dds_get_parent (pp1);
+  CU_ASSERT_GT_FATAL (domain, 0);
+  dds_domainid_t id;
+  CU_ASSERT_EQ_FATAL (dds_get_domainid (domain, &id), DDS_RETCODE_OK);
+  CU_ASSERT_GT_FATAL (dds_create_guardcondition (domain), 0);
+  CU_ASSERT_GT_FATAL (dds_create_waitset (domain), 0);
+  dds_entity_t pp2 = dds_create_participant (id, NULL, NULL);
+  CU_ASSERT_GT_FATAL (pp2, 0);
+
+  dds_entity_t found[3] = { -1, -1, -1 };
+  CU_ASSERT_EQ_FATAL (dds_lookup_participant (id, NULL, 0), 2);
+  CU_ASSERT_EQ_FATAL (dds_lookup_participant (id, found, 1), 2);
+  CU_ASSERT (found[0] == pp1 || found[0] == pp2);
+  CU_ASSERT_EQ (found[1], -1);
+  CU_ASSERT_EQ_FATAL (dds_lookup_participant (id, found, 3), 2);
+  CU_ASSERT ((found[0] == pp1 && found[1] == pp2) || (found[0] == pp2 && found[1] == pp1));
+  CU_ASSERT_EQ (found[2], -1);
+
+  CU_ASSERT_EQ_FATAL (dds_delete (pp1), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_delete (pp2), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_lookup_participant (id, found, 3), 0);
+  CU_ASSERT_EQ (found[0], DDS_ENTITY_NIL);
+  CU_ASSERT_EQ_FATAL (dds_delete (domain), DDS_RETCODE_OK);
+}
+
 CU_Test(ddsc_participant_lookup, array_too_small) {
 
   dds_entity_t participant, participant2, participant3;

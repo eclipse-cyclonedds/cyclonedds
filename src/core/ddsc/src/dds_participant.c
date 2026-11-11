@@ -212,12 +212,16 @@ dds_return_t dds_lookup_participant (dds_domainid_t domain_id, dds_entity_t *par
   if ((dom = dds_domain_find_locked (domain_id)) != NULL)
   {
     ddsrt_avl_iter_t it;
+    ddsrt_mutex_lock (&dom->m_entity.m_mutex);
     for (dds_entity *e = ddsrt_avl_iter_first (&dds_entity_children_td, &dom->m_entity.m_children, &it); e != NULL; e = ddsrt_avl_iter_next (&it))
     {
+      if (dds_entity_kind (e) != DDS_KIND_PARTICIPANT)
+        continue;
       if ((size_t) ret < size)
         participants[ret] = e->m_hdllink.hdl;
       ret++;
     }
+    ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
   }
   ddsrt_mutex_unlock (&dds_global.m_mutex);
   dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
