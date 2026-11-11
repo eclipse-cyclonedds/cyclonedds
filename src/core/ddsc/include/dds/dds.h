@@ -1168,82 +1168,78 @@ dds_find_topic_scoped (dds_find_scope_t scope, dds_entity_t participant, const c
 
 
 /**
+ * @brief Builds a topic descriptor from a complete type and its dependencies.
  * @ingroup topic
  * @component topic
- * @brief Creates topic descriptor for the provided type_info
  *
- * @param[in]  scope        The scope used to find the type: DDS_FIND_SCOPE_LOCAL_DOMAIN or DDS_FIND_SCOPE_GLOBAL. In case DDS_FIND_SCOPE_GLOBAL is used, a type lookup request will be sent to other nodes.
- * @param[in]  participant  The handle of the participant.
- * @param[in]  type_info    The type (dds_typeinfo_t) of the topic to find.
- * @param[in]  timeout      The timeout for waiting for the type to become available
- * @param[out] descriptor   Receives the newly allocated descriptor on success. On error, `*descriptor` is unchanged.
- *                          Use @ref dds_delete_topic_descriptor to free the descriptor.
+ * @param[in] scope DDS_FIND_SCOPE_LOCAL_DOMAIN waits for local type information.
+ *            DDS_FIND_SCOPE_GLOBAL may request missing types from other participants
+ *            and requires DDS_HAS_TYPE_DISCOVERY.
+ * @param[in] participant Participant whose domain supplies the type library.
+ * @param[in] type_info Type information containing the complete type identifier.
+ * @param[in] timeout Maximum wait in nanoseconds. Zero polls and DDS_INFINITY waits indefinitely.
+ * @param[out] descriptor Receives the allocated descriptor on success. On error,
+ *             `*descriptor` is unchanged. Free the result with @ref dds_delete_topic_descriptor.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The topic descriptor has been succesfully created.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             Type_info or descriptor parameter not provided, invalid entity (not a participant) or scope invalid.
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             The participant or the type_id was not found.
- * @retval DDS_RETCODE_TIMEOUT
- *             Type was not resolved within the provided timeout
- * @retval DDS_RETCODE_UNSUPPORTED
- *             Cyclone DDS built without type discovery
- *             (cf. DDS_HAS_TYPE_DISCOVERY)
+ * @retval DDS_RETCODE_OK The descriptor is ready to use.
+ * @retval DDS_RETCODE_BAD_PARAMETER Invalid scope, participant, type identifier,
+ *         negative timeout, or null type information or output pointer.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET The library is uninitialized, the type
+ *         identifier is unknown in the domain, or a type request could not be issued.
+ * @retval DDS_RETCODE_TIMEOUT The known type or a dependency is still unresolved.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES Descriptor allocation failed.
+ * @retval DDS_RETCODE_UNSUPPORTED The build lacks DDS_HAS_TYPELIB or the type
+ *         uses a feature unsupported by the descriptor builder.
  */
 DDS_EXPORT dds_return_t
 dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t participant, const dds_typeinfo_t *type_info, dds_duration_t timeout, dds_topic_descriptor_t **descriptor);
 
 /**
+ * @brief Frees a descriptor returned by @ref dds_create_topic_descriptor.
  * @ingroup topic
  * @component topic
- * @brief Delete memory allocated to the provided topic descriptor
  *
- * @param[in] descriptor - Pointer to a dds_topic_descriptor_t
+ * @param[in] descriptor Caller-owned descriptor.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The topic descriptor has been succesfully deleted.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             No descriptor provided
- * @retval DDS_RETCODE_UNSUPPORTED
- *             Cyclone DDS built without type discovery
- *             (cf. DDS_HAS_TYPE_DISCOVERY)
+ * @retval DDS_RETCODE_OK The descriptor was freed.
+ * @retval DDS_RETCODE_BAD_PARAMETER The descriptor is NULL.
+ * @retval DDS_RETCODE_UNSUPPORTED The build lacks DDS_HAS_TYPELIB.
  */
 DDS_EXPORT dds_return_t
 dds_delete_topic_descriptor (dds_topic_descriptor_t *descriptor);
 
 /**
- * @brief Returns the name of a given topic.
+ * @brief Copies the topic name into a caller-supplied buffer.
  * @ingroup topic
  * @component topic
  *
- * @param[in]  topic  The topic.
- * @param[out] name   Buffer for the topic name. On error, the buffer is unchanged.
- * @param[in]  size   Number of bytes available in the buffer.
+ * @param[in] topic Topic handle or built-in topic pseudo-handle.
+ * @param[out] name Buffer for the NUL-terminated topic name. On error the buffer is unchanged.
+ * @param[in] size Buffer capacity in bytes, including space for the terminator.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @return Actual length of topic name (name is truncated if return value >= size) or error
+ * @return The full length in bytes excluding the terminator. A result greater
+ *         than or equal to `size` means that the name was truncated.
+ * @retval DDS_RETCODE_BAD_PARAMETER The buffer is NULL, the capacity is zero,
+ *         or the topic handle is invalid.
+ * @return Other errors as described in @ref entity_handle_errors.
  */
 DDS_EXPORT dds_return_t
 dds_get_name(dds_entity_t topic, char *name, size_t size);
 
 /**
- * @brief Returns the type name of a given topic.
+ * @brief Copies the type name into a caller-supplied buffer.
  * @ingroup topic
  * @component topic
  *
- * @param[in]  topic  The topic.
- * @param[out] name   Buffer for the topic type name. On error, the buffer is unchanged.
- * @param[in]  size   Number of bytes available in the buffer.
+ * @param[in] topic Topic handle or built-in topic pseudo-handle.
+ * @param[out] name Buffer for the NUL-terminated type name. On error the buffer is unchanged.
+ * @param[in] size Buffer capacity in bytes, including space for the terminator.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @return Actual length of type name (name is truncated if return value >= size) or error
+ * @return The full length in bytes excluding the terminator. A result greater
+ *         than or equal to `size` means that the name was truncated.
+ * @retval DDS_RETCODE_BAD_PARAMETER The buffer is NULL, the capacity is zero,
+ *         or the topic handle is invalid.
+ * @return Other errors as described in @ref entity_handle_errors.
  */
 DDS_EXPORT dds_return_t
 dds_get_type_name(dds_entity_t topic, char *name, size_t size);
@@ -1255,24 +1251,16 @@ dds_get_type_name(dds_entity_t topic, char *name, size_t size);
  * @warning part of the Unstable API: no guarantee that any
  *          of this will be maintained for backwards compatibility.
  *
- * Sampleinfo is all zero when filtering in a write call (i.e., writer created
- * using a filtered topic, which one perhaps shouldn't be doing), otherwise it
- * has as much filled in correctly as is possible given the context and the rest
- * fixed:
- *    - sample_state         DDS_NOT_READ_SAMPLE_STATE;
- *    - publication_handle   set to writer's instance handle
- *    - source_timestamp     set to source timestamp of sample
- *    - ranks                0
- *    - valid_data           true
- *    - instance_handle      set to instance handle of existing instance if the
- *                           sample matches an existing instance, otherwise to what
- *                           the instance handle will be if it passes the filter
- *    - view_state           set to instance view state if sample being filtered
- *                           matches an existing instance, NEW if not
- *    - instance_state       set to instance state if sample being filtered
- *                           matches an existing instance, NEW if not
- *    - generation counts    set to instance's generation counts if the sample
- *                           matches an existing instance instance, 0 if not
+ * A writer applies the filter to data samples and bypasses it for key-only
+ * operations. DDS_TOPIC_FILTER_SAMPLEINFO_ARG is ignored by writers.
+ * DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG receives zeroed sample information
+ * on the writer.
+ *
+ * In the default reader history the filter sees valid, unread data with the
+ * writer's publication handle, the source timestamp, the instance handle and
+ * zero ranks. For an existing instance it sees the current view state,
+ * instance state and generation counts. For a new instance it sees
+ * DDS_NEW_VIEW_STATE, DDS_ALIVE_INSTANCE_STATE and zero generation counts.
  */
 
 /**
@@ -1361,27 +1349,21 @@ struct dds_topic_filter {
 };
 
 /**
+ * @brief Sets or clears a sample filter on a topic.
  * @anchor dds_set_topic_filter_and_arg
- * @brief Sets a filter and filter argument on a topic.
  * @ingroup topic_filter
  * @component topic
- * @warning Unstable API
- * To be replaced by proper filtering on readers.
+ * @warning Unstable API. Set the filter before creating readers or writers using
+ *          this topic. To change it later, ensure that no writer calls or
+ *          incoming deliveries to readers can use the filter during the change.
  *
- * Not thread-safe with respect to data being read/written using readers/writers
- * using this topic.  Be sure to create a topic entity specific to the reader you
- * want to filter, then set the filter function, and only then create the reader.
- * And don't change it unless you know there are no concurrent writes.
+ * @param[in] topic Topic to filter.
+ * @param[in] filter Sample callback, or NULL to clear the filter.
+ * @param[in] arg Argument passed to the callback.
  *
- * @param[in]  topic   The topic on which the content filter is set.
- * @param[in]  filter  The filter function used to filter topic samples.
- * @param[in]  arg     Argument for the filter function.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK  Filter set successfully
- * @retval DDS_RETCODE_BAD_PARAMETER  The topic handle is invalid
-*/
+ * @retval DDS_RETCODE_OK The filter was set or cleared.
+ * @return Other errors as described in @ref entity_handle_errors.
+ */
 DDS_EXPORT dds_return_t
 dds_set_topic_filter_and_arg(
   dds_entity_t topic,
@@ -1389,46 +1371,41 @@ dds_set_topic_filter_and_arg(
   void *arg);
 
 /**
+ * @brief Sets the topic filter mode, callback and argument.
  * @anchor dds_set_topic_filter_extended
- * @brief Sets a filter and filter argument on a topic.
  * @ingroup topic_filter
  * @component topic
- * @warning Unstable API
- * To be replaced by proper filtering on readers.
+ * @warning Unstable API. Set the filter before creating readers or writers using
+ *          this topic. To change it later, ensure that no writer calls or
+ *          incoming deliveries to readers can use the filter during the change.
  *
- * Not thread-safe with respect to data being read/written using readers/writers
- * using this topic.  Be sure to create a topic entity specific to the reader you
- * want to filter, then set the filter function, and only then create the reader.
- * And don't change it unless you know there are no concurrent writes.
+ * @param[in] topic Topic to filter.
+ * @param[in] filter Filter specification. DDS_TOPIC_FILTER_NONE clears the filter.
  *
- * @param[in]  topic   The topic on which the content filter is set.
- * @param[in]  filter  The filter specification.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK  Filter set successfully
- * @retval DDS_RETCODE_BAD_PARAMETER  The topic handle is invalid
-*/
+ * @retval DDS_RETCODE_OK The filter was set or cleared.
+ * @retval DDS_RETCODE_BAD_PARAMETER The specification is NULL, the mode is
+ *         invalid, or an active mode has no callback.
+ * @return Other errors as described in @ref entity_handle_errors.
+ */
 DDS_EXPORT dds_return_t
 dds_set_topic_filter_extended(
   dds_entity_t topic,
   const struct dds_topic_filter *filter);
 
 /**
- * @brief Gets the filter for a topic.
+ * @brief Retrieves a sample-and-argument filter.
  * @ingroup topic_filter
  * @component topic
- * @warning Unstable API
+ * @warning Unstable API.
  *
- * To be replaced by proper filtering on readers
+ * @param[in] topic Topic to query.
+ * @param[out] fn Receives the callback, or NULL if filtering is disabled. Optional.
+ * @param[out] arg Receives the callback argument, or NULL if filtering is disabled. Optional.
  *
- * @param[in]  topic  The topic from which to get the filter.
- * @param[out] fn     The topic filter function (fn may be NULL).
- * @param[out] arg    Filter function argument (arg may be NULL).
- *
- * @retval DDS_RETCODE_OK  Filter set successfully
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET  Filter is not of "none" or "sample_arg"
- * @retval DDS_RETCODE_BAD_PARAMETER  The topic handle is invalid
+ * @retval DDS_RETCODE_OK The requested outputs were set.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET The filter uses a mode other than
+ *         DDS_TOPIC_FILTER_NONE or DDS_TOPIC_FILTER_SAMPLE_ARG.
+ * @return Other errors as described in @ref entity_handle_errors.
  */
 DDS_EXPORT dds_return_t
 dds_get_topic_filter_and_arg (
@@ -1437,18 +1414,17 @@ dds_get_topic_filter_and_arg (
   void **arg);
 
 /**
- * @brief Gets the filter for a topic.
+ * @brief Retrieves the topic filter mode, callback and argument.
  * @ingroup topic_filter
  * @component topic
- * @warning Unstable API
+ * @warning Unstable API.
  *
- * To be replaced by proper filtering on readers
+ * @param[in] topic Topic to query.
+ * @param[out] filter Receives the filter specification on success.
  *
- * @param[in]  topic  The topic from which to get the filter.
- * @param[out] filter The topic filter specification.
- *
- * @retval DDS_RETCODE_OK  Filter set successfully
- * @retval DDS_RETCODE_BAD_PARAMETER  The topic handle is invalid
+ * @retval DDS_RETCODE_OK The specification was copied.
+ * @retval DDS_RETCODE_BAD_PARAMETER The output pointer is NULL or the topic handle is invalid.
+ * @return Other errors as described in @ref entity_handle_errors.
  */
 DDS_EXPORT dds_return_t
 dds_get_topic_filter_extended (
