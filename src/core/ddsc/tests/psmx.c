@@ -25,6 +25,8 @@
 #include "ddsi__entity.h"
 #include "ddsi__xevent.h"
 #include "dds__entity.h"
+#include "dds__loaned_sample.h"
+#include "dds__writer.h"
 #include "dds__serdata_default.h"
 #include "dds__psmx.h"
 #include "psmx_dummy_public.h"
@@ -791,12 +793,10 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, bo
       {
         print (&tb, "%s ", ops[opidx].info); fflush (stdout);
 
-        // If using a loan, copy the template in. We can only allow loans for writes,
-        // because we guarantee that invalid samples have non-key fields zeroed out,
-        // and we can't trust the application to get that right.
-        // FIXME: dds_dispose does a use-after-free when handed a loan, that's bad
+        // The template has nonzero non-key fields, so only loan it for full data samples.
+        const bool valid_data = (ops[opidx].op == OP_WRITE || ops[opidx].op == OP_WRITEDISPOSE);
         const void *sample_to_write = sample;
-        if (write_mode == WM_LOAN && ops[opidx].op == OP_WRITE)
+        if (write_mode == WM_LOAN && valid_data)
         {
           void *loan;
           rc = dds_request_loan (wr, &loan);
@@ -806,7 +806,6 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, bo
         }
 
         dds_time_t ts = dds_time ();
-        const bool valid_data = (ops[opidx].op == OP_WRITE || ops[opidx].op == OP_WRITEDISPOSE);
         if (write_mode != WM_FORWARDCDR)
         {
           switch (ops[opidx].op)
@@ -1070,6 +1069,56 @@ CU_Test(ddsc_psmx, one_writer_forwardcdr_dynsize_strkey, .timeout = 240)
     }
   }, eq_DynamicData_KMsg, LDM_NONE, WM_FORWARDCDR, false);
   CU_ASSERT (!failed);
+}
+
+static bool reject_loaned_sample (const void *sample, void *arg)
+{
+  const Space_Type1 *data = sample;
+  CU_ASSERT_EQ (data->long_1, 42);
+  ++*(unsigned *) arg;
+  return false;
+}
+
+CU_Test (ddsc_psmx, filtered_writer_loan)
+{
+  const dds_entity_t pp = create_participant (0);
+  char name[100];
+  create_unique_topic_name ("filtered_loan", name, sizeof (name));
+  const dds_entity_t tp = dds_create_topic (pp, &Space_Type1_desc, name, NULL, NULL);
+  CU_ASSERT_GT_FATAL (tp, 0);
+  const dds_entity_t reader_topic = dds_create_topic (pp, &Space_Type1_desc, name, NULL, NULL);
+  CU_ASSERT_GT_FATAL (reader_topic, 0);
+  const dds_entity_t rd = create_reader (reader_topic, false);
+  unsigned calls = 0;
+  CU_ASSERT_EQ_FATAL (dds_set_topic_filter_and_arg (tp, reject_loaned_sample, &calls), DDS_RETCODE_OK);
+  for (int psmx = 0; psmx <= 1; psmx++)
+  {
+    const dds_entity_t wr = create_writer (tp, psmx != 0);
+    dds_return_t (*const ops[]) (dds_entity_t, const void *, dds_time_t) = { dds_write_ts, dds_writedispose_ts };
+    for (size_t i = 0; i < sizeof (ops) / sizeof (ops[0]); i++)
+    {
+      void *sample;
+      CU_ASSERT_EQ_FATAL (dds_request_loan (wr, &sample), DDS_RETCODE_OK);
+      *(Space_Type1 *) sample = (Space_Type1){ 42, 1, 2 };
+      calls = 0;
+      CU_ASSERT_EQ_FATAL (ops[i] (wr, sample, -1), DDS_RETCODE_BAD_PARAMETER);
+      CU_ASSERT_EQ_FATAL (calls, 0);
+      CU_ASSERT_EQ_FATAL (ops[i] (wr, sample, 0), DDS_RETCODE_OK);
+      CU_ASSERT_EQ_FATAL (calls, 1);
+
+      dds_writer *writer;
+      CU_ASSERT_EQ_FATAL (dds_writer_lock (wr, &writer), DDS_RETCODE_OK);
+      CU_ASSERT_EQ (writer->m_loans->n_samples, 0);
+      dds_writer_unlock (writer);
+
+      Space_Type1 received;
+      void *buf = &received;
+      dds_sample_info_t si;
+      CU_ASSERT_EQ_FATAL (dds_take (rd, &buf, &si, 1, 1), 0);
+    }
+    CU_ASSERT_EQ_FATAL (dds_delete (wr), DDS_RETCODE_OK);
+  }
+  CU_ASSERT_EQ_FATAL (dds_delete (dds_get_parent (pp)), DDS_RETCODE_OK);
 }
 
 CU_Test(ddsc_psmx, return_loan)

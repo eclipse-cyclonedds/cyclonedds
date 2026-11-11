@@ -829,7 +829,12 @@ dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t timest
     return DDS_RETCODE_BAD_PARAMETER;
 
   if (!evaluate_topic_filter (wr, data, sdkind))
+  {
+    struct dds_loaned_sample *loan = dds_loan_pool_find_and_remove_loan (wr->m_loans, data);
+    if (loan)
+      dds_loaned_sample_unref (loan);
     return DDS_RETCODE_OK;
+  }
 
   // I. psmx loan => assert (psmx && is_memcpy_safe)
   //   a. psmx only

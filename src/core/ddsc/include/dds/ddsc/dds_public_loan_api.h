@@ -71,9 +71,11 @@ DDS_EXPORT dds_return_t dds_request_loan (dds_entity_t entity, void **sample);
  * outstanding loans referenced by the sample array passed in.  Looping until no data is
  * returned therefore often eliminates the need for calling this function.
  *
- * For writer loans, a @ref dds_write operation takes over the loan.  Consequently, this
- * function is only needed in the exceptional case where a loan is taken but ultimately
- * not used to publish data.
+ * A write, write-dispose, dispose or unregister operation on the lending writer
+ * takes ownership of the sample once it has validated the writer and source
+ * timestamp. This includes writes discarded by the writer's topic filter and
+ * writes that subsequently fail during serialization or delivery. Use this
+ * function to return a loan that is still outstanding.
  *
  * @param[in] entity The entity that the loan(s) belong to. If a read or query condition is passed in for the entity, the reader for that condition is used.
  * @param[in,out] buf An array of (pointers to) samples, some or all of which will be set to null pointers.
