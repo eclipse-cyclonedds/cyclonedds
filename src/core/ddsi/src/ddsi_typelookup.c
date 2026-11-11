@@ -54,7 +54,7 @@ static struct ddsi_writer *get_typelookup_writer (const struct ddsi_domaingv *gv
   struct ddsi_participant *pp;
   struct ddsi_writer *wr = NULL;
   struct ddsi_entity_enum_participant est;
-  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
+  assert (ddsi_thread_is_awake ());
   ddsi_entidx_enum_participant_init (&est, gv->entity_index);
   while (wr == NULL && (pp = ddsi_entidx_enum_participant_next (&est)) != NULL)
   {
@@ -62,7 +62,6 @@ static struct ddsi_writer *get_typelookup_writer (const struct ddsi_domaingv *gv
       (void) ddsi_get_builtin_writer (pp, wr_eid, &wr);
   }
   ddsi_entidx_enum_participant_fini (&est);
-  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   return wr;
 }
 
@@ -315,12 +314,14 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
     return true;
   }
 
+  /* The entity index owns the writer. Stay awake from lookup through the write. */
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  ddsi_thread_state_awake (thrst, gv);
   struct ddsi_writer *wr = get_typelookup_writer (gv, DDSI_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER);
   if (wr == NULL)
   {
     GVTRACE ("no pp found with tl request writer");
-    ddsrt_mutex_unlock (&gv->typelib_lock);
-    return false;
+    goto err_unlock;
   }
 
   DDS_Builtin_TypeLookup_Request request;
@@ -329,8 +330,7 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
   if (n <= 0)
   {
     GVTRACE (n == 0 ? "no resolvable types" : "out of memory");
-    ddsrt_mutex_unlock (&gv->typelib_lock);
-    return false;
+    goto err_unlock;
   }
 
   struct ddsi_serdata *serdata;
@@ -339,20 +339,22 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
   if (rc != DDS_RETCODE_OK)
   {
     GVTRACE (" from_sample failed\n");
-    ddsrt_mutex_unlock (&gv->typelib_lock);
-    return false;
+    goto err_unlock;
   }
   serdata->timestamp = ddsrt_time_wallclock ();
   ddsrt_mutex_unlock (&gv->typelib_lock);
 
-  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
   GVTRACE ("wr "PGUIDFMT" typeid %s\n", PGUID (wr->e.guid), ddsi_make_typeid_str (&tidstr, type_id));
   struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
-  ddsi_write_sample_gc (ddsi_lookup_thread_state (), NULL, wr, serdata, tk);
+  ddsi_write_sample_gc (thrst, NULL, wr, serdata, tk);
   ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
-  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
-
+  ddsi_thread_state_asleep (thrst);
   return true;
+
+err_unlock:
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+  ddsi_thread_state_asleep (thrst);
+  return false;
 }
 
 static void create_tl_reply_msg (DDS_Builtin_TypeLookup_Reply *reply, const struct DDS_SampleIdentity *requestid, const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
