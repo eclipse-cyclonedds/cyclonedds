@@ -1454,10 +1454,9 @@ dds_get_topic_filter_extended (
  *
  * @retval >0
  *             A valid subscriber handle.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             One of the parameters is invalid.
+ * @retval DDS_RETCODE_BAD_PARAMETER  The participant handle or a subscriber QoS value is invalid.
+ *
+ * @see @ref entity_handle_errors for errors validating the participant handle.
  */
 DDS_EXPORT dds_entity_t
 dds_create_subscriber(
@@ -1495,10 +1494,10 @@ dds_create_subscriber(
  *
  * @retval >0
  *            A valid publisher handle.
- * @retval DDS_RETCODE_ERROR
- *            An internal error has occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER  The participant handle or a publisher QoS value is invalid.
+ *
+ * @see @ref entity_handle_errors for errors validating the participant handle.
  */
-/* TODO: Check list of error codes is complete. */
 DDS_EXPORT dds_entity_t
 dds_create_publisher(
   dds_entity_t participant,
@@ -1506,79 +1505,47 @@ dds_create_publisher(
   const dds_listener_t *listener);
 
 /**
- * @brief Suspends the publications of the Publisher
+ * @brief Suspending publications is unsupported.
  * @ingroup publisher
  * @component publisher
  *
- * This operation is a hint to the Service so it can optimize its performance by e.g., collecting
- * modifications to DDS writers and then batching them. The Service is not required to use the hint.
+ * @param[in] publisher The publisher.
  *
- * Every invocation of this operation must be matched by a corresponding call to @see dds_resume
- * indicating that the set of modifications has completed.
- *
- * @param[in]  publisher The publisher for which all publications will be suspended.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             Publications suspended successfully.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The pub parameter is not a valid publisher.
- * @retval DDS_RETCODE_UNSUPPORTED
- *             Operation is not supported.
+ * @retval DDS_RETCODE_UNSUPPORTED  The handle identifies a publisher.
+ * @see @ref entity_handle_errors for errors validating the publisher handle.
  */
 DDS_EXPORT dds_return_t
 dds_suspend(dds_entity_t publisher);
 
 /**
- * @brief Resumes the publications of the Publisher
+ * @brief Resuming publications is unsupported.
  * @ingroup publisher
  * @component publisher
  *
- * This operation is a hint to the Service to indicate that the application has
- * completed changes initiated by a previous dds_suspend(). The Service is not
- * required to use the hint.
+ * @param[in] publisher The publisher.
  *
- * The call to resume_publications must match a previous call to @see suspend_publications.
- *
- * @param[in]  publisher The publisher for which all publications will be resumed.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             Publications resumed successfully.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The pub parameter is not a valid publisher.
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             No previous matching dds_suspend().
- * @retval DDS_RETCODE_UNSUPPORTED
- *             Operation is not supported.
+ * @retval DDS_RETCODE_UNSUPPORTED  The handle identifies a publisher.
+ * @see @ref entity_handle_errors for errors validating the publisher handle.
  */
 DDS_EXPORT dds_return_t
 dds_resume(dds_entity_t publisher);
 
 /**
- * @brief Waits at most for the duration timeout for acks for data in the publisher or writer.
+ * @brief Waits for reliable readers to acknowledge data already written by a writer.
  * @ingroup publication
  * @component publisher
  *
- * This operation blocks the calling thread until either all data written by the publisher
- * or writer is acknowledged by all matched reliable reader entities, or else the duration
- * specified by the timeout parameter elapses, whichever happens first.
+ * The wait covers the writer's sequence number at the start of the wait.
+ * It returns immediately if no acknowledgments are outstanding.
  *
- * @param[in]  publisher_or_writer Publisher or writer whose acknowledgments must be waited for
- * @param[in]  timeout             How long to wait for acknowledgments before time out
+ * @param[in] publisher_or_writer A writer or publisher handle.
+ * @param[in] timeout Maximum duration to wait, or DDS_INFINITY.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             All acknowledgments successfully received with the timeout.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The publisher_or_writer is not a valid publisher or writer.
- * @retval DDS_RETCODE_TIMEOUT
- *             Timeout expired before all acknowledgments from reliable reader entities were received.
- * @retval DDS_RETCODE_UNSUPPORTED
- *             Operation is not supported.
+ * @retval DDS_RETCODE_OK  All required acknowledgments have been received.
+ * @retval DDS_RETCODE_TIMEOUT  Acknowledgments are still outstanding when the wait ends.
+ * @retval DDS_RETCODE_UNSUPPORTED  The handle identifies a publisher.
+ * @retval DDS_RETCODE_BAD_PARAMETER  The timeout is negative or the handle is invalid.
+ * @see @ref entity_handle_errors for other errors validating the entity handle.
  */
 DDS_EXPORT dds_return_t
 dds_wait_for_acks(dds_entity_t publisher_or_writer, dds_duration_t timeout);
@@ -1632,15 +1599,17 @@ dds_wait_for_acks(dds_entity_t publisher_or_writer, dds_duration_t timeout);
  * @param[in]  qos                       The QoS to set on the new reader (can be NULL).
  * @param[in]  listener                  Any listener functions associated with the new reader (can be NULL).
  *
- * @returns A valid reader handle or an error code.
+ * @returns A valid reader handle or an error code. A PSMX endpoint can also
+ * return an error from registering its data availability callback.
  *
  * @retval >0
  *            A valid reader handle.
  * @retval DDS_RETCODE_ERROR
- *            An internal error occurred.
+ *            Creation of a PSMX endpoint failed.
  * @retval DDS_RETCODE_BAD_PARAMETER
- *            One of the parameters is invalid, or the participant and topic do
- *            not belong to the same domain participant.
+ *            A handle or QoS value is invalid, the selected data representation
+ *            or PSMX instance is incompatible with the topic, or the parent
+ *            and topic belong to different participants.
  * @retval DDS_RETCODE_ILLEGAL_OPERATION
  *            participant_or_subscriber is neither a participant nor a subscriber,
  *            or the operation is otherwise inappropriate for the supplied entity.
@@ -1649,12 +1618,14 @@ dds_wait_for_acks(dds_entity_t publisher_or_writer, dds_duration_t timeout);
  *            QoS that is incompatible with the built-in topic writer or has
  *            finite resource limits.
  * @retval DDS_RETCODE_UNSUPPORTED
- *            The requested built-in topic requires a feature that is not enabled
- *            in this build, such as topic discovery for
- *            @ref DDS_BUILTIN_TOPIC_DCPSTOPIC.
+ *            The requested data representation is XML, or topic discovery is
+ *            disabled in this build and @p topic is @ref DDS_BUILTIN_TOPIC_DCPSTOPIC.
  * @retval DDS_RETCODE_NOT_ALLOWED_BY_SECURITY
  *            The configured DDS Security access control plugin denied creation
  *            of the reader.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES
+ *            The participant has no available endpoint IDs.
+ * @see @ref entity_handle_errors for errors validating the parent and topic handles.
  */
 DDS_EXPORT dds_entity_t
 dds_create_reader(
@@ -1668,26 +1639,27 @@ dds_create_reader(
  * @ingroup reader
  * @component reader
  *
- * This function follows the same parent-selection rules as @ref dds_create_reader.
- * When a participant is used to create a reader for a normal topic, an implicit
- * subscriber is created as the reader's parent and is deleted automatically
- * when its last child is deleted, or as part of the recursive deletion of the
- * participant. A reader for a built-in topic uses the participant's shared
- * built-in subscriber instead; that subscriber is deleted when the participant
- * is deleted.
+ * Parent selection, supported topics and QoS follow @ref dds_create_reader.
+ * Argument validation and security checks precede the call to the cache's
+ * associate callback. Until that call, the caller owns the cache. Once
+ * associated, the cache belongs to the reader, even if a subsequent endpoint
+ * setup step returns an error. To determine who owns the cache after an
+ * error, have the callback record the association in caller-owned state
+ * outside the cache. The caller may free the cache only if the callback was
+ * never invoked. A negative result from the callback aborts the process.
  *
  * @param[in]  participant_or_subscriber The participant or subscriber on which the reader is being created.
  * @param[in]  topic                     The topic to read, or a built-in topic pseudo handle.
  * @param[in]  qos                       The QoS to set on the new reader (can be NULL).
  * @param[in]  listener                  Any listener functions associated with the new reader (can be NULL).
- * @param[in]  rhc                       Reader history cache to use, reader becomes the owner
+ * @param[in]  rhc                       Custom reader history cache. Must be non-null.
  *
  * @returns A valid reader handle or an error code.
  *
  * @retval >0
  *            A valid reader handle.
- * @retval DDS_RETCODE_ERROR
- *            An internal error occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *            The custom history cache is null or an argument is invalid.
  * @see dds_create_reader for the full set of possible return codes.
  */
 DDS_EXPORT dds_entity_t
@@ -1746,20 +1718,26 @@ dds_reader_wait_for_historical_data(
  * @returns A valid writer handle or an error code.
  *
  * @retval >0
- *              A valid writer handle.
+ *            A valid writer handle.
  * @retval DDS_RETCODE_ERROR
- *              An internal error occurred.
+ *            Creation of a PSMX endpoint failed.
  * @retval DDS_RETCODE_BAD_PARAMETER
- *              One of the parameters is invalid, or the participant and topic do
- *              not belong to the same domain participant.
+ *            A handle or QoS value is invalid, the selected data representation
+ *            or PSMX instance is incompatible with the topic, or the parent
+ *            and topic belong to different participants.
  * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *              participant_or_publisher is neither a participant nor a publisher,
- *              or the operation is otherwise inappropriate for the supplied entity.
+ *            participant_or_publisher is neither a participant nor a publisher,
+ *            or the operation is otherwise inappropriate for the supplied entity.
  * @retval DDS_RETCODE_INCONSISTENT_POLICY
- *              The requested QoS is inconsistent.
+ *            The requested QoS is inconsistent.
+ * @retval DDS_RETCODE_UNSUPPORTED
+ *            The requested data representation is XML.
  * @retval DDS_RETCODE_NOT_ALLOWED_BY_SECURITY
- *              The configured DDS Security access control plugin denied creation
- *              of the writer.
+ *            The configured DDS Security access control plugin denied creation
+ *            of the writer.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES
+ *            The participant has no available endpoint IDs.
+ * @see @ref entity_handle_errors for errors validating the parent and topic handles.
  */
 DDS_EXPORT dds_entity_t
 dds_create_writer(
