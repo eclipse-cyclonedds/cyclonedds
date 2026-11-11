@@ -42,22 +42,24 @@ target_include_directories(
 
 add_executable(${PROJECT_NAME}::idlc ALIAS idlc)
 
-install(
-  DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/idlc"
-  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-  COMPONENT dev
-  FILES_MATCHING PATTERN "*.h")
-
-install(
-  TARGETS idlc
-  EXPORT "${PROJECT_NAME}"
-  DESTINATION "${CMAKE_INSTALL_BINDIR}"
-  COMPONENT dev)
-
-if (INSTALL_PDB)
-  install(FILES $<TARGET_PDB_FILE:idlc>
-    DESTINATION "${CMAKE_INSTALL_BINDIR}"
+if(INSTALL_IDLC)
+  install(
+    DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/idlc"
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
     COMPONENT dev
-    OPTIONAL
-  )
+    FILES_MATCHING PATTERN "*.h")
+
+  install(
+    TARGETS idlc
+    EXPORT "${PROJECT_NAME}"
+    DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    COMPONENT dev)
+
+  if (INSTALL_PDB)
+    install(FILES $<TARGET_PDB_FILE:idlc>
+      DESTINATION "${CMAKE_INSTALL_BINDIR}"
+      COMPONENT dev
+      OPTIONAL
+    )
+  endif()
 endif()

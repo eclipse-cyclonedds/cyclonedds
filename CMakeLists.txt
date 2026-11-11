@@ -71,7 +71,12 @@ set(CycloneDDS_IDLC_GENERATE_CMAKE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/tools/idlc/cmake/Generate.cmake")
 
 option(BUILD_IDLC "Build IDL compiler" ${not_crosscompiling})
+option(INSTALL_IDLC "Install IDL compiler and its libraries" ON)
 option(BUILD_DDSPERF "Build ddsperf tool" ${not_crosscompiling})
+option(INSTALL_DDSPERF "Install ddsperf tool" ON)
+option(BUILD_DYNTYPELIB "Build dynamic type library" ON)
+option(INSTALL_DYNTYPELIB "Install dynamic type library" ON)
+option(BUILD_XMLTYPE "Build xmltype tool" ${BUILD_DYNTYPELIB})
 option(INSTALL_XMLTYPE "Install xmltype tool" OFF)
 
 option(WITH_ZEPHYR "Build for Zephyr RTOS" OFF)
