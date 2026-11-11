@@ -555,7 +555,8 @@ CU_Test(ddsc_psmxif, create_topic_failure)
 ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
 <General>\
   <Interfaces>\
-    <PubSubMessageExchange type=\"dummy\"/>\
+    <PubSubMessageExchange type=\"dummy_v0\" priority=\"2\" config=\"INSTANCE_NAME=first;\"/>\
+    <PubSubMessageExchange type=\"dummy\" priority=\"1\" config=\"INSTANCE_NAME=second;\"/>\
   </Interfaces>\
 </General>\
 <Discovery>\
@@ -569,11 +570,28 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
   CU_ASSERT_GT_FATAL (dp, 0);
 
   dummy_mockstats_t * const dmock = dummy_mockstats_get_ptr ();
-  dmock->fail_create_topic = true;
+  dummy_mockstats_t * const first = dummy_v0_mockstats_get_ptr ();
+  dummy_topics_alloc (first, 3);
+  dummy_topics_alloc (dmock, 2);
 
   char topicname[100];
+  create_unique_topic_name ("existing", topicname, sizeof (topicname));
+  const dds_entity_t existing = dds_create_topic (dp, &Space_Type3_desc, topicname, NULL, NULL);
+  CU_ASSERT_GT_FATAL (existing, 0);
+  const struct ddsi_sertype *registered;
+  CU_ASSERT_EQ_FATAL (dds_get_entity_sertype (existing, &registered), DDS_RETCODE_OK);
+  const uint32_t refc = ddsrt_atomic_ld32 (&registered->flags_refc);
+
+  /* The descriptor supplies a fresh sertype equivalent to the registered one.
+     The second PSMX fails after the first has created its topic. */
   create_unique_topic_name ("create_topic_failure", topicname, sizeof (topicname));
-  const dds_entity_t tp = dds_create_topic (dp, &Space_Type3_desc, topicname, NULL, NULL);
-  CU_ASSERT_LT_FATAL (tp, 0);
-  dds_delete (dom);
+  dmock->fail_create_topic = true;
+  CU_ASSERT_EQ_FATAL (dds_create_topic (dp, &Space_Type3_desc, topicname, NULL, NULL), DDS_RETCODE_ERROR);
+  CU_ASSERT_EQ (ddsrt_atomic_ld32 (&registered->flags_refc), refc);
+  CU_ASSERT_EQ (first->cnt_create_topic, 2);
+  CU_ASSERT_EQ (first->cnt_delete_topic, 1);
+
+  dmock->fail_create_topic = false;
+  CU_ASSERT_GT_FATAL (dds_create_topic (dp, &Space_Type3_desc, topicname, NULL, NULL), 0);
+  CU_ASSERT_EQ (dds_delete (dom), DDS_RETCODE_OK);
 }

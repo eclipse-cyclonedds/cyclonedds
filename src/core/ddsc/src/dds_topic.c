@@ -435,18 +435,10 @@ static dds_return_t create_psmx_topics (dds_participant *pp, struct dds_ktopic *
       continue;
     struct dds_psmx_topic_int * const psmx_topic = psmx->ops.create_topic_with_type (psmx, ktp, sertype_registered, type);
     if (psmx_topic == NULL)
-      goto psmx_fail;
+      return DDS_RETCODE_ERROR;
     ktp->psmx_topics.topics[ktp->psmx_topics.length++] = psmx_topic;
   }
   return DDS_RETCODE_OK;
-
-psmx_fail:
-  for (uint32_t i = 0; i < ktp->psmx_topics.length; i++)
-  {
-    ktp->psmx_topics.topics[i]->psmx_instance->ops.delete_topic (ktp->psmx_topics.topics[i]);
-    ktp->psmx_topics.topics[i] = NULL;
-  }
-  return DDS_RETCODE_ERROR;
 }
 
 dds_entity_t dds_create_topic_impl (
@@ -633,7 +625,7 @@ err_type_ref_local_compltype:
   ddsi_type_unref (gv, mintype); // null pointer allowed
 err_type_ref_local_mintype:
 #endif
-  ddsi_sertype_unref (*sertype);
+  ddsi_sertype_unref (sertype_registered);
   ktopic_unref (pp, ktp);
   ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
   GVTRACE ("dds_create_topic_impl: invalid type\n");
