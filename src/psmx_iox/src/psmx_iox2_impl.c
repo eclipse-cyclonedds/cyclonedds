@@ -1170,6 +1170,7 @@ static void psmx_iox2_loaned_sample_const_free (dds_loaned_sample_t *loan)
     iox2_sample_drop (iox2_loan->iox2_ptr.cnst);
     ddsrt_mutex_unlock (&iox2_ep->lock);
   }
+  ddsrt_free (iox2_loan);
 }
 
 static void psmx_iox2_loaned_sample_mut_free (dds_loaned_sample_t *loan)
@@ -1182,6 +1183,7 @@ static void psmx_iox2_loaned_sample_mut_free (dds_loaned_sample_t *loan)
     iox2_sample_mut_drop (iox2_loan->iox2_ptr.mut);
     ddsrt_mutex_unlock (&iox2_ep->lock);
   }
+  ddsrt_free (iox2_loan);
 }
 
 // --------------------------------------------------------------------------------- //
