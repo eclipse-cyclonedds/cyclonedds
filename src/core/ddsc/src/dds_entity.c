@@ -727,20 +727,19 @@ dds_return_t dds_get_qos (dds_entity_t entity, dds_qos_t *qos)
     ret = DDS_RETCODE_ILLEGAL_OPERATION;
   else
   {
-    dds_qos_t *entity_qos;
+    const uint64_t mask = ~(DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME | DDSI_QP_TYPE_INFORMATION);
+    dds_reset_qos (qos);
     if (dds_entity_kind (e) != DDS_KIND_TOPIC)
-      entity_qos = e->m_qos;
+      ddsi_xqos_mergein_missing (qos, e->m_qos, mask);
     else
     {
       struct dds_topic * const tp = (dds_topic *) e;
       struct dds_participant * const pp = dds_entity_participant (e);
       ddsrt_mutex_lock (&pp->m_entity.m_mutex);
-      entity_qos = tp->m_ktopic->qos;
+      ddsi_xqos_mergein_missing (qos, tp->m_ktopic->qos, mask);
       ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
     }
 
-    dds_reset_qos (qos);
-    ddsi_xqos_mergein_missing (qos, entity_qos, ~(DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME | DDSI_QP_TYPE_INFORMATION));
     ret = DDS_RETCODE_OK;
   }
   dds_entity_unlock(e);

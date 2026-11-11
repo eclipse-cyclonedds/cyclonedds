@@ -656,29 +656,19 @@ dds_set_status_mask(dds_entity_t entity, uint32_t mask);
  * @ingroup entity_qos
  * @component entity_qos
  *
- * This operation allows access to the existing set of QoS policies
- * for the entity.
+ * On success, replaces the contents of @p qos with the policies stored for
+ * the entity. An ordinary topic can have sparse QoS. For example, a
+ * default topic reports its data representation but omits reliability,
+ * allowing readers and writers to apply their own reliability defaults. Built-in
+ * topic handles return the policies configured for built-in topics.
  *
- * @param[in]  entity  Entity on which to get qos.
- * @param[out] qos     Pointer to the qos structure that returns the set policies.
+ * @param[in]  entity  Participant, publisher, subscriber, topic, reader or writer.
+ * @param[out] qos     QoS object to receive the policies.
  *
- * @returns A dds_return_t indicating success or failure. The QoS object will have
- * at least all QoS relevant for the entity present and the corresponding dds_qget_...
- * will return true.
- *
- * @retval DDS_RETCODE_OK
- *             The existing set of QoS policy values applied to the entity
- *             has successfully been copied into the specified qos parameter.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The qos parameter is NULL.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- *
- * DOC_TODO: Link to generic QoS information documentation.
+ * @retval DDS_RETCODE_OK The policies were copied into @p qos.
+ * @retval DDS_RETCODE_BAD_PARAMETER The @p qos pointer is NULL.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION The entity does not support QoS.
+ * @see @ref entity_handle_errors
  */
 DDS_EXPORT dds_return_t
 dds_get_qos(dds_entity_t entity, dds_qos_t *qos);
