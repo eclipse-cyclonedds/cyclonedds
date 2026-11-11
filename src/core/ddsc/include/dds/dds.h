@@ -2140,93 +2140,58 @@ dds_write_ts(
  */
 
 /**
- * @brief Creates a readcondition associated to the given reader.
+ * @brief Create a read condition on a reader.
  * @ingroup readcondition
  * @component data_query
  *
- * The readcondition allows specifying which samples are of interest in
- * a data reader's history, by means of a mask. The mask is or'd with
- * the flags that are dds_sample_state_t, dds_view_state_t and
- * dds_instance_state_t.
+ * The condition triggers while the reader history contains samples that match
+ * the state mask. Reads and takes through the reader or any of its
+ * conditions affect the same history and can change which conditions trigger.
  *
- * Based on the mask value set, the readcondition gets triggered when
- * data is available on the reader.
+ * @param[in] reader Reader that owns the condition.
+ * @param[in] mask Bitwise OR of sample, view and instance states. Omitting a
+ *            state category matches any state in that category. Other bits are ignored.
  *
- * Waitsets allow waiting for an event on some of any set of entities.
- * This means that the readcondition can be used to wake up a waitset when
- * data is in the reader history with states that matches the given mask.
- *
- * @note The parent reader and every of its associated conditions (whether
- *       they are readconditions or queryconditions) share the same resources.
- *       This means that one of these entities reads or takes data, the states
- *       of the data will change for other entities automatically. For instance,
- *       if one reads a sample, then the sample state will become 'read' for all
- *       associated reader/conditions. Or if one takes a sample, then it's not
- *       available to any other associated reader/condition.
- *
- * @param[in]  reader  Reader to associate the condition to.
- * @param[in]  mask    Interest (dds_sample_state_t|dds_view_state_t|dds_instance_state_t).
- *
- * @returns A valid condition handle or an error code.
- *
- * @retval >0
- *             A valid condition handle
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @returns A positive condition handle on success, or a negative error code.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES The reader history could not add the condition.
+ * @see @ref entity_handle_errors for errors looking up the reader.
  */
 DDS_EXPORT dds_entity_t
 dds_create_readcondition(dds_entity_t reader, uint32_t mask);
 
 /**
- * @brief Function signature for a querycondition filter
+ * @brief Test whether a sample matches a query condition.
  * @ingroup querycondition
+ *
+ * The reader evaluates the predicate on existing samples when the condition is
+ * created and as it processes incoming data. The predicate runs with the reader
+ * history locked. Calling DDS functions that access that history can deadlock.
+ *
+ * @param[in] sample Temporary sample in application representation, valid only
+ *            during the call. Copy any values to be retained. For an invalid-data
+ *           notification only the key is valid.
+ * @returns True if the sample matches the query.
  */
 typedef bool (*dds_querycondition_filter_fn) (const void * sample);
 
 /**
- * @brief Creates a queryondition associated to the given reader.
+ * @brief Create a query condition on a reader.
  * @ingroup querycondition
  * @component data_query
  *
- * The queryondition allows specifying which samples are of interest in
- * a data reader's history, by means of a mask and a filter. The mask is
- * or'd with the flags that are dds_sample_state_t, dds_view_state_t and
- * dds_instance_state_t.
+ * The condition triggers while the reader history contains samples that match
+ * the state mask and pass the filter. Reads and takes through the reader or any of its
+ * conditions affect the same history and can change which conditions trigger.
  *
- * Based on the mask value set and data that matches the filter, the
- * querycondition gets triggered when data is available on the reader.
+ * @param[in] reader Reader that owns the condition.
+ * @param[in] mask Bitwise OR of sample, view and instance states. Omitting a
+ *            state category matches any state in that category. Other bits are ignored.
+ * @param[in] filter Non-null predicate applied to the sample.
  *
- * Waitsets allow waiting for an event on some of any set of entities.
- * This means that the querycondition can be used to wake up a waitset when
- * data is in the reader history with states that matches the given mask
- * and filter.
- *
- * @note The parent reader and every of its associated conditions (whether
- *       they are readconditions or queryconditions) share the same resources.
- *       This means that one of these entities reads or takes data, the states
- *       of the data will change for other entities automatically. For instance,
- *       if one reads a sample, then the sample state will become 'read' for all
- *       associated reader/conditions. Or if one takes a sample, then it's not
- *       available to any other associated reader/condition.
- *
- * @param[in]  reader  Reader to associate the condition to.
- * @param[in]  mask    Interest (dds_sample_state_t|dds_view_state_t|dds_instance_state_t).
- * @param[in]  filter  Callback that the application can use to filter specific samples.
- *
- * @returns A valid condition handle or an error code
- *
- * @retval >=0
- *             A valid condition handle.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @returns A positive condition handle on success, or a negative error code.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES The reader history could not add the condition.
+ *         The default reader history supports up to 32 query conditions per reader.
+ * @see @ref entity_handle_errors for errors looking up the reader.
  */
 DDS_EXPORT dds_entity_t
 dds_create_querycondition(
@@ -2235,86 +2200,69 @@ dds_create_querycondition(
   dds_querycondition_filter_fn filter);
 
 /**
- * @brief Creates a guardcondition.
+ * @brief Create a guard condition.
  * @ingroup guardcondition
  * @component guard_condition
  *
- * Waitsets allow waiting for an event on some of any set of entities.
- * This means that the guardcondition can be used to wake up a waitset when
- * data is in the reader history with states that matches the given mask.
+ * The application controls its trigger value. It starts false and retains the
+ * value set by @ref dds_set_guardcondition until it is set again or taken.
  *
- * @param[in]   owner  Participant on which to create the guardcondition.
+ * @param[in] owner Participant, domain or `DDS_CYCLONEDDS_HANDLE`.
  *
- * @returns A valid condition handle or an error code.
- *
- * @retval >0
- *             A valid condition handle
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @returns A positive guard condition handle on success, or a negative error code.
+ * @retval DDS_RETCODE_BAD_PARAMETER The owner handle is invalid or has been deleted.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION The owner is of an unsupported entity kind.
+ * @retval DDS_RETCODE_ERROR The library could not be initialized.
  */
 DDS_EXPORT dds_entity_t
 dds_create_guardcondition(dds_entity_t owner);
 
 /**
- * @brief Sets the trigger status of a guardcondition.
+ * @brief Set the trigger value of a guard condition.
  * @ingroup guardcondition
  * @component guard_condition
  *
- * @param[in]   guardcond  Guard condition to set the trigger status of.
- * @param[in]   triggered  The triggered status to set.
+ * The transition from false to true wakes waitsets observing the condition.
  *
- * @retval DDS_RETCODE_OK
- *             Operation successful
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @param[in] guardcond Guard condition.
+ * @param[in] triggered New trigger value.
+ *
+ * @retval DDS_RETCODE_OK Success.
+ * @see @ref entity_handle_errors for errors looking up the guard condition.
  */
 DDS_EXPORT dds_return_t
 dds_set_guardcondition(dds_entity_t guardcond, bool triggered);
 
 /**
- * @brief Reads the trigger status of a guardcondition.
+ * @brief Read the trigger value of a guard condition.
  * @ingroup guardcondition
  * @component guard_condition
  *
- * @param[in]   guardcond  Guard condition to read the trigger status of.
- * @param[out]  triggered  Receives the trigger status on success. On error, `*triggered` is unchanged.
+ * Reading preserves the trigger value.
  *
- * @retval DDS_RETCODE_OK
- *             Operation successful
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @param[in] guardcond Guard condition.
+ * @param[out] triggered Receives the trigger value on success. Unchanged on error.
+ *
+ * @retval DDS_RETCODE_OK Success.
+ * @retval DDS_RETCODE_BAD_PARAMETER `triggered` is null.
+ * @see @ref entity_handle_errors for errors looking up the guard condition.
  */
 DDS_EXPORT dds_return_t
 dds_read_guardcondition(dds_entity_t guardcond, bool *triggered);
 
 /**
- * @brief Reads and resets the trigger status of a guardcondition.
+ * @brief Read and clear the trigger value of a guard condition.
  * @ingroup guardcondition
  * @component guard_condition
  *
- * @param[in]   guardcond  Guard condition to read and reset the trigger status of.
- * @param[out]  triggered  Receives the trigger status before the reset. On error, `*triggered` is unchanged.
+ * The operation atomically exchanges the current trigger value for false.
  *
- * @retval DDS_RETCODE_OK
- *             Operation successful
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @param[in] guardcond Guard condition.
+ * @param[out] triggered Receives the previous trigger value on success. Unchanged on error.
+ *
+ * @retval DDS_RETCODE_OK Success.
+ * @retval DDS_RETCODE_BAD_PARAMETER `triggered` is null.
+ * @see @ref entity_handle_errors for errors looking up the guard condition.
  */
 DDS_EXPORT dds_return_t
 dds_take_guardcondition(dds_entity_t guardcond, bool *triggered);
@@ -2336,60 +2284,41 @@ dds_take_guardcondition(dds_entity_t guardcond, bool *triggered);
 typedef intptr_t dds_attach_t;
 
 /**
- * @brief Create a waitset and allocate the resources required
+ * @brief Create a waitset.
  * @ingroup waitset
  * @component waitset
  *
- * A WaitSet object allows an application to wait until one or more of the
- * conditions of the attached entities evaluates to TRUE or until the timeout
- * expires.
+ * A waitset starts empty. Its owner determines which entities can be attached
+ * to it with @ref dds_waitset_attach.
  *
- * @param[in]  owner  Domain participant which the WaitSet contains.
+ * @param[in] owner Participant, domain or `DDS_CYCLONEDDS_HANDLE`.
  *
- * @returns A valid waitset handle or an error code.
- *
- * @retval >=0
- *             A valid waitset handle.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @returns A positive waitset handle on success, or a negative error code.
+ * @retval DDS_RETCODE_BAD_PARAMETER The owner handle is invalid or has been deleted.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION The owner is of an unsupported entity kind.
+ * @retval DDS_RETCODE_ERROR The library could not be initialized.
  */
 DDS_EXPORT dds_entity_t
 dds_create_waitset(dds_entity_t owner);
 
 /**
- * @brief Acquire previously attached entities.
+ * @brief Get the entities attached to a waitset.
  * @ingroup waitset
  * @component waitset
  *
- * This functions takes a pre-allocated list to put the entities in and
- * will return the number of found entities. It is possible that the given
- * size of the list is not the same as the number of found entities. If
- * less entities are found, then the last few entries in the list are
- * untouched. When more entities are found, then only 'size' number of
- * entries are inserted into the list, but still the complete count of the
- * found entities is returned. Which entities are returned in the latter
- * case is undefined.
+ * The call writes the attached entity handles in unspecified order and leaves
+ * any unused slots unchanged. If there are more attachments than slots, it
+ * fills the array with the handles of @p size arbitrarily selected entities.
+ * Pass a null array to get just the count, regardless of @p size.
+ * The count includes the waitset itself if it is attached to itself.
  *
- * @param[in]  waitset  Waitset from which to get its attached entities.
- * @param[out] entities Pre-allocated array to contain the found entities.
- * @param[in]  size     Size of the pre-allocated entities' list.
+ * @param[in] waitset Waitset to inspect.
+ * @param[out] entities Array of entity handles, or NULL.
+ * @param[in] size Capacity of the array.
  *
- * @returns A dds_return_t with the number of children or an error code.
- *
- * @retval >=0
- *             Number of children found (can be larger than 'size').
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The entities parameter is NULL, while a size is provided.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The waitset has already been deleted.
+ * @returns The total number of attachments, even if it exceeds `size`, or a
+ *          negative error code.
+ * @see @ref entity_handle_errors for errors looking up the waitset.
  */
 DDS_EXPORT dds_return_t
 dds_waitset_get_entities(
@@ -2398,48 +2327,26 @@ dds_waitset_get_entities(
   size_t size);
 
 /**
- * @brief This operation attaches an Entity to the WaitSet.
+ * @brief Attach an entity and its application-supplied value to a waitset.
  * @ingroup waitset
  * @component waitset
  *
- * This operation attaches an Entity to the WaitSet. The dds_waitset_wait()
- * will block when none of the attached entities are triggered. 'Triggered'
- * (dds_triggered()) doesn't mean the same for every entity:
- *  - Reader/Writer/Publisher/Subscriber/Topic/Participant
- *      - These are triggered when their status changed.
- *  - WaitSet
- *      - Triggered when trigger value was set to true by the application.
- *        It stays triggered until application sets the trigger value to
- *        false (dds_waitset_set_trigger()). This can be used to wake up an
- *        waitset for different reasons (f.i. termination) than the 'normal'
- *        status change (like new data).
- *  - ReadCondition/QueryCondition
- *      - Triggered when data is available on the related Reader that matches
- *        the Condition.
+ * The entity must be the owner of the waitset or a descendant of that owner.
+ * A waitset can be attached to itself. An entity may be attached to multiple
+ * waitsets, once per waitset.
  *
- * Multiple entities can be attached to a single waitset. A particular entity
- * can be attached to multiple waitsets. However, a particular entity can not
- * be attached to a particular waitset multiple times.
+ * A read or query condition triggers while matching samples are available.
+ * A guard condition or waitset triggers while its application-controlled
+ * trigger value is true. Other entities trigger when an enabled status is set.
  *
- * @param[in]  waitset  The waitset to attach the given entity to.
- * @param[in]  entity   The entity to attach.
- * @param[in]  x        Blob that will be supplied when the waitset wait is
- *                      triggered by the given entity.
+ * @param[in] waitset Waitset to observe the entity.
+ * @param[in] entity Entity to attach.
+ * @param[in] x Value returned by a wait on this waitset when the entity triggers.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             Entity attached.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The given waitset or entity are not valid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The waitset has already been deleted.
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             The entity was already attached.
+ * @retval DDS_RETCODE_OK The entity was attached.
+ * @retval DDS_RETCODE_BAD_PARAMETER The entity is outside the owner's scope.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET The entity is already attached.
+ * @see @ref entity_handle_errors for errors looking up either entity.
  */
 DDS_EXPORT dds_return_t
 dds_waitset_attach(
@@ -2448,27 +2355,16 @@ dds_waitset_attach(
   dds_attach_t x);
 
 /**
- * @brief This operation detaches an Entity from the WaitSet.
+ * @brief Detach an entity from a waitset.
  * @ingroup waitset
  * @component waitset
  *
- * @param[in]  waitset  The waitset to detach the given entity from.
- * @param[in]  entity   The entity to detach.
+ * @param[in] waitset Waitset observing the entity.
+ * @param[in] entity Entity to detach.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             Entity detached.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The given waitset or entity are not valid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The waitset has already been deleted.
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             The entity is not attached.
+ * @retval DDS_RETCODE_OK The entity was detached.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET The entity is not attached to this waitset.
+ * @see @ref entity_handle_errors for errors looking up either entity.
  */
 DDS_EXPORT dds_return_t
 dds_waitset_detach(
@@ -2476,36 +2372,19 @@ dds_waitset_detach(
   dds_entity_t entity);
 
 /**
- * @brief Sets the trigger_value associated with a waitset.
+ * @brief Set the trigger value of the waitset itself.
  * @ingroup waitset
  * @component waitset
  *
- * When the waitset is attached to itself and the trigger value is
- * set to 'true', then the waitset will wake up just like with an
- * other status change of the attached entities.
+ * Setting the trigger to true wakes waitsets observing this waitset, including
+ * the waitset itself if it is self-attached. The value persists until reset
+ * by the application.
  *
- * This can be used to forcefully wake up a waitset, for instance
- * when the application wants to shut down. So, when the trigger
- * value is true, the waitset will wake up or not wait at all.
+ * @param[in] waitset Waitset whose trigger value to set.
+ * @param[in] trigger New trigger value.
  *
- * The trigger value will remain true until the application sets it
- * false again deliberately.
- *
- * @param[in]  waitset  The waitset to set the trigger value on.
- * @param[in]  trigger  The trigger value to set.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             Trigger value set.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The given waitset is not valid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The waitset has already been deleted.
+ * @retval DDS_RETCODE_OK The trigger value was set.
+ * @see @ref entity_handle_errors for errors looking up the waitset.
  */
 DDS_EXPORT dds_return_t
 dds_waitset_set_trigger(
@@ -2513,71 +2392,29 @@ dds_waitset_set_trigger(
   bool trigger);
 
 /**
- * @brief This operation allows an application thread to wait for the a status
- *        change or other trigger on (one of) the entities that are attached to
- *        the WaitSet.
+ * @brief Wait for attached entities to trigger, with a relative timeout.
  * @ingroup waitset
  * @component waitset
  *
- * The dds_waitset_wait() operation blocks until the some of the attached
- * entities have triggered or "reltimeout" has elapsed.
- * 'Triggered' (dds_triggered()) doesn't mean the same for every entity:
- *  - Reader/Writer/Publisher/Subscriber/Topic/Participant
- *      - These are triggered when their status changed.
- *  - WaitSet
- *      - Triggered when trigger value was set to true by the application.
- *        It stays triggered until application sets the trigger value to
- *        false (dds_waitset_set_trigger()). This can be used to wake up an
- *        waitset for different reasons (f.i. termination) than the 'normal'
- *        status change (like new data).
- *  - ReadCondition/QueryCondition
- *      - Triggered when data is available on the related Reader that matches
- *        the Condition.
+ * An empty waitset returns zero immediately. Detaching the last entity or
+ * deleting the waitset can also wake a blocked call with a count of zero.
+ * Multiple threads may wait independently. Waiting leaves the triggers set.
  *
- * This functions takes a pre-allocated list to put the "xs" blobs in (that
- * were provided during the attach of the related entities) and will return
- * the number of triggered entities. It is possible that the given size
- * of the list is not the same as the number of triggered entities. If less
- * entities were triggered, then the last few entries in the list are
- * untouched. When more entities are triggered, then only 'size' number of
- * entries are inserted into the list, but still the complete count of the
- * triggered entities is returned. Which "xs" blobs are returned in the
- * latter case is undefined.
+ * If more than @p nxs entities trigger, the call fills the supplied array with
+ * the attachment values of @p nxs arbitrarily selected triggered entities.
+ * Otherwise it writes all triggered entities' attachment values and leaves any
+ * remaining slots unchanged. Pass a null array and zero capacity to obtain
+ * just the count.
  *
- * In case of a time out, the return value is 0.
+ * @param[in] waitset Waitset to wait on.
+ * @param[out] xs Array for the values supplied to @ref dds_waitset_attach.
+ * @param[in] nxs Capacity of the array.
+ * @param[in] reltimeout Maximum duration in nanoseconds. Use zero to poll or `DDS_INFINITY` to wait indefinitely.
  *
- * Deleting the waitset while the application is blocked results in an
- * error code (i.e. < 0) returned by "wait".
- *
- * Multiple threads may block on a single waitset at the same time;
- * the calls are entirely independent.
- *
- * An empty waitset never triggers (i.e., dds_waitset_wait on an empty
- * waitset is essentially equivalent to a sleep).
- *
- * The "dds_waitset_wait_until" operation is the same as the
- * "dds_waitset_wait" except that it takes an absolute timeout.
- *
- * @param[in]  waitset    The waitset to set the trigger value on.
- * @param[out] xs         Pre-allocated list to store the 'blobs' that were
- *                        provided during the attach of the triggered entities.
- * @param[in]  nxs        The size of the pre-allocated blobs list.
- * @param[in]  reltimeout Relative timeout
- *
- * @returns A dds_return_t with the number of entities triggered or an error code
- *
- * @retval >0
- *             Number of entities triggered.
- * @retval  0
- *             Time out (no entities were triggered).
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The given waitset is not valid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The waitset has already been deleted.
+ * @returns The total number of triggered entities, or a negative error code.
+ * @retval 0 No entities triggered before the wait ended.
+ * @retval DDS_RETCODE_BAD_PARAMETER The array and capacity do not agree, or the duration is negative.
+ * @see @ref entity_handle_errors for errors looking up the waitset.
  */
 DDS_EXPORT dds_return_t
 dds_waitset_wait(
@@ -2587,74 +2424,29 @@ dds_waitset_wait(
   dds_duration_t reltimeout);
 
 /**
- * @brief This operation allows an application thread to wait for the a status
- *        change or other trigger on (one of) the entities that are attached to
- *        the WaitSet.
+ * @brief Wait for attached entities to trigger, with an absolute deadline.
  * @ingroup waitset
  * @component waitset
  *
- * The dds_waitset_wait() operation blocks until the some of the attached
- * entities have triggered or "abstimeout" has been reached.
- * 'Triggered' (dds_triggered()) doesn't mean the same for every entity:
- *  - Reader/Writer/Publisher/Subscriber/Topic/Participant
- *      - These are triggered when their status changed.
- *  - WaitSet
- *      - Triggered when trigger value was set to true by the application.
- *        It stays triggered until application sets the trigger value to
- *        false (dds_waitset_set_trigger()). This can be used to wake up an
- *        waitset for different reasons (f.i. termination) than the 'normal'
- *        status change (like new data).
- *  - ReadCondition/QueryCondition
- *      - Triggered when data is available on the related Reader that matches
- *        the Condition.
+ * An empty waitset returns zero immediately. Detaching the last entity or
+ * deleting the waitset can also wake a blocked call with a count of zero.
+ * Multiple threads may wait independently. Waiting leaves the triggers set.
  *
- * This functions takes a pre-allocated list to put the "xs" blobs in (that
- * were provided during the attach of the related entities) and will return
- * the number of triggered entities. It is possible that the given size
- * of the list is not the same as the number of triggered entities. If less
- * entities were triggered, then the last few entries in the list are
- * untouched. When more entities are triggered, then only 'size' number of
- * entries are inserted into the list, but still the complete count of the
- * triggered entities is returned. Which "xs" blobs are returned in the
- * latter case is undefined.
+ * If more than @p nxs entities trigger, the call fills the supplied array with
+ * the attachment values of @p nxs arbitrarily selected triggered entities.
+ * Otherwise it writes all triggered entities' attachment values and leaves any
+ * remaining slots unchanged. Pass a null array and zero capacity to obtain
+ * just the count.
  *
- * In case of a time out, the return value is 0.
+ * @param[in] waitset Waitset to wait on.
+ * @param[out] xs Array for the values supplied to @ref dds_waitset_attach.
+ * @param[in] nxs Capacity of the array.
+ * @param[in] abstimeout Absolute wall-clock time in nanoseconds. A past deadline polls immediately.
  *
- * Deleting the waitset while the application is blocked results in an
- * error code (i.e. < 0) returned by "wait".
- *
- * Multiple threads may block on a single waitset at the same time;
- * the calls are entirely independent.
- *
- * An empty waitset never triggers (i.e., dds_waitset_wait on an empty
- * waitset is essentially equivalent to a sleep).
- *
- * The "dds_waitset_wait" operation is the same as the
- * "dds_waitset_wait_until" except that it takes an relative timeout.
- *
- * The "dds_waitset_wait" operation is the same as the "dds_wait"
- * except that it takes an absolute timeout.
- *
- * @param[in]  waitset    The waitset to set the trigger value on.
- * @param[out] xs         Pre-allocated list to store the 'blobs' that were
- *                        provided during the attach of the triggered entities.
- * @param[in]  nxs        The size of the pre-allocated blobs list.
- * @param[in]  abstimeout Absolute timeout
- *
- * @returns A dds_return_t with the number of entities triggered or an error code.
- *
- * @retval >0
- *             Number of entities triggered.
- * @retval  0
- *             Time out (no entities were triggered).
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The given waitset is not valid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The waitset has already been deleted.
+ * @returns The total number of triggered entities, or a negative error code.
+ * @retval 0 No entities triggered before the wait ended.
+ * @retval DDS_RETCODE_BAD_PARAMETER The array and capacity do not agree.
+ * @see @ref entity_handle_errors for errors looking up the waitset.
  */
 DDS_EXPORT dds_return_t
 dds_waitset_wait_until(
