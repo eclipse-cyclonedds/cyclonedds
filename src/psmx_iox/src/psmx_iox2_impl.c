@@ -405,7 +405,10 @@ static iox2_callback_progression_e on_event (iox2_waitset_attachment_id_h attach
 
 #if USE_LISTENER_THREAD_STATE
   if (ddsrt_atomic_ld32 (&part_topic->listener_thread_state) == LISTENER_THREAD_STOPREQ)
+  {
+    iox2_waitset_attachment_id_drop (attachment_id);
     return iox2_callback_progression_e_STOP;
+  }
 #endif
 
   iox2_callback_progression_e retval = iox2_callback_progression_e_CONTINUE;
@@ -463,14 +466,23 @@ static uint32_t thread_listener_func (void *p)
     goto err;
   }
 
+#ifdef PSMX_IOX2_HAS_NODE_WAITSET_BUILDER
+  iox2_waitset_builder_t builder_storage;
+  waitset_builder = iox2_node_waitset_builder (&part_topic->topic->parent->node_handle, &builder_storage);
+#else
   iox2_waitset_builder_new (NULL, &waitset_builder);
+#endif
   if (waitset_builder == NULL)
   {
     log_error ("Unable to create waitset builder");
     goto fini_cleanup_listener;
   }
 
+#ifdef PSMX_IOX2_HAS_NODE_WAITSET_BUILDER
+  e = iox2_waitset_builder_create (waitset_builder, NULL, &waitset);
+#else
   e = iox2_waitset_builder_create (waitset_builder, iox2_service_type_e_IPC, NULL, &waitset);
+#endif
   if (e != IOX2_OK)
   {
     log_error ("Unable to create waitset: %s [%d]", iox2_waitset_create_error_string ((iox2_waitset_create_error_e)e), e);
@@ -791,6 +803,7 @@ static psmx_iox2_partition_topic_t *get_part_topic (psmx_iox2_topic_t *topic, co
   ddsrt_mutex_init (&part_topic->lock);
   ddsrt_avl_insert (&psmx_iox2_partitions_td, &topic->partitions, part_topic);
   ddsrt_mutex_unlock (&topic->lock);
+  iox2_service_name_drop (service_name_handle);
   return part_topic;
 
 cleanup_notifier:
@@ -1157,6 +1170,7 @@ static void psmx_iox2_loaned_sample_const_free (dds_loaned_sample_t *loan)
     iox2_sample_drop (iox2_loan->iox2_ptr.cnst);
     ddsrt_mutex_unlock (&iox2_ep->lock);
   }
+  ddsrt_free (iox2_loan);
 }
 
 static void psmx_iox2_loaned_sample_mut_free (dds_loaned_sample_t *loan)
@@ -1169,6 +1183,7 @@ static void psmx_iox2_loaned_sample_mut_free (dds_loaned_sample_t *loan)
     iox2_sample_mut_drop (iox2_loan->iox2_ptr.mut);
     ddsrt_mutex_unlock (&iox2_ep->lock);
   }
+  ddsrt_free (iox2_loan);
 }
 
 // --------------------------------------------------------------------------------- //
@@ -1384,7 +1399,7 @@ err_instance_name:
   iox2_config_drop (config);
   ddsrt_free (instance_name);
 err_config_from_ptr:
-  ddsrt_free (psmx);
+  ddsrt_free (psmx_iox2);
 err_trivial:
   return DDS_RETCODE_ERROR;
 }
