@@ -200,11 +200,11 @@ dds_return_t dds_lookup_participant (dds_domainid_t domain_id, dds_entity_t *par
   if ((participants != NULL && (size == 0 || size >= INT32_MAX)) || (participants == NULL && size != 0))
     return DDS_RETCODE_BAD_PARAMETER;
 
-  if (participants)
-    participants[0] = 0;
-
   if ((ret = dds_init ()) < 0)
     return ret;
+
+  if (participants)
+    participants[0] = 0;
 
   ret = 0;
   struct dds_domain *dom;

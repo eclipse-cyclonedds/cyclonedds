@@ -161,9 +161,10 @@ CU_Test(ddsc_topic_get_name, too_small, .init = ddsc_topic_init, .fini = ddsc_to
 
 CU_Test(ddsc_topic_get_name, non_topic, .init = ddsc_topic_init, .fini = ddsc_topic_fini)
 {
-  char name[MAX_NAME_SIZE];
+  char name[MAX_NAME_SIZE] = "previous";
   dds_return_t ret = dds_get_name(g_participant, name, MAX_NAME_SIZE);
   CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_ILLEGAL_OPERATION);
+  CU_ASSERT_STREQ_FATAL (name, "previous");
 }
 
 CU_TheoryDataPoints(ddsc_topic_get_name, invalid_params) = {
@@ -213,9 +214,10 @@ CU_Test(ddsc_topic_get_type_name, too_small, .init = ddsc_topic_init, .fini = dd
 
 CU_Test(ddsc_topic_get_type_name, non_topic, .init = ddsc_topic_init, .fini = ddsc_topic_fini)
 {
-  char name[MAX_NAME_SIZE];
+  char name[MAX_NAME_SIZE] = "previous";
   dds_return_t ret = dds_get_type_name(g_participant, name, MAX_NAME_SIZE);
   CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_ILLEGAL_OPERATION);
+  CU_ASSERT_STREQ_FATAL (name, "previous");
 }
 
 CU_TheoryDataPoints(ddsc_topic_get_type_name, invalid_params) = {

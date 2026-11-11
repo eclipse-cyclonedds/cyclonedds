@@ -109,6 +109,21 @@ CU_Test (ddsc_guardcond, take_trigger)
   CU_ASSERT_EQ_FATAL (rc, 0);
 }
 
+CU_Test (ddsc_guardcond, wrong_entity)
+{
+  dds_entity_t participant = dds_create_participant (0, NULL, NULL);
+  CU_ASSERT_GT_FATAL (participant, 0);
+
+  bool triggered = true;
+  CU_ASSERT_EQ (dds_read_guardcondition (participant, &triggered), DDS_RETCODE_ILLEGAL_OPERATION);
+  CU_ASSERT (triggered);
+  triggered = true;
+  CU_ASSERT_EQ (dds_take_guardcondition (participant, &triggered), DDS_RETCODE_ILLEGAL_OPERATION);
+  CU_ASSERT (triggered);
+
+  CU_ASSERT_EQ (dds_delete (participant), DDS_RETCODE_OK);
+}
+
 CU_Test (ddsc_guardcond, waitset)
 {
   dds_entity_t par, gc, ws;

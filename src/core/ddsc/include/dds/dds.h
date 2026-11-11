@@ -1280,25 +1280,25 @@ dds_get_domainid(dds_entity_t entity, dds_domainid_t *id);
  * This operation acquires the participants created on a domain and returns
  * the number of found participants.
  *
- * This function takes a domain id with the size of pre-allocated participant's
- * list in and will return the number of found participants. It is possible that
- * the given size of the list is not the same as the number of found participants.
- * If less participants are found, then the last few entries in an array stay
- * untouched. If more participants are found and the array is too small, then the
- * participants returned are undefined.
+ * If more participants are found than fit in the supplied array, the call
+ * fills it with the handles of @p size arbitrarily selected participants.
+ * If none are found and an array is supplied, its first element is set to
+ * zero. All other unused elements retain their previous values.
+ * On error, all array elements retain their previous values.
  *
  * @param[in]  domain_id    The domain id.
- * @param[out] participants The participant for domain.
+ * @param[out] participants Array that receives participant handles, or NULL to obtain the count.
  * @param[in]  size         Size of the pre-allocated participant's list.
  *
- * @returns Number of participants found or and error code.
+ * @returns Number of participants found or a negative error code.
  *
- * @retval >0
+ * @retval >=0
  *             Number of participants found.
  * @retval DDS_RETCODE_ERROR
  *             An internal error has occurred.
  * @retval DDS_RETCODE_BAD_PARAMETER
- *             The participant parameter is NULL, while a size is provided.
+ *             The array is NULL with a nonzero size, or the array is non-NULL
+ *             with a size of zero or at least INT32_MAX.
  */
 DDS_EXPORT dds_return_t
 dds_lookup_participant(
@@ -1533,7 +1533,7 @@ dds_delete_topic_descriptor (dds_topic_descriptor_t *descriptor);
  * @component topic
  *
  * @param[in]  topic  The topic.
- * @param[out] name   Buffer to write the topic name to.
+ * @param[out] name   Buffer for the topic name. On error, the buffer is unchanged.
  * @param[in]  size   Number of bytes available in the buffer.
  *
  * @returns A dds_return_t indicating success or failure.
@@ -1549,7 +1549,7 @@ dds_get_name(dds_entity_t topic, char *name, size_t size);
  * @component topic
  *
  * @param[in]  topic  The topic.
- * @param[out] name   Buffer to write the topic type name to.
+ * @param[out] name   Buffer for the topic type name. On error, the buffer is unchanged.
  * @param[in]  size   Number of bytes available in the buffer.
  *
  * @returns A dds_return_t indicating success or failure.
@@ -2789,7 +2789,7 @@ dds_set_guardcondition(dds_entity_t guardcond, bool triggered);
  * @component guard_condition
  *
  * @param[in]   guardcond  Guard condition to read the trigger status of.
- * @param[out]  triggered  The triggered status read from the guard condition.
+ * @param[out]  triggered  Receives the trigger status on success. On error, `*triggered` is unchanged.
  *
  * @retval DDS_RETCODE_OK
  *             Operation successful
@@ -2809,7 +2809,7 @@ dds_read_guardcondition(dds_entity_t guardcond, bool *triggered);
  * @component guard_condition
  *
  * @param[in]   guardcond  Guard condition to read and reset the trigger status of.
- * @param[out]  triggered  The triggered status read from the guard condition.
+ * @param[out]  triggered  Receives the trigger status before the reset. On error, `*triggered` is unchanged.
  *
  * @retval DDS_RETCODE_OK
  *             Operation successful

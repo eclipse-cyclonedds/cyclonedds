@@ -105,7 +105,6 @@ dds_return_t dds_read_guardcondition (dds_entity_t guardcond, bool *triggered)
   if (triggered == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  *triggered = false;
   if ((rc = dds_guardcond_lock (guardcond, &gcond)) != DDS_RETCODE_OK)
     return rc;
   else
@@ -124,7 +123,6 @@ dds_return_t dds_take_guardcondition (dds_entity_t guardcond, bool *triggered)
   if (triggered == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  *triggered = false;
   if ((rc = dds_guardcond_lock (guardcond, &gcond)) != DDS_RETCODE_OK)
     return rc;
   else

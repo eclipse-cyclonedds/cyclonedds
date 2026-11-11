@@ -377,12 +377,19 @@ CU_Test(ddsc_participant_lookup, unknown_id) {
 
 CU_Test(ddsc_participant_lookup, none) {
 
-  dds_entity_t participants[2];
+  dds_entity_t participants[2] = { 1, 2 };
   dds_return_t num_of_found_pp;
   size_t size = 2;
 
+  num_of_found_pp = dds_lookup_participant (0, participants, 0);
+  CU_ASSERT_EQ_FATAL (num_of_found_pp, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ (participants[0], 1);
+  CU_ASSERT_EQ (participants[1], 2);
+
   num_of_found_pp = dds_lookup_participant( 0, participants, size);
   CU_ASSERT_EQ_FATAL (num_of_found_pp, 0);
+  CU_ASSERT_EQ (participants[0], 0);
+  CU_ASSERT_EQ (participants[1], 2);
 }
 
 CU_Test(ddsc_participant_lookup, no_more) {
