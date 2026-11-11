@@ -78,8 +78,8 @@ if((WIN32 OR RTX64) AND NOT UNIX)
 
   option(INSTALL_SYSTEM_RUNTIME_LIBRARIES "Install Windows system runtime libraries" ON)
   if(INSTALL_SYSTEM_RUNTIME_LIBRARIES)
-    include(InstallRequiredSystemLibraries)
     set(CMAKE_INSTALL_UCRT_LIBRARIES TRUE)
+    include(InstallRequiredSystemLibraries)
   endif()
 
 elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
