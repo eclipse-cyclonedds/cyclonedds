@@ -12,6 +12,14 @@
 #include "dds/dds.h"
 #include "test_common.h"
 #include "build_options.h"
+#include "dds__loaned_sample.h"
+#include "dds__reader.h"
+
+#if defined (_WIN64)
+#include <windows.h>
+#elif defined (__unix__) || defined (__APPLE__)
+#include <sys/mman.h>
+#endif
 
 static dds_entity_t participant, topic, reader, writer, read_condition, read_condition_unread;
 
@@ -150,6 +158,57 @@ CU_Test (ddsc_loan, success, .init = create_entities, .fini = delete_entities)
   result = dds_return_loan (read_condition, ptrs2, n2);
   CU_ASSERT_EQ_FATAL (result, DDS_RETCODE_OK);
   CU_ASSERT_EQ_FATAL (ptrs2[0], NULL);
+}
+
+CU_Test (ddsc_loan, large_buffer_loan_return, .init = create_entities, .fini = delete_entities)
+{
+#if SIZE_MAX > UINT32_MAX && (defined (_WIN64) || defined (MAP_ANONYMOUS) || defined (MAP_ANON))
+  // Reserve the full array promised to dds_take, but touch only the first page.
+  const size_t bufsz = (size_t) INT32_MAX + 1;
+  void **buf;
+#ifdef _WIN64
+  buf = VirtualAlloc (NULL, bufsz * sizeof (*buf), MEM_RESERVE, PAGE_READWRITE);
+  if (buf != NULL && VirtualAlloc (buf, 3 * sizeof (*buf), MEM_COMMIT, PAGE_READWRITE) == NULL)
+  {
+    VirtualFree (buf, 0, MEM_RELEASE);
+    buf = NULL;
+  }
+#else
+#ifdef MAP_ANONYMOUS
+  const int anonymous = MAP_ANONYMOUS;
+#else
+  const int anonymous = MAP_ANON;
+#endif
+  buf = mmap (NULL, bufsz * sizeof (*buf), PROT_READ | PROT_WRITE, MAP_PRIVATE | anonymous, -1, 0);
+  if (buf == MAP_FAILED)
+    buf = NULL;
+#endif
+  if (buf == NULL)
+  {
+    CU_PASS ("Insufficient virtual memory for the large buffer");
+    return;
+  }
+
+  const RoundTripModule_DataType sample = { 0 };
+  CU_ASSERT_EQ_FATAL (dds_write (writer, &sample), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_write (writer, &sample), DDS_RETCODE_OK);
+  dds_sample_info_t si[2];
+  CU_ASSERT_EQ_FATAL (dds_take (reader, buf, si, bufsz, 2), 2);
+  CU_ASSERT_EQ_FATAL (buf[2], NULL);
+  CU_ASSERT_EQ_FATAL (dds_take (reader, buf, si, bufsz, 1), 0);
+
+  dds_reader *rd = NULL;
+  CU_ASSERT_EQ_FATAL (dds_reader_lock (reader, &rd), DDS_RETCODE_OK);
+  CU_ASSERT_EQ (rd->m_loans->n_samples, 0);
+  dds_reader_unlock (rd);
+#ifdef _WIN64
+  CU_ASSERT_FATAL (VirtualFree (buf, 0, MEM_RELEASE));
+#else
+  CU_ASSERT_EQ_FATAL (munmap (buf, bufsz * sizeof (*buf)), 0);
+#endif
+#else
+  CU_PASS ("Requires a 64-bit address space and demand-paged memory");
+#endif
 }
 
 CU_Test (ddsc_loan, take_cleanup, .init = create_entities, .fini = delete_entities)
