@@ -1306,14 +1306,15 @@ dds_return_t ddsi_dynamic_type_register (struct ddsi_type **type_c, struct ddsi_
   ddsrt_mutex_lock (&gv->typelib_lock);
   if ((ret = dynamic_type_complete_locked (type_c)) != DDS_RETCODE_OK)
     goto err;
-  if ((*type_info = ddsrt_malloc (sizeof (**type_info))) == NULL)
+  ddsi_typeinfo_t *result = ddsrt_malloc (sizeof (*result));
+  if (result == NULL)
   {
     ret = DDS_RETCODE_OUT_OF_RESOURCES;
     goto err;
   }
-  if ((ret = ddsi_type_get_typeinfo_locked (gv, *type_c, *type_info, type_m)) != DDS_RETCODE_OK)
+  if ((ret = ddsi_type_get_typeinfo_locked (gv, *type_c, result, type_m)) != DDS_RETCODE_OK)
   {
-    ddsrt_free (*type_info);
+    ddsrt_free (result);
     goto err;
   }
 
@@ -1321,6 +1322,7 @@ dds_return_t ddsi_dynamic_type_register (struct ddsi_type **type_c, struct ddsi_
      the complete refcount and returns a minimal ref that is transferred to the
      dynamic type. Release the extra complete ref. */
   ddsi_type_unref_locked (gv, *type_c);
+  *type_info = result;
 
 err:
   ddsrt_mutex_unlock (&gv->typelib_lock);

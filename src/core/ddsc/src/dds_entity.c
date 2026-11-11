@@ -1688,32 +1688,28 @@ dds_return_t dds_get_typeinfo (dds_entity_t entity, dds_typeinfo_t **type_info)
     return DDS_RETCODE_BAD_PARAMETER;
   if ((ret = dds_entity_pin (entity, &e)) != DDS_RETCODE_OK)
     return ret;
+  const struct ddsi_sertype *sertype;
   switch (dds_entity_kind (e))
   {
-    case DDS_KIND_TOPIC: {
-      struct dds_topic * const tp = (struct dds_topic *) e;
-      if (!(*type_info = ddsi_sertype_typeinfo (tp->m_stype)))
-        ret = DDS_RETCODE_NOT_FOUND;
+    case DDS_KIND_TOPIC:
+      sertype = ((const dds_topic *) e)->m_stype;
       break;
-    }
-    case DDS_KIND_READER: {
-      struct dds_reader * const rd = (struct dds_reader *) e;
-      if (!(*type_info = ddsi_sertype_typeinfo (rd->m_rd->type)))
-        ret = DDS_RETCODE_NOT_FOUND;
+    case DDS_KIND_READER:
+      sertype = ((const dds_reader *) e)->m_rd->type;
       break;
-    }
-    case DDS_KIND_WRITER: {
-      struct dds_writer * const wr = (struct dds_writer *) e;
-      if (!(*type_info = ddsi_sertype_typeinfo (wr->m_wr->type)))
-        ret = DDS_RETCODE_NOT_FOUND;
+    case DDS_KIND_WRITER:
+      sertype = ((const dds_writer *) e)->m_wr->type;
       break;
-    }
     default:
-      ret = DDS_RETCODE_ILLEGAL_OPERATION;
-      break;
+      dds_entity_unpin (e);
+      return DDS_RETCODE_ILLEGAL_OPERATION;
   }
+  dds_typeinfo_t * const result = ddsi_sertype_typeinfo (sertype);
   dds_entity_unpin (e);
-  return ret;
+  if (result == NULL)
+    return DDS_RETCODE_NOT_FOUND;
+  *type_info = result;
+  return DDS_RETCODE_OK;
 }
 
 dds_return_t dds_free_typeinfo (dds_typeinfo_t *type_info)

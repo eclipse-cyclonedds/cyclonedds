@@ -29,7 +29,10 @@ idlc_generate(TARGET CdrStreamKeyFlags FILES CdrStreamKeyFlags.idl)
 idlc_generate(TARGET CdrStreamChecking FILES CdrStreamChecking.idl)
 idlc_generate(TARGET CdrStreamString FILES CdrStreamString.idl)
 idlc_generate(TARGET CdrStreamParamHeader FILES CdrStreamParamHeader.idl)
-idlc_generate(TARGET CdrStreamSerDes FILES CdrStreamSerDes.idl NO_TYPE_INFO WARNINGS no-enum-consecutive)
+if(ENABLE_TYPELIB)
+  set(cdrstream_serdes_options NO_TYPE_INFO)
+endif()
+idlc_generate(TARGET CdrStreamSerDes FILES CdrStreamSerDes.idl ${cdrstream_serdes_options} WARNINGS no-enum-consecutive)
 idlc_generate(TARGET CdrStreamXcdr1Opt FILES CdrStreamXcdr1Opt.idl)
 idlc_generate(TARGET CdrStreamTryconstruct FILES CdrStreamTryconstruct.idl)
 idlc_generate(TARGET CdrStreamSignedUnion FILES CdrStreamSignedUnion.idl)
@@ -38,8 +41,8 @@ idlc_generate(TARGET PsmxDataModels FILES PsmxDataModels.idl WARNINGS no-implici
 idlc_generate(TARGET CdrStreamDataTypeInfo FILES CdrStreamDataTypeInfo.idl WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET Array100 FILES Array100.idl WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET DynamicData FILES DynamicData.idl WARNINGS no-implicit-extensibility)
+idlc_generate(TARGET SertypeData FILES SertypeData.idl)
 if(ENABLE_TYPELIB)
-  idlc_generate(TARGET SertypeData FILES SertypeData.idl)
   idlc_generate(TARGET XSpace FILES XSpace.idl XSpaceEnum.idl XSpaceEnumUnion.idl XSpaceMustUnderstand.idl XSpaceTypeConsistencyEnforcement.idl WARNINGS no-implicit-extensibility no-inherit-appendable)
   idlc_generate(TARGET XSpaceNoTypeInfo FILES XSpaceNoTypeInfo.idl NO_TYPE_INFO WARNINGS no-implicit-extensibility)
   idlc_generate(TARGET TypeBuilderTypes FILES TypeBuilderTypes.idl WARNINGS no-implicit-extensibility no-inherit-appendable)
@@ -215,12 +218,13 @@ target_link_libraries(cunit_ddsc PRIVATE
   CdrStreamKeyExt
   CdrStreamKeyFlags
   SerdataData
+  SertypeData
   ddsc
 )
 
 if(ENABLE_TYPELIB)
   target_link_libraries(cunit_ddsc PRIVATE
-  SertypeData XSpace XSpaceNoTypeInfo TypeBuilderTypes DynamicTypeTypes)
+  XSpace XSpaceNoTypeInfo TypeBuilderTypes DynamicTypeTypes)
 endif()
 
 # Setup environment for config-tests

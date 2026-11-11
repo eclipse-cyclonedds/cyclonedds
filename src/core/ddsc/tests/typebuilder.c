@@ -149,6 +149,21 @@ CU_TheoryDataPoints (ddsc_typebuilder, topic_desc) = {
 };
 #undef D
 
+CU_Test(ddsc_typebuilder, create_descriptor_error_preserves_output, .init = typebuilder_init, .fini = typebuilder_fini)
+{
+  dds_topic_descriptor_t original = TypeBuilderTypes_t1_desc;
+  dds_topic_descriptor_t *desc = &original;
+  dds_typeinfo_t *type_info = ddsi_typeinfo_deser (original.type_information.data, original.type_information.sz);
+  CU_ASSERT_NEQ_FATAL (type_info, NULL);
+
+  dds_entity_t domain = dds_get_parent (g_participant);
+  CU_ASSERT_GT_FATAL (domain, 0);
+  dds_return_t ret = dds_create_topic_descriptor (DDS_FIND_SCOPE_LOCAL_DOMAIN, domain, type_info, 0, &desc);
+  CU_ASSERT_EQ (ret, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ (desc, &original);
+  dds_free_typeinfo (type_info);
+}
+
 static void assert_key_names (const dds_topic_descriptor_t *desc, uint32_t nkeys, const char * const *names)
 {
   CU_ASSERT_EQ_FATAL (desc->m_nkeys, nkeys);

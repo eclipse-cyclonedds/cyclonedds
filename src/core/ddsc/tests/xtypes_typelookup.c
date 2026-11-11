@@ -1113,8 +1113,20 @@ CU_Test(ddsc_typelookup, scc_request_after_minimal_generation_rollback,
     ddsrt_mutex_unlock (&gv->typelib_lock);
   }
 
-  /* A successful retry owns only its returned references and the cache. */
   struct ddsi_typeinfo info;
+  /* Give the dynamic type its own reference to the imported complete type.
+     Registration must preserve its output if building the minimal type fails. */
+  dds_dynamic_type_t dynamic_type = { .x = { types[0], NULL } };
+  ddsi_type_ref (gv, NULL, types[0]);
+  dds_typeinfo_t *registered_info = &info;
+  set_scc_reply_alloc_failure (SCC_REPLY_ALLOC_MINIMAL_SUFFIX, gv, &first_minimal_id);
+  const dds_return_t register_ret = dds_dynamic_type_register (&dynamic_type, &registered_info);
+  CU_ASSERT (reset_scc_reply_alloc_failure ());
+  CU_ASSERT_EQ (register_ret, DDS_RETCODE_OUT_OF_RESOURCES);
+  CU_ASSERT_EQ (registered_info, &info);
+  dds_dynamic_type_unref (&dynamic_type);
+
+  /* A successful retry owns only its returned references and the cache. */
   struct ddsi_type *minimal;
   ddsrt_mutex_lock (&gv->typelib_lock);
   CU_ASSERT_EQ_FATAL (ddsi_type_get_typeinfo_locked (gv, types[0], &info, &minimal), DDS_RETCODE_OK);
