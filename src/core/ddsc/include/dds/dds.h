@@ -381,70 +381,28 @@ dds_builtintopic_endpoint_t;
  * @defgroup entity (Entities)
  * @ingroup dds
  * @brief Every DDS object in the library is an Entity.
- * All entities are represented by a process-private handle, with one
- * call to enable an entity when it was created disabled.
- * An entity is created enabled by default.
- * Note: disabled creation is currently not supported.
-*/
+ * Each entity has a process-private handle and is enabled on creation.
+ *
+ * @section entity_handle_errors Entity handle errors
+ * Operations that look up an existing entity ordinarily return
+ * DDS_RETCODE_PRECONDITION_NOT_MET if the library is uninitialized and
+ * DDS_RETCODE_BAD_PARAMETER if the handle is invalid or closed. Operations that
+ * require a particular entity kind ordinarily return DDS_RETCODE_ILLEGAL_OPERATION
+ * for a live entity of another kind. Individual functions document exceptions.
+ */
 
 /**
- * @brief Enable entity.
+ * @brief Enable an entity.
  * @ingroup entity
  * @component generic_entity
  *
- * @note Delayed entity enabling is not supported yet (CHAM-96).
+ * Cyclone DDS creates entities enabled. Calling this function on an enabled
+ * entity succeeds and has no effect.
  *
- * This operation enables the dds_entity_t. Created dds_entity_t objects can start in
- * either an enabled or disabled state. This is controlled by the value of the
- * entityfactory policy on the corresponding parent entity for the given
- * entity. Enabled entities are immediately activated at creation time meaning
- * all their immutable QoS settings can no longer be changed. Disabled Entities are not
- * yet activated, so it is still possible to change their immutable QoS settings. However,
- * once activated the immutable QoS settings can no longer be changed.
- * Creating disabled entities can make sense when the creator of the DDS_Entity
- * does not yet know which QoS settings to apply, thus allowing another piece of code
- * to set the QoS later on.
+ * @param[in] entity Entity to enable.
  *
- * The default setting of DDS_EntityFactoryQosPolicy is such that, by default,
- * entities are created in an enabled state so that it is not necessary to explicitly call
- * dds_enable on newly-created entities.
- *
- * The dds_enable operation produces the same results no matter how
- * many times it is performed. Calling dds_enable on an already
- * enabled DDS_Entity returns DDS_RETCODE_OK and has no effect.
- *
- * If an Entity has not yet been enabled, the only operations that can be invoked
- * on it are: the ones to set, get or copy the QosPolicy settings, the ones that set
- * (or get) the Listener, the ones that get the Status and the dds_get_status_changes
- * operation (although the status of a disabled entity never changes). Other operations
- * will return the error DDS_RETCODE_NOT_ENABLED.
- *
- * Entities created with a parent that is disabled, are created disabled regardless of
- * the setting of the entityfactory policy.
- *
- * If the entityfactory policy has autoenable_created_entities
- * set to TRUE, the dds_enable operation on the parent will
- * automatically enable all child entities created with the parent.
- *
- * The Listeners associated with an Entity are not called until the
- * Entity is enabled. Conditions associated with an Entity that
- * is not enabled are "inactive", that is, have a trigger_value which is FALSE.
- *
- * @param[in]  entity  The entity to enable.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The listeners of to the entity have been successfully been copied
- *             into the specified listener parameter.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             The parent of the given Entity is not enabled.
+ * @retval DDS_RETCODE_OK The entity is enabled.
+ * @see @ref entity_handle_errors
  */
 DDS_EXPORT dds_return_t
 dds_enable(dds_entity_t entity);
@@ -457,119 +415,74 @@ dds_enable(dds_entity_t entity);
 */
 
 /**
- * @brief Delete given entity.
+ * @brief Delete an entity and its descendants.
  * @ingroup entity
  * @component generic_entity
  *
- * This operation will delete the given entity. It will also automatically
- * delete all its children, childrens' children, etc entities.
+ * Deleting an entity recursively deletes its children. A topic referenced
+ * by a reader or writer stays alive until its last reference is released.
+ * The initial delete request succeeds even when destruction is deferred.
  *
- * Some parent entities are created implicitly by the API. A domain can be
- * created implicitly by @ref dds_create_participant. A publisher or subscriber
- * can be created implicitly by @ref dds_create_writer or @ref dds_create_reader
- * when called with a participant and a normal topic. Such implicit entities are
- * deleted automatically when their last child is deleted. They are also deleted
- * as part of the recursive deletion of one of their ancestors. Explicitly
- * created domains, publishers and subscribers are not deleted merely because
- * they have no children; they must be deleted explicitly, or by deleting an
- * ancestor that contains them.
+ * An implicitly created domain, publisher or subscriber is also deleted
+ * when its last child is deleted. An explicitly created entity with no
+ * children remains alive until it or one of its ancestors is deleted.
  *
- * @param[in]  entity  Entity to delete.
+ * @param[in] entity Entity to delete.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The entity and its children (recursive are deleted).
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @retval DDS_RETCODE_OK The delete request was accepted.
+ * @retval DDS_RETCODE_ALREADY_DELETED A previous delete request was deferred
+ *         and the entity still has outstanding references.
+ * @see @ref entity_handle_errors
  */
-/* TODO: Link to generic dds entity relations documentation. */
 DDS_EXPORT dds_return_t
 dds_delete(dds_entity_t entity);
 
 /**
- * @brief Get entity publisher.
+ * @brief Get the publisher of a writer.
  * @ingroup entity
  * @component entity_relations
  *
- * This operation returns the publisher to which the given entity belongs.
- * For instance, it will return the Publisher that was used when
- * creating a DataWriter (when that DataWriter was provided here).
- * If the writer was created directly on a participant, this returns the
- * implicit publisher that was created as the writer's parent.
+ * If the writer was created directly on a participant, this returns its
+ * implicitly created publisher.
  *
- * @param[in]  writer  Entity from which to get its publisher.
+ * @param[in] writer Writer whose publisher to return.
  *
- * @returns A valid entity or an error code.
- *
- * @retval >0
- *             A valid publisher handle.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @retval >0 The publisher handle.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION The entity is not a writer.
+ * @see @ref entity_handle_errors
  */
 DDS_EXPORT dds_entity_t
 dds_get_publisher(dds_entity_t writer);
 
 /**
- * @brief Get entity subscriber.
+ * @brief Get the subscriber of a reader or one of its conditions.
  * @ingroup entity
  * @component entity_relations
  *
- * This operation returns the subscriber to which the given entity belongs.
- * For instance, it will return the Subscriber that was used when
- * creating a DataReader (when that DataReader was provided here).
- * If the reader was created directly on a participant and a normal topic, this
- * returns the implicit subscriber that was created as the reader's parent. If
- * the reader is for a built-in topic, this returns the participant's built-in
- * subscriber.
+ * For a reader created directly on a participant, the subscriber is the
+ * implicitly created subscriber for an ordinary topic or the participant's
+ * built-in subscriber for a built-in topic.
  *
- * @param[in]  entity  Entity from which to get its subscriber.
+ * @param[in] entity Reader, read condition or query condition.
  *
- * @returns A valid subscriber handle or an error code.
- *
- * @retval >0
- *             A valid subscriber handle.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- * DOC_TODO: Link to generic dds entity relations documentation.
+ * @retval >0 The subscriber handle.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION The entity is not a reader, read
+ *         condition or query condition.
+ * @see @ref entity_handle_errors
  */
 DDS_EXPORT dds_entity_t
 dds_get_subscriber(dds_entity_t entity);
 
 /**
- * @brief Get entity datareader.
+ * @brief Get the reader that owns a read or query condition.
  * @ingroup entity
  * @component entity_relations
  *
- * This operation returns the datareader to which the given entity belongs.
- * For instance, it will return the DataReader that was used when
- * creating a ReadCondition (when that ReadCondition was provided here).
+ * @param[in] entity Read condition or query condition.
  *
- * @param[in]  entity  Entity from which to get its datareader.
- *
- * @returns A valid reader handle or an error code.
- *
- * @retval >0
- *             A valid reader handle.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- * DOC_TODO: Link to generic dds entity relations documentation.
+ * @retval >0 The reader handle.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION The entity is not a read or query condition.
+ * @see @ref entity_handle_errors
  */
 DDS_EXPORT dds_entity_t
 dds_get_datareader(dds_entity_t entity);
@@ -582,200 +495,152 @@ dds_get_datareader(dds_entity_t entity);
  */
 
 /**
- * @brief Get the mask of a condition.
+ * @brief Get the state mask of a read or query condition.
  * @ingroup condition
  * @component entity_status
  *
- * This operation returns the mask that was used to create the given
- * condition.
+ * The result combines the sample, view and instance state bits selected
+ * when the condition was created. Other bits in the creation mask are ignored.
  *
- * @param[in]  condition  Read or Query condition that has a mask.
- * @param[out] mask       Where to store the mask of the condition.
+ * @param[in]  condition Read condition or query condition.
+ * @param[out] mask      Where to store the combined state mask.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             Success (given mask is set).
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The mask arg is NULL.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @retval DDS_RETCODE_OK The mask was returned.
+ * @retval DDS_RETCODE_BAD_PARAMETER The @p mask pointer is NULL.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION The entity is not a read or query condition.
+ * @see @ref entity_handle_errors
  */
 DDS_EXPORT dds_return_t
 dds_get_mask(dds_entity_t condition, uint32_t *mask);
 
 /**
- * @brief Returns the instance handle that represents the entity.
+ * @brief Get the instance handle that identifies an entity.
  * @ingroup entity
  * @component generic_entity
  *
- * @param[in]   entity  Entity of which to get the instance handle.
- * @param[out]  ihdl    Pointer to dds_instance_handle_t.
+ * @param[in]  entity Entity whose instance handle to return.
+ * @param[out] ihdl   Where to store the instance handle.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             Success.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * DOC_TODO: Check list of return codes is complete.
- * */
+ * @retval DDS_RETCODE_OK The instance handle was returned.
+ * @retval DDS_RETCODE_BAD_PARAMETER The @p ihdl pointer is NULL.
+ * @see @ref entity_handle_errors
+ */
 DDS_EXPORT dds_return_t
 dds_get_instance_handle(dds_entity_t entity, dds_instance_handle_t *ihdl);
 
 /**
- * @brief Returns the GUID that represents the entity in the network,
- * and therefore only supports participants, readers and writers.
+ * @brief Get the GUID that identifies a participant, reader or writer on the network.
  * @ingroup entity
  * @component generic_entity
  *
- * @param[in]   entity  Entity of which to get the instance handle.
- * @param[out]  guid    Where to store the GUID.
+ * @param[in]  entity Participant, reader or writer whose GUID to return.
+ * @param[out] guid   Where to store the GUID.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             Success.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- *
- * DOC_TODO: Check list of return codes is complete.
+ * @retval DDS_RETCODE_OK The GUID was returned.
+ * @retval DDS_RETCODE_BAD_PARAMETER The @p guid pointer is NULL.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION The entity is not a participant, reader or writer.
+ * @see @ref entity_handle_errors
  */
 DDS_EXPORT dds_return_t
 dds_get_guid (dds_entity_t entity, dds_guid_t *guid);
 
 /**
- * @brief Read the status set for the entity
+ * @brief Read the selected status flags without clearing them.
  * @ingroup entity_status
  * @component entity_status
  *
- * This operation reads the status(es) set for the entity based on
- * the enabled status and mask set. It does not clear the read status(es).
+ * The selection is independent of the mask enabled for waitset triggering.
  *
- * @param[in]  entity  Entity on which the status has to be read.
- * @param[out] status  Returns the status set on the entity, based on the enabled status.
- * @param[in]  mask    Filter the status condition to be read, 0 means all statuses
+ * @param[in]  entity Entity whose status to read.
+ * @param[out] status Currently set flags selected by @p mask.
+ * @param[in]  mask   Status flags to read, or zero for all statuses.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             Success.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The entity parameter is not a valid parameter, status is a null pointer or
- *             mask has bits set outside the status range.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object or mask has status
- *             bits set that are undefined for the type of entity.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @retval DDS_RETCODE_OK The status flags were returned.
+ * @retval DDS_RETCODE_BAD_PARAMETER The @p status pointer is NULL or @p mask
+ *         contains an unknown status or one inapplicable to this entity.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION The entity does not support statuses.
+ * @see @ref entity_handle_errors
  */
 DDS_EXPORT dds_return_t
 dds_read_status(dds_entity_t entity, uint32_t *status, uint32_t mask);
 
 /**
- * @brief Read the status set for the entity
+ * @brief Read and clear the selected status flags.
  * @ingroup entity_status
  * @component entity_status
  *
- * This operation reads the status(es) set for the entity based on the enabled
- * status and mask set. It clears the status set after reading.
+ * The selection is independent of the mask enabled for waitset triggering.
+ * A subscriber can compute DDS_DATA_ON_READERS_STATUS from its readers'
+ * DDS_DATA_AVAILABLE_STATUS flags. Taking the subscriber status leaves those
+ * reader flags set, so successive takes can return DDS_DATA_ON_READERS_STATUS.
  *
- * @param[in]  entity  Entity on which the status has to be read.
- * @param[out] status  Returns the status set on the entity, based on the enabled status.
- * @param[in]  mask    Filter the status condition to be read, 0 means all statuses
+ * @param[in]  entity Entity whose status to take.
+ * @param[out] status Flags selected by @p mask that were set when taken.
+ * @param[in]  mask   Status flags to take, or zero for all statuses.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             Success.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The entity parameter is not a valid parameter, status is a null pointer or
- *             mask has bits set outside the status range.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object or mask has status
- *             bits set that are undefined for the type of entity.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @retval DDS_RETCODE_OK The status flags were returned.
+ * @retval DDS_RETCODE_BAD_PARAMETER The @p status pointer is NULL or @p mask
+ *         contains an unknown status or one inapplicable to this entity.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION The entity does not support statuses.
+ * @see @ref entity_handle_errors
  */
 DDS_EXPORT dds_return_t
 dds_take_status(dds_entity_t entity, uint32_t *status, uint32_t mask);
 
 /**
- * @brief Get changed status(es)
+ * @brief Read all currently set status flags.
  * @ingroup entity_status
  * @component entity_status
  *
- * This operation returns the status changes since they were last read.
+ * Equivalent to calling @ref dds_read_status with a mask of zero.
+ * Reading the flags leaves them set.
  *
- * @param[in]  entity  Entity on which the statuses are read.
- * @param[out] status  Returns the current set of triggered statuses.
+ * @param[in]  entity Entity whose status to read.
+ * @param[out] status Currently set status flags.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             Success.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The entity parameter is not a valid parameter.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @retval DDS_RETCODE_OK The status flags were returned.
+ * @retval DDS_RETCODE_BAD_PARAMETER The @p status pointer is NULL.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION The entity does not support statuses.
+ * @see @ref entity_handle_errors
  */
 DDS_EXPORT dds_return_t
 dds_get_status_changes(dds_entity_t entity, uint32_t *status);
 
 /**
  * @anchor dds_get_status_mask
- * @brief Get enabled status on entity
+ * @brief Get the status flags enabled for waitset triggering.
  * @ingroup entity_status
  * @component entity_status
  *
- * This operation returns the status enabled on the entity
+ * @param[in]  entity Entity whose enabled status mask to read.
+ * @param[out] mask   Where to store the enabled status mask.
  *
- * @param[in]  entity  Entity to get the status.
- * @param[out] mask    Mask of enabled statuses set on the entity.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             Success.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The entity parameter is not a valid parameter.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @retval DDS_RETCODE_OK The mask was returned.
+ * @retval DDS_RETCODE_BAD_PARAMETER The @p mask pointer is NULL.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION The entity does not support statuses.
+ * @see @ref entity_handle_errors
  */
 DDS_EXPORT dds_return_t
 dds_get_status_mask(dds_entity_t entity, uint32_t *mask);
 
 /**
  * @anchor dds_set_status_mask
- * @brief Set status enabled on entity
+ * @brief Replace the status flags enabled for waitset triggering.
  * @ingroup entity_status
  * @component entity_status
  *
- * This operation enables the status(es) based on the mask set
+ * Every status omitted from the new mask is disabled. A mask of zero
+ * disables all statuses for triggering.
  *
- * @param[in]  entity  Entity to enable the status.
- * @param[in]  mask    Status value that indicates the status to be enabled.
+ * @param[in] entity Entity whose enabled status mask to replace.
+ * @param[in] mask   Status flags to enable.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             Success.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The entity parameter is not a valid parameter.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @retval DDS_RETCODE_OK The mask was set.
+ * @retval DDS_RETCODE_BAD_PARAMETER The mask contains an unknown status or
+ *         one inapplicable to this entity.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION The entity does not support statuses.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET The entity was closed during the operation.
+ * @see @ref entity_handle_errors
  */
 DDS_EXPORT dds_return_t
 dds_set_status_mask(dds_entity_t entity, uint32_t mask);
@@ -783,10 +648,7 @@ dds_set_status_mask(dds_entity_t entity, uint32_t mask);
 /**
  * @defgroup entity_qos (Entity QoS)
  * @ingroup entity
- * @brief Almost all entities have get/set qos operations defined on them,
- * again following the DCPS spec. But unlike the DCPS spec, the
- * "present" field in qos_t allows one to initialize just the one QoS
- * one wants to set & pass it to set_qos.
+ * @brief Get and set QoS policies on DDS entities.
  */
 
 /**
@@ -822,45 +684,26 @@ DDS_EXPORT dds_return_t
 dds_get_qos(dds_entity_t entity, dds_qos_t *qos);
 
 /**
- * @brief Set entity QoS policies.
+ * @brief Update the applicable QoS policies supplied for an entity.
  * @ingroup entity_qos
  * @component entity_qos
  *
- * This operation replaces the existing set of Qos Policy settings for an
- * entity. The parameter qos must contain the struct with the QosPolicy
- * settings which is checked for self-consistency.
+ * Merges the supplied policies with the current QoS. Policies omitted from
+ * @p qos retain their current values. Policies inapplicable to the entity
+ * are ignored. Topic handles for the same name in a participant share QoS.
  *
- * The set of QosPolicy settings specified by the qos parameter are applied on
- * top of the existing QoS, replacing the values of any policies previously set
- * (provided, the operation returned DDS_RETCODE_OK).
+ * @param[in] entity Participant, publisher, subscriber, topic, reader or writer.
+ * @param[in] qos    QoS object containing the policy values to apply.
  *
- * Not all policies are changeable when the entity is enabled.
- *
- * @note Currently only Latency Budget and Ownership Strength are changeable QoS
- *       that can be set.
- *
- * @param[in]  entity  Entity from which to get qos.
- * @param[in]  qos     Pointer to the qos structure that provides the policies.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The new QoS policies are set.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The qos parameter is NULL.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- * @retval DDS_RETCODE_IMMUTABLE_POLICY
- *             The entity is enabled and one or more of the policies of the QoS
- *             are immutable.
- * @retval DDS_RETCODE_INCONSISTENT_POLICY
- *             A few policies within the QoS are not consistent with each other.
- *
- * DOC_TODO: Link to generic QoS information documentation.
+ * @retval DDS_RETCODE_OK The update succeeded.
+ * @retval DDS_RETCODE_BAD_PARAMETER The @p qos pointer is NULL or a policy value is invalid.
+ * @retval DDS_RETCODE_INCONSISTENT_POLICY Policies in the resulting QoS are inconsistent.
+ * @retval DDS_RETCODE_IMMUTABLE_POLICY The update would change an immutable policy.
+ * @retval DDS_RETCODE_UNSUPPORTED The update would change deadline, latency
+ *         budget or partition. Cyclone DDS does not support changing these
+ *         policies on an enabled entity because they affect endpoint matching.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION The entity does not support QoS.
+ * @see @ref entity_handle_errors
  */
 DDS_EXPORT dds_return_t
 dds_set_qos(dds_entity_t entity, const dds_qos_t * qos);
@@ -868,100 +711,48 @@ dds_set_qos(dds_entity_t entity, const dds_qos_t * qos);
 /**
  * @defgroup entity_listener (Entity Listener)
  * @ingroup entity
- * @brief Get or set listener associated with an entity,
- * type of listener provided much match type of entity.
+ * @brief Get and set the listener callbacks associated with an entity.
  */
 
 /**
- * @brief Get entity listeners.
+ * @brief Copy the effective listener of an entity.
  * @ingroup entity_listener
  * @component entity_listener
  *
- * This operation allows access to the existing listeners attached to
- * the entity.
+ * The result includes callbacks set on the entity and inherited callbacks.
  *
- * @param[in]  entity   Entity on which to get the listeners.
- * @param[out] listener Pointer to the listener structure that returns the
- *                      set of listener callbacks.
+ * @param[in]  entity   Entity whose listener to retrieve.
+ * @param[out] listener Listener object to receive the callbacks and their settings.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The listeners of to the entity have been successfully been
- *             copied into the specified listener parameter.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The listener parameter is NULL.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- *
- * DOC_TODO: Link to (generic) Listener and status information.
+ * @retval DDS_RETCODE_OK The listener was copied.
+ * @retval DDS_RETCODE_BAD_PARAMETER The @p listener pointer is NULL.
+ * @see @ref entity_handle_errors
  */
 DDS_EXPORT dds_return_t
 dds_get_listener(dds_entity_t entity, dds_listener_t * listener);
 
 /**
- * @brief Set entity listeners.
+ * @brief Replace the listener callbacks configured on an entity.
  * @ingroup entity_listener
  * @component entity_listener
  *
- * This operation attaches a dds_listener_t to the dds_entity_t. Only one
- * Listener can be attached to each Entity. If a Listener was already
- * attached, this operation will replace it with the new one. In other
- * words, all related callbacks are replaced (possibly with NULL).
+ * Copies the callbacks and their settings from @p listener. For a callback
+ * left unset, the entity inherits the nearest ancestor's applicable
+ * callback. Passing NULL clears all locally configured callbacks and
+ * allows them to be inherited. The change also updates callbacks that
+ * descendants inherit from this entity.
  *
- * A call to this operation will immediately invoke any listener callbacks for
- * which the corresponding status flag is set. It may cause spurious invocations,
- * including multiple invocations for one listener. For most cases this is unlikely,
- * but for the DATA_ON_READERS listeners it is quite likely, though not certain.
+ * Callbacks for pending statuses can run before this function returns.
+ * This may result in repeated notifications, particularly for
+ * DDS_DATA_ON_READERS_STATUS. Each callback's reset_on_invoke setting
+ * controls whether its status is reset before invocation. The entity's
+ * enabled status mask governs waitset triggering.
  *
- * When listener parameter is NULL, all listener callbacks that were possibly
- * set on the Entity will be removed.
+ * @param[in] entity   Entity whose listener to replace.
+ * @param[in] listener Listener to copy, or NULL to clear the local callbacks.
  *
- * @note Not all listener callbacks are related to all entities.
- *
- * ## Communication Status
- * For each communication status, the StatusChangedFlag flag is initially set to
- * FALSE. It becomes TRUE whenever that plain communication status changes. For
- * each plain communication status activated in the mask, the associated
- * Listener callback is invoked and the communication status is reset
- * to FALSE, as the listener implicitly accesses the status which is passed as a
- * parameter to that operation.
- * The status is reset prior to calling the listener, so if the application calls
- * the get_<status_name> from inside the listener it will see the
- * status already reset.
- *
- * ## Status Propagation
- * In case a related callback within the Listener is not set, the Listener of
- * the Parent entity is called recursively, until a Listener with the appropriate
- * callback set has been found and called. This allows the application to set
- * (for instance) a default behaviour in the Listener of the containing Publisher
- * and a DataWriter specific behaviour when needed. In case the callback is not
- * set in the Publishers' Listener either, the communication status will be
- * propagated to the Listener of the DomainParticipant of the containing
- * DomainParticipant. In case the callback is not set in the DomainParticipants'
- * Listener either, the Communication Status flag will be set, resulting in a
- * possible WaitSet trigger.
- *
- * @param[in]  entity    Entity on which to get the listeners.
- * @param[in]  listener  Pointer to the listener structure that contains the
- *                       set of listener callbacks (maybe NULL).
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The listeners of to the entity have been successfully been
- *             copied into the specified listener parameter.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- * DOC_TODO: Link to (generic) Listener and status information.
+ * @retval DDS_RETCODE_OK The listener was updated.
+ * @see @ref entity_handle_errors
  */
 DDS_EXPORT dds_return_t
 dds_set_listener(dds_entity_t entity, const dds_listener_t * listener);
@@ -983,7 +774,7 @@ dds_set_listener(dds_entity_t entity, const dds_listener_t * listener);
 
 /**
  * @defgroup domain (Domain)
- * @ingroup DDS
+ * @ingroup dds
  */
 
 /**
@@ -1005,8 +796,10 @@ dds_set_listener(dds_entity_t entity, const dds_listener_t * listener);
  * configuration taken from the CYCLONEDDS_URI environment variable.
  *
  * A domain implicitly created by this function is deleted automatically when
- * its last participant is deleted. If the domain was explicitly created, it is
- * not deleted automatically when its last participant is deleted.
+ * its last child is deleted. A domain-owned guard condition or waitset can
+ * therefore keep an implicit domain alive after its last participant is
+ * deleted. An explicitly created domain remains until it or the library
+ * entity is deleted.
  *
  * The domain id may be specified as DDS_DOMAIN_DEFAULT, in which case the behaviour
  * depends on whether some domain entity already exists or not.  If there is at least one,
@@ -1016,34 +809,27 @@ dds_set_listener(dds_entity_t entity, const dds_listener_t * listener);
  * specified in the configuration file, domain id 0 is used.
  *
  * The domain configuration is constructed by amending the default configuration with the
- * Domain configuration (fragments) for which the domain id is specifed as "any" and those
+ * Domain configuration (fragments) for which the domain id is specified as "any" and those
  * for which the domain id matches the specified domain id (not DDS_DOMAIN_DEFAULT) in the
  * order in which they are encountered in the configuration.
  *
  * @param[in]  domain The domain in which to create the participant.
  * @param[in]  qos The QoS to set on the new participant (can be NULL).
  * @param[in]  listener Any listener functions associated with the new participant (can be NULL).
-
+ *
  * @returns A valid participant handle or an error code.
  *
  * @retval >0
  *             A valid participant handle.
- * @retval DDS_RETCODE_NOT_ALLOWED_BY_SECURITY
- *             An invalid DDS Security configuration was specified (whether
- *             that be missing or incorrect entries, expired certificates,
- *             or anything else related to the security settings and
- *             implementation).
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             Some security properties specified in the QoS, but the Cyclone
- *             build does not include support for DDS Security.
- * @retval DDS_RETCODE_OUT_OF_RESOURCES
- *             Some resource limit (maximum participants, memory, handles,
- *             &c.) prevented creation of the participant.
- * @retval DDS_RETCODE_ERROR
- *             The "CYCLONEDDS_URI" environment variable lists non-existent
- *             or invalid configuration files, or contains invalid embedded
- *             configuration items; or an unspecified internal error has
- *             occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER A participant QoS value is invalid,
+ *         including a liveliness kind other than DDS_LIVELINESS_AUTOMATIC.
+ * @retval DDS_RETCODE_ERROR Domain initialization or participant creation
+ *         failed. This includes invalid configuration, security failures
+ *         and reaching the configured maximum number of participants.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES A required domain resource or entity
+ *         handle could not be allocated.
+ * @retval DDS_RETCODE_UNSUPPORTED The new domain requests more PSMX
+ *         instances than the implementation supports.
  */
 DDS_EXPORT dds_entity_t
 dds_create_participant(
@@ -1056,10 +842,8 @@ dds_create_participant(
  * @ingroup domain
  * @component domain
  *
- * To explicitly create a domain based on a configuration passed as a string.  A domain
- * created in this manner must be explicitly deleted by calling @ref dds_delete on the
- * domain (or on DDS_CYCLONEDDS_HANDLE); it is not deleted automatically merely
- * because it has no participants.
+ * Creates an explicit domain. Its lifetime ends when @ref dds_delete is
+ * called on the domain or on DDS_CYCLONEDDS_HANDLE.
  *
  * It will not be created if a domain with the given domain id already exists.
  * The existing domain could have been created implicitly by
@@ -1067,23 +851,29 @@ dds_create_participant(
  * function or @ref dds_create_domain_with_rawconfig.
  *
  * The domain configuration is constructed by amending the default configuration with the
- * Domain configuration (fragments) for which the domain id is specifed as "any" and those
+ * Domain configuration (fragments) for which the domain id is specified as "any" and those
  * for which the domain id matches the specified domain id in the order in which they are
  * encountered in the configuration.
  *
  * Using NULL or "" as config will create a domain with default settings.
  *
- * @param[in]  domain The domain to be created. DDS_DEFAULT_DOMAIN is not allowed.
+ * @param[in]  domain The domain to be created. DDS_DOMAIN_DEFAULT is not allowed.
  * @param[in]  config A configuration string containing file names and/or XML fragments representing the configuration.
  *
  * @returns A valid entity handle or an error code.
  *
+ * @retval >0 The domain handle.
  * @retval DDS_RETCODE_BAD_PARAMETER
- *             Illegal value for domain id or the configfile parameter is NULL.
+ *             The domain ID is DDS_DOMAIN_DEFAULT.
  * @retval DDS_RETCODE_PRECONDITION_NOT_MET
  *             The domain already existed and cannot be created again.
  * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
+ *             The domain configuration could not be applied or domain
+ *             initialization failed.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES A required domain resource or entity
+ *         handle could not be allocated.
+ * @retval DDS_RETCODE_UNSUPPORTED The configuration requests more PSMX
+ *         instances than the implementation supports.
  */
 DDS_EXPORT dds_entity_t
 dds_create_domain(const dds_domainid_t domain, const char *config);
@@ -1095,179 +885,111 @@ dds_create_domain(const dds_domainid_t domain, const char *config);
  * @component domain
  * @unstable
  *
- * To explicitly create a domain based on a configuration passed as a raw initializer
- * rather than as an XML string. This allows bypassing the XML parsing, but tightly
- * couples the initializing to implementation.  See
- * dds/ddsi/ddsi_config.h:ddsi_config_init_default for a way to initialize the default
- * configuration.  A domain created in this manner must be explicitly deleted by calling
- * @ref dds_delete on the domain (or on DDS_CYCLONEDDS_HANDLE); it is not
- * deleted automatically merely because it has no participants.
+ * Creates an explicit domain from a configuration structure.
+ * ddsi_config_init_default() in dds/ddsi/ddsi_config.h initializes that
+ * structure with the defaults. The domain's lifetime ends when
+ * @ref dds_delete is called on the domain or on DDS_CYCLONEDDS_HANDLE.
  *
  * It will not be created if a domain with the given domain id already exists.
  * The existing domain could have been created implicitly by
  * @ref dds_create_participant, or explicitly by a previous call to this
  * function or @ref dds_create_domain.
  *
- * Please be aware that the given domain_id always takes precedence over the
- * configuration.
+ * The supplied domain ID takes precedence over the ID in the configuration.
  *
- * @param[in]  domain The domain to be created. DDS_DEFAULT_DOMAIN is not allowed.
+ * @param[in]  domain The domain to be created. DDS_DOMAIN_DEFAULT is not allowed.
  * @param[in]  config A configuration initializer.  The lifetime of any pointers
  *             in config must be at least that of the lifetime of the domain.
  *
  * @returns A valid entity handle or an error code.
  *
+ * @retval >0 The domain handle.
  * @retval DDS_RETCODE_BAD_PARAMETER
- *             Illegal value for domain id or the config parameter is NULL.
+ *             The domain ID is DDS_DOMAIN_DEFAULT or @p config is NULL.
  * @retval DDS_RETCODE_PRECONDITION_NOT_MET
  *             The domain already existed and cannot be created again.
  * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
+ *             The domain configuration could not be applied or domain
+ *             initialization failed.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES A required domain resource or entity
+ *         handle could not be allocated.
+ * @retval DDS_RETCODE_UNSUPPORTED The configuration requests more PSMX
+ *         instances than the implementation supports.
  */
 DDS_EXPORT dds_entity_t
 dds_create_domain_with_rawconfig(const dds_domainid_t domain, const struct ddsi_config *config);
 
 /**
- * @brief Get entity parent.
+ * @brief Get the direct parent of an entity.
  * @ingroup entity
  * @component entity_relations
  *
- * This operation returns the parent to which the given entity belongs.
- * For instance, it will return the Participant that was used when
- * creating a Publisher (when that Publisher was provided here).
+ * A participant's parent is its domain. A domain's parent is
+ * DDS_CYCLONEDDS_HANDLE. For a reader or writer created directly on a
+ * participant, this function returns the subscriber or publisher created
+ * for it. A reader of a built-in topic belongs to the built-in subscriber.
  *
- * When a reader or a writer is created with a participant and a normal topic,
- * a subscriber or publisher is created implicitly as the direct parent. This
- * function will return that implicit parent and not the participant supplied to
- * @ref dds_create_reader or @ref dds_create_writer. For a reader of a built-in
- * topic, this function returns the participant's built-in subscriber.
+ * @param[in] entity Entity whose parent to return.
  *
- * @param[in]  entity  Entity from which to get its parent.
- *
- * @returns A valid entity handle or an error code.
- *
- * @retval >0
- *             A valid entity handle.
- * @retval DDS_ENTITY_NIL
- *             Called with a participant.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- * DOC_TODO: Link to generic dds entity relations documentation.
+ * @retval >0 The direct parent handle.
+ * @retval DDS_ENTITY_NIL The entity is DDS_CYCLONEDDS_HANDLE.
+ * @see @ref entity_handle_errors
  */
 DDS_EXPORT dds_entity_t
 dds_get_parent(dds_entity_t entity);
 
 /**
- * @brief Get entity participant.
+ * @brief Get the participant to which an entity belongs.
  * @ingroup entity
  * @component entity_relations
  *
- * This operation returns the participant to which the given entity belongs.
- * For instance, it will return the Participant that was used when
- * creating a Publisher that was used to create a DataWriter (when that
- * DataWriter was provided here).
+ * @param[in] entity Participant or entity whose participant to return.
  *
- * DOC_TODO: Link to generic dds entity relations documentation.
- *
- * @param[in]  entity  Entity from which to get its participant.
- *
- * @returns A valid entity or an error code.
- *
- * @retval >0
- *             A valid participant handle.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @retval >0 The participant handle. For a participant this is @p entity itself.
+ * @retval DDS_ENTITY_NIL The entity has no participant ancestor, for example,
+ *         a domain or a waitset created on a domain.
+ * @see @ref entity_handle_errors
  */
 DDS_EXPORT dds_entity_t
 dds_get_participant(dds_entity_t entity);
 
 /**
- * @brief Get entity children.
+ * @brief Get the direct children of an entity.
  * @ingroup entity
  * @component entity_relations
  *
- * This operation returns the children that the entity contains.
- * For instance, it will return all the Topics, Publishers and Subscribers
- * of the Participant that was used to create those entities (when that
- * Participant is provided here).
- * Implicit children, such as an implicit publisher or subscriber created by
- * @ref dds_create_writer or @ref dds_create_reader, are included. The
- * participant's built-in subscriber is also included after it has been created.
+ * Includes implicit publishers and subscribers and the participant's built-in
+ * subscriber once created. Internal built-in topic entities are omitted.
  *
- * This functions takes a pre-allocated list to put the children in and
- * will return the number of found children. It is possible that the given
- * size of the list is not the same as the number of found children. If
- * less children are found, then the last few entries in the list are
- * untouched. When more children are found, then only 'size' number of
- * entries are inserted into the list, but still complete count of the
- * found children is returned. Which children are returned in the latter
- * case is undefined.
+ * The return value counts all children, including those that do not fit
+ * in the supplied array. In that case, the call fills the array with the
+ * handles of @p size arbitrarily selected children. Unused array elements
+ * retain their previous values.
  *
- * When supplying NULL as list and 0 as size, you can use this to acquire
- * the number of children without having to pre-allocate a list.
+ * @param[in]  entity   Entity whose children to enumerate.
+ * @param[out] children Array to receive handles, or NULL to obtain only the count.
+ * @param[in]  size     Capacity of the array in handles, or zero if @p children is NULL.
  *
- * When a reader or a writer are created with a participant, then a
- * subscriber or publisher are created implicitly.
- * When used on the participant, this function will return the implicit
- * subscriber and/or publisher and not the related reader/writer.
- *
- * @param[in]  entity   Entity from which to get its children.
- * @param[out] children Pre-allocated array to contain the found children.
- * @param[in]  size     Size of the pre-allocated children's list.
- *
- * @returns Number of children or an error code.
- *
- * @retval >=0
- *             Number of found children (can be larger than 'size').
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The children parameter is NULL, while a size is provided.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @retval >=0 Total number of children found.
+ * @retval DDS_RETCODE_BAD_PARAMETER The array is NULL with a nonzero size, or
+ *         the array is non-NULL with a size of zero or greater than INT32_MAX.
+ * @see @ref entity_handle_errors
  */
-/* TODO: Link to generic dds entity relations documentation. */
 DDS_EXPORT dds_return_t
 dds_get_children(dds_entity_t entity, dds_entity_t *children, size_t size);
 
 /**
- * @brief Get the domain id to which this entity is attached.
+ * @brief Get the domain ID associated with an entity.
  * @ingroup entity
  * @component entity_relations
  *
- * When creating a participant entity, it is attached to a certain domain.
- * All the children (like Publishers) and childrens' children (like
- * DataReaders), etc are also attached to that domain.
+ * @param[in]  entity Entity whose domain ID to return.
+ * @param[out] id     Where to store the domain ID. Entities outside a domain,
+ *                    including library-owned waitsets, return DDS_DOMAIN_DEFAULT here.
  *
- * This function will return the original domain ID when called on
- * any of the entities within that hierarchy.  For entities not associated
- * with a domain, the id is set to DDS_DOMAIN_DEFAULT.
- *
- * @param[in]  entity   Entity from which to get its children.
- * @param[out] id       Pointer to put the domain ID in.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             Domain ID was returned.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The id parameter is NULL.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @retval DDS_RETCODE_OK The domain ID was returned.
+ * @retval DDS_RETCODE_BAD_PARAMETER The @p id pointer is NULL.
+ * @see @ref entity_handle_errors
  */
 DDS_EXPORT dds_return_t
 dds_get_domainid(dds_entity_t entity, dds_domainid_t *id);
@@ -1286,7 +1008,8 @@ dds_get_domainid(dds_entity_t entity, dds_domainid_t *id);
  * zero. All other unused elements retain their previous values.
  * On error, all array elements retain their previous values.
  *
- * @param[in]  domain_id    The domain id.
+ * @param[in]  domain_id    The actual domain ID. An unknown ID or DDS_DOMAIN_DEFAULT
+ *                          yields an empty result.
  * @param[out] participants Array that receives participant handles, or NULL to obtain the count.
  * @param[in]  size         Size of the pre-allocated participant's list.
  *
