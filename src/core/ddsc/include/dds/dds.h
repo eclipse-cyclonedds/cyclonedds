@@ -4256,33 +4256,31 @@ dds_domain_set_deafmute (
  */
 
 /**
- * @brief This function resolves the type for the provided type identifier,
- * which can e.g. be retrieved from endpoint or topic discovery data.
+ * @brief Resolve a type identifier and return its type object.
  * @ingroup xtypes
  * @component type_metadata
  *
- * @param[in]   entity              A domain entity or an entity bound to a domain, such
- *                                  as a participant, reader or writer.
- * @param[in]   type_id             Type identifier
- * @param[in]   timeout             Timeout for waiting for requested type information to be available
- * @param[out]  type_obj            The type information, untouched if type is not resolved
+ * The identifier must already be known to the entity's domain, for example
+ * from a local topic or a discovered endpoint. If the type is unresolved, the
+ * operation can request it through type discovery and wait for it to arrive.
  *
+ * @param[in] entity Domain or an entity associated with a domain.
+ * @param[in] type_id Hash-based type identifier of the requested type.
+ * @param[in] timeout Maximum wait in nanoseconds. Use zero to poll or
+ *            `DDS_INFINITY` to wait indefinitely.
+ * @param[out] type_obj Receives a caller-owned type object on success. Release
+ *             it with @ref dds_free_typeobj. Unchanged on error.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The entity parameter is not a valid parameter, type_id or type name
- *             is not provided, or the sertype out parameter is NULL
- * @retval DDS_RETCODE_NOT_FOUND
- *             A type with the provided type_id and type_name was not found
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_UNSUPPORTED
- *             Cyclone DDS built without type discovery
- *             (cf. DDS_HAS_TYPE_DISCOVERY)
-*/
+ * @retval DDS_RETCODE_OK The type object was returned.
+ * @retval DDS_RETCODE_BAD_PARAMETER `type_obj` or `type_id` is null, the identifier
+ *         is not hash-based, or the timeout is negative.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET The domain does not know the identifier,
+ *         or a request for the unresolved type could not be issued.
+ * @retval DDS_RETCODE_TIMEOUT The known type was still unresolved when the wait expired.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION The entity is not associated with a domain.
+ * @retval DDS_RETCODE_UNSUPPORTED The build lacks type discovery (`DDS_HAS_TYPE_DISCOVERY`).
+ * @see @ref entity_handle_errors for errors looking up the entity.
+ */
 DDS_EXPORT dds_return_t
 dds_get_typeobj (
   dds_entity_t entity,
@@ -4291,97 +4289,70 @@ dds_get_typeobj (
   dds_typeobj_t **type_obj);
 
 /**
- * @brief Free the type object that was retrieved using dds_get_typeobj
+ * @brief Release a type object returned by @ref dds_get_typeobj.
  * @ingroup xtypes
  * @component type_metadata
  *
- * @param[in]  type_obj     The type object
+ * @param[in] type_obj Caller-owned type object.
  *
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The type_obj parameter is NULL
- * @retval DDS_RETCODE_UNSUPPORTED
- *             Cyclone DDS built without type discovery
- *             (cf. DDS_HAS_TYPE_DISCOVERY)
-*/
+ * @retval DDS_RETCODE_OK The type object was released.
+ * @retval DDS_RETCODE_BAD_PARAMETER `type_obj` is null.
+ * @retval DDS_RETCODE_UNSUPPORTED The build lacks type discovery (`DDS_HAS_TYPE_DISCOVERY`).
+ */
 DDS_EXPORT dds_return_t
 dds_free_typeobj (
   dds_typeobj_t *type_obj);
 
 /**
- * @brief This function gets the type information from the
- * provided topic, reader or writer
+ * @brief Get type information for a topic, reader or writer.
  * @ingroup xtypes
  * @component type_metadata
  *
- * @param[in]   entity          A topic/reader/writer entity
- * @param[out]  type_info       Receives the type information on success. On error, `*type_info` is unchanged.
- *                              Use @ref dds_free_typeinfo to free the type information.
+ * @param[in] entity Topic, reader or writer.
+ * @param[out] type_info Receives caller-owned type information on success.
+ *             Release it with @ref dds_free_typeinfo. Unchanged on error.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The type_info parameter is null
- * @retval DDS_RETCODE_NOT_FOUND
- *             The entity does not have type information set
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_UNSUPPORTED
- *             Cyclone DDS built without the type library
- *             (cf. DDS_HAS_TYPELIB)
-*/
+ * @retval DDS_RETCODE_OK The type information was returned.
+ * @retval DDS_RETCODE_BAD_PARAMETER `type_info` is null.
+ * @retval DDS_RETCODE_NOT_FOUND The entity has no type information.
+ * @retval DDS_RETCODE_UNSUPPORTED The build lacks the type library (`DDS_HAS_TYPELIB`).
+ * @see @ref entity_handle_errors for errors looking up the entity.
+ */
 DDS_EXPORT dds_return_t
 dds_get_typeinfo (
   dds_entity_t entity,
   dds_typeinfo_t **type_info);
 
 /**
- * @brief Free the type information that was retrieved using dds_get_typeinfo
+ * @brief Release type information returned by @ref dds_get_typeinfo.
  * @ingroup xtypes
  * @component type_metadata
  *
- * @param[in]  type_info     The type information
+ * @param[in] type_info Caller-owned type information.
  *
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The type_info parameter is NULL
- * @retval DDS_RETCODE_UNSUPPORTED
- *             Cyclone DDS built without type discovery
- *             (cf. DDS_HAS_TYPELIB)
-*/
+ * @retval DDS_RETCODE_OK The type information was released.
+ * @retval DDS_RETCODE_BAD_PARAMETER `type_info` is null.
+ * @retval DDS_RETCODE_UNSUPPORTED The build lacks the type library (`DDS_HAS_TYPELIB`).
+ */
 DDS_EXPORT dds_return_t
 dds_free_typeinfo (
   dds_typeinfo_t *type_info);
 
 
 /**
- * @brief Gets the sertype of an entity
+ * @brief Borrow the serialization type of a topic, reader or writer.
+ * @ingroup xtypes
+ * @component type_metadata
  *
- * The provided entity must be a topic or endpoint. This function returns a pointer to
- * the sertype of the entity. The refcount of the sertype is not incremented. The lifetime
- * of the returned sertype pointer is at least that of the lifetime of the entity on which
- * it was invoked.
+ * The returned pointer remains valid at least as long as the supplied entity.
+ * The operation does not increment the reference count of the serialization type.
  *
- * @param[in] entity A topic, reader or writer entity
- * @param[out] sertype A pointer to the entity's sertype is stored in this parameter (see note above on lifetime of this pointer)
+ * @param[in] entity Topic, reader or writer.
+ * @param[out] sertype Receives the borrowed pointer on success. Unchanged on error.
  *
- * @returns A dds_return_t indicating success or failure.
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The sertype parameter is NULL
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             Not a topic, reader or writer entity
+ * @retval DDS_RETCODE_OK The serialization type was returned.
+ * @retval DDS_RETCODE_BAD_PARAMETER `sertype` is null.
+ * @see @ref entity_handle_errors for errors looking up the entity.
  */
 DDS_EXPORT dds_return_t
 dds_get_entity_sertype (
