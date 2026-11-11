@@ -263,6 +263,15 @@ CU_Test(ddsc_write, relwr_unrelrd_network)
   CU_ASSERT_GT_FATAL (result, 0);
 }
 
+CU_Test(ddsc_write, flush_global_entities)
+{
+  const dds_entity_t ws = dds_create_waitset (DDS_CYCLONEDDS_HANDLE);
+  CU_ASSERT_GT_FATAL (ws, 0);
+  CU_ASSERT_EQ (dds_write_flush (DDS_CYCLONEDDS_HANDLE), DDS_RETCODE_ILLEGAL_OPERATION);
+  CU_ASSERT_EQ (dds_write_flush (ws), DDS_RETCODE_ILLEGAL_OPERATION);
+  CU_ASSERT_EQ_FATAL (dds_delete (ws), DDS_RETCODE_OK);
+}
+
 CU_Test(ddsc_write, batch_flush)
 {
   static const struct { const char *flush; const char *exp; } x[] = {
