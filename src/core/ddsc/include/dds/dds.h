@@ -4206,37 +4206,24 @@ dds_assert_liveliness (
  */
 
 /**
- *
- * @brief This operation allows making the domain's network stack temporarily deaf and/or mute.
+ * @brief Controls incoming and outgoing network traffic for a domain.
  * @ingroup testing
  * @component domain
  * @warning Unstable API, for testing
  * @unstable
  *
- * This is a support function for testing and, other special uses and is subject to change.
+ * @param[in] entity Domain or entity belonging to the domain.
+ * @param[in] deaf Whether to ignore incoming packets.
+ * @param[in] mute Whether to discard outgoing packets.
+ * @param[in] reset_after Nonnegative delay in nanoseconds before clearing both flags,
+ *            or DDS_INFINITY to leave them set until changed. Each finite delay schedules
+ *            an independent reset, which still runs after subsequent calls.
  *
- * @param[in] entity  A domain entity or an entity bound to a domain, such
- *                    as a participant, reader or writer.
- * @param[in] deaf    Whether to network stack should pretend to be deaf and
- *                    ignore any incoming packets.
- * @param[in] mute    Whether to network stack should pretend to be mute and
- *                    discard any outgoing packets where it normally would.
- *                    pass them to the operating system kernel for transmission.
- * @param[in] reset_after  Any value less than INFINITY will cause it to
- *                    set deaf = mute = false after reset_after ns have passed.
- *                    This is done by an event scheduled for the appropriate
- *                    time and otherwise forgotten. These events are not
- *                    affected by subsequent calls to this function.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The entity parameter is not a valid parameter.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
-*/
+ * @retval DDS_RETCODE_OK The domain flags were set.
+ * @retval DDS_RETCODE_BAD_PARAMETER The reset duration is negative or the handle is invalid.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION The entity has no domain.
+ * @return Other errors as described in @ref entity_handle_errors.
+ */
 DDS_EXPORT dds_return_t
 dds_domain_set_deafmute (
   dds_entity_t entity,

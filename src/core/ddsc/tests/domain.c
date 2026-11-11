@@ -47,6 +47,14 @@ CU_Test(ddsc_domain, get_domainid)
   CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OK);
 }
 
+CU_Test(ddsc_domain, deafmute_invalid_duration)
+{
+  dds_entity_t pp = dds_create_participant (0, NULL, NULL);
+  CU_ASSERT_GT_FATAL (pp, 0);
+  CU_ASSERT_EQ (dds_domain_set_deafmute (pp, true, true, -1), DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ (dds_delete (pp), DDS_RETCODE_OK);
+}
+
 CU_Test(ddsc_domain, delete_domain0)
 {
   dds_entity_t pp[3], d[3];
