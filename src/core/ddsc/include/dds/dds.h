@@ -3917,146 +3917,97 @@ dds_instance_get_key(
   void *data);
 
 /**
- * @brief Begin coherent publishing or begin accessing a coherent set in a subscriber
+ * @brief Request to begin coherent publishing or access.
  * @ingroup publication
  * @component coherent_sets
  *
- * Invoking on a Writer or Reader behaves as if dds_begin_coherent was invoked on its parent
- * Publisher or Subscriber respectively.
+ * @param[in] entity Publisher, subscriber, writer or reader.
  *
- * @param[in]  entity The entity that is prepared for coherent access.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The provided entity is invalid or not supported.
+ * @retval DDS_RETCODE_UNSUPPORTED Cyclone DDS does not implement coherent sets.
+ * @see @ref entity_handle_errors for invalid handles and other entity kinds.
  */
 DDS_EXPORT dds_return_t
 dds_begin_coherent(dds_entity_t entity);
 
 /**
- * @brief End coherent publishing or end accessing a coherent set in a subscriber
+ * @brief Request to end coherent publishing or access.
  * @ingroup publication
  * @component coherent_sets
  *
- * Invoking on a Writer or Reader behaves as if dds_end_coherent was invoked on its parent
- * Publisher or Subscriber respectively.
+ * @param[in] entity Publisher, subscriber, writer or reader.
  *
- * @param[in] entity The entity on which coherent access is finished.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The provided entity is invalid or not supported.
+ * @retval DDS_RETCODE_UNSUPPORTED Cyclone DDS does not implement coherent sets.
+ * @see @ref entity_handle_errors for invalid handles and other entity kinds.
  */
 DDS_EXPORT dds_return_t
 dds_end_coherent(dds_entity_t entity);
 
 /**
- * @brief Trigger DATA_AVAILABLE event on contained readers
+ * @brief Request data-available notifications for the readers of a subscriber.
  * @ingroup subscriber
  * @component subscriber
  *
- * The DATA_AVAILABLE event is broadcast to all readers owned by this subscriber that currently
- * have new data available. Any on_data_available listener callbacks attached to respective
- * readers are invoked.
+ * @param[in] subscriber Subscriber whose readers would receive the notification.
  *
- * @param[in] subscriber A valid subscriber handle.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The provided subscriber is invalid.
+ * @retval DDS_RETCODE_UNSUPPORTED Cyclone DDS does not implement this operation.
+ *         No listener callbacks are invoked.
+ * @see @ref entity_handle_errors for errors looking up the subscriber.
  */
 DDS_EXPORT dds_return_t
 dds_notify_readers(dds_entity_t subscriber);
 
 /**
- * @brief Checks whether the entity has one of its enabled statuses triggered.
+ * @brief Test the trigger state of an entity.
  * @ingroup entity
  * @component entity_status
  *
- * @param[in]  entity  Entity for which to check for triggered status.
+ * For read and query conditions this checks for matching samples. For guard
+ * conditions and waitsets it checks the application-controlled trigger. For
+ * status-bearing entities it checks whether any enabled status is set.
  *
- * @returns A dds_return_t indicating success or failure.
+ * @param[in] entity Entity to check.
  *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The entity parameter is not a valid parameter.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @returns 1 if triggered, 0 if clear, or a negative handle lookup error
+ *          (see @ref entity_handle_errors).
  */
 DDS_EXPORT dds_return_t
 dds_triggered(dds_entity_t entity);
 
 /**
- * @brief Get the topic
+ * @brief Get the topic of an endpoint or of a condition's reader.
  * @ingroup entity
  * @component entity_relations
  *
- * This operation returns a topic (handle) when the function call is done
- * with reader, writer, read condition or query condition. For instance, it
- * will return the topic when it is used for creating the reader or writer.
- * For the conditions, it returns the topic that is used for creating the reader
- * which was used to create the condition.
+ * @param[in] entity Reader, writer, read condition or query condition.
  *
- * @param[in] entity The entity.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The entity parameter is not a valid parameter.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
+ * @returns A positive topic handle on success, or a negative error code.
+ *          For a built-in reader or a condition on it, the result is the
+ *          corresponding built-in topic pseudo-handle.
+ * @see @ref entity_handle_errors for errors looking up the entity.
  */
 DDS_EXPORT dds_entity_t
 dds_get_topic(dds_entity_t entity);
 
 /**
- * @brief Get instance handles of the data readers matching a writer
+ * @brief Get the instance handles of readers matching a writer.
  * @ingroup builtintopic
  * @component writer
  *
- * This operation fills the provided array with the instance handles
- * of the data readers that match the writer.  On successful output,
- * the number of entries of "rds" set is the minimum of the return
- * value and the value of "nrds".
+ * If more than @p nrds readers match, the call fills the supplied array with
+ * the handles of @p nrds arbitrarily selected matched readers. Otherwise it
+ * writes all matched readers' handles and leaves any remaining slots unchanged.
+ * Pass a null array and a capacity of zero to request only the count.
+ * The current count is also available from
+ * @ref dds_get_publication_matched_status.
  *
- * @param[in] writer   The writer.
- * @param[in] rds      The array to be filled.
- * @param[in] nrds     The size of the rds array, at most the first
- *                     nrds entries will be filled.  rds = NULL and nrds = 0
- *                     is a valid way of determining the number of matched
- *                     readers, but inefficient compared to relying on the
- *                     matched publication status.
+ * @param[in] writer Writer whose matches to inspect.
+ * @param[out] rds Array of matching reader handles, or NULL for a count.
+ * @param[in] nrds Array capacity, from 1 through INT32_MAX if an array is supplied.
  *
- * @returns A dds_return_t indicating the number of matched readers
- *             or failure.  The return value may be larger than nrds
- *             if there are more matching readers than the array can
- *             hold.
- *
- * @retval >=0
- *             The number of matching readers.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The entity parameter is not valid or rds = NULL and
- *             nrds > 0.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
+ * @returns The total number of matched readers, even when it exceeds `nrds`,
+ *          or a negative error code.
+ * @retval DDS_RETCODE_BAD_PARAMETER The capacity is invalid for the supplied array.
+ * @see @ref entity_handle_errors for errors looking up the writer.
  */
 DDS_EXPORT dds_return_t
 dds_get_matched_subscriptions (
@@ -4098,35 +4049,25 @@ dds_get_matched_subscription_data (
   dds_instance_handle_t ih);
 
 /**
- * @brief Get instance handles of the data writers matching a reader
+ * @brief Get the instance handles of writers matching a reader.
  * @ingroup builtintopic
  * @component reader
  *
- * This operation fills the provided array with the instance handles
- * of the data writers that match the reader.  On successful output,
- * the number of entries of "wrs" set is the minimum of the return
- * value and the value of "nwrs".
+ * If more than @p nwrs writers match, the call fills the supplied array with
+ * the handles of @p nwrs arbitrarily selected matched writers. Otherwise it
+ * writes all matched writers' handles and leaves any remaining slots unchanged.
+ * Pass a null array and a capacity of zero to request only the count.
+ * The current count is also available from
+ * @ref dds_get_subscription_matched_status.
  *
- * @param[in] reader   The reader.
- * @param[in] wrs      The array to be filled.
- * @param[in] nwrs     The size of the wrs array, at most the first
- *             nwrs entries will be filled.  wrs = NULL and wrds = 0
- *             is a valid way of determining the number of matched
- *             readers, but inefficient compared to relying on the
- *             matched publication status.
+ * @param[in] reader Reader whose matches to inspect.
+ * @param[out] wrs Array of matching writer handles, or NULL for a count.
+ * @param[in] nwrs Array capacity, from 1 through INT32_MAX if an array is supplied.
  *
- * @returns A dds_return_t indicating the number of matched writers
- *             or failure.  The return value may be larger than nwrs
- *             if there are more matching writers than the array can
- *             hold.
- *
- * @retval >=0
- *             The number of matching writers.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The entity parameter is not valid or wrs = NULL and
- *             nwrs > 0.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
+ * @returns The total number of matched writers, even when it exceeds `nwrs`,
+ *          or a negative error code.
+ * @retval DDS_RETCODE_BAD_PARAMETER The capacity is invalid for the supplied array.
+ * @see @ref entity_handle_errors for errors looking up the reader.
  */
 DDS_EXPORT dds_return_t
 dds_get_matched_publications (
@@ -4169,21 +4110,20 @@ dds_get_matched_publication_data (
 
 #ifdef DDS_HAS_TYPELIB
 /**
- * @brief Gets the type information from endpoint information that was
- *        retrieved by dds_get_matched_subscription_data or
- *        dds_get_matched_publication_data
+ * @brief Borrow type information from a built-in endpoint sample.
  * @ingroup builtintopic
  * @component builtin_topic
  *
- * @param[in] builtintopic_endpoint  The builtintopic endpoint struct
- * @param[out] type_info             Type information that will be allocated by this function in case of success.
+ * The sample's QoS owns the result. Keep the sample and its QoS alive while
+ * using the type information. Freeing the sample or returning its reader loan
+ * ends the borrow.
  *
- * @returns A dds_return_t indicating success or failure.
+ * @param[in] builtintopic_endpoint Built-in endpoint sample.
+ * @param[out] type_info Receives the borrowed pointer, or NULL if the sample
+ *             has no type information. Unchanged on error.
  *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             One or more parameters are invalid
+ * @retval DDS_RETCODE_OK The output was set, including when type information is absent.
+ * @retval DDS_RETCODE_BAD_PARAMETER Either argument is null.
  */
 DDS_EXPORT dds_return_t
 dds_builtintopic_get_endpoint_type_info (
@@ -4193,46 +4133,43 @@ dds_builtintopic_get_endpoint_type_info (
 #endif /* DDS_HAS_TYPELIB */
 
 /**
- * @brief Free the endpoint information that was retrieved by
- *        dds_get_matched_subscription_data or dds_get_matched_publication_data
+ * @brief Free a caller-owned built-in endpoint sample.
  * @ingroup builtintopic
  * @component builtin_topic
  *
- * This operation deallocates the memory of the fields in a
- * dds_builtintopic_endpoint_t struct and deallocates the
- * struct itself.
+ * Releases the fields and the sample allocation. This includes results of
+ * @ref dds_get_matched_subscription_data and @ref dds_get_matched_publication_data.
+ * Use @ref dds_return_loan for loaned reader samples.
  *
- * @param[in] builtintopic_endpoint  The builtintopic endpoint struct
+ * @param[in] builtintopic_endpoint Non-null, caller-owned heap allocation.
  */
 DDS_EXPORT void
 dds_builtintopic_free_endpoint (
   dds_builtintopic_endpoint_t * builtintopic_endpoint);
 
 /**
- * @brief Free the provided topic information
+ * @brief Free a caller-owned built-in topic sample.
  * @ingroup builtintopic
  * @component builtin_topic
  *
- * This operation deallocates the memory of the fields in a
- * dds_builtintopic_topic_t struct and deallocates the
- * struct itself.
+ * Releases the fields and the sample allocation.
+ * Use @ref dds_return_loan for loaned reader samples.
  *
- * @param[in] builtintopic_topic  The builtintopic topic struct
+ * @param[in] builtintopic_topic Non-null, caller-owned heap allocation.
  */
 DDS_EXPORT void
 dds_builtintopic_free_topic (
   dds_builtintopic_topic_t * builtintopic_topic);
 
 /**
- * @brief Free the provided participant information
+ * @brief Free a caller-owned built-in participant sample.
  * @ingroup builtintopic
  * @component builtin_topic
  *
- * This operation deallocates the memory of the fields in a
- * dds_builtintopic_participant_t struct and deallocates the
- * struct itself.
+ * Releases the fields and the sample allocation.
+ * Use @ref dds_return_loan for loaned reader samples.
  *
- * @param[in] builtintopic_participant  The builtintopic participant struct
+ * @param[in] builtintopic_participant Non-null, caller-owned heap allocation.
  */
 DDS_EXPORT void
 dds_builtintopic_free_participant (
