@@ -42,6 +42,20 @@ if(ENABLE_ICEORYX2)
     target_link_libraries(psmx_iox2 PRIVATE ddsc)
   endif()
 
+  # The waitset builder changed during development of iceoryx2 0.10.999.
+  # Check the installed header even when reconfiguring with the same version.
+  include(CheckSymbolExists)
+  function(check_iox2_node_waitset_builder)
+    set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+    set(CMAKE_REQUIRED_LIBRARIES iceoryx2-c::includes-only)
+    unset(PSMX_IOX2_HAS_NODE_WAITSET_BUILDER CACHE)
+    check_symbol_exists(iox2_node_waitset_builder "iox2/iceoryx2.h" PSMX_IOX2_HAS_NODE_WAITSET_BUILDER)
+  endfunction()
+  check_iox2_node_waitset_builder()
+  if(PSMX_IOX2_HAS_NODE_WAITSET_BUILDER)
+    target_compile_definitions(psmx_iox2 PRIVATE PSMX_IOX2_HAS_NODE_WAITSET_BUILDER)
+  endif()
+
   target_compile_definitions(psmx_iox2 PRIVATE PSMX_IOX2_MAJOR=${iceoryx2-c_VERSION_MAJOR})
   target_compile_definitions(psmx_iox2 PRIVATE PSMX_IOX2_MINOR=${iceoryx2-c_VERSION_MINOR})
   target_compile_definitions(psmx_iox2 PRIVATE PSMX_IOX2_PATCH=${iceoryx2-c_VERSION_PATCH})

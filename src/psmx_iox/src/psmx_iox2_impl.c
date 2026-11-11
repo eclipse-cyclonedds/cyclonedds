@@ -463,14 +463,23 @@ static uint32_t thread_listener_func (void *p)
     goto err;
   }
 
+#ifdef PSMX_IOX2_HAS_NODE_WAITSET_BUILDER
+  iox2_waitset_builder_t builder_storage;
+  waitset_builder = iox2_node_waitset_builder (&part_topic->topic->parent->node_handle, &builder_storage);
+#else
   iox2_waitset_builder_new (NULL, &waitset_builder);
+#endif
   if (waitset_builder == NULL)
   {
     log_error ("Unable to create waitset builder");
     goto fini_cleanup_listener;
   }
 
+#ifdef PSMX_IOX2_HAS_NODE_WAITSET_BUILDER
+  e = iox2_waitset_builder_create (waitset_builder, NULL, &waitset);
+#else
   e = iox2_waitset_builder_create (waitset_builder, iox2_service_type_e_IPC, NULL, &waitset);
+#endif
   if (e != IOX2_OK)
   {
     log_error ("Unable to create waitset: %s [%d]", iox2_waitset_create_error_string ((iox2_waitset_create_error_e)e), e);
