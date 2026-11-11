@@ -1812,23 +1812,27 @@ dds_return_t dds_write_flush (dds_entity_t entity)
   dds_return_t rc;
   if ((rc = dds_entity_pin (entity, &e)) != DDS_RETCODE_OK)
     return rc;
-  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
-  ddsi_thread_state_awake (thrst, &e->m_domain->gv);
-  switch (dds_entity_kind (e))
+  const dds_entity_kind_t kind = dds_entity_kind (e);
+  switch (kind)
   {
     case DDS_KIND_WRITER:
-      dds_write_flush_impl ((dds_writer *) e);
-      break;
     case DDS_KIND_PUBLISHER:
     case DDS_KIND_PARTICIPANT:
     case DDS_KIND_DOMAIN:
-      pushdown_write_flush (e);
+    {
+      struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+      ddsi_thread_state_awake (thrst, &e->m_domain->gv);
+      if (kind == DDS_KIND_WRITER)
+        dds_write_flush_impl ((dds_writer *) e);
+      else
+        pushdown_write_flush (e);
+      ddsi_thread_state_asleep (thrst);
       break;
+    }
     default:
       rc = DDS_RETCODE_ILLEGAL_OPERATION;
       break;
   }
-  ddsi_thread_state_asleep (thrst);
   dds_entity_unpin (e);
   return rc;
 }
