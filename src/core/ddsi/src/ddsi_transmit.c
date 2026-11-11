@@ -323,7 +323,8 @@ static void create_HeartbeatFrag (struct ddsi_writer *wr, ddsi_seqno_t seq, unsi
 
 dds_return_t ddsi_write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_guid *wr_guid, struct ddsi_xpack *xp)
 {
-  struct ddsi_xmsg *msg = NULL;
+  dds_return_t rc;
+  struct ddsi_xmsg *msg;
   struct ddsi_whc_state whcst;
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   struct ddsi_lease *lease;
@@ -333,7 +334,8 @@ dds_return_t ddsi_write_hb_liveliness (struct ddsi_domaingv * const gv, struct d
   if (wr == NULL)
   {
     GVTRACE ("ddsi_write_hb_liveliness("PGUIDFMT") - writer not found\n", PGUID (*wr_guid));
-    return DDS_RETCODE_PRECONDITION_NOT_MET;
+    rc = DDS_RETCODE_PRECONDITION_NOT_MET;
+    goto done;
   }
 
   if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT && ((lease = ddsrt_atomic_ldvoidp (&wr->c.pp->minl_man)) != NULL))
@@ -342,7 +344,10 @@ dds_return_t ddsi_write_hb_liveliness (struct ddsi_domaingv * const gv, struct d
     ddsi_lease_renew (wr->lease, ddsrt_time_elapsed());
 
   if ((msg = ddsi_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (ddsi_rtps_info_ts_t) + sizeof (ddsi_rtps_heartbeat_t), DDSI_XMSG_KIND_CONTROL)) == NULL)
-    return DDS_RETCODE_OUT_OF_RESOURCES;
+  {
+    rc = DDS_RETCODE_OUT_OF_RESOURCES;
+    goto done;
+  }
   ddsrt_mutex_lock (&wr->e.lock);
   ddsi_xmsg_setdst_addrset (msg, wr->as);
   ddsi_whc_get_state (wr->whc, &whcst);
@@ -350,8 +355,11 @@ dds_return_t ddsi_write_hb_liveliness (struct ddsi_domaingv * const gv, struct d
   ddsrt_mutex_unlock (&wr->e.lock);
   ddsi_xpack_addmsg (xp, msg, 0);
   ddsi_xpack_send (xp, true);
+  rc = DDS_RETCODE_OK;
+
+done:
   ddsi_thread_state_asleep (thrst);
-  return DDS_RETCODE_OK;
+  return rc;
 }
 
 #if 0

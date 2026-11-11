@@ -4239,25 +4239,19 @@ dds_builtintopic_free_participant (
   dds_builtintopic_participant_t * builtintopic_participant);
 
 /**
- * @brief This operation manually asserts the liveliness of a writer
- *        or domain participant.
+ * @brief Manually assert the liveliness of a writer or participant.
  * @ingroup entity
  * @component participant
  *
- * This operation manually asserts the liveliness of a writer
- * or domain participant. This is used in combination with the Liveliness
- * QoS policy to indicate that the entity remains active. This operation need
- * only be used if the liveliness kind in the QoS is either
- * DDS_LIVELINESS_MANUAL_BY_PARTICIPANT or DDS_LIVELINESS_MANUAL_BY_TOPIC.
+ * Use this operation with the manual-by-participant or manual-by-topic
+ * liveliness QoS policy to indicate continued activity.
  *
- * @param[in] entity  A domain participant or writer
+ * @param[in] entity Participant or writer.
  *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_OK The liveliness assertion was processed.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET The writer is no longer in the domain's writer index.
+ * @retval DDS_RETCODE_OUT_OF_RESOURCES The writer could not allocate a heartbeat message.
+ * @see @ref entity_handle_errors for errors looking up the entity.
  */
 DDS_EXPORT dds_return_t
 dds_assert_liveliness (
