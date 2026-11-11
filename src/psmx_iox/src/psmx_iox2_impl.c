@@ -800,6 +800,7 @@ static psmx_iox2_partition_topic_t *get_part_topic (psmx_iox2_topic_t *topic, co
   ddsrt_mutex_init (&part_topic->lock);
   ddsrt_avl_insert (&psmx_iox2_partitions_td, &topic->partitions, part_topic);
   ddsrt_mutex_unlock (&topic->lock);
+  iox2_service_name_drop (service_name_handle);
   return part_topic;
 
 cleanup_notifier:
