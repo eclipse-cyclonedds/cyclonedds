@@ -39,7 +39,9 @@ CU_Test (ddsc_sertype_default, compare)
   dds_entity_t wr = dds_create_writer (participant, topic2, NULL, NULL);
   sync_reader_writer (participant, rd, participant, wr);
 
-  dds_typeinfo_t *rd_type_info, *wr_type_info;
+  /* A non-NULL sentinel makes clearing either output on error observable. */
+  dds_typeinfo_t *const sentinel = (void *) &SertypeDefaultCompare1a_desc;
+  dds_typeinfo_t *rd_type_info = sentinel, *wr_type_info = sentinel;
   const struct ddsi_sertype *rd_sertype, *wr_sertype;
 
   ret = dds_get_entity_sertype (rd, &rd_sertype);
@@ -64,16 +66,18 @@ CU_Test (ddsc_sertype_default, compare)
 
   // Sertypes should be different, because of different complete types
   CU_ASSERT_NEQ (rd_sertype, wr_sertype);
+  dds_free_typeinfo (rd_type_info);
+  dds_free_typeinfo (wr_type_info);
 #else
   ret = dds_get_typeinfo (rd, &rd_type_info);
-  CU_ASSERT_NEQ_FATAL (ret, DDS_RETCODE_OK);
-  ret = dds_get_typeinfo (rd, &wr_type_info);
-  CU_ASSERT_NEQ_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (ret, DDS_RETCODE_UNSUPPORTED);
+  CU_ASSERT_EQ (rd_type_info, sentinel);
+  ret = dds_get_typeinfo (wr, &wr_type_info);
+  CU_ASSERT_EQ (ret, DDS_RETCODE_UNSUPPORTED);
+  CU_ASSERT_EQ (wr_type_info, sentinel);
 
   // Sertypes should be the same, because other than type-info, types are equal
   CU_ASSERT_EQ (rd_sertype, wr_sertype);
 #endif
-
-  dds_free_typeinfo (rd_type_info);
-  dds_free_typeinfo (wr_type_info);
+  CU_ASSERT_EQ (dds_delete (domain), DDS_RETCODE_OK);
 }

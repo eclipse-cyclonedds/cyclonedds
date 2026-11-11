@@ -441,3 +441,24 @@ CU_Test (ddsc_xtypes_typeinfo, get_type_info, .init = xtypes_typeinfo_init, .fin
   dds_free_typeinfo (type_info_wr);
   dds_free_typeinfo (type_info_rd);
 }
+
+CU_Test (ddsc_xtypes_typeinfo, get_type_info_not_found, .init = xtypes_typeinfo_init, .fini = xtypes_typeinfo_fini)
+{
+  char topic_name[100];
+  create_unique_topic_name ("ddsc_xtypes_typeinfo", topic_name, sizeof (topic_name));
+  dds_entity_t topic = dds_create_topic (g_participant1, &XSpaceNoTypeInfo_t1_desc, topic_name, NULL, NULL);
+  CU_ASSERT_GT_FATAL (topic, 0);
+  dds_entity_t reader = dds_create_reader (g_participant1, topic, NULL, NULL);
+  CU_ASSERT_GT_FATAL (reader, 0);
+  dds_entity_t writer = dds_create_writer (g_participant1, topic, NULL, NULL);
+  CU_ASSERT_GT_FATAL (writer, 0);
+
+  dds_typeinfo_t sentinel = {0};
+  const dds_entity_t entities[] = { topic, reader, writer };
+  for (size_t i = 0; i < sizeof (entities) / sizeof (entities[0]); i++)
+  {
+    dds_typeinfo_t *type_info = &sentinel;
+    CU_ASSERT_EQ (dds_get_typeinfo (entities[i], &type_info), DDS_RETCODE_NOT_FOUND);
+    CU_ASSERT_EQ (type_info, &sentinel);
+  }
+}

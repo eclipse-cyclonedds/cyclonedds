@@ -886,14 +886,13 @@ CU_Test (ddsc_dynamic_type, union_member_prop_invalid, .init = dynamic_type_init
 
 CU_Test (ddsc_dynamic_type, no_members, .init = dynamic_type_init, .fini = dynamic_type_fini)
 {
-  dds_typeinfo_t *type_info;
+  dds_typeinfo_t *struct_type_info;
   dds_return_t ret;
 
   // Struct without members
   dds_dynamic_type_t dstruct = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "t" });
-  ret = dds_dynamic_type_register (&dstruct, &type_info);
+  ret = dds_dynamic_type_register (&dstruct, &struct_type_info);
   CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
-  dds_free_typeinfo (type_info);
   dds_dynamic_type_unref (&dstruct);
 
   // Struct with basetype without members
@@ -912,9 +911,22 @@ CU_Test (ddsc_dynamic_type, no_members, .init = dynamic_type_init, .fini = dynam
   // Union without members
   dds_dynamic_type_t dunion = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t)
       { .kind = DDS_DYNAMIC_UNION, .name = "u", .discriminator_type = DDS_DYNAMIC_TYPE_SPEC_PRIM(DDS_DYNAMIC_INT32) });
+  dds_typeinfo_t *type_info = struct_type_info;
   ret = dds_dynamic_type_register (&dunion, &type_info);
   CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ (type_info, struct_type_info);
   dds_dynamic_type_unref (&dunion);
+  dds_free_typeinfo (struct_type_info);
+}
+
+CU_Test (ddsc_dynamic_type, register_null_output, .init = dynamic_type_init, .fini = dynamic_type_fini)
+{
+  dds_dynamic_type_t dstruct = dds_dynamic_type_create (participant,
+    (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "t" });
+  CU_ASSERT_EQ_FATAL (dstruct.ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ (dds_dynamic_type_register (&dstruct, NULL), DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ (dstruct.ret, DDS_RETCODE_BAD_PARAMETER);
+  dds_dynamic_type_unref (&dstruct);
 }
 
 #ifdef DDS_HAS_TYPE_DISCOVERY

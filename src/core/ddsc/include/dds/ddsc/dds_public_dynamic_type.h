@@ -659,7 +659,9 @@ DDS_EXPORT dds_return_t dds_dynamic_member_set_try_construct (dds_dynamic_type_t
  * its TypeInformation.
  *
  * @param[in] type A pointer to the dynamic type to be registered.
- * @param[out] type_info A pointer to a pointer to a ddsi_typeinfo structure that holds information about the registered type.
+ * @param[out] type_info On success, receives the type information for the registered
+ *             type. The caller must release it with @ref dds_free_typeinfo.
+ *             On error, `*type_info` retains its original value.
  *
  * @return dds_return_t Return code.
  *

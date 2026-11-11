@@ -1111,8 +1111,8 @@ dds_return_t dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t p
   if (type_info == NULL || descriptor == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  *descriptor = dds_alloc (sizeof (**descriptor));
-  if (*descriptor == NULL)
+  dds_topic_descriptor_t *desc = dds_alloc (sizeof (*desc));
+  if (desc == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
 
   dds_entity *e;
@@ -1129,14 +1129,16 @@ dds_return_t dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t p
   if ((ret = ddsi_wait_for_type_resolved (gv, ddsi_typeinfo_complete_typeid (type_info), timeout, &type, DDSI_TYPE_INCLUDE_DEPS, scope == DDS_FIND_SCOPE_GLOBAL ? DDSI_TYPE_SEND_REQUEST : DDSI_TYPE_NO_REQUEST)))
     goto err;
   assert (type && ddsi_type_resolved (gv, type, DDSI_TYPE_INCLUDE_DEPS));
-  ret = ddsi_topic_descriptor_from_type (gv, *descriptor, type);
+  ret = ddsi_topic_descriptor_from_type (gv, desc, type);
   ddsi_type_unref (gv, type);
 
 err:
   dds_entity_unpin (e);
 err_pin:
-  if (ret != DDS_RETCODE_OK)
-    ddsrt_free (*descriptor);
+  if (ret == DDS_RETCODE_OK)
+    *descriptor = desc;
+  else
+    dds_free (desc);
   return ret;
 }
 

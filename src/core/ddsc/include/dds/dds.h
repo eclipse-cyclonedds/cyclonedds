@@ -1487,7 +1487,8 @@ dds_find_topic_scoped (dds_find_scope_t scope, dds_entity_t participant, const c
  * @param[in]  participant  The handle of the participant.
  * @param[in]  type_info    The type (dds_typeinfo_t) of the topic to find.
  * @param[in]  timeout      The timeout for waiting for the type to become available
- * @param[out] descriptor - Pointer to a dds_topic_descriptor_t pointer that will be allocated and populated. To free allocated memory for this descriptor, use dds_delete_topic_descriptor.
+ * @param[out] descriptor   Receives the newly allocated descriptor on success. On error, `*descriptor` is unchanged.
+ *                          Use @ref dds_delete_topic_descriptor to free the descriptor.
  *
  * @returns A dds_return_t indicating success or failure.
  *
@@ -5587,8 +5588,8 @@ dds_free_typeobj (
  * @component type_metadata
  *
  * @param[in]   entity          A topic/reader/writer entity
- * @param[out]  type_info       The type information, untouched if returncode indicates failure
- *
+ * @param[out]  type_info       Receives the type information on success. On error, `*type_info` is unchanged.
+ *                              Use @ref dds_free_typeinfo to free the type information.
  *
  * @returns A dds_return_t indicating success or failure.
  *
@@ -5601,7 +5602,7 @@ dds_free_typeobj (
  * @retval DDS_RETCODE_ILLEGAL_OPERATION
  *             The operation is invoked on an inappropriate object.
  * @retval DDS_RETCODE_UNSUPPORTED
- *             Cyclone DDS built without type discovery
+ *             Cyclone DDS built without the type library
  *             (cf. DDS_HAS_TYPELIB)
 */
 DDS_EXPORT dds_return_t
