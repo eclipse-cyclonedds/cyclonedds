@@ -727,6 +727,40 @@ uint32_t ddsi_dynamic_type_member_hashid (const char *name)
   return id & DDSI_DYNAMIC_TYPE_MEMBERID_MASK;
 }
 
+static uint32_t next_struct_member_id (const struct ddsi_type *type, uint32_t index, bool declaration_order)
+{
+  uint32_t next = 0;
+  while (type)
+  {
+    if (type->state == DDSI_TYPE_REPLACED)
+      type = type->replacement;
+    else if (type->xt._d == DDS_XTypes_TK_ALIAS)
+      type = type->xt._u.alias.related_type;
+    else if (type->xt._d == DDS_XTypes_TK_STRUCTURE)
+    {
+      const struct xt_struct_member_seq *members = &type->xt._u.structure.members;
+      if (declaration_order)
+      {
+        if (index > members->length)
+          index = members->length;
+        if (index > 0)
+          return (members->seq[index - 1].id + 1) & DDSI_DYNAMIC_TYPE_MEMBERID_MASK;
+        index = DDS_DYNAMIC_MEMBER_INDEX_END;
+      }
+      else
+      {
+        for (uint32_t n = 0; n < members->length; n++)
+          if (members->seq[n].id >= next)
+            next = members->seq[n].id + 1;
+      }
+      type = type->xt._u.structure.base_type;
+    }
+    else
+      return DDS_DYNAMIC_MEMBER_ID_INVALID;
+  }
+  return next;
+}
+
 dds_return_t ddsi_dynamic_type_add_struct_member (struct ddsi_type *type, struct ddsi_type **member_type, struct ddsi_dynamic_type_struct_member_param params)
 {
   assert (type->state == DDSI_TYPE_CONSTRUCTING);
@@ -734,26 +768,22 @@ dds_return_t ddsi_dynamic_type_add_struct_member (struct ddsi_type *type, struct
   if (type->xt._u.structure.members.length == UINT32_MAX)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  // check member id or set to max+1
-  uint32_t member_id = 0;
-  if (params.id == DDS_DYNAMIC_MEMBER_ID_INVALID)
+  uint32_t member_id = params.id;
+  if (member_id == DDS_DYNAMIC_MEMBER_ID_AUTO || member_id == DDS_DYNAMIC_MEMBER_ID_SEQUENTIAL)
   {
     if (type->xt._u.structure.flags & DDS_XTypes_IS_AUTOID_HASH)
       member_id = ddsi_dynamic_type_member_hashid (params.name);
     else
     {
-      for (uint32_t n = 0; n < type->xt._u.structure.members.length; n++)
-        if (type->xt._u.structure.members.seq[n].id >= member_id)
-          member_id = type->xt._u.structure.members.seq[n].id + 1;
+      /* Registration of another dynamic type can canonicalize a shared base. */
+      ddsrt_mutex_lock (&type->gv->typelib_lock);
+      member_id = next_struct_member_id (type, params.index, params.id == DDS_DYNAMIC_MEMBER_ID_SEQUENTIAL);
+      ddsrt_mutex_unlock (&type->gv->typelib_lock);
     }
   }
-  else
-  {
-    /* the 4 most significant bits in the member id are reserved (used in EMHEADER) */
-    if (params.id & ~DDSI_DYNAMIC_TYPE_MEMBERID_MASK)
-      return DDS_RETCODE_BAD_PARAMETER;
-    member_id = params.id;
-  }
+  /* The four most significant bits are reserved for the EMHEADER. */
+  if (member_id & ~DDSI_DYNAMIC_TYPE_MEMBERID_MASK)
+    return DDS_RETCODE_BAD_PARAMETER;
 
   for (uint32_t n = 0; n < type->xt._u.structure.members.length; n++)
     if (type->xt._u.structure.members.seq[n].id == member_id)
