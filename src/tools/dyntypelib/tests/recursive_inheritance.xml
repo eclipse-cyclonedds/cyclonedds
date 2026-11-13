@@ -1,0 +1,10 @@
+<dds>
+  <types>
+    <struct name="Leaf" baseType="Branch">
+      <member name="value" type="uint32"/>
+    </struct>
+    <struct name="Branch">
+      <member name="children" type="nonBasic" nonBasicTypeName="Leaf" sequenceMaxLength="4"/>
+    </struct>
+  </types>
+</dds>

@@ -1,0 +1,6 @@
+<dds>
+  <types>
+    <struct name="First" baseType="Second"/>
+    <struct name="Second" baseType="First"/>
+  </types>
+</dds>

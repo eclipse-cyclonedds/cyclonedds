@@ -43,16 +43,17 @@ dds_return_t dtl_set_error (struct dyntypelib_error *err, const struct elem *ele
 }
 
 struct make_context {
-  const char *file;
+  struct dyntype *new_types;
   dds_entity_t dp;
   struct dyntypelib *dtl;
 };
 
-static dds_return_t collect_types (const struct make_context *ctxt, const struct elem *elem, const char *ns, struct dyntypelib_error *err);
+static dds_return_t collect_types (struct make_context *ctxt, const struct elem *elem, const char *ns, struct dyntypelib_error *err);
+static dds_return_t ensure_struct_header (const struct make_context *ctxt, struct dyntype *t, struct dyntypelib_error *err);
 static dds_return_t ensure_type_materialized (const struct make_context *ctxt, struct dyntype *t, struct dyntypelib_error *err);
 static dds_return_t ensure_type_registered (const struct make_context *ctxt, struct dyntype *t, struct dyntypelib_error *err);
 
-static dds_return_t make_module (const struct make_context *ctxt, const struct elem *elem, const char *ns, struct dyntypelib_error *err)
+static dds_return_t make_module (struct make_context *ctxt, const struct elem *elem, const char *ns, struct dyntypelib_error *err)
 {
   const char *name = getattr (elem, "name");
   if (name == NULL)
@@ -67,38 +68,34 @@ static dds_return_t make_module (const struct make_context *ctxt, const struct e
   return rc;
 }
 
-static struct dyntype *lookup_type (const struct make_context *ctxt, const char *ns, const char *nbtype)
-{
-  struct dyntype *t;
-  if (strncmp (nbtype, "::", 2) == 0)
-  {
-    //printf ("fqname lookup %s\n", nbtype);
-    t = ddsrt_hh_lookup (ctxt->dtl->typelib, &(struct dyntype){ .name = (char *) nbtype });
-  }
-  else
-  {
-    char *nscopy = ddsrt_strdup (ns);
-    char *colon = strrchr (nscopy, ':');
-    char *fqnbtype;
-    ddsrt_asprintf (&fqnbtype, "%s::%s", nscopy, nbtype);
-    //printf ("name lookup %s\n", fqnbtype);
-    while ((t = ddsrt_hh_lookup (ctxt->dtl->typelib, &(struct dyntype){ .name = fqnbtype })) == NULL && colon != NULL)
-    {
-      memmove (fqnbtype + (colon - 1 - nscopy), nbtype, strlen (nbtype) + 1);
-      colon = (colon >= nscopy + 2) ? strrchr (colon - 2, ':') : NULL;
-      //printf ("name lookup %s\n", fqnbtype);
-    }
-    ddsrt_free (fqnbtype);
-    ddsrt_free (nscopy);
-  }
-  return t;
-}
-
 static char *make_fqname (const char *ns, const char *name)
 {
   char *fqname;
   ddsrt_asprintf (&fqname, "%s::%s", ns, name);
   return fqname;
+}
+
+static struct dyntype *lookup_type (const struct make_context *ctxt, const char *owner, const char *name)
+{
+  if (strncmp (name, "::", 2) == 0)
+    return ddsrt_hh_lookup (ctxt->dtl->typelib, &(struct dyntype){ .name = (char *) name });
+
+  char *scope = ddsrt_strdup (owner);
+  if (scope == NULL)
+    return NULL;
+  struct dyntype *t = NULL;
+  char *colon;
+  while (t == NULL && (colon = strrchr (scope, ':')) != NULL)
+  {
+    if (colon == scope || colon[-1] != ':')
+      break;
+    colon[-1] = 0;
+    char *fqname = make_fqname (scope, name);
+    t = ddsrt_hh_lookup (ctxt->dtl->typelib, &(struct dyntype){ .name = fqname });
+    ddsrt_free (fqname);
+  }
+  ddsrt_free (scope);
+  return t;
 }
 
 static bool has_non_name_attributes (const struct elem *elem)
@@ -109,7 +106,7 @@ static bool has_non_name_attributes (const struct elem *elem)
   return false;
 }
 
-static dds_return_t declare_type (const struct make_context *ctxt, const struct elem *elem, const char *ns, DDS_XTypes_TypeKind kind, struct dyntypelib_error *err)
+static dds_return_t declare_type (struct make_context *ctxt, const struct elem *elem, const char *ns, DDS_XTypes_TypeKind kind, struct dyntypelib_error *err)
 {
   const char *name = getattr (elem, "name");
   if (name == NULL)
@@ -123,8 +120,9 @@ static dds_return_t declare_type (const struct make_context *ctxt, const struct 
     t->name = fqname;
     t->kind = kind;
     t->state = DYNTYPE_DECLARED;
-    if (!ddsrt_hh_add (ctxt->dtl->typelib, t))
-      return dtl_set_error (err, elem, "hh_add failed for %s\n", t->name);
+    ddsrt_hh_add_absent (ctxt->dtl->typelib, t);
+    t->next = ctxt->new_types;
+    ctxt->new_types = t;
   }
   else
   {
@@ -137,7 +135,7 @@ static dds_return_t declare_type (const struct make_context *ctxt, const struct 
      extensibility/nested make it an explicit empty definition. */
   if (elem->children != NULL || kind == DDS_XTypes_TK_ALIAS || has_non_name_attributes (elem))
   {
-    if (t->definition != NULL)
+    if (t->definition != NULL || t->state == DYNTYPE_REGISTERED)
       return dtl_set_error (err, elem, "duplicate definition for %s\n", t->name);
     t->definition = elem;
   }
@@ -159,12 +157,6 @@ static dds_return_t register_type (const struct make_context *ctxt, const struct
   if ((rc = dds_get_typeobj (ctxt->dp, ti, 0, &typeobj)) < 0)
     return dtl_set_error (err, elem, "dds_get_typeobj %s failed to get typeobj: %s\n", t->name, dds_strretcode (rc));
   t->typeobj = (DDS_XTypes_TypeObject *) typeobj;
-
-  struct type_hashid_map *info = ddsrt_malloc (sizeof (*info));
-  type_hashid_map_init_id (info, &xti->complete.typeid_with_size.type_id);
-  info->typeobj = t->typeobj;
-  info->lineno = 0;
-  type_hashid_map_add (ctxt->dtl->typecache, info);
 
   t->state = DYNTYPE_REGISTERED;
   //printf ("added %s\n", t->name);
@@ -219,7 +211,7 @@ static dds_return_t get_try_construct (const struct elem *m, const char *name, e
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t get_typespec (const struct make_context *ctxt, const struct elem *m, const char *ns, dds_dynamic_type_spec_t *typespec, struct dyntypelib_error *err)
+static dds_return_t get_typespec (const struct make_context *ctxt, const struct elem *m, const char *owner, dds_dynamic_type_spec_t *typespec, struct dyntype **aliased_struct, struct dyntypelib_error *err)
 {
   dds_return_t rc;
   const char *type = getattr (m, "type");
@@ -277,11 +269,14 @@ static dds_return_t get_typespec (const struct make_context *ctxt, const struct 
     const char *nbtype = getattr (m, "nonBasicTypeName");
     if (nbtype == NULL)
       return dtl_set_error (err, m, "non-basic type, but nonBasicTypeName missing\n");
-    struct dyntype *t = lookup_type (ctxt, ns, nbtype);
+    struct dyntype *t = lookup_type (ctxt, owner, nbtype);
     if (t == NULL)
       return dtl_set_error (err, m, "unknown non-basic type %s\n", nbtype);
-    if ((rc = ensure_type_materialized (ctxt, t, err)) != DDS_RETCODE_OK)
+    rc = t->kind == DDS_XTypes_TK_STRUCTURE ? ensure_struct_header (ctxt, t, err) : ensure_type_materialized (ctxt, t, err);
+    if (rc != DDS_RETCODE_OK)
       return rc;
+    if (aliased_struct && !getattr (m, "arrayDimensions") && !getattr (m, "sequenceMaxLength"))
+      *aliased_struct = t->kind == DDS_XTypes_TK_STRUCTURE ? t : t->base_struct;
     mtspec = DDS_DYNAMIC_TYPE_SPEC (dds_dynamic_type_ref (t->dtype));
   }
   else
@@ -362,25 +357,25 @@ static dds_return_t get_typespec (const struct make_context *ctxt, const struct 
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t add_member (const struct make_context *ctxt, struct dds_dynamic_type *dtype, const struct elem *m, const char *ns, uint32_t nlabels, const int32_t *labels, bool isdefault, struct dyntypelib_error *err)
+static dds_return_t add_member (const struct make_context *ctxt, struct dds_dynamic_type *dtype, const struct elem *m, const char *owner, uint32_t id, uint32_t nlabels, const int32_t *labels, bool isdefault, struct dyntypelib_error *err)
 {
   dds_return_t rc;
   const char *mname = getattr (m, "name");
   if (mname == NULL)
     return dtl_set_error (err, m, "name missing\n");
 
-  dds_dynamic_type_spec_t mtspec;
-  if ((rc = get_typespec (ctxt, m, ns, &mtspec, err)) != 0)
-    return rc;
-  uint32_t id = DDS_DYNAMIC_MEMBER_ID_AUTO;
   const char *idstr = getattr (m, "id");
   if (idstr)
   {
-    int pos;
-    if (sscanf (idstr, "%"SCNu32"%n", &id, &pos) != 1 || idstr[pos] != 0 || id >= 0x0fffffff)
+    unsigned long value = strtoul (idstr, NULL, 10);
+    if (*idstr == 0 || idstr[strspn (idstr, "0123456789")] != 0 || value > 0x0fffffff)
       return dtl_set_error (err, m, "id attribute empty, contains non-digits or out-of-range\n");
+    id = (uint32_t) value;
   }
 
+  dds_dynamic_type_spec_t mtspec;
+  if ((rc = get_typespec (ctxt, m, owner, &mtspec, NULL, err)) != 0)
+    return rc;
   rc = dds_dynamic_type_add_member (dtype, ((dds_dynamic_member_descriptor_t) {
     .name = mname,
     .id = id,
@@ -414,34 +409,29 @@ static dds_return_t add_member (const struct make_context *ctxt, struct dds_dyna
   // not in test suite, they are just guesses:
   if ((rc = set_member_flag (dtype, m, "optional", dds_dynamic_member_set_optional, err)) != 0)
     return rc;
-  if ((set_member_flag (dtype, m, "external", dds_dynamic_member_set_external, err)) != 0)
+  if ((rc = set_member_flag (dtype, m, "external", dds_dynamic_member_set_external, err)) != 0)
     return rc;
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t add_struct_member (const struct make_context *ctxt, struct dds_dynamic_type *dtype, const struct elem *m, const char *ns, struct dyntypelib_error *err)
-{
-  return add_member (ctxt, dtype, m, ns, 0, NULL, false, err);
-}
-
-static dds_return_t set_extensibility (const struct make_context *ctxt, dds_dynamic_type_t *dtype, const struct elem *elem, struct dyntypelib_error *err)
+static dds_return_t set_extensibility (const struct make_context *ctxt, struct dyntype *t, const struct elem *elem, struct dyntypelib_error *err)
 {
   const char *ext = getattr (elem, "extensibility");
-  dds_return_t rc = DDS_RETCODE_OK;
+  t->extensibility = t->base_struct ? t->base_struct->extensibility : ctxt->dtl->default_extensibility;
   if (ext)
   {
     if (strcmp (ext, "final") == 0)
-      rc = dds_dynamic_type_set_extensibility (dtype, DDS_DYNAMIC_TYPE_EXT_FINAL);
+      t->extensibility = DDS_DYNAMIC_TYPE_EXT_FINAL;
     else if (strcmp (ext, "appendable") == 0)
-      rc = dds_dynamic_type_set_extensibility (dtype, DDS_DYNAMIC_TYPE_EXT_APPENDABLE);
+      t->extensibility = DDS_DYNAMIC_TYPE_EXT_APPENDABLE;
     else if (strcmp (ext, "mutable") == 0)
-      rc = dds_dynamic_type_set_extensibility (dtype, DDS_DYNAMIC_TYPE_EXT_MUTABLE);
+      t->extensibility = DDS_DYNAMIC_TYPE_EXT_MUTABLE;
     else
       return dtl_set_error (err, elem, "unknown extensibility %s\n", ext);
-  } else
-  {
-    rc = dds_dynamic_type_set_extensibility (dtype, ctxt->dtl->default_extensibility);
+    if (t->base_struct && t->extensibility != t->base_struct->extensibility)
+      return dtl_set_error (err, elem, "extensibility differs from baseType %s\n", t->base_struct->name);
   }
+  dds_return_t rc = dds_dynamic_type_set_extensibility (t->dtype, t->extensibility);
   if (rc != DDS_RETCODE_OK)
     return dtl_set_error (err, elem, "set_extensibility failed: %s\n", dds_strretcode (rc));
   return DDS_RETCODE_OK;
@@ -465,30 +455,68 @@ static dds_return_t set_autoid (dds_dynamic_type_t *dtype, const struct elem *el
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t make_struct (const struct make_context *ctxt, struct dyntype *t, const struct elem *elem, const char *ns, struct dyntypelib_error *err)
+/* Create struct headers before resolving member types: a base may contain a
+   sequence of its derived type. Only the inheritance chain must be acyclic. */
+static dds_return_t ensure_struct_header (const struct make_context *ctxt, struct dyntype *t, struct dyntypelib_error *err)
 {
-  t->dtype = ddsrt_malloc (sizeof (*t->dtype));
-  *t->dtype = dds_dynamic_type_create (ctxt->dp, (dds_dynamic_type_descriptor_t) {
-    .kind = DDS_DYNAMIC_STRUCTURE, .name = t->name + 2
-  });
+  if (t->state == DYNTYPE_RESOLVING_BASE)
+    return dtl_set_error (err, t->definition, "cyclic baseType for %s\n", t->name);
+  if (t->state != DYNTYPE_DECLARED)
+    return DDS_RETCODE_OK;
+  if (!t->definition)
+    return dtl_set_error (err, NULL, "type %s declared but not defined\n", t->name);
+
+  t->state = DYNTYPE_RESOLVING_BASE;
+  const struct elem *elem = t->definition;
+  const char *base_name = getattr (elem, "baseType");
+  dds_dynamic_type_descriptor_t desc = { .kind = DDS_DYNAMIC_STRUCTURE, .name = t->name + 2 };
   dds_return_t rc;
+  if (base_name)
+  {
+    struct dyntype *base = lookup_type (ctxt, t->name, base_name);
+    if (base == NULL)
+      return dtl_set_error (err, elem, "unknown baseType %s\n", base_name);
+    if (base->kind == DDS_XTypes_TK_ALIAS)
+    {
+      if ((rc = ensure_type_materialized (ctxt, base, err)) != DDS_RETCODE_OK)
+        return rc;
+      base = base->base_struct;
+    }
+    if (!base || base->kind != DDS_XTypes_TK_STRUCTURE)
+      return dtl_set_error (err, elem, "baseType %s is not a struct\n", base_name);
+    if ((rc = ensure_struct_header (ctxt, base, err)) != DDS_RETCODE_OK)
+      return rc;
+    t->base_struct = base;
+    desc.base_type = DDS_DYNAMIC_TYPE_SPEC (dds_dynamic_type_ref (base->dtype));
+  }
+
+  t->dtype = ddsrt_malloc (sizeof (*t->dtype));
+  *t->dtype = dds_dynamic_type_create (ctxt->dp, desc);
   if (t->dtype->ret != DDS_RETCODE_OK)
     return dtl_set_error (err, elem, "dynamic_type_create %s failed: %s\n", t->name, dds_strretcode (t->dtype->ret));
-  if ((rc = set_extensibility (ctxt, t->dtype, elem, err)) != 0)
+  if ((rc = set_extensibility (ctxt, t, elem, err)) != DDS_RETCODE_OK ||
+      (rc = set_autoid (t->dtype, elem, err)) != DDS_RETCODE_OK)
     return rc;
-  if ((rc = set_autoid (t->dtype, elem, err)) != 0)
+  t->state = DYNTYPE_BASE_RESOLVED;
+  return DDS_RETCODE_OK;
+}
+
+static dds_return_t make_struct (const struct make_context *ctxt, struct dyntype *t, const struct elem *elem, struct dyntypelib_error *err)
+{
+  dds_return_t rc;
+  if (t->base_struct && (rc = ensure_type_materialized (ctxt, t->base_struct, err)) != DDS_RETCODE_OK)
     return rc;
   for (const struct elem *m = elem->children; m; m = m->next)
-    if ((rc = add_struct_member (ctxt, t->dtype, m, ns, err)) != 0)
+    if ((rc = add_member (ctxt, t->dtype, m, t->name, DDS_DYNAMIC_MEMBER_ID_SEQUENTIAL, 0, NULL, false, err)) != 0)
       return rc;
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t make_typedef (const struct make_context *ctxt, struct dyntype *t, const struct elem *elem, const char *ns, struct dyntypelib_error *err)
+static dds_return_t make_typedef (const struct make_context *ctxt, struct dyntype *t, const struct elem *elem, struct dyntypelib_error *err)
 {
   dds_return_t rc;
   dds_dynamic_type_spec_t base_type;
-  if ((rc = get_typespec (ctxt, elem, ns, &base_type, err)) != 0)
+  if ((rc = get_typespec (ctxt, elem, t->name, &base_type, &t->base_struct, err)) != 0)
     return rc;
 
   t->dtype = ddsrt_malloc (sizeof (*t->dtype));
@@ -537,7 +565,7 @@ static dds_return_t union_case_labels_add (struct union_case_labels *labels, int
 }
 
 static dds_return_t collect_union_case_labels (const struct make_context *ctxt, const struct elem *case_elem, const struct elem *discriminator_elem,
-    const char *ns, struct union_case_labels *labels, bool *isdefault, struct dyntypelib_error *err)
+    const char *owner, struct union_case_labels *labels, bool *isdefault, struct dyntypelib_error *err)
 {
   dds_return_t rc;
   for (const struct elem *m = case_elem->children; m; m = m->next)
@@ -567,7 +595,7 @@ static dds_return_t collect_union_case_labels (const struct make_context *ctxt, 
             strcmp (getattr (discriminator_elem, "type"), "nonBasic") != 0 ||
             getattr (discriminator_elem, "nonBasicTypeName") == NULL)
           return dtl_set_error (err, m, "junk at end of value / non enum type for discriminator\n");
-        struct dyntype *d_enum = lookup_type (ctxt, ns, getattr (discriminator_elem, "nonBasicTypeName"));
+        struct dyntype *d_enum = lookup_type (ctxt, owner, getattr (discriminator_elem, "nonBasicTypeName"));
         if (d_enum == NULL)
           return dtl_set_error (err, m, "Unknown enum type for literal values\n");
         if ((rc = ensure_type_registered (ctxt, d_enum, err)) != DDS_RETCODE_OK)
@@ -594,7 +622,7 @@ static dds_return_t collect_union_case_labels (const struct make_context *ctxt, 
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t make_union (const struct make_context *ctxt, struct dyntype *t, const struct elem *elem, const char *ns, struct dyntypelib_error *err)
+static dds_return_t make_union (const struct make_context *ctxt, struct dyntype *t, const struct elem *elem, struct dyntypelib_error *err)
 {
   dds_return_t rc;
 
@@ -610,7 +638,7 @@ static dds_return_t make_union (const struct make_context *ctxt, struct dyntype 
       if (strcmp (c->name, "discriminator") != 0)
         continue;
       discriminator_elem = c;
-      if ((rc = get_typespec (ctxt, c, ns, &discts, err)) != 0)
+      if ((rc = get_typespec (ctxt, c, t->name, &discts, NULL, err)) != 0)
         return rc;
       discts_set = true;
       const char *keystr = getattr (c, "key");
@@ -637,7 +665,7 @@ static dds_return_t make_union (const struct make_context *ctxt, struct dyntype 
   if (t->dtype->ret != DDS_RETCODE_OK)
     return dtl_set_error (err, elem, "dynamic_type_create %s failed: %s\n", t->name, dds_strretcode (t->dtype->ret));
 
-  if ((rc = set_extensibility (ctxt, t->dtype, elem, err)) != 0)
+  if ((rc = set_extensibility (ctxt, t, elem, err)) != 0)
     return rc;
   if ((rc = set_autoid (t->dtype, elem, err)) != 0)
     return rc;
@@ -653,7 +681,7 @@ static dds_return_t make_union (const struct make_context *ctxt, struct dyntype 
 
     struct union_case_labels labels = { 0 };
     bool isdefault = false;
-    if ((rc = collect_union_case_labels (ctxt, c, discriminator_elem, ns, &labels, &isdefault, err)) != DDS_RETCODE_OK)
+    if ((rc = collect_union_case_labels (ctxt, c, discriminator_elem, t->name, &labels, &isdefault, err)) != DDS_RETCODE_OK)
     {
       union_case_labels_fini (&labels);
       return rc;
@@ -668,7 +696,7 @@ static dds_return_t make_union (const struct make_context *ctxt, struct dyntype 
       union_case_labels_fini (&labels);
       return dtl_set_error (err, c, "member missing in case\n");
     }
-    if ((rc = add_member (ctxt, t->dtype, m, ns, labels.length, labels.values, isdefault, err)) != 0)
+    if ((rc = add_member (ctxt, t->dtype, m, t->name, DDS_DYNAMIC_MEMBER_ID_AUTO, labels.length, labels.values, isdefault, err)) != 0)
     {
       union_case_labels_fini (&labels);
       return rc;
@@ -689,7 +717,7 @@ static dds_return_t make_enum (const struct make_context *ctxt, struct dyntype *
   if (t->dtype->ret != DDS_RETCODE_OK)
     return dtl_set_error (err, elem, "dynamic_type_create %s failed: %s\n", t->name, dds_strretcode (t->dtype->ret));
 
-  if ((rc = set_extensibility (ctxt, t->dtype, elem, err)) != 0)
+  if ((rc = set_extensibility (ctxt, t, elem, err)) != 0)
     return rc;
 
   const char *bitboundstr = getattr (elem, "bitBound");
@@ -756,7 +784,7 @@ static dds_return_t make_bitmask (const struct make_context *ctxt, struct dyntyp
   if (t->dtype->ret != DDS_RETCODE_OK)
     return dtl_set_error (err, elem, "dynamic_type_create %s failed: %s\n", t->name, dds_strretcode (t->dtype->ret));
 
-  if ((rc = set_extensibility (ctxt, t->dtype, elem, err)) != 0)
+  if ((rc = set_extensibility (ctxt, t, elem, err)) != 0)
     return rc;
 
   const char *bitboundstr = getattr (elem, "bitBound");
@@ -797,7 +825,7 @@ static dds_return_t make_bitmask (const struct make_context *ctxt, struct dyntyp
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t collect_types (const struct make_context *ctxt, const struct elem *elem, const char *ns, struct dyntypelib_error *err)
+static dds_return_t collect_types (struct make_context *ctxt, const struct elem *elem, const char *ns, struct dyntypelib_error *err)
 {
   if (strcmp (elem->name, "module") == 0)
     return make_module (ctxt, elem, ns, err);
@@ -829,24 +857,20 @@ static dds_return_t ensure_type_materialized (const struct make_context *ctxt, s
   if (t->definition == NULL)
     return dtl_set_error (err, NULL, "type %s declared but not defined\n", t->name);
 
+  if (t->kind == DDS_XTypes_TK_STRUCTURE && (rc = ensure_struct_header (ctxt, t, err)) != DDS_RETCODE_OK)
+    return rc;
   t->state = DYNTYPE_MATERIALIZING;
-  const char *ns_end = strrchr (t->name, ':');
-  char *ns = ddsrt_strdup (t->name);
-  if (ns_end == NULL || ns_end <= t->name)
-    ns[0] = 0;
-  else
-    ns[ns_end - 1 - t->name] = 0;
 
   switch (t->kind)
   {
     case DDS_XTypes_TK_STRUCTURE:
-      rc = make_struct (ctxt, t, t->definition, ns, err);
+      rc = make_struct (ctxt, t, t->definition, err);
       break;
     case DDS_XTypes_TK_ALIAS:
-      rc = make_typedef (ctxt, t, t->definition, ns, err);
+      rc = make_typedef (ctxt, t, t->definition, err);
       break;
     case DDS_XTypes_TK_UNION:
-      rc = make_union (ctxt, t, t->definition, ns, err);
+      rc = make_union (ctxt, t, t->definition, err);
       break;
     case DDS_XTypes_TK_ENUM:
       rc = make_enum (ctxt, t, t->definition, err);
@@ -858,7 +882,6 @@ static dds_return_t ensure_type_materialized (const struct make_context *ctxt, s
       rc = dtl_set_error (err, t->definition, "unsupported type kind for %s\n", t->name);
       break;
   }
-  ddsrt_free (ns);
   if (rc == DDS_RETCODE_OK)
     t->state = DYNTYPE_MATERIALIZED;
   else
@@ -918,6 +941,17 @@ void dtl_set_default_extensibility (struct dyntypelib *dtl, enum dds_dynamic_typ
   dtl->default_extensibility = default_extensibility;
 }
 
+static void free_type (struct dyntype *t)
+{
+  dds_free_typeobj ((dds_typeobj_t *) t->typeobj);
+  if (t->dtype && t->dtype->x[0])
+    dds_dynamic_type_unref (t->dtype);
+  dds_free_typeinfo (t->typeinfo);
+  ddsrt_free (t->dtype);
+  ddsrt_free (t->name);
+  ddsrt_free (t);
+}
+
 dds_return_t dtl_add_xml_type_library (struct dyntypelib *dtl, const char *xml_type_lib, struct dyntypelib_error *err)
 {
   struct elem *root = domtree_from_file (xml_type_lib);
@@ -927,22 +961,14 @@ dds_return_t dtl_add_xml_type_library (struct dyntypelib *dtl, const char *xml_t
     return DDS_RETCODE_BAD_PARAMETER;
   }
 
-  //domtree_print (root);
-
-  dds_return_t rc = DDS_RETCODE_ERROR;
+  struct make_context ctxt = { .dp = dtl->dp, .dtl = dtl };
+  dds_return_t rc = DDS_RETCODE_OK;
   if (strcmp (root->name, "dds") != 0 || root->children == NULL || strcmp (root->children->name, "types") != 0)
   {
-    // FIXME: free domtree "root"
     dtl_set_error (err, NULL, "expected /dds/types");
     rc = DDS_RETCODE_BAD_PARAMETER;
     goto err;
   }
-
-  struct make_context ctxt = {
-    .file = xml_type_lib,
-    .dp = dtl->dp,
-    .dtl = dtl
-  };
 
   for (struct elem *e = root->children->children; e; e = e->next)
   {
@@ -950,18 +976,39 @@ dds_return_t dtl_add_xml_type_library (struct dyntypelib *dtl, const char *xml_t
     if (rc != DDS_RETCODE_OK)
       goto err;
   }
-  struct ddsrt_hh_iter it;
-  for (struct dyntype *t = ddsrt_hh_iter_first (dtl->typelib, &it); t; t = ddsrt_hh_iter_next (&it))
-  {
-    rc = ensure_type_registered (&ctxt, t, err);
-    if (rc != DDS_RETCODE_OK)
+  /* Establish all inheritance chains before adding members, which can introduce
+     recursive references. Registration can then complete any dependency. */
+  for (struct dyntype *t = ctxt.new_types; t; t = t->next)
+    if (t->kind == DDS_XTypes_TK_STRUCTURE && (rc = ensure_struct_header (&ctxt, t, err)) != DDS_RETCODE_OK)
       goto err;
-  }
+  for (struct dyntype *t = ctxt.new_types; t; t = t->next)
+    if ((rc = ensure_type_materialized (&ctxt, t, err)) != DDS_RETCODE_OK)
+      goto err;
+  for (struct dyntype *t = ctxt.new_types; t; t = t->next)
+    if ((rc = ensure_type_registered (&ctxt, t, err)) != DDS_RETCODE_OK)
+      goto err;
 
+  /* Publish cache records only after the entire library has registered. */
+  for (struct dyntype *t = ctxt.new_types; t; t = t->next)
+  {
+    const DDS_XTypes_TypeInformation *xti = (const DDS_XTypes_TypeInformation *) t->typeinfo;
+    struct type_hashid_map *info = ddsrt_malloc (sizeof (*info));
+    type_hashid_map_init_id (info, &xti->complete.typeid_with_size.type_id);
+    info->typeobj = t->typeobj;
+    type_hashid_map_add (dtl->typecache, info);
+    t->definition = NULL;
+  }
   domtree_free (root);
   return DDS_RETCODE_OK;
 
  err:
+  while (ctxt.new_types)
+  {
+    struct dyntype *t = ctxt.new_types;
+    ctxt.new_types = t->next;
+    ddsrt_hh_remove_present (dtl->typelib, t);
+    free_type (t);
+  }
   domtree_free (root);
   return rc;
 }
@@ -1009,15 +1056,7 @@ void dtl_free (struct dyntypelib *dtl)
 
   struct ddsrt_hh_iter it;
   for (struct dyntype *t = ddsrt_hh_iter_first (dtl->typelib, &it); t; t = ddsrt_hh_iter_next (&it))
-  {
-    //printf ("free %s\n", t->name);
-    dds_free_typeobj ((dds_typeobj_t *) t->typeobj);
-    dds_dynamic_type_unref (t->dtype);
-    dds_free_typeinfo (t->typeinfo);
-    ddsrt_free (t->dtype);
-    ddsrt_free (t->name);
-    ddsrt_free (t);
-  }
+    free_type (t);
   ddsrt_hh_free (dtl->typelib);
   ddsrt_free (dtl);
 }

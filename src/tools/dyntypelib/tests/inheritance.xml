@@ -1,0 +1,19 @@
+<dds>
+  <types>
+    <module name="Model">
+      <module name="Inner">
+        <struct name="Derived" baseType="Middle">
+          <member name="value" type="uint8"/>
+        </struct>
+        <struct name="Middle" baseType="BaseAlias">
+          <member name="status" type="uint8"/>
+        </struct>
+      </module>
+      <typedef name="BaseAlias" type="nonBasic" nonBasicTypeName="Base"/>
+      <struct name="Base" extensibility="final">
+        <member name="id" type="uint32" id="7" key="true"/>
+        <member name="flags" type="uint8" id="2"/>
+      </struct>
+    </module>
+  </types>
+</dds>
