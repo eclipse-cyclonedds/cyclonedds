@@ -47,11 +47,27 @@ typedef struct dds_dynamic_type {
 /**
  * @ingroup dynamic_type
  *
- * Invalid member ID. When adding a member, DDS_DYNAMIC_MEMBER_ID_AUTO can be used to
- * indicate that the member should get the id (m+1) where m is the highest member id
- * in the current set of members. A valid member id has the 4 most significant bits
- * set to 0 (because of usage in the EMHEADER), so also when hashed-id are used, the
- * hash member id will never be set to the invalid member id.
+ * Invalid member ID. A valid member ID has the four most significant bits set to
+ * zero (because of usage in the EMHEADER), so a hash member ID cannot equal this
+ * value.
+ *
+ * When adding a member with DDS_DYNAMIC_TYPE_AUTOID_SEQUENTIAL,
+ * DDS_DYNAMIC_MEMBER_ID_AUTO follows the DynamicType contract for
+ * MemberDescriptor.id = MEMBER_ID_INVALID in DDS-XTypes 1.3, clause 7.5.2.7.5:
+ * use the maximum existing member ID plus one, including inherited members,
+ * independently of the insertion index.
+ *
+ * For structs, DDS_DYNAMIC_MEMBER_ID_SEQUENTIAL instead follows the IDL
+ * declaration-order rule in DDS-XTypes 1.3, clause 7.3.1.2.1.1: use the ID of the
+ * member preceding the insertion index plus one, including inherited members,
+ * or zero if there is no preceding member. For example, appending after IDs
+ * [7, 2] gives 3 with SEQUENTIAL and 8 with AUTO. Wrapping modulo 2^28 is a
+ * Cyclone/IDLC implementation choice, not a requirement of that clause.
+ *
+ * When adding a member with DDS_DYNAMIC_TYPE_AUTOID_HASH, both selectors instead
+ * hash the member's name; DDS_DYNAMIC_MEMBER_ID_SEQUENTIAL does not force numeric
+ * allocation. This HASH override is Cyclone behavior; the DynamicType clause
+ * cited above does not define it. Explicit member IDs are used unchanged.
  *
  * DDS_DYNAMIC_MEMBER_ID_DISCRIMINATOR selects the discriminator in union member
  * property setters. Passing member id 0 to those setters selects an actual union
@@ -60,13 +76,18 @@ typedef struct dds_dynamic_type {
 #define DDS_DYNAMIC_MEMBER_ID_INVALID 0xf0000000u
 #define DDS_DYNAMIC_MEMBER_ID_AUTO DDS_DYNAMIC_MEMBER_ID_INVALID
 #define DDS_DYNAMIC_MEMBER_ID_DISCRIMINATOR (DDS_DYNAMIC_MEMBER_ID_AUTO + 1u)
+#define DDS_DYNAMIC_MEMBER_ID_SEQUENTIAL (DDS_DYNAMIC_MEMBER_ID_AUTO + 2u)
 
 /**
  * @ingroup dynamic_type
  *
  * When adding members, index 0 is used to indicate that a member should be inserted as
  * the first member. A value higher than the current maximum index can be used to indicate
- * that the member should be added after the other members
+ * that the member should be added after the other members. The insertion index
+ * controls declaration order independently of the member ID (DDS-XTypes 1.3,
+ * clause 7.5.2.7.6, MemberDescriptor.index).
+ * For a derived struct, the index refers to its directly declared members;
+ * inherited members remain before them.
  */
 #define DDS_DYNAMIC_MEMBER_INDEX_START 0u
 #define DDS_DYNAMIC_MEMBER_INDEX_END UINT32_MAX
@@ -232,7 +253,7 @@ typedef struct dds_dynamic_type_descriptor {
  */
 typedef struct dds_dynamic_member_descriptor {
   const char * name; /**< Name of the member, required */
-  uint32_t id; /**< Identifier of the member, applicable for struct and union members. DDS_DYNAMIC_MEMBER_ID_AUTO can be used to indicate the next available id (current max + 1) should be used. */
+  uint32_t id; /**< Explicit member ID, or DDS_DYNAMIC_MEMBER_ID_AUTO for the DynamicType allocation contract. Structs also accept DDS_DYNAMIC_MEMBER_ID_SEQUENTIAL for the IDL declaration-order contract. Both selectors honor the type's HASH policy. */
   dds_dynamic_type_spec_t type; /**< Member type, required for struct and union members. */
   char *default_value; /**< Default value for the member */
   uint32_t index; /**< Member index, applicable for struct and union members. DDS_DYNAMIC_MEMBER_INDEX_START and DDS_DYNAMIC_MEMBER_INDEX_END can be used to add a member as first or last member in the parent type. */
@@ -258,8 +279,8 @@ enum dds_dynamic_type_extensibility {
  * Dynamic Type automatic member ID kind
  */
 enum dds_dynamic_type_autoid {
-  DDS_DYNAMIC_TYPE_AUTOID_SEQUENTIAL, /**< The member ID are assigned sequential */
-  DDS_DYNAMIC_TYPE_AUTOID_HASH /**< The member ID is the hash of the member's name */
+  DDS_DYNAMIC_TYPE_AUTOID_SEQUENTIAL, /**< Use the numeric allocation contract selected by DDS_DYNAMIC_MEMBER_ID_AUTO or DDS_DYNAMIC_MEMBER_ID_SEQUENTIAL. */
+  DDS_DYNAMIC_TYPE_AUTOID_HASH /**< Both automatic member ID selectors hash the member's name. Explicit member IDs are unaffected. */
 };
 
 /**

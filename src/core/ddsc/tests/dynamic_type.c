@@ -233,6 +233,37 @@ CU_Test (ddsc_dynamic_type, struct_member_id, .init = dynamic_type_init, .fini =
   dds_dynamic_type_unref (&dstruct);
 }
 
+CU_Test (ddsc_dynamic_type, inherited_sequential_member_id, .init = dynamic_type_init, .fini = dynamic_type_fini)
+{
+  dds_dynamic_type_t base = dds_dynamic_type_create (participant,
+    (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "Base" });
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&base, DDS_DYNAMIC_MEMBER_ID_PRIM (DDS_DYNAMIC_UINT32, "a", 7)), DDS_RETCODE_OK);
+
+  dds_dynamic_type_t middle = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_STRUCTURE, .name = "Middle", .base_type = DDS_DYNAMIC_TYPE_SPEC (base)
+  });
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&middle, DDS_DYNAMIC_MEMBER_ID_PRIM (DDS_DYNAMIC_UINT32, "b", 2)), DDS_RETCODE_OK);
+  dds_dynamic_type_t alias = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_ALIAS, .name = "Alias", .base_type = DDS_DYNAMIC_TYPE_SPEC (middle)
+  });
+  dds_dynamic_type_t derived = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_STRUCTURE, .name = "Derived", .base_type = DDS_DYNAMIC_TYPE_SPEC (alias)
+  });
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&derived, DDS_DYNAMIC_MEMBER_PRIM (DDS_DYNAMIC_UINT32, "c")), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&derived, DDS_DYNAMIC_MEMBER_PRIM (DDS_DYNAMIC_UINT32, "d")), DDS_RETCODE_OK);
+  /* In declaration order, the member before this insertion is Middle.b. */
+  dds_dynamic_member_descriptor_t first = DDS_DYNAMIC_MEMBER_ID_PRIM (DDS_DYNAMIC_UINT32, "first", DDS_DYNAMIC_MEMBER_ID_SEQUENTIAL);
+  first.index = DDS_DYNAMIC_MEMBER_INDEX_START;
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&derived, first), DDS_RETCODE_OK);
+
+  const struct ddsi_type *type = get_ddsi_type (&derived);
+  CU_ASSERT_EQ_FATAL (type->xt._u.structure.members.length, 3);
+  CU_ASSERT_EQ (type->xt._u.structure.members.seq[0].id, 3);
+  CU_ASSERT_EQ (type->xt._u.structure.members.seq[1].id, 8);
+  CU_ASSERT_EQ (type->xt._u.structure.members.seq[2].id, 9);
+  dds_dynamic_type_unref (&derived);
+}
+
 CU_Test (ddsc_dynamic_type, extensibility_invalid, .init = dynamic_type_init, .fini = dynamic_type_fini)
 {
   dds_return_t ret;
