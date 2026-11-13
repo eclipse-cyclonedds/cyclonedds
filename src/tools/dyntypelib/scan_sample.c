@@ -339,12 +339,14 @@ static const DDS_XTypes_CompleteStructType *get_base_struct_type_ti (struct dynt
   return get_base_struct_type_to (dtl, info->typeobj);
 }
 
-static const DDS_XTypes_CompleteStructMember *find_struct_member1 (struct dyntypelib *dtl, unsigned char ** const m_base, unsigned char * const obj, size_t *off, DDS_XTypes_CompleteStructType const * const t, const char *name)
+static const DDS_XTypes_CompleteStructMember *find_struct_member (struct dyntypelib *dtl, unsigned char ** const m_base, unsigned char * const obj, DDS_XTypes_CompleteStructType const * const t, const char *name)
 {
+  size_t off = 0;
   if (t->header.base_type._d != DDS_XTypes_TK_NONE)
   {
+    unsigned char *base = dtl_advance_ti (dtl, obj, &off, &t->header.base_type, false);
     DDS_XTypes_CompleteStructType const * const bt = get_base_struct_type_ti (dtl, &t->header.base_type);
-    DDS_XTypes_CompleteStructMember const * const m = find_struct_member1 (dtl, m_base, obj, off, bt, name);
+    DDS_XTypes_CompleteStructMember const * const m = find_struct_member (dtl, m_base, base, bt, name);
     if (m != NULL)
       return m;
   }
@@ -352,17 +354,11 @@ static const DDS_XTypes_CompleteStructMember *find_struct_member1 (struct dyntyp
   {
     const DDS_XTypes_CompleteStructMember *m = &t->member_seq._buffer[i];
     const bool m_is_opt_or_ext = m->common.member_flags & (DDS_XTypes_IS_OPTIONAL | DDS_XTypes_IS_EXTERNAL);
-    *m_base = dtl_advance_ti (dtl, obj, off, &m->common.member_type_id, m_is_opt_or_ext);
+    *m_base = dtl_advance_ti (dtl, obj, &off, &m->common.member_type_id, m_is_opt_or_ext);
     if (strcmp (name, m->detail.name) == 0)
       return m;
   }
   return NULL;
-}
-
-static const DDS_XTypes_CompleteStructMember *find_struct_member (struct dyntypelib *dtl, unsigned char ** const m_base, unsigned char * const obj, DDS_XTypes_CompleteStructType const * const t, const char *name)
-{
-  size_t off = 0;
-  return find_struct_member1 (dtl, m_base, obj, &off, t, name);
 }
 
 static const DDS_XTypes_CompleteUnionMember *find_union_member (DDS_XTypes_CompleteUnionType const * const t, const char *name)
