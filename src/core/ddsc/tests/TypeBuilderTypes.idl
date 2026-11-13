@@ -946,4 +946,72 @@ module TypeBuilderTypes {
     t74_s plain;
     @key t74_s k;
   };
+
+  /* Recursive indirection must not change the C layout of an inline base. */
+  struct t76;
+
+  @final
+  struct t75 {
+    @key unsigned long id;
+    sequence<t76, 2> children;
+    octet tag;
+  };
+
+  @final
+  struct t76 : t75 {
+    octet value;
+  };
+
+  typedef t76 t77_a1;
+  typedef t77_a1 t77_a2[2];
+
+  @final
+  struct t77 {
+    octet before;
+    t77_a2 values;
+    unsigned long long after;
+  };
+
+  @final
+  struct t78 {
+    octet before;
+    @optional unsigned long next;
+    unsigned short after;
+  };
+
+  typedef t78 t79_a1;
+
+  @final
+  struct t79 {
+    unsigned long long id;
+    @external t79_a1 target;
+    octet tag;
+  };
+
+  @final
+  struct t80 {
+    octet before;
+    @optional t79 next;
+    unsigned short after;
+  };
+
+  struct t82;
+
+  @final
+  union t81 switch (long) {
+    case 1:
+    case 2:
+      sequence<t82, 2> children;
+    case 3:
+    case 4:
+    default:
+      unsigned long long value;
+  };
+
+  @final
+  struct t82 {
+    octet before;
+    t81 choice;
+    unsigned short after;
+  };
 };

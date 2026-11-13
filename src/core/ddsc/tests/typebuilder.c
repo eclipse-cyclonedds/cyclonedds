@@ -14,6 +14,7 @@
 #include "config_env.h"
 
 #include "dds/ddsc/dds_opcodes.h"
+#include "dds/ddsrt/align.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -372,6 +373,253 @@ CU_Test(ddsc_typebuilder, union_float128_case, .init = typebuilder_init, .fini =
   }
   CU_ASSERT_FATAL (found_case);
 
+  dds_delete_topic_descriptor (desc);
+  dds_free_typeinfo (type_info);
+  dds_dynamic_type_unref (&dtype);
+}
+
+static void check_descriptor_layout (const dds_topic_descriptor_t *desc, const dds_topic_descriptor_t *generated,
+  const void *sample, size_t size, size_t align)
+{
+  tprintf ("Layout of %s\n", desc->m_typename);
+  CU_ASSERT_EQ_FATAL (generated->m_size, size);
+  CU_ASSERT_EQ_FATAL (generated->m_align, align);
+  CU_ASSERT_EQ (generated->m_nkeys, desc->m_nkeys);
+
+  /* Distinct values in each field expose incorrect offsets and array/sequence
+     strides without depending on the ordering of descriptor instructions. */
+  dds_ostreamLE_t expected, actual;
+  xcdr2_ser (sample, desc, &expected);
+  xcdr2_ser (sample, generated, &actual);
+  CU_ASSERT_MEMEQ (actual.x.m_buffer, actual.x.m_index, expected.x.m_buffer, expected.x.m_index);
+  dds_ostreamLE_fini (&actual, &dds_cdrstream_default_allocator);
+
+  void *decoded;
+  xcdr2_deser (expected.x.m_buffer, expected.x.m_index, &decoded, generated);
+  xcdr2_ser (decoded, desc, &actual);
+  CU_ASSERT_MEMEQ (actual.x.m_buffer, actual.x.m_index, expected.x.m_buffer, expected.x.m_index);
+  dds_sample_free (decoded, generated, DDS_FREE_ALL);
+  dds_ostreamLE_fini (&actual, &dds_cdrstream_default_allocator);
+  dds_ostreamLE_fini (&expected, &dds_cdrstream_default_allocator);
+}
+
+static void check_layout_sample (const dds_topic_descriptor_t *desc, const void *sample, size_t size, size_t align)
+{
+  char topic_name[100];
+  create_unique_topic_name ("typebuilder_layout", topic_name, sizeof (topic_name));
+  const dds_entity_t topic = dds_create_topic (g_participant, desc, topic_name, NULL, NULL);
+  CU_ASSERT_GT_FATAL (topic, 0);
+  struct ddsi_type *type;
+  topic_type_ref (topic, &type);
+  dds_topic_descriptor_t generated = { 0 };
+  CU_ASSERT_EQ_FATAL (ddsi_topic_descriptor_from_type (gv_from_topic (topic), &generated, type), DDS_RETCODE_OK);
+  check_descriptor_layout (desc, &generated, sample, size, align);
+  ddsi_topic_descriptor_fini (&generated);
+  topic_type_unref (topic, type);
+  CU_ASSERT_EQ (dds_delete (topic), DDS_RETCODE_OK);
+}
+
+CU_Test (ddsc_typebuilder, invalid_layout, .init = typebuilder_init, .fini = typebuilder_fini)
+{
+  char topic_name[100];
+  create_unique_topic_name ("typebuilder_invalid_layout", topic_name, sizeof (topic_name));
+  const dds_entity_t topic = dds_create_topic (g_participant, &TypeBuilderTypes_t1_desc, topic_name, NULL, NULL);
+  CU_ASSERT_GT_FATAL (topic, 0);
+  struct ddsi_domaingv *gv = gv_from_topic (topic);
+
+  /* The type library rejects inline cycles during validation. Construct a
+     resolved graph here to exercise the descriptor builder's own layout
+     checks, without allocating objects whose declared sizes overflow. */
+  struct ddsi_type scalar = { .xt._d = DDS_XTypes_TK_UINT64 };
+  uint32_t array_bound = UINT32_MAX;
+  struct ddsi_type array = {
+    .xt._d = DDS_XTypes_TK_ARRAY,
+    .xt._u.array.c.element_type = &scalar,
+    .xt._u.array.bounds = { ._length = 1, ._buffer = &array_bound }
+  };
+  struct ddsi_type string = {
+    .xt._d = DDS_XTypes_TK_STRING8,
+    .xt._u.str8.bound = UINT32_MAX
+  };
+  struct ddsi_type large_string = {
+    .xt._d = DDS_XTypes_TK_STRING8,
+    .xt._u.str8.bound = UINT32_MAX - 1
+  };
+  struct xt_struct_member members[2] = {
+    { .id = 0, .flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD, .detail.name = "value" },
+    { .id = 1, .flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD, .detail.name = "after", .type = &scalar }
+  };
+  struct ddsi_type root = {
+    .state = DDSI_TYPE_RESOLVED,
+    .xt.kind = DDSI_TYPEID_KIND_COMPLETE,
+    .xt.id.x._d = DDS_XTypes_EK_COMPLETE,
+    .xt._d = DDS_XTypes_TK_STRUCTURE,
+    .xt._u.structure.flags = DDS_XTypes_IS_FINAL,
+    .xt._u.structure.detail.type_name = "InvalidLayout",
+    .xt._u.structure.members.seq = members
+  };
+  const struct {
+    const char *name;
+    struct ddsi_type *member_type;
+    uint32_t member_count;
+  } cases[] = {
+    { "inline cycle", &root, 1 },
+    { "array size overflow", &array, 1 },
+    { "bounded string terminator overflow", &string, 1 },
+    { "member alignment overflow", &large_string, 2 }
+  };
+  for (size_t n = 0; n < sizeof (cases) / sizeof (cases[0]); n++)
+  {
+    tprintf ("Rejecting %s\n", cases[n].name);
+    root.xt._u.structure.members.length = cases[n].member_count;
+    members[0].type = cases[n].member_type;
+    dds_topic_descriptor_t generated = { 0 };
+    const dds_return_t ret = ddsi_topic_descriptor_from_type (gv, &generated, &root);
+    if (ret == DDS_RETCODE_OK)
+      ddsi_topic_descriptor_fini (&generated);
+    CU_ASSERT_EQ (ret, DDS_RETCODE_BAD_PARAMETER);
+  }
+  CU_ASSERT_EQ (dds_delete (topic), DDS_RETCODE_OK);
+}
+
+CU_Test (ddsc_typebuilder, recursive_layout, .init = typebuilder_init, .fini = typebuilder_fini)
+{
+  TypeBuilderTypes_t76 children[2] = {
+    { .parent = { .id = 0x11223344, .tag = 0x51 }, .value = 0x61 },
+    { .parent = { .id = 0x22334455, .tag = 0x52 }, .value = 0x62 }
+  };
+  TypeBuilderTypes_t76 derived = {
+    .parent = {
+      .id = 0x33445566,
+      .children = { ._maximum = 2, ._length = 2, ._buffer = children },
+      .tag = 0x53
+    },
+    .value = 0x63
+  };
+  TypeBuilderTypes_t77 arrays = {
+    .before = 0x71, .values = { derived, children[1] }, .after = UINT64_C (0x1020304050607080)
+  };
+  TypeBuilderTypes_t78 end = { .before = 0x81, .after = 0x8283 };
+  TypeBuilderTypes_t79 link = { .id = UINT64_C (0x2030405060708090), .target = &end, .tag = 0x84 };
+  TypeBuilderTypes_t80 optional = { .before = 0x85, .next = &link, .after = 0x8687 };
+  TypeBuilderTypes_t82 nodes[2] = {
+    { .before = 0x91, .choice = { ._d = 3, ._u.value = UINT64_C (0x30405060708090a0) }, .after = 0x9293 },
+    { .before = 0x94, .choice = { ._d = 99, ._u.value = UINT64_C (0x405060708090a0b0) }, .after = 0x9596 }
+  };
+  TypeBuilderTypes_t82 node = {
+    .before = 0xa1,
+    .choice = { ._d = 2, ._u.children = { ._maximum = 2, ._length = 2, ._buffer = nodes } },
+    .after = 0xa2a3
+  };
+  const struct {
+    const dds_topic_descriptor_t *desc;
+    const void *sample;
+    size_t size;
+    size_t align;
+  } cases[] = {
+    { &TypeBuilderTypes_t75_desc, &derived.parent, sizeof (derived.parent), dds_alignof (TypeBuilderTypes_t75) },
+    { &TypeBuilderTypes_t76_desc, &derived, sizeof (derived), dds_alignof (TypeBuilderTypes_t76) },
+    { &TypeBuilderTypes_t77_desc, &arrays, sizeof (arrays), dds_alignof (TypeBuilderTypes_t77) },
+    { &TypeBuilderTypes_t80_desc, &optional, sizeof (optional), dds_alignof (TypeBuilderTypes_t80) },
+    { &TypeBuilderTypes_t79_desc, &link, sizeof (link), dds_alignof (TypeBuilderTypes_t79) },
+    { &TypeBuilderTypes_t81_desc, &node.choice, sizeof (node.choice), dds_alignof (TypeBuilderTypes_t81) },
+    { &TypeBuilderTypes_t82_desc, &node, sizeof (node), dds_alignof (TypeBuilderTypes_t82) }
+  };
+  for (size_t n = 0; n < sizeof (cases) / sizeof (cases[0]); n++)
+    check_layout_sample (cases[n].desc, cases[n].sample, cases[n].size, cases[n].align);
+}
+
+CU_Test (ddsc_typebuilder, recursive_pointer_layout, .init = typebuilder_init, .fini = typebuilder_fini)
+{
+  /* IDLC requires complete optional member types. Its nonrecursive pointer
+     chain has the same C layout and wire data as this finite recursive sample. */
+  dds_dynamic_type_t optional = dds_dynamic_type_create (g_participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_STRUCTURE, .name = "recursive_layout_optional"
+  });
+  dds_dynamic_type_t link = dds_dynamic_type_create (g_participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_STRUCTURE, .name = "recursive_layout_link"
+  });
+  CU_ASSERT_EQ_FATAL (optional.ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (link.ret, DDS_RETCODE_OK);
+  dds_dynamic_type_t alias = dds_dynamic_type_create (g_participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_ALIAS, .name = "recursive_layout_alias", .base_type = DDS_DYNAMIC_TYPE_SPEC (dds_dynamic_type_ref (&optional))
+  });
+  CU_ASSERT_EQ_FATAL (alias.ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&optional, DDS_DYNAMIC_MEMBER_PRIM (DDS_DYNAMIC_UINT8, "before")), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&optional, DDS_DYNAMIC_MEMBER (dds_dynamic_type_ref (&link), "next")), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_member_set_optional (&optional, 1, true), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&optional, DDS_DYNAMIC_MEMBER_PRIM (DDS_DYNAMIC_UINT16, "after")), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&link, DDS_DYNAMIC_MEMBER_PRIM (DDS_DYNAMIC_UINT64, "id")), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&link, DDS_DYNAMIC_MEMBER (alias, "target")), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_member_set_external (&link, 1, true), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&link, DDS_DYNAMIC_MEMBER_PRIM (DDS_DYNAMIC_UINT8, "tag")), DDS_RETCODE_OK);
+
+  TypeBuilderTypes_t78 end = { .before = 0x81, .after = 0x8283 };
+  TypeBuilderTypes_t79 link_sample = { .id = UINT64_C (0x2030405060708090), .target = &end, .tag = 0x84 };
+  TypeBuilderTypes_t80 optional_sample = { .before = 0x85, .next = &link_sample, .after = 0x8687 };
+  const struct {
+    dds_dynamic_type_t *type;
+    const dds_topic_descriptor_t *reference;
+    const void *sample;
+    size_t size;
+    size_t align;
+  } cases[] = {
+    { &optional, &TypeBuilderTypes_t80_desc, &optional_sample, sizeof (optional_sample), dds_alignof (TypeBuilderTypes_t80) },
+    { &link, &TypeBuilderTypes_t79_desc, &link_sample, sizeof (link_sample), dds_alignof (TypeBuilderTypes_t79) }
+  };
+  for (size_t n = 0; n < sizeof (cases) / sizeof (cases[0]); n++)
+  {
+    dds_typeinfo_t *type_info;
+    CU_ASSERT_EQ_FATAL (dds_dynamic_type_register (cases[n].type, &type_info), DDS_RETCODE_OK);
+    dds_topic_descriptor_t *desc;
+    CU_ASSERT_EQ_FATAL (dds_create_topic_descriptor (DDS_FIND_SCOPE_LOCAL_DOMAIN, g_participant, type_info, 0, &desc), DDS_RETCODE_OK);
+    check_descriptor_layout (cases[n].reference, desc, cases[n].sample, cases[n].size, cases[n].align);
+    dds_delete_topic_descriptor (desc);
+    dds_free_typeinfo (type_info);
+  }
+  dds_dynamic_type_unref (&optional);
+  dds_dynamic_type_unref (&link);
+}
+
+CU_Test (ddsc_typebuilder, external_float128_layout, .init = typebuilder_init, .fini = typebuilder_fini)
+{
+  /* IDLC does not map FLOAT128 to C, but an external member occupies a pointer. */
+  struct float128_sample {
+    uint8_t before;
+    uint64_t (*value)[2];
+    uint32_t after;
+  };
+  dds_dynamic_type_t dtype = dds_dynamic_type_create (g_participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_STRUCTURE, .name = "external_float128_layout"
+  });
+  CU_ASSERT_EQ_FATAL (dtype.ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&dtype, DDS_DYNAMIC_MEMBER_PRIM (DDS_DYNAMIC_UINT8, "before")), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&dtype, DDS_DYNAMIC_MEMBER_PRIM (DDS_DYNAMIC_FLOAT128, "value")), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_member_set_external (&dtype, 1, true), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&dtype, DDS_DYNAMIC_MEMBER_PRIM (DDS_DYNAMIC_UINT32, "after")), DDS_RETCODE_OK);
+  dds_typeinfo_t *type_info;
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_register (&dtype, &type_info), DDS_RETCODE_OK);
+  dds_topic_descriptor_t *desc;
+  CU_ASSERT_EQ_FATAL (dds_create_topic_descriptor (DDS_FIND_SCOPE_LOCAL_DOMAIN, g_participant, type_info, 0, &desc), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (desc->m_size, sizeof (struct float128_sample));
+  CU_ASSERT_EQ_FATAL (desc->m_align, dds_alignof (struct float128_sample));
+  CU_ASSERT_EQ_FATAL (DDS_OP_TYPE (desc->m_ops[2]), DDS_OP_VAL_16BY);
+  CU_ASSERT_FATAL (desc->m_ops[2] & DDS_OP_FLAG_EXT);
+  CU_ASSERT_EQ (desc->m_ops[3], offsetof (struct float128_sample, value));
+  CU_ASSERT_EQ (desc->m_ops[5], offsetof (struct float128_sample, after));
+
+  uint64_t value[2] = { UINT64_C (0x5a5a5a5a5a5a5a5a), UINT64_C (0x5a5a5a5a5a5a5a5a) };
+  const struct float128_sample sample = { .before = 0x11, .value = &value, .after = 0x22334455 };
+  const uint8_t expected[] = {
+    0x11, 0, 0, 0,
+    0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
+    0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a,
+    0x55, 0x44, 0x33, 0x22
+  };
+  dds_ostreamLE_t os;
+  xcdr2_ser (&sample, desc, &os);
+  CU_ASSERT_MEMEQ (os.x.m_buffer, os.x.m_index, expected, sizeof (expected));
+  dds_ostreamLE_fini (&os, &dds_cdrstream_default_allocator);
   dds_delete_topic_descriptor (desc);
   dds_free_typeinfo (type_info);
   dds_dynamic_type_unref (&dtype);
