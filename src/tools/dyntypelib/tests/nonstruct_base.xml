@@ -1,0 +1,6 @@
+<dds>
+  <types>
+    <typedef name="Alias" type="uint32"/>
+    <struct name="Derived" baseType="Alias"/>
+  </types>
+</dds>

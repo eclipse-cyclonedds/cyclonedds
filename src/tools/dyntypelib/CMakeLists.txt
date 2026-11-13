@@ -51,6 +51,14 @@ target_include_directories(dyntypelib
 
 target_link_libraries(dyntypelib PUBLIC ddsc)
 
+if(BUILD_TESTING AND ENABLE_TYPE_DISCOVERY)
+  include(CUnit)
+  add_cunit_executable(cunit_dyntypelib tests/inheritance.c)
+  target_link_libraries(cunit_dyntypelib PRIVATE dyntypelib)
+  target_compile_definitions(cunit_dyntypelib PRIVATE
+    DYNTYPELIB_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests")
+endif()
+
 if(INSTALL_DYNTYPELIB)
   install(
     TARGETS dyntypelib

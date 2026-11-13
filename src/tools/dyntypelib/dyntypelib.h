@@ -28,7 +28,9 @@ enum dyntype_state {
   DYNTYPE_DECLARED,
   DYNTYPE_MATERIALIZING,
   DYNTYPE_MATERIALIZED,
-  DYNTYPE_REGISTERED
+  DYNTYPE_REGISTERED,
+  DYNTYPE_RESOLVING_BASE,
+  DYNTYPE_BASE_RESOLVED
 };
 
 struct dyntype {
@@ -39,6 +41,9 @@ struct dyntype {
   dds_dynamic_type_t *dtype;
   struct ddsi_typeinfo *typeinfo;
   DDS_XTypes_TypeObject *typeobj;
+  struct dyntype *base_struct; /* base of a struct, or underlying struct of a typedef */
+  enum dds_dynamic_type_extensibility extensibility;
+  struct dyntype *next; /* declarations from one XML library */
 };
 
 struct dyntypelib {

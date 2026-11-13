@@ -1,0 +1,5 @@
+<dds>
+  <types>
+    <struct name="Derived" baseType="Missing"/>
+  </types>
+</dds>
