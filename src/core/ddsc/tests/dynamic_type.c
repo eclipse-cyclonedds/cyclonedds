@@ -1134,6 +1134,55 @@ CU_Test (ddsc_dynamic_type, nested_minimal_dependencies, .init = dynamic_type_in
   ddsrt_mutex_unlock (&gv->typelib_lock);
 }
 
+CU_Test (ddsc_dynamic_type, abort_construction, .init = dynamic_type_init, .fini = dynamic_type_fini)
+{
+  dds_dynamic_type_t empty = { 0 };
+  CU_ASSERT_EQ (dds_dynamic_type_abort (NULL), DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ (dds_dynamic_type_abort (&empty), DDS_RETCODE_BAD_PARAMETER);
+
+  dds_dynamic_type_t existing = dds_dynamic_type_create (participant,
+      (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "AbortExisting" });
+  CU_ASSERT_EQ_FATAL (existing.ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&existing, DDS_DYNAMIC_MEMBER_PRIM (DDS_DYNAMIC_UINT32, "value")), DDS_RETCODE_OK);
+  dds_typeinfo_t *type_info;
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_register (&existing, &type_info), DDS_RETCODE_OK);
+
+  dds_dynamic_type_t node = dds_dynamic_type_create (participant,
+      (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "AbortNode" });
+  CU_ASSERT_EQ_FATAL (node.ret, DDS_RETCODE_OK);
+  dds_dynamic_type_t sequence = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_SEQUENCE,
+    .name = "AbortSequence",
+    .element_type = DDS_DYNAMIC_TYPE_SPEC (dds_dynamic_type_ref (&node))
+  });
+  CU_ASSERT_EQ_FATAL (sequence.ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&node, DDS_DYNAMIC_MEMBER (sequence, "children")), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&node, DDS_DYNAMIC_MEMBER (dds_dynamic_type_ref (&existing), "existing")), DDS_RETCODE_OK);
+  dds_dynamic_type_t other_handle = dds_dynamic_type_ref (&node);
+  CU_ASSERT_EQ_FATAL (other_handle.ret, DDS_RETCODE_OK);
+
+  /* A failed construction operation poisons ret, but must not prevent cleanup.
+     The separately held handle remains valid for unref after abandoning it. */
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_add_member (&node, ((dds_dynamic_member_descriptor_t) {
+    .name = "duplicate_id", .id = 0, .type = DDS_DYNAMIC_TYPE_SPEC_PRIM (DDS_DYNAMIC_UINT32), .index = DDS_DYNAMIC_MEMBER_INDEX_END
+  })), DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ_FATAL (dds_dynamic_type_abort (&node), DDS_RETCODE_OK);
+  CU_ASSERT_EQ (node.ret, DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ (((struct ddsi_type *) other_handle.x[0])->state, DDSI_TYPE_INVALID);
+  CU_ASSERT_EQ (((struct ddsi_type *) other_handle.x[0])->xt._d, DDS_XTypes_TK_NONE);
+  CU_ASSERT_EQ (dds_dynamic_type_abort (&other_handle), DDS_RETCODE_OK);
+  CU_ASSERT_EQ (dds_dynamic_type_abort (&existing), DDS_RETCODE_PRECONDITION_NOT_MET);
+  CU_ASSERT_EQ (existing.ret, DDS_RETCODE_OK);
+
+  dds_topic_descriptor_t *desc;
+  CU_ASSERT_EQ_FATAL (dds_create_topic_descriptor (DDS_FIND_SCOPE_LOCAL_DOMAIN, participant, type_info, 0, &desc), DDS_RETCODE_OK);
+  dds_delete_topic_descriptor (desc);
+  CU_ASSERT_EQ (dds_dynamic_type_unref (&other_handle), DDS_RETCODE_OK);
+  CU_ASSERT_EQ (dds_dynamic_type_unref (&node), DDS_RETCODE_OK);
+  dds_free_typeinfo (type_info);
+  CU_ASSERT_EQ (dds_dynamic_type_unref (&existing), DDS_RETCODE_OK);
+}
+
 CU_Test (ddsc_dynamic_type, recursive_struct_disabled, .init = dynamic_type_no_recursive_init, .fini = dynamic_type_fini)
 {
   struct ddsi_domaingv *gv = get_domaingv (participant);

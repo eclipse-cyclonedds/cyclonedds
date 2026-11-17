@@ -1728,7 +1728,7 @@ static bool xt_validate_can_skip_committed_hash (const struct xt_validate_contex
 
   const struct ddsi_type *type = ddsi_type_from_xt_type (t);
   if (type->state == DDSI_TYPE_CONSTRUCTING || type->state == DDSI_TYPE_COMPLETING)
-    return true;
+    return !ddsi_typeid_is_none (&type->xt.id);
   if (in_key)
     return false;
   return type->state == DDSI_TYPE_RESOLVED;

@@ -561,6 +561,13 @@ dds_return_t dds_dynamic_type_register (dds_dynamic_type_t *type, struct ddsi_ty
   return (type->ret = ddsi_dynamic_type_register (get_dtype_complete_addr (type), get_dtype_minimal_addr (type), type_info));
 }
 
+dds_return_t dds_dynamic_type_abort (dds_dynamic_type_t *type)
+{
+  if (type == NULL || get_dtype_complete (type) == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+  return ddsi_dynamic_type_abort (get_dtype_complete (type));
+}
+
 dds_dynamic_type_t dds_dynamic_type_ref (dds_dynamic_type_t *type)
 {
   dds_dynamic_type_t ref = { 0 };

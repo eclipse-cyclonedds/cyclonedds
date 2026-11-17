@@ -120,7 +120,8 @@ CU_Test (dyntypelib, invalid_base_type)
   } cases[] = {
     { DYNTYPELIB_TEST_DATA_DIR "/unknown_base.xml", "Missing" },
     { DYNTYPELIB_TEST_DATA_DIR "/nonstruct_base.xml", "Alias" },
-    { DYNTYPELIB_TEST_DATA_DIR "/cyclic_base.xml", "cyclic" }
+    { DYNTYPELIB_TEST_DATA_DIR "/cyclic_base.xml", "cyclic" },
+    { DYNTYPELIB_TEST_DATA_DIR "/overlong_derived.xml", "too long" }
   };
   dds_entity_t participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   CU_ASSERT_GT_FATAL (participant, 0);
@@ -141,6 +142,44 @@ CU_Test (dyntypelib, invalid_base_type)
   CU_ASSERT_EQ_FATAL (dtl_add_xml_type_library (dtl, DYNTYPELIB_TEST_DATA_DIR "/recursive_inheritance.xml", &err), DDS_RETCODE_OK);
   CU_ASSERT_EQ (dtl_lookup_typename (dtl, "::Model::Inner::Derived"), derived);
   CU_ASSERT_NEQ (dtl_lookup_typename (dtl, "::Leaf"), NULL);
+  dtl_free (dtl);
+  CU_ASSERT_EQ (dds_delete (participant), DDS_RETCODE_OK);
+}
+
+CU_Test (dyntypelib, recursive_import_rollback)
+{
+  static const struct {
+    const char *path;
+    const char *diagnostic;
+  } cases[] = {
+    { DYNTYPELIB_TEST_DATA_DIR "/recursive_invalid_member.xml", "unsupported type" },
+    { DYNTYPELIB_TEST_DATA_DIR "/recursive_invalid_flags.xml", "register" },
+    { DYNTYPELIB_TEST_DATA_DIR "/recursive_empty_enum.xml", "register" }
+  };
+  dds_entity_t participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+  CU_ASSERT_GT_FATAL (participant, 0);
+  struct dyntypelib *dtl = dtl_new (participant);
+  struct dyntypelib_error err = { 0 };
+  CU_ASSERT_EQ_FATAL (dtl_add_xml_type_library (dtl, DYNTYPELIB_TEST_DATA_DIR "/inheritance.xml", &err), DDS_RETCODE_OK);
+  const struct dyntype *base = dtl_lookup_typename (dtl, "::Model::Base");
+  CU_ASSERT_NEQ_FATAL (base, NULL);
+
+  /* Fail during materialization and registration after the recursive graph
+     Branch -> sequence<Leaf> -> Branch has been built. It also references a
+     previously registered type, which must survive both kinds of rollback. */
+  for (size_t i = 0; i < sizeof (cases) / sizeof (cases[0]); i++)
+  {
+    CU_ASSERT_NEQ (dtl_add_xml_type_library (dtl, cases[i].path, &err), DDS_RETCODE_OK);
+    CU_ASSERT_NEQ (strstr (err.errmsg, cases[i].diagnostic), NULL);
+    CU_ASSERT_EQ (dtl_lookup_typename (dtl, "::Branch"), NULL);
+    CU_ASSERT_EQ (dtl_lookup_typename (dtl, "::Leaf"), NULL);
+    CU_ASSERT_EQ (dtl_lookup_typename (dtl, "::Empty"), NULL);
+    CU_ASSERT_EQ (dtl_lookup_typename (dtl, "::Model::Base"), base);
+  }
+  dds_topic_descriptor_t *desc;
+  CU_ASSERT_EQ_FATAL (dds_create_topic_descriptor (DDS_FIND_SCOPE_LOCAL_DOMAIN, participant, base->typeinfo, 0, &desc), DDS_RETCODE_OK);
+  dds_delete_topic_descriptor (desc);
+  CU_ASSERT_EQ_FATAL (dtl_add_xml_type_library (dtl, DYNTYPELIB_TEST_DATA_DIR "/recursive_inheritance.xml", &err), DDS_RETCODE_OK);
   dtl_free (dtl);
   CU_ASSERT_EQ (dds_delete (participant), DDS_RETCODE_OK);
 }
