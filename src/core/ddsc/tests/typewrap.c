@@ -2649,6 +2649,59 @@ CU_Test (ddsc_typewrap, invalid_struct_typeobject, .init = typewrap_init, .fini 
       sizeof (valid_member_ids) / sizeof (valid_member_ids[0]), DDS_RETCODE_OK);
 }
 
+CU_Test (ddsc_typewrap, union_member_labels, .init = typewrap_init, .fini = typewrap_fini)
+{
+  int32_t label = 1;
+  struct DDS_XTypes_CompleteUnionMember complete_members[2] = {
+    { .common = { .member_id = 0, .member_flags = DDS_XTypes_TRY_CONSTRUCT1,
+        .type_id._d = DDS_XTypes_TK_UINT8, .label_seq = { ._length = 1, ._buffer = &label } },
+      .detail.name = "a" },
+    { .common = { .member_id = 1, .member_flags = DDS_XTypes_TRY_CONSTRUCT1,
+        .type_id._d = DDS_XTypes_TK_UINT64 }, .detail.name = "b" }
+  };
+  struct DDS_XTypes_MinimalUnionMember minimal_members[2] = {
+    { .common = complete_members[0].common, .detail.name_hash = { 1 } },
+    { .common = complete_members[1].common, .detail.name_hash = { 2 } }
+  };
+
+  /* Cover both imported representations, including an entirely empty label
+     set. An unlabeled member is valid only when it is the default branch. */
+  for (uint32_t first = 0; first < 2; first++)
+  {
+    for (uint32_t is_default = 0; is_default < 2; is_default++)
+    {
+      complete_members[1].common.member_flags = DDS_XTypes_TRY_CONSTRUCT1 | (is_default ? DDS_XTypes_IS_DEFAULT : 0);
+      minimal_members[1].common.member_flags = complete_members[1].common.member_flags;
+      struct DDS_XTypes_TypeObject complete = {
+        ._d = DDS_XTypes_EK_COMPLETE,
+        ._u.complete = {
+          ._d = DDS_XTypes_TK_UNION,
+          ._u.union_type = {
+            .union_flags = DDS_XTypes_IS_FINAL,
+            .header.detail.type_name = "UnionMemberLabels",
+            .discriminator.common = { .member_flags = DDS_XTypes_TRY_CONSTRUCT1, .type_id._d = DDS_XTypes_TK_UINT32 },
+            .member_seq = { ._length = 2 - first, ._buffer = complete_members + first }
+          }
+        }
+      };
+      struct DDS_XTypes_TypeObject minimal = {
+        ._d = DDS_XTypes_EK_MINIMAL,
+        ._u.minimal = {
+          ._d = DDS_XTypes_TK_UNION,
+          ._u.union_type = {
+            .union_flags = DDS_XTypes_IS_FINAL,
+            .discriminator.common = complete._u.complete._u.union_type.discriminator.common,
+            .member_seq = { ._length = 2 - first, ._buffer = minimal_members + first }
+          }
+        }
+      };
+      const dds_return_t expected = is_default ? DDS_RETCODE_OK : DDS_RETCODE_BAD_PARAMETER;
+      check_typeobject (&complete, expected);
+      check_typeobject (&minimal, expected);
+    }
+  }
+}
+
 CU_Test (ddsc_typewrap, invalid_union_typeobject, .init = typewrap_init, .fini = typewrap_fini)
 {
   const struct union_member duplicate_adjacent[] = {

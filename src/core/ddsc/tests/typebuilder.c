@@ -445,6 +445,24 @@ CU_Test (ddsc_typebuilder, invalid_layout, .init = typebuilder_init, .fini = typ
     .xt._d = DDS_XTypes_TK_STRING8,
     .xt._u.str8.bound = UINT32_MAX - 1
   };
+  struct ddsi_type discriminator = { .xt._d = DDS_XTypes_TK_UINT32 };
+  struct ddsi_type small_scalar = { .xt._d = DDS_XTypes_TK_UINT8 };
+  int32_t label = 1;
+  struct xt_union_member union_members[2] = {
+    { .id = 0, .flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD, .detail.name = "a", .type = &small_scalar,
+      .label_seq = { ._length = 1, ._buffer = &label } },
+    { .id = 1, .flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD, .detail.name = "b", .type = &scalar }
+  };
+  struct ddsi_type unlabeled_union = {
+    .state = DDSI_TYPE_RESOLVED,
+    .xt.kind = DDSI_TYPEID_KIND_COMPLETE,
+    .xt.id.x._d = DDS_XTypes_EK_COMPLETE,
+    .xt._d = DDS_XTypes_TK_UNION,
+    .xt._u.union_type.flags = DDS_XTypes_IS_FINAL,
+    .xt._u.union_type.detail.type_name = "UnlabeledUnion",
+    .xt._u.union_type.disc_type = &discriminator,
+    .xt._u.union_type.members = { .length = 2, .seq = union_members }
+  };
   struct xt_struct_member members[2] = {
     { .id = 0, .flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD, .detail.name = "value" },
     { .id = 1, .flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD, .detail.name = "after", .type = &scalar }
@@ -466,7 +484,8 @@ CU_Test (ddsc_typebuilder, invalid_layout, .init = typebuilder_init, .fini = typ
     { "inline cycle", &root, 1 },
     { "array size overflow", &array, 1 },
     { "bounded string terminator overflow", &string, 1 },
-    { "member alignment overflow", &large_string, 2 }
+    { "member alignment overflow", &large_string, 2 },
+    { "union member without labels or default", &unlabeled_union, 1 }
   };
   for (size_t n = 0; n < sizeof (cases) / sizeof (cases[0]); n++)
   {
