@@ -1243,7 +1243,15 @@ static dds_return_t xt_valid_union_case_labels (struct ddsi_domaingv *gv, const 
 
   uint32_t cnt = 0;
   for (uint32_t n = 0; n < t->_u.union_type.members.length; n++)
+  {
+    const struct xt_union_member *member = &t->_u.union_type.members.seq[n];
+    if (member->label_seq._length == 0 && !(member->flags & DDS_XTypes_IS_DEFAULT))
+    {
+      GVTRACE ("union member without case labels or default\n");
+      return DDS_RETCODE_BAD_PARAMETER;
+    }
     cnt += t->_u.union_type.members.seq[n].label_seq._length;
+  }
   if (cnt == 0)
     goto empty;
 

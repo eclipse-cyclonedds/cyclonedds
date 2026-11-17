@@ -689,6 +689,9 @@ static dds_return_t typebuilder_get_type_layout_impl (struct typebuilder_layout_
       typebuilder_layout_init (&members);
       for (uint32_t n = 0; n < type->xt._u.union_type.members.length; n++)
       {
+        if (type->xt._u.union_type.members.seq[n].label_seq._length == 0 &&
+            !(type->xt._u.union_type.members.seq[n].flags & DDS_XTypes_IS_DEFAULT))
+          return DDS_RETCODE_BAD_PARAMETER;
         struct typebuilder_layout member;
         const bool indirect = (type->xt._u.union_type.members.seq[n].flags & DDS_XTypes_IS_EXTERNAL) != 0;
         if ((ret = typebuilder_get_type_layout (cache, type->xt._u.union_type.members.seq[n].type, indirect, &member)) != DDS_RETCODE_OK)
