@@ -1,0 +1,11 @@
+<dds>
+  <types>
+    <enum name="Empty" bitBound="32"/>
+    <struct name="Leaf" baseType="Branch">
+      <member name="value" type="nonBasic" nonBasicTypeName="Empty"/>
+    </struct>
+    <struct name="Branch">
+      <member name="children" type="nonBasic" nonBasicTypeName="Leaf" sequenceMaxLength="4"/>
+    </struct>
+  </types>
+</dds>

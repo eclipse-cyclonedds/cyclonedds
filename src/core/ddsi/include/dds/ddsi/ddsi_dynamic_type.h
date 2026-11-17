@@ -139,6 +139,9 @@ dds_return_t ddsi_dynamic_type_member_set_try_construct (struct ddsi_type *type,
 dds_return_t ddsi_dynamic_type_register (struct ddsi_type **type_c, struct ddsi_type **type_m, ddsi_typeinfo_t **type_info);
 
 /** @component dynamic_type_support */
+dds_return_t ddsi_dynamic_type_abort (struct ddsi_type *type);
+
+/** @component dynamic_type_support */
 struct ddsi_type * ddsi_dynamic_type_dup (const struct ddsi_type *src);
 
 /** @component dynamic_type_support */

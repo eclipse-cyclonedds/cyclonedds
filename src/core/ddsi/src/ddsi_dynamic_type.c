@@ -114,7 +114,8 @@ static void dynamic_type_abort_deps_locked (struct ddsi_type *type, struct ddsrt
 
 static void dynamic_type_abort_dep_locked (struct ddsi_type *type, struct ddsrt_hh *visited)
 {
-  if (type == NULL || (type->state != DDSI_TYPE_CONSTRUCTING && type->state != DDSI_TYPE_COMPLETING))
+  if (type == NULL || !ddsi_typeid_is_none (&type->xt.id) ||
+      (type->state != DDSI_TYPE_CONSTRUCTING && type->state != DDSI_TYPE_COMPLETING && type->state != DDSI_TYPE_INVALID))
     return;
   dynamic_type_abort_deps_locked (type, visited);
 }
@@ -155,11 +156,11 @@ static void dynamic_type_abort_deps_locked (struct ddsi_type *type, struct ddsrt
       break;
   }
 
-  /* At the early recursive-types-disabled failure point no type identifiers,
-     dependency table entries or SCC refcount consolidation exist yet.  Finalize
-     the owned XTypes payloads directly so their construction refs are dropped;
-     the outer ddsi_type shells remain alive until their normal refs are
-     released by the public dynamic type handles. */
+  /* Unidentified construction nodes have no dependency table entries or SCC
+     refcount consolidation. Finalize their owned XTypes payloads directly so
+     their construction refs are dropped; the outer ddsi_type shells remain
+     alive until their normal refs are released by the public dynamic type
+     handles. */
   type->state = DDSI_TYPE_INVALID;
   ddsi_xt_type_fini_owned (gv, type, &type->xt, false);
   ddsi_type_unref_locked (gv, type);
@@ -168,8 +169,23 @@ static void dynamic_type_abort_deps_locked (struct ddsi_type *type, struct ddsrt
 static void dynamic_type_abort_unidentified_graph_locked (struct ddsi_type *type)
 {
   struct ddsrt_hh *visited = ddsi_type_visit_new ();
-  dynamic_type_abort_deps_locked (type, visited);
+  dynamic_type_abort_dep_locked (type, visited);
   ddsi_type_visit_free (visited);
+}
+
+dds_return_t ddsi_dynamic_type_abort (struct ddsi_type *type)
+{
+  struct ddsi_domaingv *gv = type->gv;
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  dds_return_t ret = DDS_RETCODE_PRECONDITION_NOT_MET;
+  if (ddsi_typeid_is_none (&type->xt.id) &&
+      (type->state == DDSI_TYPE_CONSTRUCTING || type->state == DDSI_TYPE_COMPLETING || type->state == DDSI_TYPE_INVALID))
+  {
+    dynamic_type_abort_unidentified_graph_locked (type);
+    ret = DDS_RETCODE_OK;
+  }
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+  return ret;
 }
 
 static dds_return_t dynamic_type_register_dep (struct ddsi_type *type, struct ddsi_type **dep_type)
@@ -340,12 +356,6 @@ static dds_return_t dynamic_type_finalize_locked (struct ddsi_type **type, struc
   if (ddsi_type_visit_seen (visited, *type))
     return ret;
 
-  if (!gv->config.allow_recursive_types && (ret = ddsi_xt_validate (gv, *type)) != DDS_RETCODE_OK)
-  {
-    dynamic_type_abort_unidentified_graph_locked (*type);
-    return ret;
-  }
-
   struct DDS_XTypes_TypeIdentifier ti;
   ddsi_xt_get_typeid_impl (&(*type)->xt, &ti, (*type)->xt.kind);
 
@@ -448,8 +458,15 @@ static dds_return_t dynamic_type_complete_locked (struct ddsi_type **type)
     return ret;
   }
 
-  if ((ret = dynamic_type_mark_completing_locked (type)) != DDS_RETCODE_OK)
+  /* Validate the completed definitions before assigning identifiers or creating
+     dependency records. A rejected recursive graph can then be dismantled
+     using construction references, without leaving an inactive SCC behind. */
+  if ((ret = dynamic_type_mark_completing_locked (type)) != DDS_RETCODE_OK ||
+      (ret = ddsi_xt_validate (gv, *type)) != DDS_RETCODE_OK)
+  {
+    dynamic_type_abort_unidentified_graph_locked (*type);
     return ret;
+  }
 
   struct ddsrt_hh *visited = ddsi_type_visit_new ();
   struct dynamic_type_replaced_node *replaced = NULL;

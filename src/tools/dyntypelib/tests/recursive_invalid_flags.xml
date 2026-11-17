@@ -1,0 +1,11 @@
+<dds>
+  <types>
+    <struct name="Leaf" baseType="Branch">
+      <member name="value" type="uint32" key="true" optional="true"/>
+    </struct>
+    <struct name="Branch">
+      <member name="children" type="nonBasic" nonBasicTypeName="Leaf" sequenceMaxLength="4"/>
+      <member name="existing" type="nonBasic" nonBasicTypeName="Model::Base"/>
+    </struct>
+  </types>
+</dds>

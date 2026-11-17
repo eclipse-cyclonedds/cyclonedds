@@ -675,6 +675,33 @@ DDS_EXPORT dds_return_t dds_dynamic_member_set_try_construct (dds_dynamic_type_t
 DDS_EXPORT dds_return_t dds_dynamic_type_register (dds_dynamic_type_t *type, struct ddsi_typeinfo **type_info);
 
 /**
+ * @brief Abandon an unfinished Dynamic Type graph
+ * @ingroup dynamic_type
+ * @component dynamic_type_api
+ *
+ * Invalidates the type and its reachable dependencies that have not been
+ * assigned type identifiers by registration. This releases their construction
+ * references, including cycles. Registered dependencies remain unchanged.
+ * All handles to abandoned types must subsequently be released with
+ * dds_dynamic_type_unref; they cannot be used for further construction.
+ *
+ * Unlike construction operations, this function accepts a handle whose ret
+ * field already reports an error. It does not change that field. Repeated
+ * calls on an abandoned handle are allowed.
+ *
+ * @param[in] type Dynamic Type whose construction should be abandoned.
+ *
+ * @retval DDS_RETCODE_OK
+ *            The unfinished graph was abandoned.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *            The handle is null or does not reference a type.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *            The type has already been finalized or assigned an identifier;
+ *            it and its dependencies are unchanged.
+ */
+DDS_EXPORT dds_return_t dds_dynamic_type_abort (dds_dynamic_type_t *type);
+
+/**
  * @brief Reference a Dynamic Type
  * @ingroup dynamic_type
  * @component dynamic_type_api

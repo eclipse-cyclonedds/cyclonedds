@@ -470,6 +470,11 @@ static dds_return_t ensure_struct_header (const struct make_context *ctxt, struc
   const struct elem *elem = t->definition;
   const char *base_name = getattr (elem, "baseType");
   dds_dynamic_type_descriptor_t desc = { .kind = DDS_DYNAMIC_STRUCTURE, .name = t->name + 2 };
+  /* Creation rejects invalid names before consuming the base reference. Check
+     the same bound before acquiring that reference. */
+  const size_t name_length = strlen (desc.name);
+  if (name_length == 0 || name_length >= sizeof (DDS_XTypes_QualifiedTypeName) - 1)
+    return dtl_set_error (err, elem, "struct name is empty or too long\n");
   dds_return_t rc;
   if (base_name)
   {
@@ -1002,6 +1007,11 @@ dds_return_t dtl_add_xml_type_library (struct dyntypelib *dtl, const char *xml_t
   return DDS_RETCODE_OK;
 
  err:
+  /* Construction references can form cycles before registration establishes
+     their component ownership. Break those cycles before dropping handles. */
+  for (struct dyntype *t = ctxt.new_types; t; t = t->next)
+    if (t->dtype && t->dtype->x[0])
+      (void) dds_dynamic_type_abort (t->dtype);
   while (ctxt.new_types)
   {
     struct dyntype *t = ctxt.new_types;
