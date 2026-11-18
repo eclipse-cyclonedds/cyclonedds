@@ -147,7 +147,7 @@ DDS_EXPORT extern inline int ddsrt_atomic_cas64 (volatile ddsrt_atomic_uint64_t 
 DDS_EXPORT extern inline int ddsrt_atomic_casptr (volatile ddsrt_atomic_uintptr_t *x, uintptr_t exp, uintptr_t des);
 DDS_EXPORT extern inline int ddsrt_atomic_casvoidp (volatile ddsrt_atomic_voidp_t *x, void *exp, void *des);
 #if DDSRT_HAVE_ATOMIC_LIFO
-DDS_EXPORT extern inline int ddsrt_atomic_casvoidp2 (volatile ddsrt_atomic_uintptr2_t *x, uintptr_t a0, uintptr_t b0, uintptr_t a1, uintptr_t b1);
+extern inline int ddsrt_atomic_casvoidp2 (volatile ddsrt_atomic_uintptr2_t *x, uintptr_t a0, uintptr_t b0, uintptr_t a1, uintptr_t b1);
 #endif
 
 /* FENCES */

@@ -870,7 +870,7 @@ typedef struct {
  * 
  * @param[out] head the lifo list
  */
-DDS_EXPORT void ddsrt_atomic_lifo_init(ddsrt_atomic_lifo_t *head);
+void ddsrt_atomic_lifo_init(ddsrt_atomic_lifo_t *head);
 
 /**
  * @brief Push to the lifo list
@@ -879,7 +879,7 @@ DDS_EXPORT void ddsrt_atomic_lifo_init(ddsrt_atomic_lifo_t *head);
  * @param[in] elem the element to push to it
  * @param[in] linkoff the link offset with respect to elem
  */
-DDS_EXPORT void ddsrt_atomic_lifo_push(ddsrt_atomic_lifo_t *head, void *elem, size_t linkoff);
+void ddsrt_atomic_lifo_push(ddsrt_atomic_lifo_t *head, void *elem, size_t linkoff);
 
 /**
  * @brief Pop from the lifo list
@@ -889,7 +889,7 @@ DDS_EXPORT void ddsrt_atomic_lifo_push(ddsrt_atomic_lifo_t *head, void *elem, si
  * 
  * @return pointer to the popped elem
  */
-DDS_EXPORT void *ddsrt_atomic_lifo_pop(ddsrt_atomic_lifo_t *head, size_t linkoff);
+void *ddsrt_atomic_lifo_pop(ddsrt_atomic_lifo_t *head, size_t linkoff);
 
 /**
  * @brief Push a chain of elements to the lifo list
@@ -899,7 +899,7 @@ DDS_EXPORT void *ddsrt_atomic_lifo_pop(ddsrt_atomic_lifo_t *head, size_t linkoff
  * @param[in] last the element connected to the existing chain
  * @param[in] linkoff the link offset with respect to the element
  */
-DDS_EXPORT void ddsrt_atomic_lifo_pushmany(ddsrt_atomic_lifo_t *head, void *first, void *last, size_t linkoff);
+void ddsrt_atomic_lifo_pushmany(ddsrt_atomic_lifo_t *head, void *first, void *last, size_t linkoff);
 
 /**
  * @brief Compare and swap two void pointers atomically
@@ -914,7 +914,7 @@ DDS_EXPORT void ddsrt_atomic_lifo_pushmany(ddsrt_atomic_lifo_t *head, void *firs
  * 
  * @return int meant to be interpreted as bool (swapped: 1; not swapped: 0)
  */
-DDS_INLINE_EXPORT inline int ddsrt_atomic_casvoidp2 (volatile ddsrt_atomic_uintptr2_t *x, uintptr_t a0, uintptr_t b0, uintptr_t a1, uintptr_t b1) {
+inline int ddsrt_atomic_casvoidp2 (volatile ddsrt_atomic_uintptr2_t *x, uintptr_t a0, uintptr_t b0, uintptr_t a1, uintptr_t b1) {
   ddsrt_atomic_uintptr2_t o, n;
   o.s.a = a0; o.s.b = b0;
   n.s.a = a1; n.s.b = b1;
