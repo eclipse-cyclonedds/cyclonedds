@@ -360,6 +360,53 @@ CU_Test (ddsc_listener, change_inherited_listener)
   CU_ASSERT_EQ (dds_delete (participant), DDS_RETCODE_OK);
 }
 
+static void take_listener_sample (dds_entity_t reader, void *arg)
+{
+  dds_sample_info_t info;
+  (void) dds_take (reader, &arg, &info, 1, 1);
+}
+
+CU_Test (ddsc_listener, root_and_domain_inheritance)
+{
+  /* Keep the root alive so its listener can be set before creating the domain. */
+  const dds_entity_t guard = dds_create_guardcondition (DDS_CYCLONEDDS_HANDLE);
+  CU_ASSERT_GT_FATAL (guard, 0);
+  Space_Type1 root_sample = { 0 }, domain_sample = { 0 };
+  dds_listener_t *listener = dds_create_listener (&root_sample);
+  dds_lset_data_available (listener, take_listener_sample);
+  CU_ASSERT_EQ_FATAL (dds_set_listener (DDS_CYCLONEDDS_HANDLE, listener), DDS_RETCODE_OK);
+
+  const dds_entity_t domain = test_create_domain_from_env (0, NULL);
+  CU_ASSERT_GT_FATAL (domain, 0);
+  const dds_entity_t participant = dds_create_participant (0, NULL, NULL);
+  CU_ASSERT_GT_FATAL (participant, 0);
+  char name[100];
+  const dds_entity_t topic = dds_create_topic (participant, &Space_Type1_desc, create_unique_topic_name ("root_listener", name, sizeof (name)), NULL, NULL);
+  CU_ASSERT_GT_FATAL (topic, 0);
+  /* Local delivery without PSMX runs the listener before dds_write returns. */
+  dds_qos_t *qos = dds_create_qos ();
+  dds_qset_psmx_instances (qos, 0, NULL);
+  const dds_entity_t reader = dds_create_reader (participant, topic, qos, NULL);
+  const dds_entity_t writer = dds_create_writer (participant, topic, qos, NULL);
+  dds_delete_qos (qos);
+  CU_ASSERT_GT_FATAL (reader, 0);
+  CU_ASSERT_GT_FATAL (writer, 0);
+
+  CU_ASSERT_EQ_FATAL (dds_write (writer, &(Space_Type1) { .long_1 = 1 }), DDS_RETCODE_OK);
+  CU_ASSERT_EQ (root_sample.long_1, 1);
+
+  CU_ASSERT_EQ_FATAL (dds_lset_data_available_arg (listener, take_listener_sample, &domain_sample, true), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_set_listener (domain, listener), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_write (writer, &(Space_Type1) { .long_1 = 2 }), DDS_RETCODE_OK);
+  CU_ASSERT_EQ (domain_sample.long_1, 2);
+  CU_ASSERT_EQ (root_sample.long_1, 1);
+
+  CU_ASSERT_EQ (dds_delete (domain), DDS_RETCODE_OK);
+  CU_ASSERT_EQ (dds_set_listener (DDS_CYCLONEDDS_HANDLE, NULL), DDS_RETCODE_OK);
+  CU_ASSERT_EQ (dds_delete (guard), DDS_RETCODE_OK);
+  dds_delete_listener (listener);
+}
+
 static void count_matches (dds_entity_t reader, const dds_subscription_matched_status_t status, void *arg)
 {
   (void) reader;

@@ -148,6 +148,9 @@ static dds_entity_t create_participant_flags_guid (const dds_domainid_t domain, 
   }
 
   pp = dds_alloc (sizeof (*pp));
+  /* Listener propagation must either precede the participant's listener
+     snapshot or find the participant among the domain's children. */
+  ddsrt_mutex_lock (&dom->m_entity.m_mutex);
   if ((ret = dds_entity_init (&pp->m_entity, &dom->m_entity, DDS_KIND_PARTICIPANT, false, true, new_qos, listener, DDS_PARTICIPANT_STATUS_MASK)) < 0)
     goto err_entity_init;
 
@@ -157,18 +160,16 @@ static dds_entity_t create_participant_flags_guid (const dds_domainid_t domain, 
   pp->m_builtin_subscriber = 0;
   ddsrt_avl_init (&participant_ktopics_treedef, &pp->m_ktopics);
 
-  /* Add participant to extent */
-  ddsrt_mutex_lock (&dom->m_entity.m_mutex);
   dds_entity_register_child (&dom->m_entity, &pp->m_entity);
-  ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
-
   dds_entity_init_complete (&pp->m_entity);
+  ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
   /* drop temporary extra ref to domain, dds_init */
   dds_entity_unpin_and_drop_ref (&dom->m_entity);
   dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
   return ret;
 
 err_entity_init:
+  ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
   dds_free (pp);
 err_new_participant:
 err_qos_validation:
