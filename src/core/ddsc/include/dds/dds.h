@@ -731,6 +731,9 @@ dds_get_listener(dds_entity_t entity, dds_listener_t * listener);
  * A callback set locally takes precedence, including when explicitly set to
  * NULL to suppress it. Each unset callback inherits its function, argument
  * and reset_on_invoke setting from the nearest ancestor that configured it.
+ * Descendants of a domain inherit callbacks set on that domain. Once the
+ * library is initialized, callbacks set on @ref DDS_CYCLONEDDS_HANDLE are
+ * inherited by descendants across all domains in the process.
  * Changes propagate to existing descendants that inherit the callback.
  * Passing NULL as @p listener clears all local settings and restores
  * inheritance. A reader always inherits DATA_ON_READERS from its subscriber.

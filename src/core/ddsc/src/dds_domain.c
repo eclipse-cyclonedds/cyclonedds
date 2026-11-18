@@ -26,6 +26,7 @@
 #include "dds/ddsc/dds_rhc.h"
 #include "dds__init.h"
 #include "dds__domain.h"
+#include "dds__listener.h"
 #include "dds__builtin.h"
 #include "dds__whc_builtintopic.h"
 #include "dds__entity.h"
@@ -187,7 +188,6 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
 
   if (domain->gv.config.liveliness_monitoring)
     ddsi_threadmon_register_domain (dds_global.threadmon, &domain->gv);
-  dds_entity_init_complete (&domain->m_entity);
   return domh;
 
 fail_ddsi_start:
@@ -223,7 +223,6 @@ static dds_entity_t dds_domain_create_internal_xml_or_raw (dds_domain **domain_o
   struct dds_domain *dom;
   dds_entity_t domh = DDS_RETCODE_ERROR;
 
-  /* FIXME: should perhaps lock parent object just like everywhere */
   ddsrt_mutex_lock (&dds_global.m_mutex);
  retry:
   if (id != DDS_DOMAIN_DEFAULT)
@@ -258,16 +257,22 @@ static dds_entity_t dds_domain_create_internal_xml_or_raw (dds_domain **domain_o
       dds_free (dom);
     else
     {
-      ddsrt_mutex_lock (&dom->m_entity.m_mutex);
       ddsrt_avl_insert (&dds_domaintree_def, &dds_global.m_domains, dom);
-      dds_entity_register_child (&dds_global.m_entity, &dom->m_entity);
       if (implicit)
       {
         dds_entity_add_ref_locked (&dom->m_entity);
         dds_handle_repin (&dom->m_entity.m_hdllink);
       }
-      domh = dom->m_entity.m_hdllink.hdl;
-      ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
+
+      /* The root listener may have changed during domain startup. Refresh the
+         unpublished domain while holding the lock used to enumerate children. */
+      ddsrt_mutex_lock (&dds_global.m_entity.m_mutex);
+      ddsrt_mutex_lock (&dds_global.m_entity.m_observers_lock);
+      dds_inherit_listener (&dom->m_entity.m_listener, &dds_global.m_entity.m_listener);
+      ddsrt_mutex_unlock (&dds_global.m_entity.m_observers_lock);
+      dds_entity_register_child (&dds_global.m_entity, &dom->m_entity);
+      dds_entity_init_complete (&dom->m_entity);
+      ddsrt_mutex_unlock (&dds_global.m_entity.m_mutex);
       *domain_out = dom;
     }
   }
