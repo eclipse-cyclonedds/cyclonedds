@@ -66,6 +66,8 @@ typedef bool (*dds_querycondition_filter_with_ctx_fn) (const void * sample, cons
 /* The listener struct. */
 
 struct dds_listener {
+  /* Disjoint masks. A configured callback can explicitly be NULL. */
+  uint32_t locally_set;
   uint32_t inherited;
   uint32_t reset_on_invoke;
   dds_on_inconsistent_topic_fn on_inconsistent_topic;

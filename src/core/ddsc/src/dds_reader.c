@@ -141,17 +141,6 @@ static void data_avail_cb_leave_listener_exclusive_access (dds_entity *e)
   ddsrt_cond_broadcast (&e->m_observers_cond);
 }
 
-static void data_avail_cb_invoke_dor (dds_entity *sub, const struct dds_listener *lst, bool async)
-{
-  // assumes sub->m_observers_lock held on entry
-  // unlocks and relocks sub->m_observers_lock
-  if (async) data_avail_cb_enter_listener_exclusive_access (sub);
-  ddsrt_mutex_unlock (&sub->m_observers_lock);
-  lst->on_data_on_readers (sub->m_hdllink.hdl, lst->on_data_on_readers_arg);
-  ddsrt_mutex_lock (&sub->m_observers_lock);
-  if (async) data_avail_cb_leave_listener_exclusive_access (sub);
-}
-
 static uint32_t data_avail_cb_set_status (dds_entity *rd, uint32_t status_and_mask)
 {
   uint32_t ret = 0;
@@ -187,7 +176,20 @@ static void data_avail_cb_trigger_waitsets (dds_entity *rd, uint32_t signal)
   }
 }
 
-static uint32_t da_or_dor_cb_invoke(struct dds_reader *rd, struct dds_listener const * const lst, uint32_t status_and_mask, bool async)
+static uint32_t data_avail_cb_update_status (dds_entity *rd, uint32_t listener_status)
+{
+  const uint32_t status_and_mask = ddsrt_atomic_ld32 (&rd->m_status.m_status_and_mask);
+  if (!(rd->m_listener.reset_on_invoke & listener_status))
+    return data_avail_cb_set_status (rd, status_and_mask);
+  /* A newly installed listener may be handling an already pending status. */
+  if (status_and_mask & DDS_DATA_AVAILABLE_STATUS)
+    dds_entity_status_reset (rd, DDS_DATA_AVAILABLE_STATUS);
+  if (listener_status == DDS_DATA_ON_READERS_STATUS && (status_and_mask & (DDS_DATA_ON_READERS_STATUS << SAM_ENABLED_SHIFT)))
+    dds_entity_status_reset (rd->m_parent, DDS_DATA_ON_READERS_STATUS);
+  return 0;
+}
+
+static uint32_t da_or_dor_cb_invoke (struct dds_reader *rd, struct dds_listener const * const lst)
 {
   uint32_t signal = 0;
 
@@ -196,16 +198,18 @@ static uint32_t da_or_dor_cb_invoke(struct dds_reader *rd, struct dds_listener c
     dds_entity * const sub = rd->m_entity.m_parent;
     ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
     ddsrt_mutex_lock (&sub->m_observers_lock);
-    if (!(lst->reset_on_invoke & DDS_DATA_ON_READERS_STATUS))
-      signal = data_avail_cb_set_status (&rd->m_entity, status_and_mask);
-    data_avail_cb_invoke_dor (sub, lst, async);
+    data_avail_cb_enter_listener_exclusive_access (sub);
+    signal = data_avail_cb_update_status (&rd->m_entity, DDS_DATA_ON_READERS_STATUS);
+    ddsrt_mutex_unlock (&sub->m_observers_lock);
+    lst->on_data_on_readers (sub->m_hdllink.hdl, lst->on_data_on_readers_arg);
+    ddsrt_mutex_lock (&sub->m_observers_lock);
+    data_avail_cb_leave_listener_exclusive_access (sub);
     ddsrt_mutex_unlock (&sub->m_observers_lock);
     ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
   }
-  else if(rd->m_entity.m_listener.on_data_available)
+  else if (lst->on_data_available)
   {
-    if (!(lst->reset_on_invoke & DDS_DATA_AVAILABLE_STATUS))
-      signal = data_avail_cb_set_status (&rd->m_entity, status_and_mask);
+    signal = data_avail_cb_update_status (&rd->m_entity, DDS_DATA_AVAILABLE_STATUS);
     ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
     lst->on_data_available (rd->m_entity.m_hdllink.hdl, lst->on_data_available_arg);
     ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
@@ -224,14 +228,13 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
   struct dds_listener const * const lst = &rd->m_entity.m_listener;
 
   ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
-  const uint32_t status_and_mask = ddsrt_atomic_ld32 (&rd->m_entity.m_status.m_status_and_mask);
   if (lst->on_data_on_readers == NULL && lst->on_data_available == NULL)
-    signal = data_avail_cb_set_status (&rd->m_entity, status_and_mask);
+    signal = data_avail_cb_set_status (&rd->m_entity, ddsrt_atomic_ld32 (&rd->m_entity.m_status.m_status_and_mask));
   else
   {
     // "lock" listener object so we can look at "lst" without holding m_observers_lock
     data_avail_cb_enter_listener_exclusive_access (&rd->m_entity);
-    signal = da_or_dor_cb_invoke(rd, lst, status_and_mask, true);
+    signal = da_or_dor_cb_invoke (rd, lst);
     data_avail_cb_leave_listener_exclusive_access (&rd->m_entity);
   }
   data_avail_cb_trigger_waitsets (&rd->m_entity, signal);
@@ -440,10 +443,9 @@ void dds_reader_invoke_cbs_for_pending_events(struct dds_entity *e, uint32_t sta
   if (lst->on_subscription_matched && (status & DDS_SUBSCRIPTION_MATCHED_STATUS)) {
     status_cb_subscription_matched_invoke(rdr);
   }
-  if ((status & DDS_DATA_AVAILABLE_STATUS)) {
-    const uint32_t status_and_mask = ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask);
-    (void) da_or_dor_cb_invoke(rdr, lst, status_and_mask, false);
-  }
+  /* A preceding callback may already have read or taken the samples. */
+  if ((status & DDS_DATA_AVAILABLE_STATUS) && (ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask) & DDS_DATA_AVAILABLE_STATUS))
+    (void) da_or_dor_cb_invoke (rdr, lst);
 }
 
 static const struct dds_stat_keyvalue_descriptor dds_reader_statistics_kv[] = {
