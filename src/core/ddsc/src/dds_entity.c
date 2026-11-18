@@ -268,20 +268,7 @@ dds_entity_t dds_entity_init (dds_entity *e, dds_entity *parent, dds_entity_kind
   }
   ddsrt_avl_init (&dds_entity_children_td, &e->m_children);
 
-  dds_reset_listener (&e->m_listener);
-  if (listener)
-    dds_merge_listener (&e->m_listener, listener);
-
-  /* Special case: the on_data_on_readers event doesn't exist on DataReaders. */
-  if (kind == DDS_KIND_READER)
-    e->m_listener.on_data_on_readers = NULL;
-
-  if (parent)
-  {
-    ddsrt_mutex_lock (&parent->m_observers_lock);
-    dds_inherit_listener (&e->m_listener, &parent->m_listener);
-    ddsrt_mutex_unlock (&parent->m_observers_lock);
-  }
+  dds_entity_set_listener (e, listener);
 
   if (kind == DDS_KIND_CYCLONEDDS)
   {
@@ -1000,6 +987,21 @@ dds_return_t dds_get_listener (dds_entity_t entity, dds_listener_t *listener)
   }
 }
 
+/* Called with m_observers_lock held. A callback may release it. */
+static void invoke_pending_listener_callbacks (dds_entity *e)
+{
+  e->m_cb_pending_count++;
+  while (e->m_cb_count > 0)
+    ddsrt_cond_wait (&e->m_observers_cond, &e->m_observers_lock);
+  e->m_cb_count++;
+  const uint32_t status = ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask) & SAM_STATUS_MASK;
+  if (status)
+    dds_entity_deriver_invoke_cbs_for_pending_events (e, status);
+  e->m_cb_count--;
+  e->m_cb_pending_count--;
+  ddsrt_cond_broadcast (&e->m_observers_cond);
+}
+
 static void pushdown_listener (dds_entity *e)
 {
   /* Note: e is claimed, no mutexes held */
@@ -1018,16 +1020,11 @@ static void pushdown_listener (dds_entity *e)
       while (c->m_cb_pending_count > 0)
         ddsrt_cond_wait (&c->m_observers_cond, &c->m_observers_lock);
 
-      c->m_cb_pending_count++;
       ddsrt_mutex_lock (&e->m_observers_lock);
-      dds_override_inherited_listener (&c->m_listener, &e->m_listener);
+      dds_inherit_listener (&c->m_listener, &e->m_listener);
       ddsrt_mutex_unlock (&e->m_observers_lock);
 
-      uint32_t status = ddsrt_atomic_ld32 (&c->m_status.m_status_and_mask) & SAM_STATUS_MASK;
-      if (status) {
-        dds_entity_deriver_invoke_cbs_for_pending_events(c, status);
-      }
-      c->m_cb_pending_count--;
+      invoke_pending_listener_callbacks (c);
       ddsrt_mutex_unlock (&c->m_observers_lock);
 
       pushdown_listener (c);
@@ -1042,9 +1039,8 @@ static void pushdown_listener (dds_entity *e)
 
 dds_return_t dds_set_listener (dds_entity_t entity, const dds_listener_t *listener)
 {
-  dds_entity *e, *x;
+  dds_entity *e;
   dds_return_t rc;
-  uint32_t status;
 
   if ((rc = dds_entity_pin (entity, &e)) != DDS_RETCODE_OK)
     return rc;
@@ -1053,41 +1049,12 @@ dds_return_t dds_set_listener (dds_entity_t entity, const dds_listener_t *listen
   while (e->m_cb_pending_count > 0)
     ddsrt_cond_wait (&e->m_observers_cond, &e->m_observers_lock);
 
-  /* new listener is constructed by combining "listener" with the ancestral listeners;
-     the new set of listeners is then pushed down into the descendant entities, overriding
-     the ones they originally inherited from */
-  dds_reset_listener (&e->m_listener);
-  if (listener)
-    dds_merge_listener (&e->m_listener, listener);
-
-  /* Special case: the on_data_on_readers event doesn't exist on DataReaders. */
-  if (dds_entity_kind (e) == DDS_KIND_READER)
-    e->m_listener.on_data_on_readers = NULL;
-
-  x = e;
-  while (dds_entity_kind (x) != DDS_KIND_CYCLONEDDS)
-  {
-    x = x->m_parent;
-    ddsrt_mutex_lock (&x->m_observers_lock);
-    dds_inherit_listener (&e->m_listener, &x->m_listener);
-    ddsrt_mutex_unlock (&x->m_observers_lock);
-  }
-
+  dds_entity_set_listener (e, listener);
   ddsrt_mutex_unlock (&e->m_observers_lock);
   pushdown_listener (e);
   /* Check for pending events, and when needed notify their listeners. */
   ddsrt_mutex_lock (&e->m_observers_lock);
-  e->m_cb_pending_count++;
-  while (e->m_cb_count > 0)
-    ddsrt_cond_wait (&e->m_observers_cond, &e->m_observers_lock);
-  e->m_cb_count++;
-  status = ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask) & SAM_STATUS_MASK;
-  if (listener && status) {
-    dds_entity_deriver_invoke_cbs_for_pending_events(e, status);
-  }
-  e->m_cb_count--;
-  e->m_cb_pending_count--;
-  ddsrt_cond_broadcast (&e->m_observers_cond);
+  invoke_pending_listener_callbacks (e);
   ddsrt_mutex_unlock (&e->m_observers_lock);
   dds_entity_unpin (e);
 

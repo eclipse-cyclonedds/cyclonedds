@@ -44,7 +44,10 @@ typedef void (*dds_on_subscription_matched_fn) (dds_entity_t reader, const dds_s
 /**
  * @anchor DDS_LUNSET
  * @ingroup internal
- * @brief Default initial value (nullptr) for listener functions.
+ * @brief Null function pointer returned for an unset listener callback.
+ *
+ * A new or reset listener leaves its callbacks unset. Passing DDS_LUNSET
+ * to a callback setter explicitly sets that callback to NULL.
  */
 #define DDS_LUNSET ((void *) 0)
 
@@ -104,8 +107,9 @@ DDS_EXPORT void dds_copy_listener (dds_listener_t *dst, const dds_listener_t *sr
  * @component listener_obj
  * @brief Copy the listener callbacks from source to destination, unless already set
  *
- * Any listener callbacks already set in @p dst (including NULL) are skipped, only
- * those set to DDS_LUNSET are copied from @p src.
+ * For each unset callback in @p dst, copy the corresponding setting from
+ * @p src, including its argument, reset_on_invoke setting and whether it was
+ * inherited. An explicitly set NULL counts as a setting in either listener.
  *
  * @param[in,out] dst The pointer to the destination listener structure, where the content is merged
  * @param[in] src The pointer to the source listener structure to be copied

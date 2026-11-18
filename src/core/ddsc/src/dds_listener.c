@@ -8,8 +8,6 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-#include <assert.h>
-
 #include "dds/dds.h"
 #include "dds__listener.h"
 
@@ -42,6 +40,7 @@ void dds_reset_listener (dds_listener_t *listener)
   if (listener)
   {
     dds_listener_t * const l = listener;
+    l->locally_set = 0;
     l->inherited = 0;
     l->reset_on_invoke = 0;
     l->on_data_available = NULL;
@@ -66,35 +65,16 @@ void dds_copy_listener (dds_listener_t *dst, const dds_listener_t *src)
     *dst = *src;
 }
 
-static bool dds_combine_listener_merge (uint32_t inherited, void (*dst)(void), void (*src)(void))
-{
-  (void)inherited;
-  return dst == NULL && src != NULL;
-}
-
-static bool dds_combine_listener_override_inherited (uint32_t inherited, void (*dst)(void), void (*src)(void))
-{
-  (void)dst;
-  (void)src;
-  return inherited;
-}
-
 static uint32_t copy_bits (uint32_t a, uint32_t b, uint32_t mask)
 {
   return (a & ~mask) | (b & mask);
 }
 
-static uint32_t combine_reset_on_invoke (const dds_listener_t *dst, const dds_listener_t *src, uint32_t status)
+static void copy_listener_callbacks (dds_listener_t *dst, const dds_listener_t *src, uint32_t mask)
 {
-  return copy_bits (dst->reset_on_invoke, src->reset_on_invoke, status);
-}
-
-static void dds_combine_listener (bool (*op) (uint32_t inherited, void (*dst)(void), void (*src)(void)), dds_listener_t *dst, const dds_listener_t *src)
-{
+  dst->reset_on_invoke = copy_bits (dst->reset_on_invoke, src->reset_on_invoke, mask);
 #define C(NAME_, name_) do { \
-    if (op (dst->inherited & DDS_##NAME_##_STATUS, (void (*)(void)) dst->on_##name_, (void (*)(void)) src->on_##name_)){ \
-      dst->inherited |= DDS_##NAME_##_STATUS; \
-      dst->reset_on_invoke = combine_reset_on_invoke (dst, src, DDS_##NAME_##_STATUS); \
+    if (mask & DDS_##NAME_##_STATUS) { \
       dst->on_##name_ = src->on_##name_; \
       dst->on_##name_##_arg = src->on_##name_##_arg; \
     } \
@@ -115,25 +95,43 @@ static void dds_combine_listener (bool (*op) (uint32_t inherited, void (*dst)(vo
 #undef C
 }
 
-void dds_override_inherited_listener (dds_listener_t *dst, const dds_listener_t *src)
+void dds_inherit_listener (dds_listener_t *dst, const dds_listener_t *parent)
 {
-  if (dst && src)
-    dds_combine_listener (dds_combine_listener_override_inherited, dst, src);
+  /* The parent already includes callbacks inherited from its own ancestors.
+     Also refresh previously inherited slots that the parent has now cleared. */
+  const uint32_t inherited = (parent->locally_set | parent->inherited) & ~dst->locally_set;
+  copy_listener_callbacks (dst, parent, inherited | dst->inherited);
+  dst->inherited = inherited;
 }
 
-void dds_inherit_listener (dds_listener_t *dst, const dds_listener_t *src)
+void dds_entity_set_listener (dds_entity *entity, const dds_listener_t *settings)
 {
-  if (dst && src)
-    dds_combine_listener (dds_combine_listener_merge, dst, src);
+  dds_listener_t *dst = &entity->m_listener;
+  *dst = (dds_listener_t) { 0 };
+  if (settings)
+  {
+    dst->locally_set = settings->locally_set;
+    /* DATA_ON_READERS on a reader always comes from its subscriber. */
+    if (entity->m_kind == DDS_KIND_READER)
+      dst->locally_set &= ~DDS_DATA_ON_READERS_STATUS;
+    copy_listener_callbacks (dst, settings, dst->locally_set);
+  }
+  if (entity->m_parent)
+  {
+    ddsrt_mutex_lock (&entity->m_parent->m_observers_lock);
+    dds_inherit_listener (dst, &entity->m_parent->m_listener);
+    ddsrt_mutex_unlock (&entity->m_parent->m_observers_lock);
+  }
 }
 
 void dds_merge_listener (dds_listener_t *dst, const dds_listener_t *src)
 {
   if (dst && src)
   {
-    uint32_t inherited = dst->inherited;
-    dds_combine_listener (dds_combine_listener_merge, dst, src);
-    dst->inherited = inherited;
+    const uint32_t mask = (src->locally_set | src->inherited) & ~(dst->locally_set | dst->inherited);
+    copy_listener_callbacks (dst, src, mask);
+    dst->locally_set |= src->locally_set & mask;
+    dst->inherited |= src->inherited & mask;
   }
 }
 
@@ -142,6 +140,8 @@ void dds_merge_listener (dds_listener_t *dst, const dds_listener_t *src)
   { \
     if (listener == NULL) \
       return DDS_RETCODE_BAD_PARAMETER; \
+    listener->locally_set |= DDS_##NAME_##_STATUS; \
+    listener->inherited &= ~DDS_##NAME_##_STATUS; \
     listener->reset_on_invoke = copy_bits (listener->reset_on_invoke, reset_on_invoke ? ~(uint32_t)0 : 0, DDS_##NAME_##_STATUS); \
     listener->on_##name_ = callback; \
     listener->on_##name_##_arg = arg; \

@@ -16,6 +16,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/environ.h"
+#include "dds__entity.h"
 #include "test_common.h"
 #include "test_oneliner.h"
 
@@ -206,6 +207,15 @@ CU_Test (ddsc_listener, merge)
   dds_merge_listener (listener2, listener1);
   check_all_const (listener2, dummy_cb);
 
+  // An explicitly null callback survives merging into an empty listener and
+  // prevents a subsequent merge from filling the slot.
+  dds_reset_listener (listener2);
+  dds_lset_data_available (listener1, NULL);
+  dds_merge_listener (listener2, listener1);
+  dds_lset_data_available (listener1, data_available_cb);
+  dds_merge_listener (listener2, listener1);
+  ASSERT_CALLBACK_EQUAL (data_available, listener2, NULL);
+
   // Using NULLs shouldn't crash and be noops
   dds_merge_listener (listener2, NULL);
   dds_merge_listener (NULL, listener1);
@@ -276,6 +286,184 @@ CU_Test (ddsc_listener, propagation)
   dotest ("da dor lc sm P ; r ; wr w 0 ; ?!da ; ?dor R ?sm r ?lc r");
   // setting listeners after entity creation should work, too
   dotest ("P W R ; dor P pm W sm R ; r w ; ?sm r ?pm w ; wr w 0 ; ?dor R ; ?!da");
+  dotest ("P W R ; r w ; da P ; wr w 0 ; ?da r ?!dor");
+}
+
+static void check_data_available (const dds_listener_t *listener, dds_on_data_available_fn expected_cb, void *expected_arg, bool expected_reset)
+{
+  dds_on_data_available_fn cb;
+  void *arg;
+  bool reset;
+  CU_ASSERT_EQ_FATAL (dds_lget_data_available_arg (listener, &cb, &arg, &reset), DDS_RETCODE_OK);
+  CU_ASSERT_EQ (cb, expected_cb);
+  CU_ASSERT_EQ (arg, expected_arg);
+  CU_ASSERT_EQ (reset, expected_reset);
+}
+
+CU_Test (ddsc_listener, change_inherited_listener)
+{
+  dds_entity_t participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+  CU_ASSERT_GT_FATAL (participant, 0);
+  dds_entity_t subscriber = dds_create_subscriber (participant, NULL, NULL);
+  CU_ASSERT_GT_FATAL (subscriber, 0);
+  char topicname[100];
+  dds_entity_t topic = dds_create_topic (participant, &Space_Type1_desc, create_unique_topic_name ("listener_inheritance", topicname, sizeof (topicname)), NULL, NULL);
+  CU_ASSERT_GT_FATAL (topic, 0);
+  dds_entity_t reader = dds_create_reader (subscriber, topic, NULL, NULL);
+  CU_ASSERT_GT_FATAL (reader, 0);
+  dds_listener_t *settings = dds_create_listener (NULL);
+  dds_listener_t *effective = dds_create_listener (NULL);
+
+  CU_ASSERT_EQ_FATAL (dds_lset_data_available_arg (settings, data_available_cb, &participant, true), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_set_listener (participant, settings), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_get_listener (reader, effective), DDS_RETCODE_OK);
+  check_data_available (effective, data_available_cb, &participant, true);
+
+  // Editing an unrelated callback on a snapshot and merging it into a new
+  // listener preserves the effective value and its inheritance.
+  dds_lset_sample_lost (effective, sample_lost_cb);
+  dds_reset_listener (settings);
+  dds_merge_listener (settings, effective);
+  check_data_available (settings, data_available_cb, &participant, true);
+  CU_ASSERT_EQ_FATAL (dds_set_listener (reader, settings), DDS_RETCODE_OK);
+  dds_reset_listener (settings);
+  CU_ASSERT_EQ_FATAL (dds_lset_data_available_arg (settings, data_available_cb, &subscriber, false), DDS_RETCODE_OK);
+  dds_lset_data_on_readers (settings, data_on_readers_cb);
+  CU_ASSERT_EQ_FATAL (dds_set_listener (subscriber, settings), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_get_listener (reader, effective), DDS_RETCODE_OK);
+  check_data_available (effective, data_available_cb, &subscriber, false);
+  dds_on_sample_lost_fn lost;
+  dds_lget_sample_lost (effective, &lost);
+  CU_ASSERT_EQ (lost, &sample_lost_cb);
+
+  // The reader can suppress its own callback. DATA_ON_READERS belongs to
+  // the subscriber, so setting that callback on the reader has no effect.
+  CU_ASSERT_EQ_FATAL (dds_lset_data_available_arg (effective, NULL, &reader, true), DDS_RETCODE_OK);
+  dds_lset_data_on_readers (effective, NULL);
+  CU_ASSERT_EQ_FATAL (dds_set_listener (reader, effective), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_set_listener (subscriber, settings), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_get_listener (reader, effective), DDS_RETCODE_OK);
+  check_data_available (effective, NULL, &reader, true);
+  dds_on_data_on_readers_fn dor;
+  dds_lget_data_on_readers (effective, &dor);
+  CU_ASSERT_EQ (dor, &data_on_readers_cb);
+
+  CU_ASSERT_EQ_FATAL (dds_set_listener (reader, NULL), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_get_listener (reader, effective), DDS_RETCODE_OK);
+  check_data_available (effective, data_available_cb, &subscriber, false);
+  CU_ASSERT_EQ_FATAL (dds_set_listener (subscriber, NULL), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_get_listener (reader, effective), DDS_RETCODE_OK);
+  check_data_available (effective, data_available_cb, &participant, true);
+
+  dds_delete_listener (effective);
+  dds_delete_listener (settings);
+  CU_ASSERT_EQ (dds_delete (participant), DDS_RETCODE_OK);
+}
+
+static void count_matches (dds_entity_t reader, const dds_subscription_matched_status_t status, void *arg)
+{
+  (void) reader;
+  if (status.current_count_change > 0)
+    (*(unsigned *) arg)++;
+}
+
+CU_Test (ddsc_listener, pending_status_after_clearing_override)
+{
+  unsigned matches = 0;
+  dds_listener_t *settings = dds_create_listener (&matches);
+  dds_lset_subscription_matched (settings, count_matches);
+  const dds_entity_t participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+  CU_ASSERT_GT_FATAL (participant, 0);
+  const dds_entity_t subscriber = dds_create_subscriber (participant, NULL, settings);
+  CU_ASSERT_GT_FATAL (subscriber, 0);
+  char topicname[100];
+  const dds_entity_t topic = dds_create_topic (participant, &Space_Type1_desc, create_unique_topic_name ("pending_listener", topicname, sizeof (topicname)), NULL, NULL);
+  CU_ASSERT_GT_FATAL (topic, 0);
+  dds_lset_subscription_matched (settings, NULL);
+  const dds_entity_t reader = dds_create_reader (subscriber, topic, NULL, settings);
+  CU_ASSERT_GT_FATAL (reader, 0);
+  CU_ASSERT_GT_FATAL (dds_create_writer (participant, topic, NULL, NULL), 0);
+
+  uint32_t status;
+  CU_ASSERT_EQ_FATAL (dds_read_status (reader, &status, DDS_SUBSCRIPTION_MATCHED_STATUS), DDS_RETCODE_OK);
+  CU_ASSERT_EQ (status, DDS_SUBSCRIPTION_MATCHED_STATUS);
+  CU_ASSERT_EQ (matches, 0);
+  CU_ASSERT_EQ_FATAL (dds_set_listener (reader, NULL), DDS_RETCODE_OK);
+  CU_ASSERT_EQ (matches, 1);
+
+  dds_delete_listener (settings);
+  CU_ASSERT_EQ (dds_delete (participant), DDS_RETCODE_OK);
+}
+
+CU_Test (ddsc_listener, pending_data_available)
+{
+  /* The reader already has data when it first inherits the callback. */
+  dotest ("P W R ; r w ; wr w 0 ; da R ; ?da(1) r ; da R ; ?!da");
+}
+
+struct pending_data_on_readers {
+  dds_entity_t reader;
+  unsigned calls;
+  bool reset;
+};
+
+static void check_pending_data_on_readers (dds_entity_t subscriber, void *arg)
+{
+  struct pending_data_on_readers *state = arg;
+  state->calls++;
+  uint32_t status;
+  CU_ASSERT_EQ_FATAL (dds_read_status (state->reader, &status, DDS_DATA_AVAILABLE_STATUS), DDS_RETCODE_OK);
+  CU_ASSERT_EQ (status, state->reset ? 0 : DDS_DATA_AVAILABLE_STATUS);
+  CU_ASSERT_EQ_FATAL (dds_read_status (subscriber, &status, DDS_DATA_ON_READERS_STATUS), DDS_RETCODE_OK);
+  CU_ASSERT_EQ (status, state->reset ? 0 : DDS_DATA_ON_READERS_STATUS);
+
+  /* Concurrent notifications from another reader serialize on this subscriber. */
+  dds_entity *sub;
+  CU_ASSERT_EQ_FATAL (dds_entity_pin (subscriber, &sub), DDS_RETCODE_OK);
+  ddsrt_mutex_lock (&sub->m_observers_lock);
+  CU_ASSERT_EQ (sub->m_cb_count, 1);
+  ddsrt_mutex_unlock (&sub->m_observers_lock);
+  dds_entity_unpin (sub);
+}
+
+CU_Test (ddsc_listener, pending_data_on_readers)
+{
+  const dds_entity_t participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+  CU_ASSERT_GT_FATAL (participant, 0);
+  const dds_entity_t subscriber = dds_create_subscriber (participant, NULL, NULL);
+  CU_ASSERT_GT_FATAL (subscriber, 0);
+  char name[100];
+  const dds_entity_t topic = dds_create_topic (participant, &Space_Type1_desc, create_unique_topic_name ("pending_dor", name, sizeof (name)), NULL, NULL);
+  CU_ASSERT_GT_FATAL (topic, 0);
+  dds_qos_t *qos = dds_create_qos ();
+  dds_qset_psmx_instances (qos, 0, NULL);
+  const dds_entity_t reader = dds_create_reader (subscriber, topic, qos, NULL);
+  const dds_entity_t writer = dds_create_writer (participant, topic, qos, NULL);
+  dds_delete_qos (qos);
+  CU_ASSERT_GT_FATAL (reader, 0);
+  CU_ASSERT_GT_FATAL (writer, 0);
+
+  /* Attaching a waitset makes DATA_ON_READERS track its own status bit. */
+  const dds_entity_t ws = dds_create_waitset (participant);
+  CU_ASSERT_GT_FATAL (ws, 0);
+  CU_ASSERT_EQ_FATAL (dds_waitset_attach (ws, subscriber, 0), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_write (writer, &(Space_Type1) { 0 }), DDS_RETCODE_OK);
+
+  struct pending_data_on_readers state = { .reader = reader };
+  dds_listener_t *listener = dds_create_listener (&state);
+  CU_ASSERT_EQ_FATAL (dds_lset_data_on_readers_arg (listener, check_pending_data_on_readers, &state, false), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_set_listener (subscriber, listener), DDS_RETCODE_OK);
+  CU_ASSERT_EQ (state.calls, 1);
+  state.reset = true;
+  dds_lset_data_on_readers (listener, check_pending_data_on_readers);
+  CU_ASSERT_EQ_FATAL (dds_set_listener (subscriber, listener), DDS_RETCODE_OK);
+  CU_ASSERT_EQ (state.calls, 2);
+  CU_ASSERT_EQ_FATAL (dds_set_listener (subscriber, listener), DDS_RETCODE_OK);
+  CU_ASSERT_EQ (state.calls, 2);
+
+  CU_ASSERT_EQ (dds_set_listener (subscriber, NULL), DDS_RETCODE_OK);
+  dds_delete_listener (listener);
+  CU_ASSERT_EQ (dds_delete (participant), DDS_RETCODE_OK);
 }
 
 CU_Test (ddsc_listener, matched)

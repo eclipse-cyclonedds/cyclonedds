@@ -709,7 +709,9 @@ dds_set_qos(dds_entity_t entity, const dds_qos_t * qos);
  * @ingroup entity_listener
  * @component entity_listener
  *
- * The result includes callbacks set on the entity and inherited callbacks.
+ * The result includes both local and inherited callbacks. Editing one callback
+ * and passing the listener back to @ref dds_set_listener preserves inheritance
+ * for the other callbacks.
  *
  * @param[in]  entity   Entity whose listener to retrieve.
  * @param[out] listener Listener object to receive the callbacks and their settings.
@@ -726,11 +728,12 @@ dds_get_listener(dds_entity_t entity, dds_listener_t * listener);
  * @ingroup entity_listener
  * @component entity_listener
  *
- * Copies the callbacks and their settings from @p listener. For a callback
- * left unset, the entity inherits the nearest ancestor's applicable
- * callback. Passing NULL clears all locally configured callbacks and
- * allows them to be inherited. The change also updates callbacks that
- * descendants inherit from this entity.
+ * A callback set locally takes precedence, including when explicitly set to
+ * NULL to suppress it. Each unset callback inherits its function, argument
+ * and reset_on_invoke setting from the nearest ancestor that configured it.
+ * Changes propagate to existing descendants that inherit the callback.
+ * Passing NULL as @p listener clears all local settings and restores
+ * inheritance. A reader always inherits DATA_ON_READERS from its subscriber.
  *
  * Callbacks for pending statuses can run before this function returns.
  * This may result in repeated notifications, particularly for
