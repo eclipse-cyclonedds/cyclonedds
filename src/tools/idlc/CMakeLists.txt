@@ -47,6 +47,21 @@ target_include_directories(
 
 add_executable(${PROJECT_NAME}::idlc ALIAS idlc)
 
+if(APPLE)
+  set(IDLC_EXTRA_RPATHS
+    "/Users/roberthall/ros2_rolling/install/iceoryx_posh/lib"
+    "/Users/roberthall/ros2_rolling/install/iceoryx_binding_c/lib"
+    "/Users/roberthall/ros2_rolling/install/iceoryx_hoofs/lib"
+    "${CMAKE_BINARY_DIR}/cyclonedds/lib"
+  )
+  set_target_properties(idlc PROPERTIES
+    INSTALL_RPATH "${IDLC_EXTRA_RPATHS}"
+    BUILD_RPATH "${IDLC_EXTRA_RPATHS}"
+    BUILD_WITH_INSTALL_RPATH FALSE
+    MACOSX_RPATH ON
+  )
+endif()
+
 install(
   DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/idlc"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
