@@ -121,7 +121,6 @@ jobs:
             -DENABLE_SECURITY=${{ matrix.config.security }} \
             -DENABLE_LIFESPAN=ON \
             -DENABLE_DEADLINE_MISSED=ON \
-            -DSKIP_DEADLINE_UPDATE=OFF \
             -DENABLE_TYPELIB=ON \
             -DENABLE_TYPE_DISCOVERY=ON \
             -DENABLE_TOPIC_DISCOVERY=ON \

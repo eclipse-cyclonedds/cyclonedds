@@ -254,7 +254,6 @@ set_tests_properties(
     REQUIRED_FILES ${ddsc_qos_provider_read_sysdef_file}
     ENVIRONMENT "${ddsc_qos_provider_read_sysdef_env}")
 
-configure_file("deadline_update.h.in" "deadline_update.h")
 configure_file("build_options.h.in" "build_options.h")
 configure_file("config_env.h.in" "config_env.h" @ONLY)
 
@@ -271,7 +270,6 @@ if(ENABLE_DEADLINE_MISSED)
   foreach(t
       basic
       instances
-      update
       writer_types)
     set_tests_properties(ddsc_deadline_${t} PROPERTIES RUN_SERIAL TRUE)
   endforeach()
