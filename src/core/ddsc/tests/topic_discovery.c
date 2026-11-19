@@ -276,6 +276,11 @@ CU_Test (ddsc_topic_discovery, single_topic_def, .init = topic_discovery_init, .
   /* .. and for local topic: no new sample received because it is using the same topic definition as the updated remote topic */
   ret = dds_set_qos(topic, qos);
   CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+
+  /* A second local participant reuses the definition without publishing another DCPSTopic sample. */
+  dds_entity_t participant2 = dds_create_participant (DDS_DOMAINID1, NULL, NULL);
+  CU_ASSERT_GT_FATAL (participant2, 0);
+  CU_ASSERT_GT_FATAL (dds_create_topic (participant2, &Space_Type1_desc, topic_name, qos, NULL), 0);
   check_topic_samples (topic_rd, topic_name, 0, false, NULL, NULL);
 
   dds_delete_qos (qos);

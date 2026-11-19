@@ -358,10 +358,8 @@ static dds_entity_t create_topic_pp_locked (struct dds_participant *pp, struct d
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 
-static bool register_topic_type_for_discovery (struct ddsi_domaingv * const gv, dds_participant * const pp, dds_ktopic * const ktp, bool is_builtin, struct ddsi_sertype * const sertype)
+static void register_topic_type_for_discovery (struct ddsi_domaingv * const gv, dds_participant * const pp, dds_ktopic * const ktp, bool is_builtin, struct ddsi_sertype * const sertype)
 {
-  bool new_topic_def = false;
-
   /* Create or reference a ktopic-sertype meta-data entry. The hash table has the
      complete xtypes type-id as key; for both local and discovered topic with type information,
      both minimal and complete type identifiers are always set */
@@ -387,7 +385,7 @@ static bool register_topic_type_for_discovery (struct ddsi_domaingv * const gv, 
     m->type_id = type_id;
     type_id = NULL; /* the ktopic_type_guid gets the ownership for the type_id */
     m->refc = 1;
-    dds_return_t rc = ddsi_new_topic (&m->tp, &m->guid, pp_ddsi, ktp->name, sertype, ktp->qos, is_builtin, &new_topic_def);
+    dds_return_t rc = ddsi_new_topic (&m->tp, &m->guid, pp_ddsi, ktp->name, sertype, ktp->qos, is_builtin);
     assert (rc == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
     (void) rc;
     ddsrt_hh_add_absent (ktp->topic_guid_map, m);
@@ -399,7 +397,6 @@ free_typeid:
     ddsi_typeid_fini (type_id);
     ddsrt_free (type_id);
   }
-  return new_topic_def;
 }
 
 static bool ktopic_type_guid_equal (const void *ktp_guid_a, const void *ktp_guid_b)
@@ -417,10 +414,9 @@ static uint32_t ktopic_type_guid_hash (const void *ktp_guid)
 
 #else
 
-static bool register_topic_type_for_discovery (struct ddsi_domaingv * const gv, dds_participant * const pp, dds_ktopic * const ktp, bool is_builtin, struct ddsi_sertype * const sertype)
+static void register_topic_type_for_discovery (struct ddsi_domaingv * const gv, dds_participant * const pp, dds_ktopic * const ktp, bool is_builtin, struct ddsi_sertype * const sertype)
 {
   (void) gv; (void) pp; (void) ktp; (void) is_builtin; (void) sertype;
-  return false;
 }
 
 #endif /* DDS_HAS_TOPIC_DISCOVERY */
@@ -603,10 +599,12 @@ dds_entity_t dds_create_topic_impl (
   ddsi_sertype_unref (*sertype);
   *sertype = sertype_registered;
 
-  const bool new_topic_def = register_topic_type_for_discovery (gv, pp, ktp, is_builtin, sertype_registered);
+  register_topic_type_for_discovery (gv, pp, ktp, is_builtin, sertype_registered);
   ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
 
-  if (new_topic_def)
+  /* A topic can become findable in this participant even if its definition
+     was already known elsewhere in the domain. */
+  if (hdl > 0 && !is_builtin)
   {
     ddsrt_mutex_lock (&gv->new_topic_lock);
     gv->new_topic_version++;

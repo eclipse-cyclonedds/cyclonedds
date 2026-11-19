@@ -12,6 +12,7 @@
 #include <limits.h>
 
 #include "dds/dds.h"
+#include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/environ.h"
@@ -126,6 +127,89 @@ CU_Test(ddsc_topic_find_local, participant, .init = topic_find_local_init, .fini
   dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_PARTICIPANT, g_participant1, g_topic_name_local, g_type_info, 0);
   CU_ASSERT_GT_FATAL (topic, 0);
   CU_ASSERT_NEQ_FATAL (topic, g_topic1);
+}
+
+struct topic_wait {
+  dds_find_scope_t scope;
+  dds_entity_t participant;
+  const char *name;
+  dds_duration_t timeout;
+  ddsrt_atomic_uint32_t started;
+  dds_entity_t found;
+};
+
+static uint32_t wait_for_topic (void *arg)
+{
+  struct topic_wait *wait = arg;
+  ddsrt_atomic_st32 (&wait->started, 1);
+  wait->found = dds_find_topic (wait->scope, wait->participant, wait->name, g_type_info, wait->timeout);
+  return 0;
+}
+
+static uint32_t topic_version (struct ddsi_domaingv *gv)
+{
+  ddsrt_mutex_lock (&gv->new_topic_lock);
+  const uint32_t version = gv->new_topic_version;
+  ddsrt_mutex_unlock (&gv->new_topic_lock);
+  return version;
+}
+
+CU_Test(ddsc_topic_find_local, participant_wait_for_existing_definition, .init = topic_find_local_init, .fini = topic_find_local_fini)
+{
+  CU_ASSERT_EQ_FATAL (dds_find_topic (DDS_FIND_SCOPE_PARTICIPANT, g_participant2, g_topic_name_local, g_type_info, 0), 0);
+  struct ddsi_domaingv *gv = get_domaingv (g_participant2);
+  const uint32_t before = topic_version (gv);
+  struct topic_wait wait = { .scope = DDS_FIND_SCOPE_PARTICIPANT, .participant = g_participant2, .name = g_topic_name_local, .timeout = DDS_SECS (2) };
+  ddsrt_thread_t thread;
+  ddsrt_threadattr_t attr;
+  ddsrt_threadattr_init (&attr);
+  CU_ASSERT_EQ_FATAL (ddsrt_thread_create (&thread, "find_topic", &attr, wait_for_topic, &wait), DDS_RETCODE_OK);
+  while (!ddsrt_atomic_ld32 (&wait.started))
+    dds_sleepfor (DDS_MSECS (1));
+  dds_entity_t created = dds_create_topic (g_participant2, &Space_Type1_desc, g_topic_name_local, NULL, NULL);
+  const uint32_t after = topic_version (gv);
+  CU_ASSERT_EQ_FATAL (ddsrt_thread_join (thread, NULL), DDS_RETCODE_OK);
+  CU_ASSERT_GT_FATAL (created, 0);
+  /* Even if creation preceded the waiter's first scan, it had to notify
+     waiters: this definition already existed in participant 1. */
+  CU_ASSERT_NEQ (after, before);
+  CU_ASSERT_GT_FATAL (wait.found, 0);
+  CU_ASSERT_NEQ (wait.found, created);
+  CU_ASSERT_EQ (dds_get_participant (wait.found), g_participant2);
+}
+
+CU_Test(ddsc_topic_find_local, recheck_change_at_deadline, .init = topic_find_local_init, .fini = topic_find_local_fini, .timeout = 10)
+{
+  char name[MAX_NAME_SIZE];
+  create_unique_topic_name ("find_topic_at_deadline", name, sizeof (name));
+  dds_instance_handle_t iid1, iid2;
+  CU_ASSERT_EQ_FATAL (dds_get_instance_handle (g_participant1, &iid1), DDS_RETCODE_OK);
+  CU_ASSERT_EQ_FATAL (dds_get_instance_handle (g_participant2, &iid2), DDS_RETCODE_OK);
+  /* The domain search visits participants in instance-handle order. Hold
+     the second one so we can publish in the first after it was searched. */
+  const dds_entity_t first = iid1 < iid2 ? g_participant1 : g_participant2;
+  const dds_entity_t second = iid1 < iid2 ? g_participant2 : g_participant1;
+  dds_entity *e;
+  CU_ASSERT_EQ_FATAL (dds_entity_pin (second, &e), DDS_RETCODE_OK);
+  ddsrt_mutex_lock (&e->m_mutex);
+  const uintptr_t pins = ddsrt_atomic_ldptr (&e->m_hdllink.cnt_flags) & HDL_PINCOUNT_MASK;
+  struct topic_wait wait = { .scope = DDS_FIND_SCOPE_LOCAL_DOMAIN, .participant = first, .name = name, .timeout = DDS_MSECS (250) };
+  ddsrt_thread_t thread;
+  ddsrt_threadattr_t attr;
+  ddsrt_threadattr_init (&attr);
+  CU_ASSERT_EQ_FATAL (ddsrt_thread_create (&thread, "find_topic", &attr, wait_for_topic, &wait), DDS_RETCODE_OK);
+  while ((ddsrt_atomic_ldptr (&e->m_hdllink.cnt_flags) & HDL_PINCOUNT_MASK) == pins)
+    dds_sleepfor (DDS_MSECS (1));
+
+  const dds_entity_t created = dds_create_topic (first, &Space_Type1_desc, name, NULL, NULL);
+  /* The finder will observe the version change only after its deadline. */
+  dds_sleepfor (wait.timeout);
+  ddsrt_mutex_unlock (&e->m_mutex);
+  dds_entity_unpin (e);
+  CU_ASSERT_EQ_FATAL (ddsrt_thread_join (thread, NULL), DDS_RETCODE_OK);
+  CU_ASSERT_GT_FATAL (created, 0);
+  CU_ASSERT_GT_FATAL (wait.found, 0);
+  CU_ASSERT_NEQ (wait.found, created);
 }
 
 CU_Test(ddsc_topic_find_local, non_participants, .init = topic_find_local_init, .fini = topic_find_local_fini)

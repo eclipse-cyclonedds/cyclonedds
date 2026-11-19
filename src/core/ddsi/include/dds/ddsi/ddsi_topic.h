@@ -59,7 +59,7 @@ struct ddsi_proxy_topic
 };
 
 /** @component ddsi_topic */
-dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpguid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, bool is_builtin, bool *new_topic_def);
+dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpguid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, bool is_builtin);
 
 /** @component ddsi_topic */
 void ddsi_update_topic_qos (struct ddsi_topic *tp, const dds_qos_t *xqos);
