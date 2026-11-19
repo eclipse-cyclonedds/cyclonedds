@@ -78,7 +78,7 @@ int ddsi_is_topic_entityid (ddsi_entityid_t id)
 /* TOPIC -------------------------------------------------------- */
 
 dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpguid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *sertype,
-    const struct dds_qos *xqos, bool is_builtin, bool *new_topic_def)
+    const struct dds_qos *xqos, bool is_builtin)
 {
   dds_return_t rc;
   ddsrt_wctime_t timestamp = ddsrt_time_wallclock ();
@@ -110,7 +110,8 @@ dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpgui
     ddsi_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, tp_qos);
     ELOGDISC (tp, "}\n");
   }
-  tp->definition = ref_topic_definition (gv, sertype, ddsi_typeinfo_complete_typeid (tp_qos->type_information), tp_qos, new_topic_def);
+  bool new_topic_def = false;
+  tp->definition = ref_topic_definition (gv, sertype, ddsi_typeinfo_complete_typeid (tp_qos->type_information), tp_qos, &new_topic_def);
   assert (tp->definition);
   if (new_topic_def)
     ddsi_builtintopic_write_topic (gv->builtin_topic_interface, tp->definition, timestamp, true);
