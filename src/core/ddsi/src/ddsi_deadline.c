@@ -150,20 +150,16 @@ void ddsi_deadline_unregister_instance_real (struct ddsi_deadline_adm *deadline_
 
 extern inline void ddsi_deadline_renew_instance_locked (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem);
 
-void ddsi_deadline_renew_instance_real (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem)
+void ddsi_deadline_renew_instance_real (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow)
 {
-  /* move element to end of the list (list->latest) and update deadline
-     according to current deadline duration in rhc (event with old deadline
-     will still be triggered, but has no effect on this instance because in
-     the callback the deadline (which will be the updated value) will be
-     checked for expiry */
-  ddsrt_mtime_t now = ddsrt_time_monotonic ();
-  elem->deadlines_missed = ddsi_deadline_compute_deadlines_missed (now, elem, deadline_adm->dur);
-  elem->t_last_update = now;
+  /* Leave an overdue instance in place until the monitor reports its misses.
+     Its next deadline will then be computed from this renewal. */
+  elem->deadlines_missed = ddsi_deadline_compute_deadlines_missed (tnow, elem, deadline_adm->dur);
+  elem->t_last_update = tnow;
   if (elem->deadlines_missed == 0)
   {
     ddsrt_circlist_remove (&deadline_adm->list, &elem->e);
-    elem->t_deadline = ddsrt_mtime_add_duration (now, deadline_adm->dur);
+    elem->t_deadline = ddsrt_mtime_add_duration (tnow, deadline_adm->dur);
     ddsrt_circlist_append (&deadline_adm->list, &elem->e);
   }
 }

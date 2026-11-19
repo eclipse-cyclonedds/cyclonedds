@@ -66,7 +66,7 @@ void ddsi_deadline_reregister_instance_real (struct ddsi_deadline_adm *deadline_
 void ddsi_deadline_unregister_instance_real (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem);
 
 /** @component deadline_qos */
-void ddsi_deadline_renew_instance_real (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem);
+void ddsi_deadline_renew_instance_real (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow);
 
 /** @component deadline_qos */
 inline void ddsi_deadline_register_instance_locked (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow)
@@ -98,7 +98,7 @@ inline void ddsi_deadline_renew_instance_locked (struct ddsi_deadline_adm *deadl
   if (deadline_adm->dur != DDS_INFINITY)
   {
     assert (elem->t_deadline.v != DDS_NEVER);
-    ddsi_deadline_renew_instance_real (deadline_adm, elem);
+    ddsi_deadline_renew_instance_real (deadline_adm, elem, ddsrt_time_monotonic ());
   }
 }
 

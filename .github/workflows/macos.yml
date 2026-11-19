@@ -19,7 +19,6 @@ jobs:
               build_type: "Debug",
               shared_libs: true,
               sanitizer: "address,undefined",
-              deadline_update_skip: true,
               coverage: true,
               cc: clang,
               cxx: clang,
@@ -30,7 +29,6 @@ jobs:
               build_type: "Release",
               shared_libs: true,
               sanitizer: "undefined",
-              deadline_update_skip: true,
               cc: clang,
               cxx: clang,
             }
@@ -40,7 +38,6 @@ jobs:
               build_type: "Debug",
               shared_libs: true,
               analyzer: true,
-              deadline_update_skip: true,
               cc: gcc-14,
               cxx: g++-14,
             }
@@ -99,7 +96,6 @@ jobs:
             -DENABLE_SECURITY=ON \
             -DENABLE_LIFESPAN=ON \
             -DENABLE_DEADLINE_MISSED=ON \
-            -DSKIP_DEADLINE_UPDATE=${{ matrix.config.deadline_update_skip || false}} \
             -DENABLE_TYPELIB=ON \
             -DENABLE_TYPE_DISCOVERY=ON \
             -DENABLE_TOPIC_DISCOVERY=ON \

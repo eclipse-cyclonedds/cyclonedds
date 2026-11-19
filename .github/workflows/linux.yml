@@ -242,7 +242,6 @@ jobs:
             -DENABLE_SECURITY=${{ matrix.config.security }} \
             -DENABLE_LIFESPAN=${{ matrix.config.lifespan }} \
             -DENABLE_DEADLINE_MISSED=${{ matrix.config.deadline_missed }} \
-            -DSKIP_DEADLINE_UPDATE=OFF \
             -DENABLE_TYPELIB=ON \
             -DENABLE_TYPE_DISCOVERY=${{ matrix.config.type_discovery }} \
             -DENABLE_TOPIC_DISCOVERY=${{ matrix.config.topic_discovery }} \

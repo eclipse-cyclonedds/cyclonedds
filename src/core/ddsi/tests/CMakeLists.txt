@@ -26,6 +26,9 @@ set(ddsi_test_sources
     "sysdeps.c"
     "wraddrset.c")
 
+if(ENABLE_DEADLINE_MISSED)
+  list(APPEND ddsi_test_sources "deadline.c")
+endif()
 if(ENABLE_SECURITY)
   set(ddsi_test_sources ${ddsi_test_sources} "security_msg.c")
 endif()
