@@ -17,6 +17,9 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/ddsi_protocol.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#ifdef DDS_HAS_TYPELIB
+#include "dds/ddsi/ddsi_entity.h"
+#endif
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 #include "dds/ddsi/ddsi_typewrap.h"
 #endif
@@ -441,6 +444,12 @@ typedef struct dds_topic {
   char *m_name;
   struct ddsi_sertype *m_stype;
   struct dds_ktopic *m_ktopic; /* refc'd, constant */
+#ifdef DDS_HAS_TYPELIB
+  struct ddsi_type_pair m_type_pair; /* references acquired at creation */
+#endif
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+  struct ktopic_type_guid *m_discovery_entry; /* reference in m_ktopic->topic_guid_map, if advertised */
+#endif
   struct dds_topic_filter m_filter;
   dds_inconsistent_topic_status_t m_inconsistent_topic_status; /* Status metrics */
 } dds_topic;

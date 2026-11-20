@@ -104,9 +104,6 @@ DDS_EXPORT void ddsi_type_ref (struct ddsi_domaingv *gv, struct ddsi_type **type
 DDS_EXPORT void ddsi_type_unref (struct ddsi_domaingv *gv, struct ddsi_type *type);
 
 /** @component type_system */
-void ddsi_type_unref_sertype (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype);
-
-/** @component type_system */
 struct ddsi_typeobj *ddsi_type_get_typeobj (struct ddsi_domaingv *gv, const struct ddsi_type *type);
 
 /** @component type_system */

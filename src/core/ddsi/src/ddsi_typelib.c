@@ -3453,31 +3453,6 @@ void ddsi_type_unref (struct ddsi_domaingv *gv, struct ddsi_type *type)
   ddsrt_mutex_unlock (&gv->typelib_lock);
 }
 
-void ddsi_type_unref_sertype (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype)
-{
-  assert (sertype);
-  ddsrt_mutex_lock (&gv->typelib_lock);
-
-  ddsi_typeid_kind_t kinds[2] = { DDSI_TYPEID_KIND_MINIMAL, DDSI_TYPEID_KIND_COMPLETE };
-  for (uint32_t n = 0; n < sizeof (kinds) / sizeof (kinds[0]); n++)
-  {
-    struct ddsi_type *type;
-    ddsi_typeid_t *type_id = ddsi_sertype_typeid (sertype, kinds[n]);
-    if (!ddsi_typeid_is_none (type_id) && ((type = ddsi_type_lookup_locked (gv, type_id))))
-    {
-      TYPELIB_TRACE ("unref ddsi_type id %s", typelib_trace_make_typeid_str (&tistr, &type->xt.id.x));
-      ddsi_type_unref_impl_locked (gv, type);
-    }
-    if (type_id)
-    {
-      ddsi_typeid_fini (type_id);
-      ddsrt_free (type_id);
-    }
-  }
-
-  ddsrt_mutex_unlock (&gv->typelib_lock);
-}
-
 static void ddsi_type_get_gpe_matches_impl (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct ddsi_generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd)
 {
   if (!ddsi_type_proxy_guid_list_count (&type->proxy_guids))

@@ -19,8 +19,10 @@
 #include "dds/ddsrt/random.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_entity.h"
+#include "ddsi__gc.h"
 #include "ddsi__whc.h"
 #include "dds__entity.h"
+#include "dds__serdata_default.h"
 
 #include "test_common.h"
 
@@ -231,6 +233,108 @@ static void check_topic_samples (dds_entity_t topic_rd, char *topic_name, uint32
   CU_ASSERT_EQ_FATAL (topic_seen, exp_count);
   dds_delete (ws);
   dds_delete (readcond);
+}
+
+static void check_local_topic_announcement (dds_entity_t reader, const char *expected_name)
+{
+  void *sample = NULL;
+  dds_sample_info_t si;
+  const dds_return_t n = dds_take (reader, &sample, &si, 1, 1);
+  CU_ASSERT_EQ (n, expected_name ? 1 : 0);
+  if (n == 1)
+  {
+    const dds_builtintopic_topic_t *topic = sample;
+    CU_ASSERT (expected_name && si.valid_data && strcmp (topic->topic_name, expected_name) == 0);
+    CU_ASSERT_EQ (dds_return_loan (reader, &sample, 1), DDS_RETCODE_OK);
+  }
+}
+
+static void drain_topic_deletions (struct ddsi_gcreq_queue *queue)
+{
+  /* gc_delete_topic frees its request before queuing deletion of the topic
+     definition. Keep the queue non-empty until that callback has returned. */
+  ddsi_gcreq_enqueue (ddsi_gcreq_new (queue, ddsi_gcreq_free));
+  ddsi_gcreq_queue_drain (queue);
+}
+
+struct one_shot_typeinfo {
+  ddsi_sertype_typeinfo_t get;
+  bool available;
+};
+
+static ddsi_typeinfo_t *get_typeinfo_once (const struct ddsi_sertype *st)
+{
+  struct one_shot_typeinfo *state = st->ops->arg;
+  if (!state->available)
+    return NULL;
+  state->available = false;
+  return state->get (st);
+}
+
+CU_TheoryDataPoints (ddsc_topic_discovery, sertype_metadata) = {
+  CU_DataPoints (bool, false, true)
+};
+
+CU_Theory ((bool has_typeinfo), ddsc_topic_discovery, sertype_metadata)
+{
+  const dds_entity_t domain = test_create_domain_from_env (0, "<Discovery><Tag>sertype_metadata_${CYCLONEDDS_PID}</Tag></Discovery>");
+  CU_ASSERT_GT_FATAL (domain, 0);
+  const dds_entity_t participant = dds_create_participant (0, NULL, NULL);
+  CU_ASSERT_GT_FATAL (participant, 0);
+  const dds_entity_t reader = dds_create_reader (participant, DDS_BUILTIN_TOPIC_DCPSTOPIC, NULL, NULL);
+  CU_ASSERT_GT_FATAL (reader, 0);
+
+  /* Keep the same type IDs registered through an ordinary topic. */
+  const dds_entity_t original = dds_create_topic (participant, &Space_Type1_desc, "original", NULL, NULL);
+  CU_ASSERT_GT_FATAL (original, 0);
+  check_local_topic_announcement (reader, "original");
+  dds_typeinfo_t *info;
+  CU_ASSERT_EQ_FATAL (dds_get_typeinfo (original, &info), DDS_RETCODE_OK);
+
+  struct dds_entity *pp;
+  CU_ASSERT_EQ_FATAL (dds_entity_pin (participant, &pp), DDS_RETCODE_OK);
+  struct dds_sertype_default *st = ddsrt_malloc (sizeof (*st));
+  dds_return_t ret = dds_sertype_default_init (pp->m_domain, st, &Space_Type1_desc, DDS_DATA_REPRESENTATION_XCDR2);
+  dds_entity_unpin (pp);
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  struct one_shot_typeinfo state = { .get = st->c.ops->type_info, .available = true };
+  static struct ddsi_sertype_ops ops[2];
+  ops[has_typeinfo] = *st->c.ops;
+  if (has_typeinfo)
+  {
+    ops[has_typeinfo].type_id = NULL;
+    ops[has_typeinfo].type_info = get_typeinfo_once;
+    ops[has_typeinfo].arg = &state;
+  }
+  else
+    ops[has_typeinfo].type_info = NULL;
+  st->c.ops = &ops[has_typeinfo];
+
+  const char *name = "custom";
+  struct ddsi_sertype *type = &st->c;
+  const dds_entity_t topic = dds_create_topic_sertype (participant, name, &type, NULL, NULL, NULL);
+  CU_ASSERT_GT_FATAL (topic, 0);
+  check_local_topic_announcement (reader, has_typeinfo ? name : NULL);
+  const dds_entity_t found = dds_find_topic (DDS_FIND_SCOPE_PARTICIPANT, participant, name, NULL, 0);
+  CU_ASSERT_GT_FATAL (found, 0);
+  /* The second handle was created without metadata. Making it available
+     again must not cause deletion to release the first handle's references. */
+  state.available = true;
+  CU_ASSERT_EQ_FATAL (dds_delete (found), DDS_RETCODE_OK);
+  CU_ASSERT (state.available);
+  state.available = false;
+  CU_ASSERT_EQ_FATAL (dds_delete (topic), DDS_RETCODE_OK);
+
+  struct ddsi_domaingv *gv = get_domaingv (participant);
+  drain_topic_deletions (gv->gcreq_queue);
+  CU_ASSERT_NEQ (ddsi_type_lookup (gv, ddsi_typeinfo_minimal_typeid (info)), NULL);
+  CU_ASSERT_NEQ (ddsi_type_lookup (gv, ddsi_typeinfo_complete_typeid (info)), NULL);
+  CU_ASSERT_EQ_FATAL (dds_delete (original), DDS_RETCODE_OK);
+  drain_topic_deletions (gv->gcreq_queue);
+  CU_ASSERT_EQ (ddsi_type_lookup (gv, ddsi_typeinfo_minimal_typeid (info)), NULL);
+  CU_ASSERT_EQ (ddsi_type_lookup (gv, ddsi_typeinfo_complete_typeid (info)), NULL);
+  dds_free_typeinfo (info);
+  CU_ASSERT_EQ (dds_delete (domain), DDS_RETCODE_OK);
 }
 
 CU_Test (ddsc_topic_discovery, single_topic_def, .init = topic_discovery_init, .fini = topic_discovery_fini)

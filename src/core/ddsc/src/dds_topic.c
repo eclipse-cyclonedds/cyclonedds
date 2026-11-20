@@ -81,42 +81,9 @@ static dds_return_t dds_topic_status_validate (uint32_t mask)
 }
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-static struct ktopic_type_guid * topic_guid_map_refc_impl (const struct dds_ktopic * ktp, const struct ddsi_sertype *sertype, bool unref)
+static void topic_guid_map_unref (struct ddsi_domaingv *gv, const struct dds_ktopic *ktp, struct ktopic_type_guid *m)
 {
-  struct ktopic_type_guid *m = NULL;
-  ddsi_typeid_t *type_id = ddsi_sertype_typeid (sertype, DDSI_TYPEID_KIND_COMPLETE);
-  if (ddsi_typeid_is_none (type_id))
-    goto no_typeid;
-  struct ktopic_type_guid templ = { .type_id = type_id };
-  m = ddsrt_hh_lookup (ktp->topic_guid_map, &templ);
-  assert (m != NULL);
-  if (unref)
-    m->refc--;
-  else
-    m->refc++;
-no_typeid:
-  if (type_id != NULL)
-  {
-    ddsi_typeid_fini (type_id);
-    ddsrt_free (type_id);
-  }
-  return m;
-}
-
-#if 0 // not currently needed, symmetry arguments suggest it should exist but the compiler disagrees
-static void topic_guid_map_ref (const struct dds_ktopic * ktp, const struct ddsi_sertype *sertype)
-{
-  (void) topic_guid_map_refc_impl (ktp, sertype, false);
-}
-#endif
-
-static void topic_guid_map_unref (struct ddsi_domaingv * const gv, const struct dds_ktopic * ktp, const struct ddsi_sertype *sertype)
-{
-  struct ktopic_type_guid *m = topic_guid_map_refc_impl (ktp, sertype, true);
-  if (m == NULL)
-    return;
-
-  if (m->refc == 0)
+  if (--m->refc == 0)
   {
     ddsrt_hh_remove_present (ktp->topic_guid_map, m);
     ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
@@ -235,18 +202,22 @@ static void dds_topic_close (dds_entity *e)
   struct dds_ktopic * const ktp = tp->m_ktopic;
   assert (dds_entity_kind (e->m_parent) == DDS_KIND_PARTICIPANT);
   dds_participant * const pp = (dds_participant *) e->m_parent;
-#ifdef DDS_HAS_TYPELIB
-  ddsi_type_unref_sertype (&e->m_domain->gv, tp->m_stype);
-#endif
   dds_free (tp->m_name);
 
   ddsrt_mutex_lock (&pp->m_entity.m_mutex);
-
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-  topic_guid_map_unref (&e->m_domain->gv, ktp, tp->m_stype);
+  if (tp->m_discovery_entry)
+    topic_guid_map_unref (&e->m_domain->gv, ktp, tp->m_discovery_entry);
 #endif
   ktopic_unref (pp, ktp);
   ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
+#ifdef DDS_HAS_TYPELIB
+  if (tp->m_type_pair.complete)
+  {
+    ddsi_type_unref (&e->m_domain->gv, tp->m_type_pair.minimal);
+    ddsi_type_unref (&e->m_domain->gv, tp->m_type_pair.complete);
+  }
+#endif
   ddsi_sertype_unref (tp->m_stype);
 }
 
@@ -341,62 +312,37 @@ static dds_return_t lookup_and_check_ktopic (struct dds_ktopic **ktp_out, dds_pa
   }
 }
 
-static dds_entity_t create_topic_pp_locked (struct dds_participant *pp, struct dds_ktopic *ktp, bool builtin, const char *topic_name, struct ddsi_sertype *sertype, const dds_listener_t *listener)
-{
-  dds_entity_t hdl;
-  dds_topic *tp = dds_alloc (sizeof (*tp));
-  /* builtin topics are created implicitly (and so destroyed on last reference) and may not be deleted by the application */
-  hdl = dds_entity_init (&tp->m_entity, &pp->m_entity, DDS_KIND_TOPIC, builtin, !builtin, NULL, listener, DDS_TOPIC_STATUS_MASK);
-  tp->m_entity.m_iid = ddsi_iid_gen ();
-  dds_entity_register_child (&pp->m_entity, &tp->m_entity);
-  tp->m_ktopic = ktp;
-  tp->m_name = dds_string_dup (topic_name);
-  tp->m_stype = sertype;
-  dds_entity_init_complete (&tp->m_entity);
-  return hdl;
-}
-
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 
-static void register_topic_type_for_discovery (struct ddsi_domaingv * const gv, dds_participant * const pp, dds_ktopic * const ktp, bool is_builtin, struct ddsi_sertype * const sertype)
+static struct ktopic_type_guid *register_topic_type_for_discovery (struct ddsi_domaingv *gv, dds_participant *pp, const dds_topic *tp, const ddsi_typeinfo_t *type_info, bool is_builtin)
 {
-  /* Create or reference a ktopic-sertype meta-data entry. The hash table has the
-     complete xtypes type-id as key; for both local and discovered topic with type information,
-     both minimal and complete type identifiers are always set */
-  ddsi_typeid_t *type_id = ddsi_sertype_typeid (sertype, DDSI_TYPEID_KIND_COMPLETE);
-  if (ddsi_typeid_is_none (type_id))
-    goto free_typeid;
-
+  /* Use the complete identifier from the advertised TypeInformation as the map key. */
+  const struct dds_ktopic *ktp = tp->m_ktopic;
+  ddsi_typeid_t *type_id = ddsi_typeinfo_typeid (type_info, DDSI_TYPEID_KIND_COMPLETE);
   struct ktopic_type_guid templ = { .type_id = type_id }, *m;
   if ((m = ddsrt_hh_lookup (ktp->topic_guid_map, &templ)))
   {
     m->refc++;
-    goto free_typeid;
+    ddsi_typeid_fini (type_id);
+    ddsrt_free (type_id);
   }
   else
   {
-    /* Add a ktopic-type-guid entry with the complete type identifier of the sertype as
-        key and a reference to a newly create ddsi topic entity */
+    /* Each distinct complete type ID for this ktopic gets its own DDSI topic. */
     ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
     const struct ddsi_guid * pp_guid = dds_entity_participant_guid (&pp->m_entity);
     struct ddsi_participant * pp_ddsi = ddsi_entidx_lookup_participant_guid (gv->entity_index, pp_guid);
 
     m = dds_alloc (sizeof (*m));
     m->type_id = type_id;
-    type_id = NULL; /* the ktopic_type_guid gets the ownership for the type_id */
     m->refc = 1;
-    dds_return_t rc = ddsi_new_topic (&m->tp, &m->guid, pp_ddsi, ktp->name, sertype, ktp->qos, is_builtin);
+    dds_return_t rc = ddsi_new_topic (&m->tp, &m->guid, pp_ddsi, ktp->name, tp->m_stype->type_name, &tp->m_type_pair, type_info, ktp->qos, is_builtin);
     assert (rc == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
     (void) rc;
     ddsrt_hh_add_absent (ktp->topic_guid_map, m);
     ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   }
-free_typeid:
-  if (type_id != NULL)
-  {
-    ddsi_typeid_fini (type_id);
-    ddsrt_free (type_id);
-  }
+  return m;
 }
 
 static bool ktopic_type_guid_equal (const void *ktp_guid_a, const void *ktp_guid_b)
@@ -410,13 +356,6 @@ static uint32_t ktopic_type_guid_hash (const void *ktp_guid)
 {
   struct ktopic_type_guid *x = (struct ktopic_type_guid *) ktp_guid;
   return ddsi_typeid_hash (x->type_id);
-}
-
-#else
-
-static void register_topic_type_for_discovery (struct ddsi_domaingv * const gv, dds_participant * const pp, dds_ktopic * const ktp, bool is_builtin, struct ddsi_sertype * const sertype)
-{
-  (void) gv; (void) pp; (void) ktp; (void) is_builtin; (void) sertype;
 }
 
 #endif /* DDS_HAS_TOPIC_DISCOVERY */
@@ -436,6 +375,17 @@ static dds_return_t create_psmx_topics (dds_participant *pp, struct dds_ktopic *
   }
   return DDS_RETCODE_OK;
 }
+
+#ifdef DDS_HAS_TYPELIB
+static dds_return_t get_topic_typeinfo (const struct ddsi_sertype *sertype, ddsi_typeinfo_t **type_info)
+{
+  *type_info = ddsi_sertype_typeinfo (sertype);
+  if (*type_info && (ddsi_typeid_is_none (ddsi_typeinfo_minimal_typeid (*type_info)) ||
+                     ddsi_typeid_is_none (ddsi_typeinfo_complete_typeid (*type_info))))
+    return DDS_RETCODE_BAD_PARAMETER;
+  return DDS_RETCODE_OK;
+}
+#endif
 
 dds_entity_t dds_create_topic_impl (
     dds_entity_t participant,
@@ -470,21 +420,9 @@ dds_entity_t dds_create_topic_impl (
   }
 
 #ifdef DDS_HAS_TYPELIB
-  /* ensure that in case type information is present, both minimal and complete
-     type identifiers are present for the top-level type */
-  ddsi_typeinfo_t *type_info = ddsi_sertype_typeinfo (*sertype);
-  if (type_info != NULL)
-  {
-    if (ddsi_typeid_is_none (ddsi_typeinfo_minimal_typeid (type_info)) || ddsi_typeid_is_none (ddsi_typeinfo_complete_typeid (type_info)))
-      rc = DDS_RETCODE_BAD_PARAMETER;
-    ddsi_typeinfo_fini (type_info);
-    ddsrt_free (type_info);
-    if (rc < 0)
-    {
-      dds_entity_unpin (&pp->m_entity);
-      return rc;
-    }
-  }
+  ddsi_typeinfo_t *type_info;
+  if ((rc = get_topic_typeinfo (*sertype, &type_info)) != DDS_RETCODE_OK)
+    goto error;
 #endif
 
   new_qos = dds_create_qos ();
@@ -571,35 +509,59 @@ dds_entity_t dds_create_topic_impl (
     ddsrt_mutex_unlock (&gv->sertypes_lock);
   }
 
-  // mintype: needs to be unref'd if ddsi_type_ref_local fails for complete type
-  // compltype: used for PSMX
+  dds_topic *tp = dds_alloc (sizeof (*tp));
+  tp->m_stype = sertype_registered;
+  tp->m_ktopic = ktp;
   struct ddsi_type *compltype = NULL;
 #ifdef DDS_HAS_TYPELIB
-  struct ddsi_type *mintype = NULL;
-  if (ddsi_type_ref_local (gv, &mintype, sertype_registered, DDSI_TYPEID_KIND_MINIMAL) != DDS_RETCODE_OK)
+  /* Validate the supplied type even if we end up reusing an equivalent one.
+     Use a single metadata snapshot from the actual type for all registrations. */
+  if (sertype_registered != *sertype)
   {
-    GVTRACE ("dds_create_topic_impl: invalid type (minimal type)\n");
-    rc = DDS_RETCODE_BAD_PARAMETER;
-    goto err_type_ref_local_mintype;
+    if (type_info)
+      ddsi_typeinfo_free (type_info);
+    if ((rc = get_topic_typeinfo (sertype_registered, &type_info)) != DDS_RETCODE_OK)
+      goto err_topic;
   }
-  if (ddsi_type_ref_local (gv, &compltype, sertype_registered, DDSI_TYPEID_KIND_COMPLETE) != DDS_RETCODE_OK)
+  if (type_info)
   {
-    GVTRACE ("dds_create_topic_impl: invalid type (complete type)\n");
-    rc = DDS_RETCODE_BAD_PARAMETER;
-    goto err_type_ref_local_compltype;
+    ddsi_typemap_t *type_map = ddsi_sertype_typemap (sertype_registered);
+    rc = ddsi_type_add (gv, &tp->m_type_pair.minimal, &tp->m_type_pair.complete, type_info, type_map);
+    if (type_map)
+    {
+      ddsi_typemap_fini (type_map);
+      ddsrt_free (type_map);
+    }
+    if (rc != DDS_RETCODE_OK)
+    {
+      rc = DDS_RETCODE_BAD_PARAMETER;
+      goto err_topic;
+    }
+    compltype = tp->m_type_pair.complete;
   }
 #endif
 
   // Concurrent QoS change is not possible: topic QoS changes lock pp->m_entity.m_mutex
   if (new_ktopic && (rc = create_psmx_topics (pp, ktp, sertype_registered, compltype)) != DDS_RETCODE_OK)
-    goto err_create_psmx_topics;
+    goto err_topic;
 
-  /* Create topic referencing ktopic & sertype_registered */
-  hdl = create_topic_pp_locked (pp, ktp, (sertype_registered->ops == &ddsi_sertype_ops_builtintopic), name, sertype_registered, listener);
+  const bool builtin = (sertype_registered->ops == &ddsi_sertype_ops_builtintopic);
+  hdl = dds_entity_init (&tp->m_entity, &pp->m_entity, DDS_KIND_TOPIC, builtin, !builtin, NULL, listener, DDS_TOPIC_STATUS_MASK);
+  tp->m_entity.m_iid = ddsi_iid_gen ();
+  dds_entity_register_child (&pp->m_entity, &tp->m_entity);
+  tp->m_name = dds_string_dup (name);
   ddsi_sertype_unref (*sertype);
   *sertype = sertype_registered;
 
-  register_topic_type_for_discovery (gv, pp, ktp, is_builtin, sertype_registered);
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+  if (type_info)
+    tp->m_discovery_entry = register_topic_type_for_discovery (gv, pp, tp, type_info, is_builtin);
+#endif
+#ifdef DDS_HAS_TYPELIB
+  if (type_info)
+    ddsi_typeinfo_free (type_info);
+#endif
+  dds_entity_init_complete (&tp->m_entity);
   ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
 
   /* A topic can become findable in this participant even if its definition
@@ -616,19 +578,22 @@ dds_entity_t dds_create_topic_impl (
   GVTRACE ("dds_create_topic_impl: new topic %"PRId32"\n", hdl);
   return hdl;
 
-err_create_psmx_topics:
+err_topic:
 #ifdef DDS_HAS_TYPELIB
-  ddsi_type_unref (gv, compltype); // null pointer allowed
-err_type_ref_local_compltype:
-  ddsi_type_unref (gv, mintype); // null pointer allowed
-err_type_ref_local_mintype:
+  ddsi_type_unref (gv, tp->m_type_pair.complete);
+  ddsi_type_unref (gv, tp->m_type_pair.minimal);
 #endif
+  dds_free (tp);
   ddsi_sertype_unref (sertype_registered);
   ktopic_unref (pp, ktp);
   ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
   GVTRACE ("dds_create_topic_impl: invalid type\n");
 
 error:
+#ifdef DDS_HAS_TYPELIB
+  if (type_info)
+    ddsi_typeinfo_free (type_info);
+#endif
   if (new_qos)
     dds_delete_qos (new_qos);
   dds_entity_unpin (&pp->m_entity);
