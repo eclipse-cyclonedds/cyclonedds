@@ -43,7 +43,7 @@ typedef void (*dds_on_subscription_matched_fn) (dds_entity_t reader, const dds_s
 
 /**
  * @anchor DDS_LUNSET
- * @ingroup internal
+ * @ingroup listener
  * @brief Null function pointer returned for an unset listener callback.
  *
  * A new or reset listener leaves its callbacks unset. Passing DDS_LUNSET

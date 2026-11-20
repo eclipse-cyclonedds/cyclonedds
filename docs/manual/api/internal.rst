@@ -24,9 +24,3 @@ Topic definition
 .. doxygengroup:: topic_definition
     :project: ddsc_api_docs
     :members:
-
-Convenience log category definitions
-------------------------------------
-.. doxygengroup:: log_categories
-    :project: ddsc_api_docs
-    :members:

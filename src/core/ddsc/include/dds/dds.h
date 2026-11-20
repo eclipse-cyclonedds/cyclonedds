@@ -72,16 +72,17 @@ typedef struct ddsi_typeinfo dds_typeinfo_t;
 typedef struct ddsi_typeobj dds_typeobj_t;
 
 /**
+ * @struct dds_rhc
  * @brief Reader History Cache
  * @ingroup dds
- * DOC_TODO
+ * @unstable
  */
 struct dds_rhc;
 
 /**
  * @brief DDSI parameter list
  * @ingroup dds
- * DOC_TODO
+ * @unstable
  */
 struct ddsi_plist;
 
@@ -89,7 +90,7 @@ struct ddsi_plist;
  * @anchor ddsi_sertype
  * @brief DDSI sertype
  * @ingroup dds
- * DOC_TODO
+ * @unstable
  */
 struct ddsi_sertype;
 
@@ -97,20 +98,21 @@ struct ddsi_sertype;
  * @anchor ddsi_serdata
  * @brief DDSI Serdata
  * @ingroup dds
- * DOC_TODO
+ * @unstable
  */
 struct ddsi_serdata;
 
 /**
  * @brief DDSI Config
  * @ingroup dds
- * DOC_TODO
+ * @unstable
  */
 struct ddsi_config;
 
 /**
  * @brief Indicates that the library uses ddsi_sertype instead of ddsi_sertopic
  * @ingroup dds
+ * @unstable
  */
 #define DDS_HAS_DDSI_SERTYPE 1
 
@@ -167,28 +169,28 @@ struct ddsi_config;
  * @{
  */
 /**
- * @brief These identifiers are used to generate the bitshifted identifiers.
- * By using bitflags instead of these IDs the process of building status masks is
- * simplified to using simple binary OR operations.
- * DOC_TODO fix the refs
+ * @brief Bit positions of the DDS statuses in a status mask.
+ *
+ * Applications select statuses by combining the corresponding public status
+ * masks, such as @ref DDS_DATA_AVAILABLE_STATUS, with bitwise OR.
  */
 typedef enum dds_status_id {
-  DDS_INCONSISTENT_TOPIC_STATUS_ID,         /**< See @ref DDS_INCONSISTENT_TOPIC_STATUS */
-  DDS_OFFERED_DEADLINE_MISSED_STATUS_ID,    /**< See @ref DDS_OFFERED_DEADLINE_MISSED_STATUS */
-  DDS_REQUESTED_DEADLINE_MISSED_STATUS_ID,  /**< See @ref DDS_REQUESTED_DEADLINE_MISSED_STATUS */
-  DDS_OFFERED_INCOMPATIBLE_QOS_STATUS_ID,   /**< See @ref DDS_OFFERED_INCOMPATIBLE_QOS_STATUS */
-  DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS_ID, /**< See @ref DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS */
-  DDS_SAMPLE_LOST_STATUS_ID,                /**< See @ref DDS_SAMPLE_LOST_STATUS */
-  DDS_SAMPLE_REJECTED_STATUS_ID,            /**< See @ref DDS_SAMPLE_REJECTED_STATUS */
-  DDS_DATA_ON_READERS_STATUS_ID,            /**< See @ref DDS_DATA_ON_READERS_STATUS */
-  DDS_DATA_AVAILABLE_STATUS_ID,             /**< See @ref DDS_DATA_AVAILABLE_STATUS */
-  DDS_LIVELINESS_LOST_STATUS_ID,            /**< See @ref DDS_LIVELINESS_LOST_STATUS */
-  DDS_LIVELINESS_CHANGED_STATUS_ID,         /**< See @ref DDS_LIVELINESS_CHANGED_STATUS */
-  DDS_PUBLICATION_MATCHED_STATUS_ID,        /**< See @ref DDS_PUBLICATION_MATCHED_STATUS */
-  DDS_SUBSCRIPTION_MATCHED_STATUS_ID        /**< See @ref DDS_SUBSCRIPTION_MATCHED_STATUS */
+  DDS_INCONSISTENT_TOPIC_STATUS_ID,         /**< See @ref DDS_INCONSISTENT_TOPIC_STATUS. */
+  DDS_OFFERED_DEADLINE_MISSED_STATUS_ID,    /**< See @ref DDS_OFFERED_DEADLINE_MISSED_STATUS. */
+  DDS_REQUESTED_DEADLINE_MISSED_STATUS_ID,  /**< See @ref DDS_REQUESTED_DEADLINE_MISSED_STATUS. */
+  DDS_OFFERED_INCOMPATIBLE_QOS_STATUS_ID,   /**< See @ref DDS_OFFERED_INCOMPATIBLE_QOS_STATUS. */
+  DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS_ID, /**< See @ref DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS. */
+  DDS_SAMPLE_LOST_STATUS_ID,                /**< See @ref DDS_SAMPLE_LOST_STATUS. */
+  DDS_SAMPLE_REJECTED_STATUS_ID,            /**< See @ref DDS_SAMPLE_REJECTED_STATUS. */
+  DDS_DATA_ON_READERS_STATUS_ID,            /**< See @ref DDS_DATA_ON_READERS_STATUS. */
+  DDS_DATA_AVAILABLE_STATUS_ID,             /**< See @ref DDS_DATA_AVAILABLE_STATUS. */
+  DDS_LIVELINESS_LOST_STATUS_ID,            /**< See @ref DDS_LIVELINESS_LOST_STATUS. */
+  DDS_LIVELINESS_CHANGED_STATUS_ID,         /**< See @ref DDS_LIVELINESS_CHANGED_STATUS. */
+  DDS_PUBLICATION_MATCHED_STATUS_ID,        /**< See @ref DDS_PUBLICATION_MATCHED_STATUS. */
+  DDS_SUBSCRIPTION_MATCHED_STATUS_ID        /**< See @ref DDS_SUBSCRIPTION_MATCHED_STATUS. */
 } dds_status_id_t;
 
-/** Helper value to indicate the highest bit that can be set in a status mask. */
+/** Highest bit position of a DDS status in a status mask. */
 #define DDS_STATUS_ID_MAX (DDS_SUBSCRIPTION_MATCHED_STATUS_ID)
 
 /**
@@ -876,7 +878,7 @@ dds_create_domain(const dds_domainid_t domain, const char *config);
 
 /**
  * @brief Creates a domain with a given configuration, specified as an
- * initializer (unstable interface)
+ * initializer.
  * @ingroup domain
  * @component domain
  * @unstable
@@ -1066,6 +1068,8 @@ dds_create_topic(
 /**
  * @brief Indicates that the library defines the dds_create_topic_sertype function
  * @ingroup topic
+ * @unstable
+ *
  * Introduced to help with the change from sertopic to sertype. If you are using
  * a modern CycloneDDS version you will not need this.
  */
@@ -1075,6 +1079,7 @@ dds_create_topic(
  * @brief Creates a topic using a caller-supplied serialization type.
  * @ingroup topic
  * @component topic
+ * @unstable
  *
  * On success this function consumes one reference to the supplied sertype and
  * sets `*sertype` to the type used by the topic. This is a borrowed pointer,
@@ -1254,8 +1259,7 @@ dds_get_type_name(dds_entity_t topic, char *name, size_t size);
  * @defgroup topic_filter (Topic filters)
  * @ingroup topic
  * Topic filter functions.
- * @warning part of the Unstable API: no guarantee that any
- *          of this will be maintained for backwards compatibility.
+ * @unstable
  *
  * A writer applies the filter to data samples and bypasses it for key-only
  * operations. DDS_TOPIC_FILTER_SAMPLEINFO_ARG is ignored by writers.
@@ -1273,7 +1277,6 @@ dds_get_type_name(dds_entity_t topic, char *name, size_t size);
  * @anchor dds_topic_filter_sample_fn
  * @brief Topic filter function that only needs to look at the sample.
  * @ingroup topic_filter
- * @warning Unstable API
  * @unstable
  */
 typedef bool (*dds_topic_filter_sample_fn) (const void * sample);
@@ -1282,7 +1285,7 @@ typedef bool (*dds_topic_filter_sample_fn) (const void * sample);
  * @anchor dds_topic_filter_sample_arg_fn
  * @brief Topic filter function that only needs to look at the sample and a custom argument.
  * @ingroup topic_filter
- * @warning Unstable API
+ * @unstable
  */
 typedef bool (*dds_topic_filter_sample_arg_fn) (const void * sample, void * arg);
 
@@ -1290,7 +1293,7 @@ typedef bool (*dds_topic_filter_sample_arg_fn) (const void * sample, void * arg)
  * @anchor dds_topic_filter_sampleinfo_arg_fn
  * @brief Topic filter function that only needs to look at the sampleinfo and a custom argument.
  * @ingroup topic_filter
- * @warning Unstable API
+ * @unstable
  */
 typedef bool (*dds_topic_filter_sampleinfo_arg_fn) (const dds_sample_info_t * sampleinfo, void * arg);
 
@@ -1298,7 +1301,7 @@ typedef bool (*dds_topic_filter_sampleinfo_arg_fn) (const dds_sample_info_t * sa
  * @anchor dds_topic_filter_sample_sampleinfo_arg_fn
  * @brief Topic filter function that needs to look at the sample, the sampleinfo and a custom argument.
  * @ingroup topic_filter
- * @warning Unstable API
+ * @unstable
  */
 typedef bool (*dds_topic_filter_sample_sampleinfo_arg_fn) (const void * sample, const dds_sample_info_t * sampleinfo, void * arg);
 
@@ -1306,7 +1309,7 @@ typedef bool (*dds_topic_filter_sample_sampleinfo_arg_fn) (const void * sample, 
  * @anchor dds_topic_filter_fn
  * @brief See \ref dds_topic_filter_sample_fn
  * @ingroup topic_filter
- * @warning Unstable API
+ * @unstable
  */
 typedef dds_topic_filter_sample_fn dds_topic_filter_fn;
 
@@ -1314,14 +1317,14 @@ typedef dds_topic_filter_sample_fn dds_topic_filter_fn;
  * @anchor dds_topic_filter_arg_fn
  * @brief See \ref dds_topic_filter_sample_arg_fn
  * @ingroup topic_filter
- * @warning Unstable API
+ * @unstable
  */
 typedef dds_topic_filter_sample_arg_fn dds_topic_filter_arg_fn;
 
 /**
  * @brief Topic filter mode;
  * @ingroup topic_filter
- * @warning Unstable API
+ * @unstable
  */
 enum dds_topic_filter_mode {
   DDS_TOPIC_FILTER_NONE,                  /**< Can be used to reset topic filter */
@@ -1334,8 +1337,8 @@ enum dds_topic_filter_mode {
 /**
  * @brief Union of all filter function types;
  * @ingroup topic_filter
- * @warning Unstable API
-*/
+ * @unstable
+ */
 union dds_topic_filter_function_union {
   dds_topic_filter_sample_fn sample; /**< Use with mode dds_topic_filter_mode::DDS_TOPIC_FILTER_SAMPLE */
   dds_topic_filter_sample_arg_fn sample_arg; /**< Use with mode dds_topic_filter_mode::DDS_TOPIC_FILTER_SAMPLE_ARG */
@@ -1346,7 +1349,7 @@ union dds_topic_filter_function_union {
 /**
  * @brief Full topic filter container;
  * @ingroup topic_filter
- * @warning Unstable API
+ * @unstable
  */
 struct dds_topic_filter {
   enum dds_topic_filter_mode mode;         /**< Provide a mode */
@@ -1359,7 +1362,9 @@ struct dds_topic_filter {
  * @anchor dds_set_topic_filter_and_arg
  * @ingroup topic_filter
  * @component topic
- * @warning Unstable API. Set the filter before creating readers or writers using
+ * @unstable
+ *
+ * @warning Set the filter before creating readers or writers using
  *          this topic. To change it later, ensure that no writer calls or
  *          incoming deliveries to readers can use the filter during the change.
  *
@@ -1381,7 +1386,9 @@ dds_set_topic_filter_and_arg(
  * @anchor dds_set_topic_filter_extended
  * @ingroup topic_filter
  * @component topic
- * @warning Unstable API. Set the filter before creating readers or writers using
+ * @unstable
+ *
+ * @warning Set the filter before creating readers or writers using
  *          this topic. To change it later, ensure that no writer calls or
  *          incoming deliveries to readers can use the filter during the change.
  *
@@ -1402,7 +1409,7 @@ dds_set_topic_filter_extended(
  * @brief Retrieves a sample-and-argument filter.
  * @ingroup topic_filter
  * @component topic
- * @warning Unstable API.
+ * @unstable
  *
  * @param[in] topic Topic to query.
  * @param[out] fn Receives the callback, or NULL if filtering is disabled. Optional.
@@ -1423,7 +1430,7 @@ dds_get_topic_filter_and_arg (
  * @brief Retrieves the topic filter mode, callback and argument.
  * @ingroup topic_filter
  * @component topic
- * @warning Unstable API.
+ * @unstable
  *
  * @param[in] topic Topic to query.
  * @param[out] filter Receives the filter specification on success.
@@ -1644,6 +1651,7 @@ dds_create_reader(
  * @brief Creates a new instance of a DDS reader with a custom history cache.
  * @ingroup reader
  * @component reader
+ * @unstable
  *
  * Parent selection, supported topics and QoS follow @ref dds_create_reader.
  * Argument validation and security checks precede the call to the cache's
@@ -2060,6 +2068,7 @@ dds_write_flush(dds_entity_t entity);
  * @brief Writes a serialized sample using the current time.
  * @ingroup writing
  * @component write_data
+ * @unstable
  *
  * After validating the serdata type and writer and checking for a topic
  * filter, this call sets the timestamp in @p serdata to the current time and
@@ -2089,6 +2098,7 @@ dds_writecdr(dds_entity_t writer, struct ddsi_serdata *serdata);
  * @brief Forwards serialized data with its source timestamp and statusinfo.
  * @ingroup writing
  * @component write_data
+ * @unstable
  *
  * The writer preserves the timestamp and statusinfo from @p serdata. The
  * timestamp must satisfy the @ref write_source_timestamp "source timestamp limits".
@@ -3404,6 +3414,7 @@ dds_take_next_wl(
  * @brief Collect one sample during a peek, read or take.
  * @ingroup reading
  * @component read_data
+ * @unstable
  *
  * The callback runs once per matching sample, with samples of the same instance
  * grouped together. It runs under the reader history lock. Keep it brief and
@@ -3437,6 +3448,7 @@ typedef dds_return_t (*dds_read_with_collector_fn_t) (
  * @brief Peek at matching samples using an application-defined collector.
  * @ingroup reading
  * @component read_data
+ * @unstable
  *
  * Successfully collected samples keep their sample and view states.
  * See @ref read_sample_selection for state masks and data-availability statuses.
@@ -3469,6 +3481,7 @@ dds_peek_with_collector (
  * @brief Peek at samples from the next matching instance using an application-defined collector.
  * @ingroup reading
  * @component read_data
+ * @unstable
  *
  * Selects the lowest instance handle greater than `previous_handle` with at
  * least one matching sample. Pass `DDS_HANDLE_NIL` to start and use the instance
@@ -3503,6 +3516,7 @@ dds_peek_next_instance_with_collector (
  * @brief Read matching samples using an application-defined collector.
  * @ingroup reading
  * @component read_data
+ * @unstable
  *
  * Successfully collected samples remain in the history and are marked as read.
  * See @ref read_sample_selection for state masks and data-availability statuses.
@@ -3535,6 +3549,7 @@ dds_read_with_collector (
  * @brief Read samples from the next matching instance using an application-defined collector.
  * @ingroup reading
  * @component read_data
+ * @unstable
  *
  * Selects the lowest instance handle greater than `previous_handle` with at
  * least one matching sample. Pass `DDS_HANDLE_NIL` to start and use the instance
@@ -3569,6 +3584,7 @@ dds_read_next_instance_with_collector (
  * @brief Take matching samples using an application-defined collector.
  * @ingroup reading
  * @component read_data
+ * @unstable
  *
  * Successfully collected samples are removed from the reader history.
  * See @ref read_sample_selection for state masks and data-availability statuses.
@@ -3601,6 +3617,7 @@ dds_take_with_collector (
  * @brief Take samples from the next matching instance using an application-defined collector.
  * @ingroup reading
  * @component read_data
+ * @unstable
  *
  * Selects the lowest instance handle greater than `previous_handle` with at
  * least one matching sample. Pass `DDS_HANDLE_NIL` to start and use the instance
@@ -3635,6 +3652,7 @@ dds_take_next_instance_with_collector (
  * @anchor DDS_HAS_READCDR
  * @ingroup reading
  * @brief Defined when the serialized read API (@ref dds_readcdr) is available.
+ * @unstable
  */
 #define DDS_HAS_READCDR 1
 
@@ -3642,6 +3660,7 @@ dds_take_next_instance_with_collector (
  * @brief Peek at matching samples as serdata references.
  * @ingroup reading
  * @component read_data
+ * @unstable
  *
  * Successfully collected samples keep their sample and view states.
  * See @ref read_sample_selection for state masks and data-availability statuses.
@@ -3679,6 +3698,7 @@ dds_peekcdr(
  * @brief Peek at matching samples of one instance as serdata references.
  * @ingroup reading
  * @component read_data
+ * @unstable
  *
  * Successfully collected samples keep their sample and view states.
  * See @ref read_sample_selection for state masks and data-availability statuses.
@@ -3719,6 +3739,7 @@ dds_peekcdr_instance (
  * @brief Read matching samples as serdata references.
  * @ingroup reading
  * @component read_data
+ * @unstable
  *
  * Successfully collected samples remain in the history and are marked as read.
  * See @ref read_sample_selection for state masks and data-availability statuses.
@@ -3756,6 +3777,7 @@ dds_readcdr(
  * @brief Read matching samples of one instance as serdata references.
  * @ingroup reading
  * @component read_data
+ * @unstable
  *
  * Successfully collected samples remain in the history and are marked as read.
  * See @ref read_sample_selection for state masks and data-availability statuses.
@@ -3796,6 +3818,7 @@ dds_readcdr_instance (
  * @brief Take matching samples as serdata references.
  * @ingroup reading
  * @component read_data
+ * @unstable
  *
  * Successfully collected samples are removed from the reader history.
  * See @ref read_sample_selection for state masks and data-availability statuses.
@@ -3833,6 +3856,7 @@ dds_takecdr(
  * @brief Take matching samples of one instance as serdata references.
  * @ingroup reading
  * @component read_data
+ * @unstable
  *
  * Successfully collected samples are removed from the reader history.
  * See @ref read_sample_selection for state masks and data-availability statuses.
@@ -4215,8 +4239,9 @@ dds_assert_liveliness (
  * @brief Controls incoming and outgoing network traffic for a domain.
  * @ingroup testing
  * @component domain
- * @warning Unstable API, for testing
  * @unstable
+ *
+ * This function is intended for testing.
  *
  * @param[in] entity Domain or entity belonging to the domain.
  * @param[in] deaf Whether to ignore incoming packets.
@@ -4336,6 +4361,7 @@ dds_free_typeinfo (
  * @brief Borrow the serialization type of a topic, reader or writer.
  * @ingroup xtypes
  * @component type_metadata
+ * @unstable
  *
  * The returned pointer remains valid at least as long as the supplied entity.
  * The operation does not increment the reference count of the serialization type.

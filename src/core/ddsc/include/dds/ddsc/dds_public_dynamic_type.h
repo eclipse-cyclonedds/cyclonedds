@@ -40,7 +40,7 @@ struct ddsi_typeinfo;
  *
  */
 typedef struct dds_dynamic_type {
-  void * x[2];
+  void * x[2]; /**< Private type-system state. @unstable */
   dds_return_t ret;
 } dds_dynamic_type_t;
 
@@ -140,7 +140,7 @@ typedef enum dds_dynamic_type_kind
 /**
  * @ingroup dynamic_type
  *
- * Short notation for struct member descriptor with different sets of commonly used properties
+ * Initialize a struct member descriptor with an explicit member ID and insertion index.
  */
 #define DDS_DYNAMIC_MEMBER_(member_type_spec,member_name,member_id,member_index) \
     ((dds_dynamic_member_descriptor_t) { \
@@ -161,7 +161,7 @@ typedef enum dds_dynamic_type_kind
 /**
  * @ingroup dynamic_type
  *
- * Short notation for union member descriptor with different sets of commonly used properties
+ * Initialize a union member descriptor with an explicit member ID, insertion index and labels.
  */
 #define DDS_DYNAMIC_UNION_MEMBER_(member_type_spec,member_name,member_id,member_index,member_num_labels,member_labels,member_is_default) \
     ((dds_dynamic_member_descriptor_t) { \

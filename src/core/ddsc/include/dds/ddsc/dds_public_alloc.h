@@ -31,6 +31,7 @@ extern "C" {
 struct dds_topic_descriptor;
 struct dds_sequence;
 
+/** Default allocator for the CDR stream API declared in `dds/cdr/dds_cdrstream.h`. */
 DDS_EXPORT extern const struct dds_cdrstream_allocator dds_cdrstream_default_allocator;
 
 /**
@@ -72,15 +73,14 @@ typedef enum
 dds_free_op_t;
 
 /**
- * @brief DDS Allocator
+ * @brief C allocation callbacks.
  * @ingroup alloc
- * C-Style allocator API
  */
 typedef struct dds_allocator
 {
-  void * (*malloc) (size_t size); /**< behave like C malloc */
-  void * (*realloc) (void *ptr, size_t size); /**< behave like C realloc, may be null */
-  void (*free) (void *ptr); /**< behave like C free */
+  void * (*malloc) (size_t size); /**< Behaves like C malloc. */
+  void * (*realloc) (void *ptr, size_t size); /**< Behaves like C realloc, may be null. */
+  void (*free) (void *ptr); /**< Behaves like C free. */
 }
 dds_allocator_t;
 
@@ -122,8 +122,11 @@ DDS_EXPORT void * dds_realloc_zero (void * ptr, size_t size);
 DDS_EXPORT void dds_free (void * ptr);
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
+/** Allocation callback type. */
 typedef void * (*dds_alloc_fn_t) (size_t p);
+/** Reallocation callback type. */
 typedef void * (*dds_realloc_fn_t) (void * a, size_t b);
+/** Deallocation callback type. */
 typedef void (*dds_free_fn_t) (void *p);
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 

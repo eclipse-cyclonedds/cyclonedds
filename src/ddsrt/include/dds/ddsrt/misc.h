@@ -72,11 +72,13 @@ extern "C" {
 
 /**
  * @brief Macro to disable unused argument warnings
+ * @unstable
  */
 #define DDSRT_UNUSED_ARG(a) (void)(a)
 
 /**
  * @brief Macro to disable warnings for calling deprecated interfaces
+ * @unstable
  */
 #define DDSRT_WARNING_DEPRECATED_OFF \
   DDSRT_WARNING_CLANG_OFF(deprecated-declarations) \
@@ -85,6 +87,7 @@ extern "C" {
 
 /**
  * @brief Macro to enable warnings for calling deprecated interfaces
+ * @unstable
  */
 #define DDSRT_WARNING_DEPRECATED_ON \
   DDSRT_WARNING_CLANG_ON(deprecated-declarations) \

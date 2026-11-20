@@ -37,10 +37,11 @@ extern "C" {
  * @ingroup dds
  * Miscellaneous types and functions that are required to be public, since they are
  * in the output of the IDL compiler, but are not intended for direct use.
+ * @unstable
  */
 
 /**
- * @ingroup implementation
+ * @ingroup topic
  * @brief Representation of an IDL sequence in the C binding
  *
  * The IDL compiler emits the same layout for every IDL sequence type.  In
@@ -79,12 +80,13 @@ dds_sequence_t;
  * @ingroup implementation
  * @brief Key Descriptor
  * Used to describe a named key field in a type with the offset from the start of a struct.
+ * @unstable
  */
 typedef struct dds_key_descriptor
 {
-  const char * m_name; /**< name of keyfield */
-  uint32_t m_offset; /**< offset from pointer */
-  uint32_t m_idx; /**< m_idx'th key of type */
+  const char * m_name; /**< name of keyfield. */
+  uint32_t m_offset; /**< offset from pointer. */
+  uint32_t m_idx; /**< m_idx'th key of type. */
 }
 dds_key_descriptor_t;
 
@@ -93,7 +95,8 @@ dds_key_descriptor_t;
  * @ingroup implementation
  * Topic definitions are output by the IDL compiler and have an
  * implementation-private definition. The only thing exposed on the
- * API is a pointer to the "dds_topic_descriptor_t" struct type.
+ * API is a pointer to @ref dds_topic_descriptor_t.
+ * @unstable
  */
 
 /**
@@ -101,16 +104,17 @@ dds_key_descriptor_t;
  * @brief Simple sized byte container to hold serialized type info
  * Holds XTypes information (TypeInformation, TypeMapping) for a
  * type
+ * @unstable
  */
 struct dds_type_meta_ser
 {
-  const unsigned char * data;  /**< data pointer */
-  uint32_t sz;  /**< data size */
+  const unsigned char * data;  /**< data pointer. */
+  uint32_t sz;  /**< data size. */
 };
 
 /**
  * @anchor DDS_DATA_REPRESENTATION_XCDR1
- * @ingroup topic_definition
+ * @ingroup qos
  * @brief Data representation XCDR1
  * Type can be represented using XCDR1
  */
@@ -118,7 +122,7 @@ struct dds_type_meta_ser
 
 /**
  * @anchor DDS_DATA_REPRESENTATION_XML
- * @ingroup topic_definition
+ * @ingroup qos
  * @brief Data representation XML
  * Type can be represented using XML
  */
@@ -126,7 +130,7 @@ struct dds_type_meta_ser
 
 /**
  * @anchor DDS_DATA_REPRESENTATION_XCDR2
- * @ingroup topic_definition
+ * @ingroup qos
  * @brief Data representation XCDR2
  * Type can be represented using XCDR2
  */
@@ -138,6 +142,7 @@ struct dds_type_meta_ser
  * @ingroup topic_definition
  * @brief Data representation XCDR1 flag
  * Type can be represented using XCDR1, preshifted
+ * @unstable
  */
 #define DDS_DATA_REPRESENTATION_FLAG_XCDR1  (1u << DDS_DATA_REPRESENTATION_XCDR1)
 
@@ -146,6 +151,7 @@ struct dds_type_meta_ser
  * @ingroup topic_definition
  * @brief Data representation XML flag
  * Type can be represented using XML, preshifted
+ * @unstable
  */
 #define DDS_DATA_REPRESENTATION_FLAG_XML    (1u << DDS_DATA_REPRESENTATION_XML)
 
@@ -154,6 +160,7 @@ struct dds_type_meta_ser
  * @ingroup topic_definition
  * @brief Data representation XCDR2 flag
  * Type can be represented using XCDR2, preshifted
+ * @unstable
  */
 #define DDS_DATA_REPRESENTATION_FLAG_XCDR2  (1u << DDS_DATA_REPRESENTATION_XCDR2)
 
@@ -161,32 +168,41 @@ struct dds_type_meta_ser
  * @anchor DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT
  * @ingroup topic_definition
  * @brief Default datarepresentation flag, XCDR1 and XCDR2 flags
+ * @unstable
  */
 #define DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT  (DDS_DATA_REPRESENTATION_FLAG_XCDR1 | DDS_DATA_REPRESENTATION_FLAG_XCDR2)
 
 /**
- * @brief Topic Descriptor
+ * @typedef dds_topic_descriptor_t
+ * @ingroup topic
+ * @brief Identifies the type of samples for a topic.
+ *
+ * Applications pass pointers to descriptors produced by the IDL compiler or
+ * by @ref dds_create_topic_descriptor.
+ */
+
+/**
+ * @struct dds_topic_descriptor
  * @ingroup topic_definition
- * @warning Unstable/Private API
- * Contains all meta information about a type, usually produced by the IDL compiler
- * Since this type is not intended for public consumption it can change without warning.
+ * @brief Private layout of a topic descriptor.
+ * @unstable
  */
 typedef struct dds_topic_descriptor
 {
-  const uint32_t m_size;               /**< Size of topic type */
-  const uint32_t m_align;              /**< Alignment of topic type */
-  const uint32_t m_flagset;            /**< Flags */
-  const uint32_t m_nkeys;              /**< Number of keys (can be 0) */
-  const char * m_typename;             /**< Type name */
-  const dds_key_descriptor_t * m_keys; /**< Key descriptors (NULL iff m_nkeys 0) */
-  const uint32_t m_nops;               /**< Number of ops in m_ops */
-  const uint32_t * m_ops;              /**< Marshalling meta data */
-  const char * m_meta;                 /**< XML topic description meta data */
-  struct dds_type_meta_ser type_information;  /**< XCDR2 serialized TypeInformation, only present if flag DDS_TOPIC_XTYPES_METADATA is set */
+  const uint32_t m_size;               /**< Size of topic type. */
+  const uint32_t m_align;              /**< Alignment of topic type. */
+  const uint32_t m_flagset;            /**< Flags. */
+  const uint32_t m_nkeys;              /**< Number of keys (can be 0). */
+  const char * m_typename;             /**< Type name. */
+  const dds_key_descriptor_t * m_keys; /**< Key descriptors (NULL iff m_nkeys 0). */
+  const uint32_t m_nops;               /**< Number of ops in m_ops. */
+  const uint32_t * m_ops;              /**< Marshalling meta data. */
+  const char * m_meta;                 /**< XML topic description meta data. */
+  struct dds_type_meta_ser type_information;  /**< XCDR2 serialized TypeInformation, only present if flag DDS_TOPIC_XTYPES_METADATA is set. */
   struct dds_type_meta_ser type_mapping;      /**< XCDR2 serialized TypeMapping: maps type-id to type object and minimal to complete type id,
-                                                   only present if flag DDS_TOPIC_XTYPES_METADATA is set */
+                                                   only present if flag DDS_TOPIC_XTYPES_METADATA is set. */
   const uint32_t restrict_data_representation; /**< restrictions on the data representations allowed for the top-level type for this topic,
-                                           only present if flag DDS_TOPIC_RESTRICT_DATA_REPRESENTATION */
+                                           only present if flag DDS_TOPIC_RESTRICT_DATA_REPRESENTATION. */
 }
 dds_topic_descriptor_t;
 
@@ -292,36 +308,39 @@ dds_topic_descriptor_t;
 /**
  * @brief DDS Entity Kind constants
  * @ingroup internal
- * @warning Unstable/Private API
  * Used throughout the library to indicate what entity is what.
+ * @unstable
  */
 typedef enum dds_entity_kind
 {
-  DDS_KIND_DONTCARE, /**< Retrieving any entity */
-  DDS_KIND_TOPIC, /**< Topic entity */
-  DDS_KIND_PARTICIPANT, /**< Domain Participant entity */
-  DDS_KIND_READER, /**< Reader entity */
-  DDS_KIND_WRITER, /**< Writer entity */
-  DDS_KIND_SUBSCRIBER, /**< Subscriber entity */
-  DDS_KIND_PUBLISHER, /**< Publisher entity */
-  DDS_KIND_COND_READ, /**< ReadCondition entity */
-  DDS_KIND_COND_QUERY, /**< QueryCondition entity */
-  DDS_KIND_COND_GUARD, /**< GuardCondition entity */
-  DDS_KIND_WAITSET, /**< WaitSet entity */
-  DDS_KIND_DOMAIN, /**< Domain entity */
-  DDS_KIND_CYCLONEDDS /**< CycloneDDS library entity */
+  DDS_KIND_DONTCARE, /**< Retrieving any entity. */
+  DDS_KIND_TOPIC, /**< Topic entity. */
+  DDS_KIND_PARTICIPANT, /**< Domain Participant entity. */
+  DDS_KIND_READER, /**< Reader entity. */
+  DDS_KIND_WRITER, /**< Writer entity. */
+  DDS_KIND_SUBSCRIBER, /**< Subscriber entity. */
+  DDS_KIND_PUBLISHER, /**< Publisher entity. */
+  DDS_KIND_COND_READ, /**< ReadCondition entity. */
+  DDS_KIND_COND_QUERY, /**< QueryCondition entity. */
+  DDS_KIND_COND_GUARD, /**< GuardCondition entity. */
+  DDS_KIND_WAITSET, /**< WaitSet entity. */
+  DDS_KIND_DOMAIN, /**< Domain entity. */
+  DDS_KIND_CYCLONEDDS /**< CycloneDDS library entity. */
 } dds_entity_kind_t;
 /**
  * @anchor DDS_KIND_MAX
  * @ingroup internal
  * @brief Max entity kind, used for loops.
+ * @unstable
  */
 #define DDS_KIND_MAX DDS_KIND_CYCLONEDDS
 
 /**
- * @ingroup internal
- * @warning Private API
- * @brief Instance handles are uint64_t behind the scenes
+ * @ingroup instance_handle
+ * @brief Identifies a DDS entity or data instance.
+ *
+ * Applications may compare instance handles for equality. Their numeric
+ * values are assigned by Cyclone DDS.
  */
 typedef uint64_t dds_instance_handle_t;
 

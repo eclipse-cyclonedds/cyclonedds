@@ -14,9 +14,8 @@
 /**
  * @defgroup statistics (DDS Statistics)
  * @ingroup dds
- * @warning Unstable API
- *
- * A quick-and-dirty provisional interface
+ * Read an entity's statistics as a set of named values.
+ * @unstable
  */
 
 #include "dds/dds.h"
@@ -128,7 +127,7 @@ DDS_EXPORT void dds_delete_statistics (struct dds_statistics *stat);
  * @param[in] name         name to look for
  *
  * @returns The address of the key-value pair inside `stat`, or NULL if `stat` is NULL or
- * `name` does not match a key in `stat.
+ * `name` does not match a key in `stat`.
  */
 DDS_EXPORT const struct dds_stat_keyvalue *dds_lookup_statistic (const struct dds_statistics *stat, const char *name)
   ddsrt_nonnull ((2));

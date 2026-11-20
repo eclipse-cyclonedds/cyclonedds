@@ -35,11 +35,9 @@
 /* Whether or not support for topic discovery is included */
 #cmakedefine DDS_HAS_TOPIC_DISCOVERY 1
 
-/* Not for general use, specificly for testing psmx Cyclone DDS plugin */
-#cmakedefine DDS_ALLOW_NESTED_DOMAIN 1
+#cmakedefine DDS_ALLOW_NESTED_DOMAIN 1 /**< Allows nested domains when testing the Cyclone DDS PSMX plugin. @unstable */
 
-/* Not intended for general use, whether building a static library, specifically testing psmx and security */
-#cmakedefine DDS_IS_STATIC_LIBRARY 1
+#cmakedefine DDS_IS_STATIC_LIBRARY 1 /**< Identifies static builds for PSMX and security tests. @unstable */
 
 /* Whether or not support for qos provider is included */
 #cmakedefine DDS_HAS_QOS_PROVIDER 1
@@ -47,8 +45,7 @@
 /* Whether or not support for DDS-over-TCP is included */
 #cmakedefine DDS_HAS_TCP 1
 
-/* Whether or not support for the test-only fake UDP transport is included */
-#cmakedefine DDS_HAS_FAKEUDP 1
+#cmakedefine DDS_HAS_FAKEUDP 1 /**< Indicates that the test-only fake UDP transport is available. @unstable */
 
 
 #endif
