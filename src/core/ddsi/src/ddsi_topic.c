@@ -35,13 +35,13 @@
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 
-static struct ddsi_topic_definition * ref_topic_definition_locked (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype, const ddsi_typeid_t *type_id, struct dds_qos *qos, bool *is_new);
-static struct ddsi_topic_definition * ref_topic_definition (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype, const ddsi_typeid_t *type_id, struct dds_qos *qos, bool *is_new);
+static struct ddsi_topic_definition * ref_topic_definition_locked (struct ddsi_domaingv *gv, const struct ddsi_type_pair *type_pair, const ddsi_typeid_t *type_id, struct dds_qos *qos, bool *is_new);
+static struct ddsi_topic_definition * ref_topic_definition (struct ddsi_domaingv *gv, const struct ddsi_type_pair *type_pair, const ddsi_typeid_t *type_id, struct dds_qos *qos, bool *is_new);
 
 static void unref_topic_definition_locked (struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp);
 static void unref_topic_definition (struct ddsi_domaingv *gv, struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp);
 
-static struct ddsi_topic_definition * new_topic_definition (struct ddsi_domaingv *gv, const struct ddsi_sertype *type, const struct dds_qos *qos);
+static struct ddsi_topic_definition * new_topic_definition (struct ddsi_domaingv *gv, const struct ddsi_type_pair *type_pair, const struct dds_qos *qos);
 
 #endif /* DDS_HAS_TOPIC_DISCOVERY */
 
@@ -77,9 +77,10 @@ int ddsi_is_topic_entityid (ddsi_entityid_t id)
 
 /* TOPIC -------------------------------------------------------- */
 
-dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpguid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *sertype,
-    const struct dds_qos *xqos, bool is_builtin)
+dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpguid, struct ddsi_participant *pp, const char *topic_name, const char *type_name, const struct ddsi_type_pair *type_pair,
+    const ddsi_typeinfo_t *type_info, const struct dds_qos *xqos, bool is_builtin)
 {
+  assert (type_info != NULL && type_pair != NULL);
   dds_return_t rc;
   ddsrt_wctime_t timestamp = ddsrt_time_wallclock ();
   struct ddsi_domaingv *gv = pp->e.gv;
@@ -94,29 +95,27 @@ dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpgui
   ddsi_entity_common_init (&tp->e, gv, tpguid, DDSI_EK_TOPIC, timestamp, DDSI_VENDORID_ECLIPSE, pp->e.onlylocal);
   tp->pp = ddsi_ref_participant (pp, &tp->e.guid);
 
-  /* Copy QoS, merging in defaults */
-  struct dds_qos *tp_qos = ddsrt_malloc (sizeof (*tp_qos));
-  ddsi_xqos_copy (tp_qos, xqos);
-  ddsi_xqos_mergein_missing (tp_qos, &ddsi_default_qos_topic, ~(uint64_t)0);
-  assert (tp_qos->aliased == 0);
-
-  /* Set topic name, type name and type information in qos */
-  ddsi_set_xqos_topic_and_type (tp_qos, topic_name, sertype);
-  assert ((tp_qos->present & DDSI_QP_TYPE_INFORMATION) && tp_qos->type_information);
+  const uint64_t metadata = DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME | DDSI_QP_TYPE_INFORMATION;
+  struct dds_qos tp_qos = {
+    .present = metadata, .aliased = metadata,
+    .topic_name = (char *) topic_name, .type_name = (char *) type_name,
+    .type_information = (ddsi_typeinfo_t *) type_info
+  };
+  ddsi_xqos_mergein_missing (&tp_qos, xqos, ~(uint64_t)0);
+  ddsi_xqos_mergein_missing (&tp_qos, &ddsi_default_qos_topic, ~(uint64_t)0);
 
   if (gv->logconfig.c.mask & DDS_LC_DISCOVERY)
   {
     ELOGDISC (tp, "TOPIC "PGUIDFMT" QOS={", PGUID (tp->e.guid));
-    ddsi_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, tp_qos);
+    ddsi_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, &tp_qos);
     ELOGDISC (tp, "}\n");
   }
   bool new_topic_def = false;
-  tp->definition = ref_topic_definition (gv, sertype, ddsi_typeinfo_complete_typeid (tp_qos->type_information), tp_qos, &new_topic_def);
+  tp->definition = ref_topic_definition (gv, type_pair, ddsi_typeinfo_complete_typeid (type_info), &tp_qos, &new_topic_def);
   assert (tp->definition);
   if (new_topic_def)
     ddsi_builtintopic_write_topic (gv->builtin_topic_interface, tp->definition, timestamp, true);
-  ddsi_xqos_fini (tp_qos);
-  ddsrt_free (tp_qos);
+  ddsi_xqos_fini (&tp_qos);
 
   ddsrt_mutex_lock (&tp->e.lock);
   ddsi_entidx_insert_topic_guid (gv->entity_index, tp);
@@ -278,7 +277,7 @@ static void set_ddsi_topic_definition_hash (struct ddsi_topic_definition *tpd)
   ddsrt_md5_finish (&md5st, (ddsrt_md5_byte_t *) &tpd->key);
 }
 
-static struct ddsi_topic_definition * ref_topic_definition_locked (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype, const ddsi_typeid_t *type_id, struct dds_qos *qos, bool *is_new)
+static struct ddsi_topic_definition * ref_topic_definition_locked (struct ddsi_domaingv *gv, const struct ddsi_type_pair *type_pair, const ddsi_typeid_t *type_id, struct dds_qos *qos, bool *is_new)
 {
   const ddsi_typeid_t *type_id_minimal = NULL, *type_id_complete = NULL;
   if (ddsi_typeid_is_minimal (type_id))
@@ -297,17 +296,17 @@ static struct ddsi_topic_definition * ref_topic_definition_locked (struct ddsi_d
     tpd->refc++;
     *is_new = false;
   } else {
-    tpd = new_topic_definition (gv, sertype, qos);
+    tpd = new_topic_definition (gv, type_pair, qos);
     if (tpd)
       *is_new = true;
   }
   return tpd;
 }
 
-static struct ddsi_topic_definition * ref_topic_definition (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype, const ddsi_typeid_t *type_id, struct dds_qos *qos, bool *is_new)
+static struct ddsi_topic_definition * ref_topic_definition (struct ddsi_domaingv *gv, const struct ddsi_type_pair *type_pair, const ddsi_typeid_t *type_id, struct dds_qos *qos, bool *is_new)
 {
   ddsrt_mutex_lock (&gv->topic_defs_lock);
-  struct ddsi_topic_definition *tpd = ref_topic_definition_locked (gv, sertype, type_id, qos, is_new);
+  struct ddsi_topic_definition *tpd = ref_topic_definition_locked (gv, type_pair, type_id, qos, is_new);
   ddsrt_mutex_unlock (&gv->topic_defs_lock);
   return tpd;
 }
@@ -339,7 +338,7 @@ bool ddsi_topic_definition_equal (const struct ddsi_topic_definition *tpd_a, con
   return tpd_a == tpd_b;
 }
 
-static struct ddsi_topic_definition * new_topic_definition (struct ddsi_domaingv *gv, const struct ddsi_sertype *type, const struct dds_qos *qos)
+static struct ddsi_topic_definition * new_topic_definition (struct ddsi_domaingv *gv, const struct ddsi_type_pair *type_pair, const struct dds_qos *qos)
 {
   dds_return_t ret;
   assert ((qos->present & (DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME)) == (DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME));
@@ -357,15 +356,10 @@ static struct ddsi_topic_definition * new_topic_definition (struct ddsi_domaingv
     tpd = NULL;
     goto err;
   }
-  if (type != NULL)
+  if (type_pair != NULL)
   {
-    /* This shouldn't fail, because the sertype used here is already in the typelib
-       as the types are referenced from dds_create_topic_impl */
-    ret = ddsi_type_ref_local (gv, &tpd->type_pair->minimal, type, DDSI_TYPEID_KIND_MINIMAL);
-    assert (ret == DDS_RETCODE_OK);
-    ret = ddsi_type_ref_local (gv, &tpd->type_pair->complete, type, DDSI_TYPEID_KIND_COMPLETE);
-    assert (ret == DDS_RETCODE_OK);
-    (void) ret;
+    ddsi_type_ref (gv, &tpd->type_pair->minimal, type_pair->minimal);
+    ddsi_type_ref (gv, &tpd->type_pair->complete, type_pair->complete);
   }
   else
   {

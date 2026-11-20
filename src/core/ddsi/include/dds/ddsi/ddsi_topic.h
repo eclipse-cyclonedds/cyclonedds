@@ -58,8 +58,11 @@ struct ddsi_proxy_topic
   unsigned deleted: 1;
 };
 
-/** @component ddsi_topic */
-dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpguid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, bool is_builtin);
+/** @component ddsi_topic
+ * Create a discoverable topic using the supplied TypeInformation and its
+ * registered minimal and complete types. All three are borrowed for the call.
+ */
+dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpguid, struct ddsi_participant *pp, const char *topic_name, const char *type_name, const struct ddsi_type_pair *type_pair, const ddsi_typeinfo_t *type_info, const struct dds_qos *xqos, bool is_builtin);
 
 /** @component ddsi_topic */
 void ddsi_update_topic_qos (struct ddsi_topic *tp, const dds_qos_t *xqos);
