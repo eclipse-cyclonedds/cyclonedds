@@ -11,7 +11,12 @@ WARN_IF_UNDOCUMENTED   = YES
 WARN_IF_DOC_ERROR      = YES
 WARN_NO_PARAMDOC       = YES
 WARN_AS_ERROR          = NO
-INPUT                  = ../../src/core/ddsc/include/dds/ ../../src/ddsrt/include/dds/ddsrt/retcode.h ../../src/ddsrt/include/dds/ddsrt/log.h
+INPUT                  = ../../src/core/ddsc/include/dds/ \
+                         ../../src/ddsrt/include/dds/ddsrt/align.h \
+                         ../../src/ddsrt/include/dds/ddsrt/log.h \
+                         ../../src/ddsrt/include/dds/ddsrt/misc.h \
+                         ../../src/ddsrt/include/dds/ddsrt/retcode.h \
+                         ../../src/ddsrt/include/dds/ddsrt/time.h
 FILE_PATTERNS          = *.c *.idl **.h
 RECURSIVE              = YES
 EXCLUDE_SYMLINKS       = NO
@@ -25,4 +30,4 @@ PREDEFINED             = restrict= __attribute__= __declspec(x)= DDS_EXPORT= DDS
 CLASS_GRAPH            = TEXT
 ALIASES               += "component=\noop"
 ALIASES               += "notincomponent=\noop"
-ALIASES               += "unstable=\noop"
+ALIASES               += "unstable=\par API stability^^Unstable. This interface may change between releases."

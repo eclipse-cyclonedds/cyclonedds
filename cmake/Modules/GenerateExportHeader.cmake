@@ -64,16 +64,11 @@ if(_include_file)
 #  endif
 #endif
 
-// Some internal functions are exported even though are not part of the API nor
-// foreseen to ever be called by a user of the library (unlike some functions
-// that are exported for convenience in building tools or even examples, such as
-// the AVL tree).  One reason for this is that they are useful in instrumenting
-// Cyclone DDS with some performance analysis tools, and it is in the interest
-// of the projec that such analyses can be done.
-//
-// There is no guarantee that such internal symbols will remain available or
-// that their role will be the same.
 #ifndef ${_prefix_name}${_base_name_upper}_EXPORT_INTERNAL_FUNCTION
+/** Export an internal function for instrumentation by performance analysis tools.
+ * These functions can change or disappear between releases.
+ * @unstable
+ */
 #  define ${_prefix_name}${_base_name_upper}_EXPORT_INTERNAL_FUNCTION ${_prefix_name}${_base_name_upper}_EXPORT
 #endif
 ")

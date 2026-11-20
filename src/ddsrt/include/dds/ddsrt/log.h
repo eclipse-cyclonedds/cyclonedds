@@ -42,10 +42,11 @@ extern "C" {
  * On error, *fp is NULL. Each successful acquisition must be released with
  * ddsrt_log_file_close, after the caller has stopped writing to the stream.
  * The special tracing names stdout and stderr are handled by the caller.
+ * @unstable
  */
 DDS_EXPORT dds_return_t ddsrt_log_file_open (const char *name, bool append, FILE **fp);
 
-/** @brief Release a shared log file, closing it after its last user. */
+/** @brief Release a shared log file, closing it after its last user. @unstable */
 DDS_EXPORT dds_return_t ddsrt_log_file_close (FILE *fp);
 
 /** @defgroup log_categories Convenience log category definitions.
@@ -66,41 +67,41 @@ DDS_EXPORT dds_return_t ddsrt_log_file_close (FILE *fp);
 #define DDS_LC_WARNING (4u)
 /** Informational message. */
 #define DDS_LC_INFO (8u)
-/** Debug/trace messages related to configuration settings. */
+/** Debug/trace messages related to configuration settings. @unstable */
 #define DDS_LC_CONFIG (16u)
-/** Debug/trace messages related to node discovery. */
+/** Debug/trace messages related to node discovery. @unstable */
 #define DDS_LC_DISCOVERY (32u)
-/** Currently unused. */
+/** Currently unused. @unstable */
 #define DDS_LC_DATA (64u)
-/** Debug/trace messages for which no specialized category exists (yet). */
+/** Debug/trace messages for which no specialized category exists (yet). @unstable */
 #define DDS_LC_TRACE (128u)
-/** Debug/trace messages related to receive administration. */
+/** Debug/trace messages related to receive administration. @unstable */
 #define DDS_LC_RADMIN (256u)
-/** Debug/trace messages related to timing. */
+/** Debug/trace messages related to timing. @unstable */
 #define DDS_LC_TIMING (512u)
-/** Debug/trace messages related to send administration. */
+/** Debug/trace messages related to send administration. @unstable */
 #define DDS_LC_TRAFFIC (1024u)
-/** Currently unused. */
+/** Currently unused. @unstable */
 #define DDS_LC_TOPIC (2048u)
-/** Debug/trace messages related to TCP communication. */
+/** Debug/trace messages related to TCP communication. @unstable */
 #define DDS_LC_TCP (4096u)
-/** Debug/trace messages related to parameter list processing. */
+/** Debug/trace messages related to parameter list processing. @unstable */
 #define DDS_LC_PLIST (8192u)
-/** Debug/trace messages related to the writer history cache. */
+/** Debug/trace messages related to the writer history cache. @unstable */
 #define DDS_LC_WHC (16384u)
-/** Debug/trace messages related to throttling. */
+/** Debug/trace messages related to throttling. @unstable */
 #define DDS_LC_THROTTLE (32768u)
-/** Reader history cache. */
+/** Reader history cache. @unstable */
 #define DDS_LC_RHC (65536u)
-/** Include content in traces. */
+/** Include content in traces. @unstable */
 #define DDS_LC_CONTENT (131072u)
-/** Output full dump of malformed messages as warnings */
+/** Output full dump of malformed messages as warnings. @unstable */
 #define DDS_LC_MALFORMED (262144u)
-/** Debug/trace messages related to sysdef parser. */
+/** Debug/trace messages related to sysdef parser. @unstable */
 #define DDS_LC_SYSDEF (524288u)
-/** Debug/trace messages related to qos provider. */
+/** Debug/trace messages related to qos provider. @unstable */
 #define DDS_LC_QOSPROV (1048576u)
-/** Debug/trace messages related to the type library. */
+/** Debug/trace messages related to the type library. @unstable */
 #define DDS_LC_TYPELIB (2097152u)
 /** Reserved for user defined log categories (e.g. user application that uses Cyclone logger) */
 #define DDS_LC_USER1 (1u << 29)
@@ -108,7 +109,7 @@ DDS_EXPORT dds_return_t ddsrt_log_file_close (FILE *fp);
 #define DDS_LC_USER3 (1u << 31)
 #define DDS_LC_USER (DDS_LC_USER1 | DDS_LC_USER2 | DDS_LC_USER3)
 
-/** All common trace categories. */
+/** All common trace categories. The set of included categories may change. */
 #define DDS_LC_ALL \
     (DDS_LC_FATAL | DDS_LC_ERROR | DDS_LC_WARNING | DDS_LC_INFO | \
      DDS_LC_CONFIG | DDS_LC_DISCOVERY | DDS_LC_DATA | DDS_LC_TRACE | \
@@ -145,7 +146,7 @@ typedef struct {
 /** Function signature that log and trace callbacks must adhere too. */
 typedef void (*dds_log_write_fn_t) (void * p, const dds_log_data_t * d);
 
-/** Semi-opaque type for log/trace configuration. */
+/** Semi-opaque type for log/trace configuration. @unstable */
 struct ddsrt_log_cfg_common {
   /** Mask for testing whether the xLOG macro should forward to the
       function (and so incur the cost of constructing the parameters).
@@ -154,13 +155,14 @@ struct ddsrt_log_cfg_common {
       for messages in DDS_TRACE_MASK. */
   uint32_t mask;
 
-  /** The actual configured trace mask */
+  /** The actual configured trace mask. */
   uint32_t tracemask;
 
-  /** Domain id for reporting; UINT32_MAX = no domain */
+  /** Domain id for reporting; UINT32_MAX = no domain. */
   uint32_t domid;
 };
 
+/** Domain-specific log configuration used by the runtime. @unstable */
 typedef struct ddsrt_log_cfg {
   struct ddsrt_log_cfg_common c;
   union {
@@ -171,6 +173,7 @@ typedef struct ddsrt_log_cfg {
   } u;
 } ddsrt_log_cfg_t;
 
+/** Storage used by the inline dds_get_log_mask accessor. @unstable */
 DDS_EXPORT extern uint32_t *const dds_log_mask;
 
 /**
@@ -195,6 +198,7 @@ dds_set_log_mask(
 
 /**
  * @private
+ * @unstable
  */
 void
 dds_set_log_file(
@@ -202,6 +206,7 @@ dds_set_log_file(
 
 /**
  * @private
+ * @unstable
  */
 void
 dds_set_trace_file(
@@ -272,6 +277,7 @@ dds_set_trace_sink(
  * @param[in]  tracemask      Mask determining which traces should be written.
  * @param[in]  log_fp         File for default sink.
  * @param[in]  trace_fp       File for default sink.
+ * @unstable
  */
 void
 dds_log_cfg_init(
@@ -287,6 +293,7 @@ dds_log_cfg_init(
  *
  * Direct use of #dds_log is discouraged. Use #DDS_CINFO, #DDS_CWARNING,
  * #DDS_CERROR, #DDS_CTRACE or #DDS_CLOG instead.
+ * @unstable
  */
 void
 dds_log_cfg(
@@ -307,6 +314,7 @@ dds_log_cfg(
  * Write a log or trace message to one (or both) of the currently active sinks.
  *
  * Direct use of #dds_log_id is discouraged. Use #DDS_ILOG instead.
+ * @unstable
  */
 void
 dds_log_id(
@@ -426,6 +434,7 @@ dds_log(
  * dds_log. While messages that fall into a trace category could have been
  * passed just as easily, they are rejected so that tracing is kept entirely
  * separate from logging, if only cosmetic.
+ * @unstable
  */
 #define DDS_ILOG(cat, domid, ...) \
     ((dds_get_log_mask() & (cat)) ? \
@@ -442,6 +451,7 @@ dds_log(
  * dds_log. While messages that fall into a trace category could have been
  * passed just as easily, they are rejected so that tracing is kept entirely
  * separate from logging, if only cosmetic.
+ * @unstable
  */
 #define DDS_CLOG(cat, cfg, ...) \
     (((cfg)->c.mask & (cat)) ? \
@@ -460,21 +470,22 @@ dds_log(
 #define DDS_FATAL(...) \
   dds_log(DDS_LC_FATAL, __FILE__, __LINE__, DDS_FUNCTION, __VA_ARGS__)
 
-/* MSVC mishandles __VA_ARGS__ while claiming to be conforming -- and even
-   if they have a defensible implement, they still differ from every other
-   compiler out there.  An extra layer of macro expansion works around it. */
+/** Expand the logging arguments once before passing them to the next macro.
+ * This works around the MSVC preprocessor's handling of __VA_ARGS__.
+ * @unstable
+ */
 #define DDS_CLOG_MSVC_WORKAROUND(x) x
 
-/** Write a log message of type #DDS_LC_INFO using specific logging config. */
+/** Write a log message of type #DDS_LC_INFO using specific logging config. @unstable */
 #define DDS_CINFO(...) \
   DDS_CLOG_MSVC_WORKAROUND(DDS_CLOG(DDS_LC_INFO, __VA_ARGS__))
-/** Write a log message of type #DDS_LC_WARNING using specific logging config. */
+/** Write a log message of type #DDS_LC_WARNING using specific logging config. @unstable */
 #define DDS_CWARNING(...) \
   DDS_CLOG_MSVC_WORKAROUND(DDS_CLOG(DDS_LC_WARNING, __VA_ARGS__))
-/** Write a log message of type #DDS_LC_ERROR using specific logging config. */
+/** Write a log message of type #DDS_LC_ERROR using specific logging config. @unstable */
 #define DDS_CERROR(...) \
   DDS_CLOG_MSVC_WORKAROUND(DDS_CLOG(DDS_LC_ERROR, __VA_ARGS__))
-/** Write a #DDS_LC_TRACE message using specific logging config. */
+/** Write a #DDS_LC_TRACE message using specific logging config. @unstable */
 #define DDS_CTRACE(...) \
   DDS_CLOG_MSVC_WORKAROUND(DDS_CLOG(DDS_LC_TRACE, __VA_ARGS__))
 

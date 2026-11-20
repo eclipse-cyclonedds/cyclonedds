@@ -45,36 +45,36 @@ typedef int32_t dds_return_t;
 #define DDS_RETCODE_NOT_ALLOWED_BY_SECURITY (-13) /**< When credentials are not enough to use the function */
 
 
-/* Extended return codes are not in the DDS specification and are meant
-   exclusively for internal use and must not be returned by the C API. */
-#define DDS_XRETCODE_BASE (-50) /**< Base offset for extended return codes */
-#define DDS_XRETCODE(x) (DDS_XRETCODE_BASE - (x)) /**< Extended return code generator */
+/* These Cyclone DDS extensions are internal except for DDS_RETCODE_NOT_FOUND,
+   which is returned by dds_get_typeinfo. */
+#define DDS_XRETCODE_BASE (-50) /**< Base offset for extended return codes. @unstable */
+#define DDS_XRETCODE(x) (DDS_XRETCODE_BASE - (x)) /**< Extended return code generator. @unstable */
 
-/** Requested resource is busy */
+/** Requested resource is busy. @unstable */
 #define DDS_RETCODE_IN_PROGRESS         DDS_XRETCODE(1)
-/** Resource unavailable, try again */
+/** Resource unavailable, try again. @unstable */
 #define DDS_RETCODE_TRY_AGAIN           DDS_XRETCODE(2)
-/** Operation was interrupted */
+/** Operation was interrupted. @unstable */
 #define DDS_RETCODE_INTERRUPTED         DDS_XRETCODE(3)
-/** Permission denied */
+/** Permission denied. @unstable */
 #define DDS_RETCODE_NOT_ALLOWED         DDS_XRETCODE(4)
-/** Host not found */
+/** Host not found. @unstable */
 #define DDS_RETCODE_HOST_NOT_FOUND      DDS_XRETCODE(5)
-/** Network is not available */
+/** Network is not available. @unstable */
 #define DDS_RETCODE_NO_NETWORK          DDS_XRETCODE(6)
-/** Connection is not available */
+/** Connection is not available. @unstable */
 #define DDS_RETCODE_NO_CONNECTION       DDS_XRETCODE(7)
 /* Host not reachable is used to indicate that a connection was refused
    (ECONNREFUSED), reset by peer (ECONNRESET) or that a host or network cannot
    be reached (EHOSTUNREACH, ENETUNREACH). Generally all system errors that
    indicate a connection cannot be made or that a message cannot be delivered,
    map onto host not reachable. */
-/** Not enough space available */
+/** Not enough space available. @unstable */
 #define DDS_RETCODE_NOT_ENOUGH_SPACE    DDS_XRETCODE(8)
 /* Not enough space is used to indicate there is not enough buffer space to
    read a message from the network (i.e. EMSGSIZE), but is also used to
    indicate there is not enough space left on a device, etc. */
-/** Result too large */
+/** Result too large. @unstable */
 #define DDS_RETCODE_OUT_OF_RANGE        DDS_XRETCODE(9)
 /** Not found */
 #define DDS_RETCODE_NOT_FOUND           DDS_XRETCODE(10)

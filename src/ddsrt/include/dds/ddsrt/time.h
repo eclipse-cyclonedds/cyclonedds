@@ -48,51 +48,59 @@ typedef int64_t dds_time_t;
 /** Relative Time definition in nanoseconds */
 typedef int64_t dds_duration_t;
 
-/** @name Macro definition for time units in nanoseconds.
-  @{**/
+/** Number of nanoseconds in one second. */
 #define DDS_NSECS_IN_SEC INT64_C(1000000000)
+/** Number of nanoseconds in one millisecond. */
 #define DDS_NSECS_IN_MSEC INT64_C(1000000)
+/** Number of nanoseconds in one microsecond. */
 #define DDS_NSECS_IN_USEC INT64_C(1000)
-/** @}*/
 
-/** @name Infinite timeout for indicate absolute time */
+/** Absolute time indicating that a deadline never expires. */
 #define DDS_NEVER ((dds_time_t) INT64_MAX)
 
-/** @name Infinite timeout for relative time */
+/** Infinite duration. */
 #define DDS_INFINITY ((dds_duration_t) INT64_MAX)
 
-/** @name Invalid time value for assigning to time output when something goes wrong */
+/** Sentinel for an invalid timestamp. */
 #define DDS_TIME_INVALID ((dds_time_t) INT64_MIN)
 
-/** @name Invalid duration value */
+/** Sentinel for an invalid duration. */
 #define DDS_DURATION_INVALID ((dds_duration_t) INT64_MIN)
 
-/** @name Macro definition for time conversion to nanoseconds
-  @{**/
+/** Convert seconds to nanoseconds. */
 #define DDS_SECS(n) ((n) * DDS_NSECS_IN_SEC)
+/** Convert milliseconds to nanoseconds. */
 #define DDS_MSECS(n) ((n) * DDS_NSECS_IN_MSEC)
+/** Convert microseconds to nanoseconds. */
 #define DDS_USECS(n) ((n) * DDS_NSECS_IN_USEC)
-/** @}*/
 
+/** Monotonic clock timestamp. @unstable */
 typedef struct {
-  dds_time_t v;
+  dds_time_t v; /**< Nanoseconds on the monotonic clock. */
 } ddsrt_mtime_t;
 
+/** Wall-clock timestamp. @unstable */
 typedef struct {
-  dds_time_t v;
+  dds_time_t v; /**< Nanoseconds since the Unix epoch. */
 } ddsrt_wctime_t;
 
+/** Elapsed clock timestamp. @unstable */
 typedef struct {
-  dds_time_t v;
+  dds_time_t v; /**< Nanoseconds on the elapsed-time clock. */
 } ddsrt_etime_t;
 
+/** High-resolution clock timestamp. @unstable */
 typedef struct {
-  uint64_t v;
+  uint64_t v; /**< Nanoseconds on the high-resolution clock. */
 } ddsrt_hrtime_t;
 
+/** Infinite monotonic timestamp. @unstable */
 #define DDSRT_MTIME_NEVER ((ddsrt_mtime_t) { DDS_NEVER })
+/** Infinite wall-clock timestamp. @unstable */
 #define DDSRT_WCTIME_NEVER ((ddsrt_wctime_t) { DDS_NEVER })
+/** Infinite elapsed timestamp. @unstable */
 #define DDSRT_ETIME_NEVER ((ddsrt_etime_t) { DDS_NEVER })
+/** Invalid wall-clock timestamp. @unstable */
 #define DDSRT_WCTIME_INVALID ((ddsrt_wctime_t) { INT64_MIN })
 
 /**
@@ -117,6 +125,7 @@ DDS_EXPORT void dds_sleepfor (dds_duration_t reltime);
  * to (ddsrt_wctime_t){dds_time()}
  *
  * @returns Current time.
+ * @unstable
  */
 DDS_EXPORT ddsrt_wctime_t ddsrt_time_wallclock(void);
 
@@ -132,6 +141,7 @@ DDS_EXPORT ddsrt_wctime_t ddsrt_time_wallclock(void);
  * platforms it will be (based on performance-counters or HPET's).
  *
  * @returns Monotonic time if available, otherwise real time.
+ * @unstable
  */
 DDS_EXPORT ddsrt_mtime_t ddsrt_time_monotonic(void);
 
@@ -146,6 +156,7 @@ DDS_EXPORT ddsrt_mtime_t ddsrt_time_monotonic(void);
  * not guaranteed to be fixed over reboots of the system.
  *
  * @returns Elapsed time if available, otherwise return monotonic time.
+ * @unstable
  */
 DDS_EXPORT ddsrt_etime_t ddsrt_time_elapsed(void);
 
@@ -158,8 +169,12 @@ DDS_EXPORT ddsrt_etime_t ddsrt_time_elapsed(void);
  * than measuring (short) time intervals.
  *
  * @returns High resolution time stamp.
+ * @unstable
  */
 DDS_EXPORT ddsrt_hrtime_t ddsrt_time_highres(void);
+
+/** Maximum formatted timestamp length, excluding the terminating null. @unstable */
+#define DDSRT_RFC3339STRLEN (25)
 
 /**
  * @brief Convert time into a human readable string in RFC 3339 format.
@@ -171,14 +186,13 @@ DDS_EXPORT ddsrt_hrtime_t ddsrt_time_highres(void);
  *
  * @param[in]  abstime  Time in nanoseconds since UNIX Epoch.
  * @param[in]  str      String to write human readable timestamp to.
- * @param[in]  size     Number of bytes available in @str.
+ * @param[in]  size     Number of bytes available in @p str.
  *
  * @returns Number of bytes written (excluding terminating null byte). The
  *          string is truncated if str is not sufficiently large enough. Thus,
  *          a return value of size or more means the output was truncated.
+ * @unstable
  */
-#define DDSRT_RFC3339STRLEN (25)
-
 DDS_EXPORT size_t ddsrt_ctime(dds_time_t abstime, char *str, size_t size);
 
 /**
@@ -192,6 +206,7 @@ DDS_EXPORT size_t ddsrt_ctime(dds_time_t abstime, char *str, size_t size);
  * @param[in]  reltime  Relative time in nanoseconds.
  *
  * @returns A timestamp in nanoseconds since UNIX Epoch.
+ * @unstable
  */
 DDS_INLINE_EXPORT inline dds_time_t ddsrt_time_add_duration(dds_time_t abstime, dds_duration_t reltime)
 {
@@ -211,6 +226,7 @@ DDS_INLINE_EXPORT inline dds_time_t ddsrt_time_add_duration(dds_time_t abstime, 
  * @param[in]  reltime  Relative time in nanoseconds.
  *
  * @returns A timestamp in nanoseconds since UNIX Epoch.
+ * @unstable
  */
 DDS_INLINE_EXPORT inline ddsrt_mtime_t ddsrt_mtime_add_duration(ddsrt_mtime_t abstime, dds_duration_t reltime) {
   ddsrt_mtime_t t;
@@ -229,6 +245,7 @@ DDS_INLINE_EXPORT inline ddsrt_mtime_t ddsrt_mtime_add_duration(ddsrt_mtime_t ab
  * @param[in]  reltime  Relative time in nanoseconds.
  *
  * @returns A timestamp in nanoseconds since UNIX Epoch.
+ * @unstable
  */
 DDS_INLINE_EXPORT inline ddsrt_wctime_t ddsrt_wctime_add_duration(ddsrt_wctime_t abstime, dds_duration_t reltime) {
   ddsrt_wctime_t t;
@@ -247,6 +264,7 @@ DDS_INLINE_EXPORT inline ddsrt_wctime_t ddsrt_wctime_add_duration(ddsrt_wctime_t
  * @param[in]  reltime  Relative time in nanoseconds.
  *
  * @returns A timestamp in nanoseconds since UNIX Epoch.
+ * @unstable
  */
 DDS_INLINE_EXPORT inline ddsrt_etime_t ddsrt_etime_add_duration(ddsrt_etime_t abstime, dds_duration_t reltime) {
   ddsrt_etime_t t;
@@ -260,6 +278,7 @@ DDS_INLINE_EXPORT inline ddsrt_etime_t ddsrt_etime_add_duration(ddsrt_etime_t ab
  * @param[in]   t     Monotonic time to convert
  * @param[out]  sec   Seconds part
  * @param[out]  usec  Microseconds part
+ * @unstable
  */
 DDS_EXPORT void ddsrt_mtime_to_sec_usec (int32_t *sec, int32_t *usec, ddsrt_mtime_t t);
 
@@ -269,6 +288,7 @@ DDS_EXPORT void ddsrt_mtime_to_sec_usec (int32_t *sec, int32_t *usec, ddsrt_mtim
  * @param[in]   t     Wall-clock time to convert
  * @param[out]  sec   Seconds part
  * @param[out]  usec  Microseconds part
+ * @unstable
  */
 DDS_EXPORT void ddsrt_wctime_to_sec_usec (int32_t *sec, int32_t *usec, ddsrt_wctime_t t);
 
@@ -278,6 +298,7 @@ DDS_EXPORT void ddsrt_wctime_to_sec_usec (int32_t *sec, int32_t *usec, ddsrt_wct
  * @param[in]   t     Elasped time to convert
  * @param[out]  sec   Seconds part
  * @param[out]  usec  Microseconds part
+ * @unstable
  */
 DDS_EXPORT void ddsrt_etime_to_sec_usec (int32_t *sec, int32_t *usec, ddsrt_etime_t t);
 

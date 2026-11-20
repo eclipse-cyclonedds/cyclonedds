@@ -25,9 +25,8 @@ extern "C" {
 #define DDS_LENGTH_UNLIMITED -1
 
 /**
- * @brief Qos Policy IDs
- * @ingroup internal
- * Used internally to mark the QoS policy type
+ * @brief QoS policy identifiers reported in offered and requested incompatible QoS statuses.
+ * @ingroup qos
  */
 typedef enum dds_qos_policy_id {
   DDS_INVALID_QOS_POLICY_ID, /**< Invalid Policy */

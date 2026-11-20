@@ -36,6 +36,8 @@ The change history can be found in the [CHANGELOG](https://github.com/eclipse-cy
 ### Public API Declaration [1.iii]
 
 Symbols starting with `dds_` or `DDS_` and that are accessible after including only the top-level `dds.h` file, unless explicitly stated otherwise in a documentation comment, constitute the Public API.
+This rule also applies to declarations included through the `dds_public_*` headers.
+The `@unstable` tag marks an exception. On a structure, union, or enumeration, it covers the members or enumerators as well.
 
 Definitions available in installed include files that are outside this definitions are either internal or part of an Evolving API that is expected to eventually become part of the Public API. Internal definitions are deliberately included in the install: the project chooses not to artifically limit users of Cyclone DDS to the Public or Evolving APIs.
 

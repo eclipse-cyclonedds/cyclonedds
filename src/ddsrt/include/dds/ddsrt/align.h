@@ -15,6 +15,7 @@
 extern "C" {
 #endif
 
+/** Alignment operator used in generated type descriptors. @unstable */
 #define dds_alignof _Alignof
 
 #if defined (__cplusplus)

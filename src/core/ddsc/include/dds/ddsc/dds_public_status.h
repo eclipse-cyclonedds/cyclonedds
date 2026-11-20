@@ -47,7 +47,7 @@ typedef struct dds_offered_incompatible_qos_status
 {
   uint32_t total_count;  /**< DOC_TODO */
   int32_t total_count_change;  /**< DOC_TODO */
-  uint32_t last_policy_id;  /**< DOC_TODO */
+  uint32_t last_policy_id;  /**< The @ref dds_qos_policy_id_t of the last incompatible policy. */
 }
 dds_offered_incompatible_qos_status_t;
 
@@ -158,7 +158,7 @@ typedef struct dds_requested_incompatible_qos_status
 {
   uint32_t total_count;  /**< DOC_TODO */
   int32_t total_count_change;  /**< DOC_TODO */
-  uint32_t last_policy_id;  /**< DOC_TODO */
+  uint32_t last_policy_id;  /**< The @ref dds_qos_policy_id_t of the last incompatible policy. */
 }
 dds_requested_incompatible_qos_status_t;
 
