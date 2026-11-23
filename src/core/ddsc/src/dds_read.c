@@ -96,16 +96,15 @@ dds_return_t dds_read_collect_sample_loan (void *varg, const dds_sample_info_t *
     return ret;
   }
 
-  arg->ptrs[arg->next_idx] = ls->sample_ptr;
+  const uint32_t idx = arg->next_idx;
+  arg->ptrs[idx] = ls->sample_ptr;
   if ((ret = dds_read_collect_sample (arg, si, st, sd)) != DDS_RETCODE_OK ||
       (ret = dds_loan_pool_add_loan (arg->loan_pool, ls)) != DDS_RETCODE_OK)
   {
     dds_loaned_sample_unref (ls);
-    // take/read has to assume that all non-null pointers in the input array are valid (if
-    // the first one is non-null on entry) and so an application that relies on that (as
-    // opposed to calling dds_return_loan explicitly) would end up with a use-after-free
-    // or similar if we don't reset it to a null pointer.
-    arg->ptrs[arg->next_idx] = NULL;
+    // Conversion advances next_idx on success. Only registered loans count toward the result.
+    arg->next_idx = idx;
+    arg->ptrs[idx] = NULL;
   }
   return ret;
 }
