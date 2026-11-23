@@ -1903,6 +1903,7 @@ CU_Test (ddsc_typewrap, typeid_compare_laws)
   map_l_key_high.x._u.map_ldefn.key_identifier = &tid_i64;
 
   const struct typeid_compare_case cases[] = {
+    { "null identifier", NULL, &prim_low, &prim_mid },
     { "primitive kind", &prim_low, &prim_mid, &prim_high },
     { "string8 small bound", &str8s_low, &str8s_mid, &str8s_high },
     { "string8 large bound", &str8l_low, &str8l_mid, &str8l_high },
