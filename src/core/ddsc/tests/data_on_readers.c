@@ -53,6 +53,7 @@ CU_Test (ddsc_data_on_readers, basic)
     // initially no DoR or DA
     rc = dds_take_status (sub, &status, DDS_DATA_ON_READERS_STATUS);
     CU_ASSERT_FATAL (rc == 0 && status == 0);
+    CU_ASSERT_EQ_FATAL (dds_triggered (sub), 0);
     for (int i = 0; i < NRDS; i++)
     {
       rc = dds_read_status (rds[i], &status, DDS_DATA_AVAILABLE_STATUS);
@@ -64,6 +65,11 @@ CU_Test (ddsc_data_on_readers, basic)
     CU_ASSERT_EQ_FATAL (rc, 0);
     rc = dds_read_status (sub, &status, DDS_DATA_ON_READERS_STATUS);
     CU_ASSERT_FATAL (rc == 0 && status != 0);
+    CU_ASSERT_EQ_FATAL (dds_triggered (sub), 1);
+    CU_ASSERT_EQ_FATAL (dds_set_status_mask (sub, 0), DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (dds_triggered (sub), 0);
+    CU_ASSERT_EQ_FATAL (dds_set_status_mask (sub, DDS_DATA_ON_READERS_STATUS), DDS_RETCODE_OK);
+    CU_ASSERT_EQ_FATAL (dds_triggered (sub), 1);
     for (int i = 0; i < NRDS; i++)
     {
       rc = dds_read_status (rds[i], &status, DDS_DATA_AVAILABLE_STATUS);
@@ -79,6 +85,7 @@ CU_Test (ddsc_data_on_readers, basic)
       CU_ASSERT_FATAL (rc == 0 && status != 0);
       rc = dds_read_status (sub, &status, DDS_DATA_ON_READERS_STATUS);
       CU_ASSERT_FATAL (rc == 0 && ((materialized && status == 0) || (!materialized && status != 0)));
+      CU_ASSERT_EQ_FATAL (dds_triggered (sub), status != 0);
     }
 
     // read/take resets DA on reader, also resets DoR iff DoR is materialized
@@ -94,6 +101,7 @@ CU_Test (ddsc_data_on_readers, basic)
       CU_ASSERT_NEQ_FATAL ((materialized && status == 0) ||
                            (!materialized && k < NRDS-1 && status != 0) ||
                            (!materialized && k == NRDS-1 && status == 0), false);
+      CU_ASSERT_EQ_FATAL (dds_triggered (sub), status != 0);
       for (int i = 0; i < NRDS; i++)
       {
         rc = dds_read_status (rds[i], &status, DDS_DATA_AVAILABLE_STATUS);
