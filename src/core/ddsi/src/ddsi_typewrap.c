@@ -604,12 +604,12 @@ int ddsi_typeid_compare_impl (const struct DDS_XTypes_TypeIdentifier *a, const s
 
 int ddsi_typeid_compare (const ddsi_typeid_t *a, const ddsi_typeid_t *b)
 {
-  return ddsi_typeid_compare_acflag (&a->x, &b->x, false);
+  return ddsi_typeid_compare_acflag (a ? &a->x : NULL, b ? &b->x : NULL, false);
 }
 
 int ddsi_typeid_compare_assignability_check (const ddsi_typeid_t *a, const ddsi_typeid_t *b)
 {
-  return ddsi_typeid_compare_acflag (&a->x, &b->x, true);
+  return ddsi_typeid_compare_acflag (a ? &a->x : NULL, b ? &b->x : NULL, true);
 }
 
 static uint32_t typeid_hash_plain_collection_header (const struct DDS_XTypes_PlainCollectionHeader *header, uint32_t seed)
