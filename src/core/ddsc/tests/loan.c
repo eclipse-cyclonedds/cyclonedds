@@ -160,6 +160,34 @@ CU_Test (ddsc_loan, success, .init = create_entities, .fini = delete_entities)
   CU_ASSERT_EQ_FATAL (ptrs2[0], NULL);
 }
 
+CU_Test (ddsc_loan, take_with_full_loan_pool, .init = create_entities, .fini = delete_entities)
+{
+  const RoundTripModule_DataType sample = { 0 };
+  CU_ASSERT_EQ_FATAL (dds_write (writer, &sample), DDS_RETCODE_OK);
+
+  // Exercise the loan registration limit without allocating UINT32_MAX loans.
+  dds_loan_pool_t full_pool = { .n_samples_cap = UINT32_MAX, .n_samples = UINT32_MAX };
+  dds_reader *rd = NULL;
+  CU_ASSERT_EQ_FATAL (dds_reader_lock (reader, &rd), DDS_RETCODE_OK);
+  dds_loan_pool_t * const original_pool = rd->m_loans;
+  rd->m_loans = &full_pool;
+  dds_reader_unlock (rd);
+
+  dds_sample_info_t si;
+  void *buf[2] = { NULL, &si }; // buf[1] is outside the capacity passed to take.
+  const dds_return_t rc = dds_take (reader, buf, &si, 1, 1);
+
+  CU_ASSERT_EQ_FATAL (dds_reader_lock (reader, &rd), DDS_RETCODE_OK);
+  rd->m_loans = original_pool;
+  dds_reader_unlock (rd);
+
+  CU_ASSERT_EQ_FATAL (rc, DDS_RETCODE_OUT_OF_RESOURCES);
+  CU_ASSERT_EQ_FATAL (buf[0], NULL);
+  CU_ASSERT_EQ_FATAL (buf[1], &si);
+  CU_ASSERT_EQ_FATAL (dds_take (reader, buf, &si, 1, 1), 1);
+  CU_ASSERT_EQ_FATAL (dds_return_loan (reader, buf, 1), DDS_RETCODE_OK);
+}
+
 CU_Test (ddsc_loan, large_buffer_loan_return, .init = create_entities, .fini = delete_entities)
 {
 #if SIZE_MAX > UINT32_MAX && (defined (_WIN64) || defined (MAP_ANONYMOUS) || defined (MAP_ANON))
