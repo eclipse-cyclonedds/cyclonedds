@@ -22,6 +22,7 @@
 #include "dds/ddsi/ddsi_topic.h"
 #include "ddsi__typelib.h"
 #include "ddsi__whc.h"
+#include "ddsi__xt_impl.h"
 #include "dds__entity.h"
 
 #include "test_common.h"
@@ -177,6 +178,20 @@ CU_Test(ddsc_topic_find_global, participant, .init = topic_find_global_init, .fi
   wait_for_remote_topic (topic_name_remote);
 
   dds_typeinfo_t *type_info = get_desc_typeinfo (&Space_Type1_desc);
+  /* Discovery supplied the type ID. Polling for the topic must leave the
+     complete type unresolved until a caller permits a lookup request. */
+  CU_ASSERT_EQ_FATAL (dds_find_topic (DDS_FIND_SCOPE_GLOBAL, g_participant1, topic_name_remote, type_info, 0), DDS_RETCODE_TIMEOUT);
+  struct ddsi_domaingv *gv = get_domaingv (g_participant1);
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  const struct ddsi_type *type = ddsi_type_lookup_locked (gv, ddsi_typeinfo_complete_typeid (type_info));
+  CU_ASSERT_NEQ (type, NULL);
+  if (type)
+  {
+    CU_ASSERT_EQ (type->state, DDSI_TYPE_UNRESOLVED);
+    CU_ASSERT_EQ (type->request_seqno, 0);
+  }
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+
   dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_GLOBAL, g_participant1, topic_name_remote, type_info, DDS_SECS (10));
   CU_ASSERT_GT_FATAL (topic, 0);
   dds_free_typeinfo (type_info);

@@ -80,8 +80,21 @@ static ddsrt_thread_local struct {
   bool failed;
 } scc_reply_alloc_failure;
 
+static ddsrt_thread_local ddsrt_mutex_t *typeobj_copy_lock;
+static ddsrt_thread_local void *typeobj_copied_under_lock;
+
 static void *scc_reply_test_malloc (size_t size)
 {
+  if (typeobj_copy_lock != NULL && size == sizeof (ddsi_typeobj_t))
+  {
+    void *ptr = malloc (size);
+    if (ddsrt_mutex_trylock (typeobj_copy_lock))
+      ddsrt_mutex_unlock (typeobj_copy_lock);
+    else
+      typeobj_copied_under_lock = ptr;
+    typeobj_copy_lock = NULL;
+    return ptr;
+  }
   if (scc_reply_alloc_failure.mode == SCC_REPLY_ALLOC_CACHE_ENTRY &&
       size == sizeof (struct scc_reply_cache_entry_layout))
   {
@@ -436,6 +449,46 @@ CU_Test(ddsc_typelookup, get_typeobj, .init = typelookup_init, .fini = typelooku
 }
 
 
+CU_Test(ddsc_typelookup, get_typeobj_partially_resolved, .init = typelookup_alloc_failure_init, .fini = typelookup_alloc_failure_fini)
+{
+  struct ddsi_domaingv *gv = get_domaingv (g_participant1);
+  ddsi_typemap_t *map = ddsi_typemap_deser (XSpace_dep_test_desc.type_mapping.data, XSpace_dep_test_desc.type_mapping.sz);
+  CU_ASSERT_NEQ_FATAL (map, NULL);
+  const DDS_XTypes_TypeIdentifierTypeObjectPair *parent = &map->x.identifier_object_pair_minimal._buffer[0];
+  const ddsi_typeid_t id = { .x = parent->type_identifier };
+  struct ddsi_type *type;
+  dds_typeobj_t *obj = NULL;
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  CU_ASSERT_EQ_FATAL (ddsi_type_ref_id_locked (gv, &type, &id), DDS_RETCODE_OK);
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+
+  CU_ASSERT_EQ_FATAL (dds_get_typeobj (g_participant1, &id, -1, &obj), DDS_RETCODE_BAD_PARAMETER);
+  CU_ASSERT_EQ_FATAL (dds_get_typeobj (g_participant1, &id, 0, &obj), DDS_RETCODE_TIMEOUT);
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  CU_ASSERT_EQ (type->state, DDSI_TYPE_UNRESOLVED);
+  CU_ASSERT_EQ_FATAL (ddsi_type_add_typeobj (gv, type, &parent->type_object), DDS_RETCODE_OK);
+  CU_ASSERT_EQ (type->state, DDSI_TYPE_PARTIAL_RESOLVED);
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+
+  /* A later reply can still invalidate this parent's dependency. Check that
+     the public lookup copies the parent while validation is excluded. */
+  typeobj_copy_lock = &gv->typelib_lock;
+  typeobj_copied_under_lock = NULL;
+  dds_return_t ret = dds_get_typeobj (g_participant1, &id, 0, &obj);
+  typeobj_copy_lock = NULL;
+  CU_ASSERT_EQ_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_NEQ_FATAL (obj, NULL);
+  CU_ASSERT_EQ (obj, typeobj_copied_under_lock);
+  ddsi_typeid_t copied_id;
+  CU_ASSERT_EQ_FATAL (ddsi_typeobj_get_hash_id (&obj->x, &copied_id), DDS_RETCODE_OK);
+  CU_ASSERT_EQ (ddsi_typeid_compare (&copied_id, &id), 0);
+
+  dds_free_typeobj (obj);
+  ddsi_type_unref (gv, type);
+  ddsi_typemap_fini (map);
+  ddsrt_free (map);
+}
+
 CU_Test(ddsc_typelookup, api_resolve, .init = typelookup_init, .fini = typelookup_fini)
 {
   char name[100];
@@ -530,7 +583,8 @@ CU_Test(ddsc_typelookup, api_resolve_invalid, .init = typelookup_init, .fini = t
   memset (type_id, 0xff, 8);
   CU_ASSERT_EQ_FATAL (dds_entity_pin (g_participant2, &e), 0);
   struct ddsi_type *type;
-  ret = ddsi_wait_for_type_resolved (&e->m_domain->gv, type_id, DDS_SECS (3), &type, DDSI_TYPE_INCLUDE_DEPS, DDSI_TYPE_SEND_REQUEST);
+  const ddsrt_etime_t deadline = ddsrt_etime_add_duration (ddsrt_time_elapsed (), DDS_SECS (3));
+  ret = ddsi_wait_for_type_resolved (&e->m_domain->gv, type_id, deadline, &type, DDSI_TYPE_INCLUDE_DEPS, DDSI_TYPE_SEND_REQUEST);
   dds_entity_unpin (e);
   CU_ASSERT_NEQ_FATAL (ret, DDS_RETCODE_OK);
 
