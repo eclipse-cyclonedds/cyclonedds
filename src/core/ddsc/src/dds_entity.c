@@ -1146,6 +1146,27 @@ dds_return_t dds_set_status_mask (dds_entity_t entity, uint32_t mask)
   return ret;
 }
 
+/* The entity lock protects the subscriber's reader list. */
+static uint32_t readtake_status_and_mask_locked (dds_entity *e, uint32_t clear)
+{
+  uint32_t sm = clear ? ddsrt_atomic_and32_ov (&e->m_status.m_status_and_mask, ~clear)
+                      : ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask);
+  if (dds_entity_kind (e) == DDS_KIND_SUBSCRIBER)
+  {
+    dds_subscriber * const sub = (dds_subscriber *) e;
+    ddsrt_mutex_lock (&e->m_observers_lock);
+    if (!(sub->materialize_data_on_readers & DDS_SUB_MATERIALIZE_DATA_ON_READERS_FLAG))
+    {
+      if (dds_subscriber_compute_data_on_readers_locked (sub))
+        sm |= DDS_DATA_ON_READERS_STATUS;
+      else
+        sm &= ~(uint32_t)DDS_DATA_ON_READERS_STATUS;
+    }
+    ddsrt_mutex_unlock (&e->m_observers_lock);
+  }
+  return sm;
+}
+
 static dds_return_t dds_readtake_status (dds_entity_t entity, uint32_t *status, uint32_t mask, bool reset)
 {
   dds_entity *e;
@@ -1161,31 +1182,10 @@ static dds_return_t dds_readtake_status (dds_entity_t entity, uint32_t *status, 
 
   if ((ret = dds_entity_deriver_validate_status (e, mask)) == DDS_RETCODE_OK)
   {
-    uint32_t s;
     assert (entity_has_status (e));
     if (mask == 0)
       mask = SAM_STATUS_MASK;
-    if (reset)
-      s = ddsrt_atomic_and32_ov (&e->m_status.m_status_and_mask, ~mask) & mask;
-    else
-      s = ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask) & mask;
-
-    // non-materialized DATA_ON_READERS requires a fix-up
-    if (dds_entity_kind (e) == DDS_KIND_SUBSCRIBER)
-    {
-      dds_subscriber * const sub = (dds_subscriber *) e;
-      ddsrt_mutex_lock (&sub->m_entity.m_observers_lock);
-      if (!(sub->materialize_data_on_readers & DDS_SUB_MATERIALIZE_DATA_ON_READERS_FLAG))
-      {
-        if (dds_subscriber_compute_data_on_readers_locked (sub))
-          s |= DDS_DATA_ON_READERS_STATUS;
-        else
-          s &= ~(uint32_t)DDS_DATA_ON_READERS_STATUS;
-      }
-      ddsrt_mutex_unlock (&sub->m_entity.m_observers_lock);
-    }
-
-    *status = s;
+    *status = readtake_status_and_mask_locked (e, reset ? mask : 0) & mask;
   }
   dds_entity_unlock (e);
   return ret;
@@ -1336,7 +1336,7 @@ dds_return_t dds_triggered (dds_entity_t entity)
     ret = (ddsrt_atomic_ld32 (&e->m_status.m_trigger) != 0);
   else
   {
-    const uint32_t sm = ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask);
+    const uint32_t sm = readtake_status_and_mask_locked (e, 0);
     ret = ((sm & (sm >> SAM_ENABLED_SHIFT)) != 0);
   }
   dds_entity_unlock (e);
