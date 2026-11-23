@@ -820,7 +820,7 @@ static dds_return_t find_local_topic_impl (dds_find_scope_t scope, dds_participa
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 
-static dds_return_t create_topic_descriptor_from_id (dds_find_scope_t scope, dds_entity_t participant, const ddsi_typeid_t *type_id, dds_duration_t timeout, dds_topic_descriptor_t **descriptor);
+static dds_return_t create_topic_descriptor_from_id (dds_find_scope_t scope, dds_entity_t participant, const ddsi_typeid_t *type_id, ddsrt_etime_t deadline, dds_topic_descriptor_t **descriptor);
 
 static dds_entity_t find_remote_topic_impl (dds_participant *pp_topic, const char *name, const dds_typeinfo_t *type_info, ddsrt_etime_t deadline)
 {
@@ -837,9 +837,11 @@ static dds_entity_t find_remote_topic_impl (dds_participant *pp_topic, const cha
   }
 
   const dds_entity_t participant = pp_topic->m_entity.m_hdllink.hdl;
-  const dds_duration_t remaining = deadline.v - ddsrt_time_elapsed ().v;
+  /* If finding the definition used up the budget, only poll the type library. */
+  if (deadline.v <= ddsrt_time_elapsed ().v)
+    deadline = (ddsrt_etime_t) { 0 };
   dds_topic_descriptor_t *desc;
-  dds_entity_t ret = create_topic_descriptor_from_id (DDS_FIND_SCOPE_GLOBAL, participant, matched_type_id, remaining > 0 ? remaining : 0, &desc);
+  dds_entity_t ret = create_topic_descriptor_from_id (DDS_FIND_SCOPE_GLOBAL, participant, matched_type_id, deadline, &desc);
   ddsi_typeid_fini (matched_type_id);
   ddsrt_free (matched_type_id);
   if (ret == DDS_RETCODE_OK)
@@ -1069,7 +1071,7 @@ DDS_GET_STATUS(topic, inconsistent_topic, INCONSISTENT_TOPIC, total_count_change
 
 #ifdef DDS_HAS_TYPELIB
 
-static dds_return_t create_topic_descriptor_from_id (dds_find_scope_t scope, dds_entity_t participant, const ddsi_typeid_t *type_id, dds_duration_t timeout, dds_topic_descriptor_t **descriptor)
+static dds_return_t create_topic_descriptor_from_id (dds_find_scope_t scope, dds_entity_t participant, const ddsi_typeid_t *type_id, ddsrt_etime_t deadline, dds_topic_descriptor_t **descriptor)
 {
   dds_return_t ret;
 
@@ -1098,7 +1100,7 @@ static dds_return_t create_topic_descriptor_from_id (dds_find_scope_t scope, dds
 
   struct ddsi_domaingv * gv = &e->m_domain->gv;
   struct ddsi_type *type;
-  if ((ret = ddsi_wait_for_type_resolved (gv, type_id, timeout, &type, DDSI_TYPE_INCLUDE_DEPS, scope == DDS_FIND_SCOPE_GLOBAL ? DDSI_TYPE_SEND_REQUEST : DDSI_TYPE_NO_REQUEST)))
+  if ((ret = ddsi_wait_for_type_resolved (gv, type_id, deadline, &type, DDSI_TYPE_INCLUDE_DEPS, scope == DDS_FIND_SCOPE_GLOBAL ? DDSI_TYPE_SEND_REQUEST : DDSI_TYPE_NO_REQUEST)))
     goto err;
   assert (type && ddsi_type_resolved (gv, type, DDSI_TYPE_INCLUDE_DEPS));
   ret = ddsi_topic_descriptor_from_type (gv, desc, type);
@@ -1116,7 +1118,9 @@ err_pin:
 
 dds_return_t dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t participant, const dds_typeinfo_t *type_info, dds_duration_t timeout, dds_topic_descriptor_t **descriptor)
 {
-  return create_topic_descriptor_from_id (scope, participant, ddsi_typeinfo_complete_typeid (type_info), timeout, descriptor);
+  if (timeout < 0)
+    return DDS_RETCODE_BAD_PARAMETER;
+  return create_topic_descriptor_from_id (scope, participant, ddsi_typeinfo_complete_typeid (type_info), dds_type_lookup_deadline (timeout), descriptor);
 }
 
 dds_return_t dds_delete_topic_descriptor (dds_topic_descriptor_t *descriptor)

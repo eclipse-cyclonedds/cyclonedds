@@ -17,6 +17,7 @@
 #include <stdint.h>
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsrt/avl.h"
+#include "dds/ddsrt/time.h"
 #include "dds/ddsi/ddsi_guid.h"
 #include "dds/ddsi/ddsi_typewrap.h"
 #include "dds/ddsi/ddsi_sertype.h"
@@ -122,10 +123,18 @@ DDS_XTypes_TypeKind ddsi_type_get_kind (const struct ddsi_type *type);
  * @brief Waits for the provided type to be resolved
  * @component type_system
  *
+ * An absolute elapsed-time deadline of zero polls without issuing a request.
  * On success, @p type receives a reference to the resolved type for the
  * caller to release. On error, @p type retains its previous value.
  */
-dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, dds_duration_t timeout, struct ddsi_type **type, enum ddsi_type_include_deps resolved_kind, ddsi_type_request_t request);
+dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, ddsrt_etime_t abstimeout, struct ddsi_type **type, enum ddsi_type_include_deps resolved_kind, ddsi_type_request_t request);
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+/** @brief Wait for a type and copy its TypeObject while it is resolved.
+ * An absolute elapsed-time deadline of zero polls without issuing a request.
+ * @component type_system */
+dds_return_t ddsi_wait_for_typeobj (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, ddsrt_etime_t abstimeout, ddsi_typeobj_t **type_obj);
+#endif
 
 #endif
 

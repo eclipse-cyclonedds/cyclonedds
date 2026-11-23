@@ -3669,27 +3669,25 @@ void ddsi_type_pair_free (struct ddsi_type_pair *type_pair)
 
 #ifdef DDS_HAS_TYPELIB
 
-dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, dds_duration_t timeout, struct ddsi_type **type, enum ddsi_type_include_deps resolved_kind, ddsi_type_request_t request)
+/* The caller holds typelib_lock on entry and return. Waiting for a reply may
+   release it temporarily. An abstimeout of zero polls without issuing a request.
+   Success transfers a reference to the resolved type. */
+static dds_return_t wait_for_type_resolved_locked (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, ddsrt_etime_t abstimeout, struct ddsi_type **type, enum ddsi_type_include_deps resolved_kind, ddsi_type_request_t request)
 {
   assert (type);
-  if (timeout < 0 || ddsi_typeid_is_none (type_id) || !ddsi_typeid_is_hash (type_id))
+  if (ddsi_typeid_is_none (type_id) || !ddsi_typeid_is_hash (type_id))
     return DDS_RETCODE_BAD_PARAMETER;
 
-  const ddsrt_etime_t deadline = ddsrt_etime_add_duration (ddsrt_time_elapsed (), timeout);
-  ddsrt_mutex_lock (&gv->typelib_lock);
   struct ddsi_type *t = ddsi_type_lookup_locked (gv, type_id);
   if (t == NULL)
-  {
-    ddsrt_mutex_unlock (&gv->typelib_lock);
     return DDS_RETCODE_PRECONDITION_NOT_MET;
-  }
 
   /* The endpoint or topic that introduced the type may disappear while we
      send the lookup request or wait for the response. */
   ddsi_type_ref_locked (gv, NULL, t);
   dds_return_t ret = DDS_RETCODE_OK;
   const bool resolved = ddsi_type_resolved_locked (gv, t, resolved_kind);
-  if (!resolved && timeout == 0)
+  if (!resolved && abstimeout.v == 0)
     ret = DDS_RETCODE_TIMEOUT;
   else if (!resolved)
   {
@@ -3709,7 +3707,7 @@ dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_t
 #endif
     while (ret == DDS_RETCODE_OK && !ddsi_type_resolved_locked (gv, t, resolved_kind))
     {
-      if (!ddsrt_cond_etime_waituntil (&gv->typelib_resolved_cond, &gv->typelib_lock, deadline))
+      if (!ddsrt_cond_etime_waituntil (&gv->typelib_resolved_cond, &gv->typelib_lock, abstimeout))
         ret = DDS_RETCODE_TIMEOUT;
     }
   }
@@ -3717,8 +3715,33 @@ dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_t
     *type = t;
   else
     ddsi_type_unref_locked (gv, t);
+  return ret;
+}
+
+dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, ddsrt_etime_t abstimeout, struct ddsi_type **type, enum ddsi_type_include_deps resolved_kind, ddsi_type_request_t request)
+{
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  dds_return_t ret = wait_for_type_resolved_locked (gv, type_id, abstimeout, type, resolved_kind, request);
   ddsrt_mutex_unlock (&gv->typelib_lock);
   return ret;
 }
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+dds_return_t ddsi_wait_for_typeobj (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, ddsrt_etime_t abstimeout, ddsi_typeobj_t **type_obj)
+{
+  struct ddsi_type *type;
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  dds_return_t ret = wait_for_type_resolved_locked (gv, type_id, abstimeout, &type, DDSI_TYPE_IGNORE_DEPS, DDSI_TYPE_SEND_REQUEST);
+  if (ret == DDS_RETCODE_OK)
+  {
+    /* A partially resolved type can still be invalidated by a dependency. */
+    *type_obj = ddsi_type_get_typeobj (gv, type);
+    assert (*type_obj != NULL);
+    ddsi_type_unref_locked (gv, type);
+  }
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+  return ret;
+}
+#endif
 
 #endif /* DDS_HAS_TYPELIB */

@@ -23,6 +23,15 @@ dds_entity_t dds_domain_create_internal (dds_domain **domain_out, dds_domainid_t
 /** @component domain */
 dds_domain *dds_domain_find_locked (dds_domainid_t id);
 
+#ifdef DDS_HAS_TYPELIB
+/* An absolute zero polls the type library without issuing a discovery request. */
+static inline ddsrt_etime_t dds_type_lookup_deadline (dds_duration_t timeout)
+{
+  assert (timeout >= 0);
+  return timeout == 0 ? (ddsrt_etime_t) { 0 } : ddsrt_etime_add_duration (ddsrt_time_elapsed (), timeout);
+}
+#endif
+
 #if defined (__cplusplus)
 }
 #endif
