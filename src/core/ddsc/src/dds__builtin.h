@@ -60,10 +60,10 @@ dds_qos_t *dds__create_builtin_qos (void);
  * @brief Subscriber singleton within related participant.
  * @component builtin_topic
  *
- * @param e entity to get the participant from, from which the built-in subscriber will be retrieved
+ * @param participant_or_subscriber participant or subscriber whose participant owns the built-in subscriber
  * @returns the subscriber entity
  */
-dds_entity_t dds__get_builtin_subscriber (dds_entity_t e);
+dds_entity_t dds__get_builtin_subscriber (dds_entity_t participant_or_subscriber);
 
 /**
  * @brief Checks whether the reader QoS is valid for use with built-in topic TOPIC

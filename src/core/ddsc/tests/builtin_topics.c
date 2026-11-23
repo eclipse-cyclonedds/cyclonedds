@@ -351,6 +351,23 @@ CU_Test(ddsc_builtin_topics, same_subscriber, .init = setup, .fini = teardown)
 #endif
 }
 
+CU_Test(ddsc_builtin_topics, reader_parent, .init = setup, .fini = teardown)
+{
+  const dds_entity_t topic = DDS_BUILTIN_TOPIC_DCPSPARTICIPANT;
+  CU_ASSERT_EQ_FATAL (dds_create_reader (g_publisher, topic, NULL, NULL), DDS_RETCODE_ILLEGAL_OPERATION);
+  CU_ASSERT_EQ_FATAL (dds_create_reader (g_domain, topic, NULL, NULL), DDS_RETCODE_ILLEGAL_OPERATION);
+  CU_ASSERT_EQ_FATAL (dds_create_reader (DDS_ENTITY_NIL, topic, NULL, NULL), DDS_RETCODE_BAD_PARAMETER);
+
+  const dds_entity_t rd1 = dds_create_reader (g_participant, topic, NULL, NULL);
+  CU_ASSERT_GT_FATAL (rd1, 0);
+  const dds_entity_t rd2 = dds_create_reader (g_subscriber, topic, NULL, NULL);
+  CU_ASSERT_GT_FATAL (rd2, 0);
+  const dds_entity_t builtin_sub = dds_get_parent (rd1);
+  CU_ASSERT_GT_FATAL (builtin_sub, 0);
+  CU_ASSERT_NEQ_FATAL (builtin_sub, g_subscriber);
+  CU_ASSERT_EQ_FATAL (dds_get_parent (rd2), builtin_sub);
+}
+
 CU_Test(ddsc_builtin_topics, builtin_qos, .init = setup, .fini = teardown)
 {
   dds_entity_t dds_sub_rdr;

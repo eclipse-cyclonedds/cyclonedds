@@ -215,16 +215,23 @@ static dds_entity_t dds__create_builtin_subscriber (dds_participant *participant
   return sub;
 }
 
-dds_entity_t dds__get_builtin_subscriber (dds_entity_t e)
+dds_entity_t dds__get_builtin_subscriber (dds_entity_t participant_or_subscriber)
 {
   dds_entity_t sub;
   dds_return_t ret;
-  dds_entity_t pp;
+  dds_entity *e;
   dds_participant *p;
 
-  if ((pp = dds_get_participant (e)) <= 0)
-    return pp;
-  if ((ret = dds_participant_lock (pp, &p)) != DDS_RETCODE_OK)
+  if ((ret = dds_entity_pin (participant_or_subscriber, &e)) != DDS_RETCODE_OK)
+    return ret;
+  if (dds_entity_kind (e) != DDS_KIND_PARTICIPANT && dds_entity_kind (e) != DDS_KIND_SUBSCRIBER)
+  {
+    dds_entity_unpin (e);
+    return DDS_RETCODE_ILLEGAL_OPERATION;
+  }
+  ret = dds_participant_lock (dds_entity_participant (e)->m_entity.m_hdllink.hdl, &p);
+  dds_entity_unpin (e);
+  if (ret != DDS_RETCODE_OK)
     return ret;
 
   if (p->m_builtin_subscriber <= 0) {
