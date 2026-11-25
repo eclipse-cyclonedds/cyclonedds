@@ -8,6 +8,7 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <assert.h>
@@ -293,7 +294,11 @@ static size_t serdata_pserop_print_pserop (const struct ddsi_sertype *sertype_co
 {
   const struct ddsi_serdata_pserop *d = (const struct ddsi_serdata_pserop *)serdata_common;
   const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *)sertype_common;
-  return ddsi_plist_print_generic (buf, size, d->sample, tp->ops);
+  /* A key-only sample of a keyless type has no deserialized content, and the
+     sample of any other key-only sample only holds the key fields. */
+  if (d->sample == NULL)
+    return (size_t) snprintf (buf, size, "(no payload)");
+  return ddsi_plist_print_generic (buf, size, d->sample, (d->c.kind == SDK_DATA) ? tp->ops : tp->ops_key);
 }
 
 const struct ddsi_serdata_ops ddsi_serdata_ops_pserop = {

@@ -27,7 +27,7 @@ set(ddsi_test_sources
     "wraddrset.c")
 
 if(ENABLE_SECURITY)
-  set(ddsi_test_sources ${ddsi_test_sources} "security_msg.c")
+  set(ddsi_test_sources ${ddsi_test_sources} "security_msg.c" "security_exchange.c")
 endif()
 if(ENABLE_FAKEUDP)
   set(ddsi_test_sources ${ddsi_test_sources} "fakeudp.c")
