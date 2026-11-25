@@ -617,7 +617,10 @@ static void func_handshake_init_message_resend(struct dds_security_fsm *fsm, voi
 
   HSTRACE("FSM: handshake init_message_resend (lguid="PGUIDFMT" rguid="PGUIDFMT")\n", PGUID(pp->e.guid), PGUID(proxypp->e.guid));
 
-  if (strlen(handshake->local_auth_request_token.class_id) != 0)
+  /* This state can be reached (via state_validate_remote_and_begin_reply on a
+     received auth request) when validate_remote_identity has failed and left
+     local_auth_request_token untouched, so class_id may be NULL. */
+  if (handshake->local_auth_request_token.class_id && strlen(handshake->local_auth_request_token.class_id) != 0)
     (void)send_handshake_message(handshake, &handshake->local_auth_request_token, pp, proxypp, 1);
 }
 
