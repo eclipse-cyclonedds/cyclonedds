@@ -353,3 +353,92 @@ CU_Test (ddsi_pmd_message, wrong_prefix, .init = setup_and_start, .fini = stop_a
   create_fake_proxy_participant ();
   send_pmd_message (1, DDSI_RTPS_CDR_BE, 0, 1, 0, 20, MV_WRONG_PREFIX);
 }
+
+/* Sends a PMD sample with sequence number 1 as a single DATA_FRAG submessage
+   carrying fragments [fragstart, fragstart + nfrags) of fragsize bytes of a
+   sample of samplesize bytes.  The payload is the corresponding part of a
+   valid PMD message of 24 bytes, padded with zeros. */
+static void send_pmd_datafrag (uint32_t fragstart, uint16_t nfrags, uint16_t fragsize, uint32_t samplesize)
+{
+  const unsigned char pmd[24] = {
+    0,0,0,0, // CDR_BE, options = 0
+    TEST_GUIDPREFIX_BYTES (true),
+    SER32BE (0), // kind
+    SER32BE (0)  // sequence length
+  };
+  const unsigned char hdr[] = {
+    'R', 'T', 'P', 'S', gv.config.protocol_version.major, gv.config.protocol_version.minor,
+    1, DDSI_VENDORID_MINOR_ECLIPSE,
+    TEST_GUIDPREFIX_BYTES (true),
+    DDSI_RTPS_SMID_INFO_DST, 0, 0,12,
+    SER32BE (ppguid.prefix.u[0]), SER32BE (ppguid.prefix.u[1]), SER32BE (ppguid.prefix.u[2]),
+    DDSI_RTPS_SMID_HEARTBEAT, 0, 0,28,
+    SER32BE (DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER),
+    SER32BE (DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
+    SER32BE (0), SER32BE (1),
+    SER32BE (0), SER32BE (1),
+    SER32BE (1),
+    // DATA_FRAG: flags (big-endian), octets-to-next-header = 0 means it continues until the end
+    DDSI_RTPS_SMID_DATA_FRAG, 0, 0,0,
+    0,0, // extra flags
+    0,28, // octets to inline QoS (no inline qos here, so: to payload)
+    SER32BE (DDSI_ENTITYID_UNKNOWN),
+    SER32BE (DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER),
+    SER32BE (0), SER32BE (1), // seq number 1
+    SER32BE (fragstart),
+    (unsigned char) (nfrags >> 8), (unsigned char) (nfrags & 0xff),
+    (unsigned char) (fragsize >> 8), (unsigned char) (fragsize & 0xff),
+    SER32BE (samplesize)
+  };
+
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  ddsrt_atomic_st32 (&logger_arg.match, 0);
+  struct ddsi_network_packet_info pktinfo;
+  ddsi_conn_locator (gv.xmit_conns_meta[0], &pktinfo.src);
+  pktinfo.dst.kind = DDSI_LOCATOR_KIND_INVALID;
+  pktinfo.if_index = 0;
+  struct ddsi_rmsg *rmsg = ddsi_rmsg_new (rbufpool);
+  unsigned char *buf = (unsigned char *) DDSI_RMSG_PAYLOAD (rmsg);
+  const uint32_t begin = (fragstart - 1) * fragsize;
+  uint32_t endp1 = begin + (uint32_t) nfrags * fragsize;
+  if (endp1 > samplesize)
+    endp1 = samplesize;
+  memcpy (buf, hdr, sizeof (hdr));
+  memset (buf + sizeof (hdr), 0, endp1 - begin);
+  if (begin < sizeof (pmd))
+    memcpy (buf + sizeof (hdr), pmd + begin, ((endp1 < sizeof (pmd)) ? endp1 : sizeof (pmd)) - begin);
+  const size_t size = sizeof (hdr) + endp1 - begin;
+  ddsi_rmsg_setsize (rmsg, (uint32_t) size);
+  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc[0], NULL, rbufpool, rmsg, size, &pktinfo);
+  ddsi_rmsg_commit (rmsg);
+  wait_for_dqueue ();
+}
+
+CU_Test (ddsi_pmd_message, datafrag_valid, .init = setup_and_start, .fini = stop_and_teardown)
+{
+  create_fake_proxy_participant ();
+  send_pmd_datafrag (1, 1, 12, 24);
+  CU_ASSERT_EQ_FATAL (ddsrt_atomic_ld32 (&logger_arg.match), 0);
+  send_pmd_datafrag (2, 1, 12, 24);
+  CU_ASSERT_EQ_FATAL (ddsrt_atomic_ld32 (&logger_arg.match), 1);
+}
+
+CU_Test (ddsi_pmd_message, datafrag_inconsistent_size_grow, .init = setup_and_start, .fini = stop_and_teardown)
+{
+  // first fragment records sample size 24, second one claims 1028 and covers [0,1024)
+  // it must not complete the sample of 24 bytes with 1024 bytes of data
+  create_fake_proxy_participant ();
+  send_pmd_datafrag (1, 1, 12, 24);
+  send_pmd_datafrag (1, 1, 1024, 1028);
+  CU_ASSERT_EQ_FATAL (ddsrt_atomic_ld32 (&logger_arg.match), 0);
+}
+
+CU_Test (ddsi_pmd_message, datafrag_inconsistent_size_shrink, .init = setup_and_start, .fini = stop_and_teardown)
+{
+  // first fragment covers [32,1024) of a sample of 1028 bytes, second one fills
+  // [0,32) of a sample of 40 bytes: it must not complete a sample of 40 bytes
+  create_fake_proxy_participant ();
+  send_pmd_datafrag (2, 31, 32, 1028);
+  send_pmd_datafrag (1, 1, 32, 40);
+  CU_ASSERT_EQ_FATAL (ddsrt_atomic_ld32 (&logger_arg.match), 0);
+}

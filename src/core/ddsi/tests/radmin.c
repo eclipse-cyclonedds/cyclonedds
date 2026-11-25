@@ -128,6 +128,46 @@ static void insert_sample (struct ddsi_defrag *defrag, struct ddsi_reorder *reor
   ddsi_fragchain_adjust_refcount (fragchain, refc_adjust);
 }
 
+static struct ddsi_rsample *insert_fragment (struct ddsi_defrag *defrag, ddsi_seqno_t seq, uint32_t min, uint32_t maxp1, uint32_t size)
+{
+  struct ddsi_rmsg *rmsg = ddsi_rmsg_new (rbpool);
+  ddsi_rmsg_setsize (rmsg, maxp1 - min);
+  struct ddsi_rsample_info *si = ddsi_rmsg_alloc (rmsg, sizeof (*si));
+  CU_ASSERT_NEQ_FATAL (si, NULL);
+  memset (si, 0, sizeof (*si));
+  si->seq = seq;
+  si->size = size;
+  struct ddsi_rdata *rdata = ddsi_rdata_new (rmsg, min, maxp1, 0, 0, 0);
+  struct ddsi_rsample *rsample = ddsi_defrag_rsample (defrag, rdata, si);
+  ddsi_rmsg_commit (rmsg);
+  return rsample;
+}
+
+static void check_fragments_beyond_size_rejected (uint32_t min1, uint32_t maxp1_1, uint32_t size1, uint32_t min2, uint32_t maxp1_2, uint32_t size2)
+{
+  struct ddsi_defrag *defrag = ddsi_defrag_new (&gv.logconfig, DDSI_DEFRAG_DROP_LATEST, 4);
+  CU_ASSERT_EQ_FATAL (insert_fragment (defrag, 1, min1, maxp1_1, size1), NULL);
+  // the second fragment claims a different sample size and must not complete the sample
+  CU_ASSERT_EQ_FATAL (insert_fragment (defrag, 1, min2, maxp1_2, size2), NULL);
+  uint64_t discarded_bytes;
+  ddsi_defrag_stats (defrag, &discarded_bytes);
+  CU_ASSERT_EQ_FATAL (discarded_bytes, maxp1_2 - min2);
+  ddsi_defrag_free (defrag);
+}
+
+CU_Test (ddsi_radmin, defrag_inconsistent_sample_size_grow, .init = setup, .fini = teardown)
+{
+  // small fragment creates the sample, large one would cover [0,4096) of a 68-byte sample
+  check_fragments_beyond_size_rejected (0, 64, 68, 0, 4096, 4100);
+}
+
+CU_Test (ddsi_radmin, defrag_inconsistent_sample_size_shrink, .init = setup, .fini = teardown)
+{
+  // large fragment creates the sample, small one fills the gap at the start and
+  // would otherwise make the recorded sample size 40
+  check_fragments_beyond_size_rejected (32, 1024, 1028, 0, 32, 40);
+}
+
 CU_Test (ddsi_radmin, drop_gap_at_end, .init = setup, .fini = teardown)
 {
   // not doing fragmented samples in this test, so defragmenter mode & size limits are irrelevant
