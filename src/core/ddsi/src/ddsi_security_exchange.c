@@ -106,6 +106,15 @@ void ddsi_handle_auth_handshake_message(const struct ddsi_receiver_state *rst, d
 
   DDSRT_UNUSED_ARG(wr_entity_id);
 
+  /* The stateless message type is keyless, so a key-only (dispose/unregister)
+     sample has no deserialized content: msg is NULL.  Such a sample can be sent
+     by any remote peer, so just drop it rather than dereferencing NULL. */
+  if (msg == NULL)
+  {
+    RSTTRACE ("auth handshake message without payload\n");
+    return;
+  }
+
   if (msg->message_identity.source_guid.entityid.u == DDSI_ENTITYID_PARTICIPANT)
   {
     guid = msg->message_identity.source_guid;
@@ -215,6 +224,14 @@ void ddsi_handle_crypto_exchange_message(const struct ddsi_receiver_state *rst, 
   const struct ddsi_serdata_pserop *sample = (const struct ddsi_serdata_pserop *) sample_common;
   const struct ddsi_participant_generic_message *msg = sample->sample;
   ddsi_guid_t proxypp_guid;
+
+  /* The volatile secure message type is keyless, so a key-only sample has no
+     deserialized content: msg is NULL.  Drop it rather than dereferencing NULL. */
+  if (msg == NULL)
+  {
+    GVTRACE ("crypto exchange message without payload\n");
+    return;
+  }
 
   proxypp_guid.prefix = msg->message_identity.source_guid.prefix;
   proxypp_guid.entityid.u = DDSI_ENTITYID_PARTICIPANT;
