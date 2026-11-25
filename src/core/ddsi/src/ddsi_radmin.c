@@ -1178,6 +1178,17 @@ static struct ddsi_rsample *defrag_add_fragment (struct ddsi_defrag *defrag, str
 
   TRACE (defrag, "  lastfrag %p [%"PRIu32"..%"PRIu32")\n", (void *) dfsample->lastfrag, dfsample->lastfrag->min, dfsample->lastfrag->maxp1);
 
+  /* Each fragment is only bounded by the sample size in its own DATA_FRAG,
+     the reassembled sample by the size recorded for it.  Fragments claiming
+     a different sample size can cover more data than the recorded size and
+     so must be discarded. */
+  if (sampleinfo->size != dfsample->sampleinfo->size)
+  {
+    TRACE (defrag, "  sample size %"PRIu32" inconsistent with %"PRIu32", discarding\n", sampleinfo->size, dfsample->sampleinfo->size);
+    defrag->discarded_bytes += maxp1 - min;
+    return NULL;
+  }
+
   /* Interval tree is sorted on min offset; each key is unique:
      otherwise one would be wholly contained in another. */
   if (min >= dfsample->lastfrag->min)
