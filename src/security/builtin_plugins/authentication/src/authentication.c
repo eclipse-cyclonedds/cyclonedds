@@ -1066,6 +1066,7 @@ DDS_Security_ValidationResult_t validate_remote_identity(dds_security_authentica
   RemoteIdentityInfo *remoteIdent;
   IdentityRelation *relation;
   AuthenticationChallenge *lchallenge = NULL, *rchallenge = NULL;
+  DDS_Security_ValidationResult_t result;
 
   ddsrt_mutex_lock(&impl->lock);
   obj = security_object_find(impl->objectHash, local_identity_handle);
@@ -1128,16 +1129,19 @@ DDS_Security_ValidationResult_t validate_remote_identity(dds_security_authentica
       ddsrt_free(lchallenge);
     }
   }
-  ddsrt_mutex_unlock(&impl->lock);
-
+  /* relation, remoteIdent and localIdent may be freed by a concurrent call to
+     return_identity_handle as soon as the lock is released, so finish using them
+     while still holding it. */
   if (!remote_auth_request_token)
     fill_auth_request_token(local_auth_request_token, relation->lchallenge);
   else
     DDS_Security_set_token_nil(local_auth_request_token);
 
   *remote_identity_handle = IDENTITY_HANDLE(remoteIdent);
-  return memcmp(&localIdent->adjustedGUID, &remoteIdent->guid, sizeof(DDS_Security_GUID_t)) < 0 ?
+  result = memcmp(&localIdent->adjustedGUID, &remoteIdent->guid, sizeof(DDS_Security_GUID_t)) < 0 ?
     DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_REQUEST : DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE;
+  ddsrt_mutex_unlock(&impl->lock);
+  return result;
 
 err_inv_duplicate:
   ddsrt_free(lchallenge);
@@ -1247,6 +1251,8 @@ DDS_Security_ValidationResult_t begin_handshake_request(dds_security_authenticat
   DDS_Security_BinaryProperty_set_by_value(&tokens[tokidx++], DDS_AUTHTOKEN_PROP_CHALLENGE1, relation->lchallenge->value, sizeof(AuthenticationChallenge));
 
   (void)ddsrt_hh_add(impl->objectHash, handshake);
+  /* handshake may be freed by a concurrent return_identity_handle once the lock is released */
+  *handshake_handle = HANDSHAKE_HANDLE(handshake);
 
   ddsrt_mutex_unlock(&impl->lock);
 
@@ -1257,7 +1263,6 @@ DDS_Security_ValidationResult_t begin_handshake_request(dds_security_authenticat
   handshake_message->properties._buffer = NULL;
   handshake_message->binary_properties._length = tokidx;
   handshake_message->binary_properties._buffer = tokens;
-  *handshake_handle = HANDSHAKE_HANDLE(handshake);
 
   return DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE;
 
@@ -1800,10 +1805,10 @@ DDS_Security_ValidationResult_t begin_handshake_reply(dds_security_authenticatio
   handshake_message_out->class_id = ddsrt_strdup(DDS_SECURITY_AUTH_HANDSHAKE_REPLY_TOKEN_ID);
   handshake_message_out->binary_properties._length = tokidx;
   handshake_message_out->binary_properties._buffer = tokens;
+  /* handshake may be freed by a concurrent return_identity_handle once the lock is released */
+  *handshake_handle = HANDSHAKE_HANDLE(handshake);
 
   ddsrt_mutex_unlock(&impl->lock);
-
-  *handshake_handle = HANDSHAKE_HANDLE(handshake);
   return DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE;
 
 err_signature:
@@ -2050,8 +2055,10 @@ DDS_Security_SharedSecretHandle get_shared_secret(dds_security_authentication *i
     DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "return_handshake_handle: Invalid handle provided");
     goto err_invalid_handle;
   }
+  /* obj may be freed by a concurrent return_handshake_handle/return_identity_handle once the lock is released */
+  DDS_Security_SharedSecretHandle shared_secret_handle = (DDS_Security_SharedSecretHandle)(ddsrt_address)((HandshakeInfo *)obj)->shared_secret_handle_impl;
   ddsrt_mutex_unlock(&impl->lock);
-  return (DDS_Security_SharedSecretHandle)(ddsrt_address)((HandshakeInfo *)obj)->shared_secret_handle_impl;
+  return shared_secret_handle;
 
 err_invalid_handle:
   ddsrt_mutex_unlock(&impl->lock);
