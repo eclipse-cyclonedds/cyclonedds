@@ -1,0 +1,36 @@
+name: iOS
+
+on:
+  push:
+    branches: "*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cycloneDDS_ios:
+    name: Release arm64 (build only)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v6.0.2
+        name: Repository Checkout
+      - name: configure
+        # Cross-compile for iOS devices using the runner's Xcode SDK.
+        # Keep existing iOS unused-parameter warnings non-fatal.
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_OSX_SYSROOT=iphoneos \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=ON \
+            -DBUILD_TESTING=OFF \
+            -DBUILD_IDLC=OFF \
+            -DBUILD_DDSPERF=OFF \
+            -DBUILD_EXAMPLES=OFF \
+            -DENABLE_SSL=OFF \
+            -DWERROR=OFF
+      - name: build
+        run: cmake --build build --parallel
