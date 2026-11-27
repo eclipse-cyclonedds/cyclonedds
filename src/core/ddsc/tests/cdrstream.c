@@ -4811,6 +4811,42 @@ CU_Test (ddsc_cdrstream, check_xcdr2_appendable_normalize)
 }
 #undef D
 
+// Regression coverage for the bounded-string schema in issue #2432.
+// A missing first required member is invalid, but an appendable writer may
+// legitimately have fewer trailing members than the reader.
+CU_Test (ddsc_cdrstream, check_appendable_zero_payload_bounded_string)
+{
+  static const uint8_t empty_cdr[] = { 0 };
+  const struct {
+    enum dds_cdr_enc_version version;
+    bool valid;
+    uint32_t size;
+    const uint8_t *cdr;
+  } tests[] = {
+    { XCDR1, false, 0, empty_cdr },
+    { XCDR1, true, CDR(32,7) },
+    { XCDR1, true, CDR(32,7, STR0) },
+    { XCDR1, true, CDR(32,7, STR('x')) },
+    { XCDR1, false, CDR(32,7, 32,2, 8,'x') },
+    { XCDR2, false, 0, empty_cdr },
+    { XCDR2, false, CDR(32,0) },
+    { XCDR2, true, CDR(DHDR(32,7)) },
+    { XCDR2, true, CDR(DHDR(32,7, STR0)) },
+    { XCDR2, true, CDR(DHDR(32,7, STR('x'))) },
+    { XCDR2, false, CDR(DHDR(32,7, 32,2, 8,'x')) }
+  };
+  for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    uint32_t actual_size = 0;
+    run_test_normalize (&CdrStreamAppendable_bounded_string_desc,
+                        tests[i].cdr, tests[i].size, tests[i].version,
+                        tests[i].valid, DDS_STREAM_NORMALIZE_FLAG_NONE,
+                        &actual_size);
+    if (tests[i].valid)
+      CU_ASSERT_EQ_FATAL (actual_size, tests[i].size);
+  }
+}
+
 #define D(n) (&CdrStreamAppendable_ ## n ## _desc)
 CU_Test (ddsc_cdrstream, check_appendable_prevent_type_widening_normalize)
 {

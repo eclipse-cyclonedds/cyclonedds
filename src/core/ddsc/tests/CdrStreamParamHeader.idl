@@ -41,6 +41,12 @@ module CdrStreamAppendable {
     sequence<long, 5> values;
   };
 
+  @appendable
+  struct bounded_string {
+    long id;
+    string<24> name;
+  };
+
   @final
   struct f1 {
     long m1;
