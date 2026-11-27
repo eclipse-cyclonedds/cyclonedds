@@ -28,6 +28,7 @@ idlc_generate(TARGET CdrStreamKeyExt FILES CdrStreamKeyExt.idl)
 idlc_generate(TARGET CdrStreamKeyFlags FILES CdrStreamKeyFlags.idl)
 idlc_generate(TARGET CdrStreamChecking FILES CdrStreamChecking.idl)
 idlc_generate(TARGET CdrStreamString FILES CdrStreamString.idl)
+idlc_generate(TARGET TrailingOctets FILES TrailingOctets.idl NO_TYPE_INFO WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET CdrStreamParamHeader FILES CdrStreamParamHeader.idl)
 idlc_generate(TARGET CdrStreamSerDes FILES CdrStreamSerDes.idl NO_TYPE_INFO WARNINGS no-enum-consecutive)
 idlc_generate(TARGET CdrStreamXcdr1Opt FILES CdrStreamXcdr1Opt.idl)
@@ -123,6 +124,7 @@ set(ddsc_test_sources
     "test_oneliner.c"
     "test_oneliner.h"
     "cdrstream.c"
+    "trailing_octets.c"
     "serdata_keys.c"
     "sertype.c"
   )
@@ -201,6 +203,7 @@ target_link_libraries(cunit_ddsc PRIVATE
   CdrStreamDataTypeInfo
   CdrStreamChecking
   CdrStreamString
+  TrailingOctets
   CdrStreamParamHeader
   CdrStreamSerDes
   CdrStreamXcdr1Opt

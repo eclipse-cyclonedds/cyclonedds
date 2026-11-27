@@ -4841,6 +4841,54 @@ CU_Test (ddsc_cdrstream, check_appendable_prevent_type_widening_normalize)
 }
 #undef D
 
+#define D(n) (&CdrStreamAppendable_ ## n ## _desc)
+CU_Test (ddsc_cdrstream, check_require_full_consumption_normalize)
+{
+  // Regression coverage for issue #2453: a payload in which the length of a
+  // bounded sequence is zero while the serialized elements are still present.
+  // Octets beyond the extent of the reader's type are indistinguishable from
+  // the serialized form of a different but assignable type, so they are
+  // accepted by default; a reader that knows no type coercion is allowed can
+  // ask for them to be rejected.
+  const struct {
+    const char *name;
+    enum dds_cdr_enc_version xcdr_version;
+    bool normal_valid;
+    bool strict_valid;
+    bool normal_consumes_all;
+    uint32_t cdrsize;
+    const uint8_t *cdr;
+  } tests[] = {
+    { "complete", XCDR1, true, true, true,
+      CDR(STR('o','c','k','g','k','n','z','e'), PAD3, 32,3, 32,63, 32,64, 32,65) },
+    { "seq-len-zero-with-tail", XCDR1, true, false, false,
+      CDR(STR('o','c','k','g','k','n','z','e'), PAD3, 32,0, 32,63, 32,64, 32,65) },
+    { "trailing-octets", XCDR1, true, false, false,
+      CDR(STR('o','c','k','g','k','n','z','e'), PAD3, 32,3, 32,63, 32,64, 32,65, 32,0) },
+    { "seq-truncated", XCDR1, false, false, false,
+      CDR(STR('o','c','k','g','k','n','z','e'), PAD3, 32,3, 32,63) },
+    { "complete", XCDR2, true, true, true,
+      CDR(STR('o','c','k','g','k','n','z','e'), PAD3, 32,3, 32,63, 32,64, 32,65) },
+    { "seq-len-zero-with-tail", XCDR2, true, false, false,
+      CDR(STR('o','c','k','g','k','n','z','e'), PAD3, 32,0, 32,63, 32,64, 32,65) }
+  };
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    uint32_t act_size = 0;
+    tprintf ("running test %"PRIu32" %s for type %s\n", i, tests[i].name, D(bounded_seq)->m_typename);
+    run_test_normalize (D(bounded_seq), tests[i].cdr, tests[i].cdrsize, tests[i].xcdr_version,
+                        tests[i].normal_valid, DDS_STREAM_NORMALIZE_FLAG_NONE, &act_size);
+    if (tests[i].normal_valid && tests[i].normal_consumes_all)
+      CU_ASSERT_EQ_FATAL (act_size, tests[i].cdrsize);
+    run_test_normalize (D(bounded_seq), tests[i].cdr, tests[i].cdrsize, tests[i].xcdr_version,
+                        tests[i].strict_valid, DDS_STREAM_NORMALIZE_FLAG_REQUIRE_FULL_CONSUMPTION, &act_size);
+    if (tests[i].strict_valid)
+      CU_ASSERT_EQ_FATAL (act_size, tests[i].cdrsize);
+  }
+}
+#undef D
+
 
 static bool eq_CdrStreamTryconstruct_t1 (const void *va, const void *vb)
 {
