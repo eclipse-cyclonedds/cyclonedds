@@ -107,18 +107,19 @@ static uint32_t take_samples (dds_entity_t rd, dds_duration_t timeout)
   CU_ASSERT_EQ_FATAL (dds_waitset_detach (ws, rd), DDS_RETCODE_OK);
   dds_delete (ws);
 
-  TrailingOctets_narrow *sample = NULL;
+  void *samples[1] = { NULL };
   dds_sample_info_t si;
-  const uint32_t n = (uint32_t) dds_take (rd, (void **) &sample, &si, 1, 1);
+  const uint32_t n = (uint32_t) dds_take (rd, samples, &si, 1, 1);
   if (n == 1)
   {
+    const TrailingOctets_narrow *sample = samples[0];
     /* the sample is as long as the writer's type and the reader's type covers a
        prefix of it; what the reader makes of it is what it always did */
     CU_ASSERT_EQ_FATAL (si.valid_data, true);
     CU_ASSERT_EQ_FATAL (sample->values._length, 3);
     CU_ASSERT_STREQ (sample->name, "ockgknze");
-    TrailingOctets_narrow_free (sample, DDS_FREE_ALL);
   }
+  CU_ASSERT_EQ_FATAL (dds_return_loan (rd, samples, (int32_t) n), DDS_RETCODE_OK);
   return n;
 }
 
