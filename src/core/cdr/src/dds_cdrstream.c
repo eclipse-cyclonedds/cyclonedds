@@ -6415,7 +6415,17 @@ enum dds_stream_normalize_result dds_stream_normalize_with_flags (void *data, ui
   {
     const uint32_t *tmp_ops = desc->ops.ops;
     *actual_size = 0;
-    return stream_normalize_data_impl (&st, actual_size, &tmp_ops, false);
+    const enum dds_stream_normalize_result res = stream_normalize_data_impl (&st, actual_size, &tmp_ops, false);
+    /* A sample that ends before the reader's type does is invalid (see the
+       required-member checks in the normalizer), but a sample that continues
+       beyond it may be the serialized form of a different, assignable type.
+       Rejecting that is only correct if the reader knows that is not the case,
+       hence the opt-in flag. */
+    if (res == DDS_STREAM_NORMALIZE_SUCCESS &&
+        (flags & DDS_STREAM_NORMALIZE_FLAG_REQUIRE_FULL_CONSUMPTION) &&
+        *actual_size != size)
+      return normalize_error ();
+    return res;
   }
   else
   {

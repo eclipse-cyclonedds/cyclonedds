@@ -113,7 +113,17 @@ enum dds_stream_normalize_result {
  */
 enum dds_stream_normalize_flags {
   DDS_STREAM_NORMALIZE_FLAG_NONE = 0u,
-  DDS_STREAM_NORMALIZE_FLAG_PREVENT_TYPE_WIDENING = 1u << 0
+  DDS_STREAM_NORMALIZE_FLAG_PREVENT_TYPE_WIDENING = 1u << 0,
+  /** Require the normalized extent of a data sample to cover the entire input.
+   * <br>
+   * Without this flag, octets beyond the extent of the reader's type are
+   * accepted and ignored, which is what makes it possible to receive data of a
+   * type that is not (fully) known to the reader. It is therefore only
+   * appropriate when the writer's type is known to be equivalent to the
+   * reader's type, e.g., when the reader is configured to not allow any type
+   * coercion. Encapsulation padding must be excluded from @p size by the
+   * caller. Key-only normalization is not affected by this flag. */
+  DDS_STREAM_NORMALIZE_FLAG_REQUIRE_FULL_CONSUMPTION = 1u << 1
 };
 
 typedef struct dds_istream {

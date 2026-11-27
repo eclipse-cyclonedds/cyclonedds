@@ -34,6 +34,13 @@ module CdrStreamParamHeader {
 };
 
 module CdrStreamAppendable {
+  // bounded sequence and bounded string, as in the report for issue #2453
+  @final
+  struct bounded_seq {
+    string<8> name;
+    sequence<long, 5> values;
+  };
+
   @final
   struct f1 {
     long m1;

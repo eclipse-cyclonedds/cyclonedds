@@ -220,7 +220,8 @@ static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_s
   struct dds_sertype_default *derived_sertype = NULL;
   const struct ddsi_serdata_ops *required_ops;
   const uint32_t required_normalize_flags = tce_qos.prevent_type_widening
-    ? DDS_STREAM_NORMALIZE_FLAG_PREVENT_TYPE_WIDENING : DDS_STREAM_NORMALIZE_FLAG_NONE;
+    ? (DDS_STREAM_NORMALIZE_FLAG_PREVENT_TYPE_WIDENING | DDS_STREAM_NORMALIZE_FLAG_REQUIRE_FULL_CONSUMPTION)
+    : DDS_STREAM_NORMALIZE_FLAG_NONE;
 
   assert (base_sertype);
 
