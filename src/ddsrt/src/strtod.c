@@ -230,7 +230,7 @@ ddsrt_ftostr(float src, char *str, size_t size)
   assert(str != NULL);
 
   /* Use locale dependent standard function. */
-  i = snprintf(str, size, "%0.7g", src);
+  i = snprintf(str, size, "%0.7g", (double) src);
   /* Make sure the result is a locale independent "x.x" float. */
   os_lcNumericReplace(str);
   return i;

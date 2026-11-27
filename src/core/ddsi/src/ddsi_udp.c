@@ -58,7 +58,12 @@ DDSRT_STATIC_ASSERT (DDSI_LOCATOR_UDPv4MCGEN_INDEX_MASK_BITS <= 32 - UDP_MC_ADDR
 #  if defined (__MINGW32__) && !defined (CMSG_SPACE)
 #    define PACKET_DESTINATION_INFO 0
 #  endif
-#  if defined CMSG_SPACE && (defined IP_PKTINFO || (DDSRT_HAVE_IPV6 && defined IPV6_PKTINFO))
+#  if defined(__ZEPHYR__)
+     /* Zephyr has no IP_PKTINFO/IPV6_PKTINFO support on sockets: requesting the
+        packet destination address cannot work, leaving every received packet
+        without a usable destination address. Do not even try. */
+#    define PACKET_DESTINATION_INFO 0
+#  elif defined CMSG_SPACE && (defined IP_PKTINFO || (DDSRT_HAVE_IPV6 && defined IPV6_PKTINFO))
 #    define PACKET_DESTINATION_INFO 1
 #  else
 #    define PACKET_DESTINATION_INFO 0
@@ -595,8 +600,13 @@ static dds_return_t set_mc_options_transmit_ipv4_if (struct ddsi_domaingv const 
 
 static dds_return_t set_mc_options_transmit_ipv4 (struct ddsi_domaingv const * const gv, struct ddsi_network_interface const * const intf, ddsrt_socket_t sock)
 {
+#if defined(__ZEPHYR__)
+  const unsigned int ttl = (unsigned int) gv->config.multicast_ttl;
+  const unsigned int loop = (unsigned int) !!gv->config.enableMulticastLoopback;
+#else /*!__ZEPHYR__*/
   const unsigned char ttl = (unsigned char) gv->config.multicast_ttl;
   const unsigned char loop = (unsigned char) !!gv->config.enableMulticastLoopback;
+#endif /*__ZEPHYR__*/
   dds_return_t rc;
   if ((rc = set_mc_options_transmit_ipv4_if (gv, intf, sock)) != DDS_RETCODE_OK) {
     GVERROR ("ddsi_udp_create_conn: set IP_MULTICAST_IF failed: %s\n", dds_strretcode (rc));

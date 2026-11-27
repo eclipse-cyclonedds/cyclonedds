@@ -67,6 +67,10 @@ ExternalProject_Add(cyclonedds
   BUILD_COMMAND ${CMAKE_COMMAND} --build .
   CMAKE_ARGS
   -DBUILD_SHARED_LIBS=0 -DENABLE_SECURITY=0 -DENABLE_SSL=0 -DENABLE_SOURCE_SPECIFIC_MULTICAST=0 -DENABLE_IPV6=1 -DENABLE_ICEORYX=0 -DWITH_ZEPHYR=1
+    # Do not build the host-side tools (dyntypelib/xmltype): they are linked
+    # with the host compiler against the Zephyr-targeted libddsc.a. The three
+    # options form a dependency chain, so turn them off together.
+    -DENABLE_TYPELIB=0 -DENABLE_TYPE_DISCOVERY=0 -DENABLE_TOPIC_DISCOVERY=0
     -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY
     -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
     -DCMAKE_VERBOSE_MAKEFILE=1
@@ -123,13 +127,18 @@ elseif(BUILD_THROUGHPUT_PUB OR BUILD_THROUGHPUT_SUB)
     src/subscriber.c src/publisher.c)
 
 elseif(BUILD_HELLOWORLD_PUB OR BUILD_HELLOWORLD_SUB)
+  # Absolute path: GENERATE_CDDS_CONF feeds the file to the xxd subprocess,
+  # which resolves relative paths against the build directory.
+  GENERATE_CDDS_CONF("${CMAKE_CURRENT_SOURCE_DIR}/config.xml" "${CDDS_INCLUDE_DIR}/helloworld_config.h")
   target_compile_definitions(app
     PRIVATE
     BUILD_HELLOWORLD_PUB=${BUILD_HELLOWORLD_PUB}
     BUILD_HELLOWORLD_SUB=${BUILD_HELLOWORLD_SUB})
   target_sources(app
     PRIVATE
-    src/main.c
+    src/helloworld_main.c
+    src/helloworld_pub.c
+    src/helloworld_sub.c
     src/HelloWorldData.c
     src/HelloWorldData.h
   )
