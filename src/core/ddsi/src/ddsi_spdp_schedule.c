@@ -236,7 +236,7 @@ static dds_return_t add_peer_address_ports_interface (struct spdp_admin *adm, co
     {
       if (!ddsi_factory_supports (gv->xmit_conns_meta[i]->m_factory, loc->kind))
         continue;
-      switch (ddsi_is_nearby_address (gv, loc, (size_t) gv->n_interfaces, gv->interfaces, NULL))
+      switch (ddsi_is_nearby_address (gv, loc, 1, &gv->interfaces[i], NULL))
       {
         case DNAR_SELF:
         case DNAR_LOCAL:
